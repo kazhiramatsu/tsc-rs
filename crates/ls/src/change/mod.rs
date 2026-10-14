@@ -10,6 +10,7 @@
 //! projection here, its own text (the mapped projections are L10).
 
 mod delete;
+mod insert;
 
 use tsc_emitter::{
     print_and_position, transform_nodes, EmitFlags, NewLineKind, PositionedPrint, PrinterError,

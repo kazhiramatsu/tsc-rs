@@ -3918,7 +3918,7 @@ fn clause_statements_empty(source: &tsc_syntax::SourceFile, clause: NodeId) -> b
 }
 
 /// tsc isDeclarationStatement kind set.
-fn is_declaration_statement_kind(kind: SyntaxKind) -> bool {
+pub fn is_declaration_statement_kind(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::FunctionDeclaration
@@ -3938,7 +3938,7 @@ fn is_declaration_statement_kind(kind: SyntaxKind) -> bool {
 
 /// tsc removeFileExtension (18749): the longest matching known
 /// extension is removed (.d.ts before .ts).
-fn remove_file_extension(path: JsStr<'_>) -> JsStr<'_> {
+pub fn remove_file_extension(path: JsStr<'_>) -> JsStr<'_> {
     for extension in [
         ".d.ts", ".d.mts", ".d.cts", ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs",
         ".json",

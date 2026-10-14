@@ -1702,7 +1702,7 @@ impl<'a> CheckerState<'a> {
     /// Only Node16..NodeNext can override the configured module kind
     /// through this host's modeled implied-format input. Other module
     /// kinds retain their configured emit format.
-    pub(crate) fn emit_module_format_of_file(&self, location: NodeId) -> i32 {
+    pub fn emit_module_format_of_file(&self, location: NodeId) -> i32 {
         let module_kind = self.options.emit_module_kind();
         match self.implied_node_format_for_emit(location) {
             Some(crate::modules::ModuleResolutionMode::CommonJs) => 1,

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generate crates/ls/src/lsutil/unicode_tables.rs, the Unicode tables of
-tsc-rs's organize imports comparers, from the Go packages tsgo's comparers
+tsc-rs's organize imports comparers and auto-import index, from the Go packages tsgo's comparers
 read (unicode and golang.org/x/text/unicode/norm).
 
 usage: generate_unicode_tables.py [--check]

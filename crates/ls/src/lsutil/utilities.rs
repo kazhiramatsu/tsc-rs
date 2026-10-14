@@ -96,3 +96,98 @@ pub(crate) fn probably_uses_semicolons(file: &SourceFile) -> bool {
     }
     with_semicolon * STATEMENTS_TO_OBSERVE > without_semicolon
 }
+
+/// tsgo `ModuleSpecifierToValidIdentifier`: an identifier from a module
+/// specifier's base name (its invalid characters dropped, the letter after
+/// each capitalized), `_`-prefixed when empty or a reserved word.
+pub(crate) fn module_specifier_to_valid_identifier(
+    module_specifier: &str,
+    force_capitalize: bool,
+) -> String {
+    let without_extension = remove_any_file_extension(module_specifier);
+    let trimmed = without_extension
+        .strip_suffix("/index")
+        .unwrap_or(&without_extension);
+    let base_name = tsc_program::base_file_name(trimmed)
+        .to_string_lossy()
+        .into_owned();
+    let mut result = String::new();
+    let mut chars = base_name.chars();
+    let mut last_char_was_valid = true;
+    match chars.next() {
+        Some(first) if tsc_syntax::is_identifier_start(first) => {
+            result.push(if force_capitalize {
+                super::go_unicode::to_upper_char(first)
+            } else {
+                first
+            });
+        }
+        _ => last_char_was_valid = false,
+    }
+    for ch in chars {
+        let is_valid = tsc_syntax::is_identifier_part(ch);
+        if is_valid {
+            result.push(if last_char_was_valid {
+                ch
+            } else {
+                super::go_unicode::to_upper_char(ch)
+            });
+        }
+        last_char_was_valid = is_valid;
+    }
+    // Need `"_"` to ensure result isn't empty.
+    let reserved = tsc_syntax::keyword_kind(&result)
+        .is_some_and(crate::completions::keywords::is_non_contextual_keyword);
+    if !result.is_empty() && !reserved {
+        return result;
+    }
+    format!("_{result}")
+}
+
+/// tsgo `tspath.RemoveAnyFileExtension`: a known extension, else the base
+/// name's last `.`-extension, removed.
+fn remove_any_file_extension(path: &str) -> String {
+    let removed = tsc_binder::bind::remove_file_extension(path.into())
+        .to_string_lossy()
+        .into_owned();
+    if removed.len() != path.len() {
+        return removed;
+    }
+    let base_start = path.rfind('/').map_or(0, |index| index + 1);
+    match path[base_start..].rfind('.') {
+        Some(index) => path[..base_start + index].to_owned(),
+        None => path.to_owned(),
+    }
+}
+
+/// tsgo `GetQuotePreference`: the preference, else the quote of the file's
+/// first imported module.
+pub(crate) fn get_quote_preference(
+    file: &tsc_syntax::SourceFile,
+    preferences: &super::UserPreferences,
+) -> super::QuotePreference {
+    use super::QuotePreference;
+    let preference = preferences.quote_preference;
+    if preference != QuotePreference::UNKNOWN && preference != QuotePreference::AUTO {
+        if preference == QuotePreference::SINGLE {
+            return QuotePreference::SINGLE;
+        }
+        return QuotePreference::DOUBLE;
+    }
+    let first_module_specifier = crate::references::collect_external_module_references(file)
+        .imports
+        .into_iter()
+        .find(|&import| file.arena.node(import).kind == tsc_syntax::SyntaxKind::StringLiteral);
+    match first_module_specifier {
+        Some(specifier)
+            if file.text()[crate::astnav::Navigator::new(file).start_of_node(
+                crate::astnav::Found::Node(crate::tree::View::Node(specifier)),
+                false,
+            ) as usize..]
+                .starts_with('\'') =>
+        {
+            QuotePreference::SINGLE
+        }
+        _ => QuotePreference::DOUBLE,
+    }
+}

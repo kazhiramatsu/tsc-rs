@@ -15,7 +15,7 @@ fn parent_of(state: &CheckerState<'_>, node: NodeId) -> Option<NodeId> {
 }
 
 /// tsgo `ScriptElementKind`.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ScriptElementKind {
     Unknown,
     Warning,
@@ -129,14 +129,21 @@ impl std::ops::BitOrAssign for ScriptElementKindModifier {
     }
 }
 
-/// tsgo `GetSymbolKind`.
+/// tsgo `GetSymbolKind`. `with_checker` is tsgo's non-nil type checker:
+/// without it (the auto-import extractor's nil checker) only the symbol's
+/// binding is read.
 pub fn get_symbol_kind(
     state: &mut CheckerState<'_>,
     symbol: SymbolId,
     location: NodeId,
+    with_checker: bool,
 ) -> CheckResult<ScriptElementKind> {
-    let result =
-        constructor_property_method_accessor_function_or_var_kind(state, symbol, location)?;
+    let result = constructor_property_method_accessor_function_or_var_kind(
+        state,
+        symbol,
+        location,
+        with_checker,
+    )?;
     if result != ScriptElementKind::Unknown {
         return Ok(result);
     }
@@ -171,12 +178,20 @@ fn constructor_property_method_accessor_function_or_var_kind(
     state: &mut CheckerState<'_>,
     symbol: SymbolId,
     location: NodeId,
+    with_checker: bool,
 ) -> CheckResult<ScriptElementKind> {
-    let roots = state.get_root_symbols(symbol)?;
+    let roots = if with_checker {
+        state.get_root_symbols(symbol)?
+    } else {
+        vec![symbol]
+    };
     // A method from a mapped type stays a method while it still has a call
     // signature (not in `{ [K in keyof I]: number }`).
     if let [root] = roots.as_slice() {
         if state.symbol_flags(*root).intersects(SymbolFlags::METHOD) {
+            if !with_checker {
+                return Ok(ScriptElementKind::MemberFunctionElement);
+            }
             let ty = state.get_type_of_symbol_at_location(symbol, Some(location))?;
             let ty = state.get_non_nullable_type(ty)?;
             if !state
@@ -187,17 +202,19 @@ fn constructor_property_method_accessor_function_or_var_kind(
             }
         }
     }
-    if state.is_undefined_symbol(symbol) {
-        return Ok(ScriptElementKind::VariableElement);
-    }
-    if state.is_arguments_symbol(symbol) {
-        return Ok(ScriptElementKind::LocalVariableElement);
-    }
-    if kind_of(state, location) == SyntaxKind::ThisKeyword
-        && state.is_expression_node_like_tsgo(location)
-        || state.is_this_in_type_query(location)
-    {
-        return Ok(ScriptElementKind::ParameterElement);
+    if with_checker {
+        if state.is_undefined_symbol(symbol) {
+            return Ok(ScriptElementKind::VariableElement);
+        }
+        if state.is_arguments_symbol(symbol) {
+            return Ok(ScriptElementKind::LocalVariableElement);
+        }
+        if kind_of(state, location) == SyntaxKind::ThisKeyword
+            && state.is_expression_node_like_tsgo(location)
+            || state.is_this_in_type_query(location)
+        {
+            return Ok(ScriptElementKind::ParameterElement);
+        }
     }
 
     let flags = combined_local_and_export_symbol_flags(state, symbol);
@@ -255,7 +272,8 @@ fn constructor_property_method_accessor_function_or_var_kind(
         return Ok(ScriptElementKind::IndexSignatureElement);
     }
     if flags.intersects(SymbolFlags::PROPERTY) {
-        if flags.intersects(SymbolFlags::TRANSIENT)
+        if with_checker
+            && flags.intersects(SymbolFlags::TRANSIENT)
             && state
                 .get_check_flags(symbol)
                 .intersects(CheckFlags::SYNTHETIC)
@@ -383,13 +401,14 @@ fn is_function_block(state: &CheckerState<'_>, node: NodeId) -> bool {
             .is_some_and(|parent| crate::utilities::is_function_like_kind(kind_of(state, parent)))
 }
 
-/// tsgo `GetSymbolModifiers`.
+/// tsgo `GetSymbolModifiers`; `with_checker` as [`get_symbol_kind`]'s.
 pub fn get_symbol_modifiers(
     state: &mut CheckerState<'_>,
     symbol: SymbolId,
+    with_checker: bool,
 ) -> CheckResult<ScriptElementKindModifier> {
     let mut modifiers = normalized_symbol_modifiers(state, symbol);
-    if state.symbol_flags(symbol).intersects(SymbolFlags::ALIAS) {
+    if with_checker && state.symbol_flags(symbol).intersects(SymbolFlags::ALIAS) {
         let resolved = state.get_aliased_symbol(symbol)?;
         if resolved != symbol {
             modifiers |= normalized_symbol_modifiers(state, resolved);

@@ -67,6 +67,9 @@ pub enum Failure {
     Exit,
     /// The request was cancelled.
     Cancelled,
+    /// tsgo `ls.ErrNeedsAutoImports`: the auto-import requests' handler
+    /// prepares the registry and runs the request again.
+    NeedsAutoImports,
     Error(LspError),
 }
 
@@ -75,6 +78,7 @@ impl std::fmt::Display for Failure {
         match self {
             Self::Exit => formatter.write_str("EOF"),
             Self::Cancelled => formatter.write_str("context canceled"),
+            Self::NeedsAutoImports => formatter.write_str("completion list needs auto imports"),
             Self::Error(error) => formatter.write_str(&error.message),
         }
     }
@@ -705,7 +709,8 @@ impl Server {
                 &preferences,
                 &capabilities,
                 context.locale.messages(),
-            );
+            )
+            .with_project_id(project.id().as_str());
             handle(&mut service)
         })
     }
@@ -1492,7 +1497,7 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
             &mut handlers,
             Server::handle_hover,
         );
-        register_language_service_document_request::<lsproto::TextDocumentCompletionInfo>(
+        register_language_service_with_auto_imports_request::<lsproto::TextDocumentCompletionInfo>(
             &mut handlers,
             Server::handle_completion,
         );
@@ -1520,7 +1525,7 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
             &mut handlers,
             Server::handle_document_on_type_format,
         );
-        register_language_service_document_request::<lsproto::TextDocumentCodeActionInfo>(
+        register_language_service_with_auto_imports_request::<lsproto::TextDocumentCodeActionInfo>(
             &mut handlers,
             Server::handle_code_action,
         );
@@ -1635,6 +1640,81 @@ fn register_language_service_document_request<R: Request + 'static>(
     );
 }
 
+/// tsgo `registerLanguageServiceWithAutoImportsRequestHandler`: as a
+/// document request, but a handler that needs auto-imports runs again on a
+/// snapshot prepared for the document's auto-imports (without the configs'
+/// diagnostics after it).
+fn register_language_service_with_auto_imports_request<R: Request + 'static>(
+    handlers: &mut HashMap<&'static str, Handler>,
+    handle: LanguageServiceHandler<R>,
+) where
+    R::Params: HasTextDocumentUri + Clone + Send + 'static,
+{
+    handlers.insert(
+        R::METHOD,
+        Box::new(move |server, context, request| {
+            if server.session().is_none() {
+                return Err(ErrorCode::SERVER_NOT_INITIALIZED.into());
+            }
+            let params = decode_params::<R::Params>(request)?;
+            let (snapshot, project) = server
+                .initialized_session()
+                .get_snapshot_and_default_project(params.text_document_uri())
+                .map_err(|error| LspError::internal(error.to_string()))?;
+            let server = Arc::clone(server);
+            let context = context.clone();
+            let id = request.id.clone();
+            Ok(Some(Box::new(move || {
+                let response = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let response =
+                        server.with_language_service(&context, &snapshot, &project, |service| {
+                            handle(&server, &context, service, params.clone())
+                        });
+                    if !matches!(response, Err(Failure::NeedsAutoImports)) {
+                        return response;
+                    }
+                    let (snapshot, project) = server
+                        .initialized_session()
+                        .get_snapshot_with_auto_imports(&snapshot, params.text_document_uri())
+                        .map_err(|error| LspError::internal(error.to_string()))?;
+                    context.check()?;
+                    let response =
+                        server.with_language_service(&context, &snapshot, &project, |service| {
+                            handle(&server, &context, service, params)
+                        });
+                    if matches!(response, Err(Failure::NeedsAutoImports)) {
+                        panic!(
+                            "{} returned ErrNeedsAutoImports even after enabling auto imports",
+                            R::METHOD
+                        );
+                    }
+                    response
+                }));
+                let response = match response {
+                    Ok(response) => response?,
+                    Err(panic) => {
+                        let detail = panic
+                            .downcast_ref::<String>()
+                            .cloned()
+                            .or_else(|| panic.downcast_ref::<&str>().map(|text| (*text).to_owned()))
+                            .unwrap_or_default();
+                        return Err(LspError::wrap(
+                            ErrorCode::INTERNAL_ERROR,
+                            format!("panic handling request {}: {detail}", R::METHOD),
+                        )
+                        .into());
+                    }
+                };
+                context.check()?;
+                server
+                    .send_result(id, &response)
+                    .map_err(LspError::internal)?;
+                Ok(())
+            })))
+        }),
+    );
+}
+
 /// tsgo `registerNotificationHandler`.
 fn register_notification<N: Notification + 'static>(
     handlers: &mut HashMap<&'static str, Handler>,
@@ -1658,6 +1738,9 @@ fn register_notification<N: Notification + 'static>(
 
 /// A language service failure: an internal error.
 fn language_service_failure(error: LsError) -> Failure {
+    if error.is_needs_auto_imports() {
+        return Failure::NeedsAutoImports;
+    }
     LspError::internal(error.0).into()
 }
 

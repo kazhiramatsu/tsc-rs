@@ -109,6 +109,8 @@ impl Completions<'_, '_, '_> {
                     is_right_of_open_tag: false,
                     has_unresolved_auto_imports: false,
                     default_commit_characters: Vec::new(),
+                    auto_imports: Vec::new(),
+                    import_statement_completion: None,
                 };
                 let (_, mut items) =
                     self.completion_entries_from_symbols(&data, Some(Touching::Node(token)))?;

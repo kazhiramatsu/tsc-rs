@@ -22,6 +22,7 @@ use crate::fs::{FileChangeSummary, Paths, SnapshotFs, SnapshotFsBuilder};
 use crate::id::{ProjectId, ProjectKind};
 use crate::overlay::{Overlay, OverlayLayer, Overlays};
 use crate::project::{default_project_from_program_inclusion, ProgramUpdateKind, Project};
+use tsc_ls::autoimport::{Registry, RegistryChange, RegistryCloneHost};
 use tsc_ls::lsconv::{Converters, LspLineMap};
 use tsc_ls::lsutil::UserPreferences;
 use tsc_lsproto::PositionEncodingKind;
@@ -177,6 +178,9 @@ pub struct SnapshotChange<'a> {
     /// tsgo `compilerOptionsForInferredProjects`: the inferred projects'
     /// options, when they changed.
     pub compiler_options_for_inferred_projects: Option<Arc<ConfigOptionBag>>,
+    /// tsgo `ResourceRequest.AutoImports`: the file whose auto-imports to
+    /// prepare.
+    pub auto_imports: Option<String>,
 }
 
 /// The API's open state (tsgo `APIState`): the projects and files opened
@@ -325,6 +329,64 @@ impl ProjectCollection {
     }
 }
 
+/// tsgo `autoImportRegistryCloneHost`: the new snapshot's projects for the
+/// registry's update.
+struct AutoImportHost<'a> {
+    projects: &'a ProjectCollection,
+    configs: &'a ConfigFileRegistry,
+    paths: &'a Paths,
+}
+
+impl AutoImportHost<'_> {
+    fn project(&self, id: &str) -> Option<&Arc<Project>> {
+        self.projects
+            .configured
+            .values()
+            .chain(self.projects.synthetic.values())
+            .chain(self.projects.inferred.iter())
+            .find(|project| project.id.as_str() == id)
+    }
+}
+
+impl RegistryCloneHost for AutoImportHost<'_> {
+    fn default_project(&self, path: &str) -> Option<String> {
+        self.projects
+            .default_project(path, self.configs, self.paths)
+            .map(|project| project.id.as_str().to_owned())
+    }
+
+    fn build_project_bucket(
+        &self,
+        project: &str,
+        preferences: &UserPreferences,
+    ) -> Option<(BTreeSet<String>, tsc_ls::autoimport::Index)> {
+        let program = self.project(project)?.program.as_ref()?;
+        program
+            .with_live(|live| {
+                live.with_query_checker(|state| {
+                    tsc_ls::autoimport::build_project_bucket(state, program.prepared(), preferences)
+                })
+            })?
+            .ok()
+    }
+
+    fn indexed_file_paths(&self, project: &str, _preferences: &UserPreferences) -> Vec<String> {
+        let Some(program) = self
+            .project(project)
+            .and_then(|project| project.program.as_ref())
+        else {
+            return Vec::new();
+        };
+        program
+            .with_live(|live| {
+                live.with_query_checker(|state| {
+                    tsc_ls::autoimport::indexed_file_paths(state, program.prepared())
+                })
+            })
+            .unwrap_or_default()
+    }
+}
+
 /// An immutable state of the projects (tsgo `Snapshot`).
 pub struct Snapshot {
     id: u64,
@@ -339,6 +401,8 @@ pub struct Snapshot {
     compiler_options_for_inferred_projects: Option<Arc<ConfigOptionBag>>,
     file_system_override: bool,
     created_programs: Vec<ProjectId>,
+    /// tsgo `AutoImports`: the auto-import registry.
+    auto_imports: Arc<Registry>,
 }
 
 /// tsgo's snapshot as the language service's host: its file system for
@@ -396,6 +460,11 @@ impl tsc_ls::Host for Snapshot {
     /// tsgo `Snapshot.FileExists`.
     fn file_exists(&self, path: &str) -> bool {
         self.fs.base.is_file(path)
+    }
+
+    /// tsgo `AutoImportRegistry`.
+    fn auto_import_registry(&self) -> Option<&Registry> {
+        Some(&self.auto_imports)
     }
 }
 
@@ -711,6 +780,7 @@ impl SnapshotHost {
             compiler_options_for_inferred_projects: None,
             file_system_override: false,
             created_programs: Vec::new(),
+            auto_imports: Arc::new(Registry::new(UserPreferences::new_default())),
         }
     }
 
@@ -731,6 +801,7 @@ impl SnapshotHost {
             api_request: request,
             clean_file_cache,
             compiler_options_for_inferred_projects: new_inferred_options,
+            auto_imports: prepare_auto_imports,
         } = change;
         let overlays = overlays.unwrap_or_else(|| Arc::clone(&base.fs.overlays));
         // tsgo `CloneSnapshot`: an API request's preferences are the new
@@ -845,6 +916,39 @@ impl SnapshotHost {
         if should_clean_file_cache && (clean_file_cache || all_projects().any(built)) {
             fs.retain_files(|path| all_projects().any(|project| project.seen.seen_file(path)));
         }
+        // tsgo `Clone`: the auto-import registry after the change, prepared
+        // for the requested file.
+        let auto_imports = {
+            let to_path = |file_name: &String| self.paths.to_path(file_name);
+            let change = RegistryChange {
+                requested_file: prepare_auto_imports
+                    .map(|file_name| (self.paths.to_path(&file_name), file_name)),
+                open_files: fs
+                    .overlays()
+                    .iter()
+                    .map(|(path, overlay)| (path.clone(), overlay.file_name().to_owned()))
+                    .collect(),
+                changed: file_changes.changed.iter().map(to_path).collect(),
+                created: file_changes.created.iter().map(to_path).collect(),
+                deleted: file_changes.deleted.iter().map(to_path).collect(),
+                rebuilt_programs: all_projects()
+                    .filter(|project| built(project))
+                    .map(|project| {
+                        (
+                            project.id.as_str().to_owned(),
+                            project.program_update_kind == ProgramUpdateKind::NewFiles,
+                        )
+                    })
+                    .collect(),
+                user_preferences: new_config.clone(),
+            };
+            let host = AutoImportHost {
+                projects: &projects,
+                configs: &configs,
+                paths: &self.paths,
+            };
+            Arc::new(base.auto_imports.clone_with(&change, &host))
+        };
         Ok(Snapshot {
             id,
             parent_id: base.id,
@@ -855,6 +959,7 @@ impl SnapshotHost {
             compiler_options_for_inferred_projects,
             file_system_override,
             created_programs,
+            auto_imports,
         })
     }
 

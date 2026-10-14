@@ -2880,6 +2880,17 @@ pub struct SkipTriviaOptions {
     pub in_js_doc: bool,
 }
 
+/// tsgo `GetShebang`: the text's `#!` line, without its line break.
+pub fn get_shebang(text: &str) -> &str {
+    if !text.starts_with("#!") {
+        return "";
+    }
+    let end = text
+        .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+        .unwrap_or(text.len());
+    &text[..end]
+}
+
 /// tsgo `SkipTriviaEx` (scanner/scanner.go:2310-2397).
 pub fn skip_trivia_ex(text: &str, start: usize, options: SkipTriviaOptions) -> usize {
     let mut pos = start;
@@ -3024,7 +3035,8 @@ pub fn is_line_break(ch: char) -> bool {
     matches!(ch, '\n' | '\r' | '\u{2028}' | '\u{2029}')
 }
 
-fn is_single_line_whitespace(ch: char) -> bool {
+/// tsgo `stringutil.IsWhiteSpaceSingleLine`.
+pub fn is_single_line_whitespace(ch: char) -> bool {
     matches!(
         ch,
         ' ' | '\t' | '\u{000B}' | '\u{000C}' | '\u{0085}' | '\u{00A0}' | '\u{1680}' | '\u{2000}'

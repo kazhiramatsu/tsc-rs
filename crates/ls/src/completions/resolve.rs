@@ -51,7 +51,9 @@ impl LanguageService<'_> {
         let fallback = item.clone();
         let resolved =
             self.with_request_at(file, data.position as u32, false, |request, position| {
-                Completions::new(request, file, position).completion_item_details(item, &data)
+                let mut completions = Completions::new(request, file, position);
+                completions.for_item_resolve = true;
+                completions.completion_item_details(item, &data)
             })?;
         Ok(resolved.unwrap_or(fallback))
     }
@@ -74,8 +76,24 @@ impl Completions<'_, '_, '_> {
                 markdown,
             );
         }
-        // The auto-imports' edits (L5).
-        if data.auto_import.is_some() {
+        if let Some(fix) = &data.auto_import {
+            if data.is_import_statement_completion {
+                return Ok(item);
+            }
+            let request = &*self.request;
+            let (edits, description) = crate::autoimport::fix_edits(
+                fix,
+                self.source,
+                request.state.options,
+                request.preferences.format_code_settings.clone(),
+                request.converters,
+                request.preferences,
+                request.catalog,
+            )
+            .unwrap_or_else(|error| panic!("{error}"));
+            let mut item = item;
+            item.additional_text_edits = Some(edits);
+            item.detail = Some(description);
             return Ok(item);
         }
         Ok(match self.symbol_completion_from_item_data(data)? {

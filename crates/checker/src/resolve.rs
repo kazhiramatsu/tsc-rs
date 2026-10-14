@@ -1169,7 +1169,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getLocalSymbolForExportDefault @6.0.3
     /// tsc-hash: db0d13354a1e29a6237f541673b56fdd5e3a4e228e358b7fce92b8bcd09258bd
     /// tsc-span: _tsc.js:17195-17198
-    fn local_symbol_for_export_default(&self, symbol: SymbolId) -> Option<SymbolId> {
+    pub fn local_symbol_for_export_default(&self, symbol: SymbolId) -> Option<SymbolId> {
         let data = self.binder.symbol(symbol);
         let first = *data.declarations.first()?;
         if !has_syntactic_modifier(

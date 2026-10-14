@@ -7,7 +7,7 @@ mod data;
 mod entries;
 mod items;
 mod jsdoc;
-mod keywords;
+pub(crate) mod keywords;
 mod paths;
 mod resolve;
 mod searches;
@@ -23,6 +23,7 @@ use tsc_syntax::SyntaxKind;
 
 use crate::language_service::{LanguageService, LsError};
 
+pub(crate) use context::is_type_element;
 use context::Completions;
 use data::CompletionData;
 
@@ -34,6 +35,7 @@ pub(crate) mod sort_text {
     pub(crate) const MEMBER_DECLARED_BY_SPREAD_ASSIGNMENT: &str = "13";
     pub(crate) const SUGGESTED_CLASS_MEMBERS: &str = "14";
     pub(crate) const GLOBALS_OR_KEYWORDS: &str = "15";
+    pub(crate) const AUTO_IMPORT_SUGGESTIONS: &str = "16";
     pub(crate) const JAVASCRIPT_IDENTIFIERS: &str = "18";
 
     /// tsgo `DeprecateSortText`.
@@ -181,9 +183,12 @@ impl LanguageService<'_> {
         let list = self.with_request(file, &params.position, false, |request, position| {
             let mut completions = Completions::new(request, file, position);
             let list = completions.get_completions_at_position(trigger_character.as_deref())?;
-            Ok(list.map(|list| completions.ensure_item_data(list)))
+            if completions.needs_auto_imports {
+                return Ok(Err(LsError::needs_auto_imports()));
+            }
+            Ok(Ok(list.map(|list| completions.ensure_item_data(list))))
         })?;
-        Ok(match list.flatten() {
+        Ok(match list.transpose()?.flatten() {
             Some(list) => CompletionItemsOrListOrNull::List(list),
             None => CompletionItemsOrListOrNull::Null,
         })

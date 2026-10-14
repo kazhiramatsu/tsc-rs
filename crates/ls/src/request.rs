@@ -26,6 +26,8 @@ pub(crate) struct Request<'s, 'a> {
     pub(crate) host: &'s dyn Host,
     /// The messages of the request's locale.
     pub(crate) catalog: Option<&'s dyn tsc_diagnostics::MessageCatalog>,
+    /// tsgo `projectID`: the program's project.
+    pub(crate) project_id: Option<&'s str>,
 }
 
 /// Where a request is: an LSP position, or a position of the file.
@@ -72,6 +74,7 @@ impl LanguageService<'_> {
         let capabilities = self.capabilities;
         let host = self.host;
         let catalog = self.catalog;
+        let project_id = self.project_id.clone();
         let source_maps = SourceMaps::new(host, converters);
         let prepared = self.program.shared_prepared();
         let result = self.program.with_query_checker(|state| {
@@ -92,6 +95,7 @@ impl LanguageService<'_> {
                 capabilities,
                 host,
                 catalog,
+                project_id: project_id.as_deref(),
             };
             run(&mut request, position)
         });

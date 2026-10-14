@@ -309,7 +309,7 @@ fn is_module_specifier_like(source: &SourceFile, node: NodeId) -> bool {
         arguments.and_then(|arguments| source.arena.node_array(arguments).nodes.first().copied())
     };
     if let NodeData::CallExpression(call) = &source.arena.node(parent).data {
-        if is_require_call(source, parent)
+        if is_require_call(source, parent, false)
             || tsc_syntax::utilities::is_import_call(&source.arena, parent)
         {
             return first_argument(call.arguments) == Some(node);
@@ -321,8 +321,13 @@ fn is_module_specifier_like(source: &SourceFile, node: NodeId) -> bool {
     )
 }
 
-/// tsgo `ast.IsRequireCall(node, false)`.
-fn is_require_call(source: &SourceFile, node: NodeId) -> bool {
+/// tsgo `ast.IsRequireCall`: a `require` call with one argument, a string
+/// literal when `require_string_literal_like_argument`.
+pub(crate) fn is_require_call(
+    source: &SourceFile,
+    node: NodeId,
+    require_string_literal_like_argument: bool,
+) -> bool {
     let NodeData::CallExpression(call) = &source.arena.node(node).data else {
         return false;
     };
@@ -330,10 +335,19 @@ fn is_require_call(source: &SourceFile, node: NodeId) -> bool {
         tsc_binder::node_util::id_text(source, expression) == Some("require")
             && source.arena.node(expression).kind == SyntaxKind::Identifier
     });
+    let Some(arguments) = call
+        .arguments
+        .map(|arguments| source.arena.node_array(arguments).nodes)
+    else {
+        return false;
+    };
     is_require
-        && call
-            .arguments
-            .is_some_and(|arguments| source.arena.node_array(arguments).nodes.len() == 1)
+        && arguments.len() == 1
+        && (!require_string_literal_like_argument
+            || matches!(
+                source.arena.node(arguments[0]).kind,
+                SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
+            ))
 }
 
 /// The text of a string literal or no-substitution template literal.
