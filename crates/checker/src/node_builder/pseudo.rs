@@ -96,68 +96,9 @@ fn literal_type(
     )
 }
 
-/// tsgo `ast.IsDeclaration`: the kinds whose nodes carry declaration data
-/// in tsgo's tree (ast_generated.go), a type parameter only with a parent.
+/// tsgo `ast.IsDeclaration`.
 fn is_declaration_node(checker: &CheckerState<'_>, node: NodeId) -> bool {
-    match checker.kind_of(node) {
-        SyntaxKind::TypeParameter => checker.parent_of(node).is_some(),
-        SyntaxKind::ArrowFunction
-        | SyntaxKind::BinaryExpression
-        | SyntaxKind::BindingElement
-        | SyntaxKind::CallExpression
-        | SyntaxKind::CallSignature
-        | SyntaxKind::ClassDeclaration
-        | SyntaxKind::ClassExpression
-        | SyntaxKind::ClassStaticBlockDeclaration
-        | SyntaxKind::Constructor
-        | SyntaxKind::ConstructSignature
-        | SyntaxKind::ConstructorType
-        | SyntaxKind::EnumDeclaration
-        | SyntaxKind::EnumMember
-        | SyntaxKind::ExportAssignment
-        | SyntaxKind::ExportDeclaration
-        | SyntaxKind::ExportSpecifier
-        | SyntaxKind::FunctionDeclaration
-        | SyntaxKind::FunctionExpression
-        | SyntaxKind::FunctionType
-        | SyntaxKind::GetAccessor
-        | SyntaxKind::ImportClause
-        | SyntaxKind::ImportDeclaration
-        | SyntaxKind::ImportEqualsDeclaration
-        | SyntaxKind::ImportSpecifier
-        | SyntaxKind::IndexSignature
-        | SyntaxKind::InterfaceDeclaration
-        | SyntaxKind::JSDocSignature
-        | SyntaxKind::JSDocTypeLiteral
-        | SyntaxKind::JsxAttribute
-        | SyntaxKind::JsxAttributes
-        | SyntaxKind::JsxSpreadAttribute
-        | SyntaxKind::MappedType
-        | SyntaxKind::MethodDeclaration
-        | SyntaxKind::MethodSignature
-        | SyntaxKind::MissingDeclaration
-        | SyntaxKind::ModuleDeclaration
-        | SyntaxKind::NamedTupleMember
-        | SyntaxKind::NamespaceExport
-        | SyntaxKind::NamespaceExportDeclaration
-        | SyntaxKind::NamespaceImport
-        | SyntaxKind::NoSubstitutionTemplateLiteral
-        | SyntaxKind::NotEmittedTypeElement
-        | SyntaxKind::ObjectLiteralExpression
-        | SyntaxKind::Parameter
-        | SyntaxKind::PropertyAssignment
-        | SyntaxKind::PropertyDeclaration
-        | SyntaxKind::PropertySignature
-        | SyntaxKind::SemicolonClassElement
-        | SyntaxKind::SetAccessor
-        | SyntaxKind::ShorthandPropertyAssignment
-        | SyntaxKind::SourceFile
-        | SyntaxKind::SpreadAssignment
-        | SyntaxKind::TypeAliasDeclaration
-        | SyntaxKind::TypeLiteral
-        | SyntaxKind::VariableDeclaration => true,
-        _ => false,
-    }
+    tsc_binder::node_util::is_declaration_node(checker.binder.source_of_node(node), node)
 }
 
 fn is_accessor(checker: &CheckerState<'_>, node: NodeId) -> bool {
