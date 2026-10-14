@@ -290,6 +290,12 @@ impl CheckerState<'_> {
         )
     }
 
+    /// tsgo `TryGetModuleSpecifierFromDeclaration`: the module specifier of
+    /// an import, export or `require` declaration.
+    pub fn try_get_module_specifier_from_declaration(&self, declaration: NodeId) -> Option<NodeId> {
+        crate::node_builder::specifier::try_get_module_specifier_from_declaration(self, declaration)
+    }
+
     /// tsgo `GetPropertySymbolOfDestructuringAssignment` (services.go:1069-1077):
     /// the property of the destructured type a destructuring assignment's
     /// name stands for.
@@ -415,30 +421,10 @@ impl CheckerState<'_> {
     /// tsgo `ast.IsArrayLiteralOrObjectLiteralDestructuringPattern`: an
     /// array or object literal that is a destructuring assignment's target.
     pub fn is_array_literal_or_object_literal_destructuring_pattern(&self, node: NodeId) -> bool {
-        if !matches!(
-            self.kind_of(node),
-            SyntaxKind::ArrayLiteralExpression | SyntaxKind::ObjectLiteralExpression
-        ) {
-            return false;
-        }
-        let Some(parent) = self.parent_of(node) else {
-            return false;
-        };
-        match self.data_of(parent) {
-            NodeData::BinaryExpression(binary)
-                if binary.left == Some(node)
-                    && binary.operator_token.is_some_and(|operator| {
-                        self.kind_of(operator) == SyntaxKind::EqualsToken
-                    }) =>
-            {
-                true
-            }
-            NodeData::ForOfStatement(statement) if statement.initializer == Some(node) => true,
-            NodeData::PropertyAssignment(_) => self.parent_of(parent).is_some_and(|grandparent| {
-                self.is_array_literal_or_object_literal_destructuring_pattern(grandparent)
-            }),
-            _ => self.is_array_literal_or_object_literal_destructuring_pattern(parent),
-        }
+        tsc_binder::node_util::is_array_literal_or_object_literal_destructuring_pattern(
+            self.binder.source_of_node(node),
+            node,
+        )
     }
 
     /// tsgo `GetSymbolsOfParameterPropertyDeclaration`: a parameter
