@@ -893,7 +893,7 @@ impl<'a> Navigator<'a> {
     ) -> SyntaxKind {
         let token = scanner.token();
         if token == SyntaxKind::LessThanLessThanToken && is_jsx_child(self.view_kind(containing)) {
-            return scanner.re_scan_jsx_token();
+            return scanner.re_scan_jsx_token(true);
         }
         token
     }
