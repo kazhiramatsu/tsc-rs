@@ -191,3 +191,13 @@ pub(crate) fn get_quote_preference(
         _ => QuotePreference::DOUBLE,
     }
 }
+
+/// A message with its arguments in the request's locale (tsgo `Localize`).
+pub(crate) fn localize(
+    catalog: Option<&dyn tsc_diagnostics::MessageCatalog>,
+    message: &'static tsc_diagnostics::DiagnosticMessage,
+    args: &[&str],
+) -> String {
+    let args: Vec<String> = args.iter().map(|&arg| arg.to_owned()).collect();
+    tsc_diagnostics::format_message(message.template_in(catalog), &args)
+}
