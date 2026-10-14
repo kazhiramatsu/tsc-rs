@@ -271,6 +271,25 @@ impl CheckerState<'_> {
         )
     }
 
+    /// tsgo `modulespecifiers.UpdateModuleSpecifier` for a file rename: the
+    /// specifier of `to_file_name` for the import `literal`, from its file
+    /// at `importing_file_name`, in the old specifier's style.
+    pub fn update_module_specifier(
+        &self,
+        importing_file_name: &tsc_types::JsString,
+        literal: NodeId,
+        to_file_name: &tsc_types::JsString,
+        user_preferences: &crate::ModuleSpecifierUserPreferences,
+    ) -> tsc_types::JsString {
+        crate::node_builder::specifier::update_module_specifier(
+            self,
+            importing_file_name,
+            literal,
+            to_file_name,
+            user_preferences,
+        )
+    }
+
     /// tsgo `GetPropertySymbolOfDestructuringAssignment` (services.go:1069-1077):
     /// the property of the destructured type a destructuring assignment's
     /// name stands for.

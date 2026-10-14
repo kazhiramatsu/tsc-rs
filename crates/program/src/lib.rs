@@ -196,8 +196,8 @@ pub use module_resolution::{
     PackageJsonProbe, ResolvedEntrypoint,
 };
 pub use option_validation::{
-    path_is_relative, validate_compiler_options, validate_paths_option_diagnostics,
-    CompilerOptionValidationLocation, CompilerOptionViolation,
+    ensure_path_is_non_module_name, path_is_relative, validate_compiler_options,
+    validate_paths_option_diagnostics, CompilerOptionValidationLocation, CompilerOptionViolation,
 };
 pub use output_directories::{
     build_info_file_name, build_info_file_name_in_build_mode, canonical_emit_path,

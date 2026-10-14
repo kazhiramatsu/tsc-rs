@@ -1346,6 +1346,35 @@ impl ConfigRootPlan {
         &self.extended_source_files
     }
 
+    /// tsgo `GetMatchedIncludeSpec`: the include spec the file at the
+    /// absolute `file_name` matches (`${configDir}` substituted), and
+    /// whether it is the default `**/*` (which matches without a look).
+    pub fn matched_include_spec(
+        &self,
+        file_name: &str,
+        case_sensitive: bool,
+    ) -> Option<(&JsString, bool)> {
+        let first = self.include_specs.first()?;
+        if self.files.is_none() && self.include.is_none() {
+            return Some((first, true));
+        }
+        let directory = js_directory_name(self.config_file_name())
+            .to_string_lossy()
+            .into_owned();
+        self.include_specs
+            .iter()
+            .find(|spec| {
+                crate::vfsmatch::SpecMatcher::new(
+                    &[spec.to_string_lossy()],
+                    &directory,
+                    crate::vfsmatch::Usage::Files,
+                    case_sensitive,
+                )
+                .is_some_and(|matcher| matcher.match_string(file_name))
+            })
+            .map(|spec| (spec, false))
+    }
+
     /// tsgo `PossiblyMatchesFileName`: whether the file at the absolute
     /// `file_name` could be a root of this config: a root file, a literal
     /// include, or a file with a supported extension below a wildcard

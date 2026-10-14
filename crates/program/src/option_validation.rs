@@ -659,6 +659,16 @@ pub fn path_is_relative<'a>(path: impl Into<JsStr<'a>>) -> bool {
         || path.starts_with("..\\")
 }
 
+/// tsgo `EnsurePathIsNonModuleName`: `./` before a path that is neither
+/// absolute nor relative.
+pub fn ensure_path_is_non_module_name(path: &str) -> String {
+    if path_is_absolute(JsStr::from_str(path)) || path_is_relative(JsStr::from_str(path)) {
+        path.to_owned()
+    } else {
+        format!("./{path}")
+    }
+}
+
 /// tsc-port: pathIsAbsolute @6.0.3
 /// tsc-hash: 0e64b150a899a6eb39ac2a3b370896f59ec02bdefdf07106a8740624318eb3f3
 /// tsc-span: _tsc.js:5311-5313

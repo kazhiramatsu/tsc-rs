@@ -9,6 +9,7 @@ mod items;
 mod jsdoc;
 pub(crate) mod keywords;
 mod paths;
+pub(crate) use paths::{possible_original_input_extension_for_extension, trim_contained_path};
 mod resolve;
 mod searches;
 mod strings;

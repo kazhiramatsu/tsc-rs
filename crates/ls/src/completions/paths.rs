@@ -1834,7 +1834,11 @@ fn trim_prefix<'t>(text: &'t str, prefix: &str, case_sensitive: bool) -> Option<
 
 /// tsgo `CaseSensitivity.trimContainedPath`: `child` relative to `parent`
 /// when it is in it.
-fn trim_contained_path(parent: &str, child: &str, case_sensitive: bool) -> Option<String> {
+pub(crate) fn trim_contained_path(
+    parent: &str,
+    child: &str,
+    case_sensitive: bool,
+) -> Option<String> {
     if parent.is_empty() || child.is_empty() {
         return None;
     }
@@ -1961,7 +1965,7 @@ fn declaration_emit_extension_for_path(path: &str) -> String {
 }
 
 /// tsgo `GetPossibleOriginalInputExtensionForExtension`.
-fn possible_original_input_extension_for_extension(path: &str) -> Vec<String> {
+pub(crate) fn possible_original_input_extension_for_extension(path: &str) -> Vec<String> {
     if file_extension_is_one_of(path, &[".d.mts", ".mjs", ".mts"]) {
         return vec![".mts".to_owned(), ".mjs".to_owned()];
     }
@@ -1969,7 +1973,7 @@ fn possible_original_input_extension_for_extension(path: &str) -> Vec<String> {
         return vec![".cts".to_owned(), ".cjs".to_owned()];
     }
     // A custom `.d.x.ts` is `.x`.
-    let declaration = declaration_file_extension(path);
+    let declaration = tsc_program::declaration_file_extension(path);
     if !declaration.is_empty() && declaration != ".d.ts" {
         let inner = &declaration[".d.".len()..declaration.len() - ".ts".len()];
         return vec![format!(".{inner}")];
@@ -1978,22 +1982,6 @@ fn possible_original_input_extension_for_extension(path: &str) -> Vec<String> {
         .iter()
         .map(|&extension| extension.to_owned())
         .collect()
-}
-
-/// tsgo `GetDeclarationFileExtension`.
-fn declaration_file_extension(file_name: &str) -> String {
-    let base = get_base_file_name(&normalize_slashes(file_name));
-    for extension in [".d.ts", ".d.cts", ".d.mts"] {
-        if base.ends_with(extension) {
-            return extension.to_owned();
-        }
-    }
-    if base.ends_with(".ts") {
-        if let Some(index) = base.find(".d.") {
-            return base[index..].to_owned();
-        }
-    }
-    String::new()
 }
 
 /// tsgo `GetEncodedRootLength`: negative for a URL.
