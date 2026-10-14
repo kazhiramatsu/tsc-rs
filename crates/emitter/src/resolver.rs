@@ -81,6 +81,7 @@ impl EmitNodeBuilderFlags {
     pub const WRITE_CLASS_EXPRESSION_AS_TYPE_LITERAL: Self = Self(2048);
     pub const USE_TYPE_OF_FUNCTION: Self = Self(4096);
     pub const ALLOW_EMPTY_TUPLE: Self = Self(524_288);
+    pub const ALLOW_UNIQUE_ES_SYMBOL_TYPE: Self = Self(1_048_576);
     pub const USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE: Self = Self(268_435_456);
     /// The `declarationEmitNodeBuilderFlags` composition at _tsc.js:114263.
     pub const DECLARATION_EMIT: Self = Self(1024 | 2048 | 4096 | 8 | 524_288 | 4 | 1);

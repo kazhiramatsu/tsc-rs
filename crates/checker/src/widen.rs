@@ -57,7 +57,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:67765-67767
     ///
     /// Only FRESH literals widen; regular literals pass through.
-    pub(crate) fn get_widened_literal_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
+    pub fn get_widened_literal_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         let fresh = self.tables.is_fresh_literal_type(ty);
         if flags.intersects(TypeFlags::ENUM_LIKE) && fresh {
