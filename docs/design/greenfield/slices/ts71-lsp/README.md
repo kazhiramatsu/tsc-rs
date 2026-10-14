@@ -931,3 +931,31 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   一致、test（checker 1,802、ls 197 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、
   clippy、fmt。
 - **有界の違い**：`TestContentMapperDocumentHighlights`（L10）、残りは rename（L7c）。
+
+## L7c rename・ファイルの rename（#800）
+
+- **merge**：#800 → `d23c53345`（hosted run 38643214451：rust 10m55s、conformance 21m22s、gates）。commit：b3b24daf2
+  （共有の tspath 補助）、d78c195b8（rename・prepare rename）、e8cd61379（`change_full_extension` の修正）、1f3814515
+  （ファイルの rename）、c5a0900a0（ratchet）。検査の後の main の取り込みは L7b の merge（同じ code）と packet の
+  README だけ。
+- **rename**（`rename.rs`、tsgo `rename.go`）：`GetRenameInfo`（宣言のある symbol、contextual な文字列リテラル型を持つ
+  文字列、label。標準 library・`default` の import・別の `node_modules` package の symbol は不可。相対 module specifier
+  は editor ができればそのファイルを rename）、`ProvideRename`（参照の編集。別名が要るところでは古い名前を残す：
+  shorthand property、binding element、`module.exports` の shorthand、import・export specifier。数値 index は引用符付き。
+  編集の重複は除き、食い違えば答えなし）。`prepareRename` は理由を `RequestFailed` で返す。
+- **compiler 側の修正**：`change_full_extension` を tsgo の `ChangeFullExtension` に（宣言拡張子は `.d` から：
+  `app.d.css.ts` → `app.css`。以前は `app.d.css.css`。拡張子の無い path はそのまま：exports の `./dist/**/*` が
+  `./dist/**/*.*` になっていた）。unit test つき。
+- **ファイルの rename**（`file_rename.rs`、tsgo `file_rename.go`）：config の path（`files`・`include`・`exclude`、path
+  option、`paths`。合わなくなる include には新しい path を足す：tsgo `GetMatchedIncludeSpec` を
+  `ConfigRootPlan::matched_include_spec` に）、相対 triple-slash 参照、対象かファイル自体が動く module specifier
+  （checker に tsgo `UpdateModuleSpecifier` を `update_module_specifier` として追加。解決しない import は動いたファイルと
+  相対 path で補う）、宣言ファイルの元（`foo.d.css.ts` と `foo.css`）。project system に tsgo の全 project の
+  project tree 要求（`DidRequestProjectTrees`）と snapshot の language service project を足し、
+  `workspace/willRenameFiles` はその全部で tsgo の重複除去をする。`textDocument/rename` は tsgo と同じく plain な request
+  handler にした（willRenameFiles を持たない client の module specifier の rename が、既定 project の program の外で
+  ファイルの rename の編集を計算できるように）。
+- **検査（c5a0900a0）**：conformance 0 regressions（全 13,577 full、489 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（243 行 none→full。lsp 3,577 → 3,820 full）、rename・prepareRename・willRenameFiles の 257 場面のうち 253、
+  test（program 681、ls 201 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
+- **有界の違い**：content mapper の 4 場面（L10）。
