@@ -624,3 +624,43 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   `liftToBlock`）、formatter の assert で落ちる。tsc-rs は `else` のある `if` と同じに整形する。入れ子の namespace の暗黙の
   `export` の modifier list の位置は tsgo の -1 でなく 0（formatter は modifier を一つずつ読む）。`printNode` は
   `preserveSourceNewlines` をまだ使わない（L8b-2）。
+
+## L8b-2 行の区切り・change tracker・organize imports・codeAction（PR #792）
+
+- **merge**：#792 → `97e04c83b`（hosted run 38524336858：rust 12m47s、conformance 21m34s、gates）。commit：33b851b4b（tsgo の
+  行の区切りと source の node の `preserveSourceNewlines`）、b1121eb25（change tracker、organize imports、
+  `textDocument/codeAction`）、3e3b3a3d5（JSDoc 補完の改行）、1632d7530（ratchet）、6026fcfe2（`emitList` の MultiLine 規則）。
+- **印字**（`crates/emitter/src/printer.rs`）：tsgo の `getLeadingLineTerminatorCount`・`getSeparatingLineTerminatorCount`・
+  `getClosingLineTerminatorCount`（`getEffectiveLines`、`siblingNodePositionsAreComparable`、`originalNodesHaveSameParent`、
+  `shouldEmitOnNewLine`、括弧式の前後の改行）を change tracker が印字する全 list に。tsgo は source の行を、親のない最初の
+  子と一つの original の親を持つ parse 済みの兄弟だけで読み、`shouldEmitOnNewLine` は合成の node に限らず
+  StartOnNewLine を読む。`emitList` の規則（MultiLine の node の list に PreferNewLine と Indented）を全 list で共有
+  （`shouldEmitOnMultipleLines`。配列リテラルと binding pattern に無かった）。JSX の children の配列は改行の印を外す。
+  `print_and_position` は source file のある node を印字し、位置を写し（`NodeArena::copy_subtree`）に付ける。
+- **change tracker**（`crates/ls/src/change/`）：tsgo の `ls/change`。text・node・複数 node の置き換えと削除（list の要素、
+  import、宣言：`delete.go`）、trivia の option による範囲（`getAdjustedStartPosition`・`EndPosition`）、`GetChanges`
+  （印字・整形・重なりの検査）。node は tracker の emit arena に住み（file の node は同じ id、新しい node は factory）、
+  `Tracker::syntax` が両方を読む。
+- **organize imports**（`crates/ls/src/organize_imports.rs`、`lsutil/organize_imports.rs`）：未使用の import の除去（tsgo の
+  checker の `IsDeclarationUsed`・`IsSymbolReferencedInFile`：参照の候補位置、shorthand、export specifier の local symbol、
+  JSX の namespace と fragment factory）、空行での group 分け、属性ごとの結合（source phase、default と namespace、named、
+  `a as a`）、検出した comparer（ordinal・natural・Unicode。表は `scripts/generate_unicode_tables.py` が Go の `unicode` と
+  `norm` から生成し、`--check` で照合）での並べ替え、export の結合と並べ替え、ambient module。
+- **codeAction**（`crates/ls/src/code_actions.rs`、LSP）：organize imports の 3 kind（`source.organizeImports(.ts)`、
+  `sortImports`、`removeUnusedImports`）。tsgo の quick fix と fix-all は code fix の provider が出すもので、provider の
+  ない今は何も加えない（tsgo の loop と同じ）。
+- **修正**：JSDoc の `@param` 補完の改行。tsc-rs の `newLine` は crlf 0・lf 1、tsgo の enum は CRLF 1・LF 2 で、lf が CRLF に
+  なっていた（`lsutil::new_line_kind` を共有）。
+- **tsc 6.0.3 の契約 fixture**：list format flags 24、mapped type members 163（既存の override 312 の内）、import type
+  attributes 2、printer failure hooks 1 の観測を tsgo の印字に置き換え（`tsgo_overrides` に理由）。Go の probe で tsgo の
+  printer に同じ木を印字させ、両 fixture の 488 ケースすべてで一致。
+- **回帰 test**：`crates/ls/tests/insertion.rs`（source の node 109 文の印字と位置）、`crates/ls/tests/completion.rs`
+  （JSDoc の改行：crlf・lf・既定。tsgo の Go probe から）、emitter の契約 fixture。
+- **検査（6026fcfe2）**：conformance 0 regressions（全 13,577 full、483 s）、`--checkers 4` は既知の 4 だけ違う、suites 0
+  regressions（ratchet は b1121eb25 の後に 242 行 none→full。lsp 2,208 → 2,450 full、codeAction 291/772 = organize
+  imports 140/140 と空の quick fix 151）、API client sync 340/356・async 349/365、test（syntax 250、binder 78、checker
+  1,798、emitter 348、ls 180、lsp 14、api 297、project 186、compiler 225、conformance 49）、clippy、fmt。
+- **有界の違い**：quick fix 480 と fix-all 1（import の修正は L5、型注釈と interface の実装は L8c）、content mapper（L10）。
+  tsc-rs の `clone_node` は位置を消し（tsc 6.0.3）、tsgo の `Clone` は保つ（印字の照合は同じ木で行った）。
+- **次**：L5 auto-import（registry、import の修正、completion の auto-import、code action の再試行）。L8c の二つの provider は
+  import adder を使うので L5 の後。
