@@ -1269,7 +1269,7 @@ impl Completions<'_, '_, '_> {
                     if !(Some(previous) == facts.context_token
                         && facts.import_statement_completion.is_some())
                     {
-                        lower_case_token_text = crate::lsutil::go_unicode::to_lower(
+                        lower_case_token_text = tsc_syntax::go_unicode::to_lower(
                             self.identifier_text(previous).unwrap_or_default(),
                         );
                     }

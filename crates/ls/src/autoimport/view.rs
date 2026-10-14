@@ -16,7 +16,7 @@ use tsc_types::{InternalSymbolName, SymbolFlags};
 use super::export::{Export, ExportId, ExportSyntax, ModuleId};
 use super::extract::try_get_module_id_and_file_name_of_module_symbol;
 use super::registry::Registry;
-use crate::lsutil::go_unicode::{is_upper, to_upper_char};
+use tsc_syntax::go_unicode::{is_upper, to_upper_char};
 use crate::references::{collect_external_module_references, statements};
 use crate::utilities::path_key;
 
