@@ -808,3 +808,33 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 - **段階**：L8c-1 interface の実装（`codeactions_fixclassincorrectlyimplementsinterface.go` 242、`missingmemberfixer.go` 514：
   property・accessor・method・index signature、stub の body、class member の挿入）。L8c-2 型注釈
   （`codeactions_fixmissingtypeannotation.go` 1,421）。
+
+## L8c-1 interface の実装（PR #796）
+
+- **merge**：#796 → `8bbdc20ca`（hosted run 38601240787：rust 9m38s、conformance 28m35s、gates）。commit：92c0ba566（node builder
+  を呼び出し側の arena に、thisless の instantiation、匿名の名前、型の子の comment）、63caa9074（interface の実装）、c65d0576e
+  （ratchet）。
+- **provider**（`code_actions/implement_interface.rs`、`missing_member.rs`）：tsgo の
+  `FixClassIncorrectlyImplementsInterfaceProvider` と missing member fixer。実装する型ごとの `Implement interface 'I'` と fix-all
+  `Implement all unimplemented interfaces`（全 diagnostic の class）。足りない member（宣言も継承もなく private でないもの）と
+  class に無い number・string の index signature を node builder の型で property・accessor・method にし、stub の body
+  （`throw new Error("Method not implemented.")`）をつけて constructor の後か class の先頭（`InsertMemberAtStart`）に挿入する。
+  型の中の import type は import adder（`AddImportFromExportedSymbol`）で import にする。
+- **基盤**：node builder の出力（型・signature・index signature）を呼び出し側の transform arena に作る checker の export
+  （idToSymbol 付き）。change tracker は program の file をその id で mount し、node builder が再利用した node の位置と comment
+  が残る。
+- **compiler の修正**（それぞれ Rust の test 付き）：
+  - `instantiateSymbol`（tsgo checker.go:21166-21200）：`this` だけを写す mapper では `this` を含まない symbol をそのまま返し、
+    `isThisless` は parameter も見る（tsc 6.0.3 の版のままだった）。`I<this>` の member の parameter が宣言のままになり、
+    node builder が `i is I` を再利用できる（`boolean` に落ちていた）。
+  - `getNameOfSymbolAsWritten`（nodebuilderimpl.go:974-1027）：匿名の class・関数の名前を書くのは、匿名の識別子を許さない
+    限り node builder の error（匿名の class を返す method には action を出さない）。
+  - 宣言出力の comment：signature の return type、型 parameter の名前・制約・既定、mapped type の parameter・name type・type、
+    template literal type の span の型、関数型の return type の後ろの comment を tsgo のとおり出す（`m(): string /** c */;` の
+    comment が落ちていた。conformance は検出しない）。
+- **検査（63caa9074 のコード）**：conformance 0 regressions（全 13,577 full、470 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（ratchet は HEAD から `--update`：92 行 none→full。lsp 2,846 → 2,938 full）、2420・2720 の diagnostic を持つ
+  96 場面すべて一致、宣言出力の probe 4 file が tsgo と byte 一致、test（checker 1,802、compiler 226、ls 184 ほか全通過）、
+  API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
+- **有界の違い**：lsp の 21 の panic（`completions/jsdoc.rs:565`、続く `checker/src/emit.rs:242` の PoisonError）は main と
+  同じで、すべて `TestContentMapper*` の 10 場面（content mapper の file の completion）＝ L10。
