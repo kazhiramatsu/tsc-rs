@@ -838,3 +838,96 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
 - **有界の違い**：lsp の 21 の panic（`completions/jsdoc.rs:565`、続く `checker/src/emit.rs:242` の PoisonError）は main と
   同じで、すべて `TestContentMapper*` の 10 場面（content mapper の file の completion）＝ L10。
+
+## L8c-2 型注釈の code fix（PR #797）
+
+- **merge**：#797 → `91773991b`（hosted run 38610122507：rust 13m36s、conformance 20m53s、gates）。commit：3c2d08aaf（checker・
+  emitter の export）、d91ed0fac（型注釈の code fix）、8caf60d71（ratchet）。
+- **provider**（`code_actions/missing_type_annotation.rs`）：tsgo の `IsolatedDeclarationsFixProvider`
+  （`codeactions_fixmissingtypeannotation.go`）。`Add annotation of type`、`Add return type`、`Add satisfies and an inline type
+  assertion`、`Extract …`、expando、`Mark array literal as const` と fix-all `Add all missing type annotations`。
+- **基盤**：change tracker の `try_insert_type_annotation`、arrow function の parameter の括弧、一行の印字（tsgo
+  `typeToStringForDiag`：157 byte で切り `...`、切った byte ごとに U+FFFD）。emitter の `deep_clone_node`（tsgo
+  `DeepCloneNode`：宣言出力の位置の無い部分木の共有はしない）と、node builder の emit flag・comment を忘れる
+  `forget_emit_flags_and_comments`（tsgo の `TypeToTypeNodeEx` は新しい EmitContext で作るので、tracker は builder の flag を
+  見ない：tuple が複数行にならない）。checker の export：`type_predicate_to_type_predicate_node_in_arena`、
+  `requires_adding_implicit_undefined`、`get_widened_literal_type`、`EmitNodeBuilderFlags::ALLOW_UNIQUE_ES_SYMBOL_TYPE`。
+  tsgo の `ast.IsDeclaration` は `node_util::is_declaration_node` に一本化。
+- **検査（8caf60d71）**：conformance 0 regressions（全 13,577 full、475 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（ratchet は HEAD から `--update`：68 行 none→full。lsp 2,938 → 3,006 full）、対象の 69 場面のうち 68 が一致、
+  test（checker 1,802、compiler 226、ls 184 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、
+  clippy、fmt。
+- **有界の違い**：`TestContentMapperDiagnosticCodeDoesNotSelectTypeScriptFix`（content mapper の file＝L10）。
+
+
+## L7 参照・rename・移動の計画
+
+- **対象**（transcript の欠けている応答を持つ場面の数）：references 405、rename 203、documentHighlight 139（L6 の機能だが参照の
+  検索を使う）、sourceDefinition 91、implementation 69、willRenameFiles 40、call hierarchy 39（prepare・incoming・outgoing）、
+  prepareRename 26、workspace symbol 17、code lens 16（resolve を含む）、multiDocumentHighlight 7、`_vs_references` 6。
+- **順**：参照の検索がこの多くの土台なので、L6 より先に行う（利用者の指示：順は任せる）。
+- **段階**：
+  - L7a 参照の検索（`findallreferences.go` 2,764、`importTracker.go` 768）：entry と definition、symbol の scope、名前の
+    文字列検索と位置の検証、関連 symbol（root symbol、基底型の同名の property、contextual type の property、分割代入、
+    parameter property、export specifier）、import・export の追跡（直接の import の表、間接の利用者、名前空間 import、
+    re-export）、特別な参照（this・super・label・keyword・`import.meta`・文字列リテラル）、module の参照（import・
+    triple-slash・暗黙の JSX runtime と import helper）、constructor と class の検索、実装の queue。`textDocument/references`、
+    `_vs_references`、`textDocument/implementation`。
+  - L7b document highlight（`documenthighlights.go` 797）と `custom/textDocument/multiDocumentHighlight`。
+  - L7c rename（`rename.go` 463：`prepareRename`、`rename`、prefix・suffix の文字列）と `workspace/willRenameFiles`
+    （`file_rename.go` 404）。
+  - L7d call hierarchy（`callhierarchy.go` 1,138）と code lens（`codelens.go` 243）。
+  - L7e source definition（`sourcedefinition.go` 749）、workspace symbol、複数 project の orchestrator（`crossproject.go` 436）。
+- **checker**：既にある `GetRootSymbols`、`GetPropertySymbolsFromContextualType`、`GetShorthandAssignmentValueSymbol`、
+  `GetExportSpecifierLocalTargetSymbol`、`GetImmediateAliasedSymbol` に、`GetPropertySymbolOfDestructuringAssignment`、
+  `GetSymbolsOfParameterPropertyDeclaration`、emit resolver の `IsDeclarationVisible` の export を足す。
+
+## L7a 参照の検索（#798）
+
+- **merge**：#798 → `fc5829124`（hosted run 38632470929：rust 13m3s、conformance 30m46s、gates。最初の run の後に main
+  が進み、branch protection の strict（base に追いついていること）で merge できなかったので `gh pr update-branch` で
+  main を取り込み、その run で通った）。commit：e72d75eb6（compiler 側）、954f9eb58（language service）、703883718
+  （ratchet）。
+- **compiler 側**：JSDoc の `C#m` を qualified name に、`@see {…}` の link 名（tsgo `parseJSDocLinkName`・
+  `parseJSDocNameReference`。tsc 6.0.3 の `JSDocMemberName` は消した）、tsgo の `resolveJSDocMemberName` と class member の
+  fallback。reparse の模倣（`GetReparsedNodeForNode`）を typedef・callback の名前、`@callback`・`@overload` の
+  parameter、type literal の property 名へ。checker の export：`GetPropertySymbolOfDestructuringAssignment`（分割代入の
+  検査は tsgo と同じく型を返す）、`IsArrayLiteralOrObjectLiteralDestructuringPattern`、
+  `GetSymbolsOfParameterPropertyDeclaration`、synthetic import の module symbol、write access、super container。
+  `tsc_program::synthetic_imports`（`tslib`・JSX runtime）を module request の計画と language service で共有。
+- **language service**（`find_all_references/`）：特別な検索（型 keyword、`import.meta`、label、this、super、文字列
+  リテラル、module）、symbol の検索（scope、関連 symbol、基底型、contextual な property、分割代入、parameter property、
+  export specifier、constructor・class）、import tracker（直接の import、間接の利用者、名前空間 import、re-export、JSDoc
+  `@import`、import type）、module の参照、実装の queue、VS references（quick info の run と read/write の種別）。
+  JavaScript file の `@import` を module の参照に数える（tsgo の reparse した `JSImportDeclaration` の位置）が、
+  auto-import の既存 import には数えない（tsgo の `JSDocImportTag` の case は成り立たない）。回帰 test は
+  `crates/ls/tests/references.rs`（11 件）。
+- **検査（703883718）**：conformance 0 regressions（全 13,577 full、485 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（ratchet は HEAD から `--update`：424 行 none→full。lsp 3,006 → 3,430 full）、参照の 480 場面のうち 440 が
+  一致、test（checker 1,802、ls 195 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、
+  fmt。
+- **有界の違い**：複数 project の 6 場面（L7e の orchestrator）、content mapper の 5 場面（L10）、残りは rename・
+  highlight・source definition（L7b・L7c・L7e）。
+- **教訓**：main の branch protection は strict。PR が base より遅れていると gates が通っても merge できない。merge の前に
+  `gh pr update-branch`、head branch は `state` が MERGED になってから消す（先に消すと PR が閉じる）。
+
+## L7b document highlight（#799）
+
+- **merge**：#799 → `b0672b2c0`（hosted run 38637173027：rust 13m7s、conformance 21m35s、gates）。commit：8c5e4a0ee（checker
+  の this 型）、59c70ce72（document highlight）、43ea828b1（ratchet）。検査の後の main の取り込み（759fb2fcf）は packet の
+  README だけ。
+- **checker**：this を持たない interface の this 型は error 型（tsgo の `getThisType` は
+  `Coalesce(declaredType.thisType, errorType)`）。`typeof this` だけを持つ interface では ContainsThis が立たず this 型が
+  無い。tsc-rs は language service がその `this` の symbol を問うと panic していた（`TestDocumentHighlightTypeofThis`）。
+  compiler はそこに来ない（その file の診断は tsgo と同じ）。
+- **language service**（`document_highlights.rs`、tsgo `documenthighlights.go`）：JSX tag の開きと閉じ、file（または検索
+  する file）の中の symbol の参照（L7a の検索を adjusted location なしで、read・write の種別つき）、それ以外は keyword
+  の組（if/else、return/throw、try/catch/finally、switch/case/default、loop と break/continue、accessor、constructor、
+  async/await、yield、modifier）。共有：`Navigator::children_from_non_js_doc`（tsgo `getChildrenFromNonJSDocNode`）、
+  欠けた（幅 0 の）token の開始位置（tsgo `GetTokenPosOfNode`）、completion と formatter の
+  `IsWhiteSpaceSingleLine` を一つに。回帰 test は `crates/ls/tests/references.rs`。
+- **検査（43ea828b1）**：conformance 0 regressions（全 13,577 full、487 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（147 行 none→full。lsp 3,430 → 3,577 full）、highlight の 153 場面のうち 147、参照の 480 場面のうち 442 が
+  一致、test（checker 1,802、ls 197 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、
+  clippy、fmt。
+- **有界の違い**：`TestContentMapperDocumentHighlights`（L10）、残りは rename（L7c）。
