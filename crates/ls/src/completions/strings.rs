@@ -22,19 +22,19 @@ use super::{
 };
 
 /// tsgo `completionsFromTypes`.
-struct CompletionsFromTypes {
-    types: Vec<TypeId>,
+pub(super) struct CompletionsFromTypes {
+    pub(super) types: Vec<TypeId>,
     is_new_identifier: bool,
 }
 
 /// tsgo `completionsFromProperties`.
-struct CompletionsFromProperties {
-    symbols: Vec<SymbolId>,
+pub(super) struct CompletionsFromProperties {
+    pub(super) symbols: Vec<SymbolId>,
     has_index_signature: bool,
 }
 
 /// tsgo `stringLiteralCompletions`: the kind of it that is set.
-enum StringLiteralCompletions {
+pub(super) enum StringLiteralCompletions {
     Types(CompletionsFromTypes),
     Properties(CompletionsFromProperties),
     Paths(PathCompletions),
@@ -179,7 +179,7 @@ impl Completions<'_, '_, '_> {
     }
 
     /// tsgo `getStringLiteralCompletionEntries`.
-    fn string_literal_completion_entries(
+    pub(super) fn string_literal_completion_entries(
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<StringLiteralCompletions>> {

@@ -28,6 +28,12 @@ pub(crate) struct Request<'s, 'a> {
     pub(crate) catalog: Option<&'s dyn tsc_diagnostics::MessageCatalog>,
 }
 
+/// Where a request is: an LSP position, or a position of the file.
+enum RequestPosition<'p> {
+    Lsp(&'p Position),
+    Offset(u32),
+}
+
 impl LanguageService<'_> {
     /// Run `run` over the program's query checker at the position of a
     /// document without a content mapper (one position); none for a program
@@ -36,6 +42,28 @@ impl LanguageService<'_> {
         &mut self,
         file: usize,
         position: &Position,
+        links: bool,
+        run: impl FnOnce(&mut Request<'_, '_>, u32) -> CheckResult<T>,
+    ) -> Result<Option<T>, LsError> {
+        self.with_request_where(file, RequestPosition::Lsp(position), links, run)
+    }
+
+    /// [`Self::with_request`] at a position of the file (a completion
+    /// item's data).
+    pub(crate) fn with_request_at<T>(
+        &mut self,
+        file: usize,
+        position: u32,
+        links: bool,
+        run: impl FnOnce(&mut Request<'_, '_>, u32) -> CheckResult<T>,
+    ) -> Result<Option<T>, LsError> {
+        self.with_request_where(file, RequestPosition::Offset(position), links, run)
+    }
+
+    fn with_request_where<T>(
+        &mut self,
+        file: usize,
+        position: RequestPosition<'_>,
         links: bool,
         run: impl FnOnce(&mut Request<'_, '_>, u32) -> CheckResult<T>,
     ) -> Result<Option<T>, LsError> {
@@ -48,7 +76,12 @@ impl LanguageService<'_> {
         let prepared = self.program.shared_prepared();
         let result = self.program.with_query_checker(|state| {
             let source = state.binder.source(file);
-            let position = converters.from_lsp_position(&script_of(source), position) as u32;
+            let position = match position {
+                RequestPosition::Lsp(position) => {
+                    converters.from_lsp_position(&script_of(source), position) as u32
+                }
+                RequestPosition::Offset(position) => position,
+            };
             let mut request = Request {
                 state,
                 converters,

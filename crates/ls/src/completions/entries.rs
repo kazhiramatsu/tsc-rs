@@ -1166,7 +1166,7 @@ impl Completions<'_, '_, '_> {
     }
 
     /// tsgo `completionNameForLiteral`.
-    fn completion_name_for_literal(&self, literal: &LiteralValue) -> String {
+    pub(super) fn completion_name_for_literal(&self, literal: &LiteralValue) -> String {
         match literal {
             LiteralValue::String(text) => self.quote_js(&text.to_js_string()),
             // Go's JSON encoding of a float: ES's number formatting, but
@@ -1592,7 +1592,7 @@ impl CaseClauseTracker {
 }
 
 /// tsgo `getSourceFromOrigin`.
-fn source_from_origin(origin: Option<&SymbolOriginInfo>) -> &'static str {
+pub(super) fn source_from_origin(origin: Option<&SymbolOriginInfo>) -> &'static str {
     if origin_is(origin, origin_kind::THIS_TYPE) {
         return SOURCE_THIS_PROPERTY;
     }

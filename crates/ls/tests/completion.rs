@@ -20,7 +20,7 @@ use tsc_ls::lsutil::{
 };
 use tsc_ls::LanguageService;
 use tsc_lsproto::{
-    CompletionContext, CompletionParams, CompletionTriggerKind, DocumentUri, Position,
+    CompletionContext, CompletionParams, CompletionTriggerKind, DocumentUri, MarkupKind, Position,
     PositionEncodingKind, ResolvedClientCapabilities, TextDocumentIdentifier,
 };
 use tsc_program::{
@@ -172,6 +172,53 @@ fn completion_with(
     (line, character): (u32, u32),
     trigger_character: Option<&str>,
 ) -> Value {
+    with_service(files, options, preferences, snippets, |service| {
+        let params = CompletionParams {
+            text_document: TextDocumentIdentifier {
+                uri: DocumentUri(format!("file://{file}")),
+            },
+            position: Position { line, character },
+            work_done_token: None,
+            partial_result_token: None,
+            context: Some(CompletionContext {
+                trigger_kind: if trigger_character.is_some() {
+                    CompletionTriggerKind::TRIGGER_CHARACTER
+                } else {
+                    CompletionTriggerKind::INVOKED
+                },
+                trigger_character: trigger_character.map(str::to_owned),
+            }),
+        };
+        let response = service.provide_completion(&params).expect("an answer");
+        sorted(serde_json::to_value(&response).expect("the response as JSON"))
+    })
+}
+
+/// tsgo's `completionItem/resolve` of `item` (an item tsgo's completion
+/// gave, with its data), for the fourslash client.
+fn resolve(files: &[(&str, &str)], options: CompilerOptions, item: &str) -> Value {
+    with_service(
+        files,
+        options,
+        UserPreferences::default(),
+        false,
+        |service| {
+            let item = tsc_lsproto::from_str(item).expect("tsgo's item");
+            let response = service.resolve_completion_item(item).expect("an answer");
+            serde_json::to_value(&response).expect("the response as JSON")
+        },
+    )
+}
+
+/// The language service over the files, for the fourslash client (which
+/// takes snippets or not).
+fn with_service(
+    files: &[(&str, &str)],
+    options: CompilerOptions,
+    preferences: UserPreferences,
+    snippets: bool,
+    run: impl FnOnce(&mut LanguageService<'_>) -> Value,
+) -> Value {
     let mut builder = MemoryCompilerHost::builder("/").case_sensitive(true);
     for (name, text) in files {
         builder = builder.file(PathBuf::from(name), text.as_bytes());
@@ -215,6 +262,8 @@ fn completion_with(
     completion.completion_item.insert_replace_support = true;
     completion.completion_item.preselect_support = true;
     completion.completion_item.snippet_support = snippets;
+    completion.completion_item.documentation_format =
+        vec![MarkupKind::MARKDOWN, MarkupKind::PLAIN_TEXT];
     completion.completion_list.item_defaults =
         vec!["commitCharacters".to_owned(), "editRange".to_owned()];
     let mut service = LanguageService::new(
@@ -225,24 +274,7 @@ fn completion_with(
         &capabilities,
         None,
     );
-    let params = CompletionParams {
-        text_document: TextDocumentIdentifier {
-            uri: DocumentUri(format!("file://{file}")),
-        },
-        position: Position { line, character },
-        work_done_token: None,
-        partial_result_token: None,
-        context: Some(CompletionContext {
-            trigger_kind: if trigger_character.is_some() {
-                CompletionTriggerKind::TRIGGER_CHARACTER
-            } else {
-                CompletionTriggerKind::INVOKED
-            },
-            trigger_character: trigger_character.map(str::to_owned),
-        }),
-    };
-    let response = service.provide_completion(&params).expect("an answer");
-    sorted(serde_json::to_value(&response).expect("the response as JSON"))
+    run(&mut service)
 }
 
 /// A response with its items in label order.
@@ -3193,5 +3225,127 @@ fn no_completions_in_a_short_unterminated_comment() {
     assert_eq!(
         completion(&files, compiler_options(), "/emptyFile.ts", (0, 3), None),
         tsgo(r#"null"#),
+    );
+}
+/// A keyword's details: its name.
+#[test]
+fn resolve_a_keyword() {
+    let files = [("/completionResolveKeyword.ts", "class C {\n\t\n}")];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        resolve(
+            &files,
+            compiler_options(),
+            r#"{"label": "abstract", "kind": 14, "sortText": "15", "data": {"fileName": "/completionResolveKeyword.ts", "position": 11, "name": "abstract"}}"#
+        ),
+        tsgo(
+            r#"{"label": "abstract", "kind": 14, "detail": "abstract", "sortText": "15", "data": {"fileName": "/completionResolveKeyword.ts", "position": 11, "name": "abstract"}}"#
+        ),
+    );
+}
+
+/// A JSDoc tag's details: its name.
+#[test]
+fn resolve_a_jsdoc_tag() {
+    let files = [(
+        "/completionsJsdocTag.ts",
+        "/**\n * @typedef {object} T\n * \n */",
+    )];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        resolve(
+            &files,
+            compiler_options(),
+            r#"{"label": "@property", "kind": 14, "sortText": "11", "data": {"fileName": "/completionsJsdocTag.ts", "position": 30, "name": "@property"}}"#
+        ),
+        tsgo(
+            r#"{"label": "@property", "kind": 14, "detail": "@property", "sortText": "11", "data": {"fileName": "/completionsJsdocTag.ts", "position": 30, "name": "@property"}}"#
+        ),
+    );
+}
+
+/// The details of string literal completions: a literal type's name, a property's quick info and documentation.
+#[test]
+fn resolve_string_literal_completions() {
+    let files = [
+        ("/a.ts", "import {} from \"./\";\n\nconst x: \"a\" = \"\";\n\ninterface I {\n    /** Prop doc */\n    x: number;\n    /** Method doc */\n    m(): void;\n}\ndeclare const o: I;\no[\"\"];"),
+        ("/other.ts", "export const x = 0;"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        resolve(
+            &files,
+            compiler_options(),
+            r#"{"label": "a", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 2, "character": 16}, "end": {"line": 2, "character": 16}}, "newText": "a"}, "data": {"fileName": "/a.ts", "position": 38, "name": "a"}}"#
+        ),
+        tsgo(
+            r#"{"label": "a", "kind": 21, "detail": "a", "sortText": "11", "textEdit": {"range": {"start": {"line": 2, "character": 16}, "end": {"line": 2, "character": 16}}, "newText": "a"}, "data": {"fileName": "/a.ts", "position": 38, "name": "a"}}"#
+        ),
+    );
+    assert_eq!(
+        resolve(
+            &files,
+            compiler_options(),
+            r#"{"label": "m", "kind": 2, "sortText": "11", "textEdit": {"range": {"start": {"line": 11, "character": 3}, "end": {"line": 11, "character": 3}}, "newText": "m"}, "data": {"fileName": "/a.ts", "position": 153, "name": "m"}}"#
+        ),
+        tsgo(
+            r#"{"label": "m", "kind": 2, "detail": "(method) I.m(): void", "documentation": {"kind": "markdown", "value": "Method doc"}, "sortText": "11", "textEdit": {"range": {"start": {"line": 11, "character": 3}, "end": {"line": 11, "character": 3}}, "newText": "m"}, "data": {"fileName": "/a.ts", "position": 153, "name": "m"}}"#
+        ),
+    );
+    assert_eq!(
+        resolve(
+            &files,
+            compiler_options(),
+            r#"{"label": "x", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 11, "character": 3}, "end": {"line": 11, "character": 3}}, "newText": "x"}, "data": {"fileName": "/a.ts", "position": 153, "name": "x"}}"#
+        ),
+        tsgo(
+            r#"{"label": "x", "kind": 5, "detail": "(property) I.x: number", "documentation": {"kind": "markdown", "value": "Prop doc"}, "sortText": "11", "textEdit": {"range": {"start": {"line": 11, "character": 3}, "end": {"line": 11, "character": 3}}, "newText": "x"}, "data": {"fileName": "/a.ts", "position": 153, "name": "x"}}"#
+        ),
+    );
+}
+
+/// A variable's quick info and its JSDoc documentation.
+#[test]
+fn resolve_a_documented_variable() {
+    let files = [
+        ("/commentsVariables.ts", "/** This is my variable*/\nvar myVariable = 10;\n\n/** d variable*/\nvar d = 10;\nmyVariable = d;\n\n/** foos comment*/\nfunction foo() {\n}\n/** fooVar comment*/\nvar fooVar: () => void;\n\nfoo();\nfooVar();\nfooVar = foo;\n\nfoo();\nfooVar();\nvar fooVarVar = fooVar;\n/**class comment*/\nclass c {\n    /** constructor comment*/\n    constructor() {\n    }\n}\n/**instance comment*/\nvar i = new c();\n\n/** interface comments*/\ninterface i1 {\n}\n/**interface instance comments*/\nvar i1_i: i1;\n\nfunction foo2(a: number): void;\nfunction foo2(b: string): void;\nfunction foo2(aOrb) {\n}\nvar x = foo2;"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        resolve(
+            &files,
+            compiler_options(),
+            r#"{"label": "myVariable", "kind": 6, "sortText": "11", "data": {"fileName": "/commentsVariables.ts", "position": 47, "name": "myVariable"}}"#
+        ),
+        tsgo(
+            r#"{"label": "myVariable", "kind": 6, "detail": "var myVariable: number", "documentation": {"kind": "markdown", "value": "This is my variable"}, "sortText": "11", "data": {"fileName": "/commentsVariables.ts", "position": 47, "name": "myVariable"}}"#
+        ),
+    );
+}
+
+/// The quick info and documentation of a library type's members.
+#[test]
+fn resolve_members_of_a_library_type() {
+    let files = [("/completionListOfGenericSymbol.ts", "var a = [1,2,3];\na.")];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        resolve(
+            &files,
+            compiler_options(),
+            r#"{"label": "length", "kind": 5, "sortText": "11", "data": {"fileName": "/completionListOfGenericSymbol.ts", "position": 19, "name": "length"}}"#
+        ),
+        tsgo(
+            r#"{"label": "length", "kind": 5, "detail": "(property) Array<number>.length: number", "documentation": {"kind": "markdown", "value": "Gets or sets the length of the array. This is a number one higher than the highest index in the array."}, "sortText": "11", "data": {"fileName": "/completionListOfGenericSymbol.ts", "position": 19, "name": "length"}}"#
+        ),
+    );
+    assert_eq!(
+        resolve(
+            &files,
+            compiler_options(),
+            r#"{"label": "toString", "kind": 2, "sortText": "11", "data": {"fileName": "/completionListOfGenericSymbol.ts", "position": 19, "name": "toString"}}"#
+        ),
+        tsgo(
+            r#"{"label": "toString", "kind": 2, "detail": "(method) Array<number>.toString(): string", "documentation": {"kind": "markdown", "value": "Returns a string representation of an array."}, "sortText": "11", "data": {"fileName": "/completionListOfGenericSymbol.ts", "position": 19, "name": "toString"}}"#
+        ),
     );
 }
