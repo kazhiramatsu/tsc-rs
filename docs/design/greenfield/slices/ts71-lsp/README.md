@@ -838,3 +838,46 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
 - **有界の違い**：lsp の 21 の panic（`completions/jsdoc.rs:565`、続く `checker/src/emit.rs:242` の PoisonError）は main と
   同じで、すべて `TestContentMapper*` の 10 場面（content mapper の file の completion）＝ L10。
+
+## L8c-2 型注釈の code fix（PR #797）
+
+- **merge**：#797 → `91773991b`（hosted run 38610122507：rust 13m36s、conformance 20m53s、gates）。commit：3c2d08aaf（checker・
+  emitter の export）、d91ed0fac（型注釈の code fix）、8caf60d71（ratchet）。
+- **provider**（`code_actions/missing_type_annotation.rs`）：tsgo の `IsolatedDeclarationsFixProvider`
+  （`codeactions_fixmissingtypeannotation.go`）。`Add annotation of type`、`Add return type`、`Add satisfies and an inline type
+  assertion`、`Extract …`、expando、`Mark array literal as const` と fix-all `Add all missing type annotations`。
+- **基盤**：change tracker の `try_insert_type_annotation`、arrow function の parameter の括弧、一行の印字（tsgo
+  `typeToStringForDiag`：157 byte で切り `...`、切った byte ごとに U+FFFD）。emitter の `deep_clone_node`（tsgo
+  `DeepCloneNode`：宣言出力の位置の無い部分木の共有はしない）と、node builder の emit flag・comment を忘れる
+  `forget_emit_flags_and_comments`（tsgo の `TypeToTypeNodeEx` は新しい EmitContext で作るので、tracker は builder の flag を
+  見ない：tuple が複数行にならない）。checker の export：`type_predicate_to_type_predicate_node_in_arena`、
+  `requires_adding_implicit_undefined`、`get_widened_literal_type`、`EmitNodeBuilderFlags::ALLOW_UNIQUE_ES_SYMBOL_TYPE`。
+  tsgo の `ast.IsDeclaration` は `node_util::is_declaration_node` に一本化。
+- **検査（8caf60d71）**：conformance 0 regressions（全 13,577 full、475 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（ratchet は HEAD から `--update`：68 行 none→full。lsp 2,938 → 3,006 full）、対象の 69 場面のうち 68 が一致、
+  test（checker 1,802、compiler 226、ls 184 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、
+  clippy、fmt。
+- **有界の違い**：`TestContentMapperDiagnosticCodeDoesNotSelectTypeScriptFix`（content mapper の file＝L10）。
+
+
+## L7 参照・rename・移動の計画
+
+- **対象**（transcript の欠けている応答を持つ場面の数）：references 405、rename 203、documentHighlight 139（L6 の機能だが参照の
+  検索を使う）、sourceDefinition 91、implementation 69、willRenameFiles 40、call hierarchy 39（prepare・incoming・outgoing）、
+  prepareRename 26、workspace symbol 17、code lens 16（resolve を含む）、multiDocumentHighlight 7、`_vs_references` 6。
+- **順**：参照の検索がこの多くの土台なので、L6 より先に行う（利用者の指示：順は任せる）。
+- **段階**：
+  - L7a 参照の検索（`findallreferences.go` 2,764、`importTracker.go` 768）：entry と definition、symbol の scope、名前の
+    文字列検索と位置の検証、関連 symbol（root symbol、基底型の同名の property、contextual type の property、分割代入、
+    parameter property、export specifier）、import・export の追跡（直接の import の表、間接の利用者、名前空間 import、
+    re-export）、特別な参照（this・super・label・keyword・`import.meta`・文字列リテラル）、module の参照（import・
+    triple-slash・暗黙の JSX runtime と import helper）、constructor と class の検索、実装の queue。`textDocument/references`、
+    `_vs_references`、`textDocument/implementation`。
+  - L7b document highlight（`documenthighlights.go` 797）と `custom/textDocument/multiDocumentHighlight`。
+  - L7c rename（`rename.go` 463：`prepareRename`、`rename`、prefix・suffix の文字列）と `workspace/willRenameFiles`
+    （`file_rename.go` 404）。
+  - L7d call hierarchy（`callhierarchy.go` 1,138）と code lens（`codelens.go` 243）。
+  - L7e source definition（`sourcedefinition.go` 749）、workspace symbol、複数 project の orchestrator（`crossproject.go` 436）。
+- **checker**：既にある `GetRootSymbols`、`GetPropertySymbolsFromContextualType`、`GetShorthandAssignmentValueSymbol`、
+  `GetExportSpecifierLocalTargetSymbol`、`GetImmediateAliasedSymbol` に、`GetPropertySymbolOfDestructuringAssignment`、
+  `GetSymbolsOfParameterPropertyDeclaration`、emit resolver の `IsDeclarationVisible` の export を足す。
