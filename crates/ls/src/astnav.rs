@@ -250,6 +250,51 @@ impl<'a> Navigator<'a> {
         None
     }
 
+    /// tsgo `getChildrenFromNonJSDocNode` (ls/utilities.go:1220-1258): the
+    /// children of a node with the tokens before, between and after them,
+    /// each run scanned from where the previous child ends; none for a node
+    /// without children.
+    pub fn children_from_non_js_doc(&self, view: View) -> Vec<Found> {
+        let mut nodes = Vec::new();
+        for child in self.children(view) {
+            match child {
+                Child::Node(View::JSDoc(..)) => {}
+                Child::Node(node) => nodes.push(node),
+                Child::List(list) => nodes.extend(self.list_nodes(list)),
+            }
+        }
+        if nodes.is_empty() {
+            return Vec::new();
+        }
+        let token_of = |scanner: &TokenScanner<'_>| {
+            Found::Token(Token {
+                kind: scanner.token(),
+                pos: scanner.token_full_start() as u32,
+                end: scanner.token_end() as u32,
+                parent: view,
+            })
+        };
+        let mut children = Vec::new();
+        let mut pos = self.view_pos(view);
+        for node in nodes {
+            let mut scanner = TokenScanner::new(self.file, pos as usize);
+            while pos < self.view_pos(node) {
+                children.push(token_of(&scanner));
+                pos = scanner.token_end() as u32;
+                scanner.scan();
+            }
+            children.push(Found::Node(node));
+            pos = self.view_end(node);
+        }
+        let mut scanner = TokenScanner::new(self.file, pos as usize);
+        while pos < self.view_end(view) {
+            children.push(token_of(&scanner));
+            pos = scanner.token_end() as u32;
+            scanner.scan();
+        }
+        children
+    }
+
     /// tsgo `lsutil.GetLastVisitedChild`: the last child node the visitor
     /// sees (not reparsed), with no tokens.
     pub fn last_visited_child(&self, view: View) -> Option<View> {

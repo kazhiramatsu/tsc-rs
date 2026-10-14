@@ -1197,6 +1197,30 @@ impl Server {
             .map_err(language_service_failure)
     }
 
+    /// tsgo `handleDocumentHighlight`.
+    fn handle_document_highlight(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::DocumentHighlightParams,
+    ) -> Result<lsproto::DocumentHighlightResponse, Failure> {
+        service
+            .provide_document_highlights(&params.text_document.uri, &params.position)
+            .map_err(language_service_failure)
+    }
+
+    /// tsgo `handleMultiDocumentHighlight`.
+    fn handle_multi_document_highlight(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::MultiDocumentHighlightParams,
+    ) -> Result<lsproto::CustomMultiDocumentHighlightResponse, Failure> {
+        service
+            .provide_multi_document_highlights(&params)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo's Visual Studio references handler (one project).
     fn handle_vs_references(
         self: &Arc<Self>,
@@ -1550,6 +1574,13 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
             &mut handlers,
             Server::handle_type_definition,
         );
+        register_language_service_document_request::<lsproto::TextDocumentDocumentHighlightInfo>(
+            &mut handlers,
+            Server::handle_document_highlight,
+        );
+        register_language_service_document_request::<
+            lsproto::CustomTextDocumentMultiDocumentHighlightInfo,
+        >(&mut handlers, Server::handle_multi_document_highlight);
         register_language_service_document_request::<lsproto::TextDocumentReferencesInfo>(
             &mut handlers,
             Server::handle_references,
