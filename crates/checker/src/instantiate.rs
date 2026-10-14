@@ -225,6 +225,23 @@ impl<'a> CheckerState<'a> {
         &self.mappers[id.index() as usize]
     }
 
+    /// tsgo-port: TypeMapper.MapsThisOnly @7.1 (mapper.go:108-229): a
+    /// simple, array, array-to-single or deferred mapper whose one source
+    /// is a `this` type; never a function, merged, composite or inference
+    /// mapper.
+    pub(crate) fn maps_this_only(&self, mapper: MapperId) -> bool {
+        let sources = match *self.mapper(mapper) {
+            TypeMapper::Simple { source, .. } => return self.is_this_type_parameter(source),
+            TypeMapper::Array { sources, .. } => sources,
+            TypeMapper::Deferred(DeferredMapperTargets::EffectiveTypeArguments {
+                type_parameters,
+                ..
+            }) => type_parameters,
+            _ => return false,
+        };
+        matches!(self.mapper_list(sources), &[source] if self.is_this_type_parameter(source))
+    }
+
     /// tsrs-native: arena allocation for a TypeMapper object; tsc uses
     /// ordinary JavaScript object allocation.
     pub(crate) fn alloc_mapper(&mut self, mapper: TypeMapper) -> MapperId {
@@ -655,18 +672,18 @@ impl<'a> CheckerState<'a> {
         Ok(self.alloc_signature(result))
     }
 
-    /// tsc-port: instantiateSymbol @6.0.3
-    /// tsc-hash: 3151a0198339a37ffdc3a8585ade0d5da549d926ba9a7fe013bd08c3919ba27a
-    /// tsc-span: _tsc.js:63436-63462
+    /// tsgo-port: Checker.instantiateSymbol @7.1 (checker.go:21166-21200).
     ///
-    /// The SetAccessor writeType fast-path read (63440-63445) sees
-    /// links.writeType as always-unset — that slot lands with the
-    /// accessors port (getTypeOfAccessors, 5.1 residual) — so the early
-    /// return is correctly NOT taken for set-accessor symbols, exactly
-    /// as tsc behaves while writeType is undefined.
+    /// A symbol free of `this` references is its own instantiation under a
+    /// mapper of the `this` type only (an interface's members and their
+    /// signatures' parameters, as `I<this>` instantiates them), as is a
+    /// symbol whose resolved type cannot contain type variables.
     pub fn instantiate_symbol(&mut self, symbol: SymbolId, mapper: MapperId) -> SymbolId {
         let mut symbol = symbol;
         let mut mapper = mapper;
+        if self.maps_this_only(mapper) && self.is_thisless(symbol) {
+            return symbol;
+        }
         let links = self.links.symbol(symbol);
         if let Some(cached_type) = links.type_of_symbol.resolved() {
             if !self.could_contain_type_variables(cached_type) {

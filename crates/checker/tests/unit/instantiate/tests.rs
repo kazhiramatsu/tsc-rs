@@ -473,3 +473,50 @@ fn cloned_type_parameters_instantiate_their_target_constraint() {
         },
     );
 }
+
+#[test]
+fn a_this_only_mapper_keeps_thisless_symbols() {
+    // tsgo instantiateSymbol: under a mapper of the `this` type only, a
+    // symbol free of `this` references is its own instantiation. In the
+    // implements clause's `I<this>`, `f` is instantiated (its second
+    // overload returns `this is I`) but its signatures keep the declared
+    // `i: any` parameter, though a fresh checker has not resolved its type.
+    with_program_state(
+        &[(
+            "a.ts",
+            "interface I {\n    f(i: any): i is I;\n    f(): this is I;\n}\nclass C implements I {}\n",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let source = state.binder.source(0);
+            let find = |kind| {
+                source
+                    .arena
+                    .node_ids()
+                    .find(|&id| source.arena.node(id).kind == kind)
+                    .expect("a node of the kind")
+            };
+            let heritage = find(tsc_syntax::SyntaxKind::ExpressionWithTypeArguments);
+            let parameter = find(tsc_syntax::SyntaxKind::Parameter);
+            let declared = state
+                .get_symbol_of_declaration(parameter)
+                .expect("the parameter's symbol");
+            let implemented = state.get_type_at_location(heritage).expect("I<this>");
+            let properties = state
+                .get_properties_of_type(implemented)
+                .expect("I<this>'s properties");
+            let [f] = properties[..] else {
+                panic!("one property: {properties:?}");
+            };
+            assert!(state
+                .get_check_flags(f)
+                .intersects(tsc_types::CheckFlags::INSTANTIATED));
+            let ty = state.get_type_of_symbol(f).expect("f's type");
+            let signatures = state
+                .get_signatures_of_type(ty, crate::state::SignatureKind::Call)
+                .expect("f's signatures");
+            assert_eq!(signatures.len(), 2);
+            assert_eq!(state.signature_of(signatures[0]).parameters, vec![declared]);
+        },
+    );
+}

@@ -204,7 +204,7 @@ pub use crate::program::{
 };
 
 pub use declaration_emit::SymbolFormatFlags;
-pub use exports::{DisplayPart, VerbosityContext};
+pub use exports::{DisplayPart, NodeWithIdentifierSymbols, VerbosityContext};
 pub use tsc_syntax::JSDocParsingMode;
 pub use tsc_types::CompilerOptions;
 

@@ -16,6 +16,7 @@ pub(crate) use chains::{
     get_enclosing_declaration_ignoring_fake_scope, get_module_specifier_override,
     get_type_from_type_node2, set_text_range2, symbol_to_node, type_parameter_to_name,
 };
+pub(crate) use chains::{program_source_id, project_parse_node};
 pub(crate) use context::{
     add_symbol_type_to_context, check_truncation_length, check_type_expandability, is_lib_type,
     restore_flags, restore_symbol_type_to_context, save_restore_flags, should_expand_type,

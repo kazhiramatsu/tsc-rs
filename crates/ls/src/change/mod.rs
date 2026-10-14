@@ -129,6 +129,9 @@ pub(crate) struct Tracker<'a> {
     /// Each file's edits, in the order they were made (tsgo's `changes`).
     changes: Vec<(usize, TrackerEdit)>,
     deleted_nodes: Vec<(usize, NodeId)>,
+    /// tsgo `nodesWithInsertionsAtStart`: the nodes a member was inserted
+    /// at the start of, by file, in the order of their first insertion.
+    nodes_with_insertions_at_start: Vec<(usize, NodeId)>,
 }
 
 impl<'a> Tracker<'a> {
@@ -141,6 +144,7 @@ impl<'a> Tracker<'a> {
             files: Vec::new(),
             changes: Vec::new(),
             deleted_nodes: Vec::new(),
+            nodes_with_insertions_at_start: Vec::new(),
         }
     }
 
@@ -157,6 +161,26 @@ impl<'a> Tracker<'a> {
         let source = self.arena.add_source(file, None);
         self.files.push((file, source));
         self.files.len() - 1
+    }
+
+    /// [`Self::source`] mounted under its program source id, so that a node
+    /// builder writing into the tracker's arena finds this copy of the file
+    /// rather than mounting another (the first use of the file decides).
+    pub(crate) fn source_in_program(
+        &mut self,
+        file: &'a SourceFile,
+        program_source: tsc_program::SourceFileId,
+    ) -> TransformSourceId {
+        if let Some((_, source)) = self
+            .files
+            .iter()
+            .find(|(known, _)| std::ptr::eq(*known, file))
+        {
+            return *source;
+        }
+        let source = self.arena.add_source(file, Some(program_source));
+        self.files.push((file, source));
+        source
     }
 
     /// The emit copy of `file`, where the tracker prints its nodes and a
@@ -547,6 +571,7 @@ impl<'a> Tracker<'a> {
     /// tracker is spent).
     pub(crate) fn get_changes(mut self) -> Result<Vec<FileChanges<'a>>, TrackerError> {
         self.finish_delete_declarations();
+        self.finish_nodes_with_insertions_at_start();
         let Tracker {
             format_settings,
             new_line,
