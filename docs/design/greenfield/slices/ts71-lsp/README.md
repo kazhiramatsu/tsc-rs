@@ -684,3 +684,38 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 - **L5c node_modules**：package.json の依存、entrypoint（exports・typesVersions）、program 外の package の file を読む
   alias resolver の checker、ambient module、上位の node_modules の遮蔽、`@types/node` と `node:`。
 - **後へ**：auto-import の監視（L11）、background の warm、telemetry。L8c の二つの provider は L5b の import adder の後。
+
+## L5a project の auto-import と completion（PR #793）
+
+- **merge**：#793 → `0df57afe2`（hosted run 38549670836：rust 12m16s、conformance 30m42s、gates）。commit：f2a6aec33（tsgo の
+  triple-slash と pinned comment の規則）、eaf1d4bda（tsgo の vfsmatch）、d068934ea（auto-import の completion と edit）、
+  ace6ff8bc（ratchet）。
+- **registry**（`crates/ls/src/autoimport/`）：`Export`（module と export の ID、構文、flag、別名の先、script element kind）、
+  program の file からの抽出（binder の symbol、別名の解決に checker）、語の頭文字の `Index`、snapshot ごとの
+  `Registry`（project の bucket、dirty の印、要求された file のための再構築）。bucket の対象は tsgo の `buildProjectBucket`
+  と同じ：default library・`node_modules` の下・project の外から `node_modules` の link で読んだ file（tsgo
+  `hasSymlinkToNodeModules`。program の既知の link から）・`autoImportFileExcludePatterns` に合う file を除く。
+- **view と fix**：検索（語の頭文字）、completion の group 化と順位、fix（namespace の使用、既存の import への追加、新しい
+  import・require、JSDoc の import type）、module specifier（program の `paths`・`rootDirs` を含む。以前の auto-import
+  用の入口は落としていた）、`shouldUseRequire`（tsgo `GetEmitModuleDetectionKind`：node16〜nodenext は force）。
+- **completion と resolve**：auto-import の項目（sort text 16、`labelDetails.description`、`data.autoImport`）、import 文の
+  completion の挿入文。resolve は change tracker の挿入（`InsertNodeAt`・`Before`・`After`、`InsertNodeInListAfter`、
+  `InsertImportSpecifierAtIndex`、`InsertAtTopOfFile`、`InsertModifierBefore`）と検出付きの import comparer で edit を作る。
+  quote の好みは file の最初の import から（completion と共有）。
+- **session**：snapshot の registry、`ErrNeedsAutoImports` で準備した snapshot に request（completion、codeAction）をやり直し、
+  背後で採用する（session が先に進んでいれば捨てる）。
+- **共有した tsgo の部品**：`tsc_program::vfsmatch`（`SpecMatcher`。config の wildcard directory の除外も使う）、emitter の
+  `is_recognized_triple_slash_comment`・`is_pinned_comment`（`<amd-module/>`、`/*!*/` は pinned でない）、
+  `tsc_syntax::get_shebang`。
+- **検査（d068934ea）**：conformance 0 regressions（全 13,577 full、497 s）、`--checkers 4` は既知の 4 だけ違う、suites 0
+  regressions（ratchet は main のものから `--update`：111 行 none→full、下げは無し。lsp 2,450 → 2,561 full、completion
+  2,213/2,419、resolve 651/655、import の completion の場面の resolve 130/130）、API client sync 340/356・async 349/365、
+  test（syntax 251、binder 78、program 674、checker 1,798、emitter 350、ls 180、lsp 14、api 297、project 186、compiler
+  225、conformance 49）、clippy、fmt、Unicode の表。
+- **教訓**：`suites_ts71.py --update` は段を下げない。slice の途中で working tree の ratchet を `--update` すると、前の
+  code が得た段が残り、後の `--check` の「regression」が揺れに見える。最後の `--update` の前に ratchet を main のものに
+  戻す。
+- **有界の違い**：package の export（L5c）、import の code fix と fix-all（L5b）、content mapper の file（L10）、JSDoc の
+  `@import`（tsgo の `Imports()` は reparse した宣言を含む）、大文字小文字を区別しない glob の比較は Rust の単一文字の
+  case 対応、config の file の探索は 6.0.3 の `files` の pattern のまま（vfsmatch への移行は後で）。
+- **次**：L5b import の code fix（provider と fix-all、type-only の昇格、import adder）。
