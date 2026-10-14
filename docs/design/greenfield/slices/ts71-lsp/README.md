@@ -881,3 +881,32 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 - **checker**：既にある `GetRootSymbols`、`GetPropertySymbolsFromContextualType`、`GetShorthandAssignmentValueSymbol`、
   `GetExportSpecifierLocalTargetSymbol`、`GetImmediateAliasedSymbol` に、`GetPropertySymbolOfDestructuringAssignment`、
   `GetSymbolsOfParameterPropertyDeclaration`、emit resolver の `IsDeclarationVisible` の export を足す。
+
+## L7a 参照の検索（#798）
+
+- **merge**：#798 → `fc5829124`（hosted run 38632470929：rust 13m3s、conformance 30m46s、gates。最初の run の後に main
+  が進み、branch protection の strict（base に追いついていること）で merge できなかったので `gh pr update-branch` で
+  main を取り込み、その run で通った）。commit：e72d75eb6（compiler 側）、954f9eb58（language service）、703883718
+  （ratchet）。
+- **compiler 側**：JSDoc の `C#m` を qualified name に、`@see {…}` の link 名（tsgo `parseJSDocLinkName`・
+  `parseJSDocNameReference`。tsc 6.0.3 の `JSDocMemberName` は消した）、tsgo の `resolveJSDocMemberName` と class member の
+  fallback。reparse の模倣（`GetReparsedNodeForNode`）を typedef・callback の名前、`@callback`・`@overload` の
+  parameter、type literal の property 名へ。checker の export：`GetPropertySymbolOfDestructuringAssignment`（分割代入の
+  検査は tsgo と同じく型を返す）、`IsArrayLiteralOrObjectLiteralDestructuringPattern`、
+  `GetSymbolsOfParameterPropertyDeclaration`、synthetic import の module symbol、write access、super container。
+  `tsc_program::synthetic_imports`（`tslib`・JSX runtime）を module request の計画と language service で共有。
+- **language service**（`find_all_references/`）：特別な検索（型 keyword、`import.meta`、label、this、super、文字列
+  リテラル、module）、symbol の検索（scope、関連 symbol、基底型、contextual な property、分割代入、parameter property、
+  export specifier、constructor・class）、import tracker（直接の import、間接の利用者、名前空間 import、re-export、JSDoc
+  `@import`、import type）、module の参照、実装の queue、VS references（quick info の run と read/write の種別）。
+  JavaScript file の `@import` を module の参照に数える（tsgo の reparse した `JSImportDeclaration` の位置）が、
+  auto-import の既存 import には数えない（tsgo の `JSDocImportTag` の case は成り立たない）。回帰 test は
+  `crates/ls/tests/references.rs`（11 件）。
+- **検査（703883718）**：conformance 0 regressions（全 13,577 full、485 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（ratchet は HEAD から `--update`：424 行 none→full。lsp 3,006 → 3,430 full）、参照の 480 場面のうち 440 が
+  一致、test（checker 1,802、ls 195 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、
+  fmt。
+- **有界の違い**：複数 project の 6 場面（L7e の orchestrator）、content mapper の 5 場面（L10）、残りは rename・
+  highlight・source definition（L7b・L7c・L7e）。
+- **教訓**：main の branch protection は strict。PR が base より遅れていると gates が通っても merge できない。merge の前に
+  `gh pr update-branch`、head branch は `state` が MERGED になってから消す（先に消すと PR が閉じる）。
