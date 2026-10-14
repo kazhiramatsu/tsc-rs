@@ -1696,12 +1696,12 @@
             }
           }
         ],
-        "text": "import(\"x\", { with: {\r\n    type: \"json\",\r\n    mode: \"x\"\r\n} }).A",
-        "utf8_base64": "aW1wb3J0KCJ4IiwgeyB3aXRoOiB7DQogICAgdHlwZTogImpzb24iLA0KICAgIG1vZGU6ICJ4Ig0KfSB9KS5B",
-        "utf8_bytes": 63,
+        "text": "import(\"x\", { with: { type: \"json\",\r\n    mode: \"x\"\r\n} }).A",
+        "utf8_base64": "aW1wb3J0KCJ4IiwgeyB3aXRoOiB7IHR5cGU6ICJqc29uIiwNCiAgICBtb2RlOiAieCINCn0gfSkuQQ==",
+        "utf8_bytes": 58,
         "end_utf16": {
-          "position": 63,
-          "line": 3,
+          "position": 58,
+          "line": 2,
           "column": 6
         }
       }
@@ -2496,12 +2496,12 @@
             }
           }
         ],
-        "text": "import(\"x\", { assert: {\r\n    type: \"json\",\r\n    mode: \"x\"\r\n} }).A",
-        "utf8_base64": "aW1wb3J0KCJ4IiwgeyBhc3NlcnQ6IHsNCiAgICB0eXBlOiAianNvbiIsDQogICAgbW9kZTogIngiDQp9IH0pLkE=",
-        "utf8_bytes": 65,
+        "text": "import(\"x\", { assert: { type: \"json\",\r\n    mode: \"x\"\r\n} }).A",
+        "utf8_base64": "aW1wb3J0KCJ4IiwgeyBhc3NlcnQ6IHsgdHlwZTogImpzb24iLA0KICAgIG1vZGU6ICJ4Ig0KfSB9KS5B",
+        "utf8_bytes": 60,
         "end_utf16": {
-          "position": 65,
-          "line": 3,
+          "position": 60,
+          "line": 2,
           "column": 6
         }
       }
@@ -8570,5 +8570,12 @@
         }
       }
     }
-  ]
+  ],
+  "tsgo_overrides": {
+    "reason": "TypeScript 7.1's getLeadingLineTerminatorCount reads the source lines only for a first child without a parent (printer/printer.go:539-542), so a parsed list's first attribute stays on the brace's line; tsc 6.0.3 also read them for a parsed child of the list's original parent",
+    "cases": [
+      "import-type-attrs/lines/assert/parsed/0",
+      "import-type-attrs/lines/with/parsed/0"
+    ]
+  }
 }
