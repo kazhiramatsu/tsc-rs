@@ -254,6 +254,23 @@ impl CheckerState<'_> {
         )
     }
 
+    /// tsgo `modulespecifiers.GetModuleSpecifiersForFileWithInfo` for an
+    /// auto-import: the specifiers of a module file from the file
+    /// `importing_file` (its root), and their kind.
+    pub fn get_module_specifiers_for_file_with_info(
+        &mut self,
+        importing_file: NodeId,
+        module_file_name: &tsc_types::JsString,
+        user_preferences: &crate::ModuleSpecifierUserPreferences,
+    ) -> CheckResult<(Vec<tsc_types::JsString>, Option<crate::ModuleSpecifierKind>)> {
+        crate::node_builder::specifier::get_module_specifiers_for_file_with_info(
+            self,
+            importing_file,
+            module_file_name,
+            user_preferences,
+        )
+    }
+
     /// tsgo `module.TryGetJSExtensionForFile`: the JavaScript extension a
     /// file's output has.
     pub fn try_get_js_extension_for_file(
@@ -605,6 +622,22 @@ impl CheckerState<'_> {
     /// tsgo `IsUnknownSymbol`.
     pub fn is_unknown_symbol(&self, symbol: SymbolId) -> bool {
         symbol == self.unknown_symbol
+    }
+
+    /// tsgo `ResolveExternalModuleName`: the module a module specifier names,
+    /// without errors.
+    pub fn resolve_external_module_name_of(
+        &mut self,
+        module_specifier: NodeId,
+    ) -> CheckResult<Option<SymbolId>> {
+        self.resolve_external_module_name(module_specifier, module_specifier, true)
+    }
+
+    /// tsgo `GetMappedTypeSymbolOfProperty`: the symbol of the type a
+    /// mapped property belongs to.
+    pub fn get_mapped_type_symbol_of_property(&self, symbol: SymbolId) -> Option<SymbolId> {
+        let containing_type = (*self.links.symbol_cold().containing_type.get(symbol))?;
+        self.tables.type_of(containing_type).symbol
     }
 }
 

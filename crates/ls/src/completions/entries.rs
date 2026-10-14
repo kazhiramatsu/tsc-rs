@@ -351,7 +351,132 @@ impl Completions<'_, '_, '_> {
             uniques.insert(name, should_shadow_later_symbols);
             sorted_entries.push(entry);
         }
+
+        let use_semicolons = !data.auto_imports.is_empty()
+            && data.import_statement_completion.is_some()
+            && crate::lsutil::probably_uses_semicolons(self.source);
+        let file_name = self.file_name();
+        for auto_import in &data.auto_imports {
+            // !!! check for type-only in JS
+            // !!! deprecation
+            let fix = &auto_import.fix.auto_import;
+            let export = &auto_import.export;
+            let mut replacement_span = None;
+            let mut insert_text = String::new();
+            let mut filter_text = String::new();
+            let mut is_snippet = false;
+            let mut sort_text = sort_text::AUTO_IMPORT_SUGGESTIONS.to_owned();
+            if let Some(info) = &data.import_statement_completion {
+                is_snippet = ClientSupport(self.request.capabilities).item_snippet();
+                let import_kind =
+                    crate::autoimport::get_import_kind(self.request.state, self.file, export, true);
+                insert_text = self.insert_text_for_import_completion(
+                    fix,
+                    import_kind,
+                    info,
+                    use_semicolons,
+                    is_snippet,
+                );
+                replacement_span = info.replacement_span.clone();
+                // The edit range covers the whole import statement typed so far, and clients match that text against the
+                // filter text, so it has to be the statement being inserted (as in Strada), not just the bare name.
+                filter_text = insert_text.clone();
+                sort_text = sort_text::LOCATION_PRIORITY.to_owned();
+            }
+            // Non-contextual keywords (e.g., `function`, `class`, `const`) cannot be used as identifiers,
+            // so auto-imports with these names should not shadow keyword completions.
+            if tsc_syntax::keyword_kind(&fix.name)
+                .is_some_and(super::keywords::is_non_contextual_keyword)
+            {
+                continue;
+            }
+            if !export.is_unresolved_alias() {
+                if data.is_type_only_location {
+                    if !export
+                        .flags
+                        .intersects(SymbolFlags::TYPE | SymbolFlags::MODULE)
+                    {
+                        continue;
+                    }
+                } else if data.import_statement_completion.is_none()
+                    && !export.flags.intersects(SymbolFlags::VALUE)
+                {
+                    continue;
+                }
+            }
+            let mut entry = create_lsp_completion_item(
+                self.text(),
+                &file_name,
+                self.position,
+                ItemSpec {
+                    name: fix.name.clone(),
+                    insert_text,
+                    filter_text,
+                    sort_text,
+                    element_kind: Some(export.script_element_kind),
+                    kind_modifiers: export.script_element_kind_modifiers,
+                    replacement_span,
+                    commit_characters: None,
+                    label_details: Some(tsc_lsproto::CompletionItemLabelDetails {
+                        description: Some(fix.module_specifier.clone()),
+                        ..tsc_lsproto::CompletionItemLabelDetails::default()
+                    }),
+                    is_member_completion: false,
+                    is_snippet,
+                    preselect: false,
+                    source: fix.module_specifier.clone(),
+                    auto_import_fix: Some(fix.clone()),
+                    additional_text_edits: None,
+                    detail: None,
+                },
+            );
+            if let Some(item_data) = &mut entry.data {
+                item_data.is_import_statement_completion =
+                    data.import_statement_completion.is_some();
+            }
+            if !uniques.get(&fix.name).copied().unwrap_or(false) {
+                uniques.insert(fix.name.clone(), false);
+                sorted_entries.push(entry);
+            }
+        }
         Ok((uniques.into_keys().collect(), sorted_entries))
+    }
+
+    /// tsgo `getInsertTextAndReplacementSpanForImportCompletion`'s text.
+    fn insert_text_for_import_completion(
+        &self,
+        fix: &tsc_lsproto::AutoImportFix,
+        import_kind: tsc_lsproto::ImportKind,
+        info: &super::data::ImportStatementCompletionInfo,
+        use_semicolons: bool,
+        is_snippet: bool,
+    ) -> String {
+        use tsc_lsproto::ImportKind;
+        let quoted_module_specifier = escape_snippet_text(&self.quote(&fix.module_specifier));
+        let tab_stop = if is_snippet { "$1" } else { "" };
+        let suffix = if use_semicolons { ";" } else { "" };
+        let top_level_type_only_text = if info.is_top_level_type_only {
+            " type "
+        } else {
+            " "
+        };
+        let name = escape_snippet_text(&fix.name);
+        match import_kind {
+            ImportKind::COMMON_JS => format!(
+                "import{top_level_type_only_text}{name}{tab_stop} = require({quoted_module_specifier}){suffix}"
+            ),
+            ImportKind::DEFAULT => format!(
+                "import{top_level_type_only_text}{name}{tab_stop} from {quoted_module_specifier}{suffix}"
+            ),
+            ImportKind::NAMESPACE => format!(
+                "import{top_level_type_only_text}* as {name} from {quoted_module_specifier}{suffix}"
+            ),
+            ImportKind::NAMED => format!(
+                "import{top_level_type_only_text}{{ {}{name}{tab_stop} }} from {quoted_module_specifier}{suffix}",
+                if info.could_be_type_only_import_specifier { "type " } else { "" }
+            ),
+            kind => panic!("unhandled import kind: {}", kind.0),
+        }
     }
 
     /// tsgo `createCompletionItem`.
@@ -657,7 +782,7 @@ impl Completions<'_, '_, '_> {
             Touching::Node(node) => node,
             Touching::Token { parent, .. } => parent,
         };
-        let element_kind = get_symbol_kind(self.request.state, symbol, location_node)?;
+        let element_kind = get_symbol_kind(self.request.state, symbol, location_node, true)?;
         let mut commit_characters = None;
         if support.item_commit_characters() {
             if element_kind == ScriptElementKind::Warning
@@ -671,7 +796,7 @@ impl Completions<'_, '_, '_> {
         }
 
         let preselect = self.is_recommended_completion_match(symbol, data.recommended_completion);
-        let kind_modifiers = get_symbol_modifiers(self.request.state, symbol)?;
+        let kind_modifiers = get_symbol_modifiers(self.request.state, symbol, true)?;
 
         let text = self.text();
         let file_name = self.file_name();
@@ -1314,66 +1439,9 @@ impl Completions<'_, '_, '_> {
         self.quote(name)
     }
 
-    /// tsgo `lsutil.GetQuotePreference`: the preference, else the first
-    /// import's quote.
+    /// tsgo `lsutil.GetQuotePreference`.
     pub(super) fn quote_preference(&self) -> QuotePreference {
-        let preference = self.request.preferences.quote_preference;
-        if preference != QuotePreference::UNKNOWN && preference != QuotePreference::AUTO {
-            if preference == QuotePreference::SINGLE {
-                return QuotePreference::SINGLE;
-            }
-            return QuotePreference::DOUBLE;
-        }
-        match self.first_module_specifier() {
-            Some(specifier)
-                if self.text()[self.node_start(specifier) as usize..].starts_with('\'') =>
-            {
-                QuotePreference::SINGLE
-            }
-            _ => QuotePreference::DOUBLE,
-        }
-    }
-
-    /// The first string literal of the file's imports (tsgo
-    /// `SourceFile.Imports`): the module specifiers of its import and export
-    /// declarations, also in ambient modules.
-    fn first_module_specifier(&self) -> Option<NodeId> {
-        let NodeData::SourceFile(file) = self.data(self.source.root) else {
-            return None;
-        };
-        let mut statements: Vec<NodeId> = self.node_list(file.statements).to_vec();
-        statements.reverse();
-        while let Some(statement) = statements.pop() {
-            let specifier = match self.data(statement) {
-                NodeData::ImportDeclaration(data) => data.module_specifier,
-                NodeData::ExportDeclaration(data) => data.module_specifier,
-                NodeData::ImportEqualsDeclaration(data) => {
-                    data.module_reference
-                        .and_then(|reference| match self.data(reference) {
-                            NodeData::ExternalModuleReference(data) => data.expression,
-                            _ => None,
-                        })
-                }
-                NodeData::ModuleDeclaration(data) => {
-                    // An ambient module's body.
-                    if let Some(NodeData::ModuleBlock(block)) =
-                        data.body.map(|body| self.data(body))
-                    {
-                        let mut nested: Vec<NodeId> = self.node_list(block.statements).to_vec();
-                        nested.reverse();
-                        statements.extend(nested);
-                    }
-                    None
-                }
-                _ => None,
-            };
-            if let Some(specifier) = specifier
-                .filter(|&specifier| self.node_kind(specifier) == SyntaxKind::StringLiteral)
-            {
-                return Some(specifier);
-            }
-        }
-        None
+        crate::lsutil::get_quote_preference(self.source, self.request.preferences)
     }
 
     /// tsgo `getOptionalReplacementSpan`: an identifier's range.

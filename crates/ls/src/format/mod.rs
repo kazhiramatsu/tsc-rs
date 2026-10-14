@@ -18,6 +18,9 @@ pub(crate) use api::{
     format_document, format_node_given_indentation, format_on_closing_curly, format_on_enter,
     format_on_opening_curly, format_on_semicolon, format_selection, TextChange,
 };
-pub(crate) use file::File;
-pub(crate) use indent::{get_containing_list, get_indentation, should_indent_child_node};
+pub(crate) use file::{is_statement_but_not_declaration_kind, File};
+pub(crate) use indent::{
+    find_first_non_whitespace_column, get_containing_list, get_indentation,
+    should_indent_child_node,
+};
 pub(crate) use util::get_line_start_position_for_position;

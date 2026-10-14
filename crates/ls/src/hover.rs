@@ -143,8 +143,8 @@ impl LanguageService<'_> {
                         Touching::Node(id) => id,
                         Touching::Token { parent, .. } => parent,
                     };
-                    kind = get_symbol_kind(request.state, icon_symbol, location)?;
-                    modifiers = get_symbol_modifiers(request.state, symbol)?;
+                    kind = get_symbol_kind(request.state, icon_symbol, location, true)?;
+                    modifiers = get_symbol_modifiers(request.state, symbol, true)?;
                 }
                 let documentation_runs = match vs_documentation.trim_start_matches('\n') {
                     "" => Vec::new(),

@@ -22366,7 +22366,14 @@ fn detached_pinned_comment_end(source: &str, position: usize, code_start: usize)
 }
 
 fn is_pinned_source_comment(source: &str, comment: SourceCommentRange) -> bool {
-    source.as_bytes().get(comment.start..comment.start + 3) == Some(b"/*!")
+    comment.kind == SourceCommentKind::Block
+        && is_pinned_comment(source, comment.start, comment.end)
+}
+
+/// tsgo `IsPinnedComment` of the multi-line comment at `start..end`: one
+/// longer than `/*!*/`.
+pub fn is_pinned_comment(text: &str, start: usize, end: usize) -> bool {
+    end - start > 5 && text.as_bytes().get(start + 2) == Some(&b'!')
 }
 
 /// tsc-port: shouldWriteComment @6.0.3
@@ -22418,62 +22425,48 @@ fn source_shebang(text: &str) -> Option<&str> {
     })
 }
 
-/// tsc `isRecognizedTripleSlashComment` @6.0.3. This is intentionally
-/// narrower than a generic `///` test: only pragmas understood by the parser
-/// survive when their owning TypeScript statement becomes NotEmitted.
-fn is_recognized_triple_slash_comment(comment: &str) -> bool {
-    fn quoted_attribute(rest: &str, name: &str, allow_trailing_attributes: bool) -> bool {
-        let Some(rest) = rest.strip_prefix(name) else {
-            return false;
-        };
-        let rest = rest.trim_start_matches(is_js_whitespace);
-        let Some(rest) = rest.strip_prefix('=') else {
-            return false;
-        };
-        let rest = rest.trim_start_matches(is_js_whitespace);
-        let Some(quote) = rest
+/// tsgo `IsRecognizedTripleSlashComment` of a single-line comment's text:
+/// only the pragmas the parser understands.
+pub fn is_recognized_triple_slash_comment(comment: &str) -> bool {
+    fn skip_white_space_single_line(text: &str) -> &str {
+        text.trim_start_matches(tsc_syntax::is_single_line_whitespace)
+    }
+    fn match_white_space_single_line(text: &str) -> Option<&str> {
+        let rest = skip_white_space_single_line(text);
+        (rest.len() != text.len()).then_some(rest)
+    }
+    fn match_quoted_string(text: &str) -> Option<&str> {
+        let quote = text
             .chars()
             .next()
-            .filter(|quote| matches!(quote, '\'' | '"'))
-        else {
-            return false;
-        };
-        let rest = &rest[quote.len_utf8()..];
-        let Some(end) = rest.find(quote) else {
-            return false;
-        };
-        let trailing = &rest[end + quote.len_utf8()..];
-        if allow_trailing_attributes {
-            trailing.contains("/>")
-        } else {
-            trailing
-                .trim_start_matches(is_js_whitespace)
-                .starts_with("/>")
-        }
+            .filter(|&quote| quote == '\'' || quote == '"')?;
+        let rest = &text[1..];
+        let end = rest.find(quote)?;
+        Some(&rest[end + 1..])
+    }
+    // `name = "…"` after the pragma's name.
+    fn match_attribute<'t>(text: &'t str, names: &[&str]) -> Option<&'t str> {
+        let rest = names.iter().find_map(|name| text.strip_prefix(name))?;
+        let rest = skip_white_space_single_line(rest).strip_prefix('=')?;
+        match_quoted_string(skip_white_space_single_line(rest))
     }
 
-    let Some(rest) = comment.strip_prefix("///") else {
+    let Some(text) = comment.strip_prefix("///").filter(|_| comment.len() > 2) else {
         return false;
     };
-    let rest = rest.trim_start_matches(is_js_whitespace);
-    if let Some(rest) = rest.strip_prefix("<reference") {
-        if !rest.chars().next().is_some_and(is_js_whitespace) {
-            return false;
-        }
-        let rest = rest.trim_start_matches(is_js_whitespace);
-        return quoted_attribute(rest, "path", true)
-            || quoted_attribute(rest, "types", true)
-            || quoted_attribute(rest, "lib", true)
-            || quoted_attribute(rest, "no-default-lib", false);
-    }
-    if let Some(rest) = rest.strip_prefix("<amd-dependency") {
-        return rest.chars().next().is_some_and(is_js_whitespace)
-            && quoted_attribute(rest.trim_start_matches(is_js_whitespace), "path", true);
-    }
-    rest.strip_prefix("<amd-module").is_some_and(|rest| {
-        rest.chars().next().is_some_and(is_js_whitespace)
-            && rest.trim_start_matches(is_js_whitespace).contains("/>")
-    })
+    let Some(text) = skip_white_space_single_line(text).strip_prefix('<') else {
+        return false;
+    };
+    let rest = if let Some(rest) = text.strip_prefix("reference") {
+        match_white_space_single_line(rest)
+            .and_then(|rest| match_attribute(rest, &["path", "types", "lib", "no-default-lib"]))
+    } else if let Some(rest) = text.strip_prefix("amd-dependency") {
+        match_white_space_single_line(rest).and_then(|rest| match_attribute(rest, &["path"]))
+    } else {
+        text.strip_prefix("amd-module")
+            .map(skip_white_space_single_line)
+    };
+    rest.is_some_and(|rest| rest.contains("/>"))
 }
 
 /// The NotEmittedStatement comment mode: scan the leading trivia but write
@@ -23136,3 +23129,7 @@ impl Error for PrinterError {}
 #[cfg(test)]
 #[path = "../tests/unit/comment_scope_predicate/tests.rs"]
 mod comment_scope_predicate_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/comment_classification/tests.rs"]
+mod comment_classification_tests;

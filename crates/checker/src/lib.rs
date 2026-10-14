@@ -133,8 +133,9 @@ pub mod narrow;
 mod node_builder;
 // tsgo `modulespecifiers`' user preferences, which the language service sets.
 pub use node_builder::specifier::{
-    try_get_real_file_name_for_non_js_declaration_file_name, ImportModuleSpecifierEndingPreference,
-    ImportModuleSpecifierPreference, ModuleSpecifierEnding, ModuleSpecifierUserPreferences,
+    is_excluded_by_regex, try_get_real_file_name_for_non_js_declaration_file_name,
+    ImportModuleSpecifierEndingPreference, ImportModuleSpecifierPreference, ModuleSpecifierEnding,
+    ModuleSpecifierKind, ModuleSpecifierUserPreferences,
 };
 pub mod operators;
 pub(crate) mod order_guard;

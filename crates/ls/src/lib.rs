@@ -4,6 +4,7 @@
 //! (`lsconv`).
 
 pub mod astnav;
+pub mod autoimport;
 mod change;
 mod code_actions;
 mod completions;

@@ -1,5 +1,5 @@
 // Command tsrsunicodetables writes the Unicode tables of tsc-rs's organize
-// imports comparers (crates/ls/src/lsutil/unicode_tables.rs) from the Go
+// imports comparers and auto-import index (crates/ls/src/lsutil/unicode_tables.rs) from the Go
 // packages tsgo's comparers read: unicode and golang.org/x/text's norm.
 //
 // usage: tsrsunicodetables <output file>
@@ -32,14 +32,21 @@ func main() {
 	}
 	var sb strings.Builder
 	sb.WriteString("//! Generated from Go's `unicode` and `golang.org/x/text/unicode/norm`\n")
-	fmt.Fprintf(&sb, "//! (Unicode %s): the tables tsgo's organize imports comparers read.\n", unicode.Version)
+	fmt.Fprintf(&sb, "//! (Unicode %s): the tables tsgo's organize imports comparers and auto-import\n//! index read.\n", unicode.Version)
 	sb.WriteString("//! Regenerate with scripts/generate_unicode_tables.py.\n\n")
 	ranges(&sb, "Go `unicode.Lu`", "UPPERCASE_LETTER", unicode.Lu)
+	ranges(&sb, "Go `unicode.Ll`", "LOWERCASE_LETTER", unicode.Ll)
 	ranges(&sb, "Go `unicode.Mn`", "NONSPACING_MARK", unicode.Mn)
 	sb.WriteString("/// Go `unicode.ToLower` of each character it changes.\npub(crate) static TO_LOWER: &[(u32, u32)] = &[\n")
 	for r := rune(0); r <= unicode.MaxRune; r++ {
 		if l := unicode.ToLower(r); l != r {
 			fmt.Fprintf(&sb, "    (0x%04X, 0x%04X),\n", r, l)
+		}
+	}
+	sb.WriteString("];\n\n/// Go `unicode.ToUpper` of each character it changes.\npub(crate) static TO_UPPER: &[(u32, u32)] = &[\n")
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		if u := unicode.ToUpper(r); u != r {
+			fmt.Fprintf(&sb, "    (0x%04X, 0x%04X),\n", r, u)
 		}
 	}
 	sb.WriteString("];\n\n/// The canonical decomposition (Go `norm.NFD`) of each character that has\n/// one, Hangul syllables aside.\npub(crate) static CANONICAL_DECOMPOSITION: &[(u32, &str)] = &[\n")
