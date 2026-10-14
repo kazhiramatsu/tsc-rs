@@ -2996,7 +2996,7 @@ pub(super) fn get_property_symbol_of_object_binding_pattern_without_property_nam
 }
 
 /// tsgo `isObjectBindingElementWithoutPropertyName`.
-fn is_object_binding_element_without_property_name(
+pub(crate) fn is_object_binding_element_without_property_name(
     request: &Request<'_, '_>,
     binding_element: NodeId,
 ) -> bool {

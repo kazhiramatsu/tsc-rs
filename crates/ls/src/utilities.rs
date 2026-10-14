@@ -323,7 +323,7 @@ fn lib_file_from_reference(
 /// tsgo `Program.GetResolvedModuleFromModuleSpecifier`: the program's
 /// resolution of a module specifier (`Some(None)` when it did not resolve),
 /// none when the program did not resolve it.
-fn resolved_module_from_module_specifier(
+pub(crate) fn resolved_module_from_module_specifier(
     state: &CheckerState<'_>,
     prepared: &PreparedProgram,
     source: &SourceFile,

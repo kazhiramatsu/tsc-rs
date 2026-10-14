@@ -590,10 +590,88 @@ pub fn remove_file_extension<'p>(path: impl Into<JsStr<'p>>) -> JsString {
         .to_owned()
 }
 
-/// tsgo `ChangeFullExtension`: a path with its whole extension (a
-/// declaration extension included) replaced.
+/// The final component of a path (after its last `/` or `\\`).
+fn base_name_of(path: &str) -> &str {
+    let path = path.trim_end_matches(['/', '\\']);
+    path.rsplit(['/', '\\']).next().unwrap_or(path)
+}
+
+/// tsgo `GetAnyExtensionFromPath` without an extension list: the final
+/// component's suffix from its last dot.
+pub fn any_extension(path: &str) -> &str {
+    let base = base_name_of(path);
+    base.rfind('.').map_or("", |index| &base[index..])
+}
+
+/// tsgo `HasExtension`: any dot in the final path component.
+pub fn has_extension(path: &str) -> bool {
+    base_name_of(path).contains('.')
+}
+
+/// tsgo `IsDeclarationFileName`: `.d.ts`, `.d.mts`, `.d.cts`, or a
+/// `.d.<extension>.ts` file.
+pub fn is_declaration_file_name(path: &str) -> bool {
+    !declaration_file_extension(path).is_empty()
+}
+
+/// tsgo `GetDeclarationFileExtension`: a file name's declaration extension
+/// (`.d.json.ts` among them), if any.
+pub fn declaration_file_extension(path: &str) -> &str {
+    let base = base_name_of(path);
+    for extension in [".d.ts", ".d.cts", ".d.mts"] {
+        if base.ends_with(extension) {
+            return extension;
+        }
+    }
+    if base.ends_with(".ts") {
+        if let Some(index) = base.find(".d.") {
+            return &base[index..];
+        }
+    }
+    ""
+}
+
+/// tsgo `ChangeAnyExtension` without an extension list: the path with its
+/// final extension replaced (a leading dot added when missing); a path
+/// without one unchanged.
+pub fn change_any_extension(path: &str, extension: &str) -> String {
+    let current = any_extension(path);
+    if current.is_empty() {
+        return path.to_owned();
+    }
+    let stem = &path[..path.len() - current.len()];
+    if extension.starts_with('.') {
+        format!("{stem}{extension}")
+    } else {
+        format!("{stem}.{extension}")
+    }
+}
+
+/// tsgo `ChangeFullExtension`: a path with its whole extension replaced —
+/// a declaration extension from its `.d` (`.d.css.ts` among them), else
+/// one of [`EXTENSIONS_TO_REMOVE`] (tsgo `ChangeExtension`); a path with
+/// neither unchanged.
 pub fn change_full_extension<'p>(path: impl Into<JsStr<'p>>, extension: &str) -> JsString {
-    let mut result = remove_file_extension(path);
+    let path = path.into();
+    let declaration = declaration_file_extension(&path.to_string_lossy()).to_owned();
+    let current = if declaration.is_empty() {
+        let Some(current) = EXTENSIONS_TO_REMOVE
+            .iter()
+            .find(|current| path.ends_with(current))
+        else {
+            return path.to_owned();
+        };
+        (*current).to_owned()
+    } else {
+        declaration
+    };
+    let mut result = path
+        .strip_suffix(current.as_str())
+        .expect("the extension ends the path")
+        .to_owned();
+    if !extension.is_empty() && !extension.starts_with('.') {
+        result.push_str(".");
+    }
     result.push_str(extension);
     result
 }

@@ -361,6 +361,27 @@ impl Session {
     /// otherwise an update only when a document's default project is not
     /// loaded or is dirty.
     pub fn get_snapshot(&self, documents: &[DocumentUri]) -> Result<Arc<Snapshot>, ProjectError> {
+        self.get_snapshot_for(documents, false)
+    }
+
+    /// tsgo `GetLanguageServicesForDocumentsLoadingProjectTree`'s snapshot:
+    /// the documents' default projects and every project tree loaded (its
+    /// language service projects are the ones to search).
+    pub fn get_snapshot_loading_project_tree(
+        &self,
+        documents: &[DocumentUri],
+    ) -> Result<Arc<Snapshot>, ProjectError> {
+        self.get_snapshot_for(documents, true)
+    }
+
+    /// tsgo `getSnapshot`: with pending changes or a project tree to load,
+    /// a new snapshot; else one only when a document's default project is
+    /// not loaded or is dirty.
+    fn get_snapshot_for(
+        &self,
+        documents: &[DocumentUri],
+        project_tree: bool,
+    ) -> Result<Arc<Snapshot>, ProjectError> {
         let inner = &self.inner;
         let _update = lock(&inner.snapshot_update);
         inner.cancel_scheduled_snapshot_update();
@@ -376,16 +397,18 @@ impl Session {
                     file_changes: changes,
                     new_config,
                     documents,
+                    project_tree,
                     ..SnapshotChange::default()
                 },
             );
         }
         let snapshot = inner.snapshot();
-        let stale = documents.iter().any(|document| {
-            snapshot
-                .default_project(document)
-                .is_none_or(|project| project.dirty)
-        });
+        let stale = project_tree
+            || documents.iter().any(|document| {
+                snapshot
+                    .default_project(document)
+                    .is_none_or(|project| project.dirty)
+            });
         if !stale {
             return Ok(snapshot);
         }
@@ -393,6 +416,7 @@ impl Session {
             overlays,
             SnapshotChange {
                 documents,
+                project_tree,
                 ..SnapshotChange::default()
             },
         )

@@ -15,7 +15,9 @@ use tsc_ls::lsutil::UserPreferences;
 use tsc_ls::LanguageService;
 use tsc_lsproto::{
     DocumentHighlightsOrNull, DocumentUri, LocationsOrNull, Position, PositionEncodingKind,
-    ReferenceContext, ReferenceParams, ResolvedClientCapabilities, TextDocumentIdentifier,
+    ReferenceContext, ReferenceParams, RenameParams, ResolvedClientCapabilities,
+    TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile, TextDocumentIdentifier,
+    TextEditOrAnnotatedTextEditOrSnippetTextEdit, WorkspaceEditOrNull,
 };
 use tsc_program::{load_program, LibraryCatalog, ProgramLoadLimits, ProgramOptions};
 use tsc_types::CompilerOptions;
@@ -241,6 +243,101 @@ fn references(
                         (location.range.end.line, location.range.end.character),
                     ),
                 )
+            })
+            .collect()
+    })
+}
+
+/// tsgo's prepare rename at `(line, character)` of `file`: the span and
+/// placeholder, else the reason.
+fn prepare_rename(
+    files: &[(&str, &str)],
+    file: &str,
+    (line, character): (u32, u32),
+) -> Result<(Range, String), String> {
+    with_service(files, options(|_| {}), |service, _| {
+        let info = service
+            .get_rename_info(
+                "",
+                &DocumentUri(format!("file://{file}")),
+                &Position { line, character },
+            )
+            .expect("an answer");
+        if info.can_rename {
+            Ok((range_of(&info.trigger_span), info.display_name))
+        } else {
+            Err(info.localized_error_message)
+        }
+    })
+}
+
+/// tsgo's rename edits at `(line, character)` of `file`: each edit's file,
+/// range and text.
+fn rename(
+    files: &[(&str, &str)],
+    file: &str,
+    (line, character): (u32, u32),
+    new_name: &str,
+) -> Vec<(String, Range, String)> {
+    with_service(files, options(|_| {}), |service, _| {
+        let params = RenameParams {
+            text_document: TextDocumentIdentifier {
+                uri: DocumentUri(format!("file://{file}")),
+            },
+            position: Position { line, character },
+            work_done_token: None,
+            new_name: new_name.to_owned(),
+        };
+        let WorkspaceEditOrNull::WorkspaceEdit(edit) =
+            service.provide_rename(&params).expect("an answer")
+        else {
+            panic!("an edit");
+        };
+        edit.changes
+            .unwrap_or_default()
+            .into_iter()
+            .flat_map(|(uri, edits)| {
+                edits.into_iter().map(move |edit| {
+                    (
+                        uri.as_str().trim_start_matches("file://").to_owned(),
+                        range_of(&edit.range),
+                        edit.new_text,
+                    )
+                })
+            })
+            .collect()
+    })
+}
+
+/// tsgo's edits for renaming `old` to `new` (`workspace/willRenameFiles`):
+/// each edit's file, range and text.
+fn file_rename(files: &[(&str, &str)], old: &str, new: &str) -> Vec<(String, Range, String)> {
+    with_service(files, options(|_| {}), |service, _| {
+        service
+            .get_edits_for_file_rename(
+                &DocumentUri(format!("file://{old}")),
+                &DocumentUri(format!("file://{new}")),
+            )
+            .expect("an answer")
+            .into_iter()
+            .flat_map(|change| {
+                let TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile::TextDocumentEdit(edit) =
+                    change
+                else {
+                    panic!("text edits only");
+                };
+                let file = edit
+                    .text_document
+                    .uri
+                    .as_str()
+                    .trim_start_matches("file://")
+                    .to_owned();
+                edit.edits.into_iter().map(move |edit| {
+                    let TextEditOrAnnotatedTextEditOrSnippetTextEdit::TextEdit(edit) = edit else {
+                        panic!("a text edit");
+                    };
+                    (file.clone(), range_of(&edit.range), edit.new_text)
+                })
             })
             .collect()
     })
@@ -504,5 +601,78 @@ fn a_missing_keyword_is_highlighted_where_it_is_missing() {
         vec![
             (((7, 5), (7, 5)), 2),
         ]
+    );
+}
+
+/// renameBuiltinTypes: a default library's type cannot be renamed.
+#[test]
+fn library_types_cannot_be_renamed() {
+    let text = "\nconst arr: Array<number> = [];\nconst map1: Map<string, number> = new Map();\nconst prom: Promise<void> = Promise.resolve();\nconst str: string = \"hello\";\n";
+    assert_eq!(
+        prepare_rename(
+            &[("/renameBuiltinTypes.ts", text)],
+            "/renameBuiltinTypes.ts",
+            (1, 11)
+        ),
+        Err(
+            "You cannot rename elements that are defined in the standard TypeScript library."
+                .to_owned()
+        )
+    );
+}
+
+/// renameModuleExportsProperties1: a shorthand property of `module.exports`
+/// keeps its exported name.
+#[test]
+fn module_exports_shorthand_keeps_its_name() {
+    let file = "/renameModuleExportsProperties1.ts";
+    assert_eq!(
+        rename(
+            &[(file, "class A {}\nmodule.exports = { A }")],
+            file,
+            (0, 6),
+            "?"
+        ),
+        [
+            (file.to_owned(), ((0, 6), (0, 7)), "?".to_owned()),
+            (file.to_owned(), ((1, 19), (1, 20)), "A: ?".to_owned()),
+        ]
+    );
+}
+
+/// renameNumericalIndex: a numeric index renamed to a name is quoted (with
+/// the default quote preference, double quotes).
+#[test]
+fn numeric_index_is_quoted() {
+    let file = "/renameNumericalIndex.ts";
+    assert_eq!(
+        rename(
+            &[(file, "const foo = { 0: true };\nfoo[0];")],
+            file,
+            (0, 14),
+            "?"
+        ),
+        [
+            (file.to_owned(), ((0, 14), (0, 15)), "?".to_owned()),
+            (file.to_owned(), ((1, 4), (1, 5)), "\"?\"".to_owned()),
+        ]
+    );
+}
+
+/// getEditsForFileRename_subDir: an unresolved relative import of a moved
+/// file is written from its new directory.
+#[test]
+fn moved_file_keeps_its_unresolved_relative_import() {
+    assert_eq!(
+        file_rename(
+            &[("/src/old.ts", "import a from \"./foo/a\";")],
+            "/src/old.ts",
+            "/src/dir/new.ts"
+        ),
+        [(
+            "/src/old.ts".to_owned(),
+            ((0, 15), (0, 22)),
+            "../foo/a".to_owned()
+        )]
     );
 }

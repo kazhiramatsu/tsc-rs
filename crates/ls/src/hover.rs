@@ -1494,7 +1494,7 @@ impl<'a> Request<'_, 'a> {
     }
 
     /// tsgo `ast.IsLabelName`.
-    fn is_label_name(&self, node: NodeId) -> bool {
+    pub(crate) fn is_label_name(&self, node: NodeId) -> bool {
         let Some(parent) = self.state.binder.node_record(node).parent else {
             return false;
         };

@@ -1645,6 +1645,61 @@ impl<'a> ProjectCollectionBuilder<'a> {
         }
     }
 
+    /// tsgo `DidRequestProjectTrees` for every project: each configured
+    /// project's program brought up to date with the projects it
+    /// references, then the inferred project's (the configured projects may
+    /// have taken or left its files).
+    pub(crate) fn did_request_project_trees(&mut self) -> Result<(), ProjectError> {
+        let mut seen = BTreeSet::new();
+        for id in self.configured.keys().cloned().collect::<Vec<_>>() {
+            if !self.configured.contains_key(&id) {
+                continue;
+            }
+            self.update_program(&id)?;
+            self.ensure_project_tree(&id, &mut seen)?;
+        }
+        self.cleanup_inferred_project()?;
+        if self.inferred.is_some() {
+            self.update_program(&ProjectId::inferred())?;
+        }
+        Ok(())
+    }
+
+    /// tsgo `ensureProjectTree`: the projects of the configs a project's
+    /// program references, loaded and brought up to date, down the
+    /// references (none below a project that disables referenced project
+    /// loads).
+    fn ensure_project_tree(
+        &mut self,
+        id: &ProjectId,
+        seen: &mut BTreeSet<ProjectId>,
+    ) -> Result<(), ProjectError> {
+        if !seen.insert(id.clone()) {
+            return Ok(());
+        }
+        let Some(project) = self.project(id).cloned() else {
+            return Ok(());
+        };
+        let Some(program) = project.program.clone() else {
+            return Ok(());
+        };
+        if project.config_plan().is_some_and(|plan| {
+            plan.options().option_bool("disableReferencedProjectLoad") == Some(true)
+        }) {
+            return Ok(());
+        }
+        for path in program.references() {
+            let Some(config) = self.configs.find_config(path) else {
+                continue;
+            };
+            let file_name = config.config_file_name().to_string_lossy().into_owned();
+            let child = self.find_or_create_configured_project(&file_name, path);
+            self.update_program(&child)?;
+            self.ensure_project_tree(&child, seen)?;
+        }
+        Ok(())
+    }
+
     /// tsgo `cleanupInferredProject`.
     fn cleanup_inferred_project(&mut self) -> Result<(), ProjectError> {
         let roots = self.collect_inferred_project_roots()?;

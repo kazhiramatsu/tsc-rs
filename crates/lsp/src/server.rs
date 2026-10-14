@@ -8,7 +8,7 @@
 //! each handler's synchronous part in order; a handler may return work that
 //! runs on its own thread. The write loop sends the outgoing messages.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::{Read, Write};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
@@ -1197,6 +1197,246 @@ impl Server {
             .map_err(language_service_failure)
     }
 
+    /// tsgo `handlePrepareRename`: the span and placeholder, else the
+    /// reason as a failed request.
+    fn handle_prepare_rename(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::PrepareRenameParams,
+    ) -> Result<lsproto::PrepareRenameResponse, Failure> {
+        let info = service
+            .get_rename_info("", &params.text_document.uri, &params.position)
+            .map_err(language_service_failure)?;
+        if !info.can_rename {
+            // tsgo `userFacingRequestFailedError`.
+            return Err(LspError {
+                code: ErrorCode::REQUEST_FAILED,
+                message: info.localized_error_message,
+            }
+            .into());
+        }
+        Ok(
+            lsproto::RangeOrPrepareRenamePlaceholderOrPrepareRenameDefaultBehaviorOrNull::PrepareRenamePlaceholder(
+                lsproto::PrepareRenamePlaceholder {
+                    range: info.trigger_span,
+                    placeholder: info.display_name,
+                },
+            ),
+        )
+    }
+
+    /// tsgo `handleRename`: a module specifier's rename renames its file —
+    /// the file's rename for a client that sends `workspace/willRenameFiles`
+    /// for it, else the file's rename with its edits.
+    fn handle_rename(
+        self: &Arc<Self>,
+        context: &RequestContext,
+        params: lsproto::RenameParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::RenameResponse, Failure> {
+        let (snapshot, project) = self
+            .initialized_session()
+            .get_snapshot_and_default_project(&params.text_document.uri)
+            .map_err(|error| LspError::internal(error.to_string()))?;
+        let info = self.with_language_service(context, &snapshot, &project, |service| {
+            service
+                .get_rename_info(
+                    &params.new_name,
+                    &params.text_document.uri,
+                    &params.position,
+                )
+                .map_err(language_service_failure)
+        })?;
+        if info.can_rename && !info.file_to_rename.is_empty() {
+            let old_uri = lsproto::DocumentUri(tsc_program::uri::file_name_to_document_uri(
+                &info.file_to_rename,
+            ));
+            let new_uri = lsproto::DocumentUri(tsc_program::uri::file_name_to_document_uri(
+                &info.new_file_name,
+            ));
+            // We send a `willRenameFiles` request if the client allows;
+            // otherwise we directly compute the edits for renaming the file.
+            if self
+                .client_capabilities()
+                .workspace
+                .file_operations
+                .will_rename
+            {
+                return Ok(lsproto::WorkspaceEditOrNull::WorkspaceEdit(
+                    lsproto::WorkspaceEdit {
+                        document_changes: Some(vec![
+                        lsproto::TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile::RenameFile(
+                            lsproto::RenameFile {
+                                kind: Default::default(),
+                                annotation_id: None,
+                                old_uri,
+                                new_uri,
+                                options: None,
+                            },
+                        ),
+                    ]),
+                        ..lsproto::WorkspaceEdit::default()
+                    },
+                ));
+            }
+            let params = lsproto::RenameFilesParams {
+                files: vec![lsproto::FileRename { old_uri, new_uri }],
+            };
+            return self.will_rename_files(context, &params, true);
+        }
+        self.with_language_service(context, &snapshot, &project, |service| {
+            service
+                .provide_rename(&params)
+                .map_err(language_service_failure)
+        })
+    }
+
+    /// tsgo `handleWillRenameFiles`.
+    fn handle_will_rename_files(
+        self: &Arc<Self>,
+        context: &RequestContext,
+        params: lsproto::RenameFilesParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::WillRenameFilesResponse, Failure> {
+        self.will_rename_files(context, &params, false)
+    }
+
+    /// tsgo `handleWillRenameFilesWorker`: the edits of each language
+    /// service project (every project tree loaded) for each rename, each
+    /// file's rename and each edit once; with `send_rename_file` (a rename
+    /// for a client without `willRenameFiles`), the renames themselves
+    /// after them.
+    fn will_rename_files(
+        &self,
+        context: &RequestContext,
+        params: &lsproto::RenameFilesParams,
+        send_rename_file: bool,
+    ) -> Result<lsproto::WillRenameFilesResponse, Failure> {
+        type Change = lsproto::TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile;
+        if params.files.is_empty() {
+            return Ok(lsproto::WorkspaceEditOrNull::Null);
+        }
+        let uris: Vec<lsproto::DocumentUri> = params
+            .files
+            .iter()
+            .map(|file| file.old_uri.clone())
+            .collect();
+        let snapshot = self
+            .initialized_session()
+            .get_snapshot_loading_project_tree(&uris)
+            .map_err(|error| LspError::internal(error.to_string()))?;
+        let mut seen_edits: HashMap<(String, [u32; 4]), String> = HashMap::new();
+        let mut seen_renames: HashSet<String> = HashSet::new();
+        let mut document_changes: Vec<Change> = Vec::new();
+        for project in snapshot.language_service_projects() {
+            if project.program().is_none() {
+                continue;
+            }
+            for file in &params.files {
+                let changes =
+                    self.with_language_service(context, &snapshot, project, |service| {
+                        service
+                            .get_edits_for_file_rename(&file.old_uri, &file.new_uri)
+                            .map_err(language_service_failure)
+                    })?;
+                for change in changes {
+                    match change {
+                        Change::RenameFile(rename) => {
+                            if seen_renames.insert(rename.old_uri.0.clone()) {
+                                document_changes.push(Change::RenameFile(rename));
+                            }
+                        }
+                        Change::TextDocumentEdit(edit) => {
+                            let uri = edit.text_document.uri.0.clone();
+                            let mut deduped = Vec::new();
+                            for text_edit in edit.edits {
+                                if let lsproto::TextEditOrAnnotatedTextEditOrSnippetTextEdit::TextEdit(
+                                    text_edit,
+                                ) = &text_edit
+                                {
+                                    let range = &text_edit.range;
+                                    let key = (
+                                        uri.clone(),
+                                        [
+                                            range.start.line,
+                                            range.start.character,
+                                            range.end.line,
+                                            range.end.character,
+                                        ],
+                                    );
+                                    if seen_edits.get(&key) == Some(&text_edit.new_text) {
+                                        continue;
+                                    }
+                                    seen_edits.insert(key, text_edit.new_text.clone());
+                                }
+                                deduped.push(text_edit);
+                            }
+                            if !deduped.is_empty() {
+                                document_changes.push(Change::TextDocumentEdit(
+                                    lsproto::TextDocumentEdit {
+                                        text_document: edit.text_document,
+                                        edits: deduped,
+                                    },
+                                ));
+                            }
+                        }
+                        other => document_changes.push(other),
+                    }
+                }
+            }
+        }
+        if send_rename_file {
+            for file in &params.files {
+                document_changes.push(Change::RenameFile(lsproto::RenameFile {
+                    kind: Default::default(),
+                    annotation_id: None,
+                    old_uri: file.old_uri.clone(),
+                    new_uri: file.new_uri.clone(),
+                    options: None,
+                }));
+            }
+        }
+        if document_changes.is_empty() {
+            return Ok(lsproto::WorkspaceEditOrNull::Null);
+        }
+        if self
+            .client_capabilities()
+            .workspace
+            .workspace_edit
+            .document_changes
+        {
+            return Ok(lsproto::WorkspaceEditOrNull::WorkspaceEdit(
+                lsproto::WorkspaceEdit {
+                    document_changes: Some(document_changes),
+                    ..lsproto::WorkspaceEdit::default()
+                },
+            ));
+        }
+        let mut changes: BTreeMap<lsproto::DocumentUri, Vec<lsproto::TextEdit>> = BTreeMap::new();
+        for change in document_changes {
+            if let Change::TextDocumentEdit(edit) = change {
+                for text_edit in edit.edits {
+                    if let lsproto::TextEditOrAnnotatedTextEditOrSnippetTextEdit::TextEdit(
+                        text_edit,
+                    ) = text_edit
+                    {
+                        changes
+                            .entry(edit.text_document.uri.clone())
+                            .or_default()
+                            .push(text_edit);
+                    }
+                }
+            }
+        }
+        Ok(lsproto::WorkspaceEditOrNull::WorkspaceEdit(
+            lsproto::WorkspaceEdit {
+                changes: Some(changes),
+                ..lsproto::WorkspaceEdit::default()
+            },
+        ))
+    }
+
     /// tsgo `handleDocumentHighlight`.
     fn handle_document_highlight(
         self: &Arc<Self>,
@@ -1573,6 +1813,15 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentTypeDefinitionInfo>(
             &mut handlers,
             Server::handle_type_definition,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentPrepareRenameInfo>(
+            &mut handlers,
+            Server::handle_prepare_rename,
+        );
+        register_request::<lsproto::TextDocumentRenameInfo>(&mut handlers, Server::handle_rename);
+        register_request::<lsproto::WorkspaceWillRenameFilesInfo>(
+            &mut handlers,
+            Server::handle_will_rename_files,
         );
         register_language_service_document_request::<lsproto::TextDocumentDocumentHighlightInfo>(
             &mut handlers,
