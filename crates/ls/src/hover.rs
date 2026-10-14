@@ -79,7 +79,7 @@ impl LanguageService<'_> {
             if matches!(
                 kind,
                 SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName
-            ) && !request.is_in_comment(file, position, found)
+            ) && !crate::utilities::is_in_comment(&navigator, position, found)
             {
                 // No quick info inside the comment of `a/**/.b`.
                 return Ok(None);
@@ -1311,36 +1311,6 @@ impl<'a> Request<'_, 'a> {
             NodeData::NewExpression(new) if new.expression == Some(node) => Some(parent),
             _ => None,
         }
-    }
-
-    /// tsgo `isInComment` of a property access or qualified name astnav
-    /// found (`getRangeOfEnclosingComment`): one in a JSDoc comment whose
-    /// position is inside that comment, outside its host. Outside JSDoc the
-    /// node contains the position, so it is never in a comment.
-    fn is_in_comment(&self, _file: usize, position: u32, found: crate::astnav::Found) -> bool {
-        let Some(Touching::Node(mut node)) = touching(found) else {
-            return false;
-        };
-        loop {
-            if self.node_kind(node) == SyntaxKind::JSDoc {
-                break;
-            }
-            match self.state.binder.node_record(node).parent {
-                Some(parent) => node = parent,
-                None => return false,
-            }
-        }
-        let js_doc = self.state.binder.node_record(node);
-        let Some(host) = js_doc.parent else {
-            return false;
-        };
-        let source = self.state.binder.source_of_node(host);
-        let host_start = crate::utilities::token_start(source, host) as u32;
-        let host_end = self.state.binder.node_record(host).end;
-        if host_start <= position && position < host_end {
-            return false;
-        }
-        js_doc.pos < position && position < js_doc.end
     }
 
     /// tsgo `getNodeForQuickInfo`.

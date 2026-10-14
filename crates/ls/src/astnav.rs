@@ -55,6 +55,22 @@ impl<'a> Navigator<'a> {
         }
     }
 
+    pub fn file(&self) -> &'a SourceFile {
+        self.file
+    }
+
+    pub fn tree(&self) -> &Tree<'a> {
+        &self.tree
+    }
+
+    /// tsgo `Node.Parent`: a token's is the node it was read in.
+    pub fn parent(&self, found: Found) -> Option<Found> {
+        match found {
+            Found::Node(view) => self.tree.parent(view).map(Found::Node),
+            Found::Token(token) => Some(Found::Node(token.parent)),
+        }
+    }
+
     /// tsgo `GetTouchingPropertyName`: the token at `position`, or the
     /// property name, keyword or private identifier that ends there.
     pub fn touching_property_name(&self, position: u32) -> Found {
@@ -893,7 +909,7 @@ impl<'a> Navigator<'a> {
     ) -> SyntaxKind {
         let token = scanner.token();
         if token == SyntaxKind::LessThanLessThanToken && is_jsx_child(self.view_kind(containing)) {
-            return scanner.re_scan_jsx_token();
+            return scanner.re_scan_jsx_token(true);
         }
         token
     }

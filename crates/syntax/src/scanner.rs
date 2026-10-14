@@ -185,6 +185,9 @@ pub(crate) struct Scanner<'text> {
     language_variant: LanguageVariant,
     js_doc_parsing_mode: JSDocParsingMode,
     is_typescript_file: bool,
+    /// tsgo `skipTrivia`: whether `scan` skips white space, line breaks,
+    /// comments and conflict markers, or returns them as trivia tokens.
+    skip_trivia: bool,
     errors: Vec<ScanError>,
     /// tsc scanner.skipJsDocLeadingAsterisks. This is a balanced mode
     /// counter rather than speculative scanner state.
@@ -211,6 +214,7 @@ impl<'text> Scanner<'text> {
             language_variant,
             js_doc_parsing_mode: JSDocParsingMode::ParseAll,
             is_typescript_file: true,
+            skip_trivia: true,
             errors: Vec::new(),
             skip_jsdoc_leading_asterisks: 0,
             comment_directives: Vec::new(),
@@ -230,6 +234,11 @@ impl<'text> Scanner<'text> {
         self.is_typescript_file = is_typescript_file;
     }
 
+    /// tsgo `SetSkipTrivia`.
+    pub(crate) fn set_skip_trivia(&mut self, skip: bool) {
+        self.skip_trivia = skip;
+    }
+
     pub(crate) fn scan(&mut self) -> SyntaxKind {
         self.full_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
@@ -242,6 +251,7 @@ impl<'text> Scanner<'text> {
                 return self.token;
             };
 
+            // A shebang is skipped even when trivia is not.
             if self.pos == 0 && self.starts_with("#!") {
                 self.scan_shebang_trivia();
                 continue;
@@ -249,13 +259,29 @@ impl<'text> Scanner<'text> {
 
             if is_line_break(ch) {
                 self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+                // tsgo: a line or paragraph separator is skipped even when
+                // trivia is not; `\r\n` is one new line.
+                if !self.skip_trivia && matches!(ch, '\n' | '\r') {
+                    self.pos += if self.starts_with("\r\n") { 2 } else { 1 };
+                    self.token = SyntaxKind::NewLineTrivia;
+                    return self.token;
+                }
                 self.advance_char();
                 continue;
             }
 
             if is_single_line_whitespace(ch) {
                 self.advance_char();
-                continue;
+                // tsgo: a next line (U+0085) is skipped even when trivia is
+                // not.
+                if self.skip_trivia || ch == '\u{85}' {
+                    continue;
+                }
+                while self.current_char().is_some_and(is_single_line_whitespace) {
+                    self.advance_char();
+                }
+                self.token = SyntaxKind::WhitespaceTrivia;
+                return self.token;
             }
 
             if ch == '/' {
@@ -263,10 +289,18 @@ impl<'text> Scanner<'text> {
                 match self.text.as_bytes().get(self.pos + 1) {
                     Some(b'/') => {
                         self.skip_single_line_comment();
+                        if let Some(kind) = self.trivia_token(SyntaxKind::SingleLineCommentTrivia) {
+                            return kind;
+                        }
                         continue;
                     }
                     Some(b'*') => {
-                        self.skip_multi_line_comment();
+                        if !self.skip_multi_line_comment() && !self.skip_trivia {
+                            self.token_flags.insert(TokenFlags::UNTERMINATED);
+                        }
+                        if let Some(kind) = self.trivia_token(SyntaxKind::MultiLineCommentTrivia) {
+                            return kind;
+                        }
                         continue;
                     }
                     _ => {}
@@ -368,6 +402,9 @@ impl<'text> Scanner<'text> {
                 ';' => return self.finish_token(SyntaxKind::SemicolonToken, 1),
                 '<' => {
                     if self.skip_conflict_marker_trivia() {
+                        if let Some(kind) = self.trivia_token(SyntaxKind::ConflictMarkerTrivia) {
+                            return kind;
+                        }
                         continue;
                     }
                     if self.starts_with("<<=") {
@@ -389,6 +426,9 @@ impl<'text> Scanner<'text> {
                 }
                 '=' => {
                     if self.skip_conflict_marker_trivia() {
+                        if let Some(kind) = self.trivia_token(SyntaxKind::ConflictMarkerTrivia) {
+                            return kind;
+                        }
                         continue;
                     }
                     if self.starts_with("===") {
@@ -404,6 +444,9 @@ impl<'text> Scanner<'text> {
                 }
                 '>' => {
                     if self.skip_conflict_marker_trivia() {
+                        if let Some(kind) = self.trivia_token(SyntaxKind::ConflictMarkerTrivia) {
+                            return kind;
+                        }
                         continue;
                     }
                     return self.finish_token(SyntaxKind::GreaterThanToken, 1);
@@ -433,6 +476,9 @@ impl<'text> Scanner<'text> {
                 '{' => return self.finish_token(SyntaxKind::OpenBraceToken, 1),
                 '|' => {
                     if self.skip_conflict_marker_trivia() {
+                        if let Some(kind) = self.trivia_token(SyntaxKind::ConflictMarkerTrivia) {
+                            return kind;
+                        }
                         continue;
                     }
                     if self.starts_with("||=") {
@@ -827,8 +873,9 @@ impl<'text> Scanner<'text> {
     /// multi-line directive shape — a `@ts-ignore` on an interior line
     /// is NOT a directive. The append runs whether or not the comment
     /// closed. A `/**` other than the empty `/**/` also stamps the
-    /// ordinary token that follows with PrecedingJSDocComment.
-    fn skip_multi_line_comment(&mut self) {
+    /// ordinary token that follows with PrecedingJSDocComment. Whether the
+    /// comment closed.
+    fn skip_multi_line_comment(&mut self) -> bool {
         let mut last_line_start = self.token_start;
         let is_jsdoc =
             self.byte_at(self.pos + 2) == Some(b'*') && self.byte_at(self.pos + 3) != Some(b'/');
@@ -868,6 +915,15 @@ impl<'text> Scanner<'text> {
                 trivia_kind: Some(SyntaxKind::MultiLineCommentTrivia),
             });
         }
+        comment_closed
+    }
+
+    /// The trivia token `kind` when trivia is not skipped.
+    fn trivia_token(&mut self, kind: SyntaxKind) -> Option<SyntaxKind> {
+        (!self.skip_trivia).then(|| {
+            self.token = kind;
+            kind
+        })
     }
 
     fn should_parse_jsdoc(&self) -> bool {
@@ -1711,6 +1767,13 @@ impl<'text> Scanner<'text> {
         }
 
         self.finish_identifier_token()
+    }
+
+    /// tsgo `ReScanJsxAttributeValue`.
+    pub(crate) fn re_scan_jsx_attribute_value(&mut self) -> SyntaxKind {
+        self.pos = self.full_start_pos;
+        self.token_start = self.full_start_pos;
+        self.scan_jsx_attribute_value()
     }
 
     /// tsgo ScanJsxAttributeValue (scanner.go:1330-1347): whitespace and line
@@ -2672,6 +2735,16 @@ impl<'text> TokenScanner<'text> {
         Self { scanner }
     }
 
+    /// The scanner of tsgo's formatter (`newFormattingScanner`): over a
+    /// source file's text with its language variant, with trivia as tokens
+    /// and no token scanned yet at `pos`.
+    pub fn with_trivia(file: &'text crate::SourceFile, pos: usize) -> Self {
+        let mut scanner = Scanner::new(file.text(), file.language_variant);
+        scanner.set_skip_trivia(false);
+        scanner.reset_token_state(pos);
+        Self { scanner }
+    }
+
     pub fn token(&self) -> SyntaxKind {
         self.scanner.token()
     }
@@ -2697,9 +2770,37 @@ impl<'text> TokenScanner<'text> {
         self.scanner.reset_pos(pos);
     }
 
-    /// tsgo `ReScanJsxToken(true)`.
-    pub fn re_scan_jsx_token(&mut self) -> SyntaxKind {
-        self.scanner.re_scan_jsx_token(true)
+    /// tsgo `ResetTokenState`.
+    pub fn reset_token_state(&mut self, pos: usize) {
+        self.scanner.reset_token_state(pos);
+    }
+
+    /// tsgo `ReScanJsxToken`.
+    pub fn re_scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) -> SyntaxKind {
+        self.scanner.re_scan_jsx_token(allow_multiline_jsx_text)
+    }
+
+    /// tsgo `ReScanGreaterThanToken`: a `>` read again as `>>`, `>=` and
+    /// the like.
+    pub fn re_scan_greater_token(&mut self) -> SyntaxKind {
+        self.scanner.re_scan_greater_token()
+    }
+
+    /// tsgo `ReScanSlashToken`: a `/` or `/=` read again as a regular
+    /// expression.
+    pub fn re_scan_slash_token(&mut self) -> SyntaxKind {
+        self.scanner.re_scan_slash_token(false)
+    }
+
+    /// tsgo `ScanJsxIdentifier`: an identifier or keyword extended with the
+    /// dashes a JSX name may have.
+    pub fn scan_jsx_identifier(&mut self) -> SyntaxKind {
+        self.scanner.scan_jsx_identifier()
+    }
+
+    /// tsgo `ReScanJsxAttributeValue`.
+    pub fn re_scan_jsx_attribute_value(&mut self) -> SyntaxKind {
+        self.scanner.re_scan_jsx_attribute_value()
     }
 
     /// tsgo `ReScanTemplateToken`: a `}` read again as a template middle

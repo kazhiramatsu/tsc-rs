@@ -1039,6 +1039,42 @@ impl Server {
         })
     }
 
+    /// tsgo `handleDocumentFormat`.
+    fn handle_document_format(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::DocumentFormattingParams,
+    ) -> Result<lsproto::DocumentFormattingResponse, Failure> {
+        service
+            .provide_format_document(&params)
+            .map_err(language_service_failure)
+    }
+
+    /// tsgo `handleDocumentRangeFormat`.
+    fn handle_document_range_format(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::DocumentRangeFormattingParams,
+    ) -> Result<lsproto::DocumentRangeFormattingResponse, Failure> {
+        service
+            .provide_format_document_range(&params)
+            .map_err(language_service_failure)
+    }
+
+    /// tsgo `handleDocumentOnTypeFormat`.
+    fn handle_document_on_type_format(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::DocumentOnTypeFormattingParams,
+    ) -> Result<lsproto::DocumentOnTypeFormattingResponse, Failure> {
+        service
+            .provide_format_document_on_type(&params)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo `handleCompletion`.
     fn handle_completion(
         self: &Arc<Self>,
@@ -1459,6 +1495,18 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentTypeDefinitionInfo>(
             &mut handlers,
             Server::handle_type_definition,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentFormattingInfo>(
+            &mut handlers,
+            Server::handle_document_format,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentRangeFormattingInfo>(
+            &mut handlers,
+            Server::handle_document_range_format,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentOnTypeFormattingInfo>(
+            &mut handlers,
+            Server::handle_document_on_type_format,
         );
         register_notification::<lsproto::CustomSetLogVerbosityInfo>(
             &mut handlers,

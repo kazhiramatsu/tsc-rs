@@ -1084,10 +1084,6 @@ impl Completions<'_, '_, '_> {
         closest
     }
 
-    pub(crate) fn is_function_block_public(&self, node: NodeId) -> bool {
-        self.is_function_block(node)
-    }
-
     /// tsgo `ast.IsFunctionBlock`.
     fn is_function_block(&self, node: NodeId) -> bool {
         self.node_kind(node) == SyntaxKind::Block
@@ -1282,71 +1278,12 @@ impl Completions<'_, '_, '_> {
 
     /// tsgo `lsutil.PositionIsASICandidate`.
     fn position_is_asi_candidate(&self, pos: u32, context: Touching) -> bool {
-        // FindAncestorOrQuit from the token: it ends at `pos`, but is no
-        // statement.
-        if self.end(context) != pos {
-            return false;
-        }
-        let mut current = match context {
-            Touching::Node(node) => Some(node),
-            Touching::Token { parent, .. } => Some(parent),
-        };
-        while let Some(node) = current {
-            if self.record(node).end != pos {
-                return false;
-            }
-            if syntax_may_be_asi_candidate(self.node_kind(node)) {
-                return self.node_is_asi_candidate(node);
-            }
-            current = self.parent_of(node);
-        }
-        false
-    }
-
-    /// tsgo `lsutil.NodeIsASICandidate`.
-    fn node_is_asi_candidate(&self, node: NodeId) -> bool {
-        let kind = self.node_kind(node);
-        let last_token = self.last_token(node);
-        if last_token.is_some_and(|last| self.kind(last) == SyntaxKind::SemicolonToken) {
-            return false;
-        }
-        if syntax_requires_trailing_comma_or_semicolon_or_asi(kind) {
-            if last_token.is_some_and(|last| self.kind(last) == SyntaxKind::CommaToken) {
-                return false;
-            }
-        } else if kind == SyntaxKind::ModuleDeclaration {
-            if self
-                .last_child(node)
-                .is_some_and(|last| self.kind(last) == SyntaxKind::ModuleBlock)
-            {
-                return false;
-            }
-        } else if syntax_requires_trailing_function_block_or_semicolon_or_asi(kind) {
-            if self.last_child(node).is_some_and(|last| match last {
-                Touching::Node(last) => self.is_function_block_public(last),
-                Touching::Token { .. } => false,
-            }) {
-                return false;
-            }
-        } else if !syntax_requires_trailing_semicolon_or_asi(kind) {
-            return false;
-        }
-        // See the parser's `parseDoStatement`.
-        if kind == SyntaxKind::DoStatement {
-            return true;
-        }
-        let next = self.navigator.next_token(
-            crate::astnav::Found::Node(crate::tree::View::Node(node)),
-            crate::tree::View::Node(self.source.root),
-        );
-        let Some(next) = next else {
-            return true;
-        };
-        if self.navigator.kind(next) == SyntaxKind::CloseBraceToken {
-            return true;
-        }
-        self.line_of(self.record(node).end)
-            != self.line_of(self.navigator.start_of_node(next, false))
+        crate::lsutil::position_is_asi_candidate(
+            &self.navigator,
+            self.line_starts(),
+            pos as usize,
+            self.found(context),
+        )
     }
 
     /// tsgo `quote`: a string literal in the file's quote style.
@@ -1678,60 +1615,6 @@ fn go_json_quote(units: impl Iterator<Item = Result<char, ()>>) -> String {
     }
     quoted.push('"');
     quoted
-}
-
-/// tsgo `lsutil.SyntaxMayBeASICandidate`.
-fn syntax_may_be_asi_candidate(kind: SyntaxKind) -> bool {
-    syntax_requires_trailing_comma_or_semicolon_or_asi(kind)
-        || syntax_requires_trailing_function_block_or_semicolon_or_asi(kind)
-        || kind == SyntaxKind::ModuleDeclaration
-        || syntax_requires_trailing_semicolon_or_asi(kind)
-}
-
-/// tsgo `lsutil.SyntaxRequiresTrailingCommaOrSemicolonOrASI`.
-fn syntax_requires_trailing_comma_or_semicolon_or_asi(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::CallSignature
-            | SyntaxKind::ConstructSignature
-            | SyntaxKind::IndexSignature
-            | SyntaxKind::PropertySignature
-            | SyntaxKind::MethodSignature
-    )
-}
-
-/// tsgo `lsutil.SyntaxRequiresTrailingFunctionBlockOrSemicolonOrASI`.
-fn syntax_requires_trailing_function_block_or_semicolon_or_asi(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::FunctionDeclaration
-            | SyntaxKind::Constructor
-            | SyntaxKind::MethodDeclaration
-            | SyntaxKind::GetAccessor
-            | SyntaxKind::SetAccessor
-    )
-}
-
-/// tsgo `lsutil.SyntaxRequiresTrailingSemicolonOrASI`.
-fn syntax_requires_trailing_semicolon_or_asi(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::VariableStatement
-            | SyntaxKind::ExpressionStatement
-            | SyntaxKind::DoStatement
-            | SyntaxKind::ContinueStatement
-            | SyntaxKind::BreakStatement
-            | SyntaxKind::ReturnStatement
-            | SyntaxKind::ThrowStatement
-            | SyntaxKind::DebuggerStatement
-            | SyntaxKind::PropertyDeclaration
-            | SyntaxKind::TypeAliasDeclaration
-            | SyntaxKind::ImportDeclaration
-            | SyntaxKind::ImportEqualsDeclaration
-            | SyntaxKind::ExportDeclaration
-            | SyntaxKind::NamespaceExportDeclaration
-            | SyntaxKind::ExportAssignment
-    )
 }
 
 /// tsgo `escapeSnippetText`.
