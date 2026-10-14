@@ -181,6 +181,9 @@ pub struct SnapshotChange<'a> {
     /// tsgo `ResourceRequest.AutoImports`: the file whose auto-imports to
     /// prepare.
     pub auto_imports: Option<String>,
+    /// tsgo `ResourceRequest.ProjectTree` for every project: each configured
+    /// project and the projects its program references loaded.
+    pub project_tree: bool,
 }
 
 /// The API's open state (tsgo `APIState`): the projects and files opened
@@ -490,6 +493,11 @@ impl tsc_ls::Host for Snapshot {
     fn auto_import_registry(&self) -> Option<&Registry> {
         Some(&self.auto_imports)
     }
+
+    /// The parse of the config the snapshot keeps for `config_file_name`.
+    fn config_plan(&self, config_file_name: &str) -> Option<&ConfigRootPlan> {
+        self.config(config_file_name).map(|plan| &**plan)
+    }
 }
 
 impl tsc_emitter::source_mapper::SourceMapperHost for Snapshot {
@@ -542,6 +550,16 @@ impl Snapshot {
 
     pub fn inferred_project(&self) -> Option<&Arc<Project>> {
         self.projects.inferred.as_ref()
+    }
+
+    /// tsgo `LanguageServiceProjects`: the configured projects by ID, then
+    /// the inferred project (the API's synthetic programs take no part in
+    /// the language service's searches over projects).
+    pub fn language_service_projects(&self) -> impl Iterator<Item = &Arc<Project>> {
+        self.projects
+            .configured
+            .values()
+            .chain(self.projects.inferred.iter())
     }
 
     /// tsgo `GetDefaultProject`: the project a file belongs to.
@@ -826,6 +844,7 @@ impl SnapshotHost {
             clean_file_cache,
             compiler_options_for_inferred_projects: new_inferred_options,
             auto_imports: prepare_auto_imports,
+            project_tree,
         } = change;
         let overlays = overlays.unwrap_or_else(|| Arc::clone(&base.fs.overlays));
         // tsgo `CloneSnapshot`: an API request's preferences are the new
@@ -913,6 +932,9 @@ impl SnapshotHost {
             }
             for document in &configured_project_documents {
                 builder.did_request_file(document, true)?;
+            }
+            if project_tree {
+                builder.did_request_project_trees()?;
             }
             builder.finish()
         };
