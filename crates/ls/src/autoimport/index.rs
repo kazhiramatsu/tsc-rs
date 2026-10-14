@@ -84,6 +84,30 @@ impl Index {
         results
     }
 
+    /// tsgo `Clone`: the index of the exports `filter` keeps.
+    pub(crate) fn clone_filtered(&self, filter: impl Fn(&Export) -> bool) -> Self {
+        let mut entries = Vec::with_capacity(self.entries.len());
+        let mut old_to_new = HashMap::with_capacity(self.entries.len());
+        for (old_index, entry) in self.entries.iter().enumerate() {
+            if filter(entry) {
+                old_to_new.insert(old_index, entries.len());
+                entries.push(Arc::clone(entry));
+            }
+        }
+        let index = self
+            .index
+            .iter()
+            .filter_map(|(&key, old_indices)| {
+                let new_indices: Vec<usize> = old_indices
+                    .iter()
+                    .filter_map(|old_index| old_to_new.get(old_index).copied())
+                    .collect();
+                (!new_indices.is_empty()).then_some((key, new_indices))
+            })
+            .collect();
+        Self { entries, index }
+    }
+
     /// tsgo `insertAsWords`: the export keyed by the first letter of each
     /// word of its name.
     pub(crate) fn insert_as_words(&mut self, value: Arc<Export>) {

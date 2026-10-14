@@ -787,6 +787,9 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn initialize_program_globals(&mut self) {
         let file_count = self.binder.file_count();
         for index in 0..file_count {
+            if self.is_outside_program(index) {
+                continue;
+            }
             let source = self.binder.source(index);
             let is_external_module = source.external_module_indicator.is_some()
                 || self.binder.file(index).common_js_module_indicator.is_some();
@@ -883,6 +886,15 @@ impl<'a> CheckerState<'a> {
         // merge_module_augmentations (A8).
     }
 
+    /// Whether the file at `index` is not one of the Program's source files
+    /// (tsgo's checker iterates only `Program.SourceFiles()` to build its
+    /// global scope).
+    fn is_outside_program(&self, index: usize) -> bool {
+        self.binder
+            .file_facts(crate::program::ProgramFileId::from_raw(index as u32))
+            .is_outside_program()
+    }
+
     /// tsgo initializeChecker: "Now merge global ambient module
     /// declarations" — the ambient module symbols of the script files,
     /// after the global-scope augmentations (and, in tsgo, the global
@@ -920,6 +932,9 @@ impl<'a> CheckerState<'a> {
         let mut global_augmentations: Vec<NodeId> = Vec::new();
         let mut module_augmentations: Vec<NodeId> = Vec::new();
         for index in 0..file_count {
+            if self.is_outside_program(index) {
+                continue;
+            }
             let source = self.binder.source(index);
             let root = source.root;
             let tsc_syntax::NodeData::SourceFile(data) = &source.arena.node(root).data else {

@@ -166,6 +166,7 @@ impl LiveProgram {
                 file_metadata: inputs.file_metadata,
                 options: prepared.compiler_options().clone(),
                 current_directory: inputs.current_directory,
+                files_outside_program: 0,
             },
             Box::new(provider),
             WorkerBudget::serial(),

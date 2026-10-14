@@ -3,7 +3,7 @@
 //! path functions.
 
 use super::*;
-use crate::CompilerConfigHost;
+use crate::{parse_package_name, CompilerConfigHost};
 use tsc_host::MemoryCompilerHost;
 
 #[test]
@@ -16,9 +16,14 @@ fn package_names_split_and_mangle_as_tsgo_s_resolver_does() {
         ("@scope/name", "sub")
     );
     assert_eq!(parse_package_name("@scope"), ("@scope", ""));
-    assert_eq!(mangle_scoped_package_name("@scope/name"), "scope__name");
-    assert_eq!(mangle_scoped_package_name("@scope"), "@scope");
-    assert_eq!(mangle_scoped_package_name("plain"), "plain");
+    let mangle = |name: &str| {
+        crate::mangle_scoped_package_name(JsStr::from_str(name))
+            .to_string_lossy()
+            .into_owned()
+    };
+    assert_eq!(mangle("@scope/name"), "scope__name");
+    assert_eq!(mangle("@scope"), "@scope");
+    assert_eq!(mangle("plain"), "plain");
 }
 
 #[test]

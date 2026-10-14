@@ -39,13 +39,23 @@ impl CheckerLease {
     }
 }
 
-/// tsgo `symbolExtractor` over a program's checker, for its project bucket.
+/// tsgo `exportExtractor` over a checker: a program's for its project
+/// bucket, a package's alias resolver's for a node_modules bucket.
 pub(crate) struct Extractor<'c, 's> {
     pub(crate) checker: &'c mut CheckerState<'s>,
     /// tsgo `ToPath` of a file name.
     pub(crate) path_of: &'c dyn Fn(&str) -> String,
     pub(crate) package_name: String,
+    /// tsgo `symbolExtractor.realpath`: a package's files' module IDs are
+    /// their real paths', so a package linked in several places has one.
+    pub(crate) realpath: Option<&'c dyn Fn(&str) -> String>,
+    /// tsgo `exportExtractor.moduleResolver`: the file a relative module
+    /// augmentation's name resolves to from a file (CommonJS mode), if any.
+    pub(crate) resolve_module: Option<ResolveModule<'c>>,
 }
+
+/// The file a module name resolves to from a containing file, if any.
+pub(crate) type ResolveModule<'c> = &'c mut dyn FnMut(&str, &str) -> Option<String>;
 
 /// A symbol's name as tsgo writes it (unescaped).
 fn name_of(checker: &CheckerState<'_>, symbol: SymbolId) -> String {
@@ -132,19 +142,9 @@ pub(crate) fn symbol_to_export(
         else {
             return Ok(None);
         };
-        // tsgo `GetSourceFileOfModule`.
-        let record = checker.binder.symbol(parent);
-        let declaration = record.value_declaration.or_else(|| {
-            record.declarations.iter().copied().find(|&declaration| {
-                let source = checker.binder.source_of_node(declaration);
-                !is_external_module_augmentation(source, declaration)
-                    && !node_util::is_global_scope_augmentation(source, declaration)
-            })
-        });
-        let Some(declaration) = declaration else {
+        let Some(file) = source_file_of_module(checker, parent) else {
             return Ok(None);
         };
-        let file = checker.binder.file_index_of_node(declaration);
         let name = name_of(checker, symbol);
         return extract_first_export(
             checker,
@@ -198,6 +198,20 @@ pub(crate) fn symbol_to_export(
     Ok(None)
 }
 
+/// tsgo `GetSourceFileOfModule`: the file of a module symbol's value
+/// declaration, else of its first declaration that is no augmentation.
+pub(super) fn source_file_of_module(checker: &CheckerState<'_>, symbol: SymbolId) -> Option<usize> {
+    let record = checker.binder.symbol(symbol);
+    let declaration = record.value_declaration.or_else(|| {
+        record.declarations.iter().copied().find(|&declaration| {
+            let source = checker.binder.source_of_node(declaration);
+            !is_external_module_augmentation(source, declaration)
+                && !node_util::is_global_scope_augmentation(source, declaration)
+        })
+    })?;
+    Some(checker.binder.file_index_of_node(declaration))
+}
+
 /// tsgo `extractFirstExport`.
 fn extract_first_export(
     checker: &mut CheckerState<'_>,
@@ -213,6 +227,8 @@ fn extract_first_export(
         checker,
         path_of,
         package_name: String::new(),
+        realpath: None,
+        resolve_module: None,
     };
     extractor.extract_from_symbol(
         name,
@@ -256,6 +272,26 @@ fn is_ambient_module(source: &SourceFile, node: NodeId) -> bool {
 }
 
 impl Extractor<'_, '_> {
+    /// tsgo `getModuleID`: a file's module ID, by its real path when the
+    /// extractor has one.
+    fn module_id_of_file(&self, file_name: &str) -> ModuleId {
+        match self.realpath {
+            Some(realpath) => ModuleId::File((self.path_of)(&realpath(file_name))),
+            None => ModuleId::File((self.path_of)(file_name)),
+        }
+    }
+
+    /// tsgo `getModuleIDForSymbol`: a module symbol's ID, a file's by its
+    /// real path when the extractor has one.
+    fn module_id_for_symbol(&self, symbol: SymbolId) -> Option<ModuleId> {
+        let (module_id, file_name) =
+            try_get_module_id_and_file_name_of_module_symbol(self.checker, self.path_of, symbol)?;
+        if !file_name.is_empty() && self.realpath.is_some() {
+            return Some(self.module_id_of_file(&file_name));
+        }
+        Some(module_id)
+    }
+
     /// tsgo `extractFromFile`.
     pub(crate) fn extract_from_file(&mut self, file: usize) -> CheckResult<Vec<Export>> {
         let source = self.checker.binder.source(file);
@@ -305,7 +341,7 @@ impl Extractor<'_, '_> {
     fn extract_from_module(&mut self, file: usize) -> CheckResult<Vec<Export>> {
         let source = self.checker.binder.source(file);
         let file_name = source.file_name.to_string_lossy().into_owned();
-        let module_id = ModuleId::File((self.path_of)(&file_name));
+        let module_id = self.module_id_of_file(&file_name);
         let file_symbol = self
             .checker
             .binder
@@ -334,24 +370,13 @@ impl Extractor<'_, '_> {
             if crate::references::is_external_module_name_relative(&tsc_types::JsString::from(
                 name.as_str(),
             )) {
-                // tsgo resolves the name from the file; the program's
-                // resolution of the augmentation is the same file.
-                let resolved = data
-                    .name
-                    .map(|name| self.checker.resolve_external_module_name_of(name))
-                    .transpose()?
-                    .flatten()
-                    .and_then(|module| {
-                        try_get_module_id_and_file_name_of_module_symbol(
-                            self.checker,
-                            self.path_of,
-                            module,
-                        )
-                    })
-                    .filter(|(_, file_name): &(ModuleId, String)| !file_name.is_empty());
+                let resolved = self
+                    .resolve_module
+                    .as_mut()
+                    .and_then(|resolve| resolve(&name, &file_name));
                 match resolved {
-                    Some((resolved_id, resolved_file_name)) => {
-                        module_id = resolved_id;
+                    Some(resolved_file_name) => {
+                        module_id = ModuleId::File((self.path_of)(&resolved_file_name));
                         module_file_name = resolved_file_name;
                     }
                     None => {
@@ -457,13 +482,7 @@ impl Extractor<'_, '_> {
                 if let Some(parent) =
                     parent.filter(|&parent| is_external_module(self.checker, parent))
                 {
-                    if let Some((target_module_id, _)) =
-                        try_get_module_id_and_file_name_of_module_symbol(
-                            self.checker,
-                            self.path_of,
-                            parent,
-                        )
-                    {
+                    if let Some(target_module_id) = self.module_id_for_symbol(parent) {
                         export.target = Some(ExportId {
                             export_name: name_of(self.checker, reexported),
                             module_id: target_module_id,
@@ -703,11 +722,7 @@ impl Extractor<'_, '_> {
                 if let Some(parent) =
                     parent.filter(|&parent| is_external_module(self.checker, parent))
                 {
-                    if let Some((id, _)) = try_get_module_id_and_file_name_of_module_symbol(
-                        self.checker,
-                        self.path_of,
-                        parent,
-                    ) {
+                    if let Some(id) = self.module_id_for_symbol(parent) {
                         target_module_id = id;
                     }
                 }

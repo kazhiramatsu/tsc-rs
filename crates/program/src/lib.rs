@@ -95,9 +95,11 @@ mod error;
 pub mod go_json;
 mod js_path;
 pub use js_path::{
-    base_file_name, canonical_dynamic_uri_path, combine_paths,
-    directory_name as get_directory_path, normalize_path, normalize_slashes,
-    normalized_absolute_path as get_normalized_absolute_path, root_parts as path_root_parts,
+    base_file_name, canonical_dynamic_uri_path, change_full_extension, combine_paths,
+    directory_name as get_directory_path, extension_from_path, file_extension_is, normalize_path,
+    normalize_slashes, normalized_absolute_path as get_normalized_absolute_path,
+    remove_file_extension, root_parts as path_root_parts, try_get_js_extension_for_file,
+    EXTENSIONS_TO_REMOVE,
 };
 pub use tsc_host::to_file_name_lower_case_js;
 pub use tsc_host::{is_encoded_dynamic_file_name, DYNAMIC_URI_FILE_NAME_PREFIX};
@@ -154,7 +156,10 @@ pub use config_options::{
     TYPESCRIPT_7_1_LIBRARIES,
 };
 pub use error::{PreparationError, PreparationErrorKind, PreparationOperation};
-pub use js_string_ops::{replace_all_stars_value, replace_first_star_value};
+pub use js_string_ops::{
+    has_prefix, has_prefix_and_suffix_without_overlap, has_suffix, replace_all_stars_value,
+    replace_first_star_value, types_package_name,
+};
 pub use json::json_object_own_get as package_json_own_property;
 pub use json::{package_json_property, read_package_json_object_from_snapshot};
 pub use json_value::{append_json_quoted, JsonObject, JsonValue};
@@ -173,19 +178,24 @@ pub use module_requests::{
     PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
 };
 pub use module_resolution::js_own_property_entries as package_json_own_entries;
-pub use module_resolution::mangle_scoped_package_name;
 pub use module_resolution::{
     compare_pattern_keys, default_type_roots, get_conditions,
     json_object_entries_in_order as package_json_entries_in_order, types_versions_paths,
 };
 pub use module_resolution::{
-    normalize_absolute_js_path_lexical, normalize_absolute_path_lexical, HostModuleResolution,
-    HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleResolutionOverride,
-    ModuleResolutionOverrideHandle, ModuleResolver, OverriddenResolution, PackageJsonProbe,
+    get_package_name_from_directory, get_package_name_from_types_package_name,
+    is_applicable_versioned_types_key, mangle_scoped_package_name, node_module_package_root,
+    parse_package_name, unmangle_scoped_package_name,
+};
+pub use module_resolution::{
+    normalize_absolute_js_path_lexical, normalize_absolute_path_lexical, EntrypointEnding,
+    HostModuleResolution, HostResolvedModule, HostResolvedTypeReferenceDirective,
+    ModuleResolutionOverride, ModuleResolutionOverrideHandle, ModuleResolver, OverriddenResolution,
+    PackageJsonProbe, ResolvedEntrypoint,
 };
 pub use option_validation::{
-    validate_compiler_options, validate_paths_option_diagnostics, CompilerOptionValidationLocation,
-    CompilerOptionViolation,
+    path_is_relative, validate_compiler_options, validate_paths_option_diagnostics,
+    CompilerOptionValidationLocation, CompilerOptionViolation,
 };
 pub use output_directories::{
     build_info_file_name, build_info_file_name_in_build_mode, canonical_emit_path,
