@@ -936,13 +936,7 @@ impl Completions<'_, '_, '_> {
                         self.node_kind(name) == SyntaxKind::ComputedPropertyName
                     });
                 if computed {
-                    // tsgo `SymbolToString`.
-                    let symbol_name = self.request.state.symbol_to_string_with_flags(
-                        symbol,
-                        None,
-                        SymbolFlags::ALL,
-                        tsc_checker::SymbolFormatFlags::ALLOW_ANY_NODE_KIND,
-                    )?;
+                    let symbol_name = self.request.symbol_to_string(symbol)?;
                     collector.symbol_to_origin_info_map.insert(
                         index,
                         SymbolOriginInfo {
@@ -1418,81 +1412,6 @@ impl Completions<'_, '_, '_> {
 
     /// tsgo `ast.IsExpression`.
     pub(super) fn is_expression(&self, node: NodeId) -> bool {
-        let mut node = node;
-        while let NodeData::PartiallyEmittedExpression(data) = self.data(node) {
-            match data.expression {
-                Some(expression) => node = expression,
-                None => break,
-            }
-        }
-        is_expression_kind(self.node_kind(node))
+        self.request.is_expression(node)
     }
-}
-
-/// tsgo `ast.isExpressionKind`.
-fn is_expression_kind(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::ConditionalExpression
-            | SyntaxKind::YieldExpression
-            | SyntaxKind::ArrowFunction
-            | SyntaxKind::BinaryExpression
-            | SyntaxKind::SpreadElement
-            | SyntaxKind::AsExpression
-            | SyntaxKind::OmittedExpression
-            | SyntaxKind::PartiallyEmittedExpression
-            | SyntaxKind::SatisfiesExpression
-    ) || is_unary_expression_kind(kind)
-}
-
-/// tsgo `ast.isUnaryExpressionKind`.
-fn is_unary_expression_kind(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::PrefixUnaryExpression
-            | SyntaxKind::PostfixUnaryExpression
-            | SyntaxKind::DeleteExpression
-            | SyntaxKind::TypeOfExpression
-            | SyntaxKind::VoidExpression
-            | SyntaxKind::AwaitExpression
-            | SyntaxKind::TypeAssertionExpression
-    ) || is_left_hand_side_expression_kind(kind)
-}
-
-/// tsgo `ast.isLeftHandSideExpressionKind`.
-fn is_left_hand_side_expression_kind(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::PropertyAccessExpression
-            | SyntaxKind::ElementAccessExpression
-            | SyntaxKind::NewExpression
-            | SyntaxKind::CallExpression
-            | SyntaxKind::JsxElement
-            | SyntaxKind::JsxSelfClosingElement
-            | SyntaxKind::JsxFragment
-            | SyntaxKind::TaggedTemplateExpression
-            | SyntaxKind::ArrayLiteralExpression
-            | SyntaxKind::ParenthesizedExpression
-            | SyntaxKind::ObjectLiteralExpression
-            | SyntaxKind::ClassExpression
-            | SyntaxKind::FunctionExpression
-            | SyntaxKind::Identifier
-            | SyntaxKind::PrivateIdentifier
-            | SyntaxKind::RegularExpressionLiteral
-            | SyntaxKind::NumericLiteral
-            | SyntaxKind::BigIntLiteral
-            | SyntaxKind::StringLiteral
-            | SyntaxKind::NoSubstitutionTemplateLiteral
-            | SyntaxKind::TemplateExpression
-            | SyntaxKind::FalseKeyword
-            | SyntaxKind::NullKeyword
-            | SyntaxKind::ThisKeyword
-            | SyntaxKind::TrueKeyword
-            | SyntaxKind::SuperKeyword
-            | SyntaxKind::NonNullExpression
-            | SyntaxKind::ExpressionWithTypeArguments
-            | SyntaxKind::MetaProperty
-            | SyntaxKind::ImportKeyword
-            | SyntaxKind::MissingDeclaration
-    )
 }

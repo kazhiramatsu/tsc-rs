@@ -146,6 +146,18 @@ fn lsp_range_contains(outer: &tsc_lsproto::Range, inner: &tsc_lsproto::Range) ->
     before(&outer.start, &inner.start) && before(&inner.end, &outer.end)
 }
 
+/// The call-like node a callee belongs to (tsgo `isCalleeWorker`'s
+/// predicate and callee selector).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Callee {
+    Call,
+    New,
+    CallOrNew,
+    TaggedTemplate,
+    Decorator,
+    JsxOpeningLikeElement,
+}
+
 impl<'a> Request<'_, 'a> {
     // -- tsgo ProvideDefinition ---------------------------------------------
 
@@ -796,6 +808,17 @@ impl<'a> Request<'_, 'a> {
         }
     }
 
+    /// tsgo `SymbolToString`: a symbol's name as the checker writes it
+    /// (every meaning, any node kind).
+    pub(crate) fn symbol_to_string(&mut self, symbol: SymbolId) -> CheckResult<String> {
+        self.state.symbol_to_string_with_flags(
+            symbol,
+            None,
+            tsc_types::SymbolFlags::ALL,
+            tsc_checker::SymbolFormatFlags::ALLOW_ANY_NODE_KIND,
+        )
+    }
+
     /// tsgo `ast.IsJumpStatementTarget`.
     pub(crate) fn is_jump_statement_target(&self, node: NodeId) -> bool {
         if self.node_kind(node) != SyntaxKind::Identifier {
@@ -838,6 +861,82 @@ impl<'a> Request<'_, 'a> {
             &self.state.binder.node_record(parent).data,
             NodeData::PropertyAccessExpression(access) if access.name == Some(node)
         )
+    }
+
+    /// tsgo `ast.IsArgumentExpressionOfElementAccess`.
+    pub(crate) fn is_argument_expression_of_element_access(&self, node: NodeId) -> bool {
+        let Some(parent) = self.state.binder.node_record(node).parent else {
+            return false;
+        };
+        matches!(
+            &self.state.binder.node_record(parent).data,
+            NodeData::ElementAccessExpression(access) if access.argument_expression == Some(node)
+        )
+    }
+
+    /// tsgo `isCalleeWorker` (`IsCallExpressionTarget`,
+    /// `IsNewExpressionTarget`, `IsCallOrNewExpressionTarget`,
+    /// `IsTaggedTemplateTag`, `IsDecoratorTarget`,
+    /// `IsJsxOpeningLikeElementTagName`): the node — past a property access
+    /// it names (or an element access it is the argument of), and with
+    /// `skip_past_outer_expressions` the outer expressions it is — is what
+    /// a call-like node of `callee` calls.
+    pub(crate) fn is_callee_worker(
+        &self,
+        node: NodeId,
+        callee: Callee,
+        include_element_access: bool,
+        skip_past_outer_expressions: bool,
+    ) -> bool {
+        let parent = |node: NodeId| self.state.binder.node_record(node).parent;
+        let mut target = if self.is_right_side_of_property_access(node)
+            || include_element_access && self.is_argument_expression_of_element_access(node)
+        {
+            parent(node).expect("an access")
+        } else {
+            node
+        };
+        // Only skip outer expressions if the target is actually an expression node
+        if skip_past_outer_expressions && self.is_expression(target) {
+            target = self.skip_outer_expressions(target);
+        }
+        let Some(call) = parent(target) else {
+            return false;
+        };
+        let selected = match (&self.state.binder.node_record(call).data, callee) {
+            (NodeData::CallExpression(data), Callee::Call | Callee::CallOrNew) => data.expression,
+            (NodeData::NewExpression(data), Callee::New | Callee::CallOrNew) => data.expression,
+            (NodeData::TaggedTemplateExpression(data), Callee::TaggedTemplate) => data.tag,
+            (NodeData::Decorator(data), Callee::Decorator) => data.expression,
+            (NodeData::JsxOpeningElement(data), Callee::JsxOpeningLikeElement) => data.tag_name,
+            (NodeData::JsxSelfClosingElement(data), Callee::JsxOpeningLikeElement) => data.tag_name,
+            _ => None,
+        };
+        selected == Some(target)
+    }
+
+    /// [`Self::is_callee_worker`] of a node or token (a token is no callee)
+    /// without element accesses or outer expressions.
+    pub(crate) fn is_callee(&self, node: Touching, callee: Callee) -> bool {
+        match node {
+            Touching::Node(id) => self.is_callee_worker(id, callee, false, false),
+            Touching::Token { .. } => false,
+        }
+    }
+
+    /// tsgo `ast.IsExpression`: an expression kind, past partially emitted
+    /// expressions.
+    pub(crate) fn is_expression(&self, node: NodeId) -> bool {
+        let mut node = node;
+        while let NodeData::PartiallyEmittedExpression(data) =
+            &self.state.binder.node_record(node).data
+        {
+            match data.expression {
+                Some(expression) => node = expression,
+                None => break,
+            }
+        }
+        crate::format::is_expression_kind(self.node_kind(node))
     }
 
     /// tsgo `ast.IsCallLikeExpression`.
@@ -916,6 +1015,49 @@ impl<'a> Request<'_, 'a> {
 
     pub(crate) fn name_of(&self, node: NodeId) -> Option<NodeId> {
         node_util::name_field_of(self.state.binder.source_of_node(node), node)
+    }
+
+    /// tsgo `Node.Parent`.
+    pub(crate) fn parent_of(&self, node: NodeId) -> Option<NodeId> {
+        self.state.binder.node_record(node).parent
+    }
+
+    /// tsgo `Node.Initializer()`.
+    pub(crate) fn initializer_of(&self, node: NodeId) -> Option<NodeId> {
+        node_util::initializer_of(self.state.binder.source_of_node(node), node)
+    }
+
+    /// tsgo `Node.Members()` of a class, interface or type literal.
+    pub(crate) fn members_of(&self, node: NodeId) -> Vec<NodeId> {
+        self.node_list(node_util::members_of(
+            self.state.binder.source_of_node(node),
+            node,
+        ))
+    }
+
+    /// tsgo `Node.Modifiers()` (decorators among them).
+    pub(crate) fn modifiers_of(&self, node: NodeId) -> Vec<NodeId> {
+        self.node_list(node_util::modifiers_of(
+            self.state.binder.source_of_node(node),
+            node,
+        ))
+    }
+
+    /// The nodes of a list (none without one).
+    pub(crate) fn node_list(&self, list: Option<tsc_syntax::NodeArrayId>) -> Vec<NodeId> {
+        list.map(|list| self.state.binder.node_array(list).nodes.to_vec())
+            .unwrap_or_default()
+    }
+
+    /// tsgo `Node.ForEachChild`'s children, in order.
+    pub(crate) fn children(&self, node: NodeId) -> Vec<NodeId> {
+        let source = self.state.binder.source_of_node(node);
+        let mut children = Vec::new();
+        tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+            children.push(child);
+            false
+        });
+        children
     }
 
     pub(crate) fn node_kind(&self, node: NodeId) -> SyntaxKind {

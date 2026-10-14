@@ -149,7 +149,7 @@ impl LanguageService<'_> {
         let links = self.capabilities.text_document.implementation.link_support;
         let result = self.with_request(file, &params.position, links, |request, position| {
             let data = request.provide_symbols_and_entries(file, position, false, true)?;
-            Ok(request.symbol_and_entries_to_implementations(data.as_ref(), links))
+            Ok(request.symbol_and_entries_to_implementations(data.as_ref(), links, None))
         })?;
         Ok(result.unwrap_or(ImplementationResponse::Locations(Vec::new())))
     }
@@ -358,8 +358,9 @@ impl Request<'_, '_> {
         self.source_maps.location(source, range)
     }
 
-    /// tsgo `Node.Text` of a name, label or string literal.
-    fn node_text(&self, node: Touching) -> String {
+    /// tsgo `Node.Text`: an identifier's (or private identifier's) name or
+    /// a string, numeric or bigint literal's text; none of a token.
+    pub(crate) fn node_text(&self, node: Touching) -> String {
         let Touching::Node(id) = node else {
             return String::new();
         };
@@ -368,6 +369,8 @@ impl Request<'_, '_> {
             NodeData::NoSubstitutionTemplateLiteral(data) => {
                 data.text.to_string_lossy().into_owned()
             }
+            NodeData::NumericLiteral(data) => data.text.clone(),
+            NodeData::BigIntLiteral(data) => data.text.to_string(),
             _ => node_util::id_text(self.state.binder.source_of_node(id), id)
                 .unwrap_or_default()
                 .to_owned(),
@@ -549,7 +552,7 @@ impl Request<'_, '_> {
 
     /// tsgo `symbolAndEntriesToReferences`: the locations of the
     /// references, each once.
-    fn symbol_and_entries_to_references(
+    pub(crate) fn symbol_and_entries_to_references(
         &mut self,
         data: Option<&SymbolAndEntriesData>,
         include_declaration: bool,
@@ -571,11 +574,14 @@ impl Request<'_, '_> {
         ReferencesResponse::Locations(locations)
     }
 
-    /// tsgo `symbolAndEntriesToImplementations`.
-    fn symbol_and_entries_to_implementations(
+    /// tsgo `symbolAndEntriesToImplementations`: the entries' locations
+    /// (or links), each node once; with `drop_origin` (tsgo
+    /// `dropOriginNodes`), not the nodes around that position.
+    pub(crate) fn symbol_and_entries_to_implementations(
         &mut self,
         data: Option<&SymbolAndEntriesData>,
         links: bool,
+        drop_origin: Option<u32>,
     ) -> ImplementationResponse {
         let mut seen_nodes: HashSet<Option<Touching>> = HashSet::new();
         let mut entries = Vec::new();
@@ -584,7 +590,13 @@ impl Request<'_, '_> {
             .unwrap_or_default()
         {
             for reference in &entry.references {
-                if seen_nodes.insert(reference.node) {
+                if seen_nodes.insert(reference.node)
+                    && drop_origin.is_none_or(|position| {
+                        !reference
+                            .node
+                            .is_some_and(|node| self.contains_inclusive(node, position))
+                    })
+                {
                     entries.push(reference.clone());
                 }
             }
@@ -605,6 +617,19 @@ impl Request<'_, '_> {
         let mut locations = self.convert_entries_to_locations(&entries);
         locations.retain(|location| seen_locations.insert(LocationKey::of(location)));
         ImplementationResponse::Locations(locations)
+    }
+
+    /// tsgo `node.Loc.ContainsInclusive(position)`: the node's range, its
+    /// leading trivia and end included, holds the position.
+    fn contains_inclusive(&self, node: Touching, position: u32) -> bool {
+        let (pos, end) = match node {
+            Touching::Node(id) => {
+                let record = self.state.binder.node_record(id);
+                (record.pos, record.end)
+            }
+            Touching::Token { pos, end, .. } => (pos, end),
+        };
+        pos <= position && position <= end
     }
 
     /// tsgo `convertSymbolAndEntriesToLocations`.

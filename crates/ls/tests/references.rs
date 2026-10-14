@@ -14,10 +14,11 @@ use tsc_ls::lsconv::{Converters, LspLineMap};
 use tsc_ls::lsutil::UserPreferences;
 use tsc_ls::LanguageService;
 use tsc_lsproto::{
-    DocumentHighlightsOrNull, DocumentUri, LocationsOrNull, Position, PositionEncodingKind,
-    ReferenceContext, ReferenceParams, RenameParams, ResolvedClientCapabilities,
-    TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile, TextDocumentIdentifier,
-    TextEditOrAnnotatedTextEditOrSnippetTextEdit, WorkspaceEditOrNull,
+    CallHierarchyIncomingCallsOrNull, CallHierarchyItem, CallHierarchyItemsOrNull,
+    CallHierarchyOutgoingCallsOrNull, DocumentHighlightsOrNull, DocumentUri, LocationsOrNull,
+    Position, PositionEncodingKind, ReferenceContext, ReferenceParams, RenameParams,
+    ResolvedClientCapabilities, TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile,
+    TextDocumentIdentifier, TextEditOrAnnotatedTextEditOrSnippetTextEdit, WorkspaceEditOrNull,
 };
 use tsc_program::{load_program, LibraryCatalog, ProgramLoadLimits, ProgramOptions};
 use tsc_types::CompilerOptions;
@@ -340,6 +341,73 @@ fn file_rename(files: &[(&str, &str)], old: &str, new: &str) -> Vec<(String, Ran
                 })
             })
             .collect()
+    })
+}
+
+/// tsgo's call hierarchy items at `(line, character)` of `file`.
+fn prepare_call_hierarchy(
+    files: &[(&str, &str)],
+    file: &str,
+    (line, character): (u32, u32),
+) -> Vec<CallHierarchyItem> {
+    with_service(files, options(|_| {}), |service, _| {
+        match service
+            .provide_prepare_call_hierarchy(
+                &DocumentUri(format!("file://{file}")),
+                &Position { line, character },
+            )
+            .expect("an answer")
+        {
+            CallHierarchyItemsOrNull::CallHierarchyItems(items) => items,
+            CallHierarchyItemsOrNull::Null => Vec::new(),
+        }
+    })
+}
+
+/// A call: the other item's name and name range, and the call's ranges.
+type Call = (String, Range, Vec<Range>);
+
+/// tsgo's calls into `item`.
+fn incoming_calls(files: &[(&str, &str)], item: &CallHierarchyItem) -> Vec<Call> {
+    with_service(files, options(|_| {}), |service, _| {
+        match service
+            .provide_call_hierarchy_incoming_calls(item)
+            .expect("an answer")
+        {
+            CallHierarchyIncomingCallsOrNull::CallHierarchyIncomingCalls(calls) => calls
+                .iter()
+                .map(|call| {
+                    (
+                        call.from.name.clone(),
+                        range_of(&call.from.selection_range),
+                        call.from_ranges.iter().map(range_of).collect(),
+                    )
+                })
+                .collect(),
+            CallHierarchyIncomingCallsOrNull::Null => Vec::new(),
+        }
+    })
+}
+
+/// tsgo's calls out of `item`.
+fn outgoing_calls(files: &[(&str, &str)], item: &CallHierarchyItem) -> Vec<Call> {
+    with_service(files, options(|_| {}), |service, _| {
+        match service
+            .provide_call_hierarchy_outgoing_calls(item)
+            .expect("an answer")
+        {
+            CallHierarchyOutgoingCallsOrNull::CallHierarchyOutgoingCalls(calls) => calls
+                .iter()
+                .map(|call| {
+                    (
+                        call.to.name.clone(),
+                        range_of(&call.to.selection_range),
+                        call.from_ranges.iter().map(range_of).collect(),
+                    )
+                })
+                .collect(),
+            CallHierarchyOutgoingCallsOrNull::Null => Vec::new(),
+        }
     })
 }
 
@@ -674,5 +742,46 @@ fn moved_file_keeps_its_unresolved_relative_import() {
             ((0, 15), (0, 22)),
             "../foo/a".to_owned()
         )]
+    );
+}
+
+/// callHierarchyClassStaticBlock: a call in a class static block comes from
+/// the block, named `static {}` (tsgo finds no symbol at a class node), and
+/// a function's calls out are grouped by the function they call.
+#[test]
+fn calls_in_a_class_static_block() {
+    let file = "/callHierarchyClassStaticBlock.ts";
+    let text = "class C {\n    static {\n        function foo() {\n            bar();\n        }\n\n        function bar() {\n            baz();\n            quxx();\n            baz();\n        }\n\n        foo();\n    }\n}\n\nfunction baz() {\n}\n\nfunction quxx() {\n}";
+    let files = [(file, text)];
+    let foo = prepare_call_hierarchy(&files, file, (2, 17));
+    assert_eq!(
+        foo.iter()
+            .map(|item| item.name.as_str())
+            .collect::<Vec<_>>(),
+        ["foo"]
+    );
+    assert_eq!(
+        incoming_calls(&files, &foo[0]),
+        [(
+            "static {}".to_owned(),
+            ((1, 4), (1, 10)),
+            vec![((12, 8), (12, 11))]
+        )]
+    );
+    let bar = prepare_call_hierarchy(&files, file, (6, 17));
+    assert_eq!(
+        outgoing_calls(&files, &bar[0]),
+        [
+            (
+                "baz".to_owned(),
+                ((16, 9), (16, 12)),
+                vec![((7, 12), (7, 15)), ((9, 12), (9, 15))]
+            ),
+            (
+                "quxx".to_owned(),
+                ((19, 9), (19, 13)),
+                vec![((8, 12), (8, 16))]
+            ),
+        ]
     );
 }

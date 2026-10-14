@@ -260,19 +260,7 @@ impl<'r, 's, 'a> Completions<'r, 's, 'a> {
 
     /// tsgo `Node.Initializer`.
     pub(crate) fn initializer_of(&self, node: NodeId) -> Option<NodeId> {
-        match self.data(node) {
-            NodeData::VariableDeclaration(data) => data.initializer,
-            NodeData::Parameter(data) => data.initializer,
-            NodeData::BindingElement(data) => data.initializer,
-            NodeData::PropertyDeclaration(data) => data.initializer,
-            NodeData::PropertyAssignment(data) => data.initializer,
-            NodeData::EnumMember(data) => data.initializer,
-            NodeData::JsxAttribute(data) => data.initializer,
-            NodeData::ForStatement(data) => data.initializer,
-            NodeData::ForInStatement(data) => data.initializer,
-            NodeData::ForOfStatement(data) => data.initializer,
-            _ => None,
-        }
+        self.request.initializer_of(node)
     }
 
     /// tsgo `Node.Type`: the type annotation (or return type) of a node.

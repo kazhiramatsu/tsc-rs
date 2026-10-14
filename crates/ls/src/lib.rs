@@ -5,8 +5,10 @@
 
 pub mod astnav;
 pub mod autoimport;
+mod call_hierarchy;
 mod change;
 mod code_actions;
+mod code_lens;
 mod completions;
 mod definition;
 mod diagnostics;
@@ -25,6 +27,7 @@ mod meaning;
 mod organize_imports;
 pub mod references;
 mod rename;
+mod symbols;
 pub use rename::RenameInfo;
 mod request;
 mod source_map;

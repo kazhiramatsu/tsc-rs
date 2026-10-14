@@ -678,7 +678,7 @@ impl Request<'_, '_> {
     }
 
     /// tsgo `ast.SkipOuterExpressions(node, OEKAll)`.
-    fn skip_outer_expressions(&self, mut node: NodeId) -> NodeId {
+    pub(crate) fn skip_outer_expressions(&self, mut node: NodeId) -> NodeId {
         loop {
             let next = match &self.state.binder.node_record(node).data {
                 NodeData::ParenthesizedExpression(data) => data.expression,
