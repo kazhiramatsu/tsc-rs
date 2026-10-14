@@ -99,6 +99,10 @@ pub(crate) struct CompletionDataData {
     pub(crate) is_right_of_open_tag: bool,
     pub(crate) has_unresolved_auto_imports: bool,
     pub(crate) default_commit_characters: Vec<String>,
+    /// tsgo `autoImports`: the fixes of the exports the completion can
+    /// import.
+    pub(crate) auto_imports: Vec<crate::autoimport::FixAndExport>,
+    pub(crate) import_statement_completion: Option<ImportStatementCompletionInfo>,
 }
 
 /// tsgo `completionData`.
@@ -156,6 +160,7 @@ pub(super) struct Collector {
     pub(super) is_new_identifier_location: bool,
     pub(super) keyword_filters: KeywordCompletionFilters,
     pub(super) default_commit_characters: Option<Vec<String>>,
+    pub(super) auto_imports: Vec<crate::autoimport::FixAndExport>,
 }
 
 /// The facts about the location `getCompletionData` computes before it
@@ -171,6 +176,7 @@ pub(super) struct Location {
     pub(super) is_type_only_location: bool,
     pub(super) inside_js_doc_tag_type_expression: bool,
     pub(super) in_checked_file: bool,
+    pub(super) is_right_of_open_tag: bool,
 }
 
 impl Completions<'_, '_, '_> {
@@ -493,6 +499,7 @@ impl Completions<'_, '_, '_> {
             is_new_identifier_location,
             keyword_filters,
             default_commit_characters: initial_commit_characters,
+            auto_imports: Vec::new(),
         };
         let facts = Location {
             context_token,
@@ -505,6 +512,7 @@ impl Completions<'_, '_, '_> {
             is_type_only_location,
             inside_js_doc_tag_type_expression,
             in_checked_file,
+            is_right_of_open_tag,
         };
 
         if is_right_of_dot || is_right_of_question_dot {
@@ -626,6 +634,8 @@ impl Completions<'_, '_, '_> {
             is_right_of_open_tag,
             has_unresolved_auto_imports: false,
             default_commit_characters,
+            auto_imports: collector.auto_imports,
+            import_statement_completion: facts.import_statement_completion,
         }))))
     }
 
@@ -1058,6 +1068,9 @@ impl Completions<'_, '_, '_> {
             return Ok(GlobalsSearch::Continue);
         }
         collector.is_new_identifier_location = true;
+        if !self.collect_auto_imports(facts, collector)? {
+            return Ok(GlobalsSearch::Fail);
+        }
         Ok(GlobalsSearch::Success)
     }
 
@@ -1187,6 +1200,9 @@ impl Completions<'_, '_, '_> {
             }
         }
 
+        if !self.collect_auto_imports(facts, collector)? {
+            return Ok(GlobalsSearch::Fail);
+        }
         if facts.is_type_only_location {
             collector.keyword_filters = if facts.context_token.is_some_and(|context| {
                 self.parent(context).is_some_and(|parent| {
@@ -1202,6 +1218,100 @@ impl Completions<'_, '_, '_> {
             };
         }
         Ok(GlobalsSearch::Success)
+    }
+}
+
+/// tsgo's auto-import collection of `getCompletionData`.
+impl Completions<'_, '_, '_> {
+    /// tsgo `shouldOfferImportCompletions`.
+    fn should_offer_import_completions(&self, facts: &Location) -> bool {
+        if tsc_program::is_encoded_dynamic_file_name(&self.source.file_name.to_string_lossy()) {
+            return false;
+        }
+        // If already typing an import statement, provide completions for it.
+        if facts.import_statement_completion.is_some() {
+            return true;
+        }
+        // If not already a module, must have modules enabled.
+        if self
+            .request
+            .preferences
+            .completion_preferences
+            .include_completions_for_module_exports
+            == Some(false)
+        {
+            return false;
+        }
+        // Always using ES modules in 6.0+
+        true
+    }
+
+    /// tsgo `collectAutoImports`: the fixes of the exports the completion
+    /// can import; false when the registry is not prepared for the file
+    /// (tsgo `ErrNeedsAutoImports`, noted for the request).
+    fn collect_auto_imports(
+        &mut self,
+        facts: &Location,
+        collector: &mut Collector,
+    ) -> CheckResult<bool> {
+        // `completionItem/resolve` for auto-import completions should be resolved via the completion item data,
+        // so we don't need to collect auto-import entries again.
+        if self.for_item_resolve || !self.should_offer_import_completions(facts) {
+            return Ok(true);
+        }
+        // import { type | -> token text should be blank
+        let mut lower_case_token_text = String::new();
+        let mut usage_position = self.lsp_position(self.position);
+        if let Some(previous) = facts.previous_token {
+            if let Touching::Node(previous_node) = previous {
+                if self.node_kind(previous_node) == SyntaxKind::Identifier {
+                    usage_position = self.lsp_position(self.start(previous));
+                    if !(Some(previous) == facts.context_token
+                        && facts.import_statement_completion.is_some())
+                    {
+                        lower_case_token_text = crate::lsutil::go_unicode::to_lower(
+                            self.identifier_text(previous).unwrap_or_default(),
+                        );
+                    }
+                }
+            }
+        }
+        let request = &mut *self.request;
+        let (Some(registry), Some(project_id)) =
+            (request.host.auto_import_registry(), request.project_id)
+        else {
+            return Ok(true);
+        };
+        // tsgo `getPreparedAutoImportView`.
+        let path =
+            crate::utilities::path_key(request.prepared, &self.source.file_name.to_string_lossy());
+        if !registry.is_prepared_for_importing_file(&path, project_id, request.preferences) {
+            self.needs_auto_imports = true;
+            return Ok(false);
+        }
+        let mut view = crate::autoimport::View::new(
+            registry,
+            request.state,
+            self.file,
+            project_id,
+            request.prepared,
+            request.preferences.module_specifier_preferences(),
+        );
+        collector.auto_imports = view.get_completions(
+            request.state,
+            &lower_case_token_text,
+            usage_position,
+            facts.is_right_of_open_tag,
+            facts.is_type_only_location,
+        )?;
+        Ok(true)
+    }
+
+    /// tsgo `createLspPosition`.
+    fn lsp_position(&self, position: u32) -> tsc_lsproto::Position {
+        self.request
+            .converters
+            .to_lsp_position(&crate::utilities::script_of(self.source), position as usize)
     }
 }
 

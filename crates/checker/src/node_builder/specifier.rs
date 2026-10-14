@@ -101,6 +101,19 @@ impl SpecifierCompilerOptions {
         }
     }
 
+    /// The checker's options with the Program-owned part, when the checker
+    /// has a Program.
+    pub(crate) fn of_program(state: &CheckerState<'_>) -> Self {
+        let options = Self::new(state.options);
+        match state
+            .authoritative_module_provider
+            .and_then(|provider| provider.program_options_for_module_specifiers())
+        {
+            Some(program_options) => options.with_program_options(program_options),
+            None => options,
+        }
+    }
+
     /// tsrs-native: reassemble the Program-owned part of the upstream
     /// compilerOptions bag for getSpecifierForModuleSymbol. Preserve raw path
     /// substitutions and their order; the existing specifier workers own
@@ -151,7 +164,7 @@ pub(crate) struct ModuleSpecifierPreferences {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ModuleSpecifierKind {
+pub enum ModuleSpecifierKind {
     Ambient,
     Paths,
     Redirect,
@@ -382,13 +395,7 @@ pub(crate) fn get_specifier_for_module_symbol(
         });
     }
 
-    let mut specifier_options = SpecifierCompilerOptions::new(state.options);
-    if let Some(program_options) = state
-        .authoritative_module_provider
-        .and_then(|provider| provider.program_options_for_module_specifiers())
-    {
-        specifier_options = specifier_options.with_program_options(program_options);
-    }
+    let specifier_options = SpecifierCompilerOptions::of_program(state);
     let user_preferences = ModuleSpecifierUserPreferences {
         import_module_specifier_preference: ImportModuleSpecifierPreference::PROJECT_RELATIVE,
         import_module_specifier_ending: if resolution_mode == EmitResolutionMode::EsNext {
@@ -1085,6 +1092,51 @@ pub(crate) fn get_module_specifiers_with_cache_info(
         options,
         for_auto_import,
     )
+}
+
+/// tsgo `GetModuleSpecifiersForFileWithInfo` for an auto-import: the
+/// specifiers of `module_file_name` from the file `importing_file` (its
+/// root) and their kind.
+pub(crate) fn get_module_specifiers_for_file_with_info(
+    state: &mut CheckerState<'_>,
+    importing_file: NodeId,
+    module_file_name: &JsString,
+    user_preferences: &ModuleSpecifierUserPreferences,
+) -> CheckResult<(Vec<JsString>, Option<ModuleSpecifierKind>)> {
+    let host = super::chains::BasicModuleSpecifierHost::new(state);
+    let compiler_options = SpecifierCompilerOptions::of_program(state);
+    let options = ModuleSpecifierOptions {
+        override_import_mode: None,
+    };
+    let source_name = |file_name: &JsString| {
+        host.project_reference_source_of_output(file_name.as_js())
+            .unwrap_or_else(|| file_name.clone())
+    };
+    let file_index = state.binder.file_index_of_node(importing_file);
+    let info = get_info(
+        &source_name(&state.binder.source(file_index).file_name),
+        &host,
+    );
+    let module_paths = get_all_module_paths_worker(
+        &info,
+        &source_name(module_file_name),
+        &host,
+        &compiler_options,
+        &options,
+    );
+    let importing_node = emit_resolver_node_for_file(state, file_index, importing_file);
+    let result = compute_module_specifiers(
+        state,
+        &module_paths,
+        &compiler_options,
+        importing_file,
+        importing_node,
+        &host,
+        user_preferences,
+        &options,
+        true,
+    )?;
+    Ok((result.module_specifiers, result.kind))
 }
 
 /// tsc-port: computeModuleSpecifiers @6.0.3
@@ -3007,7 +3059,7 @@ pub(crate) fn prefers_ts_extension(allowed_endings: &[ModuleSpecifierEnding]) ->
 /// tsc-port: isExcludedByRegex @6.0.3
 /// tsc-hash: c6787571d1157d0ee4c7e797349b370267dc000c04df5567d3075b501ed4eb69
 /// tsc-span: _tsc.js:45562-45567
-pub(crate) fn is_excluded_by_regex<'p>(
+pub fn is_excluded_by_regex<'p>(
     module_specifier: impl Into<JsStr<'p>>,
     exclude_regexes: &[String],
 ) -> bool {

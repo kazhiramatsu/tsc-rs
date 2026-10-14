@@ -22,6 +22,22 @@ impl std::fmt::Display for LsError {
     }
 }
 
+/// tsgo `ErrNeedsAutoImports`'s message.
+const NEEDS_AUTO_IMPORTS: &str = "completion list needs auto imports";
+
+impl LsError {
+    /// tsgo `ErrNeedsAutoImports`: the request needs the registry prepared
+    /// for its file (the server prepares it and asks again).
+    pub fn needs_auto_imports() -> Self {
+        Self(NEEDS_AUTO_IMPORTS.to_owned())
+    }
+
+    /// `errors.Is(err, ErrNeedsAutoImports)`.
+    pub fn is_needs_auto_imports(&self) -> bool {
+        self.0 == NEEDS_AUTO_IMPORTS
+    }
+}
+
 /// tsgo `ls.Host`: what the language service reads beyond its program —
 /// the snapshot's files (a declaration's source map and its sources), and
 /// its file system for module specifier completions only (the host is
@@ -44,6 +60,11 @@ pub trait Host: SourceMapperHost {
     fn directory_exists(&self, path: &str) -> bool;
     /// tsgo `FileExists`.
     fn file_exists(&self, path: &str) -> bool;
+    /// tsgo `AutoImportRegistry`: the snapshot's auto-import registry; a
+    /// host without one (outside a session) offers no auto-imports.
+    fn auto_import_registry(&self) -> Option<&crate::autoimport::Registry> {
+        None
+    }
 }
 
 /// tsgo `LanguageService`.
@@ -55,6 +76,9 @@ pub struct LanguageService<'a> {
     pub(crate) capabilities: &'a ResolvedClientCapabilities,
     /// The messages of the request's locale.
     pub(crate) catalog: Option<&'a dyn MessageCatalog>,
+    /// tsgo `projectID`: the program's project, whose auto-import bucket
+    /// the service reads.
+    pub(crate) project_id: Option<String>,
 }
 
 impl<'a> LanguageService<'a> {
@@ -74,7 +98,15 @@ impl<'a> LanguageService<'a> {
             preferences,
             capabilities,
             catalog,
+            project_id: None,
         }
+    }
+
+    /// The service of a project's program (tsgo `NewLanguageService`'s
+    /// `projectID`).
+    pub fn with_project_id(mut self, project_id: impl Into<String>) -> Self {
+        self.project_id = Some(project_id.into());
+        self
     }
 
     /// tsgo `UserPreferences`.

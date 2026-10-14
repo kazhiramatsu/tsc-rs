@@ -51,6 +51,27 @@ impl<'a> Tracker<'a> {
         }
     }
 
+    /// tsgo `Delete` of a `type` or `function` keyword (tsgo's
+    /// `deleteDeclaration`): the keyword and the white space after it. A
+    /// token is no node here, so it goes now rather than with the queued
+    /// nodes.
+    pub(crate) fn delete_keyword(&mut self, file: &'a SourceFile, keyword: Found) {
+        let navigator = Navigator::new(file);
+        let start = self.get_adjusted_start_position_of(
+            file,
+            keyword,
+            &navigator,
+            LeadingTriviaOption::Exclude,
+            false,
+        );
+        let end = self.get_adjusted_end_position_of(
+            file,
+            navigator.end(keyword) as usize,
+            TrailingTriviaOption::Include,
+        );
+        self.replace_range_with_text(file, (start, end), String::new());
+    }
+
     /// tsgo `startPositionToDeleteNodeInList`: the first position in the
     /// node's leading trivia that is not white space.
     fn start_position_to_delete_node_in_list(&self, file: &SourceFile, node: NodeId) -> usize {
@@ -529,7 +550,7 @@ fn range_contains_range_exclusive(file: &SourceFile, outer: NodeId, inner: NodeI
 }
 
 /// tsgo `isSeparator`: a comma, or a semicolon in an object literal.
-fn is_separator(
+pub(super) fn is_separator(
     file: &SourceFile,
     navigator: &Navigator<'_>,
     node: NodeId,
@@ -551,7 +572,7 @@ fn is_separator(
 }
 
 /// tsgo `positionsAreOnSameLine`.
-fn positions_are_on_same_line(file: &SourceFile, first: usize, second: usize) -> bool {
+pub(super) fn positions_are_on_same_line(file: &SourceFile, first: usize, second: usize) -> bool {
     line_start_of(file, first) == line_start_of(file, second)
 }
 

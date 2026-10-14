@@ -7,7 +7,8 @@ use std::cmp::Ordering;
 
 use tsc_syntax::{NodeArena, NodeData, NodeId, SyntaxKind};
 
-use super::unicode_tables::{CANONICAL_DECOMPOSITION, NONSPACING_MARK, TO_LOWER, UPPERCASE_LETTER};
+use super::go_unicode::{in_ranges, is_upper, to_lower as go_to_lower};
+use super::unicode_tables::{CANONICAL_DECOMPOSITION, NONSPACING_MARK};
 use super::{
     OrganizeImportsCaseFirst, OrganizeImportsCollation, OrganizeImportsSort,
     OrganizeImportsTypeOrder, UserPreferences,
@@ -156,38 +157,6 @@ pub(crate) fn get_string_comparer(
         };
     }
     StringComparer::Ordinal { ignore_case }
-}
-
-/// Go `strings.ToLower`: each character's simple lower case.
-fn go_to_lower(text: &str) -> String {
-    if text.is_ascii() {
-        return text.to_ascii_lowercase();
-    }
-    text.chars().map(go_to_lower_char).collect()
-}
-
-fn go_to_lower_char(ch: char) -> char {
-    if ch.is_ascii() {
-        return ch.to_ascii_lowercase();
-    }
-    match TO_LOWER.binary_search_by_key(&(ch as u32), |&(from, _)| from) {
-        Ok(index) => char::from_u32(TO_LOWER[index].1).unwrap_or(ch),
-        Err(_) => ch,
-    }
-}
-
-/// Whether a character is in a table of Go `unicode` ranges.
-fn in_ranges(table: &[(u32, u32, u32)], ch: char) -> bool {
-    let code = ch as u32;
-    let index = table.partition_point(|&(_, hi, _)| hi < code);
-    table
-        .get(index)
-        .is_some_and(|&(lo, _, stride)| code >= lo && (code - lo).is_multiple_of(stride))
-}
-
-/// Go `unicode.IsUpper`.
-fn is_upper(ch: char) -> bool {
-    in_ranges(UPPERCASE_LETTER, ch)
 }
 
 /// tsgo `naturalCollationKey`: lower case without diacritics.
@@ -542,6 +511,7 @@ pub(crate) fn detect_module_specifier_case_by_sort(
 pub(crate) struct NamedImportSortResult {
     pub(crate) comparer: StringComparer,
     pub(crate) type_order: OrganizeImportsTypeOrder,
+    pub(crate) is_sorted: bool,
 }
 
 /// tsgo `detectNamedImportOrganizationBySort`: the comparer and type order
@@ -599,7 +569,7 @@ pub(crate) fn detect_named_import_organization_by_sort(
                     .collect()
             })
             .collect();
-        let (comparer, _) = detect_case_sensitivity_by_sort(&names, comparers);
+        let (comparer, is_sorted) = detect_case_sensitivity_by_sort(&names, comparers);
         let type_order = if type_orders.len() == 1 {
             type_orders[0]
         } else {
@@ -608,6 +578,7 @@ pub(crate) fn detect_named_import_organization_by_sort(
         return Some(NamedImportSortResult {
             comparer,
             type_order,
+            is_sorted,
         });
     }
     let orders = [
@@ -649,6 +620,7 @@ pub(crate) fn detect_named_import_organization_by_sort(
             return Some(NamedImportSortResult {
                 comparer: best_comparer[slot(best_type_order)],
                 type_order: best_type_order,
+                is_sorted: best == 0,
             });
         }
     }
@@ -656,5 +628,92 @@ pub(crate) fn detect_named_import_organization_by_sort(
     Some(NamedImportSortResult {
         comparer: best_comparer[last],
         type_order: OrganizeImportsTypeOrder::LAST,
+        is_sorted: best_diff[last] == 0,
     })
+}
+
+/// tsgo `core.BinarySearchUniqueFunc`'s index: where `compare` (an item
+/// against the new one) finds it among the sorted items, or where it goes
+/// (tsgo `GetImportSpecifierInsertionIndex`, `GetImportDeclarationInsertIndex`).
+pub(crate) fn binary_search_unique<T>(items: &[T], compare: impl Fn(&T) -> Ordering) -> usize {
+    if items.is_empty() {
+        return 0;
+    }
+    let (mut low, mut high) = (0isize, items.len() as isize - 1);
+    while low <= high {
+        let middle = low + ((high - low) >> 1);
+        match compare(&items[middle as usize]) {
+            Ordering::Less => low = middle + 1,
+            Ordering::Greater => high = middle - 1,
+            Ordering::Equal => return middle as usize,
+        }
+    }
+    low as usize
+}
+
+/// tsgo `getComparers`.
+fn get_comparers(preferences: &UserPreferences) -> Vec<StringComparer> {
+    if preferences.organize_imports_sort != OrganizeImportsSort::AUTO
+        || preferences.organize_imports_ignore_case.is_some()
+    {
+        let ignore_case = preferences.organize_imports_ignore_case == Some(true);
+        return vec![get_string_comparer(preferences, ignore_case)];
+    }
+    vec![
+        get_string_comparer(preferences, true),
+        get_string_comparer(preferences, false),
+    ]
+}
+
+/// tsgo `GetOrganizeImportsStringComparerWithDetection`: the module
+/// specifier comparer of the import statements' order, and whether they
+/// are sorted.
+pub(crate) fn get_organize_imports_string_comparer_with_detection(
+    arena: &NodeArena,
+    original_import_decls: &[NodeId],
+    preferences: &UserPreferences,
+) -> (StringComparer, bool) {
+    detect_module_specifier_case_by_sort(
+        arena,
+        &[original_import_decls.to_vec()],
+        &get_comparers(preferences),
+    )
+}
+
+/// tsgo `GetNamedImportSpecifierComparerWithDetection`: the specifier
+/// comparer of the order within an import declaration (or the file's), and
+/// whether they are sorted (unknown when not detected).
+pub(crate) fn get_named_import_specifier_comparer_with_detection(
+    arena: &NodeArena,
+    import_decl: NodeId,
+    statements: Option<&[NodeId]>,
+    preferences: &UserPreferences,
+) -> ((StringComparer, OrganizeImportsTypeOrder), Option<bool>) {
+    let (comparers, type_orders) = get_detection_lists(preferences);
+    let import_stmt =
+        (arena.node(import_decl).kind == SyntaxKind::ImportDeclaration).then_some(import_decl);
+    let mut specifier_comparer =
+        get_named_import_specifier_comparer(preferences, Some(comparers[0]));
+    let mut is_sorted = None;
+    if let Some(import_stmt) = import_stmt.filter(|_| {
+        resolve_organize_imports_sort(preferences) == OrganizeImportsSort::AUTO
+            || preferences.organize_imports_type_order == OrganizeImportsTypeOrder::AUTO
+    }) {
+        let detected = detect_named_import_organization_by_sort(
+            arena,
+            &[import_stmt],
+            &comparers,
+            &type_orders,
+        )
+        .or_else(|| {
+            let statements = statements?;
+            let all_imports = filter_import_declarations(arena, statements);
+            detect_named_import_organization_by_sort(arena, &all_imports, &comparers, &type_orders)
+        });
+        if let Some(detected) = detected {
+            is_sorted = Some(detected.is_sorted);
+            specifier_comparer = (detected.comparer, detected.type_order);
+        }
+    }
+    (specifier_comparer, is_sorted)
 }

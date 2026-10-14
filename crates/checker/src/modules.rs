@@ -128,7 +128,7 @@ pub(crate) struct UntypedModuleResolution {
 /// tsc ResolutionMode at the host-resolution seam. `Unknown` remains
 /// observable outside contexts whose emit syntax can be determined.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ModuleResolutionMode {
+pub enum ModuleResolutionMode {
     CommonJs,
     EsNext,
     Unknown,
@@ -3580,7 +3580,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The type-only declaration recorded on the alias itself, after the
     /// alias is resolved (which copies the record of a pure alias target).
-    pub(crate) fn get_type_only_alias_declaration(
+    pub fn get_type_only_alias_declaration(
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<Option<NodeId>> {
@@ -7500,10 +7500,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 765b9d66f854668f6f9326de2a8e3659af532be224d3a2546fdec84855bbe69c
     /// tsc-span: _tsc.js:125496-125509
     ///
-    pub(crate) fn implied_node_format_for_emit(
-        &self,
-        location: NodeId,
-    ) -> Option<ModuleResolutionMode> {
+    pub fn implied_node_format_for_emit(&self, location: NodeId) -> Option<ModuleResolutionMode> {
         self.implied_node_format_for_emit_file_index(self.binder.file_index_of_node(location))
     }
 
@@ -7800,7 +7797,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsc isPartOfTypeOnlyImportOrExportDeclaration
     /// (_tsc.js:11926-11928).
-    fn is_part_of_type_only_import_or_export_declaration(&self, location: NodeId) -> bool {
+    pub fn is_part_of_type_only_import_or_export_declaration(&self, location: NodeId) -> bool {
         let mut current = Some(location);
         while let Some(node) = current {
             if self.is_type_only_import_or_export_declaration(node) {
