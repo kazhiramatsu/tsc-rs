@@ -95,11 +95,12 @@ mod error;
 pub mod go_json;
 mod js_path;
 pub use js_path::{
-    base_file_name, canonical_dynamic_uri_path, change_full_extension, combine_paths,
-    directory_name as get_directory_path, extension_from_path, file_extension_is, normalize_path,
-    normalize_slashes, normalized_absolute_path as get_normalized_absolute_path,
-    remove_file_extension, root_parts as path_root_parts, try_get_js_extension_for_file,
-    EXTENSIONS_TO_REMOVE,
+    any_extension, base_file_name, canonical_dynamic_uri_path, change_any_extension,
+    change_full_extension, combine_paths, declaration_file_extension,
+    directory_name as get_directory_path, extension_from_path, file_extension_is, has_extension,
+    is_declaration_file_name, normalize_path, normalize_slashes,
+    normalized_absolute_path as get_normalized_absolute_path, remove_file_extension,
+    root_parts as path_root_parts, try_get_js_extension_for_file, EXTENSIONS_TO_REMOVE,
 };
 pub use tsc_host::to_file_name_lower_case_js;
 pub use tsc_host::{is_encoded_dynamic_file_name, DYNAMIC_URI_FILE_NAME_PREFIX};

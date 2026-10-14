@@ -1,7 +1,7 @@
 //! tsgo `ls/autoimport/fix.go`'s `Fix.Edits`: the text edits that make an
 //! auto-import fix in a file, and their description.
 
-use tsc_diagnostics::{DiagnosticMessage, MessageCatalog};
+use tsc_diagnostics::MessageCatalog;
 use tsc_emitter::{TransformError, TransformFlags, TransformNode};
 use tsc_lsproto::{AddAsTypeOnly, AutoImportFix, AutoImportFixKind, ImportKind, TextEdit};
 use tsc_syntax::nodes::{BindingElementData, CallExpressionData};
@@ -44,15 +44,7 @@ impl NewImportBinding {
     }
 }
 
-/// A message with its arguments in the request's locale (tsgo `Localize`).
-fn localize(
-    catalog: Option<&dyn MessageCatalog>,
-    message: &'static DiagnosticMessage,
-    args: &[&str],
-) -> String {
-    let args: Vec<String> = args.iter().map(|&arg| arg.to_owned()).collect();
-    tsc_diagnostics::format_message(message.template_in(catalog), &args)
-}
+use crate::lsutil::localize;
 
 /// tsgo `Fix.Edits`: the edits that make `fix` in `file`, and their
 /// description. An edit the tracker cannot make is an error.
