@@ -570,6 +570,50 @@ impl CheckerState<'_> {
         .map_err(|error| format!("type node builder: {error}"))
     }
 
+    /// tsgo `TypePredicateToTypePredicateNode` into a caller's arena.
+    pub fn type_predicate_to_type_predicate_node_in_arena(
+        &mut self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        predicate: &crate::narrow::TypePredicate,
+        enclosing_declaration: Option<NodeId>,
+        flags: u32,
+    ) -> Result<Option<NodeWithIdentifierSymbols>, String> {
+        crate::node_builder::type_predicate_to_type_predicate_node_with_identifier_symbols(
+            self,
+            arena,
+            target,
+            predicate,
+            enclosing_declaration,
+            EmitNodeBuilderFlags(flags),
+        )
+        .map_err(|error| format!("type node builder: {error}"))
+    }
+
+    /// tsgo `RequiresAddingImplicitUndefined` (exports.go:386-396): whether
+    /// the declaration's type takes `undefined` in its declaration output,
+    /// within the node or its nearest ancestor that is a declaration (tsgo
+    /// `ast.IsDeclaration`), else its file.
+    pub fn requires_adding_implicit_undefined(&mut self, node: NodeId) -> CheckResult<bool> {
+        let source = self.binder.source_of_node(node);
+        let mut enclosing = Some(node);
+        while let Some(candidate) = enclosing {
+            if tsc_binder::node_util::is_declaration_node(source, candidate) {
+                break;
+            }
+            enclosing = self.parent_of(candidate);
+        }
+        let enclosing = enclosing.unwrap_or(source.root);
+        let Some(symbol) = self.binder.node_symbol(node) else {
+            return Ok(false);
+        };
+        self.emit_requires_adding_implicit_undefined_to_declaration(
+            node,
+            Some(symbol),
+            Some(enclosing),
+        )
+    }
+
     /// tsgo `NewNodeBuilder(c, emitContext).IndexInfoToIndexSignatureDeclaration`
     /// into a caller's arena.
     pub fn index_info_to_index_signature_declaration_in_arena(

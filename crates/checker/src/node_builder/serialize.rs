@@ -1315,6 +1315,41 @@ pub(crate) fn type_to_type_node_with_identifier_symbols(
 }
 
 /// tsgo `NewNodeBuilderEx(c, emitContext, idToSymbol)
+/// .TypePredicateToTypePredicateNode`: the predicate's node and the
+/// identifiers it names symbols with.
+pub(crate) fn type_predicate_to_type_predicate_node_with_identifier_symbols(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    predicate: &crate::narrow::TypePredicate,
+    enclosing_declaration: Option<NodeId>,
+    flags: EmitNodeBuilderFlags,
+) -> BuildResult<Option<(TransformNode, IdentifierSymbols)>> {
+    with_context(
+        checker,
+        arena,
+        target,
+        enclosing_declaration,
+        Some(flags),
+        None,
+        None,
+        None,
+        None,
+        |checker, arena, target, context| {
+            let node = type_predicate_to_type_predicate_node_helper(
+                checker, arena, target, predicate, context,
+            )?;
+            Ok(Some((
+                node,
+                std::mem::take(&mut context.identifier_symbols),
+            )))
+        },
+        None,
+    )
+    .map(Option::flatten)
+}
+
+/// tsgo `NewNodeBuilderEx(c, emitContext, idToSymbol)
 /// .SignatureToSignatureDeclaration` without a verbosity context: the
 /// declaration and the identifiers it names symbols with.
 #[allow(clippy::too_many_arguments)]

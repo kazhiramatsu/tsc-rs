@@ -870,6 +870,72 @@ pub fn name_field_of(source: &SourceFile, id: NodeId) -> Option<NodeId> {
     }
 }
 
+/// tsgo `ast.IsDeclaration`: the kinds whose nodes carry declaration data
+/// in tsgo's tree (ast_generated.go), more than tsc's declarations (a call
+/// or binary expression, an object literal, a type literal; no JSDoc tag),
+/// a type parameter only with a parent.
+pub fn is_declaration_node(source: &SourceFile, node: NodeId) -> bool {
+    match kind_of(source, node) {
+        SyntaxKind::TypeParameter => parent_of(source, node).is_some(),
+        SyntaxKind::ArrowFunction
+        | SyntaxKind::BinaryExpression
+        | SyntaxKind::BindingElement
+        | SyntaxKind::CallExpression
+        | SyntaxKind::CallSignature
+        | SyntaxKind::ClassDeclaration
+        | SyntaxKind::ClassExpression
+        | SyntaxKind::ClassStaticBlockDeclaration
+        | SyntaxKind::Constructor
+        | SyntaxKind::ConstructSignature
+        | SyntaxKind::ConstructorType
+        | SyntaxKind::EnumDeclaration
+        | SyntaxKind::EnumMember
+        | SyntaxKind::ExportAssignment
+        | SyntaxKind::ExportDeclaration
+        | SyntaxKind::ExportSpecifier
+        | SyntaxKind::FunctionDeclaration
+        | SyntaxKind::FunctionExpression
+        | SyntaxKind::FunctionType
+        | SyntaxKind::GetAccessor
+        | SyntaxKind::ImportClause
+        | SyntaxKind::ImportDeclaration
+        | SyntaxKind::ImportEqualsDeclaration
+        | SyntaxKind::ImportSpecifier
+        | SyntaxKind::IndexSignature
+        | SyntaxKind::InterfaceDeclaration
+        | SyntaxKind::JSDocSignature
+        | SyntaxKind::JSDocTypeLiteral
+        | SyntaxKind::JsxAttribute
+        | SyntaxKind::JsxAttributes
+        | SyntaxKind::JsxSpreadAttribute
+        | SyntaxKind::MappedType
+        | SyntaxKind::MethodDeclaration
+        | SyntaxKind::MethodSignature
+        | SyntaxKind::MissingDeclaration
+        | SyntaxKind::ModuleDeclaration
+        | SyntaxKind::NamedTupleMember
+        | SyntaxKind::NamespaceExport
+        | SyntaxKind::NamespaceExportDeclaration
+        | SyntaxKind::NamespaceImport
+        | SyntaxKind::NoSubstitutionTemplateLiteral
+        | SyntaxKind::NotEmittedTypeElement
+        | SyntaxKind::ObjectLiteralExpression
+        | SyntaxKind::Parameter
+        | SyntaxKind::PropertyAssignment
+        | SyntaxKind::PropertyDeclaration
+        | SyntaxKind::PropertySignature
+        | SyntaxKind::SemicolonClassElement
+        | SyntaxKind::SetAccessor
+        | SyntaxKind::ShorthandPropertyAssignment
+        | SyntaxKind::SourceFile
+        | SyntaxKind::SpreadAssignment
+        | SyntaxKind::TypeAliasDeclaration
+        | SyntaxKind::TypeLiteral
+        | SyntaxKind::VariableDeclaration => true,
+        _ => false,
+    }
+}
+
 /// tsc isDeclaration/isDeclarationKind (_tsc.js 12455-12469).
 pub fn is_declaration(source: &SourceFile, node: NodeId) -> bool {
     let kind = kind_of(source, node);
