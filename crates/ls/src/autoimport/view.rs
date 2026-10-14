@@ -1,9 +1,13 @@
 //! tsgo `ls/autoimport/view.go` and the fixes of `fix.go`: what a file can
 //! import from the registry (its project's bucket, without the file's own
-//! exports) and the fixes that import it — a new import, an addition to an
-//! existing one, a namespace's qualification — ranked.
+//! exports, and the node_modules buckets above it, their packages filtered
+//! by the package.json files above it) and the fixes that import it — a new
+//! import, an addition to an existing one, a namespace's qualification —
+//! ranked.
 
+use std::cell::OnceCell;
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use tsc_checker::state::{CheckResult, CheckerState};
@@ -15,7 +19,10 @@ use tsc_types::{InternalSymbolName, SymbolFlags};
 
 use super::export::{Export, ExportId, ExportSyntax, ModuleId};
 use super::extract::try_get_module_id_and_file_name_of_module_symbol;
-use super::registry::Registry;
+use super::package_json::add_package_json_dependencies;
+use super::registry::{
+    contains_lowercase_directory_sequence, parent_path, Registry, RegistryBucket,
+};
 use crate::references::{collect_external_module_references, statements};
 use crate::utilities::path_key;
 use tsc_syntax::go_unicode::{is_upper, to_upper_char};
@@ -78,6 +85,12 @@ pub(crate) struct View<'r> {
     importing_file_name: String,
     importing_file_path: String,
     preferences: ModuleSpecifierUserPreferences,
+    /// tsgo `conditions`: the importing file's resolution conditions.
+    conditions: BTreeSet<String>,
+    /// tsgo `allowedEndings`, computed when first needed.
+    allowed_endings: OnceCell<Vec<tsc_checker::ModuleSpecifierEnding>>,
+    /// tsgo `shouldUseUriStyleNodeCoreModules`.
+    should_use_uri_style_node_core_modules: Option<bool>,
     existing_imports: Option<Vec<(ModuleId, ExistingImport)>>,
     should_use_require: Option<bool>,
 }
@@ -98,6 +111,15 @@ impl<'r> View<'r> {
             .file_name
             .to_string_lossy()
             .into_owned();
+        let source = checker.binder.source(importing_file);
+        let root = source.root;
+        let should_use_uri_style_node_core_modules = should_use_uri_style_node_core_modules(source);
+        let conditions = tsc_program::get_conditions(
+            prepared.compiler_options(),
+            resolution_mode(checker.api_default_resolution_mode_for_file(root)),
+        )
+        .into_iter()
+        .collect();
         Self {
             registry,
             project_id,
@@ -106,9 +128,32 @@ impl<'r> View<'r> {
             importing_file_path: path_key(prepared, &file_name),
             importing_file_name: file_name,
             preferences,
+            conditions,
+            allowed_endings: OnceCell::new(),
+            should_use_uri_style_node_core_modules,
             existing_imports: None,
             should_use_require: None,
         }
+    }
+
+    /// tsgo `getAllowedEndings`.
+    fn get_allowed_endings(
+        &self,
+        checker: &CheckerState<'_>,
+    ) -> &[tsc_checker::ModuleSpecifierEnding] {
+        self.allowed_endings.get_or_init(|| {
+            let root = self.source(checker).root;
+            let mode = match checker.api_default_resolution_mode_for_file(root) {
+                1 => tsc_emitter::EmitResolutionMode::CommonJs,
+                99 => tsc_emitter::EmitResolutionMode::EsNext,
+                _ => tsc_emitter::EmitResolutionMode::None,
+            };
+            checker.get_allowed_endings_in_preferred_order(
+                root,
+                self.preferences.import_module_specifier_ending,
+                mode,
+            )
+        })
     }
 
     /// tsgo `ToPath` of a file name of the view's program.
@@ -122,21 +167,85 @@ impl<'r> View<'r> {
 
     /// tsgo `Search`.
     pub(crate) fn search(&self, query: &str, kind: QueryKind) -> Vec<Arc<Export>> {
-        let Some(bucket) = self.registry.project_bucket(self.project_id) else {
-            return Vec::new();
-        };
-        let exports = match kind {
+        self.search_buckets(|bucket| match kind {
             QueryKind::WordPrefix => bucket.index.search_word_prefix(query),
             QueryKind::ExactMatch => bucket.index.find(query, true),
             QueryKind::CaseInsensitiveMatch => bucket.index.find(query, false),
-        };
-        // Don't auto-import from the importing file itself
-        exports
-            .into_iter()
-            .filter(|export| {
+        })
+    }
+
+    /// tsgo `search`: the project bucket's exports, and the exports of the
+    /// packages in the node_modules buckets above the importing file that
+    /// the package.json files above it depend on (a package in a lower
+    /// node_modules shadowing one above).
+    fn search_buckets(
+        &self,
+        search: impl Fn(&RegistryBucket) -> Vec<Arc<Export>>,
+    ) -> Vec<Arc<Export>> {
+        let mut results = Vec::new();
+        let project_bucket = self.registry.project_bucket(self.project_id);
+        if let Some(bucket) = project_bucket {
+            // Don't auto-import from the importing file itself
+            results.extend(search(bucket).into_iter().filter(|export| {
                 export.id.module_id.as_path() != Some(self.importing_file_path.as_str())
+            }));
+        }
+        let ancestors = || {
+            let mut directory = parent_path(&self.importing_file_path);
+            std::iter::from_fn(move || {
+                let current = directory;
+                let parent = parent_path(current);
+                if parent == current {
+                    directory = "";
+                } else {
+                    directory = parent;
+                }
+                (!current.is_empty()).then_some(current)
             })
-            .collect()
+        };
+        // The packages accessible to the importing file: the dependencies of the
+        // package.json files above it plus the packages the project's program files
+        // import. With no package.json, every package is.
+        let mut allowed_packages: Option<BTreeSet<String>> = None;
+        for directory in ancestors() {
+            let Some(contents) = self
+                .registry
+                .directory(directory)
+                .and_then(|directory| directory.package_json.contents.as_ref())
+                .filter(|contents| contents.parseable)
+            else {
+                continue;
+            };
+            add_package_json_dependencies(contents, allowed_packages.get_or_insert_default());
+        }
+        if let (Some(allowed), Some(bucket)) = (&mut allowed_packages, project_bucket) {
+            if let Some(names) = &bucket.resolved_package_names {
+                allowed.extend(names.iter().cloned());
+            }
+        }
+        let mut exclude_packages = BTreeSet::new();
+        for directory in ancestors() {
+            let Some(bucket) = self.registry.node_modules_bucket(directory) else {
+                continue;
+            };
+
+            for export in search(bucket) {
+                // Exclude packages found in lower node_modules (shadowing)
+                if exclude_packages.contains(&export.package_name) {
+                    continue;
+                }
+                if allowed_packages
+                    .as_ref()
+                    .is_some_and(|allowed| !allowed.contains(&export.package_name))
+                {
+                    continue;
+                }
+                results.push(export);
+            }
+            // As we go up the directory tree, exclude packages found in lower node_modules
+            exclude_packages.extend(bucket.package_files.keys().cloned());
+        }
+        results
     }
 
     /// tsgo `GetCompletions`: the best fixes of each group of exports a
@@ -165,11 +274,23 @@ impl<'r> View<'r> {
             } else {
                 export.ambient_module_name().to_owned()
             };
-            let key = (
+            let mut key = (
                 export.target_or_self().clone(),
                 name,
                 ambient_module_or_package_name,
             );
+            if (export.package_name == "@types/node"
+                || contains_lowercase_directory_sequence(
+                    &export.path,
+                    "/node_modules/@types/node/",
+                ))
+                && tsc_checker::modules::UNPREFIXED_NODE_CORE_MODULES.contains(&key.2.as_str())
+            {
+                // Group URI-style and non-URI style node core modules together so the
+                // ranking logic is allowed to drop one if an explicit preference is
+                // detected.
+                key.2 = format!("node:{}", key.2);
+            }
             if let Some((_, existing)) = grouped.iter_mut().find(|(known, _)| *known == key) {
                 for slot in existing.iter_mut() {
                     if slot.id == export.id {
@@ -682,6 +803,26 @@ impl<'r> View<'r> {
             }
             return Ok((specifier.to_owned(), Some(ModuleSpecifierKind::Ambient)));
         }
+        if !export.package_name.is_empty() {
+            if let Some(entrypoints) = self.registry.entrypoints(&export.path) {
+                for entrypoint in entrypoints {
+                    if entrypoint.include_conditions.is_subset(&self.conditions)
+                        && entrypoint.exclude_conditions.is_disjoint(&self.conditions)
+                    {
+                        let specifier = tsc_checker::process_entrypoint_ending(
+                            &entrypoint.module_specifier,
+                            entrypoint.ending,
+                            self.get_allowed_endings(checker),
+                            self.prepared.compiler_options(),
+                        );
+                        if !excluded(&specifier) {
+                            return Ok((specifier, Some(ModuleSpecifierKind::NodeModules)));
+                        }
+                    }
+                }
+                return Ok((String::new(), None));
+            }
+        }
         let cache = self.registry.specifier_cache(&self.importing_file_path);
         if export.package_name.is_empty() {
             if let Some(cache) = cache {
@@ -756,6 +897,25 @@ impl<'r> View<'r> {
     }
 
     /// tsgo `compareModuleSpecifiersForRanking`.
+    /// tsgo `compareNodeCoreModuleSpecifiers`: a `node:` specifier before
+    /// or after an unprefixed one as the importing file prefers.
+    fn compare_node_core_module_specifiers(&self, a: &str, b: &str) -> Ordering {
+        let (a_prefixed, b_prefixed) = (a.starts_with("node:"), b.starts_with("node:"));
+        match (
+            a_prefixed == b_prefixed,
+            self.should_use_uri_style_node_core_modules,
+        ) {
+            (false, Some(uri_style)) => {
+                if a_prefixed == uri_style {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            }
+            _ => Ordering::Equal,
+        }
+    }
+
     fn compare_module_specifiers_for_ranking(&self, a: &Fix, b: &Fix) -> Ordering {
         let relative = |fix: &Fix| fix.module_specifier_kind == Some(ModuleSpecifierKind::Relative);
         // tsgo `compareModuleSpecifierRelativity`: `-1` if `a` is better than `b`.
@@ -764,6 +924,16 @@ impl<'r> View<'r> {
             || preference == tsc_checker::ImportModuleSpecifierPreference::PROJECT_RELATIVE
         {
             let comparison = relative(a).cmp(&relative(b));
+            if comparison != Ordering::Equal {
+                return comparison;
+            }
+        }
+        let ambient = |fix: &Fix| fix.module_specifier_kind == Some(ModuleSpecifierKind::Ambient);
+        if ambient(a) && ambient(b) {
+            let comparison = self.compare_node_core_module_specifiers(
+                &a.auto_import.module_specifier,
+                &b.auto_import.module_specifier,
+            );
             if comparison != Ordering::Equal {
                 return comparison;
             }
@@ -1092,4 +1262,34 @@ fn detect_syntax(checker: &CheckerState<'_>, file: usize) -> FileSyntax {
         (true, false) => FileSyntax::Esm,
         _ => FileSyntax::Ambiguous,
     }
+}
+
+/// tsgo's `core.ResolutionMode` number as a resolution mode.
+fn resolution_mode(mode: u32) -> tsc_program::ResolutionMode {
+    match mode {
+        1 => tsc_program::ResolutionMode::CommonJs,
+        99 => tsc_program::ResolutionMode::EsNext,
+        _ => tsc_program::ResolutionMode::Unspecified,
+    }
+}
+
+/// tsgo `lsutil.ShouldUseUriStyleNodeCoreModules`: whether the file's first
+/// import of a Node core module (that has an unprefixed name) is `node:`
+/// prefixed. tsgo's program never records a fallback, so a file importing
+/// none has no preference.
+fn should_use_uri_style_node_core_modules(source: &SourceFile) -> Option<bool> {
+    let unprefixed = tsc_checker::modules::UNPREFIXED_NODE_CORE_MODULES;
+    collect_external_module_references(source)
+        .imports
+        .into_iter()
+        .find_map(|import| {
+            let NodeData::StringLiteral(literal) = &source.arena.node(import).data else {
+                return None;
+            };
+            let text = literal.text.to_string_lossy();
+            match text.strip_prefix("node:") {
+                Some(name) => unprefixed.contains(&name).then_some(true),
+                None => unprefixed.contains(&text.as_ref()).then_some(false),
+            }
+        })
 }
