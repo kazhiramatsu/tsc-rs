@@ -952,6 +952,36 @@ impl TransformArena {
         self.metadata.entry(node).or_default()
     }
 
+    /// The emit flags and synthetic comments of `root`'s subtree dropped:
+    /// tsgo's checker builds `TypeToTypeNodeEx`'s nodes in an emit context
+    /// of its own (`getNodeBuilderEx`: `printer.NewEmitContext()`), which a
+    /// printer of another context never reads.
+    pub fn forget_emit_flags_and_comments(
+        &mut self,
+        root: TransformNode,
+    ) -> Result<(), TransformError> {
+        let mut pending = vec![root.node];
+        while let Some(node) = pending.pop() {
+            let syntax = &self.source(root.source)?.source.arena;
+            if !syntax.contains_node(node) {
+                continue;
+            }
+            tsc_syntax::for_each_child(syntax, syntax.node(node), |child| {
+                pending.push(child);
+                false
+            });
+            if let Some(metadata) = self
+                .metadata
+                .get_mut(&TransformNode::new(root.source, node))
+            {
+                metadata.flags = EmitFlags::NONE;
+                metadata.leading_comments.clear();
+                metadata.trailing_comments.clear();
+            }
+        }
+        Ok(())
+    }
+
     /// Room for `additional` more metadata entries before the map rehashes.
     pub(crate) fn reserve_metadata(&mut self, additional: usize) {
         self.metadata.reserve(additional);
@@ -5287,6 +5317,20 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         self.arena.node(original)?;
         CrossSourceReuseClone::sharing_position_free(self.arena, original).clone_node(original.node)
+    }
+
+    /// tsgo `DeepCloneNode` (ast/deepclone.go:71-73): a copy of every node
+    /// of the subtree, without positions. The change tracker prints its
+    /// nodes with the positions they print at, so a copy shares none of
+    /// them with its original, as
+    /// [`Self::deep_clone_node_without_positions`] does.
+    pub fn deep_clone_node(
+        &mut self,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.arena.node(original)?;
+        CrossSourceReuseClone::new(self.arena, original.source, original.source)
+            .clone_node(original.node)
     }
 
     pub fn update_node(
