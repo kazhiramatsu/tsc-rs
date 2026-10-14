@@ -2040,12 +2040,14 @@ pub(crate) fn try_get_module_name_from_paths<'path>(
     for mapping in paths {
         for pattern_text in &mapping.patterns {
             let normalized = normalize_path_text(pattern_text);
-            let pattern = if path_is_absolute(&normalized) {
-                get_relative_path_if_in_same_volume(&normalized, base_directory, case_sensitive)
-                    .unwrap_or(normalized)
-            } else {
-                normalized
-            };
+            // tsgo `resolvePathPatternIfInSameVolume`: the pattern resolved
+            // against the base directory, relative to it.
+            let pattern = get_relative_path_if_in_same_volume(
+                &normalized_absolute_path(&normalized, base_directory),
+                base_directory,
+                case_sensitive,
+            )
+            .unwrap_or(normalized);
             let mut candidates: Vec<(Option<ModuleSpecifierEnding>, JsString)> = allowed_endings
                 .iter()
                 .filter_map(|&ending| {
@@ -2059,8 +2061,8 @@ pub(crate) fn try_get_module_name_from_paths<'path>(
             if let Some((prefix, suffix)) = pattern.as_js().split_once("*") {
                 for &(ending, ref value) in &candidates {
                     if value.len_units() >= prefix.len_units() + suffix.len_units()
-                        && value.as_js().starts_with_js(prefix)
-                        && value.as_js().ends_with_js(suffix)
+                        && has_prefix(value.as_js(), prefix, case_sensitive)
+                        && has_suffix(value.as_js(), suffix, case_sensitive)
                         && validate_ending(
                             relative_to_base_url,
                             ending,
@@ -2092,6 +2094,34 @@ pub(crate) fn try_get_module_name_from_paths<'path>(
         }
     }
     None
+}
+
+/// tsgo `stringutil.HasPrefix`: case-insensitive (Go `strings.EqualFold`)
+/// unless `case_sensitive`.
+fn has_prefix(text: JsStr<'_>, prefix: JsStr<'_>, case_sensitive: bool) -> bool {
+    if case_sensitive {
+        return text.starts_with_js(prefix);
+    }
+    text.len_units() >= prefix.len_units()
+        && tsc_syntax::go_unicode::equal_fold(
+            &text.substring(0, prefix.len_units()).to_string_lossy(),
+            &prefix.to_string_lossy(),
+        )
+}
+
+/// tsgo `stringutil.HasSuffix`: case-insensitive (Go `strings.EqualFold`)
+/// unless `case_sensitive`.
+fn has_suffix(text: JsStr<'_>, suffix: JsStr<'_>, case_sensitive: bool) -> bool {
+    if case_sensitive {
+        return text.ends_with_js(suffix);
+    }
+    text.len_units() >= suffix.len_units()
+        && tsc_syntax::go_unicode::equal_fold(
+            &text
+                .substring(text.len_units() - suffix.len_units(), text.len_units())
+                .to_string_lossy(),
+            &suffix.to_string_lossy(),
+        )
 }
 
 /// tsc-port: validateEnding @6.0.3 (nested in tryGetModuleNameFromPaths)

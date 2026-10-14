@@ -5,7 +5,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::lsutil::go_unicode::{is_lower, is_upper, to_lower, to_lower_char, to_upper_char};
+use tsc_syntax::go_unicode::{
+    equal_fold, is_lower, is_upper, to_lower, to_lower_char, to_upper_char,
+};
 
 use super::export::Export;
 
@@ -17,6 +19,32 @@ pub struct Index {
 }
 
 impl Index {
+    /// tsgo `Find`: the exports named `name`.
+    pub(crate) fn find(&self, name: &str, case_sensitive: bool) -> Vec<Arc<Export>> {
+        let Some(first) = name.chars().next() else {
+            return Vec::new();
+        };
+        if self.entries.is_empty() {
+            return Vec::new();
+        }
+        let Some(candidates) = self.index.get(&to_upper_char(first)) else {
+            return Vec::new();
+        };
+        candidates
+            .iter()
+            .map(|&index| &self.entries[index])
+            .filter(|entry| {
+                let entry_name = entry.name();
+                if case_sensitive {
+                    entry_name == name
+                } else {
+                    equal_fold(entry_name, name)
+                }
+            })
+            .cloned()
+            .collect()
+    }
+
     /// tsgo `SearchWordPrefix`: each export with a word starting with the
     /// prefix's first letter whose name holds the prefix's letters in order
     /// (ignoring case); every export for an empty prefix.

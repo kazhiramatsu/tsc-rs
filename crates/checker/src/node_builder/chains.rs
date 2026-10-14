@@ -331,6 +331,9 @@ pub(crate) struct BasicModuleSpecifierHost {
     modes: HashMap<u32, EmitResolutionMode>,
     /// The Program's known symlinks (tsgo `GetSymlinkCache`).
     symlinks: tsc_program::SymlinkFacts,
+    /// The Program's referenced projects, and whether its file names are
+    /// case-sensitive.
+    project_references: Option<(std::sync::Arc<tsc_program::ResolvedProjectReferences>, bool)>,
 }
 
 impl BasicModuleSpecifierHost {
@@ -380,12 +383,23 @@ impl BasicModuleSpecifierHost {
             .authoritative_module_provider
             .and_then(|provider| provider.symlink_facts())
             .unwrap_or_default();
+        let project_references = checker.authoritative_module_provider.and_then(|provider| {
+            let references = provider
+                .program_options_for_module_specifiers()?
+                .project_references()?
+                .clone();
+            let case_sensitive = provider
+                .path_context()
+                .is_none_or(|context| context.use_case_sensitive_file_names());
+            Some((references, case_sensitive))
+        });
         Self {
             current_directory,
             files,
             folded_files,
             modes,
             symlinks,
+            project_references,
         }
     }
 
@@ -544,6 +558,13 @@ impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
 
     fn module_resolution_cache_available(&self) -> bool {
         true
+    }
+
+    fn project_reference_output_of_source(&self, file_name: JsStr<'_>) -> Option<JsString> {
+        let (references, case_sensitive) = self.project_references.as_ref()?;
+        references
+            .output_dts_of_source(file_name, *case_sensitive)
+            .map(JsStr::to_owned)
     }
 }
 

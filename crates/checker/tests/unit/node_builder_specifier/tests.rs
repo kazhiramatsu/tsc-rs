@@ -518,3 +518,65 @@ fn supported_exclusion_regexes_match_javascript_utf16_and_unicode_values() {
         );
     }
 }
+
+/// tsgo `tryGetModuleNameFromPaths`: a pattern is resolved against the base
+/// directory (`resolvePathPatternIfInSameVolume`), so `..\x` from a base at
+/// the root is `x`; a case-insensitive host compares the star's prefix and
+/// suffix ignoring case.
+#[test]
+fn paths_patterns_resolve_against_the_base_directory() {
+    let options = SpecifierCompilerOptions::new(&CompilerOptions::default());
+    let host = TestModuleSpecifierHost::default();
+    let mapping = |key: &str, pattern: &str| ModulePathMapping {
+        key: key.into(),
+        patterns: vec![pattern.into()],
+    };
+    let specifier = |relative_to_base_url: &str,
+                     mappings: &[ModulePathMapping],
+                     base_directory: &str,
+                     case_sensitive: bool| {
+        try_get_module_name_from_paths(
+            relative_to_base_url,
+            mappings,
+            &[ModuleSpecifierEnding::Minimal],
+            base_directory,
+            case_sensitive,
+            &host,
+            &options,
+        )
+        .map(|value| {
+            value
+                .as_js()
+                .as_str()
+                .expect("scalar name observation")
+                .to_owned()
+        })
+    };
+    assert_eq!(
+        specifier(
+            "thisHasPathMapping.ts",
+            &[mapping("foo", "..\\thisHasPathMapping")],
+            "/",
+            true,
+        ),
+        Some("foo".to_owned())
+    );
+    assert_eq!(
+        specifier(
+            "Lib/Util.ts",
+            &[mapping("@lib/*", "lib/*")],
+            "/project",
+            false
+        ),
+        Some("@lib/Util".to_owned())
+    );
+    assert_eq!(
+        specifier(
+            "Lib/Util.ts",
+            &[mapping("@lib/*", "lib/*")],
+            "/project",
+            true
+        ),
+        None
+    );
+}

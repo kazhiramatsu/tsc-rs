@@ -3,6 +3,7 @@
 pub mod arena;
 mod chars;
 pub mod for_each_child;
+pub mod go_unicode;
 mod ids;
 mod incremental;
 pub mod jsdoc_hosted;
@@ -55,8 +56,8 @@ pub use recovery::{
     ParseRecoveryEvent, ParseRecoveryKind, ParseTokenSkipSite,
 };
 pub use scanner::{
-    get_shebang, is_js_whitespace, is_line_break, is_single_line_whitespace, is_whitespace_like,
-    js_trim_start, literal_token_flags, scan_big_int_string, scan_byte_tokens,
+    get_shebang, is_intrinsic_jsx_name, is_js_whitespace, is_line_break, is_single_line_whitespace,
+    is_whitespace_like, js_trim_start, literal_token_flags, scan_big_int_string, scan_byte_tokens,
     scan_first_token_span, scan_token_kinds, scan_tokens, skip_trivia, skip_trivia_ex,
     string_literal_text_utf16, template_text_utf16, BigIntStringScan, ByteTokenIter,
     ByteTokenRecord, CommentDirective, CommentDirectiveKind, LanguageVariant, SkipTriviaOptions,
