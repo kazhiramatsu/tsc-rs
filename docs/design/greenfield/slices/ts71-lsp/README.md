@@ -526,3 +526,24 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   checker の変更はないので `--checkers 4` はなし。
 - **有界の違い**：`completionItem/resolve`（L4e）、auto-import（L5）、formatter が要る snippet（L8）、content mapper
   の file（L10）。
+
+## L4e completionItem/resolve（PR #789）
+
+- **merge**：#789 → `ada4b40a4`（hosted run 38491566623：rust 10m12s、conformance 20m3s、gates）。commit：66cdc6af1
+  （resolve）、ratchet c7ca6550e。L4（completion）はこれで auto-import（L5）、snippet（L8）、content mapper（L10）を
+  除いて終わり。
+- **言語 service**（`crates/ls/src/completions/resolve.rs`）：tsgo の `getCompletionItemDetails`。item data の位置で
+  completion を計算し直し、表示名と source で symbol を見つける。detail は symbol の quick info、documentation は
+  hover の `getQuickInfoAndDocumentationForSymbol`（client の最初の documentation format）。keyword・JSDoc tag・文脈の
+  literal は名前が detail。文字列リテラルでは property の quick info か literal 型の名前（path completion はそのまま）。
+  switch-case の snippet と auto-import はそのまま（auto-import の edit は L5）。request は LSP の位置だけでなく file の
+  位置（item data の）も取れる。
+- **LSP server**：`completionItem/resolve` は tsgo の `registerRequestHandler` と同じく同期部分で、item の file の
+  default project が答える。panic は tsgo の `recover` の error。
+- **回帰 test**：`crates/ls/tests/completion.rs` に `resolve` の harness と 5（計 70。keyword、JSDoc tag、文字列リテラル
+  （literal 型、method、documentation 付きの property）、documentation 付きの変数、library の型の member）。
+- **検査（c7ca6550e）**：suites 0 regressions（lsp 1,797 full、resolve 424/655、132 行がすべて none→full）、API client
+  sync 337/356・async 346/365、test（ls 136、lsp 14）、clippy、fmt。compiler の path に触れないので conformance と
+  `--checkers 4` はなし。
+- **有界の違い**：auto-import の item（resolve 227。L5）、content mapper の file（4。先の completion の panic が session
+  の checker state を poison する。L10）。
