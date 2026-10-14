@@ -679,9 +679,10 @@ impl<'r> View<'r> {
                     }
                 } else if matches!(
                     source.arena.node(node).kind,
-                    SyntaxKind::ImportDeclaration
-                        | SyntaxKind::ImportEqualsDeclaration
-                        | SyntaxKind::JSDocImportTag
+                    // tsgo also names `JSDocImportTag`, but its import of an
+                    // `@import` tag is the reparsed `JSImportDeclaration`, so
+                    // a tag is never an existing import.
+                    SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration
                 ) {
                     if let Some(module_symbol) = checker.get_symbol_at_location(module_specifier)? {
                         if let Some((module_id, _)) =

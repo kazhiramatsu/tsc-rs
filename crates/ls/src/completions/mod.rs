@@ -25,6 +25,7 @@ use crate::language_service::{LanguageService, LsError};
 
 use context::Completions;
 pub(crate) use context::{is_type_element, is_type_node_kind};
+pub(crate) use contextual::is_equality_operator_kind;
 use data::CompletionData;
 
 /// tsgo `SortText`s.
