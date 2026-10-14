@@ -129,3 +129,22 @@ fn change_full_extension_matches_tsgo() {
         );
     }
 }
+
+/// tsgo `tspath.ChangeExtension`: the first removable extension a path ends
+/// with (a declaration file's `.d.ts`, but only `.ts` of `.d.css.ts`); a
+/// path with none stays as it is.
+#[test]
+fn change_extension_matches_tsgo() {
+    for (path, extension, expected) in [
+        ("/a/file.d.ts", ".js", "/a/file.js"),
+        ("/a/app.d.css.ts", ".js", "/a/app.d.css.js"),
+        ("/a/file.mts", ".mjs", "/a/file.mjs"),
+        ("/a/file.css", ".js", "/a/file.css"),
+    ] {
+        assert_eq!(
+            change_extension(JsStr::from_str(path), extension).to_string_lossy(),
+            expected,
+            "{path} {extension}"
+        );
+    }
+}

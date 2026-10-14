@@ -253,6 +253,43 @@ pub(crate) struct NodeModulePathParts {
     top_level_package_name_index: usize,
     package_root_index: usize,
     file_name_index: usize,
+    /// Where the last package's name (a nested one's) starts.
+    package_name_index: usize,
+    /// A `node_modules` inside the top-level package.
+    has_nested_node_modules: bool,
+}
+
+/// tsgo `modulespecifiers.GetNodeModulePathParts`' package facts of a file
+/// below `node_modules`: the (innermost) package's name and the path below
+/// its root.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NodeModulePackagePath {
+    pub package_name: String,
+    /// Empty for a file directly in a `node_modules` directory.
+    pub package_relative_path: String,
+    pub has_nested_node_modules: bool,
+    pub is_direct_node_modules_file: bool,
+}
+
+/// The package facts of a file below `node_modules`, none for another.
+pub fn node_module_package_path(path: &str) -> Option<NodeModulePackagePath> {
+    let normalized = normalized_slashes(JsStr::from_str(path))
+        .to_string_lossy()
+        .into_owned();
+    let parts = get_node_module_path_parts(JsStr::from_str(&normalized))?;
+    let is_direct_node_modules_file = parts.package_root_index >= normalized.len();
+    Some(NodeModulePackagePath {
+        package_name: normalized
+            .get(parts.package_name_index..parts.package_root_index.min(normalized.len()))?
+            .to_owned(),
+        package_relative_path: if is_direct_node_modules_file {
+            String::new()
+        } else {
+            normalized.get(parts.package_root_index + 1..)?.to_owned()
+        },
+        has_nested_node_modules: parts.has_nested_node_modules,
+        is_direct_node_modules_file,
+    })
 }
 
 /// tsc-port: getSpecifierForModuleSymbol @6.0.3
@@ -4065,10 +4102,14 @@ fn get_node_module_path_parts<'p>(path: impl Into<JsStr<'p>>) -> Option<NodeModu
     let top_level_node_modules_index = ascii_index(path, marker)?;
     let top_level_package_name_index = top_level_node_modules_index + marker.len() - 1;
     let mut package_root_index = package_root_end(path, top_level_package_name_index + 1)?;
+    let mut package_name_index = top_level_package_name_index + 1;
+    let mut has_nested_node_modules = false;
     let mut search = package_root_index;
     while let Some(relative) = ascii_index(byte_path_slice(path, search..)?, marker) {
         let marker_index = search + relative;
-        package_root_index = package_root_end(path, marker_index + marker.len())?;
+        package_name_index = marker_index + marker.len();
+        package_root_index = package_root_end(path, package_name_index)?;
+        has_nested_node_modules = true;
         search = package_root_index;
     }
     let file_name_index = path
@@ -4081,6 +4122,8 @@ fn get_node_module_path_parts<'p>(path: impl Into<JsStr<'p>>) -> Option<NodeModu
         top_level_package_name_index,
         package_root_index,
         file_name_index,
+        package_name_index,
+        has_nested_node_modules,
     })
 }
 

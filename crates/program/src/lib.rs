@@ -96,7 +96,7 @@ pub mod go_json;
 mod js_path;
 pub use js_path::{
     any_extension, base_file_name, canonical_dynamic_uri_path, change_any_extension,
-    change_full_extension, combine_paths, declaration_file_extension,
+    change_extension, change_full_extension, combine_paths, declaration_file_extension,
     directory_name as get_directory_path, extension_from_path, file_extension_is, has_extension,
     is_declaration_file_name, normalize_path, normalize_slashes,
     normalized_absolute_path as get_normalized_absolute_path, remove_file_extension,
@@ -166,11 +166,11 @@ pub use json::{package_json_property, read_package_json_object_from_snapshot};
 pub use json_value::{append_json_quoted, JsonObject, JsonValue};
 pub use library::LibraryCatalog;
 pub use loader::{
-    load_emitting_program, load_emitting_program_js, load_emitting_program_with_root_reasons,
-    load_no_lib_program, load_program, load_program_js, load_program_with_root_reasons,
-    transform_content_mapped, LibraryRootReason, ProgramLoadError, ProgramLoadErrorKind,
-    ProgramLoadLimit, ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation,
-    RootFileReason, SourceInclusionReason, PARALLEL_READ_AHEAD_MIN_ROOTS,
+    get_implied_node_format_for_file, load_emitting_program, load_emitting_program_js,
+    load_emitting_program_with_root_reasons, load_no_lib_program, load_program, load_program_js,
+    load_program_with_root_reasons, transform_content_mapped, LibraryRootReason, ProgramLoadError,
+    ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimitExceeded, ProgramLoadLimits,
+    ProgramLoadOperation, RootFileReason, SourceInclusionReason, PARALLEL_READ_AHEAD_MIN_ROOTS,
 };
 pub use module_requests::{
     default_js_doc_parsing_mode, plan_module_requests, plan_source_requests,

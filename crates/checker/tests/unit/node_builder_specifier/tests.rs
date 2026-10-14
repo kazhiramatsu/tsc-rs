@@ -596,3 +596,37 @@ fn paths_patterns_resolve_against_the_base_directory() {
         None
     );
 }
+
+/// tsgo `GetNodeModulePathParts`' package facts: the innermost package's
+/// name (a scoped one's with its scope), the path below its root, a nested
+/// `node_modules`, and a file directly in `node_modules`.
+#[test]
+fn node_module_package_path_matches_tsgo() {
+    let package = |path: &str| {
+        node_module_package_path(path).map(|parts| {
+            (
+                parts.package_name,
+                parts.package_relative_path,
+                parts.has_nested_node_modules,
+                parts.is_direct_node_modules_file,
+            )
+        })
+    };
+    assert_eq!(
+        package("/p/node_modules/pkg/dist/index.d.ts"),
+        Some(("pkg".to_owned(), "dist/index.d.ts".to_owned(), false, false))
+    );
+    assert_eq!(
+        package("/p/node_modules/@types/node/fs.d.ts"),
+        Some(("@types/node".to_owned(), "fs.d.ts".to_owned(), false, false))
+    );
+    assert_eq!(
+        package("/p/node_modules/a/node_modules/b/index.d.ts"),
+        Some(("b".to_owned(), "index.d.ts".to_owned(), true, false))
+    );
+    assert_eq!(
+        package("/p/node_modules/umd.d.ts"),
+        Some(("umd.d.ts".to_owned(), String::new(), false, true))
+    );
+    assert_eq!(package("/p/src/index.ts"), None);
+}
