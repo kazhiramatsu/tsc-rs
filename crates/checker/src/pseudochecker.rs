@@ -1368,35 +1368,11 @@ fn for_each_return_statement_in_order(
     body: NodeId,
     visitor: &mut dyn FnMut(NodeId) -> bool,
 ) -> bool {
-    match checker.kind_of(body) {
-        SyntaxKind::ReturnStatement => visitor(body),
-        SyntaxKind::CaseBlock
-        | SyntaxKind::Block
-        | SyntaxKind::IfStatement
-        | SyntaxKind::DoStatement
-        | SyntaxKind::WhileStatement
-        | SyntaxKind::ForStatement
-        | SyntaxKind::ForInStatement
-        | SyntaxKind::ForOfStatement
-        | SyntaxKind::WithStatement
-        | SyntaxKind::SwitchStatement
-        | SyntaxKind::CaseClause
-        | SyntaxKind::DefaultClause
-        | SyntaxKind::LabeledStatement
-        | SyntaxKind::TryStatement
-        | SyntaxKind::CatchClause => {
-            let source = checker.binder.source_of_node(body);
-            let mut children = Vec::new();
-            tsc_syntax::for_each_child(&source.arena, source.arena.node(body), |child| {
-                children.push(child);
-                false
-            });
-            children
-                .into_iter()
-                .any(|child| for_each_return_statement_in_order(checker, child, visitor))
-        }
-        _ => false,
-    }
+    tsc_binder::node_util::for_each_return_statement(
+        checker.binder.source_of_node(body),
+        body,
+        visitor,
+    )
 }
 
 #[cfg(test)]
