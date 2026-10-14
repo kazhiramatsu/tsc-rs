@@ -664,3 +664,23 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   tsc-rs の `clone_node` は位置を消し（tsc 6.0.3）、tsgo の `Clone` は保つ（印字の照合は同じ木で行った）。
 - **次**：L5 auto-import（registry、import の修正、completion の auto-import、code action の再試行）。L8c の二つの provider は
   import adder を使うので L5 の後。
+
+## L5 auto-import の計画
+
+- **規模**：tsgo の `ls/autoimport` 5,507 行（registry 1,853、fix 1,329、import_adder 502、extract 476、util 338、view 264、
+  aliasresolver 248、export 188、index 186、specifiers 90）、`project/autoimport.go` 170、`ls/codeactions_importfixes.go` 449、
+  completion の auto-import の部分。
+- **transcript**：completion の auto-import の項目 361（project 内の相対 207・110 場面、node_modules 123・54 場面、project の
+  ambient module 31・17 場面）、その resolve 227、quick fix の `Add import from` 284（190 場面。node_modules 81・50）、
+  `Update import from` 80（37 場面）、fix-all の `Add all missing imports` 38（24 場面）、`Remove … from import` など。
+- **L5a project の registry と completion**：`Export`（module と export の ID、構文、flag、別名の先、script element kind）、
+  program の file からの抽出（binder の symbol、別名の解決に checker）、`Index`（語の頭文字の索引、`Find`・
+  `SearchWordPrefix`）、`View`（検索、`GetCompletions` の group 化と順位）、session の registry（snapshot ごとの clone、
+  `IsPreparedForImportingFile`、`ErrNeedsAutoImports` で準備して request をやり直す handler）。completion の auto-import の
+  項目（sort text 16、`data.autoImport`）と resolve の edit（`fix.go`：既存の import への追加、新しい import 宣言、
+  type-only、module specifier。change tracker を使う）。
+- **L5b import の code fix**：`codeactions_importfixes.go`（未解決の名前の診断からの fix、`Update import from`、fix-all）、
+  import adder（L8c と API の `getImportAdderEdits` が使う）。
+- **L5c node_modules**：package.json の依存、entrypoint（exports・typesVersions）、program 外の package の file を読む
+  alias resolver の checker、ambient module、上位の node_modules の遮蔽、`@types/node` と `node:`。
+- **後へ**：auto-import の監視（L11）、background の warm、telemetry。L8c の二つの provider は L5b の import adder の後。
