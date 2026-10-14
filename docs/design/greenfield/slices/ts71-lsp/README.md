@@ -910,3 +910,24 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   highlight・source definition（L7b・L7c・L7e）。
 - **教訓**：main の branch protection は strict。PR が base より遅れていると gates が通っても merge できない。merge の前に
   `gh pr update-branch`、head branch は `state` が MERGED になってから消す（先に消すと PR が閉じる）。
+
+## L7b document highlight（#799）
+
+- **merge**：#799 → `b0672b2c0`（hosted run 38637173027：rust 13m7s、conformance 21m35s、gates）。commit：8c5e4a0ee（checker
+  の this 型）、59c70ce72（document highlight）、43ea828b1（ratchet）。検査の後の main の取り込み（759fb2fcf）は packet の
+  README だけ。
+- **checker**：this を持たない interface の this 型は error 型（tsgo の `getThisType` は
+  `Coalesce(declaredType.thisType, errorType)`）。`typeof this` だけを持つ interface では ContainsThis が立たず this 型が
+  無い。tsc-rs は language service がその `this` の symbol を問うと panic していた（`TestDocumentHighlightTypeofThis`）。
+  compiler はそこに来ない（その file の診断は tsgo と同じ）。
+- **language service**（`document_highlights.rs`、tsgo `documenthighlights.go`）：JSX tag の開きと閉じ、file（または検索
+  する file）の中の symbol の参照（L7a の検索を adjusted location なしで、read・write の種別つき）、それ以外は keyword
+  の組（if/else、return/throw、try/catch/finally、switch/case/default、loop と break/continue、accessor、constructor、
+  async/await、yield、modifier）。共有：`Navigator::children_from_non_js_doc`（tsgo `getChildrenFromNonJSDocNode`）、
+  欠けた（幅 0 の）token の開始位置（tsgo `GetTokenPosOfNode`）、completion と formatter の
+  `IsWhiteSpaceSingleLine` を一つに。回帰 test は `crates/ls/tests/references.rs`。
+- **検査（43ea828b1）**：conformance 0 regressions（全 13,577 full、487 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（147 行 none→full。lsp 3,430 → 3,577 full）、highlight の 153 場面のうち 147、参照の 480 場面のうち 442 が
+  一致、test（checker 1,802、ls 197 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、
+  clippy、fmt。
+- **有界の違い**：`TestContentMapperDocumentHighlights`（L10）、残りは rename（L7c）。
