@@ -69,7 +69,7 @@ impl<'h> SourceMaps<'h> {
 
     /// tsgo `tryGetSourcePosition`: a declaration file's position in the
     /// source its maps lead to, when that source exists.
-    fn try_get_source_position(
+    pub(crate) fn try_get_source_position(
         &self,
         file_name: &str,
         position: usize,
@@ -84,7 +84,7 @@ impl<'h> SourceMaps<'h> {
         file_name: &str,
         position: usize,
     ) -> Option<DocumentPosition> {
-        if !is_declaration_file_name(file_name) {
+        if !tsc_program::is_declaration_file_name(file_name) {
             return None;
         }
         let mapper = self.document_position_mapper(file_name)?;
@@ -109,14 +109,4 @@ impl<'h> SourceMaps<'h> {
             .insert(file_name.to_owned(), mapper.clone());
         mapper
     }
-}
-
-/// tsgo `tspath.IsDeclarationFileName`: `.d.ts`, `.d.mts`, `.d.cts`, or a
-/// `.d.<extension>.ts` file.
-fn is_declaration_file_name(file_name: &str) -> bool {
-    let base = file_name.rsplit(['/', '\\']).next().unwrap_or(file_name);
-    [".d.ts", ".d.mts", ".d.cts"]
-        .iter()
-        .any(|extension| base.ends_with(extension))
-        || base.ends_with(".ts") && base.contains(".d.")
 }

@@ -114,6 +114,16 @@ fn with_service<T>(
     options: CompilerOptions,
     run: impl FnOnce(&mut LanguageService<'_>, &Files) -> T,
 ) -> T {
+    with_service_preferences(files, options, UserPreferences::default(), run)
+}
+
+/// [`with_service`] with the user's preferences.
+fn with_service_preferences<T>(
+    files: &[(&str, &str)],
+    options: CompilerOptions,
+    preferences: UserPreferences,
+    run: impl FnOnce(&mut LanguageService<'_>, &Files) -> T,
+) -> T {
     let mut builder = MemoryCompilerHost::builder("/").case_sensitive(true);
     for (name, text) in files {
         builder = builder.file(PathBuf::from(name), text.as_bytes());
@@ -149,7 +159,6 @@ fn with_service<T>(
         ))
     });
     let files = Files(texts);
-    let preferences = UserPreferences::default();
     let capabilities = ResolvedClientCapabilities::default();
     let mut service = LanguageService::new(
         &mut live,
@@ -409,6 +418,39 @@ fn outgoing_calls(files: &[(&str, &str)], item: &CallHierarchyItem) -> Vec<Call>
             CallHierarchyOutgoingCallsOrNull::Null => Vec::new(),
         }
     })
+}
+
+/// A workspace symbol: its name, kind, container and range.
+type WorkspaceSymbol = (String, u32, Option<String>, Range);
+
+/// tsgo's workspace symbols matching `query`, with tsgo's default
+/// preferences (no library symbols).
+fn workspace_symbols(files: &[(&str, &str)], query: &str) -> Vec<WorkspaceSymbol> {
+    with_service_preferences(
+        files,
+        options(|_| {}),
+        UserPreferences::new_default(),
+        |service, _| {
+            let matches = service.workspace_symbol_matches(query).expect("an answer");
+            let tsc_lsproto::SymbolInformationsOrWorkspaceSymbolsOrNull::SymbolInformations(
+                symbols,
+            ) = tsc_ls::workspace_symbols(vec![matches])
+            else {
+                panic!("symbol informations");
+            };
+            symbols
+                .into_iter()
+                .map(|symbol| {
+                    (
+                        symbol.name,
+                        symbol.kind.0,
+                        symbol.container_name,
+                        range_of(&symbol.location.range),
+                    )
+                })
+                .collect()
+        },
+    )
 }
 
 fn leak(name: &str) -> &'static str {
@@ -783,5 +825,41 @@ fn calls_in_a_class_static_block() {
                 vec![((8, 12), (8, 16))]
             ),
         ]
+    );
+}
+
+/// navigationItemsInConstructorsExactMatch: a constructor's parameter
+/// properties are symbols of its class (a plain parameter is not).
+#[test]
+fn parameter_properties_are_workspace_symbols() {
+    let file = "/navigationItemsInConstructorsExactMatch.ts";
+    let text = "class Test {\n    private search1: number;\n    constructor(public search2: boolean, readonly search3: string, search4: string) {\n    }\n}";
+    let test = Some("Test".to_owned());
+    assert_eq!(
+        workspace_symbols(&[(file, text)], "search"),
+        [
+            ("search1".to_owned(), 7, test.clone(), ((1, 12), (1, 19))),
+            ("search2".to_owned(), 7, test.clone(), ((2, 23), (2, 30))),
+            ("search3".to_owned(), 7, test, ((2, 50), (2, 57))),
+        ]
+    );
+}
+
+/// navigateToSymbolIterator: a computed name's property access is named by
+/// its property.
+#[test]
+fn a_computed_property_access_name_is_its_property() {
+    let file = "/navigateToSymbolIterator.ts";
+    assert_eq!(
+        workspace_symbols(
+            &[(file, "class C {\n    [Symbol.iterator]() {}\n}")],
+            "iterator"
+        ),
+        [(
+            "iterator".to_owned(),
+            6,
+            Some("C".to_owned()),
+            ((1, 4), (1, 21))
+        )]
     );
 }
