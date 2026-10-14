@@ -68,6 +68,32 @@ pub(crate) fn format_span(
     .execute()
 }
 
+/// tsgo `FormatNodeGivenIndentation`: the node of a file printed for an
+/// insertion, formatted as if indented by `initial_indentation`.
+pub(crate) fn format_node_given_indentation(
+    file: &File<'_>,
+    options: &FormatCodeSettings,
+    node: Node,
+    initial_indentation: i64,
+    delta: i64,
+) -> Vec<TextChange> {
+    let text_range = (file.pos(node), file.end(node));
+    FormatSpanWorker::new(
+        file,
+        options,
+        new_line(options),
+        text_range.0,
+        text_range,
+        node,
+        initial_indentation,
+        delta,
+        FormatRequestKind::Selection,
+        // assume that node does not have any errors
+        ErrorRanges::new(&[], text_range),
+    )
+    .execute()
+}
+
 fn format_node_lines(
     file: &File<'_>,
     options: &FormatCodeSettings,
