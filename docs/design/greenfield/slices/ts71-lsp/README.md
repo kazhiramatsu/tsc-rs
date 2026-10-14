@@ -719,3 +719,52 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   `@import`（tsgo の `Imports()` は reparse した宣言を含む）、大文字小文字を区別しない glob の比較は Rust の単一文字の
   case 対応、config の file の探索は 6.0.3 の `files` の pattern のまま（vfsmatch への移行は後で）。
 - **次**：L5b import の code fix（provider と fix-all、type-only の昇格、import adder）。
+
+## L5b import の code fix（PR #794）
+
+- **merge**：#794 → `099b417d6`（hosted run 38559044085：rust 12m、conformance 30m07s、gates）。commit：467bcc7d1（Go の
+  unicode の関数と `IsIntrinsicJsxName` を `tsc_syntax` に）、4d17a859f（module specifier の `paths` の pattern と project
+  reference の出力）、d499c1be0（import の code fix）、0d1cffb0c（ratchet）。
+- **code fix の枠組み**（`crates/ls/src/code_actions/mod.rs`）：tsgo の `ProvideCodeActions` の provider の loop（要求の診断
+  ごとに quick fix、`CodeAction.Compare` での重複除去）、provider ごとの「file 全体の修正」（修正できる診断が 2 つ以上の
+  とき）、`source.fixAll`。今の provider は import だけ（L8c で型注釈と interface の実装を足す）。
+- **import の provider**（`code_actions/import_fixes.rs`）：tsgo の `codeactions_importfixes.go`。未解決の名前（JSX の tag と
+  JSX の namespace を含む）、module の中の UMD の global、値として使った type-only の import。tsgo の順に並べる。fix-all
+  （`Add all missing imports`）は各診断の最良の fix を import adder（`autoimport/import_adder.rs`：同じ module の import を
+  一つの宣言にまとめる）に入れる。
+- **fix の edit**：tsgo の `promoteFromTypeOnly`（import specifier、import clause と namespace import、`import type =`）。
+  tsgo は昇格の説明に空の名前を入れる（`Remove 'type' from import of '' from …`）のでそのまま。view の完全一致・大文字
+  小文字を区別しない検索、`SymbolToExport`。
+- **module specifier**（checker）：tsgo の `resolvePathPatternIfInSameVolume`（`paths` の pattern を paths の基準に対して
+  解決：root からの `..\x` は `x`）、star の前後の比較は host の大文字小文字の区別に従う。auto-import の host は参照先
+  project の出力の `.d.ts` を先に候補にする（tsgo `GetOutputAndProjectReference`。program と
+  `ResolvedProjectReferences::output_dts_of_source` を共有）。
+- **共有**：`tsc_syntax::go_unicode`（LS から移し、Go の `SimpleFold`・`EqualFold` を戻した。vfsmatch の大文字小文字を
+  区別しない比較も Go の `EqualFold` に）、`tsc_syntax::is_intrinsic_jsx_name`（checker と emitter の私的な写しを置換）。
+- **検査（d499c1be0）**：conformance 0 regressions（全 13,577 full、493 s）、`--checkers 4` は既知の 4 だけ違う、suites 0
+  regressions（ratchet は main のものから `--update`：180 行 none→full、下げは無し。lsp 2,561 → 2,741 full、codeAction
+  291 → 527/772。完全に一致する場面で `Add import from` 166/226、`Update import from` 56/63、`Add all missing imports`
+  33/38、`Remove 'type' …` 11/11、`Change …` 7/7、`Fix All` 1/1）、API client sync 340/356・async 349/365、test（syntax
+  251、binder 78、program 674、checker 1,799、emitter 350、ls 180、lsp 14、api 297、project 186、compiler 225、
+  conformance 49）、clippy、fmt、Unicode の表。
+- **有界の違い**：package の import（L5c。残る import の fix の差はすべて package）、他の code fix の provider（L8c）、
+  同じ順位の fix の順（tsgo の sort は不安定、tsc-rs は安定。観測なし）。
+
+## L5c node_modules の計画
+
+- **規模**：tsgo の `registry.go` の node_modules の部分（directory と package.json、`computeDependenciesForNodeModulesDirectory`、
+  `discoverBucketPackages`（realpath、`@types`）、`extractPackage`、`installExtractions`、`buildNodeModulesBucket`・
+  `updateNodeModulesBucket`、ambient module の名前の解決）約 1,000 行、`aliasresolver.go` 248、`util.go` の package 名・
+  依存・realpath、module の `GetEntrypointsFromPackageJsonInfo`（exports map、main、directory search）、view の
+  node_modules bucket の検索（package.json の依存と program の解決した package での絞り込み、下の node_modules の遮蔽）、
+  `specifiers.go` の package の module specifier。
+- **難所**：tsgo は package の entrypoint を root に、別名の解決に要る file だけを遅延で読む alias resolver の checker
+  （`checker.NewChecker(aliasResolver)`）で抽出する。tsc-rs の checker は program の file を先に束ねる。→ entrypoint を
+  root にした小さな program（module 解決で推移的に読む、lib なし）の checker で抽出し、export と別名の先が tsgo と同じか
+  transcript で確かめる。
+- **段階**：L5c-1 entrypoint の列挙（`tsc_program`）、package の発見と抽出、node_modules bucket、view の検索と絞り込み・
+  遮蔽、package の module specifier（completion と quick fix の package の項目）。L5c-2 package の ambient module
+  （`declare module`、失敗した ambient module の解決の補い）、`@types` への fallback、`node:` の core module。L5c-3
+  granular な更新（dirty な package、workspace の package、recursive search。監視は L11）。
+- **transcript**：completion の node_modules の項目 123（54 場面）、quick fix の package の `Add import from` 81（50 場面）、
+  `Update import from`、fix-all の一部。
