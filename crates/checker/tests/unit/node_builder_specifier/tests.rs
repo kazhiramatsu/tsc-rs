@@ -519,6 +519,22 @@ fn supported_exclusion_regexes_match_javascript_utf16_and_unicode_values() {
     }
 }
 
+/// tsgo `IsExcludedByRegex`: a lazy quantifier (`*?`) is a quantifier, and a
+/// pattern whose only slash is its first is no `/pattern/flags` literal
+/// (TestAutoImportSpecifierExcludeRegexes1's `/.*?$` excludes
+/// `ambient/utils`, not `ambient`).
+#[test]
+fn exclusion_regexes_accept_lazy_quantifiers() {
+    let excluded = |specifier: &str, pattern: &str| {
+        is_excluded_by_regex(JsStr::from_str(specifier), &[pattern.to_owned()])
+    };
+    assert!(excluded("ambient/utils", "/.*?$"));
+    assert!(!excluded("ambient", "/.*?$"));
+    assert!(excluded("ambient/utils", "ut+?ils"));
+    assert!(excluded("ambient", "^amb??ient$"));
+    assert!(!excluded("ambient/utils", "oops("));
+}
+
 /// tsgo `tryGetModuleNameFromPaths`: a pattern is resolved against the base
 /// directory (`resolvePathPatternIfInSameVolume`), so `..\x` from a base at
 /// the root is `x`; a case-insensitive host compares the star's prefix and

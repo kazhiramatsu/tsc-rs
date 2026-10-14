@@ -277,10 +277,7 @@ impl CheckerState<'_> {
         &self,
         file_name: tsc_types::JsStr<'_>,
     ) -> Option<&'static str> {
-        crate::node_builder::specifier::try_get_js_extension_for_file(
-            file_name,
-            &crate::node_builder::specifier::SpecifierCompilerOptions::new(self.options),
-        )
+        tsc_program::try_get_js_extension_for_file(file_name, self.options)
     }
 
     /// tsgo `GetRootSymbols`: the symbols a synthetic, spread, mapped or

@@ -12,7 +12,10 @@ use indexmap::IndexMap;
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{EmitModuleSpecifierHost, EmitResolutionMode, EmitResolverNode};
 use tsc_program::SourceFileId;
-use tsc_program::{package_json_own_entries, package_json_property, JsonValue as Value};
+use tsc_program::{
+    change_full_extension, extension_from_path, file_extension_is, package_json_own_entries,
+    package_json_property, remove_file_extension, JsonValue as Value,
+};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget, SymbolFlags, TypeId};
 use tsc_types::{JsStr, JsString};
@@ -2061,8 +2064,8 @@ pub(crate) fn try_get_module_name_from_paths<'path>(
             if let Some((prefix, suffix)) = pattern.as_js().split_once("*") {
                 for &(ending, ref value) in &candidates {
                     if value.len_units() >= prefix.len_units() + suffix.len_units()
-                        && has_prefix(value.as_js(), prefix, case_sensitive)
-                        && has_suffix(value.as_js(), suffix, case_sensitive)
+                        && tsc_program::has_prefix(value.as_js(), prefix, case_sensitive)
+                        && tsc_program::has_suffix(value.as_js(), suffix, case_sensitive)
                         && validate_ending(
                             relative_to_base_url,
                             ending,
@@ -2094,34 +2097,6 @@ pub(crate) fn try_get_module_name_from_paths<'path>(
         }
     }
     None
-}
-
-/// tsgo `stringutil.HasPrefix`: case-insensitive (Go `strings.EqualFold`)
-/// unless `case_sensitive`.
-fn has_prefix(text: JsStr<'_>, prefix: JsStr<'_>, case_sensitive: bool) -> bool {
-    if case_sensitive {
-        return text.starts_with_js(prefix);
-    }
-    text.len_units() >= prefix.len_units()
-        && tsc_syntax::go_unicode::equal_fold(
-            &text.substring(0, prefix.len_units()).to_string_lossy(),
-            &prefix.to_string_lossy(),
-        )
-}
-
-/// tsgo `stringutil.HasSuffix`: case-insensitive (Go `strings.EqualFold`)
-/// unless `case_sensitive`.
-fn has_suffix(text: JsStr<'_>, suffix: JsStr<'_>, case_sensitive: bool) -> bool {
-    if case_sensitive {
-        return text.ends_with_js(suffix);
-    }
-    text.len_units() >= suffix.len_units()
-        && tsc_syntax::go_unicode::equal_fold(
-            &text
-                .substring(text.len_units() - suffix.len_units(), text.len_units())
-                .to_string_lossy(),
-            &suffix.to_string_lossy(),
-        )
 }
 
 /// tsc-port: validateEnding @6.0.3 (nested in tryGetModuleNameFromPaths)
@@ -2181,7 +2156,11 @@ pub(crate) fn try_get_module_name_from_exports_or_imports<'path>(
         );
         let extension_swapped_target = has_ts_file_extension(target_file_path)
             .then(|| {
-                try_get_js_extension_for_file(target_file_path, options).map(|extension| {
+                tsc_program::try_get_js_extension_for_file(
+                    target_file_path,
+                    &options.compiler_options,
+                )
+                .map(|extension| {
                     crate::concat_js(&[&(remove_file_extension(target_file_path)), &(extension)])
                 })
             })
@@ -2335,11 +2314,13 @@ pub(crate) fn try_get_module_name_from_exports_or_imports<'path>(
                     {
                         let substituted =
                             replace_first_star(package_name, star_replacement.as_js());
-                        return try_get_js_extension_for_file(declaration_file, options).map(
-                            |extension| {
-                                exports_result(&change_full_extension(&substituted, extension))
-                            },
-                        );
+                        return tsc_program::try_get_js_extension_for_file(
+                            declaration_file,
+                            &options.compiler_options,
+                        )
+                        .map(|extension| {
+                            exports_result(&change_full_extension(&substituted, extension))
+                        });
                     }
                 }
             }
@@ -2969,6 +2950,130 @@ pub(crate) fn process_ending<'path>(
     })
 }
 
+/// tsgo `modulespecifiers.ProcessEntrypointEnding`: a package
+/// entrypoint's specifier with the ending the importing file prefers first
+/// among `allowed_endings`, as far as the entrypoint's ending may change.
+pub fn process_entrypoint_ending(
+    specifier: &str,
+    ending: tsc_program::EntrypointEnding,
+    allowed_endings: &[ModuleSpecifierEnding],
+    options: &CompilerOptions,
+) -> String {
+    use tsc_program::EntrypointEnding;
+    if ending == EntrypointEnding::Fixed {
+        return specifier.to_owned();
+    }
+    let Some(&preferred_ending) = allowed_endings.first() else {
+        return specifier.to_owned();
+    };
+    let without_index = |specifier: &str| {
+        if preferred_ending == ModuleSpecifierEnding::Minimal {
+            specifier
+                .strip_suffix("/index")
+                .unwrap_or(specifier)
+                .to_owned()
+        } else {
+            specifier.to_owned()
+        }
+    };
+    // Handle declaration file extensions
+    let declaration_extension = declaration_file_extension(specifier);
+    if !declaration_extension.is_empty() {
+        // Map .d.ts -> .js, .d.mts -> .mjs, .d.cts -> .cjs
+        let with_js_extension = || {
+            format!(
+                "{}{}",
+                &specifier[..specifier.len() - declaration_extension.len()],
+                js_extension_for_declaration_file_extension(declaration_extension)
+            )
+        };
+        return match preferred_ending {
+            ModuleSpecifierEnding::TsExtension | ModuleSpecifierEnding::JsExtension => {
+                with_js_extension()
+            }
+            ModuleSpecifierEnding::Minimal | ModuleSpecifierEnding::Index => {
+                // .d.mts/.d.cts must keep an extension; rewrite to .mjs/.cjs instead of
+                // dropping. With EndingExtensionChangeable only the extension can change.
+                if ending == EntrypointEnding::Changeable && declaration_extension == ".d.ts" {
+                    without_index(&specifier[..specifier.len() - declaration_extension.len()])
+                } else {
+                    with_js_extension()
+                }
+            }
+        };
+    }
+    let js_extension_replaced =
+        || match tsc_program::try_get_js_extension_for_file(JsStr::from_str(specifier), options) {
+            Some(js_extension) => format!(
+                "{}{js_extension}",
+                remove_file_extension(JsStr::from_str(specifier)).to_string_lossy()
+            ),
+            None => specifier.to_owned(),
+        };
+    let without_extension =
+        || without_index(&remove_file_extension(JsStr::from_str(specifier)).to_string_lossy());
+    // Handle .ts/.tsx/.mts/.cts extensions
+    if [".ts", ".tsx", ".mts", ".cts"]
+        .iter()
+        .any(|extension| file_extension_is(JsStr::from_str(specifier), extension))
+    {
+        return match preferred_ending {
+            ModuleSpecifierEnding::TsExtension => specifier.to_owned(),
+            ModuleSpecifierEnding::JsExtension => js_extension_replaced(),
+            ModuleSpecifierEnding::Minimal | ModuleSpecifierEnding::Index => {
+                if ending == EntrypointEnding::Changeable {
+                    without_extension()
+                } else {
+                    // EndingExtensionChangeable - can only change extension, not remove it
+                    js_extension_replaced()
+                }
+            }
+        };
+    }
+    // Handle .js/.jsx/.mjs/.cjs extensions
+    if [".js", ".jsx", ".mjs", ".cjs"]
+        .iter()
+        .any(|extension| file_extension_is(JsStr::from_str(specifier), extension))
+        && matches!(
+            preferred_ending,
+            ModuleSpecifierEnding::Minimal | ModuleSpecifierEnding::Index
+        )
+        && ending == EntrypointEnding::Changeable
+    {
+        return without_extension();
+    }
+    // For other extensions (like .json), return as-is
+    specifier.to_owned()
+}
+
+/// tsgo `tspath.GetDeclarationFileExtension`: a file name's declaration
+/// extension (`.d.json.ts` among them), if any.
+fn declaration_file_extension(file_name: &str) -> &str {
+    let base = &file_name[file_name.rfind('/').map_or(0, |index| index + 1)..];
+    for extension in [".d.ts", ".d.cts", ".d.mts"] {
+        if base.ends_with(extension) {
+            return extension;
+        }
+    }
+    if base.ends_with(".ts") {
+        if let Some(index) = base.find(".d.") {
+            return &base[index..];
+        }
+    }
+    ""
+}
+
+/// tsgo `GetJSExtensionForDeclarationFileExtension`.
+fn js_extension_for_declaration_file_extension(extension: &str) -> &str {
+    match extension {
+        ".d.ts" => ".js",
+        ".d.mts" => ".mjs",
+        ".d.cts" => ".cjs",
+        // .d.json.ts and the like
+        _ => &extension[".d".len()..extension.len() - ".ts".len()],
+    }
+}
+
 /// tsc-port: tryGetRealFileNameForNonJsDeclarationFileName @6.0.3
 /// tsc-hash: 708ef279f3a044763a0274c327f23e6adc91e8541dcbd2612fa796d67527db7a
 /// tsc-span: _tsc.js:46234-46240
@@ -2998,32 +3103,8 @@ pub(crate) fn get_js_extension_for_file<'path>(
     options: &SpecifierCompilerOptions,
 ) -> &'static str {
     let file_name = file_name.into();
-    try_get_js_extension_for_file(file_name, options)
+    tsc_program::try_get_js_extension_for_file(file_name, &options.compiler_options)
         .unwrap_or_else(|| panic!("unsupported module-specifier extension: {file_name:?}"))
-}
-
-/// tsc-port: tryGetJSExtensionForFile @6.0.3
-/// tsc-hash: 48e572843ba74a29b29855c877760bc71dbea427eeb4f6576e66b1e212d31a1f
-/// tsc-span: _tsc.js:46244-46267
-pub(crate) fn try_get_js_extension_for_file<'path>(
-    file_name: impl Into<JsStr<'path>>,
-    options: &SpecifierCompilerOptions,
-) -> Option<&'static str> {
-    let file_name = file_name.into();
-    match extension_from_path(file_name)? {
-        ".ts" | ".d.ts" => Some(".js"),
-        ".tsx" => Some(if options.compiler_options.jsx == Some(1) {
-            ".jsx"
-        } else {
-            ".js"
-        }),
-        ".js" => Some(".js"),
-        ".jsx" => Some(".jsx"),
-        ".json" => Some(".json"),
-        ".d.mts" | ".mts" | ".mjs" => Some(".mjs"),
-        ".d.cts" | ".cts" | ".cjs" => Some(".cjs"),
-        _ => None,
-    }
 }
 
 /// tsc-port: getRelativePathIfInSameVolume @6.0.3
@@ -3344,6 +3425,10 @@ fn parse_regex_pieces(text: &str, unicode: bool) -> Result<Vec<RegexPiece>, Rege
         };
         if repetition != RegexRepetition::One {
             index += 1;
+            // A lazy quantifier (`*?`) matches the strings the greedy one does.
+            if chars.get(index) == Some(&63) {
+                index += 1;
+            }
         }
         pieces.push(RegexPiece { atom, repetition });
     }
@@ -3489,11 +3574,6 @@ fn regex_atom_matches(atom: &RegexAtom, ch: u32, ignore_case: bool) -> bool {
     }
 }
 
-const EXTENSIONS_TO_REMOVE: [&str; 12] = [
-    ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx", ".jsx",
-    ".json",
-];
-
 // Byte offsets in this compartment come exclusively from ASCII delimiters.
 // Arbitrary JS prefixes and wildcard captures use UTF-16 units below.
 fn ascii_index(path: JsStr<'_>, needle: &str) -> Option<usize> {
@@ -3553,31 +3633,6 @@ fn trim_path_separators<'p>(path: impl Into<JsStr<'p>>, leading: bool) -> JsStr<
             None => return path,
         }
     }
-}
-
-fn extension_from_path<'p>(path: impl Into<JsStr<'p>>) -> Option<&'static str> {
-    let path = path.into();
-    EXTENSIONS_TO_REMOVE
-        .iter()
-        .copied()
-        .find(|extension| file_extension_is(path, extension))
-}
-
-fn remove_file_extension<'p>(path: impl Into<JsStr<'p>>) -> JsString {
-    let path = path.into();
-    extension_from_path(path)
-        .and_then(|extension| path.strip_suffix(extension))
-        .unwrap_or(path)
-        .to_owned()
-}
-
-fn change_full_extension<'p>(path: impl Into<JsStr<'p>>, extension: &str) -> JsString {
-    crate::concat_js(&[&remove_file_extension(path), &extension])
-}
-
-fn file_extension_is<'p>(path: impl Into<JsStr<'p>>, extension: &str) -> bool {
-    let path = path.into();
-    path.len_units() > extension.encode_utf16().count() && path.ends_with(extension)
 }
 
 fn file_extension_is_one_of<'p>(path: impl Into<JsStr<'p>>, extensions: &[&str]) -> bool {
@@ -4141,7 +4196,8 @@ fn output_js_file_name<'path>(
     host: &dyn EmitModuleSpecifierHost,
 ) -> Option<JsString> {
     let target_file_path = target_file_path.into();
-    let extension = try_get_js_extension_for_file(target_file_path, options)?;
+    let extension =
+        tsc_program::try_get_js_extension_for_file(target_file_path, &options.compiler_options)?;
     Some(output_path_with_extension(
         target_file_path,
         extension,

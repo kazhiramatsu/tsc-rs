@@ -2173,6 +2173,13 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.jsx_implicit_import_containers.get(&file_index) {
             return Ok(*cached);
         }
+        if self
+            .authoritative_module_provider
+            .is_some_and(|provider| !provider.synthesizes_jsx_runtime_import())
+        {
+            self.jsx_implicit_import_containers.insert(file_index, None);
+            return Ok(None);
+        }
         let pragmas = leading_jsx_pragmas(self.binder.source(file_index).text());
         let base = if pragmas.runtime.as_deref() == Some("classic") {
             None
