@@ -266,17 +266,7 @@ fn resolved_module_from_module_specifier(
     specifier: NodeId,
     text: &str,
 ) -> Option<Option<String>> {
-    let parent = source.arena.node(specifier).parent?;
-    if tsc_syntax::utilities::is_source_phase_import(&source.arena, parent) {
-        return None;
-    }
-    let mode = resolution_mode(state.api_mode_for_usage_location(specifier))?;
-    let key = ResolutionKey::new(
-        canonical_path(prepared, &source.file_name.to_string_lossy())?,
-        JsStr::from_str(text).to_owned(),
-        mode,
-    );
-    let resolution = prepared.resolutions().require_module(&key).ok()?;
+    let resolution = module_resolution_of_specifier(state, prepared, source, specifier, text)?;
     Some(match resolution.outcome() {
         ResolutionOutcome::Resolved(module) => Some(
             module
@@ -288,6 +278,30 @@ fn resolved_module_from_module_specifier(
         ),
         _ => None,
     })
+}
+
+/// The program's resolution of the module specifier `specifier` (its text
+/// `text`) of `source` under its usage mode (tsgo `resolvedModules[file]`
+/// with `GetModeForUsageLocation`), none when the program did not resolve it
+/// (a source phase import is not resolved).
+pub(crate) fn module_resolution_of_specifier<'p>(
+    state: &CheckerState<'_>,
+    prepared: &'p PreparedProgram,
+    source: &SourceFile,
+    specifier: NodeId,
+    text: &str,
+) -> Option<&'p tsc_program::ModuleResolution> {
+    let parent = source.arena.node(specifier).parent?;
+    if tsc_syntax::utilities::is_source_phase_import(&source.arena, parent) {
+        return None;
+    }
+    let mode = resolution_mode(state.api_mode_for_usage_location(specifier))?;
+    let key = ResolutionKey::new(
+        canonical_path(prepared, &source.file_name.to_string_lossy())?,
+        JsStr::from_str(text).to_owned(),
+        mode,
+    );
+    prepared.resolutions().require_module(&key).ok()
 }
 
 /// tsgo's `core.ResolutionMode` number as the resolution tables key it.
