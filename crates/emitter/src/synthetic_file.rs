@@ -5,8 +5,8 @@
 
 use tsc_binder::node_util;
 use tsc_syntax::{
-    for_each_child, for_each_child_array, ExternalModuleIndicatorOptions, LanguageVariant,
-    NodeArena, NodeData, NodeId, ScriptKind, SourceFile, SourceFileData, SyntaxKind,
+    for_each_child, ExternalModuleIndicatorOptions, LanguageVariant, NodeArena, NodeData, NodeId,
+    ScriptKind, SourceFile, SourceFileData, SyntaxKind,
 };
 use tsc_types::NodeFlags;
 
@@ -14,7 +14,7 @@ use crate::writer::{PositionKey, PrintPositions};
 use crate::{
     create_printer, transform_nodes, NewLineKind, PrintRequest, PrinterError, PrinterOptions,
     SourceFileTextMode, StandaloneWriter, TransformArena, TransformNode, TransformNodeArray,
-    TransformSourceId,
+    TransformationResult,
 };
 
 /// A node printed and positioned for insertion.
@@ -28,10 +28,62 @@ pub struct PositionedNode {
     pub node: NodeId,
 }
 
-/// tsgo `PrintAndPositionNode` then `CreateSyntheticSourceFile`: `node` of
-/// `source` printed as TypeScript of no source file (so without source
-/// comments), its positions assigned from the print. `single_quoted` are
-/// the string literals to print in single quotes.
+/// How [`print_and_position`] prints: tsgo `PrintAndPositionNode`'s new
+/// line and indent size, whether it has the node's source file (whose
+/// comments and lines it then reads), and the language variant of the
+/// synthetic file.
+#[derive(Clone, Copy, Debug)]
+pub struct PositionedPrint {
+    pub new_line: NewLineKind,
+    pub indent_size: usize,
+    pub with_source_file: bool,
+    pub language_variant: LanguageVariant,
+}
+
+/// tsgo `PrintAndPositionNode` then `CreateSyntheticSourceFile`: `node`
+/// printed as TypeScript with tsgo's change tracker printer, its positions
+/// assigned from the print to a copy of its subtree.
+pub fn print_and_position(
+    transformation: &mut TransformationResult<'_>,
+    node: TransformNode,
+    print: PositionedPrint,
+) -> Result<PositionedNode, PrinterError> {
+    // tsgo reads comments from the current source file: a node of none has
+    // no comments to print.
+    let options = PrinterOptions::new(print.new_line)
+        .with_remove_comments(!print.with_source_file)
+        .with_declaration_syntax(true)
+        .with_never_ascii_escape(true)
+        .with_terminate_unterminated_literals(true)
+        .with_preserve_source_newlines(true)
+        .with_source_file_text_mode(SourceFileTextMode::Canonical);
+    let printed = create_printer(options).print(
+        transformation,
+        PrintRequest::StandaloneNode {
+            node,
+            writer: StandaloneWriter::ChangeTracker(print.indent_size),
+        },
+        None,
+    )?;
+    let text = printed
+        .text()
+        .strip_suffix(print.new_line.text())
+        .unwrap_or(printed.text())
+        .to_owned();
+    let positions = printed.positions().expect("a change tracker print");
+    let source = transformation.arena().source(node.source())?.syntax();
+    let (arena, root) = assign_positions_to_node(&source.arena, node, positions);
+    let file = create_synthetic_source_file(arena, root, text.clone(), print.language_variant);
+    Ok(PositionedNode {
+        text,
+        file,
+        node: root,
+    })
+}
+
+/// [`print_and_position`] of a tree decoded from the API, which has no
+/// source file. `single_quoted` are the string literals to print in single
+/// quotes.
 pub fn print_and_position_node(
     source: &SourceFile,
     node: NodeId,
@@ -47,74 +99,60 @@ pub fn print_and_position_node(
         .map_err(PrinterError::Transform)?;
     let mut transformation =
         transform_nodes(arena, Vec::new(), Vec::new(), true).map_err(PrinterError::Transform)?;
-    let options = PrinterOptions::new(new_line)
-        .with_remove_comments(true)
-        .with_declaration_syntax(true)
-        .with_never_ascii_escape(true)
-        .with_terminate_unterminated_literals(true)
-        .with_preserve_source_newlines(true)
-        .with_source_file_text_mode(SourceFileTextMode::Canonical);
-    let printed = create_printer(options).print(
+    print_and_position(
         &mut transformation,
-        PrintRequest::StandaloneNode {
-            node: TransformNode::new(source_id, node),
-            writer: StandaloneWriter::ChangeTracker(indent_size),
+        TransformNode::new(source_id, node),
+        PositionedPrint {
+            new_line,
+            indent_size,
+            with_source_file: false,
+            language_variant,
         },
-        None,
-    )?;
-    let text = printed
-        .text()
-        .strip_suffix(new_line.text())
-        .unwrap_or(printed.text())
-        .to_owned();
-    let positions = printed.positions().expect("a change tracker print");
-
-    let mut arena = source.arena.detached_clone();
-    assign_positions_to_node(&mut arena, source_id, positions, node);
-    let file = create_synthetic_source_file(arena, node, text.clone(), language_variant);
-    Ok(PositionedNode { text, file, node })
+    )
 }
 
-/// tsgo `AssignPositionsToNode`: each node and node list of the subtree at
-/// the positions its print began and ended (zero for one not printed), and
-/// each child's parent its node. A modifier list is tsgo's new
-/// `ModifierList` of the visited modifiers, which has no position.
+/// tsgo `AssignPositionsToNode`: a copy of the subtree with each node and
+/// node list at the positions its print began and ended (zero for one not
+/// printed), and each child's parent its node. A modifier list is tsgo's
+/// new `ModifierList` of the visited modifiers, which has no position; a
+/// copied node has no JSDoc (tsgo keeps a node's JSDoc in its file).
 fn assign_positions_to_node(
-    arena: &mut NodeArena,
-    source: TransformSourceId,
+    source: &NodeArena,
+    node: TransformNode,
     positions: &PrintPositions,
-    node: NodeId,
-) {
-    let modifiers = node_util::modifiers_of_data(&arena.node(node).data);
-    let mut children = Vec::new();
-    for_each_child(arena, arena.node(node), |child| {
-        children.push(child);
-        false
-    });
-    let mut arrays = Vec::new();
-    for_each_child_array(arena.node(node), |array| {
-        arrays.push(array);
-        false
-    });
-    for array in arrays {
-        let (pos, end) = if Some(array) == modifiers {
+) -> (NodeArena, NodeId) {
+    let mut copy = source.copy_subtree(node.node());
+    let mut modifiers = Vec::new();
+    for &(old, new) in &copy.nodes {
+        let key = PositionKey::Node(TransformNode::new(node.source(), old));
+        let record = copy.arena.node_mut(new);
+        record.pos = positions.pos(key) as u32;
+        record.end = positions.end(key) as u32;
+        record.js_doc = None;
+        modifiers.extend(node_util::modifiers_of_data(&record.data));
+    }
+    for &(old, new) in &copy.arrays {
+        let (pos, end) = if modifiers.contains(&new) {
             (u32::MAX, u32::MAX)
         } else {
-            let key = PositionKey::List(TransformNodeArray::new(source, array));
+            let key = PositionKey::List(TransformNodeArray::new(node.source(), old));
             (positions.pos(key) as u32, positions.end(key) as u32)
         };
-        let record = arena.node_array_mut(array);
+        let record = copy.arena.node_array_mut(new);
         record.pos = pos;
         record.end = end;
     }
-    let key = PositionKey::Node(TransformNode::new(source, node));
-    let record = arena.node_mut(node);
-    record.pos = positions.pos(key) as u32;
-    record.end = positions.end(key) as u32;
-    for child in children {
-        arena.node_mut(child).parent = Some(node);
-        assign_positions_to_node(arena, source, positions, child);
+    for &(_, parent) in &copy.nodes {
+        let mut children = Vec::new();
+        for_each_child(&copy.arena, copy.arena.node(parent), |child| {
+            children.push(child);
+            false
+        });
+        for child in children {
+            copy.arena.node_mut(child).parent = Some(parent);
+        }
     }
+    (copy.arena, copy.root)
 }
 
 /// tsgo `CreateSyntheticSourceFile`: a source file of `text` whose

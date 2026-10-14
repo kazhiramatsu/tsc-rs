@@ -505,14 +505,6 @@ impl DelimitedListIndentation {
     }
 }
 
-/// Leading lines compare original parent identities; closing lines compare
-/// the actual parent identity. Neither predicate follows original positions.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum DelimitedListBoundary {
-    Leading,
-    Closing,
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DelimitedListLinePolicy {
     Compact,
@@ -596,6 +588,44 @@ impl DelimitedListFormat {
         allow_trailing_comma: false,
         ..Self::LITERAL
     };
+}
+
+/// tsgo's `ListFormat` bits that decide a list's line terminators
+/// (`getLeadingLineTerminatorCount` and its siblings).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct ListLines {
+    /// `LFPreserveLines`.
+    preserve_lines: bool,
+    /// `LFPreferNewLine`.
+    prefer_new_line: bool,
+    /// `LFMultiLine`.
+    multi_line: bool,
+    /// `LFNoTrailingNewLine`.
+    no_trailing_new_line: bool,
+}
+
+impl ListLines {
+    /// `LFSingleLine` (or no line bit).
+    const SINGLE_LINE: Self = Self {
+        preserve_lines: false,
+        prefer_new_line: false,
+        multi_line: false,
+        no_trailing_new_line: false,
+    };
+
+    /// `LFPreserveLines`.
+    const PRESERVE_LINES: Self = Self {
+        preserve_lines: true,
+        ..Self::SINGLE_LINE
+    };
+
+    /// The format with `LFPreferNewLine` added when `prefer`.
+    const fn preferring_new_line(self, prefer: bool) -> Self {
+        Self {
+            prefer_new_line: self.prefer_new_line || prefer,
+            ..self
+        }
+    }
 }
 
 /// Typed projection of the `Parenthesis` bit in tsc's parameter-list format.
@@ -3900,7 +3930,7 @@ impl Printer {
                 )?;
                 self.emit_type_arguments(
                     transformation,
-                    node.source(),
+                    node,
                     data.type_arguments,
                     expression_context,
                     writer,
@@ -3964,7 +3994,7 @@ impl Printer {
                 )?;
                 self.emit_type_arguments(
                     transformation,
-                    node.source(),
+                    node,
                     data.type_arguments,
                     expression_context,
                     writer,
@@ -6034,7 +6064,7 @@ impl Printer {
                 }
                 self.emit_type_arguments(
                     transformation,
-                    node.source(),
+                    node,
                     data.type_arguments,
                     expression_context,
                     writer,
@@ -6167,7 +6197,7 @@ impl Printer {
                 if self.options.declaration_syntax {
                     self.emit_signature_head(
                         transformation,
-                        node.source(),
+                        node,
                         data.type_parameters,
                         data.parameters,
                         data.r#type,
@@ -6177,7 +6207,7 @@ impl Printer {
                 } else {
                     self.emit_parameter_list(
                         transformation,
-                        node.source(),
+                        node,
                         data.parameters,
                         expression_context,
                         writer,
@@ -6251,7 +6281,7 @@ impl Printer {
                 if self.options.declaration_syntax {
                     self.emit_signature_head(
                         transformation,
-                        node.source(),
+                        node,
                         data.type_parameters,
                         data.parameters,
                         data.r#type,
@@ -6261,7 +6291,7 @@ impl Printer {
                 } else {
                     self.emit_parameter_list(
                         transformation,
-                        node.source(),
+                        node,
                         data.parameters,
                         expression_context,
                         writer,
@@ -6296,7 +6326,7 @@ impl Printer {
                 if self.options.declaration_syntax {
                     self.emit_type_parameters(
                         transformation,
-                        node.source(),
+                        node,
                         data.type_parameters,
                         true,
                         expression_context,
@@ -6660,7 +6690,7 @@ impl Printer {
                 writer.write_keyword("constructor");
                 self.emit_signature_head(
                     transformation,
-                    node.source(),
+                    node,
                     data.type_parameters,
                     data.parameters,
                     data.r#type,
@@ -6732,7 +6762,7 @@ impl Printer {
                 }
                 self.emit_signature_head(
                     transformation,
-                    node.source(),
+                    node,
                     data.type_parameters,
                     data.parameters,
                     data.r#type,
@@ -6801,7 +6831,7 @@ impl Printer {
                 )?;
                 self.emit_signature_head(
                     transformation,
-                    node.source(),
+                    node,
                     data.type_parameters,
                     data.parameters,
                     data.r#type,
@@ -6870,7 +6900,7 @@ impl Printer {
                 )?;
                 self.emit_signature_head(
                     transformation,
-                    node.source(),
+                    node,
                     data.type_parameters,
                     data.parameters,
                     data.r#type,
@@ -7664,7 +7694,7 @@ impl Printer {
                 // tsgo emitNewExpression (a decoded tree keeps them).
                 self.emit_type_arguments(
                     transformation,
-                    node.source(),
+                    node,
                     data.type_arguments,
                     expression_context,
                     writer,
@@ -7980,7 +8010,7 @@ impl Printer {
                 // keeps them (tsgo emitCallExpression).
                 self.emit_type_arguments(
                     transformation,
-                    node.source(),
+                    node,
                     data.type_arguments,
                     expression_context,
                     writer,
@@ -8030,7 +8060,7 @@ impl Printer {
                 // type arguments; the JavaScript emit removes them).
                 self.emit_type_arguments(
                     transformation,
-                    node.source(),
+                    node,
                     data.type_arguments,
                     expression_context,
                     writer,
@@ -8071,6 +8101,12 @@ impl Printer {
                     false,
                     writer,
                 )?;
+                let indented = self.write_line_separators_and_indent_before(
+                    transformation,
+                    expression,
+                    node,
+                    writer,
+                )?;
                 // A real child trailing phase owns same-line comments unless
                 // its end equals the enclosing end (a missing close paren).
                 // The close token then owns only positional leading comments.
@@ -8083,6 +8119,10 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
+                self.write_line_separators_after(transformation, expression, node, writer)?;
+                if indented {
+                    writer.decrease_indent();
+                }
                 let close_cursor = self.node_end_cursor(transformation, expression)?;
                 self.emit_token_with_source_leading_comments(
                     transformation,
@@ -9038,17 +9078,44 @@ impl Printer {
                         if !function_body {
                             self.emit_comment_after_open_brace(transformation, node, writer)?;
                         }
-                        writer.write_line(false);
+                        // tsgo emitListItems with MultiLineBlockStatements or
+                        // MultiLineFunctionBodyStatements (MultiLine, Indented).
+                        let lines = ListLines {
+                            multi_line: true,
+                            ..ListLines::SINGLE_LINE
+                        };
+                        let first = TransformNode::new(node.source(), statements[0]);
+                        if self.leading_line_terminator_count(
+                            transformation,
+                            Some(node),
+                            Some(first),
+                            lines,
+                        )? > 0
+                        {
+                            writer.write_line(false);
+                        }
                         writer.increase_indent();
                         let mut has_previous_original_statement = false;
                         let mut in_function_prologue = function_body;
                         let mut pending_helpers =
                             (!block_helpers.is_empty()).then_some(block_helpers);
+                        let mut previous = None;
                         for statement in statements {
                             let statement = transformation
                                 .arena()
                                 .node_ref(node.source(), statement)
                                 .ok_or(PrinterError::UnknownStatement(statement.index()))?;
+                            if previous.is_some()
+                                && self.separating_line_terminator_count(
+                                    transformation,
+                                    previous,
+                                    Some(statement),
+                                    lines,
+                                )? > 0
+                            {
+                                writer.write_line(false);
+                            }
+                            previous = Some(statement);
                             in_function_prologue = in_function_prologue
                                 && self.is_prologue_statement(transformation, statement);
                             if !in_function_prologue {
@@ -9149,6 +9216,16 @@ impl Printer {
                             if in_function_prologue {
                                 writer.set_list_pos(array);
                             }
+                        }
+                        let list_end = statement_list_end.map_or(u32::MAX, |end| end as u32);
+                        if self.closing_line_terminator_count(
+                            transformation,
+                            Some(node),
+                            previous,
+                            lines,
+                            list_end,
+                        )? > 0
+                        {
                             writer.write_line(false);
                         }
                         if let Some(helpers) = pending_helpers {
@@ -9374,21 +9451,44 @@ impl Printer {
             (Vec::new(), None)
         };
         writer.set_list_pos(clause_list);
+        // tsgo emitListItems with CaseBlockClauses (MultiLine, Indented).
+        let lines = ListLines {
+            multi_line: true,
+            ..ListLines::SINGLE_LINE
+        };
         if clauses.is_empty() {
-            // tsc's CaseBlockClauses list format is MultiLine | Indented
-            // (129). The ordinary compiler printer does not enable
-            // preserveSourceNewlines, so emitNodeList writes a line even for
-            // an empty parsed list. updateCaseBlock retains original identity
-            // and source range, but neither changes that default list policy.
-            writer.write_line(false);
+            if self.empty_multi_line_list_breaks_line(transformation, case_block)? {
+                writer.write_line(false);
+            }
         } else {
-            writer.write_line(false);
+            let first = TransformNode::new(source, clauses[0]);
+            if self.leading_line_terminator_count(
+                transformation,
+                Some(case_block),
+                Some(first),
+                lines,
+            )? > 0
+            {
+                writer.write_line(false);
+            }
             writer.increase_indent();
+            let mut previous = None;
             for (index, clause) in clauses.into_iter().enumerate() {
                 let clause = transformation
                     .arena()
                     .node_ref(source, clause)
                     .ok_or(PrinterError::UnknownStatement(clause.index()))?;
+                if previous.is_some()
+                    && self.separating_line_terminator_count(
+                        transformation,
+                        previous,
+                        Some(clause),
+                        lines,
+                    )? > 0
+                {
+                    writer.write_line(false);
+                }
+                previous = Some(clause);
                 if index == 0 {
                     self.emit_leading_comments_for_node(transformation, clause, writer)?;
                 } else {
@@ -9414,6 +9514,15 @@ impl Printer {
                     expression_context.comments(),
                     writer,
                 )?;
+            }
+            if self.closing_line_terminator_count(
+                transformation,
+                Some(case_block),
+                previous,
+                lines,
+                clause_list_end.map_or(u32::MAX, |end| end as u32),
+            )? > 0
+            {
                 writer.write_line(false);
             }
             // Like tsc's close-brace token, this boundary is anchored at the
@@ -9525,14 +9634,36 @@ impl Printer {
             writer.set_list_end(statement_list);
             return Ok(());
         }
-        writer.write_line(false);
+        // tsgo emitListItems with CaseOrDefaultClauseStatements (MultiLine,
+        // Indented, NoTrailingNewLine).
+        let lines = ListLines {
+            multi_line: true,
+            no_trailing_new_line: true,
+            ..ListLines::SINGLE_LINE
+        };
+        if self.leading_line_terminator_count(transformation, Some(clause), Some(first), lines)? > 0
+        {
+            writer.write_line(false);
+        }
         writer.increase_indent();
-        let statement_count = statements.len();
+        let last = TransformNode::new(source, *statements.last().expect("a nonempty list"));
+        let mut previous = None;
         for (index, statement) in statements.into_iter().enumerate() {
             let statement = transformation
                 .arena()
                 .node_ref(source, statement)
                 .ok_or(PrinterError::UnknownStatement(statement.index()))?;
+            if previous.is_some()
+                && self.separating_line_terminator_count(
+                    transformation,
+                    previous,
+                    Some(statement),
+                    lines,
+                )? > 0
+            {
+                writer.write_line(false);
+            }
+            previous = Some(statement);
             if index == 0 {
                 self.emit_leading_comments_for_node_worker(
                     transformation,
@@ -9562,11 +9693,27 @@ impl Printer {
                 expression_context.comments(),
                 writer,
             )?;
-            if index + 1 < statement_count {
-                writer.write_line(false);
-            }
         }
         writer.decrease_indent();
+        let list_end = statement_list
+            .map(|list| {
+                transformation
+                    .arena()
+                    .node_array(list)
+                    .map(|record| record.end)
+            })
+            .transpose()?
+            .unwrap_or(u32::MAX);
+        if self.closing_line_terminator_count(
+            transformation,
+            Some(clause),
+            Some(last),
+            lines,
+            list_end,
+        )? > 0
+        {
+            writer.write_line(false);
+        }
         writer.set_list_end(statement_list);
         Ok(())
     }
@@ -9586,6 +9733,490 @@ impl Printer {
                 .line
         };
         line(start) == line(end)
+    }
+
+    /// tsgo `p.currentSourceFile` for `node`: its source, when it has text
+    /// (a tree decoded from the API has none).
+    fn current_source_file<'t>(
+        transformation: &'t TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<Option<&'t tsc_syntax::SourceFile>, PrinterError> {
+        let source = transformation.arena().source(node.source())?.syntax();
+        Ok((!source.positions().is_detached()).then_some(source))
+    }
+
+    /// tsgo `ast.NodeIsSynthesized`.
+    fn node_is_synthesized(
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<bool, PrinterError> {
+        let record = transformation.arena().node(node)?;
+        Ok(record.pos == u32::MAX || record.end == u32::MAX)
+    }
+
+    /// tsgo `GetLinesBetweenPositions`: the lines from `pos1` to `pos2`,
+    /// negative when `pos2` comes first (a position before the text is on
+    /// its first line, one past it on its last).
+    fn lines_between_positions(source: &tsc_syntax::SourceFile, pos1: i64, pos2: i64) -> i64 {
+        if pos1 == pos2 {
+            return 0;
+        }
+        let line = |position: i64| {
+            let position = position.clamp(0, source.text().len() as i64) as u32;
+            i64::from(source.positions().line_of_byte(position).unwrap_or(0))
+        };
+        line(pos2) - line(pos1)
+    }
+
+    /// tsgo `getStartPositionOfRange`: the range's first token (or comment,
+    /// with `include_comments`), -1 for a synthesized range.
+    fn start_position_of_range(
+        source: &tsc_syntax::SourceFile,
+        pos: u32,
+        include_comments: bool,
+    ) -> i64 {
+        if pos == u32::MAX {
+            return -1;
+        }
+        tsc_syntax::skip_trivia_ex(
+            source.text(),
+            pos as usize,
+            tsc_syntax::SkipTriviaOptions {
+                stop_at_comments: include_comments,
+                ..Default::default()
+            },
+        ) as i64
+    }
+
+    /// A raw position (`u32::MAX` for none) as tsgo's int.
+    fn raw_position(position: u32) -> i64 {
+        if position == u32::MAX {
+            -1
+        } else {
+            i64::from(position)
+        }
+    }
+
+    /// tsgo `getEffectiveLines`: the lines counting a comment before the
+    /// second position as on its line, unless that makes none.
+    fn effective_lines(lines: impl Fn(bool) -> i64) -> i64 {
+        match lines(true) {
+            0 => lines(false),
+            lines => lines,
+        }
+    }
+
+    /// tsgo `getLinesBetweenRangeEndAndRangeStart`.
+    fn lines_between_range_end_and_range_start(
+        source: &tsc_syntax::SourceFile,
+        end1: u32,
+        pos2: u32,
+        include_second_range_comments: bool,
+    ) -> i64 {
+        let start2 = Self::start_position_of_range(source, pos2, include_second_range_comments);
+        Self::lines_between_positions(source, Self::raw_position(end1), start2)
+    }
+
+    /// tsgo `getLinesBetweenPositionAndPrecedingNonWhitespaceCharacter`.
+    fn lines_between_position_and_preceding_non_whitespace(
+        source: &tsc_syntax::SourceFile,
+        pos: u32,
+        stop_pos: u32,
+        include_comments: bool,
+    ) -> i64 {
+        let start = Self::start_position_of_range(source, pos, include_comments);
+        // tsgo `getPreviousNonWhitespacePosition` reads the text by bytes.
+        let stop = Self::raw_position(stop_pos);
+        let bytes = source.text().as_bytes();
+        let mut previous = start;
+        while previous >= stop && previous >= 0 {
+            match bytes.get(previous as usize) {
+                Some(&byte) if is_whitespace_like(char::from(byte)) => previous -= 1,
+                _ => break,
+            }
+        }
+        let previous = if previous >= stop && previous >= 0 {
+            previous
+        } else {
+            stop
+        };
+        Self::lines_between_positions(source, previous, start)
+    }
+
+    /// tsgo `getLinesBetweenPositionAndNextNonWhitespaceCharacter`.
+    fn lines_between_position_and_next_non_whitespace(
+        source: &tsc_syntax::SourceFile,
+        pos: u32,
+        stop_pos: u32,
+        include_comments: bool,
+    ) -> i64 {
+        let next = Self::start_position_of_range(source, pos, include_comments);
+        let stop = Self::raw_position(stop_pos);
+        Self::lines_between_positions(source, Self::raw_position(pos), stop.min(next))
+    }
+
+    /// tsgo `RangeIsOnSingleLine`.
+    fn range_is_on_single_line(source: &tsc_syntax::SourceFile, record: &tsc_syntax::Node) -> bool {
+        Self::lines_between_positions(
+            source,
+            Self::start_position_of_range(source, record.pos, false),
+            Self::raw_position(record.end),
+        ) == 0
+    }
+
+    /// tsgo `siblingNodePositionsAreComparable`: two siblings in source
+    /// order, consecutive in their parent's list.
+    fn sibling_node_positions_are_comparable(
+        transformation: &TransformationResult<'_>,
+        previous: TransformNode,
+        next: TransformNode,
+    ) -> Result<bool, PrinterError> {
+        let arena = transformation.arena();
+        if Self::raw_position(arena.node(next)?.pos) < Self::raw_position(arena.node(previous)?.end)
+        {
+            return Ok(false);
+        }
+        let previous = arena.get_original_node(previous);
+        let next = arena.get_original_node(next);
+        let parent = arena.node(previous)?.parent;
+        if parent.is_none()
+            || previous.source() != next.source()
+            || parent != arena.node(next)?.parent
+        {
+            return Ok(false);
+        }
+        let source = arena.source(previous.source())?.syntax();
+        Ok(
+            match tsc_binder::node_util::containing_node_array(source, previous.node()) {
+                Some(list) => {
+                    let nodes = &source.arena.node_array(list).nodes;
+                    match nodes.iter().position(|&node| node == previous.node()) {
+                        Some(index) => nodes.get(index + 1) == Some(&next.node()),
+                        None => false,
+                    }
+                }
+                None => false,
+            },
+        )
+    }
+
+    /// tsgo `originalNodesHaveSameParent`.
+    fn original_nodes_have_same_parent(
+        transformation: &TransformationResult<'_>,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<bool, PrinterError> {
+        let arena = transformation.arena();
+        let left = arena.get_original_node(left);
+        let Some(parent) = arena.node(left)?.parent else {
+            return Ok(false);
+        };
+        let right = arena.get_original_node(right);
+        Ok(left.source() == right.source() && arena.node(right)?.parent == Some(parent))
+    }
+
+    /// tsgo `shouldEmitOnNewLine`: the node starts on a new line, or the
+    /// format prefers new lines.
+    fn should_emit_on_new_line(
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        format: ListLines,
+    ) -> bool {
+        transformation
+            .arena()
+            .metadata(node)
+            .and_then(crate::EmitMetadata::starts_on_new_line)
+            == Some(true)
+            || format.prefer_new_line
+    }
+
+    /// tsgo emitListRange's empty MultiLine list: a line break, unless
+    /// preserveSourceNewlines keeps its parent on one line of the current
+    /// source file.
+    fn empty_multi_line_list_breaks_line(
+        &self,
+        transformation: &TransformationResult<'_>,
+        parent: TransformNode,
+    ) -> Result<bool, PrinterError> {
+        if !self.options.preserve_source_newlines {
+            return Ok(true);
+        }
+        Ok(match Self::current_source_file(transformation, parent)? {
+            Some(source) => {
+                !Self::range_is_on_single_line(source, transformation.arena().node(parent)?)
+            }
+            None => true,
+        })
+    }
+
+    /// tsgo `writeLineSeparatorsAndIndentBefore`: with preserveSourceNewlines,
+    /// the lines before `node` in `parent`, indented; whether it indented.
+    fn write_line_separators_and_indent_before(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        parent: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<bool, PrinterError> {
+        if self.options.preserve_source_newlines {
+            let leading = self.leading_line_terminator_count(
+                transformation,
+                Some(parent),
+                Some(node),
+                ListLines::default(),
+            )?;
+            if leading > 0 {
+                Self::write_lines_and_indent(writer, leading, false);
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsgo `writeLineSeparatorsAfter`: with preserveSourceNewlines, the lines
+    /// after `node` in `parent`.
+    fn write_line_separators_after(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        parent: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.preserve_source_newlines {
+            let trailing = self.closing_line_terminator_count(
+                transformation,
+                Some(parent),
+                Some(node),
+                ListLines::default(),
+                u32::MAX,
+            )?;
+            for line in 0..trailing {
+                writer.write_line(line > 0);
+            }
+        }
+        Ok(())
+    }
+
+    /// tsgo `getLeadingLineTerminatorCount`: the line terminators before a
+    /// list's first child.
+    fn leading_line_terminator_count(
+        &self,
+        transformation: &TransformationResult<'_>,
+        parent: Option<TransformNode>,
+        first_child: Option<TransformNode>,
+        format: ListLines,
+    ) -> Result<u32, PrinterError> {
+        if format.preserve_lines || self.options.preserve_source_newlines {
+            if format.prefer_new_line {
+                return Ok(1);
+            }
+            let Some(first_child) = first_child else {
+                let Some(parent) = parent else {
+                    return Ok(0);
+                };
+                return Ok(match Self::current_source_file(transformation, parent)? {
+                    Some(source)
+                        if Self::range_is_on_single_line(
+                            source,
+                            transformation.arena().node(parent)?,
+                        ) =>
+                    {
+                        0
+                    }
+                    Some(_) | None => 1,
+                });
+            };
+            if let Some(ListElementPosition::Source(_) | ListElementPosition::Detached(_)) =
+                self.next_list_element
+            {
+                let raw = transformation.arena().node(first_child)?.pos;
+                if raw != u32::MAX
+                    && raw > 0
+                    && self.next_list_element
+                        == Some(Self::list_element_position(transformation, first_child)?)
+                {
+                    return Ok(0);
+                }
+            }
+            let child = transformation.arena().node(first_child)?;
+            if child.kind == SyntaxKind::JsxText {
+                return Ok(0);
+            }
+            if let Some(parent) = parent {
+                if let Some(source) = Self::current_source_file(transformation, parent)? {
+                    let parent_record = transformation.arena().node(parent)?;
+                    if parent_record.pos != u32::MAX
+                        && !Self::node_is_synthesized(transformation, first_child)?
+                        && child.parent.is_none()
+                    {
+                        if self.options.preserve_source_newlines {
+                            let (child_pos, parent_pos) = (child.pos, parent_record.pos);
+                            return Ok(Self::effective_lines(|include_comments| {
+                                Self::lines_between_position_and_preceding_non_whitespace(
+                                    source,
+                                    child_pos,
+                                    parent_pos,
+                                    include_comments,
+                                )
+                            })
+                            .max(0) as u32);
+                        }
+                        return Ok(u32::from(
+                            Self::lines_between_positions(
+                                source,
+                                Self::start_position_of_range(source, parent_record.pos, false),
+                                Self::start_position_of_range(source, child.pos, false),
+                            ) != 0,
+                        ));
+                    }
+                }
+            }
+            if Self::should_emit_on_new_line(transformation, first_child, format) {
+                return Ok(1);
+            }
+        }
+        Ok(u32::from(format.multi_line))
+    }
+
+    /// tsgo `getSeparatingLineTerminatorCount`: the line terminators between
+    /// two children of a list.
+    fn separating_line_terminator_count(
+        &self,
+        transformation: &TransformationResult<'_>,
+        previous: Option<TransformNode>,
+        next: Option<TransformNode>,
+        format: ListLines,
+    ) -> Result<u32, PrinterError> {
+        if format.preserve_lines || self.options.preserve_source_newlines {
+            let (Some(previous), Some(next)) = (previous, next) else {
+                return Ok(0);
+            };
+            if transformation.arena().node(next)?.kind == SyntaxKind::JsxText {
+                return Ok(0);
+            }
+            let source = Self::current_source_file(transformation, previous)?;
+            if let Some(source) = source.filter(|_| {
+                !Self::node_is_synthesized(transformation, previous).unwrap_or(true)
+                    && !Self::node_is_synthesized(transformation, next).unwrap_or(true)
+            }) {
+                let previous_end = transformation.arena().node(previous)?.end;
+                let next_pos = transformation.arena().node(next)?.pos;
+                if self.options.preserve_source_newlines
+                    && Self::sibling_node_positions_are_comparable(transformation, previous, next)?
+                {
+                    return Ok(Self::effective_lines(|include_comments| {
+                        Self::lines_between_range_end_and_range_start(
+                            source,
+                            previous_end,
+                            next_pos,
+                            include_comments,
+                        )
+                    })
+                    .max(0) as u32);
+                }
+                if !self.options.preserve_source_newlines
+                    && Self::original_nodes_have_same_parent(transformation, previous, next)?
+                {
+                    return Ok(u32::from(
+                        Self::lines_between_range_end_and_range_start(
+                            source,
+                            previous_end,
+                            next_pos,
+                            false,
+                        ) != 0,
+                    ));
+                }
+                return Ok(u32::from(format.prefer_new_line));
+            }
+            if Self::should_emit_on_new_line(transformation, previous, format)
+                || Self::should_emit_on_new_line(transformation, next, format)
+            {
+                return Ok(1);
+            }
+        } else if let Some(next) = next {
+            if Self::should_emit_on_new_line(transformation, next, ListLines::SINGLE_LINE) {
+                return Ok(1);
+            }
+        }
+        Ok(u32::from(format.multi_line))
+    }
+
+    /// tsgo `getClosingLineTerminatorCount`: the line terminators after a
+    /// list's last child. `children_end` is the list's end (`u32::MAX` for
+    /// none).
+    fn closing_line_terminator_count(
+        &self,
+        transformation: &TransformationResult<'_>,
+        parent: Option<TransformNode>,
+        last_child: Option<TransformNode>,
+        format: ListLines,
+        children_end: u32,
+    ) -> Result<u32, PrinterError> {
+        if format.preserve_lines || self.options.preserve_source_newlines {
+            if format.prefer_new_line {
+                return Ok(1);
+            }
+            let Some(last_child) = last_child else {
+                let Some(parent) = parent else {
+                    return Ok(0);
+                };
+                return Ok(match Self::current_source_file(transformation, parent)? {
+                    Some(source)
+                        if Self::range_is_on_single_line(
+                            source,
+                            transformation.arena().node(parent)?,
+                        ) =>
+                    {
+                        0
+                    }
+                    Some(_) | None => 1,
+                });
+            };
+            if let Some(parent) = parent {
+                if let Some(source) = Self::current_source_file(transformation, parent)? {
+                    let parent_record = transformation.arena().node(parent)?;
+                    let child = transformation.arena().node(last_child)?;
+                    if parent_record.pos != u32::MAX
+                        && !Self::node_is_synthesized(transformation, last_child)?
+                        && (child.parent.is_none()
+                            || transformation
+                                .arena()
+                                .node_ref(last_child.source(), child.parent.expect("a parent"))
+                                == Some(parent))
+                    {
+                        if self.options.preserve_source_newlines {
+                            // tsgo `greatestEnd`.
+                            let end = if children_end != u32::MAX && children_end > child.end {
+                                children_end
+                            } else {
+                                child.end
+                            };
+                            let parent_end = parent_record.end;
+                            return Ok(Self::effective_lines(|include_comments| {
+                                Self::lines_between_position_and_next_non_whitespace(
+                                    source,
+                                    end,
+                                    parent_end,
+                                    include_comments,
+                                )
+                            })
+                            .max(0) as u32);
+                        }
+                        return Ok(u32::from(
+                            Self::lines_between_positions(
+                                source,
+                                Self::raw_position(parent_record.end),
+                                Self::raw_position(child.end),
+                            ) != 0,
+                        ));
+                    }
+                }
+            }
+            if Self::should_emit_on_new_line(transformation, last_child, format) {
+                return Ok(1);
+            }
+        }
+        Ok(u32::from(format.multi_line && !format.no_trailing_new_line))
     }
 
     fn source_nodes_start_on_same_line(
@@ -9795,168 +10426,6 @@ impl Printer {
         ))
     }
 
-    /// tsc-port: createPrinter.getSeparatingLineTerminatorCount @6.0.3
-    /// tsc-hash: 78d63da04f114ae40f8ad9f012131e94a83000cf268d393c5608372aab734539
-    /// tsc-span: _tsc.js:120301-120329
-    /// PreserveLines with preserveSourceNewlines=false compares the two
-    /// current endpoints independently, even when siblings were reordered.
-    /// Original nodes supply parent identity only, not the printed positions.
-    fn preserved_list_siblings_need_line_break(
-        &self,
-        transformation: &TransformationResult<'_>,
-        source: TransformSourceId,
-        previous: NodeId,
-        next: NodeId,
-        prefer_new_line: bool,
-    ) -> Result<bool, PrinterError> {
-        let arena = transformation.arena();
-        let previous = arena
-            .node_ref(source, previous)
-            .ok_or(PrinterError::UnknownStatement(previous.index()))?;
-        let next = arena
-            .node_ref(source, next)
-            .ok_or(PrinterError::UnknownStatement(next.index()))?;
-        let previous_record = arena.node(previous)?;
-        let next_record = arena.node(next)?;
-        if next_record.kind == SyntaxKind::JsxText {
-            return Ok(false);
-        }
-        let previous_synthetic = previous_record.pos == u32::MAX || previous_record.end == u32::MAX;
-        let next_synthetic = next_record.pos == u32::MAX || next_record.end == u32::MAX;
-        if !previous_synthetic && !next_synthetic {
-            let original_previous = arena.get_original_node(previous);
-            let original_next = arena.get_original_node(next);
-            let original_parent = arena.node(original_previous)?.parent;
-            if original_previous.source() == original_next.source()
-                && original_parent.is_some()
-                && original_parent == arena.node(original_next)?.parent
-            {
-                let syntax = arena.source(source)?.syntax();
-                let positions = syntax.positions();
-                let end = SourceBytePosition::new(previous_record.end, positions)?;
-                let start = SourceBytePosition::new(next_record.pos, positions)?;
-                let token_start = skip_trivia(syntax.text(), start.value() as usize);
-                let token_start = SourceBytePosition::new(
-                    u32::try_from(token_start).expect("source position fits u32"),
-                    positions,
-                )?;
-                let end_line = positions
-                    .line_and_character_byte(end.value())
-                    .expect("validated source endpoint")
-                    .line;
-                let start_line = positions
-                    .line_and_character_byte(token_start.value())
-                    .expect("validated source start")
-                    .line;
-                return Ok(end_line != start_line);
-            }
-            return Ok(prefer_new_line);
-        }
-        let starts_on_line = |node, synthetic| {
-            if synthetic {
-                arena
-                    .metadata(node)
-                    .and_then(crate::EmitMetadata::starts_on_new_line)
-                    .unwrap_or(prefer_new_line)
-            } else {
-                prefer_new_line
-            }
-        };
-        Ok(starts_on_line(previous, previous_synthetic) || starts_on_line(next, next_synthetic))
-    }
-
-    /// Source-owned raw boundary predicates for PreserveLines when the
-    /// preserveSourceNewlines option is inactive. The leading suppression
-    /// observes the last list item entered by this printer instance.
-    /// tsc-port: createPrinter.getLeadingLineTerminatorCount @6.0.3
-    /// tsc-hash: 893244ddd50971f9938c07f3bb0b10b520dfbf70880816b69aa4b00cc1384819
-    /// tsc-span: _tsc.js:120268-120300
-    /// tsc-port: createPrinter.getClosingLineTerminatorCount @6.0.3
-    /// tsc-hash: 30b0be7e1586d76d08caeaa3f4605323147137e9c73a0bd825dd3c92881635dc
-    /// tsc-span: _tsc.js:120330-120360
-    fn preserved_list_boundary_needs_line_break(
-        &self,
-        transformation: &TransformationResult<'_>,
-        parent: TransformNode,
-        child: TransformNode,
-        boundary: DelimitedListBoundary,
-        prefer_new_line: bool,
-    ) -> Result<bool, PrinterError> {
-        if prefer_new_line {
-            return Ok(true);
-        }
-        let arena = transformation.arena();
-        let parent_record = arena.node(parent)?;
-        let child_record = arena.node(child)?;
-        if boundary == DelimitedListBoundary::Leading
-            && self.next_list_element == Some(Self::list_element_position(transformation, child)?)
-        {
-            return Ok(false);
-        }
-        if boundary == DelimitedListBoundary::Leading && child_record.kind == SyntaxKind::JsxText {
-            return Ok(false);
-        }
-        let child_synthetic = child_record.pos == u32::MAX || child_record.end == u32::MAX;
-        // tsgo compares the lines only with a current source file (a tree
-        // decoded without text has none).
-        let has_source_file = !arena
-            .source(parent.source())?
-            .syntax()
-            .positions()
-            .is_detached();
-        if has_source_file && parent_record.pos != u32::MAX && !child_synthetic {
-            let parent_matches = if let Some(child_parent) = child_record.parent {
-                let child_parent = arena
-                    .node_ref(child.source(), child_parent)
-                    .ok_or(PrinterError::UnknownStatement(child_parent.index()))?;
-                match boundary {
-                    DelimitedListBoundary::Leading => {
-                        arena.get_original_node(child_parent) == arena.get_original_node(parent)
-                    }
-                    DelimitedListBoundary::Closing => child_parent == parent,
-                }
-            } else {
-                true
-            };
-            if parent_matches {
-                let syntax = arena.source(parent.source())?.syntax();
-                let positions = syntax.positions();
-                let (parent_position, child_position) = match boundary {
-                    DelimitedListBoundary::Leading => {
-                        let parent_start = SourceBytePosition::new(parent_record.pos, positions)?;
-                        let child_start = SourceBytePosition::new(child_record.pos, positions)?;
-                        (
-                            skip_trivia(syntax.text(), parent_start.value() as usize) as u32,
-                            skip_trivia(syntax.text(), child_start.value() as usize) as u32,
-                        )
-                    }
-                    DelimitedListBoundary::Closing => (parent_record.end, child_record.end),
-                };
-                // Validate each endpoint independently; reordered ranges are
-                // still comparable by line, and equal endpoints need no scan.
-                if parent_position == child_position {
-                    return Ok(false);
-                }
-                let parent_position = SourceBytePosition::new(parent_position, positions)?;
-                let child_position = SourceBytePosition::new(child_position, positions)?;
-                let parent_line = positions
-                    .line_and_character_byte(parent_position.value())
-                    .expect("validated parent position")
-                    .line;
-                let child_line = positions
-                    .line_and_character_byte(child_position.value())
-                    .expect("validated child position")
-                    .line;
-                return Ok(parent_line != child_line);
-            }
-        }
-        Ok(child_synthetic
-            && arena
-                .metadata(child)
-                .and_then(crate::EmitMetadata::starts_on_new_line)
-                .unwrap_or(false))
-    }
-
     /// tsc-port: getLinesBetweenNodes @6.0.3 (the normal compiler-emit face)
     /// tsc-hash: e316d6faf745db22fd80474617d7ceaf9521378e2e4894c0b2f32e02b1148c2c
     /// tsc-span: _tsc.js:120408-120431
@@ -10146,17 +10615,15 @@ impl Printer {
         }
         let space_between_braces = brackets == Some(ListBrackets::Curly);
         let first = TransformNode::new(source, ids[0]);
-        let leading_line = if format.lines.preserves_source() {
-            self.preserved_list_boundary_needs_line_break(
-                transformation,
-                parent,
-                first,
-                DelimitedListBoundary::Leading,
-                prefer_new_line,
-            )?
+        let lines = if format.lines.preserves_source() {
+            ListLines::PRESERVE_LINES
         } else {
-            false
-        };
+            ListLines::SINGLE_LINE
+        }
+        .preferring_new_line(prefer_new_line);
+        let leading_line =
+            self.leading_line_terminator_count(transformation, Some(parent), Some(first), lines)?
+                > 0;
         if leading_line {
             writer.write_line(false);
         } else if space_between_braces {
@@ -10187,21 +10654,12 @@ impl Printer {
                         )?;
                         writer.write_punctuation(",");
                     }
-                    if format.lines.preserves_source() {
-                        self.preserved_list_siblings_need_line_break(
-                            transformation,
-                            source,
-                            previous.node(),
-                            id,
-                            prefer_new_line,
-                        )?
-                    } else {
-                        transformation
-                            .arena()
-                            .metadata(child)
-                            .and_then(crate::EmitMetadata::starts_on_new_line)
-                            == Some(true)
-                    }
+                    self.separating_line_terminator_count(
+                        transformation,
+                        Some(previous),
+                        Some(child),
+                        lines,
+                    )? > 0
                 } else {
                     false
                 };
@@ -10283,17 +10741,13 @@ impl Printer {
         outcome?;
         writer.set_list_end(array);
         let last = TransformNode::new(source, *ids.last().expect("nonempty expression list"));
-        let closing_line = if format.lines.preserves_source() {
-            self.preserved_list_boundary_needs_line_break(
-                transformation,
-                parent,
-                last,
-                DelimitedListBoundary::Closing,
-                prefer_new_line,
-            )?
-        } else {
-            false
-        };
+        let closing_line = self.closing_line_terminator_count(
+            transformation,
+            Some(parent),
+            Some(last),
+            lines,
+            array_end,
+        )? > 0;
         if closing_line {
             writer.write_line(false);
         } else if space_between_braces {
@@ -10866,7 +11320,7 @@ impl Printer {
         if self.options.declaration_syntax {
             self.emit_type_parameters(
                 transformation,
-                source,
+                class_node,
                 type_parameters,
                 false,
                 expression_context,
@@ -10906,13 +11360,39 @@ impl Printer {
                 .nodes
                 .to_vec();
             if !member_ids.is_empty() {
-                writer.write_line(false);
+                // tsgo emitListItems with ClassMembers (MultiLine, Indented).
+                let lines = ListLines {
+                    multi_line: true,
+                    ..ListLines::SINGLE_LINE
+                };
+                let first = TransformNode::new(source, member_ids[0]);
+                if self.leading_line_terminator_count(
+                    transformation,
+                    Some(class_node),
+                    Some(first),
+                    lines,
+                )? > 0
+                {
+                    writer.write_line(false);
+                }
                 writer.increase_indent();
-                for (index, member) in member_ids.into_iter().enumerate() {
+                let mut previous = None;
+                for (index, member) in member_ids.iter().copied().enumerate() {
                     let member_node = transformation
                         .arena()
                         .node_ref(source, member)
                         .ok_or(PrinterError::UnknownStatement(member.index()))?;
+                    if previous.is_some()
+                        && self.separating_line_terminator_count(
+                            transformation,
+                            previous,
+                            Some(member_node),
+                            lines,
+                        )? > 0
+                    {
+                        writer.write_line(false);
+                    }
+                    previous = Some(member_node);
                     if index == 0
                         && !self.first_list_item_follows_elided_source_item(
                             transformation,
@@ -10937,10 +11417,20 @@ impl Printer {
                         writer,
                     )?;
                     self.emit_trailing_comments_for_node(transformation, member_node, writer)?;
-                    writer.write_line(false);
                 }
                 writer.decrease_indent();
-            } else {
+                let array_end = transformation.arena().node_array(member_array)?.end;
+                if self.closing_line_terminator_count(
+                    transformation,
+                    Some(class_node),
+                    previous,
+                    lines,
+                    array_end,
+                )? > 0
+                {
+                    writer.write_line(false);
+                }
+            } else if self.empty_multi_line_list_breaks_line(transformation, class_node)? {
                 writer.write_line(false);
             }
         } else {
@@ -11400,7 +11890,7 @@ impl Printer {
         )?;
         self.emit_signature_head(
             transformation,
-            node.source(),
+            node,
             data.type_parameters,
             data.parameters,
             data.r#type,
@@ -11425,7 +11915,7 @@ impl Printer {
         self.require_declaration_syntax(node, SyntaxKind::CallSignature)?;
         self.emit_signature_head(
             transformation,
-            node.source(),
+            node,
             data.type_parameters,
             data.parameters,
             data.r#type,
@@ -11452,7 +11942,7 @@ impl Printer {
         writer.write_space(" ");
         self.emit_signature_head(
             transformation,
-            node.source(),
+            node,
             data.type_parameters,
             data.parameters,
             data.r#type,
@@ -11575,7 +12065,7 @@ impl Printer {
         )?;
         self.emit_type_arguments(
             transformation,
-            node.source(),
+            node,
             data.type_arguments,
             expression_context,
             writer,
@@ -11625,19 +12115,13 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         self.emit_type_parameters(
             transformation,
-            node.source(),
+            node,
             type_parameters,
             false,
             expression_context,
             writer,
         )?;
-        self.emit_parameter_list(
-            transformation,
-            node.source(),
-            parameters,
-            expression_context,
-            writer,
-        )?;
+        self.emit_parameter_list(transformation, node, parameters, expression_context, writer)?;
         writer.write_space(" ");
         writer.write_punctuation("=>");
         Ok(())
@@ -11700,7 +12184,7 @@ impl Printer {
         writer.write_keyword("function");
         self.emit_parameter_list(
             transformation,
-            node.source(),
+            node,
             data.parameters,
             expression_context,
             writer,
@@ -11790,7 +12274,7 @@ impl Printer {
         )?;
         self.emit_type_arguments(
             transformation,
-            node.source(),
+            node,
             data.type_arguments,
             expression_context,
             writer,
@@ -12718,7 +13202,7 @@ impl Printer {
         }
         self.emit_type_arguments(
             transformation,
-            node.source(),
+            node,
             data.type_arguments,
             expression_context,
             writer,
@@ -12808,7 +13292,7 @@ impl Printer {
         )?;
         self.emit_type_parameters(
             transformation,
-            node.source(),
+            node,
             data.type_parameters,
             false,
             expression_context,
@@ -12873,7 +13357,7 @@ impl Printer {
         )?;
         self.emit_type_parameters(
             transformation,
-            node.source(),
+            node,
             data.type_parameters,
             false,
             expression_context,
@@ -13345,18 +13829,19 @@ impl Printer {
     fn emit_type_parameters(
         &mut self,
         transformation: &mut TransformationResult<'_>,
-        source: TransformSourceId,
+        parent: TransformNode,
         type_parameters: Option<tsc_syntax::NodeArrayId>,
         allow_trailing_comma: bool,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        let source = parent.source();
         if self.node_array_has_elements(transformation, source, type_parameters)? {
             writer.write_punctuation("<");
             self.emit_comma_list(
                 transformation,
                 source,
-                None,
+                Some(parent),
                 type_parameters,
                 expression_context,
                 writer,
@@ -13633,6 +14118,34 @@ impl Printer {
         };
         let ids = transformation.arena().node_array(array)?.nodes.to_vec();
         writer.set_list_pos(Some(array));
+        // tsgo emitListItems with a SingleLine format (an index signature's
+        // parameters Indented); emitList adds PreferNewLine and Indented for
+        // a MultiLine node. The delimiter precedes the line break.
+        let multi_line = parent.is_some_and(|parent| {
+            transformation
+                .arena()
+                .metadata(parent)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE))
+        });
+        let lines = ListLines::SINGLE_LINE.preferring_new_line(multi_line);
+        let indented = multi_line
+            || parent.is_some_and(|parent| {
+                transformation
+                    .arena()
+                    .node(parent)
+                    .is_ok_and(|record| record.kind == SyntaxKind::IndexSignature)
+            });
+        if let Some(&first) = ids.first() {
+            let first = TransformNode::new(source, first);
+            if self.leading_line_terminator_count(transformation, parent, Some(first), lines)? > 0 {
+                writer.write_line(false);
+            }
+        }
+        if indented {
+            writer.increase_indent();
+        }
+        let delimiter = separator.trim_end();
+        let mut temporary_indent = false;
         for (index, id) in ids.iter().copied().enumerate() {
             let child = transformation
                 .arena()
@@ -13649,7 +14162,25 @@ impl Printer {
                     writer,
                 )?;
             } else {
-                writer.write(separator);
+                writer.write(delimiter);
+                let previous = TransformNode::new(source, ids[index - 1]);
+                if self.separating_line_terminator_count(
+                    transformation,
+                    Some(previous),
+                    Some(child),
+                    lines,
+                )? > 0
+                {
+                    // tsgo: an item of a single-line list put on a new line
+                    // is indented.
+                    if !indented {
+                        writer.increase_indent();
+                        temporary_indent = true;
+                    }
+                    writer.write_line(false);
+                } else {
+                    writer.write_space(" ");
+                }
                 self.emit_separated_declaration_list_item_comments(transformation, child, writer)?;
             }
             self.record_list_element_position(transformation, child)?;
@@ -13682,8 +14213,29 @@ impl Printer {
                 && parent.is_some_and(|parent| {
                     Self::list_parent_shares_end(transformation, parent, child)
                 });
+            if temporary_indent {
+                writer.decrease_indent();
+                temporary_indent = false;
+            }
             if !last_shares_parent_end {
                 self.emit_list_element_end_comments(transformation, child, writer)?;
+            }
+        }
+        if indented {
+            writer.decrease_indent();
+        }
+        if let Some(&last) = ids.last() {
+            let last = TransformNode::new(source, last);
+            let array_end = transformation.arena().node_array(array)?.end;
+            if self.closing_line_terminator_count(
+                transformation,
+                parent,
+                Some(last),
+                lines,
+                array_end,
+            )? > 0
+            {
+                writer.write_line(false);
             }
         }
         writer.set_list_end(Some(array));
@@ -13857,17 +14409,27 @@ impl Printer {
         writer.set_list_pos(list);
         if ids.is_empty() {
             writer.set_list_end(list);
-            writer.write_line(false);
+            if self.empty_multi_line_list_breaks_line(transformation, parent)? {
+                writer.write_line(false);
+            }
             return Ok(());
         }
         let force_line_after_comments =
             transformation.arena().node(parent)?.kind == SyntaxKind::TupleType;
+        // tsgo emitListItems with EnumMembers or MultiLineTupleTypeElements
+        // (MultiLine, Indented; a tuple's SpaceBetweenSiblings).
+        let lines = ListLines {
+            multi_line: true,
+            ..ListLines::SINGLE_LINE
+        };
         writer.increase_indent();
         let first = transformation
             .arena()
             .node_ref(parent.source(), ids[0])
             .ok_or(PrinterError::UnknownStatement(ids[0].index()))?;
-        if !force_line_after_comments {
+        let leading =
+            self.leading_line_terminator_count(transformation, Some(parent), Some(first), lines)?;
+        if !force_line_after_comments && leading > 0 {
             writer.write_line(false);
         }
         // A tuple's `[` is a tsgo emitToken, whose trailing comments are the
@@ -13896,7 +14458,7 @@ impl Printer {
             &excluded,
             writer,
         )?;
-        if force_line_after_comments || source_line_break {
+        if force_line_after_comments && leading > 0 || source_line_break {
             writer.write_line(false);
         } else if !writer.is_at_start_of_line() && !writer.has_trailing_whitespace() {
             writer.write_space(" ");
@@ -13921,8 +14483,14 @@ impl Printer {
                     .arena()
                     .node_ref(parent.source(), ids[index + 1])
                     .ok_or(PrinterError::UnknownStatement(ids[index + 1].index()))?;
+                let separating = self.separating_line_terminator_count(
+                    transformation,
+                    Some(child),
+                    Some(next),
+                    lines,
+                )?;
                 let mut intervening = BTreeSet::new();
-                if !force_line_after_comments {
+                if !force_line_after_comments && separating > 0 {
                     // EnumMembers (145) has no SpaceBetweenSiblings bit, so
                     // emitNodeListItems (_tsc.js:120103-120110) runs
                     // emitTrailingCommentsOfPosition(pos, false, /*forceNoNewline*/ true)
@@ -13942,14 +14510,37 @@ impl Printer {
                     &intervening,
                     writer,
                 )?;
-                if force_line_after_comments || source_line_break {
+                if force_line_after_comments && separating > 0 || source_line_break {
                     writer.write_line(false);
-                } else if !writer.is_at_start_of_line() && !writer.has_trailing_whitespace() {
+                } else if (force_line_after_comments || separating > 0)
+                    && !writer.is_at_start_of_line()
+                    && !writer.has_trailing_whitespace()
+                {
+                    // Enum members have no SpaceBetweenSiblings: on one line
+                    // they follow the comma directly.
                     writer.write_space(" ");
                 }
             } else {
                 writer.set_list_end(list);
-                writer.write_line(false);
+                let list_end = list
+                    .map(|list| {
+                        transformation
+                            .arena()
+                            .node_array(list)
+                            .map(|record| record.end)
+                    })
+                    .transpose()?
+                    .unwrap_or(u32::MAX);
+                if self.closing_line_terminator_count(
+                    transformation,
+                    Some(parent),
+                    Some(child),
+                    lines,
+                    list_end,
+                )? > 0
+                {
+                    writer.write_line(false);
+                }
             }
         }
         writer.decrease_indent();
@@ -13996,18 +14587,42 @@ impl Printer {
         writer.set_list_pos(member_list);
         if ids.is_empty() {
             writer.set_list_end(member_list);
-            if !no_space_if_empty {
+            if !no_space_if_empty
+                && self.empty_multi_line_list_breaks_line(transformation, parent)?
+            {
                 writer.write_line(false);
             }
             return Ok(());
         }
-        writer.write_line(false);
+        // tsgo emitListItems with InterfaceMembers, MultiLineTypeLiteralMembers
+        // or MultiLineBlockStatements (MultiLine, Indented).
+        let lines = ListLines {
+            multi_line: true,
+            ..ListLines::SINGLE_LINE
+        };
+        let first = TransformNode::new(parent.source(), ids[0]);
+        if self.leading_line_terminator_count(transformation, Some(parent), Some(first), lines)? > 0
+        {
+            writer.write_line(false);
+        }
         writer.increase_indent();
+        let mut previous = None;
         for (index, id) in ids.iter().copied().enumerate() {
             let member = transformation
                 .arena()
                 .node_ref(parent.source(), id)
                 .ok_or(PrinterError::UnknownStatement(id.index()))?;
+            if previous.is_some()
+                && self.separating_line_terminator_count(
+                    transformation,
+                    previous,
+                    Some(member),
+                    lines,
+                )? > 0
+            {
+                writer.write_line(false);
+            }
+            previous = Some(member);
             if index == 0 {
                 self.emit_leading_comments_for_node(transformation, member, writer)?;
             } else {
@@ -14022,9 +14637,27 @@ impl Printer {
                 writer,
             )?;
             self.emit_trailing_comments_for_node(transformation, member, writer)?;
-            writer.write_line(false);
         }
         writer.decrease_indent();
+        let array_end = member_list
+            .map(|list| {
+                transformation
+                    .arena()
+                    .node_array(list)
+                    .map(|record| record.end)
+            })
+            .transpose()?
+            .unwrap_or(u32::MAX);
+        if self.closing_line_terminator_count(
+            transformation,
+            Some(parent),
+            previous,
+            lines,
+            array_end,
+        )? > 0
+        {
+            writer.write_line(false);
+        }
         writer.set_list_end(member_list);
         Ok(())
     }
@@ -14041,11 +14674,12 @@ impl Printer {
     fn emit_type_arguments(
         &mut self,
         transformation: &mut TransformationResult<'_>,
-        source: TransformSourceId,
+        parent: TransformNode,
         type_arguments: Option<tsc_syntax::NodeArrayId>,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        let source = parent.source();
         let Some(type_arguments) =
             type_arguments.and_then(|array| transformation.arena().node_array_ref(source, array))
         else {
@@ -14064,6 +14698,22 @@ impl Printer {
         }
         writer.write_punctuation("<");
         writer.set_list_pos(Some(type_arguments));
+        // tsgo emitListItems with TypeArguments (SingleLine); emitList adds
+        // PreferNewLine and Indented for a MultiLine node.
+        let multi_line = transformation
+            .arena()
+            .metadata(parent)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+        let lines = ListLines::SINGLE_LINE.preferring_new_line(multi_line);
+        let first = TransformNode::new(source, ids[0]);
+        if self.leading_line_terminator_count(transformation, Some(parent), Some(first), lines)? > 0
+        {
+            writer.write_line(false);
+        }
+        if multi_line {
+            writer.increase_indent();
+        }
+        let mut temporary_indent = false;
         for (index, id) in ids.iter().copied().enumerate() {
             let child = transformation
                 .arena()
@@ -14072,7 +14722,25 @@ impl Printer {
             if index == 0 {
                 self.emit_leading_comments_for_delimited_list_start(transformation, child, writer)?;
             } else {
-                writer.write(", ");
+                writer.write(",");
+                let previous = TransformNode::new(source, ids[index - 1]);
+                if self.separating_line_terminator_count(
+                    transformation,
+                    Some(previous),
+                    Some(child),
+                    lines,
+                )? > 0
+                {
+                    // tsgo: an item of a single-line list put on a new line
+                    // is indented.
+                    if !multi_line {
+                        writer.increase_indent();
+                        temporary_indent = true;
+                    }
+                    writer.write_line(false);
+                } else {
+                    writer.write_space(" ");
+                }
                 self.emit_separated_declaration_list_item_comments(transformation, child, writer)?;
             }
             // Upstream parenthesizes a leading generic function/constructor type argument
@@ -14086,7 +14754,26 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
+            if temporary_indent {
+                writer.decrease_indent();
+                temporary_indent = false;
+            }
             self.emit_list_element_end_comments(transformation, child, writer)?;
+        }
+        if multi_line {
+            writer.decrease_indent();
+        }
+        let last = TransformNode::new(source, *ids.last().expect("a nonempty list"));
+        let array_end = transformation.arena().node_array(type_arguments)?.end;
+        if self.closing_line_terminator_count(
+            transformation,
+            Some(parent),
+            Some(last),
+            lines,
+            array_end,
+        )? > 0
+        {
+            writer.write_line(false);
         }
         writer.set_list_end(Some(type_arguments));
         writer.write_punctuation(">");
@@ -14106,16 +14793,17 @@ impl Printer {
     fn emit_signature_head(
         &mut self,
         transformation: &mut TransformationResult<'_>,
-        source: TransformSourceId,
+        parent: TransformNode,
         type_parameters: Option<tsc_syntax::NodeArrayId>,
         parameters: Option<tsc_syntax::NodeArrayId>,
         r#type: Option<NodeId>,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        let source = parent.source();
         self.emit_type_parameters(
             transformation,
-            source,
+            parent,
             type_parameters,
             false,
             expression_context,
@@ -14123,7 +14811,7 @@ impl Printer {
         )?;
         self.emit_parameter_list(
             transformation,
-            source,
+            parent,
             parameters,
             expression_context,
             writer,
@@ -14149,14 +14837,14 @@ impl Printer {
     fn emit_parameter_list(
         &mut self,
         transformation: &mut TransformationResult<'_>,
-        source: TransformSourceId,
+        parent: TransformNode,
         parameters: Option<tsc_syntax::NodeArrayId>,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.emit_parameter_list_with_parentheses(
             transformation,
-            source,
+            parent,
             parameters,
             ParameterListParentheses::Present,
             expression_context,
@@ -14186,7 +14874,7 @@ impl Printer {
         };
         self.emit_parameter_list_with_parentheses(
             transformation,
-            arrow.source(),
+            arrow,
             data.parameters,
             parentheses,
             expression_context,
@@ -14197,12 +14885,13 @@ impl Printer {
     fn emit_parameter_list_with_parentheses(
         &mut self,
         transformation: &mut TransformationResult<'_>,
-        source: TransformSourceId,
+        parent: TransformNode,
         parameters: Option<tsc_syntax::NodeArrayId>,
         parentheses: ParameterListParentheses,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        let source = parent.source();
         if parentheses.are_present() {
             writer.write_punctuation("(");
         }
@@ -14226,6 +14915,27 @@ impl Printer {
                 writer,
             )?;
         } else {
+            // tsgo emitListItems with Parameters (SingleLine); emitList adds
+            // PreferNewLine and Indented for a MultiLine node.
+            let multi_line = transformation
+                .arena()
+                .metadata(parent)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+            let lines = ListLines::SINGLE_LINE.preferring_new_line(multi_line);
+            let first = TransformNode::new(source, ids[0]);
+            if self.leading_line_terminator_count(
+                transformation,
+                Some(parent),
+                Some(first),
+                lines,
+            )? > 0
+            {
+                writer.write_line(false);
+            }
+            if multi_line {
+                writer.increase_indent();
+            }
+            let mut temporary_indent = false;
             let count = ids.len();
             let mut pending_delimited_comment = None;
             for (index, id) in ids.iter().copied().enumerate() {
@@ -14273,23 +14983,62 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
+                if temporary_indent {
+                    writer.decrease_indent();
+                    temporary_indent = false;
+                }
                 self.emit_list_element_end_comments(transformation, parameter, writer)?;
                 if index + 1 < count {
+                    let next = TransformNode::new(source, ids[index + 1]);
+                    let separating = self.separating_line_terminator_count(
+                        transformation,
+                        Some(parameter),
+                        Some(next),
+                        lines,
+                    )?;
                     writer.write_punctuation(",");
                     pending_delimited_comment = self.emit_delimited_boundary_comments(
                         transformation,
-                        DelimitedCommentBoundary::BeforeItem(TransformNode::new(
-                            source,
-                            ids[index + 1],
-                        )),
+                        DelimitedCommentBoundary::BeforeItem(next),
                         expression_context,
-                        false,
+                        separating > 0,
                         writer,
                     )?;
-                    if !writer.is_at_start_of_line() {
+                    if separating > 0 {
+                        // tsgo: an item of a single-line list put on a new
+                        // line is indented.
+                        if !multi_line {
+                            writer.increase_indent();
+                            temporary_indent = true;
+                        }
+                        writer.write_line(false);
+                    } else if !writer.is_at_start_of_line() {
                         writer.write_space(" ");
                     }
                 }
+            }
+            if multi_line {
+                writer.decrease_indent();
+            }
+            let last = TransformNode::new(source, ids[count - 1]);
+            let array_end = array
+                .map(|array| {
+                    transformation
+                        .arena()
+                        .node_array(array)
+                        .map(|record| record.end)
+                })
+                .transpose()?
+                .unwrap_or(u32::MAX);
+            if self.closing_line_terminator_count(
+                transformation,
+                Some(parent),
+                Some(last),
+                lines,
+                array_end,
+            )? > 0
+            {
+                writer.write_line(false);
             }
         }
         writer.set_list_end(array);
@@ -14844,8 +15593,26 @@ impl Printer {
             return Ok(());
         }
 
-        writer.write_space(" ");
+        // tsgo emitListItems with NamedImportsOrExportsElements (SingleLine,
+        // SpaceBetweenBraces); emitList adds PreferNewLine and Indented for
+        // a MultiLine node.
+        let multi_line = transformation
+            .arena()
+            .metadata(parent)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+        let lines = ListLines::SINGLE_LINE.preferring_new_line(multi_line);
+        let first = TransformNode::new(source, ids[0]);
+        if self.leading_line_terminator_count(transformation, Some(parent), Some(first), lines)? > 0
+        {
+            writer.write_line(false);
+        } else {
+            writer.write_space(" ");
+        }
+        if multi_line {
+            writer.increase_indent();
+        }
         let mut pending_delimited_comment = None;
+        let mut temporary_indent = false;
         for (index, id) in ids.iter().copied().enumerate() {
             let child = transformation
                 .arena()
@@ -14877,34 +15644,82 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
+            if temporary_indent {
+                writer.decrease_indent();
+                temporary_indent = false;
+            }
             self.emit_list_element_end_comments_in_container(
                 transformation,
                 child,
                 expression_context.comments(),
                 writer,
             )?;
-            if index + 1 < ids.len() || trailing_comma {
+            let next = ids
+                .get(index + 1)
+                .map(|&next| TransformNode::new(source, next));
+            let separating = match next {
+                Some(next) => self.separating_line_terminator_count(
+                    transformation,
+                    Some(child),
+                    Some(next),
+                    lines,
+                )?,
+                None => 0,
+            };
+            if next.is_some() || trailing_comma {
                 writer.write_punctuation(",");
                 pending_delimited_comment = self.emit_delimited_boundary_comments(
                     transformation,
-                    ids.get(index + 1).map_or(
+                    next.map_or(
                         DelimitedCommentBoundary::AfterTrailingComma(child),
-                        |next| {
-                            DelimitedCommentBoundary::BeforeItem(TransformNode::new(source, *next))
-                        },
+                        DelimitedCommentBoundary::BeforeItem,
                     ),
                     expression_context,
-                    false,
+                    separating > 0,
                     writer,
                 )?;
             }
-            if index + 1 < ids.len() {
-                writer.write_space(" ");
+            if next.is_some() {
+                if separating > 0 {
+                    // tsgo: an item of a single-line list put on a new line
+                    // is indented.
+                    if !multi_line {
+                        writer.increase_indent();
+                        temporary_indent = true;
+                    }
+                    writer.write_line(false);
+                } else {
+                    writer.write_space(" ");
+                }
             }
+        }
+        if multi_line {
+            writer.decrease_indent();
         }
         writer.set_list_end(array);
         self.emit_trailing_node_array_end_comments(transformation, source, elements, writer)?;
-        writer.write_space(" ");
+        let last = TransformNode::new(source, *ids.last().expect("a nonempty list"));
+        let array_end = array
+            .map(|array| {
+                transformation
+                    .arena()
+                    .node_array(array)
+                    .map(|record| record.end)
+            })
+            .transpose()?
+            .unwrap_or(u32::MAX);
+        if self.closing_line_terminator_count(
+            transformation,
+            Some(parent),
+            Some(last),
+            lines,
+            array_end,
+        )? > 0
+        {
+            writer.write_line(false);
+        } else {
+            writer.write_space(" ");
+        }
         writer.write_punctuation("}");
         Ok(())
     }
@@ -15357,8 +16172,33 @@ impl Printer {
         };
         let ids = transformation.arena().node_array(array)?.nodes.to_vec();
         writer.set_list_pos(Some(array));
+        // tsgo emitListItems with ClassHeritageClauses or HeritageClauseTypes
+        // (SingleLine); emitList adds PreferNewLine and Indented for a
+        // MultiLine node.
+        let multi_line = transformation
+            .arena()
+            .metadata(parent)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+        let lines = ListLines::SINGLE_LINE.preferring_new_line(multi_line);
+        if let Some(&first) = ids.first() {
+            let first = TransformNode::new(parent.source(), first);
+            if self.leading_line_terminator_count(
+                transformation,
+                Some(parent),
+                Some(first),
+                lines,
+            )? > 0
+            {
+                writer.write_line(false);
+            }
+        }
+        if multi_line {
+            writer.increase_indent();
+        }
         let mut previous = None;
-        for id in ids {
+        for id in ids.iter().copied() {
+            let child = TransformNode::new(parent.source(), id);
+            let mut temporary_indent = false;
             if let Some(previous) = previous {
                 if separator == ", " {
                     self.emit_comma_element_end_comments(
@@ -15369,9 +16209,25 @@ impl Printer {
                         writer,
                     )?;
                 }
-                writer.write(separator);
+                writer.write(separator.trim_end());
+                if self.separating_line_terminator_count(
+                    transformation,
+                    Some(previous),
+                    Some(child),
+                    lines,
+                )? > 0
+                {
+                    // tsgo: an item of a single-line list put on a new line
+                    // is indented.
+                    if !multi_line {
+                        writer.increase_indent();
+                        temporary_indent = true;
+                    }
+                    writer.write_line(false);
+                } else if separator.ends_with(' ') {
+                    writer.write_space(" ");
+                }
             }
-            let child = TransformNode::new(parent.source(), id);
             self.record_list_element_position(transformation, child)?;
             self.emit_optional_ordinary_child(
                 transformation,
@@ -15382,7 +16238,27 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
+            if temporary_indent {
+                writer.decrease_indent();
+            }
             previous = Some(child);
+        }
+        if multi_line {
+            writer.decrease_indent();
+        }
+        if let Some(&last) = ids.last() {
+            let last = TransformNode::new(parent.source(), last);
+            let array_end = transformation.arena().node_array(array)?.end;
+            if self.closing_line_terminator_count(
+                transformation,
+                Some(parent),
+                Some(last),
+                lines,
+                array_end,
+            )? > 0
+            {
+                writer.write_line(false);
+            }
         }
         if separator == ", " {
             if let Some(previous) = previous {
@@ -15554,6 +16430,21 @@ impl Printer {
             )?;
             return Ok(());
         }
+        // tsgo emitListItems with CallExpressionArguments (SingleLine);
+        // emitList adds PreferNewLine and Indented for a MultiLine node.
+        let prefer_new_line = transformation
+            .arena()
+            .metadata(parent)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+        let lines = ListLines::SINGLE_LINE.preferring_new_line(prefer_new_line);
+        let first = TransformNode::new(source, ids[0]);
+        if self.leading_line_terminator_count(transformation, Some(parent), Some(first), lines)? > 0
+        {
+            writer.write_line(false);
+        }
+        if prefer_new_line {
+            writer.increase_indent();
+        }
         let mut increased_indent = false;
         for (index, id) in ids.iter().copied().enumerate() {
             let node = TransformNode::new(source, id);
@@ -15587,9 +16478,10 @@ impl Printer {
                 }
                 writer.write_punctuation(",");
                 // emitList (printer/printer.go): an argument that starts on a
-                // new line (EFStartOnNewLine, a JSX child) is written on its
-                // own line one level in, and the level is given back after it;
-                // an argument without the flag follows on the same line.
+                // new line (EFStartOnNewLine, a JSX child, or a source line
+                // break kept by preserveSourceNewlines) is written on its own
+                // line one level in, and the level is given back after it;
+                // another follows on the same line.
                 let starts_on_new_line =
                     |transformation: &TransformationResult<'_>, node: TransformNode| {
                         transformation
@@ -15597,8 +16489,14 @@ impl Printer {
                             .metadata(node)
                             .is_some_and(|metadata| metadata.starts_on_new_line() == Some(true))
                     };
-                let mut on_new_line = starts_on_new_line(transformation, node);
-                if on_new_line {
+                let previous = TransformNode::new(source, ids[index - 1]);
+                let mut on_new_line = self.separating_line_terminator_count(
+                    transformation,
+                    Some(previous),
+                    Some(node),
+                    lines,
+                )? > 0;
+                if on_new_line && !self.options.preserve_source_newlines && !prefer_new_line {
                     // tsgo's module transform has replaced an imported or
                     // exported name by now, with an access that does not
                     // have the mark; here the name is substituted while it
@@ -15617,8 +16515,11 @@ impl Printer {
                 )?;
                 if on_new_line {
                     writer.write_line(false);
-                    writer.increase_indent();
-                    increased_indent = true;
+                    // An indented list's items are indented already.
+                    if !prefer_new_line {
+                        writer.increase_indent();
+                        increased_indent = true;
+                    }
                 } else if !writer.is_at_start_of_line() {
                     // A single-line comment after the comma has already
                     // advanced the writer. CallExpressionArguments is a
@@ -15695,6 +16596,9 @@ impl Printer {
                 increased_indent = false;
             }
         }
+        if prefer_new_line {
+            writer.decrease_indent();
+        }
         writer.set_list_end(list);
         if !synthesized_array {
             if let Some(last) = ids.last().copied() {
@@ -15705,6 +16609,26 @@ impl Printer {
                     writer,
                 )?;
             }
+        }
+        let last = TransformNode::new(source, *ids.last().expect("a nonempty list"));
+        let array_end = list
+            .map(|list| {
+                transformation
+                    .arena()
+                    .node_array(list)
+                    .map(|record| record.end)
+            })
+            .transpose()?
+            .unwrap_or(u32::MAX);
+        if self.closing_line_terminator_count(
+            transformation,
+            Some(parent),
+            Some(last),
+            lines,
+            array_end,
+        )? > 0
+        {
+            writer.write_line(false);
         }
         Ok(())
     }

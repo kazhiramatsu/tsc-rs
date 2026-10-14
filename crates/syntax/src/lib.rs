@@ -27,7 +27,7 @@ use tsc_types::{
     IdentityAllocationPolicy, IdentityDomain, IdentityError, IdentityLease, IdentitySpace,
 };
 
-pub use arena::{NodeArena, SyntaxMemory};
+pub use arena::{NodeArena, SubtreeCopy, SyntaxMemory};
 pub use chars::{is_identifier_part, is_identifier_start};
 pub use for_each_child::{
     apply_child_slots, child_slots, for_each_child, for_each_child_array, map_child_slots,
