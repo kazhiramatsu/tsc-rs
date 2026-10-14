@@ -3349,3 +3349,43 @@ fn resolve_members_of_a_library_type() {
         ),
     );
 }
+
+/// TestBasicJSDocCompletions (marker 3) with `newLine`: the tags of a
+/// destructured parameter are joined by the option's new line, a line feed
+/// unless it is `crlf` (tsgo `NewLine.GetNewLineCharacter()`).
+#[test]
+fn destructured_parameter_tags_join_with_the_new_line_option() {
+    let files = [(
+        "/file.js",
+        "/**\n * @param {number} x\n * \n */\nfunction baz(x, { y }) {\n  return x + y;\n}\n",
+    )];
+    // tsc-rs's `newLine` values: `crlf` 0, `lf` 1.
+    for (new_line, tsgo_item) in [
+        (
+            Some(0),
+            r#"{"label": "@param {object} param1 \r\n* @param {*} param1.y ", "kind": 6, "sortText": "11", "data": {"fileName": "/file.js", "position": 28, "name": "@param {object} param1 \r\n* @param {*} param1.y "}}"#,
+        ),
+        (
+            Some(1),
+            r#"{"label": "@param {object} param1 \n* @param {*} param1.y ", "kind": 6, "sortText": "11", "data": {"fileName": "/file.js", "position": 28, "name": "@param {object} param1 \n* @param {*} param1.y "}}"#,
+        ),
+        (
+            None,
+            r#"{"label": "@param {object} param1 \n* @param {*} param1.y ", "kind": 6, "sortText": "11", "data": {"fileName": "/file.js", "position": 28, "name": "@param {object} param1 \n* @param {*} param1.y "}}"#,
+        ),
+    ] {
+        let response = completion(
+            &files,
+            options(|options| {
+                options.allow_js = true;
+                options.new_line = new_line;
+            }),
+            "/file.js",
+            (2, 3),
+            None,
+        );
+        let expected = tsgo(tsgo_item);
+        let label = expected["label"].as_str().expect("a label");
+        assert_eq!(item(&response, label), expected, "newLine {new_line:?}");
+    }
+}
