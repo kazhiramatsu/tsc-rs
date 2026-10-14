@@ -1437,6 +1437,97 @@ impl Server {
         ))
     }
 
+    /// tsgo `handlePrepareCallHierarchy`.
+    fn handle_prepare_call_hierarchy(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::CallHierarchyPrepareParams,
+    ) -> Result<lsproto::CallHierarchyPrepareResponse, Failure> {
+        service
+            .provide_prepare_call_hierarchy(&params.text_document.uri, &params.position)
+            .map_err(language_service_failure)
+    }
+
+    /// tsgo `handleCallHierarchyIncomingCalls` (the item's default project;
+    /// the cross-project search is L7e).
+    fn handle_call_hierarchy_incoming_calls(
+        self: &Arc<Self>,
+        context: &RequestContext,
+        params: lsproto::CallHierarchyIncomingCallsParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::CallHierarchyIncomingCallsResponse, Failure> {
+        let (snapshot, project) = self
+            .initialized_session()
+            .get_snapshot_and_default_project(&params.item.uri)
+            .map_err(|error| LspError::internal(error.to_string()))?;
+        self.with_language_service(context, &snapshot, &project, |service| {
+            service
+                .provide_call_hierarchy_incoming_calls(&params.item)
+                .map_err(language_service_failure)
+        })
+    }
+
+    /// tsgo `handleCallHierarchyOutgoingCalls`.
+    fn handle_call_hierarchy_outgoing_calls(
+        self: &Arc<Self>,
+        context: &RequestContext,
+        params: lsproto::CallHierarchyOutgoingCallsParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::CallHierarchyOutgoingCallsResponse, Failure> {
+        let (snapshot, project) = self
+            .initialized_session()
+            .get_snapshot_and_default_project(&params.item.uri)
+            .map_err(|error| LspError::internal(error.to_string()))?;
+        self.with_language_service(context, &snapshot, &project, |service| {
+            service
+                .provide_call_hierarchy_outgoing_calls(&params.item)
+                .map_err(language_service_failure)
+        })
+    }
+
+    /// tsgo `handleCodeLens`.
+    fn handle_code_lens(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::CodeLensParams,
+    ) -> Result<lsproto::CodeLensResponse, Failure> {
+        service
+            .provide_code_lenses(&params.text_document.uri)
+            .map_err(language_service_failure)
+    }
+
+    /// tsgo `handleCodeLensResolve`: a lens of a file the session no longer
+    /// has (one from an older snapshot) answers `ContentModified`.
+    fn handle_code_lens_resolve(
+        self: &Arc<Self>,
+        context: &RequestContext,
+        code_lens: lsproto::CodeLens,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::CodeLensResolveResponse, Failure> {
+        let uri = code_lens
+            .data
+            .as_ref()
+            .map(|data| data.uri.clone())
+            .unwrap_or_default();
+        let Ok((snapshot, project)) = self
+            .initialized_session()
+            .get_snapshot_and_default_project(&uri)
+        else {
+            return Err(ErrorCode::CONTENT_MODIFIED.into());
+        };
+        let command_name = lock(&self.state)
+            .initialization_options
+            .code_lens_show_locations_command_name
+            .clone();
+        self.with_language_service(context, &snapshot, &project, |service| {
+            service
+                .resolve_code_lens(code_lens, command_name.as_deref())
+                .map_err(language_service_failure)
+        })
+    }
+
     /// tsgo `handleDocumentHighlight`.
     fn handle_document_highlight(
         self: &Arc<Self>,
@@ -1819,6 +1910,26 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
             Server::handle_prepare_rename,
         );
         register_request::<lsproto::TextDocumentRenameInfo>(&mut handlers, Server::handle_rename);
+        register_language_service_document_request::<lsproto::TextDocumentPrepareCallHierarchyInfo>(
+            &mut handlers,
+            Server::handle_prepare_call_hierarchy,
+        );
+        register_request::<lsproto::CallHierarchyIncomingCallsInfo>(
+            &mut handlers,
+            Server::handle_call_hierarchy_incoming_calls,
+        );
+        register_request::<lsproto::CallHierarchyOutgoingCallsInfo>(
+            &mut handlers,
+            Server::handle_call_hierarchy_outgoing_calls,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentCodeLensInfo>(
+            &mut handlers,
+            Server::handle_code_lens,
+        );
+        register_request::<lsproto::CodeLensResolveInfo>(
+            &mut handlers,
+            Server::handle_code_lens_resolve,
+        );
         register_request::<lsproto::WorkspaceWillRenameFilesInfo>(
             &mut handlers,
             Server::handle_will_rename_files,
