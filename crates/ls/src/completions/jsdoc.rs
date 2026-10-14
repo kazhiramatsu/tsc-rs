@@ -12,6 +12,7 @@ use tsc_syntax::{NodeArrayId, NodeData, NodeId, ParseOptions, SourceFile, Syntax
 use tsc_types::{NodeFlags, TypeFlags};
 
 use crate::astnav::{Found, Navigator, Token};
+use crate::lsutil::new_line_kind;
 use crate::tree::View;
 use crate::utilities::{is_function_like_kind, parameters_in, parameters_of, touching, Touching};
 
@@ -202,7 +203,7 @@ impl Completions<'_, '_, '_> {
                         .is_some_and(|name| self.node_kind(name) == SyntaxKind::Identifier)
             })
             .count();
-        let new_line = new_line_character(self.request.state.options.new_line);
+        let new_line = new_line_kind(self.request.state.options).text();
         let mut items = Vec::new();
         for (index, parameter) in parameters_of(self.request.state, function)
             .into_iter()
@@ -1079,14 +1080,6 @@ fn is_jsdoc_tag_kind(kind: SyntaxKind) -> bool {
 }
 
 /// tsgo `GetNewLineCharacter` of the `newLine` option.
-fn new_line_character(new_line: Option<i32>) -> &'static str {
-    if new_line == Some(1) {
-        "\r\n"
-    } else {
-        "\n"
-    }
-}
-
 /// tsgo `templateToSnippet`.
 fn template_to_snippet(template: &str, new_line: &str) -> String {
     if template == "/** */" {
