@@ -884,7 +884,7 @@ impl Request<'_, '_> {
     fn context_node_for_node_entry(&self, node: Touching) -> Option<NodeId> {
         if let Touching::Node(id) = node {
             if node_util::is_declaration_node(self.state.binder.source_of_node(id), id) {
-                return crate::definition::context_node(self.state, id);
+                return crate::definition::context_node(self.state.binder.source_of_node(id), id);
             }
         }
         let parent = self.parent(node)?;
@@ -918,7 +918,10 @@ impl Request<'_, '_> {
                             binary_expression,
                         ) != tsc_binder::assignment::AssignmentDeclarationKind::None
                         {
-                            return crate::definition::context_node(self.state, binary_expression);
+                            return crate::definition::context_node(
+                                self.state.binder.source_of_node(binary_expression),
+                                binary_expression,
+                            );
                         }
                     }
                 }
@@ -946,7 +949,10 @@ impl Request<'_, '_> {
             while let Some(id) = current {
                 if self.node_kind(id) == SyntaxKind::ComputedPropertyName {
                     let declaration = self.state.binder.node_record(id).parent?;
-                    return crate::definition::context_node(self.state, declaration);
+                    return crate::definition::context_node(
+                        self.state.binder.source_of_node(declaration),
+                        declaration,
+                    );
                 }
                 current = self.state.binder.node_record(id).parent;
             }
@@ -975,7 +981,10 @@ impl Request<'_, '_> {
             || is_property_name_of_specifier_or_binding
             || is_default_export
         {
-            return crate::definition::context_node(self.state, parent);
+            return crate::definition::context_node(
+                self.state.binder.source_of_node(parent),
+                parent,
+            );
         }
         None
     }

@@ -1437,6 +1437,71 @@ impl Server {
         ))
     }
 
+    /// tsgo `handleWorkspaceSymbol`: the symbols of the document's projects
+    /// with the `currentProject` scope, else of every project (each project
+    /// tree loaded).
+    fn handle_workspace_symbol(
+        self: &Arc<Self>,
+        context: &RequestContext,
+        params: lsproto::WorkspaceSymbolParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::WorkspaceSymbolResponse, Failure> {
+        let session = self.initialized_session();
+        let current_project = params.text_document.as_ref().filter(|_| {
+            session.config().workspace_symbols_scope
+                == tsc_ls::lsutil::WorkspaceSymbolsScope::CURRENT_PROJECT
+        });
+        let (snapshot, projects) = match current_project {
+            Some(document) => {
+                let snapshot = session
+                    .get_snapshot(std::slice::from_ref(&document.uri))
+                    .map_err(|error| LspError::internal(error.to_string()))?;
+                let file_name =
+                    tsc_program::uri::uri_to_file_name(document.uri.as_str()).unwrap_or_default();
+                let projects: Vec<Arc<Project>> = snapshot
+                    .projects_containing_file(&file_name)
+                    .into_iter()
+                    .cloned()
+                    .collect();
+                (snapshot, projects)
+            }
+            None => {
+                let snapshot = session
+                    .get_snapshot_loading_project_tree(&[])
+                    .map_err(|error| LspError::internal(error.to_string()))?;
+                let projects: Vec<Arc<Project>> =
+                    snapshot.language_service_projects().cloned().collect();
+                (snapshot, projects)
+            }
+        };
+        let mut matches = Vec::new();
+        for project in &projects {
+            if project.program().is_none() {
+                continue;
+            }
+            matches.push(
+                self.with_language_service(context, &snapshot, project, |service| {
+                    service
+                        .workspace_symbol_matches(&params.query)
+                        .map_err(language_service_failure)
+                })?,
+            );
+        }
+        Ok(tsc_ls::workspace_symbols(matches))
+    }
+
+    /// tsgo `handleSourceDefinition`.
+    fn handle_source_definition(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::TextDocumentPositionParams,
+    ) -> Result<lsproto::CustomTextDocumentSourceDefinitionResponse, Failure> {
+        service
+            .provide_source_definition(&params.text_document.uri, &params.position)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo `handlePrepareCallHierarchy`.
     fn handle_prepare_call_hierarchy(
         self: &Arc<Self>,
@@ -1910,6 +1975,14 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
             Server::handle_prepare_rename,
         );
         register_request::<lsproto::TextDocumentRenameInfo>(&mut handlers, Server::handle_rename);
+        register_request::<lsproto::WorkspaceSymbolInfo>(
+            &mut handlers,
+            Server::handle_workspace_symbol,
+        );
+        register_language_service_document_request::<lsproto::CustomTextDocumentSourceDefinitionInfo>(
+            &mut handlers,
+            Server::handle_source_definition,
+        );
         register_language_service_document_request::<lsproto::TextDocumentPrepareCallHierarchyInfo>(
             &mut handlers,
             Server::handle_prepare_call_hierarchy,

@@ -70,6 +70,12 @@ pub trait Host: SourceMapperHost {
     fn config_plan(&self, _config_file_name: &str) -> Option<&tsc_program::ConfigRootPlan> {
         None
     }
+    /// The snapshot's file system as a compiler host (tsgo
+    /// `program.Host().FS()`), for resolving modules the program did not;
+    /// none outside a session.
+    fn compiler_host(&self) -> Option<Box<dyn tsc_host::CompilerHost + '_>> {
+        None
+    }
 }
 
 /// tsgo `LanguageService`.
