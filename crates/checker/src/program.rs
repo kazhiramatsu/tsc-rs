@@ -426,22 +426,35 @@ impl ProgramFileId {
 pub struct ProgramFileFacts {
     default_library: bool,
     source_from_project_reference: bool,
+    outside_program: bool,
 }
 
 impl ProgramFileFacts {
     pub const ORDINARY: Self = Self {
         default_library: false,
         source_from_project_reference: false,
+        outside_program: false,
     };
     pub const DEFAULT_LIBRARY: Self = Self {
         default_library: true,
         source_from_project_reference: false,
+        outside_program: false,
     };
     /// A source of a referenced project that the Program reads in place of
     /// the project's output (tsgo `IsSourceFromProjectReference`).
     pub const SOURCE_FROM_PROJECT_REFERENCE: Self = Self {
         default_library: false,
         source_from_project_reference: true,
+        outside_program: false,
+    };
+    /// A file that is not one of the Program's source files (tsgo
+    /// `checker.Program.SourceFiles()`): the checker reaches it only by
+    /// resolving a module to it, so its declarations join no global scope.
+    /// The auto-import registry's alias resolver reads a package's files so.
+    pub const OUTSIDE_PROGRAM: Self = Self {
+        default_library: false,
+        source_from_project_reference: false,
+        outside_program: true,
     };
 
     /// tsrs-native: reads Program-owned default-library membership instead of
@@ -452,6 +465,10 @@ impl ProgramFileFacts {
 
     pub const fn is_source_from_project_reference(self) -> bool {
         self.source_from_project_reference
+    }
+
+    pub const fn is_outside_program(self) -> bool {
+        self.outside_program
     }
 }
 

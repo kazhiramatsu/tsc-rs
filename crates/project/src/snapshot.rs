@@ -22,7 +22,7 @@ use crate::fs::{FileChangeSummary, Paths, SnapshotFs, SnapshotFsBuilder};
 use crate::id::{ProjectId, ProjectKind};
 use crate::overlay::{Overlay, OverlayLayer, Overlays};
 use crate::project::{default_project_from_program_inclusion, ProgramUpdateKind, Project};
-use tsc_ls::autoimport::{Registry, RegistryChange, RegistryCloneHost};
+use tsc_ls::autoimport::{ProgramPackageFacts, Registry, RegistryChange, RegistryCloneHost};
 use tsc_ls::lsconv::{Converters, LspLineMap};
 use tsc_ls::lsutil::UserPreferences;
 use tsc_lsproto::PositionEncodingKind;
@@ -329,12 +329,14 @@ impl ProjectCollection {
     }
 }
 
-/// tsgo `autoImportRegistryCloneHost`: the new snapshot's projects for the
-/// registry's update.
+/// tsgo `autoImportRegistryCloneHost`: the new snapshot's projects and
+/// files for the registry's update.
 struct AutoImportHost<'a> {
     projects: &'a ProjectCollection,
     configs: &'a ConfigFileRegistry,
     paths: &'a Paths,
+    /// tsgo `autoImportBuilderFS`: the snapshot build's files.
+    fs: tsc_host::vfs::VfsCompilerHost<crate::fs::SourceFs<'a>>,
 }
 
 impl AutoImportHost<'_> {
@@ -364,10 +366,32 @@ impl RegistryCloneHost for AutoImportHost<'_> {
         program
             .with_live(|live| {
                 live.with_query_checker(|state| {
-                    tsc_ls::autoimport::build_project_bucket(state, program.prepared(), preferences)
+                    tsc_ls::autoimport::build_project_bucket(
+                        state,
+                        program.prepared(),
+                        preferences,
+                        &self.fs,
+                    )
                 })
             })?
             .ok()
+    }
+
+    fn program_package_facts(&self, project: &str) -> Option<ProgramPackageFacts> {
+        let program = self.project(project)?.program.as_ref()?;
+        program.with_live(|live| {
+            live.with_query_checker(|state| {
+                tsc_ls::autoimport::program_package_facts(state, program.prepared())
+            })
+        })
+    }
+
+    fn fs(&self) -> &dyn tsc_host::CompilerHost {
+        &self.fs
+    }
+
+    fn path_of(&self, file_name: &str) -> String {
+        self.paths.to_path(file_name)
     }
 
     fn indexed_file_paths(&self, project: &str, _preferences: &UserPreferences) -> Vec<String> {
@@ -946,6 +970,10 @@ impl SnapshotHost {
                 projects: &projects,
                 configs: &configs,
                 paths: &self.paths,
+                fs: tsc_host::vfs::VfsCompilerHost::new(
+                    crate::fs::SourceFs::new(&fs),
+                    self.paths.current_directory.clone(),
+                ),
             };
             Arc::new(base.auto_imports.clone_with(&change, &host))
         };

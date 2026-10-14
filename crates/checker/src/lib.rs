@@ -133,9 +133,10 @@ pub mod narrow;
 mod node_builder;
 // tsgo `modulespecifiers`' user preferences, which the language service sets.
 pub use node_builder::specifier::{
-    is_excluded_by_regex, try_get_real_file_name_for_non_js_declaration_file_name,
-    ImportModuleSpecifierEndingPreference, ImportModuleSpecifierPreference, ModuleSpecifierEnding,
-    ModuleSpecifierKind, ModuleSpecifierUserPreferences,
+    is_excluded_by_regex, process_entrypoint_ending,
+    try_get_real_file_name_for_non_js_declaration_file_name, ImportModuleSpecifierEndingPreference,
+    ImportModuleSpecifierPreference, ModuleSpecifierEnding, ModuleSpecifierKind,
+    ModuleSpecifierUserPreferences,
 };
 pub mod operators;
 pub(crate) mod order_guard;
@@ -600,6 +601,14 @@ pub trait AuthoritativeModuleProvider: Sync {
     /// The program's current directory and file-name case sensitivity.
     fn path_context(&self) -> Option<&tsc_program::PathContext> {
         None
+    }
+
+    /// tsgo `Program.GetJSXRuntimeImportSpecifier`: whether the program
+    /// gives its sources the JSX runtime import their options and pragmas
+    /// ask for. A Program does; the auto-import registry's alias resolver
+    /// gives none.
+    fn synthesizes_jsx_runtime_import(&self) -> bool {
+        true
     }
 
     /// tsgo `Program.GetSymlinkCache()`: the Program's known symlinks. The

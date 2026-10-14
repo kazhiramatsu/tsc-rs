@@ -42,6 +42,9 @@ pub struct LiveCheckerInputs {
     pub file_metadata: Vec<AuthoritativeSourceMetadata>,
     pub options: CompilerOptions,
     pub current_directory: JsString,
+    /// How many of `files`, at their end, are not the Program's source files
+    /// ([`ProgramFileFacts::OUTSIDE_PROGRAM`]).
+    pub files_outside_program: usize,
 }
 
 /// What the checker borrows, owned.
@@ -118,6 +121,7 @@ impl LiveChecker {
             file_metadata,
             options,
             current_directory,
+            files_outside_program,
         } = inputs;
         validate_authoritative_metadata(&libs, &lib_metadata, "library")?;
         validate_authoritative_metadata(&files, &file_metadata, "program")?;
@@ -232,12 +236,16 @@ impl LiveChecker {
                 documents.insert(DocumentAddress::clone(address), &document);
             }
         }
-        let file_facts = crate::program_file_facts(
+        let mut file_facts = crate::program_file_facts(
             ProgramFileFacts::DEFAULT_LIBRARY,
             lib_count,
             program_sources.len(),
             &authoritative_program_metadata,
         );
+        let outside_start = file_facts.len().saturating_sub(files_outside_program);
+        for facts in &mut file_facts[outside_start..] {
+            *facts = ProgramFileFacts::OUTSIDE_PROGRAM;
+        }
         let snapshot = document_store
             .into_snapshot_with_file_facts(file_facts)
             .expect("program snapshot identity allocation failed");
@@ -510,6 +518,23 @@ impl LiveChecker {
             Live::Empty { .. } => None,
             Live::Checked(cell) => Some(cell.with_dependent_mut(|owner, live| {
                 query(live.api.get_or_insert_with(|| new_checker_state(owner)))
+            })),
+        }
+    }
+
+    /// Run `query` over the diagnostics checker itself: the only checker of
+    /// a Program nothing asks diagnostics of (tsgo's `checker.NewChecker`
+    /// over the auto-import registry's alias resolver); none for a Program
+    /// without files.
+    pub fn with_diagnostics_checker<T>(
+        &mut self,
+        query: impl FnOnce(&mut CheckerState<'_>) -> T,
+    ) -> Option<T> {
+        match &mut self.live {
+            Live::Empty { .. } => None,
+            Live::Checked(cell) => Some(cell.with_dependent_mut(|_, live| {
+                let mut state = live.diagnostics.state();
+                query(&mut state)
             })),
         }
     }

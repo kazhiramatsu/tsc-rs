@@ -2,9 +2,9 @@
 
 use tsc_diagnostics::{JsStr, JsString};
 
-/// getTypesPackageName / mangleScopedPackageName, _tsc.js:42070-42080.
+/// tsgo `GetTypesPackageName` (`MangleScopedPackageName` under `@types/`).
 /// Only the first slash is replaced; an @ name without a slash is unchanged.
-pub(crate) fn types_package_name<'n>(package_name: impl Into<JsStr<'n>>) -> JsString {
+pub fn types_package_name<'n>(package_name: impl Into<JsStr<'n>>) -> JsString {
     let package_name = package_name.into();
     let mut result = JsString::from("@types/");
     if let Some(scoped) = package_name.strip_prefix("@") {
@@ -107,3 +107,43 @@ fn for_each_js_replacement_piece<'a, E>(
 #[cfg(test)]
 #[path = "../tests/unit/js_string_ops/tests.rs"]
 mod tests;
+
+/// tsgo `stringutil.HasPrefix`: case-insensitive (Go `strings.EqualFold`)
+/// unless `case_sensitive`.
+pub fn has_prefix(text: JsStr<'_>, prefix: JsStr<'_>, case_sensitive: bool) -> bool {
+    if case_sensitive {
+        return text.starts_with_js(prefix);
+    }
+    text.len_units() >= prefix.len_units()
+        && tsc_syntax::go_unicode::equal_fold(
+            &text.substring(0, prefix.len_units()).to_string_lossy(),
+            &prefix.to_string_lossy(),
+        )
+}
+
+/// tsgo `stringutil.HasSuffix`: case-insensitive (Go `strings.EqualFold`)
+/// unless `case_sensitive`.
+pub fn has_suffix(text: JsStr<'_>, suffix: JsStr<'_>, case_sensitive: bool) -> bool {
+    if case_sensitive {
+        return text.ends_with_js(suffix);
+    }
+    text.len_units() >= suffix.len_units()
+        && tsc_syntax::go_unicode::equal_fold(
+            &text
+                .substring(text.len_units() - suffix.len_units(), text.len_units())
+                .to_string_lossy(),
+            &suffix.to_string_lossy(),
+        )
+}
+
+/// tsgo `stringutil.HasPrefixAndSuffixWithoutOverlap`.
+pub fn has_prefix_and_suffix_without_overlap(
+    text: JsStr<'_>,
+    prefix: JsStr<'_>,
+    suffix: JsStr<'_>,
+    case_sensitive: bool,
+) -> bool {
+    prefix.len_units() + suffix.len_units() <= text.len_units()
+        && has_prefix(text, prefix, case_sensitive)
+        && has_suffix(text, suffix, case_sensitive)
+}

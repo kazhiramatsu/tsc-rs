@@ -216,6 +216,15 @@ impl ResolvedProjectReferences {
         !self.output_to_source.is_empty()
     }
 
+    /// Every output declaration file of the referenced projects with its
+    /// source (tsgo `OutputDtsToProjectReference` of each project), in no
+    /// particular order.
+    pub fn outputs_to_sources(
+        &self,
+    ) -> impl Iterator<Item = (&CanonicalPath, &Arc<ProjectReferenceSourceOutput>)> {
+        self.output_to_source.iter()
+    }
+
     /// Every parsed project, in canonical config path order.
     pub fn projects(&self) -> impl Iterator<Item = &Arc<ResolvedProjectReference>> {
         self.projects.values()
