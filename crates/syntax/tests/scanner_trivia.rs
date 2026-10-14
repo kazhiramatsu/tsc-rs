@@ -105,3 +105,17 @@ fn shebang_after_the_start() {
         ]
     );
 }
+
+/// tsgo `GetShebang`: the first line when it starts with `#!`, without its
+/// line break.
+#[test]
+fn shebang_line() {
+    assert_eq!(
+        tsc_syntax::get_shebang("#!/usr/bin/env node\nx"),
+        "#!/usr/bin/env node"
+    );
+    assert_eq!(tsc_syntax::get_shebang("#!node\r\nx"), "#!node");
+    assert_eq!(tsc_syntax::get_shebang("#!node"), "#!node");
+    assert_eq!(tsc_syntax::get_shebang(" #!node"), "");
+    assert_eq!(tsc_syntax::get_shebang(""), "");
+}
