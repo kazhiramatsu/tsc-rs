@@ -65,6 +65,11 @@ pub trait Host: SourceMapperHost {
     fn auto_import_registry(&self) -> Option<&crate::autoimport::Registry> {
         None
     }
+    /// The parse of a config (tsgo's `Program.CommandLine()` of the
+    /// config's program); none outside a session.
+    fn config_plan(&self, _config_file_name: &str) -> Option<&tsc_program::ConfigRootPlan> {
+        None
+    }
 }
 
 /// tsgo `LanguageService`.

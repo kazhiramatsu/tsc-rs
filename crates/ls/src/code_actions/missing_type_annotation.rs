@@ -1940,8 +1940,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
     }
 
     fn localize(&self, message: &'static DiagnosticMessage, args: &[&str]) -> String {
-        let args: Vec<String> = args.iter().map(|&arg| arg.to_owned()).collect();
-        tsc_diagnostics::format_message(message.template_in(self.catalog), &args)
+        crate::lsutil::localize(self.catalog, message, args)
     }
 
     /// The tracker's copy of a node of the file.

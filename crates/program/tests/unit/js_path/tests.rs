@@ -105,3 +105,27 @@ fn relative_segments_are_found_between_separators() {
         );
     }
 }
+
+/// tsgo `tspath.ChangeFullExtension`: a declaration extension goes from its
+/// `.d` (an arbitrary `.d.css.ts` among them), else a removable extension;
+/// a path with neither stays as it is.
+#[test]
+fn change_full_extension_matches_tsgo() {
+    for (path, extension, expected) in [
+        ("/a/file.d.ts", ".js", "/a/file.js"),
+        ("/a/file.d.mts", ".mjs", "/a/file.mjs"),
+        ("/a/app.d.css.ts", ".css", "/a/app.css"),
+        ("/a/data.d.json.ts", ".json", "/a/data.json"),
+        ("/a/file.ts", ".js", "/a/file.js"),
+        ("/a/file.ts", "js", "/a/file.js"),
+        ("/a/file.d.ts", "", "/a/file"),
+        ("/a/dist/**/*", ".*", "/a/dist/**/*"),
+        ("/a/file.css", ".js", "/a/file.css"),
+    ] {
+        assert_eq!(
+            change_full_extension(JsStr::from_str(path), extension).to_string_lossy(),
+            expected,
+            "{path} {extension}"
+        );
+    }
+}
