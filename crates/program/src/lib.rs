@@ -119,6 +119,7 @@ mod resolution_error;
 mod symlinks;
 mod text;
 pub mod uri;
+pub mod vfsmatch;
 mod workers;
 
 pub use command_line::{

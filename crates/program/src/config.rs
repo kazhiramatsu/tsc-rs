@@ -2473,14 +2473,23 @@ fn derive_wildcard_directories<'j0>(
     };
     let excludes = excludes
         .iter()
-        .map(|exclude| normalized_spec_path(exclude, config_base_path))
+        .map(|exclude| {
+            normalized_spec_path(exclude, config_base_path)
+                .map(|exclude| exclude.to_string_lossy().into_owned())
+        })
         .collect::<Result<Vec<_>, _>>()?;
+    let exclude_matcher = crate::vfsmatch::SpecMatcher::new(
+        &excludes,
+        &config_base_path.to_string_lossy(),
+        crate::vfsmatch::Usage::Exclude,
+        case_sensitive,
+    );
     let mut directories = Vec::new();
     for include in includes {
         let spec = normalized_spec_path(&include, config_base_path)?;
-        if excludes
-            .iter()
-            .any(|exclude| wildcard_spec_is_excluded(&spec, exclude, case_sensitive))
+        if exclude_matcher
+            .as_ref()
+            .is_some_and(|matcher| matcher.match_string(&spec.to_string_lossy()))
         {
             continue;
         }
@@ -2538,23 +2547,6 @@ fn trim_config_path_separators(path: JsStr<'_>) -> JsStr<'_> {
     path.split_at_byte(length)
         .expect("ASCII separator boundary")
         .0
-}
-
-fn wildcard_spec_is_excluded(spec: &JsString, exclude: &JsString, case_sensitive: bool) -> bool {
-    let spec = file_name_key(spec.as_js(), case_sensitive);
-    let exclude = file_name_key(exclude.as_js(), case_sensitive);
-    let exclude = trim_config_path_separators(exclude.as_js());
-    if !exclude
-        .as_bytes()
-        .iter()
-        .any(|byte| matches!(byte, b'*' | b'?'))
-    {
-        return spec.as_js() == exclude || path_is_descendant(exclude, spec.as_js(), true);
-    }
-    ConfigFilePattern::new(exclude, "/", case_sensitive)
-        .ok()
-        .flatten()
-        .is_some_and(|pattern| pattern.matches(&spec))
 }
 
 fn wildcard_directory_from_spec(spec: &JsString) -> Option<(JsString, bool)> {
