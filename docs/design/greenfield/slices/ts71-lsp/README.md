@@ -547,3 +547,39 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   `--checkers 4` はなし。
 - **有界の違い**：auto-import の item（resolve 227。L5）、content mapper の file（4。先の completion の panic が session
   の checker state を poison する。L10）。
+
+## L8a formatter（PR #790）
+
+- **merge**：#790 → `78ce78edc`（hosted run 38498011478：rust 12m36s、conformance 30m28s、gates）。commit：625b8d85c（scanner の
+  trivia token）、7438008c6（formatter と formatting の request）、ratchet ca677878b。
+- **順序**：L8 の format と change tracker を L5 の前に置く。tsgo の change tracker は挿入する node を formatter で整形し、
+  L5 の import の edit と L4b に残した snippet がそれを使う。
+- **scanner**（`crates/syntax/src/scanner.rs`）：tsgo の `SetSkipTrivia(false)`。空白、改行（`\r\n` は一つ）、comment
+  （閉じていないものは unterminated）、conflict marker を trivia token として返す。tsgo と同じく shebang、行・段落の
+  区切り、U+0085 は trivia を返すときも読み飛ばす。`TokenScanner` に formatter の呼び出し（`with_trivia`、
+  `reset_token_state`、`re_scan_greater_token`、`re_scan_slash_token`、`scan_jsx_identifier`、
+  `re_scan_jsx_attribute_value`）、`re_scan_jsx_token` は tsgo の `allowMultilineJsxText` を取る。parser の scanner は
+  変わらない（既定で trivia を飛ばす）。
+- **formatter**（`crates/ls/src/format/`）：tsgo の規則（同じ表・優先度・bucket の順）、文脈、formatting scanner、span
+  worker（token の対、trivia、字下げ、行末の空白、範囲の後の edit）、node の字下げ（`GetIndentationForNode`、
+  `ShouldIndentChildNode`、`NodeWillIndentChild`）、request の範囲（`FormatDocument`、`FormatSelection`、
+  `FormatOnOpeningCurly`・`ClosingCurly`・`Semicolon`・`Enter`）。token navigation が見せる tsgo の木（`File`、node は
+  `astnav::Found`）を tsgo の親（`Tree::parent`：heritage clause の TypeReference・QualifiedName、JSDoc comment の
+  host）で読む。
+- **言語 service**（`crates/ls/src/formatting.rs`）：`ProvideFormatDocument`・`Range`・`OnType`（comment の中、`{`・`}`・
+  `;`・Enter 以外の文字では何もしない）。複製せず共有：`lsutil/asi.rs`（tsgo の `PositionIsASICandidate`。formatter の
+  semicolon 規則と completion）、`utilities::range_of_enclosing_comment`・`is_in_comment`（tsgo の
+  `getRangeOfEnclosingComment`・`isInComment`。completion が持ち、hover が縮めた形で持っていたものを三者が使う。答えは
+  変わらない）。
+- **LSP server**：`textDocument/formatting`・`rangeFormatting`・`onTypeFormatting`。
+- **回帰 test**：`crates/ls/tests/format.rs` に 39（transcript の文書・設定・tsgo の edit。各 trigger、comment 中の入力、
+  他の文字、文書と範囲、設定（行末の空白を残す、tab 幅 0、制御 block と関数の `{` を改行、空行から始まる object literal、
+  `baseIndentSize`、`semicolons: remove`）、comment（tab 入りの複数行）、JSX、template、数値の後の `.`、型引数と `<<`、
+  mapped・conditional 型、連鎖した呼び出し、semicolon のない文、JSDoc comment から始まる範囲、parse error、conflict
+  marker）。`crates/syntax/tests/scanner_trivia.rs` に 3（Go の probe で tsgo の scanner から取った token 列）。
+- **検査（ca677878b）**：conformance 0 regressions（全 13,577 full、482 s）、suites 0 regressions（lsp 2,208 full、411 行が
+  すべて none→full。onTypeFormatting 3,092/3,092、formatting 172/175、rangeFormatting 31/32）、API client sync
+  337/356・async 346/365、test（syntax 250、ls 175、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。checker
+  の変更はないので `--checkers 4` はなし。
+- **有界の違い**：content mapper の file の mapped range の整形（4。L10）。位置の字下げ（`GetIndentation`）と
+  `FormatNodeGivenIndentation`、それを使う API の `formatNodeForInsertion` は L8b。
