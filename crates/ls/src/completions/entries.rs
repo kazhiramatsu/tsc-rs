@@ -1310,7 +1310,7 @@ impl Completions<'_, '_, '_> {
         unique_names: &mut HashSet<String>,
         entries: &mut Vec<CompletionItem>,
     ) {
-        for (name, pos) in self.name_table() {
+        for (name, pos) in self.request.name_table(self.source) {
             // Not an identifier written only at the position.
             if pos == Some(self.position) {
                 continue;
@@ -1326,79 +1326,6 @@ impl Completions<'_, '_, '_> {
                 });
             }
         }
-    }
-
-    /// tsgo `SourceFile.GetNameTable`: each identifier's (and name-like
-    /// literal's) text, with its position when it occurs once.
-    fn name_table(&self) -> std::collections::BTreeMap<String, Option<u32>> {
-        let mut table = std::collections::BTreeMap::<String, Option<u32>>::new();
-        let mut stack = vec![self.source.root];
-        let arena = &self.source.arena;
-        while let Some(node) = stack.pop() {
-            let record = arena.node(node);
-            let text = match record.kind {
-                SyntaxKind::Identifier if !self.is_tag_name(node) => {
-                    node_util::id_text(self.source, node)
-                        .filter(|text| !text.is_empty())
-                        .map(str::to_owned)
-                }
-                SyntaxKind::PrivateIdentifier => {
-                    node_util::id_text(self.source, node).map(str::to_owned)
-                }
-                SyntaxKind::StringLiteral
-                | SyntaxKind::NoSubstitutionTemplateLiteral
-                | SyntaxKind::NumericLiteral
-                    if self.literal_is_name(node) =>
-                {
-                    node_util::literal_text_of(self.source, node)
-                        .map(|text| text.to_string_lossy().into_owned())
-                }
-                _ => None,
-            };
-            if let Some(text) = text {
-                table
-                    .entry(text)
-                    .and_modify(|pos| *pos = None)
-                    .or_insert(Some(record.pos));
-            }
-            let mut children = Vec::new();
-            tsc_syntax::for_each_child(arena, record, |child| {
-                children.push(child);
-                false
-            });
-            if let Some(js_doc) = record.js_doc {
-                children.extend(arena.node_array(js_doc).nodes.iter().copied());
-            }
-            stack.extend(children.into_iter().rev());
-        }
-        table
-    }
-
-    /// tsgo `isTagName`: a JSDoc tag's name.
-    fn is_tag_name(&self, node: NodeId) -> bool {
-        self.parent_of(node).is_some_and(|parent| {
-            let kind = self.node_kind(parent);
-            SyntaxKind::FirstJSDocTagNode.value() <= kind.value()
-                && kind.value() <= SyntaxKind::LastJSDocTagNode.value()
-                && crate::jsdoc::tag_name(self.request.state, parent) == Some(node)
-        })
-    }
-
-    /// tsgo `literalIsName`.
-    fn literal_is_name(&self, node: NodeId) -> bool {
-        self.request.is_declaration_name(node)
-            || self
-                .parent_of(node)
-                .is_some_and(|parent| match self.data(parent) {
-                    NodeData::ExternalModuleReference(_) => true,
-                    NodeData::ElementAccessExpression(data) => {
-                        data.argument_expression == Some(node)
-                    }
-                    NodeData::ComputedPropertyName(_) => self
-                        .parent_of(parent)
-                        .is_some_and(|declaration| self.name_of(declaration) == Some(parent)),
-                    _ => false,
-                })
     }
 
     /// tsgo `lsutil.PositionIsASICandidate`.

@@ -663,7 +663,10 @@ impl<'a> Request<'_, 'a> {
         }) else {
             return Ok(None);
         };
-        let Some(base_type) = self.class_extends_heritage_element(class) else {
+        let Some(base_type) = node_util::get_class_extends_heritage_element(
+            self.state.binder.source_of_node(class),
+            class,
+        ) else {
             return Ok(None);
         };
         let NodeData::ExpressionWithTypeArguments(data) =
@@ -794,7 +797,7 @@ impl<'a> Request<'_, 'a> {
     }
 
     /// tsgo `ast.IsJumpStatementTarget`.
-    fn is_jump_statement_target(&self, node: NodeId) -> bool {
+    pub(crate) fn is_jump_statement_target(&self, node: NodeId) -> bool {
         if self.node_kind(node) != SyntaxKind::Identifier {
             return false;
         }
@@ -810,7 +813,7 @@ impl<'a> Request<'_, 'a> {
 
     /// tsgo `getTargetLabel`: the label of the labeled statement around
     /// the jump with the reference's name.
-    fn target_label(&self, mut reference: NodeId, name: NodeId) -> Option<NodeId> {
+    pub(crate) fn target_label(&self, mut reference: NodeId, name: NodeId) -> Option<NodeId> {
         let source = self.state.binder.source_of_node(name);
         let text = node_util::id_text(source, name)?;
         loop {
@@ -824,25 +827,6 @@ impl<'a> Request<'_, 'a> {
             }
             reference = self.state.binder.node_record(reference).parent?;
         }
-    }
-
-    /// tsgo `ast.GetClassExtendsHeritageElement`.
-    fn class_extends_heritage_element(&self, class: NodeId) -> Option<NodeId> {
-        let clauses = match &self.state.binder.node_record(class).data {
-            NodeData::ClassDeclaration(data) => data.heritage_clauses,
-            NodeData::ClassExpression(data) => data.heritage_clauses,
-            _ => None,
-        }?;
-        for &clause in self.state.binder.node_array(clauses).nodes {
-            if let NodeData::HeritageClause(data) = &self.state.binder.node_record(clause).data {
-                if data.token == SyntaxKind::ExtendsKeyword {
-                    return data.types.and_then(|types| {
-                        self.state.binder.node_array(types).nodes.first().copied()
-                    });
-                }
-            }
-        }
-        None
     }
 
     /// tsgo `ast.IsRightSideOfPropertyAccess`.
@@ -962,7 +946,7 @@ impl<'a> Request<'_, 'a> {
 
 /// tsgo `getContextNode` (findallreferences.go): the node whose range is
 /// a declaration's context.
-fn context_node(state: &CheckerState<'_>, node: NodeId) -> Option<NodeId> {
+pub(crate) fn context_node(state: &CheckerState<'_>, node: NodeId) -> Option<NodeId> {
     let record = state.binder.node_record(node);
     let parent = record.parent;
     let parent_kind =
@@ -1014,7 +998,7 @@ fn context_node(state: &CheckerState<'_>, node: NodeId) -> Option<NodeId> {
         }
         SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
             if parent.is_some_and(|parent| {
-                is_array_literal_or_object_literal_destructuring_pattern(state, parent)
+                state.is_array_literal_or_object_literal_destructuring_pattern(parent)
             }) {
                 let mut ancestor = parent;
                 while let Some(current) = ancestor {
@@ -1034,44 +1018,6 @@ fn context_node(state: &CheckerState<'_>, node: NodeId) -> Option<NodeId> {
             Some(node)
         }
         _ => Some(node),
-    }
-}
-
-/// tsgo `ast.IsArrayLiteralOrObjectLiteralDestructuringPattern`.
-fn is_array_literal_or_object_literal_destructuring_pattern(
-    state: &CheckerState<'_>,
-    node: NodeId,
-) -> bool {
-    let record = state.binder.node_record(node);
-    if !matches!(
-        record.kind,
-        SyntaxKind::ArrayLiteralExpression | SyntaxKind::ObjectLiteralExpression
-    ) {
-        return false;
-    }
-    let Some(parent) = record.parent else {
-        return false;
-    };
-    match &state.binder.node_record(parent).data {
-        NodeData::BinaryExpression(binary)
-            if binary.left == Some(node)
-                && binary.operator_token.is_some_and(|operator| {
-                    state.binder.node_record(operator).kind == SyntaxKind::EqualsToken
-                }) =>
-        {
-            true
-        }
-        NodeData::ForOfStatement(statement) if statement.initializer == Some(node) => true,
-        NodeData::PropertyAssignment(_) => {
-            state
-                .binder
-                .node_record(parent)
-                .parent
-                .is_some_and(|grandparent| {
-                    is_array_literal_or_object_literal_destructuring_pattern(state, grandparent)
-                })
-        }
-        _ => is_array_literal_or_object_literal_destructuring_pattern(state, parent),
     }
 }
 

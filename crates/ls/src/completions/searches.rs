@@ -889,11 +889,17 @@ impl Completions<'_, '_, '_> {
         if !modifier_flags.intersects(ModifierFlags::PRIVATE) {
             // The base types' members neither private nor implemented.
             let base_type_nodes = if modifier_flags.intersects(ModifierFlags::OVERRIDE) {
-                self.class_extends_heritage_element(declaration)
-                    .into_iter()
-                    .collect()
+                node_util::get_class_extends_heritage_element(
+                    self.request.state.binder.source_of_node(declaration),
+                    declaration,
+                )
+                .into_iter()
+                .collect()
             } else {
-                self.all_super_type_nodes(declaration)
+                node_util::get_all_super_type_nodes(
+                    self.request.state.binder.source_of_node(declaration),
+                    declaration,
+                )
             };
             let mut base_symbols = Vec::new();
             for base_type_node in base_type_nodes {
@@ -1192,55 +1198,6 @@ impl Completions<'_, '_, '_> {
             }
             _ => String::new(),
         }
-    }
-
-    /// tsgo `getAllSuperTypeNodes`: an interface's extended types, a
-    /// class's extended and implemented types.
-    fn all_super_type_nodes(&self, declaration: NodeId) -> Vec<NodeId> {
-        let clauses = match self.data(declaration) {
-            NodeData::InterfaceDeclaration(data) => {
-                return self.heritage_elements(data.heritage_clauses, SyntaxKind::ExtendsKeyword);
-            }
-            NodeData::ClassDeclaration(data) => data.heritage_clauses,
-            NodeData::ClassExpression(data) => data.heritage_clauses,
-            _ => return Vec::new(),
-        };
-        let mut nodes: Vec<NodeId> = self
-            .heritage_elements(clauses, SyntaxKind::ExtendsKeyword)
-            .into_iter()
-            .take(1)
-            .collect();
-        nodes.extend(self.heritage_elements(clauses, SyntaxKind::ImplementsKeyword));
-        nodes
-    }
-
-    /// tsgo `ast.GetClassExtendsHeritageElement`.
-    fn class_extends_heritage_element(&self, declaration: NodeId) -> Option<NodeId> {
-        let clauses = match self.data(declaration) {
-            NodeData::ClassDeclaration(data) => data.heritage_clauses,
-            NodeData::ClassExpression(data) => data.heritage_clauses,
-            _ => None,
-        };
-        self.heritage_elements(clauses, SyntaxKind::ExtendsKeyword)
-            .first()
-            .copied()
-    }
-
-    /// The elements of the heritage clauses with `token`.
-    fn heritage_elements(
-        &self,
-        clauses: Option<tsc_syntax::NodeArrayId>,
-        token: SyntaxKind,
-    ) -> Vec<NodeId> {
-        let mut elements = Vec::new();
-        for &clause in self.node_list(clauses) {
-            if let NodeData::HeritageClause(data) = self.data(clause) {
-                if data.token == token {
-                    elements.extend(self.node_list(data.types));
-                }
-            }
-        }
-        elements
     }
 
     /// tsgo `tryGetJsxCompletionSymbols`: the attributes of the JSX

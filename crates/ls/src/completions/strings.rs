@@ -423,7 +423,7 @@ impl Completions<'_, '_, '_> {
         flags: ContextFlags,
         node: NodeId,
     ) -> CheckResult<Option<CompletionsFromTypes>> {
-        let contextual = self.contextual_type_from_parent(node, flags)?;
+        let contextual = self.request.contextual_type_from_parent(node, flags)?;
         let types = self.string_literal_types(contextual, &mut HashSet::new())?;
         Ok(to_completions_from_types(types))
     }

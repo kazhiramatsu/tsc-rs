@@ -44,26 +44,7 @@ pub(crate) fn reference_at_position(
         .iter()
         .find(|directive| directive.pos <= position && position <= directive.end)
     {
-        let mode = match directive.resolution_mode {
-            Some(tsc_syntax::TypeReferenceDirectiveResolutionMode::Import) => {
-                ResolutionMode::EsNext
-            }
-            Some(tsc_syntax::TypeReferenceDirectiveResolutionMode::Require) => {
-                ResolutionMode::CommonJs
-            }
-            None => resolution_mode(state.api_default_resolution_mode_for_file(source.root))?,
-        };
-        let key = TypeReferenceResolutionKey::source(
-            canonical_path(prepared, &source.file_name.to_string_lossy())?,
-            directive.file_name.clone(),
-            mode,
-        );
-        let resolution = prepared.resolutions().require_type_reference(&key).ok()?;
-        let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
-            return None;
-        };
-        let file_name = resolved.target().display().to_string_lossy().into_owned();
-        let target = source_file(state, prepared, &file_name)?;
+        let target = type_reference_directive_target(state, prepared, source, directive)?;
         return Some(file_reference(state, target));
     }
 
@@ -101,6 +82,89 @@ pub(crate) fn reference_at_position(
         file: source_file(state, prepared, &file_name),
         file_name,
     })
+}
+
+/// tsgo `Program.GetResolvedTypeReferenceDirectiveFromTypeReferenceDirective`:
+/// the file a `/// <reference types>` resolves to.
+fn type_reference_directive_target(
+    state: &CheckerState<'_>,
+    prepared: &PreparedProgram,
+    source: &SourceFile,
+    directive: &tsc_syntax::TypeReferenceDirective,
+) -> Option<usize> {
+    let mode = match directive.resolution_mode {
+        Some(tsc_syntax::TypeReferenceDirectiveResolutionMode::Import) => ResolutionMode::EsNext,
+        Some(tsc_syntax::TypeReferenceDirectiveResolutionMode::Require) => ResolutionMode::CommonJs,
+        None => resolution_mode(state.api_default_resolution_mode_for_file(source.root))?,
+    };
+    let key = TypeReferenceResolutionKey::source(
+        canonical_path(prepared, &source.file_name.to_string_lossy())?,
+        directive.file_name.clone(),
+        mode,
+    );
+    let resolution = prepared.resolutions().require_type_reference(&key).ok()?;
+    let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+        return None;
+    };
+    let file_name = resolved.target().display().to_string_lossy().into_owned();
+    source_file(state, prepared, &file_name)
+}
+
+/// The `/// <reference path>` and `/// <reference types>` directives of a
+/// file, with the files they name (tsgo `findModuleReferences`' reads of
+/// `ReferencedFiles` and `TypeReferenceDirectives`).
+pub(crate) fn file_reference_targets(
+    state: &CheckerState<'_>,
+    prepared: &PreparedProgram,
+    file: usize,
+) -> Vec<(Range<usize>, Option<usize>)> {
+    let source = state.binder.source(file);
+    let mut targets: Vec<(Range<usize>, Option<usize>)> = source
+        .referenced_files
+        .iter()
+        .map(|reference| {
+            (
+                reference.pos as usize..reference.end as usize,
+                source_file_from_reference(state, prepared, source, reference),
+            )
+        })
+        .collect();
+    targets.extend(source.type_reference_directives.iter().map(|directive| {
+        (
+            directive.pos as usize..directive.end as usize,
+            type_reference_directive_target(state, prepared, source, directive),
+        )
+    }));
+    targets
+}
+
+/// tsgo `ast.IsVariableDeclarationInitializedToBareOrAccessedRequire`: a
+/// variable initialized to `require("m")` or an access of one.
+pub(crate) fn is_variable_declaration_initialized_to_bare_or_accessed_require(
+    source: &SourceFile,
+    node: NodeId,
+) -> bool {
+    let NodeData::VariableDeclaration(data) = &source.arena.node(node).data else {
+        return false;
+    };
+    let Some(mut initializer) = data.initializer else {
+        return false;
+    };
+    // tsgo `GetLeftmostAccessExpression`.
+    loop {
+        match &source.arena.node(initializer).data {
+            NodeData::PropertyAccessExpression(access) => match access.expression {
+                Some(expression) => initializer = expression,
+                None => break,
+            },
+            NodeData::ElementAccessExpression(access) => match access.expression {
+                Some(expression) => initializer = expression,
+                None => break,
+            },
+            _ => break,
+        }
+    }
+    is_require_call(source, initializer, true)
 }
 
 fn file_reference(state: &CheckerState<'_>, file: usize) -> ReferenceInfo {
@@ -414,7 +478,7 @@ fn canonical_path(prepared: &PreparedProgram, file_name: &str) -> Option<Canonic
 /// What tsgo's `GetTouchingPropertyName` finds, as the definition reads it:
 /// a node, or a token tsc-rs's tree does not keep (tsgo's source file
 /// creates one for the scanner's token).
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum Touching {
     Node(NodeId),
     Token {
