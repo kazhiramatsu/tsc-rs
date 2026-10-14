@@ -583,3 +583,44 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   の変更はないので `--checkers 4` はなし。
 - **有界の違い**：content mapper の file の mapped range の整形（4。L10）。位置の字下げ（`GetIndentation`）と
   `FormatNodeGivenIndentation`、それを使う API の `formatNodeForInsertion` は L8b。
+
+## L8b-1 挿入する node の印字・位置・字下げ（PR #791）
+
+- **merge**：#791 → `9e8dbe0bd`（hosted run 38508650596：rust 12m46s、conformance 19m53s、gates）。commit：7994bad42（型注釈・modifier の
+  投影と完了 node の判定の共有）、6361272ba（`PrintAndPositionNode` と `preserveSourceNewlines`）、63b75f280
+  （`GetIndentation` と API の `formatNodeForInsertion`）、3aacf33e9（test）。
+- **共有**：binder の `node_util` に `type_annotation_of(_data)`・`type_node_of`・`modifiers_of_data`。checker（自分の node
+  参照のまま）、印字の位置付け、言語 service が同じ照合を使う。tsgo の `PositionBelongsToNode`・`IsCompletedNode` は
+  completion から `lsutil/completed_node.rs` に移り、smart indenter も使う（答えは変わらない）。
+- **印字の位置**（`crates/emitter/src/{writer,printer}.rs`）：tsgo の `ChangeTrackerWriter`。node・token node・node list の
+  印字の始まりと終わりを、trivia でない最後の text の終わりで記録する。node は node の pipeline（とその他二つの経路）、
+  token は二項演算子と条件式の `?`・`:`、list は開き括弧の後と閉じ括弧の前（末尾の comma の後）、空の省略可能な list は
+  その場所、mapped type の型引数、関数本体の文は prologue の後から。`as`・`satisfies`・非 null・型表明の式は自分の括弧を
+  hook の外に書く（tsgo では親が書く）。
+- **`preserveSourceNewlines`**（printer の option）：source の位置のない木での tsgo の挙動。`writeLineOrSpace` は
+  `else`・`catch`・`finally`・do の `while` を同じ行に置き、埋め込みの文は新しい行で始まるもの以外を同じ行に置き、空の
+  本体と block は行を分ける。source file の行を読む枝（`getEffectiveLines`、source の node の list の改行）は L8b-2。
+- **`print_and_position_node`**（`crates/emitter/src/synthetic_file.rs`）：tsgo の `PrintAndPositionNode` と
+  `CreateSyntheticSourceFile`。decode した node を印字し（comment も source file もない）、位置を写しに付けて合成の
+  source file に包む。modifier list は位置を持たない（tsgo の新しい `ModifierList`）。`TransformArena::mark_single_quoted`
+  が decode した literal の引用符を保つ（`printNode` も使う）。
+- **formatter**（`crates/ls/src/format/`）：tsgo の `GetIndentation`（comment、string・template literal、comma の後と
+  最初の前の list 要素、object literal、block と none の style、`getSmartIndent`）と `FormatNodeGivenIndentation`。
+  `tsc_ls::format_node_for_insertion` が handler の後半（位置の字下げ、`ShouldIndentChildNode` の delta、
+  `ApplyBulkEdits`）。
+- **API**：`formatNodeForInsertion`（tsgo `handleFormatNodeForInsertion`：snapshot・program・file、node の decode、UTF-16
+  の位置、snapshot の format 設定で印字と整形）。`createSnapshot`・`updateSnapshot` が `userPreferences`（tsgo の既定値に
+  object の設定）を取り、snapshot の設定にする（tsgo の `CloneSnapshot` は API の request の設定を新しい設定にする）。
+- **tsgo との照合（Go の probe）**：位置なしで decode した 157 文の印字と全 node・list の位置、`handleFormatNodeForInsertion`
+  を写した 83 の挿入（client test の形、関数本体・入れ子の block・top level への 22 種の node、他の位置、設定）、4 file と
+  二つの style の全位置への挿入 977。tsgo が答えるものはすべて一致。
+- **回帰 test**：`crates/ls/tests/insertion.rs`（22 文の印字と位置、44 の挿入、各位置の字下げ。tsgo から）、
+  `crates/api/tests/unit/session_print.rs` に 2（snapshot の設定での `formatNodeForInsertion`、error の順）。
+- **検査（63b75f280。3aacf33e9 は test だけ）**：conformance 0 regressions（全 13,577 full、493 s）、`--checkers 4` は既知の
+  4 だけ違う（checker の変更は `type_annotation_of` の共有だけ）、suites 0 regressions（ratchet の変化なし、lsp 2,208
+  full）、API client sync 340/356・async 349/365（`formatNodeForInsertion` の 3 が通り、他の失敗は同じ）、test（binder 78、
+  checker 1,798、emitter 348、ls 178、lsp 14、api 297、project 186、compiler 225、conformance 49）、clippy、fmt。
+- **有界の違い**：tsgo の `AssignPositionsToNode` は `else` のない `if` に位置のない空の `else` block を足し（nil の文の
+  `liftToBlock`）、formatter の assert で落ちる。tsc-rs は `else` のある `if` と同じに整形する。入れ子の namespace の暗黙の
+  `export` の modifier list の位置は tsgo の -1 でなく 0（formatter は modifier を一つずつ読む）。`printNode` は
+  `preserveSourceNewlines` をまだ使わない（L8b-2）。
