@@ -197,7 +197,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isInJSFile @6.0.3
     /// tsc-hash: c5f0db66356c51537ce1e7c91692c0775f3db5764d39100f22ad85b89e0ec9a1
     /// tsc-span: _tsc.js:14886-14888
-    pub(crate) fn is_in_js_file(&self, node: NodeId) -> bool {
+    pub fn is_in_js_file(&self, node: NodeId) -> bool {
         self.binder.source_of_node(node).is_source_file_js()
     }
 

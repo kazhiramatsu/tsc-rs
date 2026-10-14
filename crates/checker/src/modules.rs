@@ -5095,6 +5095,30 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: tryFindAmbientModule @6.0.3
     /// tsc-hash: 1f3cc9031465a237b7ec0d5712660a1201e66cb8853b050b360e2de131a1a314
     /// tsc-span: _tsc.js:59499-59505
+    /// tsgo `GetSymbolAtLocation` of a file's synthesized import specifier
+    /// (`Program.GetImportHelpersImportSpecifier`,
+    /// `GetJSXRuntimeImportSpecifier`): the ambient module of the name, else
+    /// the module of the file the program resolved it to.
+    pub fn get_synthetic_import_module_symbol(
+        &mut self,
+        file: usize,
+        specifier: &str,
+    ) -> Option<SymbolId> {
+        if let Some(ambient) = self.try_find_ambient_module(specifier, true) {
+            return Some(ambient);
+        }
+        let root = self.binder.source(file).root;
+        match self.resolve_program_module(root, specifier) {
+            ProgramModuleResolution::Resolved(resolved) => {
+                let target = self.binder.source(resolved.file_index).root;
+                self.binder
+                    .node_symbol(target)
+                    .map(|symbol| self.get_merged_symbol(symbol))
+            }
+            _ => None,
+        }
+    }
+
     pub fn try_find_ambient_module<'n>(
         &mut self,
         module_name: impl Into<JsStr<'n>>,

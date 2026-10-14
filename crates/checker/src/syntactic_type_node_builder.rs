@@ -1305,7 +1305,6 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
     fn rightmost_name(&self, mut node: TransformNode) -> Result<TransformNode, EmitResolverError> {
         loop {
             let right = match &self.node(node)?.data {
-                NodeData::JSDocMemberName(data) => data.right,
                 NodeData::QualifiedName(data) => data.right,
                 _ => None,
             };

@@ -24,8 +24,7 @@ use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticCategory, DiagnosticMessage, JsString,
 };
 use tsc_syntax::nodes::{
-    ImportTypeData, JSDocFunctionTypeData, JSDocMemberNameData, JSDocTypeLiteralData,
-    QualifiedNameData,
+    ImportTypeData, JSDocFunctionTypeData, JSDocTypeLiteralData, QualifiedNameData,
 };
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
@@ -2201,88 +2200,63 @@ impl<'a> CheckerState<'a> {
             _ => unreachable!("kind/data agree"),
         };
         if let Some(name) = name {
-            self.resolve_jsdoc_member_name(name, true, None)?;
+            self.resolve_jsdoc_member_name(name)?;
         }
         Ok(())
     }
 
-    /// tsc-port: resolveJSDocMemberName @6.0.3
-    /// tsc-hash: e7e2debbbb67bd344dca35bbc7e3d03f8c89d8fcde7c332878bc880f05c73a51
-    /// tsc-span: _tsc.js:87505-87530
+    /// tsgo `resolveJSDocMemberName` (checker.go:2601-2624): an entity
+    /// name from the JSDoc's host, else the member a qualified name's right
+    /// side names on its left side's instance (or declared) type.
     pub(crate) fn resolve_jsdoc_member_name(
         &mut self,
         name: NodeId,
-        ignore_errors: bool,
-        container: Option<SymbolId>,
     ) -> CheckResult<Option<SymbolId>> {
-        let meaning = SymbolFlags::TYPE | SymbolFlags::NAMESPACE | SymbolFlags::VALUE;
-        if matches!(
+        if !matches!(
             self.kind_of(name),
             SyntaxKind::Identifier | SyntaxKind::QualifiedName
         ) {
-            let mut symbol = self.resolve_entity_name_ex(
-                name,
-                meaning,
-                ignore_errors,
-                self.get_host_signature_from_jsdoc(name),
-                true,
-            )?;
-            if symbol.is_none() && self.kind_of(name) == SyntaxKind::Identifier {
-                if let Some(container) = container {
-                    let exports = self.get_exports_of_symbol(container)?;
-                    if let Some(text) = self.identifier_text_of(name).map(str::to_owned) {
-                        symbol = self.get_symbol_in_table(&exports, &text, meaning)?;
-                    }
-                }
-            }
-            if symbol.is_some() {
-                return Ok(symbol);
-            }
+            return Ok(None);
         }
-
-        let (left, right) = match self.data_of(name) {
-            NodeData::Identifier(data) => {
-                (container, data.escaped_text.identifier_text().to_owned())
-            }
-            // 87523-87524: `name.left` / `name.right` of a QualifiedName as of
-            // a JSDocMemberName. `{@link Class.member}` fails the entity-name
-            // pass above (a class is no namespace), and this resolution of
-            // the left identifier is what marks an imported alias referenced
-            // (VS Code's `import type` members documented through @link).
-            NodeData::JSDocMemberName(JSDocMemberNameData { left, right })
-            | NodeData::QualifiedName(QualifiedNameData { left, right }) => {
-                let left = match *left {
-                    Some(left) => self.resolve_jsdoc_member_name(left, ignore_errors, container)?,
-                    None => None,
-                };
-                let right = right
-                    .and_then(|right| self.identifier_text_of(right))
-                    .unwrap_or_default()
-                    .to_owned();
-                (left, right)
-            }
-            _ => (None, String::new()),
+        let meaning = SymbolFlags::TYPE | SymbolFlags::NAMESPACE | SymbolFlags::VALUE;
+        let host = self.get_host_signature_from_jsdoc(name);
+        if let Some(symbol) = self
+            .resolve_entity_name_ex(name, meaning, true, host, true)?
+            .filter(|&symbol| symbol != self.unknown_symbol)
+        {
+            return Ok(Some(symbol));
+        }
+        let NodeData::QualifiedName(QualifiedNameData { left, right }) = self.data_of(name).clone()
+        else {
+            return Ok(None);
         };
         let Some(left) = left else {
             return Ok(None);
         };
-        let prototype = if self
+        let Some(symbol) = self.resolve_jsdoc_member_name(left)? else {
+            return Ok(None);
+        };
+        let mut ty = None;
+        if self
             .binder
-            .symbol(left)
+            .symbol(symbol)
             .flags
             .intersects(SymbolFlags::VALUE)
         {
-            let left_type = self.get_type_of_symbol(left)?;
-            self.get_property_of_type_full(left_type, "prototype")?
-        } else {
-            None
+            let symbol_type = self.get_type_of_symbol(symbol)?;
+            if let Some(prototype) = self.get_property_of_type_full(symbol_type, "prototype")? {
+                ty = Some(self.get_type_of_symbol(prototype)?);
+            }
+        }
+        let ty = match ty {
+            Some(ty) => ty,
+            None => self.get_declared_type_of_symbol(symbol)?,
         };
-        let container_type = if let Some(prototype) = prototype {
-            self.get_type_of_symbol(prototype)?
-        } else {
-            self.get_declared_type_of_symbol(left)?
-        };
-        self.get_property_of_type_full(container_type, &right)
+        let right = right
+            .and_then(|right| self.identifier_text_of(right))
+            .unwrap_or_default()
+            .to_owned();
+        self.get_property_of_type_full(ty, &right)
     }
 
     /// tsc-port: checkJSDocParameterTag @6.0.3.
@@ -13063,13 +13037,6 @@ impl<'a> CheckerState<'a> {
             let name_node = property_data
                 .name
                 .expect("JSDocPropertyTag carries its property name");
-            let name_node = match self.data_of(name_node) {
-                NodeData::Identifier(_) => name_node,
-                NodeData::JSDocMemberName(data) => data
-                    .right
-                    .expect("JSDocMemberName carries its right-hand property name"),
-                _ => name_node,
-            };
             let name = self.entity_name_text(name_node)?;
             let annotation = property_data.type_expression.and_then(|expression| {
                 match self.data_of(expression) {
@@ -13179,14 +13146,6 @@ impl<'a> CheckerState<'a> {
                 let right = self.entity_name_text(
                     data.name
                         .expect("PropertyAccessExpression carries its name"),
-                )?;
-                Ok(crate::concat_js(&[&(left), &".", &(right)]))
-            }
-            NodeData::JSDocMemberName(data) => {
-                let left = self
-                    .entity_name_text(data.left.expect("JSDocMemberName carries its left side"))?;
-                let right = self.entity_name_text(
-                    data.right.expect("JSDocMemberName carries its right side"),
                 )?;
                 Ok(crate::concat_js(&[&(left), &".", &(right)]))
             }

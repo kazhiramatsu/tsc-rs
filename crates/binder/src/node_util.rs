@@ -1313,6 +1313,62 @@ pub fn get_implements_heritage_clause_elements(source: &SourceFile, node: NodeId
     heritage_clause_types(source, node, SyntaxKind::ImplementsKeyword).to_vec()
 }
 
+/// tsgo `ast.ForEachReturnStatement` (ast/utilities.go:1157-1171): the
+/// return statements of a body (not of nested functions) in source order,
+/// stopping when the visitor answers true.
+pub fn for_each_return_statement(
+    source: &SourceFile,
+    body: NodeId,
+    visitor: &mut dyn FnMut(NodeId) -> bool,
+) -> bool {
+    match source.arena.node(body).kind {
+        SyntaxKind::ReturnStatement => visitor(body),
+        SyntaxKind::CaseBlock
+        | SyntaxKind::Block
+        | SyntaxKind::IfStatement
+        | SyntaxKind::DoStatement
+        | SyntaxKind::WhileStatement
+        | SyntaxKind::ForStatement
+        | SyntaxKind::ForInStatement
+        | SyntaxKind::ForOfStatement
+        | SyntaxKind::WithStatement
+        | SyntaxKind::SwitchStatement
+        | SyntaxKind::CaseClause
+        | SyntaxKind::DefaultClause
+        | SyntaxKind::LabeledStatement
+        | SyntaxKind::TryStatement
+        | SyntaxKind::CatchClause => {
+            let mut children = Vec::new();
+            tsc_syntax::for_each_child(&source.arena, source.arena.node(body), |child| {
+                children.push(child);
+                false
+            });
+            children
+                .into_iter()
+                .any(|child| for_each_return_statement(source, child, visitor))
+        }
+        _ => false,
+    }
+}
+
+/// tsgo `getAllSuperTypeNodes` (ls/utilities.go): an interface's extended
+/// types, a class's extended type and implemented types.
+pub fn get_all_super_type_nodes(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
+    match source.arena.node(node).kind {
+        SyntaxKind::InterfaceDeclaration => {
+            heritage_clause_types(source, node, SyntaxKind::ExtendsKeyword).to_vec()
+        }
+        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
+            let mut nodes: Vec<NodeId> = get_class_extends_heritage_element(source, node)
+                .into_iter()
+                .collect();
+            nodes.extend(get_implements_heritage_clause_elements(source, node));
+            nodes
+        }
+        _ => Vec::new(),
+    }
+}
+
 /// tsgo `ast.IsThisParameter`: a parameter named `this`.
 pub fn is_this_parameter(source: &SourceFile, parameter: NodeId) -> bool {
     let NodeData::Parameter(data) = &source.arena.node(parameter).data else {
@@ -2264,17 +2320,6 @@ pub fn is_expression_node(source: &SourceFile, node: NodeId) -> bool {
             }
             is_expression_name_parent(source, current)
         }
-        SyntaxKind::JSDocMemberName => {
-            let mut current = node;
-            while let Some(parent) = parent_of(source, current) {
-                if kind_of(source, parent) == SyntaxKind::JSDocMemberName {
-                    current = parent;
-                } else {
-                    break;
-                }
-            }
-            is_expression_name_parent(source, current)
-        }
         SyntaxKind::PrivateIdentifier => {
             let Some(parent) = parent_of(source, node) else {
                 return false;
@@ -2313,7 +2358,6 @@ fn is_expression_name_parent(source: &SourceFile, node: NodeId) -> bool {
                 | SyntaxKind::JSDocLinkCode
                 | SyntaxKind::JSDocLinkPlain
                 | SyntaxKind::JSDocNameReference
-                | SyntaxKind::JSDocMemberName
         )
     }) || is_jsx_tag_name(source, node)
 }

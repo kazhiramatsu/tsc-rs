@@ -263,10 +263,10 @@ pub(crate) fn write_code(text: &mut String, language: &str, code: &str) {
 
 /// The quick info being written: tsgo's `displayPartsWriter`, whose
 /// classified runs a client with Visual Studio extensions gets.
-struct QuickInfo {
-    text: String,
+pub(crate) struct QuickInfo {
+    pub(crate) text: String,
     /// The runs, for a client with Visual Studio extensions.
-    runs: Option<Vec<VSClassifiedTextRun>>,
+    pub(crate) runs: Option<Vec<VSClassifiedTextRun>>,
     alias_level: u32,
     declaration: Option<NodeId>,
 }
@@ -395,7 +395,7 @@ impl<'a> Request<'_, 'a> {
     }
 
     /// tsgo `getQuickInfoAndDeclarationAtLocation`.
-    fn quick_info_and_declaration_at_location(
+    pub(crate) fn quick_info_and_declaration_at_location(
         &mut self,
         symbol: Option<SymbolId>,
         node: Touching,
@@ -1396,7 +1396,7 @@ impl<'a> Request<'_, 'a> {
     }
 
     /// tsgo `getContainerNode`.
-    fn container_node(&self, node: Touching) -> Option<NodeId> {
+    pub(crate) fn container_node(&self, node: Touching) -> Option<NodeId> {
         let mut parent = self.parent(node);
         while let Some(current) = parent {
             if matches!(
@@ -1464,7 +1464,7 @@ impl<'a> Request<'_, 'a> {
     }
 
     /// tsgo `ast.IsImportMeta`.
-    fn is_import_meta(&self, node: NodeId) -> bool {
+    pub(crate) fn is_import_meta(&self, node: NodeId) -> bool {
         match &self.state.binder.node_record(node).data {
             NodeData::MetaProperty(meta) => {
                 meta.keyword_token == SyntaxKind::ImportKeyword
@@ -1507,7 +1507,7 @@ impl<'a> Request<'_, 'a> {
     }
 
     /// tsgo `ast.IsTagName`.
-    fn is_tag_name(&self, node: NodeId) -> bool {
+    pub(crate) fn is_tag_name(&self, node: NodeId) -> bool {
         let Some(parent) = self.state.binder.node_record(node).parent else {
             return false;
         };

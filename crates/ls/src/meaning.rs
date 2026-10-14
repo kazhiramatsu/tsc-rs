@@ -5,8 +5,9 @@
 
 use tsc_binder::containers::{get_module_instance_state, ModuleInstanceState};
 use tsc_binder::node_util;
+use tsc_checker::state::CheckResult;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{ModifierFlags, NodeFlags};
+use tsc_types::{ContextFlags, ModifierFlags, NodeFlags, TypeId};
 
 use crate::request::Request;
 use crate::utilities::Touching;
@@ -64,6 +65,12 @@ impl Request<'_, '_> {
             }
             return SemanticMeaning::VALUE;
         };
+        // tsgo reads a JSDoc name's reparsed clone (`GetReparsedNodeForNode`):
+        // a typedef's, a reparsed signature parameter's or a type literal
+        // property's name is a declaration's.
+        if let Some(Some(tag)) = self.state.jsdoc_reparsed_name(id) {
+            return self.meaning_from_declaration(tag);
+        }
         if self.is_in_right_side_of_internal_import_equals_declaration(id) {
             // import a = |b|; // Namespace
             // import a = |b.c|; // Value, type, namespace
@@ -135,7 +142,10 @@ impl Request<'_, '_> {
             | SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction
             | SyntaxKind::CatchClause
-            | SyntaxKind::JsxAttribute => SemanticMeaning::VALUE,
+            | SyntaxKind::JsxAttribute
+            // The reparsed property signature or parameter of a JSDoc tag.
+            | SyntaxKind::JSDocPropertyTag
+            | SyntaxKind::JSDocParameterTag => SemanticMeaning::VALUE,
             SyntaxKind::TypeParameter
             | SyntaxKind::InterfaceDeclaration
             | SyntaxKind::TypeAliasDeclaration
@@ -872,4 +882,188 @@ fn is_modifier_kind(kind: SyntaxKind) -> bool {
             | SyntaxKind::OutKeyword
             | SyntaxKind::OverrideKeyword
     )
+}
+
+impl Request<'_, '_> {
+    /// tsgo `getContextualTypeFromParent`.
+    pub(crate) fn contextual_type_from_parent(
+        &mut self,
+        node: NodeId,
+        flags: ContextFlags,
+    ) -> CheckResult<Option<TypeId>> {
+        let mut parent = self
+            .state
+            .binder
+            .node_record(node)
+            .parent
+            .expect("an expression's parent");
+        while self.node_kind(parent) == SyntaxKind::ParenthesizedExpression {
+            match self.state.binder.node_record(parent).parent {
+                Some(next) => parent = next,
+                None => break,
+            }
+        }
+        match &self.state.binder.node_record(parent).data {
+            NodeData::NewExpression(_) => {
+                self.state.language_service_contextual_type(parent, flags)
+            }
+            NodeData::BinaryExpression(data) => {
+                if data.operator_token.is_some_and(|operator| {
+                    crate::completions::is_equality_operator_kind(self.node_kind(operator))
+                }) {
+                    let other = if Some(node) == data.right {
+                        data.left
+                    } else {
+                        data.right
+                    };
+                    return match other {
+                        Some(other) => Ok(Some(self.state.get_type_at_location(other)?)),
+                        None => Ok(None),
+                    };
+                }
+                self.state.language_service_contextual_type(node, flags)
+            }
+            NodeData::CaseClause(_) => self.switched_type(parent),
+            _ => self.state.language_service_contextual_type(node, flags),
+        }
+    }
+
+    /// tsgo `getSwitchedType`.
+    pub(crate) fn switched_type(&mut self, case_clause: NodeId) -> CheckResult<Option<TypeId>> {
+        let switch = self
+            .state
+            .binder
+            .node_record(case_clause)
+            .parent
+            .and_then(|block| self.state.binder.node_record(block).parent)
+            .expect("a case clause's switch");
+        match &self.state.binder.node_record(switch).data {
+            NodeData::SwitchStatement(data) => match data.expression {
+                Some(expression) => Ok(Some(self.state.get_type_at_location(expression)?)),
+                None => Ok(None),
+            },
+            _ => Ok(None),
+        }
+    }
+
+    /// tsgo `getContextualTypeFromParentOrAncestorTypeNode`.
+    pub(crate) fn contextual_type_from_parent_or_ancestor_type_node(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<Option<TypeId>> {
+        if NodeFlags::from_bits(self.state.binder.node_record(node).flags)
+            .contains(NodeFlags::JS_DOC)
+            && !self.state.is_in_js_file(node)
+        {
+            return Ok(None);
+        }
+        if let Some(contextual_type) = self.contextual_type_from_parent(node, ContextFlags::NONE)? {
+            return Ok(Some(contextual_type));
+        }
+        if let Some(ancestor_type_node) = self.ancestor_type_node(node) {
+            return Ok(Some(self.state.get_type_at_location(ancestor_type_node)?));
+        }
+        Ok(None)
+    }
+
+    /// tsgo `getAncestorTypeNode`: the outermost type node of the type the
+    /// node is in.
+    fn ancestor_type_node(&self, node: NodeId) -> Option<NodeId> {
+        let mut last_type_node = None;
+        let mut current = Some(node);
+        while let Some(id) = current {
+            if crate::completions::is_type_node_kind(self.node_kind(id)) {
+                last_type_node = Some(id);
+            }
+            let parent = self.state.binder.node_record(id).parent;
+            let stop = match parent {
+                Some(parent) => {
+                    let kind = self.node_kind(parent);
+                    kind != SyntaxKind::QualifiedName
+                        && !crate::completions::is_type_node_kind(kind)
+                        && !crate::completions::is_type_element(kind)
+                }
+                None => true,
+            };
+            if stop {
+                break;
+            }
+            current = parent;
+        }
+        last_type_node
+    }
+}
+
+impl Request<'_, '_> {
+    /// tsgo `SourceFile.GetNameTable`: each identifier's (and name-like
+    /// literal's) text, with its position when it occurs once.
+    pub(crate) fn name_table(
+        &self,
+        source: &tsc_syntax::SourceFile,
+    ) -> std::collections::BTreeMap<String, Option<u32>> {
+        let mut table = std::collections::BTreeMap::<String, Option<u32>>::new();
+        let mut stack = vec![source.root];
+        let arena = &source.arena;
+        while let Some(node) = stack.pop() {
+            let record = arena.node(node);
+            let text = match record.kind {
+                SyntaxKind::Identifier if !self.is_tag_name(node) => {
+                    node_util::id_text(source, node)
+                        .filter(|text| !text.is_empty())
+                        .map(str::to_owned)
+                }
+                SyntaxKind::PrivateIdentifier => {
+                    node_util::id_text(source, node).map(str::to_owned)
+                }
+                SyntaxKind::StringLiteral
+                | SyntaxKind::NoSubstitutionTemplateLiteral
+                | SyntaxKind::NumericLiteral
+                    if self.literal_is_name(node) =>
+                {
+                    node_util::literal_text_of(source, node)
+                        .map(|text| text.to_string_lossy().into_owned())
+                }
+                _ => None,
+            };
+            if let Some(text) = text {
+                table
+                    .entry(text)
+                    .and_modify(|pos| *pos = None)
+                    .or_insert(Some(record.pos));
+            }
+            let mut children = Vec::new();
+            tsc_syntax::for_each_child(arena, record, |child| {
+                children.push(child);
+                false
+            });
+            if let Some(js_doc) = record.js_doc {
+                children.extend(arena.node_array(js_doc).nodes.iter().copied());
+            }
+            stack.extend(children.into_iter().rev());
+        }
+        table
+    }
+
+    /// tsgo `literalIsName`.
+    fn literal_is_name(&self, node: NodeId) -> bool {
+        self.is_declaration_name(node)
+            || self
+                .state
+                .binder
+                .node_record(node)
+                .parent
+                .is_some_and(|parent| match &self.state.binder.node_record(parent).data {
+                    NodeData::ExternalModuleReference(_) => true,
+                    NodeData::ElementAccessExpression(data) => {
+                        data.argument_expression == Some(node)
+                    }
+                    NodeData::ComputedPropertyName(_) => self
+                        .state
+                        .binder
+                        .node_record(parent)
+                        .parent
+                        .is_some_and(|declaration| self.name_of(declaration) == Some(parent)),
+                    _ => false,
+                })
+    }
 }
