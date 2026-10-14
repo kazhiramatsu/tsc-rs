@@ -185,9 +185,9 @@ impl LanguageService<'_> {
 
 /// tsgo `getQuickInfoAndDocumentationForSymbol`'s results.
 #[derive(Default)]
-struct QuickInfoAndDocumentation {
-    quick_info: String,
-    documentation: String,
+pub(crate) struct QuickInfoAndDocumentation {
+    pub(crate) quick_info: String,
+    pub(crate) documentation: String,
     vs_documentation: String,
     runs: Vec<VSClassifiedTextRun>,
 }
@@ -360,7 +360,7 @@ impl<'a> Request<'_, 'a> {
     /// documentation and, for a client with Visual Studio extensions, the
     /// plain JSDoc summary (Visual Studio renders no Markdown or tags) and
     /// the quick info's classified runs.
-    fn quick_info_and_documentation(
+    pub(crate) fn quick_info_and_documentation(
         &mut self,
         symbol: Option<SymbolId>,
         node: Touching,
