@@ -1316,6 +1316,16 @@ impl Printer {
     }
 }
 
+/// tsgo `RangeIsOnSingleLine`: the range's first token and its end are on
+/// one line of `source` (positions `u32::MAX` for none).
+pub fn range_is_on_single_line(source: &tsc_syntax::SourceFile, pos: u32, end: u32) -> bool {
+    Printer::lines_between_positions(
+        source,
+        Printer::start_position_of_range(source, pos, false),
+        Printer::raw_position(end),
+    ) == 0
+}
+
 pub fn create_printer(options: PrinterOptions) -> Printer {
     Printer {
         options,
@@ -9857,11 +9867,7 @@ impl Printer {
 
     /// tsgo `RangeIsOnSingleLine`.
     fn range_is_on_single_line(source: &tsc_syntax::SourceFile, record: &tsc_syntax::Node) -> bool {
-        Self::lines_between_positions(
-            source,
-            Self::start_position_of_range(source, record.pos, false),
-            Self::raw_position(record.end),
-        ) == 0
+        range_is_on_single_line(source, record.pos, record.end)
     }
 
     /// tsgo `siblingNodePositionsAreComparable`: two siblings in source

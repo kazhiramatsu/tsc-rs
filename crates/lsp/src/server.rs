@@ -1063,6 +1063,18 @@ impl Server {
             .map_err(language_service_failure)
     }
 
+    /// tsgo `handleCodeAction`.
+    fn handle_code_action(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::CodeActionParams,
+    ) -> Result<lsproto::CodeActionResponse, Failure> {
+        service
+            .provide_code_actions(&params)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo `handleDocumentOnTypeFormat`.
     fn handle_document_on_type_format(
         self: &Arc<Self>,
@@ -1507,6 +1519,10 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentOnTypeFormattingInfo>(
             &mut handlers,
             Server::handle_document_on_type_format,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentCodeActionInfo>(
+            &mut handlers,
+            Server::handle_code_action,
         );
         register_notification::<lsproto::CustomSetLogVerbosityInfo>(
             &mut handlers,

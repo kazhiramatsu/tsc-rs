@@ -2872,6 +2872,8 @@ pub fn skip_trivia(text: &str, start: usize) -> usize {
 /// tsgo `SkipTriviaOptions`.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SkipTriviaOptions {
+    /// Stop after the first line break (`\r\n` is one).
+    pub stop_after_line_break: bool,
     /// Stop at a comment instead of skipping it.
     pub stop_at_comments: bool,
     /// Inside a JSDoc comment: skip one `*` after each line break.
@@ -2897,6 +2899,12 @@ pub fn skip_trivia_ex(text: &str, start: usize, options: SkipTriviaOptions) -> u
         };
         if ch == '\r' || ch == '\n' {
             pos += 1;
+            if ch == '\r' && text.as_bytes().get(pos) == Some(&b'\n') {
+                pos += 1;
+            }
+            if options.stop_after_line_break {
+                return pos;
+            }
             can_consume_star = options.in_js_doc;
             continue;
         }
