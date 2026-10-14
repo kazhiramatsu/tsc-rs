@@ -7,6 +7,8 @@ pub mod astnav;
 mod completions;
 mod definition;
 mod diagnostics;
+mod format;
+mod formatting;
 mod hover;
 mod hovericon;
 mod jsdoc;
