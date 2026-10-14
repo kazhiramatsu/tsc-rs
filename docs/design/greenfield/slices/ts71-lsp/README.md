@@ -503,3 +503,26 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 - **有界の違い**：`TestCompletionForStringLiteralNonrelativeImport2`（同じ名前の `repeated.ts` と `repeated.d.ts` の
   どちらの拡張子を残すかが tsgo の実行ごとに変わる。`scripts/lsp_transcripts.py` が非決定として扱う）。content mapper の
   file の path completion（L10）、L4d、L4e、L5、L8。
+
+## L4d JSDoc の completion（PR #788）
+
+- **merge**：#788 → `91d20e42b`（hosted run 38486266220：rust 12m21s、conformance 29m56s、gates）。commit：b5bc6f8b0
+  （parser）、8efdd5fb7（JSDoc completion）、ratchet b27a449b6。
+- **言語 service**（`crates/ls/src/completions/jsdoc.rs`）：tag 名の位置では JSDoc の tag 名（comment の行頭なら `@`
+  付き）と、tag のない各 parameter の `@param` tag（JavaScript では既定値の型、分割代入の parameter は property 付きの
+  `@param {object}`。tsgo はここで snippet を出さない）。`@param` の名前の位置では、他の tag が持たない parameter 名。
+  `/**` の後では doc comment の template（`getDocCommentTemplateAtPosition`：宣言の parameter と、
+  `generateReturnInDocTemplate` なら `@returns`）。tsgo と同じく、本文のある閉じていない comment は ` */` を足して
+  file を parse し直す。snippet を受ける client には template を snippet にする。request は locale の message catalog
+  を持つ（template の detail `JSDoc comment`）。
+- **parser**：tsgo の `GetJSDocCommentRanges` は 4 文字未満の comment を落とすので、file 末尾の `/**` は JSDoc comment
+  ではない（`TestDocCommentTemplateEmptyFile`）。
+- **回帰 test**：`crates/ls/tests/completion.rs` に 9（計 65。tag 名と tag、関数のない `@param`、parameter 名、
+  JavaScript の既定値と分割代入、変数文の template（parse し直し）、snippet の template、字下げされた method、
+  短い閉じていない comment）。
+- **検査（b27a449b6）**：conformance 0 regressions（全 13,577 full、489 s。parser の修正で動く configuration はない）、
+  suites 0 regressions（lsp 1,665 full、completion 2,044/2,419、15 行が none→full）、API client sync 337/356・async
+  346/365、test（syntax 228、checker 1,797、ls 131、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。
+  checker の変更はないので `--checkers 4` はなし。
+- **有界の違い**：`completionItem/resolve`（L4e）、auto-import（L5）、formatter が要る snippet（L8）、content mapper
+  の file（L10）。
