@@ -683,7 +683,12 @@ pub(crate) fn has_declaration_data(kind: SyntaxKind) -> bool {
 
 /// A function-like node's parameters (tsgo `Node.Parameters()`).
 pub(crate) fn parameters_of(state: &CheckerState<'_>, node: NodeId) -> Vec<NodeId> {
-    let list = match &state.binder.node_record(node).data {
+    parameters_in(state.binder.source_of_node(node), node)
+}
+
+/// A function-like node's parameters in a parse of its file.
+pub(crate) fn parameters_in(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
+    let list = match &source.arena.node(node).data {
         NodeData::FunctionDeclaration(data) => data.parameters,
         NodeData::FunctionExpression(data) => data.parameters,
         NodeData::ArrowFunction(data) => data.parameters,
@@ -700,6 +705,6 @@ pub(crate) fn parameters_of(state: &CheckerState<'_>, node: NodeId) -> Vec<NodeI
         NodeData::JSDocFunctionType(data) => data.parameters,
         _ => None,
     };
-    list.map(|list| state.binder.node_array(list).nodes.to_vec())
+    list.map(|list| source.arena.node_array(list).nodes.to_vec())
         .unwrap_or_default()
 }

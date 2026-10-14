@@ -1379,7 +1379,7 @@ impl Completions<'_, '_, '_> {
 
     /// tsgo `lsutil.GetQuotePreference`: the preference, else the first
     /// import's quote.
-    fn quote_preference(&self) -> QuotePreference {
+    pub(super) fn quote_preference(&self) -> QuotePreference {
         let preference = self.request.preferences.quote_preference;
         if preference != QuotePreference::UNKNOWN && preference != QuotePreference::AUTO {
             if preference == QuotePreference::SINGLE {
@@ -1735,6 +1735,6 @@ fn syntax_requires_trailing_semicolon_or_asi(kind: SyntaxKind) -> bool {
 }
 
 /// tsgo `escapeSnippetText`.
-fn escape_snippet_text(text: &str) -> String {
+pub(super) fn escape_snippet_text(text: &str) -> String {
     text.replace('$', "\\$")
 }

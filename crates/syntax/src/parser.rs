@@ -483,8 +483,11 @@ fn jsdoc_comment_ranges(text: &str, kind: SyntaxKind, pos: usize) -> Vec<(usize,
     } else {
         comment_ranges(text, pos, false)
     };
-    ranges.retain(|&(start, _)| {
-        text.as_bytes().get(start + 1) == Some(&b'*')
+    // tsgo `GetJSDocCommentRanges`: a comment of at least four characters
+    // starting with `/**`, but no `/**/`.
+    ranges.retain(|&(start, end)| {
+        end - start >= 4
+            && text.as_bytes().get(start + 1) == Some(&b'*')
             && text.as_bytes().get(start + 2) == Some(&b'*')
             && text.as_bytes().get(start + 3) != Some(&b'/')
     });

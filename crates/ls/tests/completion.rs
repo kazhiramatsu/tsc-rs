@@ -2929,3 +2929,269 @@ fn file_names_with_typescript_extensions() {
         ),
     );
 }
+/// The JSDoc tag names after an at sign.
+#[test]
+fn jsdoc_tag_names_after_an_at_sign() {
+    let files = [
+        ("/Foo.js", "/** @ */\nvar v1;\n\n/** @p */\nvar v2;\n\n/** @param  */\nvar v3;\n\n/** @param { n } bar */\nvar v4;\n\n/** @type { n } */\nvar v5;\n\n// @\nvar v6;\n\n// @pa\nvar v7;\n\n/** @return { n } */\nvar v8;\n\n/**  */\n\n/**\n \n*/\n\n/**\n * \n */\n\n/**\n          \n */\n\n/**\n  *       \n  */\n\n/**\n  * some comment \n  */\n\n/**\n  * @param \n  */\n\n/** @param  */\n\n/**\n  * jsdoc inline tag {@}\n  */"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.allow_js = true;
+        })
+    };
+    let response = completion(&files, compiler_options(), "/Foo.js", (3, 6), None);
+    assert_eq!(response["items"].as_array().map(Vec::len), Some(84));
+    assert_eq!(
+        response["itemDefaults"],
+        tsgo(r#"{"commitCharacters": [".", ",", ";"]}"#)
+    );
+    assert_eq!(
+        item(&response, "abstract"),
+        tsgo(
+            r#"{"label": "abstract", "kind": 14, "sortText": "11", "data": {"fileName": "/Foo.js", "position": 24, "name": "abstract"}}"#
+        )
+    );
+    assert_eq!(
+        item(&response, "param"),
+        tsgo(
+            r#"{"label": "param", "kind": 14, "sortText": "11", "data": {"fileName": "/Foo.js", "position": 24, "name": "param"}}"#
+        )
+    );
+    assert_eq!(
+        item(&response, "yields"),
+        tsgo(
+            r#"{"label": "yields", "kind": 14, "sortText": "11", "data": {"fileName": "/Foo.js", "position": 24, "name": "yields"}}"#
+        )
+    );
+}
+
+/// The JSDoc tags, at sign and name, where a line of the comment begins.
+#[test]
+fn jsdoc_tags_at_the_start_of_a_line() {
+    let files = [
+        ("/Foo.js", "/** @ */\nvar v1;\n\n/** @p */\nvar v2;\n\n/** @param  */\nvar v3;\n\n/** @param { n } bar */\nvar v4;\n\n/** @type { n } */\nvar v5;\n\n// @\nvar v6;\n\n// @pa\nvar v7;\n\n/** @return { n } */\nvar v8;\n\n/**  */\n\n/**\n \n*/\n\n/**\n * \n */\n\n/**\n          \n */\n\n/**\n  *       \n  */\n\n/**\n  * some comment \n  */\n\n/**\n  * @param \n  */\n\n/** @param  */\n\n/**\n  * jsdoc inline tag {@}\n  */"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.allow_js = true;
+        })
+    };
+    let response = completion(&files, compiler_options(), "/Foo.js", (24, 4), None);
+    assert_eq!(response["items"].as_array().map(Vec::len), Some(84));
+    assert_eq!(
+        response["itemDefaults"],
+        tsgo(r#"{"commitCharacters": [".", ",", ";"]}"#)
+    );
+    assert_eq!(
+        item(&response, "@abstract"),
+        tsgo(
+            r#"{"label": "@abstract", "kind": 14, "sortText": "11", "data": {"fileName": "/Foo.js", "position": 186, "name": "@abstract"}}"#
+        )
+    );
+    assert_eq!(
+        item(&response, "@param"),
+        tsgo(
+            r#"{"label": "@param", "kind": 14, "sortText": "11", "data": {"fileName": "/Foo.js", "position": 186, "name": "@param"}}"#
+        )
+    );
+    assert_eq!(
+        item(&response, "@yields"),
+        tsgo(
+            r#"{"label": "@yields", "kind": 14, "sortText": "11", "data": {"fileName": "/Foo.js", "position": 186, "name": "@yields"}}"#
+        )
+    );
+}
+
+/// The names after an @param tag of no function.
+#[test]
+fn no_jsdoc_completions_after_a_parameter_tag() {
+    let files = [
+        ("/Foo.js", "/** @ */\nvar v1;\n\n/** @p */\nvar v2;\n\n/** @param  */\nvar v3;\n\n/** @param { n } bar */\nvar v4;\n\n/** @type { n } */\nvar v5;\n\n// @\nvar v6;\n\n// @pa\nvar v7;\n\n/** @return { n } */\nvar v8;\n\n/**  */\n\n/**\n \n*/\n\n/**\n * \n */\n\n/**\n          \n */\n\n/**\n  *       \n  */\n\n/**\n  * some comment \n  */\n\n/**\n  * @param \n  */\n\n/** @param  */\n\n/**\n  * jsdoc inline tag {@}\n  */"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.allow_js = true;
+        })
+    };
+    assert_eq!(
+        completion(&files, compiler_options(), "/Foo.js", (6, 11), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": []}"#
+        ),
+    );
+}
+
+/// The parameter names an @param tag may take, less those tagged and those not starting with the name written.
+#[test]
+fn jsdoc_parameter_names() {
+    let files = [
+        ("/jsdocParameterNameCompletion.ts", "/**\n * @param \n */\nfunction f(foo, bar) {}\n/**\n * @param foo\n * @param \n */\nfunction g(foo, bar) {}\n/**\n * @param can\n * @param cantaloupe\n */\nfunction h(cat, canary, canoodle, cantaloupe, zebra) {}\n/**\n * @param  {string} \n */\nfunction i(foo, bar) {}"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/jsdocParameterNameCompletion.ts",
+            (1, 10),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "foo", "kind": 6, "sortText": "11", "data": {"fileName": "/jsdocParameterNameCompletion.ts", "position": 14, "name": "foo"}}, {"label": "bar", "kind": 6, "sortText": "11", "data": {"fileName": "/jsdocParameterNameCompletion.ts", "position": 14, "name": "bar"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/jsdocParameterNameCompletion.ts",
+            (15, 10),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "foo", "kind": 6, "sortText": "11", "data": {"fileName": "/jsdocParameterNameCompletion.ts", "position": 213, "name": "foo"}}, {"label": "bar", "kind": 6, "sortText": "11", "data": {"fileName": "/jsdocParameterNameCompletion.ts", "position": 213, "name": "bar"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/jsdocParameterNameCompletion.ts",
+            (15, 20),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "foo", "kind": 6, "sortText": "11", "data": {"fileName": "/jsdocParameterNameCompletion.ts", "position": 223, "name": "foo"}}, {"label": "bar", "kind": 6, "sortText": "11", "data": {"fileName": "/jsdocParameterNameCompletion.ts", "position": 223, "name": "bar"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/jsdocParameterNameCompletion.ts",
+            (6, 10),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "bar", "kind": 6, "sortText": "11", "data": {"fileName": "/jsdocParameterNameCompletion.ts", "position": 71, "name": "bar"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/jsdocParameterNameCompletion.ts",
+            (10, 13),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "canary", "kind": 6, "sortText": "11", "data": {"fileName": "/jsdocParameterNameCompletion.ts", "position": 117, "name": "canary"}}, {"label": "canoodle", "kind": 6, "sortText": "11", "data": {"fileName": "/jsdocParameterNameCompletion.ts", "position": 117, "name": "canoodle"}}]}"#
+        ),
+    );
+}
+
+/// The @param tags of a JavaScript function's untagged parameters: the type of a default, a destructured parameter's properties.
+#[test]
+fn jsdoc_parameter_tags_of_javascript_parameters() {
+    let files = [
+        ("/file.js", "/**\n * @\n */\nfunction foo(x) {\n  return x + 1;\n}\n  \n/**\n * \n */\nfunction bar(x, { y }) {\n  return x + y;\n}\n\n/**\n * @param {number} x\n * \n */\nfunction baz(x, { y }) {\n  return x + y;\n}\n\n/**\n * @param {number} x\n * @param {object} param1 \n * @param {n} param1.y \n */\nfunction baz(x, { y }) {\n  return x + y;\n}\n\n/**\n * @\n */\nfunction baz(x = 0) {\n  return x * 2;\n}\n"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.allow_js = true;
+        })
+    };
+    let response = completion(&files, compiler_options(), "/file.js", (1, 4), None);
+    assert_eq!(response["items"].as_array().map(Vec::len), Some(85));
+    assert_eq!(
+        response["itemDefaults"],
+        tsgo(r#"{"commitCharacters": [".", ",", ";"]}"#)
+    );
+    assert_eq!(
+        item(&response, "param {*} x "),
+        tsgo(
+            r#"{"label": "param {*} x ", "kind": 6, "sortText": "11", "data": {"fileName": "/file.js", "position": 8, "name": "param {*} x "}}"#
+        )
+    );
+}
+
+/// The doc comment template after /** before a variable statement, the file parsed again with the comment closed.
+#[test]
+fn doc_comment_template_of_a_variable_statement() {
+    let files = [
+        ("/docCommentTemplateVariableStatements01.ts", "/**\nvar a = 10;\n\n\nlet b = \"\";\n\n\nconst c = 30;\n\n\nlet d = {\n    foo: 10,\n    bar: \"20\"\n};\n\n\nlet e = function e(x, y, z) {\n    return +(x + y + z);\n};\n\n\nlet f = class F {\n    constructor(a, b, c) {\n        this.a = a;\n        this.b = b || (this.c = c);\n    }\n}"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion_with(
+            &files,
+            compiler_options(),
+            UserPreferences::new_default(),
+            false,
+            "/docCommentTemplateVariableStatements01.ts",
+            (0, 3),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "items": [{"label": "/** */", "kind": 1, "detail": "JSDoc comment", "sortText": "\u0000", "textEdit": {"newText": "/** */", "insert": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 3}}, "replace": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 3}}}, "commitCharacters": [], "data": {"fileName": "/docCommentTemplateVariableStatements01.ts", "position": 3, "name": "/** */"}}]}"#
+        ),
+    );
+}
+
+/// The doc comment template of a function as a snippet with its parameters.
+#[test]
+fn doc_comment_template_snippet_of_a_function() {
+    let files = [(
+        "/jSDocSnippetCompletionForFunction.ts",
+        "/** */\nfunction abcdef(x, y) { }\n",
+    )];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion_with(
+            &files,
+            compiler_options(),
+            UserPreferences::default(),
+            true,
+            "/jSDocSnippetCompletionForFunction.ts",
+            (0, 3),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "items": [{"label": "/** */", "kind": 1, "detail": "JSDoc comment", "sortText": "\u0000", "insertTextFormat": 2, "textEdit": {"newText": "/**\n * $0\n * @param x ${1}\n * @param y ${2}\n */", "insert": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 6}}, "replace": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 6}}}, "commitCharacters": [], "data": {"fileName": "/jSDocSnippetCompletionForFunction.ts", "position": 3, "name": "/** */"}}]}"#
+        ),
+    );
+}
+
+/// The doc comment template of a class method, indented like the line.
+#[test]
+fn doc_comment_template_of_a_method() {
+    let files = [
+        ("/docCommentTemplateClassDeclMethods02.ts", "class C {\n    /**\n    [Symbol.iterator]() {\n        return undefined;\n    }\n    \n    [1 + 2 + 3 + Math.rand()](x: number, y: string, z = true) { }\n}"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion_with(
+            &files,
+            compiler_options(),
+            UserPreferences::new_default(),
+            false,
+            "/docCommentTemplateClassDeclMethods02.ts",
+            (1, 7),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "items": [{"label": "/** */", "kind": 1, "detail": "JSDoc comment", "sortText": "\u0000", "textEdit": {"newText": "/**\n     * \n     * @returns\n     */", "insert": {"start": {"line": 1, "character": 4}, "end": {"line": 1, "character": 7}}, "replace": {"start": {"line": 1, "character": 4}, "end": {"line": 1, "character": 7}}}, "commitCharacters": [], "data": {"fileName": "/docCommentTemplateClassDeclMethods02.ts", "position": 17, "name": "/** */"}}]}"#
+        ),
+    );
+}
+/// A /** that ends the file is no JSDoc comment (tsgo parses none under four characters): no completions.
+#[test]
+fn no_completions_in_a_short_unterminated_comment() {
+    let files = [("/emptyFile.ts", "/**")];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(&files, compiler_options(), "/emptyFile.ts", (0, 3), None),
+        tsgo(r#"null"#),
+    );
+}

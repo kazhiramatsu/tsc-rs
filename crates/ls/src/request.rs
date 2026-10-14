@@ -24,6 +24,8 @@ pub(crate) struct Request<'s, 'a> {
     pub(crate) capabilities: &'s ResolvedClientCapabilities,
     /// The snapshot's files and file system (tsgo `l.host`).
     pub(crate) host: &'s dyn Host,
+    /// The messages of the request's locale.
+    pub(crate) catalog: Option<&'s dyn tsc_diagnostics::MessageCatalog>,
 }
 
 impl LanguageService<'_> {
@@ -41,6 +43,7 @@ impl LanguageService<'_> {
         let preferences = self.user_preferences_ref();
         let capabilities = self.capabilities;
         let host = self.host;
+        let catalog = self.catalog;
         let source_maps = SourceMaps::new(host, converters);
         let prepared = self.program.shared_prepared();
         let result = self.program.with_query_checker(|state| {
@@ -55,6 +58,7 @@ impl LanguageService<'_> {
                 preferences,
                 capabilities,
                 host,
+                catalog,
             };
             run(&mut request, position)
         });
