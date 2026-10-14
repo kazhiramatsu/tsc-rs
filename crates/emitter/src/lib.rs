@@ -83,8 +83,9 @@ pub use position::{
     SourceByteRange, SourcePositionError, SourceRange, SourceUtf16Location, SourceUtf16Position,
 };
 pub use printer::{
-    create_printer, escape_string, range_is_on_single_line, LiteralQuote, PrintRequest,
-    PrintedText, Printer, PrinterError, PrinterOptions, SourceFileTextMode, StandaloneWriter,
+    create_printer, escape_string, is_pinned_comment, is_recognized_triple_slash_comment,
+    range_is_on_single_line, LiteralQuote, PrintRequest, PrintedText, Printer, PrinterError,
+    PrinterOptions, SourceFileTextMode, StandaloneWriter,
 };
 pub use resolver::{
     EmitAccessorDeclarations, EmitExportContainerMode, EmitFunctionProperty,

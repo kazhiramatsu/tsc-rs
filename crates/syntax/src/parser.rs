@@ -401,11 +401,7 @@ pub fn comment_ranges(text: &str, pos: usize, trailing: bool) -> Vec<(usize, usi
     let mut pending = None;
     if cursor == 0 {
         collecting = true;
-        if text.starts_with("#!") {
-            cursor = text
-                .find(['\n', '\r', '\u{2028}', '\u{2029}'])
-                .unwrap_or(text.len());
-        }
+        cursor = crate::scanner::get_shebang(text).len();
     }
     'scan: while cursor < text.len() {
         let ch = text[cursor..]
@@ -790,12 +786,7 @@ fn leading_reference_directives(text: &str) -> RawReferenceDirectives {
         Some((RawReferenceDirective::Invalid, None))
     }
 
-    let mut offset = 0;
-    if text.starts_with("#!") {
-        offset = text
-            .find(['\n', '\r', '\u{2028}', '\u{2029}'])
-            .unwrap_or(text.len());
-    }
+    let mut offset = crate::scanner::get_shebang(text).len();
     let mut directives = RawReferenceDirectives::default();
     loop {
         offset = skip_leading_comment_whitespace(text, offset);
