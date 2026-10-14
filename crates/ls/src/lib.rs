@@ -23,6 +23,8 @@ pub mod lsutil;
 mod meaning;
 mod organize_imports;
 pub mod references;
+mod rename;
+pub use rename::RenameInfo;
 mod request;
 mod source_map;
 pub mod tree;
