@@ -5773,7 +5773,11 @@ impl<'a> CheckerState<'a> {
         in_initial_entity_name: bool,
         use_alias_defined_outside_current_scope: bool,
         enclosing: Option<NodeId>,
-    ) -> JsString {
+    ) -> NameAsWritten {
+        let named = |name: JsString| NameAsWritten {
+            name,
+            anonymous: false,
+        };
         let declarations = self.binder.symbol(symbol).declarations.clone();
         if self.binder.symbol(symbol).escaped_name == tsc_types::InternalSymbolName::DEFAULT
             && !use_alias_defined_outside_current_scope
@@ -5787,7 +5791,7 @@ impl<'a> CheckerState<'a> {
                         != self.default_binding_context(enclosing)
                 }))
         {
-            return tsc_types::InternalSymbolName::DEFAULT.into();
+            return named(tsc_types::InternalSymbolName::DEFAULT.into());
         }
 
         if !declarations.is_empty() {
@@ -5799,7 +5803,7 @@ impl<'a> CheckerState<'a> {
                 .is_some()
             });
             if named_declaration.is_some() {
-                return self.symbol_name_as_written(symbol);
+                return named(self.symbol_name_as_written(symbol));
             }
 
             let declaration = declarations[0];
@@ -5811,25 +5815,35 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(parent) == SyntaxKind::VariableDeclaration {
                     let source = self.binder.source_of_node(parent);
                     if let Some(name) = node_util::get_name_of_declaration(source, parent) {
-                        return node_util::declaration_name_to_string(source, Some(name)).into();
+                        return named(
+                            node_util::declaration_name_to_string(source, Some(name)).into(),
+                        );
                     }
                 }
             }
-            match self.kind_of(declaration) {
-                SyntaxKind::ClassExpression => return "(Anonymous class)".into(),
+            let anonymous = match self.kind_of(declaration) {
+                SyntaxKind::ClassExpression => Some("(Anonymous class)"),
                 SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => {
-                    return "(Anonymous function)".into();
+                    Some("(Anonymous function)")
                 }
-                _ => {}
+                _ => None,
+            };
+            if let Some(name) = anonymous {
+                return NameAsWritten {
+                    name: name.into(),
+                    anonymous: true,
+                };
             }
         }
-        self.symbol_name_from_name_type(
-            symbol,
-            in_initial_entity_name,
-            use_alias_defined_outside_current_scope,
-            enclosing,
+        named(
+            self.symbol_name_from_name_type(
+                symbol,
+                in_initial_entity_name,
+                use_alias_defined_outside_current_scope,
+                enclosing,
+            )
+            .unwrap_or_else(|| self.symbol_display_name(symbol)),
         )
-        .unwrap_or_else(|| self.symbol_display_name(symbol))
     }
 
     /// getNameOfSymbolFromNameType (55523-55539): declarationless and
@@ -5878,12 +5892,14 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
             let name_symbol = self.tables.type_of(name_type).symbol?;
-            let name = self.entity_symbol_name_as_written(
-                name_symbol,
-                in_initial_entity_name,
-                use_alias_defined_outside_current_scope,
-                enclosing,
-            );
+            let name = self
+                .entity_symbol_name_as_written(
+                    name_symbol,
+                    in_initial_entity_name,
+                    use_alias_defined_outside_current_scope,
+                    enclosing,
+                )
+                .name;
             let mut bracketed = JsString::from("[");
             bracketed.push_js(name.as_js());
             bracketed.push(']');
@@ -7510,7 +7526,9 @@ impl<'a> CheckerState<'a> {
         }
 
         let mut parts = Vec::with_capacity(chain.len());
-        let root_name = self.entity_symbol_name_as_written(root, true, true, enclosing);
+        let root_name = self
+            .entity_symbol_name_as_written(root, true, true, enclosing)
+            .name;
         self.display_add_bare_symbol_length(&root_name);
         parts.push(root_name);
         for index in 1..chain.len() {
@@ -7628,8 +7646,9 @@ impl<'a> CheckerState<'a> {
             // getNameOfSymbolAsWritten at the root, then export-table
             // naming below it.
             let mut parts = Vec::with_capacity(chain.len());
-            let root_name =
-                self.entity_symbol_name_as_written(root, true, false, self.display_enclosing);
+            let root_name = self
+                .entity_symbol_name_as_written(root, true, false, self.display_enclosing)
+                .name;
             self.display_add_bare_symbol_length(&root_name);
             parts.push(root_name);
             for index in 1..chain.len() {
@@ -7653,12 +7672,9 @@ impl<'a> CheckerState<'a> {
             });
         }
         // 53186-53197 with the [symbol] chain: the bare-name face.
-        let name = self.entity_symbol_name_as_written(
-            symbol,
-            true,
-            !fully_qualified,
-            self.display_enclosing,
-        );
+        let name = self
+            .entity_symbol_name_as_written(symbol, true, !fully_qualified, self.display_enclosing)
+            .name;
         self.display_add_bare_symbol_length(&name);
         Ok(if is_type_of {
             (
@@ -7707,8 +7723,9 @@ impl<'a> CheckerState<'a> {
         };
         let mut expression = JsString::new();
         for (index, &link) in chain.iter().enumerate() {
-            let mut name =
-                self.entity_symbol_name_as_written(link, index == 0, !fully_qualified, enclosing);
+            let mut name = self
+                .entity_symbol_name_as_written(link, index == 0, !fully_qualified, enclosing)
+                .name;
             if index == 0 && self.symbol_has_external_module_declaration(link) {
                 let specifier = self.specifier_for_module_symbol_display(link)?;
                 expression = string_literal_name(&specifier, false)?.into();
@@ -8843,12 +8860,14 @@ impl<'a> CheckerState<'a> {
         if let Some(name) = self.exported_name_of_chain_link(parent, symbol)? {
             return Ok(name);
         }
-        Ok(self.entity_symbol_name_as_written(
-            symbol,
-            false,
-            use_alias_defined_outside_current_scope,
-            enclosing,
-        ))
+        Ok(self
+            .entity_symbol_name_as_written(
+                symbol,
+                false,
+                use_alias_defined_outside_current_scope,
+                enclosing,
+            )
+            .name)
     }
 
     fn symbol_has_declaration_of_kind(&self, symbol: SymbolId, kind: SyntaxKind) -> bool {
@@ -14589,3 +14608,12 @@ impl crate::declaration_emit::DeclarationEmitAccessibilityPrimitives for Checker
 #[cfg(test)]
 #[path = "../tests/unit/check/tests.rs"]
 mod tests;
+
+/// A symbol's name as tsgo's `getNameOfSymbolAsWritten` writes it, and
+/// whether it is an anonymous class or function's placeholder, which the
+/// node builder reports as an error unless anonymous identifiers are
+/// allowed.
+pub(crate) struct NameAsWritten {
+    pub(crate) name: JsString,
+    pub(crate) anonymous: bool,
+}

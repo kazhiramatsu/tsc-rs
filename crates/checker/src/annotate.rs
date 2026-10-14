@@ -4501,11 +4501,7 @@ impl<'a> CheckerState<'a> {
                 self.create_type_mapper(type_parameters.to_vec(), Some(type_arguments.to_vec()));
             mapper = Some(type_mapper);
             let declared_properties = self.members_of(source).properties.clone();
-            members = self.create_instantiated_symbol_table(
-                &declared_properties,
-                type_mapper,
-                /*mapping_this_only*/ type_parameters.len() == 1,
-            )?;
+            members = self.create_instantiated_symbol_table(&declared_properties, type_mapper)?;
             let declared_calls = self.members_of(source).call_signatures.clone();
             call_signatures = self.instantiate_signature_list(&declared_calls, type_mapper)?;
             let declared_constructs = self.members_of(source).construct_signatures.clone();
@@ -6796,25 +6792,18 @@ impl<'a> CheckerState<'a> {
 
     // ---- member instantiation ----
 
-    /// tsc-port: createInstantiatedSymbolTable @6.0.3
-    /// tsc-hash: 93ee5d54e22d588ad60edb5da39cc9b435088befbaeec8ff3d8acbcefe9edee5
-    /// tsc-span: _tsc.js:57580-57586
+    /// tsgo-port: Checker.createInstantiatedSymbolTable @7.1 (checker.go:21142-21151).
     fn create_instantiated_symbol_table(
         &mut self,
         symbols: &[SymbolId],
         mapper: crate::instantiate::MapperId,
-        mapping_this_only: bool,
     ) -> CheckResult<MemberTable> {
         // One table per instantiated object type: sized once instead of
         // rehashed while the members are inserted (VS Code: 1% of the
         // checker's self time was hashbrown growth).
         let mut result = MemberTable::with_capacity(symbols.len());
         for &symbol in symbols {
-            let value = if mapping_this_only && self.is_thisless(symbol) {
-                symbol
-            } else {
-                self.instantiate_symbol(symbol, mapper)
-            };
+            let value = self.instantiate_symbol(symbol, mapper);
             result.insert(&self.binder, value);
         }
         Ok(result)
@@ -6875,17 +6864,18 @@ impl<'a> CheckerState<'a> {
             })
     }
 
-    /// tsc-port: isThisless @6.0.3
-    /// tsc-hash: ba4574791e8b6cfcc0698b11a4a7bd78d67b08c1f80d3a66b0af8f24e1680405
-    /// tsc-span: _tsc.js:57561-57579
-    fn is_thisless(&self, symbol: SymbolId) -> bool {
+    /// tsgo-port: isThisless @7.1 (checker.go:21206-21221): a parameter
+    /// or a class or interface member free of `this` references.
+    pub(crate) fn is_thisless(&self, symbol: SymbolId) -> bool {
         let declarations = &self.binder.symbol(symbol).declarations;
         if declarations.len() != 1 {
             return false;
         }
         let declaration = declarations[0];
         match self.kind_of(declaration) {
-            SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature => {
+            SyntaxKind::Parameter
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature => {
                 self.is_thisless_variable_like_declaration(declaration)
             }
             SyntaxKind::MethodDeclaration
@@ -7070,11 +7060,7 @@ impl<'a> CheckerState<'a> {
                     .read_ty(ty, |links| links.instantiated_mapper)
                     .expect("Instantiated object flag implies links mapper");
                 let target_properties = state.get_properties_of_object_type_owned(target)?;
-                let members = state.create_instantiated_symbol_table(
-                    &target_properties,
-                    mapper,
-                    /*mapping_this_only*/ false,
-                )?;
+                let members = state.create_instantiated_symbol_table(&target_properties, mapper)?;
                 let target_calls =
                     state.get_signatures_of_type(target, crate::structural::SignatureKind::Call)?;
                 let call_signatures = state.instantiate_signature_list(&target_calls, mapper)?;
