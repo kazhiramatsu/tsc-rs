@@ -48,7 +48,7 @@ pub use nodes::{
 pub use observable_fields::{for_each_observable_field, ObservableField};
 pub use parser::{
     comment_ranges, is_entity_name_js_text, is_entity_name_text, is_identifier_text,
-    parse_entity_name_components, JSDocParsingMode, ParseOptions,
+    jsdoc_comment_ranges, parse_entity_name_components, JSDocParsingMode, ParseOptions,
 };
 pub use recovery::{
     MissingNodeRecovery, ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryAction,

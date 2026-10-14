@@ -4341,6 +4341,31 @@ impl<'arena> NodeFactory<'arena> {
         )
     }
 
+    /// tsgo `UpdateImportSpecifier`.
+    pub fn update_import_specifier(
+        &mut self,
+        original: TransformNode,
+        is_type_only: bool,
+        property_name: Option<TransformNode>,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ImportSpecifier(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ImportSpecifier,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.is_type_only == is_type_only
+            && data.property_name == property_name.map(TransformNode::node)
+            && data.name == Some(name.node)
+        {
+            return Ok(original);
+        }
+        let updated =
+            self.create_import_specifier(original.source, is_type_only, property_name, name)?;
+        self.finish_update(updated, original)
+    }
+
     /// tsc-port: createExportAssignment @6.0.3
     /// tsc-hash: ce4faa5df88ad7ee17d05b67cd4235cf005964aa029f49898c4b40039cbcf351
     /// tsc-span: _tsc.js:23606-23623

@@ -466,7 +466,8 @@ pub fn comment_ranges(text: &str, pos: usize, trailing: bool) -> Vec<(usize, usi
     ranges
 }
 
-fn jsdoc_comment_ranges(text: &str, kind: SyntaxKind, pos: usize) -> Vec<(usize, usize)> {
+/// tsgo `GetJSDocCommentRanges` of a node of `kind` at full start `pos`.
+pub fn jsdoc_comment_ranges(text: &str, kind: SyntaxKind, pos: usize) -> Vec<(usize, usize)> {
     let mut ranges = if matches!(
         kind,
         SyntaxKind::Parameter

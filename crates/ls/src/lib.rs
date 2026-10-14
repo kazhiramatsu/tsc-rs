@@ -4,6 +4,8 @@
 //! (`lsconv`).
 
 pub mod astnav;
+mod change;
+mod code_actions;
 mod completions;
 mod definition;
 mod diagnostics;
@@ -16,6 +18,7 @@ mod language_service;
 pub mod lsconv;
 pub mod lsutil;
 mod meaning;
+mod organize_imports;
 pub mod references;
 mod request;
 mod source_map;
