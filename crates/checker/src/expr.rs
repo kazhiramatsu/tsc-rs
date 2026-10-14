@@ -2462,20 +2462,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7101b7d0f1e607daa5a4ec5b194f7d3cfe15c24c30ebbdbb41a845dceaae5c7d
     /// tsc-span: _tsc.js:15752-15755
     pub(crate) fn get_class_extends_heritage_element(&self, node: NodeId) -> Option<NodeId> {
-        let heritage = match self.data_of(node) {
-            NodeData::ClassDeclaration(data) => data.heritage_clauses,
-            NodeData::ClassExpression(data) => data.heritage_clauses,
-            _ => return None,
-        };
-        for clause in self.nodes_of(heritage) {
-            if self.heritage_clause_is_extends(clause) {
-                let NodeData::HeritageClause(data) = self.data_of(clause) else {
-                    continue;
-                };
-                return self.nodes_of(data.types).first().copied();
-            }
-        }
-        None
+        tsc_binder::node_util::get_class_extends_heritage_element(
+            self.binder.source_of_node(node),
+            node,
+        )
     }
 
     /// tsc-port: checkSuperExpression @6.0.3

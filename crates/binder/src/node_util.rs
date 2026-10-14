@@ -1205,6 +1205,74 @@ pub fn get_text_of_jsx_namespaced_name(source: &SourceFile, id: NodeId) -> Optio
     ))
 }
 
+/// The heritage clauses of a class or interface declaration.
+fn heritage_clauses_of(source: &SourceFile, node: NodeId) -> &[NodeId] {
+    let clauses = match &source.arena.node(node).data {
+        NodeData::ClassDeclaration(data) => data.heritage_clauses,
+        NodeData::ClassExpression(data) => data.heritage_clauses,
+        NodeData::InterfaceDeclaration(data) => data.heritage_clauses,
+        _ => None,
+    };
+    clauses
+        .map(|clauses| source.arena.node_array(clauses).nodes)
+        .unwrap_or_default()
+}
+
+/// The types of a declaration's first heritage clause with `token`.
+fn heritage_clause_types(source: &SourceFile, node: NodeId, token: SyntaxKind) -> &[NodeId] {
+    heritage_clauses_of(source, node)
+        .iter()
+        .find_map(|&clause| match &source.arena.node(clause).data {
+            NodeData::HeritageClause(data) if data.token == token => Some(
+                data.types
+                    .map(|types| source.arena.node_array(types).nodes)
+                    .unwrap_or_default(),
+            ),
+            _ => None,
+        })
+        .unwrap_or_default()
+}
+
+/// tsgo `ast.GetClassExtendsHeritageElement`: the first type of a class's
+/// `extends` clause.
+pub fn get_class_extends_heritage_element(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    heritage_clause_types(source, node, SyntaxKind::ExtendsKeyword)
+        .first()
+        .copied()
+}
+
+/// tsgo `ast.GetImplementsHeritageClauseElements`: the types of a class's
+/// `implements` clause.
+pub fn get_implements_heritage_clause_elements(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
+    heritage_clause_types(source, node, SyntaxKind::ImplementsKeyword).to_vec()
+}
+
+/// tsgo `ast.IsThisParameter`: a parameter named `this`.
+pub fn is_this_parameter(source: &SourceFile, parameter: NodeId) -> bool {
+    let NodeData::Parameter(data) = &source.arena.node(parameter).data else {
+        return false;
+    };
+    data.name
+        .is_some_and(|name| match &source.arena.node(name).data {
+            NodeData::Identifier(identifier) => identifier.text() == "this",
+            _ => source.arena.node(name).kind == SyntaxKind::ThisKeyword,
+        })
+}
+
+/// tsgo `checker.GetSetAccessorValueParameter`: a set accessor's parameter
+/// after its `this` parameter, if any.
+pub fn get_set_accessor_value_parameter(source: &SourceFile, accessor: NodeId) -> Option<NodeId> {
+    let NodeData::SetAccessor(data) = &source.arena.node(accessor).data else {
+        return None;
+    };
+    let parameters = data
+        .parameters
+        .map(|parameters| source.arena.node_array(parameters).nodes)
+        .unwrap_or_default();
+    let has_this = parameters.len() == 2 && is_this_parameter(source, parameters[0]);
+    parameters.get(usize::from(has_this)).copied()
+}
+
 /// tsc getContainingClass (_tsc.js 14441): nearest ClassDeclaration or
 /// ClassExpression strictly above the node.
 pub fn get_containing_class(source: &SourceFile, id: NodeId) -> Option<NodeId> {

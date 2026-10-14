@@ -1293,6 +1293,7 @@ pub(crate) fn type_to_type_node_with_identifier_symbols(
     r#type: TypeId,
     enclosing_declaration: Option<NodeId>,
     flags: EmitNodeBuilderFlags,
+    internal_flags: Option<EmitInternalNodeBuilderFlags>,
 ) -> BuildResult<Option<(TransformNode, IdentifierSymbols)>> {
     with_context(
         checker,
@@ -1300,7 +1301,7 @@ pub(crate) fn type_to_type_node_with_identifier_symbols(
         target,
         enclosing_declaration,
         Some(flags),
-        None,
+        internal_flags,
         None,
         None,
         None,
@@ -1316,6 +1317,7 @@ pub(crate) fn type_to_type_node_with_identifier_symbols(
 /// tsgo `NewNodeBuilderEx(c, emitContext, idToSymbol)
 /// .SignatureToSignatureDeclaration` without a verbosity context: the
 /// declaration and the identifiers it names symbols with.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn signature_to_signature_declaration_with_identifier_symbols(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
@@ -1324,6 +1326,7 @@ pub(crate) fn signature_to_signature_declaration_with_identifier_symbols(
     kind: SyntaxKind,
     enclosing_declaration: Option<NodeId>,
     flags: EmitNodeBuilderFlags,
+    internal_flags: Option<EmitInternalNodeBuilderFlags>,
 ) -> BuildResult<Option<(TransformNode, IdentifierSymbols)>> {
     with_context(
         checker,
@@ -1331,7 +1334,7 @@ pub(crate) fn signature_to_signature_declaration_with_identifier_symbols(
         target,
         enclosing_declaration,
         Some(flags),
-        None,
+        internal_flags,
         None,
         None,
         None,

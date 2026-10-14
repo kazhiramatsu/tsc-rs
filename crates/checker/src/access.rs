@@ -3227,7 +3227,8 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
-    fn is_this_type_parameter(&self, ty: TypeId) -> bool {
+    /// tsgo `isThisTypeParameter`.
+    pub(crate) fn is_this_type_parameter(&self, ty: TypeId) -> bool {
         self.tables
             .flags_of(ty)
             .intersects(TypeFlags::TYPE_PARAMETER)

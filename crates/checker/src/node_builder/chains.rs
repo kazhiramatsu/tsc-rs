@@ -42,6 +42,7 @@ const WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME: u32 = 512;
 const USE_ONLY_EXTERNAL_ALIASING: u32 = 128;
 const USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE: u32 = 16_384;
 const ALLOW_QUALIFIED_NAME_IN_PLACE_OF_IDENTIFIER: u32 = 65_536;
+const ALLOW_ANONYMOUS_IDENTIFIER: u32 = 131_072;
 const IN_INITIAL_ENTITY_NAME: u32 = 16_777_216;
 const ALLOW_NODE_MODULES_RELATIVE_PATHS: u32 = 67_108_864;
 const FORBID_INDEXED_ACCESS_SYMBOL_REFERENCES: u32 = 16;
@@ -71,7 +72,7 @@ fn symbol_flags_for_meaning(meaning: EmitSymbolMeaning) -> SymbolFlags {
     }
 }
 
-pub(super) fn program_source_id(checker: &CheckerState<'_>, file_index: usize) -> SourceFileId {
+pub(crate) fn program_source_id(checker: &CheckerState<'_>, file_index: usize) -> SourceFileId {
     let raw = checker
         .authoritative_source_tokens
         .get(file_index)
@@ -93,7 +94,7 @@ fn enclosing_resolver_node(checker: &CheckerState<'_>, node: NodeId) -> EmitReso
 /// into `arena` on first use: the emitter mounts only the sources a
 /// transform reaches, while the node builder reuses declarations and type
 /// annotations from any file of the program.
-pub(super) fn project_parse_node(
+pub(crate) fn project_parse_node(
     checker: &CheckerState<'_>,
     arena: &mut TransformArena,
     node: NodeId,
@@ -1895,12 +1896,7 @@ fn create_access_from_symbol_chain(
     let parent = index.checked_sub(1).map(|index| chain[index]);
     let mut symbol_name = if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
-        let name = checker.entity_symbol_name_as_written(
-            symbol,
-            true,
-            has_flag(context, USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE),
-            context.enclosing_declaration,
-        );
+        let name = get_name_of_symbol_as_written(checker, context, symbol, true);
         add_approximate_length(context, js_len(&name) + 1);
         context.flags.0 ^= IN_INITIAL_ENTITY_NAME;
         Some(name)
@@ -1952,11 +1948,8 @@ fn create_access_from_symbol_chain(
             }
             return Ok(lhs);
         }
-        symbol_name = Some(checker.entity_symbol_name_as_written(
-            symbol,
-            false,
-            has_flag(context, USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE),
-            context.enclosing_declaration,
+        symbol_name = Some(get_name_of_symbol_as_written(
+            checker, context, symbol, false,
         ));
     }
     let symbol_name = symbol_name.expect("symbol name fallback is total");
@@ -2477,6 +2470,31 @@ pub(crate) fn type_parameter_to_name(
     Ok(result)
 }
 
+/// tsgo-port: NodeBuilderImpl.getNameOfSymbolAsWritten @7.1
+/// (nodebuilderimpl.go:974-1027): the checker's name as written; an
+/// anonymous class or function's placeholder is an error unless anonymous
+/// identifiers are allowed.
+fn get_name_of_symbol_as_written(
+    checker: &CheckerState<'_>,
+    context: &mut NodeBuilderContext<'_>,
+    symbol: SymbolId,
+    in_initial_entity_name: bool,
+) -> tsc_types::JsString {
+    let written = checker.entity_symbol_name_as_written(
+        symbol,
+        in_initial_entity_name,
+        has_flag(context, USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE),
+        context.enclosing_declaration,
+    );
+    if written.anonymous
+        && !context.encountered_error
+        && !has_flag(context, ALLOW_ANONYMOUS_IDENTIFIER)
+    {
+        context.encountered_error = true;
+    }
+    written.name
+}
+
 /// tsc-port: symbolToName @6.0.3
 /// tsc-hash: 8000600326491063f035e6aea718ffc812fadb6de27ef8661ac40f43f7f91d26
 /// tsc-span: _tsc.js:53315-53336
@@ -2517,12 +2535,7 @@ fn create_entity_name_from_symbol_chain(
     if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
     }
-    let name = checker.entity_symbol_name_as_written(
-        symbol,
-        index == 0,
-        has_flag(context, USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE),
-        context.enclosing_declaration,
-    );
+    let name = get_name_of_symbol_as_written(checker, context, symbol, index == 0);
     if index == 0 {
         context.flags.0 ^= IN_INITIAL_ENTITY_NAME;
     }
@@ -2584,12 +2597,7 @@ fn create_expression_from_symbol_chain(
     if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
     }
-    let mut name = checker.entity_symbol_name_as_written(
-        symbol,
-        index == 0,
-        has_flag(context, USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE),
-        context.enclosing_declaration,
-    );
+    let mut name = get_name_of_symbol_as_written(checker, context, symbol, index == 0);
     if index == 0 {
         context.flags.0 ^= IN_INITIAL_ENTITY_NAME;
     }

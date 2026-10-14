@@ -84,8 +84,8 @@ pub use position::{
 };
 pub use printer::{
     create_printer, escape_string, is_pinned_comment, is_recognized_triple_slash_comment,
-    range_is_on_single_line, LiteralQuote, PrintRequest, PrintedText, Printer, PrinterError,
-    PrinterOptions, SourceFileTextMode, StandaloneWriter,
+    range_is_on_single_line, range_start_positions_are_on_same_line, LiteralQuote, PrintRequest,
+    PrintedText, Printer, PrinterError, PrinterOptions, SourceFileTextMode, StandaloneWriter,
 };
 pub use resolver::{
     EmitAccessorDeclarations, EmitExportContainerMode, EmitFunctionProperty,
