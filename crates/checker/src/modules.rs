@@ -8488,7 +8488,7 @@ impl<'a> CheckerState<'a> {
     /// is_type_only mirrors tsc's derivation: true exactly for the
     /// TypeKeyword phase, so `import defer` (DeferKeyword phase) stays
     /// a value import here.
-    pub(crate) fn is_type_only_import_or_export_declaration(&self, node: NodeId) -> bool {
+    pub fn is_type_only_import_or_export_declaration(&self, node: NodeId) -> bool {
         match self.data_of(node) {
             NodeData::ImportSpecifier(data) => {
                 data.is_type_only
