@@ -1019,20 +1019,6 @@ impl Request<'_, '_> {
         }
     }
 
-    /// tsgo `Node.Members` of a class, interface or type literal.
-    fn members_of(&self, node: NodeId) -> Vec<NodeId> {
-        let members = match &self.state.binder.node_record(node).data {
-            NodeData::ClassDeclaration(data) => data.members,
-            NodeData::ClassExpression(data) => data.members,
-            NodeData::InterfaceDeclaration(data) => data.members,
-            NodeData::TypeLiteral(data) => data.members,
-            _ => None,
-        };
-        members
-            .map(|members| self.state.binder.node_array(members).nodes.to_vec())
-            .unwrap_or_default()
-    }
-
     /// tsgo `findModifier`.
     fn find_modifier(&self, node: NodeId, kind: SyntaxKind) -> Option<NodeId> {
         let source = self.state.binder.source_of_node(node);

@@ -1041,7 +1041,7 @@ pub fn get_non_assigned_name_of_declaration(source: &SourceFile, id: NodeId) -> 
 /// tsc-hash: 16b3160d83ab91d6d9c08811b7d3ef66bce1a84ccdde30ee5cac09babbc2bab7
 /// tsc-span: _tsc.js:11566-11580
 ///
-fn get_assigned_name(source: &SourceFile, id: NodeId) -> Option<NodeId> {
+pub fn get_assigned_name(source: &SourceFile, id: NodeId) -> Option<NodeId> {
     let parent = parent_of(source, id)?;
     match &source.arena.node(parent).data {
         NodeData::PropertyAssignment(data) => data.name,
@@ -1808,6 +1808,35 @@ pub fn body_of(source: &SourceFile, id: NodeId) -> Option<NodeId> {
         NodeData::SetAccessor(data) => data.body,
         NodeData::ClassStaticBlockDeclaration(data) => data.body,
         NodeData::ModuleDeclaration(data) => data.body,
+        _ => None,
+    }
+}
+
+/// tsgo `Node.Initializer()`.
+pub fn initializer_of(source: &SourceFile, id: NodeId) -> Option<NodeId> {
+    match &source.arena.node(id).data {
+        NodeData::VariableDeclaration(data) => data.initializer,
+        NodeData::Parameter(data) => data.initializer,
+        NodeData::BindingElement(data) => data.initializer,
+        NodeData::PropertyDeclaration(data) => data.initializer,
+        NodeData::PropertySignature(data) => data.initializer,
+        NodeData::PropertyAssignment(data) => data.initializer,
+        NodeData::EnumMember(data) => data.initializer,
+        NodeData::ForStatement(data) => data.initializer,
+        NodeData::ForInStatement(data) => data.initializer,
+        NodeData::ForOfStatement(data) => data.initializer,
+        NodeData::JsxAttribute(data) => data.initializer,
+        _ => None,
+    }
+}
+
+/// tsgo `Node.Members()` of a class, interface or type literal.
+pub fn members_of(source: &SourceFile, id: NodeId) -> Option<NodeArrayId> {
+    match &source.arena.node(id).data {
+        NodeData::ClassDeclaration(data) => data.members,
+        NodeData::ClassExpression(data) => data.members,
+        NodeData::InterfaceDeclaration(data) => data.members,
+        NodeData::TypeLiteral(data) => data.members,
         _ => None,
     }
 }

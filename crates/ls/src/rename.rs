@@ -5,7 +5,6 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use tsc_binder::node_util;
 use tsc_checker::state::CheckResult;
 use tsc_diagnostics::gen;
 use tsc_lsproto::{
@@ -128,12 +127,12 @@ impl Request<'_, '_> {
                                     .intersects(TypeFlags::STRING_LITERAL)
                             });
                     if string_literals {
-                        let text = self.literal_or_name_text(id);
+                        let text = self.node_text(Touching::Node(id));
                         return Ok(Some(self.rename_info_success(node, text)));
                     }
                 }
             } else if self.is_label_name(id) {
-                let text = self.literal_or_name_text(id);
+                let text = self.node_text(Touching::Node(id));
                 return Ok(Some(self.rename_info_success(node, text)));
             }
             return Ok(None);
@@ -164,12 +163,7 @@ impl Request<'_, '_> {
             }
         }
 
-        let display_name = self.state.symbol_to_string_with_flags(
-            symbol,
-            None,
-            SymbolFlags::ALL,
-            tsc_checker::SymbolFormatFlags::ALLOW_ANY_NODE_KIND,
-        )?;
+        let display_name = self.symbol_to_string(symbol)?;
         Ok(Some(self.rename_info_success(node, display_name)))
     }
 
@@ -191,7 +185,7 @@ impl Request<'_, '_> {
         // Cannot rename `default` as in `import { default as foo } from "./someModule"`
         if let Touching::Node(id) = node {
             if self.node_kind(id) == SyntaxKind::Identifier
-                && self.literal_or_name_text(id) == "default"
+                && self.node_text(Touching::Node(id)) == "default"
                 && self
                     .state
                     .binder
@@ -304,7 +298,7 @@ impl Request<'_, '_> {
         specifier: NodeId,
         module_symbol: SymbolId,
     ) -> CheckResult<RenameInfo> {
-        let text = self.literal_or_name_text(specifier);
+        let text = self.node_text(Touching::Node(specifier));
         if !crate::references::is_external_module_name_relative(&tsc_types::JsString::from(
             text.as_str(),
         )) {
@@ -530,7 +524,7 @@ impl Request<'_, '_> {
             {
                 let kind = entry.kind;
                 let parent = self.state.binder.node_record(node).parent;
-                let name = self.literal_or_name_text(original);
+                let name = self.node_text(Touching::Node(original));
                 let parent_data =
                     parent.map(|parent| self.state.binder.node_record(parent).data.clone());
                 let is_shorthand_assignment =
@@ -640,20 +634,6 @@ impl Request<'_, '_> {
         }
 
         Ok(new_text.to_owned())
-    }
-
-    /// tsgo `Node.Text` of an identifier or a string or numeric literal.
-    fn literal_or_name_text(&self, node: NodeId) -> String {
-        match &self.state.binder.node_record(node).data {
-            NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
-            NodeData::NoSubstitutionTemplateLiteral(data) => {
-                data.text.to_string_lossy().into_owned()
-            }
-            NodeData::NumericLiteral(data) => data.text.clone(),
-            _ => node_util::id_text(self.state.binder.source_of_node(node), node)
-                .unwrap_or_default()
-                .to_owned(),
-        }
     }
 }
 
