@@ -24,6 +24,7 @@ use super::{
     SymbolAndEntries,
 };
 use crate::astnav::Navigator;
+use crate::definition::Callee;
 use crate::meaning::SemanticMeaning;
 use crate::request::Request;
 use crate::tree::View;
@@ -218,7 +219,7 @@ fn get_references_for_string_literal(
     files: &[usize],
 ) -> CheckResult<Vec<SymbolAndEntries>> {
     let ty = request.contextual_type_from_parent_or_ancestor_type_node(node)?;
-    let text = literal_text(request, node);
+    let text = request.node_text(Touching::Node(node));
     let mut references = Vec::new();
     for &file in files {
         let source = request.state.binder.source(file);
@@ -227,7 +228,7 @@ fn get_references_for_string_literal(
                 continue;
             };
             if !is_string_literal_like(request.node_kind(reference))
-                || literal_text(request, reference) != text
+                || request.node_text(Touching::Node(reference)) != text
             {
                 continue;
             }
@@ -283,7 +284,7 @@ fn is_string_literal_property_reference(
         return Ok(false);
     };
     let ty = request.state.get_type_at_location(grandparent)?;
-    let text = literal_text(request, node);
+    let text = request.node_text(Touching::Node(node));
     Ok(request
         .state
         .get_property_of_type_full(ty, &text)?
@@ -1492,7 +1493,7 @@ impl RefState<'_, '_, '_, '_> {
                     add.push(Touching::Node(expression));
                 }
             };
-            if let Some(initializer) = initializer_of(self.request, type_having_node) {
+            if let Some(initializer) = self.request.initializer_of(type_having_node) {
                 add_if_implementation(self.request, initializer);
             } else if crate::utilities::is_function_like_kind(
                 self.request.node_kind(type_having_node),
@@ -1734,7 +1735,7 @@ impl RefState<'_, '_, '_, '_> {
         search: &RefSearch,
         add_references_here: bool,
     ) -> CheckResult<()> {
-        if is_new_expression_target(self.request, reference_location) && add_references_here {
+        if self.request.is_callee(reference_location, Callee::New) && add_references_here {
             self.add_reference(reference_location, symbol, EntryKind::Node)?;
         }
 
@@ -2752,7 +2753,7 @@ fn is_valid_reference_position(
             node_util::id_text(source, id).unwrap_or_default().len() == search_symbol_name.len()
         }
         SyntaxKind::NoSubstitutionTemplateLiteral | SyntaxKind::StringLiteral => {
-            literal_text(request, id).len() == search_symbol_name.len()
+            request.node_text(Touching::Node(id)).len() == search_symbol_name.len()
                 && (request.is_literal_name_of_property_declaration_or_index_access(id)
                     || is_name_of_module_declaration(request, id)
                     || is_expression_of_external_module_import_equals_declaration(request, id)
@@ -2766,7 +2767,7 @@ fn is_valid_reference_position(
         }
         SyntaxKind::NumericLiteral => {
             request.is_literal_name_of_property_declaration_or_index_access(id)
-                && literal_text(request, id).len() == search_symbol_name.len()
+                && request.node_text(Touching::Node(id)).len() == search_symbol_name.len()
         }
         SyntaxKind::DefaultKeyword => "default".len() == search_symbol_name.len(),
         _ => false,
@@ -3057,7 +3058,7 @@ fn is_implementation(request: &Request<'_, '_>, node: NodeId) -> bool {
         );
     }
     if is_variable_like(kind) {
-        return initializer_of(request, node).is_some();
+        return request.initializer_of(node).is_some();
     }
     if is_function_like_declaration(kind) {
         return node_util::body_of(source, node).is_some();
@@ -3301,23 +3302,6 @@ fn is_function_like_declaration(kind: SyntaxKind) -> bool {
     )
 }
 
-/// tsgo `Node.Initializer` of the kinds `ast.HasInitializer` accepts.
-fn initializer_of(request: &Request<'_, '_>, node: NodeId) -> Option<NodeId> {
-    match &request.state.binder.node_record(node).data {
-        NodeData::VariableDeclaration(data) => data.initializer,
-        NodeData::Parameter(data) => data.initializer,
-        NodeData::BindingElement(data) => data.initializer,
-        NodeData::PropertyDeclaration(data) => data.initializer,
-        NodeData::PropertyAssignment(data) => data.initializer,
-        NodeData::EnumMember(data) => data.initializer,
-        NodeData::ForStatement(data) => data.initializer,
-        NodeData::ForInStatement(data) => data.initializer,
-        NodeData::ForOfStatement(data) => data.initializer,
-        NodeData::JsxAttribute(data) => data.initializer,
-        _ => None,
-    }
-}
-
 /// tsgo `Node.Type`: the checker's (annotations and JSDoc types), and the
 /// type of an assertion, a `satisfies` expression or a type alias.
 fn node_type(request: &Request<'_, '_>, node: NodeId) -> Option<NodeId> {
@@ -3330,56 +3314,10 @@ fn node_type(request: &Request<'_, '_>, node: NodeId) -> Option<NodeId> {
     }
 }
 
-/// A string or numeric literal's text.
-fn literal_text(request: &Request<'_, '_>, node: NodeId) -> String {
-    match &request.state.binder.node_record(node).data {
-        NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
-        NodeData::NoSubstitutionTemplateLiteral(data) => data.text.to_string_lossy().into_owned(),
-        NodeData::NumericLiteral(data) => data.text.clone(),
-        _ => String::new(),
-    }
-}
-
 /// tsgo `printer.RangeIsOnSingleLine` of a node's range.
 fn range_is_on_single_line(source: &SourceFile, node: NodeId) -> bool {
     let record = source.arena.node(node);
     tsc_emitter::range_is_on_single_line(source, record.pos, record.end)
-}
-
-/// tsgo `ast.IsNewExpressionTarget(node, false, false)`.
-fn is_new_expression_target(request: &Request<'_, '_>, node: Touching) -> bool {
-    is_callee(request, node, SyntaxKind::NewExpression)
-}
-
-/// tsgo `isCalleeWorker` without element access or outer expressions: the
-/// node (past a property access it is the name of) is the expression of a
-/// call or `new` expression of `kind`.
-fn is_callee(request: &Request<'_, '_>, node: Touching, kind: SyntaxKind) -> bool {
-    let Touching::Node(id) = node else {
-        return false;
-    };
-    let target = if request.is_right_side_of_property_access(id) {
-        request
-            .state
-            .binder
-            .node_record(id)
-            .parent
-            .expect("a property access")
-    } else {
-        id
-    };
-    let Some(parent) = request.state.binder.node_record(target).parent else {
-        return false;
-    };
-    if request.node_kind(parent) != kind {
-        return false;
-    }
-    let expression = match &request.state.binder.node_record(parent).data {
-        NodeData::CallExpression(data) => data.expression,
-        NodeData::NewExpression(data) => data.expression,
-        _ => None,
-    };
-    expression == Some(target)
 }
 
 /// tsgo `tryGetClassByExtendingIdentifier`.
@@ -3472,7 +3410,7 @@ fn find_own_constructor_references(
                 &mut this_keywords,
             );
             for this_keyword in this_keywords {
-                if is_new_expression_target(request, Touching::Node(this_keyword)) {
+                if request.is_callee_worker(this_keyword, Callee::New, false, false) {
                     add.push(Touching::Node(this_keyword));
                 }
             }
@@ -3509,7 +3447,7 @@ fn find_super_constructor_accesses(
                 &mut super_keywords,
             );
             for node in super_keywords {
-                if is_callee(request, Touching::Node(node), SyntaxKind::CallExpression) {
+                if request.is_callee_worker(node, Callee::Call, false, false) {
                     add.push(Touching::Node(node));
                 }
             }

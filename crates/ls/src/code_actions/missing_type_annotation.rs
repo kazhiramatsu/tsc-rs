@@ -2332,7 +2332,7 @@ fn find_best_fitting_node(file: &SourceFile, node: NodeId, span: (usize, usize))
     }
     if file.arena.node(node).kind == SyntaxKind::Identifier {
         if let Some(parent) = file.arena.node(node).parent {
-            if let Some(initializer) = initializer_of(file, parent) {
+            if let Some(initializer) = node_util::initializer_of(file, parent) {
                 return Some(initializer);
             }
             if file.arena.node(parent).kind == SyntaxKind::ShorthandPropertyAssignment {
@@ -2341,24 +2341,6 @@ fn find_best_fitting_node(file: &SourceFile, node: NodeId, span: (usize, usize))
         }
     }
     Some(node)
-}
-
-/// tsgo `Node.Initializer` of the kinds `ast.HasInitializer` names.
-fn initializer_of(file: &SourceFile, node: NodeId) -> Option<NodeId> {
-    match &file.arena.node(node).data {
-        NodeData::VariableDeclaration(data) => data.initializer,
-        NodeData::Parameter(data) => data.initializer,
-        NodeData::BindingElement(data) => data.initializer,
-        NodeData::PropertyDeclaration(data) => data.initializer,
-        NodeData::PropertySignature(data) => data.initializer,
-        NodeData::PropertyAssignment(data) => data.initializer,
-        NodeData::EnumMember(data) => data.initializer,
-        NodeData::ForStatement(data) => data.initializer,
-        NodeData::ForInStatement(data) => data.initializer,
-        NodeData::ForOfStatement(data) => data.initializer,
-        NodeData::JsxAttribute(data) => data.initializer,
-        _ => None,
-    }
 }
 
 /// tsgo `isNamedDeclarationKind`: tsc's `isDeclarationKind`.

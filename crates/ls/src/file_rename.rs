@@ -20,7 +20,7 @@ use crate::language_service::{LanguageService, LsError};
 use crate::lsutil::new_line_kind;
 use crate::references::{collect_external_module_references, is_external_module_name_relative};
 use crate::request::Request;
-use crate::utilities::{resolved_module_from_module_specifier, script_of, token_start};
+use crate::utilities::{resolved_module_from_module_specifier, script_of, token_start, Touching};
 
 /// A change of the edits of a file rename.
 type DocumentChange = TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile;
@@ -506,7 +506,7 @@ fn update_imports_for_file_rename<'a: 't, 't>(
             else {
                 continue;
             };
-            if updated != literal_text(source, literal) {
+            if updated != request.node_text(Touching::Node(literal)) {
                 tracker.replace_range_with_text(
                     source,
                     string_text_range(source, literal),
@@ -531,7 +531,7 @@ fn updated_import_specifier(
     importing_file_moved: bool,
     preferences: &tsc_checker::ModuleSpecifierUserPreferences,
 ) -> tsc_checker::state::CheckResult<Option<String>> {
-    let text = literal_text(source, literal);
+    let text = request.node_text(Touching::Node(literal));
     if let Some(symbol) = request.state.get_symbol_at_location(literal)? {
         if is_ambient_module_symbol(request, symbol) {
             return Ok(None);
@@ -610,13 +610,4 @@ fn is_ambient_module_symbol(request: &Request<'_, '_>, symbol: tsc_types::Symbol
             })
         )
     })
-}
-
-/// A module specifier's text.
-fn literal_text(source: &SourceFile, literal: NodeId) -> String {
-    match &source.arena.node(literal).data {
-        NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
-        NodeData::NoSubstitutionTemplateLiteral(data) => data.text.to_string_lossy().into_owned(),
-        _ => String::new(),
-    }
 }
