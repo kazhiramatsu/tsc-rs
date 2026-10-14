@@ -27,7 +27,7 @@ use crate::structural::SignatureKind;
 /// consumers use All (63), Assertions|Parentheses (39), and the sign
 /// bit to retain JSDoc type-assertion parentheses.
 #[derive(Clone, Copy)]
-pub(crate) struct OuterExpressionKinds(pub i32);
+pub struct OuterExpressionKinds(pub i32);
 
 impl OuterExpressionKinds {
     pub(crate) const PARENTHESES: Self = Self(1);
@@ -40,7 +40,7 @@ impl OuterExpressionKinds {
     pub(crate) const EXPRESSIONS_WITH_TYPE_ARGUMENTS: Self = Self(16);
     pub(crate) const SATISFIES: Self = Self(32);
     pub(crate) const ASSERTIONS: Self = Self(Self::TYPE_ASSERTIONS.0 | Self::NON_NULL_ASSERTIONS.0);
-    pub(crate) const ALL: Self = Self(63);
+    pub const ALL: Self = Self(63);
     pub(crate) const EXCLUDE_JSDOC_TYPE_ASSERTIONS: Self = Self(i32::MIN);
 
     fn intersects(self, other: Self) -> bool {
@@ -3883,11 +3883,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8b1eff7c004dde6bbe6b5940ba064195f1aea6668ca5d8b1f4a69bf9cec4dec1
     /// tsc-span: _tsc.js:27582-27587
     ///
-    pub(crate) fn skip_outer_expressions(
-        &self,
-        mut node: NodeId,
-        kinds: OuterExpressionKinds,
-    ) -> NodeId {
+    pub fn skip_outer_expressions(&self, mut node: NodeId, kinds: OuterExpressionKinds) -> NodeId {
         loop {
             let is_outer = match self.kind_of(node) {
                 SyntaxKind::ParenthesizedExpression => {

@@ -423,6 +423,48 @@ impl Session {
         })
     }
 
+    /// tsgo `GetLanguageServiceWithAutoImports`: a snapshot derived from
+    /// `base` with the document's auto-imports prepared (tsgo
+    /// `CloneSnapshotWithAutoImports`) and the document's default project in
+    /// it. The snapshot becomes the session's in the background when the
+    /// session has not moved on from `base`.
+    pub fn get_snapshot_with_auto_imports(
+        &self,
+        base: &Arc<Snapshot>,
+        uri: &DocumentUri,
+    ) -> Result<(Arc<Snapshot>, Arc<Project>), DocumentProjectError> {
+        let file_name = document_file_name(uri).unwrap_or_default();
+        let snapshot = Arc::new(
+            self.inner
+                .host
+                .clone_snapshot(
+                    base,
+                    SnapshotChange {
+                        documents: vec![file_name.clone()],
+                        auto_imports: Some(file_name.clone()),
+                        ..SnapshotChange::default()
+                    },
+                )
+                .map_err(DocumentProjectError::Update)?,
+        );
+        let Some(project) = snapshot.default_project(&file_name).cloned() else {
+            return Err(DocumentProjectError::NoProject {
+                uri: uri.as_str().to_owned(),
+                unknown_script_kind: false,
+            });
+        };
+        // tsgo `tryAdoptSnapshotChangeInBackground`.
+        let inner = Arc::clone(&self.inner);
+        let base = Arc::clone(base);
+        let new = Arc::clone(&snapshot);
+        self.inner
+            .background
+            .enqueue(&Cancellation::default(), move |_| {
+                inner.adopt_snapshot_change(&base, new);
+            });
+        Ok((snapshot, project))
+    }
+
     /// tsgo `EnqueuePublishGlobalDiagnostics`: after a language service
     /// request, the configs' diagnostics again in the background when
     /// checking found new global diagnostics.
@@ -484,6 +526,38 @@ impl Session {
 impl Inner {
     fn snapshot(&self) -> Arc<Snapshot> {
         Arc::clone(&self.snapshot.read().unwrap_or_else(PoisonError::into_inner))
+    }
+
+    /// tsgo `adoptSnapshotChange`: `new` becomes the session's snapshot when
+    /// the session is still at `base`; otherwise it is dropped.
+    fn adopt_snapshot_change(&self, base: &Arc<Snapshot>, new: Arc<Snapshot>) {
+        let mut current = self
+            .snapshot
+            .write()
+            .unwrap_or_else(PoisonError::into_inner);
+        if Arc::ptr_eq(&current, base) {
+            let old = std::mem::replace(&mut *current, Arc::clone(&new));
+            drop(current);
+            self.log(|| {
+                format!(
+                    "Adopted snapshot {} (parent {}) as current session snapshot (replacing {})",
+                    new.id(),
+                    new.parent_id(),
+                    old.id()
+                )
+            });
+        } else {
+            let moved_on = current.id();
+            drop(current);
+            self.log(|| {
+                format!(
+                    "Discarded snapshot {} (parent {}); session has moved on to snapshot {}",
+                    new.id(),
+                    new.parent_id(),
+                    moved_on
+                )
+            });
+        }
     }
 
     /// tsgo `UpdateSnapshot`: the current snapshot with `change`, adopted;

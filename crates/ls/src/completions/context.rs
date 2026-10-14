@@ -24,6 +24,11 @@ pub(crate) struct Completions<'r, 's, 'a> {
     pub(crate) navigator: Navigator<'a>,
     pub(crate) position: u32,
     line_starts: Vec<usize>,
+    /// tsgo `forItemResolve`: the data is for `completionItem/resolve`.
+    pub(crate) for_item_resolve: bool,
+    /// tsgo `ErrNeedsAutoImports`: the registry was not prepared for the
+    /// file.
+    pub(crate) needs_auto_imports: bool,
 }
 
 impl<'r, 's, 'a> Completions<'r, 's, 'a> {
@@ -36,6 +41,8 @@ impl<'r, 's, 'a> Completions<'r, 's, 'a> {
             navigator: Navigator::new(source),
             position,
             line_starts: tsc_emitter::source_mapper::compute_ecma_line_starts(source.text()),
+            for_item_resolve: false,
+            needs_auto_imports: false,
         }
     }
 
