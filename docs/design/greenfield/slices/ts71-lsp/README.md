@@ -959,3 +959,31 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   regressions（243 行 none→full。lsp 3,577 → 3,820 full）、rename・prepareRename・willRenameFiles の 257 場面のうち 253、
   test（program 681、ls 201 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
 - **有界の違い**：content mapper の 4 場面（L10）。
+
+## L7d call hierarchy・code lens（#801）
+
+- **merge**：#801 → `e7b6bf76e`（hosted run 38647895390：conformance 31m36s、rust は 1 回目に 1 件落ちて再実行で 12m42s、
+  gates）。commit：997c4ee7d（共有の補助）、77e3b109d（call hierarchy・code lens）、098031cf3（ratchet）。検査の後の main
+  の取り込みは L7c の merge（同じ code）と packet の README だけ。
+- **1 回目の rust の失敗**：`crates/lsp/tests/server.rs` の `pushed_config_diagnostics_match_tsgo` で、server の終了 status
+  が tsgo の記録の 0 でなく 1。fixture は `exit` を送ってすぐ入力を閉じる。reader の入力の終わり（正常）と dispatcher の
+  `exit`（`context canceled`。入力を開いたままなら status 1 になるのが tsgo で、`exit_stops_the_server` がそれを固定して
+  いる）の競合で、先に止めた方が status を決める。tsgo も同じ競合を持つ（`handleExit` の `io.EOF` → dispatch の
+  `context.Canceled` と read loop の `io.EOF` のどちらが errgroup の最初の error になるか）。server の意味は変えず、
+  落ちた job の再実行で通した（以前の PR では起きていない、まれな flake）。
+- **共有の補助**：`node_util` に tsgo の `Node.Initializer()`（property signature のものも）と `Node.Members()`、
+  `getAssignedName` を public に。language service の複製（参照の検索、completion、document highlight、型注釈の fix）が
+  それを使う。`Node.Text` は 3 つを 1 つに、`SymbolToString` は 2 つを 1 つに、tsgo の `isCalleeWorker`（call・new・
+  tagged template・decorator・JSX の target。element access と外側の式も）を参照検索の狭い callee 判定の代わりに。
+  `ast.IsExpression` を request へ。実装の変換は tsgo の `dropOriginNodes` の位置（code lens のもの）を取る。
+- **call hierarchy**（`call_hierarchy.rs`、tsgo `callhierarchy.go`）：item になれる宣言（file、module、class の static
+  block、名前のある呼べるもの）、参照からは symbol を 1 度だけたどる。tsgo の名前（`default`、`static {}`、
+  `(anonymous)`、symbol の名前）と container 名。incoming は参照の検索から（呼ぶ参照を、それを囲む宣言ごとに）、outgoing
+  は宣言の本体から（ambient、型、他の宣言の中は見ない）。どちらも file と最初の範囲の順、同じ相手の範囲はまとめる。
+- **code lens**（`code_lens.rs`、tsgo `codelens.go`）：preference が有効にする references・implementations の lens（overload
+  は 1 度）、resolve で数と client の show-locations command。session から消えた file の lens は `ContentModified`。
+  tsgo `getSymbolKindFromNode` で `symbols.rs` を始めた。
+- **検査（098031cf3）**：conformance 0 regressions（全 13,577 full、490 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（48 行 none→full。lsp 3,820 → 3,868 full）、call hierarchy・code lens の 55 場面のうち 48、test（ls 202 ほか
+  全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
+- **有界の違い**：複数 project の 3 場面（L7e の orchestrator）、content mapper の 4 場面（L10）。
