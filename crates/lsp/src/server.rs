@@ -1197,6 +1197,78 @@ impl Server {
             .map_err(language_service_failure)
     }
 
+    /// tsgo `handlePrepareRename`: the span and placeholder, else the
+    /// reason as a failed request.
+    fn handle_prepare_rename(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::PrepareRenameParams,
+    ) -> Result<lsproto::PrepareRenameResponse, Failure> {
+        let info = service
+            .get_rename_info("", &params.text_document.uri, &params.position)
+            .map_err(language_service_failure)?;
+        if !info.can_rename {
+            // tsgo `userFacingRequestFailedError`.
+            return Err(LspError {
+                code: ErrorCode::REQUEST_FAILED,
+                message: info.localized_error_message,
+            }
+            .into());
+        }
+        Ok(
+            lsproto::RangeOrPrepareRenamePlaceholderOrPrepareRenameDefaultBehaviorOrNull::PrepareRenamePlaceholder(
+                lsproto::PrepareRenamePlaceholder {
+                    range: info.trigger_span,
+                    placeholder: info.display_name,
+                },
+            ),
+        )
+    }
+
+    /// tsgo `handleRename`: a module specifier's rename renames its file
+    /// (through `workspace/willRenameFiles` when the client sends it).
+    fn handle_rename(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::RenameParams,
+    ) -> Result<lsproto::RenameResponse, Failure> {
+        let info = service
+            .get_rename_info(
+                &params.new_name,
+                &params.text_document.uri,
+                &params.position,
+            )
+            .map_err(language_service_failure)?;
+        if info.can_rename && !info.file_to_rename.is_empty() {
+            let rename = lsproto::RenameFile {
+                kind: Default::default(),
+                annotation_id: None,
+                old_uri: lsproto::DocumentUri(tsc_program::uri::file_name_to_document_uri(
+                    &info.file_to_rename,
+                )),
+                new_uri: lsproto::DocumentUri(tsc_program::uri::file_name_to_document_uri(
+                    &info.new_file_name,
+                )),
+                options: None,
+            };
+            return Ok(lsproto::WorkspaceEditOrNull::WorkspaceEdit(
+                lsproto::WorkspaceEdit {
+                    document_changes: Some(vec![
+                        lsproto::TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile::RenameFile(
+                            rename,
+                        ),
+                    ]),
+                    ..lsproto::WorkspaceEdit::default()
+                },
+            ));
+        }
+        service
+            .provide_rename(&params)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo `handleDocumentHighlight`.
     fn handle_document_highlight(
         self: &Arc<Self>,
@@ -1573,6 +1645,14 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentTypeDefinitionInfo>(
             &mut handlers,
             Server::handle_type_definition,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentPrepareRenameInfo>(
+            &mut handlers,
+            Server::handle_prepare_rename,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentRenameInfo>(
+            &mut handlers,
+            Server::handle_rename,
         );
         register_language_service_document_request::<lsproto::TextDocumentDocumentHighlightInfo>(
             &mut handlers,

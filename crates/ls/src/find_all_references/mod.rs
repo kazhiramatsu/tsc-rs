@@ -24,7 +24,17 @@ use crate::request::Request;
 use crate::utilities::{touching, Touching};
 
 use search::get_property_symbol_of_object_binding_pattern_without_property_name;
-pub(crate) use search::get_referenced_symbols_for_node;
+pub(crate) use search::{
+    get_referenced_symbols_for_node, is_object_binding_element_without_property_name,
+};
+
+/// tsgo `ast.TryGetImportFromModuleSpecifier`.
+pub(crate) fn try_get_import_from_module_specifier(
+    request: &Request<'_, '_>,
+    literal: NodeId,
+) -> Option<NodeId> {
+    import_tracker::try_get_import_from_module_specifier(request, literal)
+}
 
 /// tsgo `referenceUse`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
