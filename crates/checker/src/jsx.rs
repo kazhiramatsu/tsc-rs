@@ -1142,7 +1142,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_jsx_intrinsic_tag_name(&self, tag_name: NodeId) -> bool {
         match self.data_of(tag_name) {
             NodeData::Identifier(data) => {
-                is_intrinsic_jsx_name(data.escaped_text.identifier_text())
+                tsc_syntax::is_intrinsic_jsx_name(data.escaped_text.identifier_text())
             }
             NodeData::JsxNamespacedName(_) => true,
             _ => false,
@@ -2412,7 +2412,7 @@ impl<'a> CheckerState<'a> {
                     NodeData::JsxNamespacedName(data) => data
                         .namespace
                         .and_then(|namespace| self.identifier_text(namespace))
-                        .is_some_and(is_intrinsic_jsx_name),
+                        .is_some_and(tsc_syntax::is_intrinsic_jsx_name),
                     _ => false,
                 };
                 if !namespace_intrinsic {
@@ -2479,16 +2479,6 @@ impl<'a> CheckerState<'a> {
             _ => String::new(),
         }
     }
-}
-
-/// tsc-port: isIntrinsicJsxName @6.0.3
-/// tsc-hash: d8f235d3962904d9679df95b374a3fd3bcf2334b1b8d7a6d1a8b5a495d224202
-/// tsc-span: _tsc.js:16350-16353
-fn is_intrinsic_jsx_name(name: &str) -> bool {
-    name.as_bytes()
-        .first()
-        .is_some_and(|&b| b.is_ascii_lowercase())
-        || name.contains('-')
 }
 
 #[cfg(test)]

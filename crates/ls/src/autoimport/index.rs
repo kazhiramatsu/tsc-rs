@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::lsutil::go_unicode::{is_lower, is_upper, to_lower, to_lower_char, to_upper_char};
+use tsc_syntax::go_unicode::{is_lower, is_upper, to_lower, to_lower_char, to_upper_char};
 
 use super::export::Export;
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Generate crates/ls/src/lsutil/unicode_tables.rs, the Unicode tables of
-tsc-rs's organize imports comparers and auto-import index, from the Go packages tsgo's comparers
-read (unicode and golang.org/x/text/unicode/norm).
+"""Generate crates/syntax/src/go_unicode/tables.rs, the Unicode tables of
+Go's packages tsgo reads (unicode and golang.org/x/text/unicode/norm) for
+the organize imports comparers, the auto-import index and vfsmatch.
 
 usage: generate_unicode_tables.py [--check]
 
@@ -23,7 +23,7 @@ import typescript7  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "scripts/unicode_tables_dump/main.go"
-OUTPUT = ROOT / "crates/ls/src/lsutil/unicode_tables.rs"
+OUTPUT = ROOT / "crates/syntax/src/go_unicode/tables.rs"
 
 
 def generate(output):

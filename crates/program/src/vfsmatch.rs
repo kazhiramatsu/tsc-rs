@@ -4,6 +4,8 @@
 
 use tsc_diagnostics::JsStr;
 
+use tsc_syntax::go_unicode::equal_fold;
+
 use crate::js_path::{combine_paths, root_parts};
 
 /// tsgo `vfsmatch.Usage`.
@@ -409,29 +411,4 @@ fn get_normalized_path_components(path: &str, current_directory: &str) -> Vec<St
         components.push(component.to_owned());
     }
     components
-}
-
-/// Go `strings.EqualFold` over Unicode simple case mappings: two
-/// characters are equal under folding when one of their single-character
-/// lower or upper cases agree.
-fn equal_fold(a: &str, b: &str) -> bool {
-    fn single(mut mapped: impl Iterator<Item = char>, ch: char) -> char {
-        match (mapped.next(), mapped.next()) {
-            (Some(single), None) => single,
-            _ => ch,
-        }
-    }
-    let mut b_chars = b.chars();
-    for a_char in a.chars() {
-        let Some(b_char) = b_chars.next() else {
-            return false;
-        };
-        if a_char != b_char
-            && single(a_char.to_lowercase(), a_char) != single(b_char.to_lowercase(), b_char)
-            && single(a_char.to_uppercase(), a_char) != single(b_char.to_uppercase(), b_char)
-        {
-            return false;
-        }
-    }
-    b_chars.next().is_none()
 }

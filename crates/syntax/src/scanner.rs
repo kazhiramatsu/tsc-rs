@@ -2880,6 +2880,14 @@ pub struct SkipTriviaOptions {
     pub in_js_doc: bool,
 }
 
+/// tsgo `IsIntrinsicJsxName`: a lowercase or dashed JSX tag name.
+pub fn is_intrinsic_jsx_name(name: &str) -> bool {
+    name.as_bytes()
+        .first()
+        .is_some_and(|byte| byte.is_ascii_lowercase())
+        || name.contains('-')
+}
+
 /// tsgo `GetShebang`: the text's `#!` line, without its line break.
 pub fn get_shebang(text: &str) -> &str {
     if !text.starts_with("#!") {
