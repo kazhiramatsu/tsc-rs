@@ -206,6 +206,77 @@ impl<'a> Tree<'a> {
         }
     }
 
+    /// tsgo `Node.Parent` of a node view: the parents of a heritage type
+    /// reference's expression are tsgo's TypeReference and QualifiedNames,
+    /// and a JSDoc comment's is its host.
+    pub fn parent(&self, view: View) -> Option<View> {
+        let id = match view {
+            View::Node(id) | View::QualifiedName(id) | View::JSDoc(id, _) => id,
+            View::HeritageTypeReference(id) => return self.node(id).parent.map(View::Node),
+            // A comment list's parent is its JSDoc comment or tag.
+            View::Comment(owner) => return Some(self.view_of(owner)),
+            View::CommentText(owner) | View::TrailingCommentText(owner) => {
+                return Some(View::Comment(owner))
+            }
+            _ => return None,
+        };
+        let parent = self.node(id).parent?;
+        Some(self.view_of(parent))
+    }
+
+    /// The view tsgo's tree has for the node `id`.
+    pub fn view_of(&self, id: NodeId) -> View {
+        let node = self.node(id);
+        if node.kind == SyntaxKind::JSDoc {
+            if let Some(host) = node.parent {
+                let mut js_docs = Vec::new();
+                self.js_doc_views(host, &mut js_docs);
+                if let Some(&view) = js_docs
+                    .iter()
+                    .find(|view| matches!(view, View::JSDoc(js_doc, _) if *js_doc == id))
+                {
+                    return view;
+                }
+            }
+        }
+        if self.is_heritage_type_reference(id) {
+            return View::HeritageTypeReference(id);
+        }
+        // A property access in such a reference's expression.
+        let mut current = id;
+        while let NodeData::PropertyAccessExpression(_) = &self.node(current).data {
+            let Some(parent) = self.node(current).parent else {
+                break;
+            };
+            match &self.node(parent).data {
+                NodeData::PropertyAccessExpression(access)
+                    if access.expression == Some(current) =>
+                {
+                    current = parent;
+                }
+                NodeData::ExpressionWithTypeArguments(element)
+                    if element.expression == Some(current)
+                        && self.is_heritage_type_reference(parent) =>
+                {
+                    return View::QualifiedName(id);
+                }
+                _ => break,
+            }
+        }
+        View::Node(id)
+    }
+
+    /// Whether the node `id` is an element of a type heritage clause that
+    /// tsgo parses as a TypeReference.
+    fn is_heritage_type_reference(&self, id: NodeId) -> bool {
+        let node = self.node(id);
+        node.kind == SyntaxKind::ExpressionWithTypeArguments
+            && node
+                .parent
+                .is_some_and(|clause| self.is_type_heritage_clause(self.node(clause)))
+            && matches!(self.heritage_element(id), View::HeritageTypeReference(_))
+    }
+
     /// tsgo convertEntityNameExpressionToEntityName.
     pub fn entity_name(&self, id: NodeId) -> View {
         match self.node(id).kind {
