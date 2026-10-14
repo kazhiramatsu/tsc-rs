@@ -1051,6 +1051,62 @@ impl Server {
             .map_err(language_service_failure)
     }
 
+    /// tsgo `handleCompletionItemResolve`: the item's file's default
+    /// project's language service resolves it, in the synchronous part
+    /// (tsgo's `registerRequestHandler`). A panic answers tsgo's `recover`
+    /// error.
+    fn handle_completion_item_resolve(
+        self: &Arc<Self>,
+        context: &RequestContext,
+        params: lsproto::CompletionItem,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::CompletionResolveResponse, Failure> {
+        let Some(data) = params.data.as_ref() else {
+            return Err(LspError::internal("completion item data is nil").into());
+        };
+        let file_name = &data.file_name;
+        let rooted = file_name.starts_with(['/', '\\'])
+            || file_name.starts_with("^/")
+            || file_name.contains("://")
+            || file_name.as_bytes().get(1) == Some(&b':')
+                && file_name.as_bytes()[0].is_ascii_alphabetic();
+        if !rooted {
+            return Err(
+                LspError::internal("completion item data fileName must be absolute").into(),
+            );
+        }
+        let uri = lsproto::DocumentUri(tsc_program::uri::file_name_to_document_uri(file_name));
+        let (snapshot, project) = self
+            .initialized_session()
+            .get_snapshot_and_default_project(&uri)
+            .map_err(|error| LspError::internal(error.to_string()))?;
+        let response = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.with_language_service(context, &snapshot, &project, |service| {
+                service
+                    .resolve_completion_item(params)
+                    .map_err(language_service_failure)
+            })
+        }));
+        match response {
+            Ok(response) => response,
+            Err(panic) => {
+                let detail = panic
+                    .downcast_ref::<String>()
+                    .cloned()
+                    .or_else(|| panic.downcast_ref::<&str>().map(|text| (*text).to_owned()))
+                    .unwrap_or_default();
+                Err(LspError::wrap(
+                    ErrorCode::INTERNAL_ERROR,
+                    format!(
+                        "panic handling request {}: {detail}",
+                        lsproto::CompletionItemResolveInfo::METHOD
+                    ),
+                )
+                .into())
+            }
+        }
+    }
+
     /// tsgo `handleDefinition`.
     fn handle_definition(
         self: &Arc<Self>,
@@ -1391,6 +1447,10 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentCompletionInfo>(
             &mut handlers,
             Server::handle_completion,
+        );
+        register_request::<lsproto::CompletionItemResolveInfo>(
+            &mut handlers,
+            Server::handle_completion_item_resolve,
         );
         register_language_service_document_request::<lsproto::TextDocumentDefinitionInfo>(
             &mut handlers,

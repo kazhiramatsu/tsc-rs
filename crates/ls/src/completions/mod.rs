@@ -9,6 +9,7 @@ mod items;
 mod jsdoc;
 mod keywords;
 mod paths;
+mod resolve;
 mod searches;
 mod strings;
 
