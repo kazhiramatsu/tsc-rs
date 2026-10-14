@@ -660,27 +660,7 @@ pub(crate) fn is_trivia(kind: SyntaxKind) -> bool {
     (SyntaxKind::FirstTriviaToken..=SyntaxKind::LastTriviaToken).contains(&kind)
 }
 
-/// tsgo `IsModifierKind`.
-pub(crate) fn is_modifier_kind(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::AbstractKeyword
-            | SyntaxKind::AccessorKeyword
-            | SyntaxKind::AsyncKeyword
-            | SyntaxKind::ConstKeyword
-            | SyntaxKind::DeclareKeyword
-            | SyntaxKind::DefaultKeyword
-            | SyntaxKind::ExportKeyword
-            | SyntaxKind::InKeyword
-            | SyntaxKind::PublicKeyword
-            | SyntaxKind::PrivateKeyword
-            | SyntaxKind::ProtectedKeyword
-            | SyntaxKind::ReadonlyKeyword
-            | SyntaxKind::StaticKeyword
-            | SyntaxKind::OutKeyword
-            | SyntaxKind::OverrideKeyword
-    )
-}
+pub(crate) use tsc_binder::node_util::is_modifier_kind;
 
 /// tsgo `CanHaveModifiers`.
 pub(crate) fn can_have_modifiers(kind: SyntaxKind) -> bool {

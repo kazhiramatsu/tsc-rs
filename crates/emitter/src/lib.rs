@@ -103,7 +103,9 @@ pub use sink::{
 pub use source_map::{
     OriginalPositions, SourceMapGenerator, SourceMapRecordingInputs, SourceMappingFields,
 };
-pub use synthetic_file::{print_and_position_node, PositionedNode};
+pub use synthetic_file::{
+    print_and_position, print_and_position_node, PositionedNode, PositionedPrint,
+};
 pub use transform::{
     transform_nodes, DeclarationPrintHandlers, EmitHelper, EmitHint, GlobalNameOracle,
     LexicalEnvironment, LexicalEnvironmentFlags, TransformError, TransformFlags, TransformRoot,
