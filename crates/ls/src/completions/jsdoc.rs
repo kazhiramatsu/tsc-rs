@@ -1017,14 +1017,7 @@ impl<'a> TemplateFile<'a> {
     /// tsgo `ast.ForEachReturnStatement` finding one: a `return` of the
     /// statements, not of a nested function.
     fn has_return_statement(&self, node: NodeId) -> bool {
-        tsc_syntax::for_each_child(&self.source.arena, self.source.arena.node(node), |child| {
-            match self.kind(child) {
-                SyntaxKind::ReturnStatement => true,
-                kind if is_statement_container(kind) => self.has_return_statement(child),
-                _ => false,
-            }
-        })
-        .is_some()
+        node_util::for_each_return_statement(self.source, node, &mut |_| true)
     }
 
     /// tsgo `getRightHandSideOfAssignment`: a function, or a class's
@@ -1050,28 +1043,6 @@ struct CommentOwnerInfo {
     comment_owner: NodeId,
     parameters: Vec<NodeId>,
     has_return: bool,
-}
-
-/// The statement containers `ForEachReturnStatement` descends into.
-fn is_statement_container(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::Block
-            | SyntaxKind::IfStatement
-            | SyntaxKind::DoStatement
-            | SyntaxKind::WhileStatement
-            | SyntaxKind::ForStatement
-            | SyntaxKind::ForInStatement
-            | SyntaxKind::ForOfStatement
-            | SyntaxKind::WithStatement
-            | SyntaxKind::SwitchStatement
-            | SyntaxKind::CaseBlock
-            | SyntaxKind::CaseClause
-            | SyntaxKind::DefaultClause
-            | SyntaxKind::LabeledStatement
-            | SyntaxKind::TryStatement
-            | SyntaxKind::CatchClause
-    )
 }
 
 /// tsgo `ast.IsJSDocTag`.

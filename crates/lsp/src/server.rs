@@ -1184,6 +1184,43 @@ impl Server {
             .map_err(language_service_failure)
     }
 
+    /// tsgo's references handler (one project; the cross-project search
+    /// comes later).
+    fn handle_references(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::ReferenceParams,
+    ) -> Result<lsproto::ReferencesResponse, Failure> {
+        service
+            .provide_references(&params)
+            .map_err(language_service_failure)
+    }
+
+    /// tsgo's Visual Studio references handler (one project).
+    fn handle_vs_references(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::ReferenceParams,
+    ) -> Result<lsproto::VSReferencesResponse, Failure> {
+        service
+            .provide_vs_references(&params)
+            .map_err(language_service_failure)
+    }
+
+    /// tsgo's implementation handler (one project).
+    fn handle_implementation(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::ImplementationParams,
+    ) -> Result<lsproto::ImplementationResponse, Failure> {
+        service
+            .provide_implementations(&params)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo `handleShutdown`.
     fn handle_shutdown(
         self: &Arc<Self>,
@@ -1512,6 +1549,18 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentTypeDefinitionInfo>(
             &mut handlers,
             Server::handle_type_definition,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentReferencesInfo>(
+            &mut handlers,
+            Server::handle_references,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentVSReferencesInfo>(
+            &mut handlers,
+            Server::handle_vs_references,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentImplementationInfo>(
+            &mut handlers,
+            Server::handle_implementation,
         );
         register_language_service_document_request::<lsproto::TextDocumentFormattingInfo>(
             &mut handlers,

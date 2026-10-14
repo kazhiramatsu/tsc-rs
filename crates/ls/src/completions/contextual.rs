@@ -33,7 +33,9 @@ impl Completions<'_, '_, '_> {
                 let Touching::Node(node) = previous else {
                     return Ok(None);
                 };
-                return self.contextual_type_from_parent(node, ContextFlags::NONE);
+                return self
+                    .request
+                    .contextual_type_from_parent(node, ContextFlags::NONE);
             }
             SyntaxKind::EqualsToken => {
                 return match self.data(parent) {
@@ -63,7 +65,7 @@ impl Completions<'_, '_, '_> {
             }
             SyntaxKind::CaseKeyword => {
                 if self.node_kind(parent) == SyntaxKind::CaseClause {
-                    return self.switched_type(parent);
+                    return self.request.switched_type(parent);
                 }
                 return Ok(None);
             }
@@ -180,63 +182,6 @@ impl Completions<'_, '_, '_> {
                 .request
                 .state
                 .language_service_contextual_type_of_token(parent, flags),
-        }
-    }
-
-    /// tsgo `getContextualTypeFromParent`.
-    pub(crate) fn contextual_type_from_parent(
-        &mut self,
-        node: NodeId,
-        flags: ContextFlags,
-    ) -> CheckResult<Option<TypeId>> {
-        let mut parent = self.parent_of(node).expect("an expression's parent");
-        while self.node_kind(parent) == SyntaxKind::ParenthesizedExpression {
-            match self.parent_of(parent) {
-                Some(next) => parent = next,
-                None => break,
-            }
-        }
-        match self.data(parent) {
-            NodeData::NewExpression(_) => self
-                .request
-                .state
-                .language_service_contextual_type(parent, flags),
-            NodeData::BinaryExpression(data) => {
-                if data
-                    .operator_token
-                    .is_some_and(|operator| is_equality_operator_kind(self.node_kind(operator)))
-                {
-                    let other = if Some(node) == data.right {
-                        data.left
-                    } else {
-                        data.right
-                    };
-                    return match other {
-                        Some(other) => Ok(Some(self.request.state.get_type_at_location(other)?)),
-                        None => Ok(None),
-                    };
-                }
-                self.request
-                    .state
-                    .language_service_contextual_type(node, flags)
-            }
-            NodeData::CaseClause(_) => self.switched_type(parent),
-            _ => self
-                .request
-                .state
-                .language_service_contextual_type(node, flags),
-        }
-    }
-
-    /// tsgo `getSwitchedType`.
-    fn switched_type(&mut self, case_clause: NodeId) -> CheckResult<Option<TypeId>> {
-        let switch = self
-            .parent_of(case_clause)
-            .and_then(|block| self.parent_of(block))
-            .expect("a case clause's switch");
-        match self.expression_of(switch) {
-            Some(expression) => Ok(Some(self.request.state.get_type_at_location(expression)?)),
-            None => Ok(None),
         }
     }
 

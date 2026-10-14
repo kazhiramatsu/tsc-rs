@@ -175,12 +175,16 @@ impl CheckerState<'_> {
 
     /// tsgo resolves a JSDoc name through its reparsed clone
     /// (`GetReparsedNodeForNode`); this port binds the tags themselves, so
-    /// two names resolve differently. A namespaced typedef's innermost name
-    /// is the reparsed alias's name (`Some(Some(tag))`), and a type literal
-    /// property named by an invalid identifier is reparsed as a string
-    /// literal, which leaves the JSDoc name without a clone or symbol
+    /// these names resolve differently. A typedef's or callback's (innermost)
+    /// name is the reparsed alias's name (`Some(Some(tag))`); the name of a
+    /// `@callback` or reparsed `@overload` signature's parameter is the
+    /// reparsed parameter's (`Some(Some(tag))`); a type literal property's
+    /// name, the last name of a qualified one (a nested `@param o.x`), is the
+    /// reparsed property signature's name (`Some(Some(tag))`); and a type
+    /// literal property named by an invalid identifier is reparsed as a
+    /// string literal, which leaves the JSDoc name without a clone or symbol
     /// (`Some(None)`).
-    fn jsdoc_reparsed_name(&self, node: NodeId) -> Option<Option<NodeId>> {
+    pub fn jsdoc_reparsed_name(&self, node: NodeId) -> Option<Option<NodeId>> {
         let NodeData::Identifier(identifier) = self.data_of(node) else {
             return None;
         };
@@ -203,21 +207,72 @@ impl CheckerState<'_> {
                 _ => None,
             };
         }
-        let tag = match self.data_of(parent) {
-            NodeData::QualifiedName(name) if name.right == Some(node) => self.parent_of(parent)?,
-            _ => parent,
+        // A typedef's or a callback's name is the reparsed alias's name.
+        match self.data_of(parent) {
+            NodeData::JSDocTypedefTag(tag)
+                if tag.name == Some(node) && tag.type_expression.is_some() =>
+            {
+                return Some(Some(parent));
+            }
+            NodeData::JSDocCallbackTag(tag)
+                if tag.name == Some(node) && tag.type_expression.is_some() =>
+            {
+                return Some(Some(parent));
+            }
+            _ => {}
+        }
+        // A `@callback` signature's or a reparsed `@overload` signature's
+        // parameter is the reparsed parameter's name (reparser.go:146-236).
+        if let NodeData::JSDocParameterTag(tag) = self.data_of(parent) {
+            if tag.name == Some(node) {
+                if let Some(owner) = self
+                    .parent_of(parent)
+                    .filter(|&signature| self.kind_of(signature) == SyntaxKind::JSDocSignature)
+                    .and_then(|signature| self.parent_of(signature))
+                {
+                    let reparsed = match self.kind_of(owner) {
+                        SyntaxKind::JSDocCallbackTag => true,
+                        SyntaxKind::JSDocOverloadTag => tsc_binder::hosted::reparsed_overload_host(
+                            self.binder.source_of_node(owner),
+                            owner,
+                        )
+                        .is_some(),
+                        _ => false,
+                    };
+                    if reparsed {
+                        return Some(Some(parent));
+                    }
+                }
+            }
+        }
+        // The name of a type literal's property, the last name of a
+        // qualified one.
+        let (tag, name) = match self.data_of(parent) {
+            NodeData::QualifiedName(name) if name.right == Some(node) => {
+                (self.parent_of(parent)?, parent)
+            }
+            _ => (parent, node),
         };
-        (matches!(
-            self.kind_of(tag),
-            SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag
-        ) && self
-            .parent_of(tag)
-            .is_some_and(|literal| self.kind_of(literal) == SyntaxKind::JSDocTypeLiteral)
-            && identifier
-                .escaped_text
-                .as_str()
-                .is_some_and(|text| !tsc_syntax::is_identifier_text(text)))
-        .then_some(None)
+        let tag_name = match self.data_of(tag) {
+            NodeData::JSDocPropertyTag(tag) => tag.name,
+            NodeData::JSDocParameterTag(tag) => tag.name,
+            _ => return None,
+        };
+        if tag_name != Some(name)
+            || self
+                .parent_of(tag)
+                .is_none_or(|literal| self.kind_of(literal) != SyntaxKind::JSDocTypeLiteral)
+        {
+            return None;
+        }
+        if identifier
+            .escaped_text
+            .as_str()
+            .is_some_and(|text| !tsc_syntax::is_identifier_text(text))
+        {
+            return Some(None);
+        }
+        Some(Some(tag))
     }
 
     /// tsgo `getSymbolAtLocation` (checker.go:32082-32266).
@@ -592,11 +647,38 @@ impl CheckerState<'_> {
                     } else {
                         None
                     };
-                    let result =
-                        self.resolve_entity_name_ex(name, meaning, true, location, true)?;
-                    // The JSDoc class-member fallback is not reached: the
-                    // walker never visits JSDoc nodes.
-                    Ok(result.filter(|&s| s != self.unknown_symbol))
+                    let mut result = self
+                        .resolve_entity_name_ex(name, meaning, true, location, true)?
+                        .filter(|&s| s != self.unknown_symbol);
+                    if result.is_none() && is_jsdoc {
+                        // tsgo (checker.go:32416-32425): handle unqualified references to class static
+                        // members and class or interface instance members
+                        let mut container = self.parent_of(name);
+                        while let Some(node) = container {
+                            if matches!(
+                                self.kind_of(node),
+                                SyntaxKind::ClassDeclaration
+                                    | SyntaxKind::ClassExpression
+                                    | SyntaxKind::InterfaceDeclaration
+                            ) {
+                                break;
+                            }
+                            container = self.parent_of(node);
+                        }
+                        if let Some(container) = container {
+                            let symbol = self.get_symbol_of_declaration(container)?;
+                            let text = self.identifier_text_of(name).unwrap_or_default().to_owned();
+                            let exports = self.get_exports_of_symbol(symbol)?;
+                            result = self
+                                .get_symbol_in_table(&exports, &text, meaning)?
+                                .map(|symbol| self.get_merged_symbol(symbol));
+                            if result.is_none() {
+                                let declared = self.get_declared_type_of_symbol(symbol)?;
+                                result = self.get_property_of_type_full(declared, &text)?;
+                            }
+                        }
+                    }
+                    Ok(result)
                 }
                 SyntaxKind::PrivateIdentifier => {
                     self.get_symbol_for_private_identifier_expression(name)
@@ -646,7 +728,7 @@ impl CheckerState<'_> {
                         && is_jsdoc
                         && self.kind_of(name) == SyntaxKind::QualifiedName
                     {
-                        return self.resolve_jsdoc_member_name(name, true, None);
+                        return self.resolve_jsdoc_member_name(name);
                     }
                     Ok(resolved)
                 }
@@ -818,7 +900,8 @@ impl CheckerState<'_> {
         }
     }
 
-    fn is_external_or_common_js_module_file(&self, file: usize) -> bool {
+    /// tsgo `ast.IsExternalOrCommonJSModule` of a file.
+    pub fn is_external_or_common_js_module_file(&self, file: usize) -> bool {
         self.binder.source(file).external_module_indicator.is_some()
             || self.binder.file(file).common_js_module_indicator.is_some()
     }
@@ -1060,8 +1143,7 @@ impl CheckerState<'_> {
     }
 
     /// tsgo `IsJSDocNameReferenceContext`: inside a JSDoc name reference or
-    /// link. The walker never visits JSDoc nodes, so this is reached only
-    /// through other callers.
+    /// link.
     fn is_jsdoc_name_reference_context(&self, node: NodeId) -> bool {
         let mut current = Some(node);
         while let Some(node) = current {

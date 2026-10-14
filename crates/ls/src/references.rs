@@ -25,12 +25,94 @@ pub fn collect_external_module_references(file: &SourceFile) -> ModuleReferences
     let mut references = ModuleReferences::default();
     let javascript = is_javascript(file);
     for &statement in statements(file, file.root) {
+        // tsgo's parser puts the import declarations it reparses from a
+        // JavaScript statement's `@import` tags before the statement.
+        if javascript {
+            for_each_reparsed_import_tag(file, statement, &mut |tag| {
+                collect_import_tag_reference(file, tag, &mut references);
+            });
+        }
         collect_module_references(file, statement, false, &mut references);
+    }
+    // ... and those of the end of the file's comments after the statements.
+    if javascript {
+        for tag in end_of_file_tags(file) {
+            if file.arena.node(tag).kind == SyntaxKind::JSDocImportTag {
+                collect_import_tag_reference(file, tag, &mut references);
+            }
+        }
     }
     if javascript || Tree::new(file, None).possibly_contains_dynamic_import() {
         for_each_dynamic_import_or_require_call(file, |argument| references.imports.push(argument));
     }
     references
+}
+
+/// The `@import` tags of the JSDoc comments in a statement whose import
+/// declarations tsgo's parser lifts to the statement's list: those of nested
+/// nodes first (their comments are reparsed as they are finished), not of
+/// the statements of a nested block (which keeps them).
+fn for_each_reparsed_import_tag(file: &SourceFile, node: NodeId, found: &mut dyn FnMut(NodeId)) {
+    let record = file.arena.node(node);
+    if !matches!(record.kind, SyntaxKind::Block | SyntaxKind::ModuleBlock) {
+        let mut children = Vec::new();
+        tsc_syntax::for_each_child(&file.arena, record, |child| {
+            children.push(child);
+            false
+        });
+        for child in children {
+            for_each_reparsed_import_tag(file, child, found);
+        }
+    }
+    for tag in jsdoc_tags(file, record.js_doc) {
+        if file.arena.node(tag).kind == SyntaxKind::JSDocImportTag {
+            found(tag);
+        }
+    }
+}
+
+/// The tags of a node's JSDoc comments.
+fn jsdoc_tags(file: &SourceFile, js_doc: Option<NodeArrayId>) -> Vec<NodeId> {
+    let mut tags = Vec::new();
+    for &comment in js_doc
+        .map(|list| file.arena.node_array(list).nodes)
+        .unwrap_or_default()
+    {
+        if let NodeData::JSDoc(data) = &file.arena.node(comment).data {
+            tags.extend(
+                data.tags
+                    .map(|list| file.arena.node_array(list).nodes)
+                    .unwrap_or_default(),
+            );
+        }
+    }
+    tags
+}
+
+/// The tags of the comments before the end of the file.
+fn end_of_file_tags(file: &SourceFile) -> Vec<NodeId> {
+    let NodeData::SourceFile(data) = &file.arena.node(file.root).data else {
+        return Vec::new();
+    };
+    data.end_of_file_token
+        .map(|token| jsdoc_tags(file, file.arena.node(token).js_doc))
+        .unwrap_or_default()
+}
+
+/// tsgo `collectModuleReferences` of a reparsed `@import` declaration: its
+/// module specifier, when the tag imports something.
+fn collect_import_tag_reference(file: &SourceFile, tag: NodeId, references: &mut ModuleReferences) {
+    let NodeData::JSDocImportTag(data) = &file.arena.node(tag).data else {
+        return;
+    };
+    if data.import_clause.is_none() {
+        return;
+    }
+    if let Some(specifier) = data.module_specifier {
+        if string_literal_text(file, specifier).is_some_and(|text| !text.is_empty()) {
+            references.imports.push(specifier);
+        }
+    }
 }
 
 fn is_javascript(file: &SourceFile) -> bool {
@@ -260,6 +342,19 @@ fn node_at_position(file: &SourceFile, position: u32, include_js_doc: bool) -> N
                     elements(Some(*nodes), &mut visit)
                 }
                 _ => {}
+            });
+        }
+        // tsgo reaches the comments before the end of the file through the
+        // type aliases it reparses from their `@typedef` and `@callback` tags,
+        // which follow the statements.
+        if child.is_none() && include_js_doc && current == file.root {
+            child = end_of_file_tags(file).into_iter().find(|&tag| {
+                let type_expression = match &file.arena.node(tag).data {
+                    NodeData::JSDocTypedefTag(data) => data.type_expression,
+                    NodeData::JSDocCallbackTag(data) => data.type_expression,
+                    _ => None,
+                };
+                type_expression.is_some() && contains(tag)
             });
         }
         match child {

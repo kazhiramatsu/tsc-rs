@@ -2,14 +2,14 @@ use super::{token_is_identifier_or_keyword, Parser};
 use crate::nodes::{
     ExpressionWithTypeArgumentsData, IdentifierData, JSDocAugmentsTagData, JSDocCallbackTagData,
     JSDocComment, JSDocData, JSDocDeprecatedTagData, JSDocImplementsTagData, JSDocImportTagData,
-    JSDocLinkCodeData, JSDocLinkData, JSDocLinkPlainData, JSDocMemberNameData,
-    JSDocNameReferenceData, JSDocOverloadTagData, JSDocOverrideTagData, JSDocParameterTagData,
-    JSDocPrivateTagData, JSDocPropertyTagData, JSDocProtectedTagData, JSDocPublicTagData,
-    JSDocReadonlyTagData, JSDocReturnTagData, JSDocSatisfiesTagData, JSDocSeeTagData,
-    JSDocSignatureData, JSDocTagData, JSDocTemplateTagData, JSDocTextData, JSDocThisTagData,
-    JSDocThrowsTagData, JSDocTypeExpressionData, JSDocTypeLiteralData, JSDocTypeTagData,
-    JSDocTypedefTagData, ModuleDeclarationData, NodeData, NodeId, PropertyAccessExpressionData,
-    QualifiedNameData, TypeParameterData,
+    JSDocLinkCodeData, JSDocLinkData, JSDocLinkPlainData, JSDocNameReferenceData,
+    JSDocOverloadTagData, JSDocOverrideTagData, JSDocParameterTagData, JSDocPrivateTagData,
+    JSDocPropertyTagData, JSDocProtectedTagData, JSDocPublicTagData, JSDocReadonlyTagData,
+    JSDocReturnTagData, JSDocSatisfiesTagData, JSDocSeeTagData, JSDocSignatureData, JSDocTagData,
+    JSDocTemplateTagData, JSDocTextData, JSDocThisTagData, JSDocThrowsTagData,
+    JSDocTypeExpressionData, JSDocTypeLiteralData, JSDocTypeTagData, JSDocTypedefTagData,
+    ModuleDeclarationData, NodeData, NodeId, PropertyAccessExpressionData, QualifiedNameData,
+    TypeParameterData,
 };
 use crate::SyntaxKind;
 use tsc_diagnostics::{gen, DiagnosticMessage, RelatedInfo};
@@ -804,12 +804,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 pos,
             );
         }
+        // tsgo names a member `C#m` with a qualified name as well.
         while self.token() == SyntaxKind::PrivateIdentifier {
             self.parser.scanner.re_scan_hash_token();
             self.next_token_jsdoc();
             let right = self.parser.parse_identifier();
             name = self.finish_current(
-                NodeData::JSDocMemberName(JSDocMemberNameData {
+                NodeData::QualifiedName(QualifiedNameData {
                     left: Some(name),
                     right: Some(right),
                 }),
@@ -844,28 +845,20 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         entity
     }
 
+    /// tsgo `parseJSDocNameReference` (parser/jsdoc.go:126-136): a link
+    /// name, then the token after the brace rescanned as JSDoc.
     fn parse_jsdoc_name_reference(&mut self) -> NodeId {
         let pos = self.node_pos();
         let has_brace = self.parser.parse_optional(SyntaxKind::OpenBraceToken);
-        let member_pos = self.node_pos();
-        let mut entity = self.parser.parse_entity_name(false, false, None);
-        while self.token() == SyntaxKind::PrivateIdentifier {
-            self.parser.scanner.re_scan_hash_token();
-            self.next_token_jsdoc();
-            let right = self.parser.parse_identifier();
-            entity = self.finish_current(
-                NodeData::JSDocMemberName(JSDocMemberNameData {
-                    left: Some(entity),
-                    right: Some(right),
-                }),
-                member_pos,
-            );
-        }
+        let entity_name = self.parse_jsdoc_link_name();
         if has_brace {
             self.parse_expected(SyntaxKind::CloseBraceToken);
         }
+        let full_start = self.parser.scanner.full_start_pos();
+        self.parser.scanner.reset_pos(full_start);
+        self.next_token_jsdoc();
         self.finish_current(
-            NodeData::JSDocNameReference(JSDocNameReferenceData { name: Some(entity) }),
+            NodeData::JSDocNameReference(JSDocNameReferenceData { name: entity_name }),
             pos,
         )
     }

@@ -657,7 +657,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsgo `ast.IsImportCall`: `import(...)`, `import.defer(...)` or
     /// `import.source(...)`.
-    pub(crate) fn is_import_call(&self, node: NodeId) -> bool {
+    pub fn is_import_call(&self, node: NodeId) -> bool {
         tsc_syntax::utilities::is_import_call(&self.binder.source_of_node(node).arena, node)
     }
 
@@ -2721,7 +2721,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc getSuperContainer (14559).
-    fn get_super_container(&self, node: NodeId, stop_on_functions: bool) -> Option<NodeId> {
+    pub fn get_super_container(&self, node: NodeId, stop_on_functions: bool) -> Option<NodeId> {
         let mut node = node;
         loop {
             node = self.parent_of(node)?;
