@@ -383,9 +383,11 @@ fn resolve_package_directory(
     directory: JsStr<'_>,
     package: &str,
 ) -> Result<Option<JsString>, ConfigParseError> {
-    let (package_name, _) = parse_package_name(package);
-    let mangled = mangle_scoped_package_name(package);
-    let (types_name, _) = parse_package_name(&mangled);
+    let (package_name, _) = crate::module_resolution::parse_package_name(package);
+    let mangled = crate::mangle_scoped_package_name(JsStr::from_str(package))
+        .to_string_lossy()
+        .into_owned();
+    let (types_name, _) = crate::module_resolution::parse_package_name(&mangled);
     let mut current = directory.to_owned();
     loop {
         if base_name(current.as_js()) != "node_modules" {
@@ -451,29 +453,6 @@ fn is_external_module_name_relative(name: &str) -> bool {
         || name.starts_with('/')
         || name.starts_with('\\')
         || name.as_bytes().get(1) == Some(&b':')
-}
-
-/// tsgo `ParsePackageName`: the package (`@scope/name` or `name`) and the
-/// path inside it.
-fn parse_package_name(name: &str) -> (&str, &str) {
-    let mut separator = name.find('/');
-    if name.starts_with('@') {
-        let offset = separator.map_or(0, |separator| separator + 1);
-        separator = name[offset..].find('/').map(|index| index + offset);
-    }
-    match separator {
-        Some(index) => (&name[..index], &name[index + 1..]),
-        None => (name, ""),
-    }
-}
-
-/// tsgo `MangleScopedPackageName`: `@scope/name` is `scope__name` under
-/// `@types`.
-fn mangle_scoped_package_name(name: &str) -> String {
-    match name.strip_prefix('@').and_then(|rest| rest.split_once('/')) {
-        Some((scope, rest)) => format!("{scope}__{rest}"),
-        None => name.to_owned(),
-    }
 }
 
 /// The package.json fields a mapper's manifest reads (tsgo

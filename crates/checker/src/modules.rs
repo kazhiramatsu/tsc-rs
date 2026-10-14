@@ -94,6 +94,65 @@ pub(crate) struct UnresolvedProgramModule {
     project_reference_output: Option<(JsString, JsString)>,
 }
 
+/// tsgo `core.UnprefixedNodeCoreModules`: the Node core modules importable
+/// without the `node:` prefix.
+pub const UNPREFIXED_NODE_CORE_MODULES: &[&str] = &[
+    "assert",
+    "assert/strict",
+    "async_hooks",
+    "buffer",
+    "child_process",
+    "cluster",
+    "console",
+    "constants",
+    "crypto",
+    "dgram",
+    "diagnostics_channel",
+    "dns",
+    "dns/promises",
+    "domain",
+    "events",
+    "fs",
+    "fs/promises",
+    "http",
+    "http2",
+    "https",
+    "inspector",
+    "inspector/promises",
+    "module",
+    "net",
+    "os",
+    "path",
+    "path/posix",
+    "path/win32",
+    "perf_hooks",
+    "process",
+    "punycode",
+    "querystring",
+    "readline",
+    "readline/promises",
+    "repl",
+    "stream",
+    "stream/consumers",
+    "stream/promises",
+    "stream/web",
+    "string_decoder",
+    "sys",
+    "timers",
+    "timers/promises",
+    "tls",
+    "trace_events",
+    "tty",
+    "url",
+    "util",
+    "util/types",
+    "v8",
+    "vm",
+    "wasi",
+    "worker_threads",
+    "zlib",
+];
+
 impl ProgramModuleResolution {
     fn missed() -> Self {
         Self::Missed(UnresolvedProgramModule::default())
@@ -5036,7 +5095,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: tryFindAmbientModule @6.0.3
     /// tsc-hash: 1f3cc9031465a237b7ec0d5712660a1201e66cb8853b050b360e2de131a1a314
     /// tsc-span: _tsc.js:59499-59505
-    pub(crate) fn try_find_ambient_module<'n>(
+    pub fn try_find_ambient_module<'n>(
         &mut self,
         module_name: impl Into<JsStr<'n>>,
         with_augmentations: bool,
@@ -5113,62 +5172,6 @@ impl<'a> CheckerState<'a> {
         // The names are ASCII, so the text's bytes compare as the names do;
         // a specifier is not interned just to be looked up.
         let name = name.into().as_bytes();
-        const UNPREFIXED: &[&str] = &[
-            "assert",
-            "assert/strict",
-            "async_hooks",
-            "buffer",
-            "child_process",
-            "cluster",
-            "console",
-            "constants",
-            "crypto",
-            "dgram",
-            "diagnostics_channel",
-            "dns",
-            "dns/promises",
-            "domain",
-            "events",
-            "fs",
-            "fs/promises",
-            "http",
-            "http2",
-            "https",
-            "inspector",
-            "inspector/promises",
-            "module",
-            "net",
-            "os",
-            "path",
-            "path/posix",
-            "path/win32",
-            "perf_hooks",
-            "process",
-            "punycode",
-            "querystring",
-            "readline",
-            "readline/promises",
-            "repl",
-            "stream",
-            "stream/consumers",
-            "stream/promises",
-            "stream/web",
-            "string_decoder",
-            "sys",
-            "timers",
-            "timers/promises",
-            "tls",
-            "trace_events",
-            "tty",
-            "url",
-            "util",
-            "util/types",
-            "v8",
-            "vm",
-            "wasi",
-            "worker_threads",
-            "zlib",
-        ];
         const EXCLUSIVELY_PREFIXED: &[&str] = &[
             "node:quic",
             "node:sea",
@@ -5178,11 +5181,11 @@ impl<'a> CheckerState<'a> {
         ];
         let listed =
             |names: &[&str], name: &[u8]| names.iter().any(|known| known.as_bytes() == name);
-        if listed(UNPREFIXED, name) || listed(EXCLUSIVELY_PREFIXED, name) {
+        if listed(UNPREFIXED_NODE_CORE_MODULES, name) || listed(EXCLUSIVELY_PREFIXED, name) {
             return true;
         }
         name.strip_prefix(b"node:")
-            .is_some_and(|unprefixed| listed(UNPREFIXED, unprefixed))
+            .is_some_and(|unprefixed| listed(UNPREFIXED_NODE_CORE_MODULES, unprefixed))
     }
 
     fn resolve_authoritative_program_module<'n>(

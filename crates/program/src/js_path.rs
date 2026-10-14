@@ -558,3 +558,64 @@ fn relative_path_from_directory_matches_tsgo() {
         );
     }
 }
+
+/// tsgo `tspath.extensionsToRemove`: the extensions a file name's output
+/// spelling drops, declaration extensions first.
+pub const EXTENSIONS_TO_REMOVE: [&str; 12] = [
+    ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx", ".jsx",
+    ".json",
+];
+
+/// tsgo `FileExtensionIs`: a path longer than the extension ending in it.
+pub fn file_extension_is<'p>(path: impl Into<JsStr<'p>>, extension: &str) -> bool {
+    let path = path.into();
+    path.len_units() > extension.encode_utf16().count() && path.ends_with(extension)
+}
+
+/// tsgo `TryGetExtensionFromPath`: the removable extension of a path.
+pub fn extension_from_path<'p>(path: impl Into<JsStr<'p>>) -> Option<&'static str> {
+    let path = path.into();
+    EXTENSIONS_TO_REMOVE
+        .iter()
+        .copied()
+        .find(|extension| file_extension_is(path, extension))
+}
+
+/// tsgo `RemoveFileExtension`.
+pub fn remove_file_extension<'p>(path: impl Into<JsStr<'p>>) -> JsString {
+    let path = path.into();
+    extension_from_path(path)
+        .and_then(|extension| path.strip_suffix(extension))
+        .unwrap_or(path)
+        .to_owned()
+}
+
+/// tsgo `ChangeFullExtension`: a path with its whole extension (a
+/// declaration extension included) replaced.
+pub fn change_full_extension<'p>(path: impl Into<JsStr<'p>>, extension: &str) -> JsString {
+    let mut result = remove_file_extension(path);
+    result.push_str(extension);
+    result
+}
+
+/// tsgo `module.TryGetJSExtensionForFile`: the JavaScript extension of a
+/// file's output.
+pub fn try_get_js_extension_for_file<'p>(
+    file_name: impl Into<JsStr<'p>>,
+    options: &tsc_types::CompilerOptions,
+) -> Option<&'static str> {
+    match extension_from_path(file_name)? {
+        ".ts" | ".d.ts" => Some(".js"),
+        ".tsx" => Some(if options.jsx == Some(1) {
+            ".jsx"
+        } else {
+            ".js"
+        }),
+        ".js" => Some(".js"),
+        ".jsx" => Some(".jsx"),
+        ".json" => Some(".json"),
+        ".d.mts" | ".mts" | ".mjs" => Some(".mjs"),
+        ".d.cts" | ".cts" | ".cjs" => Some(".cjs"),
+        _ => None,
+    }
+}

@@ -650,7 +650,7 @@ pub(crate) fn has_zero_or_one_asterisk<'a>(value: impl Into<JsStr<'a>>) -> bool 
 /// tsc-port: pathIsRelative @6.0.3
 /// tsc-hash: f202555c891d7a914e21c5fe1199667a8d221940ce66c814b4898adfb228aac9
 /// tsc-span: _tsc.js:5314-5316
-pub(crate) fn path_is_relative<'a>(path: impl Into<JsStr<'a>>) -> bool {
+pub fn path_is_relative<'a>(path: impl Into<JsStr<'a>>) -> bool {
     let path = path.into();
     (path == "." || path == "..")
         || path.starts_with("./")

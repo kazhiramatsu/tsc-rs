@@ -26,6 +26,9 @@ use crate::resolution::{
 };
 use crate::text::decode_host_text;
 
+mod entrypoints;
+pub use entrypoints::{EntrypointEnding, ResolvedEntrypoint};
+
 // Package-import rewrites use an explicit continuation stack below. The work
 // budget is derived from owned package.json input, so finite maps are not
 // constrained by an arbitrary nesting depth while expanding wildcard cycles
@@ -2187,7 +2190,7 @@ impl<'a> ModuleResolver<'a> {
             Some(self.current_directory_text()),
             true,
         )?;
-        let Some(package_root) = node_modules_package_root(&normalized_lexical_path) else {
+        let Some(package_root) = node_module_package_root(&normalized_lexical_path, false) else {
             return Ok(());
         };
         let Some(package) = self.load_package(&join_normalized(&package_root, "package.json"))?
@@ -6196,10 +6199,7 @@ impl<'a> ModuleResolver<'a> {
         if condition == "node" {
             return resolution_kind != 100;
         }
-        if condition
-            .strip_prefix("types@")
-            .is_some_and(|range| range.as_str().and_then(compiler_version_satisfies) == Some(true))
-        {
+        if is_applicable_versioned_types_key(condition) {
             return true;
         }
         self.options
@@ -6987,7 +6987,14 @@ fn path_contains_node_modules<'p>(path: impl Into<JsStr<'p>>) -> bool {
         .any(|component| component == "node_modules")
 }
 
-fn node_modules_package_root<'p>(path: impl Into<JsStr<'p>>) -> Option<JsString> {
+/// tsgo `NodeModulePackageRootForFile` (`is_directory` false) and
+/// `NodeModulePackageRootForDirectory`: the package directory below the last
+/// `node_modules` of a path (`@scope/name` or `name`); a directory path whose
+/// package name ends it is that package.
+pub fn node_module_package_root<'p>(
+    path: impl Into<JsStr<'p>>,
+    is_directory: bool,
+) -> Option<JsString> {
     let path = path.into();
     const MARKER: &[u8] = b"/node_modules/";
     let bytes = path.as_bytes();
@@ -6995,11 +7002,14 @@ fn node_modules_package_root<'p>(path: impl Into<JsStr<'p>>) -> Option<JsString>
         .windows(MARKER.len())
         .rposition(|window| window == MARKER)?;
     let package_start = marker + MARKER.len();
-    let move_to_separator = |previous: usize| {
-        bytes
-            .get(previous + 1..)
-            .and_then(|suffix| suffix.iter().position(|byte| *byte == b'/'))
-            .map_or(previous, |relative| previous + 1 + relative)
+    // tsgo `moveToNextDirectorySeparatorIfAvailable`.
+    let move_to_separator = |previous: usize| match bytes
+        .get(previous + 1..)
+        .and_then(|suffix| suffix.iter().position(|byte| *byte == b'/'))
+    {
+        Some(relative) => previous + 1 + relative,
+        None if is_directory => bytes.len(),
+        None => previous,
     };
     let mut package_end = move_to_separator(package_start);
     if bytes.get(package_start) == Some(&b'@') {
@@ -7557,6 +7567,65 @@ fn select_types_versions_mapping<'a, 'r>(
         }
     }
     best.map(|(pattern, capture, targets, _)| (pattern.to_owned(), capture, targets))
+}
+
+/// tsgo `ParsePackageName`: the package (`@scope/name` or `name`) and the
+/// path inside it.
+pub fn parse_package_name(name: &str) -> (&str, &str) {
+    let mut separator = name.find('/');
+    if name.starts_with('@') {
+        let offset = separator.map_or(0, |separator| separator + 1);
+        separator = name[offset..].find('/').map(|index| index + offset);
+    }
+    match separator {
+        Some(index) => (&name[..index], &name[index + 1..]),
+        None => (name, ""),
+    }
+}
+
+/// tsgo `UnmangleScopedPackageName`: `scope__name` is `@scope/name`.
+pub fn unmangle_scoped_package_name(name: &str) -> String {
+    match name.split_once("__") {
+        Some((scope, rest)) => format!("@{scope}/{rest}"),
+        None => name.to_owned(),
+    }
+}
+
+/// tsgo `GetPackageNameFromTypesPackageName`: the package an `@types`
+/// package types (any other name is itself).
+pub fn get_package_name_from_types_package_name(name: &str) -> String {
+    match name.strip_prefix("@types/") {
+        Some(mangled) => unmangle_scoped_package_name(mangled),
+        None => name.to_owned(),
+    }
+}
+
+/// tsgo `modulespecifiers.GetPackageNameFromDirectory`: the package of a
+/// path below a `node_modules` directory (the last one), if any.
+pub fn get_package_name_from_directory(path: &str) -> &str {
+    let Some((_, base_name)) = path.rsplit_once("/node_modules/") else {
+        return "";
+    };
+    if base_name.starts_with('.') {
+        return "";
+    }
+    let Some(next_slash) = base_name.find('/') else {
+        return base_name;
+    };
+    if !base_name.starts_with('@') || next_slash == base_name.len() - 1 {
+        return &base_name[..next_slash];
+    }
+    match base_name[next_slash + 1..].find('/') {
+        Some(second_slash) => &base_name[..next_slash + 1 + second_slash],
+        None => base_name,
+    }
+}
+
+/// tsgo `IsApplicableVersionedTypesKey`: a `types@<range>` condition whose
+/// range the compiler's version satisfies.
+pub fn is_applicable_versioned_types_key(key: JsStr<'_>) -> bool {
+    key.strip_prefix("types@")
+        .is_some_and(|range| range.as_str().and_then(compiler_version_satisfies) == Some(true))
 }
 
 pub fn mangle_scoped_package_name<'p>(package_name: impl Into<JsStr<'p>>) -> JsString {
