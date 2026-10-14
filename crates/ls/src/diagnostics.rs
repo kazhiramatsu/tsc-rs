@@ -36,7 +36,7 @@ impl LanguageService<'_> {
 
     /// tsgo `getAllDiagnostics` (a content mapper's supplemental outputs
     /// are not ported yet).
-    fn all_diagnostics(&mut self, file: usize) -> Result<Vec<Diagnostic>, LsError> {
+    pub(crate) fn all_diagnostics(&mut self, file: usize) -> Result<Vec<Diagnostic>, LsError> {
         let program_error = |error: tsc_compiler::DriverError| LsError(error.to_string());
         let program = &mut *self.program;
         let mut diagnostics = program.syntactic_diagnostics(file);
