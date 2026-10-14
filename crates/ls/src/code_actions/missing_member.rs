@@ -788,7 +788,7 @@ impl MissingMemberFixer<'_, '_, '_> {
                 .tracker
                 .arena()
                 .factory()
-                .deep_clone_node_without_positions(body)
+                .deep_clone_node(body)
                 .map(Some)
                 .map_err(transform_error),
             None => self.create_stubbed_method_body(quote_preference).map(Some),
@@ -1007,7 +1007,7 @@ impl MissingMemberFixer<'_, '_, '_> {
         self.tracker
             .arena()
             .factory()
-            .deep_clone_node_without_positions(node)
+            .deep_clone_node(node)
             .map_err(transform_error)
     }
 
