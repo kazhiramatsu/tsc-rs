@@ -511,7 +511,7 @@ impl<'context> JsxVisitor<'context> {
     fn transform_tag_name(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
         let node = self.node(id);
         match self.context.arena().node(node)?.data.clone() {
-            NodeData::Identifier(data) if is_intrinsic_jsx_name(data.text()) => {
+            NodeData::Identifier(data) if tsc_syntax::is_intrinsic_jsx_name(data.text()) => {
                 self.create_string_literal(data.text().encode_utf16().collect(), false)
             }
             NodeData::JsxNamespacedName(data) => {
@@ -1846,13 +1846,6 @@ impl NodeDataChildVisitor for JsxVisitor<'_> {
 fn parse_entity_name<'a>(value: impl Into<JsStr<'a>>) -> Option<Vec<JsString>> {
     tsc_syntax::parse_entity_name_components(value.into())
         .map(|parts| parts.into_iter().map(JsString::from).collect())
-}
-
-fn is_intrinsic_jsx_name(name: &str) -> bool {
-    name.as_bytes()
-        .first()
-        .is_some_and(|byte| byte.is_ascii_lowercase())
-        || name.contains('-')
 }
 
 fn is_identifier_attribute_name(name: &str) -> bool {

@@ -173,6 +173,19 @@ impl ResolvedProjectReferences {
         self.source_to_output.get(source)
     }
 
+    /// tsgo `GetOutputAndProjectReference(path).OutputDts` (and
+    /// `getParseFileRedirect`): the output declaration file of a referenced
+    /// project's source, by the source's normalized absolute name.
+    pub fn output_dts_of_source(
+        &self,
+        file_name: JsStr<'_>,
+        case_sensitive: bool,
+    ) -> Option<JsStr<'_>> {
+        let key = file_name_key(file_name, case_sensitive);
+        let source = CanonicalPath::from_js_normalized(key.as_js()).ok()?;
+        self.output_for_source(&source)?.output_dts()
+    }
+
     /// tsgo `getProjectReferenceFromOutputDts`: the referenced project whose
     /// output declaration file this is.
     pub fn source_for_output(

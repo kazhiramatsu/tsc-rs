@@ -82,7 +82,7 @@ impl Completions<'_, '_, '_> {
             }
             let request = &*self.request;
             let (edits, description) = crate::autoimport::fix_edits(
-                fix,
+                &crate::autoimport::Fix::of(fix.clone()),
                 self.source,
                 request.state.options,
                 request.preferences.format_code_settings.clone(),

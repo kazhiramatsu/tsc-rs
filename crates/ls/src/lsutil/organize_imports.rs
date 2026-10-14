@@ -7,12 +7,12 @@ use std::cmp::Ordering;
 
 use tsc_syntax::{NodeArena, NodeData, NodeId, SyntaxKind};
 
-use super::go_unicode::{in_ranges, is_upper, to_lower as go_to_lower};
-use super::unicode_tables::{CANONICAL_DECOMPOSITION, NONSPACING_MARK};
 use super::{
     OrganizeImportsCaseFirst, OrganizeImportsCollation, OrganizeImportsSort,
     OrganizeImportsTypeOrder, UserPreferences,
 };
+use tsc_syntax::go_unicode::tables::{CANONICAL_DECOMPOSITION, NONSPACING_MARK};
+use tsc_syntax::go_unicode::{in_ranges, is_upper, to_lower as go_to_lower};
 
 /// One of tsgo's organize imports string comparers (tsgo passes the
 /// function).

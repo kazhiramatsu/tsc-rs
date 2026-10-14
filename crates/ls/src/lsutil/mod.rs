@@ -5,10 +5,8 @@
 mod asi;
 mod completed_node;
 mod format_code_options;
-pub(crate) mod go_unicode;
 mod organize_imports;
 mod symbol_display;
-mod unicode_tables;
 mod user_preferences;
 mod user_preferences_generated;
 mod utilities;

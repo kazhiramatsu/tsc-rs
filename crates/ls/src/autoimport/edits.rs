@@ -9,7 +9,7 @@ use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeFlags};
 
 use super::view::{
-    is_variable_declaration_initialized_to_require, try_get_import_from_module_specifier,
+    is_variable_declaration_initialized_to_require, try_get_import_from_module_specifier, Fix,
 };
 use crate::astnav::{Found, Navigator};
 use crate::change::{LeadingTriviaOption, NodeOptions, Tracker};
@@ -25,15 +25,16 @@ use crate::tree::View;
 use crate::utilities::script_of;
 
 /// tsgo `newImportBinding`.
-struct NewImportBinding {
-    kind: ImportKind,
-    property_name: String,
-    name: String,
-    add_as_type_only: AddAsTypeOnly,
+#[derive(Clone)]
+pub(super) struct NewImportBinding {
+    pub(super) kind: ImportKind,
+    pub(super) property_name: String,
+    pub(super) name: String,
+    pub(super) add_as_type_only: AddAsTypeOnly,
 }
 
 impl NewImportBinding {
-    fn new(name: &str, add_as_type_only: AddAsTypeOnly) -> Self {
+    pub(super) fn new(name: &str, add_as_type_only: AddAsTypeOnly) -> Self {
         Self {
             kind: ImportKind::default(),
             property_name: String::new(),
@@ -43,11 +44,21 @@ impl NewImportBinding {
     }
 }
 
+/// A message with its arguments in the request's locale (tsgo `Localize`).
+fn localize(
+    catalog: Option<&dyn MessageCatalog>,
+    message: &'static DiagnosticMessage,
+    args: &[&str],
+) -> String {
+    let args: Vec<String> = args.iter().map(|&arg| arg.to_owned()).collect();
+    tsc_diagnostics::format_message(message.template_in(catalog), &args)
+}
+
 /// tsgo `Fix.Edits`: the edits that make `fix` in `file`, and their
 /// description. An edit the tracker cannot make is an error.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn fix_edits(
-    fix: &AutoImportFix,
+    fix: &Fix,
     file: &SourceFile,
     options: &CompilerOptions,
     format_settings: FormatCodeSettings,
@@ -55,11 +66,6 @@ pub(crate) fn fix_edits(
     preferences: &UserPreferences,
     catalog: Option<&dyn MessageCatalog>,
 ) -> Result<(Vec<TextEdit>, String), String> {
-    let script = script_of(file);
-    let usage_position = fix
-        .usage_position
-        .as_ref()
-        .map(|position| converters.from_lsp_position(&script, position));
     let mut tracker = Tracker::new(new_line_kind(options), format_settings);
     let description = make_fix(
         &mut tracker,
@@ -67,13 +73,23 @@ pub(crate) fn fix_edits(
         file,
         options,
         preferences,
-        usage_position,
+        converters,
         catalog,
     )
     .map_err(|error| error.to_string())?;
+    let edits = file_edits(tracker, file, converters)?;
+    Ok((edits, description))
+}
+
+/// tsgo `fileEdits`: the tracker's edits of the file.
+pub(super) fn file_edits(
+    tracker: Tracker<'_>,
+    file: &SourceFile,
+    converters: &Converters,
+) -> Result<Vec<TextEdit>, String> {
+    let script = script_of(file);
     let changes = tracker.get_changes().map_err(|error| error.to_string())?;
-    // tsgo `fileEdits`: the file's edits.
-    let edits = changes
+    Ok(changes
         .into_iter()
         .filter(|changes| std::ptr::eq(changes.file, file))
         .flat_map(|changes| changes.changes)
@@ -81,45 +97,35 @@ pub(crate) fn fix_edits(
             range: converters.to_lsp_range(&script, change.pos..change.end),
             new_text: change.new_text,
         })
-        .collect();
-    Ok((edits, description))
+        .collect())
 }
 
 /// The edits of `Fix.Edits` recorded by the tracker, and their description.
 fn make_fix<'a>(
     tracker: &mut Tracker<'a>,
-    fix: &AutoImportFix,
+    fix: &Fix,
     file: &'a SourceFile,
     options: &CompilerOptions,
     preferences: &UserPreferences,
-    usage_position: Option<usize>,
+    converters: &Converters,
     catalog: Option<&dyn MessageCatalog>,
 ) -> Result<String, TransformError> {
-    let localize = |message: &'static DiagnosticMessage, args: &[&str]| {
-        let args: Vec<String> = args.iter().map(|&arg| arg.to_owned()).collect();
-        tsc_diagnostics::format_message(message.template_in(catalog), &args)
-    };
-    match fix.kind {
-        AutoImportFixKind::USE_NAMESPACE => {
-            // tsgo `addNamespaceQualifier`.
-            let Some(usage_position) = usage_position.filter(|_| !fix.namespace_prefix.is_empty())
-            else {
-                panic!("namespace fix requires usage position and prefix");
-            };
-            let qualified = format!("{}.{}", fix.namespace_prefix, fix.name);
-            tracker.insert_text_at(file, usage_position, format!("{}.", fix.namespace_prefix));
-            Ok(localize(
-                &tsc_diagnostics::gen::Change_0_to_1,
-                &[&fix.name, &qualified],
-            ))
-        }
+    let auto_import = &fix.auto_import;
+    match auto_import.kind {
+        AutoImportFixKind::USE_NAMESPACE => Ok(add_namespace_qualifier(
+            auto_import,
+            tracker,
+            file,
+            converters,
+            catalog,
+        )),
         AutoImportFixKind::ADD_TO_EXISTING => {
             let imports = collect_external_module_references(file).imports;
-            let Some(&module_specifier) = imports.get(fix.import_index as usize) else {
+            let Some(&module_specifier) = imports.get(auto_import.import_index as usize) else {
                 panic!("import index out of range");
             };
             let (clause_or_pattern, default_import, named_import) =
-                get_add_to_existing_import_fix(file, fix, module_specifier);
+                get_add_to_existing_import_fix(file, auto_import, module_specifier);
             add_to_existing_import(
                 tracker,
                 file,
@@ -129,29 +135,31 @@ fn make_fix<'a>(
                 preferences,
             )?;
             Ok(localize(
+                catalog,
                 &tsc_diagnostics::gen::Update_import_from_0,
-                &[&fix.module_specifier],
+                &[&auto_import.module_specifier],
             ))
         }
         AutoImportFixKind::ADD_NEW => {
-            let default_import = (fix.import_kind == ImportKind::DEFAULT)
-                .then(|| NewImportBinding::new(&fix.name, fix.add_as_type_only));
-            let named_imports: Vec<NewImportBinding> = (fix.import_kind == ImportKind::NAMED)
-                .then(|| NewImportBinding::new(&fix.name, fix.add_as_type_only))
+            let default_import = (auto_import.import_kind == ImportKind::DEFAULT)
+                .then(|| NewImportBinding::new(&auto_import.name, auto_import.add_as_type_only));
+            let named_imports: Vec<NewImportBinding> = (auto_import.import_kind
+                == ImportKind::NAMED)
+                .then(|| NewImportBinding::new(&auto_import.name, auto_import.add_as_type_only))
                 .into_iter()
                 .collect();
-            let namespace_like_import = (fix.import_kind == ImportKind::NAMESPACE
-                || fix.import_kind == ImportKind::COMMON_JS)
+            let namespace_like_import = (auto_import.import_kind == ImportKind::NAMESPACE
+                || auto_import.import_kind == ImportKind::COMMON_JS)
                 .then(|| NewImportBinding {
-                    kind: fix.import_kind,
-                    ..NewImportBinding::new(&fix.name, AddAsTypeOnly::default())
+                    kind: auto_import.import_kind,
+                    ..NewImportBinding::new(&auto_import.name, AddAsTypeOnly::default())
                 });
             let quote_preference = get_quote_preference(file, preferences);
-            let declarations = if fix.use_require {
+            let declarations = if auto_import.use_require {
                 get_new_requires(
                     tracker,
                     file,
-                    &fix.module_specifier,
+                    &auto_import.module_specifier,
                     quote_preference,
                     default_import.as_ref(),
                     &named_imports,
@@ -161,7 +169,7 @@ fn make_fix<'a>(
                 get_new_imports(
                     tracker,
                     file,
-                    &fix.module_specifier,
+                    &auto_import.module_specifier,
                     quote_preference,
                     default_import.as_ref(),
                     &named_imports,
@@ -172,36 +180,103 @@ fn make_fix<'a>(
             };
             insert_imports(tracker, file, declarations, true, preferences)?;
             Ok(localize(
+                catalog,
                 &tsc_diagnostics::gen::Add_import_from_0,
-                &[&fix.module_specifier],
+                &[&auto_import.module_specifier],
             ))
         }
-        AutoImportFixKind::JSDOC_TYPE_IMPORT => {
-            // tsgo `addImportType`.
-            let Some(usage_position) = usage_position else {
-                panic!("UsagePosition must be set for JSDoc type import fix");
-            };
-            let quote = if get_quote_preference(file, preferences) == QuotePreference::SINGLE {
-                '\''
-            } else {
-                '"'
-            };
-            let import_type_prefix = format!("import({quote}{}{quote}).", fix.module_specifier);
-            tracker.insert_text_at(file, usage_position, import_type_prefix.clone());
+        AutoImportFixKind::PROMOTE_TYPE_ONLY => {
+            let alias_declaration = fix
+                .type_only_alias_declaration
+                .expect("a type-only promotion's declaration");
+            let promoted =
+                promote_from_type_only(tracker, alias_declaration, options, file, preferences)?;
+            if file.arena.node(promoted).kind == SyntaxKind::ImportSpecifier {
+                let clause = file
+                    .arena
+                    .node(promoted)
+                    .parent
+                    .and_then(|named| file.arena.node(named).parent)
+                    .expect("an import specifier's clause");
+                return Ok(localize(
+                    catalog,
+                    &tsc_diagnostics::gen::Remove_type_from_import_of_0_from_1,
+                    &[&auto_import.name, &get_module_specifier_text(file, clause)],
+                ));
+            }
             Ok(localize(
-                &tsc_diagnostics::gen::Change_0_to_1,
-                &[&fix.name, &format!("{import_type_prefix}{}", fix.name)],
+                catalog,
+                &tsc_diagnostics::gen::Remove_type_from_import_declaration_from_0,
+                &[&get_module_specifier_text(file, promoted)],
             ))
         }
-        // The promotion of a type-only import comes with the code fixes'
-        // declaration (L5b).
+        AutoImportFixKind::JSDOC_TYPE_IMPORT => Ok(add_import_type(
+            auto_import,
+            file,
+            preferences,
+            tracker,
+            converters,
+            catalog,
+        )),
         _ => panic!("unimplemented fix edit"),
     }
 }
 
+/// tsgo `addImportType`.
+pub(super) fn add_import_type<'a>(
+    fix: &AutoImportFix,
+    file: &'a SourceFile,
+    preferences: &UserPreferences,
+    tracker: &mut Tracker<'a>,
+    converters: &Converters,
+    catalog: Option<&dyn MessageCatalog>,
+) -> String {
+    let Some(usage_position) = fix.usage_position.as_ref() else {
+        panic!("UsagePosition must be set for JSDoc type import fix");
+    };
+    let quote = if get_quote_preference(file, preferences) == QuotePreference::SINGLE {
+        '\''
+    } else {
+        '"'
+    };
+    let import_type_prefix = format!("import({quote}{}{quote}).", fix.module_specifier);
+    let position = converters.from_lsp_position(&script_of(file), usage_position);
+    tracker.insert_text_at(file, position, import_type_prefix.clone());
+    localize(
+        catalog,
+        &tsc_diagnostics::gen::Change_0_to_1,
+        &[&fix.name, &format!("{import_type_prefix}{}", fix.name)],
+    )
+}
+
+/// tsgo `addNamespaceQualifier`.
+pub(super) fn add_namespace_qualifier<'a>(
+    fix: &AutoImportFix,
+    tracker: &mut Tracker<'a>,
+    file: &'a SourceFile,
+    converters: &Converters,
+    catalog: Option<&dyn MessageCatalog>,
+) -> String {
+    let Some(usage_position) = fix
+        .usage_position
+        .as_ref()
+        .filter(|_| !fix.namespace_prefix.is_empty())
+    else {
+        panic!("namespace fix requires usage position and prefix");
+    };
+    let qualified = format!("{}.{}", fix.namespace_prefix, fix.name);
+    let position = converters.from_lsp_position(&script_of(file), usage_position);
+    tracker.insert_text_at(file, position, format!("{}.", fix.namespace_prefix));
+    localize(
+        catalog,
+        &tsc_diagnostics::gen::Change_0_to_1,
+        &[&fix.name, &qualified],
+    )
+}
+
 /// tsgo `getAddToExistingImportFix`: the import clause or `require`
 /// binding pattern of the fix's import, and the binding to add.
-fn get_add_to_existing_import_fix(
+pub(super) fn get_add_to_existing_import_fix(
     file: &SourceFile,
     fix: &AutoImportFix,
     module_specifier: NodeId,
@@ -239,7 +314,7 @@ fn get_add_to_existing_import_fix(
 }
 
 /// tsgo `addToExistingImport`.
-fn add_to_existing_import<'a>(
+pub(super) fn add_to_existing_import<'a>(
     tracker: &mut Tracker<'a>,
     file: &'a SourceFile,
     clause_or_pattern: NodeId,
@@ -447,6 +522,307 @@ fn add_to_existing_import<'a>(
     Ok(())
 }
 
+/// tsgo `promoteFromTypeOnly`: the `type` of the alias's import removed;
+/// the declaration promoted.
+fn promote_from_type_only<'a>(
+    tracker: &mut Tracker<'a>,
+    alias_declaration: NodeId,
+    options: &CompilerOptions,
+    file: &'a SourceFile,
+    preferences: &UserPreferences,
+) -> Result<NodeId, TransformError> {
+    // See comment in `doAddExistingFix` on constant with the same name.
+    let convert_existing_to_type_only = options.verbatim_module_syntax == Some(true);
+    let node = file.arena.node(alias_declaration);
+    match &node.data {
+        NodeData::ImportSpecifier(spec) => {
+            let parent = node
+                .parent
+                .expect("ImportSpecifier parent must be NamedImports");
+            if spec.is_type_only {
+                if let NodeData::NamedImports(named) = &file.arena.node(parent).data {
+                    let elements = named
+                        .elements
+                        .map(|elements| file.arena.node_array(elements).nodes)
+                        .unwrap_or_default();
+                    if elements.len() > 1 {
+                        // Create a synthetic specifier with isTypeOnly=false to compute sorted position
+                        let source = tracker.source(file);
+                        let mut factory = tracker.arena().factory();
+                        let property_name = spec
+                            .property_name
+                            .map(|property_name| {
+                                factory.create_identifier(source, node_text(file, property_name))
+                            })
+                            .transpose()?;
+                        let name = factory.create_identifier(
+                            source,
+                            node_text(file, spec.name.expect("a specifier's name")),
+                        )?;
+                        let new_specifier =
+                            factory.create_import_specifier(source, false, property_name, name)?;
+                        let declaration = file
+                            .arena
+                            .node(parent)
+                            .parent
+                            .and_then(|clause| file.arena.node(clause).parent)
+                            .expect("an import declaration");
+                        let ((comparer, type_order), _) =
+                            get_named_import_specifier_comparer_with_detection(
+                                tracker.syntax(file),
+                                declaration,
+                                Some(statements(file, file.root)),
+                                preferences,
+                            );
+                        let insertion_index = {
+                            let arena = tracker.syntax(file);
+                            binary_search_unique(elements, |&value| {
+                                compare_import_or_export_specifiers(
+                                    arena,
+                                    value,
+                                    new_specifier.node(),
+                                    comparer,
+                                    type_order,
+                                )
+                            })
+                        };
+                        let current_index = elements
+                            .iter()
+                            .position(|&element| element == alias_declaration);
+                        if Some(insertion_index) != current_index {
+                            tracker.delete(file, alias_declaration);
+                            tracker.insert_import_specifier_at_index(
+                                file,
+                                new_specifier,
+                                parent,
+                                insertion_index,
+                            )?;
+                            return Ok(alias_declaration);
+                        }
+                    }
+                    // If no re-sorting needed, just remove the 'type' keyword
+                    let navigator = Navigator::new(file);
+                    let first_token = navigator
+                        .first_token(View::Node(alias_declaration))
+                        .expect("a specifier's first token");
+                    let type_keyword_pos = navigator.start_of_node(first_token, false) as usize;
+                    let target = spec
+                        .property_name
+                        .or(spec.name)
+                        .expect("a specifier's name");
+                    let target_pos = start_of(file, target);
+                    tracker.replace_range_with_text(
+                        file,
+                        (type_keyword_pos, target_pos),
+                        String::new(),
+                    );
+                }
+                return Ok(alias_declaration);
+            }
+            // The parent import clause is type-only
+            assert!(
+                file.arena.node(parent).kind == SyntaxKind::NamedImports,
+                "ImportSpecifier parent must be NamedImports"
+            );
+            let clause = file
+                .arena
+                .node(parent)
+                .parent
+                .filter(|&clause| file.arena.node(clause).kind == SyntaxKind::ImportClause)
+                .expect("NamedImports parent must be ImportClause");
+            promote_import_clause(
+                tracker,
+                clause,
+                file,
+                preferences,
+                convert_existing_to_type_only,
+                Some(alias_declaration),
+            )?;
+            Ok(clause)
+        }
+        NodeData::ImportClause(_) => {
+            promote_import_clause(
+                tracker,
+                alias_declaration,
+                file,
+                preferences,
+                convert_existing_to_type_only,
+                Some(alias_declaration),
+            )?;
+            Ok(alias_declaration)
+        }
+        NodeData::NamespaceImport(_) => {
+            // Promote the parent import clause
+            let clause = node
+                .parent
+                .filter(|&clause| file.arena.node(clause).kind == SyntaxKind::ImportClause)
+                .expect("NamespaceImport parent must be ImportClause");
+            promote_import_clause(
+                tracker,
+                clause,
+                file,
+                preferences,
+                convert_existing_to_type_only,
+                Some(alias_declaration),
+            )?;
+            Ok(clause)
+        }
+        NodeData::ImportEqualsDeclaration(_) => {
+            // Remove the 'type' keyword (which is the second token: 'import' 'type' name '=' ...)
+            let mut scanner = tsc_syntax::TokenScanner::new(file, node.pos as usize);
+            // Skip 'import' keyword to get to 'type'
+            scanner.scan();
+            delete_type_keyword(tracker, file, scanner.token_start());
+            Ok(alias_declaration)
+        }
+        _ => panic!("Unexpected alias declaration kind: {:?}", node.kind),
+    }
+}
+
+/// tsgo `promoteImportClause`: the `type` of an import clause removed (and
+/// under `verbatimModuleSyntax` the other specifiers made type-only).
+fn promote_import_clause<'a>(
+    tracker: &mut Tracker<'a>,
+    clause: NodeId,
+    file: &'a SourceFile,
+    preferences: &UserPreferences,
+    convert_existing_to_type_only: bool,
+    alias_declaration: Option<NodeId>,
+) -> Result<(), TransformError> {
+    let NodeData::ImportClause(data) = &file.arena.node(clause).data else {
+        unreachable!("an import clause");
+    };
+    // Delete the 'type' keyword
+    if data.phase_modifier == Some(SyntaxKind::TypeKeyword) {
+        delete_type_keyword(tracker, file, file.arena.node(clause).pos as usize);
+    }
+    // Handle verbatimModuleSyntax conversion
+    // If convertExistingToTypeOnly is true, we need to add 'type' to other specifiers
+    // in the same import declaration
+    if !convert_existing_to_type_only {
+        return Ok(());
+    }
+    let Some(named_bindings) = data.named_bindings else {
+        return Ok(());
+    };
+    let NodeData::NamedImports(named) = &file.arena.node(named_bindings).data else {
+        return Ok(());
+    };
+    let elements = named
+        .elements
+        .map(|elements| file.arena.node_array(elements).nodes)
+        .unwrap_or_default();
+    if elements.len() <= 1 {
+        return Ok(());
+    }
+    let declaration = file
+        .arena
+        .node(clause)
+        .parent
+        .expect("an import declaration");
+    // Check if the list is sorted and if we need to reorder
+    let (_, is_sorted) = get_named_import_specifier_comparer_with_detection(
+        tracker.syntax(file),
+        declaration,
+        Some(statements(file, file.root)),
+        preferences,
+    );
+    let alias_specifier = alias_declaration
+        .filter(|&alias| file.arena.node(alias).kind == SyntaxKind::ImportSpecifier);
+    // If the alias declaration is an ImportSpecifier and the list is sorted,
+    // move it to index 0 (since it will be the only non-type-only import)
+    if let Some(alias) = alias_specifier.filter(|_| is_sorted != Some(false)) {
+        // If not already at index 0, move it there
+        if elements
+            .iter()
+            .position(|&element| element == alias)
+            .is_some_and(|index| index > 0)
+        {
+            // Delete the specifier from its current position
+            tracker.delete(file, alias);
+            // Insert it at index 0
+            let source = tracker.source(file);
+            tracker.insert_import_specifier_at_index(
+                file,
+                TransformNode::new(source, alias),
+                named_bindings,
+                0,
+            )?;
+        }
+    }
+    // Add 'type' keyword to all other import specifiers that aren't already type-only
+    for &element in elements {
+        // Skip the specifier being promoted (if aliasDeclaration is an ImportSpecifier)
+        if Some(element) == alias_specifier {
+            continue;
+        }
+        // Skip if already type-only
+        let is_type_only = matches!(
+            &file.arena.node(element).data,
+            NodeData::ImportSpecifier(spec) if spec.is_type_only
+        );
+        if !is_type_only {
+            tracker.insert_modifier_before(file, SyntaxKind::TypeKeyword, element)?;
+        }
+    }
+    Ok(())
+}
+
+/// tsgo `deleteTypeKeyword`: the `type` keyword token at `start` and the
+/// spaces and tabs after it.
+fn delete_type_keyword<'a>(tracker: &mut Tracker<'a>, file: &'a SourceFile, start: usize) {
+    let scanner = tsc_syntax::TokenScanner::new(file, start);
+    if scanner.token() != SyntaxKind::TypeKeyword {
+        return;
+    }
+    let type_start = scanner.token_start();
+    let mut type_end = scanner.token_end();
+    // Skip trailing whitespace
+    let bytes = file.text().as_bytes();
+    while type_end < bytes.len() && matches!(bytes[type_end], b' ' | b'\t') {
+        type_end += 1;
+    }
+    tracker.replace_range_with_text(file, (type_start, type_end), String::new());
+}
+
+/// tsgo `getModuleSpecifierText`: the module specifier of a promoted
+/// declaration (an import clause or an `import =`).
+fn get_module_specifier_text(file: &SourceFile, promoted: NodeId) -> String {
+    let specifier_text = |expression: NodeId| match &file.arena.node(expression).data {
+        NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
+        NodeData::NoSubstitutionTemplateLiteral(data) => data.text.to_string_lossy().into_owned(),
+        _ => text_of_node(file, expression),
+    };
+    if let NodeData::ImportEqualsDeclaration(data) = &file.arena.node(promoted).data {
+        let reference = data.module_reference.expect("an import = reference");
+        if let NodeData::ExternalModuleReference(external) = &file.arena.node(reference).data {
+            if let Some(expression) = external.expression {
+                return specifier_text(expression);
+            }
+        }
+        return text_of_node(file, reference);
+    }
+    let declaration = file
+        .arena
+        .node(promoted)
+        .parent
+        .expect("an import declaration");
+    let NodeData::ImportDeclaration(data) = &file.arena.node(declaration).data else {
+        unreachable!("an import declaration");
+    };
+    specifier_text(data.module_specifier.expect("a module specifier"))
+}
+
+/// tsgo `GetTextOfNode`: the node's source text without its trivia.
+fn text_of_node(file: &SourceFile, node: NodeId) -> String {
+    file.text()[start_of(file, node)..file.arena.node(node).end as usize].to_owned()
+}
+
+/// tsgo `Node.Text()` of an identifier or a string literal name.
+fn node_text(file: &SourceFile, node: NodeId) -> String {
+    crate::lsutil::node_name_text(&file.arena, node)
+}
+
 /// tsgo `addElementToBindingPattern`. tsgo makes the property name the
 /// element's initializer (`{ x, foo = default }`).
 fn add_element_to_binding_pattern<'a>(
@@ -489,7 +865,7 @@ fn add_element_to_binding_pattern<'a>(
 
 /// tsgo `getNewImports`.
 #[allow(clippy::too_many_arguments)]
-fn get_new_imports<'a>(
+pub(super) fn get_new_imports<'a>(
     tracker: &mut Tracker<'a>,
     file: &'a SourceFile,
     module_specifier: &str,
@@ -598,7 +974,7 @@ fn get_new_imports<'a>(
 }
 
 /// tsgo `getNewRequires`.
-fn get_new_requires<'a>(
+pub(super) fn get_new_requires<'a>(
     tracker: &mut Tracker<'a>,
     file: &'a SourceFile,
     module_specifier: &str,
@@ -699,7 +1075,7 @@ fn create_const_equals_require_declaration<'a>(
 }
 
 /// tsgo `insertImports`.
-fn insert_imports<'a>(
+pub(super) fn insert_imports<'a>(
     tracker: &mut Tracker<'a>,
     file: &'a SourceFile,
     imports: Vec<TransformNode>,

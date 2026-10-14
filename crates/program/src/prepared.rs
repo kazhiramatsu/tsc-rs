@@ -1918,15 +1918,9 @@ impl PreparedProgram {
     /// loads in place of a referenced project's source, by the source's
     /// normalized absolute name.
     pub fn project_reference_output_of_source(&self, file_name: JsStr<'_>) -> Option<JsStr<'_>> {
-        let key = crate::js_path::file_name_key(
-            file_name,
-            self.path_context.use_case_sensitive_file_names(),
-        );
-        let source = CanonicalPath::from_js_normalized(key.as_js()).ok()?;
         self.program_options()
             .project_references()?
-            .output_for_source(&source)?
-            .output_dts()
+            .output_dts_of_source(file_name, self.path_context.use_case_sensitive_file_names())
     }
 
     /// tsgo `Program.CommonSourceDirectory()`: the rootDir, else the

@@ -16,9 +16,9 @@ use tsc_types::{InternalSymbolName, SymbolFlags};
 use super::export::{Export, ExportId, ExportSyntax, ModuleId};
 use super::extract::try_get_module_id_and_file_name_of_module_symbol;
 use super::registry::Registry;
-use crate::lsutil::go_unicode::{is_upper, to_upper_char};
 use crate::references::{collect_external_module_references, statements};
 use crate::utilities::path_key;
+use tsc_syntax::go_unicode::{is_upper, to_upper_char};
 
 /// tsgo `Fix`: the protocol's fix and how it ranks.
 #[derive(Clone, Debug)]
@@ -28,6 +28,22 @@ pub(crate) struct Fix {
     pub(crate) module_specifier_kind: Option<ModuleSpecifierKind>,
     pub(crate) is_re_export: bool,
     pub(crate) module_file_name: String,
+    /// The import that made the symbol type-only (a promotion's).
+    pub(crate) type_only_alias_declaration: Option<NodeId>,
+}
+
+impl Fix {
+    /// A fix of the protocol's data (a completion item's), which ranks no
+    /// other.
+    pub(crate) fn of(auto_import: AutoImportFix) -> Self {
+        Self {
+            auto_import,
+            module_specifier_kind: None,
+            is_re_export: false,
+            module_file_name: String::new(),
+            type_only_alias_declaration: None,
+        }
+    }
 }
 
 /// tsgo `FixAndExport`.
@@ -49,6 +65,8 @@ struct ExistingImport {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum QueryKind {
     WordPrefix,
+    ExactMatch,
+    CaseInsensitiveMatch,
 }
 
 /// tsgo `View`.
@@ -93,6 +111,11 @@ impl<'r> View<'r> {
         }
     }
 
+    /// tsgo `ToPath` of a file name of the view's program.
+    pub(crate) fn path_of(&self, file_name: &str) -> String {
+        path_key(self.prepared, file_name)
+    }
+
     fn source<'c>(&self, checker: &'c CheckerState<'_>) -> &'c SourceFile {
         checker.binder.source(self.importing_file)
     }
@@ -104,6 +127,8 @@ impl<'r> View<'r> {
         };
         let exports = match kind {
             QueryKind::WordPrefix => bucket.index.search_word_prefix(query),
+            QueryKind::ExactMatch => bucket.index.find(query, true),
+            QueryKind::CaseInsensitiveMatch => bucket.index.find(query, false),
         };
         // Don't auto-import from the importing file itself
         exports
@@ -263,6 +288,7 @@ impl<'r> View<'r> {
                 module_specifier_kind,
                 is_re_export,
                 module_file_name: export.module_file_name.clone(),
+                type_only_alias_declaration: None,
             }]);
         }
         let import_kind = self.get_import_kind(checker, export, false);
@@ -291,6 +317,7 @@ impl<'r> View<'r> {
             module_specifier_kind,
             is_re_export,
             module_file_name: export.module_file_name.clone(),
+            type_only_alias_declaration: None,
         });
         Ok(fixes)
     }
@@ -333,6 +360,7 @@ impl<'r> View<'r> {
                 module_specifier_kind: None,
                 is_re_export: false,
                 module_file_name: String::new(),
+                type_only_alias_declaration: None,
             }));
         }
         Ok(None)
@@ -383,6 +411,7 @@ impl<'r> View<'r> {
             module_specifier_kind: None,
             is_re_export: false,
             module_file_name: String::new(),
+            type_only_alias_declaration: None,
         };
         let mut best = None;
         for existing in &matching {

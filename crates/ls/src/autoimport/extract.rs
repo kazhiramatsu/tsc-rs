@@ -118,6 +118,113 @@ pub(crate) fn try_get_module_id_and_file_name_of_module_symbol(
     None
 }
 
+/// tsgo `SymbolToExport`: the export of its module a symbol is (the
+/// first export its extraction gives), if any.
+pub(crate) fn symbol_to_export(
+    checker: &mut CheckerState<'_>,
+    path_of: &dyn Fn(&str) -> String,
+    symbol: SymbolId,
+) -> CheckResult<Option<Export>> {
+    let parent = checker.binder.symbol(symbol).parent;
+    if let Some(parent) = parent.filter(|&parent| is_external_module(checker, parent)) {
+        let Some((module_id, module_file_name)) =
+            try_get_module_id_and_file_name_of_module_symbol(checker, path_of, parent)
+        else {
+            return Ok(None);
+        };
+        // tsgo `GetSourceFileOfModule`.
+        let record = checker.binder.symbol(parent);
+        let declaration = record.value_declaration.or_else(|| {
+            record.declarations.iter().copied().find(|&declaration| {
+                let source = checker.binder.source_of_node(declaration);
+                !is_external_module_augmentation(source, declaration)
+                    && !node_util::is_global_scope_augmentation(source, declaration)
+            })
+        });
+        let Some(declaration) = declaration else {
+            return Ok(None);
+        };
+        let file = checker.binder.file_index_of_node(declaration);
+        let name = name_of(checker, symbol);
+        return extract_first_export(
+            checker,
+            path_of,
+            &name,
+            symbol,
+            module_id,
+            module_file_name,
+            file,
+        );
+    }
+    let Some(&declaration) = checker.binder.symbol(symbol).declarations.first() else {
+        return Ok(None);
+    };
+    let file = checker.binder.file_index_of_node(declaration);
+    let source = checker.binder.source(file);
+    let Some(file_symbol) = checker.binder.node_symbol(source.root) else {
+        return Ok(None);
+    };
+    let module_symbol = checker.get_merged_symbol(file_symbol);
+    let module_file_name = source.file_name.to_string_lossy().into_owned();
+    let module_id = ModuleId::File(path_of(&module_file_name));
+    let skipped = checker.skip_alias(symbol)?;
+    let target = checker.get_merged_symbol(skipped);
+    let name = name_of(checker, symbol);
+    for export_name in [
+        InternalSymbolName::DEFAULT,
+        InternalSymbolName::EXPORT_EQUALS,
+        name.as_str(),
+    ] {
+        // tsgo `tryGetModuleExport`.
+        let Some(exported) =
+            checker.try_get_member_in_module_exports_and_properties(export_name, module_symbol)?
+        else {
+            continue;
+        };
+        let skipped = checker.skip_alias(exported)?;
+        if checker.get_merged_symbol(skipped) == target {
+            let exported_name = name_of(checker, exported);
+            return extract_first_export(
+                checker,
+                path_of,
+                &exported_name,
+                exported,
+                module_id,
+                module_file_name,
+                file,
+            );
+        }
+    }
+    Ok(None)
+}
+
+/// tsgo `extractFirstExport`.
+fn extract_first_export(
+    checker: &mut CheckerState<'_>,
+    path_of: &dyn Fn(&str) -> String,
+    name: &str,
+    symbol: SymbolId,
+    module_id: ModuleId,
+    module_file_name: String,
+    file: usize,
+) -> CheckResult<Option<Export>> {
+    let mut exports = Vec::new();
+    let mut extractor = Extractor {
+        checker,
+        path_of,
+        package_name: String::new(),
+    };
+    extractor.extract_from_symbol(
+        name,
+        symbol,
+        &module_id,
+        &module_file_name,
+        file,
+        &mut exports,
+    )?;
+    Ok(exports.into_iter().next())
+}
+
 /// tsgo `IsExternalModuleAugmentation`: a module augmentation in an
 /// external module (a string-named module declaration at its top level).
 fn is_external_module_augmentation(source: &SourceFile, node: NodeId) -> bool {

@@ -117,7 +117,7 @@ pub(crate) fn module_specifier_to_valid_identifier(
     match chars.next() {
         Some(first) if tsc_syntax::is_identifier_start(first) => {
             result.push(if force_capitalize {
-                super::go_unicode::to_upper_char(first)
+                tsc_syntax::go_unicode::to_upper_char(first)
             } else {
                 first
             });
@@ -130,7 +130,7 @@ pub(crate) fn module_specifier_to_valid_identifier(
             result.push(if last_char_was_valid {
                 ch
             } else {
-                super::go_unicode::to_upper_char(ch)
+                tsc_syntax::go_unicode::to_upper_char(ch)
             });
         }
         last_char_was_valid = is_valid;
