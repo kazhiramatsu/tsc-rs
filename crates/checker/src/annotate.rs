@@ -1878,13 +1878,10 @@ impl<'a> CheckerState<'a> {
                     let declared = self.get_declared_type_of_class_or_interface(symbol)?;
                     return match &self.tables.type_of(declared).data {
                         TypeData::GenericType { this_type, .. } => Ok(*this_type),
-                        // A `this` inside the interface sets ContainsThis,
-                        // which forces the GenericType shape — a plain
-                        // Object here means the declared type is still
-                        // mid-construction (cyclic heritage shell).
-                        _ => unreachable!(
-                            "declared class/interface types are stamped GenericType atomically"
-                        ),
+                        // tsgo `Coalesce(thisType, errorType)`: a thisless
+                        // interface (whose only `this` is a `typeof this`, which
+                        // sets no ContainsThis) has no this type.
+                        _ => Ok(self.tables.intrinsics.error),
                     };
                 }
             }

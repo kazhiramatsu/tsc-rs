@@ -10,6 +10,7 @@ mod code_actions;
 mod completions;
 mod definition;
 mod diagnostics;
+mod document_highlights;
 mod find_all_references;
 mod format;
 mod formatting;

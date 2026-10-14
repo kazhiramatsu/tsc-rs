@@ -17,8 +17,8 @@ use crate::tree::View;
 use crate::utilities::{is_function_like_kind, parameters_in, parameters_of, touching, Touching};
 
 use super::context::Completions;
-use super::data::is_white_space_single_line;
 use super::{default_commit_characters, items, sort_text, ClientSupport, CompletionList};
+use crate::format::is_white_space_single_line;
 
 /// tsgo `jsDocTagNames`.
 const JS_DOC_TAG_NAMES: [&str; 84] = [

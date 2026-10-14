@@ -1,5 +1,5 @@
-//! Find all references as tsgo answers them, for the cases the fixes of the
-//! references port reach. Each case is a fourslash test's input with
+//! Find all references and document highlights as tsgo answers them, for
+//! the cases the fixes of the references port reach. Each case is a fourslash test's input with
 //! tsgo's answer, which the lsp suite's transcripts record
 //! (`scripts/lsp_transcripts.py`).
 
@@ -14,8 +14,8 @@ use tsc_ls::lsconv::{Converters, LspLineMap};
 use tsc_ls::lsutil::UserPreferences;
 use tsc_ls::LanguageService;
 use tsc_lsproto::{
-    DocumentUri, LocationsOrNull, Position, PositionEncodingKind, ReferenceContext,
-    ReferenceParams, ResolvedClientCapabilities, TextDocumentIdentifier,
+    DocumentHighlightsOrNull, DocumentUri, LocationsOrNull, Position, PositionEncodingKind,
+    ReferenceContext, ReferenceParams, ResolvedClientCapabilities, TextDocumentIdentifier,
 };
 use tsc_program::{load_program, LibraryCatalog, ProgramLoadLimits, ProgramOptions};
 use tsc_types::CompilerOptions;
@@ -105,13 +105,12 @@ impl tsc_ls::Host for Files {
     }
 }
 
-/// tsgo's references at `(line, character)` of `file`.
-fn references(
+/// Run `run` over a language service of the files.
+fn with_service<T>(
     files: &[(&str, &str)],
     options: CompilerOptions,
-    file: &str,
-    (line, character): (u32, u32),
-) -> Vec<Reference> {
+    run: impl FnOnce(&mut LanguageService<'_>, &Files) -> T,
+) -> T {
     let mut builder = MemoryCompilerHost::builder("/").case_sensitive(true);
     for (name, text) in files {
         builder = builder.file(PathBuf::from(name), text.as_bytes());
@@ -157,44 +156,94 @@ fn references(
         &capabilities,
         None,
     );
-    let params = ReferenceParams {
-        text_document: TextDocumentIdentifier {
-            uri: DocumentUri(format!("file://{file}")),
-        },
-        position: Position { line, character },
-        work_done_token: None,
-        partial_result_token: None,
-        context: ReferenceContext {
-            include_declaration: true,
-        },
-    };
-    let LocationsOrNull::Locations(locations) =
-        service.provide_references(&params).expect("an answer")
-    else {
-        panic!("locations");
-    };
-    locations
-        .iter()
-        .map(|location| {
-            let target = location
-                .uri
-                .as_str()
-                .strip_prefix("file://")
-                .expect("a file URI");
-            let target = files
-                .0
-                .keys()
-                .find(|name| name.as_str() == target)
-                .map_or("<other>", |name| leak(name));
-            (
-                target,
-                (
-                    (location.range.start.line, location.range.start.character),
-                    (location.range.end.line, location.range.end.character),
-                ),
+    run(&mut service, &files)
+}
+
+/// A protocol range as `((line, character), (line, character))`.
+fn range_of(range: &tsc_lsproto::Range) -> Range {
+    (
+        (range.start.line, range.start.character),
+        (range.end.line, range.end.character),
+    )
+}
+
+/// tsgo's document highlights at `(line, character)` of `file`: each
+/// range with its kind (2 read, 3 write).
+fn document_highlights(
+    files: &[(&str, &str)],
+    options: CompilerOptions,
+    file: &str,
+    (line, character): (u32, u32),
+) -> Vec<(Range, u32)> {
+    with_service(files, options, |service, _| {
+        let response = service
+            .provide_document_highlights(
+                &DocumentUri(format!("file://{file}")),
+                &Position { line, character },
             )
-        })
-        .collect()
+            .expect("an answer");
+        let DocumentHighlightsOrNull::DocumentHighlights(highlights) = response else {
+            panic!("highlights");
+        };
+        highlights
+            .iter()
+            .map(|highlight| {
+                (
+                    range_of(&highlight.range),
+                    highlight.kind.map_or(0, |kind| kind.0),
+                )
+            })
+            .collect()
+    })
+}
+
+/// tsgo's references at `(line, character)` of `file`.
+fn references(
+    files: &[(&str, &str)],
+    options: CompilerOptions,
+    file: &str,
+    (line, character): (u32, u32),
+) -> Vec<Reference> {
+    with_service(files, options, |service, files| {
+        let params = ReferenceParams {
+            text_document: TextDocumentIdentifier {
+                uri: DocumentUri(format!("file://{file}")),
+            },
+            position: Position { line, character },
+            work_done_token: None,
+            partial_result_token: None,
+            context: ReferenceContext {
+                include_declaration: true,
+            },
+        };
+        let LocationsOrNull::Locations(locations) =
+            service.provide_references(&params).expect("an answer")
+        else {
+            panic!("locations");
+        };
+        locations
+            .iter()
+            .map(|location| {
+                let target = location
+                    .uri
+                    .as_str()
+                    .strip_prefix("file://")
+                    .expect("a file URI");
+                let target = files
+                    .0
+                    .keys()
+                    .find(|name| name.as_str() == target)
+                    .map_or("<other>", |name| leak(name));
+                (
+                    target,
+                    (
+                        (location.range.start.line, location.range.start.character),
+                        (location.range.end.line, location.range.end.character),
+                    ),
+                )
+            })
+            .collect()
+    })
 }
 
 fn leak(name: &str) -> &'static str {
@@ -422,6 +471,38 @@ fn a_pattern_module_member_is_searched_in_its_file_first() {
         vec![
             ("/types.d.ts", ((2, 17), (2, 23))),
             ("/index.ts", ((2, 4), (2, 10))),
+        ]
+    );
+}
+
+/// documentHighlightTypeofThis: `typeof this` in an interface with no other\n/// `this` (a thisless interface) has no this type, so no symbol and no\n/// highlights (the checker took the declared type for a generic one).
+#[test]
+fn typeof_this_in_a_thisless_interface_has_no_highlights() {
+    assert_eq!(
+        document_highlights(
+            &[("/a.ts", "interface Foo {\n  bar(): typeof this;\n}\n")],
+            options(|_| {}),
+            "/a.ts",
+            (1, 16)
+        ),
+        Vec::<(Range, u32)>::new()
+    );
+}
+
+/// getOccurrencesTryCatchFinallyBroken: a missing (zero-width) keyword's\n/// highlight starts at its position, not at the next token.
+#[test]
+fn a_missing_keyword_is_highlighted_where_it_is_missing() {
+    assert_eq!(
+        document_highlights(
+            &[
+                ("/getOccurrencesTryCatchFinallyBroken.ts", "t ry {\n    try {\n    }\n    ctch (x) {\n    }\n\n    tr {\n    }\n    finally {\n    }\n}\ncatch (e) {\n}\nfinally {\n}\n\n// Missing catch variable\ntry {\n}\ncatch {\n}\nfinally {\n}\n\n// Missing try entirely\ncatch (x) {\n}\nfinally {\n}")
+            ],
+            options(|_| {}),
+            "/getOccurrencesTryCatchFinallyBroken.ts",
+            (8, 7)
+        ),
+        vec![
+            (((7, 5), (7, 5)), 2),
         ]
     );
 }

@@ -29,6 +29,8 @@ pub(crate) use search::get_referenced_symbols_for_node;
 /// tsgo `referenceUse`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReferenceUse {
+    /// Document highlights: no adjusted location.
+    None,
     References,
     Rename,
 }
@@ -363,7 +365,7 @@ impl Request<'_, '_> {
     }
 
     /// tsgo `ast.IsWriteAccessForReference`.
-    fn is_write_access_for_reference(&self, node: Touching) -> bool {
+    pub(crate) fn is_write_access_for_reference(&self, node: Touching) -> bool {
         let id = match node {
             Touching::Node(id) => id,
             Touching::Token { kind, .. } => return kind == SyntaxKind::DefaultKeyword,
@@ -831,7 +833,13 @@ impl Request<'_, '_> {
             } => {
                 let file = self.state.binder.file_index_of_node(parent);
                 let text = self.state.binder.source(file).text();
-                let start = tsc_syntax::skip_trivia(text, pos as usize);
+                // A missing (zero-width) token starts at its position: skipping trivia
+                // would launch it forward to the next token.
+                let start = if pos == end {
+                    pos as usize
+                } else {
+                    tsc_syntax::skip_trivia(text, pos as usize)
+                };
                 (file, start..end as usize)
             }
         }
