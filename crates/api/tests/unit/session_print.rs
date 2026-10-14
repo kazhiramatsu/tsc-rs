@@ -236,3 +236,116 @@ fn bad_data_is_a_client_error() {
         "api: client error: failed to decode AST: data too short for header: 3 bytes"
     );
 }
+
+/// The first statement of `text` encoded as the client encodes a node it
+/// made: without positions. A single-quoted literal keeps its quote.
+fn synthesized_statement_data(text: &str) -> String {
+    let mut file = crate::parse_source_file("/n.ts", text, ScriptKind::Ts);
+    let NodeData::SourceFile(root) = &file.arena.node(file.root).data else {
+        unreachable!("a parsed file's root is its source file")
+    };
+    let statement = file.arena.node_array(root.statements.unwrap()).nodes[0];
+    let single_quoted: Vec<_> = file
+        .arena
+        .node_ids()
+        .filter(|&id| {
+            let node = file.arena.node(id);
+            node.kind == tsc_syntax::SyntaxKind::StringLiteral
+                && file.text()[tsc_syntax::skip_trivia(file.text(), node.pos as usize)..]
+                    .starts_with('\'')
+        })
+        .collect();
+    let nodes: Vec<_> = file.arena.node_ids().collect();
+    for id in nodes {
+        let node = file.arena.node_mut(id);
+        node.pos = u32::MAX;
+        node.end = u32::MAX;
+    }
+    base64::engine::general_purpose::STANDARD
+        .encode(encode_node(&file, statement, &|id| single_quoted.contains(&id)).0)
+}
+
+/// A snapshot of a project of `/src/index.ts` (with the snapshot's
+/// preferences), and its project.
+fn insertion_session(text: &str, preferences: Value) -> (Session, u64, String) {
+    let (session, _) = session(&[("/tsconfig.json", "{}"), ("/src/index.ts", text)]);
+    let created = call(
+        &session,
+        "createSnapshot",
+        json!({ "openProjects": ["/tsconfig.json"], "userPreferences": preferences }),
+    )
+    .unwrap();
+    let snapshot = created["snapshot"].as_u64().unwrap();
+    let project = created["projects"][0]["id"].as_str().unwrap().to_owned();
+    (session, snapshot, project)
+}
+
+#[test]
+fn a_node_formatted_for_insertion_takes_the_indentation_and_settings_there() {
+    // tsgo's handleFormatNodeForInsertion at aa8149273 for the same nodes:
+    // the indentation of the position's line, the snapshot's format
+    // settings (an indent size, a new line), a single-quoted literal kept.
+    let text = "function greet(name: string) {\n    console.log(name);\n}\n";
+    let position = text.find("\n    console.log").unwrap() + 1;
+    let format = |preferences: Value, node: &str| {
+        let (session, snapshot, project) = insertion_session(text, preferences);
+        call(
+            &session,
+            "formatNodeForInsertion",
+            json!({
+                "snapshot": snapshot,
+                "project": project,
+                "file": "/src/index.ts",
+                "position": position,
+                "data": synthesized_statement_data(node),
+            }),
+        )
+        .map(|text| text.as_str().unwrap().to_owned())
+    };
+    let class = "class C { m() { return 1; } p = 2; }";
+    assert_eq!(
+        format(Value::Null, class).unwrap(),
+        "    class C {\n        m() { return 1; }\n        p = 2;\n    }"
+    );
+    assert_eq!(
+        format(json!({ "indentSize": 2 }), class).unwrap(),
+        "  class C {\n    m() { return 1; }\n    p = 2;\n  }"
+    );
+    assert_eq!(
+        format(json!({ "newLineCharacter": "\r\n" }), class).unwrap(),
+        "    class C {\r\n        m() { return 1; }\r\n        p = 2;\r\n    }"
+    );
+    assert_eq!(
+        format(Value::Null, "const s = 'q';").unwrap(),
+        "    const s = 'q';"
+    );
+}
+
+#[test]
+fn formatting_for_insertion_reports_a_missing_file_before_bad_data() {
+    // tsgo resolves the snapshot, its program and the file before it
+    // decodes the node.
+    let (session, snapshot, project) = insertion_session("const a = 1;\n", Value::Null);
+    let request = |file: &str, data: &str| {
+        call(
+            &session,
+            "formatNodeForInsertion",
+            json!({
+                "snapshot": snapshot,
+                "project": project,
+                "file": file,
+                "position": 0,
+                "data": data,
+            }),
+        )
+        .unwrap_err()
+    };
+    assert_eq!(
+        request("/src/missing.ts", "!"),
+        "api: client error: source file not found: /src/missing.ts"
+    );
+    assert_eq!(
+        request("/src/index.ts", "!"),
+        "api: client error: invalid base64 data: illegal base64 data at input byte 0"
+    );
+}

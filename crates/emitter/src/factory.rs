@@ -802,6 +802,20 @@ impl TransformArena {
         Ok(self.literal_properties.entry(node).or_default())
     }
 
+    /// tsgo's `TokenFlagsSingleQuote` on string literals without source
+    /// text to read their quote from (a tree decoded from the API).
+    pub fn mark_single_quoted(
+        &mut self,
+        source: TransformSourceId,
+        literals: &[NodeId],
+    ) -> Result<(), TransformError> {
+        for &literal in literals {
+            self.literal_properties_mut(TransformNode::new(source, literal))?
+                .set_string_literal_single_quote(true);
+        }
+        Ok(())
+    }
+
     /// The node-owned JavaScript value. Source spelling, text ranges and
     /// original-node links affect printing, never the cooked value's owner.
     pub fn literal_value(&self, node: TransformNode) -> Result<Option<JsStr<'_>>, TransformError> {

@@ -485,11 +485,53 @@ pub fn is_jsdoc_type_assertion(source: &SourceFile, node: NodeId) -> bool {
     })
 }
 
+/// tsrs-native: typed AST projection for tsc's direct declaration `type`
+/// property access.
+pub fn type_annotation_of(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    type_annotation_of_data(&source.arena.node(node).data)
+}
+
+/// [`type_annotation_of`] of a node's data.
+pub fn type_annotation_of_data(data: &NodeData) -> Option<NodeId> {
+    match data {
+        NodeData::FunctionDeclaration(data) => data.r#type,
+        NodeData::FunctionExpression(data) => data.r#type,
+        NodeData::ArrowFunction(data) => data.r#type,
+        NodeData::MethodDeclaration(data) => data.r#type,
+        NodeData::GetAccessor(data) => data.r#type,
+        NodeData::SetAccessor(data) => data.r#type,
+        NodeData::CallSignature(data) => data.r#type,
+        NodeData::ConstructSignature(data) => data.r#type,
+        NodeData::MethodSignature(data) => data.r#type,
+        NodeData::FunctionType(data) => data.r#type,
+        NodeData::ConstructorType(data) => data.r#type,
+        NodeData::Constructor(data) => data.r#type,
+        NodeData::PropertyDeclaration(data) => data.r#type,
+        NodeData::PropertySignature(data) => data.r#type,
+        NodeData::Parameter(data) => data.r#type,
+        NodeData::VariableDeclaration(data) => data.r#type,
+        NodeData::IndexSignature(data) => data.r#type,
+        NodeData::TypeAssertionExpression(data) => data.r#type,
+        _ => None,
+    }
+}
+
+/// tsgo `Node.Type`: the type annotation, or in a JavaScript file the type
+/// tsgo reparses from JSDoc (`@type`, `@param`, `@return`).
+pub fn type_node_of(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    type_annotation_of(source, node).or_else(|| crate::jsdoc_hosted(source).type_of(node))
+}
+
 /// tsc `node.modifiers` dynamic access: the modifiers array of any kind
 /// that can carry one (canHaveModifiers proxy — exactly the generated
 /// Data structs with a modifiers field).
 pub fn modifiers_of(source: &SourceFile, id: NodeId) -> Option<NodeArrayId> {
-    match &source.arena.node(id).data {
+    modifiers_of_data(&source.arena.node(id).data)
+}
+
+/// [`modifiers_of`] of a node's data.
+pub fn modifiers_of_data(data: &NodeData) -> Option<NodeArrayId> {
+    match data {
         NodeData::ArrowFunction(data) => data.modifiers,
         NodeData::ClassDeclaration(data) => data.modifiers,
         NodeData::ClassExpression(data) => data.modifiers,

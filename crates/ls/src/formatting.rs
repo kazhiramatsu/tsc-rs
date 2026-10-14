@@ -1,6 +1,7 @@
 //! tsgo `ls/format.go`: the formatting requests (document, range and on
 //! type) and their text edits.
 
+use tsc_emitter::PositionedNode;
 use tsc_lsproto::{
     DocumentFormattingParams, DocumentFormattingResponse, DocumentOnTypeFormattingParams,
     DocumentOnTypeFormattingResponse, DocumentRangeFormattingParams,
@@ -108,6 +109,60 @@ impl LanguageService<'_> {
             self.to_ls_proto_text_edits(source, edits),
         ))
     }
+}
+
+/// tsgo `handleFormatNodeForInsertion` (`api/session.go`) once the node is
+/// printed and positioned: its text with the lines indented for an
+/// insertion at byte `position` of `target`.
+pub fn format_node_for_insertion(
+    target: &SourceFile,
+    position: usize,
+    positioned: &PositionedNode,
+    options: &FormatCodeSettings,
+) -> String {
+    let target_file = File::new(target);
+    let synthetic = File::new(&positioned.file);
+    let node = synthetic
+        .node_of(Some(positioned.node))
+        .expect("the positioned node is in its synthetic file");
+    let is_at_line_start =
+        format::get_line_start_position_for_position(&target_file, position) == position;
+    let initial_indentation =
+        format::get_indentation(&target_file, position, options, is_at_line_start);
+    // tsgo asks with the decoded node and no source file: only its kind
+    // decides.
+    let indent_size = options.editor_settings.indent_size;
+    let delta = if indent_size != 0
+        && format::should_indent_child_node(options, &synthetic, node, None, false, false)
+    {
+        indent_size
+    } else {
+        0
+    };
+    let changes = format::format_node_given_indentation(
+        &synthetic,
+        options,
+        node,
+        initial_indentation,
+        delta,
+    );
+    apply_bulk_edits(&positioned.text, &changes)
+}
+
+/// tsgo `core.ApplyBulkEdits`: the text with the sorted, disjoint changes
+/// applied.
+fn apply_bulk_edits(text: &str, changes: &[TextChange]) -> String {
+    let mut result = String::with_capacity(text.len());
+    let mut last_end = 0;
+    for change in changes {
+        if change.pos != last_end {
+            result.push_str(&text[last_end..change.pos]);
+        }
+        result.push_str(&change.new_text);
+        last_end = change.end;
+    }
+    result.push_str(&text[last_end..]);
+    result
 }
 
 /// tsgo `getFormattingEditsAfterKeystroke`: nothing in a comment.

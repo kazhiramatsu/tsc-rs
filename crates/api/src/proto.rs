@@ -11,6 +11,7 @@ use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, JsStr, JsString, MessageChain, RelatedInfo};
+use tsc_ls::lsutil::UserPreferences;
 use tsc_program::go_json::compiler_options_bag;
 use tsc_program::ConfigOptionBag;
 
@@ -297,6 +298,19 @@ pub struct CreateSnapshotParams {
     /// tsgo's request file system (`requestfilesystem`).
     #[serde(default)]
     pub file_system: Option<crate::request_fs::RequestFileSystemParams>,
+    /// The language service's preferences of the snapshot (tsgo
+    /// `UserPreferences`: its defaults with the object's configuration).
+    #[serde(default, deserialize_with = "user_preferences")]
+    pub user_preferences: Option<UserPreferences>,
+}
+
+/// tsgo `UserPreferences.UnmarshalJSONFrom` of an optional field.
+fn user_preferences<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<UserPreferences>, D::Error> {
+    Option::<serde_json::Value>::deserialize(deserializer)?
+        .map(|value| UserPreferences::from_json(&value).map_err(serde::de::Error::custom))
+        .transpose()
 }
 
 /// tsgo `UpdateSnapshotParams`.
@@ -865,6 +879,24 @@ pub struct CreateSourceFileOptions {
     /// tsgo `core.ScriptKind`; 0 (unknown) takes the file name's.
     #[serde(default, deserialize_with = "nullable")]
     pub script_kind: u32,
+}
+
+/// tsgo `FormatNodeForInsertionParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct FormatNodeForInsertionParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    /// The file the node is inserted into.
+    #[serde(default)]
+    pub file: DocumentIdentifier,
+    /// The UTF-16 offset of the insertion in the file.
+    #[serde(default, deserialize_with = "nullable")]
+    pub position: u32,
+    /// The client's binary nodes, in base64.
+    #[serde(default, deserialize_with = "nullable")]
+    pub data: String,
 }
 
 /// tsgo `PrintNodeParams`.

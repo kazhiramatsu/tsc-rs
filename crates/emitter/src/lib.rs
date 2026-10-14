@@ -27,6 +27,7 @@ mod route;
 mod sink;
 mod source_map;
 pub mod source_mapper;
+mod synthetic_file;
 mod token_cursor;
 mod transform;
 mod writer;
@@ -102,6 +103,7 @@ pub use sink::{
 pub use source_map::{
     OriginalPositions, SourceMapGenerator, SourceMapRecordingInputs, SourceMappingFields,
 };
+pub use synthetic_file::{print_and_position_node, PositionedNode};
 pub use transform::{
     transform_nodes, DeclarationPrintHandlers, EmitHelper, EmitHint, GlobalNameOracle,
     LexicalEnvironment, LexicalEnvironmentFlags, TransformError, TransformFlags, TransformRoot,
