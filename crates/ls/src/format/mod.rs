@@ -19,5 +19,5 @@ pub(crate) use api::{
     format_on_opening_curly, format_on_semicolon, format_selection, TextChange,
 };
 pub(crate) use file::File;
-pub(crate) use indent::{get_indentation, should_indent_child_node};
+pub(crate) use indent::{get_containing_list, get_indentation, should_indent_child_node};
 pub(crate) use util::get_line_start_position_for_position;

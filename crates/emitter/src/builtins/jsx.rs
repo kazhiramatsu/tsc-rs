@@ -904,6 +904,15 @@ impl<'context> JsxVisitor<'context> {
             {
                 children.remove(0)
             } else {
+                // tsgo convertJsxChildrenToChildrenPropAssignment: the
+                // children of the single-line array do not start on new
+                // lines.
+                for &child in &children {
+                    self.context
+                        .arena_mut()?
+                        .metadata_mut(child)
+                        .set_starts_on_new_line(false);
+                }
                 let elements = self
                     .context
                     .factory()?

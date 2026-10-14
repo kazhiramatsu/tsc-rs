@@ -34,7 +34,7 @@ impl LanguageService<'_> {
     }
 
     /// tsgo `FormatOptions`.
-    fn format_options(&self) -> &FormatCodeSettings {
+    pub(crate) fn format_options(&self) -> &FormatCodeSettings {
         &self.user_preferences().format_code_settings
     }
 
@@ -151,7 +151,7 @@ pub fn format_node_for_insertion(
 
 /// tsgo `core.ApplyBulkEdits`: the text with the sorted, disjoint changes
 /// applied.
-fn apply_bulk_edits(text: &str, changes: &[TextChange]) -> String {
+pub(crate) fn apply_bulk_edits(text: &str, changes: &[TextChange]) -> String {
     let mut result = String::with_capacity(text.len());
     let mut last_end = 0;
     for change in changes {

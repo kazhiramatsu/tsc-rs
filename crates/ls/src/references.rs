@@ -37,7 +37,8 @@ fn is_javascript(file: &SourceFile) -> bool {
     NodeFlags::from_bits(file.arena.node(file.root).flags).contains(NodeFlags::JAVA_SCRIPT_FILE)
 }
 
-fn statements(file: &SourceFile, id: NodeId) -> &[NodeId] {
+/// The statements of a source file or a module block.
+pub(crate) fn statements(file: &SourceFile, id: NodeId) -> &[NodeId] {
     let list = match &file.arena.node(id).data {
         NodeData::SourceFile(data) => data.statements,
         NodeData::ModuleBlock(data) => data.statements,

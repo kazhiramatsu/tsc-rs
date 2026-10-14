@@ -83,8 +83,8 @@ pub use position::{
     SourceByteRange, SourcePositionError, SourceRange, SourceUtf16Location, SourceUtf16Position,
 };
 pub use printer::{
-    create_printer, escape_string, LiteralQuote, PrintRequest, PrintedText, Printer, PrinterError,
-    PrinterOptions, SourceFileTextMode, StandaloneWriter,
+    create_printer, escape_string, range_is_on_single_line, LiteralQuote, PrintRequest,
+    PrintedText, Printer, PrinterError, PrinterOptions, SourceFileTextMode, StandaloneWriter,
 };
 pub use resolver::{
     EmitAccessorDeclarations, EmitExportContainerMode, EmitFunctionProperty,
@@ -103,7 +103,9 @@ pub use sink::{
 pub use source_map::{
     OriginalPositions, SourceMapGenerator, SourceMapRecordingInputs, SourceMappingFields,
 };
-pub use synthetic_file::{print_and_position_node, PositionedNode};
+pub use synthetic_file::{
+    print_and_position, print_and_position_node, PositionedNode, PositionedPrint,
+};
 pub use transform::{
     transform_nodes, DeclarationPrintHandlers, EmitHelper, EmitHint, GlobalNameOracle,
     LexicalEnvironment, LexicalEnvironmentFlags, TransformError, TransformFlags, TransformRoot,
