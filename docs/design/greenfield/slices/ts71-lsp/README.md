@@ -768,3 +768,43 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   granular な更新（dirty な package、workspace の package、recursive search。監視は L11）。
 - **transcript**：completion の node_modules の項目 123（54 場面）、quick fix の package の `Add import from` 81（50 場面）、
   `Update import from`、fix-all の一部。
+
+## L5c node_modules の auto-import（PR #795）
+
+- **merge**：#795 → `48b70ea1c`（hosted run 38577604092：rust 13m、conformance 32m07s、gates）。commit：99058b315（package の
+  entrypoint と alias resolver の checker の事実）、916ff2f7c（node_modules bucket）、8d5e2c95d（ratchet）。
+- **entrypoint**（`tsc_program` の `module_resolution/entrypoints.rs`）：tsgo `GetEntrypointsFromPackageJsonInfo`。`exports` の
+  target を条件付きで（tsgo の除外条件の積み方そのまま）、pattern は config の走査（= tsgo `vfs.ReadDirectory`）で、無ければ
+  main と directory search。symlink の entrypoint は実体の path。package 名・拡張子・prefix/suffix の補助関数は checker の
+  私的な写しをやめて `tsc_program` に集めた。
+- **alias resolver**（`autoimport/alias_resolver.rs`）：tsgo `aliasresolver.go`。package の entrypoint を program とする
+  `LiveChecker`。entrypoint の module 要求が解決する file は program の外として読み（checker は global に合流させない：
+  `ProgramFileFacts::OUTSIDE_PROGRAM`）、checker の解決は ESM・既定の options で事前に解いた表から答え、解決できない
+  非相対の名前を記録する（第二段の ambient module の補い）。tsgo の alias resolver は JSX runtime の import を持たない
+  （provider の `synthesizes_jsx_runtime_import`）。tsgo は解決のたびに file を読むが、tsc-rs は checker を作る前に読む。
+- **registry**（`registry.rs`、`node_modules.rs`）：開いた file の上の directory と package.json、node_modules ごとの bucket
+  （package.json の依存と program の package、`knownRecursiveSearchPackages`、deep import）、実体の directory ごとに一度の
+  抽出、`@types` への fallback、ambient module の第二段、workspace package の部分更新、registry の entrypoint。
+- **view**：上の bucket の検索（package.json の依存＋program の package、下の bucket が上を隠す）、file の条件に合う最初の
+  entrypoint の specifier（`ProcessEntrypointEnding`）、`node:` の core module の group と順位（tsgo の program 側の
+  `UsesUriStyleNodeCoreModules` は設定されないので file の import だけで決まる）。project bucket は program の package を記録し、
+  相対の module augmentation は既定の options で解決（tsgo `moduleResolver`）。
+- **検査（916ff2f7c）**：conformance 0 regressions（全 13,577 full、490 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（ratchet は HEAD から `--update`：105 行 none→full。lsp 2,741 → 2,846 full、completion 2,213 → 2,285/2,419、
+  codeAction 527 → 592/772）、API client sync 340/356・async 349/365、test（program 680、checker 1,800、ls 184 ほか全通過）、
+  clippy、fmt、Unicode の表。
+- **有界の違い**：node_modules の場面で残るのは class member snippet（L8）、content mapper（L10）、他の code fix（L8c）。
+  `TestCompletionForStringLiteralNonrelativeImport2` は tsgo 側が非決定。動的（URI）package の entrypoint は未対応（resolver が
+  未対応）。package の並列抽出は無し（性能は後で）。
+
+## L8c 他の code fix の計画
+
+- **対象**（transcript の欠けている action）：interface の実装（`Implement interface` 98、`Implement all unimplemented
+  interfaces` 4）と isolated declarations の型注釈（`Add satisfies and an inline type assertion` 69、`Add annotation of type`
+  46、`Add return type` 43、`Extract …` 47、`Add all missing type annotations` 15、expando 5、`Mark array literal as const` 2）。
+- **基盤**：node builder の出力を change tracker の arena に作る（checker の `type_to_type_node_with_identifier_symbols` などを、
+  tracker の arena に program の file を source として登録して呼ぶ）。import adder に tsgo の `AddImportFromExportedSymbol`、
+  `TypeToAutoImportableTypeNode`、`TryGetAutoImportableReferenceFromTypeNode`、view の `SearchByExportID`。
+- **段階**：L8c-1 interface の実装（`codeactions_fixclassincorrectlyimplementsinterface.go` 242、`missingmemberfixer.go` 514：
+  property・accessor・method・index signature、stub の body、class member の挿入）。L8c-2 型注釈
+  （`codeactions_fixmissingtypeannotation.go` 1,421）。
