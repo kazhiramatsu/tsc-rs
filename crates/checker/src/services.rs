@@ -271,6 +271,17 @@ impl CheckerState<'_> {
         )
     }
 
+    /// tsgo `GetUnionType`: the union of the types, literals reduced.
+    pub fn get_union_type(&mut self, types: &[TypeId]) -> CheckResult<TypeId> {
+        self.get_union_type_ex(types, tsc_types::UnionReduction::Literal)
+    }
+
+    /// tsgo `GetNameTypeOfSymbol`: the name type of a mapped or late-bound
+    /// symbol, if any.
+    pub fn get_name_type_of_symbol(&self, symbol: SymbolId) -> Option<TypeId> {
+        self.links.symbol(symbol).name_type
+    }
+
     /// tsgo `module.TryGetJSExtensionForFile`: the JavaScript extension a
     /// file's output has.
     pub fn try_get_js_extension_for_file(

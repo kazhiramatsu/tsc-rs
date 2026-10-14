@@ -157,6 +157,10 @@ pub struct InterfaceTypeParts {
     pub this_type: Option<TypeId>,
 }
 
+/// A node builder's node and the identifiers in it that name symbols (tsgo's
+/// `idToSymbol`).
+pub type NodeWithIdentifierSymbols = (TransformNode, Vec<(TransformNode, SymbolId)>);
+
 impl CheckerState<'_> {
     /// tsgo `GetAnyType` … `GetNonPrimitiveType`.
     pub fn get_intrinsic_type(&self, intrinsic: IntrinsicType) -> TypeId {
@@ -496,6 +500,97 @@ impl CheckerState<'_> {
                 None,
             )
         })
+    }
+
+    /// The key a node builder mounts the program file at `file_index` into
+    /// an arena by (its program source id).
+    pub fn program_source_id(&self, file_index: usize) -> tsc_program::SourceFileId {
+        crate::node_builder::program_source_id(self, file_index)
+    }
+
+    /// The parse-tree node of `node` in a caller's arena, its program file
+    /// mounted there on first use.
+    pub fn parse_tree_node_in_arena(
+        &self,
+        arena: &mut TransformArena,
+        node: NodeId,
+    ) -> Result<Option<TransformNode>, String> {
+        crate::node_builder::project_parse_node(self, arena, node)
+            .map_err(|error| format!("type node builder: {error}"))
+    }
+
+    /// tsgo `NewNodeBuilderEx(c, emitContext, idToSymbol).TypeToTypeNode`
+    /// into a caller's arena (the change tracker's): new nodes in `target`,
+    /// a program file mounted on first use; the identifiers that name
+    /// symbols with their symbols.
+    pub fn type_to_type_node_in_arena(
+        &mut self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        ty: TypeId,
+        enclosing_declaration: Option<NodeId>,
+        flags: u32,
+        internal_flags: u32,
+    ) -> Result<Option<NodeWithIdentifierSymbols>, String> {
+        crate::node_builder::type_to_type_node_with_identifier_symbols(
+            self,
+            arena,
+            target,
+            ty,
+            enclosing_declaration,
+            EmitNodeBuilderFlags(flags),
+            Some(tsc_emitter::EmitInternalNodeBuilderFlags(internal_flags)),
+        )
+        .map_err(|error| format!("type node builder: {error}"))
+    }
+
+    /// tsgo `NewNodeBuilderEx(c, emitContext, idToSymbol)
+    /// .SignatureToSignatureDeclaration` into a caller's arena.
+    #[allow(clippy::too_many_arguments)]
+    pub fn signature_to_signature_declaration_in_arena(
+        &mut self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        signature: SignatureId,
+        kind: SyntaxKind,
+        enclosing_declaration: Option<NodeId>,
+        flags: u32,
+        internal_flags: u32,
+    ) -> Result<Option<NodeWithIdentifierSymbols>, String> {
+        crate::node_builder::signature_to_signature_declaration_with_identifier_symbols(
+            self,
+            arena,
+            target,
+            signature,
+            kind,
+            enclosing_declaration,
+            EmitNodeBuilderFlags(flags),
+            Some(tsc_emitter::EmitInternalNodeBuilderFlags(internal_flags)),
+        )
+        .map_err(|error| format!("type node builder: {error}"))
+    }
+
+    /// tsgo `NewNodeBuilder(c, emitContext).IndexInfoToIndexSignatureDeclaration`
+    /// into a caller's arena.
+    pub fn index_info_to_index_signature_declaration_in_arena(
+        &mut self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        index_info: &crate::state::IndexInfo,
+        enclosing_declaration: Option<NodeId>,
+        flags: u32,
+    ) -> Result<Option<TransformNode>, String> {
+        crate::node_builder::index_info_to_index_signature_declaration(
+            self,
+            arena,
+            target,
+            index_info,
+            enclosing_declaration,
+            Some(EmitNodeBuilderFlags(flags)),
+            None,
+            None,
+        )
+        .map_err(|error| format!("type node builder: {error}"))
     }
 
     /// A node builder's result in the display arena, as the API reads it.
@@ -1341,6 +1436,7 @@ impl CheckerState<'_> {
                 ty,
                 enclosing_declaration,
                 flags,
+                None,
             )
         })?;
         match built {
@@ -1375,6 +1471,7 @@ impl CheckerState<'_> {
                 kind,
                 enclosing_declaration,
                 flags,
+                None,
             )
         })?;
         match built {

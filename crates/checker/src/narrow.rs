@@ -2420,7 +2420,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsc isTypeUsableAsPropertyName (StringOrNumberLiteralOrUnique).
     /// tsrs-native: flags probe (checker one-liner).
-    pub(crate) fn is_type_usable_as_property_name(&self, ty: TypeId) -> bool {
+    pub fn is_type_usable_as_property_name(&self, ty: TypeId) -> bool {
         self.tables
             .flags_of(ty)
             .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
@@ -2429,7 +2429,7 @@ impl<'a> CheckerState<'a> {
     /// tsc getPropertyNameFromType over the usable-as-property-name
     /// gate (the callers check first, so the miss arm is dead).
     /// tsrs-native: delegate to the ported tryGetNameFromType.
-    pub(crate) fn get_property_name_from_type(&self, ty: TypeId) -> Option<tsc_types::EscapedName> {
+    pub fn get_property_name_from_type(&self, ty: TypeId) -> Option<tsc_types::EscapedName> {
         self.try_get_name_from_type(ty)
     }
 

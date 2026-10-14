@@ -469,3 +469,57 @@ fn alias_instantiations_are_different_references() {
         },
     );
 }
+
+#[test]
+fn an_anonymous_class_name_is_an_error_unless_anonymous_identifiers_are_allowed() {
+    // tsgo getNameOfSymbolAsWritten: writing `typeof (Anonymous class)` sets
+    // encounteredError, so the builder answers no node (the missing member
+    // fixer then adds no method), unless the flags allow anonymous
+    // identifiers.
+    with_program_state(
+        &[("/main.ts", "function f() { return class { x = 1; }; }\n")],
+        &CompilerOptions::default(),
+        |checker| {
+            let source = checker.binder.source(0);
+            let root = source.root;
+            let function = source
+                .arena
+                .node_ids()
+                .find(|&id| source.arena.node(id).kind == SyntaxKind::FunctionDeclaration)
+                .expect("f");
+            let signature = checker
+                .get_signature_from_declaration(function)
+                .expect("f's signature");
+            let return_type = checker
+                .get_return_type_of_signature(signature)
+                .expect("f's return type");
+            let mut arena = TransformArena::new();
+            let target =
+                arena.add_source(checker.binder.source(0), Some(SourceFileId::from_raw(0)));
+            let no_truncation = EmitNodeBuilderFlags::NO_TRUNCATION.0;
+            let built = checker
+                .type_to_type_node_in_arena(
+                    &mut arena,
+                    target,
+                    return_type,
+                    Some(root),
+                    no_truncation,
+                    0,
+                )
+                .expect("the node builder runs");
+            assert!(built.is_none());
+            let allow_anonymous_identifier = 131_072;
+            let built = checker
+                .type_to_type_node_in_arena(
+                    &mut arena,
+                    target,
+                    return_type,
+                    Some(root),
+                    no_truncation | allow_anonymous_identifier,
+                    0,
+                )
+                .expect("the node builder runs");
+            assert!(built.is_some());
+        },
+    );
+}

@@ -57,7 +57,8 @@ const ALLOW_THIS_IN_OBJECT_LITERAL: u32 = 32_768;
 const WRITE_CLASS_EXPRESSION_AS_TYPE_LITERAL: u32 = 2_048;
 const USE_TYPE_OF_FUNCTION: u32 = 4_096;
 const NO_TYPE_REDUCTION: u32 = 536_870_912;
-const USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE: u32 = 268_435_456;
+const USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE: u32 =
+    tsc_emitter::EmitNodeBuilderFlags::USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE.0;
 const IGNORE_ERRORS: EmitNodeBuilderFlags = EmitNodeBuilderFlags(70_221_824);
 
 pub(super) type BuildResult<T> = Result<T, EmitResolverError>;

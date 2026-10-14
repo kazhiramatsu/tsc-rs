@@ -1546,7 +1546,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:15861-15887
     ///
     /// The JsxNamespacedName arm is unreachable from property names.
-    pub(crate) fn property_name_for_property_name_node(&self, name: NodeId) -> Option<EscapedName> {
+    pub fn property_name_for_property_name_node(&self, name: NodeId) -> Option<EscapedName> {
         let source = self.binder.source_of_node(name);
         match self.kind_of(name) {
             SyntaxKind::Identifier

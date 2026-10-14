@@ -1326,6 +1326,20 @@ pub fn range_is_on_single_line(source: &tsc_syntax::SourceFile, pos: u32, end: u
     ) == 0
 }
 
+/// tsgo `RangeStartPositionsAreOnSameLine`: the first tokens of two ranges
+/// of `source` are on one line.
+pub fn range_start_positions_are_on_same_line(
+    source: &tsc_syntax::SourceFile,
+    first_pos: u32,
+    second_pos: u32,
+) -> bool {
+    Printer::lines_between_positions(
+        source,
+        Printer::start_position_of_range(source, first_pos, false),
+        Printer::start_position_of_range(source, second_pos, false),
+    ) == 0
+}
+
 pub fn create_printer(options: PrinterOptions) -> Printer {
     Printer {
         options,
@@ -11765,6 +11779,15 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
+        // tsgo emitBindingIdentifier exits the name's node: its trailing
+        // comments, unless the type parameter ends with it.
+        self.emit_type_child_trailing_comments(
+            transformation,
+            node,
+            data.name,
+            expression_context,
+            writer,
+        )?;
         if let Some(constraint) = data.constraint {
             writer.write_space(" ");
             writer.write_keyword("extends");
@@ -11792,6 +11815,13 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
+            self.emit_type_child_trailing_comments(
+                transformation,
+                node,
+                Some(constraint),
+                expression_context,
+                writer,
+            )?;
         }
         if let Some(default) = data.r#default {
             writer.write_space(" ");
@@ -11808,6 +11838,13 @@ impl Printer {
                 node.source(),
                 default,
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+            self.emit_type_child_trailing_comments(
+                transformation,
+                node,
+                Some(default),
+                expression_context,
                 writer,
             )?;
         }
@@ -12197,6 +12234,13 @@ impl Printer {
             precedence,
             TypeExtends::Preserve,
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_type_child_trailing_comments(
+            transformation,
+            node,
+            r#type,
+            expression_context,
             writer,
         )
     }
@@ -12948,6 +12992,13 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
+            self.emit_type_child_trailing_comments(
+                transformation,
+                node,
+                Some(name_type),
+                expression_context,
+                writer,
+            )?;
         }
         writer.write_punctuation("]");
         if let Some(question) = data.question_token {
@@ -12969,23 +13020,13 @@ impl Printer {
         }
         // tsgo emitMappedType writes the colon only with a type: a mapped
         // type without a type clause (`{ [K in keyof T] }`) prints `;`.
-        if let Some(r#type) = data.r#type {
-            writer.write_punctuation(":");
-            writer.write_space(" ");
-            self.emit_type_child_leading_comments(
-                transformation,
-                node.source(),
-                Some(r#type),
-                writer,
-            )?;
-            self.emit_node_id_with_context(
-                transformation,
-                node.source(),
-                r#type,
-                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                writer,
-            )?;
-        }
+        self.emit_type_annotation(
+            transformation,
+            node,
+            data.r#type,
+            expression_context,
+            writer,
+        )?;
         writer.write_trailing_semicolon(";");
         // tsgo emitMappedType prints the (error-recovery) members inside the
         // braces' indentation, after a line of their own.
@@ -13061,6 +13102,13 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
+        self.emit_type_child_trailing_comments(
+            transformation,
+            parameter,
+            data.name,
+            expression_context,
+            writer,
+        )?;
         writer.write_space(" ");
         writer.write_keyword("in");
         writer.write_space(" ");
@@ -13079,8 +13127,22 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
+        self.emit_type_child_trailing_comments(
+            transformation,
+            parameter,
+            data.constraint,
+            expression_context,
+            writer,
+        )?;
         writer.set_end(PositionKey::Node(parameter));
-        Ok(())
+        // ... and exits it.
+        self.emit_type_child_trailing_comments(
+            transformation,
+            parent,
+            Some(parameter.node()),
+            expression_context,
+            writer,
+        )
     }
 
     /// tsc-port: emitLiteralType @6.0.3
@@ -13156,6 +13218,13 @@ impl Printer {
             SyntaxKind::TemplateLiteralTypeSpan,
             "type",
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_type_child_trailing_comments(
+            transformation,
+            node,
+            data.r#type,
+            expression_context,
             writer,
         )?;
         self.emit_required_node_with_context(
@@ -14819,7 +14888,6 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        let source = parent.source();
         self.emit_type_parameters(
             transformation,
             parent,
@@ -14835,19 +14903,9 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        if let Some(r#type) = r#type {
-            writer.write_punctuation(":");
-            writer.write_space(" ");
-            self.emit_type_child_leading_comments(transformation, source, Some(r#type), writer)?;
-            self.emit_node_id_with_context(
-                transformation,
-                source,
-                r#type,
-                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                writer,
-            )?;
-        }
-        Ok(())
+        // tsgo emitSignature: the return type is a type annotation, its
+        // trailing comments included.
+        self.emit_type_annotation(transformation, parent, r#type, expression_context, writer)
     }
 
     /// tsc-port: emitParametersForIndexSignature @6.0.3

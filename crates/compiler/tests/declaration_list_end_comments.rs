@@ -219,3 +219,40 @@ fn union_return_types_before_jsdoc_close_with_a_semicolon() {
          export declare const e = 1;\n"
     );
 }
+
+#[test]
+fn type_children_keep_their_trailing_comments() {
+    // tsgo's printer exits every node with its trailing comments unless the
+    // node ends where its container does: a return type, a type parameter's
+    // name, constraint and default, a mapped type's parameter, name type
+    // and type, a template literal type span's type, and the return type of
+    // a function type the node builder writes for `arrow` keep theirs
+    // (`m4`'s ends with the signature, so the signature prints it after the
+    // `;`). Output of tsgo 7.1.0-dev-aa814927.
+    assert_eq!(
+        declaration_output(
+            "export interface I {\n\
+             \x20   m1(): string /** c1 */;\n\
+             \x20   m2<T /** t2 */>(x: T): T /** r2 */;\n\
+             \x20   m3<T /** t3 */ extends string /** e3 */ = \"a\" /** d3 */>(): T;\n\
+             \x20   m4(): string /** c4 */\n\
+             }\n\
+             export function f(): number /** after return */ {\n\
+             \x20   return 1;\n\
+             }\n\
+             export const arrow = (): string /** arrow return */ => \"\";\n\
+             export type M<T> = { [K /** k */ in keyof T /** kt */ as `p${K & string /** span */}`]: T[K] /** v */ };\n",
+        ),
+        "export interface I {\n\
+         \x20   m1(): string /** c1 */;\n\
+         \x20   m2<T /** t2 */>(x: T): T /** r2 */;\n\
+         \x20   m3<T /** t3 */ extends string /** e3 */ = \"a\" /** d3 */>(): T;\n\
+         \x20   m4(): string; /** c4 */\n\
+         }\n\
+         export declare function f(): number /** after return */;\n\
+         export declare const arrow: () => string /** arrow return */;\n\
+         export type M<T> = {\n\
+         \x20   [K /** k */ in keyof T /** kt */ as `p${K & string /** span */}`]: T[K] /** v */;\n\
+         };\n"
+    );
+}
