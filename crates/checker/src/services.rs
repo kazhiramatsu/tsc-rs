@@ -271,6 +271,189 @@ impl CheckerState<'_> {
         )
     }
 
+    /// tsgo `GetPropertySymbolOfDestructuringAssignment` (services.go:1069-1077):
+    /// the property of the destructured type a destructuring assignment's
+    /// name stands for.
+    pub fn get_property_symbol_of_destructuring_assignment(
+        &mut self,
+        location: NodeId,
+    ) -> CheckResult<Option<SymbolId>> {
+        let Some(pattern) = self
+            .parent_of(location)
+            .and_then(|parent| self.parent_of(parent))
+        else {
+            return Ok(None);
+        };
+        if !self.is_array_literal_or_object_literal_destructuring_pattern(pattern) {
+            return Ok(None);
+        }
+        // Get the type of the object or array literal and then look for property of given name in the type
+        let Some(ty) = self.get_type_of_assignment_pattern(pattern)? else {
+            return Ok(None);
+        };
+        let NodeData::Identifier(identifier) = self.data_of(location) else {
+            return Ok(None);
+        };
+        let name = identifier.escaped_text;
+        self.get_property_of_type_full(ty, name)
+    }
+
+    /// tsgo `getTypeOfAssignmentPattern` (services.go:1088-1116): the type of
+    /// a destructuring assignment's object or array literal.
+    fn get_type_of_assignment_pattern(&mut self, expr: NodeId) -> CheckResult<Option<TypeId>> {
+        let Some(parent) = self.parent_of(expr) else {
+            return Ok(None);
+        };
+        let error = self.tables.intrinsics.error;
+        match self.data_of(parent).clone() {
+            // If this is from "for of"
+            //     for ( { a } of elems) {
+            //     }
+            NodeData::ForOfStatement(_) => {
+                let iterated_type = self.check_right_hand_side_of_for_of(parent)?;
+                self.check_destructuring_assignment(
+                    expr,
+                    iterated_type,
+                    tsc_types::CheckMode::NORMAL,
+                    false,
+                )
+                .map(Some)
+            }
+            // If this is from "for" initializer
+            //     for ({a } = elems[0];.....) { }
+            NodeData::BinaryExpression(binary) => {
+                let iterated_type = match binary.right {
+                    Some(right) => self.get_type_of_expression(right)?,
+                    None => error,
+                };
+                self.check_destructuring_assignment(
+                    expr,
+                    iterated_type,
+                    tsc_types::CheckMode::NORMAL,
+                    false,
+                )
+                .map(Some)
+            }
+            // If this is from nested object binding pattern
+            //     for ({ skills: { primary, secondary } } = multiRobot, i = 0; i < 1; i++) {
+            NodeData::PropertyAssignment(_) => {
+                let Some(node) = self.parent_of(parent) else {
+                    return Ok(None);
+                };
+                let type_of_parent_object_literal =
+                    self.get_type_of_assignment_pattern(node)?.unwrap_or(error);
+                let properties_array = match self.data_of(node) {
+                    NodeData::ObjectLiteralExpression(data) => data.properties,
+                    _ => None,
+                };
+                let properties = self.nodes_of(properties_array).to_vec();
+                let Some(property_index) =
+                    properties.iter().position(|&property| property == parent)
+                else {
+                    return Ok(None);
+                };
+                self.check_object_literal_destructuring_property_assignment(
+                    type_of_parent_object_literal,
+                    property_index,
+                    &properties,
+                    properties_array,
+                    false,
+                )
+            }
+            // Array literal assignment - array destructuring pattern
+            //    [{ property1: p1, property2 }] = elems;
+            _ => {
+                let node = parent;
+                let type_of_array_literal =
+                    self.get_type_of_assignment_pattern(node)?.unwrap_or(error);
+                let undefined = self.tables.intrinsics.undefined;
+                let element_type = self.check_iterated_type_or_element_type(
+                    tsc_types::IterationUse::DESTRUCTURING,
+                    type_of_array_literal,
+                    undefined,
+                    Some(parent),
+                )?;
+                let elements = match self.data_of(node) {
+                    NodeData::ArrayLiteralExpression(data) => self.nodes_of(data.elements).to_vec(),
+                    _ => Vec::new(),
+                };
+                let Some(element_index) = elements.iter().position(|&element| element == expr)
+                else {
+                    return Ok(None);
+                };
+                self.check_array_literal_destructuring_element_assignment(
+                    node,
+                    type_of_array_literal,
+                    element_index,
+                    &elements,
+                    element_type,
+                    tsc_types::CheckMode::NORMAL,
+                )
+            }
+        }
+    }
+
+    /// tsgo `ast.IsArrayLiteralOrObjectLiteralDestructuringPattern`: an
+    /// array or object literal that is a destructuring assignment's target.
+    pub fn is_array_literal_or_object_literal_destructuring_pattern(&self, node: NodeId) -> bool {
+        if !matches!(
+            self.kind_of(node),
+            SyntaxKind::ArrayLiteralExpression | SyntaxKind::ObjectLiteralExpression
+        ) {
+            return false;
+        }
+        let Some(parent) = self.parent_of(node) else {
+            return false;
+        };
+        match self.data_of(parent) {
+            NodeData::BinaryExpression(binary)
+                if binary.left == Some(node)
+                    && binary.operator_token.is_some_and(|operator| {
+                        self.kind_of(operator) == SyntaxKind::EqualsToken
+                    }) =>
+            {
+                true
+            }
+            NodeData::ForOfStatement(statement) if statement.initializer == Some(node) => true,
+            NodeData::PropertyAssignment(_) => self.parent_of(parent).is_some_and(|grandparent| {
+                self.is_array_literal_or_object_literal_destructuring_pattern(grandparent)
+            }),
+            _ => self.is_array_literal_or_object_literal_destructuring_pattern(parent),
+        }
+    }
+
+    /// tsgo `GetSymbolsOfParameterPropertyDeclaration`: a parameter
+    /// property's parameter and its class member.
+    pub fn get_symbols_of_parameter_property_declaration(
+        &mut self,
+        parameter: NodeId,
+        parameter_name: tsc_types::EscapedName,
+    ) -> CheckResult<Option<(SymbolId, SymbolId)>> {
+        let Some(constructor_declaration) = self.parent_of(parameter) else {
+            return Ok(None);
+        };
+        let Some(class_declaration) = self.parent_of(constructor_declaration) else {
+            return Ok(None);
+        };
+        let parameter_symbol = match self
+            .binder
+            .locals_of(constructor_declaration)
+            .and_then(|locals| locals.get(parameter_name).copied())
+        {
+            Some(symbol) => self.get_symbol_with_meaning(symbol, SymbolFlags::VALUE)?,
+            None => None,
+        };
+        let Some(class_symbol) = self.binder.node_symbol(class_declaration) else {
+            return Ok(None);
+        };
+        let members = self.get_members_of_symbol(class_symbol)?;
+        let property_symbol = match members.get(parameter_name).copied() {
+            Some(symbol) => self.get_symbol_with_meaning(symbol, SymbolFlags::VALUE)?,
+            None => None,
+        };
+        Ok(parameter_symbol.zip(property_symbol))
+    }
+
     /// tsgo `GetUnionType`: the union of the types, literals reduced.
     pub fn get_union_type(&mut self, types: &[TypeId]) -> CheckResult<TypeId> {
         self.get_union_type_ex(types, tsc_types::UnionReduction::Literal)

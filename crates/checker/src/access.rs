@@ -108,22 +108,6 @@ impl<'a> CheckerState<'a> {
                     .unwrap_or_default();
                 Ok(format!("{expression}.{name}"))
             }
-            SyntaxKind::JSDocMemberName => {
-                let NodeData::JSDocMemberName(data) = self.data_of(node) else {
-                    unreachable!("kind/data agree");
-                };
-                let left = data
-                    .left
-                    .expect("parser invariant: JSDocMemberName has a left name");
-                let right = data
-                    .right
-                    .expect("parser invariant: JSDocMemberName has a right name");
-                Ok(format!(
-                    "{}#{}",
-                    self.entity_name_to_string(left)?,
-                    self.entity_name_to_string(right)?
-                ))
-            }
             // tsc's default is Debug.assertNever.  For a recovery or
             // checker-synthetic node, getTextOfNode is the information-
             // preserving rendering and agrees with the entity arms for
@@ -2378,7 +2362,7 @@ impl<'a> CheckerState<'a> {
         false
     }
 
-    pub(crate) fn is_write_access(&self, node: NodeId) -> bool {
+    pub fn is_write_access(&self, node: NodeId) -> bool {
         !matches!(self.access_kind(node), crate::expr::AccessKind::Read)
     }
 

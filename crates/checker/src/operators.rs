@@ -1990,14 +1990,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:79619-79666
     ///
     /// ObjectSpreadRest requests its imported helper only below ES2018.
-    fn check_object_literal_destructuring_property_assignment(
+    pub(crate) fn check_object_literal_destructuring_property_assignment(
         &mut self,
         object_literal_type: TypeId,
         property_index: usize,
         properties: &[NodeId],
         properties_array: Option<tsc_syntax::NodeArrayId>,
         right_is_this: bool,
-    ) -> CheckResult<()> {
+    ) -> CheckResult<Option<TypeId>> {
         let property = properties[property_index];
         match self.kind_of(property) {
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
@@ -2010,7 +2010,7 @@ impl<'a> CheckerState<'a> {
                     // The parse diagnostic owns this malformed
                     // property; there is no key to index in the
                     // source object type.
-                    return Ok(());
+                    return Ok(None);
                 };
                 // tsgo checkObjectLiteralDestructuringPropertyAssignment
                 // (checker.go:12805-12807).
@@ -2057,12 +2057,12 @@ impl<'a> CheckerState<'a> {
                     property
                 } else {
                     let Some(initializer) = initializer else {
-                        return Ok(());
+                        return Ok(None);
                     };
                     initializer
                 };
-                self.check_destructuring_assignment(target, ty, CheckMode::NORMAL, false)?;
-                Ok(())
+                self.check_destructuring_assignment(target, ty, CheckMode::NORMAL, false)
+                    .map(Some)
             }
             SyntaxKind::SpreadAssignment => {
                 if property_index < properties.len() - 1 {
@@ -2071,7 +2071,7 @@ impl<'a> CheckerState<'a> {
                         &tsc_diagnostics::gen::A_rest_element_must_be_last_in_a_destructuring_pattern,
                         &[],
                     );
-                    return Ok(());
+                    return Ok(None);
                 }
                 if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2018 {
                     self.check_external_emit_helpers(property, crate::modules::EMIT_HELPER_REST)?;
@@ -2081,7 +2081,7 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 let Some(expression) = expression else {
-                    return Ok(());
+                    return Ok(None);
                 };
                 let mut non_rest_names: Vec<NodeId> = Vec::new();
                 for &other in properties {
@@ -2105,13 +2105,8 @@ impl<'a> CheckerState<'a> {
                     properties_array,
                     &tsc_diagnostics::gen::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma,
                 );
-                self.check_destructuring_assignment(
-                    expression,
-                    rest_type,
-                    CheckMode::NORMAL,
-                    false,
-                )?;
-                Ok(())
+                self.check_destructuring_assignment(expression, rest_type, CheckMode::NORMAL, false)
+                    .map(Some)
             }
             _ => {
                 self.error_at(
@@ -2119,7 +2114,7 @@ impl<'a> CheckerState<'a> {
                     &tsc_diagnostics::gen::Property_assignment_expected,
                     &[],
                 );
-                Ok(())
+                Ok(None)
             }
         }
     }
@@ -2189,7 +2184,7 @@ impl<'a> CheckerState<'a> {
     /// flag: spans match (the synthetic copies the element's range)
     /// and the flag keeps every access-node kind probe off, exactly
     /// like tsc's SyntheticExpression kind (M4 5.9d).
-    fn check_array_literal_destructuring_element_assignment(
+    pub(crate) fn check_array_literal_destructuring_element_assignment(
         &mut self,
         node: NodeId,
         source_type: TypeId,
@@ -2197,22 +2192,23 @@ impl<'a> CheckerState<'a> {
         elements: &[NodeId],
         iterated_element_type: TypeId,
         check_mode: CheckMode,
-    ) -> CheckResult<()> {
+    ) -> CheckResult<Option<TypeId>> {
         let element = elements[element_index];
         if self.kind_of(element) == SyntaxKind::OmittedExpression {
-            return Ok(());
+            return Ok(None);
         }
         if self.kind_of(element) != SyntaxKind::SpreadElement {
             if !self.is_array_like_type(source_type)? {
                 // 79696: non-array-like sources hand every element the
                 // iterated type.
-                self.check_destructuring_assignment(
-                    element,
-                    iterated_element_type,
-                    check_mode,
-                    false,
-                )?;
-                return Ok(());
+                return self
+                    .check_destructuring_assignment(
+                        element,
+                        iterated_element_type,
+                        check_mode,
+                        false,
+                    )
+                    .map(Some);
             }
             let index_type = self.tables.get_number_literal_type(element_index as f64);
             let access_flags = tsc_types::AccessFlags::from_bits(
@@ -2244,8 +2240,9 @@ impl<'a> CheckerState<'a> {
                 element_type
             };
             let ty = self.get_flow_type_of_destructuring(element, assigned_type)?;
-            self.check_destructuring_assignment(element, ty, check_mode, false)?;
-            return Ok(());
+            return self
+                .check_destructuring_assignment(element, ty, check_mode, false)
+                .map(Some);
         }
         if element_index < elements.len() - 1 {
             self.error_at(
@@ -2253,14 +2250,14 @@ impl<'a> CheckerState<'a> {
                 &tsc_diagnostics::gen::A_rest_element_must_be_last_in_a_destructuring_pattern,
                 &[],
             );
-            return Ok(());
+            return Ok(None);
         }
         let rest_expression = match self.data_of(element) {
             NodeData::SpreadElement(data) => data.expression,
             _ => None,
         };
         let Some(rest_expression) = rest_expression else {
-            return Ok(());
+            return Ok(None);
         };
         if self.kind_of(rest_expression) == SyntaxKind::BinaryExpression {
             if let Some((_, operator_token, _)) = self.binary_parts(rest_expression) {
@@ -2270,7 +2267,7 @@ impl<'a> CheckerState<'a> {
                         &tsc_diagnostics::gen::A_rest_element_cannot_have_an_initializer,
                         &[],
                     );
-                    return Ok(());
+                    return Ok(None);
                 }
             }
         }
@@ -2295,8 +2292,8 @@ impl<'a> CheckerState<'a> {
             // element type feeds non-tuple rests since 5.8b.
             self.create_array_type(iterated_element_type, false)?
         };
-        self.check_destructuring_assignment(rest_expression, rest_type, check_mode, false)?;
-        Ok(())
+        self.check_destructuring_assignment(rest_expression, rest_type, check_mode, false)
+            .map(Some)
     }
 
     /// tsc-port: checkReferenceAssignment @6.0.3

@@ -847,23 +847,19 @@ fn plan_module_requests_worker(
     // import when importHelpers can participate in this source. The checker
     // later resolves that exact synthetic specifier while validating the
     // requested helper shape, so the authoritative table must contain the
-    // row even though no source-text module literal exists.
-    let computed_isolated_modules =
-        options.isolated_modules == Some(true) || options.verbatim_module_syntax == Some(true);
-    let has_synthetic_tslib = options.import_helpers == Some(true)
-        && (javascript_file
-            || (!parsed.is_declaration_file
-                && (computed_isolated_modules || parsed.external_module_indicator.is_some())));
-    // tsgo resolveImportsAndModuleAugmentations (fileloader.go:849-859)
-    // synthesizes the JSX runtime import after the `tslib` one for a
-    // JavaScript or `.tsx` file (its script kind, not its module-ness: a
-    // `.ts` file never gets one, an `isolatedModules` `.tsx` script does).
-    // The checker addresses it by this stable source-file import index, so
-    // it must participate in the authoritative resolution table even though
-    // no source-text literal exists.
-    let jsx_runtime_import = jsx_runtime_import_specifier(&parsed, options);
-    let has_synthetic_jsx_runtime = jsx_runtime_import.is_some()
-        && (javascript_file || source.parse_file_name().ends_with(".tsx"));
+    // row even though no source-text module literal exists. The JSX runtime
+    // import follows; the checker addresses it by this stable source-file
+    // import index, so it participates in the authoritative resolution table
+    // as well.
+    let synthetic = synthetic_imports(
+        &parsed,
+        javascript_file,
+        source.parse_file_name().ends_with(".tsx"),
+        options,
+    );
+    let has_synthetic_tslib = synthetic.import_helpers;
+    let jsx_runtime_import = synthetic.jsx_runtime;
+    let has_synthetic_jsx_runtime = jsx_runtime_import.is_some();
     let observed_request_occurrence_count = path_references
         .len()
         .saturating_add(type_reference_directives.len())
@@ -1535,6 +1531,42 @@ fn uncollected_import_types(
             stack.push(child);
             false
         });
+    }
+}
+
+/// The imports tsgo synthesizes for a file
+/// (`resolveImportsAndModuleAugmentations`, fileloader.go:834-851).
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct SyntheticImports {
+    /// The import helpers module (`tslib`) is imported: `importHelpers` in a
+    /// JavaScript file, or in a TypeScript file that is not a declaration
+    /// file and is a module (or `isolatedModules` holds).
+    pub import_helpers: bool,
+    /// The JSX runtime module a JavaScript or `.tsx` file imports.
+    pub jsx_runtime: Option<JsString>,
+}
+
+/// The imports tsgo synthesizes for a parsed file.
+pub fn synthetic_imports(
+    parsed: &SourceFile,
+    javascript_file: bool,
+    tsx_file: bool,
+    options: &CompilerOptions,
+) -> SyntheticImports {
+    let computed_isolated_modules =
+        options.isolated_modules == Some(true) || options.verbatim_module_syntax == Some(true);
+    let import_helpers = options.import_helpers == Some(true)
+        && (javascript_file
+            || (!parsed.is_declaration_file
+                && (computed_isolated_modules || parsed.external_module_indicator.is_some())));
+    // A `.ts` file never gets a JSX runtime import (the script kind decides,
+    // not the module-ness: an `isolatedModules` `.tsx` script does).
+    let jsx_runtime = (javascript_file || tsx_file)
+        .then(|| jsx_runtime_import_specifier(parsed, options))
+        .flatten();
+    SyntheticImports {
+        import_helpers,
+        jsx_runtime,
     }
 }
 
