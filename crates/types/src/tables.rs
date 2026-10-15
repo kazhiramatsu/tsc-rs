@@ -724,7 +724,7 @@ impl TypeTables {
             UnionReduction::Literal,
         );
         let numeric_string =
-            self.get_template_literal_type(None, &[String::new(), String::new()], &[number]);
+            self.get_template_literal_type(&[String::new(), String::new()], &[number]);
         let unique_literal =
             self.create_intrinsic_type(TypeFlags::NEVER, "never", none, Some("unique literal"));
 
@@ -2771,47 +2771,26 @@ impl TypeTables {
         )
     }
 
-    /// tsc-port: getTemplateLiteralType @6.0.3
-    /// tsc-hash: 8b75b60fe2a0a42ea0dbac6fc1a278f1707c3d540a076e246c5ffa452e8aa6b7
-    /// tsc-span: _tsc.js:62057-62109
-    ///
-    /// The checker-owned entry reports the >=1e5 cross-product 2590;
-    /// this diagnostic-free construction/cache twin still guards
-    /// recursive and types-only callers by yielding errorType.
-    pub fn get_template_literal_type(
-        &mut self,
-        order: TypeOrder<'_>,
-        texts: &[String],
-        types: &[TypeId],
-    ) -> TypeId {
-        self.try_get_template_literal_type(order, texts, types)
-            .unwrap_or(self.intrinsics.error)
-    }
-
-    /// [`Self::get_template_literal_type`] that tells the checker when the
-    /// type is over tsgo's size limits, which it reports as TS2589.
-    pub fn try_get_template_literal_type(
-        &mut self,
-        order: TypeOrder<'_>,
-        texts: &[String],
-        types: &[TypeId],
-    ) -> Result<TypeId, TemplateLiteralTooLarge> {
+    /// tsgo `getTemplateLiteralType` (checker.go:29687) of spans that are
+    /// no union: the checker maps a union span over its members first
+    /// (`mapType`). The error type when the template is over the size
+    /// limits.
+    pub fn get_template_literal_type(&mut self, texts: &[String], types: &[TypeId]) -> TypeId {
         let texts = texts
             .iter()
             .map(|text| TemplateText::from_utf8(text))
             .collect::<Vec<_>>();
-        self.try_get_template_literal_type_from_texts(order, &texts, types)
+        self.get_template_literal_type_from_texts(&texts, types)
     }
 
     /// Lossless UTF-16 entry used by parsed template fragments and by
     /// transformations of existing template literal types.
     pub fn get_template_literal_type_from_texts(
         &mut self,
-        order: TypeOrder<'_>,
         texts: &[TemplateText],
         types: &[TypeId],
     ) -> TypeId {
-        self.try_get_template_literal_type_from_texts(order, texts, types)
+        self.try_get_template_literal_type_from_texts(texts, types)
             .unwrap_or(self.intrinsics.error)
     }
 
@@ -2819,37 +2798,15 @@ impl TypeTables {
     /// checker when the type is over tsgo's size limits.
     pub fn try_get_template_literal_type_from_texts(
         &mut self,
-        order: TypeOrder<'_>,
         texts: &[TemplateText],
         types: &[TypeId],
     ) -> Result<TypeId, TemplateLiteralTooLarge> {
         debug_assert_eq!(texts.len(), types.len() + 1);
-        let union_index = types.iter().position(|&t| {
-            self.flags_of(t).intersects(TypeFlags::from_bits(
-                TypeFlags::NEVER.bits() | TypeFlags::UNION.bits(),
-            ))
-        });
-        if let Some(union_index) = union_index {
-            if !self.check_cross_product_union(types) {
-                return Ok(self.intrinsics.error);
-            }
-            // mapType over the union constituent (62060).
-            let member = types[union_index];
-            if self.flags_of(member).intersects(TypeFlags::NEVER) {
-                return Ok(member);
-            }
-            let TypeData::Union { types: members, .. } = self.type_of(member).data.clone() else {
-                unreachable!("union flag implies union data");
-            };
-            let mut mapped = Vec::with_capacity(members.len());
-            for &m in members.iter() {
-                let mut replaced = types.to_vec();
-                replaced[union_index] = m;
-                mapped
-                    .push(self.try_get_template_literal_type_from_texts(order, texts, &replaced)?);
-            }
-            return Ok(self.get_union_type(order, &mapped, UnionReduction::Literal));
-        }
+        // The checker maps a union span over its members first.
+        debug_assert!(!types.iter().any(|&t| {
+            self.flags_of(t)
+                .intersects(TypeFlags::NEVER | TypeFlags::UNION)
+        }));
         if types.contains(&self.intrinsics.wildcard) {
             return Ok(self.intrinsics.wildcard);
         }
@@ -3174,30 +3131,6 @@ impl TypeTables {
             return self.is_pattern_literal_placeholder_type(ty);
         }
         false
-    }
-
-    /// tsc-port: checkCrossProductUnion @6.0.3
-    /// tsc-hash: c916448698615d4762a0b12b7b0759c757fa2c19dedd842bc9448d9731fe9da1
-    /// tsc-span: _tsc.js:61874-61883
-    fn check_cross_product_union(&self, types: &[TypeId]) -> bool {
-        self.get_cross_product_union_size(types) < 100_000
-    }
-
-    /// tsc-port: getCrossProductUnionSize @6.0.3
-    /// tsc-hash: b5e9572ca4c32fb818e3a1e18ce1d7e91ca18afbf17a6d35fce122616a4dc3c0
-    /// tsc-span: _tsc.js:61871-61873
-    fn get_cross_product_union_size(&self, types: &[TypeId]) -> usize {
-        let mut size: usize = 1;
-        for &t in types {
-            if self.flags_of(t).intersects(TypeFlags::UNION) {
-                if let TypeData::Union { types: members, .. } = &self.type_of(t).data {
-                    size = size.saturating_mul(members.len());
-                }
-            } else if self.flags_of(t).intersects(TypeFlags::NEVER) {
-                size = 0;
-            }
-        }
-        size
     }
 }
 

@@ -57,6 +57,11 @@ impl Request<'_, '_> {
             return SemanticMeaning::ALL;
         }
         let Some(id) = node_id else {
+            // tsgo `isTypeReference` of a token: the `this` of a `this` type
+            // (`!IsExpressionNode`).
+            if kind == SyntaxKind::ThisKeyword && !self.state.is_expression_node_like_tsgo(parent) {
+                return SemanticMeaning::TYPE;
+            }
             if parent_kind == SyntaxKind::TypeParameter {
                 return SemanticMeaning::TYPE;
             }

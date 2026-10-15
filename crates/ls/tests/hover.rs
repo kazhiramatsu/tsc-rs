@@ -1530,3 +1530,150 @@ fn vs_documentation_summary() {
         ))
     );
 }
+
+/// tsgo `finalizeBoundary` drops the length a reuse of an existing type node
+/// counted, failed or not (a reused node counts as its source text): a
+/// property's union whose reuse fails on an inaccessible alias counts its
+/// expanded members once, and the hover is not truncated (found by the LSP
+/// test on hono, which truncated hono's `ClientRequestOptions`). Pinned to
+/// tsgo's answer at aa814927.
+#[test]
+fn a_failed_type_node_reuse_counts_no_length() {
+    let globals = "declare function send(input: string): Promise<string>;\n";
+    // Ten more properties bring the count near hover's limit (500).
+    let extra: String = (0..10)
+        .map(|index| format!("  extra{index}?: string\n"))
+        .collect();
+    let types = format!("class Server {{\n  request = (input: string | number | boolean, init?: object, env?: object, context?: object): string | number | Promise<string> => \"\"\n}}\ntype ServerRequest = (typeof Server.prototype)['request']\nexport type Options<T = unknown> = {{\n  send?: typeof send | ServerRequest\n{extra}  init?: object\n  buildSearchParams?: (query: Record<string, string | string[]>) => object\n}} & (keyof T extends never\n  ? {{ headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>) }}\n  : {{ headers: T | (() => T | Promise<T>) }})\n");
+    let index = "export type { Options } from './types'\n";
+    let files = [
+        ("/index.ts", index),
+        ("/types.ts", types.as_str()),
+        ("/globals.ts", globals),
+    ];
+    assert_eq!(
+        hover(&files, options(|_| {}), "/index.ts", (0, 14), None),
+        Some((
+            "```typescript\n(alias) type Options<T = unknown> = {\n    send?: typeof send | ((input: string | number | boolean, init?: object, env?: object, context?: object) => string | number | Promise<string>);\n    extra0?: string;\n    extra1?: string;\n    extra2?: string;\n    extra3?: string;\n    extra4?: string;\n    extra5?: string;\n    extra6?: string;\n    extra7?: string;\n    extra8?: string;\n    extra9?: string;\n    init?: object;\n    buildSearchParams?: (query: Record<string, string | string[]>) => object;\n} & (keyof T extends never ? {\n    headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>);\n} : {\n    headers: T | (() => T | Promise<T>);\n})\n```\n".to_owned(),
+            ((0, 14), (0, 21)),
+            true,
+        ))
+    );
+}
+
+/// tsgo marks a hover truncated only where it cuts an expansion
+/// (`checkTruncationLengthIfExpanding`), not where `mapToTypeNodes` or
+/// `createTypeNodesFromResolvedType` cut a type: a type parameter's hover
+/// whose signature is cut (`... 2 more ...`) still offers a higher
+/// verbosity (found by the LSP test on hono, in its factory's handlers).
+/// Pinned to tsgo's answer at aa814927.
+#[test]
+fn a_cut_type_still_offers_a_higher_verbosity() {
+    let text = "interface Env { Variables?: object; Bindings?: object }\ntype IfAnyThenEmptyObject<T> = 0 extends 1 & T ? {} : T\ntype ProcessHead<T> = IfAnyThenEmptyObject<T extends Env ? (Env extends T ? {} : T) : T>\ntype IntersectNonAnyTypes<T extends any[]> = T extends [infer Head, ...infer Rest]\n  ? ProcessHead<Head> & IntersectNonAnyTypes<Rest>\n  : {}\ndeclare function f<\n  E extends Env,\n  I extends object = {},\n  I2 extends object = I,\n  I3 extends object = I & I2,\n  E2 extends Env = E,\n  E3 extends Env = IntersectNonAnyTypes<[E, E2]>,\n  E4 extends Env = IntersectNonAnyTypes<[E, E2, E3]>,\n>(a: E2, b: E3, c: E4): [E2, E3, E4]\n";
+    assert_eq!(
+        hover(&[("/a.ts", text)], options(|_| {}), "/a.ts", (12, 2), None),
+        Some((
+            "```typescript\n(type parameter) E3 extends Env in f<E extends Env, I extends object = {}, I2 extends object = I, I3 extends object = I & I2, E2 extends Env = E, E3 extends Env = IfAnyThenEmptyObject<E extends Env ? Env extends E ? {} : E : E> & IfAnyThenEmptyObject<E2 extends Env ? Env extends E2 ? {} : E2 : E2> & {}, E4 extends Env = IfAnyThenEmptyObject<...> & ... 2 more ... & ...>(a: E2, b: E3, c: E4): [E2, E3, E4]\n```\n".to_owned(),
+            ((12, 2), (12, 4)),
+            true,
+        ))
+    );
+}
+
+/// The `this` of a `this` type is a token (tsgo synthesizes one) in a type
+/// reference, so the hover's meaning is a type's: an interface merged with
+/// a `const` of its name shows `this`, not the `const` (found by the LSP
+/// test on zod, whose `ZodType` interface merges with a `const`). Pinned to
+/// tsgo's answer at aa814927.
+#[test]
+fn a_this_type_of_an_interface_merged_with_a_const_shows_this() {
+    let text = "interface Box<T> { t: T }\nexport interface Foo { m(): Box<this>; }\nexport const Foo = 1;\n";
+    assert_eq!(
+        hover(&[("/a.ts", text)], options(|_| {}), "/a.ts", (1, 32), None),
+        Some((
+            "```typescript\nthis\n```\n".to_owned(),
+            ((1, 32), (1, 36)),
+            false,
+        ))
+    );
+}
+
+/// tsgo always copies a `this` type when it reuses a declaration's type
+/// node (nodecopy.go: Strada's `canReuseTypeNode` check never failed for
+/// it): an inherited method's reused return annotation keeps `this` (found
+/// by the LSP test on zod, in `meta()`'s `$replace<GlobalMeta, this>`).
+/// Pinned to tsgo's answer at aa814927.
+#[test]
+fn a_reused_return_annotation_keeps_its_this_type() {
+    let text = "type Replace<M, S> = M extends string ? S : M;\ninterface Base<T> {\n  meta(): Replace<T, this> | undefined;\n  meta2(): Replace<number, this> | undefined;\n  meta3(): Replace<T, T> | undefined;\n}\ninterface Str extends Base<string> { x: number }\ndeclare const A: Str;\nA.meta();\nA.meta2();\nA.meta3();\n";
+    assert_eq!(
+        hover(&[("/a.ts", text)], options(|_| {}), "/a.ts", (9, 2), None),
+        Some((
+            "```typescript\n(method) Base<string>.meta2(): Replace<number, this> | undefined\n```\n"
+                .to_owned(),
+            ((9, 2), (9, 7)),
+            false,
+        ))
+    );
+}
+
+/// tsgo records an access answered by an index signature with its index
+/// symbol as the access's resolved symbol, so `getTypeOfSymbolAtLocation`
+/// takes the access for a reference and answers its narrowed type (found
+/// by the LSP test on effect, `Array.isArray(annotations.brands) ?
+/// annotations.brands : []`). Pinned to tsgo's answer at aa814927.
+#[test]
+fn an_index_signature_access_hovers_its_narrowed_type() {
+    let text = "interface Annotations { readonly [x: string]: unknown }\nfunction g(a: Annotations) {\n  if (Array.isArray(a.brands)) { a.brands; }\n}\n";
+    assert_eq!(
+        hover(&[("/a.ts", text)], options(|_| {}), "/a.ts", (2, 35), None),
+        Some((
+            "```typescript\nany[]\n```\n".to_owned(),
+            ((2, 35), (2, 41)),
+            false,
+        ))
+    );
+}
+
+/// The node builder counts a `readonly` index signature's modifier
+/// (tsgo `indexInfoToIndexSignatureDeclarationHelper`), which moves where
+/// a long hover is cut (found by the LSP test on effect, in its devtools'
+/// schema types). Pinned to tsgo's answer at aa814927.
+#[test]
+fn a_readonly_index_signature_moves_the_hover_cut() {
+    let properties = (0..60)
+        .map(|index| format!("a{index}: string"))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let text = format!("declare const v: {{ readonly [x: string]: string; readonly [y: number]: string; {properties} }};\nconst w = v;\n");
+    let shown = (0..42)
+        .map(|index| format!("    a{index}: string;\n"))
+        .collect::<String>();
+    assert_eq!(
+        hover(&[("/a.ts", text.as_str())], options(|_| {}), "/a.ts", (1, 6), None),
+        Some((
+            format!("```typescript\nconst w: {{\n    readonly [x: string]: string;\n    readonly [y: number]: string;\n{shown}    ... 17 more ...;\n    a59: string;\n}}\n```\n"),
+            ((1, 6), (1, 7)),
+            false,
+        ))
+    );
+}
+
+/// tsgo `GetHostSignatureFromJSDoc` takes only the declaration the comment
+/// is attached to (Strada's `getEffectiveJSDocHost` is not ported): a
+/// `{@link effect}` above `const effectContext = (effect) => …` resolves at
+/// the statement, to the module's `effect`, not the parameter (found by the
+/// LSP test on effect, in `Layer.effectContext`'s `@see`). Pinned to tsgo's
+/// answer at aa814927.
+#[test]
+fn a_jsdoc_link_above_a_variable_statement_skips_its_initializer() {
+    let text = "export const effect = 1;\n/**\n * @see {@link effect} for a single service\n */\nexport const effectContext = (effect: number) => effect;\neffectContext(1);\n";
+    assert_eq!(
+        hover(&[("/a.ts", text)], options(|_| {}), "/a.ts", (5, 0), None),
+        Some((
+            "```typescript\nconst effectContext: (effect: number) => number\n```\n\n\n*@see* \u{2014} [effect](file:///a.ts#1,14-1,20) for a single service".to_owned(),
+            ((5, 0), (5, 13)),
+            false,
+        ))
+    );
+}

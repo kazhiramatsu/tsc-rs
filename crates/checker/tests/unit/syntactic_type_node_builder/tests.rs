@@ -420,8 +420,11 @@ fn syntactic_annotation_reuse_round_trips_parse_provenance_and_length() {
     );
 }
 
+/// tsgo (nodecopy.go:552) copies a `this` type whatever the target
+/// location's `this`: no reuse check is consulted and the boundary takes no
+/// error, even when the resolver would deny reusing one.
 #[test]
-fn syntactic_recovery_scope_contains_error_and_consults_semantic_serializer() {
+fn syntactic_reuse_copies_a_this_type_without_consulting_the_serializer() {
     let events = Rc::new(RefCell::new(Vec::new()));
     let mut resolver = TestResolver::new(Rc::clone(&events));
     resolver.reuse_denied_kinds.insert(SyntaxKind::ThisType);
@@ -442,7 +445,7 @@ fn syntactic_recovery_scope_contains_error_and_consults_semantic_serializer() {
             assert!(builder
                 .try_reuse_existing_type_node(resolver, arena, target, context, annotation)?
                 .is_some());
-            assert!(events
+            assert!(!events
                 .borrow()
                 .iter()
                 .any(|event| event == "semantic-existing:ThisType"));

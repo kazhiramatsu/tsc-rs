@@ -858,14 +858,9 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             return self.visit_jsdoc_function_type(node).map(Some);
         }
 
+        // tsgo (nodecopy.go:552): a `this` type is always copied, whatever
+        // the `this` of the target location.
         if self.kind(node)? == SyntaxKind::ThisType {
-            if self
-                .resolver
-                .can_reuse_type_node(self.arena, self.context, node)?
-            {
-                return Ok(Some(node));
-            }
-            self.mark_recovery_error();
             return Ok(Some(node));
         }
 

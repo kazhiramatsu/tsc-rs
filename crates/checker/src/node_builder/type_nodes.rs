@@ -4144,7 +4144,6 @@ fn create_type_nodes_from_resolved_type(
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<Option<Vec<TransformNode>>> {
     if check_truncation_length(context) {
-        context.out.truncated = true;
         let property = create_property_signature_with_name(arena, target, "...", None, None, None)?;
         let property = if context
             .flags
@@ -4299,7 +4298,6 @@ fn create_type_nodes_from_resolved_type(
             if check_truncation_length(context)
                 && property_index + 2 < resolved.properties.len().saturating_sub(1)
             {
-                context.out.truncated = true;
                 let remaining = resolved.properties.len() - property_index;
                 if context
                     .flags
@@ -5025,7 +5023,6 @@ pub(crate) fn map_to_type_nodes(
         return Ok(None);
     }
     if check_truncation_length(context) {
-        context.out.truncated = true;
         if !is_bare_list {
             return Ok(Some(vec![create_elided_information_placeholder(
                 arena, target, context,
@@ -5070,7 +5067,6 @@ pub(crate) fn map_to_type_nodes(
     let mut result = Vec::with_capacity(types.len());
     for (index, r#type) in types.iter().copied().enumerate() {
         if check_truncation_length(context) && index + 4 < types.len() {
-            context.out.truncated = true;
             let remaining = types.len() - index - 1;
             let placeholder = if context
                 .flags

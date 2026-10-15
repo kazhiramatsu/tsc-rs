@@ -416,3 +416,37 @@ fn a_function_type_definition_goes_to_its_return_type() {
         ]
     );
 }
+
+/// tsgo `getTypeOfSymbolAtLocation` compares a variable's missing
+/// initializer with its type's missing value declaration and finds them
+/// equal (Go's nil == nil, as TypeScript's `undefined === undefined`): a
+/// `declare var` typed by an interface of one call signature goes to that
+/// signature's return type, as the libraries' `Function`, `Symbol` and
+/// `String` do (found by the LSP test on hono). Pinned to tsgo's answers at
+/// aa814927.
+#[test]
+fn a_declared_constructor_variable_goes_to_its_call_return_type() {
+    let text = "interface Box { b: number; }\ninterface BoxConstructor { (n: number): Box; }\ndeclare var Box: BoxConstructor;\ninterface MakerConstructor { (n: number): string; }\ndeclare var Maker: MakerConstructor;\nlet a: Box;\nconst b = Box(1);\nconst c = Maker(1);\n";
+    let file = [("/a.ts", text)];
+    let at = |line, character| {
+        links(
+            &file,
+            options(|_| {}),
+            "/a.ts",
+            (line, character),
+            Request::TypeDefinition,
+        )
+    };
+    let box_declarations = |origin: Range| {
+        vec![
+            (origin, "/a.ts", ((0, 0), (0, 28)), ((0, 10), (0, 13))),
+            (origin, "/a.ts", ((2, 0), (2, 32)), ((2, 12), (2, 15))),
+        ]
+    };
+    // `Box` as a type and as a callee: the return type `Box`, whose symbol
+    // is the interface and the variable.
+    assert_eq!(at(5, 7), box_declarations(((5, 7), (5, 10))));
+    assert_eq!(at(6, 10), box_declarations(((6, 10), (6, 13))));
+    // A primitive return type has no declarations.
+    assert_eq!(at(7, 10), vec![]);
+}
