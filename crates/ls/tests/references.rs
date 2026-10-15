@@ -526,6 +526,28 @@ fn document_symbols(files: &[(&str, &str)]) -> serde_json::Value {
     )
 }
 
+/// tsgo's folding ranges of the first file, as the protocol's JSON, for a
+/// client that shows collapsed text.
+fn folding_ranges(files: &[(&str, &str)]) -> serde_json::Value {
+    let mut capabilities = ResolvedClientCapabilities::default();
+    capabilities
+        .text_document
+        .folding_range
+        .folding_range
+        .collapsed_text = true;
+    let uri = DocumentUri(format!("file://{}", files[0].0));
+    with_service_capabilities(
+        files,
+        options(|options| options.allow_js = true),
+        UserPreferences::default(),
+        capabilities,
+        |service, _| {
+            serde_json::to_value(service.provide_folding_ranges(&uri).expect("an answer"))
+                .expect("JSON")
+        },
+    )
+}
+
 fn leak(name: &str) -> &'static str {
     Box::leak(name.to_owned().into_boxed_str())
 }
@@ -1010,4 +1032,66 @@ fn an_expando_with_a_computed_key_holds_an_unnamed_function() {
         symbols,
         serde_json::json!([{"name": "f", "kind": 12, "range": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 15}}, "selectionRange": {"start": {"line": 0, "character": 9}, "end": {"line": 0, "character": 10}}, "children": [{"name": "Symbol.iterator", "kind": 13, "range": {"start": {"line": 1, "character": 0}, "end": {"line": 1, "character": 18}}, "selectionRange": {"start": {"line": 1, "character": 2}, "end": {"line": 1, "character": 17}}, "children": [{"name": "<function>", "kind": 12, "range": {"start": {"line": 1, "character": 21}, "end": {"line": 1, "character": 34}}, "selectionRange": {"start": {"line": 1, "character": 21}, "end": {"line": 1, "character": 21}}, "children": []}]}]}])
     );
+}
+
+/// tsgo lists the declarations it reparses from a statement's JSDoc in a
+/// JavaScript file (a `@typedef` or `@callback` with a type, an `@import`)
+/// before the statement, and they are not imports: one before an import ends
+/// a run of imports. The next run starts where tsgo's `FindChildOfKind`
+/// leaves its stale `import` token, at the end of the JSDoc comment. A
+/// `@typedef` without a type, the end of the file's JSDoc and a TypeScript
+/// file's JSDoc reparse nothing. (Expected: tsgo's answers.)
+#[test]
+fn a_reparsed_js_doc_declaration_ends_a_run_of_imports() {
+    let x = ("/x.js", "export default 1;\nexport const X = 1;\n");
+    let range = |start: (u32, u32), end: (u32, u32), kind: &str| serde_json::json!({"startLine": start.0, "startCharacter": start.1, "endLine": end.0, "endCharacter": end.1, "kind": kind});
+    let cases = [
+        (
+            "/a.js",
+            "import a from \"./x\";\n/** @typedef {string} T */\nimport b from \"./x\";\nimport c from \"./x\";\n",
+            vec![
+                range((1, 0), (1, 26), "comment"),
+                range((1, 26), (3, 20), "imports"),
+            ],
+        ),
+        (
+            "/b.js",
+            "import a from \"./x\";\n/** @import { X } from \"./x\" */\nimport b from \"./x\";\nimport c from \"./x\";\n",
+            vec![
+                range((1, 0), (1, 31), "comment"),
+                range((1, 31), (3, 20), "imports"),
+            ],
+        ),
+        (
+            "/c.js",
+            "import a from \"./x\";\nimport b from \"./x\";\n/** @import { X } from \"./x\" */\n",
+            vec![
+                range((0, 0), (1, 20), "imports"),
+                range((2, 0), (2, 31), "comment"),
+            ],
+        ),
+        (
+            "/d.js",
+            "import a from \"./x\";\n/** @typedef T */\nimport b from \"./x\";\n",
+            vec![
+                range((0, 0), (2, 20), "imports"),
+                range((1, 0), (1, 17), "comment"),
+            ],
+        ),
+        (
+            "/e.ts",
+            "import a from \"./x\";\n/** @typedef {string} T */\nimport b from \"./x\";\n",
+            vec![
+                range((0, 0), (2, 20), "imports"),
+                range((1, 0), (1, 26), "comment"),
+            ],
+        ),
+    ];
+    for (name, text, expected) in cases {
+        assert_eq!(
+            folding_ranges(&[(name, text), x]),
+            serde_json::Value::Array(expected),
+            "{name}"
+        );
+    }
 }
