@@ -89,6 +89,29 @@ fn version_is_available_without_a_filesystem_host() {
     );
 }
 
+/// tsgo `--pprofDir`: the run's CPU profile, its path after the run's
+/// output (tsgo's memory profile is not supported).
+#[cfg(unix)]
+#[test]
+fn pprof_dir_writes_the_runs_cpu_profile() {
+    let _profiler = crate::pprof::TEST_PROFILER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let directory = std::env::temp_dir()
+        .join(format!("tsc-rs-pprof-dir-test-{}", std::process::id()))
+        .to_string_lossy()
+        .into_owned();
+    let output = run(&["--pprofDir", &directory, "--version"]);
+    assert_eq!(output.exit_code(), EXIT_SUCCESS);
+    let profile = format!("{directory}/{}-cpuprofile.pb.gz", std::process::id());
+    assert_eq!(
+        output.stdout(),
+        format!("Version {TYPESCRIPT_VERSION}\nCPU profile: {profile}\n")
+    );
+    assert!(std::path::Path::new(&profile).exists());
+    let _ = std::fs::remove_dir_all(&directory);
+}
+
 #[test]
 fn embedded_library_overlay_owns_the_pinned_catalog_bytes() {
     let system = NativeSystem::from_process().expect("the process system");

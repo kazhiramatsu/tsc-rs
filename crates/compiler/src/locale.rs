@@ -286,7 +286,7 @@ fn read_catalog(gzip: &[u8]) -> Option<Catalog> {
 
 /// The data of a gzip member (RFC 1952): the header's optional fields are
 /// skipped and the deflate stream inflated.
-fn gunzip(bytes: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn gunzip(bytes: &[u8]) -> Option<Vec<u8>> {
     const FHCRC: u8 = 1 << 1;
     const FEXTRA: u8 = 1 << 2;
     const FNAME: u8 = 1 << 3;

@@ -13,8 +13,8 @@ use tsc_host::{CompilerHost, FsCompilerHost};
 use crate::server::{Server, ServerOptions};
 
 /// The flags of tsgo `runLSP`. `--pipe` and `--socket` are accepted and
-/// ignored as in tsgo; tsc-rs writes no Go profiles for `--pprofDir`, as for
-/// the compiler's option of that name.
+/// ignored as in tsgo; `--pprofDir` writes a CPU profile (tsgo's memory
+/// profile is not supported).
 const LSP_FLAGS: &[Flag] = &[
     Flag {
         name: "stdio",
@@ -61,10 +61,12 @@ pub fn run_lsp(arguments: &[String], process_alive: Option<fn(i32) -> bool>) -> 
     };
     let mut stdio = false;
     let mut client_process_id = 0;
+    let mut pprof_dir = String::new();
     for (name, value) in values {
         match (name, value) {
             ("stdio", Value::Bool(enabled)) => stdio = enabled,
             ("clientProcessId", Value::Int(id)) => client_process_id = id,
+            ("pprofDir", Value::String(directory)) => pprof_dir = directory,
             _ => {}
         }
     }
@@ -72,6 +74,13 @@ pub fn run_lsp(arguments: &[String], process_alive: Option<fn(i32) -> bool>) -> 
         let _ = writeln!(io::stderr(), "only stdio is supported");
         return 1;
     }
+    let profile = (!pprof_dir.is_empty()).then(|| {
+        let _ = writeln!(
+            io::stderr(),
+            "pprof profiles will be written to: {pprof_dir}"
+        );
+        tsc_compiler::pprof::begin_profiling(&pprof_dir)
+    });
     // tsgo `bundled.WrapFS(osvfs.FS())` and `bundled.LibPath()`.
     let case_sensitive = FsCompilerHost::from_process()
         .map(|host| host.use_case_sensitive_file_names())
@@ -104,13 +113,17 @@ pub fn run_lsp(arguments: &[String], process_alive: Option<fn(i32) -> bool>) -> 
         progress_delay: std::time::Duration::from_millis(250),
     });
     let _ = server_cell.set(Arc::downgrade(&server));
-    match server.run(Box::new(io::stdin()), Box::new(io::stdout())) {
+    let code = match server.run(Box::new(io::stdin()), Box::new(io::stdout())) {
         Ok(()) => 0,
         Err(error) => {
             let _ = writeln!(io::stderr(), "{error}");
             1
         }
+    };
+    if let Some(profile) = profile {
+        profile.stop(&mut io::stderr());
     }
+    code
 }
 
 /// tsgo `startParentProcessWatchdog`: every five seconds, stops the server
