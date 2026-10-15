@@ -28,10 +28,12 @@ use tsc_syntax::ScriptKind;
 use crate::background::{Cancellation, Queue};
 use crate::client::{Client, Logger};
 use crate::fs::{FileChangeSummary, Paths};
-use crate::id::ProjectKind;
+use crate::id::{ProjectId, ProjectKind};
 use crate::overlay::{FileChange, FileChangeKind, OverlayFs, Overlays};
 use crate::project::{ProgramUpdateKind, Project};
-use crate::snapshot::{ProjectError, SessionOptions, Snapshot, SnapshotChange, SnapshotHost};
+use crate::snapshot::{
+    ProjectError, ProjectTreeRequest, SessionOptions, Snapshot, SnapshotChange, SnapshotHost,
+};
 use crate::watch::{glob_string, WatchRegistry, WatchedFiles};
 
 /// The user's preferences (tsgo's `initialUserPreferences`,
@@ -48,6 +50,21 @@ struct UserConfig {
 struct ScheduledUpdate {
     cancellation: Option<Cancellation>,
     generation: u64,
+}
+
+/// tsgo `ResourceRequest`: what a request needs brought up to date in the
+/// snapshot.
+#[derive(Default)]
+struct ResourceRequest<'a> {
+    /// tsgo `Documents`: the default projects of these, an inferred one for
+    /// a file without.
+    documents: &'a [DocumentUri],
+    /// tsgo `ConfiguredProjectDocuments`: the configured projects of these.
+    configured_project_documents: &'a [DocumentUri],
+    /// tsgo `Projects`.
+    projects: Vec<ProjectId>,
+    /// tsgo `ProjectTree`.
+    project_tree: Option<ProjectTreeRequest>,
 }
 
 /// tsgo `Session`.
@@ -361,7 +378,10 @@ impl Session {
     /// otherwise an update only when a document's default project is not
     /// loaded or is dirty.
     pub fn get_snapshot(&self, documents: &[DocumentUri]) -> Result<Arc<Snapshot>, ProjectError> {
-        self.get_snapshot_for(documents, false)
+        self.get_snapshot_for(ResourceRequest {
+            documents,
+            ..ResourceRequest::default()
+        })
     }
 
     /// tsgo `GetLanguageServicesForDocumentsLoadingProjectTree`'s snapshot:
@@ -371,25 +391,86 @@ impl Session {
         &self,
         documents: &[DocumentUri],
     ) -> Result<Arc<Snapshot>, ProjectError> {
-        self.get_snapshot_for(documents, true)
+        self.get_snapshot_for(ResourceRequest {
+            documents,
+            project_tree: Some(ProjectTreeRequest::all()),
+            ..ResourceRequest::default()
+        })
     }
 
-    /// tsgo `getSnapshot`: with pending changes or a project tree to load,
-    /// a new snapshot; else one only when a document's default project is
-    /// not loaded or is dirty.
+    /// tsgo `WithSnapshotLoadingProjectTree`'s snapshot: the requested
+    /// project trees loaded.
+    pub fn get_snapshot_loading_project_trees(
+        &self,
+        request: ProjectTreeRequest,
+    ) -> Result<Arc<Snapshot>, ProjectError> {
+        self.get_snapshot_for(ResourceRequest {
+            project_tree: Some(request),
+            ..ResourceRequest::default()
+        })
+    }
+
+    /// tsgo `GetProjectsForFile`: the snapshot with the file's configured
+    /// projects loaded (no inferred project for a file without one), and
+    /// the language service projects that have the file.
+    pub fn get_projects_for_file(
+        &self,
+        uri: &DocumentUri,
+    ) -> Result<(Arc<Snapshot>, Vec<Arc<Project>>), ProjectError> {
+        let snapshot = self.get_snapshot_for(ResourceRequest {
+            configured_project_documents: std::slice::from_ref(uri),
+            ..ResourceRequest::default()
+        })?;
+        let file_name = document_file_name(uri).unwrap_or_default();
+        let projects = snapshot
+            .projects_containing_file(&file_name)
+            .into_iter()
+            .cloned()
+            .collect();
+        Ok((snapshot, projects))
+    }
+
+    /// tsgo `GetLanguageServiceForProjectWithFile`'s snapshot and project:
+    /// the project's program brought up to date, and the project when it
+    /// still has the file.
+    pub fn get_project_with_file(
+        &self,
+        id: &ProjectId,
+        uri: &DocumentUri,
+    ) -> Result<(Arc<Snapshot>, Option<Arc<Project>>), ProjectError> {
+        let snapshot = self.get_snapshot_for(ResourceRequest {
+            projects: vec![id.clone()],
+            ..ResourceRequest::default()
+        })?;
+        let file_name = document_file_name(uri).unwrap_or_default();
+        let project = snapshot
+            .project(id)
+            .filter(|project| snapshot.project_has_file(project, &file_name))
+            .cloned();
+        Ok((snapshot, project))
+    }
+
+    /// tsgo `getSnapshot`: with pending changes, a new snapshot for the
+    /// request; else one only for projects or project trees to bring up to
+    /// date, a document whose default project is not loaded or is dirty,
+    /// or a configured project document that is not open (or whose default
+    /// project is not loaded or is dirty).
     fn get_snapshot_for(
         &self,
-        documents: &[DocumentUri],
-        project_tree: bool,
+        request: ResourceRequest<'_>,
     ) -> Result<Arc<Snapshot>, ProjectError> {
         let inner = &self.inner;
         let _update = lock(&inner.snapshot_update);
         inner.cancel_scheduled_snapshot_update();
         let (changes, overlays, new_config) = inner.flush_changes();
-        let documents = documents
-            .iter()
-            .filter_map(document_file_name)
-            .collect::<Vec<_>>();
+        let file_names = |documents: &[DocumentUri]| {
+            documents
+                .iter()
+                .filter_map(document_file_name)
+                .collect::<Vec<_>>()
+        };
+        let documents = file_names(request.documents);
+        let configured_project_documents = file_names(request.configured_project_documents);
         if !changes.is_empty() || new_config.is_some() {
             return inner.update_snapshot(
                 overlays,
@@ -397,18 +478,25 @@ impl Session {
                     file_changes: changes,
                     new_config,
                     documents,
-                    project_tree,
+                    configured_project_documents,
+                    projects: request.projects,
+                    project_tree: request.project_tree,
                     ..SnapshotChange::default()
                 },
             );
         }
         let snapshot = inner.snapshot();
-        let stale = project_tree
-            || documents.iter().any(|document| {
-                snapshot
-                    .default_project(document)
-                    .is_none_or(|project| project.dirty)
-            });
+        let not_loaded_or_dirty = |document: &String| {
+            snapshot
+                .default_project(document)
+                .is_none_or(|project| project.dirty)
+        };
+        let stale = !request.projects.is_empty()
+            || request.project_tree.is_some()
+            || documents.iter().any(not_loaded_or_dirty)
+            || configured_project_documents
+                .iter()
+                .any(|document| !snapshot.is_open_file(document) || not_loaded_or_dirty(document));
         if !stale {
             return Ok(snapshot);
         }
@@ -416,7 +504,9 @@ impl Session {
             overlays,
             SnapshotChange {
                 documents,
-                project_tree,
+                configured_project_documents,
+                projects: request.projects,
+                project_tree: request.project_tree,
                 ..SnapshotChange::default()
             },
         )

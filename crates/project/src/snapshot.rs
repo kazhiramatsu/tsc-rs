@@ -181,9 +181,47 @@ pub struct SnapshotChange<'a> {
     /// tsgo `ResourceRequest.AutoImports`: the file whose auto-imports to
     /// prepare.
     pub auto_imports: Option<String>,
-    /// tsgo `ResourceRequest.ProjectTree` for every project: each configured
-    /// project and the projects its program references loaded.
-    pub project_tree: bool,
+    /// tsgo `ResourceRequest.Projects`: projects whose programs to bring up
+    /// to date.
+    pub projects: Vec<ProjectId>,
+    /// tsgo `ResourceRequest.ProjectTree`: project trees to load.
+    pub project_tree: Option<ProjectTreeRequest>,
+}
+
+/// tsgo `ProjectTreeRequest`: the project trees to load — every one, or the
+/// trees of the projects that may reference some projects.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ProjectTreeRequest {
+    /// tsgo `referencedProjects`: the referenced projects' config paths;
+    /// none for every tree.
+    referenced_projects: Option<BTreeSet<String>>,
+}
+
+impl ProjectTreeRequest {
+    /// Every project tree.
+    pub fn all() -> Self {
+        Self::default()
+    }
+
+    /// The trees of the projects that may reference these projects (by
+    /// their IDs, the config paths of configured ones).
+    pub fn referencing(projects: BTreeSet<String>) -> Self {
+        Self {
+            referenced_projects: Some(projects),
+        }
+    }
+
+    /// tsgo `IsAllProjects`.
+    pub(crate) fn is_all_projects(&self) -> bool {
+        self.referenced_projects.is_none()
+    }
+
+    /// tsgo `IsProjectReferenced`.
+    pub(crate) fn is_project_referenced(&self, path: &str) -> bool {
+        self.referenced_projects
+            .as_ref()
+            .is_some_and(|projects| projects.contains(path))
+    }
 }
 
 /// The API's open state (tsgo `APIState`): the projects and files opened
@@ -642,6 +680,11 @@ impl Snapshot {
 
     /// tsgo `GetLanguageServiceProjectsContainingFile`: the configured
     /// projects whose programs have the file, then the inferred project.
+    /// tsgo `Project.HasFile`: whether the project's program has the file.
+    pub fn project_has_file(&self, project: &Project, file_name: &str) -> bool {
+        project.contains_file(&self.fs.paths().to_path(file_name))
+    }
+
     pub fn projects_containing_file(&self, file_name: &str) -> Vec<&Arc<Project>> {
         let path = self.fs.paths().to_path(file_name);
         self.projects
@@ -853,6 +896,7 @@ impl SnapshotHost {
             clean_file_cache,
             compiler_options_for_inferred_projects: new_inferred_options,
             auto_imports: prepare_auto_imports,
+            projects: requested_projects,
             project_tree,
         } = change;
         let overlays = overlays.unwrap_or_else(|| Arc::clone(&base.fs.overlays));
@@ -942,8 +986,11 @@ impl SnapshotHost {
             for document in &configured_project_documents {
                 builder.did_request_file(document, true)?;
             }
-            if project_tree {
-                builder.did_request_project_trees()?;
+            for id in &requested_projects {
+                builder.did_request_project(id)?;
+            }
+            if let Some(request) = &project_tree {
+                builder.did_request_project_trees(request)?;
             }
             builder.finish()
         };
