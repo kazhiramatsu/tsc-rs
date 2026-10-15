@@ -16,7 +16,7 @@ use crate::utilities::Touching;
 
 use super::context::Completions;
 use super::data::{origin_is, origin_kind, CompletionDataData, SymbolOriginInfo};
-use super::items::{create_lsp_completion_item, set_item_defaults, ItemSpec};
+use super::items::{create_lsp_completion_item, set_item_defaults, DataFile, ItemSpec};
 use super::keywords::{
     is_contextual_keyword_in_auto_importable_expression_space, is_type_keyword, keyword_completions,
 };
@@ -24,6 +24,7 @@ use super::{
     is_member_completion_kind, sort_text, ClientSupport, CompletionKind, CompletionList,
     KeywordCompletionFilters,
 };
+use crate::lsconv::Script;
 
 /// tsgo `completionSource`s.
 const SOURCE_THIS_PROPERTY: &str = "ThisProperty/";
@@ -258,10 +259,10 @@ impl Completions<'_, '_, '_> {
             self.source,
             crate::utilities::range_of_node(self.request.state, closing_tag_name),
         );
-        let file_name = self.file_name();
+        let data_file = self.data_file();
         let mut items = vec![create_lsp_completion_item(
             self.text(),
-            &file_name,
+            &data_file,
             self.position,
             ItemSpec {
                 name: full_closing_tag,
@@ -390,7 +391,7 @@ impl Completions<'_, '_, '_> {
         let use_semicolons = !data.auto_imports.is_empty()
             && data.import_statement_completion.is_some()
             && crate::lsutil::probably_uses_semicolons(self.source);
-        let file_name = self.file_name();
+        let data_file = self.data_file();
         for auto_import in &data.auto_imports {
             // !!! check for type-only in JS
             // !!! deprecation
@@ -441,7 +442,7 @@ impl Completions<'_, '_, '_> {
             }
             let mut entry = create_lsp_completion_item(
                 self.text(),
-                &file_name,
+                &data_file,
                 self.position,
                 ItemSpec {
                     name: fix.name.clone(),
@@ -884,10 +885,10 @@ impl Completions<'_, '_, '_> {
         let kind_modifiers = get_symbol_modifiers(self.request.state, symbol, true)?;
 
         let text = self.text();
-        let file_name = self.file_name();
+        let data_file = self.data_file();
         let item = create_lsp_completion_item(
             text,
-            &file_name,
+            &data_file,
             self.position,
             ItemSpec {
                 name: std::mem::take(&mut name),
@@ -911,9 +912,19 @@ impl Completions<'_, '_, '_> {
         Ok(Some(item))
     }
 
-    /// The file's name, as the item data carries it.
+    /// The file's name.
     pub(crate) fn file_name(&self) -> String {
         self.source.file_name.to_string_lossy().into_owned()
+    }
+
+    /// The file the item data names.
+    pub(crate) fn data_file(&self) -> DataFile {
+        DataFile {
+            file_name: crate::utilities::script_of(self.source)
+                .original_file_name()
+                .to_owned(),
+            supplemental_file_index: self.request.supplemental_file_index(self.file),
+        }
     }
 
     /// tsgo `Type.IsBooleanLike`.

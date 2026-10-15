@@ -823,7 +823,7 @@ impl LanguageService<'_> {
     ) -> Result<Vec<(String, Vec<WorkspaceSymbolMatch>)>, LsError> {
         let exclude_library_symbols =
             self.user_preferences().exclude_library_symbols_in_nav_to == Some(true);
-        let matches = self.with_request_at(0, 0, false, |request, _| {
+        let matches = self.with_program_request(false, |request| {
             let file_count = request.state.binder.file_count();
             let has_ts_file = (0..file_count).any(|file| {
                 has_implementation_ts_file_extension(

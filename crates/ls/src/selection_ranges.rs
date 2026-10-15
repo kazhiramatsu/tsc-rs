@@ -3,6 +3,7 @@
 //! lists, its strings' insides, its single-line comments, from the file down
 //! to the innermost.
 
+use tsc_diagnostics::spanmap::{Fidelity, FEATURE_SELECTION_RANGES};
 use tsc_lsproto::{
     Range, SelectionRange, SelectionRangeParams, SelectionRangeResponse, SelectionRangesOrNull,
 };
@@ -89,19 +90,30 @@ impl LanguageService<'_> {
     ) -> Result<SelectionRangeResponse, LsError> {
         let file = self.file(&params.text_document.uri);
         let converters = self.converters;
-        let results = self
-            .with_request_at(file, 0, false, |request, _| {
-                let source = request.state.binder.source(file);
-                let script = script_of(source);
-                let mut results = Vec::new();
-                for position in &params.positions {
-                    let pos = converters.from_lsp_position(&script, position);
-                    results.push(SmartSelection::new(source, converters, pos).range());
+        let results = self.with_program_request(false, |request| {
+            let mut results = Vec::new();
+            for position in &params.positions {
+                let projections =
+                    request.position_projections(file, position, FEATURE_SELECTION_RANGES);
+                let [projection] = projections.as_slice() else {
+                    return Ok(None);
+                };
+                if !projection.fidelity.is_single_segment() {
+                    return Ok(None);
                 }
-                Ok(results)
-            })?
-            .unwrap_or_default();
-        Ok(SelectionRangesOrNull::SelectionRanges(results))
+                let source = request.state.binder.source(projection.file);
+                if let Some(range) =
+                    SmartSelection::new(source, converters, projection.position as usize).range()
+                {
+                    results.push(range);
+                }
+            }
+            Ok(Some(results))
+        })?;
+        Ok(match results.flatten() {
+            Some(results) => SelectionRangesOrNull::SelectionRanges(results),
+            None => SelectionRangesOrNull::Null,
+        })
     }
 }
 
@@ -115,14 +127,18 @@ struct SmartSelection<'a> {
     /// tsgo `selectionRangeBuilder`: the newest ranges, at most
     /// `maxSelectionRangeDepth - 1` of them.
     ranges: std::collections::VecDeque<Range>,
+    /// The file's whole range, the outermost; none for a content mapper's
+    /// output.
+    root: Option<Range>,
     last_range: Range,
 }
 
 impl<'a> SmartSelection<'a> {
     fn new(source: &'a SourceFile, converters: &'a Converters, pos: usize) -> Self {
-        let full = source.arena.node(source.root);
-        let last_range =
-            converters.to_lsp_range(&script_of(source), full.pos as usize..full.end as usize);
+        let root = source.content_mapper.is_none().then(|| {
+            let full = source.arena.node(source.root);
+            converters.to_lsp_range(&script_of(source), full.pos as usize..full.end as usize)
+        });
         Self {
             source,
             navigator: Navigator::new(source),
@@ -130,26 +146,27 @@ impl<'a> SmartSelection<'a> {
             line_starts: tsc_emitter::source_mapper::compute_ecma_line_starts(source.text()),
             pos,
             ranges: std::collections::VecDeque::new(),
-            last_range,
+            last_range: root.clone().unwrap_or_default(),
+            root,
         }
     }
 
-    /// The ranges from the innermost to the file's.
-    fn range(mut self) -> SelectionRange {
-        let root = self.last_range.clone();
+    /// The ranges from the innermost to the file's (none in a content
+    /// mapper's output without any).
+    fn range(mut self) -> Option<SelectionRange> {
         let mut current = Some(View::Node(self.source.root));
         while let Some(view) = current {
             current = self.step(view);
         }
-        let mut result = SelectionRange {
-            range: root,
+        let mut result = self.root.take().map(|range| SelectionRange {
+            range,
             parent: None,
-        };
+        });
         for range in self.ranges {
-            result = SelectionRange {
+            result = Some(SelectionRange {
                 range,
-                parent: Some(Box::new(result)),
-            };
+                parent: result.map(Box::new),
+            });
         }
         result
     }
@@ -496,9 +513,14 @@ impl<'a> SmartSelection<'a> {
         if start == end || !(start <= self.pos && self.pos <= end) {
             return;
         }
-        let range = self
-            .converters
-            .to_lsp_range(&script_of(self.source), start..end);
+        let (range, fidelity) = self.converters.to_lsp_range_for_feature(
+            &script_of(self.source),
+            start..end,
+            FEATURE_SELECTION_RANGES,
+        );
+        if fidelity == Fidelity::None {
+            return;
+        }
         if range == self.last_range {
             return;
         }

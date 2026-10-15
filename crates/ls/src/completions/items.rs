@@ -35,10 +35,19 @@ pub(crate) struct ItemSpec {
     pub(crate) detail: Option<String>,
 }
 
+/// The file tsgo's completion item data names: the original file
+/// (`OriginalFileName`) and, for a content mapper's supplemental output, its
+/// index among its canonical output's (`supplementalFileIndex`).
+#[derive(Clone, Debug, Default)]
+pub(crate) struct DataFile {
+    pub(crate) file_name: String,
+    pub(crate) supplemental_file_index: Option<i32>,
+}
+
 /// tsgo `createLSPCompletionItem`.
 pub(crate) fn create_lsp_completion_item(
     text: &str,
-    file_name: &str,
+    data_file: &DataFile,
     position: u32,
     spec: ItemSpec,
 ) -> CompletionItem {
@@ -62,9 +71,9 @@ pub(crate) fn create_lsp_completion_item(
     } = spec;
     let kind = completions_symbol_kind(element_kind.unwrap_or(ScriptElementKind::Unknown));
     let data = CompletionItemData {
-        file_name: file_name.to_owned(),
+        file_name: data_file.file_name.clone(),
         position: position as i32,
-        supplemental_file_index: None,
+        supplemental_file_index: data_file.supplemental_file_index,
         source,
         name: name.clone(),
         auto_import: auto_import_fix,

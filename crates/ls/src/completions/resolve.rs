@@ -49,13 +49,20 @@ impl LanguageService<'_> {
             return Err(LsError(format!("file not found: {}", data.file_name)));
         };
         let fallback = item.clone();
-        let resolved =
-            self.with_request_at(file, data.position as u32, false, |request, position| {
-                let mut completions = Completions::new(request, file, position);
-                completions.for_item_resolve = true;
-                completions.completion_item_details(item, &data)
-            })?;
-        Ok(resolved.unwrap_or(fallback))
+        let resolved = self.with_program_request(false, |request| {
+            let Some(file) =
+                request.source_for_supplemental_file_index(file, data.supplemental_file_index)
+            else {
+                return Ok(Err(LsError(format!(
+                    "supplemental source file index not found: {}",
+                    data.supplemental_file_index.unwrap_or_default()
+                ))));
+            };
+            let mut completions = Completions::new(request, file, data.position as u32);
+            completions.for_item_resolve = true;
+            completions.completion_item_details(item, &data).map(Ok)
+        })?;
+        Ok(resolved.transpose()?.unwrap_or(fallback))
     }
 }
 
@@ -81,12 +88,13 @@ impl Completions<'_, '_, '_> {
                 return Ok(item);
             }
             let request = &*self.request;
-            let (edits, description) = crate::autoimport::fix_edits(
+            let (edits, description, _) = crate::autoimport::fix_edits(
                 &crate::autoimport::Fix::of(fix.clone()),
                 self.source,
                 request.state.options,
                 request.preferences.format_code_settings.clone(),
                 request.converters,
+                &request.state.binder,
                 request.preferences,
                 request.catalog,
             )

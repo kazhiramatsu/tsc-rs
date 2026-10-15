@@ -82,39 +82,41 @@ fn get_import_code_actions(
             tsc_lsproto::StringOrMarkupContent::String(text) => text.clone(),
             tsc_lsproto::StringOrMarkupContent::MarkupContent(content) => content.value.clone(),
         });
-    let actions =
-        service.with_request_at(context.file, context.span.0 as u32, false, |request, _| {
-            let infos = match get_fix_infos(
-                request,
-                context.file,
-                context.error_code,
-                context.span.0,
-                diagnostic_message.as_deref(),
-            )? {
-                Ok(infos) => infos,
-                Err(error) => return Ok(Err(error)),
-            };
-            let source = request.state.binder.source(context.file);
-            let mut actions = Vec::new();
-            for info in infos {
-                let (changes, description) = fix_edits(
-                    &info.fix,
-                    source,
-                    request.state.options,
-                    format_settings.clone(),
-                    request.converters,
-                    request.preferences,
-                    request.catalog,
-                )
-                .unwrap_or_else(|error| panic!("{error}"));
+    let actions = service.with_program_request(false, |request| {
+        let infos = match get_fix_infos(
+            request,
+            context.file,
+            context.error_code,
+            context.span.0,
+            diagnostic_message.as_deref(),
+        )? {
+            Ok(infos) => infos,
+            Err(error) => return Ok(Err(error)),
+        };
+        let source = request.state.binder.source(context.file);
+        let mut actions = Vec::new();
+        for info in infos {
+            let (changes, description, ok) = fix_edits(
+                &info.fix,
+                source,
+                request.state.options,
+                format_settings.clone(),
+                request.converters,
+                &request.state.binder,
+                request.preferences,
+                request.catalog,
+            )
+            .unwrap_or_else(|error| panic!("{error}"));
+            if ok {
                 actions.push(CodeAction {
                     description,
                     changes,
                     fix_id: IMPORT_FIX_ID.to_owned(),
                 });
             }
-            Ok(Ok(actions))
-        })?;
+        }
+        Ok(Ok(actions))
+    })?;
     actions.unwrap_or(Ok(Vec::new()))
 }
 
@@ -153,7 +155,7 @@ fn get_all_import_code_actions(
     }
     let format_settings = service.format_options().clone();
     let description = service.localize(&gen::Add_all_missing_imports, &[]);
-    let edits = service.with_request_at(context.file, 0, false, |request, _| {
+    let edits = service.with_program_request(false, |request| {
         let source = request.state.binder.source(context.file);
         let options = request.state.options;
         let mut fixes = Vec::new();
@@ -181,7 +183,9 @@ fn get_all_import_code_actions(
             return Ok(Ok(None));
         }
         Ok(Ok(Some(
-            adder.edits().unwrap_or_else(|error| panic!("{error}")),
+            adder
+                .edits(&request.state.binder)
+                .unwrap_or_else(|error| panic!("{error}")),
         )))
     })?;
     match edits {
@@ -206,11 +210,14 @@ pub(crate) fn prepared_view<'r>(
     else {
         return Ok(None);
     };
-    let file_name = request
-        .state
-        .binder
-        .source(file)
-        .file_name
+    // A content mapper's supplemental output is prepared with its
+    // canonical output.
+    let source = request.state.binder.source(file);
+    let file_name = source
+        .content_mapper
+        .as_ref()
+        .and_then(|output| output.canonical.as_ref())
+        .unwrap_or(&source.file_name)
         .to_string_lossy()
         .into_owned();
     if !registry.is_prepared_for_importing_file(

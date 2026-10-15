@@ -163,7 +163,7 @@ impl Completions<'_, '_, '_> {
         let completion = completion?;
         // A path that does not exist yet is a new identifier.
         let default_commit_characters = default_commit_characters(true);
-        let file_name = self.file_name();
+        let data_file = self.data_file();
         let mut items = completion
             .entries
             .into_iter()
@@ -174,7 +174,7 @@ impl Completions<'_, '_, '_> {
                 }
                 items::create_lsp_completion_item(
                     self.text(),
-                    &file_name,
+                    &data_file,
                     self.position,
                     items::ItemSpec {
                         name: entry.name,

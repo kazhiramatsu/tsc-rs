@@ -2,8 +2,11 @@
 //! checker, the position conversions, the declaration maps and the program
 //! (what tsgo's `LanguageService` methods reach with a type checker).
 
+use tsc_checker::program::ProgramBinder;
 use tsc_checker::state::{CheckResult, CheckerState};
 use tsc_lsproto::{Position, ResolvedClientCapabilities};
+use tsc_syntax::SourceFile;
+use tsc_types::JsString;
 
 use crate::language_service::{Host, LanguageService, LsError};
 use crate::lsconv::Converters;
@@ -30,62 +33,10 @@ pub(crate) struct Request<'s, 'a> {
     pub(crate) project_id: Option<&'s str>,
 }
 
-/// Where a request is: an LSP position, or a position of the file.
-enum RequestPosition<'p> {
-    Lsp(&'p Position),
-    Offset(u32),
-}
-
 impl LanguageService<'_> {
-    /// Run `run` over the program's query checker at the position of a
-    /// document without a content mapper (one position); none for a program
-    /// without files.
-    pub(crate) fn with_request<T>(
-        &mut self,
-        file: usize,
-        position: &Position,
-        links: bool,
-        run: impl FnOnce(&mut Request<'_, '_>, u32) -> CheckResult<T>,
-    ) -> Result<Option<T>, LsError> {
-        self.with_request_where(file, RequestPosition::Lsp(position), links, run)
-    }
-
-    /// [`Self::with_request`] at a position of the file (a completion
-    /// item's data).
-    pub(crate) fn with_request_at<T>(
-        &mut self,
-        file: usize,
-        position: u32,
-        links: bool,
-        run: impl FnOnce(&mut Request<'_, '_>, u32) -> CheckResult<T>,
-    ) -> Result<Option<T>, LsError> {
-        self.with_request_where(file, RequestPosition::Offset(position), links, run)
-    }
-
-    fn with_request_where<T>(
-        &mut self,
-        file: usize,
-        position: RequestPosition<'_>,
-        links: bool,
-        run: impl FnOnce(&mut Request<'_, '_>, u32) -> CheckResult<T>,
-    ) -> Result<Option<T>, LsError> {
-        self.with_program_request(links, |request| {
-            let position = match position {
-                RequestPosition::Lsp(position) => {
-                    let source = request.state.binder.source(file);
-                    request
-                        .converters
-                        .from_lsp_position(&script_of(source), position) as u32
-                }
-                RequestPosition::Offset(position) => position,
-            };
-            run(request, position)
-        })
-    }
-
     /// Run `run` over the program's query checker (or the API checker, for
-    /// the API's service) without a position: a request about a node or a
-    /// symbol; none for a program without files.
+    /// the API's service); none for a program without files. A request at a
+    /// document position finds its projections in the request.
     pub(crate) fn with_program_request<T>(
         &mut self,
         links: bool,
@@ -127,6 +78,61 @@ impl LanguageService<'_> {
     }
 }
 
+impl Request<'_, '_> {
+    /// tsgo `FromLSPRangeForSourceFile`: a document range in the file and its
+    /// supplemental outputs, each projection covered by segments that take
+    /// part in `feature`.
+    pub(crate) fn range_projections(
+        &self,
+        file: usize,
+        range: &tsc_lsproto::Range,
+        feature: tsc_diagnostics::spanmap::Features,
+    ) -> Vec<(usize, std::ops::Range<usize>)> {
+        self.with_projection_scripts(file, |converters, scripts| {
+            converters.from_lsp_range_for_scripts(scripts, range, feature)
+        })
+    }
+
+    /// tsgo `FromLSPRangeIntersectingForSourceFile`: in the file and its
+    /// supplemental outputs, the parts of a document range in segments that
+    /// take part in `feature` (an ordinary file's whole range).
+    pub(crate) fn range_projections_intersecting(
+        &self,
+        file: usize,
+        range: &tsc_lsproto::Range,
+        feature: tsc_diagnostics::spanmap::Features,
+    ) -> Vec<(usize, std::ops::Range<usize>)> {
+        self.with_projection_scripts(file, |converters, scripts| {
+            converters.from_lsp_range_intersecting_for_scripts(scripts, range, feature)
+        })
+    }
+
+    /// The spans `convert` finds in the scripts of the file's projections,
+    /// by file.
+    fn with_projection_scripts(
+        &self,
+        file: usize,
+        convert: impl FnOnce(
+            &Converters,
+            &[&dyn crate::lsconv::Script],
+        ) -> Vec<crate::lsconv::ScriptSpan>,
+    ) -> Vec<(usize, std::ops::Range<usize>)> {
+        let files = self.source_projections(file);
+        let scripts = files
+            .iter()
+            .map(|&file| script_of(self.state.binder.source(file)))
+            .collect::<Vec<_>>();
+        let scripts = scripts
+            .iter()
+            .map(|script| script as &dyn crate::lsconv::Script)
+            .collect::<Vec<_>>();
+        convert(self.converters, &scripts)
+            .into_iter()
+            .map(|projection| (files[projection.script], projection.span))
+            .collect()
+    }
+}
+
 /// tsgo `MappedPosition[*ast.SourceFile]`: a document's position in one of
 /// its file's outputs.
 #[derive(Clone, Copy, Debug)]
@@ -143,15 +149,52 @@ impl Request<'_, '_> {
         let binder = &self.state.binder;
         let mut files = vec![file];
         if let Some(output) = &binder.source(file).content_mapper {
-            for name in &output.supplemental {
-                if let Some(index) =
-                    (0..binder.file_count()).find(|&index| binder.source(index).file_name == *name)
-                {
-                    files.push(index);
-                }
-            }
+            files.extend(
+                output
+                    .supplemental
+                    .iter()
+                    .filter_map(|name| file_named(binder, name)),
+            );
         }
         files
+    }
+
+    /// tsgo `supplementalFileIndex`: a supplemental output's index among its
+    /// canonical output's; none for any other file.
+    pub(crate) fn supplemental_file_index(&self, file: usize) -> Option<i32> {
+        let binder = &self.state.binder;
+        let source = binder.source(file);
+        let canonical = file_named(binder, source.content_mapper.as_ref()?.canonical.as_ref()?)?;
+        let index = binder
+            .source(canonical)
+            .content_mapper
+            .as_ref()
+            .and_then(|output| {
+                output
+                    .supplemental
+                    .iter()
+                    .position(|name| *name == source.file_name)
+            })
+            .expect("supplemental source file is not linked from its canonical source file");
+        Some(index as i32)
+    }
+
+    /// tsgo `sourceFileForSupplementalFileIndex`: the file, or its
+    /// supplemental output of the index (none when it has no such output).
+    pub(crate) fn source_for_supplemental_file_index(
+        &self,
+        file: usize,
+        index: Option<i32>,
+    ) -> Option<usize> {
+        let Some(index) = index else {
+            return Some(file);
+        };
+        let binder = &self.state.binder;
+        let output = binder.source(file).content_mapper.as_ref()?;
+        let name = usize::try_from(index)
+            .ok()
+            .and_then(|index| output.supplemental.get(index))?;
+        file_named(binder, name)
     }
 
     /// tsgo `FromLSPPositionForSourceFile`: a document's position in its
@@ -182,4 +225,28 @@ impl Request<'_, '_> {
             })
             .collect()
     }
+}
+
+/// The program file of a name (a content mapper's output names its others).
+fn file_named(binder: &ProgramBinder<'_>, name: &JsString) -> Option<usize> {
+    (0..binder.file_count()).find(|&index| binder.source(index).file_name == *name)
+}
+
+/// [`Request::source_projections`] of a parsed source: the file, then its
+/// content mapper's supplemental outputs.
+pub(crate) fn source_projections_of<'a>(
+    binder: &ProgramBinder<'a>,
+    source: &'a SourceFile,
+) -> Vec<&'a SourceFile> {
+    let mut sources = vec![source];
+    if let Some(output) = &source.content_mapper {
+        sources.extend(
+            output
+                .supplemental
+                .iter()
+                .filter_map(|name| file_named(binder, name))
+                .map(|index| binder.source(index)),
+        );
+    }
+    sources
 }

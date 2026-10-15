@@ -169,7 +169,7 @@ impl Completions<'_, '_, '_> {
         };
         let mut additional_text_edits = Vec::new();
         if let Some(adder) = adder.filter(ImportAdder::has_fixes) {
-            match adder.edits() {
+            match adder.edits(&self.request.state.binder) {
                 Ok(edits) => additional_text_edits.extend(edits),
                 Err(error) => return Ok(Err(LsError(error.to_string()))),
             }
@@ -840,9 +840,10 @@ impl Completions<'_, '_, '_> {
             .print_unescaped_snippet(clauses[0], source, None, &format_settings)
             .unwrap_or_else(|error| panic!("case snippet: {error}"));
         let name = format!("{first_clause} ...");
+        let data_file = self.data_file();
         let mut additional_text_edits = None;
         if let Some(adder) = adder {
-            match adder.edits() {
+            match adder.edits(&self.request.state.binder) {
                 Ok(edits) if !edits.is_empty() => additional_text_edits = Some(edits),
                 Ok(_) => {}
                 Err(error) => return Ok(Err(LsError(error))),
@@ -856,9 +857,9 @@ impl Completions<'_, '_, '_> {
             additional_text_edits,
             insert_text_format: is_snippet.then_some(tsc_lsproto::InsertTextFormat::SNIPPET),
             data: Some(tsc_lsproto::CompletionItemData {
-                file_name: self.file_name(),
+                file_name: data_file.file_name,
                 position: self.position as i32,
-                supplemental_file_index: None,
+                supplemental_file_index: data_file.supplemental_file_index,
                 name,
                 source: super::SOURCE_SWITCH_CASES.to_owned(),
                 ..tsc_lsproto::CompletionItemData::default()

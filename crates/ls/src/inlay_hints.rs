@@ -2,10 +2,12 @@
 //! — the inferred types of variables, properties, parameters and returns,
 //! the values of enum members, and the parameter names of arguments.
 
+use crate::lsconv::Script;
 use tsc_binder::node_util;
 use tsc_binder::SymbolId;
 use tsc_checker::exports::INLAY_HINT_NODE_BUILDER_FLAGS;
 use tsc_checker::state::CheckResult;
+use tsc_diagnostics::spanmap::{Fidelity, FEATURE_INLAY_HINTS};
 use tsc_emitter::{TransformArena, TransformNode, TransformNodeArray};
 use tsc_lsproto::{
     InlayHint, InlayHintKind, InlayHintLabelPart, InlayHintParams, InlayHintResponse,
@@ -22,7 +24,7 @@ use crate::tree::View;
 use crate::utilities::script_of;
 
 impl LanguageService<'_> {
-    /// tsgo `ProvideInlayHint` (a file without a content mapper: one range).
+    /// tsgo `ProvideInlayHint`: the hints of each projection of the range.
     pub fn provide_inlay_hints(
         &mut self,
         params: &InlayHintParams,
@@ -34,30 +36,28 @@ impl LanguageService<'_> {
         let file = self.file(&params.text_document.uri);
         let user_preferences = self.user_preferences_ref().clone();
         let hints = self
-            .with_request_at(file, 0, false, |request, _| {
-                let source = request.state.binder.source(file);
-                let script = script_of(source);
-                let span = (
-                    request
-                        .converters
-                        .from_lsp_position(&script, &params.range.start),
-                    request
-                        .converters
-                        .from_lsp_position(&script, &params.range.end),
+            .with_program_request(false, |request| {
+                let quote_preference = crate::lsutil::get_quote_preference(
+                    request.state.binder.source(file),
+                    &user_preferences,
                 );
-                let quote_preference =
-                    crate::lsutil::get_quote_preference(source, &user_preferences);
-                let mut hints = InlayHints {
-                    request,
-                    file,
-                    span,
-                    preferences: &preferences,
-                    quote_preference,
-                    result: Vec::new(),
-                };
-                let root = hints.source().root;
-                hints.visit(root)?;
-                Ok(hints.result)
+                let mut result = Vec::new();
+                for (projection, span) in
+                    request.range_projections_intersecting(file, &params.range, FEATURE_INLAY_HINTS)
+                {
+                    let mut hints = InlayHints {
+                        request,
+                        file: projection,
+                        span: (span.start, span.end),
+                        preferences: &preferences,
+                        quote_preference,
+                        result: Vec::new(),
+                    };
+                    let root = hints.source().root;
+                    hints.visit(root)?;
+                    result.extend(hints.result);
+                }
+                Ok(result)
             })?
             .unwrap_or_default();
         Ok(InlayHintsOrNull::InlayHints(hints))
@@ -499,9 +499,11 @@ impl InlayHints<'_, '_, '_, '_> {
 
     /// tsgo `addTypeHints`: `: ` and the parts, after a space.
     fn add_type_hints(&mut self, parts: Vec<InlayHintLabelPart>, position: usize) {
+        let Some(position) = self.lsp_position(position) else {
+            return;
+        };
         let mut label = vec![label_part(": ")];
         label.extend(parts);
-        let position = self.lsp_position(position);
         self.result.push(InlayHint {
             position,
             label: StringOrInlayHintLabelParts::InlayHintLabelParts(label),
@@ -513,7 +515,9 @@ impl InlayHints<'_, '_, '_, '_> {
 
     /// tsgo `addEnumMemberValueHints`.
     fn add_enum_member_value_hints(&mut self, text: &str, position: usize) {
-        let position = self.lsp_position(position);
+        let Some(position) = self.lsp_position(position) else {
+            return;
+        };
         self.result.push(InlayHint {
             position,
             label: StringOrInlayHintLabelParts::String(format!("= {text}")),
@@ -531,6 +535,9 @@ impl InlayHints<'_, '_, '_, '_> {
         position: usize,
         is_first_variadic_argument: bool,
     ) {
+        let Some(position) = self.lsp_position(position) else {
+            return;
+        };
         let hint_text = format!(
             "{}{text}",
             if is_first_variadic_argument {
@@ -543,7 +550,6 @@ impl InlayHints<'_, '_, '_, '_> {
             self.node_display_part(hint_text, parameter),
             label_part(":"),
         ];
-        let position = self.lsp_position(position);
         self.result.push(InlayHint {
             position,
             label: StringOrInlayHintLabelParts::InlayHintLabelParts(label),
@@ -553,27 +559,35 @@ impl InlayHints<'_, '_, '_, '_> {
         });
     }
 
-    fn lsp_position(&self, position: usize) -> tsc_lsproto::Position {
-        let source = self.source();
-        self.request
-            .converters
-            .to_lsp_position(&script_of(source), position)
+    /// A hint's position, none where it does not map.
+    fn lsp_position(&self, position: usize) -> Option<tsc_lsproto::Position> {
+        let (position, fidelity) = self.request.converters.to_lsp_position_for_feature(
+            &script_of(self.source()),
+            position,
+            FEATURE_INLAY_HINTS,
+        );
+        (fidelity != Fidelity::None).then_some(position)
     }
 
     /// tsgo `getNodeDisplayPart`: the text, with the location of the node.
+    /// The location is an optional go-to target for the name. Only attach it when the name maps back to a
+    /// single concrete span in the original text; an approximate or synthesized mapping would point the
+    /// user somewhere wrong, so it is better to omit the target than to fabricate one.
     fn node_display_part(&self, text: String, node: NodeId) -> InlayHintLabelPart {
         let source = self.request.state.binder.source_of_node(node);
         let start = self.start(node);
         let end = self.request.state.binder.node_record(node).end as usize;
-        let range = self
-            .request
-            .converters
-            .to_lsp_range(&script_of(source), start..end);
+        let script = script_of(source);
+        let (range, fidelity) = self.request.converters.to_lsp_range_for_feature(
+            &script,
+            start..end,
+            FEATURE_INLAY_HINTS,
+        );
         InlayHintLabelPart {
             value: text,
-            location: Some(Location {
+            location: fidelity.is_single_segment().then(|| Location {
                 uri: tsc_lsproto::DocumentUri(tsc_program::uri::file_name_to_document_uri(
-                    &source.file_name.to_string_lossy(),
+                    script.original_file_name(),
                 )),
                 range,
             }),

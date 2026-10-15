@@ -4,6 +4,7 @@
 //! modifiers, encoded in the client's legend.
 
 use std::borrow::Cow;
+use tsc_diagnostics::spanmap::{Fidelity, FEATURE_SEMANTIC_TOKENS};
 
 use tsc_binder::node_util;
 use tsc_checker::program::ProgramFileId;
@@ -117,17 +118,19 @@ const ASYNC: u32 = 1 << 6;
 const DEFAULT_LIBRARY: u32 = 1 << 9;
 const LOCAL: u32 = 1 << 10;
 
-/// tsgo `semanticToken`: an identifier, its type and its modifiers.
+/// tsgo `semanticToken`: an identifier of a file (one of a document's
+/// projections), its type and its modifiers.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct SemanticToken {
+    file: usize,
     node: NodeId,
     token_type: TokenType,
     modifiers: u32,
 }
 
 impl LanguageService<'_> {
-    /// tsgo `ProvideSemanticTokens` (a file without a content mapper: one
-    /// projection).
+    /// tsgo `ProvideSemanticTokens`: the tokens of the file and its
+    /// supplemental outputs.
     pub fn provide_semantic_tokens(
         &mut self,
         uri: &DocumentUri,
@@ -137,7 +140,7 @@ impl LanguageService<'_> {
     }
 
     /// tsgo `ProvideSemanticTokensRange`: the tokens of the nodes that
-    /// overlap the range.
+    /// overlap the range's projections.
     pub fn provide_semantic_tokens_range(
         &mut self,
         uri: &DocumentUri,
@@ -154,23 +157,29 @@ impl LanguageService<'_> {
     ) -> Result<SemanticTokensResponse, LsError> {
         let capabilities = self.capabilities.text_document.semantic_tokens.clone();
         let encoded = self
-            .with_request_at(file, 0, false, |request, _| {
-                let source = request.state.binder.source(file);
-                let script = script_of(source);
-                let (start, end) = match range {
-                    Some(range) => (
-                        request.converters.from_lsp_position(&script, &range.start),
-                        request.converters.from_lsp_position(&script, &range.end),
-                    ),
-                    None => {
-                        let root = source.arena.node(source.root);
-                        (root.pos as usize, root.end as usize)
+            .with_program_request(false, |request| {
+                let spans = match range {
+                    Some(range) => {
+                        request.range_projections_intersecting(file, range, FEATURE_SEMANTIC_TOKENS)
                     }
+                    None => request
+                        .source_projections(file)
+                        .into_iter()
+                        .map(|projection| {
+                            let source = request.state.binder.source(projection);
+                            let root = source.arena.node(source.root);
+                            (projection, root.pos as usize..root.end as usize)
+                        })
+                        .collect(),
                 };
-                let mut tokens = request.collect_semantic_tokens(file, start, end)?;
+                let mut tokens = Vec::new();
+                for (projection, span) in spans {
+                    tokens
+                        .extend(request.collect_semantic_tokens(projection, span.start, span.end)?);
+                }
                 let mut seen = std::collections::HashSet::new();
                 tokens.retain(|token| seen.insert(*token));
-                Ok(request.encode_semantic_tokens(file, tokens, &capabilities))
+                Ok(request.encode_semantic_tokens(tokens, &capabilities))
             })?
             .unwrap_or_default();
         if encoded.is_empty() {
@@ -314,6 +323,7 @@ impl Request<'_, '_> {
             modifiers |= DEFAULT_LIBRARY;
         }
         Ok(Some(SemanticToken {
+            file,
             node,
             token_type,
             modifiers,
@@ -530,28 +540,37 @@ impl Request<'_, '_> {
     /// legend (a type it lacks drops the token).
     fn encode_semantic_tokens(
         &self,
-        file: usize,
         mut tokens: Vec<SemanticToken>,
         capabilities: &ResolvedSemanticTokensClientCapabilities,
     ) -> Vec<u32> {
-        let source = self.state.binder.source(file);
-        let script = script_of(source);
+        // tsgo `semanticTokenLSPRange`.
         let range_of = |token: &SemanticToken| {
+            let source = self.state.binder.source(token.file);
             let record = source.arena.node(token.node);
             let start = tsc_syntax::skip_trivia(source.text(), record.pos as usize);
-            self.converters
-                .to_lsp_range(&script, start..record.end as usize)
+            self.converters.to_lsp_range_for_feature(
+                &script_of(source),
+                start..record.end as usize,
+                FEATURE_SEMANTIC_TOKENS,
+            )
         };
-        let mut keyed: Vec<(Range, SemanticToken)> = tokens
+        let mut keyed: Vec<((Range, Fidelity), SemanticToken)> = tokens
             .drain(..)
             .map(|token| (range_of(&token), token))
             .collect();
-        keyed.sort_by_key(|(range, token)| {
-            (
-                range.start.line,
-                range.start.character,
-                source.arena.node(token.node).pos,
-            )
+        // tsgo `sortSemanticTokens`.
+        keyed.sort_by(|((a_range, _), a), ((b_range, _), b)| {
+            let source_of = |token: &SemanticToken| self.state.binder.source(token.file);
+            (a_range.start.line, a_range.start.character)
+                .cmp(&(b_range.start.line, b_range.start.character))
+                .then_with(|| source_of(a).file_name.cmp(&source_of(b).file_name))
+                .then_with(|| {
+                    source_of(a)
+                        .arena
+                        .node(a.node)
+                        .pos
+                        .cmp(&source_of(b).arena.node(b.node).pos)
+                })
         });
         let mut type_mapping = [None; TOKEN_TYPES.len()];
         let mut index = 0;
@@ -579,10 +598,15 @@ impl Request<'_, '_> {
         }
         let mut encoded = Vec::with_capacity(keyed.len() * 5);
         let (mut previous_line, mut previous_character) = (0, 0);
-        for (range, token) in keyed {
+        for ((range, fidelity), token) in keyed {
             let Some(client_type) = type_mapping[token.token_type as usize] else {
                 continue;
             };
+            // Semantic tokens must describe one concrete source segment; synthesized and cross-segment
+            // tokens do not identify a coherent token in the original text.
+            if !fidelity.is_exact() {
+                continue;
+            }
             let mut client_modifiers = 0u32;
             for (server, client) in modifier_mapping.iter().enumerate() {
                 if token.modifiers & (1 << server) != 0 {
@@ -592,7 +616,8 @@ impl Request<'_, '_> {
                 }
             }
             let (line, character) = (range.start.line, range.start.character);
-            // One token per start.
+            // Multiple virtual projections can describe the same original token; LSP requires one entry per
+            // start position, so retain the first after sorting.
             if !encoded.is_empty() && line == previous_line && character == previous_character {
                 continue;
             }

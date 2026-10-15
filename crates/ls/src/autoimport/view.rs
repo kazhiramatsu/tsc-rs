@@ -120,12 +120,22 @@ impl<'r> View<'r> {
         )
         .into_iter()
         .collect();
+        // A content mapper's supplemental output imports as its canonical
+        // output.
+        let importing_file_path = match source
+            .content_mapper
+            .as_ref()
+            .and_then(|output| output.canonical.as_ref())
+        {
+            Some(canonical) => path_key(prepared, &canonical.to_string_lossy()),
+            None => path_key(prepared, &file_name),
+        };
         Self {
             registry,
             project_id,
             prepared,
             importing_file,
-            importing_file_path: path_key(prepared, &file_name),
+            importing_file_path,
             importing_file_name: file_name,
             preferences,
             conditions,

@@ -1,6 +1,7 @@
 //! tsgo `ls/autoimport/fix.go`'s `Fix.Edits`: the text edits that make an
 //! auto-import fix in a file, and their description.
 
+use tsc_checker::program::ProgramBinder;
 use tsc_diagnostics::MessageCatalog;
 use tsc_emitter::{TransformError, TransformFlags, TransformNode};
 use tsc_lsproto::{AddAsTypeOnly, AutoImportFix, AutoImportFixKind, ImportKind, TextEdit};
@@ -13,7 +14,7 @@ use super::view::{
 };
 use crate::astnav::{Found, Navigator};
 use crate::change::{LeadingTriviaOption, NodeOptions, Tracker};
-use crate::lsconv::Converters;
+use crate::lsconv::{Converters, Script};
 use crate::lsutil::{
     binary_search_unique, compare_import_or_export_specifiers,
     compare_imports_or_require_statements, get_named_import_specifier_comparer_with_detection,
@@ -46,18 +47,21 @@ impl NewImportBinding {
 
 use crate::lsutil::localize;
 
-/// tsgo `Fix.Edits`: the edits that make `fix` in `file`, and their
-/// description. An edit the tracker cannot make is an error.
+/// tsgo `Fix.Edits`: the edits that make `fix` in `file`, their
+/// description, and whether they could all be written back to the file's
+/// original text (a content mapper's output's). An edit the tracker cannot
+/// make is an error.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn fix_edits(
+pub(crate) fn fix_edits<'a>(
     fix: &Fix,
-    file: &SourceFile,
+    file: &'a SourceFile,
     options: &CompilerOptions,
     format_settings: FormatCodeSettings,
     converters: &Converters,
+    binder: &ProgramBinder<'a>,
     preferences: &UserPreferences,
     catalog: Option<&dyn MessageCatalog>,
-) -> Result<(Vec<TextEdit>, String), String> {
+) -> Result<(Vec<TextEdit>, String, bool), String> {
     let mut tracker = Tracker::new(new_line_kind(options), format_settings);
     let description = make_fix(
         &mut tracker,
@@ -69,27 +73,23 @@ pub(crate) fn fix_edits(
         catalog,
     )
     .map_err(|error| error.to_string())?;
-    let edits = file_edits(tracker, file, converters)?;
-    Ok((edits, description))
+    let (edits, safe) = file_edits(tracker, file, converters, binder)?;
+    Ok((edits, description, safe))
 }
 
-/// tsgo `fileEdits`: the tracker's edits of the file.
-pub(crate) fn file_edits(
-    tracker: Tracker<'_>,
-    file: &SourceFile,
+/// tsgo `fileEdits`: the tracker's edits of the file's original file, and
+/// whether every edit could be written back.
+pub(crate) fn file_edits<'a>(
+    tracker: Tracker<'a>,
+    file: &'a SourceFile,
     converters: &Converters,
-) -> Result<Vec<TextEdit>, String> {
-    let script = script_of(file);
-    let changes = tracker.get_changes().map_err(|error| error.to_string())?;
-    Ok(changes
-        .into_iter()
-        .filter(|changes| std::ptr::eq(changes.file, file))
-        .flat_map(|changes| changes.changes)
-        .map(|change| TextEdit {
-            range: converters.to_lsp_range(&script, change.pos..change.end),
-            new_text: change.new_text,
-        })
-        .collect())
+    binder: &ProgramBinder<'a>,
+) -> Result<(Vec<TextEdit>, bool), String> {
+    let changes = tracker
+        .get_changes(converters, binder)
+        .map_err(|error| error.to_string())?;
+    let safe = changes.unmappable.is_empty();
+    Ok((changes.of(script_of(file).original_file_name()), safe))
 }
 
 /// The edits of `Fix.Edits` recorded by the tracker, and their description.
@@ -232,8 +232,7 @@ pub(super) fn add_import_type<'a>(
         '"'
     };
     let import_type_prefix = format!("import({quote}{}{quote}).", fix.module_specifier);
-    let position = converters.from_lsp_position(&script_of(file), usage_position);
-    tracker.insert_text_at(file, position, import_type_prefix.clone());
+    tracker.insert_text(file, converters, usage_position, import_type_prefix.clone());
     localize(
         catalog,
         &tsc_diagnostics::gen::Change_0_to_1,
@@ -257,8 +256,12 @@ pub(super) fn add_namespace_qualifier<'a>(
         panic!("namespace fix requires usage position and prefix");
     };
     let qualified = format!("{}.{}", fix.namespace_prefix, fix.name);
-    let position = converters.from_lsp_position(&script_of(file), usage_position);
-    tracker.insert_text_at(file, position, format!("{}.", fix.namespace_prefix));
+    tracker.insert_text(
+        file,
+        converters,
+        usage_position,
+        format!("{}.", fix.namespace_prefix),
+    );
     localize(
         catalog,
         &tsc_diagnostics::gen::Change_0_to_1,
