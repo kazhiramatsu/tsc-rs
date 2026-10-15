@@ -1045,3 +1045,33 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   clippy、fmt。
 - **道具の不具合**：手元の再生の script（`run_list.sh`）は場面名を log の file 名に使い、`/` を含む subtest の場面は実行
   されずに ok と出ていた。名前の `/` を置き換えて直した（以前の slice の判定は suites の検査が正で、影響はない）。
+
+## L6a signature help（#804）
+
+- **merge**：#804 → `10a7a157d`（hosted run 38667955418：rust 9m16s、conformance 24m21s、gates）。commit：4f21a1665
+  （printer）、30e05e9c1（checker）、0bd58ed3c（language service と server）、ab3c36198（ratchet）。検査の後の main の
+  取り込みは L7e-3 の merge（同じ code）と packet の README だけ。
+- **printer**：tsgo の printer は識別子の文字を `writeKind` で書く（`emitParameterName` の引数名は parameter、
+  `emitPropertyName` の property 名は property：property と method の signature と宣言、accessor、property と shorthand の
+  代入、binding element の property 名、enum member）。list の区切りは tsgo `writeDelimiter`（comma は punctuation、bar と
+  ampersand は空白と punctuation）。変わるのは display parts の分類だけで、text writer の文字は同じ。
+- **checker**：tsgo `GetResolvedSignatureForSignatureHelp`（囲む呼び出しの解決済み signature を忘れ、
+  `CheckModeIsForSignatureHelp`、見かけの引数の数）と、`resolveCall` の `signatureHelpTrailingComma`（signature help の解決
+  で引数が comma で終わる呼び出しは、全ての arity の検査で引数を一つ多く数える。これまで設定されず、comma の前の数で
+  overload を選んでいた）。tsgo 7.1 `getArgumentArityError` の防御（数が引数の数と合う時は余分な引数の範囲を作らず呼び出し
+  の誤り。末尾の comma で解決が失敗した時の panic を防ぐ）。tsgo `GetExpandedParameters` の union の展開（rest の tuple の
+  union で tuple ごとの list）と tsgo 7.1 の要素の名前（全ての要素で `getTupleElementLabel`。6.0.3 の位置の引数名への
+  fallback ではない。`Generator.next(value: TNext)`）。signature help 用の表示の export、`TypePredicateToString`。
+- **signature help**（`crates/ls/src/signature_help.rs`、tsgo `signaturehelp.go`）：位置を囲む呼び出し（call、`new`、
+  tagged template、JSX 要素、書いている途中の型引数、文脈の signature を持つ関数）、候補（checker の signature help の
+  解決、generic signature、generic 型の型引数）、候補ごと・展開した引数の list ごとの item（tsgo の label、VS client には
+  display parts）と文書、active な signature と引数（client の capability による）。JavaScript では checker が候補を見つけ
+  ない時に呼ばれた名前の宣言を探す。tsgo `getImmediatelyContainingArgumentInfo` は一つの移植で、completions の
+  `getArgumentInfoForCompletions` もそれを読む（completions の部分的な複製は消した）。JSDoc signature（`@callback`、
+  `@overload`）の `@param`・`@this` tag は tsgo の reparse した引数（tag の comment を JSDoc に持つ）を表す。
+- **検査（ab3c36198）**：conformance 0 regressions（全 13,577 full、486 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（181 行 none→full、全て signature help。lsp 4,011 → 4,192）、signature help 181/184、test（ls 207 ほか全通過）、
+  API client sync 340/356・async 349/365（main と同じ）、clippy、fmt。
+- **回帰 test**：`crates/ls/tests/references.rs`（末尾の comma の引数が overload を選ぶ、入れ子の呼び出しの末尾の comma、
+  JavaScript の名前の宣言への fallback と rest の tuple の union の binding 名）。
+- **有界の違い**：content mapper の 3 場面（L10）。
