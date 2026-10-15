@@ -44,6 +44,72 @@ impl PackageVersion {
     }
 }
 
+/// tsgo `semver.Version`: `major[.minor[.patch[-prerelease][+build]]]`,
+/// ordered by precedence (the build metadata ignored).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Version(PackageVersion);
+
+impl Version {
+    /// tsgo `TryParseVersion`: numbers without leading zeros (32 bits),
+    /// prerelease and build identifiers only after all three.
+    pub fn parse(text: &str) -> Option<Self> {
+        let (rest, build) = text
+            .split_once('+')
+            .map_or((text, None), |(head, build)| (head, Some(build)));
+        let (core, prerelease) = rest
+            .split_once('-')
+            .map_or((rest, None), |(head, prerelease)| (head, Some(prerelease)));
+        let parts = core.split('.').collect::<Vec<_>>();
+        if parts.len() > 3 || ((prerelease.is_some() || build.is_some()) && parts.len() != 3) {
+            return None;
+        }
+        let number = |text: &str| {
+            package_numeric_identifier(text).filter(|value| u32::try_from(*value).is_ok())
+        };
+        let major = number(parts[0])?;
+        let minor = parts.get(1).map_or(Some(0), |part| number(part))?;
+        let patch = parts.get(2).map_or(Some(0), |part| number(part))?;
+        let identifier = |identifier: &str, alphanumeric_start: bool| {
+            let mut bytes = identifier.bytes();
+            match bytes.next() {
+                None => false,
+                Some(first) if alphanumeric_start || !first.is_ascii_digit() => {
+                    (first.is_ascii_alphanumeric() || first == b'-')
+                        && bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+                }
+                Some(_) => package_numeric_identifier(identifier).is_some(),
+            }
+        };
+        if prerelease
+            .is_some_and(|prerelease| !prerelease.split('.').all(|part| identifier(part, false)))
+            || build.is_some_and(|build| !build.split('.').all(|part| identifier(part, true)))
+        {
+            return None;
+        }
+        Some(Self(PackageVersion {
+            major,
+            minor,
+            patch,
+            prerelease: prerelease
+                .map(|prerelease| prerelease.split('.').map(str::to_owned).collect())
+                .unwrap_or_default(),
+        }))
+    }
+}
+
+impl Ord for Version {
+    /// tsgo `Compare`.
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.compare(&other.0)
+    }
+}
+
+impl PartialOrd for Version {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum VersionField {
     Major,
