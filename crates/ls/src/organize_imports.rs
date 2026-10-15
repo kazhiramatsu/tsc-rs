@@ -27,7 +27,6 @@ use crate::lsutil::{
     UserPreferences,
 };
 use crate::references::{collect_external_module_references, statements};
-use crate::utilities::script_of;
 
 impl LanguageService<'_> {
     /// tsgo `OrganizeImports`: the edits of each file, by file name.
@@ -37,7 +36,7 @@ impl LanguageService<'_> {
         kind: &CodeActionKind,
     ) -> Result<Vec<(String, Vec<TextEdit>)>, LsError> {
         let format_settings = self.format_options().clone();
-        let changes = self.with_request_at(file, 0, false, |request, _| {
+        let changes = self.with_program_request(false, |request| {
             let source = request.state.binder.source(file);
             let mut tracker = Tracker::new(new_line_kind(request.state.options), format_settings);
             organize_imports(
@@ -47,25 +46,11 @@ impl LanguageService<'_> {
                 kind,
                 &mut tracker,
             )?;
-            Ok(tracker.get_changes().map(|changes| {
-                changes
-                    .into_iter()
-                    .map(|changes| {
-                        let script = script_of(changes.file);
-                        let edits = changes
-                            .changes
-                            .into_iter()
-                            .map(|change| TextEdit {
-                                range: request
-                                    .converters
-                                    .to_lsp_range(&script, change.pos..change.end),
-                                new_text: change.new_text,
-                            })
-                            .collect();
-                        (script.file_name, edits)
-                    })
-                    .collect::<Vec<_>>()
-            }))
+            // Unmappable files are dropped by GetChanges, so a content-mapped file whose imports cannot be
+            // faithfully rewritten yields no edits rather than a corrupting one.
+            Ok(tracker
+                .get_changes(request.converters, &request.state.binder)
+                .map(|changes| changes.files))
         })?;
         match changes {
             Some(Ok(changes)) => Ok(changes),

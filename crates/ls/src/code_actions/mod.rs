@@ -13,6 +13,7 @@ pub(crate) use missing_member::{MissingMemberFixer, PRESERVE_OPTIONAL_PROPERTY};
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use tsc_diagnostics::spanmap::FEATURE_CODE_ACTIONS;
 
 use tsc_diagnostics::DiagnosticMessage;
 use tsc_lsproto::{
@@ -22,7 +23,6 @@ use tsc_lsproto::{
 use tsc_program::uri::file_name_to_document_uri;
 
 use crate::language_service::{LanguageService, LsError};
-use crate::utilities::script_of;
 
 /// tsgo `CodeFixProvider.GetCodeActions`.
 type GetCodeActions =
@@ -129,22 +129,34 @@ impl LanguageService<'_> {
                     if !code_fix_provider_matches_lsp_diagnostic(provider, diagnostic) {
                         continue;
                     }
-                    let context = CodeFixContext {
-                        file,
-                        span: self.text_range(file, &diagnostic.range),
-                        error_code: error_code as u32,
-                        diagnostic: Some(diagnostic),
-                    };
-                    for action in (provider.get_code_actions)(self, &context)? {
-                        let Err(position) = seen.binary_search_by(|probe| probe.compare(&action))
-                        else {
-                            continue;
+                    let spans = self
+                        .with_program_request(false, |request| {
+                            Ok(request.range_projections(
+                                file,
+                                &diagnostic.range,
+                                FEATURE_CODE_ACTIONS,
+                            ))
+                        })?
+                        .unwrap_or_default();
+                    for (projection, span) in spans {
+                        let context = CodeFixContext {
+                            file: projection,
+                            span: (span.start, span.end),
+                            error_code: error_code as u32,
+                            diagnostic: Some(diagnostic),
                         };
-                        actions.push(convert_to_lsp_code_action(&action, diagnostic, uri));
-                        if !action.fix_id.is_empty() {
-                            fix_id_seen.insert(action.fix_id.clone(), index);
+                        for action in (provider.get_code_actions)(self, &context)? {
+                            let Err(position) =
+                                seen.binary_search_by(|probe| probe.compare(&action))
+                            else {
+                                continue;
+                            };
+                            actions.push(convert_to_lsp_code_action(&action, diagnostic, uri));
+                            if !action.fix_id.is_empty() {
+                                fix_id_seen.insert(action.fix_id.clone(), index);
+                            }
+                            seen.insert(position, action);
                         }
-                        seen.insert(position, action);
                     }
                 }
             }
@@ -153,19 +165,6 @@ impl LanguageService<'_> {
         Ok(CommandOrCodeActionArrayOrNull::CommandOrCodeActionArray(
             actions,
         ))
-    }
-
-    /// tsgo `FromLSPRangeForSourceFile` of a file without mapped
-    /// projections: the range's offsets.
-    fn text_range(&self, file: usize, range: &lsproto::Range) -> (usize, usize) {
-        let Some(document) = self.program.document(file) else {
-            return (0, 0);
-        };
-        let script = script_of(document.source());
-        (
-            self.converters.from_lsp_position(&script, &range.start),
-            self.converters.from_lsp_position(&script, &range.end),
-        )
     }
 
     /// tsgo `getFixAllQuickFixes`: per provider, a "fix all in file" quick

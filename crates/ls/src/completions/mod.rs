@@ -21,9 +21,12 @@ use tsc_lsproto::{
     CompletionParams, ResolvedClientCapabilities,
 };
 
+use tsc_diagnostics::spanmap::FEATURE_COMPLETION;
 use tsc_syntax::SyntaxKind;
 
 use crate::language_service::{LanguageService, LsError};
+use crate::lsconv::Script;
+use crate::utilities::script_of;
 
 pub(crate) use context::Completions;
 pub(crate) use context::{is_template_literal_kind, is_type_element, is_type_node_kind};
@@ -212,7 +215,8 @@ impl ClientSupport<'_> {
 }
 
 impl LanguageService<'_> {
-    /// tsgo `ProvideCompletion`.
+    /// tsgo `ProvideCompletion`: the completions at the position's first
+    /// projection, none unless it maps exactly.
     pub fn provide_completion(
         &mut self,
         params: &CompletionParams,
@@ -222,13 +226,30 @@ impl LanguageService<'_> {
             .context
             .as_ref()
             .and_then(|context| context.trigger_character.clone());
-        let list = self.with_request(file, &params.position, false, |request, position| {
-            let mut completions = Completions::new(request, file, position);
+        let list = self.with_program_request(false, |request| {
+            let projections =
+                request.position_projections(file, &params.position, FEATURE_COMPLETION);
+            let Some(projection) = projections
+                .first()
+                .filter(|projection| projection.fidelity.is_exact())
+            else {
+                // In a content-mapped file the cursor is outside a verbatim span, so any completion committed here
+                // could not be applied to the original text. Offer nothing rather than edits at a bogus location.
+                return Ok(Ok(None));
+            };
+            let mut completions = Completions::new(request, projection.file, projection.position);
             let list = completions.get_completions_at_position(trigger_character.as_deref())?;
             if completions.needs_auto_imports {
                 return Ok(Err(LsError::needs_auto_imports()));
             }
-            Ok(Ok(list.map(|list| completions.ensure_item_data(list))))
+            let Some(list) = list else {
+                return Ok(Ok(None));
+            };
+            let mut list = completions.ensure_item_data(list);
+            if script_of(completions.source).span_map().is_some() {
+                completions.filter_content_mapped_auto_imports(&mut list);
+            }
+            Ok(Ok(Some(list)))
         })?;
         Ok(match list.transpose()?.flatten() {
             Some(list) => CompletionItemsOrListOrNull::List(list),
@@ -247,7 +268,7 @@ impl LanguageService<'_> {
         trigger_character: Option<&str>,
         include_symbols: bool,
     ) -> Result<Option<ApiCompletionList>, LsError> {
-        let list = self.with_request_at(file, position, false, |request, position| {
+        let list = self.with_program_request(false, |request| {
             let mut completions = Completions::new(request, file, position);
             completions.include_symbols = include_symbols;
             let list = completions.get_completions_at_position(trigger_character)?;
@@ -365,7 +386,7 @@ impl Completions<'_, '_, '_> {
     ) -> Option<CompletionList> {
         let mut names = std::collections::HashSet::new();
         let mut items = Vec::new();
-        let file_name = self.file_name();
+        let data_file = self.data_file();
         let mut current = Some(statement);
         while let Some(node) = current {
             if crate::utilities::is_function_like_kind(self.node_kind(node)) {
@@ -380,7 +401,7 @@ impl Completions<'_, '_, '_> {
                 if names.insert(name.clone()) {
                     items.push(items::create_lsp_completion_item(
                         self.text(),
-                        &file_name,
+                        &data_file,
                         self.position,
                         items::ItemSpec {
                             name,
@@ -441,16 +462,51 @@ impl Completions<'_, '_, '_> {
         }
     }
 
+    /// tsgo `filterContentMappedAutoImports`: a content mapper's output's
+    /// auto-import completions with their import edits resolved now (at the
+    /// original file's positions), each whose edit cannot be placed entirely
+    /// within verbatim spans dropped (it would insert an import into
+    /// synthesized code with no counterpart in the original file).
+    fn filter_content_mapped_auto_imports(&self, list: &mut tsc_lsproto::CompletionList) {
+        let request = &*self.request;
+        list.items.retain_mut(|item| {
+            let Some(fix) = item
+                .data
+                .as_ref()
+                .and_then(|data| data.auto_import.as_ref())
+            else {
+                return true;
+            };
+            let (edits, description, ok) = crate::autoimport::fix_edits(
+                &crate::autoimport::Fix::of(fix.clone()),
+                self.source,
+                request.state.options,
+                request.preferences.format_code_settings.clone(),
+                request.converters,
+                &request.state.binder,
+                request.preferences,
+                request.catalog,
+            )
+            .unwrap_or_else(|error| panic!("{error}"));
+            if !ok {
+                return false;
+            }
+            item.additional_text_edits = Some(edits);
+            item.detail = (!description.is_empty()).then_some(description);
+            true
+        });
+    }
+
     /// tsgo `ensureItemData` of the list `toLSP` makes.
     fn ensure_item_data(&self, list: CompletionList) -> tsc_lsproto::CompletionList {
-        let file_name = self.file_name();
+        let data_file = self.data_file();
         let mut items = list.items;
         for item in &mut items {
             if item.data.is_none() {
                 item.data = Some(CompletionItemData {
-                    file_name: file_name.clone(),
+                    file_name: data_file.file_name.clone(),
                     position: self.position as i32,
-                    supplemental_file_index: None,
+                    supplemental_file_index: data_file.supplemental_file_index,
                     name: item.label.clone(),
                     ..CompletionItemData::default()
                 });

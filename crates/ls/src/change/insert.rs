@@ -18,9 +18,24 @@ use crate::format::{self, File};
 use crate::tree::View;
 
 impl<'a> Tracker<'a> {
-    /// tsgo `insertTextAt` (and `InsertText` at the position's offset).
+    /// tsgo `insertTextAt`.
     pub(crate) fn insert_text_at(&mut self, file: &'a SourceFile, pos: usize, text: String) {
         self.replace_range_with_text(file, (pos, pos), text);
+    }
+
+    /// tsgo `InsertText`: text at an LSP position of the document.
+    pub(crate) fn insert_text(
+        &mut self,
+        file: &'a SourceFile,
+        converters: &crate::lsconv::Converters,
+        position: &tsc_lsproto::Position,
+        text: String,
+    ) {
+        let range = tsc_lsproto::Range {
+            start: position.clone(),
+            end: position.clone(),
+        };
+        self.replace_lsp_range_with_text(file, converters, &range, text);
     }
 
     /// tsgo `InsertNodeAt`.
@@ -701,10 +716,27 @@ impl<'a> Tracker<'a> {
         if insert.is_empty() {
             return;
         }
-        let pos = get_insertion_position_at_source_file_top(file);
+        let mut pos = get_insertion_position_at_source_file_top(file);
+        let mut original_pos = pos;
+        // A content mapper may synthesize a header. Advance to the first writable segment so the insertion
+        // maps exactly to the original file, and use its original position when deciding leading trivia.
+        if let Some(span_map) = file
+            .content_mapper
+            .as_ref()
+            .and_then(|output| output.span_map.as_ref())
+        {
+            if let Some(segment) = span_map.segments().iter().find(|segment| {
+                segment.kind == tsc_diagnostics::spanmap::KIND_VERBATIM
+                    && segment.virtual_end as usize > pos
+            }) {
+                pos = pos.max(segment.virtual_start as usize);
+                original_pos =
+                    (segment.original_start + pos as i32 - segment.virtual_start) as usize;
+            }
+        }
         let new_line = self.new_line.text();
         let mut options = NodeOptions::default();
-        if pos != 0 {
+        if original_pos != 0 {
             options.prefix = new_line.to_owned();
         }
         let text = file.text();

@@ -50,40 +50,39 @@ fn get_code_actions(
     context: &CodeFixContext<'_>,
 ) -> Result<Vec<CodeAction>, LsError> {
     let format_settings = service.format_options().clone();
-    let actions =
-        service.with_request_at(context.file, context.span.0 as u32, false, |request, _| {
-            let source = request.state.binder.source(context.file);
-            let Some(class_declaration) = get_class(source, context.span.0) else {
-                return Ok(Ok(Vec::new()));
+    let actions = service.with_program_request(false, |request| {
+        let source = request.state.binder.source(context.file);
+        let Some(class_declaration) = get_class(source, context.span.0) else {
+            return Ok(Ok(Vec::new()));
+        };
+        let mut actions = Vec::new();
+        for implemented_type_node in
+            node_util::get_implements_heritage_clause_elements(source, class_declaration)
+        {
+            let changes = match add_and_get_changes(
+                request,
+                &format_settings,
+                context.file,
+                &[(class_declaration, vec![implemented_type_node])],
+            )? {
+                Ok(changes) => changes,
+                Err(error) => return Ok(Err(error)),
             };
-            let mut actions = Vec::new();
-            for implemented_type_node in
-                node_util::get_implements_heritage_clause_elements(source, class_declaration)
-            {
-                let changes = match add_and_get_changes(
-                    request,
-                    &format_settings,
-                    context.file,
-                    &[(class_declaration, vec![implemented_type_node])],
-                )? {
-                    Ok(changes) => changes,
-                    Err(error) => return Ok(Err(error)),
-                };
-                if changes.is_empty() {
-                    continue;
-                }
-                let text = node_text(source, implemented_type_node);
-                actions.push(CodeAction {
-                    description: tsc_diagnostics::format_message(
-                        gen::Implement_interface_0.template_in(request.catalog),
-                        &[text],
-                    ),
-                    changes,
-                    fix_id: FIX_ID.to_owned(),
-                });
+            if changes.is_empty() {
+                continue;
             }
-            Ok(Ok(actions))
-        })?;
+            let text = node_text(source, implemented_type_node);
+            actions.push(CodeAction {
+                description: tsc_diagnostics::format_message(
+                    gen::Implement_interface_0.template_in(request.catalog),
+                    &[text],
+                ),
+                changes,
+                fix_id: FIX_ID.to_owned(),
+            });
+        }
+        Ok(Ok(actions))
+    })?;
     actions.unwrap_or(Ok(Vec::new()))
 }
 
@@ -102,7 +101,7 @@ fn get_all_code_actions(
         .collect();
     let format_settings = service.format_options().clone();
     let description = service.localize(&gen::Implement_all_unimplemented_interfaces, &[]);
-    let changes = service.with_request_at(context.file, 0, false, |request, _| {
+    let changes = service.with_program_request(false, |request| {
         let source = request.state.binder.source(context.file);
         let mut seen_class_declarations = BTreeSet::new();
         let mut classes = Vec::new();
@@ -184,12 +183,13 @@ fn add_and_get_changes(
             }
         }
     }
-    let mut changes = match file_edits(tracker, source, request.converters) {
-        Ok(changes) => changes,
+    let mut changes = match file_edits(tracker, source, request.converters, &request.state.binder) {
+        Ok((changes, true)) => changes,
+        Ok((_, false)) => return Ok(Ok(Vec::new())),
         Err(error) => return Ok(Err(LsError(error))),
     };
     if let Some(adder) = adder.filter(ImportAdder::has_fixes) {
-        match adder.edits() {
+        match adder.edits(&request.state.binder) {
             Ok(edits) => changes.extend(edits),
             Err(error) => return Ok(Err(LsError(error.to_string()))),
         }

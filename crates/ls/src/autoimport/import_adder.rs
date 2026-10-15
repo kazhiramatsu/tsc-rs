@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tsc_lsproto::{AddAsTypeOnly, AutoImportFix, AutoImportFixKind, ImportKind, TextEdit};
 
+use tsc_checker::program::ProgramBinder;
 use tsc_checker::state::{CheckResult, CheckerState};
 use tsc_emitter::{TransformArena, TransformError, TransformNode, TransformSourceId};
 use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SourceFile, SyntaxKind};
@@ -89,8 +90,9 @@ impl<'a> ImportAdder<'a> {
             || !self.new_imports.is_empty()
     }
 
-    /// tsgo `Edits`: the edits of every fix added.
-    pub(crate) fn edits(&self) -> Result<Vec<TextEdit>, String> {
+    /// tsgo `Edits`: the edits of every fix added (none when a content
+    /// mapper's output's cannot be written back).
+    pub(crate) fn edits(&self, binder: &ProgramBinder<'a>) -> Result<Vec<TextEdit>, String> {
         let file = self.file;
         let mut tracker = Tracker::new(new_line_kind(self.options), self.format_settings.clone());
         let to_error = |error: tsc_emitter::TransformError| error.to_string();
@@ -156,7 +158,9 @@ impl<'a> ImportAdder<'a> {
             insert_imports(&mut tracker, file, new_declarations, true, self.preferences)
                 .map_err(to_error)?;
         }
-        file_edits(tracker, file, self.converters)
+        // Unmappable files are dropped by GetChanges, so a content-mapped importing file that cannot be
+        // faithfully rewritten yields no edits rather than a corrupting one.
+        file_edits(tracker, file, self.converters, binder).map(|(edits, _)| edits)
     }
 
     /// tsgo `AddImportFromExportedSymbol`: the best fix importing a symbol's
@@ -719,7 +723,7 @@ impl crate::language_service::LanguageService<'_> {
             if !adder.has_fixes() {
                 return Ok(Ok(Vec::new()));
             }
-            Ok(adder.edits().map_err(LsError))
+            Ok(adder.edits(&request.state.binder).map_err(LsError))
         })?;
         edits.transpose().map(Option::unwrap_or_default)
     }

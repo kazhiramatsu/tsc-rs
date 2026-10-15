@@ -6,8 +6,10 @@
 //!
 //! The nodes live in the tracker's emit arena: a file's own nodes keep
 //! their ids there ([`Tracker::node`]), and a feature creates new ones with
-//! the arena's factory ([`Tracker::arena`]). A content-mapped file has one
-//! projection here, its own text (the mapped projections are L10).
+//! the arena's factory ([`Tracker::arena`]). A content mapper's output's
+//! edits are written back to its original file, each node formatted at every
+//! exact projection of its position; a file whose edits cannot be is left
+//! out (tsgo `unmappableFiles`).
 
 mod delete;
 mod insert;
@@ -23,10 +25,19 @@ use tsc_syntax::{
     comment_ranges, skip_trivia_ex, NodeArena, NodeId, SkipTriviaOptions, SourceFile,
 };
 
+use std::collections::BTreeSet;
+
+use tsc_checker::program::ProgramBinder;
+use tsc_diagnostics::spanmap::FEATURES_ALL;
+use tsc_lsproto::TextEdit;
+
 use crate::astnav::Found;
 use crate::format::{self, File, TextChange};
+use crate::lsconv::{compare_ranges, Converters, Script};
 use crate::lsutil::{FormatCodeSettings, SemicolonPreference};
+use crate::request::source_projections_of;
 use crate::tree::View;
+use crate::utilities::script_of;
 
 /// tsgo `NodeOptions`.
 #[derive(Clone, Debug, Default)]
@@ -85,10 +96,24 @@ struct TrackerEdit {
     options: NodeOptions,
 }
 
-/// The text edits of one file.
-pub(crate) struct FileChanges<'a> {
-    pub(crate) file: &'a SourceFile,
-    pub(crate) changes: Vec<TextChange>,
+/// tsgo `GetChanges`' result: each original file's text edits (the files
+/// in the order the tracker first edited them), and the original files whose
+/// edits could not be written back to their text, sorted (their edits are
+/// left out).
+pub(crate) struct Changes {
+    pub(crate) files: Vec<(String, Vec<TextEdit>)>,
+    pub(crate) unmappable: Vec<String>,
+}
+
+impl Changes {
+    /// The edits of an original file (tsgo `changes[fileName]`).
+    pub(crate) fn of(self, file_name: &str) -> Vec<TextEdit> {
+        self.files
+            .into_iter()
+            .find(|(name, _)| name == file_name)
+            .map(|(_, edits)| edits)
+            .unwrap_or_default()
+    }
 }
 
 /// An edit the tracker cannot make: a node it could not print, or two edits
@@ -135,6 +160,10 @@ pub(crate) struct Tracker<'a> {
     /// tsgo `nodesWithInsertionsAtStart`: the nodes a member was inserted
     /// at the start of, by file, in the order of their first insertion.
     nodes_with_insertions_at_start: Vec<(usize, NodeId)>,
+    /// tsgo `unmappableFiles`: the original files an edit could not be
+    /// represented in (within a single verbatim span); their edits are
+    /// dropped.
+    unmappable: BTreeSet<String>,
 }
 
 impl<'a> Tracker<'a> {
@@ -152,6 +181,7 @@ impl<'a> Tracker<'a> {
             changes: Vec::new(),
             deleted_nodes: Vec::new(),
             nodes_with_insertions_at_start: Vec::new(),
+            unmappable: BTreeSet::new(),
         }
     }
 
@@ -443,6 +473,32 @@ impl<'a> Tracker<'a> {
         );
     }
 
+    /// tsgo `ReplaceRangeWithText`: text in place of an LSP range of the
+    /// document. For a content-mapped file, the range is in the original
+    /// document; text may be placed at any exact projection of it in the
+    /// file because it does not need formatting context. A range with none
+    /// cannot be written back and marks the file unmappable (tsgo
+    /// `fromLSPEditRange`).
+    pub(crate) fn replace_lsp_range_with_text(
+        &mut self,
+        file: &'a SourceFile,
+        converters: &Converters,
+        range: &tsc_lsproto::Range,
+        text: String,
+    ) {
+        let script = script_of(file);
+        let spans = converters.from_lsp_range_for_scripts(&[&script], range, FEATURES_ALL);
+        let span = match spans.iter().find(|span| span.fidelity.is_exact()) {
+            Some(span) => span.span.clone(),
+            None => {
+                self.unmappable
+                    .insert(script.original_file_name().to_owned());
+                spans.first().map_or(0..0, |span| span.span.clone())
+            }
+        };
+        self.replace_range_with_text(file, (span.start, span.end), text);
+    }
+
     /// tsgo `ReplaceTextRangeWithText`.
     pub(crate) fn replace_range_with_text(
         &mut self,
@@ -720,9 +776,15 @@ impl<'a> Tracker<'a> {
         end
     }
 
-    /// tsgo `GetChanges`: the text edits of each file, in order (the
-    /// tracker is spent).
-    pub(crate) fn get_changes(mut self) -> Result<Vec<FileChanges<'a>>, TrackerError> {
+    /// tsgo `GetChanges`: the text edits of each original file, in order,
+    /// and the files whose edits could not be written back (the tracker is
+    /// spent). `binder` gives a content mapper's outputs' supplemental
+    /// outputs, the projections an edit's text is formatted at.
+    pub(crate) fn get_changes(
+        mut self,
+        converters: &Converters,
+        binder: &ProgramBinder<'a>,
+    ) -> Result<Changes, TrackerError> {
         self.finish_delete_declarations();
         self.finish_nodes_with_insertions_at_start();
         let Tracker {
@@ -731,93 +793,227 @@ impl<'a> Tracker<'a> {
             arena,
             files,
             changes,
+            unmappable,
             ..
         } = self;
         let mut transformation = transform_nodes(arena, Vec::new(), Vec::new(), true)?;
-        let mut by_file: Vec<Vec<TextChange>> = vec![Vec::new(); files.len()];
-        for (index, edit) in changes {
-            let (file, _) = files[index];
-            let new_text =
-                compute_new_text(&mut transformation, &format_settings, new_line, file, &edit)?;
-            by_file[index].push(TextChange {
-                pos: edit.pos,
-                end: edit.end,
-                new_text,
-            });
+        let mut writer = EditWriter {
+            transformation: &mut transformation,
+            format_settings: &format_settings,
+            new_line,
+            converters,
+            unmappable,
+        };
+        // tsgo `getTextChangesFromChanges`. A content-mapped file can have
+        // several projections, each a file here but all sharing one original
+        // file. Their edits are collected together before being ordered and
+        // checked, so duplicate edits are emitted once and conflicting edits
+        // are rejected.
+        let mut by_original: Vec<(String, Vec<TextEdit>, usize)> = Vec::new();
+        for (index, &(file, _)) in files.iter().enumerate() {
+            let script = script_of(file);
+            let file_name = script.original_file_name().to_owned();
+            if writer.unmappable.contains(&file_name) {
+                continue;
+            }
+            // For a content-mapped file, a mapper may reorder source text
+            // relative to the original document. Convert first, then sort and
+            // check for overlap in the space where edits are actually
+            // applied.
+            let projections = source_projections_of(binder, file);
+            let mut text_changes = Vec::new();
+            for (_, edit) in changes.iter().filter(|(edited, _)| *edited == index) {
+                let new_text = writer.compute_new_text(file, &script, &projections, edit)?;
+                let range = writer.lsp_edit_range(&script, edit.pos..edit.end);
+                text_changes.push(TextEdit { range, new_text });
+            }
+            if text_changes.is_empty() {
+                continue;
+            }
+            match by_original
+                .iter_mut()
+                .find(|(name, _, _)| *name == file_name)
+            {
+                Some((_, edits, projections)) => {
+                    edits.extend(text_changes);
+                    *projections += 1;
+                }
+                None => by_original.push((file_name, text_changes, 1)),
+            }
         }
+        let mut unmappable = writer.unmappable;
         let mut result = Vec::new();
-        for ((file, _), mut changes) in files.into_iter().zip(by_file) {
-            if changes.is_empty() {
+        for (file_name, mut edits, projections) in by_original {
+            // Converting the edits above may have found that this file cannot
+            // be represented in its original text: it is dropped, and the
+            // best-effort ranges left behind may overlap in ways the check
+            // below would refuse.
+            if unmappable.contains(&file_name) {
                 continue;
             }
             // order changes by start position
             // If the start position is the same, put the shorter range first, since an empty range (x, x) may precede (x, y) but not vice-versa.
-            changes.sort_by(|a, b| a.pos.cmp(&b.pos).then(a.end.cmp(&b.end)));
+            edits.sort_by(|a, b| compare_ranges(&a.range, &b.range));
+            if projections > 1 {
+                // tsgo `dedupeIdenticalEdits`: when a mapper copies one span
+                // of the original into more than one projection, an edit
+                // computed against each projection describes the same
+                // change to the same original range.
+                edits.dedup_by(|b, a| a.range == b.range && a.new_text == b.new_text);
+            }
             // verify that change intervals do not overlap, except possibly at end points.
-            if changes.windows(2).any(|pair| pair[0].end > pair[1].pos) {
+            if edits
+                .windows(2)
+                .any(|pair| text_edits_conflict(&pair[0], &pair[1], projections > 1))
+            {
+                if projections > 1 {
+                    // Projections of one original range disagree about how to edit it. That is a property of
+                    // the mapper's output rather than a bug here, so drop the file instead of failing.
+                    unmappable.insert(file_name);
+                    continue;
+                }
                 return Err(TrackerError::Overlap);
             }
-            result.push(FileChanges { file, changes });
+            result.push((file_name, edits));
         }
-        Ok(result)
+        Ok(Changes {
+            files: result,
+            unmappable: unmappable.into_iter().collect(),
+        })
     }
 }
 
-/// tsgo `computeNewText` of a file without mapped projections: the text
-/// of an edit, its nodes printed and formatted at its position.
-fn compute_new_text(
-    transformation: &mut tsc_emitter::TransformationResult<'_>,
-    format_settings: &FormatCodeSettings,
-    new_line: NewLineKind,
-    file: &SourceFile,
-    edit: &TrackerEdit,
-) -> Result<String, TrackerError> {
-    let nodes = match &edit.content {
-        EditContent::Text(text) => return Ok(text.clone()),
-        EditContent::ReplaceWithSingleNode(node) => std::slice::from_ref(node),
-        EditContent::ReplaceWithMultipleNodes(nodes) => nodes.as_slice(),
-    };
-    let pos = edit.pos;
-    let new_line_text = new_line.text();
-    let mut texts = Vec::with_capacity(nodes.len());
-    for &node in nodes {
-        let text = get_formatted_text_of_node(
-            transformation,
-            format_settings,
-            new_line,
-            node,
-            file,
-            pos,
-            &edit.options,
-        )?;
-        texts.push(text);
+/// tsgo `textEditsConflict`: overlapping edits, or (from several
+/// projections) different insertions at one position.
+fn text_edits_conflict(a: &TextEdit, b: &TextEdit, multiple_projections: bool) -> bool {
+    let position = |position: &tsc_lsproto::Position| (position.line, position.character);
+    if position(&a.range.end) > position(&b.range.start) {
+        return true;
     }
-    let text = match &edit.content {
-        EditContent::ReplaceWithMultipleNodes(_) => {
-            let joiner = edit.options.joiner.as_deref().unwrap_or(new_line_text);
-            texts
-                .iter()
-                .map(|text| text.strip_suffix(new_line_text).unwrap_or(text))
-                .collect::<Vec<_>>()
-                .join(joiner)
+    // Different insertions at the same position are ambiguous when they may come from different projections.
+    multiple_projections
+        && a.range.start == a.range.end
+        && a.range == b.range
+        && a.new_text != b.new_text
+}
+
+/// What [`Tracker::get_changes`] writes the edits' texts and ranges with,
+/// and the original files it found it cannot write back to.
+struct EditWriter<'t, 'p> {
+    transformation: &'t mut tsc_emitter::TransformationResult<'p>,
+    format_settings: &'t FormatCodeSettings,
+    new_line: NewLineKind,
+    converters: &'t Converters,
+    unmappable: BTreeSet<String>,
+}
+
+impl EditWriter<'_, '_> {
+    /// tsgo `toLSPEditRange`: a range of a file as a range of its original
+    /// file; one that does not fall within a single verbatim span cannot be
+    /// written back, and its file is recorded so its edits are dropped (the
+    /// best-effort range keeps the accumulated edits well-formed).
+    fn lsp_edit_range(
+        &mut self,
+        script: &dyn Script,
+        range: std::ops::Range<usize>,
+    ) -> tsc_lsproto::Range {
+        let (range, fidelity) = self.converters.to_lsp_range_with_fidelity(script, range);
+        if !fidelity.is_exact() {
+            self.unmappable
+                .insert(script.original_file_name().to_owned());
         }
-        _ => texts.remove(0),
-    };
-    // Strip initial indentation if text will be inserted in the middle of the line.
-    let no_indent = if edit.options.indentation.is_some()
-        || format::get_line_start_position_for_position(&File::new(file), pos) == pos
-    {
-        text.as_str()
-    } else {
-        text.trim_start_matches(is_go_space)
-    };
-    let suffix = if no_indent.ends_with(edit.options.suffix.as_str()) {
-        ""
-    } else {
-        edit.options.suffix.as_str()
-    };
-    let candidate = format!("{}{no_indent}{suffix}", edit.options.prefix);
-    Ok(reindent_inserted_lines(file, new_line, edit, candidate))
+        range
+    }
+
+    /// tsgo `computeNewText`: the text of an edit, its nodes printed and
+    /// formatted at each exact projection of its position (which must all
+    /// agree).
+    fn compute_new_text(
+        &mut self,
+        file: &SourceFile,
+        script: &dyn Script,
+        projections: &[&SourceFile],
+        edit: &TrackerEdit,
+    ) -> Result<String, TrackerError> {
+        let nodes = match &edit.content {
+            EditContent::Text(text) => return Ok(text.clone()),
+            EditContent::ReplaceWithSingleNode(node) => std::slice::from_ref(node),
+            EditContent::ReplaceWithMultipleNodes(nodes) => nodes.as_slice(),
+        };
+        let start = self.lsp_edit_range(script, edit.pos..edit.end).start;
+        let scripts = projections
+            .iter()
+            .map(|projection| script_of(projection))
+            .collect::<Vec<_>>();
+        let scripts = scripts
+            .iter()
+            .map(|script| script as &dyn Script)
+            .collect::<Vec<_>>();
+        let positions =
+            self.converters
+                .from_lsp_position_for_scripts(&scripts, &start, FEATURES_ALL);
+        let new_line_text = self.new_line.text();
+        let mut result: Option<String> = None;
+        // The original range may have multiple verbatim copies; it is safe to lose their identity only when
+        // formatting at every exact projection produces the same edit.
+        for mapped in positions {
+            if !mapped.fidelity.is_exact() {
+                continue;
+            }
+            let projection = projections[mapped.script];
+            let pos = mapped.position;
+            let mut texts = Vec::with_capacity(nodes.len());
+            for &node in nodes {
+                texts.push(get_formatted_text_of_node(
+                    self.transformation,
+                    self.format_settings,
+                    self.new_line,
+                    node,
+                    file,
+                    projection,
+                    pos,
+                    &edit.options,
+                )?);
+            }
+            let text = match &edit.content {
+                EditContent::ReplaceWithMultipleNodes(_) => {
+                    let joiner = edit.options.joiner.as_deref().unwrap_or(new_line_text);
+                    texts
+                        .iter()
+                        .map(|text| text.strip_suffix(new_line_text).unwrap_or(text))
+                        .collect::<Vec<_>>()
+                        .join(joiner)
+                }
+                _ => texts.remove(0),
+            };
+            // Strip initial indentation if text will be inserted in the middle of the line.
+            let no_indent = if edit.options.indentation.is_some()
+                || format::get_line_start_position_for_position(&File::new(projection), pos) == pos
+            {
+                text.as_str()
+            } else {
+                text.trim_start_matches(is_go_space)
+            };
+            let suffix = if no_indent.ends_with(edit.options.suffix.as_str()) {
+                ""
+            } else {
+                edit.options.suffix.as_str()
+            };
+            let candidate = format!("{}{no_indent}{suffix}", edit.options.prefix);
+            if result.as_ref().is_some_and(|result| *result != candidate) {
+                self.unmappable
+                    .insert(script.original_file_name().to_owned());
+                return Ok(String::new());
+            }
+            result = Some(candidate);
+        }
+        let result = result.unwrap_or_else(|| {
+            self.unmappable
+                .insert(script.original_file_name().to_owned());
+            String::new()
+        });
+        Ok(reindent_inserted_lines(script, self.new_line, edit, result))
+    }
 }
 
 /// Go's `unicode.IsSpace`.
@@ -829,9 +1025,12 @@ fn is_go_space(ch: char) -> bool {
 }
 
 /// tsgo `reindentInsertedLines`: an insertion that ends with a new line
-/// gives the line it splits its indentation.
+/// gives the line it splits its indentation. The indentation is read from
+/// the original text at the edit's original position, so it holds for a
+/// content-mapped file whose projection is indented differently from the
+/// document the edit is applied to.
 fn reindent_inserted_lines(
-    file: &SourceFile,
+    script: &dyn Script,
     new_line: NewLineKind,
     edit: &TrackerEdit,
     text: String,
@@ -842,8 +1041,15 @@ fn reindent_inserted_lines(
     if !text.ends_with(new_line.text()) {
         return text;
     }
-    let original = file.text();
-    let pos = edit.pos;
+    let original = script.original_text();
+    let mut pos = edit.pos;
+    if let Some(span_map) = script.span_map() {
+        let (mapped, fidelity) = span_map.virtual_to_original_position(pos as i32);
+        if !fidelity.is_exact() {
+            return text;
+        }
+        pos = mapped as usize;
+    }
     if pos > original.len() {
         return text;
     }
@@ -876,13 +1082,15 @@ fn leading_indentation(text: &str) -> &str {
 }
 
 /// tsgo `getFormattedTextOfNode`: `node` printed for `file` and formatted
-/// as if at `pos`.
+/// as if at `pos` of `projection` (one of the file's projections).
+#[allow(clippy::too_many_arguments)]
 fn get_formatted_text_of_node(
     transformation: &mut tsc_emitter::TransformationResult<'_>,
     format_settings: &FormatCodeSettings,
     new_line: NewLineKind,
     node: TransformNode,
     file: &SourceFile,
+    projection: &SourceFile,
     pos: usize,
     options: &NodeOptions,
 ) -> Result<String, TrackerError> {
@@ -901,7 +1109,7 @@ fn get_formatted_text_of_node(
         },
     )?;
     let format_options = get_format_code_settings_for_writing(format_settings, file);
-    let target = File::new(file);
+    let target = File::new(projection);
     let synthetic = File::new(&positioned.file);
     let new_line_text = new_line.text();
     let initial_indentation = match options.indentation {
@@ -984,4 +1192,34 @@ fn line_start_at(file: &SourceFile, line: usize) -> usize {
         .ok()
         .and_then(|line| file.positions().line_start_byte(line))
         .map_or(file.text().len(), |start| start as usize)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// tsgo `TestTextEditsConflictAtSameInsertionPointAcrossProjections`.
+    #[test]
+    fn text_edits_conflict_at_same_insertion_point_across_projections() {
+        let position = tsc_lsproto::Position {
+            line: 1,
+            character: 2,
+        };
+        let edit = |text: &str| TextEdit {
+            range: tsc_lsproto::Range {
+                start: position.clone(),
+                end: position.clone(),
+            },
+            new_text: text.to_owned(),
+        };
+        let (a, b) = (edit("a"), edit("b"));
+        assert!(
+            text_edits_conflict(&a, &b, true),
+            "different insertions at the same position across projections should conflict"
+        );
+        assert!(
+            !text_edits_conflict(&a, &b, false),
+            "insertions at the same position within one projection should retain their existing ordering"
+        );
+    }
 }

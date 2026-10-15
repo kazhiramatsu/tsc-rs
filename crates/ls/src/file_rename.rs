@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use tsc_lsproto::{
     DocumentUri, IntegerOrNull, OptionalVersionedTextDocumentIdentifier, RenameFile,
-    TextDocumentEdit, TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile, TextEdit,
+    TextDocumentEdit, TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile,
     TextEditOrAnnotatedTextEditOrSnippetTextEdit,
 };
 use tsc_program::uri::{file_name_to_document_uri, uri_to_file_name};
@@ -20,7 +20,7 @@ use crate::language_service::{LanguageService, LsError};
 use crate::lsutil::new_line_kind;
 use crate::references::{collect_external_module_references, is_external_module_name_relative};
 use crate::request::Request;
-use crate::utilities::{resolved_module_from_module_specifier, script_of, token_start, Touching};
+use crate::utilities::{resolved_module_from_module_specifier, token_start, Touching};
 
 /// A change of the edits of a file rename.
 type DocumentChange = TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile;
@@ -57,7 +57,7 @@ impl LanguageService<'_> {
                 (plan, file)
             });
         let format_settings = self.format_options().clone();
-        let edits = self.with_request_at(0, 0, false, |request, _| {
+        let edits = self.with_program_request(false, |request| {
             let mut tracker = Tracker::new(new_line_kind(request.state.options), format_settings);
             if let Some((plan, config_file)) = &config {
                 if let Err(error) = update_tsconfig_files(plan, config_file, &mut tracker, &updater)
@@ -66,27 +66,10 @@ impl LanguageService<'_> {
                 }
             }
             update_imports_for_file_rename(request, &mut tracker, &updater)?;
-            let changes = match tracker.get_changes() {
-                Ok(changes) => changes,
-                Err(error) => return Ok(Err(LsError(error.to_string()))),
-            };
-            Ok(Ok(changes
-                .into_iter()
-                .map(|changes| {
-                    let script = script_of(changes.file);
-                    let edits = changes
-                        .changes
-                        .into_iter()
-                        .map(|change| TextEdit {
-                            range: request
-                                .converters
-                                .to_lsp_range(&script, change.pos..change.end),
-                            new_text: change.new_text,
-                        })
-                        .collect::<Vec<_>>();
-                    (script.file_name, edits)
-                })
-                .collect::<Vec<_>>()))
+            match tracker.get_changes(request.converters, &request.state.binder) {
+                Ok(changes) => Ok(Ok(changes.files)),
+                Err(error) => Ok(Err(LsError(error.to_string()))),
+            }
         })?;
         let edits = match edits {
             Some(edits) => edits?,
