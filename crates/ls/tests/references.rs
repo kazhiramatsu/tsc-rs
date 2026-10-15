@@ -548,6 +548,35 @@ fn folding_ranges(files: &[(&str, &str)]) -> serde_json::Value {
     )
 }
 
+/// tsgo's semantic tokens of the first file (of a range of it), as the
+/// protocol's JSON, for a client with every token type and modifier.
+fn semantic_tokens(files: &[(&str, &str)], range: Option<tsc_lsproto::Range>) -> serde_json::Value {
+    let mut capabilities = ResolvedClientCapabilities::default();
+    let semantic_tokens = &mut capabilities.text_document.semantic_tokens;
+    semantic_tokens.token_types = tsc_ls::TOKEN_TYPES
+        .iter()
+        .map(|kind| kind.0.to_string())
+        .collect();
+    semantic_tokens.token_modifiers = tsc_ls::TOKEN_MODIFIERS
+        .iter()
+        .map(|modifier| modifier.0.to_string())
+        .collect();
+    let uri = DocumentUri(format!("file://{}", files[0].0));
+    with_service_capabilities(
+        files,
+        options(|options| options.allow_js = true),
+        UserPreferences::default(),
+        capabilities,
+        |service, _| {
+            let response = match &range {
+                Some(range) => service.provide_semantic_tokens_range(&uri, range),
+                None => service.provide_semantic_tokens(&uri),
+            };
+            serde_json::to_value(response.expect("an answer")).expect("JSON")
+        },
+    )
+}
+
 fn leak(name: &str) -> &'static str {
     Box::leak(name.to_owned().into_boxed_str())
 }
@@ -1094,4 +1123,41 @@ fn a_reparsed_js_doc_declaration_ends_a_run_of_imports() {
             "{name}"
         );
     }
+}
+
+/// In a JavaScript file tsgo's parser turns a member's `@readonly` into a
+/// modifier of a class's property, method or accessor — not of one parsed
+/// in an object literal, even in a class there — while a variable's tag is no
+/// modifier: the tokens of the reparsed members are readonly. (Expected:
+/// tsgo's answer.)
+#[test]
+fn reparsed_js_doc_modifiers_make_readonly_tokens() {
+    let text = "class C {\n  /** @readonly */\n  x = 1;\n  /** @readonly */\n  get g() { return 1; }\n  m() { return this.x + this.g; }\n}\nconst o = {\n  /** @readonly */\n  get y() { return 1; },\n  k: class {\n    /** @readonly */\n    get z() { return 1; }\n  },\n};\n/** @readonly */\nlet w = o.y;\nw;\n";
+    assert_eq!(
+        semantic_tokens(&[("/a.js", text)], None),
+        serde_json::json!({"data": [0, 6, 1, 1, 1, 2, 2, 1, 9, 5, 2, 6, 1, 9, 5, 1, 2, 1, 14, 1, 0, 18, 1, 9, 4, 0, 9, 1, 9, 4, 2, 6, 1, 8, 5, 2, 6, 1, 9, 1, 1, 2, 1, 1, 1, 2, 8, 1, 9, 1, 4, 4, 1, 8, 1, 0, 4, 1, 8, 4, 0, 2, 1, 9, 0, 1, 0, 1, 8, 0]})
+    );
+}
+
+/// A range's tokens are the identifiers that overlap it (not a parameter
+/// that ends at its start, nor a name that starts at its end); `Math.max`
+/// is from the default library. (Expected: tsgo's answers.)
+#[test]
+fn semantic_tokens_of_a_range_and_of_the_default_library() {
+    let text = "const a = 1;\nfunction f(p: number) { return p + a; }\nlet b = f(a);\nclass D { static s = Math.max(b, 2); }\n";
+    let position = |line, character| Position { line, character };
+    assert_eq!(
+        semantic_tokens(
+            &[("/b.ts", text)],
+            Some(tsc_lsproto::Range {
+                start: position(1, 20),
+                end: position(3, 12),
+            })
+        ),
+        serde_json::json!({"data": [1, 31, 1, 7, 0, 0, 4, 1, 8, 4, 1, 4, 1, 8, 1, 0, 4, 1, 13, 0, 0, 2, 1, 8, 4, 1, 6, 1, 1, 1]})
+    );
+    assert_eq!(
+        semantic_tokens(&[("/b.ts", text)], None),
+        serde_json::json!({"data": [0, 6, 1, 8, 5, 1, 9, 1, 13, 1, 0, 2, 1, 7, 1, 0, 20, 1, 7, 0, 0, 4, 1, 8, 4, 1, 4, 1, 8, 1, 0, 4, 1, 13, 0, 0, 2, 1, 8, 4, 1, 6, 1, 1, 1, 0, 11, 1, 9, 9, 0, 4, 4, 8, 512, 0, 5, 3, 14, 512, 0, 4, 1, 8, 0]})
+    );
 }
