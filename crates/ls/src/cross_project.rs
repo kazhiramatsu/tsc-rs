@@ -5,6 +5,7 @@
 //! more projects — and the combination of the projects' answers.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+use tsc_diagnostics::spanmap::{FEATURE_IMPLEMENTATION, FEATURE_REFERENCES, FEATURE_RENAME};
 
 use tsc_binder::node_util;
 use tsc_checker::state::CheckResult;
@@ -85,9 +86,30 @@ impl LanguageService<'_> {
         respond: impl FnOnce(&mut Request<'_, '_>, Option<&SymbolAndEntriesData>, u32) -> CheckResult<R>,
     ) -> Result<Option<ProjectSearch<R>>, LsError> {
         let file = self.file(uri);
-        let run = |request: &mut Request<'_, '_>, position: u32| {
-            let data =
-                request.provide_symbols_and_entries(file, position, is_rename, implementations)?;
+        // tsgo `provideSymbolsAndEntries`: the entries of each
+        // single-segment projection of the position, together; the first
+        // projection's node and position.
+        let run = |request: &mut Request<'_, '_>, projections: Vec<(usize, u32)>| {
+            let mut data: Option<SymbolAndEntriesData> = None;
+            let mut position = projections.first().map_or(0, |&(_, position)| position);
+            for (projection, projection_position) in projections {
+                let Some(found) = request.provide_symbols_and_entries(
+                    projection,
+                    projection_position,
+                    is_rename,
+                    implementations,
+                )?
+                else {
+                    continue;
+                };
+                match &mut data {
+                    Some(data) => data.symbols_and_entries.extend(found.symbols_and_entries),
+                    None => {
+                        position = projection_position;
+                        data = Some(found);
+                    }
+                }
+            }
             let mut definition = None;
             let mut original_locations = Vec::new();
             for entry in data.iter().flat_map(|data| &data.symbols_and_entries) {
@@ -103,9 +125,26 @@ impl LanguageService<'_> {
                 original_locations,
             })
         };
+        let feature = if implementations {
+            FEATURE_IMPLEMENTATION
+        } else if is_rename {
+            FEATURE_RENAME
+        } else {
+            FEATURE_REFERENCES
+        };
         match at {
-            SearchPosition::Lsp(position) => self.with_request(file, position, links, run),
-            SearchPosition::Offset(position) => self.with_request_at(file, *position, links, run),
+            SearchPosition::Lsp(position) => self.with_program_request(links, |request| {
+                let projections = request
+                    .position_projections(file, position, feature)
+                    .into_iter()
+                    .filter(|projection| projection.fidelity.is_single_segment())
+                    .map(|projection| (projection.file, projection.position))
+                    .collect();
+                run(request, projections)
+            }),
+            SearchPosition::Offset(position) => {
+                self.with_program_request(links, |request| run(request, vec![(file, *position)]))
+            }
         }
     }
 

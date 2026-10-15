@@ -3,6 +3,7 @@
 //! and comments, and its `#region`s.
 
 use tsc_binder::node_util;
+use tsc_diagnostics::spanmap::FEATURE_FOLDING_RANGES;
 use tsc_emitter::source_mapper::compute_ecma_line_starts;
 use tsc_lsproto::{
     DocumentUri, FoldingRange, FoldingRangeKind, FoldingRangeResponse, FoldingRangesOrNull,
@@ -20,9 +21,10 @@ use crate::utilities::{is_in_comment, script_of};
 const MAX_DEPTH: i32 = 40;
 
 impl LanguageService<'_> {
-    /// tsgo `ProvideFoldingRange` (a file without a content mapper: one
-    /// projection): the nodes' and regions' ranges (their ends kept off the
-    /// closing line for a client that folds whole lines), in order, each
+    /// tsgo `ProvideFoldingRange`: the nodes' and regions' ranges of the
+    /// file and its content mapper's supplemental outputs (their ends kept
+    /// off the closing line for a client that folds whole lines; a mapped
+    /// output's only where they map to folding segments), in order, each
     /// once.
     pub fn provide_folding_ranges(
         &mut self,
@@ -34,13 +36,18 @@ impl LanguageService<'_> {
         let line_folding_only = capabilities.line_folding_only;
         let converters = self.converters;
         let mut ranges = self
-            .with_request_at(file, 0, false, |request, _| {
-                let source = request.state.binder.source(file);
-                let outlining = Outlining::new(source, converters, collapsed_text);
-                let mut ranges = outlining.node_outlining_spans();
-                ranges.extend(outlining.region_outlining_spans());
-                if line_folding_only {
-                    outlining.adjust_folding_end(&mut ranges);
+            .with_program_request(false, |request| {
+                // The file's and its content mapper's supplemental outputs'.
+                let mut ranges = Vec::new();
+                for projection in request.source_projections(file) {
+                    let source = request.state.binder.source(projection);
+                    let outlining = Outlining::new(source, converters, collapsed_text);
+                    let mut projection_ranges = outlining.node_outlining_spans();
+                    projection_ranges.extend(outlining.region_outlining_spans());
+                    if line_folding_only {
+                        outlining.adjust_folding_end(&mut projection_ranges);
+                    }
+                    ranges.extend(projection_ranges);
                 }
                 Ok(ranges)
             })?
@@ -155,11 +162,18 @@ impl<'a> Outlining<'a> {
         end: usize,
         kind: Option<FoldingRangeKind>,
         collapsed_text: &str,
-    ) -> FoldingRange {
-        let range = self
-            .converters
-            .to_lsp_range(&script_of(self.source), start..end);
-        FoldingRange {
+    ) -> Option<FoldingRange> {
+        // tsgo `createFoldingRangeFromBounds`: none where a content mapper's
+        // output's range is not in folding segments.
+        let (range, fidelity) = self.converters.to_lsp_range_for_feature(
+            &script_of(self.source),
+            start..end,
+            FEATURE_FOLDING_RANGES,
+        );
+        if fidelity.is_none() {
+            return None;
+        }
+        Some(FoldingRange {
             start_line: range.start.line,
             start_character: Some(range.start.character),
             end_line: range.end.line,
@@ -167,7 +181,7 @@ impl<'a> Outlining<'a> {
             kind,
             collapsed_text: (!collapsed_text.is_empty() && self.collapsed_text)
                 .then(|| collapsed_text.to_owned()),
-        }
+        })
     }
 
     /// tsgo `addNodeOutliningSpans`: each statement's spans, a run of two
@@ -211,7 +225,7 @@ impl<'a> Outlining<'a> {
                     .map_or(self.pos(statements[first_import]), |keyword| {
                         self.start(keyword)
                     });
-                ranges.push(self.folding_range(
+                ranges.extend(self.folding_range(
                     keyword,
                     self.end(statements[last_import]),
                     Some(FoldingRangeKind::IMPORTS),
@@ -283,10 +297,12 @@ impl<'a> Outlining<'a> {
                 };
                 regions.push((position, name));
             } else if let Some((position, name)) = regions.pop() {
-                let mut range =
-                    self.folding_range(position, line_end, Some(FoldingRangeKind::REGION), "");
-                range.collapsed_text = self.collapsed_text.then_some(name);
-                ranges.push(range);
+                if let Some(mut range) =
+                    self.folding_range(position, line_end, Some(FoldingRangeKind::REGION), "")
+                {
+                    range.collapsed_text = self.collapsed_text.then_some(name);
+                    ranges.push(range);
+                }
             }
         }
         ranges
@@ -301,13 +317,24 @@ impl<'a> Outlining<'a> {
             let Some(end_character) = range.end_character.filter(|&character| character > 0) else {
                 continue;
             };
-            let position = self.converters.from_lsp_position(
-                &script_of(self.source),
-                &Position {
-                    line: range.end_line,
-                    character: end_character,
-                },
-            );
+            // tsgo: the end's first projection into this output that maps.
+            let script = script_of(self.source);
+            let Some(position) = self
+                .converters
+                .from_lsp_position_for_scripts(
+                    &[&script as &dyn crate::lsconv::Script],
+                    &Position {
+                        line: range.end_line,
+                        character: end_character,
+                    },
+                    FEATURE_FOLDING_RANGES,
+                )
+                .into_iter()
+                .find(|projection| !projection.fidelity.is_none())
+                .map(|projection| projection.position)
+            else {
+                continue;
+            };
             if position > 0
                 && position <= text.len()
                 && matches!(text[position - 1], b'}' | b']' | b')' | b'`' | b'>')
@@ -447,7 +474,7 @@ impl<'a> Outlining<'a> {
             |count: usize, first_start: usize, last_end: usize, ranges: &mut Vec<FoldingRange>| {
                 // Only two or more consecutive single-line comments fold.
                 if count > 1 {
-                    ranges.push(self.folding_range(
+                    ranges.extend(self.folding_range(
                         first_start,
                         last_end,
                         Some(FoldingRangeKind::COMMENT),
@@ -471,7 +498,7 @@ impl<'a> Outlining<'a> {
                 count += 1;
             } else {
                 flush(count, first_start, last_end, ranges);
-                ranges.push(self.folding_range(start, end, Some(FoldingRangeKind::COMMENT), ""));
+                ranges.extend(self.folding_range(start, end, Some(FoldingRangeKind::COMMENT), ""));
                 count = 0;
             }
         }
@@ -514,7 +541,7 @@ impl<'a> Outlining<'a> {
                     _ => {}
                 }
                 let start = self.start(Found::Node(View::Node(node)));
-                Some(self.folding_range(start, self.end(node), None, ""))
+                self.folding_range(start, self.end(node), None, "")
             }
             SyntaxKind::ModuleBlock
             | SyntaxKind::ClassDeclaration
@@ -541,7 +568,7 @@ impl<'a> Outlining<'a> {
                     return None;
                 }
                 let (pos, end) = self.list_range(statements);
-                Some(self.folding_range(pos, end, None, ""))
+                self.folding_range(pos, end, None, "")
             }
             SyntaxKind::ObjectLiteralExpression => self.span_for_node(
                 node,
@@ -570,7 +597,7 @@ impl<'a> Outlining<'a> {
                     }
                 }
                 let start = self.start(Found::Node(View::Node(node)));
-                Some(self.folding_range(start, self.end(node), None, ""))
+                self.folding_range(start, self.end(node), None, "")
             }
             SyntaxKind::ArrayBindingPattern => self.span_for_node(
                 node,
@@ -589,7 +616,7 @@ impl<'a> Outlining<'a> {
                 {
                     return None;
                 }
-                Some(self.folding_range(self.pos(body), self.end(body), None, ""))
+                self.folding_range(self.pos(body), self.end(body), None, "")
             }
             SyntaxKind::CallExpression => {
                 let NodeData::CallExpression(data) = self.data(node) else {
@@ -606,14 +633,14 @@ impl<'a> Outlining<'a> {
                 ) {
                     return None;
                 }
-                Some(self.range_between_tokens(open, close, true))
+                self.range_between_tokens(open, close, true)
             }
             SyntaxKind::ParenthesizedExpression => {
                 let start = self.start(Found::Node(View::Node(node)));
                 if self.on_same_line(start, self.end(node)) {
                     return None;
                 }
-                Some(self.folding_range(start, self.end(node), None, ""))
+                self.folding_range(start, self.end(node), None, "")
             }
             SyntaxKind::NamedImports | SyntaxKind::NamedExports | SyntaxKind::ImportAttributes => {
                 let elements = match self.data(node) {
@@ -633,7 +660,7 @@ impl<'a> Outlining<'a> {
                 ) {
                     return None;
                 }
-                Some(self.range_between_tokens(open, close, false))
+                self.range_between_tokens(open, close, false)
             }
             _ => None,
         }
@@ -653,13 +680,13 @@ impl<'a> Outlining<'a> {
                 let start = self.start(Found::Node(View::Node(opening)));
                 let tag = self.text_of_node(tag_name);
                 let banner = format!("<{tag}>...</{tag}>");
-                Some(self.folding_range(start, self.end(closing), None, &banner))
+                self.folding_range(start, self.end(closing), None, &banner)
             }
             NodeData::JsxFragment(data) => {
                 let opening = data.opening_fragment?;
                 let closing = data.closing_fragment?;
                 let start = self.start(Found::Node(View::Node(opening)));
-                Some(self.folding_range(start, self.end(closing), None, "<>...</>"))
+                self.folding_range(start, self.end(closing), None, "<>...</>")
             }
             _ => None,
         }
@@ -680,7 +707,7 @@ impl<'a> Outlining<'a> {
             return None;
         }
         let start = self.start(Found::Node(View::Node(node)));
-        Some(self.folding_range(start, self.end(node), None, ""))
+        self.folding_range(start, self.end(node), None, "")
     }
 
     /// tsgo `spanForNode`: from the open token (its full start with
@@ -698,7 +725,7 @@ impl<'a> Outlining<'a> {
         };
         let open = self.child_of_kind(node, open)?;
         let close = self.child_of_kind(node, close)?;
-        Some(self.range_between_tokens(open, close, use_full_start))
+        self.range_between_tokens(open, close, use_full_start)
     }
 
     /// tsgo `rangeBetweenTokens`.
@@ -707,7 +734,7 @@ impl<'a> Outlining<'a> {
         open: Found,
         close: Found,
         use_full_start: bool,
-    ) -> FoldingRange {
+    ) -> Option<FoldingRange> {
         let start = if use_full_start {
             self.navigator.pos(open) as usize
         } else {
@@ -731,7 +758,7 @@ impl<'a> Outlining<'a> {
         }
         .or_else(|| self.child_of_kind(body, SyntaxKind::OpenBraceToken))?;
         let close = self.child_of_kind(body, SyntaxKind::CloseBraceToken)?;
-        Some(self.range_between_tokens(open, close, true))
+        self.range_between_tokens(open, close, true)
     }
 
     /// tsgo `scanner.GetTextOfNode` (a missing node's is empty).
