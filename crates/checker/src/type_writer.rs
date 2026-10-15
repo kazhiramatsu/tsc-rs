@@ -190,7 +190,9 @@ fn write_type_or_symbol(
         } else {
             None
         };
-        let type_string = {
+        // tsgo builds each node's type with a node builder of its own
+        // (`checker.NewNodeBuilder` per node), shared by its two tries.
+        let type_string = state.with_node_builder(&mut crate::NodeBuilder::default(), |state| {
             let (mut printed, built_kind) = type_to_string(state, ty, parent, TYPE_NODE_FLAGS)?;
             // For a type alias `type T = ...` whose type builds as the bare
             // identifier `T` (an alias reference is a type reference, not an
@@ -205,8 +207,8 @@ fn write_type_or_symbol(
             {
                 printed = type_to_string(state, ty, parent, TYPE_NODE_FLAGS | IN_TYPE_ALIAS)?.0;
             }
-            printed
-        };
+            Ok::<_, String>(printed)
+        })?;
         return Ok(Some(TypeWriterLine {
             line,
             source_text,
