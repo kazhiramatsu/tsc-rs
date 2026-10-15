@@ -3078,6 +3078,17 @@ fn parse_program_inputs(
                 .extend(info.diagnostics.iter().cloned());
             source_file.diagnostic_directives = info.diagnostic_directives.clone();
             source_file.span_map = info.span_map.clone();
+            let span_map = info
+                .span_map
+                .as_ref()
+                .map(|map| map.in_utf8(source_file.text(), &info.original_text));
+            source_file.content_mapper = Some(tsc_syntax::ContentMapperOutput {
+                mapper: info.content_mapper.clone(),
+                original_text: Arc::clone(&info.original_text),
+                canonical: info.canonical.clone(),
+                supplemental: info.supplemental.clone(),
+                span_map,
+            });
         }
         if !file.renamed_dependencies.is_empty() {
             source_file.renamed_dependencies = file.renamed_dependencies.clone();
@@ -5716,7 +5727,7 @@ fn bind_and_check_rows(
 /// tsgo filterAndSortDiagnostics: a diagnostic reporting something
 /// unnecessary (an unused declaration) in a content mapper's synthesized
 /// code, which has no original counterpart, is not reported.
-fn drop_unnecessary_in_synthesized_code(
+pub(crate) fn drop_unnecessary_in_synthesized_code(
     source: &tsc_syntax::SourceFile,
     diagnostics: &mut DiagnosticList,
 ) {

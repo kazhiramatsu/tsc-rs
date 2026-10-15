@@ -132,6 +132,27 @@ pub struct ExternalModuleIndicatorOptions {
     pub force: bool,
 }
 
+/// tsgo `ContentMapperSourceFileInfo` (the language service's part): the
+/// untransformed text of a content mapper's output's file, and the outputs
+/// beside it.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ContentMapperOutput {
+    /// tsgo `ContentMapper`: the identity of the mapper that produced it.
+    pub mapper: String,
+    /// tsgo `OriginalText`.
+    pub original_text: Arc<str>,
+    /// tsgo `CanonicalSourceFile`'s name: a supplemental output's canonical
+    /// output.
+    pub canonical: Option<JsString>,
+    /// tsgo `SupplementalSourceFiles`' names: a canonical output's
+    /// supplemental outputs.
+    pub supplemental: Vec<JsString>,
+    /// tsgo `SpanMap` in tsgo's units, UTF-8 bytes (the language service's;
+    /// the file's `span_map` is in the compiler's UTF-16 code units); none
+    /// for an output that failed.
+    pub span_map: Option<tsc_diagnostics::spanmap::SpanMap>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceFile {
     pub file_name: JsString,
@@ -175,6 +196,10 @@ pub struct SourceFile {
     /// tsgo SourceFile.SpanMap: a content mapper's output's map to its
     /// file's original text. Never produced by parsing.
     pub span_map: Option<tsc_diagnostics::spanmap::SpanMap>,
+    /// tsgo SourceFile.contentMapperInfo (what the language service reads
+    /// besides the span map): a content mapper's output's original text and
+    /// its sibling outputs. Never produced by parsing.
+    pub content_mapper: Option<ContentMapperOutput>,
     /// Whether leading multiline comments contain a recognized
     /// `@jsxImportSource` pragma.
     pub has_jsx_import_source_pragma: bool,
@@ -247,6 +272,7 @@ impl SourceFile {
             renamed_dependencies: Vec::new(),
             diagnostic_directives: Vec::new(),
             span_map: None,
+            content_mapper: None,
             has_jsx_import_source_pragma: false,
             jsx_import_source_pragma: None,
             has_jsx_runtime_pragma: false,
