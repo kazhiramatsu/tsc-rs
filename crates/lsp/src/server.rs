@@ -1165,6 +1165,54 @@ impl Server {
         }
     }
 
+    /// tsgo `handleSemanticTokensFull`.
+    fn handle_semantic_tokens_full(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::SemanticTokensParams,
+    ) -> Result<lsproto::SemanticTokensResponse, Failure> {
+        service
+            .provide_semantic_tokens(&params.text_document.uri)
+            .map_err(language_service_failure)
+    }
+
+    /// tsgo `handleSemanticTokensRange`.
+    fn handle_semantic_tokens_range(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::SemanticTokensRangeParams,
+    ) -> Result<lsproto::SemanticTokensRangeResponse, Failure> {
+        service
+            .provide_semantic_tokens_range(&params.text_document.uri, &params.range)
+            .map_err(language_service_failure)
+    }
+
+    /// tsgo `handleLinkedEditingRange`.
+    fn handle_linked_editing_range(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::LinkedEditingRangeParams,
+    ) -> Result<lsproto::LinkedEditingRangeResponse, Failure> {
+        service
+            .provide_linked_editing_range(&params)
+            .map_err(language_service_failure)
+    }
+
+    /// tsgo `handleVSOnAutoInsert`.
+    fn handle_vs_on_auto_insert(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::VSOnAutoInsertParams,
+    ) -> Result<lsproto::VSOnAutoInsertResponse, Failure> {
+        service
+            .provide_on_auto_insert(&params)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo `handleSelectionRange`.
     fn handle_selection_range(
         self: &Arc<Self>,
@@ -2145,6 +2193,22 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentSelectionRangeInfo>(
             &mut handlers,
             Server::handle_selection_range,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentSemanticTokensFullInfo>(
+            &mut handlers,
+            Server::handle_semantic_tokens_full,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentSemanticTokensRangeInfo>(
+            &mut handlers,
+            Server::handle_semantic_tokens_range,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentLinkedEditingRangeInfo>(
+            &mut handlers,
+            Server::handle_linked_editing_range,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentVSOnAutoInsertInfo>(
+            &mut handlers,
+            Server::handle_vs_on_auto_insert,
         );
         register_language_service_document_request::<lsproto::TextDocumentPrepareRenameInfo>(
             &mut handlers,

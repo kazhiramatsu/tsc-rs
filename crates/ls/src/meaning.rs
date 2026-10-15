@@ -786,7 +786,7 @@ impl Request<'_, '_> {
     }
 
     /// tsgo `ast.IsRightSideOfQualifiedNameOrPropertyAccess`.
-    fn is_right_side_of_qualified_name_or_property_access(&self, node: NodeId) -> bool {
+    pub(crate) fn is_right_side_of_qualified_name_or_property_access(&self, node: NodeId) -> bool {
         let Some(parent) = self.state.binder.node_record(node).parent else {
             return false;
         };
