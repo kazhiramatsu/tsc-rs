@@ -80,6 +80,7 @@ pub fn run_server(options: &ServerOptions) -> Result<(), String> {
             position_encoding: tsc_lsproto::PositionEncodingKind::UTF8,
             watch_enabled: false,
             logging_enabled: false,
+            telemetry_enabled: false,
             push_diagnostics_enabled: false,
             debounce_delay: std::time::Duration::ZERO,
             client_capabilities: Default::default(),

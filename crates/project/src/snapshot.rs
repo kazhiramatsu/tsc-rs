@@ -44,6 +44,8 @@ pub struct SessionOptions {
     pub watch_enabled: bool,
     /// tsgo `LoggingEnabled`.
     pub logging_enabled: bool,
+    /// tsgo `TelemetryEnabled`: the session sends telemetry events.
+    pub telemetry_enabled: bool,
     /// tsgo `PushDiagnosticsEnabled`: config errors are published.
     pub push_diagnostics_enabled: bool,
     /// tsgo `DebounceDelay`: how long a scheduled update waits for more
@@ -158,9 +160,12 @@ pub struct ApiSnapshotRequest {
 }
 
 /// What a snapshot update takes (tsgo `SnapshotChange` with the overlays
-/// `Clone` gets).
+/// and the client `Clone` gets).
 #[derive(Clone, Default)]
 pub struct SnapshotChange<'a> {
+    /// tsgo `Clone`'s client: the editor the builds report their progress
+    /// to.
+    pub client: Option<&'a dyn crate::client::Client>,
     pub file_changes: FileChangeSummary,
     /// The open documents; the base snapshot's when none.
     pub overlays: Option<Overlays>,
@@ -919,6 +924,7 @@ impl SnapshotHost {
         change: SnapshotChange<'_>,
     ) -> Result<Snapshot, ProjectError> {
         let SnapshotChange {
+            client,
             mut file_changes,
             overlays,
             documents,
@@ -1013,6 +1019,7 @@ impl SnapshotHost {
                 configs,
                 compiler_options_for_inferred_projects.clone(),
                 &inferred_project_content_mappers,
+                client,
             );
             builder.did_change_custom_config_file_name();
             if let Some(options) = &new_inferred_options {

@@ -30,6 +30,8 @@ pub struct ClientMock {
     pub set_locale_calls: Mutex<Vec<String>>,
     /// tsgo `RegisterContentMapperExtensionsCalls`.
     pub register_content_mapper_extensions_calls: Mutex<Vec<Vec<String>>>,
+    /// The telemetry events the session sent.
+    pub telemetry_calls: Mutex<Vec<tsc_lsproto::TelemetryEvent>>,
     /// tsgo `SetLocaleFunc`.
     #[allow(clippy::type_complexity)]
     pub set_locale_func: Mutex<Option<Box<dyn Fn(&str) + Send + Sync>>>,
@@ -88,6 +90,25 @@ impl Client for ClientMock {
             .unwrap()
             .push((id.to_owned(), watchers));
         Ok(())
+    }
+
+    fn send_telemetry(&self, event: tsc_lsproto::TelemetryEvent) -> Result<(), String> {
+        self.telemetry_calls.lock().unwrap().push(event);
+        Ok(())
+    }
+
+    fn progress_start(
+        &self,
+        _message: &'static tsc_diagnostics::DiagnosticMessage,
+        _args: &[String],
+    ) {
+    }
+
+    fn progress_finish(
+        &self,
+        _message: &'static tsc_diagnostics::DiagnosticMessage,
+        _args: &[String],
+    ) {
     }
 
     fn register_content_mapper_extensions(&self, extensions: &[String]) -> Result<(), String> {
@@ -189,6 +210,16 @@ pub fn setup_with_spawner_and_relative_patterns(
     })
 }
 
+/// [`setup_entries`] with tsgo's `TelemetryEnabled`.
+pub fn setup_with_telemetry(
+    entries: Vec<(String, Seed)>,
+    workspace: &str,
+) -> (Session, Arc<MemFs>, Arc<ClientMock>) {
+    setup_session_with(entries, workspace, None, |options| {
+        options.telemetry_enabled = true;
+    })
+}
+
 fn setup_session(
     entries: Vec<(String, Seed)>,
     workspace: &str,
@@ -215,6 +246,7 @@ fn setup_session_with(
         position_encoding: PositionEncodingKind::UTF8,
         watch_enabled: true,
         logging_enabled: true,
+        telemetry_enabled: false,
         push_diagnostics_enabled: true,
         debounce_delay: std::time::Duration::ZERO,
         client_capabilities: Default::default(),

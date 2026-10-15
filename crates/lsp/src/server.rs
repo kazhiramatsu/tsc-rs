@@ -66,6 +66,9 @@ pub struct ServerOptions {
     /// tsgo `Spawn`: starts a content mapper's process; none when the host
     /// cannot start processes.
     pub spawner: Option<Arc<dyn Spawner>>,
+    /// tsgo `ProgressDelay`: how long an operation runs before its progress
+    /// shows (none for zero).
+    pub progress_delay: Duration,
 }
 
 /// Why a handler did not answer (tsgo's handler errors: `io.EOF` for
@@ -199,6 +202,11 @@ pub struct Server {
     default_library_path: String,
     /// tsgo `spawn`: the content mappers' process starter.
     spawner: Option<Arc<dyn Spawner>>,
+    /// tsgo `progressDelay`.
+    progress_delay: Duration,
+    /// tsgo `projectProgress`: the progress of loading projects and
+    /// installing types, for a client that takes work done progress.
+    project_progress: OnceLock<crate::progress::ProjectLoadingProgress>,
     /// tsgo `watchers`: the IDs of the watches the client registered.
     watchers: Mutex<HashSet<String>>,
     /// tsgo `contentMapperExtensionsRegistered` (under
@@ -232,6 +240,8 @@ impl Server {
             fs: options.fs,
             default_library_path: options.default_library_path,
             spawner: options.spawner,
+            progress_delay: options.progress_delay,
+            project_progress: OnceLock::new(),
             watchers: Mutex::default(),
             content_mapper_extensions_registered: Mutex::default(),
         })
@@ -759,7 +769,7 @@ impl Server {
 
     /// tsgo `handleInitialize`.
     fn handle_initialize(
-        &self,
+        self: &Arc<Self>,
         params: lsproto::InitializeParams,
     ) -> Result<lsproto::InitializeResponse, Failure> {
         let mut state = lock(&self.state);
@@ -784,6 +794,15 @@ impl Server {
             state.flake_logging = level;
         }
         state.client_capabilities = params.capabilities.resolve();
+        if state.client_capabilities.window.work_done_progress {
+            let reporter = Arc::new(ServerProgressReporter(Arc::downgrade(self)));
+            let _ = self
+                .project_progress
+                .set(crate::progress::ProjectLoadingProgress::new(
+                    reporter,
+                    self.progress_delay,
+                ));
+        }
         let capabilities = marshal_indent(&state.client_capabilities);
         drop(state);
         self.logger.info(
@@ -927,6 +946,7 @@ impl Server {
                 position_encoding,
                 watch_enabled,
                 logging_enabled: true,
+                telemetry_enabled: telemetry,
                 push_diagnostics_enabled: !disable_push_diagnostics,
                 debounce_delay: Duration::from_millis(500),
                 client_capabilities,
@@ -1959,6 +1979,27 @@ impl Server {
         Ok(())
     }
 
+    /// tsgo `handleProjectInfo`: the config of the document's default
+    /// project (none for an inferred one).
+    fn handle_project_info(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        params: lsproto::ProjectInfoParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::CustomProjectInfoResponse, Failure> {
+        let (_, project) = self
+            .initialized_session()
+            .get_snapshot_and_default_project(&params.text_document.uri)
+            .map_err(document_project_failure)?;
+        let config_file_path = match project.kind() {
+            tsc_project::ProjectKind::Configured => {
+                project.config_file_name().unwrap_or_default().to_owned()
+            }
+            _ => String::new(),
+        };
+        Ok(lsproto::ProjectInfoResult { config_file_path })
+    }
+
     /// tsgo `handleSetContentMapperContributions`: the editor's content
     /// mappers for inferred projects, and the configured projects of its
     /// open documents found.
@@ -2370,6 +2411,10 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
             &mut handlers,
             Server::handle_set_content_mapper_contributions,
         );
+        register_request::<lsproto::CustomProjectInfoInfo>(
+            &mut handlers,
+            Server::handle_project_info,
+        );
         register_language_service_document_request::<lsproto::TextDocumentDocumentHighlightInfo>(
             &mut handlers,
             Server::handle_document_highlight,
@@ -2714,6 +2759,44 @@ impl tsc_project::Client for SessionHost {
         })
     }
 
+    /// tsgo `SendTelemetry`: `telemetry/event` (only with telemetry
+    /// enabled).
+    fn send_telemetry(&self, event: lsproto::TelemetryEvent) -> Result<(), String> {
+        let Some(server) = self.0.upgrade() else {
+            return Ok(());
+        };
+        if !lock(&server.state).telemetry_enabled {
+            return Err("SendTelemetry called with telemetry disabled".to_owned());
+        }
+        server.send_notification::<lsproto::TelemetryEventInfo>(&event)
+    }
+
+    /// tsgo `ProgressStart`.
+    fn progress_start(
+        &self,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
+        args: &[String],
+    ) {
+        if let Some(server) = self.0.upgrade() {
+            if let Some(progress) = server.project_progress.get() {
+                progress.start(message, args.to_vec());
+            }
+        }
+    }
+
+    /// tsgo `ProgressFinish`.
+    fn progress_finish(
+        &self,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
+        args: &[String],
+    ) {
+        if let Some(server) = self.0.upgrade() {
+            if let Some(progress) = server.project_progress.get() {
+                progress.finish(message, args.to_vec());
+            }
+        }
+    }
+
     fn refresh_diagnostics(&self) -> Result<(), String> {
         self.0
             .upgrade()
@@ -2766,6 +2849,70 @@ impl tsc_project::Logger for SessionHost {
                 server.logger.info(&server, message);
             }
         }
+    }
+}
+
+/// tsgo `serverProgressReporter`: the progress over the server's transport.
+struct ServerProgressReporter(Weak<Server>);
+
+impl crate::progress::ProgressReporter for ServerProgressReporter {
+    fn localize(
+        &self,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
+        args: &[String],
+    ) -> String {
+        let locale = self
+            .0
+            .upgrade()
+            .map(|server| server.locale())
+            .unwrap_or_default();
+        message
+            .format_in(locale.messages(), args)
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    fn create_work_done_progress(&self, token: &str) {
+        if let Some(server) = self.0.upgrade() {
+            let _ = server
+                .send_client_request_fire_and_forget::<lsproto::WindowWorkDoneProgressCreateInfo>(
+                    &lsproto::WorkDoneProgressCreateParams {
+                        token: lsproto::IntegerOrString::String(token.to_owned()),
+                    },
+                );
+        }
+    }
+
+    fn send_progress(&self, token: &str, value: crate::progress::ProgressValue) {
+        let Some(server) = self.0.upgrade() else {
+            return;
+        };
+        let value = match value {
+            crate::progress::ProgressValue::Begin { title, message } => {
+                lsproto::WorkDoneProgressBeginOrReportOrEnd::Begin(lsproto::WorkDoneProgressBegin {
+                    title,
+                    message: Some(message),
+                    ..lsproto::WorkDoneProgressBegin::default()
+                })
+            }
+            crate::progress::ProgressValue::Report { message } => {
+                lsproto::WorkDoneProgressBeginOrReportOrEnd::Report(
+                    lsproto::WorkDoneProgressReport {
+                        message: Some(message),
+                        ..lsproto::WorkDoneProgressReport::default()
+                    },
+                )
+            }
+            crate::progress::ProgressValue::End => {
+                lsproto::WorkDoneProgressBeginOrReportOrEnd::End(
+                    lsproto::WorkDoneProgressEnd::default(),
+                )
+            }
+        };
+        let _ = server.send_notification::<lsproto::ProgressInfo>(&lsproto::ProgressParams {
+            token: lsproto::IntegerOrString::String(token.to_owned()),
+            value,
+        });
     }
 }
 
