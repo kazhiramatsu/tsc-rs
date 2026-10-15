@@ -33,6 +33,10 @@ use super::{
     SOURCE_OBJECT_LITERAL_METHOD_SNIPPET,
 };
 
+/// tsgo `getCompletionEntriesFromSymbols`' results: the names it took, its
+/// items, and each item's symbol (tsgo `CompletionItem.Symbol`).
+type SymbolEntries = (HashSet<String>, Vec<CompletionItem>, Vec<Option<SymbolId>>);
+
 impl Completions<'_, '_, '_> {
     /// tsgo `completionInfoFromData`.
     pub(crate) fn completion_info_from_data(
@@ -121,7 +125,7 @@ impl Completions<'_, '_, '_> {
             return Ok(None);
         }
 
-        let (mut unique_names, mut sorted_entries) =
+        let (mut unique_names, mut sorted_entries, symbols) =
             self.completion_entries_from_symbols(data, None)?;
 
         if data.keyword_filters != KeywordCompletionFilters::None {
@@ -197,6 +201,7 @@ impl Completions<'_, '_, '_> {
             is_incomplete: data.has_unresolved_auto_imports,
             item_defaults,
             items: sorted_entries,
+            symbols,
         }))
     }
 
@@ -281,6 +286,7 @@ impl Completions<'_, '_, '_> {
             is_incomplete: false,
             item_defaults,
             items,
+            symbols: Vec::new(),
         })
     }
 
@@ -309,11 +315,13 @@ impl Completions<'_, '_, '_> {
         &mut self,
         data: &CompletionDataData,
         replacement_token: Option<Touching>,
-    ) -> CheckResult<(HashSet<String>, Vec<CompletionItem>)> {
+    ) -> CheckResult<SymbolEntries> {
         let closest_symbol_declaration =
             self.closest_symbol_declaration(data.context_token, data.location);
         let is_member_completion = is_member_completion_kind(data.completion_kind);
         let mut sorted_entries = Vec::with_capacity(data.symbols.len());
+        // tsgo `CompletionItem.Symbol`, by item.
+        let mut symbols = Vec::new();
         // Whether a name shadows later symbols: true for locals, false for
         // globals and module exports, of which there may be several. Locals
         // come first, then globals, then module exports.
@@ -376,6 +384,7 @@ impl Completions<'_, '_, '_> {
                 && (self.request.state.binder.symbol(symbol).parent.is_some() || declared_here);
             uniques.insert(name, should_shadow_later_symbols);
             sorted_entries.push(entry);
+            symbols.push(self.include_symbols.then_some(symbol));
         }
 
         let use_semicolons = !data.auto_imports.is_empty()
@@ -463,9 +472,10 @@ impl Completions<'_, '_, '_> {
             if !uniques.get(&fix.name).copied().unwrap_or(false) {
                 uniques.insert(fix.name.clone(), false);
                 sorted_entries.push(entry);
+                symbols.push(None);
             }
         }
-        Ok((uniques.into_keys().collect(), sorted_entries))
+        Ok((uniques.into_keys().collect(), sorted_entries, symbols))
     }
 
     /// tsgo `getInsertTextAndReplacementSpanForImportCompletion`'s text.

@@ -673,3 +673,54 @@ pub(crate) fn get_name_for_exported_symbol(
         .unwrap_or(&module_name);
     crate::lsutil::module_specifier_to_valid_identifier(module_name, prefer_capitalized)
 }
+
+/// An `importSymbol` action of the API's import adder (tsgo
+/// `ImportAdderAction`): a symbol to import, and whether its use site may
+/// be type-only.
+#[derive(Clone, Copy, Debug)]
+pub struct ImportSymbolAction {
+    pub symbol: SymbolId,
+    pub is_valid_type_only_use_site: bool,
+}
+
+impl crate::language_service::LanguageService<'_> {
+    /// tsgo `handleGetImportAdderEdits`' adder: the edits that import each
+    /// action's symbol into the file, none without a registry; the
+    /// needs-auto-imports error when the snapshot's registry is not
+    /// prepared for the file.
+    pub fn get_import_adder_edits(
+        &mut self,
+        file: usize,
+        actions: &[ImportSymbolAction],
+    ) -> Result<Vec<TextEdit>, crate::language_service::LsError> {
+        use crate::language_service::LsError;
+        let edits = self.with_program_request(false, |request| {
+            let mut view = match crate::code_actions::prepared_view(request, file) {
+                Ok(Some(view)) => view,
+                Ok(None) => return Ok(Ok(Vec::new())),
+                Err(error) => return Ok(Err(error)),
+            };
+            let source = request.state.binder.source(file);
+            let mut adder = ImportAdder::new(
+                source,
+                request.state.options,
+                request.preferences.format_code_settings.clone(),
+                request.converters,
+                request.preferences,
+            );
+            for action in actions {
+                adder.add_import_from_exported_symbol(
+                    request.state,
+                    &mut view,
+                    action.symbol,
+                    action.is_valid_type_only_use_site,
+                )?;
+            }
+            if !adder.has_fixes() {
+                return Ok(Ok(Vec::new()));
+            }
+            Ok(adder.edits().map_err(LsError))
+        })?;
+        edits.transpose().map(Option::unwrap_or_default)
+    }
+}

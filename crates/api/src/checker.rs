@@ -1187,7 +1187,11 @@ impl Session {
 
     /// tsgo `setupChecker`: the snapshot's registry and the project's
     /// program.
-    fn setup_checker(&self, snapshot: SnapshotId, project: &str) -> Result<CheckerSetup, String> {
+    pub(crate) fn setup_checker(
+        &self,
+        snapshot: SnapshotId,
+        project: &str,
+    ) -> Result<CheckerSetup, String> {
         let registry = self.snapshot_registry(snapshot)?;
         let (_, program) = self.program(snapshot, project)?;
         Ok(CheckerSetup {
@@ -1211,7 +1215,7 @@ impl Session {
 }
 
 /// tsgo `checkerSetup`: a snapshot's registry, a project and its program.
-struct CheckerSetup {
+pub(crate) struct CheckerSetup {
     registry: Arc<Mutex<Registry>>,
     snapshot: SnapshotId,
     project: String,
@@ -1220,7 +1224,7 @@ struct CheckerSetup {
 
 impl CheckerSetup {
     /// Run `query` over the program's API checker.
-    fn query<T>(
+    pub(crate) fn query<T>(
         &self,
         session: &Session,
         query: impl FnOnce(&mut Query<'_, '_>) -> Result<T, String>,
@@ -1349,7 +1353,7 @@ impl Query<'_, '_> {
 
     /// tsgo `newSymbolResponse`: a file-owned symbol by its file's
     /// descriptor, a checker's symbol registered in the snapshot.
-    fn symbol_response(&mut self, symbol: SymbolId) -> SymbolResponse {
+    pub(crate) fn symbol_response(&mut self, symbol: SymbolId) -> SymbolResponse {
         let reference = match self.owner_file(symbol) {
             Some(file) => SymbolReference {
                 kind: SYMBOL_OWNER_FILE,
@@ -1395,7 +1399,10 @@ impl Query<'_, '_> {
 
     /// tsgo `checkerSetup.resolveSymbolHandle`: a snapshot's symbol of this
     /// checker, or a file-owned symbol of a file of this program.
-    fn resolve_symbol(&mut self, reference: &SymbolReference) -> Result<SymbolId, String> {
+    pub(crate) fn resolve_symbol(
+        &mut self,
+        reference: &SymbolReference,
+    ) -> Result<SymbolId, String> {
         match reference.kind {
             SYMBOL_OWNER_SNAPSHOT => {
                 if reference.snapshot != self.snapshot || reference.file.is_some() {
@@ -1787,6 +1794,22 @@ impl Query<'_, '_> {
             index => table.kind(index),
         };
         format!("{index}.{kind}.{path}")
+    }
+
+    /// tsgo `nodeHandleFrom` of a language service's result: a token tsgo
+    /// makes outside its file's tree has index 0.
+    pub(crate) fn result_node_handle(&mut self, node: tsc_ls::ResultNode) -> String {
+        match node {
+            tsc_ls::ResultNode::Node(node) => self.node_handle(node),
+            tsc_ls::ResultNode::Token { file, kind } => {
+                let source = self.state.binder.source(file);
+                let path = self
+                    .session
+                    .host()
+                    .to_path(&source.file_name.to_string_lossy());
+                format!("0.{}.{path}", tsgo_kind(kind).unwrap_or_default())
+            }
+        }
     }
 
     fn node_table(&mut self, source: &SourceFile) -> Arc<NodeIndexTable> {

@@ -113,7 +113,7 @@ impl Completions<'_, '_, '_> {
                     auto_imports: Vec::new(),
                     import_statement_completion: None,
                 };
-                let (_, mut items) =
+                let (_, mut items, symbols) =
                     self.completion_entries_from_symbols(&data, Some(Touching::Node(token)))?;
                 let item_defaults = items::set_item_defaults(
                     ClientSupport(self.request.capabilities),
@@ -126,6 +126,7 @@ impl Completions<'_, '_, '_> {
                     is_incomplete: false,
                     item_defaults,
                     items,
+                    symbols,
                 }))
             }
             StringLiteralCompletions::Types(completion) => {
@@ -176,6 +177,7 @@ impl Completions<'_, '_, '_> {
                     is_incomplete: false,
                     item_defaults,
                     items,
+                    symbols: Vec::new(),
                 }))
             }
         }

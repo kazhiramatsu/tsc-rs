@@ -17,6 +17,7 @@ mod view;
 
 pub(crate) use edits::{file_edits, fix_edits};
 pub(crate) use extract::{symbol_to_export, Extractor};
+pub use import_adder::ImportSymbolAction;
 pub(crate) use import_adder::{
     try_get_auto_importable_reference_from_type_node, type_to_auto_importable_type_node,
     ImportAdder,
