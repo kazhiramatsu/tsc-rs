@@ -47,6 +47,11 @@ pub trait Project: Send + Sync {
     fn content_mapped_cache(&self) -> Option<&source::ContentMappedCache> {
         None
     }
+    /// The locale the mappers run in (tsgo's context locale, part of the
+    /// content-mapped parse cache's key); empty for the default.
+    fn locale(&self) -> String {
+        String::new()
+    }
 }
 
 /// tsgo `contentmapper.Definition`: a `contentMappers` entry, the package

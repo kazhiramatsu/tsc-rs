@@ -111,16 +111,26 @@ impl Session {
     }
 
     fn start_over(fs: Arc<dyn FileSystem>, default_library_path: String) -> Self {
+        Self::start_in("/", fs, default_library_path, None)
+    }
+
+    /// A server in `cwd` whose content mappers start through `spawner`.
+    fn start_in(
+        cwd: &str,
+        fs: Arc<dyn FileSystem>,
+        default_library_path: String,
+        spawner: Option<Arc<dyn tsc_program::content_mapper::host::Spawner>>,
+    ) -> Self {
         let input_pipe = Pipe::default();
         let output_pipe = Pipe::default();
         let stderr = Pipe::default();
         let server = Server::new(ServerOptions {
             stderr: Box::new(stderr.clone()),
-            cwd: "/".to_owned(),
+            cwd: cwd.to_owned(),
             set_parent_process_id: None,
             fs,
             default_library_path,
-            spawner: None,
+            spawner,
         });
         let run = {
             let server = Arc::clone(&server);
@@ -705,6 +715,351 @@ fn write_loop_recovers_from_unserializable_response() {
             r#"{"jsonrpc":"2.0","id":"bad","error":{"code":-32603,"message":"failed to marshal message: jsontext: exceeded max depth"}}"#
         )
     );
+    session.close();
+    assert_eq!(session.finish(), Ok(()));
+}
+
+/// tsgo's test client (`lsptestutil`'s `onServerRequest` of
+/// `TestSetContentMapperContributionsBeforeDidOpen`): the server's
+/// configuration requests answered with nulls, its registrations and
+/// unregistrations answered with null and kept.
+#[derive(Default)]
+struct RegistrationClient {
+    registrations: Vec<Value>,
+    unregistrations: Vec<Value>,
+}
+
+impl RegistrationClient {
+    /// Answer one server request (or keep a notification away).
+    fn answer(&mut self, session: &mut Session, message: &Value) {
+        let result = match message.get("method").and_then(Value::as_str) {
+            Some("workspace/configuration") => serde_json::json!([null, null, null, null]),
+            Some("client/registerCapability") => {
+                self.registrations.extend(
+                    message["params"]["registrations"]
+                        .as_array()
+                        .cloned()
+                        .unwrap_or_default(),
+                );
+                Value::Null
+            }
+            Some("client/unregisterCapability") => {
+                self.unregistrations.extend(
+                    message["params"]["unregisterations"]
+                        .as_array()
+                        .cloned()
+                        .unwrap_or_default(),
+                );
+                Value::Null
+            }
+            _ => return,
+        };
+        if message.get("id").is_some() {
+            let answer =
+                serde_json::json!({"jsonrpc": "2.0", "id": message["id"], "result": result});
+            session.send(&answer.to_string());
+        }
+    }
+
+    /// The response to request `id`, the server's requests on the way
+    /// answered.
+    fn request(&mut self, session: &mut Session, id: i64, method: &str, params: Value) -> Value {
+        let request =
+            serde_json::json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
+        session.send(&request.to_string());
+        loop {
+            let Some(text) = session.receive() else {
+                panic!("no message; server stderr: {}", session.stderr.contents());
+            };
+            let message: Value = serde_json::from_str(&text).unwrap();
+            if message.get("method").is_none() && message["id"] == id {
+                return message;
+            }
+            self.answer(session, &message);
+        }
+    }
+
+    fn notify(&mut self, session: &mut Session, method: &str, params: Value) {
+        let notification =
+            serde_json::json!({"jsonrpc": "2.0", "method": method, "params": params});
+        session.send(&notification.to_string());
+    }
+}
+
+/// tsgo `TestSetContentMapperContributionsBeforeDidOpen`: the contribution
+/// finds the open .vue's configured project, whose mapper's extension the
+/// server registers for each feature the client registers dynamically;
+/// once the config drops the mapper, the open document's requests answer
+/// null and the registrations go.
+#[test]
+fn content_mapper_contributions_before_did_open() {
+    use tsc_harness::content_mappers::{package_json, TestSpawner, COMPONENT_MAPPER};
+    const COMPONENT: &str = "<component name=\"ProfileCard\">\n<template><h1>{{ title }}</h1></template>\n<script lang=\"ts\">\nexport const title = \"Profile\";\n</script>";
+    let fs = Arc::new(
+        MemFs::from_entries(
+            [
+                (
+                    "/home/project/tsconfig.json",
+                    Seed::file(
+                        r#"{
+                            "compilerOptions": { "target": "es2020", "module": "esnext", "moduleResolution": "bundler", "strict": true },
+                            "contentMappers": [ { "package": "mapper", "extensions": [".vue"] } ]
+                        }"#,
+                    ),
+                ),
+                (
+                    "/home/project/node_modules/mapper/package.json",
+                    Seed::file(package_json(COMPONENT_MAPPER)),
+                ),
+                ("/home/project/ProfileCard.vue", Seed::file(COMPONENT)),
+            ],
+            false,
+            Arc::new(SystemClock),
+        )
+        .unwrap(),
+    );
+    let mut session = Session::start_in(
+        "/home/project",
+        Arc::new(BundledFs::new(Arc::clone(&fs))),
+        EMBEDDED_LIBRARY_DIRECTORY.to_owned(),
+        Some(Arc::new(TestSpawner::default())),
+    );
+    let mut client = RegistrationClient::default();
+    let dynamic = serde_json::json!({"dynamicRegistration": true});
+    let initialize = client.request(
+        &mut session,
+        1,
+        "initialize",
+        serde_json::json!({
+            "processId": null,
+            "rootUri": null,
+            "capabilities": {
+                "workspace": {"fileOperations": {"dynamicRegistration": true, "willRename": true}},
+                "textDocument": {
+                    "synchronization": dynamic,
+                    "documentSymbol": dynamic,
+                    "foldingRange": dynamic,
+                    "selectionRange": dynamic,
+                    "inlayHint": dynamic,
+                    "codeLens": dynamic,
+                    "codeAction": dynamic,
+                    "formatting": dynamic,
+                    "rangeFormatting": dynamic,
+                    "onTypeFormatting": dynamic,
+                    "linkedEditingRange": dynamic,
+                    "callHierarchy": dynamic,
+                    "semanticTokens": {
+                        "dynamicRegistration": true,
+                        "requests": {},
+                        "tokenTypes": [],
+                        "tokenModifiers": [],
+                        "formats": ["relative"],
+                    },
+                },
+            },
+            "initializationOptions": {"runExternalCode": true},
+        }),
+    );
+    assert!(
+        initialize.get("error").is_none(),
+        "initialize failed: {initialize}"
+    );
+    client.notify(&mut session, "initialized", serde_json::json!({}));
+    // The server's registration of `initialized` answered, as tsgo's client
+    // answers it on its own reader.
+    loop {
+        let text = session.receive().expect("a message");
+        let message: Value = serde_json::from_str(&text).unwrap();
+        client.answer(&mut session, &message);
+        if message["method"] == "client/registerCapability" {
+            break;
+        }
+    }
+    session.server.wait_init_complete();
+    client.registrations.clear();
+
+    let uri = "file:///home/project/ProfileCard.vue";
+    let response = client.request(
+        &mut session,
+        2,
+        "custom/setContentMapperContributions",
+        serde_json::json!({
+            "openDocuments": [{"uri": uri}],
+            "contributions": [{"contributorId": "test", "extensions": [".vue", ".svelte"]}],
+        }),
+    );
+    assert!(response.get("error").is_none(), "{response}");
+    assert!(
+        !client.registrations.is_empty(),
+        "expected dynamic registrations"
+    );
+    let expected = [
+        "content-mapper-did-open",
+        "content-mapper-did-change",
+        "content-mapper-did-close",
+        "content-mapper-semantic-tokens",
+        "content-mapper-document-symbol",
+        "content-mapper-folding-range",
+        "content-mapper-selection-range",
+        "content-mapper-inlay-hint",
+        "content-mapper-code-lens",
+        "content-mapper-code-action",
+        "content-mapper-formatting",
+        "content-mapper-range-formatting",
+        "content-mapper-on-type-formatting",
+        "content-mapper-linked-editing",
+        "content-mapper-call-hierarchy",
+        "content-mapper-will-rename-files",
+    ];
+    for registration in &client.registrations {
+        let id = registration["id"].as_str().unwrap();
+        assert!(
+            !id.starts_with("content-mapper-") || expected.contains(&id),
+            "unexpected unsupported content mapper registration {id}"
+        );
+        if id == "content-mapper-did-open" || id == "content-mapper-semantic-tokens" {
+            assert_eq!(
+                registration["registerOptions"]["documentSelector"],
+                serde_json::json!([{"pattern": "**/*.vue"}])
+            );
+        }
+        if id == "content-mapper-code-action" {
+            assert_eq!(
+                registration["registerOptions"]["codeActionKinds"],
+                serde_json::json!([
+                    "quickfix",
+                    "source.organizeImports.ts",
+                    "source.removeUnusedImports.ts",
+                    "source.sortImports.ts",
+                    "source.fixAll.ts"
+                ])
+            );
+        }
+    }
+    for id in expected {
+        assert!(
+            client
+                .registrations
+                .iter()
+                .any(|registration| registration["id"] == id),
+            "expected {id} registration for .vue"
+        );
+    }
+
+    client.notify(
+        &mut session,
+        "textDocument/didOpen",
+        serde_json::json!({"textDocument": {"uri": uri, "languageId": "vue", "version": 1, "text": COMPONENT}}),
+    );
+    let position = serde_json::json!({"line": 3, "character": 15});
+    let hover = client.request(
+        &mut session,
+        3,
+        "textDocument/hover",
+        serde_json::json!({"textDocument": {"uri": uri}, "position": position}),
+    );
+    assert!(hover.get("error").is_none(), "{hover}");
+    assert!(
+        !hover["result"].is_null(),
+        "expected hover after first foreign didOpen"
+    );
+
+    fs.write(
+        "/home/project/tsconfig.json",
+        br#"{ "compilerOptions": { "target": "es2020", "module": "esnext", "moduleResolution": "bundler", "strict": true } }"#,
+    )
+    .unwrap();
+    client.notify(
+        &mut session,
+        "workspace/didChangeWatchedFiles",
+        serde_json::json!({"changes": [{"uri": "file:///home/project/tsconfig.json", "type": 2}]}),
+    );
+    let hover = client.request(
+        &mut session,
+        4,
+        "textDocument/hover",
+        serde_json::json!({"textDocument": {"uri": uri}, "position": position}),
+    );
+    assert!(
+        hover.get("error").is_none(),
+        "request before didClose should return a null result: {hover}"
+    );
+    assert!(hover["result"].is_null(), "{hover}");
+    let diagnostics = client.request(
+        &mut session,
+        5,
+        "textDocument/diagnostic",
+        serde_json::json!({"textDocument": {"uri": uri}}),
+    );
+    assert!(
+        diagnostics.get("error").is_none(),
+        "diagnostics before didClose should return an empty report: {diagnostics}"
+    );
+    assert_eq!(diagnostics["result"]["kind"], "full");
+    assert_eq!(diagnostics["result"]["items"], serde_json::json!([]));
+    let completion = client.request(
+        &mut session,
+        6,
+        "textDocument/completion",
+        serde_json::json!({"textDocument": {"uri": uri}, "position": position}),
+    );
+    assert!(completion.get("error").is_none(), "{completion}");
+    assert!(completion["result"].is_null(), "{completion}");
+    let references = client.request(
+        &mut session,
+        7,
+        "textDocument/references",
+        serde_json::json!({"textDocument": {"uri": uri}, "position": position, "context": {"includeDeclaration": true}}),
+    );
+    assert!(references.get("error").is_none(), "{references}");
+    assert!(references["result"].is_null(), "{references}");
+    let rename = client.request(
+        &mut session,
+        8,
+        "textDocument/rename",
+        serde_json::json!({"textDocument": {"uri": uri}, "position": position, "newName": "renamed"}),
+    );
+    assert!(rename.get("error").is_none(), "{rename}");
+    assert!(rename["result"].is_null(), "{rename}");
+    // The unregistration comes from the background work of the update.
+    let deadline = Instant::now() + TIMEOUT;
+    while client.unregistrations.is_empty() {
+        assert!(Instant::now() < deadline, "expected dynamic unregistration");
+        let text = session.receive().expect("a message");
+        let message: Value = serde_json::from_str(&text).unwrap();
+        client.answer(&mut session, &message);
+    }
+    for unregistration in &client.unregistrations {
+        let id = unregistration["id"].as_str().unwrap();
+        assert!(
+            !id.starts_with("content-mapper-") || expected.contains(&id),
+            "unexpected unsupported content mapper unregistration {id}"
+        );
+    }
+    for id in expected {
+        assert!(
+            client
+                .unregistrations
+                .iter()
+                .any(|unregistration| unregistration["id"] == id),
+            "expected {id} unregistration"
+        );
+    }
+
+    client.notify(
+        &mut session,
+        "textDocument/didClose",
+        serde_json::json!({"textDocument": {"uri": uri}}),
+    );
+    session.send(r#"{"jsonrpc":"2.0","id":9,"method":"shutdown"}"#);
+    while let Some(text) = session.receive() {
+        let message: Value = serde_json::from_str(&text).unwrap();
+        if message.get("method").is_none() && message["id"] == 9 {
+            assert!(message.get("error").is_none(), "{message}");
+            break;
+        }
+        client.answer(&mut session, &message);
+    }
     session.close();
     assert_eq!(session.finish(), Ok(()));
 }

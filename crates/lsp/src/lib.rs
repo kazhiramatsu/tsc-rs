@@ -4,6 +4,7 @@
 
 pub mod capabilities;
 pub mod cli;
+pub mod content_mappers;
 pub mod gofmt;
 pub mod logger;
 pub mod queue;

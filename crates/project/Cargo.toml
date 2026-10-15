@@ -26,5 +26,9 @@ tsc-types.workspace = true
 # An open document's content hash is tsgo's xxh3-128.
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 
+[dev-dependencies]
+# tsgo `contentmappertest`: the in-process test mappers.
+tsc-harness.workspace = true
+
 [lints]
 workspace = true

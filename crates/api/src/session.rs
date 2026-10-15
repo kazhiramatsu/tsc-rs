@@ -185,7 +185,8 @@ impl Session {
         let id = SESSION_IDS.fetch_add(1, Ordering::Relaxed) + 1;
         Self {
             id: format!("api-session-{id}"),
-            host: SnapshotHost::new(options, Arc::clone(&fs), spawner),
+            // tsgo's API session has no client: the default locale.
+            host: SnapshotHost::new(options, Arc::clone(&fs), spawner, "", None),
             fs,
             use_binary_responses,
             snapshots: Mutex::default(),

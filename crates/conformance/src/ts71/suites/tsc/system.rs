@@ -927,7 +927,12 @@ impl OutputSanitizer<'_> {
         let version = tsc_compiler::CLI_VERSION;
         let czech = |version: &str| {
             tsc_diagnostics::gen::Version_0
-                .format_in(tsc_compiler::locale::Locale::Czech.messages(), &[version])
+                .format_in(
+                    tsc_compiler::locale::Locale::parse("cs")
+                        .unwrap()
+                        .messages(),
+                    &[version],
+                )
                 .to_string_lossy()
                 .into_owned()
         };

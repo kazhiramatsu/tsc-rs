@@ -410,12 +410,21 @@ fn enum_table(option: &str) -> Option<&'static [(&'static str, i64)]> {
 /// `ParsedConfig.CompilerOptions` in tsgo's struct order: the merged config
 /// options, the config file's path and the directory `paths` is based on.
 pub fn compiler_options_json(plan: &ConfigRootPlan) -> GoJson {
-    let options = plan.options();
+    options_json(plan.options(), plan.config_file_name())
+}
+
+/// `CompilerOptions` in tsgo's struct order of a program without a config
+/// file (an inferred project's).
+pub fn option_bag_compiler_options_json(options: &ConfigOptionBag) -> GoJson {
+    options_json(options, JsStr::from_str(""))
+}
+
+fn options_json(options: &ConfigOptionBag, config_file_name: JsStr<'_>) -> GoJson {
     let mut entries = Vec::new();
     for (field, kind) in COMPILER_OPTIONS_FIELDS {
         let value = match *field {
             // Empty (omitted) for a config without a file.
-            "configFilePath" => Some(plan.config_file_name())
+            "configFilePath" => Some(config_file_name)
                 .filter(|name| !name.is_empty())
                 .map(|name| GoJson::String(name.to_string_lossy().into_owned())),
             "pathsBasePath" => options

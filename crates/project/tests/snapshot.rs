@@ -47,6 +47,8 @@ fn session_with(entries: Vec<(String, Seed)>) -> (SnapshotHost, Arc<MemFs>) {
         },
         Arc::clone(&fs) as Arc<dyn FileSystem>,
         None,
+        "",
+        None,
     );
     (host, fs)
 }
