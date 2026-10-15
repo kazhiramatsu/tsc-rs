@@ -1579,3 +1579,40 @@ fn a_cut_type_still_offers_a_higher_verbosity() {
         ))
     );
 }
+
+/// The `this` of a `this` type is a token (tsgo synthesizes one) in a type
+/// reference, so the hover's meaning is a type's: an interface merged with
+/// a `const` of its name shows `this`, not the `const` (found by the LSP
+/// test on zod, whose `ZodType` interface merges with a `const`). Pinned to
+/// tsgo's answer at aa814927.
+#[test]
+fn a_this_type_of_an_interface_merged_with_a_const_shows_this() {
+    let text = "interface Box<T> { t: T }\nexport interface Foo { m(): Box<this>; }\nexport const Foo = 1;\n";
+    assert_eq!(
+        hover(&[("/a.ts", text)], options(|_| {}), "/a.ts", (1, 32), None),
+        Some((
+            "```typescript\nthis\n```\n".to_owned(),
+            ((1, 32), (1, 36)),
+            false,
+        ))
+    );
+}
+
+/// tsgo always copies a `this` type when it reuses a declaration's type
+/// node (nodecopy.go: Strada's `canReuseTypeNode` check never failed for
+/// it): an inherited method's reused return annotation keeps `this` (found
+/// by the LSP test on zod, in `meta()`'s `$replace<GlobalMeta, this>`).
+/// Pinned to tsgo's answer at aa814927.
+#[test]
+fn a_reused_return_annotation_keeps_its_this_type() {
+    let text = "type Replace<M, S> = M extends string ? S : M;\ninterface Base<T> {\n  meta(): Replace<T, this> | undefined;\n  meta2(): Replace<number, this> | undefined;\n  meta3(): Replace<T, T> | undefined;\n}\ninterface Str extends Base<string> { x: number }\ndeclare const A: Str;\nA.meta();\nA.meta2();\nA.meta3();\n";
+    assert_eq!(
+        hover(&[("/a.ts", text)], options(|_| {}), "/a.ts", (9, 2), None),
+        Some((
+            "```typescript\n(method) Base<string>.meta2(): Replace<number, this> | undefined\n```\n"
+                .to_owned(),
+            ((9, 2), (9, 7)),
+            false,
+        ))
+    );
+}

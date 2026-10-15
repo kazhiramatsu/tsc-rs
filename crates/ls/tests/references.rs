@@ -1350,3 +1350,33 @@ fn a_typescript_jsdoc_type_above_an_arrow_function_is_no_reference() {
         ]
     );
 }
+
+/// tsgo's `isThis` takes the `this` token of a `this` type, so its
+/// references are `this` references (`getReferencesForThisKeyword`): none
+/// in an interface, where tsc-rs answered the interface merged with a
+/// `const` (found by the LSP test on zod), and in a class both the `this`
+/// types and the `this` expressions of its instance members. Pinned to
+/// tsgo's answers at aa814927.
+#[test]
+fn a_this_type_has_this_references() {
+    let text = "interface Box<T> { t: T }\nexport interface Foo { m(): Box<this>; }\nexport const Foo = 1;\nclass C {\n  m(): this { return this; }\n  n(x: this) { this.m(); }\n}\n";
+    let file = [("/a.ts", text)];
+    assert_eq!(
+        document_highlights(&file, options(|_| {}), "/a.ts", (1, 32)),
+        Vec::<(Range, u32)>::new()
+    );
+    let class = vec![
+        (((4, 7), (4, 11)), 2),
+        (((4, 21), (4, 25)), 2),
+        (((5, 7), (5, 11)), 2),
+        (((5, 15), (5, 19)), 2),
+    ];
+    assert_eq!(
+        document_highlights(&file, options(|_| {}), "/a.ts", (4, 7)),
+        class
+    );
+    assert_eq!(
+        document_highlights(&file, options(|_| {}), "/a.ts", (5, 15)),
+        class
+    );
+}
