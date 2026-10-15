@@ -24,40 +24,62 @@ pub struct WatchEvent {
     pub path: String,
 }
 
+/// What keeps a watch from reporting its changes (tsgo `fswatch`'s
+/// errors).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum WatchError {
+    /// The backend missed events (tsgo `ErrOverflow`).
+    Overflow,
+    /// The watched directory went away (tsgo `ErrWatchTerminated`): the
+    /// watch reports nothing more.
+    Terminated,
+}
+
+impl std::fmt::Display for WatchError {
+    /// tsgo's messages of the errors.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Overflow => "fswatch: event overflow; some changes were missed",
+            Self::Terminated => "fswatch: watch terminated",
+        })
+    }
+}
+
+type WatchCallback = dyn Fn(Vec<WatchEvent>, Option<WatchError>) + Send + Sync;
+
 /// Where a backend delivers the events of a watch (tsgo `WatchCallback`).
-/// Cloning shares the queue.
+/// Cloning shares the callback.
 #[derive(Clone)]
 pub struct WatchEvents {
-    queue: Arc<EventQueue>,
+    callback: Arc<WatchCallback>,
 }
 
 impl WatchEvents {
-    /// Records changes for the next cycle. Paths a watch run ignores
-    /// (`.git`, a package manager's `node_modules/.*` stores, editor lock
-    /// files) are dropped, as tsgo's watches drop them.
-    pub fn send(&self, events: impl IntoIterator<Item = WatchEvent>) {
-        let mut pending = self.queue.lock();
-        let mut recorded = false;
-        for event in events {
-            if should_ignore_watch_path(&event.path) {
-                continue;
-            }
-            pending.changed.insert(event.path, event.kind);
-            recorded = true;
-        }
-        if recorded {
-            pending.signalled = true;
-            self.queue.signal.notify_all();
+    /// Events that go to `callback`, with the error the watch reports.
+    pub fn new(
+        callback: impl Fn(Vec<WatchEvent>, Option<WatchError>) + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            callback: Arc::new(callback),
         }
     }
 
-    /// The backend missed events (tsgo `ErrOverflow`): the next cycle
-    /// rebuilds from scratch.
+    /// Reports changes.
+    pub fn send(&self, events: impl IntoIterator<Item = WatchEvent>) {
+        let events = events.into_iter().collect::<Vec<_>>();
+        if !events.is_empty() {
+            (self.callback)(events, None);
+        }
+    }
+
+    /// Reports that the backend missed events.
     pub fn overflow(&self) {
-        let mut pending = self.queue.lock();
-        pending.overflow = true;
-        pending.signalled = true;
-        self.queue.signal.notify_all();
+        (self.callback)(Vec::new(), Some(WatchError::Overflow));
+    }
+
+    /// Reports that the watched directory went away.
+    pub fn terminate(&self) {
+        (self.callback)(Vec::new(), Some(WatchError::Terminated));
     }
 }
 
@@ -89,6 +111,8 @@ struct Pending {
     overflow: bool,
     /// Events arrived since the last drain (a cycle is due).
     signalled: bool,
+    /// The watches whose directory went away, by directory and generation.
+    terminated: Vec<(String, u64)>,
 }
 
 struct EventQueue {
@@ -99,6 +123,40 @@ struct EventQueue {
 impl EventQueue {
     fn lock(&self) -> MutexGuard<'_, Pending> {
         self.pending.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// tsgo `onWatchEvents`: records changes for the next cycle. Paths a
+    /// watch run ignores (`.git`, a package manager's `node_modules/.*`
+    /// stores, editor lock files) are dropped, as tsgo's watches drop them.
+    fn record(&self, events: Vec<WatchEvent>) {
+        let mut pending = self.lock();
+        let mut recorded = false;
+        for event in events {
+            if should_ignore_watch_path(&event.path) {
+                continue;
+            }
+            pending.changed.insert(event.path, event.kind);
+            recorded = true;
+        }
+        if recorded {
+            pending.signalled = true;
+            self.signal.notify_all();
+        }
+    }
+
+    /// The next cycle rebuilds from scratch.
+    fn overflow(&self) {
+        let mut pending = self.lock();
+        pending.overflow = true;
+        pending.signalled = true;
+        self.signal.notify_all();
+    }
+
+    /// tsgo `handleWatchTerminated`: the next cycle drops the watch, starts
+    /// its directory's again and rebuilds from scratch.
+    fn terminated(&self, directory: String, generation: u64) {
+        self.lock().terminated.push((directory, generation));
+        self.overflow();
     }
 }
 
@@ -133,6 +191,9 @@ impl Backend<'_> {
 
 struct Watched {
     recursive: bool,
+    /// Tells a watch of the directory from the ones before it (tsgo's
+    /// `watchedDir` identity).
+    generation: u64,
     _handle: Box<dyn WatchHandle>,
 }
 
@@ -141,6 +202,7 @@ pub(crate) struct WatchManager<'a> {
     backend: Option<Backend<'a>>,
     watched: BTreeMap<String, Watched>,
     queue: Arc<EventQueue>,
+    next_generation: u64,
 }
 
 impl<'a> WatchManager<'a> {
@@ -152,6 +214,7 @@ impl<'a> WatchManager<'a> {
                 pending: Mutex::new(Pending::default()),
                 signal: Condvar::new(),
             }),
+            next_generation: 0,
         }
     }
 
@@ -211,6 +274,16 @@ impl<'a> WatchManager<'a> {
         let Some(backend) = &self.backend else {
             return Ok(());
         };
+        let terminated = std::mem::take(&mut self.queue.lock().terminated);
+        for (directory, generation) in terminated {
+            if self
+                .watched
+                .get(&directory)
+                .is_some_and(|watched| watched.generation == generation)
+            {
+                self.watched.remove(&directory);
+            }
+        }
         let mut updates = Vec::new();
         let mut changes = Vec::new();
         self.watched
@@ -233,22 +306,36 @@ impl<'a> WatchManager<'a> {
         if updates.is_empty() {
             return Ok(());
         }
+        let first_generation = self.next_generation;
+        self.next_generation += updates.len() as u64;
         let requests = updates
             .iter()
-            .map(|(directory, recursive)| WatchRequest {
-                directory: directory.clone(),
-                recursive: *recursive,
-                events: WatchEvents {
-                    queue: Arc::clone(&self.queue),
-                },
+            .zip(first_generation..)
+            .map(|((directory, recursive), generation)| {
+                let queue = Arc::clone(&self.queue);
+                let watched = directory.clone();
+                WatchRequest {
+                    directory: directory.clone(),
+                    recursive: *recursive,
+                    events: WatchEvents::new(move |events, error| match error {
+                        None => queue.record(events),
+                        Some(WatchError::Overflow) => queue.overflow(),
+                        Some(WatchError::Terminated) => {
+                            queue.terminated(watched.clone(), generation);
+                        }
+                    }),
+                }
             })
             .collect();
         let handles = backend.get().watch_directories(requests)?;
-        for ((directory, recursive), handle) in updates.into_iter().zip(handles) {
+        for (((directory, recursive), handle), generation) in
+            updates.into_iter().zip(handles).zip(first_generation..)
+        {
             self.watched.insert(
                 directory,
                 Watched {
                     recursive,
+                    generation,
                     _handle: handle,
                 },
             );
@@ -465,6 +552,54 @@ pub(crate) fn contains_path(directory: &str, path: &str, case_sensitive: bool) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A backend that keeps each watch's events.
+    #[derive(Default)]
+    struct Recording {
+        requests: Mutex<Vec<(String, WatchEvents)>>,
+    }
+
+    struct Handle;
+
+    impl WatchHandle for Handle {}
+
+    impl WatchBackend for Recording {
+        fn watch_directories(
+            &self,
+            requests: Vec<WatchRequest>,
+        ) -> io::Result<Vec<Box<dyn WatchHandle>>> {
+            let mut recorded = self.requests.lock().unwrap();
+            Ok(requests
+                .into_iter()
+                .map(|request| {
+                    recorded.push((request.directory, request.events));
+                    Box::new(Handle) as Box<dyn WatchHandle>
+                })
+                .collect())
+        }
+    }
+
+    #[test]
+    fn a_terminated_watch_starts_again_with_a_rebuild() {
+        // tsgo `handleWatchTerminated`.
+        let backend = Recording::default();
+        let mut manager = WatchManager::new(Some(Backend::Borrowed(&backend)));
+        let desired = BTreeMap::from([("/project/src".to_owned(), true)]);
+        manager.reconcile(&desired).unwrap();
+        let events = backend.requests.lock().unwrap()[0].1.clone();
+        events.terminate();
+        assert!(manager.drain_events().overflow);
+        manager.reconcile(&desired).unwrap();
+        {
+            let requests = backend.requests.lock().unwrap();
+            assert_eq!(requests.len(), 2);
+            assert_eq!(requests[1].0, "/project/src");
+        }
+        // A late end of the old watch leaves the new one.
+        events.terminate();
+        manager.reconcile(&desired).unwrap();
+        assert_eq!(backend.requests.lock().unwrap().len(), 2);
+    }
 
     #[test]
     fn watchable_directories_follow_tsgo() {

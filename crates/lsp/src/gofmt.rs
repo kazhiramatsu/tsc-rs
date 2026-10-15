@@ -89,3 +89,23 @@ pub fn format_float(value: f64) -> String {
     }
     format!("{sign}{}.{}", &digits[..point], &digits[point..])
 }
+
+/// Go's `%q` of a string (`strconv.Quote`).
+pub fn quote(text: &str) -> String {
+    let mut quoted = String::from("\"");
+    for character in text.chars() {
+        match character {
+            '"' => quoted.push_str("\\\""),
+            '\\' => quoted.push_str("\\\\"),
+            '\n' => quoted.push_str("\\n"),
+            '\r' => quoted.push_str("\\r"),
+            '\t' => quoted.push_str("\\t"),
+            character if (character as u32) < 0x20 || character == '\u{7f}' => {
+                quoted.push_str(&format!("\\x{:02x}", character as u32));
+            }
+            character => quoted.push(character),
+        }
+    }
+    quoted.push('"');
+    quoted
+}

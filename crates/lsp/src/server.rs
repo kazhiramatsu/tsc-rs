@@ -20,6 +20,7 @@ use tsc_program::content_mapper::host::Spawner;
 use serde::Serialize;
 use serde_json::Value;
 use tsc_compiler::locale::Locale;
+use tsc_compiler::watch::NativeWatchBackend;
 use tsc_compiler::DEFAULT_LOAD_LIMITS;
 use tsc_host::ipc::jsonrpc::{Reader, Writer};
 use tsc_host::vfs::FileSystem;
@@ -195,6 +196,10 @@ pub struct Server {
     pub(crate) init_started: AtomicBool,
     /// tsgo `session`: created by `initialized`.
     session: OnceLock<Session>,
+    /// tsgo `builtinWatcher`: the server's own file watching, for a client
+    /// that cannot register watchers when the system watches a tree at once
+    /// (FSEvents, ReadDirectoryChangesW).
+    builtin_watcher: OnceLock<crate::lspwatcher::Watcher>,
     stopped: Arc<AtomicBool>,
     stop_reason: Mutex<Option<StopReason>>,
     state: Mutex<ServerState>,
@@ -285,6 +290,7 @@ impl Server {
             client_seq: AtomicI32::new(0),
             init_started: AtomicBool::new(false),
             session: OnceLock::new(),
+            builtin_watcher: OnceLock::new(),
             stopped: Arc::new(AtomicBool::new(false)),
             stop_reason: Mutex::new(None),
             state: Mutex::default(),
@@ -960,6 +966,30 @@ impl Server {
                 "file watching: using LSP client-side watching (client supports dynamic registration)",
             );
             lock(&self.state).watch_enabled = true;
+        } else if NativeWatchBackend::has_fast_recursive_backend() {
+            self.logger.log(
+                self,
+                "file watching: using builtin in-process watcher (client lacks dynamic watch registration)",
+            );
+            lock(&self.state).watch_enabled = true;
+            let server = Arc::downgrade(self);
+            let logging = Arc::downgrade(self);
+            let _ = self.builtin_watcher.set(crate::lspwatcher::Watcher::new(
+                Arc::clone(&self.fs),
+                Arc::new(NativeWatchBackend::new()),
+                move |changes| {
+                    if let Some(server) = server.upgrade() {
+                        if let Some(session) = server.session.get() {
+                            session.did_change_watched_files(&changes);
+                        }
+                    }
+                },
+                move |message| {
+                    if let Some(server) = logging.upgrade() {
+                        server.logger.log(&server, message);
+                    }
+                },
+            ));
         } else {
             self.logger.log(
                 self,
@@ -2013,6 +2043,9 @@ impl Server {
         _params: NoParams,
         _request: &RequestMessage,
     ) -> Result<lsproto::ShutdownResponse, Failure> {
+        if let Some(watcher) = self.builtin_watcher.get() {
+            watcher.close();
+        }
         self.close_api_sessions();
         self.initialized_session().close();
         Ok(lsproto::Null)
@@ -2317,6 +2350,13 @@ impl Server {
         id: &str,
         watchers: Vec<lsproto::FileSystemWatcher>,
     ) -> Result<(), String> {
+        if let Some(watcher) = self.builtin_watcher.get() {
+            watcher
+                .watch_files(id, &watchers)
+                .map_err(|error| format!("failed to register file watcher: {error}"))?;
+            lock(&self.watchers).insert(id.to_owned());
+            return Ok(());
+        }
         let registration = lsproto::RegistrationParams {
             registrations: vec![lsproto::Registration {
                 id: id.to_owned(),
@@ -2388,6 +2428,13 @@ impl Server {
     fn unwatch_files(&self, id: &str) -> Result<(), String> {
         if !lock(&self.watchers).contains(id) {
             return Err(format!("no file watcher exists with ID {id}"));
+        }
+        if let Some(watcher) = self.builtin_watcher.get() {
+            watcher
+                .unwatch_files(id)
+                .map_err(|error| format!("failed to unregister file watcher: {error}"))?;
+            lock(&self.watchers).remove(id);
+            return Ok(());
         }
         let unregistration = lsproto::UnregistrationParams {
             unregisterations: vec![lsproto::Unregistration {

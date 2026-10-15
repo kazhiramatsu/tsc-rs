@@ -41,8 +41,10 @@ pub(crate) use manager::Backend;
 pub(crate) use manager::{can_watch_directory, contains_path, DirWatchSet};
 use manager::{directory_path, resolve_desired_dirs, WatchManager};
 pub use manager::{
-    WatchBackend, WatchEvent, WatchEventKind, WatchEvents, WatchHandle, WatchRequest,
+    WatchBackend, WatchError, WatchEvent, WatchEventKind, WatchEvents, WatchHandle, WatchRequest,
 };
+#[cfg(not(target_family = "wasm"))]
+pub use native::NativeWatchBackend;
 pub(crate) use tracking::TrackingHost;
 
 /// tsgo's debounce of a watch's events: a cycle starts once no change
