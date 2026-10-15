@@ -1176,3 +1176,31 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   の引数（位置つき）・enum member の hint。期待値は tsgo の答え）。
 - **有界の違い**：TestContentMapperInlayHintsReleaseEachRange（L10）。
 - **README**：language server の節（実装済みに inlay hint、一致数 4,475）。
+
+## L4f completion の snippet（#809）
+
+- **merge**：#809 → `175bfc382`（hosted run 38692085292：rust 11m26s、conformance 31m19s、gates）。commit：3aa544a3c
+  （checker）、bf9305269（emitter）、06d744a37（language service）、ae404a493（ratchet）。
+- **checker**：override の検査が tsgo の `MemberOverrideStatus`（override が要る、不正な override、なし）を返し、型の表示は
+  報告する時だけ作る（tsgo の順。tsc は基底 class の表示を先に作っていた）。`get_member_override_modifier_status`（tsgo の
+  service 向けの入口）。`ast.CanHaveDecorators` は `node_util` へ。
+- **emitter（tsgo の snippet printer）**：tab stop（`SnippetElement::TabStop`、空の文に `$N`）、text writer の snippet の
+  escape（`$` を含む write を、整形の後に適用する edit として記録。`StandaloneWriter::SnippetChangeTracker`、
+  `PositionedPrint.snippet`）。template literal の token は区切りを含めて一つの string literal の write（tsgo `emitLiteral`。
+  出力の文字列は同じ、display part は一つ、snippet は `${` の `$` を escape）。change tracker の arena は deep clone で全ての
+  node を複製する（位置を割り当てた node が木に二度現れると整形が壊れる。共有された `?` token が逆向きの edit を作った）。
+  宣言の emit は位置のない部分木の共有を保つ（fdebe320e の memory の節約）。
+- **language service**（`crates/ls/src/completions/snippets.rs`、tsgo `getEntryForMemberCompletion`・
+  `getEntryForObjectLiteralMethodCompletion`・`getExhaustiveCaseSnippets`）：class member の宣言全体（missing member の
+  fixer の member に空か tab stop の本体、書かれた modifier との合成、必要な `override` の追加、import と書かれた modifier の
+  削除は追加の edit）、object literal の method（呼び出し signature が一つの property・method に、型のない引数の method、
+  label の detail は引数の並び、property の下に並べる）、switch の残りの case（literal の union に、clause のない member の
+  case を一つの snippet item に。enum member は auto-import できる型 node を式に）。共有：change tracker の snippet の
+  print、`TypeToAutoImportableTypeNode`、completion の source の定数、`IsDynamicFileName`、`isRightOfDotOrQuestionDot`。
+- **検査（ae404a493）**：conformance 0 regressions（全 13,577 full、484 s。template literal の一回の write、override の
+  遅延表示、tracker の共有しない複製は compiler の出力を変えない）、`--checkers 4` は既知の 4 だけ、suites 0 regressions
+  （59 行 none→full：class member・object literal method・switch case の 54 場面と、completion が class member の宣言である
+  auto-import の 5 場面。lsp 4,475 → 4,534）、test（全 crate 通過）、API client sync 340/356・async 349/365（main と同じ）、
+  clippy、fmt。
+- **有界の違い**：これらの場面にはなし。残る completion は auto-import（L5d）と content mapper（L10）。
+- **README**：language server の節（completion に snippet、一致数 4,534）。

@@ -99,7 +99,7 @@ restarts a mapper whose package changes.
   all 9,067 DefinitelyTyped packages, all 2,756 azure-sdk-for-js
   configurations and all 38 material-ui projects (October 2026, one
   checker).
-- **Language server:** in 4,475 of the 4,584 sessions of TypeScript 7.1's
+- **Language server:** in 4,534 of the 4,584 sessions of TypeScript 7.1's
   language server tests, tsc-rs answers exactly as `tsgo` does (October 15,
   2026).
 - **TypeScript 7 rules:** the default `target` is ES2026, and the options
@@ -138,7 +138,7 @@ and will be measured again.
 
 `tsc-rs --lsp --stdio` serves the Language Server Protocol over stdio, like
 `tsgo --lsp --stdio`. Implemented: diagnostics, hover, completion (with
-auto-imports), signature help, go to definition (also type definition,
+auto-imports and snippets), signature help, go to definition (also type definition,
 implementation and source definition), references, rename (also of files),
 document highlights, call hierarchy, code lens, document and workspace
 symbols, folding and selection ranges, semantic tokens, inlay hints, linked
