@@ -178,6 +178,8 @@ pub struct ContentMappedCache {
 #[derive(Debug)]
 struct CachedSources {
     transform_identity: String,
+    /// The locale the mapper ran in (tsgo keys its cache with it).
+    locale: String,
     canonical: CachedSource,
     supplemental: Vec<CachedSource>,
 }
@@ -236,18 +238,21 @@ impl ContentMappedCache {
         file_name: JsStr<'_>,
         content: &str,
         transform_identity: &str,
+        locale: &str,
     ) -> Option<VirtualSources> {
         self.lock()
             .get(&(file_name.to_owned(), text_hash(content)))?
             .iter()
-            .filter(|entry| entry.transform_identity == transform_identity)
+            .filter(|entry| {
+                entry.transform_identity == transform_identity && entry.locale == locale
+            })
             .find_map(CachedSources::upgrade)
             .filter(|sources| *sources.canonical.info.original_text == *content)
     }
 
-    /// Record a transform's outputs, and forget the entries of the same file
-    /// and content no program holds any more.
-    pub fn insert(&self, sources: &VirtualSources) {
+    /// Record a transform's outputs in `locale`, and forget the entries of
+    /// the same file and content no program holds any more.
+    pub fn insert(&self, sources: &VirtualSources, locale: &str) {
         let info = &sources.canonical.info;
         let key = (
             sources.canonical.file_name.clone(),
@@ -258,6 +263,7 @@ impl ContentMappedCache {
         slot.retain(CachedSources::is_held);
         slot.push(CachedSources {
             transform_identity: info.transform_identity.clone(),
+            locale: locale.to_owned(),
             canonical: CachedSource::new(&sources.canonical),
             supplemental: sources.supplemental.iter().map(CachedSource::new).collect(),
         });

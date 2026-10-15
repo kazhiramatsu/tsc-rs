@@ -155,3 +155,276 @@ pub fn initialize_result(
         },
     }
 }
+
+/// tsgo's `contentMapper*RegistrationID`s and their methods, in tsgo's
+/// order.
+pub const CONTENT_MAPPER_REGISTRATIONS: [(&str, &str); 26] = [
+    ("content-mapper-did-open", "textDocument/didOpen"),
+    ("content-mapper-did-change", "textDocument/didChange"),
+    ("content-mapper-did-close", "textDocument/didClose"),
+    ("content-mapper-diagnostic", "textDocument/diagnostic"),
+    ("content-mapper-hover", "textDocument/hover"),
+    (
+        "content-mapper-signature-help",
+        "textDocument/signatureHelp",
+    ),
+    ("content-mapper-definition", "textDocument/definition"),
+    (
+        "content-mapper-type-definition",
+        "textDocument/typeDefinition",
+    ),
+    (
+        "content-mapper-implementation",
+        "textDocument/implementation",
+    ),
+    ("content-mapper-references", "textDocument/references"),
+    (
+        "content-mapper-document-highlight",
+        "textDocument/documentHighlight",
+    ),
+    ("content-mapper-completion", "textDocument/completion"),
+    ("content-mapper-rename", "textDocument/rename"),
+    (
+        "content-mapper-semantic-tokens",
+        "textDocument/semanticTokens",
+    ),
+    (
+        "content-mapper-document-symbol",
+        "textDocument/documentSymbol",
+    ),
+    ("content-mapper-folding-range", "textDocument/foldingRange"),
+    (
+        "content-mapper-selection-range",
+        "textDocument/selectionRange",
+    ),
+    ("content-mapper-inlay-hint", "textDocument/inlayHint"),
+    ("content-mapper-code-lens", "textDocument/codeLens"),
+    ("content-mapper-code-action", "textDocument/codeAction"),
+    ("content-mapper-formatting", "textDocument/formatting"),
+    (
+        "content-mapper-range-formatting",
+        "textDocument/rangeFormatting",
+    ),
+    (
+        "content-mapper-on-type-formatting",
+        "textDocument/onTypeFormatting",
+    ),
+    (
+        "content-mapper-linked-editing",
+        "textDocument/linkedEditingRange",
+    ),
+    (
+        "content-mapper-call-hierarchy",
+        "textDocument/prepareCallHierarchy",
+    ),
+    (
+        "content-mapper-will-rename-files",
+        "workspace/willRenameFiles",
+    ),
+];
+
+/// tsgo `supportsContentMapperRegistration`: whether the client registers
+/// the feature dynamically.
+pub fn supports_content_mapper_registration(id: &str, client: &ResolvedClientCapabilities) -> bool {
+    let text_document = &client.text_document;
+    match id {
+        "content-mapper-did-open" | "content-mapper-did-change" | "content-mapper-did-close" => {
+            text_document.synchronization.dynamic_registration
+        }
+        "content-mapper-diagnostic" => text_document.diagnostic.dynamic_registration,
+        "content-mapper-hover" => text_document.hover.dynamic_registration,
+        "content-mapper-signature-help" => text_document.signature_help.dynamic_registration,
+        "content-mapper-definition" => text_document.definition.dynamic_registration,
+        "content-mapper-type-definition" => text_document.type_definition.dynamic_registration,
+        "content-mapper-implementation" => text_document.implementation.dynamic_registration,
+        "content-mapper-references" => text_document.references.dynamic_registration,
+        "content-mapper-document-highlight" => {
+            text_document.document_highlight.dynamic_registration
+        }
+        "content-mapper-completion" => text_document.completion.dynamic_registration,
+        "content-mapper-rename" => text_document.rename.dynamic_registration,
+        "content-mapper-semantic-tokens" => text_document.semantic_tokens.dynamic_registration,
+        "content-mapper-document-symbol" => text_document.document_symbol.dynamic_registration,
+        "content-mapper-folding-range" => text_document.folding_range.dynamic_registration,
+        "content-mapper-selection-range" => text_document.selection_range.dynamic_registration,
+        "content-mapper-inlay-hint" => text_document.inlay_hint.dynamic_registration,
+        "content-mapper-code-lens" => text_document.code_lens.dynamic_registration,
+        "content-mapper-code-action" => text_document.code_action.dynamic_registration,
+        "content-mapper-formatting" => text_document.formatting.dynamic_registration,
+        "content-mapper-range-formatting" => text_document.range_formatting.dynamic_registration,
+        "content-mapper-on-type-formatting" => {
+            text_document.on_type_formatting.dynamic_registration
+        }
+        "content-mapper-linked-editing" => text_document.linked_editing_range.dynamic_registration,
+        "content-mapper-call-hierarchy" => text_document.call_hierarchy.dynamic_registration,
+        "content-mapper-will-rename-files" => {
+            client.workspace.file_operations.dynamic_registration
+                && client.workspace.file_operations.will_rename
+        }
+        _ => false,
+    }
+}
+
+/// tsgo `RegisterContentMapperExtensions`' registrations: the document
+/// synchronization, pull diagnostics and features of the server for the
+/// files of `extensions`, those the client registers dynamically.
+pub fn content_mapper_registrations(
+    extensions: &[String],
+    client: &ResolvedClientCapabilities,
+) -> Vec<Registration> {
+    let selector = || {
+        DocumentSelectorOrNull::DocumentSelector(
+            extensions
+                .iter()
+                .map(|extension| {
+                    TextDocumentFilterLanguageOrSchemeOrPattern::Pattern(
+                        TextDocumentFilterPattern {
+                            pattern: PatternOrRelativePattern::Pattern(format!("**/*{extension}")),
+                            ..TextDocumentFilterPattern::default()
+                        },
+                    )
+                })
+                .collect(),
+        )
+    };
+    let file_rename_filters = extensions
+        .iter()
+        .map(|extension| FileOperationFilter {
+            scheme: Some("file".to_owned()),
+            pattern: FileOperationPattern {
+                glob: format!("**/*{extension}"),
+                ..FileOperationPattern::default()
+            },
+        })
+        .collect();
+    let options = [
+        RegisterOptions::TextDocumentDidOpen(TextDocumentRegistrationOptions {
+            document_selector: selector(),
+        }),
+        RegisterOptions::TextDocumentDidChange(TextDocumentChangeRegistrationOptions {
+            document_selector: selector(),
+            sync_kind: TextDocumentSyncKind::INCREMENTAL,
+        }),
+        RegisterOptions::TextDocumentDidClose(TextDocumentRegistrationOptions {
+            document_selector: selector(),
+        }),
+        RegisterOptions::TextDocumentDiagnostic(DiagnosticRegistrationOptions {
+            document_selector: selector(),
+            identifier: Some("typescript".to_owned()),
+            inter_file_dependencies: true,
+            ..DiagnosticRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentHover(HoverRegistrationOptions {
+            document_selector: selector(),
+            ..HoverRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentSignatureHelp(SignatureHelpRegistrationOptions {
+            document_selector: selector(),
+            trigger_characters: Some(strings(&SIGNATURE_HELP_TRIGGER_CHARACTERS)),
+            retrigger_characters: Some(strings(&SIGNATURE_HELP_RETRIGGER_CHARACTERS)),
+            ..SignatureHelpRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentDefinition(DefinitionRegistrationOptions {
+            document_selector: selector(),
+            ..DefinitionRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentTypeDefinition(TypeDefinitionRegistrationOptions {
+            document_selector: selector(),
+            ..TypeDefinitionRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentImplementation(ImplementationRegistrationOptions {
+            document_selector: selector(),
+            ..ImplementationRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentReferences(ReferenceRegistrationOptions {
+            document_selector: selector(),
+            ..ReferenceRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentDocumentHighlight(DocumentHighlightRegistrationOptions {
+            document_selector: selector(),
+            ..DocumentHighlightRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentCompletion(CompletionRegistrationOptions {
+            document_selector: selector(),
+            trigger_characters: Some(strings(&COMPLETION_TRIGGER_CHARACTERS)),
+            resolve_provider: Some(true),
+            completion_item: Some(ServerCompletionItemOptions {
+                label_details_support: Some(true),
+            }),
+            ..CompletionRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentRename(RenameRegistrationOptions {
+            document_selector: selector(),
+            prepare_provider: Some(true),
+            ..RenameRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentSemanticTokens(SemanticTokensRegistrationOptions {
+            document_selector: selector(),
+            legend: tsc_ls::semantic_tokens_legend(&client.text_document.semantic_tokens),
+            full: Some(BooleanOrSemanticTokensFullDelta::Boolean(true)),
+            range: Some(BooleanOrEmptyObject::Boolean(true)),
+            ..SemanticTokensRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentDocumentSymbol(DocumentSymbolRegistrationOptions {
+            document_selector: selector(),
+            ..DocumentSymbolRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentFoldingRange(FoldingRangeRegistrationOptions {
+            document_selector: selector(),
+            ..FoldingRangeRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentSelectionRange(SelectionRangeRegistrationOptions {
+            document_selector: selector(),
+            ..SelectionRangeRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentInlayHint(InlayHintRegistrationOptions {
+            document_selector: selector(),
+            ..InlayHintRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentCodeLens(CodeLensRegistrationOptions {
+            document_selector: selector(),
+            resolve_provider: Some(true),
+            ..CodeLensRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentCodeAction(CodeActionRegistrationOptions {
+            document_selector: selector(),
+            code_action_kinds: Some(supported_code_action_kinds()),
+            ..CodeActionRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentFormatting(DocumentFormattingRegistrationOptions {
+            document_selector: selector(),
+            ..DocumentFormattingRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentRangeFormatting(DocumentRangeFormattingRegistrationOptions {
+            document_selector: selector(),
+            ..DocumentRangeFormattingRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentOnTypeFormatting(
+            DocumentOnTypeFormattingRegistrationOptions {
+                document_selector: selector(),
+                first_trigger_character: "{".to_owned(),
+                more_trigger_character: Some(strings(&["}", ";", "\n"])),
+            },
+        ),
+        RegisterOptions::TextDocumentLinkedEditingRange(LinkedEditingRangeRegistrationOptions {
+            document_selector: selector(),
+            ..LinkedEditingRangeRegistrationOptions::default()
+        }),
+        RegisterOptions::TextDocumentPrepareCallHierarchy(CallHierarchyRegistrationOptions {
+            document_selector: selector(),
+            ..CallHierarchyRegistrationOptions::default()
+        }),
+        RegisterOptions::WorkspaceWillRenameFiles(FileOperationRegistrationOptions {
+            filters: file_rename_filters,
+        }),
+    ];
+    CONTENT_MAPPER_REGISTRATIONS
+        .iter()
+        .zip(options)
+        .filter(|((id, _), _)| supports_content_mapper_registration(id, client))
+        .map(|((id, _), register_options)| Registration {
+            id: (*id).to_owned(),
+            register_options: Some(register_options),
+        })
+        .collect()
+}

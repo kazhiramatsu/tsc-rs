@@ -23,5 +23,9 @@ tsc-program.workspace = true
 tsc-project.workspace = true
 tsc-types.workspace = true
 
+[dev-dependencies]
+# tsgo `contentmappertest`: the in-process test mappers.
+tsc-harness.workspace = true
+
 [lints]
 workspace = true

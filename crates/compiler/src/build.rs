@@ -459,7 +459,7 @@ impl<'a> Orchestrator<'a> {
             fs: system.fs(),
             system,
             testing,
-            locale: crate::locale::Locale::English,
+            locale: crate::locale::Locale::ENGLISH,
             catalog,
             command,
             current_directory: if directory.is_empty() {
@@ -795,10 +795,10 @@ impl<'a> Orchestrator<'a> {
                 .as_ref()
                 .and_then(|plan| plan.program_options().content_mapper_spec().cloned());
             if let Some(spec) = spec {
-                let system = self.system;
+                let (system, locale) = (self.system, self.locale);
                 let host = self
                     .content_mapper_host
-                    .get_or_insert_with(|| crate::cli::new_content_mapper_host(system));
+                    .get_or_insert_with(|| crate::cli::new_content_mapper_host(system, locale));
                 self.tasks[task].content_mapper_project = host.project(spec).map(Arc::new);
             }
         }
@@ -2710,7 +2710,7 @@ impl ApiOrchestrator {
             &*self.system,
             None,
             false,
-            crate::locale::Locale::English,
+            crate::locale::Locale::ENGLISH,
             self.budgets,
             false,
             |route| run(&mut orchestrator, route),

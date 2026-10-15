@@ -28,6 +28,15 @@ pub struct ClientMock {
     pub refresh_code_lens_calls: Mutex<usize>,
     pub refresh_inlay_hints_calls: Mutex<usize>,
     pub set_locale_calls: Mutex<Vec<String>>,
+    /// tsgo `RegisterContentMapperExtensionsCalls`.
+    pub register_content_mapper_extensions_calls: Mutex<Vec<Vec<String>>>,
+    /// tsgo `SetLocaleFunc`.
+    #[allow(clippy::type_complexity)]
+    pub set_locale_func: Mutex<Option<Box<dyn Fn(&str) + Send + Sync>>>,
+    /// tsgo `GetLocaleFunc`: the locale [`Client::locale`] answers (the
+    /// default without one).
+    #[allow(clippy::type_complexity)]
+    pub locale_func: Mutex<Option<Box<dyn Fn() -> Locale + Send + Sync>>>,
 }
 
 impl ClientMock {
@@ -58,6 +67,13 @@ impl ClientMock {
     pub fn set_locale_calls(&self) -> Vec<String> {
         self.set_locale_calls.lock().unwrap().clone()
     }
+
+    pub fn register_content_mapper_extensions_calls(&self) -> Vec<Vec<String>> {
+        self.register_content_mapper_extensions_calls
+            .lock()
+            .unwrap()
+            .clone()
+    }
 }
 
 impl Client for ClientMock {
@@ -71,6 +87,14 @@ impl Client for ClientMock {
             .lock()
             .unwrap()
             .push((id.to_owned(), watchers));
+        Ok(())
+    }
+
+    fn register_content_mapper_extensions(&self, extensions: &[String]) -> Result<(), String> {
+        self.register_content_mapper_extensions_calls
+            .lock()
+            .unwrap()
+            .push(extensions.to_vec());
         Ok(())
     }
 
@@ -99,10 +123,17 @@ impl Client for ClientMock {
             .lock()
             .unwrap()
             .push(locale.to_owned());
+        if let Some(set_locale) = &*self.set_locale_func.lock().unwrap() {
+            set_locale(locale);
+        }
     }
 
     fn locale(&self) -> Locale {
-        Locale::default()
+        self.locale_func
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map_or_else(Locale::default, |locale| locale())
     }
 }
 
@@ -129,28 +160,73 @@ pub fn setup_entries(
     entries: Vec<(String, Seed)>,
     workspace: &str,
 ) -> (Session, Arc<MemFs>, Arc<ClientMock>) {
+    setup_session(entries, workspace, None)
+}
+
+/// [`setup_entries`] with tsgo's `RunExternalCode` and the content mappers'
+/// processes started by `spawner`.
+pub fn setup_with_spawner(
+    entries: Vec<(String, Seed)>,
+    workspace: &str,
+    spawner: Arc<dyn tsc_program::content_mapper::host::Spawner>,
+) -> (Session, Arc<MemFs>, Arc<ClientMock>) {
+    setup_session(entries, workspace, Some(spawner))
+}
+
+/// [`setup_with_spawner`] with the client's relative watch patterns (tsgo
+/// `RelativePatternSupport`).
+pub fn setup_with_spawner_and_relative_patterns(
+    entries: Vec<(String, Seed)>,
+    workspace: &str,
+    spawner: Arc<dyn tsc_program::content_mapper::host::Spawner>,
+) -> (Session, Arc<MemFs>, Arc<ClientMock>) {
+    setup_session_with(entries, workspace, Some(spawner), |options| {
+        options
+            .client_capabilities
+            .workspace
+            .did_change_watched_files
+            .relative_pattern_support = true;
+    })
+}
+
+fn setup_session(
+    entries: Vec<(String, Seed)>,
+    workspace: &str,
+    spawner: Option<Arc<dyn tsc_program::content_mapper::host::Spawner>>,
+) -> (Session, Arc<MemFs>, Arc<ClientMock>) {
+    setup_session_with(entries, workspace, spawner, |_| {})
+}
+
+fn setup_session_with(
+    entries: Vec<(String, Seed)>,
+    workspace: &str,
+    spawner: Option<Arc<dyn tsc_program::content_mapper::host::Spawner>>,
+    configure: impl FnOnce(&mut SessionOptions),
+) -> (Session, Arc<MemFs>, Arc<ClientMock>) {
     let client = Arc::new(ClientMock::default());
     let fs = Arc::new(
         MemFs::from_entries(entries, false, Arc::new(SystemClock)).expect("build the file system"),
     );
+    let mut options = SessionOptions {
+        current_directory: workspace.to_owned(),
+        library_catalog: LibraryCatalog::typescript_7_1(EMBEDDED_LIBRARY_DIRECTORY),
+        load_limits: DEFAULT_LOAD_LIMITS,
+        run_external_code: spawner.is_some(),
+        position_encoding: PositionEncodingKind::UTF8,
+        watch_enabled: true,
+        logging_enabled: true,
+        push_diagnostics_enabled: true,
+        debounce_delay: std::time::Duration::ZERO,
+        client_capabilities: Default::default(),
+    };
+    configure(&mut options);
     let session = Session::new(
-        SessionOptions {
-            current_directory: workspace.to_owned(),
-            library_catalog: LibraryCatalog::typescript_7_1(EMBEDDED_LIBRARY_DIRECTORY),
-            load_limits: DEFAULT_LOAD_LIMITS,
-            run_external_code: false,
-            position_encoding: PositionEncodingKind::UTF8,
-            watch_enabled: true,
-            logging_enabled: true,
-            push_diagnostics_enabled: true,
-            debounce_delay: std::time::Duration::ZERO,
-            client_capabilities: Default::default(),
-        },
+        options,
         // tsgo `bundled.WrapFS`: the embedded standard library.
         Arc::new(BundledFs::new(Arc::clone(&fs))) as Arc<dyn FileSystem>,
         Some(Arc::clone(&client) as Arc<dyn Client>),
         None,
-        None,
+        spawner,
     );
     (session, fs, client)
 }
