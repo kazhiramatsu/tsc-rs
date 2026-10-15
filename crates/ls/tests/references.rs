@@ -505,6 +505,27 @@ fn signature_help(
     )
 }
 
+/// tsgo's document symbols of the first file, as the protocol's JSON, for a
+/// client with hierarchical document symbols.
+fn document_symbols(files: &[(&str, &str)]) -> serde_json::Value {
+    let mut capabilities = ResolvedClientCapabilities::default();
+    capabilities
+        .text_document
+        .document_symbol
+        .hierarchical_document_symbol_support = true;
+    let uri = DocumentUri(format!("file://{}", files[0].0));
+    with_service_capabilities(
+        files,
+        options(|_| {}),
+        UserPreferences::default(),
+        capabilities,
+        |service, _| {
+            serde_json::to_value(service.provide_document_symbols(&uri).expect("an answer"))
+                .expect("JSON")
+        },
+    )
+}
+
 fn leak(name: &str) -> &'static str {
     Box::leak(name.to_owned().into_boxed_str())
 }
@@ -973,5 +994,20 @@ fn an_unresolved_javascript_call_finds_a_declaration_of_its_name() {
     assert_eq!(
         help,
         serde_json::json!({"signatures": [{"label": "Generator.next(): IteratorResult<T, TReturn>", "parameters": []}, {"label": "Generator.next(value: TNext): IteratorResult<T, TReturn>", "parameters": [{"label": "value: TNext"}], "activeParameter": 0}], "activeSignature": 0})
+    );
+}
+
+/// TestNavigationBarWellKnownSymbolExpando: a function expression assigned
+/// to an element access of a computed key has no assigned name (tsgo 7.1
+/// `GetAssignedName`), so it is `<function>` under the expando's symbol.
+#[test]
+fn an_expando_with_a_computed_key_holds_an_unnamed_function() {
+    let symbols = document_symbols(&[(
+        "/navigationBarWellKnownSymbolExpando.ts",
+        "function f() {}\nf[Symbol.iterator] = function() {}",
+    )]);
+    assert_eq!(
+        symbols,
+        serde_json::json!([{"name": "f", "kind": 12, "range": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 15}}, "selectionRange": {"start": {"line": 0, "character": 9}, "end": {"line": 0, "character": 10}}, "children": [{"name": "Symbol.iterator", "kind": 13, "range": {"start": {"line": 1, "character": 0}, "end": {"line": 1, "character": 18}}, "selectionRange": {"start": {"line": 1, "character": 2}, "end": {"line": 1, "character": 17}}, "children": [{"name": "<function>", "kind": 12, "range": {"start": {"line": 1, "character": 21}, "end": {"line": 1, "character": 34}}, "selectionRange": {"start": {"line": 1, "character": 21}, "end": {"line": 1, "character": 21}}, "children": []}]}]}])
     );
 }
