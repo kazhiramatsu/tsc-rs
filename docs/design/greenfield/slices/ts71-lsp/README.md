@@ -1420,3 +1420,32 @@ project の test を移して固定する。
 - **有界の違い**：Go runtime 固有の部分（5 分ごとの性能 telemetry、要求失敗の telemetry の Go の stack、`IsActive`、
   profile の command `custom/runGC`・`save*Profile`・`start/stopCPUProfile`）は利用者の判断待ち（2026-10-15 に
   pprof の移植可能性を説明：CPU profile は pprof-rs で現実的、heap・alloc は allocator の作り替えが要る）。
+
+## L11b 言語サーバーの上の API session（#817）
+
+- **merge**：#817 → `84b47514b`（hosted run 38739655322：rust 12m02s、conformance 32m07s、gates）。commit：6524708ae
+  （api・project）、6554005f2（lsp）。検査の後の main の取り込みは L11a の merge（同じ code）と packet の README だけ。
+- **API session**：tsgo `NewLSPSession`（project session の snapshot host を共有、要求は editor の locale で、要求の
+  file system は editor の開いた文書の上に）、`getCurrentLanguageServerSnapshot`（`APIUpdate`：保留の変更を流し、失敗した
+  要求は採らないが流した変更は進める。session が開いた project・file は閉じるか終わるまで開いたまま、作った program だけ
+  を消せる・設定し直せる）、auto-import の準備の snapshot を背景で採る（`TryAdoptSnapshotInBackground`）。
+- **見つけた既存の不具合**（tsgo の test の移植で）：(1) 要求の file system が開いた文書の下にあった → tsgo
+  `layerOverlayFileSystem` の通り文書の上に載せ直し、その file・削除・link が隠す文書は開いた file から外す
+  （`RebasableFileSystem`）。(2) auto-import の clone が要求の file system を失っていた（`CloneSnapshotWithAutoImports`）。
+  (3) resolver の callback の失敗が API 要求を失敗させていなかった（`HandleAPIRequest` の最後の検査）。
+- **server**：`custom/initializeAPISession`（pipe の最初の client に JSON-RPC で、pipe は接続後に消える、shutdown と
+  server の終わりで閉じる）。`tsc-rs --api` の pipe を `PipeTransport` に切り出し（別 thread からの close が待つ accept
+  を終わらせる、Go の listener と同じ）。
+- **test**：tsgo `session_apistate_test.go` の言語サーバーの 13 件、`session_requestfilesystem_test.go` の editor の
+  文書を伴う 10 件（大きな layer の場面を editor 付きに）、`session_completion_test.go` の 2 件、
+  `session_module_resolution_test.go` の 1 件、server の pipe 越しの端から端まで。
+- **検査（6554005f2）**：conformance 0 regressions（13,577 全て full、504 s）、`--checkers 4` は既知の 4 件だけ、suites 0
+  regressions（行の変化なし）、test 全通過（lsp 34・api 330・project 199 ほか）、API client sync 356/356・async 365/365、
+  clippy、fmt。
+- **有界の違い**：tsc-rs の非同期 API 接続は要求を一つずつ扱い、client への呼び出しの答えは呼び出し側で読む（別 thread の
+  言語サーバーの更新からの resolver の callback は今の要求では起きない）。Windows の名前付き pipe は未移植。
+- **L11 の残りの順**（利用者の判断 2026-10-15 を受けて）：L11c CPU profile（pprof-rs、`--pprofDir` の CPU 分も）・
+  heap と allocation は未対応のエラー・`runGC` は mimalloc の `mi_collect`・要求失敗の telemetry（Rust の panic の
+  stack を tsgo の規則で消毒）・flaky diagnostics の追跡 → L11d ATA（d-1 `project/ata` package、d-2 project・session・
+  server への統合）→ L11e 組み込みの file 監視。
+- **README**：API server の節（言語サーバーの上の API）。
