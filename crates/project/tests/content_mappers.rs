@@ -377,6 +377,81 @@ fn an_inferred_project_uses_the_editors_contributions() {
 }
 
 #[test]
+fn an_inferred_projects_mapped_file_survives_a_typings_install() {
+    // tsgo `TestContentMapperInferredProjectSurvivesTypingsInstall`: the
+    // inferred program rebuilt with the installed typings keeps the
+    // editor's mapper for the loose .box file.
+    let files = [
+        (
+            "/home/configured/tsconfig.json",
+            r#"{
+                "compilerOptions": { "target": "es2020", "module": "esnext", "moduleResolution": "bundler" },
+                "contentMappers": [ { "package": "mapper", "extensions": [".box"] } ]
+            }"#
+            .to_owned(),
+        ),
+        (
+            "/home/configured/node_modules/mapper/package.json",
+            package_json(TRANSFORMING_MAPPER),
+        ),
+        (
+            "/home/configured/main.ts",
+            "export const main = true;\n".to_owned(),
+        ),
+        ("/home/loose/app.box", TARGET_APP.to_owned()),
+        (
+            "/home/package.json",
+            r#"{"name":"loose","dependencies":{"jquery":"^3.1.0"}}"#.to_owned(),
+        ),
+    ];
+    let (session, _fs, _client, npm) = setup_with_spawner_and_typings(
+        entries(&files),
+        "/home",
+        Arc::new(TestSpawner::default()),
+        |options| {
+            options.watch_enabled = false;
+            options.push_diagnostics_enabled = false;
+        },
+        TypingsInstallerOptions {
+            types_registry: Vec::new(),
+            package_to_file: [(
+                "jquery".to_owned(),
+                "declare const $: { x: number }".to_owned(),
+            )]
+            .into(),
+        },
+    );
+    session.set_content_mapper_contributions(box_contribution("/home"), &[]);
+    open(&session, "file:///home/configured/main.ts", &files[2].1);
+    program(&session, "file:///home/configured/main.ts");
+    open_as(
+        &session,
+        "file:///home/loose/app.box",
+        TARGET_APP,
+        box_kind(),
+    );
+    let (_, project) = session
+        .get_snapshot_and_default_project(&uri("file:///home/loose/app.box"))
+        .expect("a default project for the loose app.box");
+    assert_eq!(project.kind(), ProjectKind::Inferred);
+    // ATA installs the typings in the background.
+    session.wait_for_background_tasks();
+    assert!(!npm.npm_install_calls().is_empty(), "ATA installs typings");
+    // The rebuild with the typings keeps the mapper.
+    let program = program(&session, "file:///home/loose/app.box");
+    let text = source_text(&program, "/home/loose/app.box").expect("the loose app.box");
+    assert!(!text.contains("#{target}"), "{text:?}");
+    assert!(
+        program.prepared().source_files().iter().any(|file| file
+            .path()
+            .display()
+            .to_string_lossy()
+            .ends_with("@types/jquery/index.d.ts")),
+        "the installed typings join the inferred program"
+    );
+}
+
+#[test]
 fn an_open_mapped_file_a_config_change_excludes_goes_to_the_inferred_project() {
     // tsgo `TestContentMapperOpenFileExcludedByConfigChange`: the open
     // app.box leaves the configured project and, with the editor's

@@ -16,6 +16,8 @@ fn server() -> Arc<Server> {
         default_library_path: "/lib".to_owned(),
         spawner: None,
         progress_delay: Duration::ZERO,
+        typings_location: None,
+        npm_executor: None,
     })
 }
 

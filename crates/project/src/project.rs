@@ -11,10 +11,11 @@ use tsc_program::{
     ConfigProjectReference, ConfigRootPlan, PreparedProgram, ProgramOptions,
 };
 
+use crate::ata::{TypeAcquisition, TypingsInfo};
 use crate::fs::{Paths, SeenFiles};
 use crate::id::{ProjectId, ProjectKind};
 use crate::snapshot::ProjectError;
-use crate::watch::{ContentMapperWatch, ProgramFilesWatch};
+use crate::watch::{ContentMapperWatch, ProgramFilesWatch, TypingsWatch};
 use tsc_diagnostics::{sort_and_dedupe_diagnostics, DiagnosticList};
 
 /// How a project's program was last built (tsgo `ProgramUpdateKind`).
@@ -359,6 +360,13 @@ pub struct Project {
     /// tsgo `contentMapperWatch`: the content mappers' manifests and the
     /// files their processes watch.
     pub(crate) content_mapper_watch: Option<Arc<ContentMapperWatch>>,
+    /// tsgo `typingsWatch`: the files that change the project's typings,
+    /// when the session installs typings.
+    pub(crate) typings_watch: Option<Arc<TypingsWatch>>,
+    /// tsgo `installedTypingsInfo`: what the installed typings were for.
+    pub(crate) installed_typings_info: Option<TypingsInfo>,
+    /// tsgo `typingsFiles`: the root files the typings installer added.
+    pub(crate) typings_files: Vec<String>,
 }
 
 impl Project {
@@ -406,6 +414,89 @@ impl Project {
             potential_project_references: None,
             program_files_watch: None,
             content_mapper_watch: None,
+            typings_watch: None,
+            installed_typings_info: None,
+            typings_files: Vec::new(),
+        }
+    }
+
+    /// tsgo `GetTypeAcquisition`: an inferred or synthetic project acquires
+    /// types by default; a configured one as its config says.
+    pub(crate) fn type_acquisition(&self) -> Option<TypeAcquisition> {
+        if matches!(self.kind, ProjectKind::Inferred | ProjectKind::Synthetic) {
+            return Some(TypeAcquisition {
+                enable: Some(true),
+                include: None,
+                exclude: None,
+                disable_filename_based_type_acquisition: Some(false),
+            });
+        }
+        let plan = self.config_plan()?;
+        let options = plan.type_acquisition_option_bag();
+        let strings = |name: &str| {
+            options.option_string_list(name).map(|list| {
+                list.iter()
+                    .map(|item| item.to_string_lossy().into_owned())
+                    .collect()
+            })
+        };
+        Some(TypeAcquisition {
+            enable: options.option_bool("enable"),
+            include: strings("include"),
+            exclude: strings("exclude"),
+            disable_filename_based_type_acquisition: options
+                .option_bool("disableFilenameBasedTypeAcquisition"),
+        })
+    }
+
+    /// tsgo `ComputeTypingsInfo`.
+    pub(crate) fn compute_typings_info(&self) -> Option<TypingsInfo> {
+        let options = self.command_line.as_ref()?.compiler_options();
+        Some(TypingsInfo {
+            type_acquisition: self.type_acquisition().unwrap_or_default(),
+            allow_js: options.allow_js,
+            has_types_option: options.types.is_some(),
+            unresolved_imports: self
+                .program
+                .as_ref()
+                .map(|program| unresolved_imports(program)),
+        })
+    }
+
+    /// tsgo `ShouldTriggerATA`: a project acquiring types whose typings were
+    /// never installed, whose program got new files in this snapshot, or
+    /// whose typings info changed.
+    pub(crate) fn should_trigger_ata(&self, snapshot_id: u64) -> bool {
+        if self.program.is_none() || self.command_line.is_none() {
+            return false;
+        }
+        if self
+            .type_acquisition()
+            .and_then(|acquisition| acquisition.enable)
+            != Some(true)
+        {
+            return false;
+        }
+        if self.installed_typings_info.is_none()
+            || (self.program_last_update == snapshot_id
+                && self.program_update_kind == ProgramUpdateKind::NewFiles)
+        {
+            return true;
+        }
+        self.installed_typings_info != self.compute_typings_info()
+    }
+
+    /// tsgo `getCommandLineWithTypingsFiles`: the typings files join the
+    /// roots while the project acquires types.
+    pub(crate) fn typings_roots(&self) -> &[String] {
+        if self
+            .type_acquisition()
+            .and_then(|acquisition| acquisition.enable)
+            == Some(true)
+        {
+            &self.typings_files
+        } else {
+            &[]
         }
     }
 
@@ -561,4 +652,35 @@ impl Project {
     pub fn program_last_update(&self) -> u64 {
         self.program_last_update
     }
+}
+
+/// tsgo `Program.GetUnresolvedImports`: the non-relative module names the
+/// program left unresolved or resolved to JavaScript.
+pub(crate) fn unresolved_imports(program: &ProjectProgram) -> BTreeSet<String> {
+    program
+        .prepared()
+        .resolutions()
+        .modules()
+        .filter(|(key, resolution)| {
+            let typed = match resolution.outcome() {
+                tsc_program::ResolutionOutcome::Resolved(module) => matches!(
+                    module.extension(),
+                    tsc_program::ModuleExtension::Ts
+                        | tsc_program::ModuleExtension::Tsx
+                        | tsc_program::ModuleExtension::Dts
+                        | tsc_program::ModuleExtension::Cts
+                        | tsc_program::ModuleExtension::Dcts
+                        | tsc_program::ModuleExtension::Mts
+                        | tsc_program::ModuleExtension::Dmts
+                        | tsc_program::ModuleExtension::Json
+                ),
+                tsc_program::ResolutionOutcome::NotFound => false,
+            };
+            !typed
+                && !tsc_program::is_external_module_name_relative(
+                    &key.specifier().to_string_lossy(),
+                )
+        })
+        .map(|(key, _)| key.specifier().to_string_lossy().into_owned())
+        .collect()
 }
