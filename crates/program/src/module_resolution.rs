@@ -181,6 +181,13 @@ pub trait ModuleResolutionOverride: Send + Sync {
     fn resolver_options(&self) -> Option<(&CompilerOptions, &ProgramOptions)> {
         None
     }
+
+    /// tsgo `Program.ModuleResolutionError`: why the resolution failed (a
+    /// client's callback), which fails the API request that built the
+    /// program.
+    fn module_resolution_error(&self) -> Option<String> {
+        None
+    }
 }
 
 /// What the API's resolution of a module request is.

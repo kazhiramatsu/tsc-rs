@@ -31,6 +31,6 @@ pub use project::{CommandLine, ProgramRoots, ProgramUpdateKind, Project, Project
 pub use session::{DocumentProjectError, Session};
 pub use snapshot::{
     ApiSnapshotRequest, ContentMapperContributions, CreateProgramRequest, ProjectError,
-    ProjectTreeRequest, ReconfigureProgramRequest, SessionOptions, Snapshot, SnapshotChange,
-    SnapshotHost,
+    ProjectTreeRequest, RebasableFileSystem, ReconfigureProgramRequest, SessionOptions, Snapshot,
+    SnapshotChange, SnapshotHost,
 };

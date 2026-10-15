@@ -212,6 +212,50 @@ pub struct Server {
     /// tsgo `contentMapperExtensionsRegistered` (under
     /// `contentMapperRegistrationMu`).
     content_mapper_extensions_registered: Mutex<bool>,
+    /// tsgo `apiSessions`: the API sessions over the server's session, by
+    /// ID.
+    api_sessions: Mutex<HashMap<String, Arc<ApiSessionState>>>,
+}
+
+/// tsgo `apiSessionState`: an API session over the server's session,
+/// serving the first client of its pipe on its thread.
+struct ApiSessionState {
+    transport: tsc_api::server::PipeCloser,
+    /// tsgo `connection` and `stopped`.
+    connection: Mutex<(Option<Arc<tsc_api::server::PipeConnection>>, bool)>,
+    /// tsgo `done`.
+    done: Mutex<Option<std::thread::JoinHandle<()>>>,
+}
+
+impl ApiSessionState {
+    /// tsgo `attachConnection`: none once the session stopped.
+    fn attach_connection(&self, connection: &Arc<tsc_api::server::PipeConnection>) -> bool {
+        let mut state = lock(&self.connection);
+        if state.1 {
+            connection.close();
+            return false;
+        }
+        state.0 = Some(Arc::clone(connection));
+        true
+    }
+
+    /// tsgo `stop`: the pipe and the connection closed, then the session's
+    /// thread waited for.
+    fn stop(&self) {
+        {
+            let mut state = lock(&self.connection);
+            if !state.1 {
+                state.1 = true;
+                self.transport.close();
+                if let Some(connection) = &state.0 {
+                    connection.close();
+                }
+            }
+        }
+        if let Some(done) = lock(&self.done).take() {
+            let _ = done.join();
+        }
+    }
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -244,6 +288,7 @@ impl Server {
             project_progress: OnceLock::new(),
             watchers: Mutex::default(),
             content_mapper_extensions_registered: Mutex::default(),
+            api_sessions: Mutex::default(),
         })
     }
 
@@ -281,6 +326,8 @@ impl Server {
             .map_err(|error| error.to_string())?;
         self.dispatch_loop();
         self.stop();
+        // tsgo's API sessions end with the server's context.
+        self.close_api_sessions();
         let _ = writer.join();
         match lock(&self.stop_reason).take() {
             Some(StopReason::Error(error)) => Err(error),
@@ -1920,8 +1967,64 @@ impl Server {
         _params: NoParams,
         _request: &RequestMessage,
     ) -> Result<lsproto::ShutdownResponse, Failure> {
+        self.close_api_sessions();
         self.initialized_session().close();
         Ok(lsproto::Null)
+    }
+
+    /// tsgo `handleInitializeAPISession`: an API session over the server's,
+    /// served on the first client of a pipe (the client's path, or a new
+    /// one).
+    fn handle_initialize_api_session(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        params: lsproto::InitializeAPISessionParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::CustomInitializeAPISessionResponse, Failure> {
+        let mut api_sessions = lock(&self.api_sessions);
+        let api_session = Arc::new(tsc_api::session::Session::new_lsp(
+            self.initialized_session(),
+            false,
+        ));
+        let pipe_path = match params.pipe {
+            Some(pipe) if !pipe.is_empty() => pipe,
+            _ => generate_api_pipe_path(),
+        };
+        let transport = tsc_api::server::PipeTransport::new(&pipe_path).map_err(|error| {
+            LspError::internal(format!("failed to create API transport: {error}"))
+        })?;
+        let state = Arc::new(ApiSessionState {
+            transport: transport.closer(),
+            connection: Mutex::default(),
+            done: Mutex::default(),
+        });
+        let id = api_session.id().to_owned();
+        api_sessions.insert(id.clone(), Arc::clone(&state));
+        let server = Arc::downgrade(self);
+        let thread_state = Arc::clone(&state);
+        let done = std::thread::Builder::new()
+            .name("tsc-rs-api-session".to_owned())
+            .spawn(move || {
+                serve_api_session(&server, &thread_state, &api_session, transport);
+                api_session.close();
+                if let Some(server) = server.upgrade() {
+                    lock(&server.api_sessions).remove(api_session.id());
+                }
+            })
+            .map_err(|error| LspError::internal(error.to_string()))?;
+        *lock(&state.done) = Some(done);
+        Ok(lsproto::InitializeAPISessionResult {
+            session_id: id,
+            pipe: pipe_path,
+        })
+    }
+
+    /// tsgo `closeAPISessions`.
+    fn close_api_sessions(&self) {
+        let api_sessions = std::mem::take(&mut *lock(&self.api_sessions));
+        for state in api_sessions.into_values() {
+            state.stop();
+        }
     }
 
     // -- document handlers ---------------------------------------------------
@@ -2415,6 +2518,10 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
             &mut handlers,
             Server::handle_project_info,
         );
+        register_request::<lsproto::CustomInitializeAPISessionInfo>(
+            &mut handlers,
+            Server::handle_initialize_api_session,
+        );
         register_language_service_document_request::<lsproto::TextDocumentDocumentHighlightInfo>(
             &mut handlers,
             Server::handle_document_highlight,
@@ -2493,6 +2600,63 @@ fn register_request<R: Request + 'static>(
             Ok(None)
         }),
     );
+}
+
+/// tsgo `generateAPIPipePath`: a new pipe named from the time and a random
+/// number.
+fn generate_api_pipe_path() -> String {
+    use std::hash::{BuildHasher, Hasher};
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos());
+    let random = std::collections::hash_map::RandomState::new()
+        .build_hasher()
+        .finish();
+    tsc_api::server::generate_pipe_path(&format!("tsgo-api-{now:x}-{random:x}"))
+}
+
+/// tsgo's API session goroutine: the pipe's first client (the pipe closed
+/// after it), then its requests until the connection ends; a failure or a
+/// panic is logged.
+fn serve_api_session(
+    server: &Weak<Server>,
+    state: &ApiSessionState,
+    session: &Arc<tsc_api::session::Session>,
+    transport: tsc_api::server::PipeTransport,
+) {
+    let log_error = |message: String| {
+        if let Some(server) = server.upgrade() {
+            server.logger.error(&server, &message);
+        }
+    };
+    let accepted = transport.accept();
+    transport.close();
+    let connection = match accepted {
+        Ok(connection) => Arc::new(connection),
+        Err(error) => {
+            log_error(format!(
+                "API session {}: failed to accept connection: {error}",
+                session.id()
+            ));
+            return;
+        }
+    };
+    if !state.attach_connection(&connection) {
+        return;
+    }
+    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        tsc_api::server::run_async_connection(session, &connection)
+    }));
+    match outcome {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => log_error(format!("API session {}: {error}", session.id())),
+        Err(panic) => log_error(format!(
+            "API session {}: panic: {}",
+            session.id(),
+            tsc_api::ipc::panic_message(panic.as_ref())
+        )),
+    }
+    connection.close();
 }
 
 /// A language service request's handler.

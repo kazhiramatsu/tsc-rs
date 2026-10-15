@@ -1232,3 +1232,90 @@ fn progress_notifications_end_to_end() {
     assert_eq!(progress[0]["value"]["title"], "Loading");
     assert_eq!(progress.last().unwrap()["value"]["kind"], "end");
 }
+
+/// tsgo `handleInitializeAPISession`: an API session over the server's
+/// session, served on the pipe's first client, sees the editor's projects
+/// and ends with the server's shutdown; without a path the server makes one
+/// in the temporary directory.
+#[cfg(unix)]
+#[test]
+fn api_session_over_the_language_server() {
+    let (mut session, mut client) = project_info_session(&[
+        ("/home/projects/tsconfig.json", "{}"),
+        ("/home/projects/index.ts", "export const x = 1;"),
+    ]);
+    client.initialize(&mut session, serde_json::json!({}));
+    let uri = "file:///home/projects/index.ts";
+    open_document(&mut client, &mut session, uri, "export const x = 1;");
+    let pipe = std::env::temp_dir()
+        .join(format!(
+            "tsc-rs-api-session-test-{}.sock",
+            std::process::id()
+        ))
+        .to_string_lossy()
+        .into_owned();
+    let response = client.request(
+        &mut session,
+        2,
+        "custom/initializeAPISession",
+        serde_json::json!({"pipe": pipe}),
+    );
+    assert!(response.get("error").is_none(), "{response}");
+    assert_eq!(response["result"]["pipe"], pipe);
+    assert!(response["result"]["sessionId"]
+        .as_str()
+        .unwrap()
+        .starts_with("api-session-"));
+
+    let stream = std::os::unix::net::UnixStream::connect(&pipe).unwrap();
+    let mut api_writer = Writer::new(stream.try_clone().unwrap());
+    let mut api_reader = Reader::new(stream);
+    let request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getCurrentLanguageServerSnapshot",
+        "params": {"changes": {"openFiles": ["/home/projects/index.ts"]}},
+    });
+    api_writer.write(request.to_string().as_bytes()).unwrap();
+    let answer: Value =
+        serde_json::from_slice(&api_reader.read().unwrap().expect("an answer")).unwrap();
+    assert_eq!(answer["id"], 1, "{answer}");
+    assert_eq!(
+        answer["result"]["operation"]["openedFiles"][0]["project"], "/home/projects/tsconfig.json",
+        "{answer}"
+    );
+    // The pipe's file goes once its client connected.
+    assert!(!Path::new(&pipe).exists());
+
+    let generated = client.request(
+        &mut session,
+        3,
+        "custom/initializeAPISession",
+        serde_json::json!({}),
+    );
+    let generated_pipe = generated["result"]["pipe"].as_str().unwrap().to_owned();
+    assert!(
+        Path::new(&generated_pipe)
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with("tsgo-api-"),
+        "{generated_pipe}"
+    );
+    assert!(Path::new(&generated_pipe).exists());
+
+    session.send(r#"{"jsonrpc":"2.0","id":4,"method":"shutdown"}"#);
+    loop {
+        let message: Value = serde_json::from_str(&session.receive().unwrap()).unwrap();
+        if message.get("method").is_none() && message["id"] == 4 {
+            assert!(message.get("error").is_none(), "{message}");
+            break;
+        }
+        client.answer(&mut session, &message);
+    }
+    // The connected client's session ended, and the waiting one's pipe went.
+    assert!(api_reader.read().unwrap().is_none());
+    assert!(!Path::new(&generated_pipe).exists());
+    session.close();
+    session.finish().unwrap();
+}
