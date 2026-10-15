@@ -9,8 +9,9 @@
 //! `releaseSourceFile`), the transpile requests, the program's information
 //! (`getSourceFile`, the resolved modules and their modes, the config
 //! files), the module resolvers, in `crate::checker` the symbol and type
-//! queries of the checker, in `crate::diagnostics` the program's
-//! diagnostics and in `crate::emit` its emit;
+//! queries of the checker, in `crate::language_service` the language
+//! service's requests, in `crate::diagnostics` the program's diagnostics
+//! and in `crate::emit` its emit;
 //! `getCurrentLanguageServerSnapshot` answers as tsgo's standalone session
 //! does, and tsgo's other methods answer that they are not implemented
 //! yet.
@@ -572,6 +573,7 @@ impl Session {
             _ => {
                 if let Some(result) = self
                     .handle_checker_request(method, params)
+                    .or_else(|| self.handle_language_service_request(method, params))
                     .or_else(|| self.handle_diagnostics_request(method, params))
                     .or_else(|| self.handle_emit_request(method, params))
                     .or_else(|| self.handle_print_request(method, params))
@@ -1097,7 +1099,11 @@ impl Session {
 
     /// tsgo `Program.GetSourceFile`: the file named `file_name` against the
     /// program's current directory, by path.
-    fn source_file(&self, program: &ProjectProgram, file_name: &str) -> Option<ProgramFile> {
+    pub(crate) fn source_file(
+        &self,
+        program: &ProjectProgram,
+        file_name: &str,
+    ) -> Option<ProgramFile> {
         let absolute = tsc_program::get_normalized_absolute_path(
             JsStr::from_str(file_name),
             program.prepared().current_directory().display(),
@@ -1173,7 +1179,7 @@ impl Session {
 
     /// tsgo `resolveNodeHandle`: the node of a handle `index.kind.path`, by
     /// its index in the encoding of the program's file at `path`.
-    fn resolve_node_handle(
+    pub(crate) fn resolve_node_handle(
         &self,
         program: &ProjectProgram,
         handle: &str,
@@ -1657,6 +1663,11 @@ impl Session {
             request.replace_file_system = supplied.is_full();
         }
         let file_changes = read_through(&mut request, file_changes, file_system.as_ref());
+        let prepare_auto_imports = params
+            .prepare_auto_imports
+            .as_ref()
+            .map(|file| self.absolute_file_name(file))
+            .transpose()?;
         let root = self.host.new_root_snapshot();
         self.begin_snapshot(file_system.as_ref());
         let snapshot = self.host.clone_snapshot(
@@ -1664,6 +1675,8 @@ impl Session {
             SnapshotChange {
                 file_changes,
                 api_request: Some(&request),
+                documents: prepare_auto_imports.iter().cloned().collect(),
+                auto_imports: prepare_auto_imports.clone(),
                 ..SnapshotChange::default()
             },
         );
@@ -1674,6 +1687,12 @@ impl Session {
             .map_err(|error| error.to_string())
             .and_then(|snapshot| resolution_error.map_or(Ok(snapshot), Err))
             .map_err(|error| client_error(format!("failed to create snapshot: {error}")))?;
+        validate_prepared_auto_imports(
+            &self.host,
+            &snapshot,
+            params.prepare_auto_imports.as_ref(),
+            prepare_auto_imports.as_deref(),
+        )?;
         let response = self.create_snapshot_response(&snapshot, None, &params.changes)?;
         self.register_snapshot(snapshot, open, file_system);
         Ok(response)
@@ -1721,12 +1740,19 @@ impl Session {
             .as_ref()
             .is_some_and(|supplied| supplied.is_full());
         let file_changes = read_through(&mut request, file_changes, file_system.as_ref());
+        let prepare_auto_imports = changes
+            .prepare_auto_imports
+            .as_ref()
+            .map(|file| self.absolute_file_name(file))
+            .transpose()?;
         self.begin_snapshot(file_system.as_ref());
         let snapshot = self.host.clone_snapshot(
             &base,
             SnapshotChange {
                 file_changes,
                 api_request: Some(&request),
+                documents: prepare_auto_imports.iter().cloned().collect(),
+                auto_imports: prepare_auto_imports.clone(),
                 ..SnapshotChange::default()
             },
         );
@@ -1735,9 +1761,42 @@ impl Session {
             .map_err(|error| error.to_string())
             .and_then(|snapshot| resolution_error.map_or(Ok(snapshot), Err))
             .map_err(|error| client_error(format!("failed to update snapshot: {error}")))?;
+        validate_prepared_auto_imports(
+            &self.host,
+            &snapshot,
+            changes.prepare_auto_imports.as_ref(),
+            prepare_auto_imports.as_deref(),
+        )?;
         let response = self.create_snapshot_response(&snapshot, Some(&base), &changes.changes)?;
         self.register_snapshot(snapshot, open, file_system);
         Ok(response)
+    }
+
+    /// tsgo `CloneSnapshotWithAutoImports`: a snapshot the session does not
+    /// register, made from one the client holds with a file's auto-imports
+    /// prepared (on that snapshot's file system).
+    pub(crate) fn clone_snapshot_with_auto_imports(
+        &self,
+        handle: SnapshotId,
+        base: &Snapshot,
+        file_name: &str,
+    ) -> Result<Arc<Snapshot>, String> {
+        let file_system = self.snapshot_file_system(handle)?;
+        self.begin_snapshot(file_system.as_ref());
+        let snapshot = self.host.clone_snapshot(
+            base,
+            SnapshotChange {
+                documents: vec![file_name.to_owned()],
+                auto_imports: Some(file_name.to_owned()),
+                ..SnapshotChange::default()
+            },
+        );
+        let resolution_error = self.resolution.end();
+        snapshot
+            .map_err(|error| error.to_string())
+            .and_then(|snapshot| resolution_error.map_or(Ok(snapshot), Err))
+            .map(Arc::new)
+            .map_err(client_error)
     }
 
     /// tsgo `handleGetDefaultProjectForFile`: the file's default project, or
@@ -2218,6 +2277,39 @@ fn compact_json(text: &str) -> String {
 /// A snapshot read through a request's file system: the request carries
 /// it, and the file changes reach the files' other names through its links
 /// (tsgo's snapshot expands them with `ExpandFileChanges`).
+/// tsgo `validatePreparedAutoImports`: a snapshot asked to prepare a file's
+/// auto-imports has them ready for the file's default project.
+fn validate_prepared_auto_imports(
+    host: &SnapshotHost,
+    snapshot: &Snapshot,
+    file: Option<&DocumentIdentifier>,
+    file_name: Option<&str>,
+) -> Result<(), String> {
+    let (Some(file), Some(file_name)) = (file, file_name) else {
+        return Ok(());
+    };
+    let prepared = snapshot.default_project(file_name).is_some_and(|project| {
+        tsc_ls::Host::auto_import_registry(snapshot).is_some_and(|registry| {
+            registry.is_prepared_for_importing_file(
+                &host.to_path(file_name),
+                project.id().as_str(),
+                snapshot.user_preferences(),
+            )
+        })
+    });
+    if prepared {
+        return Ok(());
+    }
+    Err(client_error(format!(
+        "could not prepare auto-imports for {}",
+        if file.uri.is_empty() {
+            &file.file_name
+        } else {
+            &file.uri
+        }
+    )))
+}
+
 fn read_through(
     request: &mut ApiSnapshotRequest,
     file_changes: FileChangeSummary,
@@ -2251,16 +2343,16 @@ pub(crate) struct ProgramFile {
     /// The file's index in the program's checker (libraries first).
     pub(crate) index: usize,
     /// The file name as the program spells it.
-    file_name: String,
+    pub(crate) file_name: String,
     path: String,
     /// The content mapper's output the file is (tsgo
     /// `ContentMapperSourceFileInfo`), when it is one.
-    content_mapped: Option<Arc<ContentMappedSource>>,
+    pub(crate) content_mapped: Option<Arc<ContentMappedSource>>,
 }
 
 /// tsgo `DocumentIdentifier.ToFileName`: a URI's file name, or the file name
 /// as given.
-fn document_file_name(document: &DocumentIdentifier) -> Result<String, String> {
+pub(crate) fn document_file_name(document: &DocumentIdentifier) -> Result<String, String> {
     if document.uri.is_empty() {
         Ok(document.file_name.clone())
     } else {

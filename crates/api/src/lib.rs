@@ -15,6 +15,7 @@ mod diagnostics;
 mod emit;
 pub mod encoder;
 pub mod ipc;
+mod language_service;
 pub mod module_resolution;
 pub mod msgpack;
 mod print;

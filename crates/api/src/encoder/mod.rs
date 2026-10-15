@@ -285,7 +285,7 @@ impl PositionMap {
     }
 
     /// tsgo `UTF8ToUTF16`.
-    fn utf16(&self, offset: u32) -> u32 {
+    pub(crate) fn utf16(&self, offset: u32) -> u32 {
         let after = self
             .entries
             .partition_point(|&(position, _)| position <= offset);

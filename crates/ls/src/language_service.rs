@@ -90,6 +90,9 @@ pub struct LanguageService<'a> {
     /// tsgo `projectID`: the program's project, whose auto-import bucket
     /// the service reads.
     pub(crate) project_id: Option<String>,
+    /// tsgo `core.CheckerLifetimeAPI`: the requests run on the program's API
+    /// checker, whose symbols the API's handles name.
+    pub(crate) api_checker: bool,
 }
 
 impl<'a> LanguageService<'a> {
@@ -110,6 +113,7 @@ impl<'a> LanguageService<'a> {
             capabilities,
             catalog,
             project_id: None,
+            api_checker: false,
         }
     }
 
@@ -117,6 +121,15 @@ impl<'a> LanguageService<'a> {
     /// `projectID`).
     pub fn with_project_id(mut self, project_id: impl Into<String>) -> Self {
         self.project_id = Some(project_id.into());
+        self
+    }
+
+    /// The service of the API (tsgo `core.WithCheckerLifetime(ctx,
+    /// core.CheckerLifetimeAPI)`): its requests run on the program's API
+    /// checker, so the symbols they find are the ones the API's handles
+    /// name.
+    pub fn with_api_checker(mut self) -> Self {
+        self.api_checker = true;
         self
     }
 

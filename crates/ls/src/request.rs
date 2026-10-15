@@ -69,6 +69,28 @@ impl LanguageService<'_> {
         links: bool,
         run: impl FnOnce(&mut Request<'_, '_>, u32) -> CheckResult<T>,
     ) -> Result<Option<T>, LsError> {
+        self.with_program_request(links, |request| {
+            let position = match position {
+                RequestPosition::Lsp(position) => {
+                    let source = request.state.binder.source(file);
+                    request
+                        .converters
+                        .from_lsp_position(&script_of(source), position) as u32
+                }
+                RequestPosition::Offset(position) => position,
+            };
+            run(request, position)
+        })
+    }
+
+    /// Run `run` over the program's query checker (or the API checker, for
+    /// the API's service) without a position: a request about a node or a
+    /// symbol; none for a program without files.
+    pub(crate) fn with_program_request<T>(
+        &mut self,
+        links: bool,
+        run: impl FnOnce(&mut Request<'_, '_>) -> CheckResult<T>,
+    ) -> Result<Option<T>, LsError> {
         let converters = self.converters;
         let preferences = self.user_preferences_ref();
         let capabilities = self.capabilities;
@@ -77,14 +99,7 @@ impl LanguageService<'_> {
         let project_id = self.project_id.clone();
         let source_maps = SourceMaps::new(host, converters);
         let prepared = self.program.shared_prepared();
-        let result = self.program.with_query_checker(|state| {
-            let source = state.binder.source(file);
-            let position = match position {
-                RequestPosition::Lsp(position) => {
-                    converters.from_lsp_position(&script_of(source), position) as u32
-                }
-                RequestPosition::Offset(position) => position,
-            };
+        let request_over = |state: &mut CheckerState<'_>| {
             let mut request = Request {
                 state,
                 converters,
@@ -97,8 +112,13 @@ impl LanguageService<'_> {
                 catalog,
                 project_id: project_id.as_deref(),
             };
-            run(&mut request, position)
-        });
+            run(&mut request)
+        };
+        let result = if self.api_checker {
+            self.program.with_checker(request_over)
+        } else {
+            self.program.with_query_checker(request_over)
+        };
         match result {
             Some(Ok(result)) => Ok(Some(result)),
             Some(Err(abort)) => Err(LsError(format!("checker aborted: {}", abort.description()))),

@@ -364,7 +364,7 @@ impl Registry {
     }
 
     /// tsgo `IsPreparedForImportingFile`.
-    pub(crate) fn is_prepared_for_importing_file(
+    pub fn is_prepared_for_importing_file(
         &self,
         path: &str,
         project: &str,

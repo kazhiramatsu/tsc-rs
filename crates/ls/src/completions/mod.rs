@@ -125,6 +125,25 @@ pub(crate) struct CompletionList {
     pub(crate) is_incomplete: bool,
     pub(crate) item_defaults: Option<CompletionItemDefaults>,
     pub(crate) items: Vec<CompletionItem>,
+    /// tsgo `CompletionItem.Symbol` of the first items: a symbol's item's
+    /// symbol when the API asks for them (`includeSymbols`), none for
+    /// another item.
+    pub(crate) symbols: Vec<Option<tsc_types::SymbolId>>,
+}
+
+/// tsgo `CompletionItem` (the API's): an item and, for a symbol's item when
+/// the API asks for them, its symbol.
+#[derive(Debug)]
+pub struct CompletionItemWithSymbol {
+    pub item: CompletionItem,
+    pub symbol: Option<tsc_types::SymbolId>,
+}
+
+/// tsgo `CompletionList` (the API's).
+#[derive(Debug)]
+pub struct ApiCompletionList {
+    pub is_incomplete: bool,
+    pub items: Vec<CompletionItemWithSymbol>,
 }
 
 /// tsgo `completionSource`s an item's data carries.
@@ -215,6 +234,42 @@ impl LanguageService<'_> {
             Some(list) => CompletionItemsOrListOrNull::List(list),
             None => CompletionItemsOrListOrNull::Null,
         })
+    }
+
+    /// tsgo `GetCompletionsAtPosition` (the API's): the completions at a
+    /// position of a program file, a symbol's item with its symbol when
+    /// `include_symbols`; the needs-auto-imports error when the snapshot's
+    /// registry is not prepared for the file.
+    pub fn get_completions_at_position(
+        &mut self,
+        file: usize,
+        position: u32,
+        trigger_character: Option<&str>,
+        include_symbols: bool,
+    ) -> Result<Option<ApiCompletionList>, LsError> {
+        let list = self.with_request_at(file, position, false, |request, position| {
+            let mut completions = Completions::new(request, file, position);
+            completions.include_symbols = include_symbols;
+            let list = completions.get_completions_at_position(trigger_character)?;
+            if completions.needs_auto_imports {
+                return Ok(Err(LsError::needs_auto_imports()));
+            }
+            Ok(Ok(list))
+        })?;
+        Ok(list.transpose()?.flatten().map(|list| {
+            let mut symbols = list.symbols.into_iter();
+            ApiCompletionList {
+                is_incomplete: list.is_incomplete,
+                items: list
+                    .items
+                    .into_iter()
+                    .map(|item| CompletionItemWithSymbol {
+                        item,
+                        symbol: symbols.next().flatten(),
+                    })
+                    .collect(),
+            }
+        }))
     }
 }
 
@@ -356,6 +411,7 @@ impl Completions<'_, '_, '_> {
             is_incomplete: false,
             item_defaults,
             items,
+            symbols: Vec::new(),
         })
     }
 
@@ -381,6 +437,7 @@ impl Completions<'_, '_, '_> {
             is_incomplete: false,
             item_defaults,
             items,
+            symbols: Vec::new(),
         }
     }
 
