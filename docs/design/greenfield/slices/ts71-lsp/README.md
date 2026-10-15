@@ -1517,3 +1517,45 @@ project の test を移して固定する。
   入れない。install の log は終わった時に書く（tsgo は次の更新の builder の log に埋める）。`tsc-rs --lsp` は `npm` を名前で
   起動（Windows では Go の検索は `npm.cmd` も見つける）。
 - **README**：language server の節から「Not yet: automatic type acquisition」を外す。
+
+## L11e 内蔵の file 監視（#820）
+
+- **merge**：#820 → `8c09c5367`（hosted run 38761956035：rust 14m16s（Linux の inotify でも監視の test が通る）、
+  conformance 32m46s、gates）。commit：d5e023df7（compiler・lsp）。検査の後の main の取り込みは #819 の merge（この
+  branch の土台の code）と L11d の記録だけ。
+- **lspwatcher**：tsgo `lsp/lspwatcher`。client が `workspace/didChangeWatchedFiles` の動的登録を持たず、system が木を
+  一度に監視できる時（macOS の FSEvents、Windows の ReadDirectoryChangesW：tsgo `HasFastRecursiveBackend`）、server が
+  session の watcher を自ら監視し、変更を client の通知と同じ形で 75 ms ごとにまとめて session に渡す。無い directory は
+  一番近い既存の祖先で監視し、現れたらその中身（再帰なら木）を作成として報告（`emitSyntheticCreates`）、消えた
+  directory も同じく祖先に戻る（`handleTerminated`）。id を失敗させるのは backend の失敗だけで、id は session の再試行の
+  ために戻す。server の `WatchFiles`・`UnwatchFiles` が使い、shutdown で閉じる。他の platform では従来どおり監視なし
+  （tsgo の log の通り）。
+- **backend**：tsgo の callback（`fswatch.WatchCallback`：event、`ErrOverflow`、`ErrWatchTerminated`）を取る形に。
+  `tsc --watch` の manager に tsgo `handleWatchTerminated`（消えた directory の監視を rebuild と共にやり直す）。process の
+  backend は多数の監視を扱う（tsgo `fswatch` と同じく）：notifier は一つ、event は backend の thread が配る（callback が
+  監視を始め・止められる）、各監視は自分の directory の下の変更を自分の綴りで受け、同じ directory の監視は共有（どれかが
+  木を望む間は木を監視）。tsgo の backend と同じく、消えた path は削除（FSEvents は path の flag を溜め、notify はそれを
+  別々の event にする）、directory 自身の変更は報告せず削除は監視を終える、相対（bundled の library の）や無い directory
+  は Go の message で失敗（`fswatch: path must be absolute`、`stat <dir>: no such file or directory`）。
+- **見つけた不具合**（端から端の test で）：notify の FSEvents の watcher は path の追加と削除のたびに stream を止めて
+  「今から」で始め直し、途中の変更を落としていた。tsgo は新しい stream を始めてから古いものを止める。macOS では全ての
+  directory を持つ新しい notifier を始めてから古いものを捨てる。
+- **`gofmt::quote`**（Go の `%q`）を content mapper の message と共有。
+- **test**：tsgo `lspwatcher_test.go` の 16 全て（tsgo の偽の backend で bookkeeping・kind・祖先・下降・合成の作成・
+  終了・巻き戻し・close の競合、本物の backend で作成・変更・削除と後で作られる directory）。process の backend を本物の
+  file system で 6（共有、再帰、消えた directory の終わり、callback からの監視の開始、error の message）。manager の
+  `handleWatchTerminated`。server の端から端（macOS と Windows）：client に watcher を登録せず、disk の変更が session の
+  diagnostics に届く（watcher の変更を捨てると落ちることを確かめた）。
+- **検査（d5e023df7）**：conformance 0 regressions（13,577 全て full、525 s）、`--checkers 4` は既知の 4 件だけ、
+  suites 0 regressions（行の変化なし。tscWatch・tsbuildWatch は harness の backend で変わらず）、test 全通過（lsp 58・
+  compiler 240 ほか。本物の file system の監視の test は macOS で 5 回続けて通過）、API client sync 356/356・async
+  365/365、clippy、fmt。
+- **L11 の完了**：L11a〜L11e で tsgo の server と session の transcript が届かない機能は全て。残りは P5-5b
+  （`printNode` の `preserveSourceNewlines`）と L12。
+- **有界の違い**：tsgo の session は program files の watcher に library の directory（`bundled:///libs/**/*`、
+  `createResolutionLookupGlobMapper`）を入れるが、tsgo の内蔵の監視はそれを監視できず（`fswatch: path must be
+  absolute`）、その id 全体が失敗して保留のまま残る。library を埋め込んでいる間、内蔵の監視では `node_modules` と
+  workspace の外の file が監視されない。tsc-rs は tsgo の振る舞いのまま（本家での修正はその directory を飛ばすこと）。
+  tsgo の `fswatch`（FSEvents・inotify・fanotify・kqueue・Windows）は移さず、`tsc --watch` が使う `notify` crate の上に
+  上の event の規則を置いた。
+- **README**：language server の節に内蔵の file 監視。
