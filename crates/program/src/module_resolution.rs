@@ -786,6 +786,8 @@ pub struct ModuleResolver<'a> {
     /// The API's resolution in front of this one (tsgo's module resolver
     /// factory).
     module_resolution_override: Option<Arc<dyn ModuleResolutionOverride>>,
+    /// tsgo `typingsLocation`.
+    typings_location: Option<JsString>,
 }
 
 impl<'a> ModuleResolver<'a> {
@@ -831,6 +833,7 @@ impl<'a> ModuleResolver<'a> {
         let module_resolution_override = program_options
             .module_resolution_override()
             .map(|handle| Arc::clone(&handle.0));
+        let typings_location = program_options.typings_location().cloned();
         // tsgo's module resolver factory resolves with the client resolver's
         // options.
         let resolver_options = module_resolution_override
@@ -865,6 +868,7 @@ impl<'a> ModuleResolver<'a> {
                 .collect();
         }
         resolver.module_resolution_override = module_resolution_override;
+        resolver.typings_location = typings_location;
         Ok(resolver)
     }
 
@@ -942,6 +946,7 @@ impl<'a> ModuleResolver<'a> {
             redirect_config: None,
             trace_suppressed: std::cell::Cell::new(0),
             module_resolution_override: None,
+            typings_location: None,
         })
     }
 
@@ -982,6 +987,7 @@ impl<'a> ModuleResolver<'a> {
             redirect_config: None,
             trace_suppressed: std::cell::Cell::new(0),
             module_resolution_override: None,
+            typings_location: None,
         })
     }
 
@@ -1618,7 +1624,99 @@ impl<'a> ModuleResolver<'a> {
         })?;
         result.diagnostics = diagnostics;
         self.trace_module_resolution_result(specifier, &result);
+        if let Some(typings_location) = self.typings_location.clone() {
+            result = self.resolve_from_typings_location(&typings_location, specifier, result)?;
+        }
         result.trace = self.take_trace();
+        Ok(result)
+    }
+
+    /// tsgo `tryResolveFromTypingsLocation`: in a project that acquires
+    /// types, a name that resolved to no TypeScript (or JSON) tries the
+    /// typings cache's `node_modules` for declarations (tsgo
+    /// `loadModuleFromImmediateNodeModulesDirectory`: the package, then its
+    /// `@types` package).
+    fn resolve_from_typings_location(
+        &mut self,
+        typings_location: &JsString,
+        specifier: JsStr<'_>,
+        original: HostModuleResolution,
+    ) -> Result<HostModuleResolution, ResolutionError> {
+        let typed = matches!(
+            &original.outcome,
+            ResolutionOutcome::Resolved(module)
+                if is_typescript_module_extension(module.extension())
+                    || *module.extension() == ModuleExtension::Json
+        );
+        if typed || is_relative_specifier(specifier) {
+            return Ok(original);
+        }
+        trace!(
+            self,
+            gen::Auto_discovery_for_typings_is_enabled_in_project_0_Running_extra_resolution_pass_for_module_1_using_cache_location_2,
+            "",
+            specifier,
+            typings_location.as_js()
+        );
+        let request = parse_package_request(specifier)?;
+        let (outcome, diagnostics) = self.with_input_request(true, |resolver| {
+            let node_modules = join_normalized(typings_location, "node_modules");
+            let exists = resolver
+                .host
+                .directory_exists_js(JsStr::from(&node_modules))?;
+            if exists {
+                let package_root = package_root_for_request(&node_modules, &request);
+                let specific = resolver.resolve_specific_package(
+                    &package_root,
+                    &request.exports_subpath,
+                    ExtensionProbePass::Declaration,
+                    ResolutionMode::Unspecified,
+                    resolver.module_exports_feature_enabled(),
+                    None,
+                    /* follow_realpath */ false,
+                )?;
+                if specific.terminal {
+                    return Ok(specific.outcome);
+                }
+            } else {
+                trace!(
+                    resolver,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    node_modules.as_js()
+                );
+            }
+            let at_types = join_normalized(&node_modules, "@types");
+            if !exists || !resolver.host.directory_exists_js(JsStr::from(&at_types))? {
+                trace!(
+                    resolver,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    at_types.as_js()
+                );
+                return Ok(ResolutionOutcome::NotFound);
+            }
+            resolver.trace_scoped_package_request(&request);
+            let types_package = types_package_root_for_request(&at_types, &request);
+            let specific = resolver.resolve_specific_package(
+                &types_package,
+                &request.exports_subpath,
+                ExtensionProbePass::Declaration,
+                ResolutionMode::Unspecified,
+                resolver.module_exports_feature_enabled(),
+                None,
+                /* follow_realpath */ false,
+            )?;
+            Ok(if specific.terminal {
+                specific.outcome
+            } else {
+                ResolutionOutcome::NotFound
+            })
+        })?;
+        let ResolutionOutcome::Resolved(module) = outcome else {
+            return Ok(original);
+        };
+        let mut result = HostModuleResolution::new(ResolutionOutcome::Resolved(module));
+        result.diagnostics = original.diagnostics;
+        result.diagnostics.extend(diagnostics);
         Ok(result)
     }
 

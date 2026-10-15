@@ -69,6 +69,11 @@ pub struct ServerOptions {
     /// tsgo `ProgressDelay`: how long an operation runs before its progress
     /// shows (none for zero).
     pub progress_delay: Duration,
+    /// tsgo `TypingsLocation`: the global typings cache, when the server
+    /// installs typings.
+    pub typings_location: Option<String>,
+    /// tsgo `NpmInstall`: runs npm for the typings installer.
+    pub npm_executor: Option<Arc<dyn tsc_project::ata::NpmExecutor>>,
 }
 
 /// Why a handler did not answer (tsgo's handler errors: `io.EOF` for
@@ -204,6 +209,10 @@ pub struct Server {
     spawner: Option<Arc<dyn Spawner>>,
     /// tsgo `progressDelay`.
     progress_delay: Duration,
+    /// tsgo `typingsLocation`.
+    typings_location: Option<String>,
+    /// tsgo `npmInstall`.
+    npm_executor: Option<Arc<dyn tsc_project::ata::NpmExecutor>>,
     /// tsgo `projectProgress`: the progress of loading projects and
     /// installing types, for a client that takes work done progress.
     project_progress: OnceLock<crate::progress::ProjectLoadingProgress>,
@@ -288,6 +297,8 @@ impl Server {
             default_library_path: options.default_library_path,
             spawner: options.spawner,
             progress_delay: options.progress_delay,
+            typings_location: options.typings_location,
+            npm_executor: options.npm_executor,
             project_progress: OnceLock::new(),
             watchers: Mutex::default(),
             content_mapper_extensions_registered: Mutex::default(),
@@ -1001,11 +1012,13 @@ impl Server {
                 push_diagnostics_enabled: !disable_push_diagnostics,
                 debounce_delay: Duration::from_millis(500),
                 client_capabilities,
+                typings_location: self.typings_location.clone(),
             },
             Arc::clone(&self.fs),
             Some(Arc::clone(&host) as Arc<dyn tsc_project::Client>),
             Some(host as Arc<dyn tsc_project::Logger>),
             self.spawner.clone(),
+            self.npm_executor.clone(),
         );
         if self.session.set(session).is_err() {
             return Err(ErrorCode::INVALID_REQUEST.into());

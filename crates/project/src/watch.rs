@@ -212,6 +212,67 @@ pub(crate) type ProgramFilesWatch = WatchedFiles<BTreeMap<String, String>>;
 /// tsgo's `contentMapperWatch`: of the content mappers' files.
 pub(crate) type ContentMapperWatch = WatchedFiles<Vec<String>>;
 
+/// tsgo's `typingsWatch`: of the typings installer's files to watch, as
+/// globs already.
+pub(crate) type TypingsWatch = WatchedFiles<PatternsAndIgnored>;
+
+/// tsgo `getTypingsLocationsGlobs`: the typings cache and the workspace,
+/// recursively, when a file to watch is in them, and the common parents of
+/// the other files' directories.
+pub(crate) fn typings_locations_globs(
+    typings_files: &[String],
+    typings_location: &str,
+    workspace_directory: &str,
+    case_sensitive: bool,
+) -> PatternsAndIgnored {
+    let key = |path: &str| {
+        if case_sensitive {
+            path.to_owned()
+        } else {
+            tsc_host::to_file_name_lower_case(path)
+        }
+    };
+    let mut include_typings_location = false;
+    let mut include_workspace = false;
+    let mut external_directories = BTreeMap::new();
+    for file_name in typings_files {
+        if contains_path(typings_location, file_name, case_sensitive) {
+            include_typings_location = true;
+        } else if !contains_path(workspace_directory, file_name, case_sensitive) {
+            let directory = match file_name.rfind('/') {
+                Some(0) => "/".to_owned(),
+                Some(index) => file_name[..index].to_owned(),
+                None => file_name.clone(),
+            };
+            external_directories.insert(key(&directory), directory);
+        } else {
+            include_workspace = true;
+        }
+    }
+    let directories = external_directories.into_values().collect::<Vec<_>>();
+    let (mut parents, ignored) =
+        common_parent_directories(&directories, MIN_WATCH_LOCATION_DEPTH, case_sensitive);
+    parents.sort();
+    let mut globs = BTreeMap::new();
+    if include_workspace {
+        globs.insert(
+            key(workspace_directory),
+            recursive_glob_pattern(workspace_directory),
+        );
+    }
+    if include_typings_location {
+        globs.insert(
+            key(typings_location),
+            recursive_glob_pattern(typings_location),
+        );
+    }
+    PatternsAndIgnored {
+        directories_outside_workspace: parents,
+        patterns_inside_workspace: globs.into_values().collect(),
+        ignored,
+    }
+}
+
 /// tsgo `fileSystemWatcherGlobString`.
 pub(crate) fn glob_string(watcher: &FileSystemWatcher) -> String {
     match &watcher.glob_pattern {
