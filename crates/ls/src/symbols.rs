@@ -1,5 +1,6 @@
-//! tsgo `ls/symbols.go`: the workspace's symbols matching a query, and the
-//! protocol kind of a declaration (the document symbols come with L6).
+//! tsgo `ls/symbols.go`: a document's symbols (`textDocument/documentSymbol`),
+//! the workspace's symbols matching a query, and the protocol kind of a
+//! declaration.
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -9,7 +10,8 @@ use tsc_binder::node_util;
 use tsc_checker::program::ProgramFileId;
 use tsc_checker::state::CheckerState;
 use tsc_lsproto::{
-    DocumentUri, Location, SymbolInformation, SymbolInformationsOrWorkspaceSymbolsOrNull,
+    DocumentSymbol, DocumentSymbolResponse, DocumentUri, Location, SymbolInformation,
+    SymbolInformationsOrDocumentSymbolsOrNull, SymbolInformationsOrWorkspaceSymbolsOrNull,
     SymbolKind, WorkspaceSymbolResponse,
 };
 use tsc_program::uri::file_name_to_document_uri;
@@ -19,6 +21,763 @@ use tsc_types::ModifierFlags;
 use crate::language_service::{LanguageService, LsError};
 use crate::request::Request;
 use crate::utilities::{path_key, script_of, token_start};
+
+/// tsgo's `maxLength` of a document symbol's name.
+const MAX_LENGTH: usize = 150;
+
+/// tsgo `getDocumentSymbolsForChildren`'s state: the symbols so far and
+/// the names of the functions and classes their expandos may extend.
+#[derive(Default)]
+struct DocumentSymbols {
+    symbols: Vec<DocumentSymbol>,
+    expando_targets: std::collections::HashSet<String>,
+}
+
+impl LanguageService<'_> {
+    /// tsgo `ProvideDocumentSymbols` (a file without a content mapper: one
+    /// projection): the file's symbols, each name, kind and range once, as
+    /// a hierarchy for a client that takes one, else flattened.
+    pub fn provide_document_symbols(
+        &mut self,
+        uri: &DocumentUri,
+    ) -> Result<DocumentSymbolResponse, LsError> {
+        let file = self.file(uri);
+        let symbols = self
+            .with_request_at(file, 0, false, |request, _| {
+                let root = request.state.binder.source(file).root;
+                Ok(request.document_symbols_for_children(root))
+            })?
+            .unwrap_or_default();
+        let mut seen = std::collections::HashSet::new();
+        let symbols: Vec<DocumentSymbol> = symbols
+            .into_iter()
+            .filter(|symbol| {
+                seen.insert((
+                    symbol.name.clone(),
+                    symbol.kind.0,
+                    (
+                        symbol.range.start.line,
+                        symbol.range.start.character,
+                        symbol.range.end.line,
+                        symbol.range.end.character,
+                    ),
+                ))
+            })
+            .collect();
+        if self
+            .capabilities
+            .text_document
+            .document_symbol
+            .hierarchical_document_symbol_support
+        {
+            return Ok(SymbolInformationsOrDocumentSymbolsOrNull::DocumentSymbols(
+                symbols,
+            ));
+        }
+        // A client without hierarchical document symbols takes them flat.
+        let mut flat = Vec::new();
+        flatten_document_symbols(&symbols, uri, None, &mut flat);
+        Ok(SymbolInformationsOrDocumentSymbolsOrNull::SymbolInformations(flat))
+    }
+}
+
+/// tsgo `flattenDocumentSymbols`: each symbol, then its children with it as
+/// their container.
+fn flatten_document_symbols(
+    symbols: &[DocumentSymbol],
+    uri: &DocumentUri,
+    container_name: Option<&str>,
+    result: &mut Vec<SymbolInformation>,
+) {
+    for symbol in symbols {
+        result.push(SymbolInformation {
+            name: symbol.name.clone(),
+            kind: symbol.kind,
+            tags: symbol.tags.clone(),
+            deprecated: symbol.deprecated,
+            location: Location {
+                uri: uri.clone(),
+                range: symbol.range.clone(),
+            },
+            container_name: container_name.map(str::to_owned),
+        });
+        if let Some(children) = symbol
+            .children
+            .as_ref()
+            .filter(|children| !children.is_empty())
+        {
+            flatten_document_symbols(children, uri, Some(&symbol.name), result);
+        }
+    }
+}
+
+impl Request<'_, '_> {
+    /// tsgo `getDocumentSymbolsForChildren`: the symbols of a node's
+    /// children, expandos merged into their targets.
+    fn document_symbols_for_children(&mut self, node: NodeId) -> Vec<DocumentSymbol> {
+        let mut state = DocumentSymbols::default();
+        for child in self.children(node) {
+            self.visit_document_symbol(&mut state, child);
+        }
+        merge_expandos(state.symbols)
+    }
+
+    /// tsgo's `getSymbolsForChildren`: the symbols of a node's children,
+    /// with expando targets of their own.
+    fn document_symbols_of_children(
+        &mut self,
+        state: &mut DocumentSymbols,
+        node: Option<NodeId>,
+    ) -> Vec<DocumentSymbol> {
+        let Some(node) = node else {
+            return Vec::new();
+        };
+        let saved_targets = std::mem::take(&mut state.expando_targets);
+        let saved_symbols = std::mem::take(&mut state.symbols);
+        for child in self.children(node) {
+            self.visit_document_symbol(state, child);
+        }
+        state.expando_targets = saved_targets;
+        std::mem::replace(&mut state.symbols, saved_symbols)
+    }
+
+    /// tsgo's `getSymbolsForNode`: the symbols of a node itself.
+    fn document_symbols_of_node(
+        &mut self,
+        state: &mut DocumentSymbols,
+        node: Option<NodeId>,
+    ) -> Vec<DocumentSymbol> {
+        let Some(node) = node else {
+            return Vec::new();
+        };
+        let saved_symbols = std::mem::take(&mut state.symbols);
+        self.visit_document_symbol(state, node);
+        std::mem::replace(&mut state.symbols, saved_symbols)
+    }
+
+    /// tsgo's `addSymbolForNode`.
+    fn add_document_symbol(
+        &self,
+        state: &mut DocumentSymbols,
+        node: NodeId,
+        name: Option<NodeId>,
+        children: Vec<DocumentSymbol>,
+    ) {
+        if let Some(symbol) = self.new_document_symbol(node, name, children) {
+            state.symbols.push(symbol);
+        }
+    }
+
+    /// tsgo `getDocumentSymbolsForChildren`'s `visit`: the symbols of a
+    /// declaration (with its body's or initializer's as its children), of a
+    /// JSDoc typedef or callback, or of an expando assignment to a function
+    /// or class; top-level imports have none.
+    fn visit_document_symbol(&mut self, state: &mut DocumentSymbols, node: NodeId) {
+        let source = self.state.binder.source_of_node(node);
+        let record = self.state.binder.node_record(node);
+        if let Some(js_doc) = record.js_doc {
+            for &comment in self.state.binder.node_array(js_doc).nodes {
+                let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
+                    continue;
+                };
+                for tag in self.node_list(data.tags) {
+                    if matches!(
+                        self.node_kind(tag),
+                        SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
+                    ) {
+                        self.add_document_symbol(state, tag, None, Vec::new());
+                    }
+                }
+            }
+        }
+        let kind = record.kind;
+        if record
+            .parent
+            .is_some_and(|parent| self.node_kind(parent) == SyntaxKind::SourceFile)
+            && matches!(
+                kind,
+                SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration
+            )
+        {
+            return;
+        }
+        match kind {
+            SyntaxKind::ClassDeclaration
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::EnumDeclaration => {
+                if matches!(
+                    kind,
+                    SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                ) {
+                    let name = get_declaration_name(source, node);
+                    if !name.is_empty() {
+                        state.expando_targets.insert(name);
+                    }
+                }
+                let children = self.document_symbols_of_children(state, Some(node));
+                self.add_document_symbol(state, node, None, children);
+            }
+            SyntaxKind::ModuleDeclaration => {
+                let interior = interior_module(source, node);
+                let children = self.document_symbols_of_children(state, Some(interior));
+                self.add_document_symbol(state, node, None, children);
+            }
+            SyntaxKind::Constructor => {
+                let body = node_util::body_of(source, node);
+                let children = self.document_symbols_of_children(state, body);
+                self.add_document_symbol(state, node, None, children);
+                for parameter in crate::utilities::parameters_in(source, node) {
+                    if node_util::has_syntactic_modifier(
+                        source,
+                        parameter,
+                        ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+                    ) {
+                        self.add_document_symbol(state, parameter, None, Vec::new());
+                    }
+                }
+            }
+            SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor => {
+                let name = get_declaration_name(source, node);
+                if !name.is_empty() {
+                    state.expando_targets.insert(name);
+                }
+                let body = node_util::body_of(source, node);
+                let children = self.document_symbols_of_children(state, body);
+                self.add_document_symbol(state, node, None, children);
+            }
+            SyntaxKind::VariableDeclaration
+            | SyntaxKind::BindingElement
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::PropertyDeclaration => {
+                let Some(name) = node_util::name_field_of(source, node) else {
+                    return;
+                };
+                if matches!(
+                    self.node_kind(name),
+                    SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+                ) {
+                    self.visit_document_symbol(state, name);
+                } else {
+                    let initializer = node_util::initializer_of(source, node);
+                    let children = self.document_symbols_of_children(state, initializer);
+                    self.add_document_symbol(state, node, None, children);
+                }
+            }
+            SyntaxKind::SpreadAssignment => {
+                let expression = match &record.data {
+                    NodeData::SpreadAssignment(data) => data.expression,
+                    _ => None,
+                };
+                self.add_document_symbol(state, node, expression, Vec::new());
+            }
+            SyntaxKind::MethodSignature
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::CallSignature
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::EnumMember
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::ExportSpecifier => {
+                self.add_document_symbol(state, node, None, Vec::new());
+            }
+            SyntaxKind::ImportClause => {
+                let NodeData::ImportClause(data) = &record.data else {
+                    return;
+                };
+                // A default import, `import d from "mod"`.
+                if let Some(name) = data.name {
+                    self.add_document_symbol(state, name, Some(name), Vec::new());
+                }
+                // Named bindings, `import * as NS from "mod"` or
+                // `import { a, b as B } from "mod"`.
+                if let Some(bindings) = data.named_bindings {
+                    match &self.state.binder.node_record(bindings).data {
+                        NodeData::NamespaceImport(_) => {
+                            self.add_document_symbol(state, bindings, None, Vec::new());
+                        }
+                        NodeData::NamedImports(named) => {
+                            for element in self.node_list(named.elements) {
+                                self.add_document_symbol(state, element, None, Vec::new());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            SyntaxKind::BinaryExpression | SyntaxKind::CallExpression => {
+                match get_assignment_declaration_kind(source, node) {
+                    AssignmentDeclarationKind::Property
+                    | AssignmentDeclarationKind::ObjectDefinePropertyValue => {
+                        self.visit_expando_assignment(state, node);
+                    }
+                    _ => {
+                        for child in self.children(node) {
+                            self.visit_document_symbol(state, child);
+                        }
+                    }
+                }
+            }
+            SyntaxKind::ExportAssignment => {
+                let NodeData::ExportAssignment(data) = &record.data else {
+                    return;
+                };
+                if data.is_export_equals == Some(true) {
+                    let children = self.document_symbols_of_node(state, data.expression);
+                    self.add_document_symbol(state, node, None, children);
+                } else {
+                    for child in self.children(node) {
+                        self.visit_document_symbol(state, child);
+                    }
+                }
+            }
+            _ => {
+                for child in self.children(node) {
+                    self.visit_document_symbol(state, child);
+                }
+            }
+        }
+    }
+
+    /// The expando part of tsgo's `visit`: `A.b = …`, `A.prototype.b = …`
+    /// or `Object.defineProperty(A, "b", …)` of a function or class `A` the
+    /// scope declared is a symbol named `A` holding `b`'s (merged into `A`
+    /// later); another target's assignment is just visited.
+    fn visit_expando_assignment(&mut self, state: &mut DocumentSymbols, node: NodeId) {
+        let source = self.state.binder.source_of_node(node);
+        let (target, mut target_function, definition, property_name) =
+            match &self.state.binder.node_record(node).data {
+                NodeData::BinaryExpression(data) => {
+                    let Some(target) = data.left else {
+                        return;
+                    };
+                    let (target_function, property_name) =
+                        match &self.state.binder.node_record(target).data {
+                            NodeData::PropertyAccessExpression(access) => {
+                                (access.expression, access.name)
+                            }
+                            NodeData::ElementAccessExpression(access) => {
+                                (access.expression, access.argument_expression)
+                            }
+                            _ => (None, None),
+                        };
+                    (Some(target), target_function, data.right, property_name)
+                }
+                NodeData::CallExpression(data) => {
+                    let arguments = self.node_list(data.arguments);
+                    (
+                        arguments.get(1).copied(),
+                        arguments.first().copied(),
+                        arguments.get(2).copied(),
+                        arguments.get(1).copied(),
+                    )
+                }
+                _ => return,
+            };
+        if let Some(function) =
+            target_function.filter(|&function| is_prototype_expando(source, function))
+        {
+            target_function = node_util::expression_of(source, function);
+            // A prototype assignment starts tracking its target as an expando
+            // target.
+            if let Some(name) =
+                target_function.and_then(|function| node_util::id_text(source, function))
+            {
+                state.expando_targets.insert(name.to_owned());
+            }
+        }
+        let is_target = target_function.is_some_and(|function| {
+            node_util::id_text(source, function)
+                .is_some_and(|name| state.expando_targets.contains(name))
+        });
+        let (Some(target), true) = (target, is_target) else {
+            for child in self.children(node) {
+                self.visit_document_symbol(state, child);
+            }
+            return;
+        };
+        // tsgo's `startNode(node, targetFunction)` around the property's
+        // symbol.
+        let saved_targets = std::mem::take(&mut state.expando_targets);
+        let saved_symbols = std::mem::take(&mut state.symbols);
+        let children = self.document_symbols_of_node(state, definition);
+        self.add_document_symbol(state, target, property_name, children);
+        let result = std::mem::replace(&mut state.symbols, saved_symbols);
+        state.expando_targets = saved_targets;
+        self.add_document_symbol(state, node, target_function, result);
+    }
+
+    /// tsgo `newDocumentSymbol`: a node's symbol named by `name` (else its
+    /// declaration's name, a module's dotted name, `export=`, or the label of
+    /// an unnamed node), from its start to its end with its name selected;
+    /// none without a name.
+    fn new_document_symbol(
+        &self,
+        node: NodeId,
+        name: Option<NodeId>,
+        children: Vec<DocumentSymbol>,
+    ) -> Option<DocumentSymbol> {
+        let source = self.state.binder.source_of_node(node);
+        let text_of = source.text();
+        let record = self.state.binder.node_record(node);
+        let node_start = tsc_syntax::skip_trivia(text_of, record.pos as usize);
+        let name = name.or_else(|| node_util::get_name_of_declaration(source, node));
+        let (mut text, name_start, name_end);
+        if record.kind == SyntaxKind::ModuleDeclaration
+            && !node_util::is_ambient_module(source, node)
+        {
+            text = module_name(source, node);
+            let name = name?;
+            name_start = tsc_syntax::skip_trivia(text_of, source.arena.node(name).pos as usize);
+            let interior = interior_module(source, node);
+            name_end = node_util::name_field_of(source, interior)
+                .map_or(name_start, |name| source.arena.node(name).end as usize);
+        } else if matches!(&record.data, NodeData::ExportAssignment(data) if data.is_export_equals == Some(true))
+        {
+            text = "export=".to_owned();
+            if !node_util::node_is_missing(source, name) {
+                let name = name.expect("a name that is not missing");
+                name_start = tsc_syntax::skip_trivia(text_of, source.arena.node(name).pos as usize);
+                name_end = source.arena.node(name).end as usize;
+            } else {
+                name_start = node_start;
+                name_end = record.end as usize;
+            }
+        } else if let Some(name) = name {
+            text = text_of_name(source, name);
+            name_start = tsc_syntax::skip_trivia(text_of, source.arena.node(name).pos as usize)
+                .max(node_start);
+            name_end = (source.arena.node(name).end as usize).max(node_start);
+        } else {
+            text = self.unnamed_node_label(node);
+            name_start = node_start;
+            name_end = node_start;
+        }
+        if text.is_empty() {
+            return None;
+        }
+        if text.chars().count() > MAX_LENGTH {
+            text = text.chars().take(MAX_LENGTH).collect::<String>() + "...";
+        }
+        let script = script_of(source);
+        let selection_range = self.converters.to_lsp_range(&script, name_start..name_end);
+        let range = self
+            .converters
+            .to_lsp_range(&script, node_start..record.end as usize);
+        Some(DocumentSymbol {
+            name: text,
+            detail: None,
+            kind: symbol_kind_from_node(self, node),
+            tags: None,
+            deprecated: None,
+            range,
+            selection_range,
+            children: Some(children),
+        })
+    }
+
+    /// tsgo `getUnnamedNodeLabel`: `export=` or `default` for an exported
+    /// expression, `default` for a default-exported function or class, a
+    /// callback's `f("literal") callback`, `<function>`, `<class>`,
+    /// `constructor`, `()`, `new()` or `[]`; empty for anything else.
+    fn unnamed_node_label(&self, node: NodeId) -> String {
+        let source = self.state.binder.source_of_node(node);
+        let mut parent = self.parent_of(node);
+        while let Some(current) =
+            parent.filter(|&current| self.node_kind(current) == SyntaxKind::ParenthesizedExpression)
+        {
+            parent = self.parent_of(current);
+        }
+        if let Some(parent) = parent {
+            if let NodeData::ExportAssignment(data) = &self.state.binder.node_record(parent).data {
+                return if data.is_export_equals == Some(true) {
+                    "export="
+                } else {
+                    "default"
+                }
+                .to_owned();
+            }
+        }
+        let is_default = || node_util::has_syntactic_modifier(source, node, ModifierFlags::DEFAULT);
+        match self.node_kind(node) {
+            SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction => {
+                if is_default() {
+                    return "default".to_owned();
+                }
+                if let Some(call) = self
+                    .parent_of(node)
+                    .filter(|&parent| self.node_kind(parent) == SyntaxKind::CallExpression)
+                {
+                    let callee = node_util::expression_of(source, call);
+                    let name = callee
+                        .map(|callee| call_expression_name(source, callee))
+                        .unwrap_or_default();
+                    if !name.is_empty() {
+                        let name = clean_callback_text(&name);
+                        if name.len() > MAX_LENGTH {
+                            return name + " callback";
+                        }
+                        let arguments =
+                            clean_callback_text(&self.call_expression_literal_arguments(call));
+                        return format!("{name}({arguments}) callback");
+                    }
+                }
+                "<function>".to_owned()
+            }
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
+                if is_default() {
+                    "default".to_owned()
+                } else {
+                    "<class>".to_owned()
+                }
+            }
+            SyntaxKind::Constructor => "constructor".to_owned(),
+            SyntaxKind::CallSignature => "()".to_owned(),
+            SyntaxKind::ConstructSignature => "new()".to_owned(),
+            SyntaxKind::IndexSignature => "[]".to_owned(),
+            _ => String::new(),
+        }
+    }
+
+    /// tsgo `getCallExpressionLiteralArgs`: the call's string literal and
+    /// template arguments' text, joined.
+    fn call_expression_literal_arguments(&self, call: NodeId) -> String {
+        let source = self.state.binder.source_of_node(call);
+        let NodeData::CallExpression(data) = &source.arena.node(call).data else {
+            return String::new();
+        };
+        self.node_list(data.arguments)
+            .into_iter()
+            .filter(|&argument| {
+                matches!(
+                    self.node_kind(argument),
+                    SyntaxKind::StringLiteral
+                        | SyntaxKind::NoSubstitutionTemplateLiteral
+                        | SyntaxKind::TemplateExpression
+                )
+            })
+            .map(|argument| text_of_node(source, argument).to_owned())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
+/// tsgo `isPrototypeExpando`: `f.prototype` (or `f["prototype"]`).
+fn is_prototype_expando(source: &SourceFile, target: NodeId) -> bool {
+    match &source.arena.node(target).data {
+        NodeData::PropertyAccessExpression(access) => access
+            .name
+            .and_then(|name| node_util::id_text(source, name))
+            == Some("prototype"),
+        NodeData::ElementAccessExpression(access) => access.argument_expression.is_some_and(|argument| {
+            matches!(&source.arena.node(argument).data, NodeData::StringLiteral(literal) if literal.text == "prototype")
+        }),
+        _ => false,
+    }
+}
+
+/// tsgo `mergeExpandos`: the symbols with each expando (a property named
+/// like a class, function or variable) merged into those of its name, and
+/// each namespace into the first of its name; children merged first.
+fn merge_expandos(symbols: Vec<DocumentSymbol>) -> Vec<DocumentSymbol> {
+    let mut expando_targets: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    let mut namespaces: BTreeMap<String, usize> = BTreeMap::new();
+    for (index, symbol) in symbols.iter().enumerate() {
+        if is_anonymous_name(&symbol.name) {
+            continue;
+        }
+        if matches!(
+            symbol.kind,
+            SymbolKind::CLASS | SymbolKind::FUNCTION | SymbolKind::VARIABLE
+        ) {
+            expando_targets
+                .entry(symbol.name.clone())
+                .or_default()
+                .push(index);
+        }
+        if symbol.kind == SymbolKind::NAMESPACE {
+            namespaces.entry(symbol.name.clone()).or_insert(index);
+        }
+    }
+    let mut symbols: Vec<Option<DocumentSymbol>> = symbols.into_iter().map(Some).collect();
+    for index in 0..symbols.len() {
+        let Some(mut symbol) = symbols[index].take() else {
+            continue;
+        };
+        if let Some(children) = symbol.children.take() {
+            symbol.children = Some(merge_expandos(children));
+        }
+        // Anonymous symbols never merge.
+        let mut merged = false;
+        if !is_anonymous_name(&symbol.name) {
+            if symbol.kind == SymbolKind::PROPERTY {
+                if let Some(targets) = expando_targets.get(&symbol.name) {
+                    for &target in targets.iter().rev() {
+                        if let Some(target) = symbols[target].as_mut() {
+                            merge_children(target, &symbol);
+                        }
+                        merged = true;
+                    }
+                }
+            }
+            if symbol.kind == SymbolKind::NAMESPACE {
+                if let Some(&target) = namespaces
+                    .get(&symbol.name)
+                    .filter(|&&target| target != index)
+                {
+                    if let Some(target) = symbols[target].as_mut() {
+                        merge_children(target, &symbol);
+                    }
+                    merged = true;
+                }
+            }
+        }
+        if !merged {
+            symbols[index] = Some(symbol);
+        }
+    }
+    symbols.into_iter().flatten().collect()
+}
+
+/// tsgo `mergeChildren`: the source's children added to the target's,
+/// merged and in range order.
+fn merge_children(target: &mut DocumentSymbol, source: &DocumentSymbol) {
+    let Some(source_children) = &source.children else {
+        return;
+    };
+    let mut children = target.children.take().unwrap_or_default();
+    children.extend(source_children.iter().cloned());
+    let mut children = merge_expandos(children);
+    children.sort_by(|left, right| {
+        let position = |position: &tsc_lsproto::Position| (position.line, position.character);
+        position(&left.range.start)
+            .cmp(&position(&right.range.start))
+            .then_with(|| position(&left.range.end).cmp(&position(&right.range.end)))
+    });
+    target.children = Some(children);
+}
+
+/// tsgo `isAnonymousName` (`getUnnamedNodeLabel`'s labels).
+fn is_anonymous_name(name: &str) -> bool {
+    matches!(
+        name,
+        "<function>" | "<class>" | "export=" | "default" | "constructor" | "()" | "new()" | "[]"
+    ) || name.ends_with(") callback")
+}
+
+/// tsgo `getTextOfName`: an identifier's or number's text, a string's or
+/// template's escaped and quoted, a computed name's literal's; else the
+/// node's source text.
+fn text_of_name(source: &SourceFile, node: NodeId) -> String {
+    match &source.arena.node(node).data {
+        NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => {
+            node_util::id_text(source, node)
+                .unwrap_or_default()
+                .to_owned()
+        }
+        NodeData::NumericLiteral(data) => data.text.clone(),
+        NodeData::StringLiteral(data) => format!(
+            "\"{}\"",
+            tsc_emitter::escape_string(&data.text.to_utf16(), tsc_emitter::LiteralQuote::Double)
+        ),
+        NodeData::NoSubstitutionTemplateLiteral(data) => format!(
+            "`{}`",
+            tsc_emitter::escape_string(&data.text.to_utf16(), tsc_emitter::LiteralQuote::Backtick)
+        ),
+        NodeData::ComputedPropertyName(data)
+            if data.expression.is_some_and(|expression| {
+                node_util::is_string_or_numeric_literal_like(source, expression)
+            }) =>
+        {
+            text_of_name(source, data.expression.expect("a literal expression"))
+        }
+        _ => text_of_node(source, node).to_owned(),
+    }
+}
+
+/// tsgo `scanner.GetTextOfNode`: a node's source text from its token start.
+fn text_of_node(source: &SourceFile, node: NodeId) -> &str {
+    let end = source.arena.node(node).end as usize;
+    &source.text()[token_start(source, node)..end]
+}
+
+/// tsgo `getCallExpressionName`: an identifier's text, or a property
+/// access's dotted names.
+fn call_expression_name(source: &SourceFile, node: NodeId) -> String {
+    match &source.arena.node(node).data {
+        NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => {
+            node_util::id_text(source, node)
+                .unwrap_or_default()
+                .to_owned()
+        }
+        NodeData::PropertyAccessExpression(access) => {
+            let left = access
+                .expression
+                .map(|expression| call_expression_name(source, expression))
+                .unwrap_or_default();
+            let right = access
+                .name
+                .map(|name| call_expression_name(source, name))
+                .unwrap_or_default();
+            if left.is_empty() {
+                right
+            } else {
+                format!("{left}.{right}")
+            }
+        }
+        _ => String::new(),
+    }
+}
+
+/// tsgo `cleanCallbackText`: cut to the maximum length (with `...`), line
+/// breaks removed.
+fn clean_callback_text(text: &str) -> String {
+    let mut text = text.to_owned();
+    if text.chars().count() > MAX_LENGTH {
+        text = text.chars().take(MAX_LENGTH).collect::<String>() + "...";
+    }
+    text.chars()
+        .filter(|&ch| !tsc_syntax::is_line_break(ch))
+        .collect()
+}
+
+/// tsgo `getInteriorModule`: the innermost of a dotted namespace's modules.
+fn interior_module(source: &SourceFile, mut node: NodeId) -> NodeId {
+    while let Some(body) = node_util::body_of(source, node)
+        .filter(|&body| source.arena.node(body).kind == SyntaxKind::ModuleDeclaration)
+    {
+        node = body;
+    }
+    node
+}
+
+/// tsgo `getModuleName`: a dotted namespace's names joined with dots.
+fn module_name(source: &SourceFile, mut node: NodeId) -> String {
+    let name_text = |node: NodeId| {
+        node_util::name_field_of(source, node)
+            .and_then(|name| node_util::id_text(source, name))
+            .unwrap_or_default()
+            .to_owned()
+    };
+    let mut result = name_text(node);
+    while let Some(body) = node_util::body_of(source, node)
+        .filter(|&body| source.arena.node(body).kind == SyntaxKind::ModuleDeclaration)
+    {
+        node = body;
+        result.push('.');
+        result.push_str(&name_text(node));
+    }
+    result
+}
 
 /// A declaration matching a workspace symbol query (tsgo
 /// `DeclarationInfo`), with its answer.
