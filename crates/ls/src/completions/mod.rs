@@ -9,6 +9,7 @@ mod items;
 mod jsdoc;
 pub(crate) mod keywords;
 mod paths;
+mod snippets;
 pub(crate) use paths::{possible_original_input_extension_for_extension, trim_contained_path};
 mod resolve;
 mod searches;
@@ -49,6 +50,11 @@ pub(crate) mod sort_text {
     /// tsgo `ObjectLiteralPropertySortText`.
     pub(crate) fn object_literal_property(preset: &str, display_name: &str) -> String {
         format!("{preset}\0{display_name}\0")
+    }
+
+    /// tsgo `SortBelow`.
+    pub(crate) fn sort_below(original: &str) -> String {
+        format!("{original}1")
     }
 }
 
@@ -121,6 +127,12 @@ pub(crate) struct CompletionList {
     pub(crate) items: Vec<CompletionItem>,
 }
 
+/// tsgo `completionSource`s an item's data carries.
+pub(crate) const SOURCE_SWITCH_CASES: &str = "SwitchCases/";
+pub(crate) const SOURCE_CLASS_MEMBER_SNIPPET: &str = "ClassMemberSnippet/";
+pub(crate) const SOURCE_OBJECT_LITERAL_METHOD_SNIPPET: &str = "ObjectLiteralMethodSnippet/";
+pub(crate) const SOURCE_OBJECT_LITERAL_MEMBER_WITH_COMMA: &str = "ObjectLiteralMemberWithComma/";
+
 /// The client capabilities completion items depend on (tsgo's
 /// `clientSupports…`).
 #[derive(Clone, Copy)]
@@ -133,6 +145,14 @@ impl ClientSupport<'_> {
             .completion
             .completion_item
             .snippet_support
+    }
+
+    pub(crate) fn item_label_details(self) -> bool {
+        self.0
+            .text_document
+            .completion
+            .completion_item
+            .label_details_support
     }
 
     pub(crate) fn item_commit_characters(self) -> bool {

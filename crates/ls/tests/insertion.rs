@@ -1364,6 +1364,7 @@ fn assert_source_statement(text: &str, index: usize, printed: &str, expected: &s
             indent_size: 4,
             with_source_file: true,
             language_variant: LanguageVariant::Standard,
+            snippet: None,
         },
     )
     .unwrap();

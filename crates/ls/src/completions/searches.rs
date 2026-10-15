@@ -237,8 +237,42 @@ impl Completions<'_, '_, '_> {
                     }
                 }
             }
-            // The method snippets of an object literal's members print and
-            // format methods, which come with the formatter (L8).
+            // tsgo `collectObjectLiteralMethodSymbols`: each property or
+            // method again, as the method an object literal would take (not
+            // in JavaScript).
+            if is_object_literal && method_snippets && !self.is_in_js_file(container) {
+                for member in filtered_members {
+                    if !self
+                        .request
+                        .state
+                        .symbol_flags(member)
+                        .intersects(SymbolFlags::PROPERTY | SymbolFlags::METHOD)
+                    {
+                        continue;
+                    }
+                    let (display_name, _) = self.completion_entry_display_name_for_symbol(
+                        member,
+                        None,
+                        CompletionKind::ObjectPropertyDeclaration,
+                        false,
+                    );
+                    if display_name.is_empty() {
+                        continue;
+                    }
+                    let Some(method) = self.object_literal_method_entry(member, container)? else {
+                        continue;
+                    };
+                    collector.symbol_to_origin_info_map.insert(
+                        collector.symbols.len(),
+                        SymbolOriginInfo {
+                            kind: origin_kind::OBJECT_LITERAL_METHOD,
+                            symbol_name: None,
+                            object_literal_method: Some(method),
+                        },
+                    );
+                    collector.symbols.push(member);
+                }
+            }
         }
         Ok(GlobalsSearch::Success)
     }
@@ -942,6 +976,7 @@ impl Completions<'_, '_, '_> {
                         SymbolOriginInfo {
                             kind: origin_kind::COMPUTED_PROPERTY_NAME,
                             symbol_name: Some(symbol_name),
+                            object_literal_method: None,
                         },
                     );
                 }

@@ -1029,6 +1029,10 @@ pub enum StandaloneWriter {
     /// lines, recording where each node and node list was printed
     /// ([`PrintedText::positions`]).
     ChangeTracker(usize),
+    /// tsgo's snippet printer's writer: a [`Self::ChangeTracker`] that also
+    /// records the escapes of the writes that hold `$`
+    /// ([`PrintedText::snippet_escapes`]).
+    SnippetChangeTracker(usize),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1093,6 +1097,7 @@ pub struct PrintedText {
     source_map: Option<crate::source_map::SourceMapGenerator>,
     display_parts: Option<Vec<crate::writer::DisplayPart>>,
     positions: Option<crate::writer::PrintPositions>,
+    snippet_escapes: Option<Vec<crate::writer::SnippetEscape>>,
 }
 
 impl PrintedText {
@@ -1125,6 +1130,11 @@ impl PrintedText {
     /// The classified runs of a print with [`StandaloneWriter::DisplayParts`].
     pub fn display_parts(&self) -> Option<&[crate::writer::DisplayPart]> {
         self.display_parts.as_deref()
+    }
+
+    /// The escapes of a print with [`StandaloneWriter::SnippetChangeTracker`].
+    pub fn snippet_escapes(&self) -> &[crate::writer::SnippetEscape] {
+        self.snippet_escapes.as_deref().unwrap_or_default()
     }
 
     /// The positions of a print with [`StandaloneWriter::ChangeTracker`].
@@ -1654,6 +1664,7 @@ impl Printer {
                 source_map: None,
                 display_parts: None,
                 positions: None,
+                snippet_escapes: None,
             };
             writer.clear();
             printed
@@ -1985,6 +1996,9 @@ impl Printer {
             StandaloneWriter::ChangeTracker(indent_size) => {
                 TextWriter::change_tracker(self.options.new_line, indent_size)
             }
+            StandaloneWriter::SnippetChangeTracker(indent_size) => {
+                TextWriter::snippet_change_tracker(self.options.new_line, indent_size)
+            }
         };
         if self.options.omit_trailing_semicolon {
             writer.defer_trailing_semicolons();
@@ -2017,6 +2031,7 @@ impl Printer {
             source_map: None,
             display_parts: writer.take_display_parts(),
             positions: writer.take_positions(),
+            snippet_escapes: writer.take_snippet_escapes(),
         })
     }
 
@@ -2337,6 +2352,7 @@ impl Printer {
             source_map,
             display_parts: None,
             positions: None,
+            snippet_escapes: None,
         })
     }
 
@@ -7686,7 +7702,18 @@ impl Printer {
                 )
             }
             NodeData::EmptyStatement(_) => {
-                writer.write_trailing_semicolon(";");
+                // tsgo `emitTabStop`: a snippet's tab stop in place of the
+                // statement.
+                match transformation
+                    .arena()
+                    .metadata(node)
+                    .and_then(|metadata| metadata.snippet_element)
+                {
+                    Some(crate::metadata::SnippetElement::TabStop(order)) => {
+                        writer.raw_write(&format!("${order}"));
+                    }
+                    None => writer.write_trailing_semicolon(";"),
+                }
                 Ok(())
             }
             NodeData::NotEmittedStatement(_) => Ok(()),
@@ -11695,17 +11722,18 @@ impl Printer {
             SyntaxKind::TemplateTail => ("}", "`"),
             _ => return Err(PrinterError::UnsupportedTransformedSyntax { node, kind }),
         };
-        writer.write_punctuation(prefix);
+        // tsgo `emitLiteral` writes the whole token text (delimiters
+        // included) in one `WriteStringLiteral`: a template whose text ends
+        // with a line break puts its closing delimiter at column 0, and a
+        // snippet escapes the `$` of its `${`.
+        let mut units: Vec<u16> = prefix.encode_utf16().collect();
         match body {
-            TokenText::Raw(text) => writer.write_literal(text),
-            TokenText::RawUtf16(units) => writer.write_literal_utf16(units),
-            TokenText::Cooked(text) => writer.write_literal_utf16(text.code_units()),
+            TokenText::Raw(text) => units.extend(text.encode_utf16()),
+            TokenText::RawUtf16(body) => units.extend_from_slice(body),
+            TokenText::Cooked(text) => units.extend_from_slice(text.code_units()),
         }
-        // tsc writes the whole token text (delimiters included) in one
-        // writeLiteral call, so a template whose text ends with a line
-        // break puts its closing delimiter at column 0; a separate indented
-        // write would indent it.
-        writer.raw_write(suffix);
+        units.extend(suffix.encode_utf16());
+        writer.write_string_literal_utf16(&units);
         Ok(())
     }
 

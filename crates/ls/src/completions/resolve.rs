@@ -17,10 +17,10 @@ use super::data::CompletionData;
 use super::strings::StringLiteralCompletions;
 
 /// tsgo's completion sources the item data names.
-const SOURCE_SWITCH_CASES: &str = "SwitchCases/";
-const SOURCE_CLASS_MEMBER_SNIPPET: &str = "ClassMemberSnippet/";
-const SOURCE_OBJECT_LITERAL_METHOD_SNIPPET: &str = "ObjectLiteralMethodSnippet/";
-const SOURCE_OBJECT_LITERAL_MEMBER_WITH_COMMA: &str = "ObjectLiteralMemberWithComma/";
+use super::{
+    SOURCE_CLASS_MEMBER_SNIPPET, SOURCE_OBJECT_LITERAL_MEMBER_WITH_COMMA,
+    SOURCE_OBJECT_LITERAL_METHOD_SNIPPET, SOURCE_SWITCH_CASES,
+};
 
 /// tsgo `detailsData`: what the item's name finds in the completions
 /// computed again.

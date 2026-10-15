@@ -8,6 +8,9 @@ mod import_fixes;
 mod missing_member;
 mod missing_type_annotation;
 
+pub(crate) use import_fixes::prepared_view;
+pub(crate) use missing_member::{MissingMemberFixer, PRESERVE_OPTIONAL_PROPERTY};
+
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 

@@ -197,7 +197,7 @@ fn get_all_import_code_actions(
 /// tsgo `getPreparedAutoImportView`: the view of the file's project, none
 /// without a registry, an error when the registry is not prepared for the
 /// file (tsgo `ErrNeedsAutoImports`).
-pub(super) fn prepared_view<'r>(
+pub(crate) fn prepared_view<'r>(
     request: &Request<'r, '_>,
     file: usize,
 ) -> Result<Option<crate::autoimport::View<'r>>, LsError> {

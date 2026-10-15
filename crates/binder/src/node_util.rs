@@ -3203,3 +3203,19 @@ fn get_end_line_position(text: &str, starts: &[usize], line: usize) -> usize {
 #[cfg(test)]
 #[path = "../tests/unit/node_util/tests.rs"]
 mod tests;
+
+/// tsc-port: canHaveDecorators @6.0.3
+/// tsc-hash: 55d6b35e1b66572fa2e24ca5a5d956c35dd1bcbef83c1de2d02e4fe8129b7290
+/// tsc-span: _tsc.js:28263-28266
+pub fn can_have_decorators(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Parameter
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::ClassDeclaration
+    )
+}

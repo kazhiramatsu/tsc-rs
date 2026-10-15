@@ -107,6 +107,7 @@ impl Completions<'_, '_, '_> {
                     is_type_only_location: false,
                     is_jsx_identifier_expected: false,
                     is_right_of_open_tag: false,
+                    is_right_of_dot_or_question_dot: false,
                     has_unresolved_auto_imports: false,
                     default_commit_characters: Vec::new(),
                     auto_imports: Vec::new(),
