@@ -1559,3 +1559,52 @@ project の test を移して固定する。
   tsgo の `fswatch`（FSEvents・inotify・fanotify・kqueue・Windows）は移さず、`tsc --watch` が使う `notify` crate の上に
   上の event の規則を置いた。
 - **README**：language server の節に内蔵の file 監視。
+
+## P5-5b `printNode` の `preserveSourceNewlines`（#821）
+
+- **merge**：#821 → `77f1e192b`（hosted run 38776929704：rust 12m14s、conformance 32m38s、gates）。commit：659d679b2
+  （emitter・api）。検査は main を取り込んだ bc4aaada1 で（merge の前の main の取り込みは無し）。
+- **tsgo の振る舞い**（decode した木）：tsgo の decoder は factory で親の無い node を作る。そのため option があると、
+  list の最初の項目の前に行を書かない（`getLeadingLineTerminatorCount` は次の token そのものから測る：
+  `getPreviousNonWhitespacePosition` が token の位置から始まり、常に 0）、項目の間にも書かない（親の無い兄弟は比べられ
+  ない）、閉じの行は source の行。行の無い項目は自分の位置の comment を先に書く（intervening comment）ので、tsgo は
+  comment を二度書くことがある（`// c\na;` は `// c\n// c\na;`）。
+- **実装**：`printNode` が option を printer に渡す（tsgo `newPrinter`）。printer の list のうち固定の改行を書いていた
+  所を tsgo `emitListItems` の数に：source file の文、関数本体（prologue の前の行、その後の list）、空の list（option が
+  一行の範囲を一行に保つ時は行なし）、enum の member と tuple の要素、JSX の開き要素（`writeLineSeparatorsAndIndent
+  Before/After`）。文・member・case 節・decorator・enum の list の intervening comment。tsgo `emitModifierList`（decorator
+  と modifier の連なりをそれぞれ一つの list に：`LFDecorators`・`LFModifiers`）。tsgo `emitComments`（`//` の comment は
+  必ず行を終える）、file の末尾の comment の後の行は書いた時だけ。while 文の keyword の前に空白を書かない、空白の後の
+  埋め込み文は自分の先頭の comment を書く。
+- **既定の印字の修正**（同じ比較で見つけた）：二項式の括弧付きの左の被演算子は外側の文法を持ち込まない（初期化子の中で
+  `/` の左の comma 式に tsgo は括弧を一組、tsc-rs は二組書いていた）。
+- **tsgo との比較**（local、P5-5 の方法：conformance の test の file 12,829 を tsgo の `createSourceFile` で作り、同じ
+  bytes を両方の `printNode` に送る。file 全体と各文 104,015）：option なし 24 → 12 file・1 → 0 文、
+  `preserveSourceNewlines` 2,255 → 15 file・45 → 0 文（以前の tsc-rs は option を無視、「前」は option を渡しただけの
+  数）、`neverAsciiEscape`・`terminateUnterminatedLiterals` 単独 12 file・0 文、三つとも 15 file・0 文。残りは全て有界：
+  BOM 10・非 ASCII 2（client が UTF-16 の位置を送り tsgo が UTF-8 の offset として読む、P5-5d）、tsgo が option で panic
+  する 3（`getPreviousNonWhitespacePosition` が file の末尾で `text[len]` を読む。tsc-rs は印字する）。
+- **test**：`preserveSourceNewlines` の 14 の形（文、二度書く comment、file の末尾の comment、member、enum、tuple、
+  block、埋め込み文の comment、decorator、case 節、prologue、回復した block）と括弧の被演算子を tsgo の答え（aa814927）
+  で固定。前者は option を渡さないと落ちる。
+- **検査（bc4aaada1）**：conformance 0 regressions（13,577 全て full、482 s。既定の emit が変えた list を通る）、`--checkers 4` は
+  既知の 4 件だけ、suites 0 regressions（行の変化なし。lsp 4,583/4,584：LS の change tracker も
+  `preserveSourceNewlines` で印字する）、test 全通過（emitter 350・api 332・ls 214 ほか）、API client sync 356/356・
+  async 365/365、clippy、fmt。
+- **有界の違い**：上の BOM・非 ASCII の file（tsgo の位置の扱い）、tsgo が panic する 3 file。
+- **API server の完了**：L9 と P5-5b で API packet の残り（LS の handler 6、`formatNodeForInsertion`、
+  `preserveSourceNewlines`）が全て揃った。README の API server の節から「Not yet」を外す。
+
+## 実 project の LSP 差分 test の計画（2026-10-16、利用者の判断）
+
+- **判断**：L11 と P5-5b の後に利用者に確かめた。対象は **hono・zod・effect**（TypeScript・next.js、vscode、
+  DefinitelyTyped の sample も示したが選ばれなかった）。L12 の editor での確認（決定 4、VS Code）は**後回し**にして、この
+  差分 test を先に行う。
+- **方法**（2026-10-14 に利用者が承認）：tsgo を oracle にする。各 project で session を生成し（file を開き、識別子
+  ごとに hover・definition・references・completion・signature help、file ごとに document symbol・folding・semantic
+  token・inlay hint・formatting・diagnostics、編集による入力時の format と completion、rename）、同じ session を
+  `tsgo --lsp --stdio` と `tsc-rs --lsp --stdio` に実 file の上で送り、応答を比べる（tsgo が順序を保たない配列は
+  transcript と同じく正規化）。fourslash の記録器は使えないので新しい driver を作る。
+- **目的**：fourslash の場面を超える実 code での一致と、checker・binder・printer の bug 探し（LSP の要求は識別子ごとに
+  checker を通る）。checker の修正には Rust の回帰 test。
+- **その後**：後回しにした VS Code での確認と L12 の README。

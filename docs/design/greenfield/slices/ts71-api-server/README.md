@@ -1825,3 +1825,9 @@ token を `emitToken` で書く。その差の出る所を tsgo に合わせた�
   `313863a55`（merge commit、PR #739）。
 - P5 は LS の handler（6）・`formatNodeForInsertion`・P5-5b（language service の作業で）を除いて終わった。次は本家の TypeScript の
   追従（[計画](../ts71-upstream-sync/README.md)。再 vendor の前に利用者に確認する）。
+
+### P5-5b の完了（2026-10-16）
+
+- P5-5b（`printNode` の `preserveSourceNewlines`）は LSP の作業で完了した：#821 → `77f1e192b`。記録は
+  [LSP packet](../ts71-lsp/README.md) の P5-5b の節。L9（LS の handler 6、`formatNodeForInsertion`）と合わせて P5 は全て
+  終わった。
