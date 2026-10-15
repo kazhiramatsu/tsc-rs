@@ -3883,7 +3883,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getLocalTypeParametersOfClassOrInterfaceOrTypeAlias @6.0.3
     /// tsc-hash: de3a9b63c89901776c9fc681db222f2b987853ff368fa18a8735bf1a83867f9c
     /// tsc-span: _tsc.js:57095-57107
-    pub(crate) fn get_local_type_parameters_of_class_or_interface_or_type_alias(
+    pub fn get_local_type_parameters_of_class_or_interface_or_type_alias(
         &mut self,
         symbol: SymbolId,
     ) -> Vec<TypeId> {

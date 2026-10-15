@@ -31,13 +31,14 @@ pub(crate) use serialize::{
     serialize_type_for_expression, serialize_type_for_symbolless_declaration,
     serialize_type_parameters_for_signature, signature_to_signature_declaration,
     signature_to_signature_declaration_with_identifier_symbols,
-    syntactic_serialize_name_of_parameter_seam, syntactic_try_reuse_existing_type_node,
-    try_js_type_node_to_type_node, type_parameter_to_declaration_node,
+    symbol_to_parameter_declaration_node, syntactic_serialize_name_of_parameter_seam,
+    syntactic_try_reuse_existing_type_node, try_js_type_node_to_type_node,
+    type_parameter_to_declaration_node,
     type_predicate_to_type_predicate_node_with_identifier_symbols, type_to_type_node,
     type_to_type_node_with_identifier_symbols, IdentifierSymbols,
 };
 pub(crate) use signatures::{
-    enter_new_scope, index_info_to_index_signature_declaration_helper,
+    enter_new_scope, expanded_parameters, index_info_to_index_signature_declaration_helper,
     type_predicate_to_type_predicate_node_helper,
 };
 pub(crate) use tracker::tracker_symbol;
