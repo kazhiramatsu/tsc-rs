@@ -898,7 +898,17 @@ pub(crate) fn parameters_of(state: &CheckerState<'_>, node: NodeId) -> Vec<NodeI
 
 /// A function-like node's parameters in a parse of its file.
 pub(crate) fn parameters_in(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
-    let list = match &source.arena.node(node).data {
+    parameter_list_in(source, node)
+        .map(|list| source.arena.node_array(list).nodes.to_vec())
+        .unwrap_or_default()
+}
+
+/// tsgo `Node.ParameterList`: a signature's parameter list.
+pub(crate) fn parameter_list_in(
+    source: &SourceFile,
+    node: NodeId,
+) -> Option<tsc_syntax::NodeArrayId> {
+    match &source.arena.node(node).data {
         NodeData::FunctionDeclaration(data) => data.parameters,
         NodeData::FunctionExpression(data) => data.parameters,
         NodeData::ArrowFunction(data) => data.parameters,
@@ -914,7 +924,5 @@ pub(crate) fn parameters_in(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
         NodeData::ConstructorType(data) => data.parameters,
         NodeData::JSDocFunctionType(data) => data.parameters,
         _ => None,
-    };
-    list.map(|list| source.arena.node_array(list).nodes.to_vec())
-        .unwrap_or_default()
+    }
 }

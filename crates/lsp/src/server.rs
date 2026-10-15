@@ -1165,6 +1165,18 @@ impl Server {
         }
     }
 
+    /// tsgo `handleInlayHint`.
+    fn handle_inlay_hint(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::InlayHintParams,
+    ) -> Result<lsproto::InlayHintResponse, Failure> {
+        service
+            .provide_inlay_hints(&params)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo `handleSemanticTokensFull`.
     fn handle_semantic_tokens_full(
         self: &Arc<Self>,
@@ -2193,6 +2205,10 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentSelectionRangeInfo>(
             &mut handlers,
             Server::handle_selection_range,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentInlayHintInfo>(
+            &mut handlers,
+            Server::handle_inlay_hint,
         );
         register_language_service_document_request::<lsproto::TextDocumentSemanticTokensFullInfo>(
             &mut handlers,
