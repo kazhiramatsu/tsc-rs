@@ -1224,3 +1224,57 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 - **有界の違い**：TestCompletionForStringLiteralNonrelativeImport2（tsgo 側が非決定、L4c-2）。残る lsp の行は content
   mapper（L10）の 46。
 - **README**：language server の一致数 4,537。
+
+## L9 API の LS（#811）
+
+- **merge**：#811 → `0e00062bd`（hosted run 38700647220：rust 13m10s、conformance 30m59s、gates）。commit：308e29254
+  （language service）、23af4dbb8（API）、824f47e5d（test）。検査の後の main の取り込みは L5d の merge（同じ code）、
+  packet の README と README だけ。
+- **language service**：API が呼ぶ tsgo の入口。`GetCompletionsAtPosition`（API が求める時は symbol の item に symbol。内部
+  の list の `CompletionItem.Symbol` を `getCompletionEntriesFromSymbols` が付ける。string の property 名も）、
+  `GetReferencedSymbolsForNode`（definition の node・symbol と node の参照）、`GetSignatureUsages`（宣言の名前以外の参照と、
+  property access を越えて callee である呼び出し）、`Checker.GetReferencesToSymbolInFile`（tsgo は checker/services.go。
+  tsc-rs の木の走査は language service にあるのでそこに置く）、`GetSymbolJSDocTags`（`declarationJSDocTags` と
+  `GetNextJSDocCommentLocation`、`getJSDocTagText`）と `GetSymbolDocumentationComment`、`importSymbol` の import adder
+  の edit。`with_api_checker`（tsgo `CheckerLifetimeAPI`。API の request は program の API の checker で走る。tsc-rs の
+  handle は checker ごとの symbol を名指すため。tsgo は global な symbol id でどの checker の symbol も通す）。
+- **API**：`getCompletionsAtPosition`（UTF-16 の位置。snapshot の auto-import が準備されていなければ準備した snapshot で、
+  symbol を求める時は error）、`getReferencedSymbolsForNode`、`getSignatureUsages`、`getReferencesToSymbolInFile`、
+  `getJsDocTags`、`getDocumentationComment`、`getImportAdderEdits`（`toAPITextEdits`：元の text の UTF-16 の offset）。
+  `createSnapshot`・`updateSnapshot` の `prepareAutoImports`（`validatePreparedAutoImports`）。空の結果の list は `[]`
+  （tsgo の JSON v2 は nil の slice をそう書く）。
+- **oracle**：tsgo 自身の client の上の probe（62 request：client の test の場面と端の場面）で tsgo と tsc-rs の応答が一致
+  （symbol と parse の id は各実装のもの、global の completion は集合で比べる。tsgo は Go の map の順に並べる）。
+- **検査（23af4dbb8）**：compiler の経路の変更なし（conformance は走らせない）、suites 0 regressions（行の変化なし。
+  lsp 4,537）、test（api 305 ほか全通過）、API client **sync 356/356・async 365/365**（main は 340/349）、clippy、fmt。
+- **回帰 test**：`crates/api/tests/unit/session_language_service.rs`（8 本。期待値は tsgo の応答）。
+- **有界の違い**：symbol の handle の id と source file の node id は各実装のもの。`printNode` の `preserveSourceNewlines`
+  （P5-5b）は別の slice（printer の list の改行の port と、それを使う合成 file）。
+- **README**：API server の節（language service の request、client の test が全て通る）。
+
+## L10 content mapper の LS の計画（2026-10-15）
+
+残る lsp の none 47 のうち 46 が content mapper の場面（`TestContentMapper*`）。tsgo の作りは次の三つで、どの機能にも掛かる。
+
+- **server**：`ServerOptions.Spawn`（mapper の process の起動。tsgo の fourslash は `contentmappertest` の in-process の
+  mapper を渡す）。fourslash の client は動的登録を持たないので `RegisterContentMapperExtensions` は何もしない。
+- **変換**（`lsconv`）：`Script` が `OriginalFileName`・`SpanMap`・`OriginalText` を持ち、`ToLSPPosition`・`ToLSPRange` は
+  virtual の座標を元の file に自動で戻す（`ForFeature` の形は segment の feature で fidelity を落とす）。入力の
+  `FromLSPPositionForSourceFile`（と range、交わる range）は canonical と supplemental の出力の全ての projection を返す。
+- **各機能**：projection ごとに処理し（多くは single segment だけ）、結果を合わせる（重複を除く・内容を連ねる）。
+  出力は機能の feature で fidelity を見て、参加しない segment の位置を落とす。
+
+tsc-rs の span map は compiler の UTF-16 なので、LS には UTF-8（tsgo の単位）の写しを parse した source に持たせる。
+
+### 小 slice
+
+1. **L10a 基盤・hover・diagnostics**：spawner の配線、test mapper（component・duplicate・duplicate-projection・
+   prefixed-supplemental・unmapped-folding・hoisting）、source の content mapper の情報、変換、hover（projection の
+   結合）、diagnostics（supplemental の出力、mapper の診断の元の範囲、合成部分の 18080 への集約、提案の不要 code の除外）。
+   この時点で 46 のうち 14 が一致する（出力の自動の写像だけで通る 8 を含む）。
+2. **L10b 移動**：definition・type definition・implementation・references（`_vs_references`、無効な移動先）・
+   document highlight・rename（outgoing を含む）・signature help・重複の写像。
+3. **L10c completion**：completion と resolve、content mapped な file の auto-import（`filterContentMappedAutoImports`
+   の先の解決と元の座標の edit）。
+4. **L10d 残り**：format（文書と範囲）、folding、selection range、document symbol、code lens、inlay hint、file rename、
+   code action。
