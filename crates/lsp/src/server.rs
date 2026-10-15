@@ -1165,6 +1165,30 @@ impl Server {
         }
     }
 
+    /// tsgo `handleSelectionRange`.
+    fn handle_selection_range(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::SelectionRangeParams,
+    ) -> Result<lsproto::SelectionRangeResponse, Failure> {
+        service
+            .provide_selection_ranges(&params)
+            .map_err(language_service_failure)
+    }
+
+    /// tsgo `handleFoldingRange`.
+    fn handle_folding_range(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::FoldingRangeParams,
+    ) -> Result<lsproto::FoldingRangeResponse, Failure> {
+        service
+            .provide_folding_ranges(&params.text_document.uri)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo `handleDocumentSymbol`.
     fn handle_document_symbol(
         self: &Arc<Self>,
@@ -2113,6 +2137,14 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentDocumentSymbolInfo>(
             &mut handlers,
             Server::handle_document_symbol,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentFoldingRangeInfo>(
+            &mut handlers,
+            Server::handle_folding_range,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentSelectionRangeInfo>(
+            &mut handlers,
+            Server::handle_selection_range,
         );
         register_language_service_document_request::<lsproto::TextDocumentPrepareRenameInfo>(
             &mut handlers,
