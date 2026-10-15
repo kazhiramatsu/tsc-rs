@@ -1540,7 +1540,7 @@ fn starts_with_quote(text: &str) -> bool {
 }
 
 /// tsgo `scanner.IsIdentifierText`, in JSX with `-` after the start.
-fn is_identifier_text_of_variant(text: &str, jsx: bool) -> bool {
+pub(crate) fn is_identifier_text_of_variant(text: &str, jsx: bool) -> bool {
     let mut chars = text.chars();
     let Some(first) = chars.next() else {
         return false;

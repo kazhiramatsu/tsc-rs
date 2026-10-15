@@ -3415,7 +3415,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasContextSensitiveParameters @6.0.3
     /// tsc-hash: 5e4f4b912d59ce18948174f79c715f7462acbc58aad580616e084403324c3e2a
     /// tsc-span: _tsc.js:19182-19196
-    pub(crate) fn has_context_sensitive_parameters(&self, node: NodeId) -> bool {
+    pub fn has_context_sensitive_parameters(&self, node: NodeId) -> bool {
         if self.function_type_parameters_of(node).is_some() {
             return false;
         }

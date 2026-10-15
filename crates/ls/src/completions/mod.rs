@@ -28,7 +28,7 @@ pub(crate) use context::Completions;
 pub(crate) use context::{is_template_literal_kind, is_type_element, is_type_node_kind};
 pub(crate) use contextual::is_equality_operator_kind;
 use data::CompletionData;
-pub(crate) use entries::escape_snippet_text;
+pub(crate) use entries::{escape_snippet_text, is_identifier_text_of_variant};
 
 /// tsgo `SortText`s.
 pub(crate) mod sort_text {
