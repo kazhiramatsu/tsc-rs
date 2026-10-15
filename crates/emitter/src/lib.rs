@@ -70,7 +70,7 @@ pub use host::{ContentMapperOriginal, EmitHost, EmitSource};
 pub use metadata::{
     CommentRange, CommentSourceRange, EmitConstantValue, EmitEnumMemberValue, EmitFlags,
     EmitMetadata, InternalEmitFlags, JavaScriptNumber, JavaScriptString, LiteralNodeProperties,
-    SourceMapRange, SyntheticComment, SyntheticCommentKind,
+    SnippetElement, SourceMapRange, SyntheticComment, SyntheticCommentKind,
 };
 pub use outcome::{EmitOutcome, SourceMapObservation};
 pub use plan::{
@@ -114,7 +114,7 @@ pub use transform::{
     UnsupportedTransformFeature,
 };
 pub use tsc_program::SourceFileId;
-pub use writer::{create_text_writer, DisplayPart, NewLineKind, TextWriter};
+pub use writer::{create_text_writer, DisplayPart, NewLineKind, SnippetEscape, TextWriter};
 
 #[cfg(test)]
 #[path = "../tests/unit/lib/tests.rs"]

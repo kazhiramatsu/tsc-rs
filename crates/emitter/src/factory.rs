@@ -261,6 +261,11 @@ pub struct TransformArena {
     literal_properties: FxHashMap<TransformNode, LiteralNodeProperties>,
     next_generated_binding_id: u64,
     node_builder_cache: NodeBuilderCache,
+    /// Whether a deep clone copies the subtrees without positions as well
+    /// (tsgo `DeepCloneNode` always does), rather than sharing them: a node
+    /// printed with its descendants' positions assigned from the print (the
+    /// change tracker's) must not appear twice in a tree.
+    copies_position_free_subtrees: bool,
 }
 
 /// A cache the checker's node builder keeps for the nodes it built in this
@@ -294,7 +299,14 @@ impl TransformArena {
             literal_properties: FxHashMap::default(),
             next_generated_binding_id: 0,
             node_builder_cache: NodeBuilderCache::default(),
+            copies_position_free_subtrees: false,
         }
+    }
+
+    /// Deep clones in this arena copy every node, as tsgo's do (see the
+    /// `copies_position_free_subtrees` field).
+    pub fn copy_position_free_subtrees(&mut self) {
+        self.copies_position_free_subtrees = true;
     }
 
     /// The process-unique identity of this arena (see the `id` field).
@@ -342,6 +354,7 @@ impl Clone for TransformArena {
             literal_properties: self.literal_properties.clone(),
             next_generated_binding_id: self.next_generated_binding_id,
             node_builder_cache: NodeBuilderCache::default(),
+            copies_position_free_subtrees: self.copies_position_free_subtrees,
         }
     }
 }
@@ -2653,6 +2666,40 @@ impl<'arena> NodeFactory<'arena> {
                 r#type: Some(self.node_id(source, r#type)?),
             }),
             TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsgo `NewParenthesizedExpression`.
+    pub fn create_parenthesized_expression(
+        &mut self,
+        source: TransformSourceId,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.child_flags(Some(expression))?;
+        self.create_node(
+            source,
+            NodeData::ParenthesizedExpression(tsc_syntax::nodes::ParenthesizedExpressionData {
+                expression: Some(self.node_id(source, expression)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsgo `NewCaseOrDefaultClause(KindCaseClause, …)`.
+    pub fn create_case_clause(
+        &mut self,
+        source: TransformSourceId,
+        expression: TransformNode,
+        statements: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.child_flags(Some(expression))? | self.children_flags(Some(statements))?;
+        self.create_node(
+            source,
+            NodeData::CaseClause(tsc_syntax::nodes::CaseClauseData {
+                expression: Some(self.node_id(source, expression)?),
+                statements: Some(self.array_id(source, statements)?),
+            }),
+            flags,
         )
     }
 
@@ -5316,6 +5363,10 @@ impl<'arena> NodeFactory<'arena> {
         original: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         self.arena.node(original)?;
+        if self.arena.copies_position_free_subtrees {
+            return CrossSourceReuseClone::new(self.arena, original.source, original.source)
+                .clone_node(original.node);
+        }
         CrossSourceReuseClone::sharing_position_free(self.arena, original).clone_node(original.node)
     }
 
