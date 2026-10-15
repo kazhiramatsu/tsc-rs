@@ -1483,3 +1483,37 @@ project の test を移して固定する。
   （他では `startCPUProfile` が platform の非対応を答え、`--pprofDir` は tsgo の `BeginProfiling` の誤りと同じく失敗）。
   pprof-rs の依存（Unix だけ）。
 - **README**：Limitations に profile（CPU だけ、Unix）。
+
+## L11d 型の自動取得（ATA）（#819）
+
+- **merge**：#819 → `5cc9e7ed3`（hosted run 38755394431：rust 14m12s、conformance 32m07s、gates）。commit：
+  c1d58024d（project の `ata` package）、35ea06e2e（program・project・lsp）。検査の後の main の取り込みは #818 の merge
+  （この branch の土台の code）と L11c の記録だけ。
+- **`project/ata`**：tsgo `DiscoverTypings`（config の include、`package.json`・`bower.json` の依存と型を持たない導入済み
+  package、tsgo の typesMap のよく知られた script 名、JSX の React、解決できない import（Node の core module は node）。
+  exclude を除き、cache の新しい typings を除く。監視する manifest と module の folder）。tsgo `TypingsInstaller`
+  （cache の `package.json` と lock file（v1 と v3）、npm の `types-registry` を一度入れて読む、`@types` の package を
+  検査して 8,000 文字以下の command で install、file を cache から解決、失敗は missing に）、`ValidatePackageName` とその
+  message。tsgo `semver.Version`（types の semver を使う）。checker の Node の core module の判定を共有。
+- **統合**：tsgo の `TypingsLocation` と `NpmExecutor`（両方ある session が install する。`tsc-rs --lsp` は tsgo
+  `GetGlobalTypingsCacheLocation`（`<user cache>/typescript/7.1`）と `npm`）。更新ごとに tsgo `triggerATAForUpdatedProjects`
+  （inferred と synthetic は既定で、configured は config の通り。`ShouldTriggerATA`）を背景で、editor の進捗
+  （`Installing types for {0}`）と共に。新しい typings は保留の変更になり、どの flush も取り、diagnostics の refresh が
+  更新を届ける。利用者の `automaticTypeAcquisition` の設定で止まる。tsgo `DidUpdateATAState`（typings info が変わらない
+  project に typings の file を root として、`getCommandLineWithTypingsFiles`）とその監視（`getTypingsLocationsGlobs`）。
+  tsgo `Program.GetUnresolvedImports`。
+- **resolver**：tsgo `tryResolveFromTypingsLocation`。型を取得する project の program に typings の cache
+  （`ProgramOptions.TypingsLocation`）を渡し、TypeScript に解決しなかった非相対の名前を cache の `node_modules` の宣言で
+  試す。それを持たない program（全ての compile、conformance の suite）は変わらない。
+- **test**：tsgo `discovertypings_test.go`（9）、`validatepackagename_test.go`、`installnpmpackages_test.go`、installer
+  （tsgo の npm の mock）。`ata_test.go` の `TestATA` の場面 17（tsgo が skip する 1 を除く。tsgo の
+  `SetupWithTypingsInstaller` と npm の mock）と、やり直した解決が typings の cache に着くことの確認（tsgo の assertion は
+  この経路なしでも通る）。`contentmapper_test.go` の `TestContentMapperInferredProjectSurvivesTypingsInstall`（L10d から
+  持ち越し）。project の test の session は tsgo の `Setup` と同じく typings を install する（全て変わらず通る）。
+- **検査（35ea06e2e）**：conformance 0 regressions（13,577 全て full、484 s）、`--checkers 4` は既知の 4 件だけ、suites 0
+  regressions（行の変化なし）、test 全通過（project 235・lsp 41・api 330・compiler 233 ほか）、API client sync 356/356・
+  async 365/365、clippy、fmt。
+- **有界の違い**：tsgo の `MustParse` は壊れた registry や lock file の version で panic、tsc-rs はその typing を cache に
+  入れない。install の log は終わった時に書く（tsgo は次の更新の builder の log に埋める）。`tsc-rs --lsp` は `npm` を名前で
+  起動（Windows では Go の検索は `npm.cmd` も見つける）。
+- **README**：language server の節から「Not yet: automatic type acquisition」を外す。
