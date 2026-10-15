@@ -8,6 +8,7 @@ mod search;
 
 use std::collections::HashSet;
 use std::ops::Range;
+use tsc_diagnostics::spanmap::{Features, FEATURE_IMPLEMENTATION, FEATURE_REFERENCES};
 
 use tsc_binder::node_util;
 use tsc_checker::state::CheckResult;
@@ -388,6 +389,7 @@ impl Request<'_, '_> {
                     definition,
                     data.original_node,
                     vs_capability,
+                    FEATURE_REFERENCES,
                 )?
             else {
                 continue;
@@ -410,6 +412,11 @@ impl Request<'_, '_> {
                 {
                     continue;
                 }
+                let Some(location) =
+                    self.location_of_entry_for_feature(reference, FEATURE_REFERENCES)
+                else {
+                    continue;
+                };
                 let kind = match reference.node {
                     Some(node)
                         if reference.kind != EntryKind::Range
@@ -423,7 +430,7 @@ impl Request<'_, '_> {
                     _vs_id: id,
                     _vs_definition_id: Some(definition_id),
                     _vs_kind: Some(vec![kind]),
-                    _vs_location: self.location_of_entry(reference),
+                    _vs_location: location,
                     _vs_definition_text: None,
                     _vs_project_name: Some(project_name.clone()),
                     _vs_containing_type: None,
@@ -441,6 +448,7 @@ impl Request<'_, '_> {
         definition: &Definition,
         original_node: Option<Touching>,
         vs_capability: bool,
+        feature: Features,
     ) -> CheckResult<Option<(Location, VSClassifiedTextElement)>> {
         let simple = |text: String, classification: &str| VSClassifiedTextElement {
             runs: vec![VSClassifiedTextRun {
@@ -468,14 +476,18 @@ impl Request<'_, '_> {
                         None => return Ok(None),
                     },
                 };
-                Ok(Some((self.location_of_node(node), element)))
+                Ok(self
+                    .location_of_node(node, feature)
+                    .map(|location| (location, element)))
             }
             DefinitionKind::Label => {
                 let Some(node) = definition.node else {
                     return Ok(None);
                 };
                 let text = self.node_text(node);
-                Ok(Some((self.location_of_node(node), simple(text, "text"))))
+                Ok(self
+                    .location_of_node(node, feature)
+                    .map(|location| (location, simple(text, "text"))))
             }
             DefinitionKind::Keyword => {
                 let Some(node) = definition.node else {
@@ -484,7 +496,9 @@ impl Request<'_, '_> {
                 let name = tsc_syntax::tokens::token_to_string(self.kind(node))
                     .unwrap_or_default()
                     .to_owned();
-                Ok(Some((self.location_of_node(node), simple(name, "keyword"))))
+                Ok(self
+                    .location_of_node(node, feature)
+                    .map(|location| (location, simple(name, "keyword"))))
             }
             DefinitionKind::This => {
                 let (Some(node), Some(symbol)) = (definition.node, definition.symbol) else {
@@ -492,14 +506,18 @@ impl Request<'_, '_> {
                 };
                 let element =
                     self.definition_kind_and_display_parts(symbol, Some(node), vs_capability)?;
-                Ok(Some((self.location_of_node(node), element)))
+                Ok(self
+                    .location_of_node(node, feature)
+                    .map(|location| (location, element)))
             }
             DefinitionKind::String => {
                 let Some(node) = definition.node else {
                     return Ok(None);
                 };
                 let text = self.node_text(node);
-                Ok(Some((self.location_of_node(node), simple(text, "string"))))
+                Ok(self
+                    .location_of_node(node, feature)
+                    .map(|location| (location, simple(text, "string"))))
             }
             // tsgo never records the referenced file of a triple-slash
             // reference's definition.
@@ -547,11 +565,16 @@ impl Request<'_, '_> {
         })
     }
 
-    /// tsgo `getLocationOfEntryForFeature` of a node entry.
-    fn location_of_node(&self, node: Touching) -> Location {
+    /// tsgo `getLocationOfEntryForFeature` of a node entry: none where a
+    /// content mapper's output's node does not map to one segment of the
+    /// feature.
+    fn location_of_node(&self, node: Touching, feature: Features) -> Option<Location> {
         let (file, range) = self.range_of_touching(node);
         let source = self.state.binder.source(file);
-        self.source_maps.location(source, range)
+        let (location, fidelity) = self
+            .source_maps
+            .location_for_feature(source, range, feature);
+        fidelity.is_single_segment().then_some(location)
     }
 
     /// tsgo `Node.Text`: an identifier's (or private identifier's) name or
@@ -759,9 +782,11 @@ impl Request<'_, '_> {
             .map(|data| data.symbols_and_entries.as_slice())
             .unwrap_or_default()
         {
-            for location in
-                self.convert_symbol_and_entries_to_locations(symbol, include_declaration)
-            {
+            for location in self.convert_symbol_and_entries_to_locations(
+                symbol,
+                include_declaration,
+                FEATURE_REFERENCES,
+            ) {
                 if seen_locations.insert(LocationKey::of(&location)) {
                     locations.push(location);
                 }
@@ -799,10 +824,12 @@ impl Request<'_, '_> {
         }
         if links {
             return ImplementationResponse::DefinitionLinks(
-                self.convert_entries_to_location_links(&entries),
+                self.convert_entries_to_location_links(&entries, FEATURE_IMPLEMENTATION),
             );
         }
-        ImplementationResponse::Locations(self.convert_entries_to_locations(&entries))
+        ImplementationResponse::Locations(
+            self.convert_entries_to_locations(&entries, FEATURE_IMPLEMENTATION),
+        )
     }
 
     /// tsgo `node.Loc.ContainsInclusive(position)`: the node's range, its
@@ -823,6 +850,7 @@ impl Request<'_, '_> {
         &mut self,
         symbol: &SymbolAndEntries,
         include_declarations: bool,
+        feature: Features,
     ) -> Vec<Location> {
         let definition_symbol = symbol
             .definition
@@ -839,15 +867,34 @@ impl Request<'_, '_> {
             } else {
                 symbol.references.clone()
             };
-        self.convert_entries_to_locations(&references)
+        self.convert_entries_to_locations(&references, feature)
     }
 
-    /// tsgo `convertEntriesToLocations`.
-    pub(crate) fn convert_entries_to_locations(&self, entries: &[ReferenceEntry]) -> Vec<Location> {
+    /// tsgo `convertEntriesToLocations`: the entries that map to one
+    /// segment of the feature.
+    pub(crate) fn convert_entries_to_locations(
+        &self,
+        entries: &[ReferenceEntry],
+        feature: Features,
+    ) -> Vec<Location> {
         entries
             .iter()
-            .map(|entry| self.location_of_entry(entry))
+            .filter_map(|entry| self.location_of_entry_for_feature(entry, feature))
             .collect()
+    }
+
+    /// tsgo `getLocationOfEntryForFeature`: none where a content mapper's
+    /// output's entry does not map to one segment of the feature.
+    pub(crate) fn location_of_entry_for_feature(
+        &self,
+        entry: &ReferenceEntry,
+        feature: Features,
+    ) -> Option<Location> {
+        let source = self.state.binder.source(entry.file);
+        let (location, fidelity) =
+            self.source_maps
+                .location_for_feature(source, entry.range.clone(), feature);
+        fidelity.is_single_segment().then_some(location)
     }
 
     /// tsgo `getLocationOfEntryForFeature`: the entry's range (through a
@@ -859,10 +906,16 @@ impl Request<'_, '_> {
 
     /// tsgo `convertEntriesToLocationLinks`: each entry's range, within its
     /// context's.
-    fn convert_entries_to_location_links(&self, entries: &[ReferenceEntry]) -> Vec<LocationLink> {
+    fn convert_entries_to_location_links(
+        &self,
+        entries: &[ReferenceEntry],
+        feature: Features,
+    ) -> Vec<LocationLink> {
         let mut links = Vec::with_capacity(entries.len());
         for entry in entries {
-            let location = self.location_of_entry(entry);
+            let Some(location) = self.location_of_entry_for_feature(entry, feature) else {
+                continue;
+            };
             let target_selection_range = location.range.clone();
             let mut target_range = target_selection_range.clone();
             // For entries with nodes, compute ranges directly from the node
@@ -871,18 +924,22 @@ impl Request<'_, '_> {
                     let context_range = crate::utilities::range_of_node(self.state, context);
                     if context_range != entry.range {
                         let source = self.state.binder.source(entry.file);
-                        let context_location = self.source_maps.location(source, context_range);
-                        if context_location.uri == location.uri {
+                        let (context_location, fidelity) =
+                            self.source_maps
+                                .location_for_feature(source, context_range, feature);
+                        if !fidelity.is_none() && context_location.uri == location.uri {
                             target_range = context_location.range;
                         }
                     }
                 }
             }
+            // tsgo: a supplemental output's original file.
             let source = self.state.binder.source(entry.file);
+            let script = crate::utilities::script_of(source);
             links.push(LocationLink {
                 origin_selection_range: None,
                 target_uri: lsproto::DocumentUri(tsc_program::uri::file_name_to_document_uri(
-                    &source.file_name.to_string_lossy(),
+                    crate::lsconv::Script::original_file_name(&script),
                 )),
                 target_range,
                 target_selection_range,

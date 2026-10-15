@@ -22,6 +22,7 @@ use tsc_types::{ModifierFlags, NodeFlags, SymbolFlags, SymbolId, TypeData, TypeF
 
 use crate::astnav::Navigator;
 use crate::hovericon::{build_vs_hover_raw_content, stacked_raw_contents, vs_hover_image_id};
+use crate::jsdoc::LinkLocations;
 use crate::language_service::{LanguageService, LsError};
 use crate::lsutil::{
     get_symbol_kind, get_symbol_modifiers, ScriptElementKind, ScriptElementKindModifier,
@@ -478,10 +479,23 @@ impl<'a> Request<'_, 'a> {
         if info.text.is_empty() {
             return Ok(QuickInfoAndDocumentation::default());
         }
-        let documentation =
-            self.documentation_for_symbol(symbol, node, info.declaration, markdown, false)?;
+        let documentation = self.documentation_for_symbol(
+            symbol,
+            node,
+            info.declaration,
+            markdown,
+            false,
+            LinkLocations::Feature(FEATURE_HOVER),
+        )?;
         let vs_documentation = if vs_capability {
-            self.documentation_for_symbol(symbol, node, info.declaration, false, true)?
+            self.documentation_for_symbol(
+                symbol,
+                node,
+                info.declaration,
+                false,
+                true,
+                LinkLocations::Feature(FEATURE_HOVER),
+            )?
         } else {
             String::new()
         };

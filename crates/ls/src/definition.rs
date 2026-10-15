@@ -2,6 +2,7 @@
 
 use std::collections::HashSet;
 use std::ops::Range;
+use tsc_diagnostics::spanmap::{Features, FEATURE_DEFINITION, FEATURE_TYPE_DEFINITION};
 
 use tsc_binder::node_util;
 use tsc_checker::state::CheckResult;
@@ -38,9 +39,13 @@ impl LanguageService<'_> {
         }
         let links = self.capabilities.text_document.definition.link_support;
         let file = self.file(uri);
-        let result = self.with_definitions(file, position, links, |definitions, position| {
-            definitions.definition_at_position(file, position)
-        })?;
+        let result = self.with_definitions(
+            file,
+            position,
+            links,
+            FEATURE_DEFINITION,
+            |definitions, file, position| definitions.definition_at_position(file, position),
+        )?;
         Ok(combine_definition_responses(result, links))
     }
 
@@ -52,25 +57,38 @@ impl LanguageService<'_> {
     ) -> Result<DefinitionResponse, LsError> {
         let links = self.capabilities.text_document.type_definition.link_support;
         let file = self.file(uri);
-        let result = self.with_definitions(file, position, links, |definitions, position| {
-            definitions.type_definition_at_position(file, position)
-        })?;
+        let result = self.with_definitions(
+            file,
+            position,
+            links,
+            FEATURE_TYPE_DEFINITION,
+            |definitions, file, position| definitions.type_definition_at_position(file, position),
+        )?;
         Ok(combine_definition_responses(result, links))
     }
 
-    /// Run `find` over the program's query checker at the position of a
-    /// document without a content mapper (one position).
-    fn with_definitions(
+    /// Run `find` over the program's query checker at each single-segment
+    /// projection of the document's position for `feature` (tsgo
+    /// `FromLSPPositionForSourceFile`), their answers in order.
+    pub(crate) fn with_definitions(
         &mut self,
         file: usize,
         position: &Position,
         links: bool,
-        find: impl FnOnce(&mut Request<'_, '_>, u32) -> CheckResult<DefinitionResponse>,
+        feature: Features,
+        mut find: impl FnMut(&mut Request<'_, '_>, usize, u32) -> CheckResult<DefinitionResponse>,
     ) -> Result<Vec<DefinitionResponse>, LsError> {
         Ok(self
-            .with_request(file, position, links, find)?
-            .into_iter()
-            .collect())
+            .with_program_request(links, |request| {
+                let mut results = Vec::new();
+                for projection in request.position_projections(file, position, feature) {
+                    if projection.fidelity.is_single_segment() {
+                        results.push(find(request, projection.file, projection.position)?);
+                    }
+                }
+                Ok(results)
+            })?
+            .unwrap_or_default())
     }
 }
 
@@ -185,24 +203,39 @@ impl<'a> Request<'_, 'a> {
             .as_ref()
             .filter(|reference| reference.file.is_some())
         {
-            return Ok(self.definition_locations(origin, &[], Some(reference)));
+            return Ok(self.definition_locations(origin, &[], Some(reference), FEATURE_DEFINITION));
         }
         let Some(node) = touching(found) else {
-            return Ok(self.definition_locations(origin, &[], reference.as_ref()));
+            return Ok(self.definition_locations(
+                origin,
+                &[],
+                reference.as_ref(),
+                FEATURE_DEFINITION,
+            ));
         };
 
         let kind = self.kind(node);
         if kind == SyntaxKind::OverrideKeyword {
             if let Some(symbol) = self.symbol_for_overridden_member(node)? {
                 let declarations = self.declarations_of(symbol);
-                return Ok(self.definition_locations(origin, &declarations, None));
+                return Ok(self.definition_locations(
+                    origin,
+                    &declarations,
+                    None,
+                    FEATURE_DEFINITION,
+                ));
             }
         }
         if let Touching::Node(id) = node {
             if self.is_jump_statement_target(id) {
                 let parent = self.parent(node).expect("a jump statement");
                 if let Some(label) = self.target_label(parent, id) {
-                    return Ok(self.definition_locations(origin, &[label], None));
+                    return Ok(self.definition_locations(
+                        origin,
+                        &[label],
+                        None,
+                        FEATURE_DEFINITION,
+                    ));
                 }
             }
         }
@@ -217,7 +250,14 @@ impl<'a> Request<'_, 'a> {
                 let source = self.state.binder.source_of_node(statement);
                 let pos = self.state.binder.node_record(statement).pos as usize;
                 let (start, end) = node_util::get_span_of_token_at_position(source, pos);
-                let location = self.source_maps.location(source, start..end);
+                // tsgo `createLocationFromFileAndRange`: an unmapped range is
+                // the file's.
+                let (mut location, fidelity) =
+                    self.source_maps
+                        .location_for_feature(source, start..end, FEATURE_DEFINITION);
+                if fidelity.is_none() {
+                    location.range = tsc_lsproto::Range::default();
+                }
                 return Ok(DefinitionResponse::Location(location));
             }
         }
@@ -232,7 +272,12 @@ impl<'a> Request<'_, 'a> {
             if let Some(function) = self.find_ancestor(start, |definitions, node| {
                 node_util::is_function_like_declaration_kind(definitions.node_kind(node))
             }) {
-                return Ok(self.definition_locations(origin, &[function], None));
+                return Ok(self.definition_locations(
+                    origin,
+                    &[function],
+                    None,
+                    FEATURE_DEFINITION,
+                ));
             }
         }
 
@@ -280,7 +325,12 @@ impl<'a> Request<'_, 'a> {
                 declarations.push(called);
             }
         }
-        Ok(self.definition_locations(origin, &declarations, reference.as_ref()))
+        Ok(self.definition_locations(
+            origin,
+            &declarations,
+            reference.as_ref(),
+            FEATURE_DEFINITION,
+        ))
     }
 
     // -- tsgo ProvideTypeDefinition -----------------------------------------
@@ -321,12 +371,22 @@ impl<'a> Request<'_, 'a> {
                 declarations = first;
             }
             if !declarations.is_empty() {
-                return Ok(self.definition_locations(origin, &declarations, None));
+                return Ok(self.definition_locations(
+                    origin,
+                    &declarations,
+                    None,
+                    FEATURE_TYPE_DEFINITION,
+                ));
             }
             let flags = self.state.binder.symbol(symbol).flags;
             if !flags.intersects(SymbolFlags::VALUE) && flags.intersects(SymbolFlags::TYPE) {
                 let declarations = self.declarations_of(symbol);
-                return Ok(self.definition_locations(origin, &declarations, None));
+                return Ok(self.definition_locations(
+                    origin,
+                    &declarations,
+                    None,
+                    FEATURE_TYPE_DEFINITION,
+                ));
             }
         }
         Ok(DefinitionResponse::Null)
@@ -340,12 +400,13 @@ impl<'a> Request<'_, 'a> {
         origin: tsc_lsproto::Range,
         declarations: &[NodeId],
         reference: Option<&ReferenceInfo>,
+        feature: Features,
     ) -> DefinitionResponse {
         let declarations: Vec<(&SourceFile, NodeId)> = declarations
             .iter()
             .map(|&declaration| (self.state.binder.source_of_node(declaration), declaration))
             .collect();
-        self.definition_locations_in(origin, &declarations, reference)
+        self.definition_locations_in(origin, &declarations, reference, feature)
     }
 
     /// tsgo `createDefinitionLocations`: a link from the origin to each
@@ -357,6 +418,7 @@ impl<'a> Request<'_, 'a> {
         origin: tsc_lsproto::Range,
         declarations: &[(&SourceFile, NodeId)],
         reference: Option<&ReferenceInfo>,
+        feature: Features,
     ) -> DefinitionResponse {
         let mut locations = Vec::new();
         let mut location_ranges: HashSet<(String, usize, usize)> = HashSet::new();
@@ -389,9 +451,19 @@ impl<'a> Request<'_, 'a> {
                 context_range = context_range.start.min(name_range.start)
                     ..context_range.end.max(name_range.end);
             }
-            let target_selection = self.source_maps.location(source, name_range);
-            let mut target = self.source_maps.location(source, context_range);
-            if target.uri != target_selection.uri
+            // A name of a content mapper's output that does not map to one
+            // segment of the feature is no target.
+            let (target_selection, selection_fidelity) = self
+                .source_maps
+                .location_for_feature(source, name_range, feature);
+            if !selection_fidelity.is_single_segment() {
+                continue;
+            }
+            let (mut target, context_fidelity) = self
+                .source_maps
+                .location_with_fidelity(source, context_range);
+            if context_fidelity.is_none()
+                || target.uri != target_selection.uri
                 || !lsp_range_contains(&target.range, &target_selection.range)
             {
                 target = target_selection.clone();
