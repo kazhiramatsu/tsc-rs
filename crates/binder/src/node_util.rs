@@ -993,15 +993,19 @@ pub fn is_declaration(source: &SourceFile, node: NodeId) -> bool {
 /// M7 activated unused-local diagnostics for function owners.
 pub fn get_non_assigned_name_of_declaration(source: &SourceFile, id: NodeId) -> Option<NodeId> {
     match kind_of(source, id) {
+        // An identifier names no declaration (tsgo has no case for one), but
+        // two stand for tsgo's reparsed declarations:
         SyntaxKind::Identifier => {
-            // The tag name of a reparsed `@overload` declares tsgo's overload
-            // declaration, whose name is a clone of its host's.
-            match parent_of(source, id)
-                .filter(|&tag| kind_of(source, tag) == SyntaxKind::JSDocOverloadTag)
-                .and_then(|tag| crate::hosted::reparsed_overload_host(source, tag))
-            {
-                Some(host) => name_field_of(source, host),
-                None => Some(id),
+            let tag = parent_of(source, id)?;
+            match kind_of(source, tag) {
+                // the tag name of a reparsed `@overload` declares the overload
+                // declaration, whose name is a clone of its host's;
+                SyntaxKind::JSDocOverloadTag => crate::hosted::reparsed_overload_host(source, tag)
+                    .and_then(|host| name_field_of(source, host)),
+                // the identifier over a `@this` tag is the `this` parameter,
+                // with its synthesized (zero-width) name.
+                SyntaxKind::JSDocThisTag => Some(id),
+                _ => None,
             }
         }
         SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag => {
@@ -1809,6 +1813,103 @@ pub fn body_of(source: &SourceFile, id: NodeId) -> Option<NodeId> {
         NodeData::ClassStaticBlockDeclaration(data) => data.body,
         NodeData::ModuleDeclaration(data) => data.body,
         _ => None,
+    }
+}
+
+/// tsgo `ast.IsArrayLiteralOrObjectLiteralDestructuringPattern`: an array
+/// or object literal assigned to (or iterated into by `for of`), or nested
+/// in one.
+pub fn is_array_literal_or_object_literal_destructuring_pattern(
+    source: &SourceFile,
+    node: NodeId,
+) -> bool {
+    if !matches!(
+        kind_of(source, node),
+        SyntaxKind::ArrayLiteralExpression | SyntaxKind::ObjectLiteralExpression
+    ) {
+        return false;
+    }
+    let Some(parent) = parent_of(source, node) else {
+        return false;
+    };
+    match &source.arena.node(parent).data {
+        NodeData::BinaryExpression(binary)
+            if binary.left == Some(node)
+                && binary.operator_token.is_some_and(|operator| {
+                    kind_of(source, operator) == SyntaxKind::EqualsToken
+                }) =>
+        {
+            true
+        }
+        NodeData::ForOfStatement(statement) if statement.initializer == Some(node) => true,
+        NodeData::PropertyAssignment(_) => parent_of(source, parent).is_some_and(|grandparent| {
+            is_array_literal_or_object_literal_destructuring_pattern(source, grandparent)
+        }),
+        _ => is_array_literal_or_object_literal_destructuring_pattern(source, parent),
+    }
+}
+
+/// tsgo `ast.TryGetTextOfPropertyName`: a property name's text — an
+/// identifier's, a string, numeric or bigint literal's, a computed name's
+/// literal's, or a JSX namespaced name's `ns:name`.
+pub fn try_get_text_of_property_name(source: &SourceFile, name: NodeId) -> Option<String> {
+    match &source.arena.node(name).data {
+        NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => {
+            id_text(source, name).map(str::to_owned)
+        }
+        NodeData::StringLiteral(data) => Some(data.text.to_string_lossy().into_owned()),
+        NodeData::NoSubstitutionTemplateLiteral(data) => {
+            Some(data.text.to_string_lossy().into_owned())
+        }
+        NodeData::NumericLiteral(data) => Some(data.text.clone()),
+        NodeData::BigIntLiteral(data) => Some(data.text.to_string()),
+        NodeData::ComputedPropertyName(data) => data
+            .expression
+            .filter(|&expression| is_string_or_numeric_literal_like(source, expression))
+            .and_then(|expression| try_get_text_of_property_name(source, expression)),
+        NodeData::JsxNamespacedName(_) => get_text_of_jsx_namespaced_name(source, name),
+        _ => None,
+    }
+}
+
+/// tsgo `getContainerNode` (ls): the file, function, accessor, method,
+/// class, interface, enum or module a node is in (for a JSDoc type alias,
+/// the one its host is in).
+pub fn get_container_node(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    let mut node = node;
+    if is_jsdoc_type_alias(source, node) {
+        // This doesn't just apply to the node immediately under the comment, but to everything in its parent's scope.
+        // node.parent = the JSDoc comment, node.parent.parent = the node having the comment.
+        // Then we get parent again in the loop.
+        node = parent_of(source, parent_of(source, node)?)?;
+    }
+    get_container_node_at_or_above(source, parent_of(source, node))
+}
+
+/// The first of [`get_container_node`]'s containers at or above `node`.
+pub fn get_container_node_at_or_above(
+    source: &SourceFile,
+    mut node: Option<NodeId>,
+) -> Option<NodeId> {
+    loop {
+        let current = node?;
+        if matches!(
+            kind_of(source, current),
+            SyntaxKind::SourceFile
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::MethodSignature
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::ClassDeclaration
+                | SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::EnumDeclaration
+                | SyntaxKind::ModuleDeclaration
+        ) {
+            return Some(current);
+        }
+        node = parent_of(source, current);
     }
 }
 

@@ -1397,27 +1397,15 @@ impl<'a> Request<'_, 'a> {
 
     /// tsgo `getContainerNode`.
     pub(crate) fn container_node(&self, node: Touching) -> Option<NodeId> {
-        let mut parent = self.parent(node);
-        while let Some(current) = parent {
-            if matches!(
-                self.node_kind(current),
-                SyntaxKind::SourceFile
-                    | SyntaxKind::MethodDeclaration
-                    | SyntaxKind::MethodSignature
-                    | SyntaxKind::FunctionDeclaration
-                    | SyntaxKind::FunctionExpression
-                    | SyntaxKind::GetAccessor
-                    | SyntaxKind::SetAccessor
-                    | SyntaxKind::ClassDeclaration
-                    | SyntaxKind::InterfaceDeclaration
-                    | SyntaxKind::EnumDeclaration
-                    | SyntaxKind::ModuleDeclaration
-            ) {
-                return Some(current);
+        match node {
+            Touching::Node(id) => {
+                node_util::get_container_node(self.state.binder.source_of_node(id), id)
             }
-            parent = self.state.binder.node_record(current).parent;
+            Touching::Token { parent, .. } => node_util::get_container_node_at_or_above(
+                self.state.binder.source_of_node(parent),
+                Some(parent),
+            ),
         }
-        None
     }
 
     /// tsgo `GetTypeAtLocation` of a node or token.

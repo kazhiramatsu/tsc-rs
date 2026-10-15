@@ -4,8 +4,8 @@ use std::collections::HashSet;
 use std::ops::Range;
 
 use tsc_binder::node_util;
+use tsc_checker::state::CheckResult;
 use tsc_checker::state::SignatureKind;
-use tsc_checker::state::{CheckResult, CheckerState};
 use tsc_lsproto::{
     DocumentUri, Location, LocationLink, LocationOrLocationsOrDefinitionLinksOrNull, Position,
 };
@@ -18,7 +18,7 @@ use crate::language_service::{LanguageService, LsError};
 use crate::request::Request;
 use crate::utilities::{
     can_have_symbol, containing_object_literal_element, has_declaration_data, is_class_element,
-    is_function_like_kind, is_object_literal_element, is_property_name, range_of_node,
+    is_function_like_kind, is_object_literal_element, is_property_name, range_of_node_in,
     reference_at_position, script_of, token_start, touching, ReferenceInfo, Touching,
 };
 
@@ -26,13 +26,16 @@ use crate::utilities::{
 pub type DefinitionResponse = LocationOrLocationsOrDefinitionLinksOrNull;
 
 impl LanguageService<'_> {
-    /// tsgo `ProvideDefinition` (the source definition a user can prefer
-    /// comes with the other navigation features).
+    /// tsgo `ProvideDefinition`: the source definition when the user
+    /// prefers it.
     pub fn provide_definition(
         &mut self,
         uri: &DocumentUri,
         position: &Position,
     ) -> Result<DefinitionResponse, LsError> {
+        if self.user_preferences().prefer_go_to_source_definition {
+            return self.provide_source_definition(uri, position);
+        }
         let links = self.capabilities.text_document.definition.link_support;
         let file = self.file(uri);
         let result = self.with_definitions(file, position, links, |definitions, position| {
@@ -73,7 +76,7 @@ impl LanguageService<'_> {
 
 /// tsgo `combineDefinitionResponses`: the links (or locations) of the
 /// positions' answers, each target once.
-fn combine_definition_responses(
+pub(crate) fn combine_definition_responses(
     results: Vec<DefinitionResponse>,
     links: bool,
 ) -> DefinitionResponse {
@@ -162,7 +165,7 @@ impl<'a> Request<'_, 'a> {
     // -- tsgo ProvideDefinition ---------------------------------------------
 
     /// tsgo `provideDefinitionAtPosition`.
-    fn definition_at_position(
+    pub(crate) fn definition_at_position(
         &mut self,
         file: usize,
         position: u32,
@@ -331,17 +334,32 @@ impl<'a> Request<'_, 'a> {
 
     // -- locations ----------------------------------------------------------
 
-    /// tsgo `createDefinitionLocations`: a link from the origin to each
-    /// declaration's name (once per file and name range) within its
-    /// context, after the referenced file's start.
+    /// tsgo `createDefinitionLocations` of the program's declarations.
     fn definition_locations(
         &self,
         origin: tsc_lsproto::Range,
         declarations: &[NodeId],
         reference: Option<&ReferenceInfo>,
     ) -> DefinitionResponse {
+        let declarations: Vec<(&SourceFile, NodeId)> = declarations
+            .iter()
+            .map(|&declaration| (self.state.binder.source_of_node(declaration), declaration))
+            .collect();
+        self.definition_locations_in(origin, &declarations, reference)
+    }
+
+    /// tsgo `createDefinitionLocations`: a link from the origin to each
+    /// declaration's name (once per file and name range) within its
+    /// context, after the referenced file's start. A declaration may be of
+    /// a file the program does not have (a source definition's).
+    pub(crate) fn definition_locations_in(
+        &self,
+        origin: tsc_lsproto::Range,
+        declarations: &[(&SourceFile, NodeId)],
+        reference: Option<&ReferenceInfo>,
+    ) -> DefinitionResponse {
         let mut locations = Vec::new();
-        let mut location_ranges: HashSet<(usize, usize, usize)> = HashSet::new();
+        let mut location_ranges: HashSet<(String, usize, usize)> = HashSet::new();
         if let Some(reference) = reference {
             let target = tsc_lsproto::Range::default();
             locations.push(LocationLink {
@@ -351,22 +369,21 @@ impl<'a> Request<'_, 'a> {
                 target_selection_range: target,
             });
         }
-        for &declaration in declarations {
-            let file = self.state.binder.file_index_of_node(declaration);
-            let source = self.state.binder.source(file);
+        for &(source, declaration) in declarations {
             let name =
                 node_util::get_name_of_declaration(source, declaration).unwrap_or(declaration);
-            let name_range = if self.node_kind(name) == SyntaxKind::EmptyStatement {
-                let pos = self.state.binder.node_record(name).pos as usize;
+            let name_range = if source.arena.node(name).kind == SyntaxKind::EmptyStatement {
+                let pos = source.arena.node(name).pos as usize;
                 pos..pos
             } else {
-                self.range_from_node(name)
+                token_start(source, name)..source.arena.node(name).end as usize
             };
-            if !location_ranges.insert((file, name_range.start, name_range.end)) {
+            let file_name = source.file_name.to_string_lossy().into_owned();
+            if !location_ranges.insert((file_name, name_range.start, name_range.end)) {
                 continue;
             }
-            let context = context_node(self.state, declaration).unwrap_or(declaration);
-            let mut context_range = to_context_range(self.state, &name_range, context)
+            let context = context_node(source, declaration).unwrap_or(declaration);
+            let mut context_range = to_context_range(source, &name_range, context)
                 .unwrap_or_else(|| name_range.clone());
             if !(context_range.start <= name_range.start && name_range.end <= context_range.end) {
                 context_range = context_range.start.min(name_range.start)
@@ -583,7 +600,7 @@ impl<'a> Request<'_, 'a> {
 
     /// tsgo `tryGetSignatureDeclaration`: the function-like declaration of
     /// the signature a call of the node resolves to (not a function type).
-    fn signature_declaration(&mut self, node: Touching) -> CheckResult<Option<NodeId>> {
+    pub(crate) fn signature_declaration(&mut self, node: Touching) -> CheckResult<Option<NodeId>> {
         let Some(call) = self.ancestor_call_like_expression(node) else {
             return Ok(None);
         };
@@ -1087,49 +1104,47 @@ impl<'a> Request<'_, 'a> {
 }
 
 /// tsgo `getContextNode` (findallreferences.go): the node whose range is
-/// a declaration's context.
-pub(crate) fn context_node(state: &CheckerState<'_>, node: NodeId) -> Option<NodeId> {
-    let record = state.binder.node_record(node);
+/// a declaration's context (in any parse of a file).
+pub(crate) fn context_node(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    let record = source.arena.node(node);
     let parent = record.parent;
-    let parent_kind =
-        |state: &CheckerState<'_>| parent.map(|parent| state.binder.node_record(parent).kind);
+    let kind_of = |node: NodeId| source.arena.node(node).kind;
     match record.kind {
         SyntaxKind::VariableDeclaration => {
             let parent = parent?;
-            let NodeData::VariableDeclarationList(list) = &state.binder.node_record(parent).data
-            else {
+            let NodeData::VariableDeclarationList(list) = &source.arena.node(parent).data else {
                 return Some(node);
             };
             let count = list
                 .declarations
-                .map_or(0, |list| state.binder.node_array(list).nodes.len());
+                .map_or(0, |list| source.arena.node_array(list).nodes.len());
             if count != 1 {
                 return Some(node);
             }
-            let grandparent = state.binder.node_record(parent).parent;
-            match grandparent.map(|grandparent| state.binder.node_record(grandparent).kind) {
+            let grandparent = source.arena.node(parent).parent;
+            match grandparent.map(kind_of) {
                 Some(SyntaxKind::VariableStatement) => grandparent,
                 Some(SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement) => {
-                    context_node(state, grandparent?)
+                    context_node(source, grandparent?)
                 }
                 _ => Some(parent),
             }
         }
         SyntaxKind::BindingElement => {
             let pattern = parent?;
-            context_node(state, state.binder.node_record(pattern).parent?)
+            context_node(source, source.arena.node(pattern).parent?)
         }
         SyntaxKind::ImportSpecifier => {
             let named = parent?;
-            let clause = state.binder.node_record(named).parent?;
-            state.binder.node_record(clause).parent
+            let clause = source.arena.node(named).parent?;
+            source.arena.node(clause).parent
         }
         SyntaxKind::ExportSpecifier | SyntaxKind::NamespaceImport => {
-            state.binder.node_record(parent?).parent
+            source.arena.node(parent?).parent
         }
         SyntaxKind::ImportClause | SyntaxKind::NamespaceExport => parent,
         SyntaxKind::BinaryExpression => {
-            if parent_kind(state) == Some(SyntaxKind::ExpressionStatement) {
+            if parent.map(kind_of) == Some(SyntaxKind::ExpressionStatement) {
                 parent
             } else {
                 Some(node)
@@ -1140,22 +1155,21 @@ pub(crate) fn context_node(state: &CheckerState<'_>, node: NodeId) -> Option<Nod
         }
         SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
             if parent.is_some_and(|parent| {
-                state.is_array_literal_or_object_literal_destructuring_pattern(parent)
+                node_util::is_array_literal_or_object_literal_destructuring_pattern(source, parent)
             }) {
                 let mut ancestor = parent;
                 while let Some(current) = ancestor {
-                    let kind = state.binder.node_record(current).kind;
                     if matches!(
-                        kind,
+                        kind_of(current),
                         SyntaxKind::BinaryExpression
                             | SyntaxKind::ForInStatement
                             | SyntaxKind::ForOfStatement
                     ) {
                         break;
                     }
-                    ancestor = state.binder.node_record(current).parent;
+                    ancestor = source.arena.node(current).parent;
                 }
-                return context_node(state, ancestor?);
+                return context_node(source, ancestor?);
             }
             Some(node)
         }
@@ -1165,10 +1179,10 @@ pub(crate) fn context_node(state: &CheckerState<'_>, node: NodeId) -> Option<Nod
 
 /// tsgo `toContextRange`: the context's range when it is not the name's.
 fn to_context_range(
-    state: &CheckerState<'_>,
+    source: &SourceFile,
     name_range: &Range<usize>,
     context: NodeId,
 ) -> Option<Range<usize>> {
-    let range = range_of_node(state, context);
+    let range = range_of_node_in(source, context);
     (range != *name_range).then_some(range)
 }

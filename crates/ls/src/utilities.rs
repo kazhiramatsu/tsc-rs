@@ -23,6 +23,9 @@ pub(crate) struct ReferenceInfo {
     /// The program's index of the file, when the program has it.
     pub file: Option<usize>,
     pub file_name: String,
+    /// The range of the triple-slash directive's file name (tsgo
+    /// `reference`; none for a module specifier).
+    pub reference: Option<Range<usize>>,
 }
 
 /// tsgo `getReferenceAtPosition`: the file a triple-slash reference, or a
@@ -36,7 +39,7 @@ pub(crate) fn reference_at_position(
     let source = state.binder.source(file);
     if let Some(reference) = find_reference_in_position(&source.referenced_files, position) {
         let target = source_file_from_reference(state, prepared, source, reference)?;
-        return Some(file_reference(state, target));
+        return Some(file_reference(state, target, reference.pos..reference.end));
     }
 
     if let Some(directive) = source
@@ -45,13 +48,13 @@ pub(crate) fn reference_at_position(
         .find(|directive| directive.pos <= position && position <= directive.end)
     {
         let target = type_reference_directive_target(state, prepared, source, directive)?;
-        return Some(file_reference(state, target));
+        return Some(file_reference(state, target, directive.pos..directive.end));
     }
 
     if let Some(reference) = find_reference_in_position(&source.lib_reference_directives, position)
     {
         let target = lib_file_from_reference(state, prepared, reference)?;
-        return Some(file_reference(state, target));
+        return Some(file_reference(state, target, reference.pos..reference.end));
     }
 
     let references = collect_external_module_references(source);
@@ -81,6 +84,7 @@ pub(crate) fn reference_at_position(
     Some(ReferenceInfo {
         file: source_file(state, prepared, &file_name),
         file_name,
+        reference: None,
     })
 }
 
@@ -167,7 +171,7 @@ pub(crate) fn is_variable_declaration_initialized_to_bare_or_accessed_require(
     is_require_call(source, initializer, true)
 }
 
-fn file_reference(state: &CheckerState<'_>, file: usize) -> ReferenceInfo {
+fn file_reference(state: &CheckerState<'_>, file: usize, reference: Range<u32>) -> ReferenceInfo {
     ReferenceInfo {
         file: Some(file),
         file_name: state
@@ -176,6 +180,7 @@ fn file_reference(state: &CheckerState<'_>, file: usize) -> ReferenceInfo {
             .file_name
             .to_string_lossy()
             .into_owned(),
+        reference: Some(reference.start as usize..reference.end as usize),
     }
 }
 
@@ -600,8 +605,12 @@ pub(crate) fn token_start(source: &SourceFile, node: NodeId) -> usize {
 /// tsgo `getRangeOfNode` (without an end node): a string literal's range
 /// without its quotes.
 pub(crate) fn range_of_node(state: &CheckerState<'_>, node: NodeId) -> Range<usize> {
-    let source = state.binder.source_of_node(node);
-    let record = state.binder.node_record(node);
+    range_of_node_in(state.binder.source_of_node(node), node)
+}
+
+/// [`range_of_node`] of a node in any parse of a file.
+pub(crate) fn range_of_node_in(source: &SourceFile, node: NodeId) -> Range<usize> {
+    let record = source.arena.node(node);
     let mut start = token_start(source, node);
     let mut end = record.end as usize;
     if matches!(
