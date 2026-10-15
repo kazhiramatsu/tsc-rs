@@ -168,7 +168,7 @@ transpilation, module resolution, symbol, type and signature queries, scope
 lookups, type nodes, `printNode`, `formatNodeForInsertion`, diagnostics,
 emit, the build orchestrator and the language-service requests
 (completions, references, signature usages, JSDoc, import edits); the
-client's tests all pass. Not yet: `printNode`'s `preserveSourceNewlines`.
+client's tests all pass.
 Details: [design notes](docs/design/greenfield/slices/ts71-api-server/README.md).
 
 ## Rust API (experimental)
