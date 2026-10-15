@@ -738,6 +738,34 @@ pub(crate) fn is_function_like_kind(kind: SyntaxKind) -> bool {
     ) || node_util::is_function_like_declaration_kind(kind)
 }
 
+/// tsgo `scanner.ComputeLineOfPosition`: the line of a position among a
+/// file's ECMAScript line starts.
+pub(crate) fn line_of_position(line_starts: &[usize], position: usize) -> usize {
+    match line_starts.binary_search(&position) {
+        Ok(line) => line,
+        Err(insertion) => insertion.saturating_sub(1),
+    }
+}
+
+/// tsgo `getLineEndOfPosition`: the end of a position's line, before its
+/// line break (both characters of a CRLF).
+pub(crate) fn line_end_of_position(
+    source: &SourceFile,
+    line_starts: &[usize],
+    position: usize,
+) -> usize {
+    let line = line_of_position(line_starts, position);
+    let last = match line_starts.get(line + 1) {
+        Some(&next) => next - 1,
+        None => source.arena.node(source.root).end as usize,
+    };
+    let bytes = source.text().as_bytes();
+    if last > 0 && last < bytes.len() && bytes[last] == b'\n' && bytes[last - 1] == b'\r' {
+        return last - 1;
+    }
+    last
+}
+
 /// tsgo `ast.CanHaveSymbol`.
 pub(crate) fn can_have_symbol(kind: SyntaxKind) -> bool {
     matches!(
