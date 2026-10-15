@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use tsc_compiler::LiveProgram;
-use tsc_diagnostics::JsStr;
+use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::vfs::VfsCompilerHost;
 use tsc_program::{
     load_emitting_program, load_program, load_project_config_program,
@@ -27,11 +27,12 @@ use crate::project::{
 };
 use crate::snapshot::ContentMapperContributions;
 use crate::snapshot::{
-    ApiSnapshotRequest, ApiState, CreateProgramRequest, OpenedFile, ProjectCollection,
-    ProjectError, ProjectTreeRequest, SnapshotHost,
+    ApiSnapshotRequest, ApiState, AtaStateChange, CreateProgramRequest, OpenedFile,
+    ProjectCollection, ProjectError, ProjectTreeRequest, SnapshotHost,
 };
 use crate::watch::{
-    path_globs, resolution_lookup_globs, ContentMapperWatch, WatchedFiles, WATCH_ALL,
+    path_globs, resolution_lookup_globs, typings_locations_globs, ContentMapperWatch,
+    PatternsAndIgnored, WatchedFiles, WATCH_ALL,
 };
 use tsc_syntax::ScriptKind;
 
@@ -585,7 +586,55 @@ impl<'a> ProjectCollectionBuilder<'a> {
             relative_pattern_support,
             move |files: &Vec<String>| path_globs(&workspace, case_sensitive, files),
         )));
+        if options.typings_location.is_some() {
+            project.typings_watch = Some(Arc::new(WatchedFiles::new(
+                "typings installer files",
+                WATCH_ALL,
+                relative_pattern_support,
+                |globs: &PatternsAndIgnored| globs.clone(),
+            )));
+        }
         project
+    }
+
+    /// tsgo `DidUpdateATAState`: a project whose typings info is still the
+    /// one its typings were installed for takes them (as roots, with their
+    /// watch) and builds its program again.
+    pub(crate) fn did_update_ata_state(
+        &mut self,
+        ata_changes: &BTreeMap<ProjectId, AtaStateChange>,
+    ) {
+        let paths = self.host.paths().clone();
+        let typings_location = self
+            .host
+            .options()
+            .typings_location
+            .clone()
+            .unwrap_or_default();
+        for (id, change) in ata_changes {
+            let Some(project) = self.project(id) else {
+                continue;
+            };
+            if project.compute_typings_info().as_ref() != Some(&change.typings_info) {
+                continue;
+            }
+            let globs = typings_locations_globs(
+                &change.typings_files_to_watch,
+                &typings_location,
+                &paths.current_directory,
+                paths.case_sensitive,
+            );
+            self.change(id, |project| {
+                project.installed_typings_info = Some(change.typings_info.clone());
+                project.typings_files = change.typings_files.clone();
+                project.typings_watch = project
+                    .typings_watch
+                    .as_ref()
+                    .map(|watch| Arc::new(watch.clone_with(globs)));
+                project.dirty = true;
+                project.dirty_file_path = None;
+            });
+        }
     }
 
     /// tsgo `refreshContentMapperProjectForChanges`: a project whose content
@@ -718,14 +767,30 @@ impl<'a> ProjectCollectionBuilder<'a> {
         };
         let host = VfsCompilerHost::new(&source, project.current_directory.clone());
         let document_script_kinds = self.document_script_kinds();
+        // tsgo: a project that acquires types resolves in the typings cache.
+        let typings_location = options
+            .typings_location
+            .as_deref()
+            .filter(|_| {
+                project
+                    .type_acquisition()
+                    .and_then(|acquisition| acquisition.enable)
+                    == Some(true)
+            })
+            .map(JsString::from);
         let prepared = match command_line {
             CommandLine::Config(plan) => load_project_config_program(
                 &host,
-                &Arc::new(
-                    (*self.with_content_mapper_project(plan))
+                &Arc::new({
+                    let plan = (*self.with_content_mapper_project(plan))
                         .clone()
-                        .with_document_script_kinds(document_script_kinds),
-                ),
+                        .with_added_root_files(project.typings_roots())
+                        .with_document_script_kinds(document_script_kinds);
+                    match typings_location {
+                        Some(typings_location) => plan.with_typings_location(typings_location),
+                        None => plan,
+                    }
+                }),
                 resolved,
                 plan.options()
                     .option_bool("disableSourceOfProjectReferenceRedirect")
@@ -738,6 +803,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 let root_names = roots
                     .root_file_names
                     .iter()
+                    .chain(project.typings_roots())
                     .map(PathBuf::from)
                     .collect::<Vec<_>>();
                 let load = if roots.compiler_options.no_emit == Some(true) {
@@ -751,6 +817,9 @@ impl<'a> ProjectCollectionBuilder<'a> {
                     .with_document_script_kinds(document_script_kinds);
                 if let Some(project) = self.content_mapper_project(&program_options) {
                     program_options = program_options.with_content_mapper_project(project);
+                }
+                if let Some(typings_location) = typings_location {
+                    program_options = program_options.with_typings_location(typings_location);
                 }
                 if let Some(resolved) = resolved {
                     program_options = program_options

@@ -26,6 +26,7 @@ use tsc_program::uri::uri_to_file_name;
 use tsc_program::ConfigOptionBag;
 use tsc_syntax::ScriptKind;
 
+use crate::ata::{NpmExecutor, TypingsInstallRequest, TypingsInstaller};
 use crate::background::{Cancellation, Queue};
 use crate::client::{Client, Logger};
 use crate::fs::{FileChangeSummary, Paths};
@@ -34,8 +35,8 @@ use crate::overlay::{FileChange, FileChangeKind, OverlayFs, Overlays};
 use crate::project::{CommandLine, ProgramUpdateKind, Project};
 use crate::snapshot::ContentMapperContributions;
 use crate::snapshot::{
-    ApiSnapshotRequest, ProjectError, ProjectTreeRequest, SessionOptions, Snapshot, SnapshotChange,
-    SnapshotHost,
+    ApiSnapshotRequest, AtaStateChange, ProjectError, ProjectTreeRequest, SessionOptions, Snapshot,
+    SnapshotChange, SnapshotHost,
 };
 use crate::watch::{glob_string, WatchRegistry, WatchedFiles};
 
@@ -107,6 +108,10 @@ struct Inner {
     /// `registeredContentMapperSnapshotID` (under
     /// `contentMapperRegistrationMu`).
     content_mapper_registration: Mutex<(Vec<String>, u64)>,
+    /// tsgo `typingsInstaller`: with a typings location and npm.
+    typings_installer: Option<Arc<TypingsInstaller>>,
+    /// tsgo `pendingATAChanges`: the installed typings the next update takes.
+    pending_ata_changes: Mutex<BTreeMap<ProjectId, AtaStateChange>>,
 }
 
 /// tsgo `idleCacheCleanDelay`.
@@ -127,14 +132,28 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 impl Session {
-    /// tsgo `NewSession`.
+    /// tsgo `NewSession`: with a typings location and `npm_executor`, the
+    /// session installs the typings its projects acquire.
     pub fn new(
         options: SessionOptions,
         fs: Arc<dyn FileSystem>,
         client: Option<Arc<dyn Client>>,
         logger: Option<Arc<dyn Logger>>,
         spawner: Option<Arc<dyn Spawner>>,
+        npm_executor: Option<Arc<dyn NpmExecutor>>,
     ) -> Self {
+        let typings_installer =
+            options
+                .typings_location
+                .clone()
+                .zip(npm_executor)
+                .map(|(location, npm_executor)| {
+                    Arc::new(TypingsInstaller::new(
+                        location,
+                        Arc::clone(&fs),
+                        npm_executor,
+                    ))
+                });
         let position_encoding = options.position_encoding.clone();
         let paths = Paths {
             current_directory: options.current_directory.clone(),
@@ -177,6 +196,8 @@ impl Session {
                 idle_clean: Mutex::default(),
                 content_mapper_registration: Mutex::default(),
                 seen_projects: Mutex::default(),
+                typings_installer,
+                pending_ata_changes: Mutex::default(),
             }),
         }
     }
@@ -512,7 +533,7 @@ impl Session {
         let inner = &self.inner;
         let _update = lock(&inner.snapshot_update);
         inner.cancel_scheduled_snapshot_update();
-        let (changes, overlays, new_config) = inner.flush_changes();
+        let (changes, overlays, ata_changes, new_config) = inner.flush_changes();
         let file_names = |documents: &[DocumentUri]| {
             documents
                 .iter()
@@ -521,11 +542,12 @@ impl Session {
         };
         let documents = file_names(request.documents);
         let configured_project_documents = file_names(request.configured_project_documents);
-        if !changes.is_empty() || new_config.is_some() {
+        if !changes.is_empty() || !ata_changes.is_empty() || new_config.is_some() {
             return inner.update_snapshot(
                 overlays,
                 SnapshotChange {
                     file_changes: changes,
+                    ata_changes,
                     new_config,
                     documents,
                     configured_project_documents,
@@ -647,20 +669,22 @@ impl Session {
         let _update = lock(&inner.snapshot_update);
         inner.cancel_scheduled_snapshot_update();
         // tsgo flushes (and so drops) the pending preferences here too.
-        let (file_changes, overlays, _) = inner.flush_changes();
+        let (file_changes, overlays, ata_changes, _) = inner.flush_changes();
         let result = inner.update_snapshot(
             Arc::clone(&overlays),
             SnapshotChange {
                 file_changes: file_changes.clone(),
+                ata_changes: ata_changes.clone(),
                 api_request: Some(request),
                 ..SnapshotChange::default()
             },
         );
-        if result.is_err() && !file_changes.is_empty() {
+        if result.is_err() && (!file_changes.is_empty() || !ata_changes.is_empty()) {
             let _ = inner.update_snapshot(
                 overlays,
                 SnapshotChange {
                     file_changes,
+                    ata_changes,
                     ..SnapshotChange::default()
                 },
             );
@@ -827,6 +851,11 @@ impl Inner {
                 snapshot,
             )
         };
+        // tsgo: the projects whose typings may have changed install them.
+        if self.typings_installer.is_some() && !lock(&self.user_config).workspace.is_ata_disabled()
+        {
+            self.trigger_ata_for_updated_projects(&snapshot);
+        }
         // tsgo's adoption task: the logs, the watches, then the configs'
         // diagnostics.
         let inner = Arc::clone(self);
@@ -854,6 +883,100 @@ impl Inner {
             inner.send_project_info_telemetry_for_new_projects(&old, &new);
         });
         Ok(snapshot)
+    }
+
+    /// tsgo `triggerATAForUpdatedProjects`: each project whose typings may
+    /// have changed installs them in the background.
+    fn trigger_ata_for_updated_projects(self: &Arc<Self>, snapshot: &Snapshot) {
+        for project in snapshot.projects() {
+            if !project.should_trigger_ata(snapshot.id()) {
+                continue;
+            }
+            let inner = Arc::clone(self);
+            let project = Arc::clone(project);
+            self.background.enqueue(&Cancellation::default(), move |_| {
+                inner.install_project_typings(&project);
+            });
+        }
+    }
+
+    /// tsgo's ATA task: the project's typings installed (with the editor's
+    /// progress); new ones wait for the next update, which the diagnostics
+    /// refresh brings.
+    fn install_project_typings(self: &Arc<Self>, project: &Project) {
+        let (Some(installer), Some(typings_info)) =
+            (&self.typings_installer, project.compute_typings_info())
+        else {
+            return;
+        };
+        let logging = self.logging_enabled();
+        let mut logs = Vec::new();
+        if logging {
+            logs.push(format!("Triggering ATA for project {}", project.id));
+        }
+        let file_names = project.program.as_ref().map_or_else(Vec::new, |program| {
+            program
+                .prepared()
+                .source_files()
+                .iter()
+                .map(|file| file.path().display().to_string_lossy().into_owned())
+                .collect()
+        });
+        let display_name = project.display_name(&self.host.options().current_directory);
+        if let Some(client) = &self.client {
+            client.progress_start(
+                &tsc_diagnostics::gen::Installing_types_for_0,
+                std::slice::from_ref(&display_name),
+            );
+        }
+        let fs = lock(&self.fs).layer();
+        let result = installer.install_typings(TypingsInstallRequest {
+            project_id: project.id.as_str(),
+            typings_info: &typings_info,
+            file_names: &file_names,
+            project_root_path: &project.current_directory,
+            fs: &fs,
+            logger: &mut |line| {
+                if logging {
+                    logs.push(line);
+                }
+            },
+        });
+        if let Some(client) = &self.client {
+            client.progress_finish(
+                &tsc_diagnostics::gen::Installing_types_for_0,
+                std::slice::from_ref(&display_name),
+            );
+        }
+        match result {
+            Err(error) => {
+                if logging {
+                    self.log(|| {
+                        format!(
+                            "ATA installation failed for project {}: {error}",
+                            project.id
+                        )
+                    });
+                    self.log(|| logs.join("\n"));
+                }
+            }
+            Ok(result) if result.typings_files != project.typings_files => {
+                if logging {
+                    self.log(|| logs.join("\n"));
+                }
+                lock(&self.pending_ata_changes).insert(
+                    project.id.clone(),
+                    AtaStateChange {
+                        typings_info,
+                        typings_files: result.typings_files,
+                        typings_files_to_watch: result.files_to_watch,
+                        logs,
+                    },
+                );
+                self.schedule_diagnostics_refresh(self.host.options().debounce_delay);
+            }
+            Ok(_) => {}
+        }
     }
 
     /// tsgo `sendProjectInfoTelemetryForNewProjects`: the information of each
@@ -1170,12 +1293,14 @@ impl Inner {
         for project in new.projects() {
             if !old_projects.contains_key(&project.id) {
                 errors.extend(self.update_watch(None, project.program_files_watch.as_deref()));
+                errors.extend(self.update_watch(None, project.typings_watch.as_deref()));
                 errors.extend(self.update_watch(None, project.content_mapper_watch.as_deref()));
             }
         }
         for project in old.projects() {
             let Some(new_project) = new_projects.get(&project.id) else {
                 errors.extend(self.update_watch(project.program_files_watch.as_deref(), None));
+                errors.extend(self.update_watch(project.typings_watch.as_deref(), None));
                 errors.extend(self.update_watch(project.content_mapper_watch.as_deref(), None));
                 continue;
             };
@@ -1185,6 +1310,10 @@ impl Inner {
             errors.extend(self.update_changed_watch(
                 project.program_files_watch.as_deref(),
                 new_project.program_files_watch.as_deref(),
+            ));
+            errors.extend(self.update_changed_watch(
+                project.typings_watch.as_deref(),
+                new_project.typings_watch.as_deref(),
             ));
             errors.extend(self.update_changed_watch(
                 project.content_mapper_watch.as_deref(),
@@ -1325,8 +1454,8 @@ impl Inner {
                 scheduled.cancellation = None;
             }
             let _update = lock(&inner.snapshot_update);
-            let (changes, overlays, new_config) = inner.flush_changes();
-            if changes.is_empty() && new_config.is_none() {
+            let (changes, overlays, ata_changes, new_config) = inner.flush_changes();
+            if changes.is_empty() && ata_changes.is_empty() && new_config.is_none() {
                 return;
             }
             // tsgo's background update has no caller to answer; a failed
@@ -1335,6 +1464,7 @@ impl Inner {
                 overlays,
                 SnapshotChange {
                     file_changes: changes,
+                    ata_changes,
                     new_config,
                     ..SnapshotChange::default()
                 },
@@ -1417,11 +1547,12 @@ impl Inner {
             }
             let _update = lock(&inner.snapshot_update);
             inner.cancel_scheduled_snapshot_update();
-            let (changes, overlays, new_config) = inner.flush_changes();
+            let (changes, overlays, ata_changes, new_config) = inner.flush_changes();
             let _ = inner.update_snapshot(
                 overlays,
                 SnapshotChange {
                     file_changes: changes,
+                    ata_changes,
                     new_config,
                     clean_file_cache: true,
                     ..SnapshotChange::default()
@@ -1467,15 +1598,23 @@ impl Inner {
 
     /// tsgo `flushChanges`: the pending file changes applied to the open
     /// documents, and the user's preferences when they changed.
-    fn flush_changes(&self) -> (FileChangeSummary, Overlays, Option<UserPreferences>) {
-        let (changes, overlays) = {
-            let mut pending = lock(&self.pending_file_changes);
-            self.flush_changes_locked(&mut pending)
-        };
+    #[allow(clippy::type_complexity)]
+    fn flush_changes(
+        &self,
+    ) -> (
+        FileChangeSummary,
+        Overlays,
+        BTreeMap<ProjectId, AtaStateChange>,
+        Option<UserPreferences>,
+    ) {
+        let mut pending = lock(&self.pending_file_changes);
+        let ata_changes = std::mem::take(&mut *lock(&self.pending_ata_changes));
+        let (changes, overlays) = self.flush_changes_locked(&mut pending);
+        drop(pending);
         let mut user_config = lock(&self.user_config);
         let new_config = user_config.pending.then(|| user_config.workspace.clone());
         user_config.pending = false;
-        (changes, overlays, new_config)
+        (changes, overlays, ata_changes, new_config)
     }
 
     /// tsgo `flushChangesLocked`.

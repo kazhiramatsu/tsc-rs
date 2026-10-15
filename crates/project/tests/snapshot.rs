@@ -45,6 +45,7 @@ fn session_with(entries: Vec<(String, Seed)>) -> (SnapshotHost, Arc<MemFs>) {
             push_diagnostics_enabled: false,
             debounce_delay: std::time::Duration::ZERO,
             client_capabilities: Default::default(),
+            typings_location: None,
         },
         Arc::clone(&fs) as Arc<dyn FileSystem>,
         None,

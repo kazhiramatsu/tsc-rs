@@ -55,6 +55,9 @@ pub struct SessionOptions {
     /// session's background context): relative watch patterns, the
     /// diagnostics the client takes.
     pub client_capabilities: tsc_lsproto::ResolvedClientCapabilities,
+    /// tsgo `TypingsLocation`: the global typings cache, when the session
+    /// installs typings.
+    pub typings_location: Option<String>,
 }
 
 impl SessionOptions {
@@ -211,6 +214,19 @@ pub struct SnapshotChange<'a> {
     /// tsgo `CloneSnapshotWithAutoImports`: the snapshot reads the base's
     /// file system (an API request's stays).
     pub base_file_system: bool,
+    /// tsgo `ataChanges`: the typings the installer installed, by project.
+    pub ata_changes: BTreeMap<ProjectId, AtaStateChange>,
+}
+
+/// tsgo `ATAStateChange`: a project's typings, installed for what its
+/// typings info was.
+#[derive(Clone, Debug)]
+pub struct AtaStateChange {
+    pub typings_info: crate::ata::TypingsInfo,
+    pub typings_files: Vec<String>,
+    pub typings_files_to_watch: Vec<String>,
+    /// The installation's log lines (tsgo `Logs`).
+    pub logs: Vec<String>,
 }
 
 /// tsgo `ContentMapperContributions`: the content mappers an editor's
@@ -961,6 +977,7 @@ impl SnapshotHost {
             project_tree,
             content_mapper_contributions,
             base_file_system,
+            ata_changes,
         } = change;
         let inferred_project_content_mappers = content_mapper_contributions
             .clone()
@@ -1066,6 +1083,9 @@ impl SnapshotHost {
                 &inferred_project_content_mappers,
                 client,
             );
+            if !ata_changes.is_empty() {
+                builder.did_update_ata_state(&ata_changes);
+            }
             builder.did_change_custom_config_file_name();
             if let Some(options) = &new_inferred_options {
                 builder.did_change_compiler_options_for_inferred_projects(options);

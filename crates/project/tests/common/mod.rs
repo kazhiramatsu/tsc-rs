@@ -4,6 +4,7 @@
 
 #![allow(dead_code)]
 
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use tsc_compiler::locale::Locale;
@@ -234,10 +235,197 @@ fn setup_session_with(
     spawner: Option<Arc<dyn tsc_program::content_mapper::host::Spawner>>,
     configure: impl FnOnce(&mut SessionOptions),
 ) -> (Session, Arc<MemFs>, Arc<ClientMock>) {
+    // tsgo `GetSessionInitOptions`: every session installs typings (with
+    // the npm mock and no packages).
+    let (session, fs, client, _) = setup_session_full(
+        entries,
+        workspace,
+        spawner,
+        |options| {
+            options.typings_location = Some(TEST_TYPINGS_LOCATION.to_owned());
+            configure(options);
+        },
+        Some(TypingsInstallerOptions::default()),
+    );
+    (session, fs, client)
+}
+
+/// tsgo `projecttestutil.TestTypingsLocation`.
+pub const TEST_TYPINGS_LOCATION: &str = "/home/src/Library/Caches/typescript";
+
+/// tsgo `projecttestutil.TypingsInstallerOptions`: the registry's packages
+/// (with tsgo's test versions) and the `@types` files npm installs.
+#[derive(Clone, Default)]
+pub struct TypingsInstallerOptions {
+    pub types_registry: Vec<String>,
+    pub package_to_file: BTreeMap<String, String>,
+}
+
+/// tsgo `NpmExecutorMock` with `SetupNpmExecutorForTypingsInstaller`: npm
+/// writes the registry and the `@types` files into the file system.
+pub struct NpmExecutorMock {
+    fs: Arc<MemFs>,
+    options: TypingsInstallerOptions,
+    calls: Mutex<Vec<(String, Vec<String>)>>,
+}
+
+impl NpmExecutorMock {
+    /// tsgo `NpmInstallCalls`: each call's directory and arguments.
+    pub fn npm_install_calls(&self) -> Vec<(String, Vec<String>)> {
+        self.calls.lock().unwrap().clone()
+    }
+}
+
+/// tsgo `TypesRegistryConfig`.
+fn types_registry_config() -> serde_json::Value {
+    serde_json::json!({
+        "latest": "1.3.0",
+        "ts2.0": "1.0.0",
+        "ts2.1": "1.0.0",
+        "ts2.2": "1.2.0",
+        "ts2.3": "1.3.0",
+        "ts2.4": "1.3.0",
+        "ts2.5": "1.3.0",
+        "ts2.6": "1.3.0",
+        "ts2.7": "1.3.0",
+    })
+}
+
+impl tsc_project::ata::NpmExecutor for NpmExecutorMock {
+    fn npm_install(&self, cwd: &str, args: &[String]) -> Result<Vec<u8>, String> {
+        self.calls
+            .lock()
+            .unwrap()
+            .push((cwd.to_owned(), args.to_vec()));
+        if args.len() < 3 {
+            return Err(format!("unexpected npm install: {cwd} {args:?}"));
+        }
+        if args.len() == 3 && args[2] == "types-registry@latest" {
+            let mut entries = serde_json::Map::new();
+            for name in self
+                .options
+                .types_registry
+                .iter()
+                .chain(self.options.package_to_file.keys())
+            {
+                entries.insert(name.clone(), types_registry_config());
+            }
+            let text = serde_json::json!({ "entries": entries }).to_string();
+            return self
+                .fs
+                .write_creating_dirs(
+                    &format!("{cwd}/node_modules/types-registry/index.json"),
+                    text.as_bytes(),
+                )
+                .map(|()| Vec::new())
+                .map_err(|error| error.to_string());
+        }
+        let end = args
+            .iter()
+            .skip(2)
+            .position(|arg| arg.starts_with("--"))
+            .map_or(args.len(), |index| index + 2);
+        for package in &args[2..end] {
+            // `@types/<name>@<version>`.
+            let package = match package.rfind('@') {
+                Some(index) if index > 6 => &package[..index],
+                _ => package.as_str(),
+            };
+            let name = &package["@types/".len()..];
+            let content = self
+                .options
+                .package_to_file
+                .get(name)
+                .ok_or_else(|| format!("content not provided for {name}"))?;
+            self.fs
+                .write_creating_dirs(
+                    &format!("{cwd}/node_modules/@types/{name}/index.d.ts"),
+                    content.as_bytes(),
+                )
+                .map_err(|error| error.to_string())?;
+        }
+        Ok(Vec::new())
+    }
+}
+
+/// tsgo `projecttestutil.SetupWithTypingsInstaller`: a session that installs
+/// typings in [`TEST_TYPINGS_LOCATION`] with tsgo's npm mock.
+pub fn setup_with_typings_installer(
+    files: &[(&str, &str)],
+    typings: TypingsInstallerOptions,
+) -> (Session, Arc<MemFs>, Arc<ClientMock>, Arc<NpmExecutorMock>) {
+    setup_with_options_and_typings_installer(files, |_| {}, typings)
+}
+
+/// tsgo `projecttestutil.SetupWithOptionsAndTypingsInstaller`.
+pub fn setup_with_options_and_typings_installer(
+    files: &[(&str, &str)],
+    configure: impl FnOnce(&mut SessionOptions),
+    typings: TypingsInstallerOptions,
+) -> (Session, Arc<MemFs>, Arc<ClientMock>, Arc<NpmExecutorMock>) {
+    let entries = files
+        .iter()
+        .map(|(name, text)| ((*name).to_owned(), Seed::file(text)))
+        .collect();
+    let (session, fs, client, npm) = setup_session_full(
+        entries,
+        "/",
+        None,
+        |options| {
+            options.typings_location = Some(TEST_TYPINGS_LOCATION.to_owned());
+            configure(options);
+        },
+        Some(typings),
+    );
+    (session, fs, client, npm.expect("the npm mock"))
+}
+
+/// [`setup_with_spawner`] with tsgo's typings installer options and session
+/// options (`GetSessionInitOptions` with both).
+pub fn setup_with_spawner_and_typings(
+    entries: Vec<(String, Seed)>,
+    workspace: &str,
+    spawner: Arc<dyn tsc_program::content_mapper::host::Spawner>,
+    configure: impl FnOnce(&mut SessionOptions),
+    typings: TypingsInstallerOptions,
+) -> (Session, Arc<MemFs>, Arc<ClientMock>, Arc<NpmExecutorMock>) {
+    let (session, fs, client, npm) = setup_session_full(
+        entries,
+        workspace,
+        Some(spawner),
+        |options| {
+            options.typings_location = Some(TEST_TYPINGS_LOCATION.to_owned());
+            configure(options);
+        },
+        Some(typings),
+    );
+    (session, fs, client, npm.expect("the npm mock"))
+}
+
+#[allow(clippy::type_complexity)]
+fn setup_session_full(
+    entries: Vec<(String, Seed)>,
+    workspace: &str,
+    spawner: Option<Arc<dyn tsc_program::content_mapper::host::Spawner>>,
+    configure: impl FnOnce(&mut SessionOptions),
+    typings: Option<TypingsInstallerOptions>,
+) -> (
+    Session,
+    Arc<MemFs>,
+    Arc<ClientMock>,
+    Option<Arc<NpmExecutorMock>>,
+) {
     let client = Arc::new(ClientMock::default());
     let fs = Arc::new(
         MemFs::from_entries(entries, false, Arc::new(SystemClock)).expect("build the file system"),
     );
+    let npm = typings.map(|options| {
+        Arc::new(NpmExecutorMock {
+            fs: Arc::clone(&fs),
+            options,
+            calls: Mutex::default(),
+        })
+    });
     let mut options = SessionOptions {
         current_directory: workspace.to_owned(),
         library_catalog: LibraryCatalog::typescript_7_1(EMBEDDED_LIBRARY_DIRECTORY),
@@ -250,6 +438,7 @@ fn setup_session_with(
         push_diagnostics_enabled: true,
         debounce_delay: std::time::Duration::ZERO,
         client_capabilities: Default::default(),
+        typings_location: None,
     };
     configure(&mut options);
     let session = Session::new(
@@ -259,8 +448,10 @@ fn setup_session_with(
         Some(Arc::clone(&client) as Arc<dyn Client>),
         None,
         spawner,
+        npm.clone()
+            .map(|npm| npm as Arc<dyn tsc_project::ata::NpmExecutor>),
     );
-    (session, fs, client)
+    (session, fs, client, npm)
 }
 
 pub fn uri(uri: &str) -> DocumentUri {

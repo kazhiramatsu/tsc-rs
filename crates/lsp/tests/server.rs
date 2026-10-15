@@ -132,6 +132,8 @@ impl Session {
             default_library_path,
             spawner,
             progress_delay: Duration::ZERO,
+            typings_location: None,
+            npm_executor: None,
         });
         let run = {
             let server = Arc::clone(&server);
@@ -650,6 +652,8 @@ fn outgoing_queue_does_not_block_without_writer() {
         default_library_path: "/typescript/lib".to_owned(),
         spawner: None,
         progress_delay: Duration::ZERO,
+        typings_location: None,
+        npm_executor: None,
     });
     for _ in 0..1000 {
         let message = lsproto::RequestMessage::new(

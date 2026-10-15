@@ -62,6 +62,7 @@ fn mapper_session(
             push_diagnostics_enabled: false,
             debounce_delay: std::time::Duration::ZERO,
             client_capabilities: Default::default(),
+            typings_location: None,
         },
         Arc::new(BundledFs::new(Arc::clone(&fs) as Arc<dyn FileSystem>)),
         Some(spawner),
