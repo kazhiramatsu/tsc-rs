@@ -1325,3 +1325,32 @@ tsc-rs の span map は compiler の UTF-16 なので、LS には UTF-8（tsgo �
 - **検査（b2ae9cbf1）**：compiler の経路の変更なし（conformance は走らせない）、suites 0 regressions（lsp 8 行 none → full、
   **4,561 → 4,569**）、test 全通過、API client sync 356/356・async 365/365、clippy、fmt。
 - **README**：Status の language server の数（4,569）と、content mapper の file で使える機能。
+
+## L10c content mapper の LS の completion・edit・残りの機能（#814）
+
+- **merge**：#814 → `9dab64918`（hosted run 38718568469：rust 11m11s、conformance 24m57s、gates）。commit：0428fe0b5
+  （language service）、851940199（ratchet）。検査の後の main の取り込みは L10b の merge（同じ code）、packet の README と
+  README だけ。計画の L10d（code lens・selection range）もここで行った。
+- **change tracker**：tsgo `getTextChangesFromChanges`・`computeNewText`・`toLSPEditRange`・`fromLSPEditRange`。
+  `GetChanges` は元の file ごとの edit と、元の text に書き戻せない file（verbatim の span の外の edit、projection の間で
+  食い違う edit）を返し、後者の edit は落とす。node の text は位置の exact な projection 全てで format し、再 indent は
+  元の text を読む。複数の projection の edit は重複を除いて衝突を調べる。`InsertText`・`ReplaceRangeWithText` は元の
+  位置。`InsertAtTopOfFile` は mapper が合成した header を飛ばす。
+- **auto-import**：`Fix.Edits` は書き戻せたかを返し（`fileEdits` の `ok`）、書き戻せない import の fix は出さない
+  （implement interface は edit なし）。content mapped な node_modules の file は project bucket に入る。supplemental の
+  出力は canonical の出力として import する（`getPreparedAutoImportView`・`NewView`）。
+- **completion**：位置の最初の projection（exact でなければ無し）、item の data は元の file と supplemental の index
+  （`supplementalFileIndex`、resolve は `sourceFileForSupplementalFileIndex` で戻す）、`filterContentMappedAutoImports`。
+- **残りの機能**：code lens は supplemental の出力も（data の index、解決もそこで）。selection range は single segment の
+  唯一の projection で、mapper の出力には file の範囲を付けない。call hierarchy・linked editing・auto insert・semantic
+  token・inlay hint・code action にも tsgo の projection と feature の filter。LSP の位置を取る機能は全て projection を
+  通り、language service の素の LSP 位置の入口（`with_request`）は無くなった。
+- **回帰 test**：tsgo `TestTextEditsConflictAtSameInsertionPointAcrossProjections`（`change::tests`）。
+- **検査（851940199）**：compiler の経路の変更なし（conformance は走らせない）、suites 0 regressions（lsp 14 行 none →
+  full、**4,569 → 4,583 / 4,584**。残る 1 は tsgo の答えが非決定的な `TestCompletionForStringLiteralNonrelativeImport2`）、
+  content mapper の 56 場面全て一致、test（ls 214 ほか全通過）、API client sync 356/356・async 365/365、clippy、fmt。
+- **次（L10d）**：project system と server の content mapper。tsgo の `project/contentmapper_test.go` の LSP の session の
+  場面と `lsp/server_contentmapper_test.go`：editor の contribution（`custom/setContentMapperContributions`、inferred
+  project の mapper）、mapper の拡張子の動的登録（`RegisterContentMapperExtensions`）、mapper の locale、作られた
+  mapped file の configured project への採用（`PossiblyMatchesFileName`）。typings の install の場面は ATA と共に L11。
+- **README**：Status の language server の数（4,583）と、content mapper の file の機能。
