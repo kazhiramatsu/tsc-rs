@@ -1730,6 +1730,52 @@ impl<'a> CheckerState<'a> {
             member_is_parameter_property,
             declared_prop,
             Some(member),
+        )?;
+        Ok(())
+    }
+
+    /// tsgo `GetMemberOverrideModifierStatus` (checker.go
+    /// getMemberOverrideModifierStatus) for a member a service builds in the
+    /// class `node`: whether it needs `override` (or has one it cannot), by
+    /// the member's symbol and its syntactic `override`, `abstract` and
+    /// `static` modifiers.
+    pub fn get_member_override_modifier_status(
+        &mut self,
+        node: NodeId,
+        member: SymbolId,
+        member_has_override_modifier: bool,
+        member_has_abstract_modifier: bool,
+        member_is_static: bool,
+    ) -> CheckResult<MemberOverrideStatus> {
+        let class_symbol = self.get_symbol_of_declaration(node)?;
+        let ty = self.get_declared_type_of_symbol(class_symbol)?;
+        let type_with_this = self.get_type_with_this_argument(ty, None, false)?;
+        let static_type = self.get_type_of_symbol(class_symbol)?;
+        let base_with_this = if self.get_effective_base_type_node(node).is_some() {
+            match self.get_base_types(ty)?.first() {
+                Some(&first_base) => {
+                    let this_type = self.this_type_of_class_or_interface(ty);
+                    Some(self.get_type_with_this_argument(first_base, this_type, false)?)
+                }
+                None => None,
+            }
+        } else {
+            None
+        };
+        let base_static_type = self.get_base_constructor_type_of_class(ty)?;
+        self.check_member_for_override_modifier(
+            node,
+            static_type,
+            base_static_type,
+            base_with_this,
+            ty,
+            type_with_this,
+            member_has_override_modifier,
+            member_has_abstract_modifier,
+            member_is_static,
+            false,
+            member,
+            None,
         )
     }
 
@@ -1755,8 +1801,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 787be8e6a710f05ef10453458e6b5eb30814ab2fd17c0300adb573b8b0fe887e
     /// tsc-span: _tsc.js:85171-85232
     ///
-    /// MemberOverrideStatus is consumed only by services and remains
-    /// elided. Type displays compute at their diagnostic use sites.
+    /// tsgo `checkMemberForOverrideModifierWorker`: the member's override
+    /// status, reported at `error_node` when there is one (type displays are
+    /// computed only then).
     #[allow(clippy::too_many_arguments)]
     fn check_member_for_override_modifier(
         &mut self,
@@ -1772,7 +1819,7 @@ impl<'a> CheckerState<'a> {
         member_is_parameter_property: bool,
         member: SymbolId,
         error_node: Option<NodeId>,
-    ) -> CheckResult<()> {
+    ) -> CheckResult<MemberOverrideStatus> {
         let is_js = self.is_in_js_file(node);
         let source = self.binder.source_of_node(node);
         let node_in_ambient_context = self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0
@@ -1791,7 +1838,7 @@ impl<'a> CheckerState<'a> {
                         &diagnostics::This_member_cannot_have_an_override_modifier_because_its_name_is_dynamic
                     };
                     self.report_override_error(error_node, message, &[]);
-                    return Ok(());
+                    return Ok(MemberOverrideStatus::HasInvalidOverride);
                 }
             }
         }
@@ -1810,9 +1857,12 @@ impl<'a> CheckerState<'a> {
                 let escaped_name = self.binder.symbol(member).escaped_name;
                 let prop = self.get_property_of_type_full(this_type, escaped_name)?;
                 let base_prop = self.get_property_of_type_full(base_type, escaped_name)?;
-                let base_class_name = self.type_to_string(base_with_this)?;
                 if prop.is_some() && base_prop.is_none() {
                     if member_has_override_modifier {
+                        if error_node.is_none() {
+                            return Ok(MemberOverrideStatus::HasInvalidOverride);
+                        }
+                        let base_class_name = self.type_to_string(base_with_this)?;
                         let member_name = self.symbol_display_name(member);
                         let suggestion = self.get_suggested_symbol_for_nonexistent_class_member(
                             &member_name,
@@ -1845,7 +1895,7 @@ impl<'a> CheckerState<'a> {
                                 );
                             }
                         }
-                        return Ok(());
+                        return Ok(MemberOverrideStatus::HasInvalidOverride);
                     }
                 } else if let (Some(_), Some(base_prop)) = (prop, base_prop) {
                     let base_declarations = self.binder.symbol(base_prop).declarations.clone();
@@ -1861,9 +1911,13 @@ impl<'a> CheckerState<'a> {
                             )
                         });
                         if member_has_override_modifier {
-                            return Ok(());
+                            return Ok(MemberOverrideStatus::None);
                         }
                         if !base_has_abstract {
+                            if error_node.is_none() {
+                                return Ok(MemberOverrideStatus::NeedsOverride);
+                            }
+                            let base_class_name = self.type_to_string(base_with_this)?;
                             let message = if member_is_parameter_property {
                                 if is_js {
                                     &diagnostics::This_parameter_property_must_have_a_JSDoc_comment_with_an_override_tag_because_it_overrides_a_member_in_the_base_class_0
@@ -1880,29 +1934,35 @@ impl<'a> CheckerState<'a> {
                                 message,
                                 &[(&base_class_name).into()],
                             );
-                            return Ok(());
+                            return Ok(MemberOverrideStatus::NeedsOverride);
                         }
                         if member_has_abstract_modifier && base_has_abstract {
-                            self.report_override_error(
-                                error_node,
-                                &diagnostics::This_member_must_have_an_override_modifier_because_it_overrides_an_abstract_method_that_is_declared_in_the_base_class_0,
-                                &[(&base_class_name).into()],
-                            );
-                            return Ok(());
+                            if error_node.is_some() {
+                                let base_class_name = self.type_to_string(base_with_this)?;
+                                self.report_override_error(
+                                    error_node,
+                                    &diagnostics::This_member_must_have_an_override_modifier_because_it_overrides_an_abstract_method_that_is_declared_in_the_base_class_0,
+                                    &[(&base_class_name).into()],
+                                );
+                            }
+                            return Ok(MemberOverrideStatus::NeedsOverride);
                         }
                     }
                 }
             }
         } else if member_has_override_modifier {
-            let class_name = self.type_to_string(ty)?;
-            let message = if is_js {
-                &diagnostics::This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_its_containing_class_0_does_not_extend_another_class
-            } else {
-                &diagnostics::This_member_cannot_have_an_override_modifier_because_its_containing_class_0_does_not_extend_another_class
-            };
-            self.report_override_error(error_node, message, &[(&class_name).into()]);
+            if error_node.is_some() {
+                let class_name = self.type_to_string(ty)?;
+                let message = if is_js {
+                    &diagnostics::This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_its_containing_class_0_does_not_extend_another_class
+                } else {
+                    &diagnostics::This_member_cannot_have_an_override_modifier_because_its_containing_class_0_does_not_extend_another_class
+                };
+                self.report_override_error(error_node, message, &[(&class_name).into()]);
+            }
+            return Ok(MemberOverrideStatus::HasInvalidOverride);
         }
-        Ok(())
+        Ok(MemberOverrideStatus::None)
     }
 
     /// tsc-port: issueMemberSpecificError @6.0.3
@@ -2568,3 +2628,12 @@ impl<'a> CheckerState<'a> {
 #[cfg(test)]
 #[path = "../tests/unit/class/tests.rs"]
 mod tests;
+
+/// tsgo `MemberOverrideStatus`: whether a class member needs an `override`
+/// modifier or has one it cannot have.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum MemberOverrideStatus {
+    None,
+    NeedsOverride,
+    HasInvalidOverride,
+}

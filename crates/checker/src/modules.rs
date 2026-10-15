@@ -1446,7 +1446,7 @@ impl<'a> CheckerState<'a> {
             .nodes_of(modifiers)
             .into_iter()
             .any(|modifier| self.kind_of(modifier) == SyntaxKind::Decorator);
-        if !crate::js_grammar::can_have_decorators(self.kind_of(location))
+        if !tsc_binder::node_util::can_have_decorators(self.kind_of(location))
             || !has_decorator
             || !self.node_can_be_decorated(
                 self.options.experimental_decorators,
