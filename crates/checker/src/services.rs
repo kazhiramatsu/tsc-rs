@@ -159,6 +159,24 @@ impl CheckerState<'_> {
         Ok((result?, candidates))
     }
 
+    /// tsgo `GetResolvedSignatureForSignatureHelp`: the call's signature
+    /// resolved for signature help as if it had `argument_count` arguments
+    /// (the resolved signatures of the enclosing calls forgotten), and the
+    /// candidates.
+    pub fn get_resolved_signature_for_signature_help(
+        &mut self,
+        node: NodeId,
+        argument_count: usize,
+    ) -> CheckResult<(SignatureId, Vec<SignatureId>)> {
+        self.run_without_resolved_signature_caching(node, |state| {
+            state.get_resolved_signature_worker(
+                node,
+                tsc_types::CheckMode::IS_FOR_SIGNATURE_HELP,
+                argument_count,
+            )
+        })
+    }
+
     /// tsgo `GetCandidateSignaturesForStringLiteralCompletions`: the
     /// candidates of a call with the edited argument's inferences blocked,
     /// then those with them.

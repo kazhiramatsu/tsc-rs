@@ -22,7 +22,7 @@ use tsc_types::{
 };
 
 use crate::narrow::{TypePredicate, TypePredicateKind};
-use crate::state::{CheckerState, IndexInfo, SignatureId};
+use crate::state::{CheckResult, CheckerState, IndexInfo, SignatureId};
 
 use super::type_nodes::{
     add_approximate_length, checker_abort_error, clone_parameter_name_to_source, clone_parse_node,
@@ -108,12 +108,9 @@ fn expanded_tuple_element_label(
     index: usize,
     element_flags: ElementFlags,
     rest_symbol: SymbolId,
-    context: &NodeBuilderContext<'_>,
-) -> BuildResult<String> {
+) -> CheckResult<String> {
     if let Some(declaration) = declaration {
-        return checker
-            .tuple_element_label(declaration)
-            .map_err(|abort| checker_abort_error(checker, context, abort));
+        return checker.tuple_element_label(declaration);
     }
     let rest_parameter = checker
         .binder
@@ -204,92 +201,110 @@ fn expanded_tuple_element_label_from_binding_element(
     format!("arg_{index}")
 }
 
-/// tsc-port: getExpandedParameters @6.0.3 (skipUnionExpanding face)
-/// tsc-hash: 43c4acbf32d5eaa48b8366c408ee5255add1639b9c48993d53c049bc18b7e6c8
-/// tsc-span: _tsc.js:57911-57960
-fn get_expanded_parameters(
+/// tsgo `getExpandedParameters` (nodebuilderimpl.go:1985-2071): the
+/// signature's parameters with a rest parameter of a tuple type expanded
+/// into the tuple's elements — one list, or (unless `skip_union_expanding`)
+/// one for each tuple of a union of tuples.
+pub(crate) fn expanded_parameters(
     checker: &mut CheckerState<'_>,
     signature_id: SignatureId,
-    context: &mut NodeBuilderContext<'_>,
-) -> BuildResult<Vec<SymbolId>> {
+    skip_union_expanding: bool,
+) -> CheckResult<Vec<Vec<SymbolId>>> {
     let signature = checker.signature_of(signature_id).clone();
     if !signature
         .flags
         .intersects(SignatureFlags::HAS_REST_PARAMETER)
         || signature.parameters.is_empty()
     {
-        return Ok(signature.parameters);
+        return Ok(vec![signature.parameters]);
     }
     let rest_index = signature.parameters.len() - 1;
     let rest_symbol = signature.parameters[rest_index];
-    let rest_type = checker
-        .get_type_of_symbol(rest_symbol)
-        .map_err(|abort| checker_abort_error(checker, context, abort))?;
-    if !checker.tables.is_tuple_type(rest_type) {
-        return Ok(signature.parameters);
+    let rest_type = checker.get_type_of_symbol(rest_symbol)?;
+    if checker.tables.is_tuple_type(rest_type) {
+        return Ok(vec![expand_signature_parameters_with_tuple_members(
+            checker,
+            signature_id,
+            rest_type,
+        )?]);
     }
+    if !skip_union_expanding {
+        if let TypeData::Union { types, .. } = &checker.tables.type_of(rest_type).data {
+            let types = types.to_vec();
+            if types.iter().all(|&ty| checker.tables.is_tuple_type(ty)) {
+                return types
+                    .into_iter()
+                    .map(|ty| {
+                        expand_signature_parameters_with_tuple_members(checker, signature_id, ty)
+                    })
+                    .collect();
+            }
+        }
+    }
+    Ok(vec![signature.parameters])
+}
+
+/// tsgo `getExpandedParameters`' `expandSignatureParametersWithTupleMembers`:
+/// the parameters before the rest parameter, then a parameter for each of
+/// the tuple's elements (named by its label or the rest parameter).
+fn expand_signature_parameters_with_tuple_members(
+    checker: &mut CheckerState<'_>,
+    signature_id: SignatureId,
+    rest_type: TypeId,
+) -> CheckResult<Vec<SymbolId>> {
+    let signature = checker.signature_of(signature_id).clone();
+    let rest_index = signature.parameters.len() - 1;
+    let rest_symbol = signature.parameters[rest_index];
     let target = checker.tables.reference_target(rest_type);
     let TypeData::TupleTarget(tuple) = checker.tables.type_of(target).data.clone() else {
         return Ok(signature.parameters);
     };
-    let element_types = checker
-        .get_type_arguments(rest_type)
-        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    let element_types = checker.get_type_arguments(rest_type)?;
     let count = element_types.len().min(tuple.element_flags.len());
-    let mut associated_names = match tuple.labeled_element_declarations.as_ref() {
-        Some(declarations) => {
-            let mut names = Vec::with_capacity(count);
-            for index in 0..count {
-                let declaration = declarations.get(index).copied().flatten().map(NodeId::new);
-                names.push(expanded_tuple_element_label(
-                    checker,
-                    declaration,
-                    index,
-                    tuple.element_flags[index],
-                    rest_symbol,
-                    context,
-                )?);
+    // tsgo 7.1 `getUniqAssociatedNamesFromTupleType`: every element's label
+    // (`getTupleElementLabel`: its labeled declaration's, else from the rest
+    // parameter's binding name, else the rest parameter's name and index),
+    // a repeated one numbered.
+    let declarations = tuple.labeled_element_declarations.as_ref();
+    let mut names = Vec::with_capacity(count);
+    for index in 0..count {
+        let declaration = declarations
+            .and_then(|declarations| declarations.get(index).copied().flatten())
+            .map(NodeId::new);
+        names.push(expanded_tuple_element_label(
+            checker,
+            declaration,
+            index,
+            tuple.element_flags[index],
+            rest_symbol,
+        )?);
+    }
+    let mut unique_names = HashSet::default();
+    let mut duplicates = Vec::new();
+    for (index, name) in names.iter().enumerate() {
+        if !unique_names.insert(name.clone()) {
+            duplicates.push(index);
+        }
+    }
+    let mut counters = HashMap::default();
+    for index in duplicates {
+        let base = names[index].clone();
+        let mut counter = counters.get(&base).copied().unwrap_or(1_u32);
+        let name = loop {
+            let candidate = format!("{base}_{counter}");
+            if unique_names.insert(candidate.clone()) {
+                break candidate;
             }
-            Some(names)
-        }
-        None => None,
-    };
-    if let Some(names) = associated_names.as_mut() {
-        let mut unique_names = HashSet::default();
-        let mut duplicates = Vec::new();
-        for (index, name) in names.iter().enumerate() {
-            if !unique_names.insert(name.clone()) {
-                duplicates.push(index);
-            }
-        }
-        let mut counters = HashMap::default();
-        for index in duplicates {
-            let base = names[index].clone();
-            let mut counter = counters.get(&base).copied().unwrap_or(1_u32);
-            let name = loop {
-                let candidate = format!("{base}_{counter}");
-                if unique_names.insert(candidate.clone()) {
-                    break candidate;
-                }
-                counter += 1;
-            };
-            names[index] = name.clone();
-            // Upstream keys this write by the rewritten name.
-            counters.insert(name, counter + 1);
-        }
+            counter += 1;
+        };
+        names[index] = name.clone();
+        // Upstream keys this write by the rewritten name.
+        counters.insert(name, counter + 1);
     }
     let mut expanded = signature.parameters[..rest_index].to_vec();
     expanded.reserve(count);
     for (index, element_type) in element_types.into_iter().take(count).enumerate() {
-        let name = match associated_names.as_ref().and_then(|names| names.get(index)) {
-            Some(name) => tsc_types::EscapedName::escape(name.as_str().into()),
-            None => checker
-                .get_parameter_name_at_position(signature_id, rest_index + index)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?
-                .unwrap_or_else(|| {
-                    tsc_types::EscapedName::from_identifier_escaped_text(&format!("arg{index}"))
-                }),
-        };
+        let name = tsc_types::EscapedName::escape(names[index].as_str().into());
         let flags = tuple.element_flags[index];
         let check_flags = if flags.intersects(ElementFlags::VARIABLE) {
             CheckFlags::REST_PARAMETER
@@ -305,9 +320,7 @@ fn get_expanded_parameters(
             .links
             .set_symbol_check_flags(checker.speculation_depth, symbol, check_flags);
         let parameter_type = if flags.intersects(ElementFlags::REST) {
-            checker
-                .create_array_type(element_type, false)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?
+            checker.create_array_type(element_type, false)?
         } else {
             element_type
         };
@@ -902,7 +915,9 @@ pub(super) fn enter_signature_scope(
     signature_id: SignatureId,
 ) -> BuildResult<(Vec<SymbolId>, ScopeRestore)> {
     let signature = checker.signature_of(signature_id).clone();
-    let expanded_parameters = get_expanded_parameters(checker, signature_id, context)?;
+    let expanded_parameters = expanded_parameters(checker, signature_id, true)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?
+        .swap_remove(0);
     let scope = enter_new_scope(
         context,
         signature.declaration,

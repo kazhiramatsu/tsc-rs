@@ -1705,7 +1705,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getContextualTypeForObjectLiteralElement @6.0.3
     /// tsc-hash: 897522d69bac932ae4d3e05850282a0b1c05b992bf49ada7afea8a6e96ae27d7
     /// tsc-span: _tsc.js:73211-73247
-    fn get_contextual_type_for_object_literal_element(
+    pub fn get_contextual_type_for_object_literal_element(
         &mut self,
         element: NodeId,
         context_flags: ContextFlags,
