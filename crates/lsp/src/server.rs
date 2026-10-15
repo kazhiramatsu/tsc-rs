@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, PoisonError, Weak};
 use std::time::{Duration, Instant};
+use tsc_program::content_mapper::host::Spawner;
 
 use serde::Serialize;
 use serde_json::Value;
@@ -62,6 +63,9 @@ pub struct ServerOptions {
     pub fs: Arc<dyn FileSystem>,
     /// tsgo `DefaultLibraryPath`: the directory of the standard library.
     pub default_library_path: String,
+    /// tsgo `Spawn`: starts a content mapper's process; none when the host
+    /// cannot start processes.
+    pub spawner: Option<Arc<dyn Spawner>>,
 }
 
 /// Why a handler did not answer (tsgo's handler errors: `io.EOF` for
@@ -188,6 +192,8 @@ pub struct Server {
     set_parent_process_id: Option<Box<dyn Fn(i32) + Send + Sync>>,
     fs: Arc<dyn FileSystem>,
     default_library_path: String,
+    /// tsgo `spawn`: the content mappers' process starter.
+    spawner: Option<Arc<dyn Spawner>>,
     /// tsgo `watchers`: the IDs of the watches the client registered.
     watchers: Mutex<HashSet<String>>,
 }
@@ -217,6 +223,7 @@ impl Server {
             set_parent_process_id: options.set_parent_process_id,
             fs: options.fs,
             default_library_path: options.default_library_path,
+            spawner: options.spawner,
             watchers: Mutex::default(),
         })
     }
@@ -905,7 +912,7 @@ impl Server {
             Arc::clone(&self.fs),
             Some(Arc::clone(&host) as Arc<dyn tsc_project::Client>),
             Some(host as Arc<dyn tsc_project::Logger>),
-            None,
+            self.spawner.clone(),
         );
         if self.session.set(session).is_err() {
             return Err(ErrorCode::INVALID_REQUEST.into());
