@@ -100,6 +100,8 @@ pub fn run_lsp(arguments: &[String], process_alive: Option<fn(i32) -> bool>) -> 
         spawner: Some(Arc::new(
             tsc_compiler::content_mapper_process::NativeSpawner,
         )),
+        // tsgo `cmd/tsc/lsp.go`.
+        progress_delay: std::time::Duration::from_millis(250),
     });
     let _ = server_cell.set(Arc::downgrade(&server));
     match server.run(Box::new(io::stdin()), Box::new(io::stdout())) {

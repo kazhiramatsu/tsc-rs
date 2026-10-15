@@ -86,9 +86,12 @@ pub(crate) struct ProjectCollectionBuilder<'a> {
     compiler_options_for_inferred_projects: Option<Arc<ConfigOptionBag>>,
     /// tsgo `inferredContentMappers` and `inferredContentMapperExtensions`.
     inferred_content_mappers: &'a ContentMapperContributions,
+    /// tsgo `client`: the editor the builds report their progress to.
+    client: Option<&'a dyn crate::client::Client>,
 }
 
 impl<'a> ProjectCollectionBuilder<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         host: &'a SnapshotHost,
         fs: &'a SnapshotFsBuilder,
@@ -97,6 +100,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
         configs: ConfigFileRegistryBuilder<'a>,
         compiler_options_for_inferred_projects: Option<Arc<ConfigOptionBag>>,
         inferred_content_mappers: &'a ContentMapperContributions,
+        client: Option<&'a dyn crate::client::Client>,
     ) -> Self {
         Self {
             host,
@@ -115,6 +119,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
             default_projects_invalidated: false,
             compiler_options_for_inferred_projects,
             inferred_content_mappers,
+            client,
         }
     }
 
@@ -417,13 +422,34 @@ impl<'a> ProjectCollectionBuilder<'a> {
         if !update && !project.dirty {
             return Ok(false);
         }
+        // tsgo: the editor shows the build's progress.
+        let display_name = vec![project.display_name(&self.host.options().current_directory)];
+        if let Some(client) = self.client {
+            client.progress_start(&tsc_diagnostics::gen::Project_0, &display_name);
+        }
+        let result = self.update_project_program(id, &project, update);
+        if let Some(client) = self.client {
+            client.progress_finish(&tsc_diagnostics::gen::Project_0, &display_name);
+        }
+        result
+    }
+
+    /// The rest of tsgo `updateProgram`: the project's program built again
+    /// (or the dirty file read again in place), and whether its files
+    /// changed.
+    fn update_project_program(
+        &mut self,
+        id: &ProjectId,
+        project: &Arc<Project>,
+        update: bool,
+    ) -> Result<bool, ProjectError> {
         // tsgo `CreateProgram`: a program dirty from one changed file, with
         // the same command line, takes the file read again in place
         // (`UpdateProgram`); it keeps what the previous build read.
         if let (false, Some(path), Some(old)) = (update, &project.dirty_file_path, &project.program)
         {
             if let Some(program) = self.reuse_program(old, path)? {
-                let (watched, watch) = self.content_mapper_watch(&project, &program);
+                let (watched, watch) = self.content_mapper_watch(project, &program);
                 let snapshot_id = self.snapshot_id;
                 self.change(id, |project| {
                     project.program = Some(Arc::new(program));
@@ -437,8 +463,8 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 return Ok(false);
             }
         }
-        let (program, seen) = self.create_program(&project)?;
-        let (watched, content_mapper_watch) = self.content_mapper_watch(&project, &program);
+        let (program, seen) = self.create_program(project)?;
+        let (watched, content_mapper_watch) = self.content_mapper_watch(project, &program);
         let update_kind = match &project.program {
             Some(old) if old.has_same_file_names(&program) => ProgramUpdateKind::SameFileNames,
             _ => ProgramUpdateKind::NewFiles,

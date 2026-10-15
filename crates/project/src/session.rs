@@ -5,7 +5,7 @@
 //! watch event schedules an update in the background, each into a new
 //! snapshot the session adopts.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock};
@@ -30,7 +30,7 @@ use crate::client::{Client, Logger};
 use crate::fs::{FileChangeSummary, Paths};
 use crate::id::{ProjectId, ProjectKind};
 use crate::overlay::{FileChange, FileChangeKind, OverlayFs, Overlays};
-use crate::project::{ProgramUpdateKind, Project};
+use crate::project::{CommandLine, ProgramUpdateKind, Project};
 use crate::snapshot::ContentMapperContributions;
 use crate::snapshot::{
     ProjectError, ProjectTreeRequest, SessionOptions, Snapshot, SnapshotChange, SnapshotHost,
@@ -95,6 +95,8 @@ struct Inner {
     /// tsgo `watches`: the globs registered with the editor.
     watches: WatchRegistry,
     idle_clean: Mutex<IdleClean>,
+    /// tsgo `seenProjects`: the projects whose information was sent.
+    seen_projects: Mutex<HashSet<ProjectId>>,
     /// tsgo `registeredContentMapperExtensions` and
     /// `registeredContentMapperSnapshotID` (under
     /// `contentMapperRegistrationMu`).
@@ -167,6 +169,7 @@ impl Session {
                 watches: WatchRegistry::default(),
                 idle_clean: Mutex::default(),
                 content_mapper_registration: Mutex::default(),
+                seen_projects: Mutex::default(),
             }),
         }
     }
@@ -581,6 +584,7 @@ impl Session {
                     SnapshotChange {
                         documents: vec![file_name.clone()],
                         auto_imports: Some(file_name.clone()),
+                        client: self.inner.client.as_deref(),
                         ..SnapshotChange::default()
                     },
                 )
@@ -754,6 +758,7 @@ impl Inner {
                 &current,
                 SnapshotChange {
                     overlays: Some(overlays),
+                    client: self.client.as_deref(),
                     ..change
                 },
             )?);
@@ -786,8 +791,34 @@ impl Inner {
             }
             let _ = inner.update_content_mapper_registrations(&new);
             inner.publish_program_diagnostics(&old, &new);
+            inner.send_project_info_telemetry_for_new_projects(&old, &new);
         });
         Ok(snapshot)
+    }
+
+    /// tsgo `sendProjectInfoTelemetryForNewProjects`: the information of each
+    /// project the snapshot added, once per project in the session.
+    fn send_project_info_telemetry_for_new_projects(&self, old: &Snapshot, new: &Snapshot) {
+        if !self.host.options().telemetry_enabled {
+            return;
+        }
+        let Some(client) = &self.client else {
+            return;
+        };
+        for project in new.projects() {
+            if old.project(&project.id).is_some() || lock(&self.seen_projects).contains(&project.id)
+            {
+                continue;
+            }
+            let Some(event) = project_info_telemetry(project) else {
+                continue;
+            };
+            if let Err(error) = client.send_telemetry(event) {
+                self.log(|| format!("Error sending project info telemetry: {error}"));
+                continue;
+            }
+            lock(&self.seen_projects).insert(project.id.clone());
+        }
     }
 
     /// tsgo `updateContentMapperRegistrations`: the editor registers the
@@ -1481,3 +1512,183 @@ fn document_file_name(uri: &DocumentUri) -> Option<String> {
 #[cfg(test)]
 #[path = "../tests/unit/session.rs"]
 mod tests;
+
+/// tsgo `collectProjectInfoTelemetry`: a project's kind, config file name
+/// and shape, compiler options (booleans and enum names, no paths) and the
+/// counts and sizes of its files by kind; none without a program.
+fn project_info_telemetry(project: &Project) -> Option<tsc_lsproto::TelemetryEvent> {
+    let program = project.program()?;
+    let command_line = project.command_line()?;
+    let options = command_line.compiler_options();
+    let configured = project.kind() == ProjectKind::Configured;
+    let config_file_name = project
+        .config_file_name()
+        .filter(|_| configured)
+        .map(|name| name.rsplit('/').next().unwrap_or(name))
+        .filter(|base| matches!(*base, "tsconfig.json" | "jsconfig.json"))
+        .unwrap_or("other");
+    let mut properties = BTreeMap::from([
+        ("configFileName".to_owned(), config_file_name.to_owned()),
+        (
+            "projectType".to_owned(),
+            if configured { "configured" } else { "inferred" }.to_owned(),
+        ),
+        (
+            "version".to_owned(),
+            tsc_types::TYPESCRIPT_VERSION.to_owned(),
+        ),
+    ]);
+    // Same approach as Strada's convertCompilerOptionsForTelemetry: booleans and enum string names, no paths.
+    let mut compiler_options = BTreeMap::new();
+    let bag = command_line.options();
+    for name in [
+        "strict",
+        "noImplicitAny",
+        "noImplicitThis",
+        "strictNullChecks",
+        "strictFunctionTypes",
+        "strictBindCallApply",
+        "strictPropertyInitialization",
+        "strictBuiltinIteratorReturn",
+        "useUnknownInCatchVariables",
+        "exactOptionalPropertyTypes",
+        "allowJs",
+        "checkJs",
+        "noEmit",
+        "declaration",
+        "composite",
+        "isolatedModules",
+        "skipLibCheck",
+        "incremental",
+    ] {
+        if let Some(value) = bag.option_bool(name) {
+            compiler_options.insert(name, serde_json::Value::Bool(value));
+        }
+    }
+    for (name, value) in [
+        ("target", options.target.and_then(script_target_name)),
+        ("module", options.module.and_then(module_kind_name)),
+        (
+            "moduleResolution",
+            options.module_resolution.and_then(module_resolution_name),
+        ),
+        ("jsx", options.jsx.and_then(jsx_emit_name)),
+    ] {
+        if let Some(value) = value {
+            compiler_options.insert(name, serde_json::Value::String(value.to_owned()));
+        }
+    }
+    if let Ok(json) = serde_json::to_string(&compiler_options) {
+        properties.insert("compilerOptions".to_owned(), json);
+    }
+    // Config file shape.
+    if let CommandLine::Config(plan) = command_line {
+        if let Some(raw) = plan.raw().as_object() {
+            for key in ["extends", "files", "include", "exclude"] {
+                properties.insert(key.to_owned(), raw.contains_key(key).to_string());
+            }
+        }
+    }
+    let mut measurements = tsc_lsproto::ProjectInfoTelemetryMeasurements::default();
+    for source in program.prepared().source_files() {
+        let size = source.text().len() as f64;
+        match source.script_kind() {
+            ScriptKind::Js => {
+                measurements.js_file_count += 1.0;
+                measurements.js_file_size += size;
+            }
+            ScriptKind::Jsx => {
+                measurements.jsx_file_count += 1.0;
+                measurements.jsx_file_size += size;
+            }
+            ScriptKind::Ts => {
+                if tsc_program::is_declaration_file_name(&source.path().display().to_string_lossy())
+                {
+                    measurements.dts_file_count += 1.0;
+                    measurements.dts_file_size += size;
+                } else {
+                    measurements.ts_file_count += 1.0;
+                    measurements.ts_file_size += size;
+                }
+            }
+            ScriptKind::Tsx => {
+                measurements.tsx_file_count += 1.0;
+                measurements.tsx_file_size += size;
+            }
+            _ => {}
+        }
+    }
+    Some(tsc_lsproto::TelemetryEvent::ProjectInfoTelemetryEvent(
+        tsc_lsproto::ProjectInfoTelemetryEvent {
+            properties,
+            measurements,
+            ..tsc_lsproto::ProjectInfoTelemetryEvent::default()
+        },
+    ))
+}
+
+/// tsgo `ScriptTarget.String()`.
+fn script_target_name(target: i32) -> Option<&'static str> {
+    Some(match target {
+        1 => "ES5",
+        2 => "ES2015",
+        3 => "ES2016",
+        4 => "ES2017",
+        5 => "ES2018",
+        6 => "ES2019",
+        7 => "ES2020",
+        8 => "ES2021",
+        9 => "ES2022",
+        10 => "ES2023",
+        11 => "ES2024",
+        12 => "ES2025",
+        13 => "ES2026",
+        99 => "ESNext",
+        100 => "JSON",
+        _ => return None,
+    })
+}
+
+/// tsgo `ModuleKind.String()`.
+fn module_kind_name(module: i32) -> Option<&'static str> {
+    Some(match module {
+        1 => "CommonJS",
+        2 => "AMD",
+        3 => "UMD",
+        4 => "System",
+        5 => "ES2015",
+        6 => "ES2020",
+        7 => "ES2022",
+        99 => "ESNext",
+        100 => "Node16",
+        101 => "Node18",
+        102 => "Node20",
+        199 => "NodeNext",
+        200 => "Preserve",
+        _ => return None,
+    })
+}
+
+/// tsgo `ModuleResolutionKind.String()`.
+fn module_resolution_name(kind: i32) -> Option<&'static str> {
+    Some(match kind {
+        1 => "Classic",
+        2 => "Node10",
+        3 => "Node16",
+        99 => "NodeNext",
+        100 => "Bundler",
+        _ => return None,
+    })
+}
+
+/// tsgo `JsxEmit.String()`.
+fn jsx_emit_name(jsx: i32) -> Option<&'static str> {
+    Some(match jsx {
+        1 => "preserve",
+        2 => "react",
+        3 => "react-native",
+        4 => "react-jsx",
+        5 => "react-jsxdev",
+        _ => return None,
+    })
+}
