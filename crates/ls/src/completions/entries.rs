@@ -1613,6 +1613,6 @@ fn go_json_quote(units: impl Iterator<Item = Result<char, ()>>) -> String {
 }
 
 /// tsgo `escapeSnippetText`.
-pub(super) fn escape_snippet_text(text: &str) -> String {
+pub(crate) fn escape_snippet_text(text: &str) -> String {
     text.replace('$', "\\$")
 }
