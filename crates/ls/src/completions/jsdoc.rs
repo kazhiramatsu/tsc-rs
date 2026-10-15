@@ -139,6 +139,7 @@ impl Completions<'_, '_, '_> {
             is_incomplete: false,
             item_defaults,
             items,
+            symbols: Vec::new(),
         }
     }
 
@@ -555,6 +556,7 @@ impl Completions<'_, '_, '_> {
             is_incomplete: false,
             item_defaults: None,
             items: vec![item],
+            symbols: Vec::new(),
         })
     }
 

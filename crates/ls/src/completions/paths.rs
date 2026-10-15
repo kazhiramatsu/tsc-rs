@@ -203,6 +203,7 @@ impl Completions<'_, '_, '_> {
             is_incomplete: false,
             item_defaults,
             items,
+            symbols: Vec::new(),
         })
     }
 

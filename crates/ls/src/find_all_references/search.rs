@@ -3505,3 +3505,65 @@ fn class_members(request: &Request<'_, '_>, class_like: NodeId) -> Vec<NodeId> {
         .map(|members| source.arena.node_array(members).nodes.to_vec())
         .unwrap_or_default()
 }
+
+/// tsgo `Checker.GetReferencesToSymbolInFile` (checker/services.go; tsc-rs's
+/// tree navigation is the language service's): the identifiers of the file
+/// spelled as the symbol's name that name it — by their symbol, as a
+/// shorthand property's value, or as an export specifier's local target.
+pub(super) fn get_references_to_symbol_in_file(
+    request: &mut Request<'_, '_>,
+    file: usize,
+    symbol: SymbolId,
+) -> CheckResult<Vec<NodeId>> {
+    let identifier_text = symbol_name(request, symbol);
+    let source = request.state.binder.source(file);
+    let mut result = Vec::new();
+    for token in get_possible_symbol_reference_nodes(source, &identifier_text, None) {
+        let Touching::Node(token) = token else {
+            continue;
+        };
+        if request.node_kind(token) != SyntaxKind::Identifier
+            || node_util::id_text(source, token) != Some(identifier_text.as_str())
+        {
+            continue;
+        }
+        let reference_symbol = request.state.get_symbol_at_location(token)?;
+        if reference_symbol == Some(symbol) {
+            result.push(token);
+            continue;
+        }
+        let Some(parent) = request.state.binder.node_record(token).parent else {
+            continue;
+        };
+        match request.node_kind(parent) {
+            SyntaxKind::ShorthandPropertyAssignment => {
+                if request
+                    .state
+                    .get_shorthand_assignment_value_symbol(parent)?
+                    == Some(symbol)
+                {
+                    result.push(token);
+                }
+            }
+            SyntaxKind::ExportSpecifier => {
+                let local_symbol = match reference_symbol {
+                    Some(reference_symbol) => Some(get_local_symbol_for_export_specifier(
+                        request,
+                        token,
+                        reference_symbol,
+                        parent,
+                    )?),
+                    None if is_export_specifier_alias(request, token, parent) => request
+                        .state
+                        .get_export_specifier_local_target_symbol(parent)?,
+                    None => None,
+                };
+                if local_symbol == Some(symbol) {
+                    result.push(token);
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(result)
+}

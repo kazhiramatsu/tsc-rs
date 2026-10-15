@@ -125,7 +125,127 @@ pub(crate) struct SymbolAndEntriesData {
     pub(crate) symbols_and_entries: Vec<SymbolAndEntries>,
 }
 
+/// A node of the API's results (tsgo `*ast.Node`): a node of a program
+/// file, or a token, which tsgo makes outside the file's tree.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ResultNode {
+    Node(NodeId),
+    Token { file: usize, kind: SyntaxKind },
+}
+
+/// tsgo `SymbolAndEntries` as the API reads it.
+#[derive(Clone, Debug)]
+pub struct ReferencedSymbol {
+    /// tsgo `DefinitionNode`: the definition's node, or its symbol's first
+    /// declaration.
+    pub definition: Option<ResultNode>,
+    /// tsgo `DefinitionSymbol`.
+    pub symbol: Option<SymbolId>,
+    /// The references that are nodes.
+    pub references: Vec<ResultNode>,
+}
+
+/// tsgo `SignatureUsage`: a reference to a signature's name, with the call
+/// it is the callee of.
+#[derive(Clone, Copy, Debug)]
+pub struct SignatureUsage {
+    pub name: ResultNode,
+    pub call: Option<NodeId>,
+}
+
 impl LanguageService<'_> {
+    /// tsgo `GetReferencedSymbolsForNode` (the API's): the references of
+    /// the node in the program's files, by symbol.
+    pub fn get_referenced_symbols_for_node(
+        &mut self,
+        position: u32,
+        node: NodeId,
+    ) -> Result<Vec<ReferencedSymbol>, LsError> {
+        let entries = self.with_program_request(false, |request| {
+            let entries = referenced_symbols_for_api(request, position, node)?;
+            Ok(entries
+                .iter()
+                .map(|entry| request.referenced_symbol(entry))
+                .collect::<Vec<_>>())
+        })?;
+        Ok(entries.unwrap_or_default())
+    }
+
+    /// tsgo `GetSignatureUsages`: the references to a signature
+    /// declaration's name other than its declarations' names, each with the
+    /// call it is the callee of (past a property access).
+    pub fn get_signature_usages(
+        &mut self,
+        declaration: NodeId,
+    ) -> Result<Vec<SignatureUsage>, LsError> {
+        let usages = self.with_program_request(false, |request| {
+            let Some(name) = request
+                .name_of(declaration)
+                .filter(|&name| request.node_kind(name) == SyntaxKind::Identifier)
+            else {
+                return Ok(Vec::new());
+            };
+            let position = request.state.binder.node_record(name).pos;
+            let entries = referenced_symbols_for_api(request, position, name)?;
+            // The declarations' names: usages are not declarations.
+            let mut declaration_names = HashSet::new();
+            for entry in &entries {
+                if let Some(symbol) = entry.definition.as_ref().and_then(|d| d.symbol) {
+                    for &declaration in &request.state.binder.symbol(symbol).declarations {
+                        if let Some(name) = request.name_of(declaration) {
+                            declaration_names.insert(name);
+                        }
+                    }
+                }
+            }
+            let mut usages = Vec::new();
+            for entry in &entries {
+                for reference in &entry.references {
+                    let Some(node) = reference.node else {
+                        continue;
+                    };
+                    let call = match node {
+                        Touching::Node(node) if declaration_names.contains(&node) => continue,
+                        Touching::Node(node) => {
+                            // tsgo `ast.ClimbPastPropertyAccess`.
+                            let called = if request.is_right_side_of_property_access(node) {
+                                request.parent_of(node).expect("a property access")
+                            } else {
+                                node
+                            };
+                            request.parent_of(called).filter(|&parent| {
+                                matches!(
+                                    &request.state.binder.node_record(parent).data,
+                                    NodeData::CallExpression(call) if call.expression == Some(called)
+                                )
+                            })
+                        }
+                        Touching::Token { .. } => None,
+                    };
+                    usages.push(SignatureUsage {
+                        name: request.result_node(node),
+                        call,
+                    });
+                }
+            }
+            Ok(usages)
+        })?;
+        Ok(usages.unwrap_or_default())
+    }
+
+    /// tsgo `Checker.GetReferencesToSymbolInFile` (the API's): the
+    /// identifiers of a program file that name the symbol.
+    pub fn get_references_to_symbol_in_file(
+        &mut self,
+        file: usize,
+        symbol: SymbolId,
+    ) -> Result<Vec<NodeId>, LsError> {
+        let references = self.with_program_request(false, |request| {
+            search::get_references_to_symbol_in_file(request, file, symbol)
+        })?;
+        Ok(references.unwrap_or_default())
+    }
+
     /// tsgo `ProvideReferences` of one project (no orchestrator; the
     /// server's search across projects goes through
     /// [`Self::search_references`]).
@@ -178,7 +298,74 @@ impl LanguageService<'_> {
     }
 }
 
+/// tsgo `getReferencedSymbolsForNode` over the program's files, for
+/// references (`refOptions{use: referenceUseReferences}`).
+fn referenced_symbols_for_api(
+    request: &mut Request<'_, '_>,
+    position: u32,
+    node: NodeId,
+) -> CheckResult<Vec<SymbolAndEntries>> {
+    let files = (0..request.state.binder.file_count()).collect::<Vec<_>>();
+    get_referenced_symbols_for_node(
+        request,
+        position,
+        Touching::Node(node),
+        &files,
+        RefOptions {
+            use_: ReferenceUse::References,
+            implementations: false,
+            use_aliases_for_rename: false,
+        },
+    )
+}
+
 impl Request<'_, '_> {
+    /// The node of an API result.
+    fn result_node(&self, node: Touching) -> ResultNode {
+        match node {
+            Touching::Node(node) => ResultNode::Node(node),
+            Touching::Token { kind, parent, .. } => ResultNode::Token {
+                file: self.state.binder.file_index_of_node(parent),
+                kind,
+            },
+        }
+    }
+
+    /// tsgo `SymbolAndEntries`' `DefinitionNode`, `DefinitionSymbol` and
+    /// node references.
+    fn referenced_symbol(&self, entry: &SymbolAndEntries) -> ReferencedSymbol {
+        let definition = entry.definition.as_ref().and_then(|definition| {
+            definition
+                .node
+                .map(|node| self.result_node(node))
+                .or_else(|| {
+                    definition
+                        .symbol
+                        .and_then(|symbol| {
+                            self.state
+                                .binder
+                                .symbol(symbol)
+                                .declarations
+                                .first()
+                                .copied()
+                        })
+                        .map(ResultNode::Node)
+                })
+        });
+        ReferencedSymbol {
+            definition,
+            symbol: entry
+                .definition
+                .as_ref()
+                .and_then(|definition| definition.symbol),
+            references: entry
+                .references
+                .iter()
+                .filter_map(|reference| reference.node.map(|node| self.result_node(node)))
+                .collect(),
+        }
+    }
+
     /// tsgo `symbolAndEntriesToVSReferences`: each definition, then its
     /// references other than its declarations, read or written.
     pub(crate) fn symbol_and_entries_to_vs_references(
