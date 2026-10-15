@@ -779,10 +779,9 @@ impl<'r> View<'r> {
             )
         };
         if !export.unresolved_module_specifier.is_empty() {
+            // tsgo `ModuleSpecifier.IsRelative`: a rooted name stays as it is.
             let mut specifier = export.unresolved_module_specifier.clone();
-            if crate::references::is_external_module_name_relative(&tsc_types::JsString::from(
-                specifier.as_str(),
-            )) {
+            if tsc_program::path_is_relative(tsc_types::JsStr::from_str(&specifier)) {
                 let importing_directory = tsc_program::get_directory_path(
                     tsc_types::JsStr::from_str(&self.source(checker).file_name.to_string_lossy()),
                 )
