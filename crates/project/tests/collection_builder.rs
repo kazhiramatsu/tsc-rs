@@ -13,7 +13,7 @@ use tsc_lsproto::{
     FileChangeType, TextDocumentContentChangePartialOrWholeDocument,
     TextDocumentContentChangeWholeDocument,
 };
-use tsc_project::{ProjectKind, Session, Snapshot};
+use tsc_project::{ProjectKind, ProjectTreeRequest, Session, Snapshot};
 
 const MY_PROJECT: &str = "/user/username/projects/myproject";
 const MAIN: &str = "file:///user/username/projects/myproject/src/main.ts";
@@ -784,4 +784,63 @@ fn a_default_project_search_skips_an_unloaded_reference() {
             .1;
         open(&session, &format!("file://{file_name}"), text);
     }
+}
+
+#[test]
+fn a_project_tree_request_loads_the_trees_referencing_its_projects() {
+    // tsgo `DidRequestProjectTrees` for some projects (what the search
+    // across projects asks once its default definition is visible outside
+    // its project): a referenced project is loaded only when it references
+    // one of them, directly or below; every tree loads all.
+    let composite = |references: &str| {
+        format!(
+            r#"{{ "compilerOptions": {{ "composite": true }}, {references} "include": ["*.ts"] }}"#
+        )
+    };
+    let files = [
+        (
+            "/p/a/tsconfig.json".to_owned(),
+            composite(r#""references": [{ "path": "../b" }],"#),
+        ),
+        ("/p/a/a.ts".to_owned(), "export const a = 1;".to_owned()),
+        (
+            "/p/b/tsconfig.json".to_owned(),
+            composite(r#""references": [{ "path": "../d" }],"#),
+        ),
+        ("/p/b/b.ts".to_owned(), "export const b = 1;".to_owned()),
+        ("/p/d/tsconfig.json".to_owned(), composite("")),
+        ("/p/d/d.ts".to_owned(), "export const d = 1;".to_owned()),
+    ];
+    let session = setup_owned(&files);
+    open(&session, "file:///p/a/a.ts", "export const a = 1;");
+    let projects = |snapshot: &Snapshot| {
+        snapshot
+            .projects()
+            .map(|project| project.id().clone())
+            .collect::<Vec<_>>()
+    };
+    let [a, b, d] = [
+        "/p/a/tsconfig.json",
+        "/p/b/tsconfig.json",
+        "/p/d/tsconfig.json",
+    ]
+    .map(configured);
+    assert_eq!(projects(&session.snapshot()), std::slice::from_ref(&a));
+    let referencing = |id: &tsc_project::ProjectId| {
+        ProjectTreeRequest::referencing(std::collections::BTreeSet::from([id.as_str().to_owned()]))
+    };
+    // `b` references nothing that is asked for.
+    let snapshot = session
+        .get_snapshot_loading_project_trees(referencing(&b))
+        .expect("a snapshot");
+    assert_eq!(projects(&snapshot), std::slice::from_ref(&a));
+    // `b` references `d`; `d` itself is not loaded.
+    let snapshot = session
+        .get_snapshot_loading_project_trees(referencing(&d))
+        .expect("a snapshot");
+    assert_eq!(projects(&snapshot), [a.clone(), b.clone()]);
+    let snapshot = session
+        .get_snapshot_loading_project_trees(ProjectTreeRequest::all())
+        .expect("a snapshot");
+    assert_eq!(projects(&snapshot), [a, b, d]);
 }
