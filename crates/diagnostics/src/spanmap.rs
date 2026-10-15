@@ -314,6 +314,84 @@ impl SpanMap {
         ((original_start, original_end), Fidelity::Approximate)
     }
 
+    /// tsgo `SpanMap.VirtualToOriginalSpanForFeature`: the mapping of the
+    /// virtual range, with no fidelity unless contiguous segments taking
+    /// part in `feature` cover it (an empty range: its segment does).
+    pub fn virtual_to_original_span_for_feature(
+        &self,
+        pos: i32,
+        end: i32,
+        feature: Features,
+    ) -> ((i32, i32), Fidelity) {
+        let (mapped, fidelity) = self.virtual_to_original_span(pos, end);
+        if self.virtual_span_supports_feature(pos, end, feature) {
+            return (mapped, fidelity);
+        }
+        (mapped, Fidelity::None)
+    }
+
+    /// tsgo `virtualSpanSupportsFeature`.
+    fn virtual_span_supports_feature(&self, pos: i32, end: i32, feature: Features) -> bool {
+        let start = pos;
+        let end = end.max(start);
+        let (index, inside) = self.segment_index_at(start);
+        if start == end {
+            return inside && self.segments[index as usize].features & feature != 0;
+        }
+        if !inside {
+            return false;
+        }
+        let mut covered_through = start;
+        let mut index = index as usize;
+        while index < self.segments.len() && covered_through < end {
+            let segment = &self.segments[index];
+            if segment.virtual_start > covered_through
+                || segment.virtual_end <= covered_through
+                || segment.features & feature == 0
+            {
+                return false;
+            }
+            covered_through = segment.virtual_end;
+            index += 1;
+        }
+        covered_through >= end
+    }
+
+    /// tsgo `SpanMap.VirtualToOriginalPositionForFeature`: the mapping of
+    /// the virtual position, with no fidelity unless its segment takes part
+    /// in `feature`.
+    pub fn virtual_to_original_position_for_feature(
+        &self,
+        pos: i32,
+        feature: Features,
+    ) -> (i32, Fidelity) {
+        let (mapped, fidelity) = self.virtual_to_original_position(pos);
+        let (index, inside) = self.segment_index_at(pos);
+        if !inside || self.segments[index as usize].features & feature == 0 {
+            return (mapped, Fidelity::None);
+        }
+        (mapped, fidelity)
+    }
+
+    /// The map in UTF-8 bytes (tsgo's units, the language service's) of a
+    /// map in UTF-16 code units (the compiler's) over its texts.
+    pub fn in_utf8(&self, virtual_text: &str, original_text: &str) -> SpanMap {
+        let virtual_offsets = Utf16ToUtf8::new(virtual_text);
+        let original_offsets = Utf16ToUtf8::new(original_text);
+        SpanMap::new(
+            self.segments
+                .iter()
+                .map(|segment| Segment {
+                    virtual_start: virtual_offsets.map(segment.virtual_start),
+                    virtual_end: virtual_offsets.map(segment.virtual_end),
+                    original_start: original_offsets.map(segment.original_start),
+                    original_end: original_offsets.map(segment.original_end),
+                    ..*segment
+                })
+                .collect(),
+        )
+    }
+
     /// tsgo `SpanMap.VirtualToOriginalPosition`: the original position of a
     /// virtual one; a position in a gap maps to the gap's insertion point,
     /// synthesized.
@@ -856,3 +934,34 @@ pub struct MappedDiagnosticDirective {
 #[cfg(test)]
 #[path = "../tests/unit/spanmap_tests.rs"]
 mod spanmap_tests;
+
+/// UTF-16 offsets of a text as UTF-8 offsets: each non-ASCII character's
+/// offsets after it.
+struct Utf16ToUtf8 {
+    entries: Vec<(i32, i32)>,
+}
+
+impl Utf16ToUtf8 {
+    fn new(text: &str) -> Self {
+        let mut entries = Vec::new();
+        let mut utf16 = 0i32;
+        for (byte, character) in text.char_indices() {
+            utf16 += character.len_utf16() as i32;
+            if !character.is_ascii() {
+                entries.push((utf16, (byte + character.len_utf8()) as i32));
+            }
+        }
+        Self { entries }
+    }
+
+    fn map(&self, utf16: i32) -> i32 {
+        let after = self.entries.partition_point(|&(units, _)| units <= utf16);
+        match after.checked_sub(1) {
+            None => utf16,
+            Some(index) => {
+                let (units, bytes) = self.entries[index];
+                bytes + (utf16 - units)
+            }
+        }
+    }
+}

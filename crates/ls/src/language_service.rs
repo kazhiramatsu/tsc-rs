@@ -156,9 +156,6 @@ impl<'a> LanguageService<'a> {
     pub(crate) fn diagnostic_file(&self, file_name: &str) -> Option<TextScript<'_>> {
         let index = self.program.file_index(JsStr::from_str(file_name))?;
         let document = self.program.document(index)?;
-        Some(TextScript {
-            file_name: file_name.to_owned(),
-            text: document.source().text(),
-        })
+        Some(crate::utilities::script_of(document.source()))
     }
 }

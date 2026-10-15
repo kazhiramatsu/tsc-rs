@@ -11,6 +11,7 @@ use tsc_checker::exports::{
 };
 use tsc_checker::state::{CheckResult, CheckerState, SignatureId, SignatureKind};
 use tsc_checker::{DisplayPart, SymbolFormatFlags};
+use tsc_diagnostics::spanmap::FEATURE_HOVER;
 use tsc_lsproto::{
     Hover, HoverParams, MarkupContent,
     MarkupContentOrStringOrMarkedStringWithLanguageOrMarkedStrings, MarkupKind,
@@ -20,7 +21,7 @@ use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{ModifierFlags, NodeFlags, SymbolFlags, SymbolId, TypeData, TypeFlags, TypeId};
 
 use crate::astnav::Navigator;
-use crate::hovericon::{build_vs_hover_raw_content, vs_hover_image_id};
+use crate::hovericon::{build_vs_hover_raw_content, stacked_raw_contents, vs_hover_image_id};
 use crate::language_service::{LanguageService, LsError};
 use crate::lsutil::{
     get_symbol_kind, get_symbol_modifiers, ScriptElementKind, ScriptElementKindModifier,
@@ -65,7 +66,96 @@ impl LanguageService<'_> {
             self.capabilities.experimental.hover_verbosity_level;
         let vs_capability = self.capabilities._vs_supports_visual_studio_extensions;
         let file = self.file(&params.text_document.uri);
-        let hover = self.with_request(file, &params.position, false, |request, position| {
+        let hovers = self.with_program_request(false, |request| {
+            let mut hovers = Vec::new();
+            // Each single-segment projection of the position (a content
+            // mapper's output's original position may have several).
+            for projection in request.position_projections(file, &params.position, FEATURE_HOVER) {
+                if !projection.fidelity.is_single_segment() {
+                    continue;
+                }
+                let hover = request.hover_at(
+                    projection.file,
+                    projection.position,
+                    &content_format,
+                    verbosity_level,
+                    max_truncation_length,
+                    can_increase_verbosity_capability,
+                    vs_capability,
+                )?;
+                hovers.extend(hover);
+            }
+            Ok(hovers)
+        })?;
+        Ok(combine_hovers(hovers.unwrap_or_default(), markdown))
+    }
+}
+
+/// tsgo `ProvideHover`'s hovers of several projections as one: their
+/// different contents in order with a separator, the range they share, and
+/// the stacked Visual Studio contents.
+fn combine_hovers(hovers: Vec<Hover>, markdown: bool) -> Option<Hover> {
+    let mut hovers = hovers.into_iter();
+    let mut combined = hovers.next()?;
+    let rest = hovers.collect::<Vec<_>>();
+    if rest.is_empty() {
+        return Some(combined);
+    }
+    let value_of = |hover: &Hover| match &hover.contents {
+        MarkupContentOrStringOrMarkedStringWithLanguageOrMarkedStrings::MarkupContent(content) => {
+            content.value.trim_end_matches('\n').to_owned()
+        }
+        _ => String::new(),
+    };
+    let mut contents = Vec::new();
+    let mut raw_contents = Vec::new();
+    let mut common_range = combined.range.clone();
+    let mut can_increase_verbosity = combined.can_increase_verbosity;
+    for hover in std::iter::once(&combined).chain(rest.iter()) {
+        let content = value_of(hover);
+        if !contents.contains(&content) {
+            contents.push(content);
+            if let Some(raw) = &hover._vs_raw_content {
+                raw_contents.push(raw.clone());
+            }
+        }
+        can_increase_verbosity |= hover.can_increase_verbosity;
+        if common_range.is_none() || hover.range.is_none() || common_range != hover.range {
+            common_range = None;
+        }
+    }
+    let separator = if markdown { "\n\n---\n\n" } else { "\n\n" };
+    if let MarkupContentOrStringOrMarkedStringWithLanguageOrMarkedStrings::MarkupContent(content) =
+        &mut combined.contents
+    {
+        content.value = contents.join(separator);
+    }
+    combined.range = common_range;
+    combined.can_increase_verbosity = can_increase_verbosity;
+    combined._vs_raw_content = match raw_contents.len() {
+        0 => None,
+        1 => raw_contents.pop(),
+        _ => Some(stacked_raw_contents(raw_contents)),
+    };
+    Some(combined)
+}
+
+impl Request<'_, '_> {
+    /// tsgo `ProvideHover` at one projection of the position.
+    #[allow(clippy::too_many_arguments)]
+    fn hover_at(
+        &mut self,
+        file: usize,
+        position: u32,
+        content_format: &MarkupKind,
+        verbosity_level: i32,
+        max_truncation_length: i64,
+        can_increase_verbosity_capability: bool,
+        vs_capability: bool,
+    ) -> CheckResult<Option<Hover>> {
+        let markdown = *content_format == MarkupKind::MARKDOWN;
+        let request = self;
+        {
             let source = request.state.binder.source(file);
             let navigator = Navigator::new(source);
             let found = navigator.touching_property_name(position);
@@ -106,14 +196,21 @@ impl LanguageService<'_> {
             if quick_info.is_empty() {
                 return Ok(None);
             }
-            let range = match range_node {
+            // tsgo `ToLSPRangeForFeature`: a range only where it maps to one
+            // segment that takes part in hovers.
+            let (range, range_fidelity) = match range_node {
                 Touching::Node(id) => {
                     let source = request.state.binder.source_of_node(id);
-                    request.lsp_range(source, range_of_node(request.state, id))
+                    request.lsp_range_for_feature(
+                        source,
+                        range_of_node(request.state, id),
+                        FEATURE_HOVER,
+                    )
                 }
-                Touching::Token { .. } => request.lsp_range(
+                Touching::Token { .. } => request.lsp_range_for_feature(
                     source,
                     navigator.start_of_node(found, false) as usize..navigator.end(found) as usize,
+                    FEATURE_HOVER,
                 ),
             };
             let value = if markdown {
@@ -172,14 +269,13 @@ impl LanguageService<'_> {
                             value,
                         },
                     ),
-                range: Some(range),
+                range: range_fidelity.is_single_segment().then_some(range),
                 can_increase_verbosity: can_increase_verbosity_capability
                     && verbosity.can_increase_verbosity
                     && !verbosity.truncated,
                 _vs_raw_content: vs_raw_content,
             }))
-        })?;
-        Ok(hover.flatten())
+        }
     }
 }
 
