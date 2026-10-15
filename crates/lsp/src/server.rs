@@ -215,6 +215,8 @@ pub struct Server {
     /// tsgo `apiSessions`: the API sessions over the server's session, by
     /// ID.
     api_sessions: Mutex<HashMap<String, Arc<ApiSessionState>>>,
+    /// tsgo `cpuProfiler`.
+    cpu_profiler: tsc_compiler::pprof::CpuProfiler,
 }
 
 /// tsgo `apiSessionState`: an API session over the server's session,
@@ -265,6 +267,7 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 impl Server {
     /// tsgo `NewServer`.
     pub fn new(options: ServerOptions) -> Arc<Self> {
+        crate::stack_sanitizer::capture_panic_stacks();
         Arc::new(Self {
             requests: DynamicQueue::new(),
             outgoing: DynamicQueue::new(),
@@ -289,6 +292,7 @@ impl Server {
             watchers: Mutex::default(),
             content_mapper_extensions_registered: Mutex::default(),
             api_sessions: Mutex::default(),
+            cpu_profiler: tsc_compiler::pprof::CpuProfiler::default(),
         })
     }
 
@@ -1116,17 +1120,60 @@ impl Server {
         Ok(())
     }
 
-    /// tsgo `handleDocumentDiagnostic` (without the flaky diagnostics
-    /// logging, which reruns the request after an emit).
+    /// tsgo `handleDocumentDiagnostic`: when the client tracks flaky
+    /// diagnostics, the diagnostics again after the program's emit, and
+    /// those that differ logged, reported to telemetry and, at `Panic`,
+    /// panicked on.
     fn handle_document_diagnostic(
         self: &Arc<Self>,
         _context: &RequestContext,
         service: &mut LanguageService<'_>,
         params: lsproto::DocumentDiagnosticParams,
     ) -> Result<lsproto::DocumentDiagnosticResponse, Failure> {
-        service
-            .provide_diagnostics(&params.text_document.uri)
-            .map_err(language_service_failure)
+        let uri = &params.text_document.uri;
+        let flake_logging = lock(&self.state).flake_logging;
+        let direct = service
+            .provide_diagnostics(uri)
+            .map_err(language_service_failure)?;
+        if flake_logging == lsproto::DiagnosticFlakeLogLevel::OFF {
+            return Ok(direct);
+        }
+        let _ = service.program().emit(
+            tsc_compiler::EmitOnly::All,
+            &mut tsc_compiler::MemoryOutputSink::new(),
+        );
+        let Ok(secondary) = service.provide_diagnostics(uri) else {
+            return Ok(direct);
+        };
+        let items = |report: &lsproto::DocumentDiagnosticResponse| match report {
+            lsproto::DocumentDiagnosticResponse::FullDocumentDiagnosticReport(report) => {
+                report.items.clone()
+            }
+            _ => Vec::new(),
+        };
+        let (direct_items, secondary_items) = (items(&direct), items(&secondary));
+        let (missing_from_pre, missing_from_post) =
+            lsproto::compare_diagnostics(&direct_items, &secondary_items);
+        if missing_from_pre.is_empty() && missing_from_post.is_empty() {
+            return Ok(direct);
+        }
+        let diff = diagnostic_diff_string(
+            &missing_from_pre,
+            &missing_from_post,
+            lsproto::Diagnostic::as_string,
+        );
+        self.logger.error(self, &diff);
+        self.send_request_failure_telemetry("textDocument.diagnostic.flakeLog", || {
+            diagnostic_diff_string(
+                &missing_from_pre,
+                &missing_from_post,
+                lsproto::Diagnostic::code_as_string,
+            )
+        });
+        if flake_logging == lsproto::DiagnosticFlakeLogLevel::PANIC {
+            panic!("flaky diagnostic(s) logged:\n{diff}");
+        }
+        Ok(direct)
     }
 
     /// tsgo `handleHover`.
@@ -1243,21 +1290,7 @@ impl Server {
         }));
         match response {
             Ok(response) => response,
-            Err(panic) => {
-                let detail = panic
-                    .downcast_ref::<String>()
-                    .cloned()
-                    .or_else(|| panic.downcast_ref::<&str>().map(|text| (*text).to_owned()))
-                    .unwrap_or_default();
-                Err(LspError::wrap(
-                    ErrorCode::INTERNAL_ERROR,
-                    format!(
-                        "panic handling request {}: {detail}",
-                        lsproto::CompletionItemResolveInfo::METHOD
-                    ),
-                )
-                .into())
-            }
+            Err(panic) => Err(self.recover(lsproto::CompletionItemResolveInfo::METHOD, panic)),
         }
     }
 
@@ -2019,6 +2052,121 @@ impl Server {
         })
     }
 
+    /// tsgo `handleRunGC`: tsc-rs has no garbage collector; the allocator
+    /// returns the memory the process no longer uses.
+    fn handle_run_gc(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        _params: NoParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::RunGCResponse, Failure> {
+        tsc_compiler::pprof::run_gc();
+        self.logger.info(self, "GC triggered");
+        Ok(lsproto::Null)
+    }
+
+    /// tsgo `handleSaveHeapProfile`: tsc-rs takes no heap profiles.
+    fn handle_save_heap_profile(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        params: lsproto::ProfileParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::SaveHeapProfileResponse, Failure> {
+        let file =
+            tsc_compiler::pprof::save_heap_profile(&params.dir).map_err(LspError::internal)?;
+        self.logger
+            .info(self, &format!("Heap profile saved to: {file}"));
+        Ok(lsproto::ProfileResult { file })
+    }
+
+    /// tsgo `handleSaveAllocProfile`: tsc-rs takes no allocation profiles.
+    fn handle_save_alloc_profile(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        params: lsproto::ProfileParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::SaveAllocProfileResponse, Failure> {
+        let file =
+            tsc_compiler::pprof::save_alloc_profile(&params.dir).map_err(LspError::internal)?;
+        self.logger
+            .info(self, &format!("Allocation profile saved to: {file}"));
+        Ok(lsproto::ProfileResult { file })
+    }
+
+    /// tsgo `handleStartCPUProfile`.
+    fn handle_start_cpu_profile(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        params: lsproto::ProfileParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::StartCPUProfileResponse, Failure> {
+        self.cpu_profiler
+            .start(&params.dir)
+            .map_err(LspError::internal)?;
+        self.logger.info(
+            self,
+            &format!("CPU profiling started, will save to: {}", params.dir),
+        );
+        Ok(lsproto::Null)
+    }
+
+    /// tsgo `handleStopCPUProfile`.
+    fn handle_stop_cpu_profile(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        _params: NoParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::StopCPUProfileResponse, Failure> {
+        let file = self.cpu_profiler.stop().map_err(LspError::internal)?;
+        self.logger
+            .info(self, &format!("CPU profile saved to: {file}"));
+        Ok(lsproto::ProfileResult { file })
+    }
+
+    /// tsgo `recover`: a request's panic logged with its stack, answered as
+    /// an internal error and, with telemetry on, reported with the stack
+    /// sanitized.
+    fn recover(&self, method: &str, panic: Box<dyn std::any::Any + Send>) -> Failure {
+        let detail = panic
+            .downcast_ref::<String>()
+            .cloned()
+            .or_else(|| panic.downcast_ref::<&str>().map(|text| (*text).to_owned()))
+            .unwrap_or_default();
+        let stack = crate::stack_sanitizer::take_panic_stack();
+        self.logger.error(
+            self,
+            &format!("panic handling request {method}: {detail}\n{stack}"),
+        );
+        self.send_request_failure_telemetry(&method.replace('/', "."), || {
+            crate::stack_sanitizer::sanitize_stack_trace(&stack)
+        });
+        LspError::wrap(
+            ErrorCode::INTERNAL_ERROR,
+            format!("panic handling request {method}: {detail}"),
+        )
+        .into()
+    }
+
+    /// tsgo's `RequestFailureTelemetryEvent` of an internal error, when
+    /// telemetry is on.
+    fn send_request_failure_telemetry(&self, request_method: &str, stack: impl FnOnce() -> String) {
+        if !lock(&self.state).telemetry_enabled {
+            return;
+        }
+        let _ = self.send_notification::<lsproto::TelemetryEventInfo>(
+            &lsproto::TelemetryEvent::RequestFailureTelemetryEvent(
+                lsproto::RequestFailureTelemetryEvent {
+                    properties: lsproto::RequestFailureTelemetryProperties {
+                        error_code: ErrorCode::INTERNAL_ERROR.to_string(),
+                        request_method: request_method.to_owned(),
+                        stack: stack(),
+                    },
+                    ..Default::default()
+                },
+            ),
+        );
+    }
+
     /// tsgo `closeAPISessions`.
     fn close_api_sessions(&self) {
         let api_sessions = std::mem::take(&mut *lock(&self.api_sessions));
@@ -2522,6 +2670,23 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
             &mut handlers,
             Server::handle_initialize_api_session,
         );
+        register_request::<lsproto::CustomRunGCInfo>(&mut handlers, Server::handle_run_gc);
+        register_request::<lsproto::CustomSaveHeapProfileInfo>(
+            &mut handlers,
+            Server::handle_save_heap_profile,
+        );
+        register_request::<lsproto::CustomSaveAllocProfileInfo>(
+            &mut handlers,
+            Server::handle_save_alloc_profile,
+        );
+        register_request::<lsproto::CustomStartCPUProfileInfo>(
+            &mut handlers,
+            Server::handle_start_cpu_profile,
+        );
+        register_request::<lsproto::CustomStopCPUProfileInfo>(
+            &mut handlers,
+            Server::handle_stop_cpu_profile,
+        );
         register_language_service_document_request::<lsproto::TextDocumentDocumentHighlightInfo>(
             &mut handlers,
             Server::handle_document_highlight,
@@ -2600,6 +2765,28 @@ fn register_request<R: Request + 'static>(
             Ok(None)
         }),
     );
+}
+
+/// tsgo `generateDiagnosticDiffString`.
+fn diagnostic_diff_string(
+    missing_from_pre: &[&lsproto::Diagnostic],
+    missing_from_post: &[&lsproto::Diagnostic],
+    stringifier: fn(&lsproto::Diagnostic) -> String,
+) -> String {
+    let mut text = String::new();
+    for diagnostic in missing_from_pre {
+        text.push_str(&format!(
+            "Diagnostic {} was present after emit but not before emit\n",
+            stringifier(diagnostic)
+        ));
+    }
+    for diagnostic in missing_from_post {
+        text.push_str(&format!(
+            "Diagnostic {} was present before emit but not after emit\n",
+            stringifier(diagnostic)
+        ));
+    }
+    text
 }
 
 /// tsgo `generateAPIPipePath`: a new pipe named from the time and a random
@@ -2703,16 +2890,7 @@ fn register_language_service_document_request<R: Request + 'static>(
                 let response = match response {
                     Ok(response) => response?,
                     Err(panic) => {
-                        let detail = panic
-                            .downcast_ref::<String>()
-                            .cloned()
-                            .or_else(|| panic.downcast_ref::<&str>().map(|text| (*text).to_owned()))
-                            .unwrap_or_default();
-                        return Err(LspError::wrap(
-                            ErrorCode::INTERNAL_ERROR,
-                            format!("panic handling request {}: {detail}", R::METHOD),
-                        )
-                        .into());
+                        return Err(server.recover(R::METHOD, panic));
                     }
                 };
                 context.check()?;
@@ -2763,16 +2941,7 @@ fn register_multi_project_reference_request<R: Request + 'static>(
                 let response = match response {
                     Ok(response) => response?,
                     Err(panic) => {
-                        let detail = panic
-                            .downcast_ref::<String>()
-                            .cloned()
-                            .or_else(|| panic.downcast_ref::<&str>().map(|text| (*text).to_owned()))
-                            .unwrap_or_default();
-                        return Err(LspError::wrap(
-                            ErrorCode::INTERNAL_ERROR,
-                            format!("panic handling request {}: {detail}", R::METHOD),
-                        )
-                        .into());
+                        return Err(server.recover(R::METHOD, panic));
                     }
                 };
                 context.check()?;
@@ -2838,16 +3007,7 @@ fn register_language_service_with_auto_imports_request<R: Request + 'static>(
                 let response = match response {
                     Ok(response) => response?,
                     Err(panic) => {
-                        let detail = panic
-                            .downcast_ref::<String>()
-                            .cloned()
-                            .or_else(|| panic.downcast_ref::<&str>().map(|text| (*text).to_owned()))
-                            .unwrap_or_default();
-                        return Err(LspError::wrap(
-                            ErrorCode::INTERNAL_ERROR,
-                            format!("panic handling request {}: {detail}", R::METHOD),
-                        )
-                        .into());
+                        return Err(server.recover(R::METHOD, panic));
                     }
                 };
                 context.check()?;
@@ -3120,3 +3280,7 @@ fn content_mapper_fallback_response(method: &str, failure: &Failure) -> Option<s
         _ => None,
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/server.rs"]
+mod tests;

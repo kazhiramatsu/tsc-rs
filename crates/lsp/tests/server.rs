@@ -791,11 +791,26 @@ impl RegistrationClient {
     /// `initialize` with the client's `capabilities`, then `initialized`,
     /// the server's registration of it answered.
     fn initialize(&mut self, session: &mut Session, capabilities: Value) -> Value {
+        self.initialize_with_options(session, capabilities, Value::Null)
+    }
+
+    /// [`Self::initialize`] with the client's `initializationOptions`.
+    fn initialize_with_options(
+        &mut self,
+        session: &mut Session,
+        capabilities: Value,
+        initialization_options: Value,
+    ) -> Value {
         let initialize = self.request(
             session,
             1,
             "initialize",
-            serde_json::json!({"processId": null, "rootUri": null, "capabilities": capabilities}),
+            serde_json::json!({
+                "processId": null,
+                "rootUri": null,
+                "capabilities": capabilities,
+                "initializationOptions": initialization_options,
+            }),
         );
         assert!(
             initialize.get("error").is_none(),
@@ -1318,4 +1333,117 @@ fn api_session_over_the_language_server() {
     assert!(!Path::new(&generated_pipe).exists());
     session.close();
     session.finish().unwrap();
+}
+
+/// tsgo's profile commands: a CPU profile at a time, written where the
+/// client asked when it stops; tsc-rs takes no heap or allocation profiles,
+/// and `runGC` answers as tsgo's.
+#[cfg(unix)]
+#[test]
+fn profile_commands() {
+    let (mut session, mut client) = project_info_session(&[]);
+    client.initialize(&mut session, serde_json::json!({}));
+    let directory = std::env::temp_dir()
+        .join(format!("tsc-rs-lsp-profile-test-{}", std::process::id()))
+        .to_string_lossy()
+        .into_owned();
+    let params = serde_json::json!({"dir": directory});
+    let error = |response: &Value| {
+        response["error"]["message"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned()
+    };
+    let started = client.request(&mut session, 2, "custom/startCPUProfile", params.clone());
+    assert_eq!(started["result"], Value::Null, "{started}");
+    let again = client.request(&mut session, 3, "custom/startCPUProfile", params.clone());
+    assert_eq!(error(&again), "CPU profiling already in progress");
+    let heap = client.request(&mut session, 4, "custom/saveHeapProfile", params.clone());
+    assert_eq!(error(&heap), "heap profiles are not supported by tsc-rs");
+    let allocations = client.request(&mut session, 5, "custom/saveAllocProfile", params);
+    assert_eq!(
+        error(&allocations),
+        "allocation profiles are not supported by tsc-rs"
+    );
+    session.send(r#"{"jsonrpc":"2.0","id":6,"method":"custom/runGC"}"#);
+    session.send(r#"{"jsonrpc":"2.0","id":7,"method":"custom/stopCPUProfile"}"#);
+    session.send(r#"{"jsonrpc":"2.0","id":8,"method":"custom/stopCPUProfile"}"#);
+    let mut answers = std::collections::BTreeMap::new();
+    while answers.len() < 3 {
+        let message: Value = serde_json::from_str(&session.receive().unwrap()).unwrap();
+        if message.get("method").is_none() {
+            answers.insert(message["id"].as_i64().unwrap(), message);
+        } else {
+            client.answer(&mut session, &message);
+        }
+    }
+    assert_eq!(answers[&6]["result"], Value::Null, "{}", answers[&6]);
+    let file = answers[&7]["result"]["file"].as_str().unwrap().to_owned();
+    assert!(
+        file.starts_with(&directory) && file.ends_with("-cpuprofile.pb.gz"),
+        "{file}"
+    );
+    assert!(Path::new(&file).exists());
+    assert_eq!(error(&answers[&8]), "CPU profiling not in progress");
+    let _ = std::fs::remove_dir_all(&directory);
+}
+
+/// tsgo `TestFlakyDiagnosticTrackingParallelEmit`: with flaky diagnostics
+/// panicked on, the diagnostics after an emit are the same (none), with and
+/// without `noEmitOnError`.
+#[test]
+fn flaky_diagnostic_tracking_parallel_emit() {
+    for no_emit_on_error in [false, true] {
+        let config = format!(
+            r#"{{ "compilerOptions": {{ "strict": true, "declaration": true, "noEmitOnError": {no_emit_on_error}, "outDir": "out" }} }}"#
+        );
+        let a = "export function box<T>(value: T) { return { value }; }";
+        let fs = Arc::new(
+            MemFs::from_entries(
+                [
+                    ("/src/tsconfig.json", config.as_str()),
+                    ("/src/a.ts", a),
+                    (
+                        "/src/b.ts",
+                        r#"import { box } from "./a"; export const b = box("b");"#,
+                    ),
+                    (
+                        "/src/c.ts",
+                        r#"import { box } from "./a"; export const c = box(1);"#,
+                    ),
+                ]
+                .map(|(name, text)| (name, Seed::file(text))),
+                false,
+                Arc::new(SystemClock),
+            )
+            .unwrap(),
+        );
+        let mut session = Session::start_in(
+            "/src",
+            Arc::new(BundledFs::new(fs)),
+            EMBEDDED_LIBRARY_DIRECTORY.to_owned(),
+            None,
+        );
+        let mut client = RegistrationClient::default();
+        client.initialize_with_options(
+            &mut session,
+            serde_json::json!({}),
+            serde_json::json!({"trackFlakyDiagnostics": 2}),
+        );
+        let uri = "file:///src/a.ts";
+        open_document(&mut client, &mut session, uri, a);
+        let diagnostics = client.request(
+            &mut session,
+            2,
+            "textDocument/diagnostic",
+            serde_json::json!({"textDocument": {"uri": uri}}),
+        );
+        assert!(diagnostics.get("error").is_none(), "{diagnostics}");
+        assert_eq!(diagnostics["result"]["kind"], "full", "{diagnostics}");
+        assert_eq!(
+            diagnostics["result"]["items"],
+            serde_json::json!([]),
+            "{diagnostics}"
+        );
+    }
 }

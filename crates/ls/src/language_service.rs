@@ -117,6 +117,11 @@ impl<'a> LanguageService<'a> {
         }
     }
 
+    /// tsgo `GetProgram`.
+    pub fn program(&mut self) -> &mut LiveProgram {
+        self.program
+    }
+
     /// The service of a project's program (tsgo `NewLanguageService`'s
     /// `projectID`).
     pub fn with_project_id(mut self, project_id: impl Into<String>) -> Self {

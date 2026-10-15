@@ -24,6 +24,13 @@ fn prefer_interactive_scheduling() {
     }
 }
 
+/// tsgo `RunGC` (the language server's `custom/runGC`): mimalloc returns the
+/// memory the process no longer uses.
+fn collect_memory() {
+    // SAFETY: mi_collect only releases free memory mimalloc holds.
+    unsafe { libmimalloc_sys::mi_collect(true) };
+}
+
 /// The process memory `TSRS_PHASE_TRACE` prints, from mimalloc's accounting.
 fn memory_sample() -> tsc_types::trace::MemorySample {
     let (mut elapsed, mut user, mut system, mut faults) = (0, 0, 0, 0);
@@ -96,6 +103,7 @@ fn main() {
     // has no other preconditions.
     unsafe { libmimalloc_sys::mi_option_set(MI_OPTION_PURGE_DELAY, 10) };
     tsc_types::trace::set_memory_probe(memory_sample);
+    tsc_compiler::pprof::set_gc(collect_memory);
     // Every worker thread and checker shard starts with the same request;
     // the main thread reads, coordinates and runs the first shard itself.
     tsc_program::set_thread_start_hook(prefer_interactive_scheduling);
