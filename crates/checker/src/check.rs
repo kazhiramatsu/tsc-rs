@@ -9392,6 +9392,11 @@ impl<'a> CheckerState<'a> {
         let key = self.type_to_string_ex(info.key_type, fully_qualified)?;
         let value = self.type_to_string_ex(info.value_type, fully_qualified)?;
         self.display_add_approximate_length(Self::slice_js_length(&name) + 4);
+        // tsgo indexInfoToIndexSignatureDeclarationHelper counts the
+        // modifier too.
+        if info.is_readonly {
+            self.display_add_approximate_length(9);
+        }
         let readonly = if info.is_readonly { "readonly " } else { "" };
         Ok(crate::concat_js(&[
             &(readonly),

@@ -744,11 +744,13 @@ impl<'a> CheckerState<'a> {
             .or(Some(host))
     }
 
-    /// tsc-port: getHostSignatureFromJSDoc @6.0.3
-    /// tsc-hash: 9b5b1bbaafdcf0b45d4aa46856b689a0795ac0eda656dec2cf3159b905045bb4
-    /// tsc-span: _tsc.js:15502-15508
+    /// tsgo `GetHostSignatureFromJSDoc` (ast/utilities.go:4162): the
+    /// function-like declaration the comment is attached to (tsgo
+    /// `GetJSDocHost`: the comment's parent); tsgo does not port Strada's
+    /// `getEffectiveJSDocHost`, so a variable statement's function
+    /// initializer is no host.
     pub(crate) fn get_host_signature_from_jsdoc(&self, node: NodeId) -> Option<NodeId> {
-        let host = self.get_effective_jsdoc_host(node)?;
+        let host = self.parent_of(self.get_jsdoc_root(node)?)?;
         if let NodeData::PropertySignature(data) = self.data_of(host) {
             if let Some(ty) = data.r#type {
                 if node_util::is_function_like_kind(self.kind_of(ty)) {
