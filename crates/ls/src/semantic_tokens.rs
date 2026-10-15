@@ -280,7 +280,7 @@ impl Request<'_, '_> {
         let declarations: Vec<NodeId> = record.declarations.iter().copied().collect();
         if let Some(declaration) = value_declaration {
             let source = self.state.binder.source_of_node(declaration);
-            let modifier_flags = combined_modifier_flags(source, declaration);
+            let modifier_flags = node_util::get_combined_modifier_flags(source, declaration);
             let node_flags = node_util::get_combined_node_flags(source, declaration);
             if modifier_flags.intersects(ModifierFlags::STATIC) {
                 modifiers |= STATIC;
@@ -638,96 +638,4 @@ fn token_from_declaration_mapping(kind: SyntaxKind) -> Option<TokenType> {
         SyntaxKind::TypeParameter => TokenType::TypeParameter,
         _ => return None,
     })
-}
-
-/// tsgo `ast.GetCombinedModifierFlags` with tsgo's modifier lists: a
-/// declaration's (its binding pattern's root's) modifiers, with its variable
-/// list's and statement's.
-fn combined_modifier_flags(source: &tsc_syntax::SourceFile, declaration: NodeId) -> ModifierFlags {
-    let mut node = node_util::get_root_declaration(source, declaration);
-    let mut flags = tsgo_modifier_flags(source, node);
-    if source.arena.node(node).kind == SyntaxKind::VariableDeclaration {
-        match source.arena.node(node).parent {
-            Some(parent) => node = parent,
-            None => return flags,
-        }
-    }
-    if source.arena.node(node).kind == SyntaxKind::VariableDeclarationList {
-        flags |= tsgo_modifier_flags(source, node);
-        match source.arena.node(node).parent {
-            Some(parent) => node = parent,
-            None => return flags,
-        }
-    }
-    if source.arena.node(node).kind == SyntaxKind::VariableStatement {
-        flags |= tsgo_modifier_flags(source, node);
-    }
-    flags
-}
-
-/// tsgo `Node.ModifierFlags()`: the node's modifiers, with (in a JavaScript
-/// file) the modifiers tsgo's parser reparses from its last JSDoc's
-/// `@readonly`, `@private`, `@public`, `@protected` and `@override` tags on a
-/// property, a constructor, an assignment, or a method or accessor parsed
-/// outside every object literal (tsgo's `PCObjectLiteralMembers` context).
-fn tsgo_modifier_flags(source: &tsc_syntax::SourceFile, node: NodeId) -> ModifierFlags {
-    let mut flags = node_util::get_syntactic_modifier_flags(source, node);
-    let root = source.arena.node(source.root);
-    if !NodeFlags::from_bits(root.flags).contains(NodeFlags::JAVA_SCRIPT_FILE) {
-        return flags;
-    }
-    let record = source.arena.node(node);
-    let reparsed = match record.kind {
-        SyntaxKind::PropertyDeclaration
-        | SyntaxKind::Constructor
-        | SyntaxKind::BinaryExpression => true,
-        SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-            let mut ancestor = record.parent;
-            let mut in_object_literal = false;
-            while let Some(current) = ancestor {
-                if source.arena.node(current).kind == SyntaxKind::ObjectLiteralExpression {
-                    in_object_literal = true;
-                    break;
-                }
-                ancestor = source.arena.node(current).parent;
-            }
-            !in_object_literal
-        }
-        _ => false,
-    };
-    if !reparsed {
-        return flags;
-    }
-    // The tags of the node's (or its expression statement's) JSDoc.
-    let host = match record.parent {
-        Some(parent)
-            if record.kind == SyntaxKind::BinaryExpression
-                && source.arena.node(parent).kind == SyntaxKind::ExpressionStatement =>
-        {
-            parent
-        }
-        _ => node,
-    };
-    let Some(js_doc) = source.arena.node(host).js_doc else {
-        return flags;
-    };
-    let comments = source.arena.node_array(js_doc).nodes;
-    // tsgo reparses the hosted tags of the last JSDoc comment only.
-    if let Some(&last) = comments.last() {
-        if let NodeData::JSDoc(data) = &source.arena.node(last).data {
-            if let Some(tags) = data.tags {
-                for &tag in source.arena.node_array(tags).nodes {
-                    flags |= match source.arena.node(tag).kind {
-                        SyntaxKind::JSDocReadonlyTag => ModifierFlags::READONLY,
-                        SyntaxKind::JSDocPrivateTag => ModifierFlags::PRIVATE,
-                        SyntaxKind::JSDocPublicTag => ModifierFlags::PUBLIC,
-                        SyntaxKind::JSDocProtectedTag => ModifierFlags::PROTECTED,
-                        SyntaxKind::JSDocOverrideTag => ModifierFlags::OVERRIDE,
-                        _ => ModifierFlags::NONE,
-                    };
-                }
-            }
-        }
-    }
-    flags
 }
