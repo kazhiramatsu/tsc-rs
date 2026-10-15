@@ -226,6 +226,65 @@ fn comments_of_templates_and_recovered_statements() {
 }
 
 #[test]
+fn preserve_source_newlines_prints_as_tsgo() {
+    // P5-5b, tsgo's answers at aa814927. A decoded tree has no parents, so
+    // tsgo writes no line before a list's first item (its leading count
+    // reads the next token) nor between items (siblings without a parent
+    // are not comparable); the closing lines are the source's. An item after
+    // no line writes the comments at its position first, so tsgo writes some
+    // comments twice; a `//` comment always ends its line.
+    let preserve = |text: &str| {
+        print(json!({ "data": file_data("/p.ts", text), "preserveSourceNewlines": true })).unwrap()
+    };
+    for (text, expected) in [
+        ("a;\nb;\n", "a;b;\n"),
+        ("a;\n\nb;", "a;b;"),
+        ("// c\na;", "// c\n// c\na;"),
+        ("a; // x", "a; // x\n"),
+        (
+            "class C {\n  a(); // x\n  b();\n}",
+            "class C {a(); // x\n    // x\n    b();\n}",
+        ),
+        ("enum E { A, B }", "enum E {A,B}"),
+        ("type a = [any];", "type a = [any];"),
+        (
+            "type b = [\n  any,\n  string\n];",
+            "type b = [any, string\n];",
+        ),
+        (
+            "function f() {\n  while (x) {}\n}",
+            "function f() {while (x) { }\n}",
+        ),
+        ("if (x)\n  /* c */ a;", "if (x) \n/* c */ a;"),
+        (
+            "class A {\n  @d() m() {}\n  @e\n  n(@p x) {}\n}\n",
+            "class A {@d() m() { }@e\n    n(@p x) { }\n}\n",
+        ),
+        (
+            "switch (x) {\n  case 0: // zero\n    a;\n  default:\n    b;\n}\n",
+            "switch (x) {case 0: // zero\n        // zero\n        a;default:b;\n}\n",
+        ),
+        (
+            "function f() {\n  \"use strict\";\n  a;\n}\n",
+            "function f() {\n    \"use strict\";a;\n}\n",
+        ),
+        ("if (true) {\n", "if (true) {}\n"),
+    ] {
+        assert_eq!(preserve(text), expected, "{text:?}");
+    }
+}
+
+#[test]
+fn a_parenthesized_operand_leaves_its_edge_grammar() {
+    // tsgo at aa814927: the comma operand of `/` in an initializer takes one
+    // pair of parentheses, which discharge the initializer's grammar.
+    assert_eq!(
+        print_statements("/j.tsx", "const a = <div attr=<span /><span /> />;\n"),
+        ["const a = (<div attr=<span />/>, <span />) /  > ;"]
+    );
+}
+
+#[test]
 fn bad_data_is_a_client_error() {
     assert_eq!(
         print(json!({ "data": "a!b=" })).unwrap_err(),
