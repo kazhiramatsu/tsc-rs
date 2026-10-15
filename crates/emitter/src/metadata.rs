@@ -509,7 +509,7 @@ pub struct EmitMetadata {
     pub(crate) external_helpers_module_name: Option<TransformNode>,
     pub(crate) external_helpers: bool,
     pub(crate) starts_on_new_line: Option<bool>,
-    pub(crate) snippet_element: Option<Box<str>>,
+    pub(crate) snippet_element: Option<SnippetElement>,
     pub(crate) class_this: Option<TransformNode>,
     pub(crate) assigned_name: Option<TransformNode>,
     pub(crate) class_expression_declaration_origin: Option<ClassExpressionDeclarationOrigin>,
@@ -746,6 +746,11 @@ impl EmitMetadata {
         self.starts_on_new_line = Some(value);
     }
 
+    /// tsgo `EmitContext.SetSnippetElement`.
+    pub fn set_snippet_element(&mut self, element: SnippetElement) {
+        self.snippet_element = Some(element);
+    }
+
     pub fn set_type_node(&mut self, value: TransformNode) {
         self.type_node = Some(value);
     }
@@ -889,7 +894,7 @@ impl EmitMetadata {
             self.starts_on_new_line = source.starts_on_new_line;
         }
         if source.snippet_element.is_some() {
-            self.snippet_element = source.snippet_element.clone();
+            self.snippet_element = source.snippet_element;
         }
         if source.class_this.is_some() {
             self.class_this = source.class_this;
@@ -940,4 +945,11 @@ impl EmitMetadata {
             self.referenced_export_container = source.referenced_export_container;
         }
     }
+}
+
+/// tsgo `printer.SnippetElement`: what the printer writes for a node in a
+/// snippet — a tab stop (`$order`) in place of an empty statement.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SnippetElement {
+    TabStop(u32),
 }

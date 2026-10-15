@@ -10,7 +10,7 @@ use tsc_lsproto::{AddAsTypeOnly, AutoImportFix, AutoImportFixKind, ImportKind, T
 use tsc_checker::state::{CheckResult, CheckerState};
 use tsc_emitter::{TransformArena, TransformError, TransformNode, TransformSourceId};
 use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SourceFile, SyntaxKind};
-use tsc_types::{CompilerOptions, InternalSymbolName, SymbolId};
+use tsc_types::{CompilerOptions, InternalSymbolName, SymbolId, TypeId};
 
 use super::edits::{
     add_import_type, add_namespace_qualifier, add_to_existing_import, file_edits,
@@ -420,6 +420,35 @@ fn get_import_fix_for_symbol(
     }
     fixes.sort_by(|a, b| view.compare_fixes_for_ranking(a, b));
     Ok(fixes.into_iter().next())
+}
+
+/// tsgo `TypeToAutoImportableTypeNode`: the type's node (built in `arena`
+/// at `target` for `context_node`) with the import types the node builder
+/// wrote for symbols replaced by references to them, imported (tsgo
+/// `importSymbols`) by the adder there is.
+pub(crate) fn type_to_auto_importable_type_node(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    adder: Option<(&mut ImportAdder<'_>, &mut View<'_>)>,
+    ty: TypeId,
+    context_node: NodeId,
+) -> CheckResult<Option<TransformNode>> {
+    let built = checker
+        .type_to_type_node_in_arena(arena, target, ty, Some(context_node), 0, 0)
+        .unwrap_or_else(|error| panic!("auto-importable type node: {error}"));
+    let Some((type_node, id_to_symbol)) = built else {
+        return Ok(None);
+    };
+    let (type_node, symbols) =
+        try_get_auto_importable_reference_from_type_node(checker, arena, type_node, &id_to_symbol)
+            .unwrap_or_else(|error| panic!("auto-importable reference: {error}"));
+    if let Some((adder, view)) = adder {
+        for symbol in symbols {
+            adder.add_import_from_exported_symbol(checker, view, symbol, true)?;
+        }
+    }
+    Ok(Some(type_node))
 }
 
 /// tsgo `TryGetAutoImportableReferenceFromTypeNode`: a type node with each

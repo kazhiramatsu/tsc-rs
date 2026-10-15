@@ -38,6 +38,18 @@ pub(crate) struct SymbolOriginInfo {
     /// A computed property name's symbol name (tsgo
     /// `symbolOriginInfoComputedPropertyName`).
     pub(crate) symbol_name: Option<String>,
+    /// An object literal method's snippet (tsgo
+    /// `symbolOriginInfoObjectLiteralMethod`).
+    pub(crate) object_literal_method: Option<ObjectLiteralMethodOrigin>,
+}
+
+/// tsgo `symbolOriginInfoObjectLiteralMethod`: the method's text, the
+/// signature its label details show, and whether the text is a snippet.
+#[derive(Clone, Debug)]
+pub(crate) struct ObjectLiteralMethodOrigin {
+    pub(crate) insert_text: String,
+    pub(crate) detail: String,
+    pub(crate) is_snippet: bool,
 }
 
 impl SymbolOriginInfo {
@@ -98,6 +110,8 @@ pub(crate) struct CompletionDataData {
     pub(crate) is_type_only_location: bool,
     pub(crate) is_jsx_identifier_expected: bool,
     pub(crate) is_right_of_open_tag: bool,
+    /// tsgo `isRightOfDotOrQuestionDot`.
+    pub(crate) is_right_of_dot_or_question_dot: bool,
     pub(crate) has_unresolved_auto_imports: bool,
     pub(crate) default_commit_characters: Vec<String>,
     /// tsgo `autoImports`: the fixes of the exports the completion can
@@ -633,6 +647,8 @@ impl Completions<'_, '_, '_> {
             is_type_only_location,
             is_jsx_identifier_expected,
             is_right_of_open_tag,
+            is_right_of_dot_or_question_dot: facts.is_right_of_dot
+                || facts.is_right_of_question_dot,
             has_unresolved_auto_imports: false,
             default_commit_characters,
             auto_imports: collector.auto_imports,
@@ -1695,7 +1711,7 @@ impl Completions<'_, '_, '_> {
     }
 
     /// A literal type's value.
-    fn literal_value(&self, ty: TypeId) -> Option<LiteralValue> {
+    pub(crate) fn literal_value(&self, ty: TypeId) -> Option<LiteralValue> {
         match &self.request.state.tables.type_of(ty).data {
             TypeData::Literal { value } => Some(value.clone()),
             _ => None,

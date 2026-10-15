@@ -28,7 +28,10 @@ use super::{
 /// tsgo `completionSource`s.
 const SOURCE_THIS_PROPERTY: &str = "ThisProperty/";
 const SOURCE_TYPE_ONLY_ALIAS: &str = "TypeOnlyAlias/";
-const SOURCE_OBJECT_LITERAL_MEMBER_WITH_COMMA: &str = "ObjectLiteralMemberWithComma/";
+use super::{
+    SOURCE_CLASS_MEMBER_SNIPPET, SOURCE_OBJECT_LITERAL_MEMBER_WITH_COMMA,
+    SOURCE_OBJECT_LITERAL_METHOD_SNIPPET,
+};
 
 impl Completions<'_, '_, '_> {
     /// tsgo `completionInfoFromData`.
@@ -153,6 +156,29 @@ impl Completions<'_, '_, '_> {
 
         if !is_checked {
             self.js_completion_entries(&mut unique_names, &mut sorted_entries);
+        }
+
+        // A switch's missing cases.
+        if let Some(context) = context_token
+            .filter(|_| !data.is_right_of_open_tag && !data.is_right_of_dot_or_question_dot)
+        {
+            let start = match context {
+                Touching::Node(node) => Some(node),
+                Touching::Token { parent, .. } => Some(parent),
+            };
+            if let Some(case_block) = self.find_ancestor(start, |this, node| {
+                this.node_kind(node) == SyntaxKind::CaseBlock
+            }) {
+                match self.exhaustive_case_item(case_block)? {
+                    Ok(Some(item)) => sorted_entries.push(item),
+                    Ok(None) => {}
+                    Err(error) if error.is_needs_auto_imports() => {
+                        self.needs_auto_imports = true;
+                        return Ok(None);
+                    }
+                    Err(error) => panic!("case snippets: {}", error.0),
+                }
+            }
         }
 
         let support = ClientSupport(self.request.capabilities);
@@ -484,7 +510,7 @@ impl Completions<'_, '_, '_> {
     fn create_completion_item(
         &mut self,
         symbol: SymbolId,
-        sort_text: String,
+        mut sort_text: String,
         replacement_token: Option<Touching>,
         data: &CompletionDataData,
         mut name: String,
@@ -495,8 +521,10 @@ impl Completions<'_, '_, '_> {
         let support = ClientSupport(self.request.capabilities);
         let context_token = data.context_token;
         let mut insert_text = String::new();
-        let filter_text = String::new();
+        let mut filter_text = String::new();
         let mut is_snippet = false;
+        let mut additional_text_edits = None;
+        let mut label_details = None;
         let mut replacement_span = self.replacement_range_for_context_token(replacement_token);
         let mut source = source_from_origin(origin).to_owned();
         let insert_question_dot = origin_is(origin, origin_kind::NULLABLE);
@@ -651,6 +679,53 @@ impl Completions<'_, '_, '_> {
                     }
                 }
             }
+        }
+
+        // A class member's whole declaration.
+        if self
+            .request
+            .preferences
+            .completion_preferences
+            .include_completions_with_class_member_snippets
+            == Some(true)
+            && data.completion_kind == CompletionKind::MemberLike
+            && self.is_class_like_member_completion(symbol, data.location)
+        {
+            let entry =
+                match self.member_completion_entry(symbol, &name, data.location, context_token)? {
+                    Ok(entry) => entry,
+                    Err(error) if error.is_needs_auto_imports() => {
+                        self.needs_auto_imports = true;
+                        return Ok(None);
+                    }
+                    Err(error) => panic!("member completion: {}", error.0),
+                };
+            let Some(entry) = entry else {
+                return Ok(None);
+            };
+            insert_text = entry.insert_text;
+            filter_text = entry.filter_text;
+            is_snippet = entry.is_snippet;
+            if !entry.additional_text_edits.is_empty() {
+                additional_text_edits = Some(entry.additional_text_edits);
+                source = SOURCE_CLASS_MEMBER_SNIPPET.to_owned();
+            }
+        }
+
+        // An object literal's method.
+        if let Some(method) = origin.and_then(|origin| origin.object_literal_method.as_ref()) {
+            insert_text = method.insert_text.clone();
+            is_snippet = method.is_snippet;
+            if support.item_label_details() {
+                label_details = Some(tsc_lsproto::CompletionItemLabelDetails {
+                    detail: Some(method.detail.clone()),
+                    description: None,
+                });
+            } else {
+                name.push_str(&method.detail);
+            }
+            source = SOURCE_OBJECT_LITERAL_METHOD_SNIPPET.to_owned();
+            sort_text = super::sort_text::sort_below(&sort_text);
         }
 
         // A JSX attribute's snippet.
@@ -813,13 +888,13 @@ impl Completions<'_, '_, '_> {
                 kind_modifiers,
                 replacement_span,
                 commit_characters,
-                label_details: None,
+                label_details,
                 is_member_completion,
                 is_snippet,
                 preselect,
                 source,
                 auto_import_fix: None,
-                additional_text_edits: None,
+                additional_text_edits,
                 detail: None,
             },
         );
@@ -1128,7 +1203,7 @@ impl Completions<'_, '_, '_> {
     }
 
     /// tsgo `ast.IsInJSFile`.
-    fn is_in_js_file(&self, node: NodeId) -> bool {
+    pub(crate) fn is_in_js_file(&self, node: NodeId) -> bool {
         let source = self.request.state.binder.source_of_node(node);
         source.arena.node(source.root).flags & tsc_types::NodeFlags::JAVA_SCRIPT_FILE.bits() != 0
     }
@@ -1513,7 +1588,17 @@ impl CaseClauseTracker {
         }
     }
 
-    fn has_constant(&self, value: &ConstantValue) -> bool {
+    /// tsgo `caseClauseTracker.addValue` of an enum member's value.
+    pub(crate) fn add_constant(&mut self, value: &ConstantValue) {
+        match value {
+            ConstantValue::String(text) => {
+                self.strings.insert(text.to_string_lossy().into_owned());
+            }
+            ConstantValue::Number(value) => self.numbers.push(*value),
+        }
+    }
+
+    pub(crate) fn has_constant(&self, value: &ConstantValue) -> bool {
         match value {
             ConstantValue::String(text) => {
                 self.strings.contains(&text.to_string_lossy().into_owned())

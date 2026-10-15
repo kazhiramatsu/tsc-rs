@@ -560,7 +560,8 @@ impl JsSyntaxChecker<'_> {
             }
             return;
         }
-        if !can_have_decorators(kind) || kind != SyntaxKind::ClassDeclaration {
+        if !tsc_binder::node_util::can_have_decorators(kind) || kind != SyntaxKind::ClassDeclaration
+        {
             return;
         }
         let Some(decorator_index) = modifiers.iter().position(|&id| is_decorator(self, id)) else {
@@ -694,22 +695,6 @@ fn can_have_illegal_decorators(kind: SyntaxKind) -> bool {
             | SyntaxKind::NamespaceExportDeclaration
             | SyntaxKind::ExportDeclaration
             | SyntaxKind::ExportAssignment
-    )
-}
-
-/// tsc-port: canHaveDecorators @6.0.3
-/// tsc-hash: 55d6b35e1b66572fa2e24ca5a5d956c35dd1bcbef83c1de2d02e4fe8129b7290
-/// tsc-span: _tsc.js:28263-28266
-pub(crate) fn can_have_decorators(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::Parameter
-            | SyntaxKind::PropertyDeclaration
-            | SyntaxKind::MethodDeclaration
-            | SyntaxKind::GetAccessor
-            | SyntaxKind::SetAccessor
-            | SyntaxKind::ClassExpression
-            | SyntaxKind::ClassDeclaration
     )
 }
 
