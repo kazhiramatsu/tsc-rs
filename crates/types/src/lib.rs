@@ -33,4 +33,6 @@ pub use ty::{
     SymbolId, TemplateText, TupleTargetData, Type, TypeData, TypeId,
 };
 pub use type_order::{TypeOrder, TypeOrderContext};
-pub use version::{compiler_version_satisfies, TYPESCRIPT_VERSION, TYPESCRIPT_VERSION_MAJOR_MINOR};
+pub use version::{
+    compiler_version_satisfies, Version, TYPESCRIPT_VERSION, TYPESCRIPT_VERSION_MAJOR_MINOR,
+};

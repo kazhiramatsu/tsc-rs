@@ -89,6 +89,7 @@ pub fn run_lsp(arguments: &[String], process_alive: Option<fn(i32) -> bool>) -> 
     let cwd = std::env::current_dir()
         .map(|directory| tsc_program::uri::rooted_path_from_absolute(&directory.to_string_lossy()))
         .unwrap_or_default();
+    let cwd_for_typings = cwd.clone();
     let server_cell: Arc<OnceLock<Weak<Server>>> = Arc::default();
     let set_parent_process_id = process_alive.and_then(|alive| {
         if client_process_id > 0 {
@@ -111,6 +112,8 @@ pub fn run_lsp(arguments: &[String], process_alive: Option<fn(i32) -> bool>) -> 
         )),
         // tsgo `cmd/tsc/lsp.go`.
         progress_delay: std::time::Duration::from_millis(250),
+        typings_location: Some(global_typings_cache_location(&cwd_for_typings)),
+        npm_executor: Some(Arc::new(NpmCommand)),
     });
     let _ = server_cell.set(Arc::downgrade(&server));
     let code = match server.run(Box::new(io::stdin()), Box::new(io::stdout())) {
@@ -124,6 +127,62 @@ pub fn run_lsp(arguments: &[String], process_alive: Option<fn(i32) -> bool>) -> 
         profile.stop(&mut io::stderr());
     }
     code
+}
+
+/// tsgo `osvfs.GetGlobalTypingsCacheLocation`: `typescript/<major.minor>`
+/// (`Microsoft/TypeScript/<major.minor>` on Windows) in the user's cache
+/// directory (Go's `os.UserCacheDir`), else in the temporary directory;
+/// against `cwd` (tsgo `ToRootedDirectoryPath`).
+fn global_typings_cache_location(cwd: &str) -> String {
+    let user_cache_dir = if cfg!(windows) {
+        std::env::var_os("LocalAppData").map(std::path::PathBuf::from)
+    } else if cfg!(target_os = "macos") {
+        std::env::var_os("HOME").map(|home| std::path::Path::new(&home).join("Library/Caches"))
+    } else {
+        std::env::var_os("XDG_CACHE_HOME")
+            .map(std::path::PathBuf::from)
+            .filter(|directory| directory.is_absolute())
+            .or_else(|| {
+                std::env::var_os("HOME").map(|home| std::path::Path::new(&home).join(".cache"))
+            })
+    };
+    let cache_dir = user_cache_dir.unwrap_or_else(std::env::temp_dir);
+    let subdir = if cfg!(windows) {
+        "Microsoft/TypeScript"
+    } else {
+        "typescript"
+    };
+    let location = format!(
+        "{}/{subdir}/{}",
+        cache_dir.to_string_lossy(),
+        tsc_types::TYPESCRIPT_VERSION_MAJOR_MINOR
+    );
+    tsc_program::get_normalized_absolute_path(
+        tsc_diagnostics::JsStr::from_str(&location),
+        tsc_diagnostics::JsStr::from_str(cwd),
+    )
+    .to_string_lossy()
+    .into_owned()
+}
+
+/// tsgo `cmd/tsc/lsp.go`'s `NpmInstall`: `npm` with the arguments in `cwd`,
+/// its standard output; a failed run's status is the error.
+struct NpmCommand;
+
+impl tsc_project::ata::NpmExecutor for NpmCommand {
+    fn npm_install(&self, cwd: &str, args: &[String]) -> Result<Vec<u8>, String> {
+        let output = std::process::Command::new("npm")
+            .args(args)
+            .current_dir(cwd)
+            .stdin(std::process::Stdio::null())
+            .output()
+            .map_err(|error| error.to_string())?;
+        if output.status.success() {
+            Ok(output.stdout)
+        } else {
+            Err(output.status.to_string())
+        }
+    }
 }
 
 /// tsgo `startParentProcessWatchdog`: every five seconds, stops the server

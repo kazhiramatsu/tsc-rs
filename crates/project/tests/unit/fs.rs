@@ -315,6 +315,7 @@ fn a_deletion_drops_the_files_no_project_read() {
             push_diagnostics_enabled: false,
             debounce_delay: std::time::Duration::ZERO,
             client_capabilities: Default::default(),
+            typings_location: None,
         },
         Arc::clone(&fs) as Arc<dyn FileSystem>,
         None,

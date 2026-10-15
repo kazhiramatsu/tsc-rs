@@ -134,6 +134,8 @@ pub(super) fn replay(scenario: &Scenario) -> Result<Replay, String> {
             tsc_harness::content_mappers::TestSpawner::default(),
         )),
         progress_delay: std::time::Duration::ZERO,
+        typings_location: None,
+        npm_executor: None,
     });
     server.set_compiler_options_for_inferred_projects(compiler_options_bag(
         &scenario.inferred_options,

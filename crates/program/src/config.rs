@@ -77,7 +77,9 @@ mod content_mappers;
 
 use crate::content_mapper::host::OptionPathSegment;
 use crate::content_mapper::Mapper;
-pub use content_mappers::{content_mapper_for_file_name, longest_extension};
+pub use content_mappers::{
+    content_mapper_for_file_name, is_external_module_name_relative, longest_extension,
+};
 use content_mappers::{ContentMapperParse, ContentMapperSyntax};
 
 const TYPESCRIPT_EXTENSIONS: &[&[&str]] = &[
@@ -787,7 +789,8 @@ impl ConfigOptionBag {
         config_option_bool(self, name)
     }
 
-    pub(crate) fn option_string_list(&self, name: &str) -> Option<Vec<JsString>> {
+    /// A list of strings as written, or none.
+    pub fn option_string_list(&self, name: &str) -> Option<Vec<JsString>> {
         config_option_string_list(self, name)
     }
 
@@ -1212,6 +1215,27 @@ impl ConfigRootPlan {
             .program_options
             .clone()
             .with_content_mapper_project(project);
+        self
+    }
+
+    /// The plan with the typings cache its programs resolve in (tsgo
+    /// `ProgramOptions.TypingsLocation`).
+    pub fn with_typings_location(mut self, typings_location: JsString) -> Self {
+        self.module_resolution_options.program_options = self
+            .module_resolution_options
+            .program_options
+            .clone()
+            .with_typings_location(typings_location);
+        self
+    }
+
+    /// tsgo `WithFileNames` of the file names and `files`: more root files,
+    /// each a root as given.
+    pub fn with_added_root_files(mut self, files: &[String]) -> Self {
+        for file in files {
+            self.file_names.push(JsString::from(file.as_str()));
+            self.root_reasons.push(RootFileReason::Explicit);
+        }
         self
     }
 

@@ -443,7 +443,7 @@ fn base_name(path: JsStr<'_>) -> JsStr<'_> {
 }
 
 /// tsgo `IsExternalModuleNameRelative`.
-fn is_external_module_name_relative(name: &str) -> bool {
+pub fn is_external_module_name_relative(name: &str) -> bool {
     name == "."
         || name == ".."
         || name.starts_with("./")

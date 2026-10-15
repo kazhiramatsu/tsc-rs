@@ -1422,6 +1422,9 @@ pub struct ProgramOptions {
     /// The module resolution the API supplies for the program (tsgo's
     /// module resolver factory), in front of the program's resolver.
     module_resolution_override: Option<crate::ModuleResolutionOverrideHandle>,
+    /// tsgo `TypingsLocation`: the typings cache a project that acquires
+    /// types resolves the names it found no TypeScript for in.
+    typings_location: Option<JsString>,
     /// The config's content mappers with the project configuration they see
     /// (tsgo `ParsedCommandLine.ContentMappers`), when it has any.
     content_mapper_spec: Option<Arc<crate::content_mapper::host::ProjectSpec>>,
@@ -1463,6 +1466,15 @@ impl ProgramOptions {
 
     pub fn module_resolution_override(&self) -> Option<&crate::ModuleResolutionOverrideHandle> {
         self.module_resolution_override.as_ref()
+    }
+
+    pub fn with_typings_location(mut self, typings_location: JsString) -> Self {
+        self.typings_location = Some(typings_location);
+        self
+    }
+
+    pub fn typings_location(&self) -> Option<&JsString> {
+        self.typings_location.as_ref()
     }
 
     pub fn with_build_mode(mut self, build_mode: bool) -> Self {

@@ -11,6 +11,7 @@
 //! acquisition, auto-imports and logging (the LSP packet,
 //! `docs/design/greenfield/slices/ts71-lsp`).
 
+pub mod ata;
 mod background;
 mod builder;
 mod client;
@@ -30,7 +31,7 @@ pub use overlay::{FileChange, FileChangeKind, Overlay};
 pub use project::{CommandLine, ProgramRoots, ProgramUpdateKind, Project, ProjectProgram};
 pub use session::{DocumentProjectError, Session};
 pub use snapshot::{
-    ApiSnapshotRequest, ContentMapperContributions, CreateProgramRequest, ProjectError,
-    ProjectTreeRequest, RebasableFileSystem, ReconfigureProgramRequest, SessionOptions, Snapshot,
-    SnapshotChange, SnapshotHost,
+    ApiSnapshotRequest, AtaStateChange, ContentMapperContributions, CreateProgramRequest,
+    ProjectError, ProjectTreeRequest, RebasableFileSystem, ReconfigureProgramRequest,
+    SessionOptions, Snapshot, SnapshotChange, SnapshotHost,
 };
