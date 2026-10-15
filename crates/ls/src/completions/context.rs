@@ -165,10 +165,7 @@ impl<'r, 's, 'a> Completions<'r, 's, 'a> {
 
     /// tsgo `getLineOfPosition` (`GetECMALineOfPosition`).
     pub(crate) fn line_of(&self, position: u32) -> usize {
-        match self.line_starts.binary_search(&(position as usize)) {
-            Ok(line) => line,
-            Err(insertion) => insertion.saturating_sub(1),
-        }
+        crate::utilities::line_of_position(&self.line_starts, position as usize)
     }
 
     /// tsgo `GetECMALineStarts`.
@@ -183,18 +180,8 @@ impl<'r, 's, 'a> Completions<'r, 's, 'a> {
 
     /// tsgo `getLineEndOfPosition`.
     pub(crate) fn line_end_of(&self, position: u32) -> u32 {
-        let line = self.line_of(position);
-        let text = self.text();
-        let last = if line + 1 >= self.line_starts.len() {
-            self.record(self.source.root).end as usize
-        } else {
-            self.line_starts[line + 1] - 1
-        };
-        let bytes = text.as_bytes();
-        if last > 0 && last < bytes.len() && bytes[last] == b'\n' && bytes[last - 1] == b'\r' {
-            return (last - 1) as u32;
-        }
-        last as u32
+        crate::utilities::line_end_of_position(self.source, &self.line_starts, position as usize)
+            as u32
     }
 
     /// tsgo `ast.FindAncestor` from `node`.
