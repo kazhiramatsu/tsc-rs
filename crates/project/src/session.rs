@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock};
 use std::time::{Duration, Instant};
 
+use tsc_compiler::locale::Locale;
 use tsc_diagnostics::DiagnosticList;
 use tsc_host::go_time::duration_string;
 use tsc_host::vfs::FileSystem;
@@ -33,7 +34,8 @@ use crate::overlay::{FileChange, FileChangeKind, OverlayFs, Overlays};
 use crate::project::{CommandLine, ProgramUpdateKind, Project};
 use crate::snapshot::ContentMapperContributions;
 use crate::snapshot::{
-    ProjectError, ProjectTreeRequest, SessionOptions, Snapshot, SnapshotChange, SnapshotHost,
+    ApiSnapshotRequest, ProjectError, ProjectTreeRequest, SessionOptions, Snapshot, SnapshotChange,
+    SnapshotHost,
 };
 use crate::watch::{glob_string, WatchRegistry, WatchedFiles};
 
@@ -68,13 +70,17 @@ struct ResourceRequest<'a> {
     project_tree: Option<ProjectTreeRequest>,
 }
 
-/// tsgo `Session`.
+/// tsgo `Session`. A clone is the same session (an API session over the
+/// language server holds it).
+#[derive(Clone)]
 pub struct Session {
     inner: Arc<Inner>,
 }
 
 struct Inner {
-    host: SnapshotHost,
+    /// Shared with the API sessions over the language server (tsgo
+    /// `SnapshotHost`).
+    host: Arc<SnapshotHost>,
     client: Option<Arc<dyn Client>>,
     logger: Option<Arc<dyn Logger>>,
     /// The open documents (tsgo `fs`).
@@ -147,6 +153,7 @@ impl Session {
             locale,
             content_mapper_logger,
         );
+        let host = Arc::new(host);
         let snapshot = Arc::new(host.new_root_snapshot());
         Self {
             inner: Arc::new(Inner {
@@ -175,8 +182,23 @@ impl Session {
     }
 
     /// The session's snapshot host.
-    pub fn host(&self) -> &SnapshotHost {
+    pub fn host(&self) -> &Arc<SnapshotHost> {
         &self.inner.host
+    }
+
+    /// tsgo `FS`: the open documents over the host's file system, as they
+    /// are now.
+    pub fn fs(&self) -> Arc<dyn FileSystem> {
+        Arc::new(lock(&self.inner.fs).layer())
+    }
+
+    /// tsgo `WithCurrentLocale`: the client's locale (the default without
+    /// a client).
+    pub fn locale(&self) -> Locale {
+        self.inner
+            .client
+            .as_ref()
+            .map_or_else(Locale::default, |client| client.locale())
     }
 
     /// tsgo `Snapshot`: the current snapshot.
@@ -585,6 +607,7 @@ impl Session {
                         documents: vec![file_name.clone()],
                         auto_imports: Some(file_name.clone()),
                         client: self.inner.client.as_deref(),
+                        base_file_system: true,
                         ..SnapshotChange::default()
                     },
                 )
@@ -596,16 +619,53 @@ impl Session {
                 unknown_script_kind: false,
             });
         };
-        // tsgo `tryAdoptSnapshotChangeInBackground`.
+        self.try_adopt_snapshot_in_background(base, &snapshot);
+        Ok((snapshot, project))
+    }
+
+    /// tsgo `TryAdoptSnapshotInBackground`: `new`, derived from `base`,
+    /// becomes the session's snapshot in the background unless the session
+    /// has moved on from `base` by then.
+    pub fn try_adopt_snapshot_in_background(&self, base: &Arc<Snapshot>, new: &Arc<Snapshot>) {
         let inner = Arc::clone(&self.inner);
         let base = Arc::clone(base);
-        let new = Arc::clone(&snapshot);
+        let new = Arc::clone(new);
         self.inner
             .background
             .enqueue(&Cancellation::default(), move |_| {
                 inner.adopt_snapshot_change(&base, new);
             });
-        Ok((snapshot, project))
+    }
+
+    /// tsgo `APIUpdate`: an API session's request over the language
+    /// server's state, with the pending changes, adopted as the session's
+    /// snapshot. A failed request is rejected as a unit (nothing of it is
+    /// adopted), but the changes already flushed still advance the
+    /// session's snapshot.
+    pub fn api_update(&self, request: &ApiSnapshotRequest) -> Result<Arc<Snapshot>, ProjectError> {
+        let inner = &self.inner;
+        let _update = lock(&inner.snapshot_update);
+        inner.cancel_scheduled_snapshot_update();
+        // tsgo flushes (and so drops) the pending preferences here too.
+        let (file_changes, overlays, _) = inner.flush_changes();
+        let result = inner.update_snapshot(
+            Arc::clone(&overlays),
+            SnapshotChange {
+                file_changes: file_changes.clone(),
+                api_request: Some(request),
+                ..SnapshotChange::default()
+            },
+        );
+        if result.is_err() && !file_changes.is_empty() {
+            let _ = inner.update_snapshot(
+                overlays,
+                SnapshotChange {
+                    file_changes,
+                    ..SnapshotChange::default()
+                },
+            );
+        }
+        result
     }
 
     /// tsgo `EnqueuePublishGlobalDiagnostics`: after a language service

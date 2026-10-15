@@ -346,6 +346,11 @@ impl ResolutionState {
         self.lock_error().get_or_insert(error);
     }
 
+    /// The first callback failure since the last [`Self::end`].
+    fn error(&self) -> Option<String> {
+        self.lock_error().clone()
+    }
+
     fn lock_in_flight(&self) -> std::sync::MutexGuard<'_, Option<InFlight>> {
         self.in_flight
             .lock()
@@ -427,6 +432,10 @@ impl ModuleResolutionOverride for ProgramModuleResolution {
             &self.registration.compiler_options,
             &self.registration.program_options,
         ))
+    }
+
+    fn module_resolution_error(&self) -> Option<String> {
+        self.state.error()
     }
 
     fn resolve(

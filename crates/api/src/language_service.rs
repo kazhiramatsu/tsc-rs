@@ -128,8 +128,8 @@ impl Session {
 
     /// tsgo `setupLanguageService`: the language service of the project's
     /// program in the snapshot, with the snapshot's converters (the API's
-    /// UTF-8) and preferences and no client capabilities; on the API checker
-    /// when `api_checker`.
+    /// UTF-8) and preferences, no client capabilities and the requests'
+    /// locale; on the API checker when `api_checker`.
     fn with_language_service<T>(
         &self,
         snapshot: &Arc<Snapshot>,
@@ -148,7 +148,7 @@ impl Session {
                 &converters,
                 &preferences,
                 &capabilities,
-                None,
+                self.catalog(),
             )
             .with_project_id(project);
             if api_checker {

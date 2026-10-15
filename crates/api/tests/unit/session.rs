@@ -1,9 +1,9 @@
 //! tsgo's session tests on the standalone session: `session_batch_test.go`,
 //! `session_createprogram_test.go` and the standalone cases of
-//! `session_apistate_test.go` (the others need tsgo's language server),
-//! sent as a client sends them (JSON parameters through
-//! [`Session::handle`]). The snapshot updates are pinned to tsgo's
-//! responses.
+//! `session_apistate_test.go` (the language server's are in
+//! `session_language_server.rs`), sent as a client sends them (JSON
+//! parameters through [`Session::handle`]). The snapshot updates are pinned
+//! to tsgo's responses.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -1319,50 +1319,6 @@ fn a_release_does_not_disturb_readers() {
 }
 
 #[test]
-fn a_large_layer_update_keeps_its_changes() {
-    // TestLargeRequestLayerUpdateRetainsChanges, the open file a host file:
-    // over a thousand changes make the snapshot drop what it read.
-    let (session, _) = session(&[
-        (
-            "/tsconfig.json",
-            r#"{ "compilerOptions": { "noLib": true }, "files": ["index.ts"] }"#,
-        ),
-        ("/index.ts", "old"),
-    ]);
-    let filler = |text: &str| {
-        (0..1000)
-            .map(|index| (format!("/unused/file{index}.ts"), json!(text)))
-            .collect::<serde_json::Map<_, _>>()
-    };
-    let base = call(
-        &session,
-        "createSnapshot",
-        json!({
-            "openProjects": ["/tsconfig.json"],
-            "fileSystem": { "kind": "layer", "files": filler("old") },
-        }),
-    )
-    .unwrap();
-    let mut updated_files = filler("new");
-    updated_files.insert("/index.ts".to_owned(), json!("new"));
-    let updated = call(
-        &session,
-        "updateSnapshot",
-        json!({ "snapshot": base["snapshot"], "changes": {
-            "ensurePrograms": true,
-            "fileSystem": { "kind": "layer", "files": updated_files },
-        } }),
-    )
-    .unwrap();
-    assert_eq!(
-        read_snapshot(&session, &updated["snapshot"], "/index.ts").as_deref(),
-        Some("new")
-    );
-    let program = program_of(&session, &updated["snapshot"], "/tsconfig.json");
-    assert_eq!(source_text(&program, "/index.ts").as_deref(), Some("new"));
-}
-
-#[test]
 fn an_invalid_request_file_system_is_a_client_error() {
     let (session, _) = session(&[]);
     assert_eq!(
@@ -1399,6 +1355,9 @@ mod build;
 
 #[path = "session_content_mappers.rs"]
 mod content_mappers;
+
+#[path = "session_language_server.rs"]
+mod language_server;
 
 #[test]
 fn documents_of_other_schemes_open_by_their_dynamic_names() {

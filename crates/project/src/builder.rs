@@ -325,6 +325,23 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 }
             }
         }
+        // tsgo: a program whose module resolution failed fails the request.
+        for id in self.project_ids() {
+            let error = self.project(&id).and_then(|project| {
+                project.program.as_ref()?;
+                let Some(CommandLine::Roots(roots)) = &project.command_line else {
+                    return None;
+                };
+                roots
+                    .program_options
+                    .module_resolution_override()?
+                    .0
+                    .module_resolution_error()
+            });
+            if let Some(error) = error {
+                return Err(ProjectError::new(error));
+            }
+        }
         Ok(())
     }
 

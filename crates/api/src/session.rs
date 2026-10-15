@@ -11,10 +11,9 @@
 //! files), the module resolvers, in `crate::checker` the symbol and type
 //! queries of the checker, in `crate::language_service` the language
 //! service's requests, in `crate::diagnostics` the program's diagnostics
-//! and in `crate::emit` its emit;
-//! `getCurrentLanguageServerSnapshot` answers as tsgo's standalone session
-//! does, and tsgo's other methods answer that they are not implemented
-//! yet.
+//! and in `crate::emit` its emit, and over a language server's session
+//! `getCurrentLanguageServerSnapshot`; tsgo's other methods answer that
+//! they are not implemented yet.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -45,8 +44,8 @@ use tsc_program::{
 };
 use tsc_project::{
     ApiSnapshotRequest, CommandLine, CreateProgramRequest, FileChangeSummary, Project, ProjectId,
-    ProjectKind, ProjectProgram, ReconfigureProgramRequest, SessionOptions, Snapshot,
-    SnapshotChange, SnapshotHost,
+    ProjectKind, ProjectProgram, RebasableFileSystem, ReconfigureProgramRequest, SessionOptions,
+    Snapshot, SnapshotChange, SnapshotHost,
 };
 use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
 
@@ -66,11 +65,12 @@ use crate::proto::{
     CreateModuleResolverParams, CreateProgramOptions, CreateSnapshotParams, CreateSnapshotResponse,
     CreateSourceFileFromFileParams, CreateSourceFileOptions, CreateSourceFileParams,
     DiagnosticResponse, DocumentIdentifier, EnsurePrograms, FileNotifications,
-    GetDefaultProjectForFileParams, GetModeForResolutionAtIndexParams,
-    GetModeForUsageLocationParams, GetResolvedModuleFromModuleSpecifierParams,
-    GetResolvedModuleParams, GetResolvedTypeReferenceDirectiveFromReferenceParams,
-    GetResolvedTypeReferenceDirectiveParams, GetSourceFileParams, GetSymbolOfDeclarationParams,
-    InitializeResponse, OpenedFileOperationResult, PackageIdResponse, ParseCommandLineParams,
+    GetCurrentLanguageServerSnapshotParams, GetDefaultProjectForFileParams,
+    GetModeForResolutionAtIndexParams, GetModeForUsageLocationParams,
+    GetResolvedModuleFromModuleSpecifierParams, GetResolvedModuleParams,
+    GetResolvedTypeReferenceDirectiveFromReferenceParams, GetResolvedTypeReferenceDirectiveParams,
+    GetSourceFileParams, GetSymbolOfDeclarationParams, InitializeResponse,
+    OpenedFileOperationResult, PackageIdResponse, ParseCommandLineParams,
     ParseJsonConfigFileContentParams, ProjectFileChanges, ProjectParams, ProjectReference,
     ProjectResponse, ReadConfigFileResponse, ReleaseModuleResolverParams, ReleaseParams,
     ReleaseSourceFileParams, ResolveModuleNameParams, ResolveModuleNameResult,
@@ -130,6 +130,15 @@ struct SnapshotData {
     registry: Arc<Mutex<Registry>>,
 }
 
+/// What a session over the language server holds in its state (tsgo
+/// `openProjects`, `openFiles` and `createdPrograms`, under
+/// `languageServerUpdateMu`).
+#[derive(Default)]
+struct LanguageServerState {
+    open: OpenState,
+    created_programs: BTreeSet<ProjectId>,
+}
+
 /// A client's module resolver and the resolution its programs share.
 type ModuleResolverEntry = (
     Arc<ModuleResolverRegistration>,
@@ -139,9 +148,13 @@ type ModuleResolverEntry = (
 /// tsgo `api.Session`.
 pub struct Session {
     id: String,
-    host: SnapshotHost,
-    /// The session's file system (tsgo `FS()`), under a request's.
+    host: Arc<SnapshotHost>,
+    /// The host's file system (tsgo `snapshotHost.FS()`).
     fs: Arc<dyn FileSystem>,
+    /// The language server's session this one works over (tsgo
+    /// `projectSession`), which owns the snapshot host.
+    project_session: Option<tsc_project::Session>,
+    language_server: Mutex<LanguageServerState>,
     /// MessagePack sends binary responses as they are (tsgo
     /// `UseBinaryResponses`).
     use_binary_responses: bool,
@@ -182,12 +195,34 @@ impl Session {
         spawner: Option<Arc<dyn Spawner>>,
         use_binary_responses: bool,
     ) -> Self {
+        // tsgo's API session has no client: the default locale.
+        let host = SnapshotHost::new(options, fs, spawner, "", None);
+        Self::with_host(Arc::new(host), None, use_binary_responses)
+    }
+
+    /// tsgo `NewLSPSession`: a session over a language server's, sharing
+    /// its snapshot host and adopting its changes into the server's state.
+    pub fn new_lsp(project_session: &tsc_project::Session, use_binary_responses: bool) -> Self {
+        Self::with_host(
+            Arc::clone(project_session.host()),
+            Some(project_session.clone()),
+            use_binary_responses,
+        )
+    }
+
+    /// tsgo `newSession`.
+    fn with_host(
+        host: Arc<SnapshotHost>,
+        project_session: Option<tsc_project::Session>,
+        use_binary_responses: bool,
+    ) -> Self {
         let id = SESSION_IDS.fetch_add(1, Ordering::Relaxed) + 1;
         Self {
             id: format!("api-session-{id}"),
-            // tsgo's API session has no client: the default locale.
-            host: SnapshotHost::new(options, Arc::clone(&fs), spawner, "", None),
-            fs,
+            fs: Arc::clone(host.fs()),
+            host,
+            project_session,
+            language_server: Mutex::default(),
             use_binary_responses,
             snapshots: Mutex::default(),
             batch_pages: Mutex::default(),
@@ -208,9 +243,44 @@ impl Session {
         &self.id
     }
 
-    /// tsgo `Session.Close`: the snapshot host's content mappers end.
+    /// tsgo `Session.Close`: what the session holds in the language
+    /// server's state is released, its snapshots and source files dropped,
+    /// and the content mappers of its own snapshot host end.
     pub fn close(&self) {
-        self.host.close();
+        self.release_language_server_refs();
+        lock(&self.source_file_leases).clear();
+        let snapshots = std::mem::take(&mut *self.lock_snapshots());
+        drop(snapshots);
+        self.prune_descriptors();
+        if self.project_session.is_none() {
+            self.host.close();
+        }
+        lock(&self.batch_pages).clear();
+    }
+
+    /// tsgo `releaseLanguageServerRefs`: the projects and files the session
+    /// opened in the language server's state are closed and the programs it
+    /// created removed.
+    fn release_language_server_refs(&self) {
+        let Some(project_session) = &self.project_session else {
+            return;
+        };
+        let mut state = lock(&self.language_server);
+        if state.open.projects.is_empty()
+            && state.open.files.is_empty()
+            && state.created_programs.is_empty()
+        {
+            return;
+        }
+        let request = ApiSnapshotRequest {
+            close_projects: state.open.projects.clone(),
+            close_files: (!state.open.files.is_empty()).then(|| state.open.files.clone()),
+            remove_programs: state.created_programs.clone(),
+            ..ApiSnapshotRequest::default()
+        };
+        if project_session.api_update(&request).is_ok() {
+            *state = LanguageServerState::default();
+        }
     }
 
     /// The connection the client's module resolver callbacks go through
@@ -228,9 +298,26 @@ impl Session {
         &self.host
     }
 
-    /// The session's file system (tsgo `FS()`).
+    /// The host's file system (tsgo `snapshotHost.FS()`).
     pub(crate) fn fs(&self) -> &Arc<dyn FileSystem> {
         &self.fs
+    }
+
+    /// tsgo `FS`: over a language server, its open documents over the
+    /// host's file system.
+    fn live_fs(&self) -> Arc<dyn FileSystem> {
+        match &self.project_session {
+            Some(project_session) => project_session.fs(),
+            None => Arc::clone(&self.fs),
+        }
+    }
+
+    /// The messages of the requests' locale: over a language server, its
+    /// client's (tsgo `WithCurrentLocale`).
+    pub(crate) fn catalog(&self) -> Option<&'static dyn tsc_diagnostics::MessageCatalog> {
+        self.project_session
+            .as_ref()
+            .and_then(|project_session| project_session.locale().messages())
     }
 
     /// The client's build orchestrators.
@@ -565,10 +652,14 @@ impl Session {
                 self.handle_resolve_module_name(&params)
                     .map(|result| json(&result))
             }
-            // A standalone session has no language server to share.
-            "getCurrentLanguageServerSnapshot" => Err(client_error(
-                "getCurrentLanguageServerSnapshot requires an LSP-connected API session",
-            )),
+            "getCurrentLanguageServerSnapshot" => {
+                let params = parse::<GetCurrentLanguageServerSnapshotParams>(
+                    "GetCurrentLanguageServerSnapshotParams",
+                    params,
+                )?;
+                self.handle_get_current_language_server_snapshot(&params)
+                    .map(|response| json(&response))
+            }
             #[cfg(test)]
             "panicForTest" => panic!("test panic"),
             _ => {
@@ -1323,7 +1414,7 @@ impl Session {
         self.resolution.begin(InFlight {
             context: 0,
             fs: file_system.map_or_else(
-                || Arc::clone(&self.fs),
+                || self.live_fs(),
                 |file_system| Arc::clone(file_system) as Arc<dyn FileSystem>,
             ),
         });
@@ -1417,7 +1508,7 @@ impl Session {
                 let snapshot = self.snapshot(params.snapshot)?;
                 (snapshot.file_system(), snapshot.content_mapper_extensions())
             } else {
-                (Arc::clone(&self.fs), Vec::new())
+                (self.live_fs(), Vec::new())
             };
         let (module, trace) =
             match registration.chain(&params.module_name, &containing_directory, mode) {
@@ -1655,7 +1746,7 @@ impl Session {
             file_system = Some(
                 RequestFileSystem::new_for_update(
                     supplied,
-                    &SnapshotFileSystem::Host(Arc::clone(&self.fs)),
+                    &SnapshotFileSystem::Host(self.live_fs()),
                     self.current_directory(),
                     &mut file_changes,
                 )
@@ -1695,7 +1786,7 @@ impl Session {
             prepare_auto_imports.as_deref(),
         )?;
         let response = self.create_snapshot_response(&snapshot, None, &params.changes)?;
-        self.register_snapshot(snapshot, open, file_system);
+        self.register_snapshot(Arc::new(snapshot), open, file_system);
         Ok(response)
     }
 
@@ -1724,7 +1815,7 @@ impl Session {
         if let Some(supplied) = &changes.file_system {
             let base_file_system = match &file_system {
                 Some(request_fs) => SnapshotFileSystem::Request(Arc::clone(request_fs)),
-                None => SnapshotFileSystem::Host(Arc::clone(&self.fs)),
+                None => SnapshotFileSystem::Host(self.live_fs()),
             };
             file_system = Some(
                 RequestFileSystem::new_for_update(
@@ -1769,17 +1860,18 @@ impl Session {
             prepare_auto_imports.as_deref(),
         )?;
         let response = self.create_snapshot_response(&snapshot, Some(&base), &changes.changes)?;
-        self.register_snapshot(snapshot, open, file_system);
+        self.register_snapshot(Arc::new(snapshot), open, file_system);
         Ok(response)
     }
 
     /// tsgo `CloneSnapshotWithAutoImports`: a snapshot the session does not
     /// register, made from one the client holds with a file's auto-imports
-    /// prepared (on that snapshot's file system).
+    /// prepared (on that snapshot's file system). Over a language server,
+    /// the server adopts it when it is still at `base`.
     pub(crate) fn clone_snapshot_with_auto_imports(
         &self,
         handle: SnapshotId,
-        base: &Snapshot,
+        base: &Arc<Snapshot>,
         file_name: &str,
     ) -> Result<Arc<Snapshot>, String> {
         let file_system = self.snapshot_file_system(handle)?;
@@ -1789,15 +1881,20 @@ impl Session {
             SnapshotChange {
                 documents: vec![file_name.to_owned()],
                 auto_imports: Some(file_name.to_owned()),
+                base_file_system: true,
                 ..SnapshotChange::default()
             },
         );
         let resolution_error = self.resolution.end();
-        snapshot
+        let snapshot = snapshot
             .map_err(|error| error.to_string())
             .and_then(|snapshot| resolution_error.map_or(Ok(snapshot), Err))
             .map(Arc::new)
-            .map_err(client_error)
+            .map_err(client_error)?;
+        if let Some(project_session) = &self.project_session {
+            project_session.try_adopt_snapshot_in_background(base, &snapshot);
+        }
+        Ok(snapshot)
     }
 
     /// tsgo `handleGetDefaultProjectForFile`: the file's default project, or
@@ -1847,23 +1944,83 @@ impl Session {
             .ok_or_else(|| client_error(format!("snapshot {handle} not found")))
     }
 
-    /// tsgo `registerSnapshot`.
+    /// tsgo `registerSnapshot`: a snapshot handed out again (the language
+    /// server's, unchanged) counts once more.
     fn register_snapshot(
         &self,
-        snapshot: Snapshot,
+        snapshot: Arc<Snapshot>,
         open: OpenState,
         file_system: Option<Arc<RequestFileSystem>>,
     ) {
-        self.lock_snapshots().insert(
-            snapshot.id(),
-            SnapshotData {
-                snapshot: Arc::new(snapshot),
+        self.lock_snapshots()
+            .entry(snapshot.id())
+            .and_modify(|data| data.ref_count += 1)
+            .or_insert_with(|| SnapshotData {
+                snapshot,
                 ref_count: 1,
                 open,
                 file_system,
                 registry: Arc::default(),
-            },
-        );
+            });
+    }
+
+    /// tsgo `handleGetCurrentLanguageServerSnapshot`: the language server's
+    /// snapshot with the client's changes adopted into it; the projects and
+    /// files the session opens stay open in the server's state until it
+    /// closes them or ends, and only the programs it created can it change.
+    fn handle_get_current_language_server_snapshot(
+        &self,
+        params: &GetCurrentLanguageServerSnapshotParams,
+    ) -> Result<CreateSnapshotResponse, String> {
+        let Some(project_session) = &self.project_session else {
+            return Err(client_error(
+                "getCurrentLanguageServerSnapshot requires an LSP-connected API session",
+            ));
+        };
+        let base = match params.base_snapshot {
+            0 => None,
+            handle => Some(self.snapshot(handle)?),
+        };
+        let mut state = lock(&self.language_server);
+        let changes = params.changes.clone().unwrap_or_default();
+        // tsgo `toLanguageServerSnapshotUpdate`.
+        let mut request = self.to_api_snapshot_request(&changes)?;
+        let open = self.reconcile_snapshot_opens(&mut request, state.open.clone());
+        request
+            .remove_programs
+            .retain(|id| state.created_programs.contains(id));
+        if let Some(program) = request
+            .reconfigure_programs
+            .iter()
+            .find(|program| !state.created_programs.contains(&program.program_id))
+        {
+            return Err(client_error(format!(
+                "synthetic program is not owned by this API session: {}",
+                program.program_id
+            )));
+        }
+        self.begin_snapshot(None);
+        let snapshot = project_session.api_update(&request);
+        let resolution_error = self.resolution.end();
+        let snapshot = snapshot
+            .map_err(|error| error.to_string())
+            .and_then(|snapshot| resolution_error.map_or(Ok(snapshot), Err))
+            .map_err(|error| {
+                client_error(format!(
+                    "failed to update language server snapshot: {error}"
+                ))
+            })?;
+        // tsgo `languageServerSnapshotUpdate.commit`.
+        state.open = open;
+        for id in &request.remove_programs {
+            state.created_programs.remove(id);
+        }
+        state
+            .created_programs
+            .extend(snapshot.created_programs().iter().cloned());
+        let response = self.create_snapshot_response(&snapshot, base.as_deref(), &changes)?;
+        self.register_snapshot(snapshot, state.open.clone(), None);
+        Ok(response)
     }
 
     fn absolute_file_name(&self, document: &DocumentIdentifier) -> Result<String, String> {
@@ -2241,6 +2398,10 @@ impl Handler for Session {
     fn handle_notification(&self, _method: &str, _params: &[u8]) {}
 }
 
+fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
 /// tsgo `unmarshallerFor`: the parameters (their zero value for `null`), or
 /// the request's error.
 pub(crate) fn parse<T: DeserializeOwned + Default>(
@@ -2318,7 +2479,7 @@ fn read_through(
 ) -> FileChangeSummary {
     match file_system {
         Some(file_system) => {
-            request.file_system = Some(Arc::clone(file_system) as Arc<dyn FileSystem>);
+            request.file_system = Some(Arc::clone(file_system) as Arc<dyn RebasableFileSystem>);
             file_system.expand_file_changes(file_changes)
         }
         None => file_changes,

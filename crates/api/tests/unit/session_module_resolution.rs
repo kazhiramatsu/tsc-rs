@@ -1,7 +1,7 @@
-//! tsgo `session_module_resolution_test.go` (the standalone cases) and the
-//! TypeScript client's module resolver tests: a client's module resolvers,
-//! their static resolutions and callbacks, for `resolveModuleName` and for
-//! the programs of a snapshot.
+//! tsgo `session_module_resolution_test.go` and the TypeScript client's
+//! module resolver tests: a client's module resolvers, their static
+//! resolutions and callbacks, for `resolveModuleName` and for the programs
+//! of a snapshot.
 
 use std::collections::VecDeque;
 use std::sync::Mutex;
@@ -380,7 +380,11 @@ fn session_with_client(
     files: &[(&str, &str)],
     answers: Vec<Message>,
 ) -> (Arc<Session>, Arc<Conn>, Calls) {
-    let (session, _) = session(files);
+    with_client(session(files).0, answers)
+}
+
+/// `session` with a client that answers its calls with `answers`.
+fn with_client(session: Session, answers: Vec<Message>) -> (Arc<Session>, Arc<Conn>, Calls) {
     let session = Arc::new(session);
     let calls = Arc::default();
     let conn = Arc::new(Conn::new(
@@ -495,6 +499,40 @@ fn a_callback_answers_or_fails_the_resolution() {
         r#"api: client error: failed to create snapshot: resolveModuleName callback failed: ipc: remote error [-32603]: callback error"#
     );
     assert_eq!(calls.lock().unwrap().len(), 5);
+}
+
+#[test]
+fn a_failed_callback_rejects_the_language_servers_update() {
+    // TestModuleResolutionCallbackErrorRejectsLanguageServerUpdate.
+    let (project_session, _) =
+        super::language_server::project_session(&[("/src/index.ts", r#"import "pkg";"#)]);
+    let (session, _conn, _calls) = with_client(
+        Session::new_lsp(&project_session, false),
+        vec![failure("resolveModuleName/1", "callback error")],
+    );
+    let id = resolver(
+        &session,
+        json!({ "compilerOptions": program_options(), "resolveModuleNameCallback": "resolveModuleName/1" }),
+    );
+    let base = project_session.snapshot();
+    let error = super::language_server::current(
+        &session,
+        json!({ "changes": { "createPrograms": [{
+            "rootFiles": ["/src/index.ts"],
+            "compilerOptions": program_options(),
+            "options": { "moduleResolver": id },
+        }] } }),
+    )
+    .unwrap_err();
+    assert!(error.contains("callback error"), "{error}");
+    assert!(session.resolution.in_flight().is_none());
+    assert!(Arc::ptr_eq(&project_session.snapshot(), &base));
+    assert!(project_session
+        .snapshot()
+        .projects()
+        .all(|project| project.kind() != ProjectKind::Synthetic));
+    session.close();
+    project_session.close();
 }
 
 #[test]
