@@ -222,15 +222,20 @@ impl OverlayFs {
         Arc::clone(&self.overlays)
     }
 
-    /// tsgo `overlayFS.DirectoryExists`: a directory of an open document or
-    /// of the host.
-    pub(crate) fn directory_exists(&self, file_name: &str) -> bool {
+    /// tsgo `overlayFS` as a file system: the open documents over the
+    /// host's.
+    pub(crate) fn layer(&self) -> OverlayLayer {
         OverlayLayer::new(
             Arc::clone(&self.host),
             self.paths.clone(),
             Arc::clone(&self.overlays),
         )
-        .is_dir(file_name)
+    }
+
+    /// tsgo `overlayFS.DirectoryExists`: a directory of an open document or
+    /// of the host.
+    pub(crate) fn directory_exists(&self, file_name: &str) -> bool {
+        self.layer().is_dir(file_name)
     }
 
     /// tsgo `processChanges`: the batch's notifications applied, each

@@ -92,7 +92,11 @@ pub fn run_server(options: &ServerOptions) -> Result<(), String> {
         !options.async_protocol,
     ));
     let (reader, writer) = match &options.pipe_path {
-        Some(path) => accept_pipe(path)?,
+        Some(path) => PipeTransport::new(path)
+            .map_err(|error| format!("failed to create pipe transport: {error}"))?
+            .accept()
+            .and_then(|connection| connection.streams())
+            .map_err(|error| format!("failed to accept connection: {error}"))?,
         None => (
             Box::new(io::stdin()) as Box<dyn Read + Send>,
             Box::new(io::stdout()) as Box<dyn Write + Send>,
@@ -129,29 +133,154 @@ pub fn run_server(options: &ServerOptions) -> Result<(), String> {
 
 type Streams = (Box<dyn Read + Send>, Box<dyn Write + Send>);
 
-/// tsgo `PipeTransport`: the first client of a Unix domain socket, a file
-/// at `path` replaced.
+/// tsgo `PipeTransport`: a Unix domain socket the clients connect to, a file
+/// at its path replaced.
 #[cfg(unix)]
-fn accept_pipe(path: &str) -> Result<Streams, String> {
-    let _ = std::fs::remove_file(path);
-    let listener = std::os::unix::net::UnixListener::bind(path)
-        .map_err(|error| format!("failed to create pipe transport: {error}"))?;
-    let (stream, _) = listener
-        .accept()
-        .map_err(|error| format!("failed to accept connection: {error}"))?;
-    let reader = stream
-        .try_clone()
-        .map_err(|error| format!("failed to accept connection: {error}"))?;
-    Ok((Box::new(reader), Box::new(stream)))
+pub struct PipeTransport {
+    listener: std::os::unix::net::UnixListener,
+    closer: PipeCloser,
+}
+
+/// What closes a [`PipeTransport`] from another thread (tsgo `Close`): an
+/// accept waiting for a client ends with an error, as Go's listener's.
+#[derive(Clone)]
+pub struct PipeCloser {
+    path: String,
+    closed: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl PipeCloser {
+    pub fn close(&self) {
+        if !self.closed.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            // The waiting accept takes this connection and sees the close.
+            #[cfg(unix)]
+            let _ = std::os::unix::net::UnixStream::connect(&self.path);
+        }
+    }
+}
+
+/// A client's connection through a [`PipeTransport`].
+#[cfg(unix)]
+pub struct PipeConnection {
+    stream: std::os::unix::net::UnixStream,
+}
+
+#[cfg(unix)]
+impl PipeTransport {
+    /// tsgo `NewPipeTransport`.
+    pub fn new(path: &str) -> io::Result<Self> {
+        let _ = std::fs::remove_file(path);
+        Ok(Self {
+            listener: std::os::unix::net::UnixListener::bind(path)?,
+            closer: PipeCloser {
+                path: path.to_owned(),
+                closed: Arc::default(),
+            },
+        })
+    }
+
+    /// tsgo `Accept`: the next client.
+    pub fn accept(&self) -> io::Result<PipeConnection> {
+        let (stream, _) = self.listener.accept()?;
+        if self.closer.closed.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(io::Error::other("use of closed network connection"));
+        }
+        Ok(PipeConnection { stream })
+    }
+
+    pub fn closer(&self) -> PipeCloser {
+        self.closer.clone()
+    }
+
+    /// tsgo `Close`: Go's listener removes its socket when it closes.
+    pub fn close(self) {
+        self.closer
+            .closed
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        let _ = std::fs::remove_file(&self.closer.path);
+    }
+}
+
+#[cfg(unix)]
+impl PipeConnection {
+    /// The streams a protocol reads and writes.
+    pub fn streams(&self) -> io::Result<Streams> {
+        let reader = self.stream.try_clone()?;
+        let writer = self.stream.try_clone()?;
+        Ok((Box::new(reader), Box::new(writer)))
+    }
+
+    /// tsgo `Close` of the connection: its reads end.
+    pub fn close(&self) {
+        let _ = self.stream.shutdown(std::net::Shutdown::Both);
+    }
+}
+
+/// tsgo `ipc.GeneratePipePath`: the pipe of `name` in the temporary
+/// directory (a named pipe on Windows).
+pub fn generate_pipe_path(name: &str) -> String {
+    if cfg!(windows) {
+        return format!(r"\\.\pipe\{name}");
+    }
+    std::env::temp_dir()
+        .join(name)
+        .to_string_lossy()
+        .into_owned()
+}
+
+/// tsgo's API connection of a language server's session
+/// (`ipc.NewAsyncConn`): JSON-RPC over the client's connection, which the
+/// session's callbacks go through, until it ends.
+pub fn run_async_connection(
+    session: &Arc<Session>,
+    connection: &PipeConnection,
+) -> Result<(), String> {
+    let (reader, writer) = connection.streams().map_err(|error| error.to_string())?;
+    let conn = Arc::new(Conn::new(
+        Box::new(JsonRpcProtocol::new(reader, writer)),
+        Arc::clone(session) as Arc<dyn crate::ipc::Handler>,
+        Mode::Async,
+    ));
+    session.set_connection(&conn);
+    conn.run().map_err(|error| error.to_string())
 }
 
 /// Windows named pipes are not ported yet.
 #[cfg(not(unix))]
-fn accept_pipe(_path: &str) -> Result<Streams, String> {
-    Err(
-        "failed to create pipe transport: named pipes are not supported on this platform yet"
-            .to_owned(),
-    )
+pub struct PipeTransport(std::convert::Infallible);
+
+#[cfg(not(unix))]
+pub struct PipeConnection(std::convert::Infallible);
+
+#[cfg(not(unix))]
+impl PipeTransport {
+    pub fn new(_path: &str) -> io::Result<Self> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "named pipes are not supported on this platform yet",
+        ))
+    }
+
+    pub fn accept(&self) -> io::Result<PipeConnection> {
+        match self.0 {}
+    }
+
+    pub fn closer(&self) -> PipeCloser {
+        match self.0 {}
+    }
+
+    pub fn close(self) {}
+}
+
+#[cfg(not(unix))]
+impl PipeConnection {
+    pub fn streams(&self) -> io::Result<Streams> {
+        match self.0 {}
+    }
+
+    pub fn close(&self) {
+        match self.0 {}
+    }
 }
 
 /// tsgo `runAPI`: the API server's command line (`tsc-rs --api ...`) and

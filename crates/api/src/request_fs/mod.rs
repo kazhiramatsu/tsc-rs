@@ -14,7 +14,7 @@ use std::time::SystemTime;
 
 use serde::Deserialize;
 use tsc_host::vfs::{DirEntry, Entries, FileSystem, FileType, Metadata};
-use tsc_project::FileChangeSummary;
+use tsc_project::{FileChangeSummary, RebasableFileSystem};
 
 use path_tree::{
     compose, merge_entries, path_contains, Entry, Fallback, PathNode, RequestDirectory,
@@ -657,6 +657,23 @@ fn add_file_changes(
     // tsgo counts the layer's changes as changes outside node_modules.
     if !(summary.changed.is_empty() && summary.created.is_empty() && summary.deleted.is_empty()) {
         summary.includes_watch_change_outside_node_modules = true;
+    }
+}
+
+impl RebasableFileSystem for RequestFileSystem {
+    fn with_base_file_system(&self, base: Arc<dyn FileSystem>) -> Arc<dyn RebasableFileSystem> {
+        Arc::new(RequestFileSystem {
+            kind: self.kind,
+            base,
+            current_directory: self.current_directory.clone(),
+            case_sensitive: self.case_sensitive,
+            paths: Arc::clone(&self.paths),
+        })
+    }
+
+    fn shows_base_file(&self, file_name: &str) -> bool {
+        let lookup = self.lookup_path(file_name);
+        lookup.base && self.to_path(&lookup.path) == self.to_path(file_name)
     }
 }
 

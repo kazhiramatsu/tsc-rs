@@ -287,6 +287,17 @@ pub struct SnapshotRequestChanges {
     pub ensure_programs: Option<EnsurePrograms>,
 }
 
+/// tsgo `GetCurrentLanguageServerSnapshotParams` (its
+/// `LanguageServerSnapshotChanges` are the request's changes).
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetCurrentLanguageServerSnapshotParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub base_snapshot: SnapshotId,
+    #[serde(default)]
+    pub changes: Option<SnapshotRequestChanges>,
+}
+
 /// tsgo `CreateSnapshotParams`.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
