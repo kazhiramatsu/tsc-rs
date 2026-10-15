@@ -99,7 +99,7 @@ restarts a mapper whose package changes.
   all 9,067 DefinitelyTyped packages, all 2,756 azure-sdk-for-js
   configurations and all 38 material-ui projects (October 2026, one
   checker).
-- **Language server:** in 4,534 of the 4,584 sessions of TypeScript 7.1's
+- **Language server:** in 4,537 of the 4,584 sessions of TypeScript 7.1's
   language server tests, tsc-rs answers exactly as `tsgo` does (October 15,
   2026).
 - **TypeScript 7 rules:** the default `target` is ES2026, and the options
