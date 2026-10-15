@@ -611,6 +611,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "tsc-rs-api",
  "tsc-rs-compiler",
  "tsc-rs-diagnostics",
  "tsc-rs-harness",
