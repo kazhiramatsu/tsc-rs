@@ -1400,3 +1400,23 @@ project の test を移して固定する。
    （FSEvents・inotify・fanotify・kqueue・Windows）。
 5. **profile の `custom/*`**（runGC・save*Profile・start/stopCPUProfile）：Go の runtime の機能なので、tsc-rs での扱いは
    利用者に確かめる。
+
+## L11a 進捗表示・project 情報・telemetry（#816）
+
+- **merge**：#816 → `864a30cb7`（hosted run 38732142217：rust 10m44s、conformance 31m35s、gates）。commit：3781a23c4
+  （lsp・project）。検査の後の main の取り込みは L10d の merge（同じ code）、packet の README と README だけ。
+- **進捗**：tsgo `projectLoadingProgress`（`lsp/progress.go`）。project の読み込みが遅延（`tsc-rs --lsp` で 250 ms、
+  `cmd/tsc/lsp.go` と同じ）を超えた時だけ `window/workDoneProgress/create` と `$/progress`（begin・report・end）、実行中の
+  操作を report、最後の操作で end。work done progress を受ける client だけ。tsgo の goroutine と timer は state machine
+  の上の thread。build が報告する（`updateProgram` の `Project '{0}'`、project の `DisplayName`）。
+- **`custom/projectInfo`**：文書の既定の project の config（inferred は空）。
+- **telemetry**：tsgo `sendProjectInfoTelemetryForNewProjects`／`collectProjectInfoTelemetry`。`enableTelemetry` の時、
+  新しい project ごとに一度、種類・config・compiler options（boolean はそのまま、列挙は名前）・file の数と大きさ。
+- **test**：tsgo `TestProgress` の各場面（`synctest` の偽の時刻は state の明示の段階に）、
+  `TestProgressNotificationsEndToEnd`、`TestInitializeCodeActionKinds`、`TestProjectInfoConfiguredProject`・
+  `TestProjectInfoInferredProject`、project 情報の 2 件（tsgo に test なし、`collectProjectInfoTelemetry` から固定）。
+- **検査（3781a23c4）**：compiler の経路の変更なし（conformance は回さず）、suites 0 regressions（行の変化なし、lsp
+  4,583）、test 全通過（lsp 33・project 199・api 305 ほか）、API client sync 356/356・async 365/365、clippy、fmt。
+- **有界の違い**：Go runtime 固有の部分（5 分ごとの性能 telemetry、要求失敗の telemetry の Go の stack、`IsActive`、
+  profile の command `custom/runGC`・`save*Profile`・`start/stopCPUProfile`）は利用者の判断待ち（2026-10-15 に
+  pprof の移植可能性を説明：CPU profile は pprof-rs で現実的、heap・alloc は allocator の作り替えが要る）。
