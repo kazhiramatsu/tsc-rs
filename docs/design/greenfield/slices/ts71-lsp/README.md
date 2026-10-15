@@ -1307,3 +1307,21 @@ tsc-rs の span map は compiler の UTF-16 なので、LS には UTF-8（tsgo �
   `--checkers 4` は既知の 4 件だけ、suites 0 regressions（lsp 24 行 none → full、**4,537 → 4,561**）、test（diagnostics 84・
   harness 31 を含め全通過）、API client sync 356/356・async 365/365、clippy、fmt。
 - **README**：Status の language server の数（4,561）と、language server の節（content mapper の file は一部）。
+
+## L10b content mapper の LS の移動（#813）
+
+- **merge**：#813 → `3a5f725a6`（hosted run 38714441602：rust 13m40s、conformance 24m15s、gates）。commit：0b2ef8a43
+  （language service）、b2ae9cbf1（ratchet）。検査の後の main の取り込みは L10a の merge（同じ code）、packet の README と
+  README だけ。
+- **移動**：`ProvideDefinition`・`ProvideTypeDefinition`・`ProvideSourceDefinition` は single segment の projection を全て
+  合わせる。`createDefinitionLocations` は名前が feature の一つの segment に写らない移動先を落とし、文脈が写らなければ
+  名前の範囲（`sourceFileRangeToLSPLocationForFeature`）。switch の定義は写らなければ file のもの。
+- **references・implementation・VS references**：feature の一つの segment に写らない entry と定義を落とす
+  （`getLocationOfEntryForFeature`）。link の文脈は写る時だけ。supplemental の出力の entry は元の file に。
+- **document highlight**：single segment の projection を全て合わせ、元の file ごとにまとめる。highlight は写る時だけ。
+- **signature help**：help のある最初の single segment の projection。
+- **`{@link}`**：tsgo `documentationLocationMapper`。宣言が request の feature（hover・signature help）の一つの segment に
+  写る時だけ markdown の link、他は text。API の documentation はどこにも写さない（`noMappedLocation`）。
+- **検査（b2ae9cbf1）**：compiler の経路の変更なし（conformance は走らせない）、suites 0 regressions（lsp 8 行 none → full、
+  **4,561 → 4,569**）、test 全通過、API client sync 356/356・async 365/365、clippy、fmt。
+- **README**：Status の language server の数（4,569）と、content mapper の file で使える機能。
