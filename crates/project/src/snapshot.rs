@@ -125,6 +125,19 @@ pub struct ReconfigureProgramRequest {
     pub program: CreateProgramRequest,
 }
 
+/// tsgo `RebasableFileSystem`: an API request's file system, which goes
+/// over the open documents (rebased onto them) and hides those its files,
+/// removals and links replace.
+pub trait RebasableFileSystem: FileSystem {
+    /// tsgo `WithBaseFileSystem`: the same file system over `base`.
+    fn with_base_file_system(&self, base: Arc<dyn FileSystem>) -> Arc<dyn RebasableFileSystem>;
+
+    /// tsgo's `Overlays` of the rebased file system: whether a document at
+    /// `file_name` stays visible (a read of it reaches the base at its own
+    /// path).
+    fn shows_base_file(&self, file_name: &str) -> bool;
+}
+
 /// What an API request asks of a snapshot update (tsgo
 /// `APISnapshotRequest`).
 #[derive(Clone, Default)]
@@ -151,7 +164,7 @@ pub struct ApiSnapshotRequest {
     pub ensure_files: BTreeSet<String>,
     /// A file system that replaces the host's for this snapshot and its
     /// updates (tsgo's request file system).
-    pub file_system: Option<Arc<dyn FileSystem>>,
+    pub file_system: Option<Arc<dyn RebasableFileSystem>>,
     /// The file system replaces everything read before.
     pub replace_file_system: bool,
     /// The language service's preferences from now on (tsgo
@@ -195,6 +208,9 @@ pub struct SnapshotChange<'a> {
     /// tsgo `contentMapperContributions`: the editor's mappers for inferred
     /// projects, when they changed.
     pub content_mapper_contributions: Option<ContentMapperContributions>,
+    /// tsgo `CloneSnapshotWithAutoImports`: the snapshot reads the base's
+    /// file system (an API request's stays).
+    pub base_file_system: bool,
 }
 
 /// tsgo `ContentMapperContributions`: the content mappers an editor's
@@ -482,7 +498,9 @@ pub struct Snapshot {
     /// tsgo `compilerOptionsForInferredProjects`: the options a new inferred
     /// project takes, its defaults when none.
     compiler_options_for_inferred_projects: Option<Arc<ConfigOptionBag>>,
-    file_system_override: bool,
+    /// tsgo `fileSystemOverride` and `fs.fs`: the API request's file
+    /// system the snapshot reads, over its open documents.
+    request_file_system: Option<Arc<dyn RebasableFileSystem>>,
     created_programs: Vec<ProjectId>,
     /// tsgo `AutoImports`: the auto-import registry.
     auto_imports: Arc<Registry>,
@@ -746,7 +764,7 @@ impl Snapshot {
 
     /// Whether the snapshot reads an API request's file system.
     pub fn has_file_system_override(&self) -> bool {
-        self.file_system_override
+        self.request_file_system.is_some()
     }
 
     /// tsgo `LSPLineMap`: the protocol line starts of a file the snapshot
@@ -889,6 +907,11 @@ impl SnapshotHost {
         }
     }
 
+    /// tsgo `FS`: the host's file system.
+    pub fn fs(&self) -> &Arc<dyn FileSystem> {
+        &self.fs
+    }
+
     pub fn options(&self) -> &SessionOptions {
         &self.options
     }
@@ -908,7 +931,7 @@ impl SnapshotHost {
             configs: ConfigFileRegistry::default(),
             user_preferences: UserPreferences::new_default(),
             compiler_options_for_inferred_projects: None,
-            file_system_override: false,
+            request_file_system: None,
             created_programs: Vec::new(),
             auto_imports: Arc::new(Registry::new(UserPreferences::new_default())),
             inferred_project_content_mappers: ContentMapperContributions::default(),
@@ -937,6 +960,7 @@ impl SnapshotHost {
             projects: requested_projects,
             project_tree,
             content_mapper_contributions,
+            base_file_system,
         } = change;
         let inferred_project_content_mappers = content_mapper_contributions
             .clone()
@@ -950,26 +974,47 @@ impl SnapshotHost {
         // (tsgo releases a program's files when its snapshot goes).
         self.documents.purge();
         self.content_mapped_cache.purge();
-        let file_system = request.and_then(|request| request.file_system.clone());
-        let file_system_override = file_system.is_some();
+        let request_file_system = match request {
+            Some(request) => request.file_system.clone(),
+            None if base_file_system => base.request_file_system.clone(),
+            None => None,
+        };
         // A total replacement, and a return from a request's file system to
         // the host's, keep nothing read before.
         if request.is_some_and(|request| request.replace_file_system)
-            || (base.file_system_override && !file_system_override)
+            || (base.request_file_system.is_some() && request_file_system.is_none())
         {
             file_changes.invalidate_all = true;
         }
-        // tsgo `layerOverlayFileSystem`: the open documents over the
-        // snapshot's file system.
-        let file_system = file_system.unwrap_or_else(|| Arc::clone(&self.fs));
-        let file_system: Arc<dyn FileSystem> = if overlays.is_empty() {
-            file_system
+        // tsgo `layerOverlayFileSystem`: the open documents over the host's
+        // file system, and a request's file system rebased over them (its
+        // base, the host's or the editor's documents over it, unwrapped to
+        // the host's), whose files, removals and links hide the documents
+        // they replace.
+        let documents_over_host: Arc<dyn FileSystem> = if overlays.is_empty() {
+            Arc::clone(&self.fs)
         } else {
             Arc::new(OverlayLayer::new(
-                file_system,
+                Arc::clone(&self.fs),
                 self.paths.clone(),
                 Arc::clone(&overlays),
             ))
+        };
+        let (file_system, request_file_system, overlays) = match request_file_system {
+            Some(request_file_system) => {
+                let rebased = request_file_system.with_base_file_system(documents_over_host);
+                let visible = overlays
+                    .iter()
+                    .filter(|(_, overlay)| rebased.shows_base_file(overlay.file_name()))
+                    .map(|(path, overlay)| (path.clone(), Arc::clone(overlay)))
+                    .collect::<BTreeMap<_, _>>();
+                (
+                    Arc::clone(&rebased) as Arc<dyn FileSystem>,
+                    Some(rebased),
+                    Arc::new(visible),
+                )
+            }
+            None => (documents_over_host, None, overlays),
         };
         let fs = SnapshotFsBuilder::new(
             file_system,
@@ -1120,7 +1165,7 @@ impl SnapshotHost {
             configs,
             user_preferences: new_config.unwrap_or_else(|| base.user_preferences.clone()),
             compiler_options_for_inferred_projects,
-            file_system_override,
+            request_file_system,
             created_programs,
             auto_imports,
             inferred_project_content_mappers,
