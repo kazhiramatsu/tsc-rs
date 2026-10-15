@@ -19,6 +19,7 @@ use tsc_lsproto::{
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{ModifierFlags, SymbolId};
 
+use crate::cross_project::SearchPosition;
 use crate::language_service::{LanguageService, LsError};
 use crate::request::Request;
 use crate::utilities::{touching, Touching};
@@ -125,54 +126,62 @@ pub(crate) struct SymbolAndEntriesData {
 }
 
 impl LanguageService<'_> {
-    /// tsgo `ProvideReferences` (one project; the other projects of the
-    /// orchestrator come with L7e).
+    /// tsgo `ProvideReferences` of one project (no orchestrator; the
+    /// server's search across projects goes through
+    /// [`Self::search_references`]).
     pub fn provide_references(
         &mut self,
         params: &ReferenceParams,
     ) -> Result<ReferencesResponse, LsError> {
-        let file = self.file(&params.text_document.uri);
-        let include_declaration = params.context.include_declaration;
-        let result = self.with_request(file, &params.position, false, |request, position| {
-            let data = request.provide_symbols_and_entries(file, position, false, false)?;
-            Ok(request.symbol_and_entries_to_references(data.as_ref(), include_declaration))
-        })?;
-        Ok(result.unwrap_or(ReferencesResponse::Locations(Vec::new())))
+        let search = self.search_references(
+            &params.text_document.uri,
+            &SearchPosition::Lsp(params.position.clone()),
+            params.context.include_declaration,
+            false,
+        )?;
+        Ok(
+            search.map_or(ReferencesResponse::Locations(Vec::new()), |search| {
+                search.response
+            }),
+        )
     }
 
-    /// tsgo `ProvideImplementations` (one project).
+    /// tsgo `ProvideImplementations` of one project.
     pub fn provide_implementations(
         &mut self,
         params: &ImplementationParams,
     ) -> Result<ImplementationResponse, LsError> {
-        let file = self.file(&params.text_document.uri);
-        let links = self.capabilities.text_document.implementation.link_support;
-        let result = self.with_request(file, &params.position, links, |request, position| {
-            let data = request.provide_symbols_and_entries(file, position, false, true)?;
-            Ok(request.symbol_and_entries_to_implementations(data.as_ref(), links, None))
-        })?;
-        Ok(result.unwrap_or(ImplementationResponse::Locations(Vec::new())))
+        let search = self.search_implementations(
+            &params.text_document.uri,
+            &SearchPosition::Lsp(params.position.clone()),
+            false,
+            false,
+        )?;
+        Ok(
+            search.map_or(ImplementationResponse::Locations(Vec::new()), |search| {
+                search.response
+            }),
+        )
     }
 
-    /// tsgo `ProvideVSReferences` (one project).
+    /// tsgo `ProvideVSReferences` of one project.
     pub fn provide_vs_references(
         &mut self,
         params: &ReferenceParams,
     ) -> Result<VSReferencesResponse, LsError> {
-        let file = self.file(&params.text_document.uri);
-        let vs_capability = self.capabilities._vs_supports_visual_studio_extensions;
-        let result = self.with_request(file, &params.position, false, |request, position| {
-            let data = request.provide_symbols_and_entries(file, position, false, false)?;
-            request.symbol_and_entries_to_vs_references(data.as_ref(), vs_capability)
-        })?;
-        Ok(result.unwrap_or(VSReferencesResponse::VSReferenceItems(Vec::new())))
+        let search =
+            self.search_vs_references(&params.text_document.uri, &params.position, false)?;
+        Ok(search.map_or(
+            VSReferencesResponse::VSReferenceItems(Vec::new()),
+            |search| search.response,
+        ))
     }
 }
 
 impl Request<'_, '_> {
     /// tsgo `symbolAndEntriesToVSReferences`: each definition, then its
     /// references other than its declarations, read or written.
-    fn symbol_and_entries_to_vs_references(
+    pub(crate) fn symbol_and_entries_to_vs_references(
         &mut self,
         data: Option<&SymbolAndEntriesData>,
         vs_capability: bool,
@@ -601,22 +610,12 @@ impl Request<'_, '_> {
                 }
             }
         }
-        // tsgo `combineImplementations` (the server's cross-project search)
-        // keeps each location once.
-        let mut seen_locations: HashSet<LocationKey> = HashSet::new();
         if links {
-            let mut links = self.convert_entries_to_location_links(&entries);
-            links.retain(|link| {
-                seen_locations.insert(LocationKey::of(&Location {
-                    uri: link.target_uri.clone(),
-                    range: link.target_selection_range.clone(),
-                }))
-            });
-            return ImplementationResponse::DefinitionLinks(links);
+            return ImplementationResponse::DefinitionLinks(
+                self.convert_entries_to_location_links(&entries),
+            );
         }
-        let mut locations = self.convert_entries_to_locations(&entries);
-        locations.retain(|location| seen_locations.insert(LocationKey::of(location)));
-        ImplementationResponse::Locations(locations)
+        ImplementationResponse::Locations(self.convert_entries_to_locations(&entries))
     }
 
     /// tsgo `node.Loc.ContainsInclusive(position)`: the node's range, its

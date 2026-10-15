@@ -296,6 +296,12 @@ impl CheckerState<'_> {
         crate::node_builder::specifier::try_get_module_specifier_from_declaration(self, declaration)
     }
 
+    /// tsgo `EmitResolver.IsDeclarationVisible`: whether declaration emit
+    /// would write the declaration.
+    pub fn is_declaration_visible(&mut self, declaration: NodeId) -> CheckResult<bool> {
+        self.emit_is_declaration_visible(declaration)
+    }
+
     /// tsgo `GetPropertySymbolOfDestructuringAssignment` (services.go:1069-1077):
     /// the property of the destructured type a destructuring assignment's
     /// name stands for.

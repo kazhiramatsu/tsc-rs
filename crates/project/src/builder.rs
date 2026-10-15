@@ -14,7 +14,8 @@ use tsc_host::vfs::VfsCompilerHost;
 use tsc_program::{
     load_emitting_program, load_program, load_project_config_program,
     resolve_config_file_name_of_project_reference, resolve_project_references_with, CanonicalPath,
-    ConfigOptionBag, ConfigRootPlan, ContentMapperProjectHandle,
+    ConfigOptionBag, ConfigRootPlan, ContentMapperProjectHandle, ResolvedProjectReference,
+    ResolvedProjectReferences,
 };
 
 use crate::config::{ConfigFileRegistry, ConfigFileRegistryBuilder};
@@ -26,7 +27,7 @@ use crate::project::{
 };
 use crate::snapshot::{
     ApiSnapshotRequest, ApiState, CreateProgramRequest, OpenedFile, ProjectCollection,
-    ProjectError, SnapshotHost,
+    ProjectError, ProjectTreeRequest, SnapshotHost,
 };
 use crate::watch::{
     path_globs, resolution_lookup_globs, ContentMapperWatch, WatchedFiles, WATCH_ALL,
@@ -1645,18 +1646,30 @@ impl<'a> ProjectCollectionBuilder<'a> {
         }
     }
 
-    /// tsgo `DidRequestProjectTrees` for every project: each configured
-    /// project's program brought up to date with the projects it
+    /// tsgo `DidRequestProject`: the project's program brought up to date.
+    pub(crate) fn did_request_project(&mut self, id: &ProjectId) -> Result<(), ProjectError> {
+        self.update_program(id)?;
+        Ok(())
+    }
+
+    /// tsgo `DidRequestProjectTrees`: each configured project's program
+    /// brought up to date (for a request of some projects' trees, only a
+    /// project that may reference one of them) with the projects it
     /// references, then the inferred project's (the configured projects may
     /// have taken or left its files).
-    pub(crate) fn did_request_project_trees(&mut self) -> Result<(), ProjectError> {
+    pub(crate) fn did_request_project_trees(
+        &mut self,
+        request: &ProjectTreeRequest,
+    ) -> Result<(), ProjectError> {
         let mut seen = BTreeSet::new();
         for id in self.configured.keys().cloned().collect::<Vec<_>>() {
-            if !self.configured.contains_key(&id) {
+            let Some(project) = self.configured.get(&id) else {
                 continue;
+            };
+            if request.is_all_projects() || self.has_potential_project_reference(project, request) {
+                self.update_program(&id)?;
             }
-            self.update_program(&id)?;
-            self.ensure_project_tree(&id, &mut seen)?;
+            self.ensure_project_tree(&id, request, &mut seen)?;
         }
         self.cleanup_inferred_project()?;
         if self.inferred.is_some() {
@@ -1665,13 +1678,38 @@ impl<'a> ProjectCollectionBuilder<'a> {
         Ok(())
     }
 
+    /// tsgo `hasPotentialProjectReference`: whether the project's config
+    /// references one of the requested projects (before its config is
+    /// parsed, whether a config it may reference is one).
+    fn has_potential_project_reference(
+        &self,
+        project: &Project,
+        request: &ProjectTreeRequest,
+    ) -> bool {
+        if let Some(command_line) = &project.command_line {
+            let paths = self.host.paths();
+            return command_line.project_references().iter().any(|reference| {
+                let name = resolve_config_file_name_of_project_reference(reference.path.as_js())
+                    .to_string_lossy()
+                    .into_owned();
+                request.is_project_referenced(&paths.to_path(&name))
+            });
+        }
+        project
+            .potential_project_references
+            .as_ref()
+            .is_some_and(|paths| paths.iter().any(|path| request.is_project_referenced(path)))
+    }
+
     /// tsgo `ensureProjectTree`: the projects of the configs a project's
     /// program references, loaded and brought up to date, down the
     /// references (none below a project that disables referenced project
-    /// loads).
+    /// loads); for a request of some projects' trees, only a referenced
+    /// project that references one of them, directly or below.
     fn ensure_project_tree(
         &mut self,
         id: &ProjectId,
+        request: &ProjectTreeRequest,
         seen: &mut BTreeSet<ProjectId>,
     ) -> Result<(), ProjectError> {
         if !seen.insert(id.clone()) {
@@ -1688,16 +1726,59 @@ impl<'a> ProjectCollectionBuilder<'a> {
         }) {
             return Ok(());
         }
-        for path in program.references() {
-            let Some(config) = self.configs.find_config(path) else {
+        let Some(references) = program
+            .prepared()
+            .program_options()
+            .project_references()
+            .cloned()
+        else {
+            return Ok(());
+        };
+        for entry in references.root_references() {
+            let Some(child) = entry.project() else {
                 continue;
             };
-            let file_name = config.config_file_name().to_string_lossy().into_owned();
-            let child = self.find_or_create_configured_project(&file_name, path);
+            if !request.is_all_projects()
+                && !self.references_requested_project(&references, child, request)
+            {
+                continue;
+            }
+            let file_name = child.config_file_name().to_string_lossy().into_owned();
+            let path = self.host.paths().to_path(&file_name);
+            let child = self.find_or_create_configured_project(&file_name, &path);
             self.update_program(&child)?;
-            self.ensure_project_tree(&child, seen)?;
+            self.ensure_project_tree(&child, request, seen)?;
         }
         Ok(())
+    }
+
+    /// tsgo `RangeResolvedProjectReferenceInChildConfig` asking for a
+    /// requested project: whether a config the child project references,
+    /// directly or below, is one (the child itself is not asked).
+    fn references_requested_project(
+        &self,
+        references: &ResolvedProjectReferences,
+        child: &ResolvedProjectReference,
+        request: &ProjectTreeRequest,
+    ) -> bool {
+        let paths = self.host.paths();
+        let mut seen = BTreeSet::from([paths.to_path(&child.config_file_name().to_string_lossy())]);
+        let mut pending = vec![child.canonical()];
+        while let Some(config) = pending.pop() {
+            for entry in references.references_in_config(config) {
+                let path = paths.to_path(&entry.config_file_name().to_string_lossy());
+                if !seen.insert(path.clone()) {
+                    continue;
+                }
+                if request.is_project_referenced(&path) {
+                    return true;
+                }
+                if let Some(project) = entry.project() {
+                    pending.push(project.canonical());
+                }
+            }
+        }
+        false
     }
 
     /// tsgo `cleanupInferredProject`.
