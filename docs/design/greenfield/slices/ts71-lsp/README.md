@@ -1075,3 +1075,23 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 - **回帰 test**：`crates/ls/tests/references.rs`（末尾の comma の引数が overload を選ぶ、入れ子の呼び出しの末尾の comma、
   JavaScript の名前の宣言への fallback と rest の tuple の union の binding 名）。
 - **有界の違い**：content mapper の 3 場面（L10）。
+
+## L6b document symbol（#805）
+
+- **merge**：#805 → `869b783c3`（hosted run 38671480253：rust 12m28s、conformance 32m5s、gates）。commit：cc4b9a97b
+  （binder）、db755f06c（language service と server）、7493be908（ratchet）。検査の後の main の取り込みは L6a の merge
+  （同じ code）と packet の README だけ。
+- **binder**：tsgo 7.1 `GetAssignedName`。element access に代入された関数・class 式は access の literal の引数だけで名前が
+  付く（6.0.3 は他の引数でも access 自体で名前を付けた。`f[Symbol.iterator]` の関数は tsgo では `<function>`）。
+- **document symbol**（`crates/ls/src/symbols.rs`、tsgo `symbols.go`）：文書の宣言（本体や初期化子の symbol を子に
+  持つ）、JSDoc の typedef と callback、最上位以外の import、constructor の引数 property、点で区切った namespace を一つの
+  symbol、関数と class の expando（`A.b = …`、`A.prototype.b = …`、`Object.defineProperty(A, "b", …)`）は対象に合わせ、
+  同名の namespace も合わせる。tsgo の名前（escape した引用文字列、callback の `f("literal") callback`、`<function>`、
+  `<class>`、`export=`、`default`、`constructor`、`()`、`new()`、`[]`）を 150 文字で切り、範囲は名前を選ぶ。名前・種類・
+  範囲ごとに一つ。階層を持たない client には symbol information に平らにする。
+- **検査（7493be908）**：conformance 0 regressions（全 13,577 full、500 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（85 行 none→full、全て document symbol。lsp 4,192 → 4,277）、document symbol 85/86、call hierarchy と
+  workspace symbol（`GetAssignedName` を読む）56/56、test（ls 208 ほか全通過）、API client sync 340/356・async 349/365
+  （main と同じ）、clippy、fmt。
+- **回帰 test**：`crates/ls/tests/references.rs`（computed key の expando は名前のない関数を持つ）。
+- **有界の違い**：TestContentMapperSupplementalDocumentSymbols（L10）。
