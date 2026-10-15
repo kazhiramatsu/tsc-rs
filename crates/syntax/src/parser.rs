@@ -5499,9 +5499,15 @@ impl<'text> Parser<'text> {
                     };
                     let last_open_tag = self.jsx_opening_element_tag_name(last_opening);
                     let last_close_tag = self.jsx_closing_element_tag_name(last_closing);
-                    if !self.tag_names_are_equivalent(last_open_tag, last_close_tag)
-                        && self.tag_names_are_equivalent(opening_tag_name, last_close_tag)
-                    {
+                    if !crate::utilities::tag_names_are_equivalent(
+                        &self.arena,
+                        last_open_tag,
+                        last_close_tag,
+                    ) && crate::utilities::tag_names_are_equivalent(
+                        &self.arena,
+                        opening_tag_name,
+                        last_close_tag,
+                    ) {
                         Some((last_opening, last_children, last_closing))
                     } else {
                         None
@@ -5553,10 +5559,15 @@ impl<'text> Parser<'text> {
                     closing_element =
                         self.parse_jsx_closing_element(opening, in_expression_context);
                     let closing_tag_name = self.jsx_closing_element_tag_name(closing_element);
-                    if !self.tag_names_are_equivalent(opening_tag_name, closing_tag_name) {
+                    if !crate::utilities::tag_names_are_equivalent(
+                        &self.arena,
+                        opening_tag_name,
+                        closing_tag_name,
+                    ) {
                         let outer_tag_matches = opening_tag.is_some_and(|outer| {
                             self.arena.node(outer).kind == SyntaxKind::JsxOpeningElement
-                                && self.tag_names_are_equivalent(
+                                && crate::utilities::tag_names_are_equivalent(
+                                    &self.arena,
                                     closing_tag_name,
                                     self.jsx_opening_element_tag_name(outer),
                                 )
@@ -5723,9 +5734,15 @@ impl<'text> Parser<'text> {
             if self.arena.node(opening_tag).kind == SyntaxKind::JsxOpeningElement {
                 if let Some((child_open_tag, child_close_tag)) = self.jsx_element_tag_names(child) {
                     let opening_tag_name = self.jsx_opening_element_tag_name(opening_tag);
-                    if !self.tag_names_are_equivalent(child_open_tag, child_close_tag)
-                        && self.tag_names_are_equivalent(opening_tag_name, child_close_tag)
-                    {
+                    if !crate::utilities::tag_names_are_equivalent(
+                        &self.arena,
+                        child_open_tag,
+                        child_close_tag,
+                    ) && crate::utilities::tag_names_are_equivalent(
+                        &self.arena,
+                        opening_tag_name,
+                        child_close_tag,
+                    ) {
                         break;
                     }
                 }
@@ -5966,7 +5983,11 @@ impl<'text> Parser<'text> {
         if self.parse_expected_without_advancing(SyntaxKind::GreaterThanToken, None) {
             let open_tag_name = self.jsx_opening_element_tag_name(open);
             if in_expression_context
-                || !self.tag_names_are_equivalent(open_tag_name, Some(tag_name))
+                || !crate::utilities::tag_names_are_equivalent(
+                    &self.arena,
+                    open_tag_name,
+                    Some(tag_name),
+                )
             {
                 self.next_token();
             } else {
@@ -6013,44 +6034,6 @@ impl<'text> Parser<'text> {
             );
         }
         self.parse_identifier_name(None)
-    }
-
-    /// tsc tagNamesAreEquivalent.
-    fn tag_names_are_equivalent(&self, lhs: Option<NodeId>, rhs: Option<NodeId>) -> bool {
-        let (Some(lhs), Some(rhs)) = (lhs, rhs) else {
-            return false;
-        };
-        let lhs_node = self.arena.node(lhs);
-        let rhs_node = self.arena.node(rhs);
-        if lhs_node.kind != rhs_node.kind {
-            return false;
-        }
-        if lhs_node.kind == SyntaxKind::ThisKeyword {
-            return true;
-        }
-        match (&lhs_node.data, &rhs_node.data) {
-            (NodeData::Identifier(lhs), NodeData::Identifier(rhs)) => {
-                lhs.escaped_text == rhs.escaped_text
-            }
-            (NodeData::JsxNamespacedName(lhs), NodeData::JsxNamespacedName(rhs)) => {
-                self.identifier_escaped_text(lhs.namespace)
-                    == self.identifier_escaped_text(rhs.namespace)
-                    && self.identifier_escaped_text(lhs.name)
-                        == self.identifier_escaped_text(rhs.name)
-            }
-            (NodeData::PropertyAccessExpression(lhs), NodeData::PropertyAccessExpression(rhs)) => {
-                self.identifier_escaped_text(lhs.name) == self.identifier_escaped_text(rhs.name)
-                    && self.tag_names_are_equivalent(lhs.expression, rhs.expression)
-            }
-            _ => false,
-        }
-    }
-
-    fn identifier_escaped_text(&self, id: Option<NodeId>) -> Option<tsc_types::EscapedName> {
-        match &self.arena.node(id?).data {
-            NodeData::Identifier(data) => Some(data.escaped_text),
-            _ => None,
-        }
     }
 
     fn jsx_opening_element_tag_name(&self, node: NodeId) -> Option<NodeId> {
