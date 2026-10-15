@@ -311,7 +311,7 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
         let excludes = excludes.map(|excludes| {
             excludes
                 .iter()
-                .map(|exclude| exclude.as_js().to_string_lossy().into_owned())
+                .map(|exclude| glob_text(exclude.as_js()).into_owned())
                 .collect::<Vec<_>>()
         });
         let patterns = WalkPatterns {
@@ -319,7 +319,7 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
             excludes: excludes.and_then(|excludes| {
                 crate::vfsmatch::SpecMatcher::new(
                     &excludes,
-                    &directory.to_string_lossy(),
+                    &glob_text(directory),
                     crate::vfsmatch::Usage::Exclude,
                     case_sensitive,
                 )
@@ -464,8 +464,29 @@ impl WalkPatterns {
     fn excluded(&self, path: JsStr<'_>) -> bool {
         self.excludes
             .as_ref()
-            .is_some_and(|excludes| excludes.match_string(&path.to_string_lossy()))
+            .is_some_and(|excludes| excludes.match_string(&glob_text(path)))
     }
+}
+
+/// A spec or path as the `&str` the glob matcher reads: unchanged when it is
+/// well formed, otherwise with each lone surrogate replaced by its own
+/// supplementary private use character, so distinct code units stay distinct
+/// and each still counts as one character (tsgo's Go strings cannot hold a
+/// lone surrogate at all).
+fn glob_text(text: JsStr<'_>) -> std::borrow::Cow<'_, str> {
+    if let Some(text) = text.as_str() {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    std::borrow::Cow::Owned(
+        char::decode_utf16(text.code_units())
+            .map(|unit| {
+                unit.unwrap_or_else(|error| {
+                    char::from_u32(0xF0000 + u32::from(error.unpaired_surrogate() - 0xD800))
+                        .expect("a plane 15 character")
+                })
+            })
+            .collect(),
+    )
 }
 
 /// Every include pattern's automaton states at one directory of the walk
