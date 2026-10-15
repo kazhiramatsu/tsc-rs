@@ -1041,10 +1041,10 @@ pub fn get_non_assigned_name_of_declaration(source: &SourceFile, id: NodeId) -> 
     }
 }
 
-/// tsc-port: getAssignedName @6.0.3
-/// tsc-hash: 16b3160d83ab91d6d9c08811b7d3ef66bce1a84ccdde30ee5cac09babbc2bab7
-/// tsc-span: _tsc.js:11566-11580
-///
+/// tsgo-port: GetAssignedName @7.1 (ast/utilities.go:1541-1572): the
+/// name a function or class expression is assigned to (a property
+/// assignment's or binding element's name, an assignment's identifier,
+/// property name or literal element argument, a variable's identifier).
 pub fn get_assigned_name(source: &SourceFile, id: NodeId) -> Option<NodeId> {
     let parent = parent_of(source, id)?;
     match &source.arena.node(parent).data {
@@ -1056,13 +1056,16 @@ pub fn get_assigned_name(source: &SourceFile, id: NodeId) -> Option<NodeId> {
                 if kind_of(source, left) == SyntaxKind::Identifier {
                     return Some(left);
                 }
-                if matches!(
-                    kind_of(source, left),
-                    SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
-                ) {
-                    return crate::assignment::get_element_or_property_access_argument_expression_or_name(
-                        source, left,
-                    );
+                // tsgo 7.1 `GetAssignedName`: a property access's name, or an
+                // element access's literal argument (none for another).
+                match &source.arena.node(left).data {
+                    NodeData::PropertyAccessExpression(access) => return access.name,
+                    NodeData::ElementAccessExpression(access) => {
+                        let argument = skip_parentheses(source, access.argument_expression?);
+                        return is_string_or_numeric_literal_like(source, argument)
+                            .then_some(argument);
+                    }
+                    _ => {}
                 }
             }
             None
