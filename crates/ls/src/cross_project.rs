@@ -60,11 +60,15 @@ pub struct ProjectSearch<R> {
 }
 
 /// Where a project's search is: an LSP position of the document, or a
-/// position of the file (a code lens's data).
+/// position of the file or of its supplemental output of the index (a code
+/// lens's data).
 #[derive(Clone, Debug)]
 pub enum SearchPosition {
     Lsp(Position),
-    Offset(u32),
+    Offset {
+        position: u32,
+        supplemental_file_index: Option<i32>,
+    },
 }
 
 impl LanguageService<'_> {
@@ -142,8 +146,24 @@ impl LanguageService<'_> {
                     .collect();
                 run(request, projections)
             }),
-            SearchPosition::Offset(position) => {
-                self.with_program_request(links, |request| run(request, vec![(file, *position)]))
+            SearchPosition::Offset {
+                position,
+                supplemental_file_index,
+            } => {
+                let search = self.with_program_request(links, |request| {
+                    match request.source_for_supplemental_file_index(file, *supplemental_file_index)
+                    {
+                        Some(file) => run(request, vec![(file, *position)]).map(Some),
+                        None => Ok(None),
+                    }
+                })?;
+                match search {
+                    Some(None) => Err(LsError(format!(
+                        "supplemental source file index not found: {}",
+                        supplemental_file_index.unwrap_or_default()
+                    ))),
+                    search => Ok(search.flatten()),
+                }
             }
         }
     }

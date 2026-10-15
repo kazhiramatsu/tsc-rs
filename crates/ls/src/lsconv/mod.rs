@@ -400,3 +400,14 @@ pub fn language_kind_to_script_kind(language: &LanguageKind) -> ScriptKind {
 #[cfg(test)]
 #[path = "../../tests/unit/lsconv.rs"]
 mod tests;
+
+/// tsgo `lsproto.CompareRanges`: by start, then end.
+pub(crate) fn compare_ranges(
+    left: &tsc_lsproto::Range,
+    right: &tsc_lsproto::Range,
+) -> std::cmp::Ordering {
+    let position = |position: &tsc_lsproto::Position| (position.line, position.character);
+    position(&left.start)
+        .cmp(&position(&right.start))
+        .then_with(|| position(&left.end).cmp(&position(&right.end)))
+}

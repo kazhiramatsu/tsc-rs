@@ -3,8 +3,11 @@
 //! references (`callHierarchy/incomingCalls`) and the calls out of its body
 //! (`callHierarchy/outgoingCalls`).
 
+use crate::lsconv::compare_ranges;
+use crate::lsconv::Script;
 use std::collections::HashMap;
 use std::ops::Range;
+use tsc_diagnostics::spanmap::{Fidelity, FEATURE_CALL_HIERARCHY};
 
 use tsc_binder::node_util;
 use tsc_checker::state::CheckResult;
@@ -26,7 +29,7 @@ use tsc_types::{JsStr, ModifierFlags, NodeFlags, SymbolFlags, SymbolId};
 
 use crate::astnav::Navigator;
 use crate::cross_project::{SearchPosition, TextDocumentPosition};
-use crate::definition::Callee;
+use crate::definition::{lsp_range_contains, Callee};
 use crate::find_all_references::{EntryKind, ReferenceEntry, SymbolAndEntriesData};
 use crate::language_service::{LanguageService, LsError};
 use crate::request::Request;
@@ -91,7 +94,7 @@ impl LanguageService<'_> {
         position: &Position,
     ) -> Result<CallHierarchyPrepareResponse, LsError> {
         let file = self.file(uri);
-        let items = self.with_request(file, position, false, |request, position| {
+        let items = self.with_program_request(false, |request| {
             let mut items: Vec<CallHierarchyItem> = Vec::new();
             for declaration in request.call_hierarchy_declarations(file, position, false)? {
                 if let Some(item) = request.create_call_hierarchy_item(declaration)? {
@@ -138,7 +141,7 @@ impl LanguageService<'_> {
             return Ok(Vec::new());
         };
         let position = &item.selection_range.start;
-        let targets = self.with_request(file, position, false, |request, position| {
+        let targets = self.with_program_request(false, |request| {
             let mut targets = Vec::new();
             for declaration in request.call_hierarchy_declarations(file, position, true)? {
                 targets.extend(request.incoming_call_target(declaration));
@@ -158,7 +161,7 @@ impl LanguageService<'_> {
             return Ok(CallHierarchyOutgoingCallsOrNull::Null);
         };
         let position = &item.selection_range.start;
-        let calls = self.with_request(file, position, false, |request, position| {
+        let calls = self.with_program_request(false, |request| {
             let mut calls: Vec<CallHierarchyOutgoingCall> = Vec::new();
             for declaration in request.call_hierarchy_declarations(file, position, true)? {
                 for call in request.outgoing_calls(declaration)? {
@@ -196,30 +199,36 @@ impl LanguageService<'_> {
 }
 
 impl Request<'_, '_> {
-    /// tsgo `callHierarchyDeclarations`: the declarations of the node at a
-    /// position (the file at position 0, only where `allow_source_file`).
+    /// tsgo `callHierarchyDeclarations`: the declarations of the node at
+    /// each single-segment projection of a position (the file at position
+    /// 0, only where `allow_source_file`), each once.
     fn call_hierarchy_declarations(
         &mut self,
         file: usize,
-        position: u32,
+        position: &tsc_lsproto::Position,
         allow_source_file: bool,
     ) -> CheckResult<Vec<NodeId>> {
-        let source = self.state.binder.source(file);
-        let node = if position != 0 {
-            match touching(Navigator::new(source).touching_property_name(position)) {
-                Some(node) => node,
-                None => return Ok(Vec::new()),
-            }
-        } else {
-            Touching::Node(source.root)
-        };
-        if !allow_source_file && self.kind(node) == SyntaxKind::SourceFile {
-            return Ok(Vec::new());
-        }
         let mut declarations = Vec::new();
-        for declaration in self.resolve_call_hierarchy_declaration(node)? {
-            if !declarations.contains(&declaration) {
-                declarations.push(declaration);
+        for projection in self.position_projections(file, position, FEATURE_CALL_HIERARCHY) {
+            if !projection.fidelity.is_single_segment() {
+                continue;
+            }
+            let source = self.state.binder.source(projection.file);
+            let node = if projection.position != 0 {
+                match touching(Navigator::new(source).touching_property_name(projection.position)) {
+                    Some(node) => node,
+                    None => continue,
+                }
+            } else {
+                Touching::Node(source.root)
+            };
+            if !allow_source_file && self.kind(node) == SyntaxKind::SourceFile {
+                continue;
+            }
+            for declaration in self.resolve_call_hierarchy_declaration(node)? {
+                if !declarations.contains(&declaration) {
+                    declarations.push(declaration);
+                }
             }
         }
         Ok(declarations)
@@ -317,7 +326,9 @@ impl Request<'_, '_> {
     }
 
     /// tsgo `createCallHierarchyItem`: a declaration's name, kind, file,
-    /// range (from its first token or comment) and name's range.
+    /// range (from its first token or comment) and name's range; none where
+    /// the name does not map to one segment of a content mapper's output (the
+    /// range is the name's where it does not map around it).
     fn create_call_hierarchy_item(
         &mut self,
         node: NodeId,
@@ -336,15 +347,28 @@ impl Request<'_, '_> {
                 ..SkipTriviaOptions::default()
             },
         );
-        let range = self.lsp_range(source, full_start..record.end as usize);
-        let selection_range = self.lsp_range(source, name_range);
+        let (mut range, range_fidelity) = self.lsp_range_for_feature(
+            source,
+            full_start..record.end as usize,
+            FEATURE_CALL_HIERARCHY,
+        );
+        let (selection_range, selection_fidelity) =
+            self.lsp_range_for_feature(source, name_range, FEATURE_CALL_HIERARCHY);
+        if !selection_fidelity.is_single_segment() {
+            return Ok(None);
+        }
+        if range_fidelity == Fidelity::None
+            || source.content_mapper.is_some() && !lsp_range_contains(&range, &selection_range)
+        {
+            range = selection_range.clone();
+        }
         Ok(Some(CallHierarchyItem {
             name,
             kind,
             tags: None,
             detail: (!container_name.is_empty()).then_some(container_name),
             uri: DocumentUri(file_name_to_document_uri(
-                &source.file_name.to_string_lossy(),
+                script_of(source).original_file_name(),
             )),
             range,
             selection_range,
@@ -533,13 +557,18 @@ impl Request<'_, '_> {
         }
         let location = self.call_hierarchy_declaration_reference_node(declaration)?;
         let source = self.state.binder.source_of_node(location);
+        let script = script_of(source);
+        let (position, fidelity) = self.converters.to_lsp_position_for_feature(
+            &script,
+            token_start(source, location),
+            FEATURE_CALL_HIERARCHY,
+        );
+        if fidelity == Fidelity::None {
+            return None;
+        }
         Some(TextDocumentPosition {
-            uri: DocumentUri(file_name_to_document_uri(
-                &source.file_name.to_string_lossy(),
-            )),
-            position: self
-                .converters
-                .to_lsp_position(&script_of(source), token_start(source, location)),
+            uri: DocumentUri(file_name_to_document_uri(script.original_file_name())),
+            position,
         })
     }
 
@@ -644,12 +673,19 @@ impl Request<'_, '_> {
         Ok(calls)
     }
 
-    /// The protocol ranges of a group's call sites, sorted (tsgo
+    /// The protocol ranges of a group's call sites that map, sorted (tsgo
     /// `lsproto.CompareRanges`).
     fn sorted_ranges(&self, sites: &[CallSite]) -> Vec<tsc_lsproto::Range> {
         let mut ranges: Vec<tsc_lsproto::Range> = sites
             .iter()
-            .map(|site| self.lsp_range(self.state.binder.source(site.file), site.range.clone()))
+            .filter_map(|site| {
+                let (range, fidelity) = self.lsp_range_for_feature(
+                    self.state.binder.source(site.file),
+                    site.range.clone(),
+                    FEATURE_CALL_HIERARCHY,
+                );
+                (fidelity != Fidelity::None).then_some(range)
+            })
             .collect();
         ranges.sort_by(compare_ranges);
         ranges
@@ -1150,14 +1186,6 @@ fn group_call_sites(sites: Vec<CallSite>) -> Vec<Vec<CallSite>> {
         }
     }
     groups
-}
-
-/// tsgo `lsproto.CompareRanges`: by start, then end.
-fn compare_ranges(left: &tsc_lsproto::Range, right: &tsc_lsproto::Range) -> std::cmp::Ordering {
-    let position = |position: &tsc_lsproto::Position| (position.line, position.character);
-    position(&left.start)
-        .cmp(&position(&right.start))
-        .then_with(|| position(&left.end).cmp(&position(&right.end)))
 }
 
 /// The order of two calls by their first ranges (equal when either has

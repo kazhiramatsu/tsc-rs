@@ -6,6 +6,7 @@ use std::collections::HashSet;
 
 use tsc_binder::node_util;
 use tsc_diagnostics::gen;
+use tsc_diagnostics::spanmap::{Fidelity, FEATURE_CODE_LENS};
 use tsc_diagnostics::MessageCatalog;
 use tsc_lsproto::{
     CodeLens, CodeLensData, CodeLensKind, CodeLensResponse, CodeLensesOrNull, Command, DocumentUri,
@@ -20,9 +21,9 @@ use crate::lsutil::{localize, CodeLensUserPreferences};
 use crate::request::Request;
 
 impl LanguageService<'_> {
-    /// tsgo `ProvideCodeLenses` (a file without a content mapper: one
-    /// projection): a lens of each kind the preferences enable on each
-    /// declaration that takes one, the overloads of a symbol once.
+    /// tsgo `ProvideCodeLenses`: a lens of each kind the preferences enable
+    /// on each declaration that takes one in the file and its supplemental
+    /// outputs, the overloads of a symbol once.
     pub fn provide_code_lenses(&mut self, uri: &DocumentUri) -> Result<CodeLensResponse, LsError> {
         let preferences = &self.user_preferences_ref().code_lens_user_preferences;
         if preferences.references_code_lens_enabled != Some(true)
@@ -31,16 +32,22 @@ impl LanguageService<'_> {
             return Ok(CodeLensesOrNull::Null);
         }
         let file = self.file(uri);
-        let lenses = self.with_request_at(file, 0, false, |request, _| {
+        let lenses = self.with_program_request(false, |request| {
             let mut collector = CodeLensCollector {
                 uri,
                 preferences,
                 lenses: Vec::new(),
                 seen: HashSet::new(),
                 last_symbol: None,
+                supplemental_file_index: None,
             };
-            let root = request.state.binder.source(file).root;
-            collector.visit(request, root);
+            for projection in request.source_projections(file) {
+                // Keeps track of the last symbol to avoid duplicating code lenses across overloads.
+                collector.last_symbol = None;
+                collector.supplemental_file_index = request.supplemental_file_index(projection);
+                let root = request.state.binder.source(projection).root;
+                collector.visit(request, root);
+            }
             Ok(collector.lenses)
         })?;
         Ok(CodeLensesOrNull::CodeLenses(lenses.unwrap_or_default()))
@@ -56,7 +63,10 @@ impl LanguageService<'_> {
         show_locations_command_name: Option<&str>,
     ) -> Result<CodeLens, LsError> {
         let data = code_lens.data.clone().expect("a code lens's data");
-        let at = SearchPosition::Offset(data.position as u32);
+        let at = SearchPosition::Offset {
+            position: data.position as u32,
+            supplemental_file_index: data.supplemental_file_index,
+        };
         let locations = if data.kind == CodeLensKind::REFERENCES {
             match self.search_references(&data.uri, &at, false, false)? {
                 Some(ProjectSearch {
@@ -129,6 +139,8 @@ struct CodeLensCollector<'u, 'p> {
     lenses: Vec<CodeLens>,
     seen: HashSet<(String, (u32, u32, u32, u32))>,
     last_symbol: Option<Option<SymbolId>>,
+    /// The projection's index among the file's supplemental outputs.
+    supplemental_file_index: Option<i32>,
 }
 
 impl CodeLensCollector<'_, '_> {
@@ -163,10 +175,14 @@ impl CodeLensCollector<'_, '_> {
             source.text(),
             request.state.binder.node_record(node_for_range).pos as usize,
         );
-        let range = request.lsp_range(
+        let (range, fidelity) = request.lsp_range_for_feature(
             source,
             pos..request.state.binder.node_record(node).end as usize,
+            FEATURE_CODE_LENS,
         );
+        if fidelity == Fidelity::None {
+            return;
+        }
         let key = (
             kind.0.to_string(),
             (
@@ -186,7 +202,7 @@ impl CodeLensCollector<'_, '_> {
                 kind,
                 uri: self.uri.clone(),
                 position: pos as i32,
-                supplemental_file_index: None,
+                supplemental_file_index: self.supplemental_file_index,
             }),
         });
     }

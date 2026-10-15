@@ -101,7 +101,7 @@ fn get_code_actions(
 ) -> Result<Vec<CodeAction>, LsError> {
     let format_settings = service.format_options().clone();
     let span = context.span;
-    let actions = service.with_request_at(context.file, span.0 as u32, false, |request, _| {
+    let actions = service.with_program_request(false, |request| {
         // Match TS ordering: Full annotation, Relative annotation, Widened annotation,
         // Full inline, Relative inline, Widened inline, Full extract
         let modes = [
@@ -152,7 +152,7 @@ fn get_all_code_actions(
         .collect();
     let format_settings = service.format_options().clone();
     let description = service.localize(&gen::Add_all_missing_type_annotations, &[]);
-    let changes = service.with_request_at(context.file, 0, false, |request, _| {
+    let changes = service.with_program_request(false, |request| {
         let source = request.state.binder.source(context.file);
         let mut tracker = Tracker::new(
             new_line_kind(request.state.options),
@@ -175,7 +175,11 @@ fn get_all_code_actions(
         if let Err(error) = fixer.add_symbols_to_existing_imports(request.state) {
             return Ok(Err(LsError(error)));
         }
-        Ok(file_edits(tracker, source, request.converters).map_err(LsError))
+        Ok(
+            file_edits(tracker, source, request.converters, &request.state.binder)
+                .map(|(edits, _)| edits)
+                .map_err(LsError),
+        )
     })?;
     match changes {
         Some(Ok(changes)) if !changes.is_empty() => Ok(Some(CombinedCodeActions {
@@ -218,10 +222,11 @@ fn try_code_action(
     if let Err(error) = fixer.add_symbols_to_existing_imports(request.state) {
         return Ok(Err(LsError(error)));
     }
-    let changes: Vec<TextEdit> = match file_edits(tracker, source, request.converters) {
-        Ok(changes) => changes,
-        Err(error) => return Ok(Err(LsError(error))),
-    };
+    let changes: Vec<TextEdit> =
+        match file_edits(tracker, source, request.converters, &request.state.binder) {
+            Ok((changes, _)) => changes,
+            Err(error) => return Ok(Err(LsError(error))),
+        };
     if changes.is_empty() {
         return Ok(Ok(None));
     }

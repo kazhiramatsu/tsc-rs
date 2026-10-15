@@ -1297,29 +1297,37 @@ fn entrypoints_by_path(
     entrypoints
 }
 
-/// The program's files that are no default library (tsgo `isIgnoredFile`;
-/// no global typings without ATA) and are not under `node_modules`.
+/// The program's files the registry indexes: not a default library, not a
+/// content mapper's supplemental output (tsgo `IsContentMapperSupplemental`:
+/// no import's target), not under `node_modules` (tsgo
+/// `hasNewNonNodeModulesFiles`).
 fn non_node_modules_files(state: &CheckerState<'_>) -> Vec<usize> {
-    (0..state.binder.file_count())
+    registry_files(state)
         .filter(|&file| {
-            let facts = state
-                .binder
-                .file_facts(ProgramFileId::from_raw(file as u32));
-            let source = state.binder.source(file);
-            // tsgo `IsContentMapperSupplemental`: a mapper's supplemental
-            // output is no import's target.
-            let supplemental = source
-                .content_mapper
-                .as_ref()
-                .is_some_and(|output| output.canonical.is_some());
-            !facts.is_default_library()
-                && !supplemental
-                && !contains_lowercase_directory_sequence(
-                    &source.file_name.to_string_lossy(),
-                    "/node_modules/",
-                )
+            !contains_lowercase_directory_sequence(
+                &state.binder.source(file).file_name.to_string_lossy(),
+                "/node_modules/",
+            )
         })
         .collect()
+}
+
+/// The program's files but the default libraries and the content mappers'
+/// supplemental outputs (tsgo `IsContentMapperSupplemental` and
+/// `isIgnoredFile`).
+fn registry_files<'s>(state: &'s CheckerState<'_>) -> impl Iterator<Item = usize> + 's {
+    (0..state.binder.file_count()).filter(|&file| {
+        let facts = state
+            .binder
+            .file_facts(ProgramFileId::from_raw(file as u32));
+        let supplemental = state
+            .binder
+            .source(file)
+            .content_mapper
+            .as_ref()
+            .is_some_and(|output| output.canonical.is_some());
+        !facts.is_default_library() && !supplemental
+    })
 }
 
 /// The paths of the program's files that are not under `node_modules`
@@ -1371,13 +1379,9 @@ pub fn build_project_bucket(
     };
     let mut paths = BTreeSet::new();
     let mut index = Index::default();
-    for file in non_node_modules_files(state) {
-        let file_name = state
-            .binder
-            .source(file)
-            .file_name
-            .to_string_lossy()
-            .into_owned();
+    for file in registry_files(state).collect::<Vec<_>>() {
+        let source = state.binder.source(file);
+        let file_name = source.file_name.to_string_lossy().into_owned();
         if file_exclude_patterns
             .as_ref()
             .is_some_and(|patterns| patterns.match_string(&file_name))
@@ -1385,8 +1389,12 @@ pub fn build_project_bucket(
             continue;
         }
         let path = path_of(&file_name);
-        // Ordinary node_modules files are owned by node_modules buckets.
-        if symlinks.has_symlink_to_node_modules(&path, &project_root_path) {
+        // Ordinary node_modules files are owned by node_modules buckets. Content-mapped files are not
+        // discovered by those buckets, but files already transformed in the Program can be indexed here.
+        if source.content_mapper.is_none()
+            && (contains_lowercase_directory_sequence(&file_name, "/node_modules/")
+                || symlinks.has_symlink_to_node_modules(&path, &project_root_path))
+        {
             continue;
         }
         paths.insert(path);

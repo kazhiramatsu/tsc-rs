@@ -162,7 +162,7 @@ fn locations_from_links(links: Vec<LocationLink>) -> DefinitionResponse {
 }
 
 /// tsgo `lspRangeContains`.
-fn lsp_range_contains(outer: &tsc_lsproto::Range, inner: &tsc_lsproto::Range) -> bool {
+pub(crate) fn lsp_range_contains(outer: &tsc_lsproto::Range, inner: &tsc_lsproto::Range) -> bool {
     let before = |a: &Position, b: &Position| (a.line, a.character) <= (b.line, b.character);
     before(&outer.start, &inner.start) && before(&inner.end, &outer.end)
 }

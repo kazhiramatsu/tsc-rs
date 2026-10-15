@@ -1750,7 +1750,10 @@ impl Server {
         // tsgo `ResolveCodeLens`: the default project's search at the lens's
         // data position, the other projects' at the start of its range.
         let data = code_lens.data.clone().expect("a code lens's data");
-        let default_at = SearchPosition::Offset(data.position as u32);
+        let default_at = SearchPosition::Offset {
+            position: data.position as u32,
+            supplemental_file_index: data.supplemental_file_index,
+        };
         let position = &code_lens.range.start;
         let locations = if data.kind == lsproto::CodeLensKind::REFERENCES {
             // Don't include the declaration in the references count.
