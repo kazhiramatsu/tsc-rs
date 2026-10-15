@@ -290,6 +290,9 @@ fn mapper_key(mapper: &Arc<Mapper>) -> usize {
 #[derive(Default)]
 struct State {
     closed: bool,
+    /// tsgo `diagnosticLocale`'s text: the locale the mappers are
+    /// initialized in (empty for the default).
+    locale: String,
     conns: HashMap<String, MapperConn>,
     projects: HashMap<String, ProjectEntry>,
     leases: HashMap<String, Lease>,
@@ -299,7 +302,6 @@ struct State {
 struct HostInner {
     spawner: Arc<dyn Spawner>,
     logger: Option<Logger>,
-    locale: String,
     timing: TimingCollector,
     state: Mutex<State>,
 }
@@ -324,9 +326,11 @@ impl Host {
         Self(Arc::new(HostInner {
             spawner,
             logger,
-            locale: locale.into(),
             timing: TimingCollector::default(),
-            state: Mutex::new(State::default()),
+            state: Mutex::new(State {
+                locale: locale.into(),
+                ..State::default()
+            }),
         }))
     }
 
@@ -418,6 +422,38 @@ impl Host {
         project.transform(mapper, request)
     }
 
+    /// tsgo `SetLocale`: mappers are initialized in `locale` from now on;
+    /// the running ones are closed (started again on their next use) and
+    /// their projects opened again.
+    pub fn set_locale(&self, locale: &str) {
+        let connections = {
+            let mut state = self.lock();
+            if state.locale == locale {
+                return;
+            }
+            state.locale = locale.to_owned();
+            // Every connection closes (the order does not matter).
+            let connections = state
+                .conns
+                .values_mut()
+                .filter_map(|conn| {
+                    conn.failure = None;
+                    conn.encoding = None;
+                    conn.diagnostic_source.clear();
+                    conn.connection.take()
+                })
+                .collect::<Vec<_>>();
+            state
+                .projects
+                .values_mut()
+                .for_each(|project| project.opened = false);
+            connections
+        };
+        for connection in connections {
+            connection.control.close();
+        }
+    }
+
     /// tsgo `Close`: tears every mapper process down.
     pub fn close(&self) {
         let connections = {
@@ -452,6 +488,7 @@ impl Host {
                 "content mapper host is closed".to_owned(),
             ));
         }
+        let locale = state.locale.clone();
         let entry = state.conns.entry(mapper.identity()).or_default();
         if let Some(failure) = &entry.failure {
             return Err(TransformFailure::Initialize(failure.clone()));
@@ -463,7 +500,7 @@ impl Host {
                 entry.diagnostic_source.clone(),
             ));
         }
-        match self.dial(mapper) {
+        match self.dial(mapper, &locale) {
             Ok((connection, encoding, source)) => {
                 entry.connection = Some(Arc::clone(&connection));
                 entry.encoding = Some(encoding);
@@ -482,6 +519,7 @@ impl Host {
     fn dial(
         &self,
         mapper: &Mapper,
+        locale: &str,
     ) -> Result<(Arc<Connection>, PositionEncoding, String), InitializeError> {
         let mapper_name = mapper.diagnostic_name().to_owned();
         let initialize_error = |kind| InitializeError {
@@ -553,7 +591,7 @@ impl Host {
                 });
         }
         let params = serde_json::to_string(&InitializeParams {
-            locale: &self.0.locale,
+            locale,
             position_encodings: [
                 PositionEncoding::Utf8.as_str(),
                 PositionEncoding::Utf16.as_str(),
@@ -1108,6 +1146,10 @@ impl Project for ProjectView {
 
     fn content_mapped_cache(&self) -> Option<&ContentMappedCache> {
         self.cache.as_deref()
+    }
+
+    fn locale(&self) -> String {
+        self.host.lock().locale.clone()
     }
 }
 

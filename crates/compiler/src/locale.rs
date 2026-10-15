@@ -3,15 +3,24 @@
 //! embeds as gzip-compressed JSON, matched from a BCP 47 language tag and
 //! read on first use.
 
-use std::collections::HashMap;
-use std::sync::OnceLock;
+use std::collections::{HashMap, HashSet};
+use std::sync::{Mutex, OnceLock, PoisonError};
 
 use tsc_diagnostics::MessageCatalog;
 
-/// A language for the messages: English (the catalog's own text) or one of
-/// tsgo's translations.
+/// A language for the messages (tsgo `locale.Locale`): the tag as tsgo's
+/// parser writes it, and the translation tsgo's language matcher picks for
+/// it.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-pub enum Locale {
+pub struct Locale {
+    translation: Translation,
+    /// tsgo `Locale.String()`: empty for the default.
+    tag: &'static str,
+}
+
+/// English (the catalog's own text) or one of tsgo's translations.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+enum Translation {
     #[default]
     English,
     Czech,
@@ -42,7 +51,7 @@ macro_rules! catalog_bytes {
     };
 }
 
-/// The compressed catalogs, in [`Locale::index`] order.
+/// The compressed catalogs, in [`Translation::index`] order.
 static CATALOG_BYTES: [&[u8]; TRANSLATIONS] = [
     catalog_bytes!("cs-CZ"),
     catalog_bytes!("de-DE"),
@@ -74,6 +83,12 @@ impl MessageCatalog for Catalog {
 }
 
 impl Locale {
+    /// English, the catalog's own text (tsgo `locale.Default`).
+    pub const ENGLISH: Self = Self {
+        translation: Translation::English,
+        tag: "",
+    };
+
     /// tsgo `locale.Parse` followed by its catalog match: `None` for a tag
     /// that is not a well-formed BCP 47 language tag, English for one no
     /// translation matches.
@@ -84,6 +99,13 @@ impl Locale {
         {
             return None;
         }
+        // The tag as tsgo writes it: the language, extensions and private
+        // use in lower case, the script titled, the region in upper case.
+        let mut canonical = language.clone();
+        let mut push = |subtag: &str| {
+            canonical.push('-');
+            canonical.push_str(subtag);
+        };
         let mut script = None;
         let mut region = None;
         let mut rest = subtags[1..]
@@ -100,6 +122,7 @@ impl Locale {
                 && subtag.bytes().all(|b| b.is_ascii_alphabetic())
             {
                 extlangs += 1;
+                push(subtag);
             } else {
                 break;
             }
@@ -107,6 +130,11 @@ impl Locale {
         }
         if let Some(subtag) = pending.as_deref() {
             if subtag.len() == 4 && subtag.bytes().all(|b| b.is_ascii_alphabetic()) {
+                push(&format!(
+                    "{}{}",
+                    subtag[..1].to_ascii_uppercase(),
+                    &subtag[1..]
+                ));
                 script = Some(subtag.to_owned());
                 pending = rest.next();
             }
@@ -115,6 +143,7 @@ impl Locale {
             if (subtag.len() == 2 && subtag.bytes().all(|b| b.is_ascii_alphabetic()))
                 || (subtag.len() == 3 && subtag.bytes().all(|b| b.is_ascii_digit()))
             {
+                push(&subtag.to_ascii_uppercase());
                 region = Some(subtag.to_owned());
                 pending = rest.next();
             }
@@ -125,11 +154,13 @@ impl Locale {
                 && ((5..=8).contains(&subtag.len())
                     || (subtag.len() == 4 && subtag.as_bytes()[0].is_ascii_digit()));
             if variant {
+                push(&subtag);
                 pending = rest.next();
                 continue;
             }
             // An extension or private use: a singleton, then subtags.
             if subtag.len() == 1 && alphanumeric {
+                push(&subtag);
                 let private = subtag == "x";
                 let mut any = false;
                 for next in rest.by_ref() {
@@ -141,20 +172,66 @@ impl Locale {
                     if !fits || !next.bytes().all(|b| b.is_ascii_alphanumeric()) {
                         return None;
                     }
+                    push(&next);
                     any = true;
                 }
-                return any
-                    .then(|| Self::matching(&language, script.as_deref(), region.as_deref()));
+                return any.then(|| Self {
+                    translation: Translation::matching(
+                        &language,
+                        script.as_deref(),
+                        region.as_deref(),
+                    ),
+                    tag: intern(canonical),
+                });
             }
             return None;
         }
-        Some(Self::matching(
-            &language,
-            script.as_deref(),
-            region.as_deref(),
-        ))
+        Some(Self {
+            translation: Translation::matching(&language, script.as_deref(), region.as_deref()),
+            tag: intern(canonical),
+        })
     }
 
+    /// tsgo `Locale.String()`: the tag as tsgo writes it, empty for the
+    /// default.
+    pub fn tag(self) -> &'static str {
+        self.tag
+    }
+
+    /// The translation's catalog (`None` for English), decompressed and
+    /// parsed on first use. A catalog that cannot be read translates
+    /// nothing.
+    pub fn catalog(self) -> Option<&'static Catalog> {
+        let index = self.translation.index()?;
+        Some(CATALOGS[index].get_or_init(|| read_catalog(CATALOG_BYTES[index]).unwrap_or_default()))
+    }
+
+    /// The catalog as the renderers take it.
+    pub fn messages(self) -> Option<&'static dyn MessageCatalog> {
+        self.catalog().map(|catalog| catalog as &dyn MessageCatalog)
+    }
+}
+
+/// A parsed tag's text, kept for the process (the tags a session sees are
+/// few); `und`, tsgo's default, is empty.
+fn intern(tag: String) -> &'static str {
+    if tag == "und" {
+        return "";
+    }
+    static TAGS: OnceLock<Mutex<HashSet<&'static str>>> = OnceLock::new();
+    let mut tags = TAGS
+        .get_or_init(Mutex::default)
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    if let Some(&known) = tags.get(tag.as_str()) {
+        return known;
+    }
+    let tag: &'static str = Box::leak(tag.into_boxed_str());
+    tags.insert(tag);
+    tag
+}
+
+impl Translation {
     /// The translation tsgo's language matcher picks for a tag.
     fn matching(language: &str, script: Option<&str>, region: Option<&str>) -> Self {
         match language {
@@ -198,19 +275,6 @@ impl Locale {
             Self::ChineseTraditional => 12,
         })
     }
-
-    /// The translation's catalog (`None` for English), decompressed and
-    /// parsed on first use. A catalog that cannot be read translates
-    /// nothing.
-    pub fn catalog(self) -> Option<&'static Catalog> {
-        let index = self.index()?;
-        Some(CATALOGS[index].get_or_init(|| read_catalog(CATALOG_BYTES[index]).unwrap_or_default()))
-    }
-
-    /// The catalog as the renderers take it.
-    pub fn messages(self) -> Option<&'static dyn MessageCatalog> {
-        self.catalog().map(|catalog| catalog as &dyn MessageCatalog)
-    }
 }
 
 /// A gzip member's JSON object of message templates.
@@ -252,31 +316,52 @@ mod tests {
     use super::*;
     use tsc_diagnostics::gen;
 
+    fn translation(tag: &str) -> Option<Translation> {
+        Locale::parse(tag).map(|locale| locale.translation)
+    }
+
     #[test]
     fn tags_parse_as_bcp_47_and_match_tsgos_translations() {
-        assert_eq!(Locale::parse("en"), Some(Locale::English));
-        assert_eq!(Locale::parse("cs"), Some(Locale::Czech));
-        assert_eq!(Locale::parse("ja-jp"), Some(Locale::Japanese));
-        assert_eq!(Locale::parse("pt-BR"), Some(Locale::PortugueseBrazil));
-        assert_eq!(Locale::parse("zh-TW"), Some(Locale::ChineseTraditional));
-        assert_eq!(Locale::parse("zh-Hant"), Some(Locale::ChineseTraditional));
-        assert_eq!(Locale::parse("zh"), Some(Locale::ChineseSimplified));
-        assert_eq!(Locale::parse("en-US-x-private"), Some(Locale::English));
+        assert_eq!(translation("en"), Some(Translation::English));
+        assert_eq!(translation("cs"), Some(Translation::Czech));
+        assert_eq!(translation("ja-jp"), Some(Translation::Japanese));
+        assert_eq!(translation("pt-BR"), Some(Translation::PortugueseBrazil));
+        assert_eq!(translation("zh-TW"), Some(Translation::ChineseTraditional));
+        assert_eq!(
+            translation("zh-Hant"),
+            Some(Translation::ChineseTraditional)
+        );
+        assert_eq!(translation("zh"), Some(Translation::ChineseSimplified));
+        assert_eq!(translation("en-US-x-private"), Some(Translation::English));
         assert_eq!(Locale::parse("whoops"), None);
         assert_eq!(Locale::parse(""), None);
         assert_eq!(Locale::parse("en-"), None);
     }
 
     #[test]
+    fn tags_are_written_as_tsgo_writes_them() {
+        // tsgo `Locale.String()` (golang.org/x/text's tag text).
+        let tag = |tag: &str| Locale::parse(tag).map(Locale::tag);
+        assert_eq!(tag("fr"), Some("fr"));
+        assert_eq!(tag("FR_fr"), Some("fr-FR"));
+        assert_eq!(tag("zh-hant-tw"), Some("zh-Hant-TW"));
+        assert_eq!(tag("en-US-X-Private"), Some("en-US-x-private"));
+        assert_eq!(tag("und"), Some(""));
+        assert_eq!(Locale::default().tag(), "");
+        assert_eq!(Locale::parse("en"), Locale::parse("EN"));
+        assert_ne!(Locale::parse("en"), Some(Locale::ENGLISH));
+    }
+
+    #[test]
     fn catalogs_translate_by_message_key() {
-        let czech = Locale::Czech.messages();
+        let czech = Locale::parse("cs").unwrap().messages();
         assert_eq!(gen::Version_0.template_in(czech), "Verze {0}");
         assert_eq!(
-            gen::Version_0.format_in(Locale::Japanese.messages(), &["7.1"]),
+            gen::Version_0.format_in(Locale::parse("ja").unwrap().messages(), &["7.1"]),
             "バージョン 7.1"
         );
         assert_eq!(
-            gen::Version_0.template_in(Locale::English.messages()),
+            gen::Version_0.template_in(Locale::ENGLISH.messages()),
             "Version {0}"
         );
     }

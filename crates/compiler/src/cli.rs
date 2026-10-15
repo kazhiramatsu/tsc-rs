@@ -809,7 +809,7 @@ fn execute<'a>(
             ))));
             return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
         }
-        let (plan, content_mappers) = with_content_mapper_project(system, plan);
+        let (plan, content_mappers) = with_content_mapper_project(system, plan, locale);
         let output = execute_config(
             host,
             &current_directory,
@@ -956,7 +956,7 @@ fn execute<'a>(
         ))));
         return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
     }
-    let (plan, content_mappers) = with_content_mapper_project(system, plan);
+    let (plan, content_mappers) = with_content_mapper_project(system, plan, locale);
     let output = execute_config(
         host,
         &current_directory,
@@ -2450,6 +2450,7 @@ impl ContentMapperSession {
 /// their protocol to the error output.
 pub(crate) fn new_content_mapper_host(
     system: &dyn System,
+    locale: Locale,
 ) -> tsc_program::content_mapper::host::Host {
     let logger: Option<tsc_program::content_mapper::host::Logger> = system
         .env_var("TS_CONTENT_MAPPER_DEBUG")
@@ -2459,9 +2460,10 @@ pub(crate) fn new_content_mapper_host(
                 Arc::new(|line: &str| eprintln!("{line}"));
             logger
         });
+    // tsgo `locale.Parse(options.Locale)`: the mappers' locale.
     tsc_program::content_mapper::host::Host::with_logger(
         system.content_mapper_spawner(),
-        "",
+        locale.tag(),
         logger,
     )
 }
@@ -2472,11 +2474,12 @@ pub(crate) fn new_content_mapper_host(
 fn with_content_mapper_project(
     system: &dyn System,
     plan: ConfigRootPlan,
+    locale: Locale,
 ) -> (ConfigRootPlan, Option<ContentMapperSession>) {
     let Some(spec) = plan.program_options().content_mapper_spec().cloned() else {
         return (plan, None);
     };
-    let host = new_content_mapper_host(system);
+    let host = new_content_mapper_host(system, locale);
     match host.project(spec) {
         Some(project) => {
             let project = Arc::new(project);

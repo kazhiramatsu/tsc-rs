@@ -585,7 +585,7 @@ mod tests {
     fn the_version_line_is_tsgos() {
         assert_eq!(plain(0).version(), "Version 7.1.0-dev\n");
         let czech = Help {
-            catalog: crate::locale::Locale::Czech.messages(),
+            catalog: crate::locale::Locale::parse("cs").unwrap().messages(),
             ..plain(0)
         };
         assert_eq!(czech.version(), "Verze 7.1.0-dev\n");

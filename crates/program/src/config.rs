@@ -1377,13 +1377,11 @@ impl ConfigRootPlan {
 
     /// tsgo `PossiblyMatchesFileName`: whether the file at the absolute
     /// `file_name` could be a root of this config: a root file, a literal
-    /// include, or a file with a supported extension below a wildcard
-    /// directory.
+    /// include, a content-mapped file below a wildcard directory, or a file
+    /// a wildcard directory's glob matches.
     pub fn possibly_matches_file_name(&self, file_name: JsStr<'_>, case_sensitive: bool) -> bool {
-        let key = file_name_key(
-            crate::js_path::normalize_path(file_name).as_js(),
-            case_sensitive,
-        );
+        let file_name = crate::js_path::normalize_path(file_name);
+        let key = file_name_key(file_name.as_js(), case_sensitive);
         if self
             .file_names
             .iter()
@@ -1392,13 +1390,12 @@ impl ConfigRootPlan {
             return true;
         }
         let directory = js_directory_name(self.config_file_name());
+        // tsgo: a literal include (not a glob, not an implicit glob — a
+        // directory).
         let literal_include = self.include_specs.iter().any(|include| {
             let spec = include.to_string_lossy();
             !spec.contains(['*', '?'])
-                && spec
-                    .rsplit('/')
-                    .next()
-                    .is_some_and(|name| name.contains('.'))
+                && spec.contains('.')
                 && file_name_key(
                     normalized_absolute_path(include.as_js(), directory.as_js()).as_js(),
                     case_sensitive,
@@ -1407,15 +1404,46 @@ impl ConfigRootPlan {
         if literal_include {
             return true;
         }
-        const EXTENSIONS: [&str; 9] = [
-            ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts", ".json",
-        ];
-        let name = key.to_string_lossy();
-        EXTENSIONS.iter().any(|extension| name.ends_with(extension))
+        if self
+            .content_mapper_for_file_name(file_name.as_js(), case_sensitive)
+            .is_some()
             && self.possibly_matches_directory_name(
                 directory_name(key.as_js()).as_js(),
                 case_sensitive,
             )
+        {
+            return true;
+        }
+        // tsgo `WildcardDirectoryGlobs`: `dir/*.{extensions}` (`dir/**/*.{…}`
+        // below a recursive directory), with the content mappers'
+        // extensions; matched as written (tsgo's globs are case-sensitive).
+        const EXTENSIONS: [&str; 9] =
+            ["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts", "json"];
+        let name = file_name.to_string_lossy();
+        self.wildcard_directories.iter().any(|wildcard| {
+            let wildcard_path = wildcard.path.to_string_lossy();
+            let Some(rest) = name
+                .strip_prefix(wildcard_path.trim_end_matches('/'))
+                .and_then(|rest| rest.strip_prefix('/'))
+            else {
+                return false;
+            };
+            let base = match rest.rsplit_once('/') {
+                Some((_, base)) if wildcard.recursive => base,
+                Some(_) => return false,
+                None => rest,
+            };
+            EXTENSIONS
+                .into_iter()
+                .chain(
+                    self.content_mapper_extensions()
+                        .map(|extension| extension.trim_start_matches('.')),
+                )
+                .any(|extension| {
+                    base.strip_suffix(extension)
+                        .is_some_and(|stem| stem.ends_with('.'))
+                })
+        })
     }
 
     /// tsgo `PossiblyMatchesDirectoryName`: whether the absolute `directory`

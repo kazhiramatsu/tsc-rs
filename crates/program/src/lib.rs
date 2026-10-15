@@ -149,7 +149,8 @@ pub use config::{
 pub use config_host::CompilerConfigHost;
 pub use config_matcher::ConfigFilePattern;
 pub use config_options::{
-    compiler_option_declaration, compiler_option_declarations, compiler_option_spelling_suggestion,
+    compiler_option_declaration, compiler_option_declaration_ignore_case,
+    compiler_option_declarations, compiler_option_spelling_suggestion,
     is_command_option_without_build, jsconfig_defaults, CompilerOptionDeclaration,
     CompilerOptionListDescriptor, CompilerOptionListElementKind, CompilerOptionNamedStringValue,
     CompilerOptionNamedValue, CompilerOptionObjectDescriptor, CompilerOptionValueKind,
@@ -195,6 +196,7 @@ pub use module_resolution::{
     ModuleResolutionOverride, ModuleResolutionOverrideHandle, ModuleResolver, OverriddenResolution,
     PackageJsonProbe, ResolvedEntrypoint,
 };
+pub use option_validation::path_is_absolute;
 pub use option_validation::{
     ensure_path_is_non_module_name, path_is_relative, validate_compiler_options,
     validate_paths_option_diagnostics, CompilerOptionValidationLocation, CompilerOptionViolation,
