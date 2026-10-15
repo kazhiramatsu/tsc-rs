@@ -1125,3 +1125,30 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 - **有界の違い**：content mapper の 3 場面（L10）。
 - **一時的な誤判定**：suites の更新中に見えた panic（`completions/jsdoc.rs:565` の 9 件と mutex の poison 12 件）は L6b の
   実行にもある既存のもの（content mapper の場面、L10）で、L6c の回帰ではない。
+
+## L6d semantic token・linked editing・auto insert（#807）
+
+- **merge**：#807 → `0f1cc2116`（hosted run 38683880598：rust 10m44s、conformance 18m33s、gates）。commit：12fa39a80
+  （syntax）、8190b94fe（language service と server）、ae36322ea（ratchet）、1fea28237（modifier の共有）。最初の head
+  `1fea28237` の run 38680567352 も通ったが、その間に README を main に入れたため strict な main の更新（`gh pr
+  update-branch`）で CI をもう一度回した（文書は PR の gates 待ちの間に main へ入れない）。
+- **syntax**：tsgo `ast.TagNamesAreEquivalent` を `tsc_syntax::utilities` の共有の関数にし、parser もそれを呼ぶ（動作は
+  同じ）。
+- **semantic token**（`crates/ls/src/semantic_tokens.rs`、tsgo `semantictokens.go`）：file か範囲に重なる node の識別子
+  （JSX 要素の tag と属性、import 節、`Infinity`・`NaN` を除く）のうち、（alias を解いた）symbol を flag か宣言の種類で
+  分類できるもの。点の右の引数は property、型（か union の要素）が construct できる変数・property・引数は class、呼べる
+  もの（property を持たないか呼び出しの callee）は function か method。declaration・static・async・readonly・local・
+  defaultLibrary の modifier。開始で並べ、開始ごとに一つ、client の legend で符号化。legend の表は tsgo と同じく
+  language service に移した。
+- **modifier**：`node_util::get_combined_modifier_flags` は JavaScript の member の JSDoc（`@readonly` など）から tsgo の
+  parser が reparse する modifier を hosted の reparse 表から既に数える（class の property・method・accessor、object
+  literal の中では無し、代入、変数は無し）。最初に同じ規則を別に書いてしまい、`1fea28237` で共有の helper に替えた。
+- **linked editing と auto insert**（`crates/ls/src/jsx_tags.rs`）：fragment の `<`・`</` の後の位置か、要素の二つの tag 名
+  （どちらかの中、両方が整い同じ文字のとき）と tsgo の word pattern。`>` で閉じていない要素（fragment）の開き tag を
+  終えた後に閉じ tag の snippet（`$` は escape、利用者が auto closing tag を切っていなければ）。
+- **検査（1fea28237）**：conformance 0 regressions（全 13,577 full）、suites 0 regressions（61 行 none→full、semantic
+  token 46・linked editing 12・auto insert 3。lsp 4,350 → 4,411）、61/61、test（ls 211 ほか全通過）、API client sync
+  340/356・async 349/365（main と同じ）、clippy、fmt。
+- **回帰 test**：`crates/ls/tests/references.rs`（reparse した JSDoc の modifier の readonly、範囲の token と既定の
+  library。期待値は `scripts/lsp_transcript.py` で取った tsgo の答え）。
+- **README**：language server の節を更新（実装済みに semantic token と linked editing、一致数 4,411）。
