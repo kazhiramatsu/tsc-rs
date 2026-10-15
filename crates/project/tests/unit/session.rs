@@ -33,6 +33,7 @@ fn setup(fs: &Arc<MemFs>) -> Session {
             position_encoding: PositionEncodingKind::UTF8,
             watch_enabled: true,
             logging_enabled: true,
+            telemetry_enabled: false,
             push_diagnostics_enabled: true,
             debounce_delay: std::time::Duration::ZERO,
             client_capabilities: Default::default(),
