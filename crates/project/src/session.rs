@@ -876,10 +876,7 @@ impl Inner {
         let file = |file_name: &str| {
             texts
                 .get_key_value(file_name)
-                .map(|(file_name, text)| TextScript {
-                    file_name: file_name.clone(),
-                    text,
-                })
+                .map(|(file_name, text)| TextScript::new(file_name.clone(), text))
         };
         let diagnostics = diagnostics
             .iter()

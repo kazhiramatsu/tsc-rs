@@ -510,9 +510,23 @@ pub(crate) fn touching(found: Found) -> Option<Touching> {
 
 /// A file of the program as a script: its name and text.
 pub(crate) fn script_of(source: &SourceFile) -> TextScript<'_> {
+    let file_name = source.file_name.to_string_lossy().into_owned();
+    // tsgo's content mapper's output: its original file.
+    let mapped = source
+        .content_mapper
+        .as_ref()
+        .map(|output| crate::lsconv::MappedScript {
+            original_file_name: output.canonical.as_ref().map_or_else(
+                || file_name.clone(),
+                |canonical| canonical.to_string_lossy().into_owned(),
+            ),
+            original_text: &output.original_text,
+            span_map: output.span_map.as_ref(),
+        });
     TextScript {
-        file_name: source.file_name.to_string_lossy().into_owned(),
+        file_name,
         text: source.text(),
+        mapped,
     }
 }
 

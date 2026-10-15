@@ -18,7 +18,7 @@ use tsc_syntax::SourceFile;
 use tsc_types::JsStr;
 
 use crate::language_service::Host;
-use crate::lsconv::{Converters, TextScript};
+use crate::lsconv::{Converters, Script, TextScript};
 use crate::request::Request;
 use crate::utilities::canonical_path;
 
@@ -52,21 +52,17 @@ impl<'h> SourceMaps<'h> {
                 _ => start.pos + range.len(),
             };
             let text = self.host.read_file(&start.file_name).unwrap_or_default();
-            let script = TextScript {
-                file_name: start.file_name.clone(),
-                text: &text,
-            };
+            let script = TextScript::new(start.file_name.clone(), &text);
             return Location {
                 uri: DocumentUri(file_name_to_document_uri(&start.file_name)),
                 range: self.converters.to_lsp_range(&script, start.pos..end),
             };
         }
-        let script = TextScript {
-            file_name: file_name.clone().into_owned(),
-            text: source.text(),
-        };
+        // tsgo `ToLSPLocation`: a content mapper's output's range in its
+        // original file.
+        let script = crate::utilities::script_of(source);
         Location {
-            uri: DocumentUri(file_name_to_document_uri(&file_name)),
+            uri: DocumentUri(file_name_to_document_uri(script.original_file_name())),
             range: self.converters.to_lsp_range(&script, range),
         }
     }

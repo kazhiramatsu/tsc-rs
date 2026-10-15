@@ -178,3 +178,16 @@ pub(crate) fn build_vs_hover_raw_content(
         _vs_type: Default::default(),
     })
 }
+
+/// tsgo `ProvideHover`'s Visual Studio contents of several projections:
+/// stacked.
+pub(crate) fn stacked_raw_contents(contents: Vec<VSContainerElement>) -> VSContainerElement {
+    VSContainerElement {
+        style: VSContainerElementStyle::STACKED,
+        elements: contents
+            .into_iter()
+            .map(VSImageElementOrClassifiedTextElementOrContainerElement::ContainerElement)
+            .collect(),
+        _vs_type: Default::default(),
+    }
+}

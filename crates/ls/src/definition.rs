@@ -415,6 +415,18 @@ impl<'a> Request<'_, 'a> {
         self.converters.to_lsp_range(&script_of(source), range)
     }
 
+    /// tsgo `ToLSPRangeForFeature`: [`Self::lsp_range`] with no fidelity
+    /// unless contiguous segments taking part in `feature` cover the range.
+    pub(crate) fn lsp_range_for_feature(
+        &self,
+        source: &SourceFile,
+        range: Range<usize>,
+        feature: tsc_diagnostics::spanmap::Features,
+    ) -> (tsc_lsproto::Range, tsc_diagnostics::spanmap::Fidelity) {
+        self.converters
+            .to_lsp_range_for_feature(&script_of(source), range, feature)
+    }
+
     /// tsgo `createRangeFromNode`: from the node's first token to its end.
     pub(crate) fn range_from_node(&self, node: NodeId) -> Range<usize> {
         let source = self.state.binder.source_of_node(node);
