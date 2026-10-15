@@ -848,3 +848,6 @@ mod signatures;
 
 #[path = "session_symbols.rs"]
 mod symbols;
+
+#[path = "session_language_service.rs"]
+mod language_service;

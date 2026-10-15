@@ -302,6 +302,9 @@ pub struct CreateSnapshotParams {
     /// `UserPreferences`: its defaults with the object's configuration).
     #[serde(default, deserialize_with = "user_preferences")]
     pub user_preferences: Option<UserPreferences>,
+    /// The file whose auto-import indexes the new snapshot prepares.
+    #[serde(default)]
+    pub prepare_auto_imports: Option<DocumentIdentifier>,
 }
 
 /// tsgo `UserPreferences.UnmarshalJSONFrom` of an optional field.
@@ -1473,6 +1476,113 @@ pub struct ResolveModuleNameResult {
 #[derive(Clone, Debug, Serialize)]
 pub struct SourceFileResponse {
     pub data: String,
+}
+
+/// tsgo `GetCompletionsAtPositionParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetCompletionsAtPositionParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub file: DocumentIdentifier,
+    /// A UTF-16 position.
+    #[serde(default, deserialize_with = "nullable")]
+    pub position: u32,
+    #[serde(default)]
+    pub trigger_character: Option<String>,
+    #[serde(default, deserialize_with = "nullable")]
+    pub include_symbol: bool,
+}
+
+/// tsgo `GetReferencedSymbolsForNodeParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetReferencedSymbolsForNodeParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub node: String,
+    /// A position of the node's file, as the language service takes it.
+    #[serde(default, deserialize_with = "nullable")]
+    pub position: i64,
+}
+
+/// tsgo `GetSignatureUsagesParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetSignatureUsagesParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub signature_decl: String,
+}
+
+/// tsgo `GetReferencesToSymbolInFileParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetReferencesToSymbolInFileParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub file: DocumentIdentifier,
+    #[serde(default)]
+    pub symbol: SymbolReference,
+}
+
+/// tsgo `ImportAdderActionKindImportSymbol`.
+pub const IMPORT_ADDER_ACTION_IMPORT_SYMBOL: &str = "importSymbol";
+
+/// tsgo `ImportAdderAction`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportAdderAction {
+    #[serde(default, deserialize_with = "nullable")]
+    pub kind: String,
+    #[serde(default)]
+    pub symbol: Option<SymbolReference>,
+    #[serde(default)]
+    pub is_valid_type_only_use_site: Option<bool>,
+}
+
+/// tsgo `GetImportAdderEditsParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetImportAdderEditsParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub file: DocumentIdentifier,
+    #[serde(default, deserialize_with = "nullable")]
+    pub actions: Vec<ImportAdderAction>,
+}
+
+/// tsgo `TextEdit` (the API's): a UTF-16 range of the file's original text
+/// and its replacement.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextEdit {
+    pub pos: u32,
+    pub end: u32,
+    pub new_text: String,
+}
+
+/// tsgo `JSDocTagInfo`.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct JsDocTagInfo {
+    pub name: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub text: String,
 }
 
 #[cfg(test)]
