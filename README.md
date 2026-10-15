@@ -157,6 +157,9 @@ tsc-rs --api --cwd /path/to/workspace   # MessagePack over stdio (--async: JSON-
 ```
 
 With `--runExternalCode`, projects run their [content mappers](#content-mappers).
+The language server also serves the client over a pipe
+(`custom/initializeAPISession`), with the editor's projects and open files
+(`getCurrentLanguageServerSnapshot`).
 
 Implemented: snapshots and projects, config parsing, source files,
 transpilation, module resolution, symbol, type and signature queries, scope
