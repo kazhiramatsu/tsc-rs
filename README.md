@@ -101,7 +101,10 @@ restarts a mapper whose package changes.
   checker).
 - **Language server:** in 4,583 of the 4,584 sessions of TypeScript 7.1's
   language server tests, tsc-rs answers exactly as `tsgo` does; `tsgo`'s
-  own answer to the last one varies from run to run (October 15, 2026).
+  own answer to the last one varies from run to run (October 15, 2026). In
+  generated sessions over hono, zod and effect (196,093 requests), 115
+  answers differ, most of them where `tsgo`'s own answer varies from run to
+  run (October 16, 2026).
 - **TypeScript 7 rules:** the default `target` is ES2026, and the options
   TypeScript 7 removed (`baseUrl`, `outFile`, `target: "es5"`, the `amd`,
   `umd` and `system` modules, …) are errors.
