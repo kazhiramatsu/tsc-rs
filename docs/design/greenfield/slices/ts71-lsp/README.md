@@ -1095,3 +1095,33 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   （main と同じ）、clippy、fmt。
 - **回帰 test**：`crates/ls/tests/references.rs`（computed key の expando は名前のない関数を持つ）。
 - **有界の違い**：TestContentMapperSupplementalDocumentSymbols（L10）。
+
+## L6c folding range と selection range（#806）
+
+- **merge**：#806 → `4ec90196e`（hosted run 38675002932：rust 8m20s、conformance 22m7s、gates）。commit：5427a06a4
+  （language service と server）、9e690ac87（ratchet）。検査の後の main の取り込みは L6b の merge（同じ code）と packet の
+  README だけ。
+- **folding range**（`crates/ls/src/folding.rs`、tsgo `folding.go`）：深さ 40 までの node の範囲（block。関数は引数が
+  複数行なら開き括弧から。class・interface・enum・型 literal の本体、case 節、object と array の literal と binding
+  pattern、tuple 型、JSX 要素（`<tag>...</tag>`）と属性、template、arrow 関数の本体、複数行の呼び出しと括弧の式、import
+  と export の list）、二つ以上の import の連なり（最初の `import` から）、comment（複数行のもの、二つ以上続く一行の
+  もの。region の区切りは混ぜない）と `#region`（comment の中でないもの、名前つき）。行単位で畳む client には閉じ括弧で
+  終わる範囲を一行手前で終える。並べて重複を除く。
+- **JavaScript の reparse**：tsgo の parser は文の JSDoc から reparse した宣言（型を持つ `@typedef`・`@callback`、import
+  節を持つ `@import`）を文の前に置き、`IsAnyImportSyntax` はそれを取らない。それで import の前の宣言は import の連なりを
+  切る。次の連なりは tsgo `FindChildOfKind` の古い `import` token の位置（JSDoc comment の終わり）から始まる
+  （`child_of_kind` は既にこれを真似ている）。
+- **selection range**（`crates/ls/src/selection_ranges.rs`、tsgo `selectionranges.go`）：各位置で file から最も内側の
+  node まで。list、文字列の内側、`${ … }`、複数行の関数本体、後ろの一行 comment（斜線ありとなし）、JSDoc を先に。mapped
+  型は tsgo の selection の子（`-readonly`・`-?` をまとめ、型引数を括弧とまとめ、colon で分ける）。範囲は 999 まで、
+  内側を残す。
+- **共有**：`getLineEndOfPosition` と位置の行は一つの helper（completions の二つの複製をまとめた）。
+- **検査（9e690ac87）**：language service と server だけの変更（compiler の経路なし）なので compiler の conformance と
+  並列の対照は走らせていない。suites 0 regressions（73 行 none→full、全て folding と selection range。lsp 4,277 →
+  4,350）、folding と selection range 73/76、test（language service を使う crate：ls 209、lsp 14、api 297、conformance
+  49、全通過）、API client sync 340/356・async 349/365（main と同じ）、clippy、fmt。
+- **回帰 test**：`crates/ls/tests/references.rs`（reparse した JSDoc の宣言は import の連なりを切る。期待値は
+  `scripts/lsp_transcript.py` で取った tsgo の答え）。
+- **有界の違い**：content mapper の 3 場面（L10）。
+- **一時的な誤判定**：suites の更新中に見えた panic（`completions/jsdoc.rs:565` の 9 件と mutex の poison 12 件）は L6b の
+  実行にもある既存のもの（content mapper の場面、L10）で、L6c の回帰ではない。
