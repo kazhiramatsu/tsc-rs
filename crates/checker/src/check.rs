@@ -2521,13 +2521,20 @@ impl<'a> CheckerState<'a> {
                         &[&whole, &left],
                     );
                 }
-            } else if !is_name_first && is_js {
+            } else if !is_name_first {
+                // tsgo `errorOrSuggestion(isJs, …)`: a suggestion in a
+                // TypeScript file.
                 let text = self.identifier_text_of(name).unwrap_or_default().to_owned();
-                self.error_at(
+                let index = self.error_at(
                     Some(name),
                     &diagnostics::JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name,
                     &[&text],
                 );
+                if !is_js {
+                    self.diagnostics.update(index, |diagnostic| {
+                        diagnostic.message.category = DiagnosticCategory::Suggestion;
+                    });
+                }
             }
         }
         Ok(())

@@ -828,13 +828,16 @@ impl<'a> Request<'_, 'a> {
         let inferred_function = type_symbol == Some(symbol)
             || type_symbol.is_some_and(|type_symbol| {
                 let value_declaration = self.state.binder.symbol(symbol).value_declaration;
+                // tsgo compares the initializer with the type symbol's value
+                // declaration even when both are missing (Go's nil == nil, as
+                // TypeScript's `undefined === undefined`): `declare var Symbol:
+                // SymbolConstructor` goes to its call signature's return type.
                 value_declaration.is_some_and(|declaration| {
                     matches!(
                         &self.state.binder.node_record(declaration).data,
                         NodeData::VariableDeclaration(variable)
-                            if variable.initializer.is_some()
-                                && variable.initializer
-                                    == self.state.binder.symbol(type_symbol).value_declaration
+                            if variable.initializer
+                                == self.state.binder.symbol(type_symbol).value_declaration
                     )
                 })
             });

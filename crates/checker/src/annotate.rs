@@ -571,7 +571,7 @@ impl<'a> CheckerState<'a> {
             types.push(self.get_type_from_type_node(span_type)?);
             texts.push(text);
         }
-        let template = self.get_template_literal_type_from_texts(&texts, &types);
+        let template = self.get_template_literal_type_from_texts(&texts, &types)?;
         self.links.set_node_resolved_type(
             self.speculation_depth,
             node,

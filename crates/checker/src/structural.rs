@@ -8717,11 +8717,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getStringLikeTypeForType @6.0.3
     /// tsc-hash: 7fa8931292a2608f41ef4622f7506b00e03fc20e5245961f76342983239d1245
     /// tsc-span: _tsc.js:68584-68586
-    fn get_string_like_type_for_type(&mut self, ty: TypeId) -> TypeId {
+    fn get_string_like_type_for_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::from_bits(
             TypeFlags::ANY.bits() | TypeFlags::STRING_LIKE.bits(),
         )) {
-            ty
+            Ok(ty)
         } else {
             self.get_template_literal_type(&["".to_owned(), "".to_owned()], &[ty])
         }
@@ -8784,7 +8784,7 @@ impl<'a> CheckerState<'a> {
                     texts.extend(source_texts[seg + 1..s].iter().cloned());
                     texts.push(TemplateText::from_utf16(&get_source_units(s)[..p]));
                     let types = source_types[seg..s].to_vec();
-                    self.get_template_literal_type_from_texts(&texts, &types)
+                    self.get_template_literal_type_from_texts(&texts, &types)?
                 };
                 matches.push(match_type);
                 #[allow(unused_assignments)]
@@ -8979,7 +8979,7 @@ fn infer_types_from_template_literal_type<'a, C: TemplateTypeComparer<'a>>(
                 if comparer.compare(source_base, target_base)? {
                     mapped.push(s);
                 } else {
-                    mapped.push(comparer.state().get_string_like_type_for_type(s));
+                    mapped.push(comparer.state().get_string_like_type_for_type(s)?);
                 }
             }
             return Ok(Some(mapped));

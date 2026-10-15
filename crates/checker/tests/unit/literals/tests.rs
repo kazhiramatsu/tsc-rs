@@ -1,6 +1,6 @@
 use tsc_diagnostics::DiagnosticCategory;
 use tsc_syntax::SyntaxKind;
-use tsc_types::CompilerOptions;
+use tsc_types::{CompilerOptions, SymbolFlags};
 
 use crate::state::test_support::with_program_state;
 use crate::state::CheckerState;
@@ -420,4 +420,36 @@ fn object_literal_method_bodies_check_since_5_5f() {
         checked_rows("({ m() { return missingName; } });\n"),
         [(2304, 16, 11)]
     );
+}
+
+/// tsgo `getTemplateLiteralType` maps a union span through `mapType`,
+/// whose union removes the string literals its template literals match:
+/// `${undefined}:${string | undefined}` has no `"undefined:undefined"`, in
+/// a type and in a template expression (found by the LSP test on hono, in
+/// a hover of `c.text(`${a}:${b}`)`). Pinned to tsgo's hovers at aa814927.
+#[test]
+fn a_template_union_drops_the_literals_its_templates_match() {
+    let text = "type T2 = `${undefined}:${string | undefined}`;\ntype T3 = `${string | undefined}:${string | undefined}`;\ndeclare const b: string | undefined;\ndeclare function text<T extends string>(t: T): T;\nconst r1 = text(`undefined:${b}`);\n";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        let mut printed = |name: &str, meaning: SymbolFlags| {
+            let symbol = state.resolve_file_scope_name(name, meaning).unwrap();
+            let ty = if meaning == SymbolFlags::TYPE {
+                state.get_declared_type_of_symbol(symbol).unwrap()
+            } else {
+                state.get_type_of_symbol(symbol).unwrap()
+            };
+            state
+                .type_to_string(ty)
+                .unwrap()
+                .to_string_lossy()
+                .into_owned()
+        };
+        assert_eq!(printed("T2", SymbolFlags::TYPE), "`undefined:${string}`");
+        assert_eq!(
+            printed("T3", SymbolFlags::TYPE),
+            "`${string}:${string}` | `${string}:undefined` | `undefined:${string}`"
+        );
+        assert_eq!(printed("r1", SymbolFlags::VALUE), "`undefined:${string}`");
+    });
 }

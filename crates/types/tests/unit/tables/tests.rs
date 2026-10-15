@@ -48,7 +48,7 @@ fn template_constraint_and_numeric_string_shapes() {
         other => panic!("numeric_string should be a template literal: {other:?}"),
     }
     let number = t.intrinsics.number;
-    let again = t.get_template_literal_type(None, &[String::new(), String::new()], &[number]);
+    let again = t.get_template_literal_type(&[String::new(), String::new()], &[number]);
     assert_eq!(again, t.intrinsics.numeric_string);
 }
 
@@ -441,23 +441,21 @@ fn template_literal_types_fold_and_intern() {
     let string = t.intrinsics.string;
     let number = t.intrinsics.number;
     // `a${string}` interns by texts+types.
-    let a1 = t.get_template_literal_type(None, &["a".into(), "".into()], &[string]);
-    let a2 = t.get_template_literal_type(None, &["a".into(), "".into()], &[string]);
+    let a1 = t.get_template_literal_type(&["a".into(), "".into()], &[string]);
+    let a2 = t.get_template_literal_type(&["a".into(), "".into()], &[string]);
     assert_eq!(a1, a2);
     // All-literal spans fold to a plain string literal (62071-62073).
     let one = t.get_number_literal_type(1.0);
-    let folded = t.get_template_literal_type(None, &["a".into(), "b".into()], &[one]);
+    let folded = t.get_template_literal_type(&["a".into(), "b".into()], &[one]);
     assert_eq!(folded, t.get_string_literal_type("a1b"));
     // The all-literal fold stays in the JavaScript UTF-16 domain:
     // a lone surrogate is not interned as U+FFFD.
     let suffix = t.get_string_literal_type("x");
     let folded_surrogate = t.get_template_literal_type_from_texts(
-        None,
         &[TemplateText::from_utf16(&[0xD800]), TemplateText::default()],
         &[suffix],
     );
     let folded_replacement = t.get_template_literal_type_from_texts(
-        None,
         &[TemplateText::from_utf16(&[0xFFFD]), TemplateText::default()],
         &[suffix],
     );
@@ -469,10 +467,10 @@ fn template_literal_types_fold_and_intern() {
         }
     );
     // `${string}` with empty texts collapses to string (62075-62078).
-    let s = t.get_template_literal_type(None, &["".into(), "".into()], &[string]);
+    let s = t.get_template_literal_type(&["".into(), "".into()], &[string]);
     assert_eq!(s, string);
     // `${number}` stays a pattern template.
-    let n = t.get_template_literal_type(None, &["".into(), "".into()], &[number]);
+    let n = t.get_template_literal_type(&["".into(), "".into()], &[number]);
     assert!(t.flags_of(n).intersects(TypeFlags::TEMPLATE_LITERAL));
     assert!(t.is_pattern_literal_type(n));
 
@@ -480,12 +478,10 @@ fn template_literal_types_fold_and_intern() {
     // unpaired surrogate stays distinct from U+FFFD, while a
     // valid pair is the same text as its scalar UTF-8 spelling.
     let surrogate = t.get_template_literal_type_from_texts(
-        None,
         &[TemplateText::from_utf16(&[0xD800]), TemplateText::default()],
         &[number],
     );
     let replacement = t.get_template_literal_type_from_texts(
-        None,
         &[TemplateText::from_utf16(&[0xFFFD]), TemplateText::default()],
         &[number],
     );
@@ -640,33 +636,34 @@ fn template_literal_types_over_tsgo_limits_are_too_large() {
     // is too large; the checker reports TS2589 and uses the error type.
     let mut t = tables();
     let string = t.intrinsics.string;
+    let try_template = |t: &mut TypeTables, texts: &[String], types: &[TypeId]| {
+        let texts = texts
+            .iter()
+            .map(|text| TemplateText::from_utf8(text))
+            .collect::<Vec<_>>();
+        t.try_get_template_literal_type_from_texts(&texts, types)
+    };
     let limit = MAX_TEMPLATE_LITERAL_TYPE_SPANS;
-    let at_limit = t.try_get_template_literal_type(
-        None,
+    let at_limit = try_template(
+        &mut t,
         &vec![String::new(); limit + 1],
         &vec![string; limit],
     );
     assert!(at_limit.is_ok());
-    let over_limit = t.try_get_template_literal_type(
-        None,
+    let over_limit = try_template(
+        &mut t,
         &vec![String::new(); limit + 2],
         &vec![string; limit + 1],
     );
     assert_eq!(over_limit, Err(TemplateLiteralTooLarge));
     assert_eq!(
-        t.get_template_literal_type(
-            None,
-            &vec![String::new(); limit + 2],
-            &vec![string; limit + 1]
-        ),
+        t.get_template_literal_type(&vec![String::new(); limit + 2], &vec![string; limit + 1]),
         t.intrinsics.error
     );
     // Text is measured in UTF-8 bytes, as Go counts it.
     let half = MAX_TEMPLATE_LITERAL_TYPE_LENGTH / 2;
-    let fits =
-        t.try_get_template_literal_type(None, &["a".repeat(half), "a".repeat(half)], &[string]);
+    let fits = try_template(&mut t, &["a".repeat(half), "a".repeat(half)], &[string]);
     assert!(fits.is_ok());
-    let over =
-        t.try_get_template_literal_type(None, &["a".repeat(half), "a".repeat(half + 1)], &[string]);
+    let over = try_template(&mut t, &["a".repeat(half), "a".repeat(half + 1)], &[string]);
     assert_eq!(over, Err(TemplateLiteralTooLarge));
 }

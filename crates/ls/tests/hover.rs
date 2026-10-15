@@ -1530,3 +1530,52 @@ fn vs_documentation_summary() {
         ))
     );
 }
+
+/// tsgo `finalizeBoundary` drops the length a reuse of an existing type node
+/// counted, failed or not (a reused node counts as its source text): a
+/// property's union whose reuse fails on an inaccessible alias counts its
+/// expanded members once, and the hover is not truncated (found by the LSP
+/// test on hono, which truncated hono's `ClientRequestOptions`). Pinned to
+/// tsgo's answer at aa814927.
+#[test]
+fn a_failed_type_node_reuse_counts_no_length() {
+    let globals = "declare function send(input: string): Promise<string>;\n";
+    // Ten more properties bring the count near hover's limit (500).
+    let extra: String = (0..10)
+        .map(|index| format!("  extra{index}?: string\n"))
+        .collect();
+    let types = format!("class Server {{\n  request = (input: string | number | boolean, init?: object, env?: object, context?: object): string | number | Promise<string> => \"\"\n}}\ntype ServerRequest = (typeof Server.prototype)['request']\nexport type Options<T = unknown> = {{\n  send?: typeof send | ServerRequest\n{extra}  init?: object\n  buildSearchParams?: (query: Record<string, string | string[]>) => object\n}} & (keyof T extends never\n  ? {{ headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>) }}\n  : {{ headers: T | (() => T | Promise<T>) }})\n");
+    let index = "export type { Options } from './types'\n";
+    let files = [
+        ("/index.ts", index),
+        ("/types.ts", types.as_str()),
+        ("/globals.ts", globals),
+    ];
+    assert_eq!(
+        hover(&files, options(|_| {}), "/index.ts", (0, 14), None),
+        Some((
+            "```typescript\n(alias) type Options<T = unknown> = {\n    send?: typeof send | ((input: string | number | boolean, init?: object, env?: object, context?: object) => string | number | Promise<string>);\n    extra0?: string;\n    extra1?: string;\n    extra2?: string;\n    extra3?: string;\n    extra4?: string;\n    extra5?: string;\n    extra6?: string;\n    extra7?: string;\n    extra8?: string;\n    extra9?: string;\n    init?: object;\n    buildSearchParams?: (query: Record<string, string | string[]>) => object;\n} & (keyof T extends never ? {\n    headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>);\n} : {\n    headers: T | (() => T | Promise<T>);\n})\n```\n".to_owned(),
+            ((0, 14), (0, 21)),
+            true,
+        ))
+    );
+}
+
+/// tsgo marks a hover truncated only where it cuts an expansion
+/// (`checkTruncationLengthIfExpanding`), not where `mapToTypeNodes` or
+/// `createTypeNodesFromResolvedType` cut a type: a type parameter's hover
+/// whose signature is cut (`... 2 more ...`) still offers a higher
+/// verbosity (found by the LSP test on hono, in its factory's handlers).
+/// Pinned to tsgo's answer at aa814927.
+#[test]
+fn a_cut_type_still_offers_a_higher_verbosity() {
+    let text = "interface Env { Variables?: object; Bindings?: object }\ntype IfAnyThenEmptyObject<T> = 0 extends 1 & T ? {} : T\ntype ProcessHead<T> = IfAnyThenEmptyObject<T extends Env ? (Env extends T ? {} : T) : T>\ntype IntersectNonAnyTypes<T extends any[]> = T extends [infer Head, ...infer Rest]\n  ? ProcessHead<Head> & IntersectNonAnyTypes<Rest>\n  : {}\ndeclare function f<\n  E extends Env,\n  I extends object = {},\n  I2 extends object = I,\n  I3 extends object = I & I2,\n  E2 extends Env = E,\n  E3 extends Env = IntersectNonAnyTypes<[E, E2]>,\n  E4 extends Env = IntersectNonAnyTypes<[E, E2, E3]>,\n>(a: E2, b: E3, c: E4): [E2, E3, E4]\n";
+    assert_eq!(
+        hover(&[("/a.ts", text)], options(|_| {}), "/a.ts", (12, 2), None),
+        Some((
+            "```typescript\n(type parameter) E3 extends Env in f<E extends Env, I extends object = {}, I2 extends object = I, I3 extends object = I & I2, E2 extends Env = E, E3 extends Env = IfAnyThenEmptyObject<E extends Env ? Env extends E ? {} : E : E> & IfAnyThenEmptyObject<E2 extends Env ? Env extends E2 ? {} : E2 : E2> & {}, E4 extends Env = IfAnyThenEmptyObject<...> & ... 2 more ... & ...>(a: E2, b: E3, c: E4): [E2, E3, E4]\n```\n".to_owned(),
+            ((12, 2), (12, 4)),
+            true,
+        ))
+    );
+}
