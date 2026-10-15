@@ -1014,3 +1014,34 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   checker 1,803、ls 204 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
 - **回帰 test**：`crates/ls/tests/references.rs`（parameter property と計算された名前の property の workspace symbol）、
   checker の package の事実、program の `ChangeExtension`。
+
+## L7e-3 複数 project の検索（#803）
+
+- **merge**：#803 → `70bb9cd82`（hosted run 38661143906：conformance 31m27s、rust は 1 回目に 1 件落ちて再実行で 12m58s、
+  gates）。commit：de1eb3c47（project）、9966b26a4（検索）、b89791f38（ratchet）。検査の後の main の取り込みは L7e の
+  merge（同じ code）と packet の README だけ。
+- **1 回目の rust の失敗**：`crates/cli/tests/integration/cli_contract.rs` の
+  `string_literal_export_names_are_allowed_in_declaration_files_like_tsgo` で、test が起動した `tsc-rs` が signal で終わった
+  （終了 status が 2 でなく `None`）。2 つの file の project を CLI で compile する test で、この PR は CLI の経路に触れず、
+  手元では通る。落ちた job の再実行で通した。
+- **project**：tsgo `ProjectTreeRequest`（全ての tree、または指定の project を参照する tree）と `ResourceRequest.Projects`
+  を `SnapshotChange` に。builder の `DidRequestProjectTrees` は、指定のある時は、それを参照しうる project
+  （`hasPotentialProjectReference`）だけを更新し、tree を下る時はそれを直接または下で参照する project だけを読み込む
+  （`RangeResolvedProjectReferenceInChildConfig`）。`ensureProjectTree` は program の直接の参照をたどって再帰し、
+  `disableReferencedProjectLoad` の project の下には行かない。session の `getSnapshot` は tsgo の `ResourceRequest` を取り
+  （開いていない configured project document は snapshot を更新する）、tsgo `GetProjectsForFile`、
+  `GetLanguageServiceForProjectWithFile`、`WithSnapshotLoadingProjectTree` を持つ。
+- **検索**（`crates/ls/src/cross_project.rs`、`crates/lsp/src/server/cross_project.rs`、tsgo `handleCrossProject` と
+  `crossProjectOrchestrator`）：references（`_vs_references` も）、implementation、rename、incoming calls、code lens の数を、
+  文書の default project と文書を持つ他の project、定義の元の位置（declaration file の source、参照先 project の source）の
+  project、default project の定義が外から見える時（`getNonLocalDefinition`、emit resolver の `IsDeclarationVisible` による
+  `isDefinitionVisible`）はその project を参照する tree の project（定義、その source、その generated position の位置で）
+  で検索し、tsgo の順に並べ、二つ以上の project を尋ねた時は tsgo `combine*` で合わせる。単一 project の入口（tsgo の
+  orchestrator のない経路）は一つの project の答えを返し、変換は結合を真似ない（implementation の位置は重複を残し、全ての
+  edit が落ちた rename は空の `changes`）。
+- **検査（b89791f38）**：conformance 0 regressions（全 13,577 full、487 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（35 行 none→full。lsp 3,976 → 4,011）、対象の method を送る 731 場面のうち元の full 685 は維持、35 が新たに
+  full、content mapper の 11 が残る、test（project 187 ほか全通過）、API client sync 340/356・async 349/365（main と同じ）、
+  clippy、fmt。
+- **道具の不具合**：手元の再生の script（`run_list.sh`）は場面名を log の file 名に使い、`/` を含む subtest の場面は実行
+  されずに ok と出ていた。名前の `/` を置き換えて直した（以前の slice の判定は suites の検査が正で、影響はない）。
