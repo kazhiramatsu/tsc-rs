@@ -1451,3 +1451,70 @@ fn flaky_diagnostic_tracking_parallel_emit() {
         );
     }
 }
+
+/// tsgo's builtin watcher (`lspwatcher`): a client that cannot register
+/// watchers, on a system that watches a tree at once, gets the server's own
+/// watching. No watcher goes to the client, and a change on disk reaches
+/// the session.
+#[cfg(any(target_os = "macos", windows))]
+#[test]
+fn the_builtin_watcher_reports_changes_on_disk() {
+    use tsc_host::vfs::OsFs;
+    let directory =
+        std::env::temp_dir().join(format!("tsc-rs-lsp-builtin-watcher-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).unwrap();
+    std::fs::write(
+        directory.join("tsconfig.json"),
+        r#"{ "compilerOptions": { "strict": true } }"#,
+    )
+    .unwrap();
+    let a = "import { b } from \"./b\";\nexport const n: number = b;\n";
+    std::fs::write(directory.join("a.ts"), a).unwrap();
+    std::fs::write(directory.join("b.ts"), "export const b = 1;\n").unwrap();
+    let root = directory.to_string_lossy().replace('\\', "/");
+    let mut session = Session::start_in(
+        &root,
+        Arc::new(BundledFs::new(OsFs::new(false))),
+        EMBEDDED_LIBRARY_DIRECTORY.to_owned(),
+        None,
+    );
+    let mut client = RegistrationClient::default();
+    client.initialize(&mut session, serde_json::json!({}));
+    let uri = tsc_program::uri::file_name_to_document_uri(&format!("{root}/a.ts"));
+    open_document(&mut client, &mut session, &uri, a);
+    let errors = |client: &mut RegistrationClient, session: &mut Session, id: i64| {
+        let diagnostics = client.request(
+            session,
+            id,
+            "textDocument/diagnostic",
+            serde_json::json!({"textDocument": {"uri": uri}}),
+        );
+        diagnostics["result"]["items"]
+            .as_array()
+            .map_or(0, Vec::len)
+    };
+    assert_eq!(errors(&mut client, &mut session, 2), 0);
+    // The watch starts with the project; then b.ts changes on disk.
+    thread::sleep(Duration::from_millis(500));
+    std::fs::write(directory.join("b.ts"), "export const b = \"b\";\n").unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut id = 3;
+    while errors(&mut client, &mut session, id) == 0 {
+        assert!(
+            Instant::now() < deadline,
+            "the change of b.ts never arrived"
+        );
+        thread::sleep(Duration::from_millis(100));
+        id += 1;
+    }
+    assert!(
+        client
+            .registrations
+            .iter()
+            .all(|registration| registration["method"] != "workspace/didChangeWatchedFiles"),
+        "{:?}",
+        client.registrations
+    );
+    session.close();
+    let _ = std::fs::remove_dir_all(&directory);
+}

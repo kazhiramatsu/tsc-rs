@@ -9,6 +9,8 @@ use tsc_lsproto::ContentMapperContribution;
 use tsc_program::content_mapper::{Definition, Manifest, Mapper};
 use tsc_project::ContentMapperContributions;
 
+use crate::gofmt::quote;
+
 /// tsgo `parseContentMapperContributions`: each contribution's extensions
 /// checked, and an inferred project contribution as a mapper named after
 /// its contributor and index (its package and contribution ID); the
@@ -28,8 +30,8 @@ pub fn parse_content_mapper_contributions(
             if !is_valid_contributed_content_mapper_extension(extension) {
                 return Err(format!(
                     "content mapper contribution {} has invalid extension {}",
-                    go_quote(&identity),
-                    go_quote(extension)
+                    quote(&identity),
+                    quote(extension)
                 ));
             }
             valid_extensions.push(extension.clone());
@@ -41,15 +43,15 @@ pub fn parse_content_mapper_contributions(
         if manifest.name.is_empty() || manifest.exec.is_empty() {
             return Err(format!(
                 "content mapper contribution {} requires a manifest name and exec",
-                go_quote(&identity)
+                quote(&identity)
             ));
         }
         for option in manifest.compiler_options.iter().flatten() {
             if tsc_program::compiler_option_declaration_ignore_case(option).is_none() {
                 return Err(format!(
                     "content mapper contribution {} requests unknown compiler option {}",
-                    go_quote(&identity),
-                    go_quote(option)
+                    quote(&identity),
+                    quote(option)
                 ));
             }
         }
@@ -57,7 +59,7 @@ pub fn parse_content_mapper_contributions(
             if !claimed_extensions.insert(extension.to_lowercase()) {
                 return Err(format!(
                     "content mapper contributions both claim extension {}",
-                    go_quote(extension)
+                    quote(extension)
                 ));
             }
             result.extensions.push(extension.clone());
@@ -66,7 +68,7 @@ pub fn parse_content_mapper_contributions(
             Some(options) => serde_json::to_string(options).map_err(|_| {
                 format!(
                     "content mapper contribution {} has invalid options",
-                    go_quote(&identity)
+                    quote(&identity)
                 )
             })?,
             None => "{}".to_owned(),
@@ -91,7 +93,7 @@ pub fn parse_content_mapper_contributions(
             if !tsc_program::path_is_absolute(cwd.as_str()) {
                 return Err(format!(
                     "content mapper contribution {} has non-absolute cwd",
-                    go_quote(&identity)
+                    quote(&identity)
                 ));
             }
             mapper.package_directory = cwd.clone();
@@ -120,24 +122,4 @@ fn is_valid_contributed_content_mapper_extension(extension: &str) -> bool {
     !NATIVE_EXTENSIONS
         .iter()
         .any(|native| native.eq_ignore_ascii_case(extension))
-}
-
-/// Go's `%q` of a string (`strconv.Quote`).
-fn go_quote(text: &str) -> String {
-    let mut quoted = String::from("\"");
-    for character in text.chars() {
-        match character {
-            '"' => quoted.push_str("\\\""),
-            '\\' => quoted.push_str("\\\\"),
-            '\n' => quoted.push_str("\\n"),
-            '\r' => quoted.push_str("\\r"),
-            '\t' => quoted.push_str("\\t"),
-            character if (character as u32) < 0x20 || character == '\u{7f}' => {
-                quoted.push_str(&format!("\\x{:02x}", character as u32));
-            }
-            character => quoted.push(character),
-        }
-    }
-    quoted.push('"');
-    quoted
 }
