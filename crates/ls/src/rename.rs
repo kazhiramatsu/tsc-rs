@@ -4,6 +4,7 @@
 //! where an alias keeps the other name.
 
 use std::collections::{BTreeMap, HashMap};
+use tsc_diagnostics::spanmap::FEATURE_RENAME;
 
 use tsc_checker::state::CheckResult;
 use tsc_diagnostics::gen;
@@ -36,7 +37,8 @@ pub struct RenameInfo {
 }
 
 impl LanguageService<'_> {
-    /// tsgo `GetRenameInfo` (a file without a content mapper: one position).
+    /// tsgo `GetRenameInfo`: the rename of the first exact projection of
+    /// the position that can say one.
     pub fn get_rename_info(
         &mut self,
         new_name: &str,
@@ -44,16 +46,22 @@ impl LanguageService<'_> {
         position: &Position,
     ) -> Result<RenameInfo, LsError> {
         let file = self.file(uri);
-        let result = self.with_request(file, position, false, |request, position| {
-            let source = request.state.binder.source(file);
-            let Some(node) = touching(Navigator::new(source).touching_property_name(position))
-            else {
-                return Ok(None);
-            };
-            let node = request.adjusted_location(node, true);
-            if request.node_is_eligible_for_rename(node) {
-                if let Some(info) = request.rename_info_for_node(new_name, node)? {
-                    return Ok(Some(info));
+        let result = self.with_program_request(false, |request| {
+            for projection in request.position_projections(file, position, FEATURE_RENAME) {
+                if !projection.fidelity.is_exact() {
+                    continue;
+                }
+                let source = request.state.binder.source(projection.file);
+                let Some(node) =
+                    touching(Navigator::new(source).touching_property_name(projection.position))
+                else {
+                    continue;
+                };
+                let node = request.adjusted_location(node, true);
+                if request.node_is_eligible_for_rename(node) {
+                    if let Some(info) = request.rename_info_for_node(new_name, node)? {
+                        return Ok(Some(info));
+                    }
                 }
             }
             Ok(None)
@@ -94,6 +102,19 @@ fn rename_info_error(message: String) -> RenameInfo {
 }
 
 impl Request<'_, '_> {
+    /// tsgo `renameEditRange`'s fidelity: an entry of a content mapper's
+    /// output maps exactly to its original file; any other entry does.
+    fn rename_edit_maps_exactly(&self, entry: &ReferenceEntry) -> bool {
+        let source = self.state.binder.source(entry.file);
+        if source.span_map.is_none() {
+            return true;
+        }
+        let (_, fidelity) = self
+            .converters
+            .to_lsp_range_with_fidelity(&crate::utilities::script_of(source), entry.range.clone());
+        fidelity.is_exact()
+    }
+
     /// tsgo `getRenameInfoForNode`: none when the node cannot be renamed
     /// without a reason to give.
     pub(crate) fn rename_info_for_node(
@@ -394,11 +415,20 @@ impl Request<'_, '_> {
             // Exclude the quotes
             range = range.start + 1..range.end - 1;
         }
+        // tsgo: no rename where the span does not map exactly into a
+        // content mapper's original file.
+        let (trigger_span, fidelity) = self.converters.to_lsp_range_with_fidelity(
+            &crate::utilities::script_of(self.state.binder.source(file)),
+            range,
+        );
+        if !fidelity.is_exact() {
+            return RenameInfo::default();
+        }
         RenameInfo {
             can_rename: true,
             localized_error_message: String::new(),
             display_name,
-            trigger_span: self.lsp_range(self.state.binder.source(file), range),
+            trigger_span,
             file_to_rename: String::new(),
             new_file_name: String::new(),
         }
@@ -451,6 +481,12 @@ impl Request<'_, '_> {
                         continue;
                     }
                 }
+            }
+            // tsgo `renameEditRange`: an occurrence that does not map
+            // exactly into a content mapper's original file cannot be
+            // written back there.
+            if !self.rename_edit_maps_exactly(entry) {
+                continue;
             }
             let location = self.location_of_entry(entry);
             let new_text = self.text_for_rename(
