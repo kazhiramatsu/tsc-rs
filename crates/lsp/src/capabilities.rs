@@ -1,6 +1,6 @@
 //! tsgo `handleInitialize`'s result: the server's information and the
 //! capabilities tsgo advertises, with the trigger characters and the
-//! semantic token legend of tsgo's language service.
+//! semantic token legend of tsgo's language service ([`tsc_ls::semantic_tokens_legend`]).
 
 use tsc_lsproto::*;
 
@@ -13,78 +13,6 @@ pub const SIGNATURE_HELP_TRIGGER_CHARACTERS: [&str; 3] = ["(", ",", "<"];
 
 /// tsgo `ls.SignatureHelpRetriggerCharacters`.
 pub const SIGNATURE_HELP_RETRIGGER_CHARACTERS: [&str; 1] = [")"];
-
-/// tsgo `ls.tokenTypes`, in their encoding order.
-pub const TOKEN_TYPES: [SemanticTokenType; 23] = [
-    SemanticTokenType::NAMESPACE,
-    SemanticTokenType::CLASS,
-    SemanticTokenType::ENUM,
-    SemanticTokenType::INTERFACE,
-    SemanticTokenType::STRUCT,
-    SemanticTokenType::TYPE_PARAMETER,
-    SemanticTokenType::TYPE,
-    SemanticTokenType::PARAMETER,
-    SemanticTokenType::VARIABLE,
-    SemanticTokenType::PROPERTY,
-    SemanticTokenType::ENUM_MEMBER,
-    SemanticTokenType::DECORATOR,
-    SemanticTokenType::EVENT,
-    SemanticTokenType::FUNCTION,
-    SemanticTokenType::METHOD,
-    SemanticTokenType::MACRO,
-    SemanticTokenType::LABEL,
-    SemanticTokenType::COMMENT,
-    SemanticTokenType::STRING,
-    SemanticTokenType::KEYWORD,
-    SemanticTokenType::NUMBER,
-    SemanticTokenType::REGEXP,
-    SemanticTokenType::OPERATOR,
-];
-
-/// tsgo `ls.tokenModifiers`, in their encoding order (`local` is tsgo's
-/// own).
-pub const TOKEN_MODIFIERS: [SemanticTokenModifier; 11] = [
-    SemanticTokenModifier::DECLARATION,
-    SemanticTokenModifier::DEFINITION,
-    SemanticTokenModifier::READONLY,
-    SemanticTokenModifier::STATIC,
-    SemanticTokenModifier::DEPRECATED,
-    SemanticTokenModifier::ABSTRACT,
-    SemanticTokenModifier::ASYNC,
-    SemanticTokenModifier::MODIFICATION,
-    SemanticTokenModifier::DOCUMENTATION,
-    SemanticTokenModifier::DEFAULT_LIBRARY,
-    SemanticTokenModifier(std::borrow::Cow::Borrowed("local")),
-];
-
-/// tsgo `ls.SemanticTokensLegend`: the token types and modifiers the client
-/// supports, in tsgo's order.
-pub fn semantic_tokens_legend(
-    client: &ResolvedSemanticTokensClientCapabilities,
-) -> SemanticTokensLegend {
-    SemanticTokensLegend {
-        token_types: TOKEN_TYPES
-            .iter()
-            .filter(|kind| {
-                client
-                    .token_types
-                    .iter()
-                    .any(|supported| *supported == *kind.0)
-            })
-            .map(|kind| kind.0.to_string())
-            .collect(),
-        token_modifiers: TOKEN_MODIFIERS
-            .iter()
-            .filter(|modifier| {
-                client
-                    .token_modifiers
-                    .iter()
-                    .any(|supported| *supported == *modifier.0)
-            })
-            .map(|modifier| modifier.0.to_string())
-            .collect(),
-    }
-}
 
 /// tsgo `supportedCodeActionKinds`.
 pub fn supported_code_action_kinds() -> Vec<CodeActionKind> {
@@ -217,7 +145,7 @@ pub fn initialize_result(
             }),
             semantic_tokens_provider: Some(SemanticTokensOptionsOrRegistrationOptions::Options(
                 SemanticTokensOptions {
-                    legend: semantic_tokens_legend(&client.text_document.semantic_tokens),
+                    legend: tsc_ls::semantic_tokens_legend(&client.text_document.semantic_tokens),
                     full: Some(BooleanOrSemanticTokensFullDelta::Boolean(true)),
                     range: Some(BooleanOrEmptyObject::Boolean(true)),
                     ..SemanticTokensOptions::default()
