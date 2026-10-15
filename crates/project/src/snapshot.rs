@@ -498,6 +498,15 @@ impl tsc_ls::Host for Snapshot {
     fn config_plan(&self, config_file_name: &str) -> Option<&ConfigRootPlan> {
         self.config(config_file_name).map(|plan| &**plan)
     }
+
+    /// The snapshot's file system (the open documents over it) as a
+    /// compiler host.
+    fn compiler_host(&self) -> Option<Box<dyn tsc_host::CompilerHost + '_>> {
+        Some(Box::new(tsc_host::vfs::VfsCompilerHost::new(
+            &*self.fs.base,
+            self.fs.paths().current_directory.clone(),
+        )))
+    }
 }
 
 impl tsc_emitter::source_mapper::SourceMapperHost for Snapshot {

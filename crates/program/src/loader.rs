@@ -7508,6 +7508,18 @@ pub(crate) fn implied_node_format(
     package_scope: Option<&PackageMetadata>,
     options: &CompilerOptions,
 ) -> Option<ResolutionMode> {
+    get_implied_node_format_for_file(file_name, || {
+        metadata_package_json_type(file_name, package_scope, options)
+    })
+}
+
+/// tsgo `GetImpliedNodeFormatForFile`: ESM for `.mts`-like files, CommonJS
+/// for `.cts`-like ones, and for `.ts`-like ones by the package type (read
+/// only then): ESM in a `type: module` scope, else CommonJS.
+pub fn get_implied_node_format_for_file(
+    file_name: JsStr<'_>,
+    package_json_type: impl FnOnce() -> Option<PackageJsonType>,
+) -> Option<ResolutionMode> {
     if file_name.ends_with(".d.mts") || file_name.ends_with(".mts") || file_name.ends_with(".mjs") {
         return Some(ResolutionMode::EsNext);
     }
@@ -7520,15 +7532,11 @@ pub(crate) fn implied_node_format(
         || file_name.ends_with(".js")
         || file_name.ends_with(".jsx")
     {
-        return Some(
-            if metadata_package_json_type(file_name, package_scope, options)
-                == Some(PackageJsonType::Module)
-            {
-                ResolutionMode::EsNext
-            } else {
-                ResolutionMode::CommonJs
-            },
-        );
+        return Some(if package_json_type() == Some(PackageJsonType::Module) {
+            ResolutionMode::EsNext
+        } else {
+            ResolutionMode::CommonJs
+        });
     }
     None
 }
