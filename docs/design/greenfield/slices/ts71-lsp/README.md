@@ -1449,3 +1449,37 @@ project の test を移して固定する。
   stack を tsgo の規則で消毒）・flaky diagnostics の追跡 → L11d ATA（d-1 `project/ata` package、d-2 project・session・
   server への統合）→ L11e 組み込みの file 監視。
 - **README**：API server の節（言語サーバーの上の API）。
+
+## L11c CPU profile・要求失敗の telemetry・flaky diagnostics（#818）
+
+- **merge**：#818 → `2e799e9f5`（hosted run 38746347290：conformance 32m18s、rust は 1 回目に既知の終了の競合
+  （`pushed_config_diagnostics_match_tsgo` の `EXIT 0` と `EXIT 1`、L7d と同じ）で落ち、失敗した job の再実行で
+  11m06s で通過、gates）。commit：50852b7f6（compiler・lsp）。検査の後の main の取り込みは L11b の merge（同じ code）と
+  packet の README と README だけ。
+- **CPU profile**：tsgo `internal/pprof` を pprof-rs で（利用者の判断 2026-10-15）。Unix の `SIGPROF` で 1 秒 100 回の
+  採取、Go の形式（gzip した `perftools.profiles.Profile`、`samples/count` と `cpu/nanoseconds`）の符号化はここで書き、
+  gzip は miniz_oxide。一度に一つ（Go と同じ）。`--pprofDir` は compile・build（コマンド行の誤りの後に始め、出力の後に
+  path）と言語サーバー（stderr へ、`cmd/tsc/lsp.go` と同じ）。`custom/startCPUProfile`・`custom/stopCPUProfile`。
+- **heap・allocation**：`custom/saveHeapProfile`・`custom/saveAllocProfile`・`--pprofDir` の memory profile は「tsc-rs は
+  対応しない」のエラー（Go の runtime は割り当てごとの stack を採るが tsc-rs の allocator は採らない）。
+- **`custom/runGC`**：GC はないので binary の allocator が使わない memory を返す（mimalloc の `mi_collect`）。答えは tsgo
+  と同じ。
+- **要求失敗の telemetry**：tsgo `recover`。要求の panic を stack 付きで log（panic hook が stack を保つ。Rust の stack は
+  panic を捕えた後には残らない）、telemetry が有効なら `RequestFailureTelemetryEvent`。stack は tsgo
+  `sanitizeStackTrace` の規則を Rust の backtrace に（tsc-rs の frame と repository の path は残し、他の frame は伏せる、
+  VS Code の generic secret の pattern を外す）。四つの panic の場所が共有。
+- **flaky diagnostics**：tsgo `handleDocumentDiagnostic` の `trackFlakyDiagnostics`（program の emit の後にもう一度
+  diagnostics を採り、違えば log・telemetry・`Panic` の時は panic）。lsproto に tsgo `CompareDiagnostics`・`AsString`・
+  `CodeAsString`。
+- **test**：profile の符号化（Go の sample の種類・period・値）、gzip、profiler の状態と message、本物の CPU profile、
+  `--pprofDir`（`--version` の出力の後に path）、server の profile の command の端から端まで、tsgo
+  `TestFlakyDiagnosticTrackingParallelEmit`（`noEmitOnError` の両方）、tsgo `stack_sanitizer_test.go` の Rust の stack
+  への置き換え（利用者の checkout の path 付きの debug の stack、release の stack）と generic secret の場面はそのまま、
+  本物の panic の stack での `recover` の答えと telemetry。
+- **検査（50852b7f6）**：conformance 0 regressions（13,577 全て full、501 s。`--pprofDir` の wrapper は option なしで
+  出力を変えない）、`--checkers 4` は既知の 4 件だけ、suites 0 regressions（行の変化なし、lsp 4,583・tsc 227）、test
+  全通過（lsp 41・compiler 233・lsproto 31 ほか）、API client sync 356/356・async 365/365、clippy、fmt。
+- **有界の違い**：tsgo の 5 分ごとの性能 telemetry（Go の runtime の統計）は移さない。CPU profile は Unix の signal が要る
+  （他では `startCPUProfile` が platform の非対応を答え、`--pprofDir` は tsgo の `BeginProfiling` の誤りと同じく失敗）。
+  pprof-rs の依存（Unix だけ）。
+- **README**：Limitations に profile（CPU だけ、Unix）。

@@ -192,6 +192,8 @@ Guide: [docs/rust-api.md](docs/rust-api.md).
 - `--diagnostics` prints fewer statistics than `tsgo`.
 - Memory grows with the number of checkers.
 - `tsc-rs --api --pipe` does not support Windows named pipes.
+- `--pprofDir` (and the language server's profile commands) writes CPU
+  profiles only, on Unix; heap and allocation profiles are not supported.
 
 ## Development
 
