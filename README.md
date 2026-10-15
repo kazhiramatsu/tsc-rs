@@ -143,10 +143,9 @@ implementation and source definition), references, rename (also of files),
 document highlights, call hierarchy, code lens, document and workspace
 symbols, folding and selection ranges, semantic tokens, inlay hints, linked
 editing of JSX tags, formatting, quick fixes and organize imports, also in
-content mapper files (`.vue`, `.astro`) of projects whose config maps them.
-Not yet: mappers that editor extensions contribute for files outside
-projects, and automatic type acquisition. It has not been tried with editors
-yet.
+content mapper files (`.vue`, `.astro`), with the mappers of a project's
+config or (for files outside projects) of editor extensions. Not yet:
+automatic type acquisition. It has not been tried with editors yet.
 
 ## API server (experimental)
 

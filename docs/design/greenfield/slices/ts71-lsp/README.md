@@ -1354,3 +1354,49 @@ tsc-rs の span map は compiler の UTF-16 なので、LS には UTF-8（tsgo �
   project の mapper）、mapper の拡張子の動的登録（`RegisterContentMapperExtensions`）、mapper の locale、作られた
   mapped file の configured project への採用（`PossiblyMatchesFileName`）。typings の install の場面は ATA と共に L11。
 - **README**：Status の language server の数（4,583）と、content mapper の file の機能。
+
+## L10d project system と server の content mapper（#815）
+
+- **merge**：#815 → `aca646f67`（hosted run 38726499368：rust 13m07s、conformance 30m50s、gates）。commit：3340fd688
+  （compiler・program）、b1f292d90（project）、7b783ecbe（lsp）。検査の後の main の取り込みは L10c の merge（同じ code）、
+  packet の README と README だけ。
+- **locale**：tsgo `locale.Locale` は tag を持つ（`Locale.String()`、既定は空）。tsc-rs の `Locale` も翻訳と tag を持つ。
+  mapper の host の `SetLocale`（新しい locale で初期化し直し、動いている process を閉じる）、project system の content
+  mapped な cache の key に locale（`contentMappedParseCacheKey`）、CLI の host は `--locale` の tag。session の host は
+  client の locale で始まり、`Configure` の locale の変更で切り替わる。
+- **作られた mapped file**：tsgo aa8149273 の `PossiblyMatchesFileName`（literal な include の判定、wildcard の directory の
+  下の content mapped な file、mapper の拡張子を含む wildcard の glob。glob は書かれた通りに照合）。
+- **contribution**：`custom/setContentMapperContributions`（`parseContentMapperContributions` の検査）、session の
+  `SetContentMapperContributions`（inferred project だけの mapper、snapshot が持つ、その拡張子は inferred project で
+  対応、開いている文書の configured project を探す）。
+- **登録**：`updateContentMapperRegistrations`（読み込んだ全ての config の mapper と contribution の拡張子）と server の
+  `RegisterContentMapperExtensions`（client が動的に登録する機能だけ、同期・pull diagnostics・各機能の 26 の id）。
+- **その他**：`contentMapperFallbackResponse`（project の無い未知の種類の文書に空の答え、`ErrNoProjectForUnknownScriptKind`）、
+  `contentMapperLogger`（trace の時だけ mapper の行）。
+- **test**：tsgo の LSP の session の場面の移植 `crates/project/tests/content_mappers.rs`（10）、server の
+  `content_mapper_contributions_before_did_open`（tsgo `TestSetContentMapperContributionsBeforeDidOpen`）、parser の 4、
+  program の locale の cache、compiler の tag。
+- **検査（7b783ecbe）**：conformance 0 regressions（13,577 全て full、485 s）、`--checkers 4` は既知の 4 件だけ、suites 0
+  regressions（行の変化なし、lsp 4,583）、test 全通過（lsp 19・project 197・compiler 227 ほか）、API client sync 356/356・
+  async 365/365、clippy、fmt。
+- **有界の違い**：`TestContentMapperInferredProjectSurvivesTypingsInstall` は ATA と共に L11。tsgo の
+  `TestContentMapperLocaleChange` の locale の読み取り回数（tsgo の context の配管）は移さず、mapper の生死を確かめる。
+- **README**：language server の節（editor の contribution を含め content mapper の file の機能が揃った）。
+
+## L11 残りの server の機能の計画（2026-10-15）
+
+tsgo の server と session のうち transcript が届かない機能（fourslash の client はこれらを使わない）。tsgo 自身の lsp と
+project の test を移して固定する。
+
+1. **L11a progress・projectInfo・telemetry**：`projectLoadingProgress`（`window/workDoneProgress/create` と `$/progress`
+   の begin と end、Client の `ProgressStart`・`ProgressFinish`）、`custom/projectInfo`、telemetry（`telemetry/event`：
+   要求の失敗、性能の統計、project の情報。Client の `SendTelemetry`・`IsActive`）。tsgo の `server_progress_test`・
+   `server_projectinfo_test`。
+2. **L11b API の session**：`custom/initializeAPISession`（LSP の session を共有する API の session を pipe で開く）。
+3. **L11c ATA**：typings の installer（`discoverTypings`、npm の install、typesMap、package 名の検査、typings の cache）と
+   それに乗る session の流れ。tsgo の `project/ata` の test と content mapper の typings の場面
+   （`TestContentMapperInferredProjectSurvivesTypingsInstall`）。
+4. **L11d 内蔵の file 監視**：client が監視の動的登録を持たない時の tsgo `lspwatcher` と vendored の `fswatch`
+   （FSEvents・inotify・fanotify・kqueue・Windows）。
+5. **profile の `custom/*`**（runGC・save*Profile・start/stopCPUProfile）：Go の runtime の機能なので、tsc-rs での扱いは
+   利用者に確かめる。
