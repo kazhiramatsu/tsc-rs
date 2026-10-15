@@ -8,8 +8,7 @@ use std::collections::{BTreeMap, HashMap};
 use tsc_checker::state::CheckResult;
 use tsc_diagnostics::gen;
 use tsc_lsproto::{
-    DocumentUri, Position, RenameParams, RenameResponse, TextEdit, WorkspaceEdit,
-    WorkspaceEditOrNull,
+    DocumentUri, Position, RenameParams, RenameResponse, TextEdit, WorkspaceEditOrNull,
 };
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{JsStr, SymbolFlags, SymbolId, TypeFlags};
@@ -69,24 +68,16 @@ impl LanguageService<'_> {
         }
     }
 
-    /// tsgo `ProvideRename` (one project; the cross-project search is
-    /// L7e).
+    /// tsgo `ProvideRename` of one project (no orchestrator; the server's
+    /// search across projects goes through [`Self::search_rename`]).
     pub fn provide_rename(&mut self, params: &RenameParams) -> Result<RenameResponse, LsError> {
-        let file = self.file(&params.text_document.uri);
-        let result = self.with_request(file, &params.position, false, |request, position| {
-            let data = request.provide_symbols_and_entries(file, position, true, false)?;
-            request.symbol_and_entries_to_rename(&params.new_name, data.as_ref())
-        })?;
-        // tsgo `combineRenameResponse` of the one project's answer.
-        Ok(match result.flatten() {
-            Some(changes) if !changes.is_empty() => {
-                WorkspaceEditOrNull::WorkspaceEdit(WorkspaceEdit {
-                    changes: Some(changes),
-                    ..WorkspaceEdit::default()
-                })
-            }
-            _ => WorkspaceEditOrNull::Null,
-        })
+        let search = self.search_rename(
+            &params.text_document.uri,
+            &params.position,
+            &params.new_name,
+            false,
+        )?;
+        Ok(search.map_or(WorkspaceEditOrNull::Null, |search| search.response))
     }
 }
 
@@ -416,7 +407,7 @@ impl Request<'_, '_> {
     /// tsgo `symbolAndEntriesToRename`: the edits by document, none when
     /// the original node cannot be renamed or two edits of one range
     /// disagree.
-    fn symbol_and_entries_to_rename(
+    pub(crate) fn symbol_and_entries_to_rename(
         &mut self,
         new_name: &str,
         data: Option<&SymbolAndEntriesData>,
