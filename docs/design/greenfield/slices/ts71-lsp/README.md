@@ -1152,3 +1152,27 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 - **回帰 test**：`crates/ls/tests/references.rs`（reparse した JSDoc の modifier の readonly、範囲の token と既定の
   library。期待値は `scripts/lsp_transcript.py` で取った tsgo の答え）。
 - **README**：language server の節を更新（実装済みに semantic token と linked editing、一致数 4,411）。
+
+## L6e inlay hint（#808）
+
+- **merge**：#808 → `0145889fc`（hosted run 38685712417：rust 9m13s、conformance 30m49s、gates）。commit：a7207fee4
+  （checker）、1c75182f2（language service と server）、b2be032a8（ratchet）。検査の後の main の取り込みは L6d の
+  merge（同じ code）、packet の README と README だけ。
+- **checker**：`INLAY_HINT_NODE_BUILDER_FLAGS`（tsgo `typeToInlayHintParts` の node builder の flag）と
+  `has_context_sensitive_parameters` の公開（動作は同じ）。
+- **inlay hint**（`crates/ls/src/inlay_hints.rs`、tsgo `inlay_hints.go`）：範囲の中、型の外で、利用者の設定により、型注釈の
+  ない変数・property（binding pattern、module、literal・`new`・object literal・assertion の初期化子を持つ `const`、名前と
+  同じ綴りの型を除く）、文脈に依る関数の引数、関数の返り値（か型述語）の推論された型、enum member の値、各引数の引数名
+  （spread の tuple の必須の要素を数え、ラベル付きの rest の tuple の要素名。literal だけか全て）。ただし引数か comment が
+  既に名前を書いていれば出さない。型の label の部分は node builder が識別子の symbol と共に作り
+  （`type_to_type_node_in_arena`、tsgo の `idToSymbol`）、宣言された symbol の識別子は宣言の名前の位置を持つ（引数名の
+  hint も）。tsgo の区切りのまま（型引数の間は `,`、`keyof` の後に空白なし）。
+- **JavaScript**：tsgo の `Node.Type()` は `node_util::type_node_of`（JSDoc の `@type`・`@param`・`@returns` の型を持つ
+  宣言には hint なし）。tsgo `IsVarConst`（`const` だけ、`using`・`await using` は違う）。
+- **検査（b2be032a8）**：conformance 0 regressions（全 13,577 full、489 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（64 行 none→full、全て inlay hint。lsp 4,411 → 4,475）、64/65、test（ls 213 ほか全通過）、API client sync
+  340/356・async 349/365（main と同じ）、clippy、fmt。
+- **回帰 test**：`crates/ls/tests/references.rs`（JSDoc の型は型の hint を出さない、変数・ラベル付き rest の tuple と rest
+  の引数（位置つき）・enum member の hint。期待値は tsgo の答え）。
+- **有界の違い**：TestContentMapperInlayHintsReleaseEachRange（L10）。
+- **README**：language server の節（実装済みに inlay hint、一致数 4,475）。
