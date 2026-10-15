@@ -159,9 +159,11 @@ With `--runExternalCode`, projects run their [content mappers](#content-mappers)
 
 Implemented: snapshots and projects, config parsing, source files,
 transpilation, module resolution, symbol, type and signature queries, scope
-lookups, type nodes, `printNode`, diagnostics, emit and the build
-orchestrator. Not yet: language-service requests and
-`formatNodeForInsertion`. Details: [design notes](docs/design/greenfield/slices/ts71-api-server/README.md).
+lookups, type nodes, `printNode`, `formatNodeForInsertion`, diagnostics,
+emit, the build orchestrator and the language-service requests
+(completions, references, signature usages, JSDoc, import edits); the
+client's tests all pass. Not yet: `printNode`'s `preserveSourceNewlines`.
+Details: [design notes](docs/design/greenfield/slices/ts71-api-server/README.md).
 
 ## Rust API (experimental)
 
