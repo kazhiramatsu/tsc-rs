@@ -60,6 +60,15 @@ impl CommandLine {
         }
     }
 
+    /// The options as given (a tristate of each boolean: tsgo's
+    /// `CompilerOptions` before defaults).
+    pub fn options(&self) -> &ConfigOptionBag {
+        match self {
+            Self::Config(plan) => plan.options(),
+            Self::Roots(roots) => &roots.options,
+        }
+    }
+
     /// tsgo `ProjectReferences`.
     pub fn project_references(&self) -> &[ConfigProjectReference] {
         match self {
@@ -353,6 +362,31 @@ pub struct Project {
 }
 
 impl Project {
+    /// tsgo `DisplayName`: an inferred project's directory's name, else
+    /// its config file (or ID) relative to `current_directory` when they
+    /// share a root.
+    pub fn display_name(&self, current_directory: &str) -> String {
+        if self.kind == ProjectKind::Inferred {
+            return current_directory
+                .trim_end_matches('/')
+                .rsplit('/')
+                .next()
+                .unwrap_or_default()
+                .to_owned();
+        }
+        let name = match (&self.kind, &self.config_file_name) {
+            (ProjectKind::Configured, Some(config_file_name)) => config_file_name.clone(),
+            _ => self.id.as_str().to_owned(),
+        };
+        tsc_program::relative_path_from_directory(
+            JsStr::from_str(current_directory),
+            JsStr::from_str(&name),
+            false,
+        )
+        .to_string_lossy()
+        .into_owned()
+    }
+
     /// tsgo `NewProject`: dirty, so the first update builds a program.
     fn new(id: ProjectId, kind: ProjectKind, current_directory: String) -> Self {
         Self {

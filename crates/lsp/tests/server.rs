@@ -131,6 +131,7 @@ impl Session {
             fs,
             default_library_path,
             spawner,
+            progress_delay: Duration::ZERO,
         });
         let run = {
             let server = Arc::clone(&server);
@@ -648,6 +649,7 @@ fn outgoing_queue_does_not_block_without_writer() {
         fs: Arc::new(MemFs::new(false, Arc::new(SystemClock))),
         default_library_path: "/typescript/lib".to_owned(),
         spawner: None,
+        progress_delay: Duration::ZERO,
     });
     for _ in 0..1000 {
         let message = lsproto::RequestMessage::new(
@@ -727,6 +729,8 @@ fn write_loop_recovers_from_unserializable_response() {
 struct RegistrationClient {
     registrations: Vec<Value>,
     unregistrations: Vec<Value>,
+    /// The `$/progress` notifications.
+    progress: Vec<Value>,
 }
 
 impl RegistrationClient {
@@ -751,6 +755,11 @@ impl RegistrationClient {
                         .unwrap_or_default(),
                 );
                 Value::Null
+            }
+            Some("window/workDoneProgress/create") => Value::Null,
+            Some("$/progress") => {
+                self.progress.push(message["params"].clone());
+                return;
             }
             _ => return,
         };
@@ -777,6 +786,32 @@ impl RegistrationClient {
             }
             self.answer(session, &message);
         }
+    }
+
+    /// `initialize` with the client's `capabilities`, then `initialized`,
+    /// the server's registration of it answered.
+    fn initialize(&mut self, session: &mut Session, capabilities: Value) -> Value {
+        let initialize = self.request(
+            session,
+            1,
+            "initialize",
+            serde_json::json!({"processId": null, "rootUri": null, "capabilities": capabilities}),
+        );
+        assert!(
+            initialize.get("error").is_none(),
+            "initialize failed: {initialize}"
+        );
+        self.notify(session, "initialized", serde_json::json!({}));
+        loop {
+            let text = session.receive().expect("a message");
+            let message: Value = serde_json::from_str(&text).unwrap();
+            self.answer(session, &message);
+            if message["method"] == "client/registerCapability" {
+                break;
+            }
+        }
+        session.server.wait_init_complete();
+        initialize
     }
 
     fn notify(&mut self, session: &mut Session, method: &str, params: Value) {
@@ -1062,4 +1097,138 @@ fn content_mapper_contributions_before_did_open() {
     }
     session.close();
     assert_eq!(session.finish(), Ok(()));
+}
+
+/// tsgo `initProjectInfoClient`'s session: `/home/projects` with `files`.
+fn project_info_session(files: &[(&str, &str)]) -> (Session, RegistrationClient) {
+    let fs = Arc::new(
+        MemFs::from_entries(
+            files
+                .iter()
+                .map(|(name, text)| (*name, Seed::file(*text)))
+                .collect::<Vec<_>>(),
+            false,
+            Arc::new(SystemClock),
+        )
+        .unwrap(),
+    );
+    let session = Session::start_in(
+        "/home/projects",
+        Arc::new(BundledFs::new(fs)),
+        EMBEDDED_LIBRARY_DIRECTORY.to_owned(),
+        None,
+    );
+    (session, RegistrationClient::default())
+}
+
+fn open_document(client: &mut RegistrationClient, session: &mut Session, uri: &str, text: &str) {
+    client.notify(
+        session,
+        "textDocument/didOpen",
+        serde_json::json!({"textDocument": {"uri": uri, "languageId": "typescript", "version": 0, "text": text}}),
+    );
+}
+
+/// tsgo `TestInitializeCodeActionKinds`.
+#[test]
+fn initialize_code_action_kinds() {
+    let (mut session, mut client) = project_info_session(&[]);
+    let initialize = client.initialize(&mut session, serde_json::json!({}));
+    assert_eq!(
+        initialize["result"]["capabilities"]["codeActionProvider"]["codeActionKinds"],
+        serde_json::json!([
+            "quickfix",
+            "source.organizeImports.ts",
+            "source.removeUnusedImports.ts",
+            "source.sortImports.ts",
+            "source.fixAll.ts"
+        ])
+    );
+}
+
+/// tsgo `TestProjectInfoConfiguredProject`.
+#[test]
+fn project_info_of_a_configured_project() {
+    let (mut session, mut client) = project_info_session(&[
+        ("/home/projects/tsconfig.json", "{}"),
+        ("/home/projects/index.ts", "export const x = 1;"),
+    ]);
+    client.initialize(&mut session, serde_json::json!({}));
+    let uri = "file:///home/projects/index.ts";
+    open_document(&mut client, &mut session, uri, "export const x = 1;");
+    let response = client.request(
+        &mut session,
+        2,
+        "custom/projectInfo",
+        serde_json::json!({"textDocument": {"uri": uri}}),
+    );
+    assert!(response.get("error").is_none(), "{response}");
+    assert_eq!(
+        response["result"]["configFilePath"],
+        "/home/projects/tsconfig.json"
+    );
+}
+
+/// tsgo `TestProjectInfoInferredProject`.
+#[test]
+fn project_info_of_an_inferred_project() {
+    let (mut session, mut client) =
+        project_info_session(&[("/home/projects/index.ts", "export const x = 1;")]);
+    client.initialize(&mut session, serde_json::json!({}));
+    let uri = "file:///home/projects/index.ts";
+    open_document(&mut client, &mut session, uri, "export const x = 1;");
+    let response = client.request(
+        &mut session,
+        2,
+        "custom/projectInfo",
+        serde_json::json!({"textDocument": {"uri": uri}}),
+    );
+    assert!(response.get("error").is_none(), "{response}");
+    assert_eq!(response["result"]["configFilePath"], "");
+}
+
+/// tsgo `TestProgressNotificationsEndToEnd`: loading the project shows its
+/// progress, begun as tsgo's `Loading` and ended.
+#[test]
+fn progress_notifications_end_to_end() {
+    let (mut session, mut client) = project_info_session(&[
+        ("/home/projects/tsconfig.json", "{}"),
+        ("/home/projects/index.ts", "export const x = 1;"),
+    ]);
+    client.initialize(
+        &mut session,
+        serde_json::json!({"window": {"workDoneProgress": true}}),
+    );
+    let uri = "file:///home/projects/index.ts";
+    open_document(&mut client, &mut session, uri, "export const x = 1;");
+    let response = client.request(
+        &mut session,
+        2,
+        "custom/projectInfo",
+        serde_json::json!({"textDocument": {"uri": uri}}),
+    );
+    assert!(response.get("error").is_none(), "{response}");
+    assert_eq!(
+        response["result"]["configFilePath"],
+        "/home/projects/tsconfig.json"
+    );
+    let deadline = Instant::now() + TIMEOUT;
+    while !client
+        .progress
+        .iter()
+        .any(|progress| progress["value"]["kind"] == "end")
+    {
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for progress end notification"
+        );
+        let text = session.receive().expect("a message");
+        let message: Value = serde_json::from_str(&text).unwrap();
+        client.answer(&mut session, &message);
+    }
+    let progress = &client.progress;
+    assert!(progress.len() >= 2, "{progress:?}");
+    assert_eq!(progress[0]["value"]["kind"], "begin");
+    assert_eq!(progress[0]["value"]["title"], "Loading");
+    assert_eq!(progress.last().unwrap()["value"]["kind"], "end");
 }

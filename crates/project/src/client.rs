@@ -10,6 +10,18 @@ pub trait Client: Send + Sync {
     fn watch_files(&self, id: &str, watchers: Vec<FileSystemWatcher>) -> Result<(), String>;
     /// tsgo `UnwatchFiles`.
     fn unwatch_files(&self, id: &str) -> Result<(), String>;
+    /// tsgo `SendTelemetry`: `telemetry/event` (the session sends only
+    /// under `TelemetryEnabled`).
+    fn send_telemetry(&self, event: tsc_lsproto::TelemetryEvent) -> Result<(), String>;
+    /// tsgo `ProgressStart`: an operation the editor may show the progress
+    /// of began.
+    fn progress_start(&self, message: &'static tsc_diagnostics::DiagnosticMessage, args: &[String]);
+    /// tsgo `ProgressFinish`.
+    fn progress_finish(
+        &self,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
+        args: &[String],
+    );
     /// tsgo `RegisterContentMapperExtensions`: the editor sends the
     /// documents of these (otherwise unsupported) extensions; the whole set
     /// each time, none to remove the registration.
