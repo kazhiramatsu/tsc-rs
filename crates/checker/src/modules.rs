@@ -153,6 +153,30 @@ pub const UNPREFIXED_NODE_CORE_MODULES: &[&str] = &[
     "zlib",
 ];
 
+/// tsgo `core.NodeCoreModules`: whether `name` is a Node core module (also
+/// `node:`-prefixed, and the modules only importable with the prefix).
+/// tsc-port: nodeCoreModules @6.0.3
+/// tsc-hash: 0e632ec6b143db94f7d3289fd8c884f1e2d5cba30ad853d6cd66d2e6f35149da
+/// tsc-span: _tsc.js:19947-20016
+pub fn is_node_core_module<'n>(name: impl Into<JsStr<'n>>) -> bool {
+    // The names are ASCII, so the text's bytes compare as the names do;
+    // a specifier is not interned just to be looked up.
+    let name = name.into().as_bytes();
+    const EXCLUSIVELY_PREFIXED: &[&str] = &[
+        "node:quic",
+        "node:sea",
+        "node:sqlite",
+        "node:test",
+        "node:test/reporters",
+    ];
+    let listed = |names: &[&str], name: &[u8]| names.iter().any(|known| known.as_bytes() == name);
+    if listed(UNPREFIXED_NODE_CORE_MODULES, name) || listed(EXCLUSIVELY_PREFIXED, name) {
+        return true;
+    }
+    name.strip_prefix(b"node:")
+        .is_some_and(|unprefixed| listed(UNPREFIXED_NODE_CORE_MODULES, unprefixed))
+}
+
 impl ProgramModuleResolution {
     fn missed() -> Self {
         Self::Missed(UnresolvedProgramModule::default())
@@ -4924,7 +4948,7 @@ impl<'a> CheckerState<'a> {
             // Node core declarations live under @types/node rather than
             // @types/<module>. Keep the exact core submodule (`fs` vs
             // `http`, `fs/promises` vs `timers/promises`) in the match.
-            if Self::is_node_core_module(module_reference) {
+            if is_node_core_module(module_reference) {
                 if let Some(root) = Self::node_modules_package_root(&source, "@types/node") {
                     return self
                         .nearest_visible_package_root(&augmentation, "@types/node")
@@ -5179,7 +5203,7 @@ impl<'a> CheckerState<'a> {
             NodeData::StringLiteral(data) => &data.text,
             _ => return None,
         };
-        if !Self::is_node_core_module(text) {
+        if !is_node_core_module(text) {
             None
         } else if self.options.uses_wildcard_types() {
             // tsgo checker.go:15416-15418.
@@ -5187,29 +5211,6 @@ impl<'a> CheckerState<'a> {
         } else {
             Some(&diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_node_Try_npm_i_save_dev_types_node_and_then_add_node_to_the_types_field_in_your_tsconfig)
         }
-    }
-
-    /// tsc-port: nodeCoreModules @6.0.3
-    /// tsc-hash: 0e632ec6b143db94f7d3289fd8c884f1e2d5cba30ad853d6cd66d2e6f35149da
-    /// tsc-span: _tsc.js:19947-20016
-    fn is_node_core_module<'n>(name: impl Into<JsStr<'n>>) -> bool {
-        // The names are ASCII, so the text's bytes compare as the names do;
-        // a specifier is not interned just to be looked up.
-        let name = name.into().as_bytes();
-        const EXCLUSIVELY_PREFIXED: &[&str] = &[
-            "node:quic",
-            "node:sea",
-            "node:sqlite",
-            "node:test",
-            "node:test/reporters",
-        ];
-        let listed =
-            |names: &[&str], name: &[u8]| names.iter().any(|known| known.as_bytes() == name);
-        if listed(UNPREFIXED_NODE_CORE_MODULES, name) || listed(EXCLUSIVELY_PREFIXED, name) {
-            return true;
-        }
-        name.strip_prefix(b"node:")
-            .is_some_and(|unprefixed| listed(UNPREFIXED_NODE_CORE_MODULES, unprefixed))
     }
 
     fn resolve_authoritative_program_module<'n>(

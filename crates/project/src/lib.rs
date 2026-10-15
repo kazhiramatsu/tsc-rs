@@ -11,6 +11,7 @@
 //! acquisition, auto-imports and logging (the LSP packet,
 //! `docs/design/greenfield/slices/ts71-lsp`).
 
+pub mod ata;
 mod background;
 mod builder;
 mod client;
