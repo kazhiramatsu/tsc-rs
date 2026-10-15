@@ -619,6 +619,12 @@ impl ListLines {
         ..Self::SINGLE_LINE
     };
 
+    /// `LFMultiLine`.
+    const MULTI_LINE: Self = Self {
+        multi_line: true,
+        ..Self::SINGLE_LINE
+    };
+
     /// The format with `LFPreferNewLine` added when `prefer`.
     const fn preferring_new_line(self, prefer: bool) -> Self {
         Self {
@@ -2628,16 +2634,35 @@ impl Printer {
                 self.emit_triple_slash_directives_if_needed(transformation, source_id, writer)?;
             }
         }
+        // tsgo emitListItems over the body statements: the last one, for the
+        // list's closing line terminators.
+        let mut previous_body_statement = None;
         for (statement_index, raw_statement) in statements.into_iter().enumerate() {
+            let statement = transformation
+                .arena()
+                .node_ref(source_id, raw_statement)
+                .ok_or(PrinterError::UnknownStatement(raw_statement.index()))?;
             // tsc writes the statement separator BEFORE each item, never
             // after it: emitPrologueDirectives' writeLine before every
             // prologue (_tsc.js:119795-119799) and emitNodeListItems' leading
-            // and separating line terminators (120073-120097). Every call is
-            // a no-op at line start; after a carried partial print the first
-            // one is the newline tsc observably writes. The first body
-            // statement's terminators follow the SourceFile notification.
-            if statement_index != helper_offset {
+            // and separating line terminators (120073-120097): one for the
+            // MultiLine list, the source's with preserveSourceNewlines. Every
+            // call is a no-op at line start; after a carried partial print
+            // the first one is the newline tsc observably writes. The first
+            // body statement's terminators follow the SourceFile notification.
+            let mut lines_before = 1;
+            if statement_index < helper_offset {
                 writer.write_line(false);
+            } else if statement_index > helper_offset {
+                lines_before = self.separating_line_terminator_count(
+                    transformation,
+                    previous_body_statement,
+                    Some(statement),
+                    ListLines::MULTI_LINE,
+                )?;
+                if lines_before > 0 {
+                    writer.write_line(false);
+                }
             }
             if statement_index == helper_offset {
                 self.notify_source_file_root(transformation, root, &mut source_file_notified)?;
@@ -2654,14 +2679,29 @@ impl Printer {
                 if self.options.declaration_syntax {
                     self.emit_triple_slash_directives_if_needed(transformation, source_id, writer)?;
                 }
-                // The statement list's leading line terminator (120073).
-                writer.write_line(false);
+                // The statement list's leading line terminators (120073).
+                lines_before = self.leading_line_terminator_count(
+                    transformation,
+                    Some(root),
+                    Some(statement),
+                    ListLines::MULTI_LINE,
+                )?;
+                if lines_before > 0 {
+                    writer.write_line(false);
+                }
             }
-            let statement = transformation
-                .arena()
-                .node_ref(source_id, raw_statement)
-                .ok_or(PrinterError::UnknownStatement(raw_statement.index()))?;
             if statement_index >= helper_offset {
+                previous_body_statement = Some(statement);
+                // tsgo emitListItems: a statement after no line terminator
+                // first writes the comments at its position (its intervening
+                // comments, emitTrailingCommentsOfPosition).
+                if lines_before == 0 && !self.comments_disabled() {
+                    self.emit_intervening_comments_of_node_position(
+                        transformation,
+                        statement,
+                        writer,
+                    )?;
+                }
                 self.record_list_element_position(transformation, statement)?;
             }
             // tsgo emitStatement writes nothing for a MissingDeclaration and
@@ -2807,6 +2847,31 @@ impl Printer {
             }
         }
 
+        // tsgo emitListRange closes the statement list before
+        // emitDetachedCommentsAfterStatementList writes the EOF comments: its
+        // closing line terminators (one for the MultiLine list, the source's
+        // with preserveSourceNewlines), or for an empty list a line unless
+        // preserveSourceNewlines keeps a one-line file on one line.
+        let closing = match previous_body_statement {
+            Some(last) => {
+                let list_end = statement_array
+                    .map(|array| transformation.arena().node_array(array))
+                    .transpose()?
+                    .map_or(u32::MAX, |array| array.end);
+                self.closing_line_terminator_count(
+                    transformation,
+                    Some(root),
+                    Some(last),
+                    ListLines::MULTI_LINE,
+                    list_end,
+                )?
+            }
+            None => u32::from(self.empty_multi_line_list_breaks_line(transformation, root)?),
+        };
+        if closing > 0 {
+            writer.write_line(false);
+        }
+        let text_before_eof_comments = writer.text().len();
         let tail_resume = unconsumed_source_prefix.take().or_else(|| {
             let prefix = source_owned_detached_prefix?;
             let carried = self.carried_source_detached.get()?;
@@ -2819,10 +2884,9 @@ impl Printer {
             && !self.comments_disabled()
             && !self.options.declaration_syntax
         {
-            // emitSourceFileWorker closes its MultiLine list before
-            // emitBodyWithDetachedComments visits the original EOF comments.
-            // A transform may have inserted statements into an empty source.
-            writer.write_line(false);
+            // The list closed above, before emitBodyWithDetachedComments
+            // visits the original EOF comments. A transform may have inserted
+            // statements into an empty source.
             let source = transformation.arena().source(source_id)?.syntax();
             // emitLeadingComments(detachedRange.End()) reads the comments at
             // the statement list's end (printer.go:5404-5417), so a comment
@@ -2851,11 +2915,9 @@ impl Printer {
             .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS))
         {
             if let Some(statement_array) = statement_array {
-                // emitSourceFileWorker closes its MultiLine statement list
-                // before emitBodyWithDetachedComments emits EOF comments.
-                // A removed final export can leave only synthesized statements
-                // and a comment tail whose separating newline was consumed.
-                writer.write_line(false);
+                // The list closed above. A removed final export can leave only
+                // synthesized statements and a comment tail whose separating
+                // newline was consumed.
                 self.emit_source_file_statement_list_trailing_comments(
                     transformation,
                     statement_array,
@@ -2864,13 +2926,83 @@ impl Printer {
                 )?;
             }
         }
-        // tsc's source-file writer closes the MultiLine statement list
-        // with writeLine. This is normally a no-op because statements
-        // already end at line start, but it is observable when an EOF
-        // multiline comment has just written its separating space.
-        writer.write_line(false);
+        // tsgo emitDetachedCommentsAfterStatementList: a line after the EOF
+        // comments it wrote (observable after a multiline comment's
+        // separating space).
+        if writer.text().len() != text_before_eof_comments {
+            writer.write_line(false);
+        }
         transformation.after_emit_node(EmitHint::SourceFile, root)?;
         Ok(())
+    }
+
+    /// tsgo emitListItems before a child of a list without delimiters: the
+    /// leading line terminators before the first child or the separating
+    /// ones after `previous`, and, after none, the comments at the child's
+    /// position (its intervening comments). The count.
+    #[allow(clippy::too_many_arguments)]
+    fn emit_list_lines_before_child(
+        &self,
+        transformation: &TransformationResult<'_>,
+        parent: TransformNode,
+        previous: Option<TransformNode>,
+        child: TransformNode,
+        lines: ListLines,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<u32, PrinterError> {
+        let count = match previous {
+            None => self.leading_line_terminator_count(
+                transformation,
+                Some(parent),
+                Some(child),
+                lines,
+            )?,
+            Some(previous) => self.separating_line_terminator_count(
+                transformation,
+                Some(previous),
+                Some(child),
+                lines,
+            )?,
+        };
+        if count > 0 {
+            writer.write_line(false);
+        } else if !expression_context.nested_comments_suppressed() && !self.comments_disabled() {
+            self.emit_intervening_comments_of_node_position(transformation, child, writer)?;
+        }
+        Ok(count)
+    }
+
+    /// tsgo emitListItems' intervening comments of a child after no line
+    /// terminator: `emitTrailingCommentsOfPosition` at the start of its
+    /// comment range, unless it writes no leading comments.
+    fn emit_intervening_comments_of_node_position(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<BTreeSet<(usize, usize)>, PrinterError> {
+        if transformation
+            .arena()
+            .metadata(node)
+            .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_LEADING_COMMENTS))
+        {
+            return Ok(BTreeSet::new());
+        }
+        let comment_range = self.comment_range_for_node(transformation, node)?;
+        let Some(start) = comment_range.range().start() else {
+            return Ok(BTreeSet::new());
+        };
+        let source = transformation
+            .arena()
+            .source(comment_range.source())?
+            .syntax();
+        let start = start.value() as usize;
+        emit_source_intervening_comments_of_position(source.text(), start, writer);
+        Ok(collect_source_comment_ranges(source.text(), start, true)
+            .into_iter()
+            .map(|comment| (comment.start, comment.end))
+            .collect())
     }
 
     /// tsc-port: emitTripleSlashDirectivesIfNeeded @6.0.3
@@ -4055,6 +4187,21 @@ impl Printer {
             }
             NodeData::JsxOpeningElement(data) => {
                 writer.write_punctuation("<");
+                // tsgo emitJsxOpeningElement: with preserveSourceNewlines, the
+                // source's lines before the tag name and after the
+                // attributes.
+                let tag_name = data
+                    .tag_name
+                    .and_then(|tag_name| transformation.arena().node_ref(node.source(), tag_name));
+                let indented = match tag_name {
+                    Some(tag_name) => self.write_line_separators_and_indent_before(
+                        transformation,
+                        tag_name,
+                        node,
+                        writer,
+                    )?,
+                    None => false,
+                };
                 self.emit_required_jsx_tag_name(
                     transformation,
                     node.source(),
@@ -4102,6 +4249,14 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
+                if let Some(attributes) = data.attributes.and_then(|attributes| {
+                    transformation.arena().node_ref(node.source(), attributes)
+                }) {
+                    self.write_line_separators_after(transformation, attributes, node, writer)?;
+                }
+                if indented {
+                    writer.decrease_indent();
+                }
                 writer.write_punctuation(">");
                 Ok(())
             }
@@ -4400,7 +4555,7 @@ impl Printer {
                     self.token_after_modifiers_cursor(transformation, node, data.modifiers)?;
                 if self.emit_modifiers(
                     transformation,
-                    node.source(),
+                    node,
                     data.modifiers,
                     DecoratorPolicy::Omit,
                     expression_context,
@@ -4742,7 +4897,7 @@ impl Printer {
                 let export_anchor = self.node_start_cursor(transformation, node)?;
                 if self.emit_modifiers(
                     transformation,
-                    node.source(),
+                    node,
                     data.modifiers,
                     DecoratorPolicy::Omit,
                     expression_context,
@@ -5095,7 +5250,7 @@ impl Printer {
                     .with_comments(expression_context.comments().claim_sides(pos, end));
                 if self.emit_modifiers(
                     transformation,
-                    node.source(),
+                    node,
                     data.modifiers,
                     DecoratorPolicy::Omit,
                     declaration_context,
@@ -6232,7 +6387,7 @@ impl Printer {
             NodeData::FunctionDeclaration(data) => {
                 if self.emit_modifiers(
                     transformation,
-                    node.source(),
+                    node,
                     data.modifiers,
                     DecoratorPolicy::Omit,
                     expression_context,
@@ -6300,7 +6455,7 @@ impl Printer {
             NodeData::FunctionExpression(data) => {
                 if self.emit_modifiers(
                     transformation,
-                    node.source(),
+                    node,
                     data.modifiers,
                     DecoratorPolicy::Omit,
                     expression_context,
@@ -6385,7 +6540,7 @@ impl Printer {
             NodeData::ArrowFunction(data) => {
                 if self.emit_modifiers(
                     transformation,
-                    node.source(),
+                    node,
                     data.modifiers,
                     DecoratorPolicy::Omit,
                     expression_context,
@@ -6480,7 +6635,7 @@ impl Printer {
                     })?;
                 if self.emit_modifiers(
                     transformation,
-                    node.source(),
+                    node,
                     data.modifiers,
                     DecoratorPolicy::Allow,
                     expression_context,
@@ -6623,7 +6778,7 @@ impl Printer {
                     })?;
                 if self.emit_modifiers(
                     transformation,
-                    node.source(),
+                    node,
                     data.modifiers,
                     DecoratorPolicy::Allow,
                     expression_context,
@@ -6753,7 +6908,7 @@ impl Printer {
             NodeData::Constructor(data) => {
                 if self.emit_modifiers(
                     transformation,
-                    node.source(),
+                    node,
                     data.modifiers,
                     DecoratorPolicy::Omit,
                     expression_context,
@@ -6788,7 +6943,7 @@ impl Printer {
             NodeData::MethodDeclaration(data) => {
                 if self.emit_modifiers(
                     transformation,
-                    node.source(),
+                    node,
                     data.modifiers,
                     DecoratorPolicy::Allow,
                     expression_context,
@@ -6862,7 +7017,7 @@ impl Printer {
             NodeData::GetAccessor(data) => {
                 if self.emit_modifiers(
                     transformation,
-                    node.source(),
+                    node,
                     data.modifiers,
                     DecoratorPolicy::Allow,
                     expression_context,
@@ -6933,7 +7088,7 @@ impl Printer {
             NodeData::SetAccessor(data) => {
                 if self.emit_modifiers(
                     transformation,
-                    node.source(),
+                    node,
                     data.modifiers,
                     DecoratorPolicy::Allow,
                     expression_context,
@@ -8670,12 +8825,6 @@ impl Printer {
                     }
                     None => false,
                 };
-                let left_context = if exponentiation_parenthesized {
-                    expression_context
-                        .with_grammar(ExpressionGrammarContext::ExponentiationLeftOperand)
-                } else {
-                    expression_context
-                };
                 // An operand below its side's precedence takes tsgo's
                 // parentheses.
                 let (left_precedence, right_precedence) =
@@ -8686,6 +8835,16 @@ impl Printer {
                         left_node,
                         left_precedence,
                     )?;
+                let left_context = if exponentiation_parenthesized {
+                    expression_context
+                        .with_grammar(ExpressionGrammarContext::ExponentiationLeftOperand)
+                } else if left_parenthesized {
+                    // The parentheses discharge the left edge's grammar (a
+                    // comma operand of `/` in an initializer takes one pair).
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL)
+                } else {
+                    expression_context
+                };
                 let right_parenthesized = self.binary_operand_needs_parentheses(
                     transformation,
                     right_node,
@@ -9089,8 +9248,13 @@ impl Printer {
                                 writer,
                             )?
                         };
+                        // tsgo emitListRange's empty MultiLine list: a line
+                        // unless preserveSourceNewlines keeps a block on one
+                        // line of the source on it.
                         if !emitted_comments && multi_line {
-                            writer.write_line(false);
+                            if self.empty_multi_line_list_breaks_line(transformation, node)? {
+                                writer.write_line(false);
+                            }
                         } else if !emitted_comments {
                             writer.write_space(" ");
                         }
@@ -9181,40 +9345,62 @@ impl Printer {
                             !function_body
                                 && Self::should_emit_on_multiple_lines(transformation, node),
                         );
-                        let first = TransformNode::new(node.source(), statements[0]);
-                        if self.leading_line_terminator_count(
-                            transformation,
-                            Some(node),
-                            Some(first),
-                            lines,
-                        )? > 0
-                        {
-                            writer.write_line(false);
-                        }
                         writer.increase_indent();
                         let mut has_previous_original_statement = false;
                         let mut in_function_prologue = function_body;
                         let mut pending_helpers =
                             (!block_helpers.is_empty()).then_some(block_helpers);
+                        // The list's statements: a function body's starts after
+                        // its prologue directives (tsgo emitFunctionBody).
                         let mut previous = None;
                         for statement in statements {
                             let statement = transformation
                                 .arena()
                                 .node_ref(node.source(), statement)
                                 .ok_or(PrinterError::UnknownStatement(statement.index()))?;
-                            if previous.is_some()
-                                && self.separating_line_terminator_count(
+                            in_function_prologue = in_function_prologue
+                                && self.is_prologue_statement(transformation, statement);
+                            // tsgo emitPrologueDirectives writes a line before
+                            // each directive; emitListItems the list's leading
+                            // and separating line terminators (one each for a
+                            // MultiLine list, the source's with
+                            // preserveSourceNewlines).
+                            let lines_before = if in_function_prologue {
+                                1
+                            } else if previous.is_none() {
+                                self.leading_line_terminator_count(
+                                    transformation,
+                                    Some(node),
+                                    Some(statement),
+                                    lines,
+                                )?
+                            } else {
+                                self.separating_line_terminator_count(
                                     transformation,
                                     previous,
                                     Some(statement),
                                     lines,
-                                )? > 0
-                            {
+                                )?
+                            };
+                            if lines_before > 0 {
                                 writer.write_line(false);
                             }
-                            previous = Some(statement);
-                            in_function_prologue = in_function_prologue
-                                && self.is_prologue_statement(transformation, statement);
+                            if !in_function_prologue {
+                                previous = Some(statement);
+                                // A statement after no line terminator first
+                                // writes the comments at its position (its
+                                // intervening comments).
+                                if lines_before == 0
+                                    && !expression_context.nested_comments_suppressed()
+                                    && !self.comments_disabled()
+                                {
+                                    self.emit_intervening_comments_of_node_position(
+                                        transformation,
+                                        statement,
+                                        writer,
+                                    )?;
+                                }
+                            }
                             if !in_function_prologue {
                                 if let Some(helpers) = pending_helpers.take() {
                                     self.emit_helpers(&helpers, writer)?;
@@ -9315,14 +9501,21 @@ impl Printer {
                             }
                         }
                         let list_end = statement_list_end.map_or(u32::MAX, |end| end as u32);
-                        if self.closing_line_terminator_count(
-                            transformation,
-                            Some(node),
-                            previous,
-                            lines,
-                            list_end,
-                        )? > 0
-                        {
+                        // An empty list (a body of prologue directives) breaks
+                        // its line as tsgo emitListRange's empty MultiLine list.
+                        let closing = match previous {
+                            Some(last) => self.closing_line_terminator_count(
+                                transformation,
+                                Some(node),
+                                Some(last),
+                                lines,
+                                list_end,
+                            )?,
+                            None => u32::from(
+                                self.empty_multi_line_list_breaks_line(transformation, node)?,
+                            ),
+                        };
+                        if closing > 0 {
                             writer.write_line(false);
                         }
                         if let Some(helpers) = pending_helpers {
@@ -9563,16 +9756,6 @@ impl Printer {
                 writer.write_line(false);
             }
         } else {
-            let first = TransformNode::new(source, clauses[0]);
-            if self.leading_line_terminator_count(
-                transformation,
-                Some(case_block),
-                Some(first),
-                lines,
-            )? > 0
-            {
-                writer.write_line(false);
-            }
             writer.increase_indent();
             let mut previous = None;
             for (index, clause) in clauses.into_iter().enumerate() {
@@ -9580,16 +9763,15 @@ impl Printer {
                     .arena()
                     .node_ref(source, clause)
                     .ok_or(PrinterError::UnknownStatement(clause.index()))?;
-                if previous.is_some()
-                    && self.separating_line_terminator_count(
-                        transformation,
-                        previous,
-                        Some(clause),
-                        lines,
-                    )? > 0
-                {
-                    writer.write_line(false);
-                }
+                self.emit_list_lines_before_child(
+                    transformation,
+                    case_block,
+                    previous,
+                    clause,
+                    lines,
+                    expression_context,
+                    writer,
+                )?;
                 previous = Some(clause);
                 if index == 0 {
                     self.emit_leading_comments_for_node(transformation, clause, writer)?;
@@ -9745,10 +9927,6 @@ impl Printer {
             ..ListLines::SINGLE_LINE
         }
         .preferring_new_line(Self::should_emit_on_multiple_lines(transformation, clause));
-        if self.leading_line_terminator_count(transformation, Some(clause), Some(first), lines)? > 0
-        {
-            writer.write_line(false);
-        }
         writer.increase_indent();
         let last = TransformNode::new(source, *statements.last().expect("a nonempty list"));
         let mut previous = None;
@@ -9757,16 +9935,15 @@ impl Printer {
                 .arena()
                 .node_ref(source, statement)
                 .ok_or(PrinterError::UnknownStatement(statement.index()))?;
-            if previous.is_some()
-                && self.separating_line_terminator_count(
-                    transformation,
-                    previous,
-                    Some(statement),
-                    lines,
-                )? > 0
-            {
-                writer.write_line(false);
-            }
+            self.emit_list_lines_before_child(
+                transformation,
+                clause,
+                previous,
+                statement,
+                lines,
+                expression_context,
+                writer,
+            )?;
             previous = Some(statement);
             if index == 0 {
                 self.emit_leading_comments_for_node_worker(
@@ -11144,12 +11321,17 @@ impl Printer {
                 field: "expression",
             })?;
         let while_keyword = match leading_phase {
-            PositionCommentPhase::BoundaryUnion => self.emit_space_prefixed_token_with_comments(
+            // tsgo emitWhileStatement: the keyword starts the statement, after
+            // whatever its container wrote before it.
+            PositionCommentPhase::BoundaryUnion => self.emit_token_with_comments_at_boundary(
                 transformation,
                 node,
                 FixedToken::keyword(SyntaxKind::WhileKeyword),
                 start_anchor,
+                TokenLeadingSpace::None,
+                Some(PositionCommentPhase::BoundaryUnion),
                 false,
+                None,
                 writer,
             )?,
             PositionCommentPhase::SourceLeading => self.emit_source_leading_token_with_context(
@@ -11261,15 +11443,15 @@ impl Printer {
                     == 0
         {
             writer.write_space(" ");
-            if matches!(anchor, EmbeddedStatementAnchor::AfterToken(_)) {
-                self.emit_leading_comments_for_node_worker(
-                    transformation,
-                    statement_node,
-                    LeadingCommentContext::Normal,
-                    token_resume,
-                    writer,
-                )?;
-            }
+            // tsgo emitStatement: the statement's leading comments (one after
+            // a line break in the source takes its line).
+            self.emit_leading_comments_for_node_worker(
+                transformation,
+                statement_node,
+                LeadingCommentContext::Normal,
+                token_resume,
+                writer,
+            )?;
             self.emit_node_id_with_context(
                 transformation,
                 parent.source(),
@@ -11383,7 +11565,7 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         if self.emit_modifiers(
             transformation,
-            source,
+            class_node,
             modifiers,
             DecoratorPolicy::Allow,
             expression_context,
@@ -11486,16 +11668,6 @@ impl Printer {
                     transformation,
                     class_node,
                 ));
-                let first = TransformNode::new(source, member_ids[0]);
-                if self.leading_line_terminator_count(
-                    transformation,
-                    Some(class_node),
-                    Some(first),
-                    lines,
-                )? > 0
-                {
-                    writer.write_line(false);
-                }
                 writer.increase_indent();
                 let mut previous = None;
                 for (index, member) in member_ids.iter().copied().enumerate() {
@@ -11503,16 +11675,15 @@ impl Printer {
                         .arena()
                         .node_ref(source, member)
                         .ok_or(PrinterError::UnknownStatement(member.index()))?;
-                    if previous.is_some()
-                        && self.separating_line_terminator_count(
-                            transformation,
-                            previous,
-                            Some(member_node),
-                            lines,
-                        )? > 0
-                    {
-                        writer.write_line(false);
-                    }
+                    self.emit_list_lines_before_child(
+                        transformation,
+                        class_node,
+                        previous,
+                        member_node,
+                        lines,
+                        expression_context,
+                        writer,
+                    )?;
                     previous = Some(member_node);
                     if index == 0
                         && !self.first_list_item_follows_elided_source_item(
@@ -11838,7 +12009,7 @@ impl Printer {
         let infer_type_parameter = std::mem::take(&mut self.infer_type_parameter_next);
         if self.emit_modifiers(
             transformation,
-            node.source(),
+            node,
             data.modifiers,
             DecoratorPolicy::Omit,
             expression_context,
@@ -11941,7 +12112,7 @@ impl Printer {
         self.require_declaration_syntax(node, SyntaxKind::PropertySignature)?;
         if self.emit_modifiers(
             transformation,
-            node.source(),
+            node,
             data.modifiers,
             DecoratorPolicy::Allow,
             expression_context,
@@ -12007,7 +12178,7 @@ impl Printer {
         self.require_declaration_syntax(node, SyntaxKind::MethodSignature)?;
         if self.emit_modifiers(
             transformation,
-            node.source(),
+            node,
             data.modifiers,
             DecoratorPolicy::Allow,
             expression_context,
@@ -12116,7 +12287,7 @@ impl Printer {
         self.require_declaration_syntax(node, SyntaxKind::IndexSignature)?;
         if self.emit_modifiers(
             transformation,
-            node.source(),
+            node,
             data.modifiers,
             DecoratorPolicy::Omit,
             expression_context,
@@ -12372,7 +12543,7 @@ impl Printer {
         self.require_declaration_syntax(node, SyntaxKind::ConstructorType)?;
         if self.emit_modifiers(
             transformation,
-            node.source(),
+            node,
             data.modifiers,
             DecoratorPolicy::Omit,
             expression_context,
@@ -13442,7 +13613,7 @@ impl Printer {
         self.require_declaration_syntax(node, SyntaxKind::InterfaceDeclaration)?;
         if self.emit_modifiers(
             transformation,
-            node.source(),
+            node,
             data.modifiers,
             DecoratorPolicy::Omit,
             expression_context,
@@ -13507,7 +13678,7 @@ impl Printer {
         self.require_declaration_syntax(node, SyntaxKind::TypeAliasDeclaration)?;
         if self.emit_modifiers(
             transformation,
-            node.source(),
+            node,
             data.modifiers,
             DecoratorPolicy::Omit,
             expression_context,
@@ -13581,7 +13752,7 @@ impl Printer {
         self.require_declaration_syntax(node, SyntaxKind::EnumDeclaration)?;
         if self.emit_modifiers(
             transformation,
-            node.source(),
+            node,
             data.modifiers,
             DecoratorPolicy::Omit,
             expression_context,
@@ -13663,7 +13834,7 @@ impl Printer {
         self.require_declaration_syntax(node, SyntaxKind::ModuleDeclaration)?;
         if self.emit_modifiers(
             transformation,
-            node.source(),
+            node,
             data.modifiers,
             DecoratorPolicy::Omit,
             expression_context,
@@ -13828,7 +13999,7 @@ impl Printer {
         self.require_declaration_syntax(node, SyntaxKind::ImportEqualsDeclaration)?;
         if self.emit_modifiers(
             transformation,
-            node.source(),
+            node,
             data.modifiers,
             DecoratorPolicy::Omit,
             expression_context,
@@ -14494,13 +14665,15 @@ impl Printer {
         ))
     }
 
+    /// Whether it wrote a comment, and then whether a line break follows the
+    /// last one in the source.
     fn emit_multiline_declaration_list_item_comments(
         &self,
         transformation: &TransformationResult<'_>,
         child: TransformNode,
         excluded: &BTreeSet<(usize, usize)>,
         writer: &mut TextWriter,
-    ) -> Result<bool, PrinterError> {
+    ) -> Result<Option<bool>, PrinterError> {
         let owner = self.expression_comment_phase_owner_for_node(transformation, child)?;
         let source = transformation
             .arena()
@@ -14508,7 +14681,7 @@ impl Printer {
             .syntax();
         let range = owner.range.range();
         let Some(start) = range.start() else {
-            return Ok(false);
+            return Ok(None);
         };
         let start = start.value() as usize;
         let code_start = range
@@ -14516,6 +14689,7 @@ impl Printer {
             .expect("comment range has a source start")
             .value() as usize;
         let mut previous_end = start;
+        let mut wrote = false;
         if start < code_start {
             let mut comments = collect_source_comment_ranges(source.text(), start, true);
             comments.extend(collect_source_comment_ranges(source.text(), start, false));
@@ -14546,15 +14720,18 @@ impl Printer {
                     writer.write_space(" ");
                 }
                 write_source_comment(source.text(), comment.start, comment.end, writer);
+                wrote = true;
                 if source_comment_will_emit_new_line(&comment) {
                     writer.write_line(false);
                 }
                 previous_end = comment.end;
             }
         }
-        Ok(source.text()[previous_end..code_start]
-            .chars()
-            .any(is_line_break))
+        Ok(wrote.then(|| {
+            source.text()[previous_end..code_start]
+                .chars()
+                .any(is_line_break)
+        }))
     }
 
     fn emit_multiline_comma_list(
@@ -14623,15 +14800,23 @@ impl Printer {
                 );
             }
         }
-        let source_line_break = self.emit_multiline_declaration_list_item_comments(
+        // tsgo emitListItems: after no leading line terminator, the comments
+        // at the first element's position (its intervening comments).
+        if !force_line_after_comments && leading == 0 && !self.comments_disabled() {
+            self.emit_intervening_comments_of_node_position(transformation, first, writer)?;
+        }
+        let comments = self.emit_multiline_declaration_list_item_comments(
             transformation,
             first,
             &excluded,
             writer,
         )?;
-        if force_line_after_comments && leading > 0 || source_line_break {
+        if force_line_after_comments && leading > 0 || comments == Some(true) {
             writer.write_line(false);
-        } else if !writer.is_at_start_of_line() && !writer.has_trailing_whitespace() {
+        } else if comments.is_some()
+            && !writer.is_at_start_of_line()
+            && !writer.has_trailing_whitespace()
+        {
             writer.write_space(" ");
         }
         for (index, id) in ids.iter().copied().enumerate() {
@@ -14661,7 +14846,21 @@ impl Printer {
                     lines,
                 )?;
                 let mut intervening = BTreeSet::new();
-                if !force_line_after_comments && separating > 0 {
+                if separating == 0 {
+                    // tsgo emitListItems after no line terminator: a tuple's
+                    // space between siblings, then the comments at the next
+                    // element's position (its intervening comments).
+                    if force_line_after_comments {
+                        writer.write_space(" ");
+                    }
+                    if !self.comments_disabled() {
+                        intervening = self.emit_intervening_comments_of_node_position(
+                            transformation,
+                            next,
+                            writer,
+                        )?;
+                    }
+                } else if !force_line_after_comments {
                     // EnumMembers (145) has no SpaceBetweenSiblings bit, so
                     // emitNodeListItems (_tsc.js:120103-120110) runs
                     // emitTrailingCommentsOfPosition(pos, false, /*forceNoNewline*/ true)
@@ -14675,13 +14874,13 @@ impl Printer {
                     )?;
                     writer.write_line(false);
                 }
-                let source_line_break = self.emit_multiline_declaration_list_item_comments(
+                let comments = self.emit_multiline_declaration_list_item_comments(
                     transformation,
                     next,
                     &intervening,
                     writer,
                 )?;
-                if force_line_after_comments && separating > 0 || source_line_break {
+                if force_line_after_comments && separating > 0 || comments == Some(true) {
                     writer.write_line(false);
                 } else if (force_line_after_comments || separating > 0)
                     && !writer.is_at_start_of_line()
@@ -14773,11 +14972,6 @@ impl Printer {
             ..ListLines::SINGLE_LINE
         }
         .preferring_new_line(Self::should_emit_on_multiple_lines(transformation, parent));
-        let first = TransformNode::new(parent.source(), ids[0]);
-        if self.leading_line_terminator_count(transformation, Some(parent), Some(first), lines)? > 0
-        {
-            writer.write_line(false);
-        }
         writer.increase_indent();
         let mut previous = None;
         for (index, id) in ids.iter().copied().enumerate() {
@@ -14785,16 +14979,15 @@ impl Printer {
                 .arena()
                 .node_ref(parent.source(), id)
                 .ok_or(PrinterError::UnknownStatement(id.index()))?;
-            if previous.is_some()
-                && self.separating_line_terminator_count(
-                    transformation,
-                    previous,
-                    Some(member),
-                    lines,
-                )? > 0
-            {
-                writer.write_line(false);
-            }
+            self.emit_list_lines_before_child(
+                transformation,
+                parent,
+                previous,
+                member,
+                lines,
+                expression_context,
+                writer,
+            )?;
             previous = Some(member);
             if index == 0 {
                 self.emit_leading_comments_for_node(transformation, member, writer)?;
@@ -15943,20 +16136,29 @@ impl Printer {
     /// tsc-port: emitDecoratorsAndModifiers @6.0.3
     /// tsc-hash: 8fb50c70cd68d557886307bc8242e2f79f0533fea4c44e498feb8ce7c0eba899
     /// tsc-span: _tsc.js:119846-119902
+    ///
+    /// tsgo `emitModifierList`: the modifiers and decorators of `parent`,
+    /// each run of one kind a list of its own (`LFDecorators`: MultiLine,
+    /// `LFModifiers`: SingleLine, both with a space after the list); a list of
+    /// one kind is `emitList`'s, which prefers new lines for a MultiLine
+    /// parent. Whether the caller writes the space after the last run of
+    /// modifiers.
     fn emit_modifiers(
         &mut self,
         transformation: &mut TransformationResult<'_>,
-        source: TransformSourceId,
+        parent: TransformNode,
         modifiers: Option<tsc_syntax::NodeArrayId>,
         decorators: DecoratorPolicy,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<bool, PrinterError> {
+        let source = parent.source();
         let Some(array) =
             modifiers.and_then(|id| transformation.arena().node_array_ref(source, id))
         else {
             return Ok(false);
         };
+        let array_end = transformation.arena().node_array(array)?.end;
         let items = transformation
             .arena()
             .node_array(array)?
@@ -15974,102 +16176,140 @@ impl Printer {
                 })
             })
             .collect::<Result<Vec<_>, TransformError>>()?;
-        let items: Vec<_> = items
-            .into_iter()
-            .filter(|item| {
-                decorators == DecoratorPolicy::Allow || item.kind != ModifierListItemKind::Decorator
-            })
-            .collect();
-
-        for (index, item) in items.iter().enumerate() {
-            self.record_list_element_position(
-                transformation,
-                TransformNode::new(source, item.node),
-            )?;
-            match item.kind {
-                ModifierListItemKind::Decorator => {
-                    writer.write_line(false);
-                    let child_context =
-                        expression_context.for_child(ExpressionSyntaxContext::NORMAL);
-                    if expression_context.nested_comments_suppressed() {
-                        self.emit_node_id_with_context(
-                            transformation,
-                            source,
-                            item.node,
-                            child_context,
-                            writer,
-                        )?;
-                    } else {
-                        // `emitDecoratorList` -> `emitNodeListItems(emit, ...)`
-                        // (ListFormat.Decorators): every decorator takes the
-                        // ordinary node comments phase, so a same-line
-                        // comment after the decorator expression
-                        // (`@dec /* b */`) prints as its trailing comment.
-                        let outcome = self.emit_node_id_with_context_and_source_comments(
-                            transformation,
-                            source,
-                            item.node,
-                            child_context,
-                            DeferredExpressionSourceComments::nested(
-                                expression_context.comments(),
-                                DeferredSourceCommentExtent::LeadingAndTrailing,
-                            ),
-                            writer,
-                        )?;
-                        assert!(matches!(
-                            outcome,
-                            ExpressionSourceCommentsOutcome::Complete { .. }
-                        ));
-                    }
-                    writer.write_line(false);
-                }
-                ModifierListItemKind::Modifier => {
-                    if index != 0 && items[index - 1].kind == ModifierListItemKind::Modifier {
-                        writer.write_space(" ");
-                    }
-                    let child_context =
-                        expression_context.for_child(ExpressionSyntaxContext::NORMAL);
-                    if expression_context.nested_comments_suppressed() {
-                        self.emit_node_id_with_context(
-                            transformation,
-                            source,
-                            item.node,
-                            child_context,
-                            writer,
-                        )?;
-                    } else {
-                        // `emitNodeListItems(emit, ...)` gives every modifier
-                        // the ordinary node comments phase. Its trailing
-                        // comments precede the list's next separating space.
-                        let outcome = self.emit_node_id_with_context_and_source_comments(
-                            transformation,
-                            source,
-                            item.node,
-                            child_context,
-                            DeferredExpressionSourceComments::nested(
-                                expression_context.comments(),
-                                DeferredSourceCommentExtent::LeadingAndTrailing,
-                            ),
-                            writer,
-                        )?;
-                        assert!(matches!(
-                            outcome,
-                            ExpressionSourceCommentsOutcome::Complete { .. }
-                        ));
-                    }
-                    if items
-                        .get(index + 1)
-                        .is_some_and(|next| next.kind == ModifierListItemKind::Decorator)
-                    {
-                        writer.write_space(" ");
-                    }
-                }
+        if items.is_empty() {
+            return Ok(false);
+        }
+        // tsgo's runs of one kind, over the whole list.
+        let mut runs: Vec<(usize, usize)> = Vec::new();
+        let mut run_start = 0;
+        for index in 1..=items.len() {
+            if index == items.len() || items[index].kind != items[run_start].kind {
+                runs.push((run_start, index));
+                run_start = index;
             }
         }
-
-        Ok(items
-            .last()
-            .is_some_and(|item| item.kind == ModifierListItemKind::Modifier))
+        let one_kind = runs.len() == 1;
+        let multi_line_parent =
+            one_kind && Self::should_emit_on_multiple_lines(transformation, parent);
+        let mut space_owed = false;
+        let last_run = runs.len() - 1;
+        for (run_index, &(start, end)) in runs.iter().enumerate() {
+            let kind = items[start].kind;
+            if kind == ModifierListItemKind::Decorator && decorators == DecoratorPolicy::Omit {
+                continue;
+            }
+            if space_owed {
+                writer.write_space(" ");
+                space_owed = false;
+            }
+            let decorator_run = kind == ModifierListItemKind::Decorator;
+            let lines = if decorator_run {
+                ListLines::MULTI_LINE
+            } else {
+                ListLines::SINGLE_LINE
+            }
+            .preferring_new_line(multi_line_parent);
+            // emitListItems' text range: the list's end for a list of one kind
+            // (and, as tsgo computes it, for the run that ends one item
+            // before the last).
+            let children_end = if one_kind || end + 1 == items.len() {
+                array_end
+            } else {
+                u32::MAX
+            };
+            let mut previous = None;
+            for item in &items[start..end] {
+                let child = TransformNode::new(source, item.node);
+                let lines_before = match previous {
+                    None => self.leading_line_terminator_count(
+                        transformation,
+                        Some(parent),
+                        Some(child),
+                        lines,
+                    )?,
+                    Some(previous) => self.separating_line_terminator_count(
+                        transformation,
+                        Some(previous),
+                        Some(child),
+                        lines,
+                    )?,
+                };
+                if lines_before > 0 {
+                    writer.write_line(false);
+                } else if previous.is_some() && !decorator_run {
+                    // LFModifiers' space between siblings.
+                    writer.write_space(" ");
+                }
+                if previous.is_none() && multi_line_parent {
+                    writer.increase_indent();
+                }
+                // LFDecorators lets a decorator after no line terminator
+                // write the comments at its position first; LFModifiers
+                // does not (NoInterveningComments).
+                if decorator_run
+                    && lines_before == 0
+                    && !expression_context.nested_comments_suppressed()
+                    && !self.comments_disabled()
+                {
+                    self.emit_intervening_comments_of_node_position(transformation, child, writer)?;
+                }
+                self.record_list_element_position(transformation, child)?;
+                let child_context = expression_context.for_child(ExpressionSyntaxContext::NORMAL);
+                if expression_context.nested_comments_suppressed() {
+                    self.emit_node_id_with_context(
+                        transformation,
+                        source,
+                        item.node,
+                        child_context,
+                        writer,
+                    )?;
+                } else {
+                    // `emitNodeListItems(emit, ...)` gives every decorator and
+                    // modifier the ordinary node comments phase: a same-line
+                    // comment after a decorator expression (`@dec /* b */`)
+                    // prints as its trailing comment, and a modifier's
+                    // precedes the list's next separating space.
+                    let outcome = self.emit_node_id_with_context_and_source_comments(
+                        transformation,
+                        source,
+                        item.node,
+                        child_context,
+                        DeferredExpressionSourceComments::nested(
+                            expression_context.comments(),
+                            DeferredSourceCommentExtent::LeadingAndTrailing,
+                        ),
+                        writer,
+                    )?;
+                    assert!(matches!(
+                        outcome,
+                        ExpressionSourceCommentsOutcome::Complete { .. }
+                    ));
+                }
+                previous = Some(child);
+            }
+            if multi_line_parent {
+                writer.decrease_indent();
+            }
+            let closing = self.closing_line_terminator_count(
+                transformation,
+                Some(parent),
+                previous,
+                lines,
+                children_end,
+            )?;
+            if closing > 0 {
+                writer.write_line(false);
+            } else if run_index == last_run && !decorator_run {
+                // The caller writes the last list's space after it.
+                return Ok(true);
+            } else {
+                space_owed = true;
+            }
+        }
+        if space_owed {
+            writer.write_space(" ");
+        }
+        Ok(false)
     }
 
     fn parenthesized_no_asi_expression(
@@ -22184,6 +22424,9 @@ fn emit_source_trailing_comments_of_position(
 /// tsc-port: emitTrailingComment @6.0.3
 /// tsc-span: _tsc.js:121179-121190
 /// tsc-hash: 14654b8999872d42159a4d2c11a27fb01fbe47c50e8131b82de8453536d60394
+///
+/// tsgo `emitComments`: a line ends a single-line comment even without one
+/// in the source (a comment at the end of the file).
 fn emit_source_trailing_comments_of_position_with_filter(
     source: &str,
     position: usize,
@@ -22198,7 +22441,7 @@ fn emit_source_trailing_comments_of_position_with_filter(
             writer.write_space(" ");
         }
         write_source_comment(source, comment.start, comment.end, writer);
-        if comment.has_trailing_new_line {
+        if comment.has_trailing_new_line || comment.kind == SourceCommentKind::Line {
             writer.write_line(false);
         }
     }
@@ -22407,7 +22650,9 @@ fn emit_same_line_trailing_comments(
             writer.write_space(" ");
         }
         write_source_comment(rest.source, comment.start, comment.end, writer);
-        if comment.has_trailing_new_line {
+        // tsgo `emitComments`: a line ends a single-line comment even without
+        // one in the source (a comment at the end of the file).
+        if comment.has_trailing_new_line || comment.kind == SourceCommentKind::Line {
             writer.write_line(false);
         }
     }

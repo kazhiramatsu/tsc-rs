@@ -116,6 +116,7 @@ fn print_node(params: &PrintNodeParams) -> Result<String, String> {
     let options = PrinterOptions::new(NewLineKind::LineFeed)
         .with_remove_comments(!tree.is_source_file)
         .with_declaration_syntax(true)
+        .with_preserve_source_newlines(params.preserve_source_newlines)
         .with_never_ascii_escape(params.never_ascii_escape)
         .with_terminate_unterminated_literals(params.terminate_unterminated_literals)
         .with_source_file_text_mode(SourceFileTextMode::Canonical);
