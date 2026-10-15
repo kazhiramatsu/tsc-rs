@@ -21,6 +21,7 @@ mod format;
 mod formatting;
 mod hover;
 mod hovericon;
+mod inlay_hints;
 mod jsdoc;
 mod jsx_tags;
 mod language_service;

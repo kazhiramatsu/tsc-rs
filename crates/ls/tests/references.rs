@@ -577,6 +577,70 @@ fn semantic_tokens(files: &[(&str, &str)], range: Option<tsc_lsproto::Range>) ->
     )
 }
 
+/// tsgo's inlay hints of the whole first file for a user who enables every
+/// kind (parameter names of all arguments): each hint's position, label text
+/// and kind, and the locations of its label's parts.
+#[allow(clippy::type_complexity)]
+fn inlay_hints(
+    files: &[(&str, &str)],
+) -> Vec<((u32, u32), String, Option<u32>, Vec<tsc_lsproto::Location>)> {
+    let mut preferences = UserPreferences::default();
+    let hints = &mut preferences.inlay_hints_preferences;
+    hints.include_inlay_variable_type_hints = Some(true);
+    hints.include_inlay_function_like_return_type_hints = Some(true);
+    hints.include_inlay_function_parameter_type_hints = Some(true);
+    hints.include_inlay_parameter_name_hints = tsc_ls::lsutil::IncludeInlayParameterNameHints::ALL;
+    hints.include_inlay_enum_member_value_hints = Some(true);
+    let uri = DocumentUri(format!("file://{}", files[0].0));
+    let lines = files[0].1.matches('\n').count() as u32;
+    with_service_preferences(
+        files,
+        options(|options| options.allow_js = true),
+        preferences,
+        |service, _| {
+            let params = tsc_lsproto::InlayHintParams {
+                text_document: TextDocumentIdentifier { uri: uri.clone() },
+                range: tsc_lsproto::Range {
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: lines,
+                        character: 0,
+                    },
+                },
+                ..Default::default()
+            };
+            let tsc_lsproto::InlayHintsOrNull::InlayHints(hints) =
+                service.provide_inlay_hints(&params).expect("an answer")
+            else {
+                panic!("inlay hints");
+            };
+            hints
+                .into_iter()
+                .map(|hint| {
+                    let (text, locations) = match hint.label {
+                        tsc_lsproto::StringOrInlayHintLabelParts::String(text) => {
+                            (text, Vec::new())
+                        }
+                        tsc_lsproto::StringOrInlayHintLabelParts::InlayHintLabelParts(parts) => (
+                            parts.iter().map(|part| part.value.as_str()).collect(),
+                            parts.into_iter().filter_map(|part| part.location).collect(),
+                        ),
+                    };
+                    (
+                        (hint.position.line, hint.position.character),
+                        text,
+                        hint.kind.map(|kind| kind.0),
+                        locations,
+                    )
+                })
+                .collect()
+        },
+    )
+}
+
 fn leak(name: &str) -> &'static str {
     Box::leak(name.to_owned().into_boxed_str())
 }
@@ -1159,5 +1223,80 @@ fn semantic_tokens_of_a_range_and_of_the_default_library() {
     assert_eq!(
         semantic_tokens(&[("/b.ts", text)], None),
         serde_json::json!({"data": [0, 6, 1, 8, 5, 1, 9, 1, 13, 1, 0, 2, 1, 7, 1, 0, 20, 1, 7, 0, 0, 4, 1, 8, 4, 1, 4, 1, 8, 1, 0, 4, 1, 13, 0, 0, 2, 1, 8, 4, 1, 6, 1, 1, 1, 0, 11, 1, 9, 9, 0, 4, 4, 8, 512, 0, 5, 3, 14, 512, 0, 4, 1, 8, 0]})
+    );
+}
+
+/// In a JavaScript file tsgo's parser gives a declaration the type of its
+/// JSDoc's `@type`, `@returns` or `@param`: a declaration with one has no
+/// type hint. (Expected: tsgo's answer.)
+#[test]
+fn js_doc_types_leave_no_type_hints() {
+    let text = "function f() { return 1; }\n/** @type {number} */\nlet x = f();\nlet y = f();\n/** @returns {number} */\nfunction g() { return 1; }\nfunction h() { return 1; }\n/**\n * @param {number} p\n */\nfunction k(p, q = 1) { return p + q; }\n[1].map(function (n) { return n; });\n";
+    let hints: Vec<_> = inlay_hints(&[("/a.js", text)])
+        .into_iter()
+        .map(|(position, text, kind, _)| (position, text, kind))
+        .collect();
+    let hint =
+        |position: (u32, u32), text: &str, kind: u32| (position, text.to_owned(), Some(kind));
+    assert_eq!(
+        hints,
+        vec![
+            hint((0, 12), ": number", 1),
+            hint((3, 5), ": number", 1),
+            hint((6, 12), ": number", 1),
+            hint((10, 20), ": number", 1),
+            hint((11, 8), "callbackfn:", 2),
+            hint((11, 19), ": number", 1),
+            hint((11, 20), ": number", 1),
+        ]
+    );
+}
+
+/// A variable is not hintable only when a `const` (tsgo `IsVarConst`: not
+/// `using` or `await using`) has a literal initializer; a rest parameter's
+/// labeled tuple names its arguments, at the labels; a rest parameter names
+/// only its first argument; an enum member without an initializer shows its
+/// value. (Expected: tsgo's answer.)
+#[test]
+fn inlay_hints_of_variables_arguments_and_enum_members() {
+    let text = "declare const d: Disposable;\nusing u = d;\nconst c = 1 + 1;\nlet l = 1;\nawait using w = null;\nfunction r(...args: [first: number, second?: string]) {}\nr(1, \"s\");\nfunction s(a: number, ...rest: number[]) {}\ns(1, 2, 3);\nenum E { A, B = 5, C }\nexport {};\n";
+    let hints = inlay_hints(&[("/b.ts", text)]);
+    let location = |start: (u32, u32), end: (u32, u32)| tsc_lsproto::Location {
+        uri: DocumentUri("file:///b.ts".to_owned()),
+        range: tsc_lsproto::Range {
+            start: Position {
+                line: start.0,
+                character: start.1,
+            },
+            end: Position {
+                line: end.0,
+                character: end.1,
+            },
+        },
+    };
+    let hint = |position: (u32, u32), text: &str, kind: Option<u32>, locations| {
+        (position, text.to_owned(), kind, locations)
+    };
+    assert_eq!(
+        hints,
+        vec![
+            hint((1, 7), ": Disposable", Some(1), Vec::new()),
+            hint((2, 7), ": number", Some(1), Vec::new()),
+            hint((3, 5), ": number", Some(1), Vec::new()),
+            hint((4, 13), ": null", Some(1), Vec::new()),
+            hint((5, 53), ": void", Some(1), Vec::new()),
+            hint((6, 2), "first:", Some(2), vec![location((5, 21), (5, 26))]),
+            hint((6, 5), "second:", Some(2), vec![location((5, 36), (5, 42))]),
+            hint((7, 40), ": void", Some(1), Vec::new()),
+            hint((8, 2), "a:", Some(2), vec![location((7, 11), (7, 12))]),
+            hint(
+                (8, 5),
+                "...rest:",
+                Some(2),
+                vec![location((7, 25), (7, 29))]
+            ),
+            hint((9, 10), "= 0", None, Vec::new()),
+            hint((9, 20), "= 6", None, Vec::new()),
+        ]
     );
 }
