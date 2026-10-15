@@ -88,6 +88,10 @@ const NODE_BUILDER_WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME: u32 = 1 << 9;
 const CLASSIFIED_NODE_BUILDER_FLAGS: u32 =
     NODE_BUILDER_IGNORE_ERRORS | 1 << 14 | NODE_BUILDER_WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME;
 
+/// tsgo inlay hints' `typeToInlayHintParts` flags: `IgnoreErrors |
+/// AllowUniqueESSymbolType | UseAliasDefinedOutsideCurrentScope`.
+pub const INLAY_HINT_NODE_BUILDER_FLAGS: u32 = NODE_BUILDER_IGNORE_ERRORS | 1 << 20 | 1 << 14;
+
 /// tsgo signature help's `signatureHelpNodeBuilderFlags`:
 /// `OmitParameterModifiers | IgnoreErrors | UseAliasDefinedOutsideCurrentScope`.
 const SIGNATURE_HELP_NODE_BUILDER_FLAGS: u32 = 1 << 13 | NODE_BUILDER_IGNORE_ERRORS | 1 << 14;
