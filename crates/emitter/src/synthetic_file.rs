@@ -21,6 +21,9 @@ use crate::{
 pub struct PositionedNode {
     /// The printed text, its trailing new line trimmed.
     pub text: String,
+    /// A snippet print's escapes of the text it wrote that holds `$`, as
+    /// edits of `text` (tsgo `snippetEmitTextWriter`).
+    pub snippet_escapes: Vec<crate::writer::SnippetEscape>,
     /// The synthetic source file of the text, whose only statement is the
     /// positioned node.
     pub file: SourceFile,
@@ -38,6 +41,10 @@ pub struct PositionedPrint {
     pub indent_size: usize,
     pub with_source_file: bool,
     pub language_variant: LanguageVariant,
+    /// tsgo's snippet printer (`createSnippetPrinter`) of a program of this
+    /// target (or of none): no comments, the printer's defaults otherwise,
+    /// and the escapes of `$`; else the change tracker's printer.
+    pub snippet: Option<Option<tsc_types::ScriptTarget>>,
 }
 
 /// tsgo `PrintAndPositionNode` then `CreateSyntheticSourceFile`: `node`
@@ -48,21 +55,36 @@ pub fn print_and_position(
     node: TransformNode,
     print: PositionedPrint,
 ) -> Result<PositionedNode, PrinterError> {
-    // tsgo reads comments from the current source file: a node of none has
-    // no comments to print.
-    let options = PrinterOptions::new(print.new_line)
-        .with_remove_comments(!print.with_source_file)
-        .with_declaration_syntax(true)
-        .with_never_ascii_escape(true)
-        .with_terminate_unterminated_literals(true)
-        .with_preserve_source_newlines(true)
-        .with_source_file_text_mode(SourceFileTextMode::Canonical);
+    let (options, writer) = match print.snippet {
+        Some(target) => {
+            let options = PrinterOptions::new(print.new_line)
+                .with_remove_comments(true)
+                .with_declaration_syntax(true)
+                .with_source_file_text_mode(SourceFileTextMode::Canonical);
+            (
+                match target {
+                    Some(target) => options.with_target(target),
+                    None => options,
+                },
+                StandaloneWriter::SnippetChangeTracker(print.indent_size),
+            )
+        }
+        // tsgo reads comments from the current source file: a node of none
+        // has no comments to print.
+        None => (
+            PrinterOptions::new(print.new_line)
+                .with_remove_comments(!print.with_source_file)
+                .with_declaration_syntax(true)
+                .with_never_ascii_escape(true)
+                .with_terminate_unterminated_literals(true)
+                .with_preserve_source_newlines(true)
+                .with_source_file_text_mode(SourceFileTextMode::Canonical),
+            StandaloneWriter::ChangeTracker(print.indent_size),
+        ),
+    };
     let printed = create_printer(options).print(
         transformation,
-        PrintRequest::StandaloneNode {
-            node,
-            writer: StandaloneWriter::ChangeTracker(print.indent_size),
-        },
+        PrintRequest::StandaloneNode { node, writer },
         None,
     )?;
     let text = printed
@@ -75,6 +97,7 @@ pub fn print_and_position(
     let (arena, root) = assign_positions_to_node(&source.arena, node, positions);
     let file = create_synthetic_source_file(arena, root, text.clone(), print.language_variant);
     Ok(PositionedNode {
+        snippet_escapes: printed.snippet_escapes().to_vec(),
         text,
         file,
         node: root,
@@ -107,6 +130,7 @@ pub fn print_and_position_node(
             indent_size,
             with_source_file: false,
             language_variant,
+            snippet: None,
         },
     )
 }

@@ -140,8 +140,19 @@ pub struct TextWriter {
     display_parts: Option<Vec<DisplayPart>>,
     /// tsgo's `ChangeTrackerWriter`: the positions of the printed nodes.
     positions: Option<PrintPositions>,
+    /// tsgo's `snippetEmitTextWriter`: the writes that hold `$`, escaped.
+    snippet_escapes: Option<Vec<SnippetEscape>>,
     /// The indentation of one level (tsgo's writer `indentSize`).
     indent_width: usize,
+}
+
+/// An escape a snippet writer recorded (tsgo `core.TextChange`): the
+/// printed range `pos..end` becomes `text`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SnippetEscape {
+    pub pos: usize,
+    pub end: usize,
+    pub text: String,
 }
 
 /// tsgo `ChangeTrackerWriter`'s positions: where the last text that is not
@@ -209,6 +220,7 @@ impl TextWriter {
             pending_semicolon: false,
             display_parts: None,
             positions: None,
+            snippet_escapes: None,
             indent_width: INDENT.len(),
         }
     }
@@ -225,6 +237,40 @@ impl TextWriter {
     /// The recorded positions of a change tracker writer.
     pub(crate) fn take_positions(&mut self) -> Option<PrintPositions> {
         self.positions.take()
+    }
+
+    /// tsgo `createSnippetPrinter`'s writer: a change tracker writer whose
+    /// writes that hold `$` are recorded as escapes.
+    pub(crate) fn snippet_change_tracker(new_line: NewLineKind, indent_size: usize) -> Self {
+        let mut writer = Self::change_tracker(new_line, indent_size);
+        writer.snippet_escapes = Some(Vec::new());
+        writer
+    }
+
+    /// The recorded escapes of a snippet writer.
+    pub(crate) fn take_snippet_escapes(&mut self) -> Option<Vec<SnippetEscape>> {
+        self.snippet_escapes.take()
+    }
+
+    /// tsgo `snippetEmitTextWriter.escapingWrite`: a write whose text holds
+    /// `$` is recorded as the edit that escapes it (from before the write,
+    /// any indentation it writes included, to after it), applied after the
+    /// print is formatted.
+    fn escaping_write(&mut self, text: &str, write: impl FnOnce(&mut Self)) {
+        if self.snippet_escapes.is_none() || !text.contains('$') {
+            write(self);
+            return;
+        }
+        let pos = self.output.as_str().len();
+        write(self);
+        let end = self.output.as_str().len();
+        if let Some(escapes) = &mut self.snippet_escapes {
+            escapes.push(SnippetEscape {
+                pos,
+                end,
+                text: text.replace('$', "\\$"),
+            });
+        }
     }
 
     /// tsgo's `OnBefore*` print handlers of a change tracker writer.
@@ -298,6 +344,7 @@ impl TextWriter {
             pending_semicolon: false,
             display_parts: None,
             positions: None,
+            snippet_escapes: None,
             indent_width: INDENT.len(),
         }
     }
@@ -592,10 +639,12 @@ impl TextWriter {
 
     /// Write JavaScript units without replacing unpaired surrogates.
     pub fn write_utf16(&mut self, units: &[u16]) {
-        self.commit_semicolon();
-        self.record_utf16(TEXT, units);
-        self.write_utf16_unrecorded(units);
-        self.set_last_non_trivia_position_utf16(units, false);
+        self.escaping_write(&String::from_utf16_lossy(units), |writer| {
+            writer.commit_semicolon();
+            writer.record_utf16(TEXT, units);
+            writer.write_utf16_unrecorded(units);
+            writer.set_last_non_trivia_position_utf16(units, false);
+        });
     }
 
     fn write_utf16_unrecorded(&mut self, units: &[u16]) {
@@ -628,23 +677,27 @@ impl TextWriter {
     }
 
     pub fn write_comment_utf16(&mut self, units: &[u16]) {
-        self.commit_semicolon();
-        self.record_utf16(TEXT, units);
-        if !self.single_line && !units.is_empty() {
-            self.has_trailing_comment = true;
-        }
-        self.write_text_utf16(units);
+        self.escaping_write(&String::from_utf16_lossy(units), |writer| {
+            writer.commit_semicolon();
+            writer.record_utf16(TEXT, units);
+            if !writer.single_line && !units.is_empty() {
+                writer.has_trailing_comment = true;
+            }
+            writer.write_text_utf16(units);
+        });
     }
 
     pub fn write_string_literal_utf16(&mut self, units: &[u16]) {
-        self.commit_semicolon();
-        self.record_utf16(STRING, units);
-        self.write_utf16_unrecorded(units);
-        self.set_last_non_trivia_position_utf16(units, false);
+        self.escaping_write(&String::from_utf16_lossy(units), |writer| {
+            writer.commit_semicolon();
+            writer.record_utf16(STRING, units);
+            writer.write_utf16_unrecorded(units);
+            writer.set_last_non_trivia_position_utf16(units, false);
+        });
     }
 
     pub fn write(&mut self, text: &str) {
-        self.write_classified(text, TEXT);
+        self.escaping_write(text, |writer| writer.write_classified(text, TEXT));
     }
 
     /// A write with its display parts classification.
@@ -688,12 +741,14 @@ impl TextWriter {
     }
 
     pub fn write_comment(&mut self, text: &str) {
-        self.commit_semicolon();
-        self.record(TEXT, text);
-        if !self.single_line && !text.is_empty() {
-            self.has_trailing_comment = true;
-        }
-        self.write_text(text);
+        self.escaping_write(text, |writer| {
+            writer.commit_semicolon();
+            writer.record(TEXT, text);
+            if !writer.single_line && !text.is_empty() {
+                writer.has_trailing_comment = true;
+            }
+            writer.write_text(text);
+        });
     }
 
     pub fn write_line(&mut self, force: bool) {
@@ -828,11 +883,15 @@ impl TextWriter {
     }
 
     pub fn write_parameter(&mut self, text: &str) {
-        self.write_classified(text, "parameter name");
+        self.escaping_write(text, |writer| {
+            writer.write_classified(text, "parameter name")
+        });
     }
 
     pub fn write_property(&mut self, text: &str) {
-        self.write_classified(text, "property name");
+        self.escaping_write(text, |writer| {
+            writer.write_classified(text, "property name")
+        });
     }
 
     pub fn write_punctuation(&mut self, text: &str) {
@@ -844,17 +903,17 @@ impl TextWriter {
     }
 
     pub fn write_string_literal(&mut self, text: &str) {
-        self.write_classified(text, STRING);
+        self.escaping_write(text, |writer| writer.write_classified(text, STRING));
     }
 
     /// tsgo `p.write` of a name without a symbol.
     pub fn write_symbol(&mut self, text: &str) {
-        self.write_classified(text, TEXT);
+        self.escaping_write(text, |writer| writer.write_classified(text, TEXT));
     }
 
     /// tsgo `WriteSymbol`: a name with its symbol's classification.
     pub fn write_symbol_classified(&mut self, text: &str, classification: &'static str) {
-        self.write_classified(text, classification);
+        self.escaping_write(text, |writer| writer.write_classified(text, classification));
     }
 
     pub fn write_trailing_semicolon(&mut self, text: &str) {

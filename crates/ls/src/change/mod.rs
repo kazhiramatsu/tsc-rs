@@ -140,10 +140,14 @@ pub(crate) struct Tracker<'a> {
 impl<'a> Tracker<'a> {
     /// tsgo `NewTracker`.
     pub(crate) fn new(new_line: NewLineKind, format_settings: FormatCodeSettings) -> Self {
+        // The tracker prints its nodes with their positions assigned: no
+        // node may appear twice in a tree.
+        let mut arena = TransformArena::new();
+        arena.copy_position_free_subtrees();
         Self {
             format_settings,
             new_line,
-            arena: TransformArena::new(),
+            arena,
             files: Vec::new(),
             changes: Vec::new(),
             deleted_nodes: Vec::new(),
@@ -261,6 +265,111 @@ impl<'a> Tracker<'a> {
         result.extend(std::iter::repeat_n('\u{FFFD}', bytes.len() - valid.len()));
         result.push_str("...");
         Ok(result)
+    }
+
+    /// tsgo `snippetPrinter.printAndFormatNodeWithSettings`: `node` printed
+    /// by tsgo's snippet printer for a program of `target` (with the
+    /// settings' new line), formatted as a node of its own by `settings`,
+    /// with the `$` it wrote escaped.
+    pub(crate) fn print_and_format_snippet(
+        &mut self,
+        node: TransformNode,
+        file: &SourceFile,
+        target: Option<tsc_types::ScriptTarget>,
+        settings: &FormatCodeSettings,
+    ) -> Result<String, TrackerError> {
+        let positioned = self.print_snippet(node, file, target, settings)?;
+        let synthetic = File::new(&positioned.file);
+        let printed = synthetic
+            .node_of(Some(positioned.node))
+            .expect("the positioned node is in its synthetic file");
+        let mut changes =
+            format::format_node_given_indentation(&synthetic, settings, printed, 0, 0);
+        if !positioned.snippet_escapes.is_empty() {
+            changes.extend(positioned.snippet_escapes.iter().map(|escape| TextChange {
+                pos: escape.pos,
+                end: escape.end,
+                new_text: escape.text.clone(),
+            }));
+            changes.sort_by_key(|change| (change.pos, change.end));
+        }
+        Ok(crate::formatting::apply_bulk_edits(
+            &positioned.text,
+            &changes,
+        ))
+    }
+
+    /// tsgo `snippetPrinter.printUnescapedNode`: `node` printed by tsgo's
+    /// snippet printer, as written.
+    pub(crate) fn print_unescaped_snippet(
+        &mut self,
+        node: TransformNode,
+        file: &SourceFile,
+        target: Option<tsc_types::ScriptTarget>,
+        settings: &FormatCodeSettings,
+    ) -> Result<String, TrackerError> {
+        Ok(self.print_snippet(node, file, target, settings)?.text)
+    }
+
+    /// tsgo `printObjectLiteralMethodLabelDetail`'s printer: `node` without
+    /// comments or a trailing semicolon, for a program of `target`.
+    pub(crate) fn print_signature_label(
+        &mut self,
+        node: TransformNode,
+        target: tsc_types::ScriptTarget,
+        new_line: NewLineKind,
+    ) -> Result<String, TrackerError> {
+        let arena = std::mem::replace(&mut self.arena, TransformArena::new());
+        let mut transformation = transform_nodes(arena, Vec::new(), Vec::new(), true)?;
+        let printed = create_printer(
+            PrinterOptions::new(new_line)
+                .with_remove_comments(true)
+                .with_omit_trailing_semicolon(true)
+                .with_target(target)
+                .with_declaration_syntax(true),
+        )
+        .print(
+            &mut transformation,
+            PrintRequest::StandaloneNode {
+                node,
+                writer: StandaloneWriter::MultiLine,
+            },
+            None,
+        );
+        self.arena = transformation.into_arena();
+        Ok(printed?.text().to_owned())
+    }
+
+    /// tsgo `createSnippetPrinter`'s print: without comments, by a change
+    /// tracker writer of the default indentation and the settings' new line.
+    fn print_snippet(
+        &mut self,
+        node: TransformNode,
+        file: &SourceFile,
+        target: Option<tsc_types::ScriptTarget>,
+        settings: &FormatCodeSettings,
+    ) -> Result<tsc_emitter::PositionedNode, TrackerError> {
+        // tsgo `core.GetNewLineKind` of the settings' new line character.
+        let new_line = if settings.editor_settings.new_line_character == "\r\n" {
+            NewLineKind::CarriageReturnLineFeed
+        } else {
+            NewLineKind::LineFeed
+        };
+        let arena = std::mem::replace(&mut self.arena, TransformArena::new());
+        let mut transformation = transform_nodes(arena, Vec::new(), Vec::new(), true)?;
+        let positioned = print_and_position(
+            &mut transformation,
+            node,
+            PositionedPrint {
+                new_line,
+                indent_size: 4,
+                with_source_file: false,
+                language_variant: file.language_variant,
+                snippet: Some(target),
+            },
+        );
+        self.arena = transformation.into_arena();
+        Ok(positioned?)
     }
 
     fn add(&mut self, file: &'a SourceFile, edit: TrackerEdit) {
@@ -788,6 +897,7 @@ fn get_formatted_text_of_node(
             indent_size,
             with_source_file: true,
             language_variant: file.language_variant,
+            snippet: None,
         },
     )?;
     let format_options = get_format_code_settings_for_writing(format_settings, file);
