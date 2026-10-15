@@ -577,7 +577,8 @@ fn original_to_virtual_explicit_zero_features() {
 }
 
 #[test]
-fn feature_participation_original() {
+fn feature_participation_original_and_virtual() {
+    // TestFeatureParticipationOriginalAndVirtual.
     let map = SpanMap::new(vec![
         featured(0, 3, 10, 13, KIND_VERBATIM, FEATURE_HOVER),
         featured(3, 6, 20, 23, KIND_VERBATIM, FEATURE_COMPLETION),
@@ -589,10 +590,93 @@ fn feature_participation_original() {
     assert!(map
         .original_to_virtual_positions(11, FEATURE_COMPLETION)
         .is_empty());
+    assert_eq!(
+        map.virtual_to_original_span_for_feature(0, 3, FEATURE_HOVER),
+        ((10, 13), Fidelity::Exact)
+    );
+    assert_eq!(
+        map.virtual_to_original_span_for_feature(0, 3, FEATURE_COMPLETION)
+            .1,
+        Fidelity::None
+    );
     // Diagnostics use the unfiltered geometry.
     assert_eq!(
         map.virtual_to_original_span(0, 3),
         ((10, 13), Fidelity::Exact)
+    );
+}
+
+#[test]
+fn feature_participation_of_virtual_positions_and_spanning_ranges() {
+    // tsgo VirtualToOriginalPositionForFeature and virtualSpanSupportsFeature:
+    // a position takes its segment's features; a range needs contiguous
+    // segments that all take part; an empty range its segment.
+    let map = SpanMap::new(vec![
+        featured(
+            0,
+            3,
+            10,
+            13,
+            KIND_VERBATIM,
+            FEATURE_HOVER | FEATURE_COMPLETION,
+        ),
+        featured(3, 6, 13, 16, KIND_VERBATIM, FEATURE_HOVER),
+        featured(8, 10, 20, 22, KIND_VERBATIM, FEATURE_HOVER),
+    ]);
+    assert_eq!(
+        map.virtual_to_original_position_for_feature(4, FEATURE_HOVER),
+        (14, Fidelity::Exact)
+    );
+    assert_eq!(
+        map.virtual_to_original_position_for_feature(4, FEATURE_COMPLETION),
+        (14, Fidelity::None)
+    );
+    // In a gap: no fidelity whatever the feature.
+    assert_eq!(
+        map.virtual_to_original_position_for_feature(7, FEATURE_HOVER)
+            .1,
+        Fidelity::None
+    );
+    // Across two contiguous hover segments.
+    assert_eq!(
+        map.virtual_to_original_span_for_feature(1, 5, FEATURE_HOVER)
+            .1,
+        Fidelity::Approximate
+    );
+    assert_eq!(
+        map.virtual_to_original_span_for_feature(1, 5, FEATURE_COMPLETION)
+            .1,
+        Fidelity::None
+    );
+    // Across the gap.
+    assert_eq!(
+        map.virtual_to_original_span_for_feature(5, 9, FEATURE_HOVER)
+            .1,
+        Fidelity::None
+    );
+    assert_eq!(
+        map.virtual_to_original_span_for_feature(2, 2, FEATURE_COMPLETION),
+        ((12, 12), Fidelity::Exact)
+    );
+}
+
+#[test]
+fn a_map_in_utf16_units_as_utf8_bytes() {
+    // The compiler's UTF-16 positions over texts with characters outside
+    // ASCII, as the language service's UTF-8 bytes (tsgo's units).
+    let virtual_text = "é = \u{1F600};x";
+    let original_text = "<a>é = \u{1F600};x</a>";
+    let map = SpanMap::new(vec![
+        segment(0, 7, 3, 10, KIND_VERBATIM),
+        featured(7, 8, 10, 11, KIND_ATOM, FEATURE_HOVER),
+    ]);
+    let utf8 = map.in_utf8(virtual_text, original_text);
+    assert_eq!(
+        utf8.segments(),
+        &[
+            segment(0, 10, 3, 13, KIND_VERBATIM),
+            featured(10, 11, 13, 14, KIND_ATOM, FEATURE_HOVER),
+        ]
     );
 }
 

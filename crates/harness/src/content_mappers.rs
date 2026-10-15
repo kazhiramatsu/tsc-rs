@@ -8,7 +8,9 @@ use std::sync::atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tsc_diagnostics::spanmap::{
-    Segment, SpanMap, FEATURES_ALL, KIND_ALIAS, KIND_ATOM, KIND_VERBATIM,
+    Features, Segment, SpanMap, FEATURES_ALL, FEATURES_NONE, FEATURE_DEFINITION, FEATURE_HOVER,
+    FEATURE_REFERENCES, FEATURE_RENAME, FEATURE_SIGNATURE_HELP, KIND_ALIAS, KIND_ATOM,
+    KIND_VERBATIM,
 };
 
 use tsc_host::ipc::jsonrpc::MessageReader;
@@ -46,6 +48,24 @@ pub const SUPPLEMENTAL_DIAGNOSTICS_MAPPER: &str = "supplemental-diagnostics-mapp
 pub const SUPPLEMENTAL_GLOBALS_MAPPER: &str = "supplemental-globals-mapper";
 /// tsgo `SupplementalModuleMapper`: a supplemental module with an error.
 pub const SUPPLEMENTAL_MODULE_MAPPER: &str = "supplemental-module-mapper";
+/// tsgo `PrefixedSupplementalMapper`: an empty module with the content after
+/// a generated line as a supplemental output (variants by the file's name).
+pub const PREFIXED_SUPPLEMENTAL_MAPPER: &str = "prefixed-supplemental-mapper";
+/// tsgo `UnmappedFoldingMapper`: code of its own, mapped to nothing.
+pub const UNMAPPED_FOLDING_MAPPER: &str = "unmapped-folding-mapper";
+/// tsgo `ComponentMapper`: a component's `<script>` verbatim, the
+/// identifiers of its template's `{{ }}` as atoms in a render function, its
+/// name as a class and an anchored default export.
+pub const COMPONENT_MAPPER: &str = "component-mapper";
+/// tsgo `DuplicateMapper`: the content twice in the virtual text, with each
+/// copy's features (variants by the file's name).
+pub const DUPLICATE_MAPPER: &str = "duplicate-mapper";
+/// tsgo `HoistingMapper`: a script's leading imports above a render
+/// function that holds the rest of it.
+pub const HOISTING_MAPPER: &str = "hoisting-mapper";
+/// tsgo `DuplicateProjectionMapper`: the content as the canonical and a
+/// supplemental output.
+pub const DUPLICATE_PROJECTION_MAPPER: &str = "duplicate-projection-mapper";
 
 /// tsgo `contentmappertest.PackageJSON`: the manifest of the `mapper`
 /// package whose command is the given test mapper.
@@ -223,6 +243,12 @@ fn handler_for_mapper(
         SUPPLEMENTAL_DIAGNOSTICS_MAPPER => Box::new(SupplementalDiagnostics),
         SUPPLEMENTAL_GLOBALS_MAPPER => Box::new(SupplementalGlobals),
         SUPPLEMENTAL_MODULE_MAPPER => Box::new(SupplementalModule),
+        PREFIXED_SUPPLEMENTAL_MAPPER => Box::new(Transform(prefixed_supplemental)),
+        UNMAPPED_FOLDING_MAPPER => Box::new(Transform(unmapped_folding)),
+        COMPONENT_MAPPER => Box::new(Transform(component)),
+        DUPLICATE_MAPPER => Box::new(Transform(duplicate)),
+        HOISTING_MAPPER => Box::new(Transform(hoisting)),
+        DUPLICATE_PROJECTION_MAPPER => Box::new(Transform(duplicate_projection)),
         _ => {
             return Err(format!(
                 "contentmappertest: unknown mapper command {}",
@@ -1116,4 +1142,485 @@ impl Handler for SupplementalModule {
     }
 
     fn handle_notification(&self, _method: &str, _params: &[u8]) {}
+}
+
+/// A mapper of the language service tests: `initialize` as tsgo's test
+/// mappers answer it, and `transform` by a function of its parameters'
+/// file name and content.
+struct Transform(fn(&str, &str) -> Result<serde_json::Value, String>);
+
+impl Handler for Transform {
+    fn handle_request(&self, method: &str, params: &[u8]) -> Result<Payload, String> {
+        match method {
+            "initialize" => Ok(initialize_result("mapper")),
+            "transform" => {
+                let params = transform_params(params)?;
+                let result = (self.0)(
+                    param_text(&params, "fileName"),
+                    param_text(&params, "content"),
+                )?;
+                Ok(Payload::Json(result.to_string()))
+            }
+            method => Err(format!(
+                "contentmappertest: unexpected method {}",
+                go_quote(method)
+            )),
+        }
+    }
+
+    fn handle_notification(&self, _method: &str, _params: &[u8]) {}
+}
+
+fn segment_with(
+    virtual_start: usize,
+    virtual_end: usize,
+    original_start: usize,
+    original_end: usize,
+    kind: i32,
+    features: Features,
+) -> Segment {
+    Segment {
+        features,
+        ..segment(
+            virtual_start,
+            virtual_end,
+            original_start,
+            original_end,
+            kind,
+        )
+    }
+}
+
+/// tsgo `prefixedSupplementalHandler`: an empty module and, as a
+/// supplemental output, the content after `/* generated */` (its features
+/// none for a `folding-disabled`, `codelens-disabled` or
+/// `formatting-disabled` file); a `formatting-split` file's supplemental
+/// output has a generated declaration before `function second`; a
+/// `formatting-overlap` file's canonical output is the content up to
+/// `function third` and its supplemental one the content from `function
+/// second` in an `if` block; a `folding-duplicate`, `codelens-disabled` or
+/// `codelens-duplicate` file's canonical output is the content.
+fn prefixed_supplemental(file_name: &str, content: &str) -> Result<serde_json::Value, String> {
+    const PREFIX: &str = "/* generated */\n";
+    let features = if [
+        "folding-disabled",
+        "codelens-disabled",
+        "formatting-disabled",
+    ]
+    .iter()
+    .any(|variant| file_name.contains(variant))
+    {
+        FEATURES_NONE
+    } else {
+        FEATURES_ALL
+    };
+    let mut supplemental_text = format!("{PREFIX}{content}");
+    let mut segments = vec![segment_with(
+        PREFIX.len(),
+        PREFIX.len() + content.len(),
+        0,
+        content.len(),
+        KIND_VERBATIM,
+        features,
+    )];
+    if file_name.contains("formatting-split") {
+        let second_start = content.find("function second").ok_or_else(|| {
+            "contentmappertest: formatting-split input is missing function second".to_owned()
+        })?;
+        const GENERATED: &str = "const generated={x:1};\n";
+        supplemental_text = format!(
+            "{PREFIX}{}{GENERATED}{}",
+            &content[..second_start],
+            &content[second_start..]
+        );
+        segments = vec![
+            segment(
+                PREFIX.len(),
+                PREFIX.len() + second_start,
+                0,
+                second_start,
+                KIND_VERBATIM,
+            ),
+            segment(
+                PREFIX.len() + second_start + GENERATED.len(),
+                supplemental_text.len(),
+                second_start,
+                content.len(),
+                KIND_VERBATIM,
+            ),
+        ];
+    }
+    if file_name.contains("formatting-overlap") {
+        let (Some(second_start), Some(third_start)) = (
+            content.find("function second"),
+            content.find("function third"),
+        ) else {
+            return Err(
+                "contentmappertest: formatting-overlap input is missing function second or third"
+                    .to_owned(),
+            );
+        };
+        const WRAPPER_START: &str = "if (true) {\n";
+        const WRAPPER_END: &str = "}\n";
+        let supplemental_text = format!("{WRAPPER_START}{}{WRAPPER_END}", &content[second_start..]);
+        let segments = vec![segment(
+            WRAPPER_START.len(),
+            WRAPPER_START.len() + content.len() - second_start,
+            second_start,
+            content.len(),
+            KIND_VERBATIM,
+        )];
+        let canonical = SpanMap::new(vec![segment(0, third_start, 0, third_start, KIND_VERBATIM)]);
+        return Ok(serde_json::json!({
+            "text": &content[..third_start],
+            "extension": ".ts",
+            "mappings": marshal_span_map(&canonical),
+            "supplemental": [{
+                "text": supplemental_text,
+                "extension": ".ts",
+                "mappings": marshal_span_map(&SpanMap::new(segments)),
+            }],
+        }));
+    }
+    let supplemental = serde_json::json!({
+        "text": supplemental_text,
+        "extension": ".ts",
+        "mappings": marshal_span_map(&SpanMap::new(segments)),
+    });
+    if [
+        "folding-duplicate",
+        "codelens-disabled",
+        "codelens-duplicate",
+    ]
+    .iter()
+    .any(|variant| file_name.contains(variant))
+    {
+        let canonical = SpanMap::new(vec![segment(
+            0,
+            content.len(),
+            0,
+            content.len(),
+            KIND_VERBATIM,
+        )]);
+        return Ok(serde_json::json!({
+            "text": content,
+            "extension": ".ts",
+            "mappings": marshal_span_map(&canonical),
+            "supplemental": [supplemental],
+        }));
+    }
+    Ok(serde_json::json!({
+        "text": "export {};",
+        "extension": ".ts",
+        "supplemental": [supplemental],
+    }))
+}
+
+/// tsgo `unmappedFoldingHandler`: imports and a comment of its own, mapped
+/// to nothing.
+fn unmapped_folding(_file_name: &str, _content: &str) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "text": "import \"a\";\nimport \"b\";\n/*\n * generated\n */\nexport {};",
+        "extension": ".ts",
+        "mappings": [],
+    }))
+}
+
+/// tsgo `duplicateProjectionHandler`: the content as the canonical output
+/// and as a supplemental one, so an original span has a counterpart in two
+/// virtual files of the same original file.
+fn duplicate_projection(_file_name: &str, content: &str) -> Result<serde_json::Value, String> {
+    let mut result = identity_mapped_output(content, ".ts");
+    result["supplemental"] = serde_json::json!([identity_mapped_output(content, ".ts")]);
+    Ok(result)
+}
+
+/// The virtual text a test mapper writes, as Go's byte builder writes it,
+/// and its segments.
+#[derive(Default)]
+struct VirtualText {
+    bytes: Vec<u8>,
+    segments: Vec<Segment>,
+}
+
+impl VirtualText {
+    fn synthesized(&mut self, text: &[u8]) {
+        self.bytes.extend_from_slice(text);
+    }
+
+    fn mapped(
+        &mut self,
+        text: &[u8],
+        original_start: usize,
+        original_end: usize,
+        kind: i32,
+        features: Features,
+    ) {
+        let virtual_start = self.bytes.len();
+        self.bytes.extend_from_slice(text);
+        self.segments.push(segment_with(
+            virtual_start,
+            self.bytes.len(),
+            original_start,
+            original_end,
+            kind,
+            features,
+        ));
+    }
+
+    fn output(self) -> (String, SpanMap) {
+        (
+            String::from_utf8(self.bytes).expect("a test mapper writes whole characters"),
+            SpanMap::new(self.segments),
+        )
+    }
+}
+
+fn is_identifier_start_byte(byte: u8) -> bool {
+    byte == b'_' || byte == b'$' || byte.is_ascii_alphabetic()
+}
+
+fn is_identifier_part_byte(byte: u8) -> bool {
+    is_identifier_start_byte(byte) || byte.is_ascii_digit()
+}
+
+/// tsgo `componentHandler` (`transformComponent`).
+fn component(_file_name: &str, content: &str) -> Result<serde_json::Value, String> {
+    let bytes = content.as_bytes();
+    let mut text = VirtualText::default();
+    if let Some(script_open) = content.find("<script") {
+        let open_end = content[script_open..]
+            .find('>')
+            .ok_or_else(|| "contentmappertest: unclosed <script> tag".to_owned())?;
+        let script_start = script_open + open_end + 1;
+        let close = content[script_start..]
+            .find("</script>")
+            .ok_or_else(|| "contentmappertest: missing </script> tag".to_owned())?;
+        let script_end = script_start + close;
+        text.mapped(
+            &bytes[script_start..script_end],
+            script_start,
+            script_end,
+            KIND_VERBATIM,
+            FEATURES_ALL,
+        );
+    }
+    text.synthesized(b"\nfunction __render() {\n");
+    let mut search_start = 0;
+    while search_start < content.len() {
+        let Some(open) = content[search_start..].find("{{") else {
+            break;
+        };
+        let expression_start = search_start + open + "{{".len();
+        let close = content[expression_start..]
+            .find("}}")
+            .ok_or_else(|| "contentmappertest: unclosed template expression".to_owned())?;
+        let expression_end = expression_start + close;
+        text.synthesized(b"  void (");
+        let mut position = expression_start;
+        while position < expression_end {
+            if !is_identifier_start_byte(bytes[position]) {
+                text.synthesized(&bytes[position..position + 1]);
+                position += 1;
+                continue;
+            }
+            let mut end = position + 1;
+            while end < expression_end && is_identifier_part_byte(bytes[end]) {
+                end += 1;
+            }
+            text.mapped(
+                &bytes[position..end],
+                position,
+                end,
+                KIND_ATOM,
+                FEATURES_ALL,
+            );
+            position = end;
+        }
+        text.synthesized(b");\n");
+        search_start = expression_end + "}}".len();
+    }
+    text.synthesized(b"}\n");
+    if let Some((name_start, name_end)) = component_name_range(content) {
+        text.synthesized(b"export class ");
+        text.mapped(
+            &bytes[name_start..name_end],
+            name_start,
+            name_end,
+            KIND_ATOM,
+            FEATURES_ALL,
+        );
+        text.synthesized(b" {}\n");
+    }
+    // An anchor: the default export at the file's start.
+    text.mapped(
+        b"export default {};\n",
+        0,
+        0,
+        KIND_ATOM,
+        FEATURE_DEFINITION | FEATURE_REFERENCES,
+    );
+    let (text, map) = text.output();
+    Ok(serde_json::json!({
+        "text": text,
+        "extension": ".ts",
+        "mappings": marshal_span_map(&map),
+    }))
+}
+
+/// tsgo `componentNameRange`: the `name` attribute's value of the
+/// `<component>` tag.
+fn component_name_range(content: &str) -> Option<(usize, usize)> {
+    let component_start = content.find("<component")?;
+    let tag_end = content[component_start..].find('>')?;
+    let tag = &content[component_start..component_start + tag_end];
+    let name = tag.find("name=\"")?;
+    let start = component_start + name + "name=\"".len();
+    let end = content[start..].find('"')?;
+    Some((start, start + end))
+}
+
+/// tsgo `duplicateHandler`: the content twice (three times for a rename
+/// conflict) in the virtual text, each copy a verbatim segment of the whole
+/// content with the variant's features.
+fn duplicate(file_name: &str, content: &str) -> Result<serde_json::Value, String> {
+    let length = content.len();
+    let output = |text: String, starts: &[usize], features: &[Features]| {
+        let segments = starts
+            .iter()
+            .zip(features)
+            .map(|(&start, &features)| {
+                segment_with(start, start + length, 0, length, KIND_VERBATIM, features)
+            })
+            .collect();
+        serde_json::json!({
+            "text": text,
+            "extension": ".ts",
+            "mappings": marshal_span_map(&SpanMap::new(segments)),
+        })
+    };
+    if file_name.contains("hover-fallback") {
+        let text = format!("// {content}\nconst {content} = 1;\n");
+        let first = "// ".len();
+        let second = first + length + "\nconst ".len();
+        return Ok(output(
+            text,
+            &[first, second],
+            &[FEATURE_HOVER, FEATURE_HOVER],
+        ));
+    }
+    if file_name.contains("hover-concat") {
+        let text = format!(
+            "namespace A {{ export const {content} = 1; }}\nnamespace B {{ export const {content} = \"text\"; }}\n"
+        );
+        let first = text.find(content).unwrap_or(0);
+        let second = text.rfind(content).unwrap_or(0);
+        return Ok(output(
+            text,
+            &[first, second],
+            &[FEATURE_HOVER, FEATURE_HOVER],
+        ));
+    }
+    if file_name.contains("signature-fallback") {
+        let text = format!("// {content}\nfunction use(value: number): void {{}}\n{content};\n");
+        let first = "// ".len();
+        let second = text.rfind(content).unwrap_or(0);
+        return Ok(output(
+            text,
+            &[first, second],
+            &[FEATURE_SIGNATURE_HELP, FEATURE_SIGNATURE_HELP],
+        ));
+    }
+    if file_name.contains("rename-conflict") {
+        let text =
+            format!("export const {content} = 1;\nconst object = {{ {content} }};\n{content};\n");
+        let first = text.find(content).unwrap_or(0);
+        let second = text[first + length..].find(content).unwrap_or(0) + first + length;
+        let third = text[second + length..].find(content).unwrap_or(0) + second + length;
+        return Ok(output(
+            text,
+            &[first, second, third],
+            &[FEATURE_RENAME, FEATURE_RENAME, FEATURE_RENAME],
+        ));
+    }
+    let text = format!("export const {content} = 1;\n{content};\n");
+    let first = "export const ".len();
+    let second = first + length + " = 1;\n".len();
+    let (semantic, navigation) = if file_name.contains("disabled") {
+        (FEATURES_NONE, FEATURES_NONE)
+    } else {
+        (
+            FEATURE_HOVER | FEATURE_DEFINITION | FEATURE_REFERENCES | FEATURE_RENAME,
+            FEATURE_DEFINITION | FEATURE_REFERENCES | FEATURE_RENAME,
+        )
+    };
+    Ok(output(text, &[first, second], &[semantic, navigation]))
+}
+
+/// tsgo `hoistingHandler` (`transformHoisting`): the script's leading
+/// imports lifted above a render function holding the rest of the script,
+/// as svelte2tsx lays out a component.
+fn hoisting(_file_name: &str, content: &str) -> Result<serde_json::Value, String> {
+    let (script_start, script_end) = script_range(content)?;
+    let (imports_start, imports_end) = leading_import_range(content, script_start, script_end);
+    let bytes = content.as_bytes();
+    let mut text = VirtualText::default();
+    let mapped = |text: &mut VirtualText, start: usize, end: usize| {
+        text.mapped(&bytes[start..end], start, end, KIND_VERBATIM, FEATURES_ALL);
+    };
+    text.synthesized(b"///<reference types=\"svelte\" />\n;\n");
+    mapped(&mut text, imports_start, imports_end);
+    text.synthesized(b"\nfunction $$render() {");
+    mapped(&mut text, script_start, imports_start);
+    mapped(&mut text, imports_end, script_end);
+    text.synthesized(b"\n;\nreturn { props: {} as Record<string, never> }}\n");
+    let (text, map) = text.output();
+    Ok(serde_json::json!({
+        "text": text,
+        "extension": ".ts",
+        "mappings": marshal_span_map(&map),
+    }))
+}
+
+/// tsgo `scriptRange`: the body of the `<script>` tag.
+fn script_range(content: &str) -> Result<(usize, usize), String> {
+    let script_open = content
+        .find("<script")
+        .ok_or_else(|| "contentmappertest: missing <script> tag".to_owned())?;
+    let open_end = content[script_open..]
+        .find('>')
+        .ok_or_else(|| "contentmappertest: unclosed <script> tag".to_owned())?;
+    let start = script_open + open_end + 1;
+    let close = content[start..]
+        .find("</script>")
+        .ok_or_else(|| "contentmappertest: missing </script> tag".to_owned())?;
+    Ok((start, start + close))
+}
+
+/// tsgo `leadingImportRange`: the run of import declarations at the start
+/// of the script's body, without the white space around it.
+fn leading_import_range(content: &str, script_start: usize, script_end: usize) -> (usize, usize) {
+    let bytes = content.as_bytes();
+    let is_space = |byte: u8| matches!(byte, b' ' | b'\t' | b'\r' | b'\n');
+    let mut start = script_start;
+    while start < script_end && is_space(bytes[start]) {
+        start += 1;
+    }
+    let mut end = start;
+    while end < script_end && content[end..script_end].starts_with("import ") {
+        match content[end..script_end].find('\n') {
+            None => {
+                end = script_end;
+                break;
+            }
+            Some(line_end) => end += line_end,
+        }
+        while end < script_end && is_space(bytes[end]) {
+            end += 1;
+        }
+    }
+    while end > start && is_space(bytes[end - 1]) {
+        end -= 1;
+    }
+    (start, end)
 }

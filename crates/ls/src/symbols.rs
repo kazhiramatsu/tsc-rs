@@ -4,6 +4,7 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use tsc_diagnostics::spanmap::FEATURE_DOCUMENT_SYMBOLS;
 
 use tsc_binder::assignment::{get_assignment_declaration_kind, AssignmentDeclarationKind};
 use tsc_binder::node_util;
@@ -34,18 +35,22 @@ struct DocumentSymbols {
 }
 
 impl LanguageService<'_> {
-    /// tsgo `ProvideDocumentSymbols` (a file without a content mapper: one
-    /// projection): the file's symbols, each name, kind and range once, as
-    /// a hierarchy for a client that takes one, else flattened.
+    /// tsgo `ProvideDocumentSymbols`: the symbols of the file and its
+    /// content mapper's supplemental outputs, each name, kind and range
+    /// once, as a hierarchy for a client that takes one, else flattened.
     pub fn provide_document_symbols(
         &mut self,
         uri: &DocumentUri,
     ) -> Result<DocumentSymbolResponse, LsError> {
         let file = self.file(uri);
         let symbols = self
-            .with_request_at(file, 0, false, |request, _| {
-                let root = request.state.binder.source(file).root;
-                Ok(request.document_symbols_for_children(root))
+            .with_program_request(false, |request| {
+                let mut symbols = Vec::new();
+                for projection in request.source_projections(file) {
+                    let root = request.state.binder.source(projection).root;
+                    symbols.extend(request.document_symbols_for_children(root));
+                }
+                Ok(symbols)
             })?
             .unwrap_or_default();
         let mut seen = std::collections::HashSet::new();
@@ -466,11 +471,26 @@ impl Request<'_, '_> {
         if text.chars().count() > MAX_LENGTH {
             text = text.chars().take(MAX_LENGTH).collect::<String>() + "...";
         }
+        // tsgo: a content mapper's output's symbol only where its name maps
+        // to one document symbol segment; its range the name's where the
+        // node's does not map.
         let script = script_of(source);
-        let selection_range = self.converters.to_lsp_range(&script, name_start..name_end);
-        let range = self
-            .converters
-            .to_lsp_range(&script, node_start..record.end as usize);
+        let (selection_range, selection_fidelity) = self.converters.to_lsp_range_for_feature(
+            &script,
+            name_start..name_end,
+            FEATURE_DOCUMENT_SYMBOLS,
+        );
+        if !selection_fidelity.is_single_segment() {
+            return None;
+        }
+        let (mut range, range_fidelity) = self.converters.to_lsp_range_for_feature(
+            &script,
+            node_start..record.end as usize,
+            FEATURE_DOCUMENT_SYMBOLS,
+        );
+        if range_fidelity.is_none() {
+            range = selection_range.clone();
+        }
         Some(DocumentSymbol {
             name: text,
             detail: None,
@@ -787,7 +807,9 @@ pub struct WorkspaceSymbolMatch {
     name: String,
     score: usize,
     position: u32,
-    symbol: SymbolInformation,
+    /// None for a content mapper's output's name without a counterpart in
+    /// its original file (left out after the cut, as tsgo does).
+    symbol: Option<SymbolInformation>,
 }
 
 impl LanguageService<'_> {
@@ -879,7 +901,10 @@ pub fn workspace_symbols(
     });
     matches.truncate(256);
     SymbolInformationsOrWorkspaceSymbolsOrNull::SymbolInformations(
-        matches.into_iter().map(|found| found.symbol).collect(),
+        matches
+            .into_iter()
+            .filter_map(|found| found.symbol)
+            .collect(),
     )
 }
 
@@ -891,7 +916,7 @@ impl Request<'_, '_> {
         source: &SourceFile,
         name: &str,
         declaration: NodeId,
-    ) -> SymbolInformation {
+    ) -> Option<SymbolInformation> {
         let container_name = node_util::get_container_node(source, declaration)
             .map(|container| get_declaration_name(source, container))
             .filter(|name| !name.is_empty());
@@ -902,7 +927,16 @@ impl Request<'_, '_> {
         let name_node = node_util::get_name_of_declaration(source, declaration)
             .expect("a declaration with a name");
         let range = token_start(source, name_node)..source.arena.node(name_node).end as usize;
-        SymbolInformation {
+        // tsgo `ToLSPLocationForFeature`: a content mapper's output's name
+        // in its original file, none where the name has no counterpart.
+        let script = script_of(source);
+        let (range, fidelity) =
+            self.converters
+                .to_lsp_range_for_feature(&script, range, FEATURE_DOCUMENT_SYMBOLS);
+        if !fidelity.is_single_segment() {
+            return None;
+        }
+        Some(SymbolInformation {
             name: name.to_owned(),
             kind: symbol_kind_from_node(self, declaration),
             tags: None,
@@ -910,11 +944,11 @@ impl Request<'_, '_> {
             deprecated: None,
             location: Location {
                 uri: DocumentUri(file_name_to_document_uri(
-                    &source.file_name.to_string_lossy(),
+                    crate::lsconv::Script::original_file_name(&script),
                 )),
-                range: self.converters.to_lsp_range(&script_of(source), range),
+                range,
             },
-        }
+        })
     }
 }
 

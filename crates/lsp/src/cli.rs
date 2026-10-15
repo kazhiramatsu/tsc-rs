@@ -97,6 +97,9 @@ pub fn run_lsp(arguments: &[String], process_alive: Option<fn(i32) -> bool>) -> 
         set_parent_process_id,
         fs,
         default_library_path: EMBEDDED_LIBRARY_DIRECTORY.to_owned(),
+        spawner: Some(Arc::new(
+            tsc_compiler::content_mapper_process::NativeSpawner,
+        )),
     });
     let _ = server_cell.set(Arc::downgrade(&server));
     match server.run(Box::new(io::stdin()), Box::new(io::stdout())) {

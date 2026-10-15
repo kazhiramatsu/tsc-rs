@@ -1305,9 +1305,17 @@ fn non_node_modules_files(state: &CheckerState<'_>) -> Vec<usize> {
             let facts = state
                 .binder
                 .file_facts(ProgramFileId::from_raw(file as u32));
+            let source = state.binder.source(file);
+            // tsgo `IsContentMapperSupplemental`: a mapper's supplemental
+            // output is no import's target.
+            let supplemental = source
+                .content_mapper
+                .as_ref()
+                .is_some_and(|output| output.canonical.is_some());
             !facts.is_default_library()
+                && !supplemental
                 && !contains_lowercase_directory_sequence(
-                    &state.binder.source(file).file_name.to_string_lossy(),
+                    &source.file_name.to_string_lossy(),
                     "/node_modules/",
                 )
         })

@@ -129,6 +129,10 @@ pub(super) fn replay(scenario: &Scenario) -> Result<Replay, String> {
         set_parent_process_id: None,
         fs: Arc::new(BundledFs::new(Arc::clone(&fs))),
         default_library_path: EMBEDDED_LIBRARY_DIRECTORY.to_owned(),
+        // tsgo's fourslash content mapper tests: the test mappers.
+        spawner: Some(Arc::new(
+            tsc_harness::content_mappers::TestSpawner::default(),
+        )),
     });
     server.set_compiler_options_for_inferred_projects(compiler_options_bag(
         &scenario.inferred_options,

@@ -468,16 +468,19 @@ impl LiveChecker {
             if file >= live.checked.len() || state.skip_type_checking_file(program_file_id(file)) {
                 return Vec::new();
             }
-            let file_name = state.binder.source(file).file_name.clone();
-            state
+            let source = state.binder.source(file);
+            let mut suggestions = state
                 .diagnostics
                 .iter()
                 .filter(|diagnostic| {
-                    diagnostic.file_name.as_ref() == Some(&file_name)
+                    diagnostic.file_name.as_ref() == Some(&source.file_name)
                         && diagnostic.category() == DiagnosticCategory::Suggestion
                 })
                 .cloned()
-                .collect()
+                .collect();
+            // tsgo `filterAndSortDiagnostics`.
+            crate::drop_unnecessary_in_synthesized_code(source, &mut suggestions);
+            suggestions
         }))
     }
 
