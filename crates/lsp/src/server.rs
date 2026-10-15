@@ -79,6 +79,10 @@ pub enum Failure {
     /// tsgo `ls.ErrNeedsAutoImports`: the auto-import requests' handler
     /// prepares the registry and runs the request again.
     NeedsAutoImports,
+    /// tsgo `project.ErrNoProjectForUnknownScriptKind`: no project has the
+    /// (otherwise unsupported) document, as between the unregistration of a
+    /// content mapper's extensions and the client's last request for them.
+    NoProjectForUnknownScriptKind(String),
     Error(LspError),
 }
 
@@ -88,6 +92,7 @@ impl std::fmt::Display for Failure {
             Self::Exit => formatter.write_str("EOF"),
             Self::Cancelled => formatter.write_str("context canceled"),
             Self::NeedsAutoImports => formatter.write_str("completion list needs auto imports"),
+            Self::NoProjectForUnknownScriptKind(message) => formatter.write_str(message),
             Self::Error(error) => formatter.write_str(&error.message),
         }
     }
@@ -196,6 +201,9 @@ pub struct Server {
     spawner: Option<Arc<dyn Spawner>>,
     /// tsgo `watchers`: the IDs of the watches the client registered.
     watchers: Mutex<HashSet<String>>,
+    /// tsgo `contentMapperExtensionsRegistered` (under
+    /// `contentMapperRegistrationMu`).
+    content_mapper_extensions_registered: Mutex<bool>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -225,6 +233,7 @@ impl Server {
             default_library_path: options.default_library_path,
             spawner: options.spawner,
             watchers: Mutex::default(),
+            content_mapper_extensions_registered: Mutex::default(),
         })
     }
 
@@ -498,6 +507,19 @@ impl Server {
             .unwrap_or_default();
         match handler(self, context, request) {
             Err(failure) => {
+                if let Some(response) = content_mapper_fallback_response(&request.method, &failure)
+                {
+                    if !self.logger.is_tracing() {
+                        let elapsed = tsc_host::go_time::duration_string(start.elapsed());
+                        self.logger.info(
+                            self,
+                            &format!("handled method '{}'{id} in {elapsed}", request.method),
+                        );
+                    }
+                    self.send_result(request.id.clone(), &response)
+                        .map_err(LspError::internal)?;
+                    return Ok(None);
+                }
                 self.logger.error(
                     self,
                     &format!("error handling method '{}'{id}: {failure}", request.method),
@@ -1144,7 +1166,7 @@ impl Server {
         let (snapshot, project) = self
             .initialized_session()
             .get_snapshot_and_default_project(&uri)
-            .map_err(|error| LspError::internal(error.to_string()))?;
+            .map_err(document_project_failure)?;
         let response = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             self.with_language_service(context, &snapshot, &project, |service| {
                 service
@@ -1366,7 +1388,7 @@ impl Server {
     ) -> Result<lsproto::RenameResponse, Failure> {
         let start = self
             .cross_project_start(&params.text_document.uri)
-            .map_err(|error| LspError::internal(error.to_string()))?;
+            .map_err(document_project_failure)?;
         let info = self.with_language_service(
             context,
             &start.snapshot,
@@ -1669,7 +1691,7 @@ impl Server {
     ) -> Result<lsproto::CallHierarchyIncomingCallsResponse, Failure> {
         let start = self
             .cross_project_start(&params.item.uri)
-            .map_err(|error| LspError::internal(error.to_string()))?;
+            .map_err(document_project_failure)?;
         let targets = self.with_language_service(
             context,
             &start.snapshot,
@@ -1707,7 +1729,7 @@ impl Server {
         let (snapshot, project) = self
             .initialized_session()
             .get_snapshot_and_default_project(&params.item.uri)
-            .map_err(|error| LspError::internal(error.to_string()))?;
+            .map_err(document_project_failure)?;
         self.with_language_service(context, &snapshot, &project, |service| {
             service
                 .provide_call_hierarchy_outgoing_calls(&params.item)
@@ -1937,6 +1959,28 @@ impl Server {
         Ok(())
     }
 
+    /// tsgo `handleSetContentMapperContributions`: the editor's content
+    /// mappers for inferred projects, and the configured projects of its
+    /// open documents found.
+    fn handle_set_content_mapper_contributions(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        params: lsproto::SetContentMapperContributionsParams,
+        _request: &RequestMessage,
+    ) -> Result<lsproto::CustomSetContentMapperContributionsResponse, Failure> {
+        let contributions =
+            crate::content_mappers::parse_content_mapper_contributions(&params.contributions)
+                .map_err(LspError::internal)?;
+        let documents = params
+            .open_documents
+            .into_iter()
+            .map(|document| document.uri)
+            .collect::<Vec<_>>();
+        self.initialized_session()
+            .set_content_mapper_contributions(contributions, &documents);
+        Ok(lsproto::Null)
+    }
+
     /// tsgo `handleDidChangeWatchedFiles`.
     fn handle_did_change_watched_files(
         self: &Arc<Self>,
@@ -1982,6 +2026,55 @@ impl Server {
         )
         .map_err(|failure| format!("failed to register file watcher: {failure}"))?;
         lock(&self.watchers).insert(id.to_owned());
+        Ok(())
+    }
+
+    /// tsgo `RegisterContentMapperExtensions`: the client sends the
+    /// documents of these (otherwise unsupported) extensions, and asks for
+    /// their diagnostics and features. The whole set each time: the prior
+    /// registration goes first, and none leaves none.
+    fn register_content_mapper_extensions(&self, extensions: &[String]) -> Result<(), String> {
+        let client = self.client_capabilities();
+        if !client.text_document.synchronization.dynamic_registration {
+            return Ok(());
+        }
+        let mut registered = lock(&self.content_mapper_extensions_registered);
+        if *registered {
+            let unregistration = lsproto::UnregistrationParams {
+                unregisterations: crate::capabilities::CONTENT_MAPPER_REGISTRATIONS
+                    .iter()
+                    .filter(|(id, _)| {
+                        crate::capabilities::supports_content_mapper_registration(id, &client)
+                    })
+                    .map(|(id, method)| lsproto::Unregistration {
+                        id: (*id).to_owned(),
+                        method: (*method).to_owned(),
+                    })
+                    .collect(),
+            };
+            self.send_client_request::<lsproto::ClientUnregisterCapabilityInfo>(
+                &self.watch_request_context(),
+                &unregistration,
+            )
+            .map_err(|failure| {
+                format!("failed to unregister content mapper text document sync: {failure}")
+            })?;
+            *registered = false;
+        }
+        if extensions.is_empty() {
+            return Ok(());
+        }
+        let registration = lsproto::RegistrationParams {
+            registrations: crate::capabilities::content_mapper_registrations(extensions, &client),
+        };
+        self.send_client_request::<lsproto::ClientRegisterCapabilityInfo>(
+            &self.watch_request_context(),
+            &registration,
+        )
+        .map_err(|failure| {
+            format!("failed to register content mapper text document sync: {failure}")
+        })?;
+        *registered = true;
         Ok(())
     }
 
@@ -2273,6 +2366,10 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
             &mut handlers,
             Server::handle_will_rename_files,
         );
+        register_request::<lsproto::CustomSetContentMapperContributionsInfo>(
+            &mut handlers,
+            Server::handle_set_content_mapper_contributions,
+        );
         register_language_service_document_request::<lsproto::TextDocumentDocumentHighlightInfo>(
             &mut handlers,
             Server::handle_document_highlight,
@@ -2381,7 +2478,7 @@ fn register_language_service_document_request<R: Request + 'static>(
             let (snapshot, project) = server
                 .initialized_session()
                 .get_snapshot_and_default_project(params.text_document_uri())
-                .map_err(|error| LspError::internal(error.to_string()))?;
+                .map_err(document_project_failure)?;
             let server = Arc::clone(server);
             let context = context.clone();
             let id = request.id.clone();
@@ -2446,7 +2543,7 @@ fn register_multi_project_reference_request<R: Request + 'static>(
             let params = decode_params::<R::Params>(request)?;
             let start = server
                 .cross_project_start(params.text_document_uri())
-                .map_err(|error| LspError::internal(error.to_string()))?;
+                .map_err(document_project_failure)?;
             let server = Arc::clone(server);
             let context = context.clone();
             let id = request.id.clone();
@@ -2499,7 +2596,7 @@ fn register_language_service_with_auto_imports_request<R: Request + 'static>(
             let (snapshot, project) = server
                 .initialized_session()
                 .get_snapshot_and_default_project(params.text_document_uri())
-                .map_err(|error| LspError::internal(error.to_string()))?;
+                .map_err(document_project_failure)?;
             let server = Arc::clone(server);
             let context = context.clone();
             let id = request.id.clone();
@@ -2611,6 +2708,12 @@ impl tsc_project::Client for SessionHost {
             .map_or(Ok(()), |server| server.unwatch_files(id))
     }
 
+    fn register_content_mapper_extensions(&self, extensions: &[String]) -> Result<(), String> {
+        self.0.upgrade().map_or(Ok(()), |server| {
+            server.register_content_mapper_extensions(extensions)
+        })
+    }
+
     fn refresh_diagnostics(&self) -> Result<(), String> {
         self.0
             .upgrade()
@@ -2654,5 +2757,55 @@ impl tsc_project::Logger for SessionHost {
         self.0
             .upgrade()
             .is_some_and(|server| server.logger.is_verbose())
+    }
+
+    /// tsgo `contentMapperLogger`: at the trace verbosity only.
+    fn content_mapper_log(&self, message: &str) {
+        if let Some(server) = self.0.upgrade() {
+            if server.logger.is_tracing() {
+                server.logger.info(&server, message);
+            }
+        }
+    }
+}
+
+/// tsgo's handlers' error for a document without a project: tsgo
+/// `ErrNoProjectForUnknownScriptKind` for a document of an unknown kind.
+fn document_project_failure(error: tsc_project::DocumentProjectError) -> Failure {
+    match error {
+        tsc_project::DocumentProjectError::NoProject {
+            unknown_script_kind: true,
+            ..
+        } => Failure::NoProjectForUnknownScriptKind(error.to_string()),
+        error => LspError::internal(error.to_string()).into(),
+    }
+}
+
+/// tsgo `contentMapperFallbackResponse`: an empty answer for the requests a
+/// client may still send for an otherwise unsupported document once its
+/// content mapper's extensions are unregistered.
+fn content_mapper_fallback_response(method: &str, failure: &Failure) -> Option<serde_json::Value> {
+    if !matches!(failure, Failure::NoProjectForUnknownScriptKind(_)) {
+        return None;
+    }
+    match method {
+        "textDocument/diagnostic" => Some(
+            serde_json::to_value(
+                lsproto::RelatedFullDocumentDiagnosticReportOrUnchangedDocumentDiagnosticReport::FullDocumentDiagnosticReport(
+                    lsproto::RelatedFullDocumentDiagnosticReport::default(),
+                ),
+            )
+            .expect("a diagnostic report"),
+        ),
+        "textDocument/hover"
+        | "textDocument/signatureHelp"
+        | "textDocument/definition"
+        | "textDocument/typeDefinition"
+        | "textDocument/implementation"
+        | "textDocument/references"
+        | "textDocument/documentHighlight"
+        | "textDocument/completion"
+        | "textDocument/rename" => Some(serde_json::Value::Null),
+        _ => None,
     }
 }
