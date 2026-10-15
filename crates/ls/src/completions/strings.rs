@@ -143,7 +143,7 @@ impl Completions<'_, '_, '_> {
                 };
                 let replacement_span =
                     self.replacement_range_for_context_token(Some(Touching::Node(token)));
-                let file_name = self.file_name();
+                let data_file = self.data_file();
                 let mut items = Vec::with_capacity(completion.types.len());
                 for ty in completion.types {
                     let TypeData::Literal {
@@ -154,7 +154,7 @@ impl Completions<'_, '_, '_> {
                     };
                     items.push(items::create_lsp_completion_item(
                         self.text(),
-                        &file_name,
+                        &data_file,
                         self.position,
                         items::ItemSpec {
                             name: tsc_emitter::escape_string(text.units(), quote),

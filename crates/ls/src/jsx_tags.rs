@@ -2,6 +2,8 @@
 //! edited together (`textDocument/linkedEditingRange`) and the closing tag
 //! inserted after a `>` (`textDocument/_vs_onAutoInsert`).
 
+use crate::request::{FileProjection, Request};
+use tsc_diagnostics::spanmap::{FEATURE_AUTO_INSERT, FEATURE_LINKED_EDITING};
 use tsc_lsproto::{
     InsertTextFormat, LinkedEditingRangeParams, LinkedEditingRangeResponse, LinkedEditingRanges,
     LinkedEditingRangesOrNull, Range, TextEdit, VSOnAutoInsertParams, VSOnAutoInsertResponse,
@@ -30,16 +32,46 @@ impl LanguageService<'_> {
         let file = self.file(&params.text_document.uri);
         let converters = self.converters;
         let ranges = self
-            .with_request(file, &params.position, false, |request, position| {
-                let source = request.state.binder.source(file);
+            .with_program_request(false, |request| {
+                let Some(projection) =
+                    exact_projection(request, file, &params.position, FEATURE_LINKED_EDITING)
+                else {
+                    return Ok(None);
+                };
+                let source = request.state.binder.source(projection.file);
                 let script = script_of(source);
                 let jsx = JsxTags::new(source);
-                Ok(jsx
-                    .linked_editing_ranges(position as usize)
-                    .map(|(open, close)| {
-                        [open, close]
-                            .map(|(start, end)| converters.to_lsp_range(&script, start..end))
-                    }))
+                let Some(linked) = jsx.linked_editing_ranges(projection.position as usize) else {
+                    return Ok(None);
+                };
+                let [open, close] = match linked {
+                    // Only the start of a fragment's tags.
+                    Linked::Fragment(open, close) => [open, close].map(|position| {
+                        let (position, fidelity) = converters.to_lsp_position_for_feature(
+                            &script,
+                            position,
+                            FEATURE_LINKED_EDITING,
+                        );
+                        (
+                            Range {
+                                start: position.clone(),
+                                end: position,
+                            },
+                            fidelity,
+                        )
+                    }),
+                    Linked::Tags(open, close) => [open, close].map(|(start, end)| {
+                        converters.to_lsp_range_for_feature(
+                            &script,
+                            start..end,
+                            FEATURE_LINKED_EDITING,
+                        )
+                    }),
+                };
+                if !open.1.is_exact() || !close.1.is_exact() {
+                    return Ok(None);
+                }
+                Ok(Some([open.0, close.0]))
             })?
             .flatten();
         Ok(match ranges {
@@ -64,9 +96,14 @@ impl LanguageService<'_> {
         }
         let file = self.file(&params._vs_text_document.uri);
         let closing_text = self
-            .with_request(file, &params._vs_position, false, |request, position| {
-                let source = request.state.binder.source(file);
-                Ok(JsxTags::new(source).closing_text(position as usize))
+            .with_program_request(false, |request| {
+                let Some(projection) =
+                    exact_projection(request, file, &params._vs_position, FEATURE_AUTO_INSERT)
+                else {
+                    return Ok(None);
+                };
+                let source = request.state.binder.source(projection.file);
+                Ok(JsxTags::new(source).closing_text(projection.position as usize))
             })?
             .flatten();
         let Some(closing_text) = closing_text else {
@@ -91,6 +128,28 @@ impl LanguageService<'_> {
                 },
             ),
         )
+    }
+}
+
+/// What tsgo's linked editing links: the starts of a fragment's tags, or
+/// an element's tag names.
+enum Linked {
+    Fragment(usize, usize),
+    Tags((usize, usize), (usize, usize)),
+}
+
+/// The only projection of a document position, where it maps exactly
+/// (tsgo's linked editing and auto insert take nothing else).
+fn exact_projection(
+    request: &Request<'_, '_>,
+    file: usize,
+    position: &tsc_lsproto::Position,
+    feature: tsc_diagnostics::spanmap::Features,
+) -> Option<FileProjection> {
+    let projections = request.position_projections(file, position, feature);
+    match projections.as_slice() {
+        [projection] if projection.fidelity.is_exact() => Some(*projection),
+        _ => None,
     }
 }
 
@@ -136,7 +195,7 @@ impl<'a> JsxTags<'a> {
 
     /// The ranges of tsgo `ProvideLinkedEditingRange` (empty ones for a
     /// fragment).
-    fn linked_editing_ranges(&self, position: usize) -> Option<((usize, usize), (usize, usize))> {
+    fn linked_editing_ranges(&self, position: usize) -> Option<Linked> {
         let token = self.navigator.preceding_token(position as u32)?;
         let parent = match self.navigator.parent(token)? {
             Found::Node(view) => view.node()?,
@@ -160,7 +219,7 @@ impl<'a> JsxTags<'a> {
                 if position != open_pos && position != close_pos {
                     return None;
                 }
-                return Some(((open_pos, open_pos), (close_pos, close_pos)));
+                return Some(Linked::Fragment(open_pos, close_pos));
             }
         }
         // The cursor is in an element's tag.
@@ -202,7 +261,10 @@ impl<'a> JsxTags<'a> {
         if self.text_of_node(open_name) != self.text_of_node(close_name) {
             return None;
         }
-        Some(((open_start, open_end), (close_start, close_end)))
+        Some(Linked::Tags(
+            (open_start, open_end),
+            (close_start, close_end),
+        ))
     }
 
     /// tsgo `ProvideOnAutoInsert`'s closing text: `</tag>` for an unclosed
