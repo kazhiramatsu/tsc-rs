@@ -476,7 +476,7 @@ pub(crate) fn path_key(prepared: &PreparedProgram, file_name: &str) -> String {
     }
 }
 
-fn canonical_path(prepared: &PreparedProgram, file_name: &str) -> Option<CanonicalPath> {
+pub(crate) fn canonical_path(prepared: &PreparedProgram, file_name: &str) -> Option<CanonicalPath> {
     CanonicalPath::from_js_normalized(JsStr::from_str(&path_key(prepared, file_name))).ok()
 }
 

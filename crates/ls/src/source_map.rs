@@ -15,8 +15,12 @@ use tsc_lsproto::{DocumentUri, Location};
 use tsc_program::uri::file_name_to_document_uri;
 use tsc_syntax::SourceFile;
 
+use tsc_types::JsStr;
+
 use crate::language_service::Host;
 use crate::lsconv::{Converters, TextScript};
+use crate::request::Request;
+use crate::utilities::canonical_path;
 
 /// The source maps one request reads (tsgo `documentPositionMappers`).
 pub(crate) struct SourceMaps<'h> {
@@ -99,7 +103,10 @@ impl<'h> SourceMaps<'h> {
     }
 
     /// tsgo `GetDocumentPositionMapper`, once per file.
-    fn document_position_mapper(&self, file_name: &str) -> Option<Rc<DocumentPositionMapper>> {
+    pub(crate) fn document_position_mapper(
+        &self,
+        file_name: &str,
+    ) -> Option<Rc<DocumentPositionMapper>> {
         if let Some(mapper) = self.mappers.borrow().get(file_name) {
             return mapper.clone();
         }
@@ -108,5 +115,62 @@ impl<'h> SourceMaps<'h> {
             .borrow_mut()
             .insert(file_name.to_owned(), mapper.clone());
         mapper
+    }
+}
+
+impl Request<'_, '_> {
+    /// tsgo `IsSourceFromProjectReference`: whether the program reads the
+    /// file, a referenced project's source, in place of its output.
+    pub(crate) fn is_source_from_project_reference(&self, file_name: &str) -> bool {
+        canonical_path(self.prepared, file_name)
+            .is_some_and(|path| self.prepared.is_source_from_project_reference(&path))
+    }
+
+    /// tsgo `tryGetGeneratedPosition`: a program source's position in the
+    /// declaration file the program emits for it, through that file's
+    /// declaration map, when the declaration file exists.
+    pub(crate) fn try_get_generated_position(
+        &self,
+        file_name: &str,
+        position: usize,
+    ) -> Option<DocumentPosition> {
+        let position = self.try_get_generated_position_worker(file_name, position)?;
+        self.host.read_file(&position.file_name)?;
+        Some(position)
+    }
+
+    fn try_get_generated_position_worker(
+        &self,
+        file_name: &str,
+        position: usize,
+    ) -> Option<DocumentPosition> {
+        if tsc_program::is_declaration_file_name(file_name) {
+            return None;
+        }
+        let path = canonical_path(self.prepared, file_name)?;
+        self.prepared.source_id(&path)?;
+        // A referenced project's source (not its output) has no generated
+        // position.
+        if self.prepared.is_source_from_project_reference(&path) {
+            return None;
+        }
+        let declaration_file_name = tsc_program::output_declaration_file_name(
+            JsStr::from_str(file_name),
+            self.prepared.compiler_options(),
+            self.prepared.common_source_directory().as_js(),
+            self.prepared.current_directory().display(),
+            self.prepared.path_context().use_case_sensitive_file_names(),
+        );
+        let mapper = self
+            .source_maps
+            .document_position_mapper(&declaration_file_name.to_string_lossy())?;
+        let document_position = mapper.generated_position(file_name, position)?;
+        Some(
+            self.try_get_generated_position_worker(
+                &document_position.file_name,
+                document_position.pos,
+            )
+            .unwrap_or(document_position),
+        )
     }
 }
