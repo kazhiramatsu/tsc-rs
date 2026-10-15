@@ -1204,3 +1204,23 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   clippy、fmt。
 - **有界の違い**：これらの場面にはなし。残る completion は auto-import（L5d）と content mapper（L10）。
 - **README**：language server の節（completion に snippet、一致数 4,534）。
+
+## L5d auto-import の module specifier（#810）
+
+- **merge**：#810 → `6eb8c5633`（hosted run 38695913803：rust 12m45s、conformance 31m27s、gates）。commit：340eefb7d
+  （checker）、da45e14a6（language service）、f04602cab（ratchet）。検査の後の main の取り込みは L4f の merge（同じ code）、
+  packet の README と README だけ。
+- **checker（tsgo の module specifier）**：`getPathsRelativeToRootDirs` は別の volume の root を空の相対 path として残す
+  （tsc は捨てた。`rootDirs: ["D:/"]` の project は tsgo の `./` になる）、`isPathRelativeToParent` は
+  `RelativePath.IsParentRelative`（`..` かその下）、最短の候補は区切りが最も少ないものの最初（tsc は最後）。
+  `tryGetModuleNameFromPackageJsonImports` は nodenext と bundler で `#/` の key（`#/` だけを除く）を読む（tsc は全ての `#/` を
+  飛ばした。解決は既に読んでいた）。base URL の選択は tsgo の `..` の前置の判定。
+- **language service**：解決しない module augmentation の名前は `./`・`../` の時だけ取り込む file からの相対に直し、
+  root からの名前（`/types/rooted.css`）はそのまま（tsgo `ModuleSpecifier.IsRelative`）。
+- **検査（f04602cab）**：conformance 0 regressions（全 13,577 full、484 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（3 行 none→full：TestAutoImportCssModule、TestAutoImportPackageJsonImportsHashSlashNodenext、
+  TestAutoImportsWithRootDirsAndRootedPath01。lsp 4,534 → 4,537）、test（全 crate 通過）、API client sync 340/356・async
+  349/365（main と同じ）、clippy、fmt。
+- **有界の違い**：TestCompletionForStringLiteralNonrelativeImport2（tsgo 側が非決定、L4c-2）。残る lsp の行は content
+  mapper（L10）の 46。
+- **README**：language server の一致数 4,537。
