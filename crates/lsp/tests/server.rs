@@ -120,6 +120,7 @@ impl Session {
             set_parent_process_id: None,
             fs,
             default_library_path,
+            spawner: None,
         });
         let run = {
             let server = Arc::clone(&server);
@@ -636,6 +637,7 @@ fn outgoing_queue_does_not_block_without_writer() {
         set_parent_process_id: None,
         fs: Arc::new(MemFs::new(false, Arc::new(SystemClock))),
         default_library_path: "/typescript/lib".to_owned(),
+        spawner: None,
     });
     for _ in 0..1000 {
         let message = lsproto::RequestMessage::new(
