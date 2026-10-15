@@ -1608,3 +1608,64 @@ project の test を移して固定する。
 - **目的**：fourslash の場面を超える実 code での一致と、checker・binder・printer の bug 探し（LSP の要求は識別子ごとに
   checker を通る）。checker の修正には Rust の回帰 test。
 - **その後**：後回しにした VS Code での確認と L12 の README。
+
+## 実 project の LSP 差分 test：hono・zod・effect の一回目（#822）
+
+- **merge**：#822 → `d4fd421c2`（hosted run 38816901429）。commit：30d9013ff（hono）、95ce5e324（zod）、0cf991f8b（effect）、
+  696498dda（exclude の照合が lone surrogate を保つ・6.0.3 の規則を固定していた test を tsgo へ）。
+- **道具**（repository の外、`~/dev/real-projects.noindex/lsp-compare`）：`lsp-compare.py record` が project の
+  `src/**/*.ts` を一つずつ開き、file ごとに diagnostic・document symbol・folding・semantic token・formatting、散らした
+  識別子で hover・definition・type definition・document highlight、その一部で references、`.` の後で completion、`(` の
+  後で signature help を送る。同じ session を tsgo（aa814927）と tsc-rs に送り、tsgo が順序を保たない配列は並べ替えて
+  比べる（`compare`）。`probe`・`both.py`・`cases.py` は一つの位置を両方に尋ねる（`--touch`・`--before` で前の要求、
+  `--raw` で並べ替えなし）。
+- **結果**：
+
+  | project | 要求 | 違い（前） | 違い（後） |
+  |---|---:|---:|---:|
+  | hono（`src`） | 47,637 | 169 | 44 |
+  | zod（`packages/zod/src`） | 59,207 | 9 | 1 |
+  | effect（`packages/effect/src`） | 89,249 | 277 | 70 |
+
+- **直したもの**（それぞれ tsgo の答えで Rust の回帰 test に固定）：
+  - hono：type definition（初期化子の無い変数と値の宣言の無い型の symbol を等しいとみる Go の nil 比較で、call
+    signature の戻り値型へ）。signature help の戻り値型は checker 自身の emit context で作られるので、emit flag・
+    synthetic comment・comment range を落とす（tuple は `[ string, number ]`、property の comment は出ない）。node
+    builder：recovery boundary が approximate length を戻し（tsgo `finalizeBoundary`）、展開の切り詰めだけが hover を
+    「切り詰めた」とする（`canIncreaseVerbosity`）。template literal 型の union の span は checker の `mapType` で写し、
+    その union が template に合う string literal を除く（type table は span の組み立てだけ）。
+    `checkUnmatchedJSDocParameters` は TypeScript の file では suggestion。JSDoc の `@param`/`@returns` の型の名前解決が
+    host の関数へ進むのは JavaScript の file だけ（tsgo の reparse は JavaScript だけ）。
+  - zod：`this` 型の `this` は token（tsgo が合成する keyword）で、hover の meaning では型の参照、`this` の参照では
+    keyword としても参照としても扱う（`const` と merge した interface で `this` を表示）。既存の型 node の再利用は `this`
+    型を常に写す（tsgo nodecopy.go）。
+  - effect：config の file の探索は exclude を exclude の用途で compile し、項目の path 全体に合わせる（tsgo
+    `matchFileNames` の `UsageExclude`）：`/**` で終わる exclude がその directory の下を全て除く（effect の
+    `tsconfig.tests.json` が deno の test 21 file を含めていた。`tsc-rs -p` にも影響）。index signature で答える
+    property access は index symbol を resolved symbol として記録し、`getTypeOfSymbolAtLocation` が narrow した型を答える。
+    readonly の index signature は修飾子の長さ（+9）を node builder と checker の型表示の両方で数える（長い型の切り詰め
+    位置が変わる）。`GetHostSignatureFromJSDoc` は comment が付いた宣言だけを見る（tsgo は `getEffectiveJSDocHost` を
+    移植していない）。
+- **調べ方の記録**：切り詰め位置の違いは、tsgo の copy（scratchpad の `tsgo-debug`）の `approximateLength` の変更全てに
+  呼び出し位置と合計を `APPROX_LOG` に書く行を足して build し、tsc-rs にも同じ記録を一時的に足して、二つの列を並べて
+  最初に合計が戻らなくなる所を探した（readonly の +9 はこれで見つけた）。
+- **有界の違い**：
+  - auto-import の module specifier（hono 42、effect 69 の completion）：tsgo の specifier cache は export の file
+    （`Export.Path`）で引き、module augmentation の export は augment する file の path と augment される module の
+    file 名を持つので、その file の export のうち最初に計算されたものが cache を埋める。tsgo はそれを Go の map の順で
+    計算する（`View.GetCompletions` の `range grouped`）。同じ session で tsgo 自身の答えが変わった（hono で
+    `../language` が一回、`../..` が一回）。
+  - hono の `Context<any, any, {}>.header` の hover：同じ session 5 回で tsgo は宣言の型引数を 2 回、具体化した引数を
+    3 回答えた（query checker で property の型が具体化より先に解決されたかどうか）。
+  - node builder の cache の寿命（hono の signature help、zod の hover）：tsgo は `serializedTypes` を NodeBuilder に
+    持ち（signature help の item ごと、`typeToString`・`TypeToTypeNode` は checker ごと）、後の parameter や要求が数えた
+    長さと共に完全な node を再利用する。tsc-rs の cache は呼び出しごと。次の slice。
+  - effect の `Ordering.match` の signature help：tsgo は戻り値型で `{ onEqual, onGreaterThan, onLessThan, }` と書く。
+    位置で決める `NodeList.HasTrailingComma` が clone した要素の list（位置を持つ list に合成した要素）で真になり、別の
+    emit context の printer は元の list を辿って直せない。tsc-rs の list は末尾の comma を flag で持つ。
+- **検査（696498dda）**：conformance 0 regressions（13,577 全て full、492 s）、`--checkers 4` は既知の 4 件だけ（15,335 一致）、
+  suites 0 regressions（ratchet は変わらず。lsp 4,583/4,584、tsc 227/229 は generateTrace の 2 件）、test 全通過（types 47・
+  syntax 251・binder 78・program 683・checker 1,806・emitter 350・ls 226・lsp 58・api 332・project 235・compiler 240・
+  conformance 49・lsproto 31）、API client sync 356/356・async 365/365、clippy（`-D warnings`）、fmt。一回目の検査で
+  program の UTF-16 の test（lone surrogate を含む path の exclude）と、6.0.3 の規則を固定していた checker の test 2 件が
+  落ち、直してから全てを最後の bytes でやり直した。
