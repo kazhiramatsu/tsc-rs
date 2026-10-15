@@ -34,6 +34,7 @@ pub use code_lens::code_lens_with_command;
 pub use rename::RenameInfo;
 pub use symbols::{workspace_symbols, WorkspaceSymbolMatch};
 mod request;
+mod signature_help;
 mod source_definition;
 mod source_map;
 pub mod tree;
