@@ -156,7 +156,7 @@ impl<'a> CheckerState<'a> {
     /// Helper requirements and metadata alias references precede decorator
     /// checking, preserving the first requesting syntax node's diagnostic.
     pub(crate) fn check_decorators(&mut self, node: NodeId) -> CheckResult<()> {
-        if !crate::js_grammar::can_have_decorators(self.kind_of(node)) {
+        if !tsc_binder::node_util::can_have_decorators(self.kind_of(node)) {
             return Ok(());
         }
         let source = self.binder.source_of_node(node);
@@ -810,7 +810,7 @@ impl<'a> CheckerState<'a> {
         // which the language service resolves) is an error call.
         if !self
             .parent_of(node)
-            .is_some_and(|parent| crate::js_grammar::can_have_decorators(self.kind_of(parent)))
+            .is_some_and(|parent| tsc_binder::node_util::can_have_decorators(self.kind_of(parent)))
         {
             return self.resolve_error_call(node);
         }
