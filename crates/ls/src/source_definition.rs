@@ -6,6 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use tsc_diagnostics::spanmap::FEATURE_DEFINITION;
 
 use tsc_binder::assignment::{get_assignment_declaration_kind, AssignmentDeclarationKind};
 use tsc_binder::node_util;
@@ -34,9 +35,13 @@ impl LanguageService<'_> {
     ) -> Result<DefinitionResponse, LsError> {
         let links = self.capabilities.text_document.definition.link_support;
         let file = self.file(uri);
-        let result = self.with_request(file, position, links, |request, position| {
-            request.source_definition_at_position(file, position)
-        })?;
+        let result = self.with_definitions(
+            file,
+            position,
+            links,
+            FEATURE_DEFINITION,
+            |request, file, position| request.source_definition_at_position(file, position),
+        )?;
         Ok(combine_definition_responses(
             result.into_iter().collect(),
             links,
@@ -229,7 +234,7 @@ impl<'a> Request<'_, 'a> {
             .iter()
             .map(|declaration| (declaration.source(), declaration.node))
             .collect();
-        self.definition_locations_in(origin, &declarations, None)
+        self.definition_locations_in(origin, &declarations, None, FEATURE_DEFINITION)
     }
 
     /// A program declaration.

@@ -240,23 +240,30 @@ impl Request<'_, '_> {
         declaration: Option<NodeId>,
         markdown: bool,
         comment_only: bool,
+        locations: LinkLocations,
     ) -> CheckResult<String> {
         let documentation =
-            self.documentation_from_signature(symbol, node, markdown, comment_only)?;
+            self.documentation_from_signature(symbol, node, markdown, comment_only, locations)?;
         if !documentation.is_empty() {
             return Ok(documentation);
         }
         let documentation =
-            self.documentation_from_root_symbols(symbol, node, markdown, comment_only)?;
+            self.documentation_from_root_symbols(symbol, node, markdown, comment_only, locations)?;
         if !documentation.is_empty() {
             return Ok(documentation);
         }
-        let documentation =
-            self.documentation_from_declaration(symbol, declaration, node, markdown, comment_only)?;
+        let documentation = self.documentation_from_declaration(
+            symbol,
+            declaration,
+            node,
+            markdown,
+            comment_only,
+            locations,
+        )?;
         if !documentation.is_empty() {
             return Ok(documentation);
         }
-        self.documentation_from_alias(symbol, node, markdown, comment_only)
+        self.documentation_from_alias(symbol, node, markdown, comment_only, locations)
     }
 
     /// tsgo `documentationFromSignature`: a call or construct signature's
@@ -267,6 +274,7 @@ impl Request<'_, '_> {
         node: Touching,
         markdown: bool,
         comment_only: bool,
+        locations: LinkLocations,
     ) -> CheckResult<String> {
         let Some(call) = self.call_or_new_expression(node) else {
             return Ok(String::new());
@@ -287,6 +295,7 @@ impl Request<'_, '_> {
                 node,
                 markdown,
                 comment_only,
+                locations,
             );
         }
         Ok(String::new())
@@ -300,6 +309,7 @@ impl Request<'_, '_> {
         node: Touching,
         markdown: bool,
         comment_only: bool,
+        locations: LinkLocations,
     ) -> CheckResult<String> {
         let Some(symbol) = symbol else {
             return Ok(String::new());
@@ -337,6 +347,7 @@ impl Request<'_, '_> {
                 node,
                 markdown,
                 comment_only,
+                locations,
             )?;
             if !documentation.is_empty() {
                 return Ok(documentation);
@@ -353,6 +364,7 @@ impl Request<'_, '_> {
         node: Touching,
         markdown: bool,
         comment_only: bool,
+        locations: LinkLocations,
     ) -> CheckResult<String> {
         let Some(symbol) = symbol else {
             return Ok(String::new());
@@ -376,6 +388,7 @@ impl Request<'_, '_> {
                     node,
                     markdown,
                     comment_only,
+                    locations,
                 )?;
                 if !documentation.is_empty() && !docs.contains(&documentation) {
                     docs.push(documentation);
@@ -394,6 +407,7 @@ impl Request<'_, '_> {
         _location: Touching,
         markdown: bool,
         comment_only: bool,
+        locations: LinkLocations,
     ) -> CheckResult<String> {
         let Some(declaration) = declaration else {
             return Ok(String::new());
@@ -407,7 +421,7 @@ impl Request<'_, '_> {
             return Ok(text);
         }
         let comment = comment_of(self.state, js_doc);
-        self.write_comments(&mut text, comment, markdown)?;
+        self.write_comments(&mut text, comment, markdown, locations)?;
         if self.node_kind(js_doc) != SyntaxKind::JSDoc || comment_only {
             return Ok(text);
         }
@@ -511,11 +525,11 @@ impl Request<'_, '_> {
                         _ => Some(reference),
                     };
                     if let Some(name) = name {
-                        self.write_name_link(&mut text, name, "", false, markdown)?;
+                        self.write_name_link(&mut text, name, "", false, markdown, locations)?;
                     }
                     if !parts.is_empty() {
                         text.push(' ');
-                        self.write_comments(&mut text, tag_comment, markdown)?;
+                        self.write_comments(&mut text, tag_comment, markdown, locations)?;
                     }
                 }
                 NodeData::JSDocThrowsTag(data) if data.type_expression.is_some() => {
@@ -526,7 +540,7 @@ impl Request<'_, '_> {
                     ));
                     if !parts.is_empty() {
                         text.push(' ');
-                        self.write_comments(&mut text, tag_comment, markdown)?;
+                        self.write_comments(&mut text, tag_comment, markdown, locations)?;
                     }
                 }
                 _ if !parts.is_empty() => {
@@ -535,7 +549,7 @@ impl Request<'_, '_> {
                     if !dashed {
                         text.push_str("— ");
                     }
-                    self.write_comments(&mut text, tag_comment, markdown)?;
+                    self.write_comments(&mut text, tag_comment, markdown, locations)?;
                 }
                 _ => {}
             }
@@ -549,6 +563,7 @@ impl Request<'_, '_> {
         text: &mut String,
         comment: Option<&JSDocComment>,
         markdown: bool,
+        locations: LinkLocations,
     ) -> CheckResult<()> {
         let parts = comment_parts(self.state, comment);
         for part in parts {
@@ -566,6 +581,7 @@ impl Request<'_, '_> {
                         &link_text,
                         kind == SyntaxKind::JSDocLinkCode,
                         markdown,
+                        locations,
                     )?;
                 }
             }
@@ -581,6 +597,7 @@ impl Request<'_, '_> {
         link_text: &str,
         quote: bool,
         markdown: bool,
+        locations: LinkLocations,
     ) -> CheckResult<()> {
         let trimmed = link_text.trim_matches(' ');
         let Some(name) = name else {
@@ -616,7 +633,7 @@ impl Request<'_, '_> {
                 return Ok(());
             }
         }
-        self.write_name_link(text, name, trimmed, quote, markdown)
+        self.write_name_link(text, name, trimmed, quote, markdown, locations)
     }
 
     /// tsgo `writeNameLink`: a link to the name's first declaration.
@@ -627,6 +644,7 @@ impl Request<'_, '_> {
         link_text: &str,
         quote: bool,
         markdown: bool,
+        locations: LinkLocations,
     ) -> CheckResult<()> {
         let declarations = self.declarations_from_location(Touching::Node(name))?;
         if let Some(&declaration) = declarations.first() {
@@ -634,9 +652,19 @@ impl Request<'_, '_> {
             let target =
                 node_util::get_name_of_declaration(source, declaration).unwrap_or(declaration);
             let range = self.range_from_node(target);
-            let location = self
-                .source_maps
-                .location(self.state.binder.source_of_node(target), range);
+            // tsgo `getMappedLocation`: a declaration of a content mapper's
+            // output that does not map to one segment is no link.
+            let (location, fidelity) = match locations {
+                LinkLocations::Feature(feature) => self.source_maps.location_for_feature(
+                    self.state.binder.source_of_node(target),
+                    range,
+                    feature,
+                ),
+                LinkLocations::None => (
+                    tsc_lsproto::Location::default(),
+                    tsc_diagnostics::spanmap::Fidelity::None,
+                ),
+            };
             let prefix = if link_text.starts_with("()") { 2 } else { 0 };
             let mut shown = trim_comment_prefix(&link_text[prefix..]).to_owned();
             if shown.is_empty() {
@@ -646,7 +674,7 @@ impl Request<'_, '_> {
                     &link_text[..prefix]
                 );
             }
-            if markdown {
+            if markdown && fidelity.is_single_segment() {
                 let uri = format!(
                     "{}#{},{}-{},{}",
                     location.uri.as_str(),
@@ -1044,6 +1072,7 @@ impl crate::language_service::LanguageService<'_> {
                     Touching::Node(declaration),
                     false,
                     true,
+                    LinkLocations::None,
                 )?;
                 if !documentation.is_empty() && !parts.contains(&documentation) {
                     parts.push(documentation);
@@ -1224,4 +1253,14 @@ fn js_doc_tag_text(state: &CheckerState<'_>, tag: NodeId) -> String {
         },
         _ => comment.clone(),
     }
+}
+
+/// tsgo `documentationLocationMapper`: where a `{@link}`'s declaration is
+/// shown — at its location for a feature (a content mapper's output's only
+/// where it maps to one segment of it, else as text), or nowhere (tsgo
+/// `noMappedLocation`, the API's).
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum LinkLocations {
+    Feature(tsc_diagnostics::spanmap::Features),
+    None,
 }

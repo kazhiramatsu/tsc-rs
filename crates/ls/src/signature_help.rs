@@ -3,8 +3,10 @@
 //! being written; a function whose contextual signature is known) with the
 //! active signature and parameter (`textDocument/signatureHelp`).
 
+use crate::jsdoc::LinkLocations;
 use tsc_checker::state::{CheckResult, SignatureId, SignatureKind};
 use tsc_checker::DisplayPart;
+use tsc_diagnostics::spanmap::FEATURE_SIGNATURE_HELP;
 use tsc_lsproto::{
     MarkupContent, MarkupKind, ParameterInformation, SignatureHelp, SignatureHelpContext,
     SignatureHelpOrNull, SignatureHelpParams, SignatureHelpResponse, SignatureHelpTriggerKind,
@@ -170,15 +172,29 @@ impl DisplayParts {
 }
 
 impl LanguageService<'_> {
-    /// tsgo `ProvideSignatureHelp` (a file without a content mapper: one
-    /// projection).
+    /// tsgo `ProvideSignatureHelp`: the help of the first single-segment
+    /// projection of the position that has one.
     pub fn provide_signature_help(
         &mut self,
         params: &SignatureHelpParams,
     ) -> Result<SignatureHelpResponse, LsError> {
         let file = self.file(&params.text_document.uri);
-        let help = self.with_request(file, &params.position, false, |request, position| {
-            request.signature_help_items(file, position, params.context.as_ref())
+        let help = self.with_program_request(false, |request| {
+            for projection in
+                request.position_projections(file, &params.position, FEATURE_SIGNATURE_HELP)
+            {
+                if !projection.fidelity.is_single_segment() {
+                    continue;
+                }
+                if let Some(help) = request.signature_help_items(
+                    projection.file,
+                    projection.position,
+                    params.context.as_ref(),
+                )? {
+                    return Ok(Some(help));
+                }
+            }
+            Ok(None)
         })?;
         Ok(match help.flatten() {
             Some(help) => SignatureHelpOrNull::SignatureHelp(help),
@@ -1264,6 +1280,7 @@ impl Completions<'_, '_, '_> {
                 Touching::Node(declaration),
                 markdown,
                 true,
+                LinkLocations::Feature(FEATURE_SIGNATURE_HELP),
             )?;
             if !text.is_empty() {
                 documentation = Some(text);
@@ -1495,6 +1512,7 @@ impl Completions<'_, '_, '_> {
                 Touching::Node(declaration),
                 markdown,
                 true,
+                LinkLocations::Feature(FEATURE_SIGNATURE_HELP),
             )?;
             if !text.is_empty() {
                 documentation = Some(StringOrMarkupContent::MarkupContent(MarkupContent {

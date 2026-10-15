@@ -8,6 +8,7 @@
 //! `custom/textDocument/multiDocumentHighlight`.
 
 use std::collections::{HashMap, HashSet};
+use tsc_diagnostics::spanmap::FEATURE_DOCUMENT_HIGHLIGHTS;
 
 use tsc_binder::node_util;
 use tsc_checker::state::CheckResult;
@@ -61,8 +62,8 @@ impl LanguageService<'_> {
         ))
     }
 
-    /// tsgo `provideDocumentHighlightsWorker` (a file without a content
-    /// mapper: one position).
+    /// tsgo `provideDocumentHighlightsWorker`: the highlights of each
+    /// single-segment projection of the position, combined.
     fn document_highlights_worker(
         &mut self,
         uri: &DocumentUri,
@@ -82,11 +83,24 @@ impl LanguageService<'_> {
                 files.push(index);
             }
         }
-        let result = self.with_request(file, position, false, |request, position| {
-            request.document_highlights_at_position(uri, file, position, &files)
+        let result = self.with_program_request(false, |request| {
+            let mut results = Vec::new();
+            for projection in
+                request.position_projections(file, position, FEATURE_DOCUMENT_HIGHLIGHTS)
+            {
+                if projection.fidelity.is_single_segment() {
+                    results.push(request.document_highlights_at_position(
+                        uri,
+                        projection.file,
+                        projection.position,
+                        &files,
+                    )?);
+                }
+            }
+            Ok(results)
         })?;
         Ok(combine_multi_document_highlights(
-            result.into_iter().collect(),
+            result.unwrap_or_default(),
         ))
     }
 }
@@ -171,9 +185,11 @@ impl Request<'_, '_> {
                 let highlights = elements
                     .into_iter()
                     .flatten()
-                    .map(|element| DocumentHighlight {
-                        range: self.node_highlight_range(Touching::Node(element)),
-                        kind: read(),
+                    .filter_map(|element| {
+                        Some(DocumentHighlight {
+                            range: self.node_highlight_range(Touching::Node(element))?,
+                            kind: read(),
+                        })
                     })
                     .collect();
                 return Ok(vec![MultiDocumentHighlight {
@@ -216,22 +232,30 @@ impl Request<'_, '_> {
             use_aliases_for_rename: false,
         };
         let entries = get_referenced_symbols_for_node(self, position, node, files, options)?;
-        // Group highlights by file
-        let mut by_file: HashMap<usize, Vec<DocumentHighlight>> = HashMap::new();
+        // Group highlights by file (a content mapper's output's original
+        // file).
+        let original_file_name = |request: &Self, file: usize| {
+            let script = crate::utilities::script_of(request.state.binder.source(file));
+            crate::lsconv::Script::original_file_name(&script).to_owned()
+        };
+        let mut by_file: HashMap<String, Vec<DocumentHighlight>> = HashMap::new();
         for entry in &entries {
             for reference in &entry.references {
-                let highlight = self.to_document_highlight(reference);
-                by_file.entry(reference.file).or_default().push(highlight);
+                let Some(highlight) = self.to_document_highlight(reference) else {
+                    continue;
+                };
+                by_file
+                    .entry(original_file_name(self, reference.file))
+                    .or_default()
+                    .push(highlight);
             }
         }
         let mut result = Vec::new();
         for &file in files {
-            if let Some(highlights) = by_file.get(&file) {
-                let source = self.state.binder.source(file);
+            let file_name = original_file_name(self, file);
+            if let Some(highlights) = by_file.get(&file_name) {
                 result.push(MultiDocumentHighlight {
-                    uri: DocumentUri(file_name_to_document_uri(
-                        &source.file_name.to_string_lossy(),
-                    )),
+                    uri: DocumentUri(file_name_to_document_uri(&file_name)),
                     highlights: highlights.clone(),
                 });
             }
@@ -239,9 +263,13 @@ impl Request<'_, '_> {
         Ok(result)
     }
 
-    /// tsgo `toDocumentHighlight`: a reference's range, written or read.
-    fn to_document_highlight(&self, entry: &ReferenceEntry) -> DocumentHighlight {
-        let range = self.location_of_entry(entry).range;
+    /// tsgo `toDocumentHighlight`: a reference's range, written or read;
+    /// none where a content mapper's output's reference does not map to one
+    /// highlight segment.
+    fn to_document_highlight(&self, entry: &ReferenceEntry) -> Option<DocumentHighlight> {
+        let range = self
+            .location_of_entry_for_feature(entry, FEATURE_DOCUMENT_HIGHLIGHTS)?
+            .range;
         let kind = match entry.node {
             Some(node)
                 if entry.kind != EntryKind::Range && self.is_write_access_for_reference(node) =>
@@ -250,15 +278,16 @@ impl Request<'_, '_> {
             }
             _ => DocumentHighlightKind::READ,
         };
-        DocumentHighlight {
+        Some(DocumentHighlight {
             range,
             kind: Some(kind),
-        }
+        })
     }
 
     /// tsgo `createLspRangeFromNodeForFeature`: a node's or token's range
-    /// from its token's start.
-    fn node_highlight_range(&self, node: Touching) -> tsc_lsproto::Range {
+    /// from its token's start; none where it does not map to highlight
+    /// segments.
+    fn node_highlight_range(&self, node: Touching) -> Option<tsc_lsproto::Range> {
         let (file, range) = match node {
             Touching::Node(id) => {
                 let file = self.state.binder.file_index_of_node(id);
@@ -268,16 +297,23 @@ impl Request<'_, '_> {
             }
             token => self.range_of_touching(token),
         };
-        self.lsp_range(self.state.binder.source(file), range)
+        let (range, fidelity) = self.lsp_range_for_feature(
+            self.state.binder.source(file),
+            range,
+            FEATURE_DOCUMENT_HIGHLIGHTS,
+        );
+        (!fidelity.is_none()).then_some(range)
     }
 
     /// tsgo `highlightSpans`.
     fn highlight_spans(&self, nodes: Vec<Touching>) -> Vec<DocumentHighlight> {
         nodes
             .into_iter()
-            .map(|node| DocumentHighlight {
-                range: self.node_highlight_range(node),
-                kind: read(),
+            .filter_map(|node| {
+                Some(DocumentHighlight {
+                    range: self.node_highlight_range(node)?,
+                    kind: read(),
+                })
             })
             .collect()
     }
@@ -463,20 +499,29 @@ impl Request<'_, '_> {
                 if should_combine {
                     let start =
                         tsc_syntax::skip_trivia(source.text(), self.pos(else_keyword) as usize);
-                    highlights.push(DocumentHighlight {
-                        range: self
-                            .lsp_range(source, start..self.touching_end(if_keyword) as usize),
-                        kind: read(),
-                    });
+                    // tsgo `createLspRangeFromBounds`: none where it does not
+                    // map.
+                    let (range, fidelity) = self.converters.to_lsp_range_with_fidelity(
+                        &crate::utilities::script_of(source),
+                        start..self.touching_end(if_keyword) as usize,
+                    );
+                    if !fidelity.is_none() {
+                        highlights.push(DocumentHighlight {
+                            range,
+                            kind: read(),
+                        });
+                    }
                     index += 2; // skip the next keyword
                     continue;
                 }
             }
             // Ordinary case: just highlight the keyword.
-            highlights.push(DocumentHighlight {
-                range: self.node_highlight_range(keywords[index]),
-                kind: read(),
-            });
+            if let Some(range) = self.node_highlight_range(keywords[index]) {
+                highlights.push(DocumentHighlight {
+                    range,
+                    kind: read(),
+                });
+            }
             index += 1;
         }
         highlights

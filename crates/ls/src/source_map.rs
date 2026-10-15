@@ -7,6 +7,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::ops::Range;
 use std::rc::Rc;
+use tsc_diagnostics::spanmap::{Features, Fidelity};
 
 use tsc_emitter::source_mapper::{
     get_document_position_mapper, DocumentPosition, DocumentPositionMapper,
@@ -42,6 +43,60 @@ impl<'h> SourceMaps<'h> {
     /// file without a content mapper: tsgo `getMappedLocation`, a
     /// declaration file's range at its source when its map has one.
     pub(crate) fn location(&self, source: &SourceFile, range: Range<usize>) -> Location {
+        self.location_where(source, range, None).0
+    }
+
+    /// tsgo `sourceFileRangeToLSPLocation`: [`Self::location`] with the
+    /// fidelity of a content mapper's output's mapping.
+    pub(crate) fn location_with_fidelity(
+        &self,
+        source: &SourceFile,
+        range: Range<usize>,
+    ) -> (Location, Fidelity) {
+        self.location_where(source, range, None)
+    }
+
+    /// tsgo `sourceFileRangeToLSPLocationForFeature`: a content mapper's
+    /// output's range with no fidelity unless it maps to segments of the
+    /// feature.
+    pub(crate) fn location_for_feature(
+        &self,
+        source: &SourceFile,
+        range: Range<usize>,
+        feature: Features,
+    ) -> (Location, Fidelity) {
+        self.location_where(source, range, Some(feature))
+    }
+
+    fn location_where(
+        &self,
+        source: &SourceFile,
+        range: Range<usize>,
+        feature: Option<Features>,
+    ) -> (Location, Fidelity) {
+        // tsgo: a content mapper's output maps to its original file.
+        if source.content_mapper.is_some() {
+            let script = crate::utilities::script_of(source);
+            let (range, fidelity) = match feature {
+                None => self.converters.to_lsp_range_with_fidelity(&script, range),
+                Some(feature) => self
+                    .converters
+                    .to_lsp_range_for_feature(&script, range, feature),
+            };
+            return (
+                Location {
+                    uri: DocumentUri(file_name_to_document_uri(script.original_file_name())),
+                    range,
+                },
+                fidelity,
+            );
+        }
+        (self.mapped_location(source, range), Fidelity::Exact)
+    }
+
+    /// tsgo `getMappedLocation`: a declaration file's range at its source
+    /// when its map has one.
+    fn mapped_location(&self, source: &SourceFile, range: Range<usize>) -> Location {
         let file_name = source.file_name.to_string_lossy();
         if let Some(start) = self.try_get_source_position(&file_name, range.start) {
             // An end that does not map, maps to another source (an outFile
@@ -58,11 +113,9 @@ impl<'h> SourceMaps<'h> {
                 range: self.converters.to_lsp_range(&script, start.pos..end),
             };
         }
-        // tsgo `ToLSPLocation`: a content mapper's output's range in its
-        // original file.
-        let script = crate::utilities::script_of(source);
+        let script = TextScript::new(file_name.clone().into_owned(), source.text());
         Location {
-            uri: DocumentUri(file_name_to_document_uri(script.original_file_name())),
+            uri: DocumentUri(file_name_to_document_uri(&file_name)),
             range: self.converters.to_lsp_range(&script, range),
         }
     }
