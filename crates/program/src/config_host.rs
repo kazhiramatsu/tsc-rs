@@ -104,10 +104,10 @@ impl<'a> CompilerConfigHost<'a> {
             if !extensions.iter().any(|extension| text.ends_with(extension)) {
                 continue;
             }
-            let name = InputComponent::new(entry_name(text), case_sensitive);
-            if states.excludes_entry(patterns, &name) {
+            if patterns.excluded(text) {
                 continue;
             }
+            let name = InputComponent::new(entry_name(text), case_sensitive);
             if patterns.includes.is_empty() {
                 files[0].push(text.to_owned());
             } else if let Some(include_index) = states.include_index(patterns, &name) {
@@ -306,9 +306,24 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
         depth: Option<usize>,
     ) -> Result<Vec<JsString>, ConfigHostError> {
         let case_sensitive = self.host.use_case_sensitive_file_names();
+        // tsgo `newGlobMatcher`: the excludes are compiled for their own
+        // usage (`UsageExclude`), the includes for files.
+        let excludes = excludes.map(|excludes| {
+            excludes
+                .iter()
+                .map(|exclude| exclude.as_js().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+        });
         let patterns = WalkPatterns {
             includes: compile_patterns(includes, directory, case_sensitive)?,
-            excludes: compile_patterns(excludes, directory, case_sensitive)?,
+            excludes: excludes.and_then(|excludes| {
+                crate::vfsmatch::SpecMatcher::new(
+                    &excludes,
+                    &directory.to_string_lossy(),
+                    crate::vfsmatch::Usage::Exclude,
+                    case_sensitive,
+                )
+            }),
         };
         let mut file_buckets = (0..patterns.includes.len().max(1))
             .map(|_| Vec::new())
@@ -440,15 +455,24 @@ fn discovery_base_paths(
 /// The compiled include and exclude patterns of one walk.
 struct WalkPatterns {
     includes: Vec<ConfigFilePattern>,
-    excludes: Vec<ConfigFilePattern>,
+    excludes: Option<crate::vfsmatch::SpecMatcher>,
 }
 
-/// Every pattern's automaton states at one directory of the walk (`None`:
-/// nothing below the directory can match that pattern).
+impl WalkPatterns {
+    /// tsgo `matchesFileParts`/`matchesDirectoryParts`: whether an exclude
+    /// matches the entry's whole path.
+    fn excluded(&self, path: JsStr<'_>) -> bool {
+        self.excludes
+            .as_ref()
+            .is_some_and(|excludes| excludes.match_string(&path.to_string_lossy()))
+    }
+}
+
+/// Every include pattern's automaton states at one directory of the walk
+/// (`None`: nothing below the directory can match that pattern).
 #[derive(Clone)]
 struct PatternStates {
     includes: Vec<Option<Vec<usize>>>,
-    excludes: Vec<Option<Vec<usize>>>,
 }
 
 impl PatternStates {
@@ -462,21 +486,7 @@ impl PatternStates {
         };
         Self {
             includes: patterns.includes.iter().map(states).collect(),
-            excludes: patterns.excludes.iter().map(states).collect(),
         }
-    }
-
-    /// Whether an exclude pattern matches the entry `name` of this directory.
-    fn excludes_entry(&self, patterns: &WalkPatterns, name: &InputComponent) -> bool {
-        patterns
-            .excludes
-            .iter()
-            .zip(&self.excludes)
-            .any(|(pattern, states)| {
-                states
-                    .as_ref()
-                    .is_some_and(|states| pattern.accepts_entry(states, name))
-            })
     }
 
     /// The first include pattern matching the entry `name` of this directory.
@@ -521,22 +531,10 @@ impl PatternStates {
         {
             return None;
         }
-        if self.excludes_entry(patterns, name)
-            || !(patterns.includes.is_empty() || some_include_could_match)
-        {
+        if patterns.excluded(text) || !(patterns.includes.is_empty() || some_include_could_match) {
             return None;
         }
-        let excludes = patterns
-            .excludes
-            .iter()
-            .zip(&self.excludes)
-            .map(|(pattern, states)| {
-                states
-                    .as_ref()
-                    .and_then(|states| pattern.advance_directory(states, name))
-            })
-            .collect::<Vec<_>>();
-        Some(Self { includes, excludes })
+        Some(Self { includes })
     }
 }
 

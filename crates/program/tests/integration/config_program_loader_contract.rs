@@ -1585,3 +1585,38 @@ fn allow_importing_ts_extensions_requires_no_emit_unless_overridden() {
 }
 
 use super::utf16_scalar_path::ScalarTestPath as _;
+
+/// tsgo `matchFileNames` compiles excludes for their own usage
+/// (`UsageExclude`): an exclude ending in `/**` excludes everything below
+/// its directory (a files-usage pattern ending in `**` matches nothing, so
+/// the walk kept effect's `tsconfig.tests.json` deno tests, found by the LSP
+/// test on effect). Pinned to tsgo's `--listFilesOnly` at aa814927.
+#[test]
+fn an_exclude_ending_in_a_recursive_wildcard_excludes_below_its_directory() {
+    let memory = MemoryCompilerHost::builder("/repo")
+        .case_sensitive(true)
+        .file(
+            "/repo/packages/platform/deno/test/a.ts",
+            b"export const a = 1;\n",
+        )
+        .file("/repo/packages/other/test/b.ts", b"export const b = 1;\n")
+        .file(
+            "/repo/packages/other/node_modules/c/test/c.ts",
+            b"export const c = 1;\n",
+        )
+        .build()
+        .expect("memory compiler host");
+    let config_text = r#"{"compilerOptions":{"noEmit":true},"include":["./packages/**/test/**/*.ts"],"exclude":["**/node_modules/**","./packages/platform/deno/**"]}"#;
+    let plan = parse_config_root_plan(
+        &CompilerConfigHost::new(&memory),
+        request_at(Path::new("/repo"), config_text),
+    )
+    .expect("include/exclude plan");
+    assert_eq!(
+        plan.file_names()
+            .iter()
+            .map(|name| name.as_str().expect("scalar name observation").to_owned())
+            .collect::<Vec<_>>(),
+        vec!["/repo/packages/other/test/b.ts".to_owned()]
+    );
+}

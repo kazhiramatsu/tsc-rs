@@ -1616,3 +1616,64 @@ fn a_reused_return_annotation_keeps_its_this_type() {
         ))
     );
 }
+
+/// tsgo records an access answered by an index signature with its index
+/// symbol as the access's resolved symbol, so `getTypeOfSymbolAtLocation`
+/// takes the access for a reference and answers its narrowed type (found
+/// by the LSP test on effect, `Array.isArray(annotations.brands) ?
+/// annotations.brands : []`). Pinned to tsgo's answer at aa814927.
+#[test]
+fn an_index_signature_access_hovers_its_narrowed_type() {
+    let text = "interface Annotations { readonly [x: string]: unknown }\nfunction g(a: Annotations) {\n  if (Array.isArray(a.brands)) { a.brands; }\n}\n";
+    assert_eq!(
+        hover(&[("/a.ts", text)], options(|_| {}), "/a.ts", (2, 35), None),
+        Some((
+            "```typescript\nany[]\n```\n".to_owned(),
+            ((2, 35), (2, 41)),
+            false,
+        ))
+    );
+}
+
+/// The node builder counts a `readonly` index signature's modifier
+/// (tsgo `indexInfoToIndexSignatureDeclarationHelper`), which moves where
+/// a long hover is cut (found by the LSP test on effect, in its devtools'
+/// schema types). Pinned to tsgo's answer at aa814927.
+#[test]
+fn a_readonly_index_signature_moves_the_hover_cut() {
+    let properties = (0..60)
+        .map(|index| format!("a{index}: string"))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let text = format!("declare const v: {{ readonly [x: string]: string; readonly [y: number]: string; {properties} }};\nconst w = v;\n");
+    let shown = (0..42)
+        .map(|index| format!("    a{index}: string;\n"))
+        .collect::<String>();
+    assert_eq!(
+        hover(&[("/a.ts", text.as_str())], options(|_| {}), "/a.ts", (1, 6), None),
+        Some((
+            format!("```typescript\nconst w: {{\n    readonly [x: string]: string;\n    readonly [y: number]: string;\n{shown}    ... 17 more ...;\n    a59: string;\n}}\n```\n"),
+            ((1, 6), (1, 7)),
+            false,
+        ))
+    );
+}
+
+/// tsgo `GetHostSignatureFromJSDoc` takes only the declaration the comment
+/// is attached to (Strada's `getEffectiveJSDocHost` is not ported): a
+/// `{@link effect}` above `const effectContext = (effect) => …` resolves at
+/// the statement, to the module's `effect`, not the parameter (found by the
+/// LSP test on effect, in `Layer.effectContext`'s `@see`). Pinned to tsgo's
+/// answer at aa814927.
+#[test]
+fn a_jsdoc_link_above_a_variable_statement_skips_its_initializer() {
+    let text = "export const effect = 1;\n/**\n * @see {@link effect} for a single service\n */\nexport const effectContext = (effect: number) => effect;\neffectContext(1);\n";
+    assert_eq!(
+        hover(&[("/a.ts", text)], options(|_| {}), "/a.ts", (5, 0), None),
+        Some((
+            "```typescript\nconst effectContext: (effect: number) => number\n```\n\n\n*@see* \u{2014} [effect](file:///a.ts#1,14-1,20) for a single service".to_owned(),
+            ((5, 0), (5, 13)),
+            false,
+        ))
+    );
+}
