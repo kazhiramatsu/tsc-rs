@@ -37,6 +37,11 @@ use crate::gofmt;
 use crate::logger::{is_valid_log_verbosity, Logger};
 use crate::queue::DynamicQueue;
 
+mod cross_project;
+
+use cross_project::CrossProjectStart;
+use tsc_ls::SearchPosition;
+
 /// Go's JSON encoder nests at most this deep (`jsontext`'s maximum depth).
 const MAX_JSON_DEPTH: usize = 10_000;
 
@@ -1184,17 +1189,26 @@ impl Server {
             .map_err(language_service_failure)
     }
 
-    /// tsgo's references handler (one project; the cross-project search
-    /// comes later).
+    /// tsgo `ProvideReferences` across projects.
     fn handle_references(
         self: &Arc<Self>,
-        _context: &RequestContext,
-        service: &mut LanguageService<'_>,
+        context: &RequestContext,
+        start: &CrossProjectStart,
         params: lsproto::ReferenceParams,
     ) -> Result<lsproto::ReferencesResponse, Failure> {
-        service
-            .provide_references(&params)
-            .map_err(language_service_failure)
+        let include_declaration = params.context.include_declaration;
+        let response = self.search_across_projects(
+            context,
+            start,
+            &params.text_document.uri,
+            &params.position,
+            SearchPosition::Lsp(params.position.clone()),
+            |service, uri, at, with_definition| {
+                service.search_references(uri, at, include_declaration, with_definition)
+            },
+            tsc_ls::combine_references,
+        )?;
+        Ok(response.unwrap_or(lsproto::LocationsOrNull::Null))
     }
 
     /// tsgo `handlePrepareRename`: the span and placeholder, else the
@@ -1235,19 +1249,23 @@ impl Server {
         params: lsproto::RenameParams,
         _request: &RequestMessage,
     ) -> Result<lsproto::RenameResponse, Failure> {
-        let (snapshot, project) = self
-            .initialized_session()
-            .get_snapshot_and_default_project(&params.text_document.uri)
+        let start = self
+            .cross_project_start(&params.text_document.uri)
             .map_err(|error| LspError::internal(error.to_string()))?;
-        let info = self.with_language_service(context, &snapshot, &project, |service| {
-            service
-                .get_rename_info(
-                    &params.new_name,
-                    &params.text_document.uri,
-                    &params.position,
-                )
-                .map_err(language_service_failure)
-        })?;
+        let info = self.with_language_service(
+            context,
+            &start.snapshot,
+            &start.default_project,
+            |service| {
+                service
+                    .get_rename_info(
+                        &params.new_name,
+                        &params.text_document.uri,
+                        &params.position,
+                    )
+                    .map_err(language_service_failure)
+            },
+        )?;
         if info.can_rename && !info.file_to_rename.is_empty() {
             let old_uri = lsproto::DocumentUri(tsc_program::uri::file_name_to_document_uri(
                 &info.file_to_rename,
@@ -1285,11 +1303,22 @@ impl Server {
             };
             return self.will_rename_files(context, &params, true);
         }
-        self.with_language_service(context, &snapshot, &project, |service| {
-            service
-                .provide_rename(&params)
-                .map_err(language_service_failure)
-        })
+        let new_name = &params.new_name;
+        let response = self.search_across_projects(
+            context,
+            &start,
+            &params.text_document.uri,
+            &params.position,
+            SearchPosition::Lsp(params.position.clone()),
+            |service, uri, at, with_definition| {
+                let SearchPosition::Lsp(position) = at else {
+                    unreachable!("a rename is at a document position");
+                };
+                service.search_rename(uri, position, new_name, with_definition)
+            },
+            tsc_ls::combine_rename,
+        )?;
+        Ok(response.unwrap_or(lsproto::WorkspaceEditOrNull::Null))
     }
 
     /// tsgo `handleWillRenameFiles`.
@@ -1514,23 +1543,43 @@ impl Server {
             .map_err(language_service_failure)
     }
 
-    /// tsgo `handleCallHierarchyIncomingCalls` (the item's default project;
-    /// the cross-project search is L7e).
+    /// tsgo `handleCallHierarchyIncomingCalls`: the calls into each of the
+    /// item's declarations across projects (tsgo
+    /// `ProvideCallHierarchyIncomingCalls`).
     fn handle_call_hierarchy_incoming_calls(
         self: &Arc<Self>,
         context: &RequestContext,
         params: lsproto::CallHierarchyIncomingCallsParams,
         _request: &RequestMessage,
     ) -> Result<lsproto::CallHierarchyIncomingCallsResponse, Failure> {
-        let (snapshot, project) = self
-            .initialized_session()
-            .get_snapshot_and_default_project(&params.item.uri)
+        let start = self
+            .cross_project_start(&params.item.uri)
             .map_err(|error| LspError::internal(error.to_string()))?;
-        self.with_language_service(context, &snapshot, &project, |service| {
-            service
-                .provide_call_hierarchy_incoming_calls(&params.item)
-                .map_err(language_service_failure)
-        })
+        let targets = self.with_language_service(
+            context,
+            &start.snapshot,
+            &start.default_project,
+            |service| {
+                service
+                    .incoming_call_targets(&params.item)
+                    .map_err(language_service_failure)
+            },
+        )?;
+        let mut responses = Vec::new();
+        for target in targets {
+            responses.extend(self.search_across_projects(
+                context,
+                &start,
+                &target.uri,
+                &target.position,
+                SearchPosition::Lsp(target.position.clone()),
+                |service, uri, at, with_definition| {
+                    service.search_incoming_calls(uri, at, with_definition)
+                },
+                tsc_ls::combine_incoming_calls,
+            )?);
+        }
+        Ok(tsc_ls::incoming_calls_of_declarations(responses))
     }
 
     /// tsgo `handleCallHierarchyOutgoingCalls`.
@@ -1576,21 +1625,63 @@ impl Server {
             .as_ref()
             .map(|data| data.uri.clone())
             .unwrap_or_default();
-        let Ok((snapshot, project)) = self
-            .initialized_session()
-            .get_snapshot_and_default_project(&uri)
-        else {
+        let Ok(start) = self.cross_project_start(&uri) else {
             return Err(ErrorCode::CONTENT_MODIFIED.into());
         };
         let command_name = lock(&self.state)
             .initialization_options
             .code_lens_show_locations_command_name
             .clone();
-        self.with_language_service(context, &snapshot, &project, |service| {
-            service
-                .resolve_code_lens(code_lens, command_name.as_deref())
-                .map_err(language_service_failure)
-        })
+        // tsgo `ResolveCodeLens`: the default project's search at the lens's
+        // data position, the other projects' at the start of its range.
+        let data = code_lens.data.clone().expect("a code lens's data");
+        let default_at = SearchPosition::Offset(data.position as u32);
+        let position = &code_lens.range.start;
+        let locations = if data.kind == lsproto::CodeLensKind::REFERENCES {
+            // Don't include the declaration in the references count.
+            let response = self.search_across_projects(
+                context,
+                &start,
+                &uri,
+                position,
+                default_at,
+                |service, uri, at, with_definition| {
+                    service.search_references(uri, at, false, with_definition)
+                },
+                tsc_ls::combine_references,
+            )?;
+            match response {
+                Some(lsproto::LocationsOrNull::Locations(locations)) => locations,
+                _ => Vec::new(),
+            }
+        } else if data.kind == lsproto::CodeLensKind::IMPLEMENTATIONS {
+            // Locations only, without the lens's own node.
+            let response = self.search_across_projects(
+                context,
+                &start,
+                &uri,
+                position,
+                default_at,
+                |service, uri, at, with_definition| {
+                    service.search_implementations(uri, at, true, with_definition)
+                },
+                tsc_ls::combine_implementations,
+            )?;
+            match response {
+                Some(lsproto::LocationOrLocationsOrDefinitionLinksOrNull::Locations(locations)) => {
+                    locations
+                }
+                _ => Vec::new(),
+            }
+        } else {
+            Vec::new()
+        };
+        Ok(tsc_ls::code_lens_with_command(
+            context.locale.messages(),
+            code_lens,
+            locations,
+            command_name.as_deref(),
+        ))
     }
 
     /// tsgo `handleDocumentHighlight`.
@@ -1617,28 +1708,49 @@ impl Server {
             .map_err(language_service_failure)
     }
 
-    /// tsgo's Visual Studio references handler (one project).
+    /// tsgo `ProvideVSReferences` across projects.
     fn handle_vs_references(
         self: &Arc<Self>,
-        _context: &RequestContext,
-        service: &mut LanguageService<'_>,
+        context: &RequestContext,
+        start: &CrossProjectStart,
         params: lsproto::ReferenceParams,
     ) -> Result<lsproto::VSReferencesResponse, Failure> {
-        service
-            .provide_vs_references(&params)
-            .map_err(language_service_failure)
+        let response = self.search_across_projects(
+            context,
+            start,
+            &params.text_document.uri,
+            &params.position,
+            SearchPosition::Lsp(params.position.clone()),
+            |service, uri, at, with_definition| {
+                let SearchPosition::Lsp(position) = at else {
+                    unreachable!("a references search is at a document position");
+                };
+                service.search_vs_references(uri, position, with_definition)
+            },
+            tsc_ls::combine_vs_references,
+        )?;
+        Ok(response.unwrap_or(lsproto::VSReferenceItemsOrNull::Null))
     }
 
-    /// tsgo's implementation handler (one project).
+    /// tsgo `ProvideImplementations` across projects.
     fn handle_implementation(
         self: &Arc<Self>,
-        _context: &RequestContext,
-        service: &mut LanguageService<'_>,
+        context: &RequestContext,
+        start: &CrossProjectStart,
         params: lsproto::ImplementationParams,
     ) -> Result<lsproto::ImplementationResponse, Failure> {
-        service
-            .provide_implementations(&params)
-            .map_err(language_service_failure)
+        let response = self.search_across_projects(
+            context,
+            start,
+            &params.text_document.uri,
+            &params.position,
+            SearchPosition::Lsp(params.position.clone()),
+            |service, uri, at, with_definition| {
+                service.search_implementations(uri, at, false, with_definition)
+            },
+            tsc_ls::combine_implementations,
+        )?;
+        Ok(response.unwrap_or(lsproto::LocationOrLocationsOrDefinitionLinksOrNull::Null))
     }
 
     /// tsgo `handleShutdown`.
@@ -2014,15 +2126,15 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<
             lsproto::CustomTextDocumentMultiDocumentHighlightInfo,
         >(&mut handlers, Server::handle_multi_document_highlight);
-        register_language_service_document_request::<lsproto::TextDocumentReferencesInfo>(
+        register_multi_project_reference_request::<lsproto::TextDocumentReferencesInfo>(
             &mut handlers,
             Server::handle_references,
         );
-        register_language_service_document_request::<lsproto::TextDocumentVSReferencesInfo>(
+        register_multi_project_reference_request::<lsproto::TextDocumentVSReferencesInfo>(
             &mut handlers,
             Server::handle_vs_references,
         );
-        register_language_service_document_request::<lsproto::TextDocumentImplementationInfo>(
+        register_multi_project_reference_request::<lsproto::TextDocumentImplementationInfo>(
             &mut handlers,
             Server::handle_implementation,
         );
@@ -2128,6 +2240,66 @@ fn register_language_service_document_request<R: Request + 'static>(
                 server
                     .initialized_session()
                     .enqueue_publish_global_diagnostics();
+                let response = match response {
+                    Ok(response) => response?,
+                    Err(panic) => {
+                        let detail = panic
+                            .downcast_ref::<String>()
+                            .cloned()
+                            .or_else(|| panic.downcast_ref::<&str>().map(|text| (*text).to_owned()))
+                            .unwrap_or_default();
+                        return Err(LspError::wrap(
+                            ErrorCode::INTERNAL_ERROR,
+                            format!("panic handling request {}: {detail}", R::METHOD),
+                        )
+                        .into());
+                    }
+                };
+                context.check()?;
+                server
+                    .send_result(id, &response)
+                    .map_err(LspError::internal)?;
+                Ok(())
+            })))
+        }),
+    );
+}
+
+/// A cross-project request's handler.
+type MultiProjectHandler<R> = fn(
+    &Arc<Server>,
+    &RequestContext,
+    &CrossProjectStart,
+    <R as Request>::Params,
+) -> Result<<R as Request>::Response, Failure>;
+
+/// tsgo `registerMultiProjectReferenceRequestHandler`: the document's
+/// default project and the projects with it in the synchronous part; the
+/// search across projects after, then the answer. A panic answers tsgo's
+/// `recover` error.
+fn register_multi_project_reference_request<R: Request + 'static>(
+    handlers: &mut HashMap<&'static str, Handler>,
+    handle: MultiProjectHandler<R>,
+) where
+    R::Params: HasTextDocumentUri + Send + 'static,
+{
+    handlers.insert(
+        R::METHOD,
+        Box::new(move |server, context, request| {
+            if server.session().is_none() {
+                return Err(ErrorCode::SERVER_NOT_INITIALIZED.into());
+            }
+            let params = decode_params::<R::Params>(request)?;
+            let start = server
+                .cross_project_start(params.text_document_uri())
+                .map_err(|error| LspError::internal(error.to_string()))?;
+            let server = Arc::clone(server);
+            let context = context.clone();
+            let id = request.id.clone();
+            Ok(Some(Box::new(move || {
+                let response = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    handle(&server, &context, &start, params)
+                }));
                 let response = match response {
                     Ok(response) => response?,
                     Err(panic) => {

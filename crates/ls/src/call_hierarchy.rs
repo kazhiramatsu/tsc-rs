@@ -25,12 +25,55 @@ use tsc_syntax::{
 use tsc_types::{JsStr, ModifierFlags, NodeFlags, SymbolFlags, SymbolId};
 
 use crate::astnav::Navigator;
+use crate::cross_project::{SearchPosition, TextDocumentPosition};
 use crate::definition::Callee;
-use crate::find_all_references::{EntryKind, ReferenceEntry};
+use crate::find_all_references::{EntryKind, ReferenceEntry, SymbolAndEntriesData};
 use crate::language_service::{LanguageService, LsError};
 use crate::request::Request;
 use crate::symbols::symbol_kind_from_node;
-use crate::utilities::{token_start, touching, Touching};
+use crate::utilities::{script_of, token_start, touching, Touching};
+
+/// The rest of tsgo `getIncomingCalls` and `ProvideCallHierarchyIncomingCalls`
+/// over each declaration's calls (its projects' answers combined): the calls
+/// by file and first range, then each caller (by its item's selection range)
+/// once with its ranges merged; none without calls.
+pub fn incoming_calls_of_declarations(
+    responses: Vec<CallHierarchyIncomingCallsResponse>,
+) -> CallHierarchyIncomingCallsResponse {
+    let mut calls: Vec<CallHierarchyIncomingCall> = Vec::new();
+    for response in responses {
+        let CallHierarchyIncomingCallsOrNull::CallHierarchyIncomingCalls(mut response) = response
+        else {
+            continue;
+        };
+        response.sort_by(|left, right| {
+            left.from
+                .uri
+                .as_str()
+                .cmp(right.from.uri.as_str())
+                .then_with(|| compare_first_ranges(&left.from_ranges, &right.from_ranges))
+        });
+        for call in response {
+            match calls.iter_mut().find(|known| {
+                known.from.uri == call.from.uri
+                    && known.from.selection_range == call.from.selection_range
+            }) {
+                Some(existing) => {
+                    for range in call.from_ranges {
+                        if !existing.from_ranges.contains(&range) {
+                            existing.from_ranges.push(range);
+                        }
+                    }
+                }
+                None => calls.push(call),
+            }
+        }
+    }
+    if calls.is_empty() {
+        return CallHierarchyIncomingCallsOrNull::Null;
+    }
+    CallHierarchyIncomingCallsOrNull::CallHierarchyIncomingCalls(calls)
+}
 
 /// tsgo `callSite`: a call of a declaration, at a range of a file.
 struct CallSite {
@@ -67,44 +110,42 @@ impl LanguageService<'_> {
         })
     }
 
-    /// tsgo `ProvideCallHierarchyIncomingCalls` (one project; the other
-    /// projects of the orchestrator come with L7e): the calls into the
-    /// item's declarations, a caller's ranges merged.
+    /// tsgo `ProvideCallHierarchyIncomingCalls` of one project (no
+    /// orchestrator; the server searches each target across projects): the
+    /// calls into the item's declarations, a caller's ranges merged.
     pub fn provide_call_hierarchy_incoming_calls(
         &mut self,
         item: &CallHierarchyItem,
     ) -> Result<CallHierarchyIncomingCallsResponse, LsError> {
+        let mut responses = Vec::new();
+        for target in self.incoming_call_targets(item)? {
+            let at = SearchPosition::Lsp(target.position);
+            if let Some(search) = self.search_incoming_calls(&target.uri, &at, false)? {
+                responses.push(search.response);
+            }
+        }
+        Ok(incoming_calls_of_declarations(responses))
+    }
+
+    /// The first part of tsgo `ProvideCallHierarchyIncomingCalls` and of its
+    /// `getIncomingCalls`: where to search the references of each of the
+    /// item's declarations that can be called (its reference node).
+    pub fn incoming_call_targets(
+        &mut self,
+        item: &CallHierarchyItem,
+    ) -> Result<Vec<TextDocumentPosition>, LsError> {
         let Some(file) = self.item_file(item) else {
-            return Ok(CallHierarchyIncomingCallsOrNull::Null);
+            return Ok(Vec::new());
         };
         let position = &item.selection_range.start;
-        let calls = self.with_request(file, position, false, |request, position| {
-            let mut calls: Vec<CallHierarchyIncomingCall> = Vec::new();
+        let targets = self.with_request(file, position, false, |request, position| {
+            let mut targets = Vec::new();
             for declaration in request.call_hierarchy_declarations(file, position, true)? {
-                for call in request.incoming_calls(declaration)? {
-                    match calls.iter_mut().find(|known| {
-                        known.from.uri == call.from.uri
-                            && known.from.selection_range == call.from.selection_range
-                    }) {
-                        Some(existing) => {
-                            for range in call.from_ranges {
-                                if !existing.from_ranges.contains(&range) {
-                                    existing.from_ranges.push(range);
-                                }
-                            }
-                        }
-                        None => calls.push(call),
-                    }
-                }
+                targets.extend(request.incoming_call_target(declaration));
             }
-            Ok(calls)
+            Ok(targets)
         })?;
-        Ok(match calls {
-            Some(calls) if !calls.is_empty() => {
-                CallHierarchyIncomingCallsOrNull::CallHierarchyIncomingCalls(calls)
-            }
-            _ => CallHierarchyIncomingCallsOrNull::Null,
-        })
+        Ok(targets.unwrap_or_default())
     }
 
     /// tsgo `ProvideCallHierarchyOutgoingCalls`: the calls out of the item's
@@ -477,13 +518,10 @@ impl Request<'_, '_> {
         Ok(String::new())
     }
 
-    /// tsgo `getIncomingCalls`: the calls into a declaration — its
-    /// references that call it, grouped by the declaration they are in, by
-    /// file and first range.
-    fn incoming_calls(
-        &mut self,
-        declaration: NodeId,
-    ) -> CheckResult<Vec<CallHierarchyIncomingCall>> {
+    /// The start of tsgo `getIncomingCalls`: where a declaration's
+    /// references are searched (tsgo's `incomingEntry`, its reference
+    /// node); none for a file, a module or a static block.
+    fn incoming_call_target(&self, declaration: NodeId) -> Option<TextDocumentPosition> {
         // Source files and modules have no incoming calls.
         if matches!(
             self.node_kind(declaration),
@@ -491,15 +529,27 @@ impl Request<'_, '_> {
                 | SyntaxKind::ModuleDeclaration
                 | SyntaxKind::ClassStaticBlockDeclaration
         ) {
-            return Ok(Vec::new());
+            return None;
         }
-        let Some(location) = self.call_hierarchy_declaration_reference_node(declaration) else {
-            return Ok(Vec::new());
-        };
-        let file = self.state.binder.file_index_of_node(location);
-        let source = self.state.binder.source(file);
-        let position = token_start(source, location) as u32;
-        let data = self.provide_symbols_and_entries(file, position, false, false)?;
+        let location = self.call_hierarchy_declaration_reference_node(declaration)?;
+        let source = self.state.binder.source_of_node(location);
+        Some(TextDocumentPosition {
+            uri: DocumentUri(file_name_to_document_uri(
+                &source.file_name.to_string_lossy(),
+            )),
+            position: self
+                .converters
+                .to_lsp_position(&script_of(source), token_start(source, location)),
+        })
+    }
+
+    /// tsgo `symbolAndEntriesToIncomingCalls`: the references that call
+    /// what they name, grouped by the declaration they are in; none without
+    /// such a reference.
+    pub(crate) fn symbol_and_entries_to_incoming_calls(
+        &mut self,
+        data: Option<&SymbolAndEntriesData>,
+    ) -> CheckResult<CallHierarchyIncomingCallsResponse> {
         let entries: Vec<ReferenceEntry> = data
             .iter()
             .flat_map(|data| data.symbols_and_entries.iter())
@@ -509,6 +559,9 @@ impl Request<'_, '_> {
             .iter()
             .filter_map(|entry| self.convert_entry_to_call_site(entry))
             .collect();
+        if call_sites.is_empty() {
+            return Ok(CallHierarchyIncomingCallsOrNull::Null);
+        }
         let mut calls = Vec::new();
         for sites in group_call_sites(call_sites) {
             let from_ranges = self.sorted_ranges(&sites);
@@ -520,14 +573,7 @@ impl Request<'_, '_> {
             }
             calls.push(CallHierarchyIncomingCall { from, from_ranges });
         }
-        calls.sort_by(|left, right| {
-            left.from
-                .uri
-                .as_str()
-                .cmp(right.from.uri.as_str())
-                .then_with(|| compare_first_ranges(&left.from_ranges, &right.from_ranges))
-        });
-        Ok(calls)
+        Ok(CallHierarchyIncomingCallsOrNull::CallHierarchyIncomingCalls(calls))
     }
 
     /// tsgo `convertEntryToCallSite`: a reference that calls (or accesses)

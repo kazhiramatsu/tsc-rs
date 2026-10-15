@@ -6,13 +6,15 @@ use std::collections::HashSet;
 
 use tsc_binder::node_util;
 use tsc_diagnostics::gen;
+use tsc_diagnostics::MessageCatalog;
 use tsc_lsproto::{
     CodeLens, CodeLensData, CodeLensKind, CodeLensResponse, CodeLensesOrNull, Command, DocumentUri,
-    ImplementationResponse, ReferencesResponse,
+    ImplementationResponse, Location, ReferencesResponse,
 };
 use tsc_syntax::{skip_trivia, NodeId, SyntaxKind};
 use tsc_types::{ModifierFlags, SymbolId};
 
+use crate::cross_project::{ProjectSearch, SearchPosition};
 use crate::language_service::{LanguageService, LsError};
 use crate::lsutil::{localize, CodeLensUserPreferences};
 use crate::request::Request;
@@ -44,65 +46,79 @@ impl LanguageService<'_> {
         Ok(CodeLensesOrNull::CodeLenses(lenses.unwrap_or_default()))
     }
 
-    /// tsgo `ResolveCodeLens` (one project): the lens's command, titled by
-    /// the count of the references (the declarations left out) or
-    /// implementations (the lens's own node left out), showing them with
-    /// the client's command when it gave one.
+    /// tsgo `ResolveCodeLens` of one project (no orchestrator; the server
+    /// searches across projects): the lens's command over the references
+    /// (the declarations left out) or implementations (the lens's own node
+    /// left out) at the lens's data position.
     pub fn resolve_code_lens(
         &mut self,
-        mut code_lens: CodeLens,
+        code_lens: CodeLens,
         show_locations_command_name: Option<&str>,
     ) -> Result<CodeLens, LsError> {
         let data = code_lens.data.clone().expect("a code lens's data");
-        let file = self.file(&data.uri);
-        let position = data.position as u32;
-        let catalog = self.catalog;
-        let references = data.kind == CodeLensKind::REFERENCES;
-        let implementations = data.kind == CodeLensKind::IMPLEMENTATIONS;
-        let locations = self.with_request_at(file, position, false, |request, position| {
-            if references {
-                let data = request.provide_symbols_and_entries(file, position, false, false)?;
-                // Don't include the declaration in the references count.
-                if let ReferencesResponse::Locations(locations) =
-                    request.symbol_and_entries_to_references(data.as_ref(), false)
-                {
-                    return Ok(locations);
-                }
-            } else if implementations {
-                let data = request.provide_symbols_and_entries(file, position, false, true)?;
-                // Locations only, and not the lens's own node.
-                if let ImplementationResponse::Locations(locations) = request
-                    .symbol_and_entries_to_implementations(data.as_ref(), false, Some(position))
-                {
-                    return Ok(locations);
-                }
+        let at = SearchPosition::Offset(data.position as u32);
+        let locations = if data.kind == CodeLensKind::REFERENCES {
+            match self.search_references(&data.uri, &at, false, false)? {
+                Some(ProjectSearch {
+                    response: ReferencesResponse::Locations(locations),
+                    ..
+                }) => locations,
+                _ => Vec::new(),
             }
-            Ok(Vec::new())
-        })?;
-        let locations = locations.unwrap_or_default();
-        let count = locations.len().to_string();
-        let title = match (references, implementations, locations.len()) {
-            (true, _, 1) => localize(catalog, &gen::_1_reference, &[]),
-            (true, _, _) => localize(catalog, &gen::_0_references, &[&count]),
-            (_, true, 1) => localize(catalog, &gen::_1_implementation, &[]),
-            (_, true, _) => localize(catalog, &gen::_0_implementations, &[&count]),
-            _ => String::new(),
+        } else if data.kind == CodeLensKind::IMPLEMENTATIONS {
+            match self.search_implementations(&data.uri, &at, true, false)? {
+                Some(ProjectSearch {
+                    response: ImplementationResponse::Locations(locations),
+                    ..
+                }) => locations,
+                _ => Vec::new(),
+            }
+        } else {
+            Vec::new()
         };
-        let mut command = Command {
-            title,
-            ..Command::default()
-        };
-        if let (false, Some(name)) = (locations.is_empty(), show_locations_command_name) {
-            command.command = name.to_owned();
-            command.arguments = Some(vec![
-                serde_json::to_value(&data.uri).expect("a URI"),
-                serde_json::to_value(&code_lens.range.start).expect("a position"),
-                serde_json::to_value(&locations).expect("locations"),
-            ]);
-        }
-        code_lens.command = Some(command);
-        Ok(code_lens)
+        Ok(code_lens_with_command(
+            self.catalog,
+            code_lens,
+            locations,
+            show_locations_command_name,
+        ))
     }
+}
+
+/// The end of tsgo `ResolveCodeLens`: the lens's command, titled by the
+/// count of its locations, showing them with the client's command when it
+/// gave one.
+pub fn code_lens_with_command(
+    catalog: Option<&dyn MessageCatalog>,
+    mut code_lens: CodeLens,
+    locations: Vec<Location>,
+    show_locations_command_name: Option<&str>,
+) -> CodeLens {
+    let data = code_lens.data.clone().expect("a code lens's data");
+    let references = data.kind == CodeLensKind::REFERENCES;
+    let implementations = data.kind == CodeLensKind::IMPLEMENTATIONS;
+    let count = locations.len().to_string();
+    let title = match (references, implementations, locations.len()) {
+        (true, _, 1) => localize(catalog, &gen::_1_reference, &[]),
+        (true, _, _) => localize(catalog, &gen::_0_references, &[&count]),
+        (_, true, 1) => localize(catalog, &gen::_1_implementation, &[]),
+        (_, true, _) => localize(catalog, &gen::_0_implementations, &[&count]),
+        _ => String::new(),
+    };
+    let mut command = Command {
+        title,
+        ..Command::default()
+    };
+    if let (false, Some(name)) = (locations.is_empty(), show_locations_command_name) {
+        command.command = name.to_owned();
+        command.arguments = Some(vec![
+            serde_json::to_value(&data.uri).expect("a URI"),
+            serde_json::to_value(&code_lens.range.start).expect("a position"),
+            serde_json::to_value(&locations).expect("locations"),
+        ]);
+    }
+    code_lens.command = Some(command);
+    code_lens
 }
 
 /// tsgo `ProvideCodeLenses`'s walk: the lenses so far, each kind and range
