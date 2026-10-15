@@ -617,6 +617,29 @@ fn execute<'a>(
     args: &[String],
     watcher: &mut Option<CommandWatcher<'a>>,
 ) -> Result<CliOutput, CliError> {
+    let mut profile = None;
+    let mut result = execute_command(system, testing, args, watcher, &mut profile);
+    // tsgo's deferred `Stop` of `--pprofDir`'s profile: written as the run
+    // ends, its path after the run's output.
+    if let Some(profile) = profile {
+        let mut log = Vec::new();
+        profile.stop(&mut log);
+        let log = String::from_utf8_lossy(&log);
+        match &mut result {
+            Ok(output) => output.stdout.push_str(&log),
+            Err(_) => system.write_output(&log),
+        }
+    }
+    result
+}
+
+fn execute_command<'a>(
+    system: &'a dyn System,
+    testing: Option<&'a dyn CommandLineTesting>,
+    args: &[String],
+    watcher: &mut Option<CommandWatcher<'a>>,
+    profile: &mut Option<crate::pprof::ProfileSession>,
+) -> Result<CliOutput, CliError> {
     // tsgo CommandLine (execute/tsc.go): the build command when the first
     // argument is -b/--b/-build/--build.
     if let Some(first) = args.first() {
@@ -624,7 +647,7 @@ fn execute<'a>(
             first.to_ascii_lowercase().as_str(),
             "-b" | "--b" | "-build" | "--build"
         ) {
-            return execute_build(system, testing, &args[1..], watcher);
+            return execute_build(system, testing, &args[1..], watcher, profile);
         }
     }
     let prologue_started = std::time::Instant::now();
@@ -658,6 +681,12 @@ fn execute<'a>(
     };
     if !parsed.errors.is_empty() {
         return reported_diagnostics_with_exit(format, &parsed.errors, EXIT_COMMAND_LINE);
+    }
+    // tsgo: `--pprofDir` profiles the rest of the run.
+    if let Some(profile_dir) = parsed.option_string("pprofDir") {
+        *profile = Some(crate::pprof::begin_profiling(
+            &profile_dir.to_string_lossy(),
+        ));
     }
     // tsgo createColors follows the environment and the terminal, not
     // --pretty.
@@ -976,6 +1005,7 @@ fn execute_build<'a>(
     testing: Option<&'a dyn CommandLineTesting>,
     args: &[String],
     watcher: &mut Option<CommandWatcher<'a>>,
+    profile: &mut Option<crate::pprof::ProfileSession>,
 ) -> Result<CliOutput, CliError> {
     let host = system.compiler_host();
     let host = &*host;
@@ -1007,6 +1037,12 @@ fn execute_build<'a>(
     };
     if !parsed.errors.is_empty() {
         return reported_diagnostics_with_exit(format, &parsed.errors, EXIT_COMMAND_LINE);
+    }
+    // tsgo: `--pprofDir` profiles the rest of the build.
+    if let Some(profile_dir) = parsed.option_string("pprofDir") {
+        *profile = Some(crate::pprof::begin_profiling(
+            &profile_dir.to_string_lossy(),
+        ));
     }
     if parsed.option_bool("help") == Some(true) {
         let help = Help::new(system, default_pretty(system), locale, TYPESCRIPT_VERSION);

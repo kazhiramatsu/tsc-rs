@@ -74,6 +74,7 @@ mod init;
 mod live;
 pub mod locale;
 mod options;
+pub mod pprof;
 mod show_config;
 mod statistics;
 pub mod system;

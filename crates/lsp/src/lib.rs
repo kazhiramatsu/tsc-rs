@@ -10,5 +10,6 @@ pub mod logger;
 pub mod progress;
 pub mod queue;
 pub mod server;
+pub mod stack_sanitizer;
 
 pub use server::{Server, ServerOptions};
