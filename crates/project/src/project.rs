@@ -101,6 +101,9 @@ pub struct ProgramRoots {
     pub config_file_parsing_diagnostics: Vec<Diagnostic>,
     /// The projects the program references, by config path.
     pub project_references: Vec<ConfigProjectReference>,
+    /// tsgo `ParsedConfig.ContentMappers`: an inferred project's mappers
+    /// (the editor's contributions).
+    pub content_mappers: Vec<Arc<tsc_program::content_mapper::Mapper>>,
 }
 
 impl ProgramRoots {
@@ -130,7 +133,30 @@ impl ProgramRoots {
             program_options,
             config_file_parsing_diagnostics,
             project_references,
+            content_mappers: Vec::new(),
         })
+    }
+
+    /// The roots with `mappers` (tsgo `newInferredProjectCommandLine`'s
+    /// `ContentMappers`), which see a project without a config file.
+    pub(crate) fn with_content_mappers(
+        mut self,
+        mappers: Vec<Arc<tsc_program::content_mapper::Mapper>>,
+    ) -> Self {
+        if !mappers.is_empty() {
+            let spec = tsc_program::content_mapper::host::ProjectSpec {
+                config_file_name: String::new(),
+                mappers: mappers.clone(),
+                compiler_options: Arc::new(tsc_program::go_json::option_bag_compiler_options_json(
+                    &self.options,
+                )),
+            };
+            self.program_options = self
+                .program_options
+                .with_content_mapper_spec(Arc::new(spec));
+        }
+        self.content_mappers = mappers;
+        self
     }
 }
 
@@ -143,11 +169,13 @@ impl ProgramRoots {
 pub(crate) fn inferred_project_roots(
     root_file_names: Vec<String>,
     options: Option<&ConfigOptionBag>,
+    content_mappers: Vec<Arc<tsc_program::content_mapper::Mapper>>,
     paths: &Paths,
 ) -> ProgramRoots {
     let options = options.cloned().unwrap_or_else(default_inferred_options);
     ProgramRoots::new(root_file_names, options, Vec::new(), Vec::new(), paths)
         .expect("the inferred project's options convert")
+        .with_content_mappers(content_mappers)
 }
 
 /// tsgo `NewInferredProject`'s default options.

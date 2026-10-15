@@ -317,6 +317,8 @@ fn a_deletion_drops_the_files_no_project_read() {
         },
         Arc::clone(&fs) as Arc<dyn FileSystem>,
         None,
+        "",
+        None,
     );
     let id = ProjectId::configured("/p/tsconfig.json").expect("a configured ID");
     let opened = host

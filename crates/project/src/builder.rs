@@ -25,6 +25,7 @@ use crate::project::{
     default_project_from_program_inclusion, inferred_project_roots, CommandLine, ProgramRoots,
     ProgramUpdateKind, Project, ProjectProgram,
 };
+use crate::snapshot::ContentMapperContributions;
 use crate::snapshot::{
     ApiSnapshotRequest, ApiState, CreateProgramRequest, OpenedFile, ProjectCollection,
     ProjectError, ProjectTreeRequest, SnapshotHost,
@@ -83,6 +84,8 @@ pub(crate) struct ProjectCollectionBuilder<'a> {
     default_projects_invalidated: bool,
     /// tsgo `compilerOptionsForInferredProjects`.
     compiler_options_for_inferred_projects: Option<Arc<ConfigOptionBag>>,
+    /// tsgo `inferredContentMappers` and `inferredContentMapperExtensions`.
+    inferred_content_mappers: &'a ContentMapperContributions,
 }
 
 impl<'a> ProjectCollectionBuilder<'a> {
@@ -93,6 +96,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
         base: &'a Arc<ProjectCollection>,
         configs: ConfigFileRegistryBuilder<'a>,
         compiler_options_for_inferred_projects: Option<Arc<ConfigOptionBag>>,
+        inferred_content_mappers: &'a ContentMapperContributions,
     ) -> Self {
         Self {
             host,
@@ -110,6 +114,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
             program_structure_changed: false,
             default_projects_invalidated: false,
             compiler_options_for_inferred_projects,
+            inferred_content_mappers,
         }
     }
 
@@ -701,6 +706,9 @@ impl<'a> ProjectCollectionBuilder<'a> {
                     .program_options
                     .clone()
                     .with_document_script_kinds(document_script_kinds);
+                if let Some(project) = self.content_mapper_project(&program_options) {
+                    program_options = program_options.with_content_mapper_project(project);
+                }
                 if let Some(resolved) = resolved {
                     program_options = program_options
                         .with_project_references(resolved)
@@ -744,18 +752,24 @@ impl<'a> ProjectCollectionBuilder<'a> {
     /// from it keep the project until no snapshot holds them (tsgo
     /// `Snapshot.dispose`).
     fn with_content_mapper_project(&self, plan: &Arc<ConfigRootPlan>) -> Arc<ConfigRootPlan> {
-        let project = self.host.content_mapper_host().and_then(|host| {
-            let view = host.project(Arc::clone(plan.program_options().content_mapper_spec()?))?;
-            Some(view.with_content_mapped_cache(Arc::clone(self.host.content_mapped_cache())))
-        });
-        match project {
-            Some(project) => Arc::new(
-                (**plan)
-                    .clone()
-                    .with_content_mapper_project(ContentMapperProjectHandle(Arc::new(project))),
-            ),
+        match self.content_mapper_project(plan.program_options()) {
+            Some(project) => Arc::new((**plan).clone().with_content_mapper_project(project)),
             None => Arc::clone(plan),
         }
+    }
+
+    /// The project of a program's content mappers in the session's host
+    /// (tsgo compiler host `ContentMapperProject`), when it has mappers that
+    /// may run.
+    fn content_mapper_project(
+        &self,
+        options: &tsc_program::ProgramOptions,
+    ) -> Option<ContentMapperProjectHandle> {
+        let host = self.host.content_mapper_host()?;
+        let view = host.project(Arc::clone(options.content_mapper_spec()?))?;
+        Some(ContentMapperProjectHandle(Arc::new(
+            view.with_content_mapped_cache(Arc::clone(self.host.content_mapped_cache())),
+        )))
     }
 
     /// tsgo `deleteProject`: a configured project releases its config.
@@ -1341,10 +1355,22 @@ impl<'a> ProjectCollectionBuilder<'a> {
         }
     }
 
+    /// tsgo `DidChangeContentMapperContributions`: the inferred project's
+    /// roots collected again (the files of a contributed extension may join
+    /// it), and its program brought up to date.
+    pub(crate) fn did_change_content_mapper_contributions(&mut self) -> Result<(), ProjectError> {
+        self.cleanup_inferred_project()?;
+        if self.inferred.is_some() {
+            self.update_program(&ProjectId::inferred())?;
+        }
+        Ok(())
+    }
+
     /// tsgo `updateInferredProject` and `updateOrCreateInferredProject`: no
-    /// root deletes the inferred project; otherwise its sorted roots and its
-    /// options (the project's own when none are given) replace the old ones
-    /// when they differ.
+    /// root deletes the inferred project; otherwise its sorted roots, its
+    /// options (the project's own when none are given) and the editor's
+    /// content mappers replace the old ones when they differ (tsgo compares
+    /// the mappers by identity).
     fn update_inferred_project(
         &mut self,
         mut roots: Vec<String>,
@@ -1358,18 +1384,31 @@ impl<'a> ProjectCollectionBuilder<'a> {
         }
         roots.sort();
         let current_directory = self.host.options().current_directory.clone();
+        let mappers = self.inferred_content_mappers.mappers.clone();
         let Some(project) = &self.inferred else {
-            let roots = inferred_project_roots(roots, options, self.host.paths());
+            let roots = inferred_project_roots(roots, options, mappers, self.host.paths());
             self.insert(self.with_watches(Project::new_inferred(current_directory, roots)));
             return;
         };
-        let current = match project.command_line() {
-            Some(CommandLine::Roots(roots)) => Some(&roots.options),
-            _ => None,
+        let (current, current_mappers) = match project.command_line() {
+            Some(CommandLine::Roots(roots)) => {
+                (Some(&roots.options), roots.content_mappers.as_slice())
+            }
+            _ => (None, &[][..]),
         };
         let options = options.or(current);
-        if project.root_file_names() != roots || options != current {
-            let roots = Arc::new(inferred_project_roots(roots, options, self.host.paths()));
+        let same_mappers = current_mappers.len() == mappers.len()
+            && current_mappers
+                .iter()
+                .zip(&mappers)
+                .all(|(current, mapper)| Arc::ptr_eq(current, mapper));
+        if project.root_file_names() != roots || options != current || !same_mappers {
+            let roots = Arc::new(inferred_project_roots(
+                roots,
+                options,
+                mappers,
+                self.host.paths(),
+            ));
             self.change(&ProjectId::inferred(), |project| {
                 project.set_command_line(CommandLine::Roots(roots));
             });
@@ -1855,6 +1894,15 @@ impl ProjectCollectionBuilder<'_> {
         }) {
             return true;
         }
-        extension.is_none() && self.is_open_file(&self.host.paths().to_path(file_name))
+        if extension.is_none() && self.is_open_file(&self.host.paths().to_path(file_name)) {
+            return true;
+        }
+        // tsgo `ExtensionIsOneOf(b.inferredContentMapperExtensions)`.
+        self.inferred_content_mappers
+            .extensions
+            .iter()
+            .any(|extension| {
+                file_name.len() > extension.len() && file_name.ends_with(extension.as_str())
+            })
     }
 }
