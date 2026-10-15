@@ -987,3 +987,30 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   regressions（48 行 none→full。lsp 3,820 → 3,868 full）、call hierarchy・code lens の 55 場面のうち 48、test（ls 202 ほか
   全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
 - **有界の違い**：複数 project の 3 場面（L7e の orchestrator）、content mapper の 4 場面（L10）。
+
+## L7e source definition・workspace symbol（#802）
+
+- **merge**：#802 → `6e7aa4ed2`（hosted run 38655436044：rust 10m49s、conformance 31m0s、gates）。commit：175800cf4
+  （compiler 側）、13df917ea（language service）、0e3bbe394（ratchet）。検査の後の main の取り込みは L7d の merge（同じ code）
+  と packet の README だけ。
+- **compiler 側**：tsgo 7.1 の `GetNonAssignedNameOfDeclaration` に識別子の場合はない（6.0.3 は識別子を返した）。tsgo が
+  reparse で作る宣言を表す識別子だけは名前を持つ：`@overload` tag の名前（host の名前の複製）と `@this` tag の上の識別子
+  （`this` 引数の幅のない名前。`.symbols` の基準は `(Missing)`）。最初の版は `@this` の場合を欠き、`.symbols` に 5 件の退行
+  （thisTag1、constructorTagWithThisTag、inferThis、thisInFunctionCallJs、thisPrototypeMethodCompoundAssignmentJs）が出た。
+  `node_util` に `TryGetTextOfPropertyName`、`getContainerNode`（hover の複製もそれを使う）、構文だけの
+  `IsArrayLiteralOrObjectLiteralDestructuringPattern`（checker の問い合わせはそれに委ねる）。checker に tsgo 7.1 の
+  `GetNodeModulePathParts` の package の事実（`node_module_package_path`）と `TryGetModuleSpecifierFromDeclaration`。
+  program に tsgo `ChangeExtension`（`change_full_extension` も使う）と `GetImpliedNodeFormatForFile`。
+- **source definition**（`source_definition.rs`、tsgo `sourcedefinition.go`）：module specifier の実装の入口、実装の file の
+  名前の宣言（import を通って転送、property 的なものと具体的なものを優先）、declaration map の source、package の
+  declaration file に対する JavaScript。declaration file を使わない解決（`noDtsResolution`、優先の mode、ESM、CommonJS の順）
+  を snapshot の file system の上で行い、program にない file を parse する。定義の位置は任意の parse の宣言を取れる（context
+  node と範囲は source 基準）。`preferGoToSourceDefinition` で `textDocument/definition` も source definition を答える。
+- **workspace symbol**（`symbols.rs`、tsgo `ProvideWorkspaceSymbols`）：file ごとの declaration map（overload の組は一度）、
+  tsgo の一致の点数と順、先頭の 256 件。`currentProject` の範囲では文書の project、それ以外は全 project（project tree を
+  読み込んで）。
+- **検査（0e3bbe394）**：conformance 0 regressions（全 13,577 full、485 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（108 行 none→full。lsp 3,868 → 3,976）、source definition 91/91・workspace symbol 17/17、test（program 682、
+  checker 1,803、ls 204 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
+- **回帰 test**：`crates/ls/tests/references.rs`（parameter property と計算された名前の property の workspace symbol）、
+  checker の package の事実、program の `ChangeExtension`。
