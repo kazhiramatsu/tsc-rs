@@ -339,6 +339,7 @@ pub(crate) struct SyntacticRecoveryBoundary {
     previous_depth: u32,
     previous_recovery_tracked_symbols: Option<Vec<RecoveryTrackedSymbol>>,
     previous_tracked_symbols: Option<Vec<TrackedSymbol>>,
+    previous_approximate_length: u32,
 }
 
 impl SyntacticRecoveryBoundary {
@@ -357,6 +358,7 @@ impl SyntacticRecoveryBoundary {
             previous_depth,
             previous_recovery_tracked_symbols,
             previous_tracked_symbols,
+            previous_approximate_length: context.approximate_length,
         }
     }
 
@@ -417,6 +419,9 @@ impl SyntacticRecoveryBoundary {
         context.tracked_symbols = self.previous_tracked_symbols;
         context.recovery_boundary_had_error = self.previous_had_error;
         context.recovery_boundary_depth = self.previous_depth;
+        // tsgo `finalizeBoundary`: the length the attempt added is dropped;
+        // a reused node counts as its source text.
+        context.approximate_length = self.previous_approximate_length;
         if succeeded {
             for (symbol, symbol_flags, enclosing, synthetic, meaning) in buffered {
                 context.tracker.track_symbol(

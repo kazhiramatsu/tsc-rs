@@ -231,10 +231,12 @@ fn template_inference_splits_unpaired_surrogate_losslessly() {
             // unpaired surrogate.
             let empty = TemplateText::default();
             let number = state.tables.intrinsics.number;
-            let target = state.get_template_literal_type_from_texts(
-                &[empty.clone(), empty.clone(), empty],
-                &[number, number],
-            );
+            let target = state
+                .get_template_literal_type_from_texts(
+                    &[empty.clone(), empty.clone(), empty],
+                    &[number, number],
+                )
+                .unwrap();
             let inferred = state
                 .infer_types_from_template_literal_type(source, target)
                 .expect("lossless split does not escape")

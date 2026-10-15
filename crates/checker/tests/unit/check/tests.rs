@@ -10336,3 +10336,34 @@ fn inputs_that_crashed_the_checker_report_tsgo_rows() {
     .collect();
     assert_eq!(rows, expected);
 }
+
+/// tsgo `checkUnmatchedJSDocParameters` reports a typed `@param` tag no
+/// parameter matches with `errorOrSuggestion(isJs, …)`: a suggestion in a
+/// TypeScript file, here an arrow function initializer whose property
+/// carries the JSDoc (found by the LSP test on hono, in `fetch` of
+/// hono-base.ts). A name-first tag (no type before the name) is not
+/// reported. Pinned to tsgo's diagnostics at aa814927.
+#[test]
+fn an_unmatched_jsdoc_parameter_is_a_suggestion_in_typescript() {
+    let text = "class A {\n  /**\n   * @param {number} a - x\n   * @param {number} b - y\n   */\n  f: (a: number, b?: number) => void = (a, ...rest) => {}\n  /**\n   * @param a - x\n   * @param b - y\n   */\n  h = (a: number) => {}\n}\n";
+    with_program_state(&[("/a.ts", text)], &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        let rows: Vec<_> = state
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 8024)
+            .map(|diagnostic| {
+                let start = diagnostic.start.expect("a spanned diagnostic") as usize;
+                let end = start + diagnostic.length.expect("a spanned diagnostic") as usize;
+                (diagnostic.category(), text[start..end].to_owned())
+            })
+            .collect();
+        assert_eq!(
+            rows,
+            vec![(
+                tsc_diagnostics::DiagnosticCategory::Suggestion,
+                "b".to_owned()
+            )]
+        );
+    });
+}

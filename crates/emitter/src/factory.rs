@@ -965,10 +965,11 @@ impl TransformArena {
         self.metadata.entry(node).or_default()
     }
 
-    /// The emit flags and synthetic comments of `root`'s subtree dropped:
-    /// tsgo's checker builds `TypeToTypeNodeEx`'s nodes in an emit context
-    /// of its own (`getNodeBuilderEx`: `printer.NewEmitContext()`), which a
-    /// printer of another context never reads.
+    /// The emit flags, synthetic comments and comment ranges of `root`'s
+    /// subtree dropped: tsgo's checker builds `TypeToTypeNodeEx`'s nodes in
+    /// an emit context of its own (`getNodeBuilderEx`:
+    /// `printer.NewEmitContext()`), which a printer of another context never
+    /// reads (a property's comment range from its declaration included).
     pub fn forget_emit_flags_and_comments(
         &mut self,
         root: TransformNode,
@@ -990,6 +991,7 @@ impl TransformArena {
                 metadata.flags = EmitFlags::NONE;
                 metadata.leading_comments.clear();
                 metadata.trailing_comments.clear();
+                metadata.comment_range = None;
             }
         }
         Ok(())
