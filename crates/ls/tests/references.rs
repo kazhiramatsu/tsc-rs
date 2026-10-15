@@ -1380,3 +1380,44 @@ fn a_this_type_has_this_references() {
         class
     );
 }
+
+/// tsgo prints a signature help item's parameters with a node builder of
+/// the item's own (`itemInfoForParameters`), whose cache lets a later
+/// parameter reuse the whole node an earlier one built, and each return
+/// type with a fresh one (`TypeToTypeNode`), so no signature reuses a node
+/// another signature cut (found by the LSP test on hono). Pinned to tsgo's
+/// answers at aa814927.
+#[test]
+fn signature_help_items_and_return_types_keep_their_own_built_nodes() {
+    let a = (0..12)
+        .map(|index| format!("a{index}: string"))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let b = (0..12)
+        .map(|index| format!("b{index}: number"))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let text = format!("declare const t: {{ {a} }};\ninterface Box<T> {{ get(): T }}\ninterface Pair<U, T> {{ get(): T }}\ndeclare const pair: Pair<{{ {b} }}, typeof t>;\ndeclare const box: Box<typeof t>;\nfunction f(a = t, b = pair) {{}}\nf();\ndeclare function g(x: 1): typeof pair;\ndeclare function g(x: 2): typeof box;\ng();\n");
+    let labels = |position| {
+        let help = signature_help(&[("/a.ts", text.as_str())], options(|_| {}), position, None);
+        help["signatures"]
+            .as_array()
+            .expect("signatures")
+            .iter()
+            .map(|signature| signature["label"].as_str().expect("a label").to_owned())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        labels((6, 2)),
+        vec![format!(
+            "f(a?: {{ {a}; }}, b?: Pair<{{ {b}; }}, {{ {a}; }}>): void"
+        )]
+    );
+    assert_eq!(
+        labels((9, 2)),
+        vec![
+            format!("g(x: 1): Pair<{{ {b}; }}, {{ a0: string; a1: string; a2: string; a3: string; ... 7 more ...; a11: string; }}>"),
+            format!("g(x: 2): Box<{{ {a}; }}>"),
+        ]
+    );
+}
