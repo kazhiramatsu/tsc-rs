@@ -145,8 +145,9 @@ symbols, folding and selection ranges, semantic tokens, inlay hints, linked
 editing of JSX tags, formatting, quick fixes and organize imports, also in
 content mapper files (`.vue`, `.astro`), with the mappers of a project's
 config or (for files outside projects) of editor extensions. JavaScript
-projects get their typings from npm (automatic type acquisition). It has not
-been tried with editors yet.
+projects get their typings from npm (automatic type acquisition). For an
+editor that cannot watch files itself, the server watches them on macOS and
+Windows, as `tsgo` does. It has not been tried with editors yet.
 
 ## API server (experimental)
 
