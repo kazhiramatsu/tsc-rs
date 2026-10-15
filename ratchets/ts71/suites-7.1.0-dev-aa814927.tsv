@@ -165,7 +165,7 @@ lsp/TestAutoImportCrossProject_paths_toSrc	full
 lsp/TestAutoImportCrossProject_symlinks_stripSrc	full
 lsp/TestAutoImportCrossProject_symlinks_toDist	full
 lsp/TestAutoImportCrossProject_symlinks_toSrc	full
-lsp/TestAutoImportCssModule	none
+lsp/TestAutoImportCssModule	full
 lsp/TestAutoImportDefaultPascalCase	full
 lsp/TestAutoImportDefaultPascalCaseAliasCaseInsensitive	full
 lsp/TestAutoImportDefaultPascalCaseAnonymous	full
@@ -205,7 +205,7 @@ lsp/TestAutoImportPackageJsonFilterExistingImport3	full
 lsp/TestAutoImportPackageJsonImportsCaseSensitivity	full
 lsp/TestAutoImportPackageJsonImportsConditions	full
 lsp/TestAutoImportPackageJsonImportsHashSlashNode16	full
-lsp/TestAutoImportPackageJsonImportsHashSlashNodenext	none
+lsp/TestAutoImportPackageJsonImportsHashSlashNodenext	full
 lsp/TestAutoImportPackageJsonImportsLength1	full
 lsp/TestAutoImportPackageJsonImportsLength2	full
 lsp/TestAutoImportPackageJsonImportsPattern	full
@@ -287,7 +287,7 @@ lsp/TestAutoImportVerbatimTypeOnly1	full
 lsp/TestAutoImport_node12_node_modules1	full
 lsp/TestAutoImportsCustomConditions	full
 lsp/TestAutoImportsNodeNext1	full
-lsp/TestAutoImportsWithRootDirsAndRootedPath01	none
+lsp/TestAutoImportsWithRootDirsAndRootedPath01	full
 lsp/TestAutomaticConstructorToggling	full
 lsp/TestBasicBackspace	full
 lsp/TestBasicClassElementKeywords	full

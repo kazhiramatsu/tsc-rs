@@ -1736,7 +1736,7 @@ pub(crate) fn get_local_module_specifier<'path>(
         }
         return Some(relative_path);
     }
-    if is_path_relative_to_parent(&maybe_non_relative)
+    if maybe_non_relative.starts_with("..")
         || count_path_components(&relative_path) < count_path_components(&maybe_non_relative)
     {
         Some(relative_path)
@@ -2573,8 +2573,13 @@ pub(crate) fn try_get_module_name_from_package_json_imports<'path>(
     let package_json = read_package_json(host, package_json_path.as_js())?;
     let imports = package_json_property(&package_json, "imports")?.as_object()?;
     let conditions = get_conditions(&options.compiler_options, import_mode);
+    let module_resolution = options.compiler_options.emit_module_resolution_kind();
     for (key, target) in package_json_own_entries(imports) {
-        if !key.starts_with("#") || key == "#" || key.starts_with("#/") {
+        if !key.starts_with("#") || key == "#" || key == "#/" {
+            continue;
+        }
+        // tsgo: `#/` keys are valid in nodenext (99) and bundler (100) only.
+        if key.starts_with("#/") && !matches!(module_resolution, 99 | 100) {
             continue;
         }
         let mode = if key.ends_with("/") {
@@ -2625,23 +2630,19 @@ pub(crate) fn try_get_module_name_from_root_dirs<'path>(
     }
     let normalized_source_paths =
         get_paths_relative_to_root_dirs(source_directory, root_dirs, case_sensitive);
-    let mut relative_paths = Vec::new();
-    for source_path in &normalized_source_paths {
-        for target_path in &normalized_target_paths {
-            relative_paths.push(ensure_path_is_non_module_name(
-                &get_relative_path_from_directory(source_path, target_path, case_sensitive),
-            ));
-        }
-    }
-    let shortest = relative_paths
-        .into_iter()
-        .reduce(|left, right| {
-            if count_directory_separators(&left) < count_directory_separators(&right) {
-                left
-            } else {
-                right
-            }
+    // tsgo: the first of the fewest separators.
+    let shortest = normalized_source_paths
+        .iter()
+        .flat_map(|source_path| {
+            normalized_target_paths.iter().map(move |target_path| {
+                ensure_path_is_non_module_name(&get_relative_path_from_directory(
+                    source_path,
+                    target_path,
+                    case_sensitive,
+                ))
+            })
         })
+        .min_by_key(|path| count_directory_separators(path))
         .filter(|path| !path.is_empty())?;
     process_ending(&shortest, allowed_endings, compiler_options, None)
 }
@@ -2963,7 +2964,10 @@ pub(crate) fn get_paths_relative_to_root_dirs<'path>(
     root_dirs
         .iter()
         .filter_map(|root_dir| {
-            let relative = get_relative_path_if_in_same_volume(path, root_dir, case_sensitive)?;
+            // tsgo: a root on another volume gives the empty path, kept (a
+            // specifier `./` from such a root).
+            let relative = get_relative_path_if_in_same_volume(path, root_dir, case_sensitive)
+                .unwrap_or_default();
             (!is_path_relative_to_parent(&relative)).then_some(relative)
         })
         .collect()
@@ -3240,12 +3244,11 @@ pub(crate) fn get_relative_path_if_in_same_volume<'path>(
     (!path_is_absolute(&relative)).then_some(relative)
 }
 
-/// tsc-port: isPathRelativeToParent @6.0.3
-/// tsc-hash: efe08b88ffa50eb44d7a8de90ce3506f9d7f50a1d1400bb55a716b3f5b297ff0
-/// tsc-span: _tsc.js:46279-46281
+/// tsgo `isPathRelativeToParent` (`RelativePath.IsParentRelative`): `..`
+/// or under it.
 pub(crate) fn is_path_relative_to_parent<'path>(path: impl Into<JsStr<'path>>) -> bool {
     let path = path.into();
-    path.starts_with("..")
+    path == *".." || path.starts_with("../")
 }
 
 /// tsc-port: getDefaultResolutionModeForFile @6.0.3
