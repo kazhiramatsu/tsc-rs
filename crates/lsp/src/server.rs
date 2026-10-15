@@ -1165,6 +1165,18 @@ impl Server {
         }
     }
 
+    /// tsgo `handleDocumentSymbol`.
+    fn handle_document_symbol(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::DocumentSymbolParams,
+    ) -> Result<lsproto::DocumentSymbolResponse, Failure> {
+        service
+            .provide_document_symbols(&params.text_document.uri)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo `handleSignatureHelp`.
     fn handle_signature_help(
         self: &Arc<Self>,
@@ -2097,6 +2109,10 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentSignatureHelpInfo>(
             &mut handlers,
             Server::handle_signature_help,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentDocumentSymbolInfo>(
+            &mut handlers,
+            Server::handle_document_symbol,
         );
         register_language_service_document_request::<lsproto::TextDocumentPrepareRenameInfo>(
             &mut handlers,
