@@ -14,9 +14,8 @@ progress on `main`; see [Compatibility](#compatibility).
 - Fast and memory-efficient ([Performance](#performance)).
 - No Node.js required.
 
-Also experimental: an [API server](#api-server-experimental) and a
-[Rust API](#rust-api-experimental). The language server is being ported:
-`tsc-rs --lsp --stdio` answers the protocol's lifecycle requests only.
+Also experimental: a [language server](#language-server-experimental), an
+[API server](#api-server-experimental) and a [Rust API](#rust-api-experimental).
 
 ## Install
 
@@ -100,6 +99,9 @@ restarts a mapper whose package changes.
   all 9,067 DefinitelyTyped packages, all 2,756 azure-sdk-for-js
   configurations and all 38 material-ui projects (October 2026, one
   checker).
+- **Language server:** in 4,350 of the 4,584 sessions of TypeScript 7.1's
+  language server tests, tsc-rs answers exactly as `tsgo` does (October 15,
+  2026).
 - **TypeScript 7 rules:** the default `target` is ES2026, and the options
   TypeScript 7 removed (`baseUrl`, `outFile`, `target: "es5"`, the `amd`,
   `umd` and `system` modules, …) are errors.
@@ -131,6 +133,18 @@ less memory, lower `--checkers`. Full results, CPU time, content mapper
 projects and method: [docs/performance.md](docs/performance.md). These
 numbers predate the faster program loading of pull requests #760 and #761,
 and will be measured again.
+
+## Language server (experimental)
+
+`tsc-rs --lsp --stdio` serves the Language Server Protocol over stdio, like
+`tsgo --lsp --stdio`. Implemented: diagnostics, hover, completion (with
+auto-imports), signature help, go to definition (also type definition,
+implementation and source definition), references, rename (also of files),
+document highlights, call hierarchy, code lens, document and workspace
+symbols, folding and selection ranges, formatting, quick fixes and organize
+imports. Not yet: semantic tokens, inlay hints, linked editing, content
+mapper files and automatic type acquisition. It has not been tried with
+editors yet.
 
 ## API server (experimental)
 
@@ -166,7 +180,8 @@ Guide: [docs/rust-api.md](docs/rust-api.md).
 
 ## Limitations
 
-- No language features in the language server yet, so no editor integration.
+- The [language server](#language-server-experimental) is incomplete and
+  untested in editors.
 - `-b` builds projects one at a time.
 - `--diagnostics` prints fewer statistics than `tsgo`.
 - Memory grows with the number of checkers.
