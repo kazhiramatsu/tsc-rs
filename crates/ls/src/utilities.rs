@@ -738,6 +738,11 @@ pub(crate) fn is_function_like_kind(kind: SyntaxKind) -> bool {
     ) || node_util::is_function_like_declaration_kind(kind)
 }
 
+/// tsgo `tspath.IsDynamicFileName`: an untitled document's name.
+pub(crate) fn is_dynamic_file_name(file_name: &str) -> bool {
+    file_name.starts_with("^/")
+}
+
 /// tsgo `scanner.ComputeLineOfPosition`: the line of a position among a
 /// file's ECMAScript line starts.
 pub(crate) fn line_of_position(line_starts: &[usize], position: usize) -> usize {

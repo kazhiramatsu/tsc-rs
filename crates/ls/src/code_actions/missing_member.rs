@@ -21,7 +21,7 @@ use crate::lsutil::{get_quote_preference, QuotePreference, UserPreferences};
 
 /// tsgo `preserveOptionalFlags`.
 pub(super) const PRESERVE_OPTIONAL_METHOD: u8 = 1;
-pub(super) const PRESERVE_OPTIONAL_PROPERTY: u8 = 2;
+pub(crate) const PRESERVE_OPTIONAL_PROPERTY: u8 = 2;
 pub(super) const PRESERVE_OPTIONAL_ALL: u8 = PRESERVE_OPTIONAL_METHOD | PRESERVE_OPTIONAL_PROPERTY;
 
 /// A failure building a member (the node builder's or the factory's).
@@ -36,23 +36,23 @@ fn check_error(error: tsc_checker::state::CheckAbort) -> String {
 }
 
 /// tsgo `missingMemberFixer`.
-pub(super) struct MissingMemberFixer<'f, 'a, 'r> {
-    pub(super) tracker: &'f mut Tracker<'a>,
+pub(crate) struct MissingMemberFixer<'f, 'a, 'r> {
+    pub(crate) tracker: &'f mut Tracker<'a>,
     /// The edited file and its copy in the tracker's arena.
-    pub(super) file: &'a SourceFile,
-    pub(super) target: TransformSourceId,
-    pub(super) options: &'f tsc_types::CompilerOptions,
-    pub(super) preferences: &'f UserPreferences,
-    pub(super) import_adder: Option<(&'f mut ImportAdder<'a>, &'f mut View<'r>)>,
+    pub(crate) file: &'a SourceFile,
+    pub(crate) target: TransformSourceId,
+    pub(crate) options: &'f tsc_types::CompilerOptions,
+    pub(crate) preferences: &'f UserPreferences,
+    pub(crate) import_adder: Option<(&'f mut ImportAdder<'a>, &'f mut View<'r>)>,
     /// tsgo `Method_not_implemented`, localized.
-    pub(super) method_not_implemented: String,
+    pub(crate) method_not_implemented: String,
 }
 
 impl MissingMemberFixer<'_, '_, '_> {
     /// tsgo `createMemberFromSymbol`: the members declaring `symbol` in
     /// `enclosing_declaration` (a class), with `body` or a stub.
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn create_member_from_symbol(
+    pub(crate) fn create_member_from_symbol(
         &mut self,
         checker: &mut CheckerState<'_>,
         symbol: SymbolId,
