@@ -54,3 +54,50 @@ pub fn is_source_phase_import_call(arena: &NodeArena, node: NodeId) -> bool {
     matches!(&arena.node(node).data, NodeData::CallExpression(call)
         if call.expression.is_some_and(|callee| is_import_source_meta_property(arena, callee)))
 }
+
+/// tsgo `ast.TagNamesAreEquivalent`: two JSX tag names of the same kind and
+/// text (`this`, an identifier, a namespaced name, or a property access whose
+/// names and expressions are).
+pub fn tag_names_are_equivalent(
+    arena: &NodeArena,
+    lhs: Option<NodeId>,
+    rhs: Option<NodeId>,
+) -> bool {
+    let (Some(lhs), Some(rhs)) = (lhs, rhs) else {
+        return false;
+    };
+    let lhs_node = arena.node(lhs);
+    let rhs_node = arena.node(rhs);
+    if lhs_node.kind != rhs_node.kind {
+        return false;
+    }
+    if lhs_node.kind == SyntaxKind::ThisKeyword {
+        return true;
+    }
+    match (&lhs_node.data, &rhs_node.data) {
+        (NodeData::Identifier(lhs), NodeData::Identifier(rhs)) => {
+            lhs.escaped_text == rhs.escaped_text
+        }
+        (NodeData::JsxNamespacedName(lhs), NodeData::JsxNamespacedName(rhs)) => {
+            identifier_escaped_text(arena, lhs.namespace)
+                == identifier_escaped_text(arena, rhs.namespace)
+                && identifier_escaped_text(arena, lhs.name)
+                    == identifier_escaped_text(arena, rhs.name)
+        }
+        (NodeData::PropertyAccessExpression(lhs), NodeData::PropertyAccessExpression(rhs)) => {
+            identifier_escaped_text(arena, lhs.name) == identifier_escaped_text(arena, rhs.name)
+                && tag_names_are_equivalent(arena, lhs.expression, rhs.expression)
+        }
+        _ => false,
+    }
+}
+
+fn identifier_escaped_text(
+    arena: &NodeArena,
+    id: Option<NodeId>,
+) -> Option<tsc_types::EscapedName> {
+    match &arena.node(id?).data {
+        NodeData::Identifier(data) => Some(data.escaped_text),
+        _ => None,
+    }
+}
