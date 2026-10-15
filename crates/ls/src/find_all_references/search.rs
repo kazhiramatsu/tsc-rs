@@ -470,18 +470,32 @@ fn get_label_references_in_node(
     )]
 }
 
+/// tsgo `ast.GetThisContainer` of a `this` keyword node or token: the
+/// token of a `this` type (tsgo's synthesized token) starts at its type
+/// node, which is no container.
+fn this_container(request: &Request<'_, '_>, node: Touching) -> Option<NodeId> {
+    let start = match node {
+        Touching::Node(id) => id,
+        Touching::Token { parent, .. } => parent,
+    };
+    node_util::get_this_container(request.state.binder.source_of_node(start), start, false)
+}
+
+/// [`is_parameter_name`] of a node or token (a token names no parameter).
+fn is_parameter_name_touching(request: &Request<'_, '_>, node: Touching) -> bool {
+    match node {
+        Touching::Node(id) => is_parameter_name(request, id),
+        Touching::Token { .. } => false,
+    }
+}
+
 /// tsgo `getReferencesForThisKeyword`.
 fn get_references_for_this_keyword(
     request: &mut Request<'_, '_>,
     this_or_super_keyword: Touching,
     files: &[usize],
 ) -> CheckResult<Option<Vec<SymbolAndEntries>>> {
-    let Touching::Node(keyword) = this_or_super_keyword else {
-        return Ok(None);
-    };
-    let keyword_source = request.state.binder.source_of_node(keyword);
-    let Some(mut search_space_node) = node_util::get_this_container(keyword_source, keyword, false)
-    else {
+    let Some(mut search_space_node) = this_container(request, this_or_super_keyword) else {
         return Ok(None);
     };
 
@@ -506,7 +520,8 @@ fn get_references_for_this_keyword(
                 .expect("a member's parent");
         }
         SyntaxKind::SourceFile => {
-            if is_external_module(request, search_space_node) || is_parameter_name(request, keyword)
+            if is_external_module(request, search_space_node)
+                || is_parameter_name_touching(request, this_or_super_keyword)
             {
                 return Ok(None);
             }
@@ -536,10 +551,7 @@ fn get_references_for_this_keyword(
             if !is_this(request, node) {
                 continue;
             }
-            let Touching::Node(id) = node else {
-                continue;
-            };
-            let Some(container) = node_util::get_this_container(source, id, false) else {
+            let Some(container) = this_container(request, node) else {
                 continue;
             };
             if !crate::utilities::can_have_symbol(request.node_kind(container)) {
@@ -571,7 +583,7 @@ fn get_references_for_this_keyword(
                 SyntaxKind::SourceFile => {
                     request.node_kind(container) == SyntaxKind::SourceFile
                         && !is_external_module(request, container)
-                        && !is_parameter_name(request, id)
+                        && !is_parameter_name_touching(request, node)
                 }
                 _ => false,
             };

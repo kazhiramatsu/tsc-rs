@@ -1844,10 +1844,9 @@ fn template_candidates(
     with_program_state(&[("a.ts", fixture)], &CompilerOptions::default(), |state| {
         let t = declared_type_parameter(state, "T");
         let info = detached_info(state, t);
-        let target =
-            state
-                .tables
-                .get_template_literal_type(None, &["v".to_owned(), String::new()], &[t]);
+        let target = state
+            .tables
+            .get_template_literal_type(&["v".to_owned(), String::new()], &[t]);
         let source = state.tables.get_string_literal_type(source_text);
         state
             .infer_types(&[info], source, target, InferencePriority::NONE, false)
@@ -1968,16 +1967,12 @@ fn template_source_placeholder_keeps_type_under_matching_base_constraint() {
             let t = declared_type_parameter(state, "T");
             let info = detached_info(state, t);
             let number = state.tables.intrinsics.number;
-            let target = state.tables.get_template_literal_type(
-                None,
-                &["a".to_owned(), String::new()],
-                &[t],
-            );
-            let source = state.tables.get_template_literal_type(
-                None,
-                &["a".to_owned(), String::new()],
-                &[number],
-            );
+            let target = state
+                .tables
+                .get_template_literal_type(&["a".to_owned(), String::new()], &[t]);
+            let source = state
+                .tables
+                .get_template_literal_type(&["a".to_owned(), String::new()], &[number]);
             state
                 .infer_types(&[info], source, target, InferencePriority::NONE, false)
                 .expect("live arm");

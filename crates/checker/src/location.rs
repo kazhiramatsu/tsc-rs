@@ -712,6 +712,15 @@ impl CheckerState<'_> {
                                     if let Some(symbol) =
                                         self.get_applicable_index_symbol(object, key)?
                                     {
+                                        // tsgo records it as the access's
+                                        // resolved symbol, which
+                                        // getTypeOfSymbolAtLocation compares
+                                        // to answer the narrowed type.
+                                        self.links.set_node_resolved_symbol(
+                                            self.speculation_depth,
+                                            name,
+                                            symbol,
+                                        );
                                         return Ok(Some(symbol));
                                     }
                                 }

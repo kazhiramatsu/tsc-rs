@@ -1622,12 +1622,22 @@ impl CheckerState<'_> {
                 None,
             )
         })?;
-        match built {
-            Some(node) => self
-                .print_display_parts(node, Vec::new(), &mut |_, _| "text")
-                .map(Some),
-            None => Ok(None),
-        }
+        let Some(node) = built else {
+            return Ok(None);
+        };
+        // tsgo builds the node in the checker's own emit context
+        // (`TypeToTypeNode`), which signature help's printer of another
+        // context never reads: a tuple prints in its multi-line form, on one
+        // line `[ string, number ]`.
+        self.with_emit_display(|display| {
+            display
+                .arena_mut()
+                .expect("checker display result remains live")
+                .forget_emit_flags_and_comments(node)
+        })
+        .map_err(|error| format!("type node builder: {error:?}"))?;
+        self.print_display_parts(node, Vec::new(), &mut |_, _| "text")
+            .map(Some)
     }
 
     /// tsgo `TypePredicateToString`: the predicate's node

@@ -367,8 +367,11 @@ fn empty_anonymous_object_emits_an_empty_type_literal() {
     );
 }
 
+/// tsgo `mapToTypeNodes` keeps the ends of a cut bare list and does not
+/// mark an expansion truncated (only `checkTruncationLengthIfExpanding`
+/// does).
 #[test]
-fn bare_type_list_truncation_keeps_ends_and_marks_the_result() {
+fn bare_type_list_truncation_keeps_ends() {
     with_builder(
         "export {};",
         EmitNodeBuilderFlags::NONE,
@@ -386,7 +389,7 @@ fn bare_type_list_truncation_keeps_ends_and_marks_the_result() {
             let nodes = map_to_type_nodes(checker, arena, target, &types, context, true)?
                 .expect("truncated bare list");
             assert_eq!(nodes.len(), 3);
-            assert!(context.out.truncated);
+            assert!(!context.out.truncated);
             assert!(context.truncating);
             assert_eq!(
                 arena.node(nodes[0]).map_err(factory_error)?.kind,

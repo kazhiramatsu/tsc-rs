@@ -10336,3 +10336,71 @@ fn inputs_that_crashed_the_checker_report_tsgo_rows() {
     .collect();
     assert_eq!(rows, expected);
 }
+
+/// tsgo `checkUnmatchedJSDocParameters` reports a typed `@param` tag no
+/// parameter matches with `errorOrSuggestion(isJs, …)`: a suggestion in a
+/// TypeScript file, here an arrow function initializer whose property
+/// carries the JSDoc (found by the LSP test on hono, in `fetch` of
+/// hono-base.ts). A name-first tag (no type before the name) is not
+/// reported. Pinned to tsgo's diagnostics at aa814927.
+#[test]
+fn an_unmatched_jsdoc_parameter_is_a_suggestion_in_typescript() {
+    let text = "class A {\n  /**\n   * @param {number} a - x\n   * @param {number} b - y\n   */\n  f: (a: number, b?: number) => void = (a, ...rest) => {}\n  /**\n   * @param a - x\n   * @param b - y\n   */\n  h = (a: number) => {}\n}\n";
+    with_program_state(&[("/a.ts", text)], &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        let rows: Vec<_> = state
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 8024)
+            .map(|diagnostic| {
+                let start = diagnostic.start.expect("a spanned diagnostic") as usize;
+                let end = start + diagnostic.length.expect("a spanned diagnostic") as usize;
+                (diagnostic.category(), text[start..end].to_owned())
+            })
+            .collect();
+        assert_eq!(
+            rows,
+            vec![(
+                tsc_diagnostics::DiagnosticCategory::Suggestion,
+                "b".to_owned()
+            )]
+        );
+    });
+}
+
+/// tsgo `indexInfoToIndexSignatureDeclarationHelper` counts a `readonly`
+/// index signature's modifier (`approximateLength += 9`), which moves where
+/// a long type is cut (`... N more ...`) in a message or hover (found by the
+/// LSP test on effect, whose schema types carry readonly index signatures).
+/// Pinned to tsgo's message at aa814927.
+#[test]
+fn a_readonly_index_signature_counts_its_modifier() {
+    let properties = (0..20)
+        .map(|index| format!("a{index}: string"))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let text = format!("declare const v: {{ readonly [x: string]: string; readonly [y: number]: string; {properties} }};\nconst n: number = v;\n");
+    with_program_state(
+        &[("/a.ts", text.as_str())],
+        &CompilerOptions::default(),
+        |state| {
+            state.check_source_file(0);
+            let messages: Vec<String> = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 2322)
+                .map(|diagnostic| {
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned()
+                })
+                .collect();
+            assert_eq!(
+            messages,
+            vec!["Type '{ readonly [x: string]: string; readonly [y: number]: string; a0: string; a1: string; a2: string; a3: string; a4: string; a5: string; a6: string; a7: string; a8: string; a9: string; a10: string; a11: string; ... 7 more ...; a19: string; }' is not assignable to type 'number'.".to_owned()]
+        );
+        },
+    );
+}

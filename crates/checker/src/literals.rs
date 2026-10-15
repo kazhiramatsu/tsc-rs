@@ -1701,69 +1701,69 @@ impl<'a> CheckerState<'a> {
         ))
     }
 
-    /// tsc-port: getTemplateLiteralType @6.0.3
-    /// tsc-hash: 8b75b60fe2a0a42ea0dbac6fc1a278f1707c3d540a076e246c5ffa452e8aa6b7
-    /// tsc-span: _tsc.js:62057-62109
-    ///
-    /// Checker-owned entry for getTemplateLiteralType: TypeTables
-    /// owns the recursive construction/cache, while the checker must
-    /// publish checkCrossProductUnion's 2590 at currentNode before
-    /// entering that diagnostic-free twin.
+    /// tsgo `getTemplateLiteralType` (checker.go:29687) for UTF-8 texts.
     pub(crate) fn get_template_literal_type(
         &mut self,
         texts: &[String],
         types: &[TypeId],
-    ) -> TypeId {
-        if !self.check_cross_product_union(types) {
-            return self.tables.intrinsics.error;
-        }
-        let result = self.template_literal_type_tables(texts, types);
-        self.template_literal_type_or_report(result)
+    ) -> CheckResult<TypeId> {
+        let texts = texts
+            .iter()
+            .map(|text| tsc_types::TemplateText::from_utf8(text))
+            .collect::<Vec<_>>();
+        self.get_template_literal_type_from_texts(&texts, types)
     }
 
-    /// tsgo (checker.go:29668-29672): a template literal type over the size
-    /// limits reports TS2589 and is the error type.
-    fn template_literal_type_or_report(
+    /// tsgo `getTemplateLiteralType` (checker.go:29687): a union (or never)
+    /// span maps over its members through `mapType`, whose union removes
+    /// the string literals the mapped template literals match
+    /// (`"undefined:undefined"` of `${undefined}:${string | undefined}`);
+    /// the type tables build a template of no union.
+    pub(crate) fn get_template_literal_type_from_texts(
         &mut self,
-        result: Result<TypeId, tsc_types::TemplateLiteralTooLarge>,
-    ) -> TypeId {
-        result.unwrap_or_else(|_| {
+        texts: &[tsc_types::TemplateText],
+        types: &[TypeId],
+    ) -> CheckResult<TypeId> {
+        let union_index = types.iter().position(|&t| {
+            self.tables
+                .flags_of(t)
+                .intersects(TypeFlags::NEVER | TypeFlags::UNION)
+        });
+        if let Some(union_index) = union_index {
+            if !self.check_cross_product_union(types) {
+                return Ok(self.tables.intrinsics.error);
+            }
+            let mapped = self.map_type(
+                types[union_index],
+                &mut |state, t| {
+                    let mut replaced = types.to_vec();
+                    replaced[union_index] = t;
+                    state
+                        .get_template_literal_type_from_texts(texts, &replaced)
+                        .map(Some)
+                },
+                /*no_reductions*/ false,
+            )?;
+            return Ok(mapped.expect("template literals over unions never drop members"));
+        }
+        let result = self
+            .tables
+            .try_get_template_literal_type_from_texts(texts, types);
+        // tsgo (checker.go:29752): a template literal type over the size
+        // limits reports TS2589 and is the error type.
+        Ok(result.unwrap_or_else(|_| {
             self.error_at(
                 self.current_node,
                 &diagnostics::Type_instantiation_is_excessively_deep_and_possibly_infinite,
                 &[],
             );
             self.tables.intrinsics.error
-        })
-    }
-
-    /// tsc-port: getTemplateLiteralType @6.0.3
-    /// tsc-hash: 8b75b60fe2a0a42ea0dbac6fc1a278f1707c3d540a076e246c5ffa452e8aa6b7
-    /// tsc-span: _tsc.js:62057-62109
-    ///
-    /// Lossless UTF-16 checker entry; reporting semantics are identical
-    /// to the UTF-8 convenience entry above.
-    pub(crate) fn get_template_literal_type_from_texts(
-        &mut self,
-        texts: &[tsc_types::TemplateText],
-        types: &[TypeId],
-    ) -> TypeId {
-        if !self.check_cross_product_union(types) {
-            return self.tables.intrinsics.error;
-        }
-        let ctx = crate::type_order::order_ctx!(self);
-        let result =
-            self.tables
-                .try_get_template_literal_type_from_texts(ctx.order(), texts, types);
-        self.template_literal_type_or_report(result)
+        }))
     }
 
     /// tsc-port: checkCrossProductUnion @6.0.3
     /// tsc-hash: c916448698615d4762a0b12b7b0759c757fa2c19dedd842bc9448d9731fe9da1
     /// tsc-span: _tsc.js:61874-61883
-    ///
-    /// All checker-owned cross-product consumers use this reporting
-    /// entry; the tables twin remains diagnostic-free.
     pub(crate) fn check_cross_product_union(&mut self, types: &[TypeId]) -> bool {
         let size = self.cross_product_union_size(types);
         if size >= 100_000 {

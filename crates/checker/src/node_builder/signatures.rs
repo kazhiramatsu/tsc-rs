@@ -1840,6 +1840,7 @@ pub(crate) fn index_info_to_index_signature_declaration_helper(
     };
     add_approximate_length(context, name_text.encode_utf16().count() + 4);
     let modifiers = if index_info.is_readonly {
+        add_approximate_length(context, 9);
         let readonly = create_token(arena, target, SyntaxKind::ReadonlyKeyword)?;
         Some(create_node_array(arena, target, vec![readonly])?)
     } else {

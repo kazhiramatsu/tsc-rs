@@ -3333,7 +3333,7 @@ impl<'a> CheckerState<'a> {
             || self.is_template_literal_context(node)
             || contextual_template
         {
-            return Ok(self.get_template_literal_type_from_texts(&texts, &types));
+            return self.get_template_literal_type_from_texts(&texts, &types);
         }
         Ok(self.tables.intrinsics.string)
     }

@@ -493,17 +493,6 @@ impl<'a> CheckerState<'a> {
             named_member_declarations,
         )
     }
-
-    /// `tables.try_get_template_literal_type` with this checker's order.
-    pub(crate) fn template_literal_type_tables(
-        &mut self,
-        texts: &[String],
-        types: &[TypeId],
-    ) -> Result<TypeId, tsc_types::TemplateLiteralTooLarge> {
-        let ctx = order_ctx!(self);
-        self.tables
-            .try_get_template_literal_type(ctx.order(), texts, types)
-    }
 }
 
 #[cfg(test)]

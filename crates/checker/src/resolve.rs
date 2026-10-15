@@ -933,16 +933,23 @@ impl<'a> CheckerState<'a> {
                 .effective_container_for_jsdoc_template_tag(loc)
                 .or_else(|| self.parent_of(loc)),
             // A hosted `@param`/`@return` type is reparsed into the function
-            // it annotates; one inside a `@callback` or `@overload` signature
-            // stays in that signature.
-            SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocReturnTag => self
-                .parent_of(loc)
-                .filter(|&parent| self.kind_of(parent) == SyntaxKind::JSDoc)
-                .and_then(|document| self.parent_of(document))
-                .and_then(|host| {
-                    tsc_binder::hosted::function_like_host(self.binder.source_of_node(host), host)
-                })
-                .or_else(|| self.parent_of(loc)),
+            // it annotates (tsgo reparses JSDoc in JavaScript files only); one
+            // inside a `@callback` or `@overload` signature stays in that
+            // signature.
+            SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocReturnTag
+                if self.is_in_js_file(loc) =>
+            {
+                self.parent_of(loc)
+                    .filter(|&parent| self.kind_of(parent) == SyntaxKind::JSDoc)
+                    .and_then(|document| self.parent_of(document))
+                    .and_then(|host| {
+                        tsc_binder::hosted::function_like_host(
+                            self.binder.source_of_node(host),
+                            host,
+                        )
+                    })
+                    .or_else(|| self.parent_of(loc))
+            }
             _ => self.parent_of(loc),
         }
     }

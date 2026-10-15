@@ -1300,3 +1300,83 @@ fn inlay_hints_of_variables_arguments_and_enum_members() {
         ]
     );
 }
+
+/// tsgo builds signature help's return type in the checker's own emit
+/// context (`TypeToTypeNode`), which signature help's printer never reads: a
+/// tuple loses its single-line flag and prints in its multi-line form, on
+/// one line `[ string, number ]` (found by the LSP test on hono). Pinned to
+/// tsgo's answers at aa814927.
+#[test]
+fn signature_help_prints_a_return_tuple_in_its_multi_line_form() {
+    let text = "declare function pair(): [string, number];\npair();\ndeclare function entries<T>(o: T): [string, T][];\nentries(1);\n";
+    let label = |position| {
+        signature_help(&[("/a.ts", text)], options(|_| {}), position, None)["signatures"][0]
+            ["label"]
+            .clone()
+    };
+    assert_eq!(label((1, 5)), "pair(): [ string, number ]");
+    assert_eq!(label((3, 8)), "entries(o: number): [ string, number ][]");
+}
+
+/// The return type's node, built in the checker's own emit context, loses
+/// the comment range a property signature takes from its declaration too:
+/// the parameter keeps the property's comment, the return type does not
+/// (found by the LSP test on hono, in a `c.json({ // @ts-expect-error … })`
+/// call). Pinned to tsgo's answer at aa814927.
+#[test]
+fn signature_help_prints_a_return_type_without_property_comments() {
+    let text = "declare function json<T>(object: T): { value: T };\njson({\n  // a comment\n  clientId: 1,\n});\n";
+    let help = signature_help(&[("/a.ts", text)], options(|_| {}), (1, 5), None);
+    assert_eq!(
+        help["signatures"][0]["label"],
+        "json(object: {  // a comment clientId: number; }): { value: { clientId: number; }; }"
+    );
+}
+
+/// tsgo reparses JSDoc into the function it annotates in JavaScript files
+/// only: in a TypeScript file a `@returns` type of a variable statement's
+/// JSDoc resolves from the statement, so its `I` is no reference to the
+/// arrow function's type parameter (found by the LSP test on hono, in
+/// `useRequestContext`). Pinned to tsgo's answer at aa814927.
+#[test]
+fn a_typescript_jsdoc_type_above_an_arrow_function_is_no_reference() {
+    let text = "interface Box<T> { x: T }\n/**\n * @returns {Box<I>} An instance.\n */\nexport const g = <I,>(): Box<I> => ({ x: undefined as I });\n";
+    assert_eq!(
+        document_highlights(&[("/a.ts", text)], options(|_| {}), "/a.ts", (4, 29)),
+        vec![
+            (((4, 18), (4, 19)), 3),
+            (((4, 29), (4, 30)), 2),
+            (((4, 54), (4, 55)), 2),
+        ]
+    );
+}
+
+/// tsgo's `isThis` takes the `this` token of a `this` type, so its
+/// references are `this` references (`getReferencesForThisKeyword`): none
+/// in an interface, where tsc-rs answered the interface merged with a
+/// `const` (found by the LSP test on zod), and in a class both the `this`
+/// types and the `this` expressions of its instance members. Pinned to
+/// tsgo's answers at aa814927.
+#[test]
+fn a_this_type_has_this_references() {
+    let text = "interface Box<T> { t: T }\nexport interface Foo { m(): Box<this>; }\nexport const Foo = 1;\nclass C {\n  m(): this { return this; }\n  n(x: this) { this.m(); }\n}\n";
+    let file = [("/a.ts", text)];
+    assert_eq!(
+        document_highlights(&file, options(|_| {}), "/a.ts", (1, 32)),
+        Vec::<(Range, u32)>::new()
+    );
+    let class = vec![
+        (((4, 7), (4, 11)), 2),
+        (((4, 21), (4, 25)), 2),
+        (((5, 7), (5, 11)), 2),
+        (((5, 15), (5, 19)), 2),
+    ];
+    assert_eq!(
+        document_highlights(&file, options(|_| {}), "/a.ts", (4, 7)),
+        class
+    );
+    assert_eq!(
+        document_highlights(&file, options(|_| {}), "/a.ts", (5, 15)),
+        class
+    );
+}

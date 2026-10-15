@@ -2521,13 +2521,20 @@ impl<'a> CheckerState<'a> {
                         &[&whole, &left],
                     );
                 }
-            } else if !is_name_first && is_js {
+            } else if !is_name_first {
+                // tsgo `errorOrSuggestion(isJs, …)`: a suggestion in a
+                // TypeScript file.
                 let text = self.identifier_text_of(name).unwrap_or_default().to_owned();
-                self.error_at(
+                let index = self.error_at(
                     Some(name),
                     &diagnostics::JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name,
                     &[&text],
                 );
+                if !is_js {
+                    self.diagnostics.update(index, |diagnostic| {
+                        diagnostic.message.category = DiagnosticCategory::Suggestion;
+                    });
+                }
             }
         }
         Ok(())
@@ -9385,6 +9392,11 @@ impl<'a> CheckerState<'a> {
         let key = self.type_to_string_ex(info.key_type, fully_qualified)?;
         let value = self.type_to_string_ex(info.value_type, fully_qualified)?;
         self.display_add_approximate_length(Self::slice_js_length(&name) + 4);
+        // tsgo indexInfoToIndexSignatureDeclarationHelper counts the
+        // modifier too.
+        if info.is_readonly {
+            self.display_add_approximate_length(9);
+        }
         let readonly = if info.is_readonly { "readonly " } else { "" };
         Ok(crate::concat_js(&[
             &(readonly),
