@@ -11,6 +11,7 @@ use tsc_diagnostics::Diagnostic;
 use tsc_host::vfs::FileSystem;
 use tsc_program::content_mapper::host::{Host as ContentMapperHost, Spawner};
 use tsc_program::content_mapper::source::ContentMappedCache;
+use tsc_program::content_mapper::Mapper;
 use tsc_program::{
     ConfigOptionBag, ConfigParseError, ConfigProjectReference, ConfigRootPlan, LibraryCatalog,
     ProgramLoadLimits,
@@ -186,6 +187,18 @@ pub struct SnapshotChange<'a> {
     pub projects: Vec<ProjectId>,
     /// tsgo `ResourceRequest.ProjectTree`: project trees to load.
     pub project_tree: Option<ProjectTreeRequest>,
+    /// tsgo `contentMapperContributions`: the editor's mappers for inferred
+    /// projects, when they changed.
+    pub content_mapper_contributions: Option<ContentMapperContributions>,
+}
+
+/// tsgo `ContentMapperContributions`: the content mappers an editor's
+/// extensions contribute for inferred projects (configured projects never
+/// take them), and the extensions they claim.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ContentMapperContributions {
+    pub mappers: Vec<Arc<Mapper>>,
+    pub extensions: Vec<String>,
 }
 
 /// tsgo `ProjectTreeRequest`: the project trees to load — every one, or the
@@ -468,6 +481,9 @@ pub struct Snapshot {
     created_programs: Vec<ProjectId>,
     /// tsgo `AutoImports`: the auto-import registry.
     auto_imports: Arc<Registry>,
+    /// tsgo `inferredProjectContentMappers` and
+    /// `inferredProjectContentMapperExtensions`: the editor's contributions.
+    inferred_project_content_mappers: ContentMapperContributions,
 }
 
 /// tsgo's snapshot as the language service's host: its file system for
@@ -773,10 +789,20 @@ impl Snapshot {
         self.configs.config(&self.fs.paths().to_path(file_name))
     }
 
-    /// tsgo `ContentMapperExtensions`: the extensions of the content
-    /// mappers of every config the snapshot keeps, sorted, each once.
+    /// tsgo `ContentMapperExtensions` (`contentMapperWatchState`): the
+    /// extensions of the content mappers of every config the snapshot keeps
+    /// and of the editor's contributions, sorted, each once.
     pub fn content_mapper_extensions(&self) -> Vec<String> {
-        self.configs.content_mapper_extensions()
+        let mut extensions = self.configs.content_mapper_extensions();
+        extensions.extend(
+            self.inferred_project_content_mappers
+                .extensions
+                .iter()
+                .cloned(),
+        );
+        extensions.sort();
+        extensions.dedup();
+        extensions
     }
 
     /// tsgo `contentMapperWatchState`'s files: the paths the projects'
@@ -812,10 +838,15 @@ impl SnapshotHost {
     /// through `spawner` under `run_external_code` (tsgo
     /// `newContentMapperHost`); without either, a config's content mappers
     /// do not register.
+    /// tsgo `NewSnapshotHost` (with tsgo `newContentMapperHost`: the
+    /// mappers run under `RunExternalCode`, initialized in `locale`, the
+    /// client's).
     pub fn new(
         options: SessionOptions,
         fs: Arc<dyn FileSystem>,
         spawner: Option<Arc<dyn Spawner>>,
+        locale: &str,
+        content_mapper_logger: Option<tsc_program::content_mapper::host::Logger>,
     ) -> Self {
         let paths = Paths {
             current_directory: options.current_directory.clone(),
@@ -823,7 +854,7 @@ impl SnapshotHost {
         };
         let content_mapper_host = spawner
             .filter(|_| options.run_external_code)
-            .map(|spawner| ContentMapperHost::new(spawner, ""));
+            .map(|spawner| ContentMapperHost::with_logger(spawner, locale, content_mapper_logger));
         Self {
             options,
             fs,
@@ -875,6 +906,7 @@ impl SnapshotHost {
             file_system_override: false,
             created_programs: Vec::new(),
             auto_imports: Arc::new(Registry::new(UserPreferences::new_default())),
+            inferred_project_content_mappers: ContentMapperContributions::default(),
         }
     }
 
@@ -898,7 +930,11 @@ impl SnapshotHost {
             auto_imports: prepare_auto_imports,
             projects: requested_projects,
             project_tree,
+            content_mapper_contributions,
         } = change;
+        let inferred_project_content_mappers = content_mapper_contributions
+            .clone()
+            .unwrap_or_else(|| base.inferred_project_content_mappers.clone());
         let overlays = overlays.unwrap_or_else(|| Arc::clone(&base.fs.overlays));
         // tsgo `CloneSnapshot`: an API request's preferences are the new
         // configuration.
@@ -936,10 +972,20 @@ impl SnapshotHost {
             self.paths.clone(),
             overlays,
         );
+        // tsgo: the extensions of the base's mappers, those of the new
+        // contributions in place of the base's when they changed.
+        let content_mapper_extensions = match &content_mapper_contributions {
+            None => base.content_mapper_extensions(),
+            Some(contributions) => {
+                let mut extensions = base.configs.content_mapper_extensions();
+                extensions.extend(contributions.extensions.iter().cloned());
+                extensions
+            }
+        };
         let file_changes = fs.process_file_changes(
             file_changes,
             &base.fs,
-            &base.content_mapper_extensions(),
+            &content_mapper_extensions,
             &base.content_mapper_watched_files(),
         );
         let compiler_options_for_inferred_projects = new_inferred_options
@@ -966,10 +1012,14 @@ impl SnapshotHost {
                 &base.projects,
                 configs,
                 compiler_options_for_inferred_projects.clone(),
+                &inferred_project_content_mappers,
             );
             builder.did_change_custom_config_file_name();
             if let Some(options) = &new_inferred_options {
                 builder.did_change_compiler_options_for_inferred_projects(options);
+            }
+            if content_mapper_contributions.is_some() {
+                builder.did_change_content_mapper_contributions()?;
             }
             if let Some(config) = &new_config {
                 builder.did_change_user_preferences(&base.user_preferences, config);
@@ -1066,6 +1116,7 @@ impl SnapshotHost {
             file_system_override,
             created_programs,
             auto_imports,
+            inferred_project_content_mappers,
         })
     }
 

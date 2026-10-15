@@ -31,6 +31,7 @@ use crate::fs::{FileChangeSummary, Paths};
 use crate::id::{ProjectId, ProjectKind};
 use crate::overlay::{FileChange, FileChangeKind, OverlayFs, Overlays};
 use crate::project::{ProgramUpdateKind, Project};
+use crate::snapshot::ContentMapperContributions;
 use crate::snapshot::{
     ProjectError, ProjectTreeRequest, SessionOptions, Snapshot, SnapshotChange, SnapshotHost,
 };
@@ -94,6 +95,10 @@ struct Inner {
     /// tsgo `watches`: the globs registered with the editor.
     watches: WatchRegistry,
     idle_clean: Mutex<IdleClean>,
+    /// tsgo `registeredContentMapperExtensions` and
+    /// `registeredContentMapperSnapshotID` (under
+    /// `contentMapperRegistrationMu`).
+    content_mapper_registration: Mutex<(Vec<String>, u64)>,
 }
 
 /// tsgo `idleCacheCleanDelay`.
@@ -127,7 +132,19 @@ impl Session {
             current_directory: options.current_directory.clone(),
             case_sensitive: fs.case_sensitive(),
         };
-        let host = SnapshotHost::new(options, Arc::clone(&fs), spawner);
+        let locale = client.as_ref().map_or("", |client| client.locale().tag());
+        let content_mapper_logger = logger.clone().map(|logger| {
+            let logger: tsc_program::content_mapper::host::Logger =
+                Arc::new(move |line: &str| logger.content_mapper_log(line));
+            logger
+        });
+        let host = SnapshotHost::new(
+            options,
+            Arc::clone(&fs),
+            spawner,
+            locale,
+            content_mapper_logger,
+        );
         let snapshot = Arc::new(host.new_root_snapshot());
         Self {
             inner: Arc::new(Inner {
@@ -149,6 +166,7 @@ impl Session {
                 global_diagnostics_publish_pending: AtomicBool::new(false),
                 watches: WatchRegistry::default(),
                 idle_clean: Mutex::default(),
+                content_mapper_registration: Mutex::default(),
             }),
         }
     }
@@ -181,7 +199,14 @@ impl Session {
             return;
         };
         if !config.locale.is_empty() {
+            let old_locale = client.locale();
             client.set_locale(&config.locale);
+            let new_locale = client.locale();
+            if old_locale.tag() != new_locale.tag() {
+                if let Some(host) = self.inner.host.content_mapper_host() {
+                    host.set_locale(new_locale.tag());
+                }
+            }
         }
         if old.inlay_hints_preferences != config.inlay_hints_preferences {
             let _ = client.refresh_inlay_hints();
@@ -603,6 +628,45 @@ impl Session {
         }
     }
 
+    /// tsgo `SetContentMapperContributions`: the editor's mappers replace
+    /// the inferred projects' (configured projects never take them), and
+    /// the configured projects of the open `documents` are found (a file
+    /// of a contributed extension may belong to one). Nothing without
+    /// `run_external_code`.
+    pub fn set_content_mapper_contributions(
+        &self,
+        contributions: ContentMapperContributions,
+        documents: &[DocumentUri],
+    ) {
+        let inner = &self.inner;
+        if !inner.host.options().run_external_code {
+            return;
+        }
+        inner.cancel_scheduled_snapshot_update();
+        let snapshot = {
+            let _update = lock(&inner.snapshot_update);
+            let (file_changes, overlays) = {
+                let mut pending = lock(&inner.pending_file_changes);
+                inner.flush_changes_locked(&mut pending)
+            };
+            inner.update_snapshot(
+                overlays,
+                SnapshotChange {
+                    file_changes,
+                    content_mapper_contributions: Some(contributions),
+                    configured_project_documents: documents
+                        .iter()
+                        .filter_map(document_file_name)
+                        .collect(),
+                    ..SnapshotChange::default()
+                },
+            )
+        };
+        if let Ok(snapshot) = snapshot {
+            let _ = inner.update_content_mapper_registrations(&snapshot);
+        }
+    }
+
     /// tsgo `DidChangeCompilerOptionsForInferredProjects`: the inferred
     /// projects take `options` (tsgo's language server sets them for its
     /// tests).
@@ -720,9 +784,40 @@ impl Inner {
                     inner.log(|| error);
                 }
             }
+            let _ = inner.update_content_mapper_registrations(&new);
             inner.publish_program_diagnostics(&old, &new);
         });
         Ok(snapshot)
+    }
+
+    /// tsgo `updateContentMapperRegistrations`: the editor registers the
+    /// extensions of every loaded config's content mappers and of the
+    /// editor's contributions, so their (otherwise unsupported) files flow
+    /// to the session once a config that maps them is found. An older
+    /// snapshot's task (they may finish out of order) changes nothing; a
+    /// failure leaves the state for the next update to retry.
+    fn update_content_mapper_registrations(&self, snapshot: &Snapshot) -> Result<(), String> {
+        let Some(client) = &self.client else {
+            return Ok(());
+        };
+        let extensions = snapshot.content_mapper_extensions();
+        let mut registration = lock(&self.content_mapper_registration);
+        let (registered, registered_snapshot) = &mut *registration;
+        if snapshot.id() <= *registered_snapshot {
+            return Ok(());
+        }
+        if extensions == *registered {
+            *registered_snapshot = snapshot.id();
+            return Ok(());
+        }
+        // The client replaces the prior registration wholesale (an empty set removes it).
+        if let Err(error) = client.register_content_mapper_extensions(&extensions) {
+            self.log(|| error.clone());
+            return Err(error);
+        }
+        *registered = extensions;
+        *registered_snapshot = snapshot.id();
+        Ok(())
     }
 
     /// tsgo `publishProgramDiagnostics`: the config diagnostics of each
