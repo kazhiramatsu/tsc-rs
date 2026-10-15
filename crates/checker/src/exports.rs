@@ -96,6 +96,14 @@ pub const INLAY_HINT_NODE_BUILDER_FLAGS: u32 = NODE_BUILDER_IGNORE_ERRORS | 1 <<
 /// `OmitParameterModifiers | IgnoreErrors | UseAliasDefinedOutsideCurrentScope`.
 const SIGNATURE_HELP_NODE_BUILDER_FLAGS: u32 = 1 << 13 | NODE_BUILDER_IGNORE_ERRORS | 1 << 14;
 
+/// A node builder of a request's own (tsgo `NewNodeBuilder`): the cache of
+/// nodes it built, which [`CheckerState::with_node_builder`] lends to the
+/// checker's displays for as long as the value lives.
+#[derive(Default)]
+pub struct NodeBuilder {
+    cache: Option<Box<dyn std::any::Any + Send + Sync>>,
+}
+
 /// tsgo `VerbosityContext` (checker/nodebuilder.go): a hover's expansion
 /// level (0 only finds out whether a higher level shows more) and
 /// truncation length in; whether a higher level would show more and whether
@@ -467,20 +475,24 @@ impl CheckerState<'_> {
         enclosing_declaration: Option<NodeId>,
         flags: u32,
     ) -> Result<Option<TransformNode>, String> {
-        self.build_display_node(enclosing_declaration, |checker, arena, target| {
-            crate::node_builder::type_to_type_node(
-                checker,
-                arena,
-                target,
-                ty,
-                enclosing_declaration,
-                Some(EmitNodeBuilderFlags(flags)),
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
+        // tsgo `TypeToTypeNode` builds with a node builder of its own
+        // (`getNodeBuilderEx`), whose cache ends with the call.
+        self.with_node_builder(&mut NodeBuilder::default(), |state| {
+            state.build_display_node(enclosing_declaration, |checker, arena, target| {
+                crate::node_builder::type_to_type_node(
+                    checker,
+                    arena,
+                    target,
+                    ty,
+                    enclosing_declaration,
+                    Some(EmitNodeBuilderFlags(flags)),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+            })
         })
     }
 
@@ -1546,6 +1558,33 @@ impl CheckerState<'_> {
         crate::node_builder::expanded_parameters(self, signature, skip_union_expanding)
     }
 
+    /// Run `run` with `builder`'s cache of built nodes in place of this
+    /// checker's (tsgo `NewNodeBuilder`, whose `serializedTypes` live as
+    /// long as that builder; the checker's own builder serves
+    /// `typeToString`, `TypeToTypeNode` and the other displays).
+    pub fn with_node_builder<R>(
+        &mut self,
+        builder: &mut NodeBuilder,
+        run: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let swap = |state: &mut Self, cache: Option<Box<dyn std::any::Any + Send + Sync>>| {
+            state.with_emit_display(|display| {
+                let arena = display
+                    .arena_mut()
+                    .expect("checker display result remains live");
+                let previous = arena.take_node_builder_cache();
+                if let Some(cache) = cache {
+                    arena.set_node_builder_cache(cache);
+                }
+                previous
+            })
+        };
+        let checker_cache = swap(self, builder.cache.take());
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run(self)));
+        builder.cache = swap(self, checker_cache);
+        result.unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+    }
+
     /// Signature help's parameter label (tsgo `itemInfoForParameters`): the
     /// parameter's declaration the node builder builds with signature
     /// help's flags, printed into a display parts writer.
@@ -1607,37 +1646,44 @@ impl CheckerState<'_> {
         ty: TypeId,
         enclosing_declaration: Option<NodeId>,
     ) -> Result<Option<Vec<DisplayPart>>, String> {
-        let built = self.build_display_node(enclosing_declaration, |checker, arena, target| {
-            crate::node_builder::type_to_type_node(
-                checker,
-                arena,
-                target,
-                ty,
-                enclosing_declaration,
-                Some(EmitNodeBuilderFlags(SIGNATURE_HELP_NODE_BUILDER_FLAGS)),
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-        })?;
-        let Some(node) = built else {
-            return Ok(None);
-        };
-        // tsgo builds the node in the checker's own emit context
-        // (`TypeToTypeNode`), which signature help's printer of another
-        // context never reads: a tuple prints in its multi-line form, on one
-        // line `[ string, number ]`.
-        self.with_emit_display(|display| {
-            display
-                .arena_mut()
-                .expect("checker display result remains live")
-                .forget_emit_flags_and_comments(node)
+        // tsgo `TypeToTypeNode` builds with a node builder of its own
+        // (`getNodeBuilderEx`), whose cache ends with the call.
+        self.with_node_builder(&mut NodeBuilder::default(), |state| {
+            let built =
+                state.build_display_node(enclosing_declaration, |checker, arena, target| {
+                    crate::node_builder::type_to_type_node(
+                        checker,
+                        arena,
+                        target,
+                        ty,
+                        enclosing_declaration,
+                        Some(EmitNodeBuilderFlags(SIGNATURE_HELP_NODE_BUILDER_FLAGS)),
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                })?;
+            let Some(node) = built else {
+                return Ok(None);
+            };
+            // tsgo builds the node in the checker's own emit context
+            // (`TypeToTypeNode`), which signature help's printer of another
+            // context never reads: a tuple prints in its multi-line form, on one
+            // line `[ string, number ]`.
+            state
+                .with_emit_display(|display| {
+                    display
+                        .arena_mut()
+                        .expect("checker display result remains live")
+                        .forget_emit_flags_and_comments(node)
+                })
+                .map_err(|error| format!("type node builder: {error:?}"))?;
+            state
+                .print_display_parts(node, Vec::new(), &mut |_, _| "text")
+                .map(Some)
         })
-        .map_err(|error| format!("type node builder: {error:?}"))?;
-        self.print_display_parts(node, Vec::new(), &mut |_, _| "text")
-            .map(Some)
     }
 
     /// tsgo `TypePredicateToString`: the predicate's node
