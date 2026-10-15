@@ -1014,3 +1014,214 @@ impl Request<'_, '_> {
         self.node_kind(node) == SyntaxKind::Identifier && self.identifier_text(node) == name
     }
 }
+
+/// tsgo `JSDocTagInfo` (the API's): a tag's name and its text.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct JsDocTagInfo {
+    pub name: String,
+    pub text: String,
+}
+
+impl crate::language_service::LanguageService<'_> {
+    /// tsgo `GetSymbolDocumentationComment`: the comments (not the tags) of
+    /// the symbol's declarations' JSDoc as plain text, each different one
+    /// on its own line.
+    pub fn get_symbol_documentation_comment(
+        &mut self,
+        symbol: SymbolId,
+    ) -> Result<String, crate::language_service::LsError> {
+        let documentation = self.with_program_request(false, |request| {
+            let mut parts: Vec<String> = Vec::new();
+            let mut seen = std::collections::HashSet::new();
+            let declarations = request.state.binder.symbol(symbol).declarations.clone();
+            for declaration in declarations {
+                if !seen.insert(declaration) {
+                    continue;
+                }
+                let documentation = request.documentation_from_declaration(
+                    Some(symbol),
+                    Some(declaration),
+                    Touching::Node(declaration),
+                    false,
+                    true,
+                )?;
+                if !documentation.is_empty() && !parts.contains(&documentation) {
+                    parts.push(documentation);
+                }
+            }
+            Ok(parts.join("\n"))
+        })?;
+        Ok(documentation.unwrap_or_default())
+    }
+
+    /// tsgo `GetSymbolJSDocTags`: the tags of the symbol's declarations'
+    /// JSDoc, each with its text as a string; not a comment's that holds a
+    /// `@typedef` or `@callback` without a `@param` or `@return`.
+    pub fn get_symbol_js_doc_tags(
+        &mut self,
+        symbol: SymbolId,
+    ) -> Result<Vec<JsDocTagInfo>, crate::language_service::LsError> {
+        let tags = self.with_program_request(false, |request| {
+            let state = &*request.state;
+            let mut infos = Vec::new();
+            let mut seen = std::collections::HashSet::new();
+            for &declaration in &state.binder.symbol(symbol).declarations {
+                if !seen.insert(declaration) {
+                    continue;
+                }
+                let tags = declaration_js_doc_tags(state, declaration);
+                let has_typedef = tags.iter().any(|&tag| {
+                    matches!(
+                        state.binder.node_record(tag).kind,
+                        SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
+                    )
+                });
+                let has_param_or_return = tags.iter().any(|&tag| {
+                    matches!(
+                        state.binder.node_record(tag).kind,
+                        SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocReturnTag
+                    )
+                });
+                if has_typedef && !has_param_or_return {
+                    continue;
+                }
+                for tag in tags {
+                    let name = tag_name(state, tag)
+                        .and_then(|name| {
+                            node_util::id_text(state.binder.source_of_node(name), name)
+                        })
+                        .unwrap_or_default()
+                        .to_owned();
+                    infos.push(JsDocTagInfo {
+                        name,
+                        text: js_doc_tag_text(state, tag),
+                    });
+                }
+            }
+            Ok(infos)
+        })?;
+        Ok(tags.unwrap_or_default())
+    }
+}
+
+/// tsgo `declarationJSDocTags`: the tags of the last JSDoc comment of the
+/// declaration, or of the first comment location up from it that has
+/// tags; none for a declaration inside JSDoc.
+fn declaration_js_doc_tags(state: &CheckerState<'_>, node: NodeId) -> Vec<NodeId> {
+    if NodeFlags::from_bits(state.binder.node_record(node).flags).contains(NodeFlags::JS_DOC) {
+        return Vec::new();
+    }
+    let mut current = Some(node);
+    while let Some(node) = current {
+        let last = state
+            .binder
+            .node_record(node)
+            .js_doc
+            .and_then(|list| state.binder.node_array(list).nodes.last().copied());
+        if let Some(last) = last {
+            if let NodeData::JSDoc(js_doc) = &state.binder.node_record(last).data {
+                if let Some(tags) = js_doc.tags {
+                    return state.binder.node_array(tags).nodes.to_vec();
+                }
+            }
+        }
+        current = next_js_doc_comment_location(state, node);
+    }
+    Vec::new()
+}
+
+/// tsgo `ast.GetNextJSDocCommentLocation`: the node whose JSDoc comments
+/// also document `node`.
+fn next_js_doc_comment_location(state: &CheckerState<'_>, node: NodeId) -> Option<NodeId> {
+    let parent = state.binder.node_record(node).parent?;
+    let record = state.binder.node_record(parent);
+    match record.kind {
+        SyntaxKind::PropertyAssignment
+        | SyntaxKind::ExportAssignment
+        | SyntaxKind::PropertyDeclaration
+        | SyntaxKind::VariableDeclaration
+        | SyntaxKind::SatisfiesExpression
+        | SyntaxKind::ReturnStatement
+        | SyntaxKind::VariableStatement
+        | SyntaxKind::ExpressionStatement => Some(parent),
+        SyntaxKind::VariableDeclarationList => match &record.data {
+            NodeData::VariableDeclarationList(list) => list
+                .declarations
+                .and_then(|declarations| {
+                    state.binder.node_array(declarations).nodes.first().copied()
+                })
+                .filter(|&first| first == node)
+                .map(|_| parent),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// tsgo `getJSDocTagText`: a tag's text as a string — the comment, after
+/// the tag's type, class, name or type parameters where it has them.
+fn js_doc_tag_text(state: &CheckerState<'_>, tag: NodeId) -> String {
+    let comment = text_of_comment(state, comment_of(state, tag));
+    let with_comment = |text: String| {
+        if comment.is_empty() {
+            text
+        } else {
+            format!("{text} {comment}")
+        }
+    };
+    let text_of = |node: NodeId| source_text_of(state, node);
+    match &state.binder.node_record(tag).data {
+        NodeData::JSDocThrowsTag(data) => match data.type_expression {
+            Some(expression) => with_comment(text_of(expression)),
+            None => comment.clone(),
+        },
+        NodeData::JSDocImplementsTag(data) => {
+            with_comment(data.class.map(text_of).unwrap_or_default())
+        }
+        NodeData::JSDocAugmentsTag(data) => {
+            with_comment(data.class.map(text_of).unwrap_or_default())
+        }
+        NodeData::JSDocTemplateTag(data) => {
+            let mut text = data.constraint.map(text_of).unwrap_or_default();
+            if let Some(parameters) = data.type_parameters {
+                for (index, &parameter) in
+                    state.binder.node_array(parameters).nodes.iter().enumerate()
+                {
+                    if index == 0 && !text.is_empty() {
+                        text.push(' ');
+                    }
+                    if index != 0 {
+                        text.push_str(", ");
+                    }
+                    text.push_str(&text_of(parameter));
+                }
+            }
+            if !comment.is_empty() {
+                if !text.is_empty() {
+                    text.push(' ');
+                }
+                text.push_str(&comment);
+            }
+            text
+        }
+        NodeData::JSDocTypeTag(data) => {
+            with_comment(data.type_expression.map(text_of).unwrap_or_default())
+        }
+        NodeData::JSDocSatisfiesTag(data) => {
+            with_comment(data.type_expression.map(text_of).unwrap_or_default())
+        }
+        NodeData::JSDocSeeTag(data) => match data.name {
+            Some(name) => with_comment(text_of(name)),
+            None => comment.clone(),
+        },
+        NodeData::JSDocParameterTag(data) => match data.name {
+            Some(name) => with_comment(text_of(name)),
+            None => comment.clone(),
+        },
+        NodeData::JSDocPropertyTag(data) => match data.name {
+            Some(name) => with_comment(text_of(name)),
+            None => comment.clone(),
+        },
+        _ => comment.clone(),
+    }
+}
