@@ -1165,6 +1165,18 @@ impl Server {
         }
     }
 
+    /// tsgo `handleSignatureHelp`.
+    fn handle_signature_help(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::SignatureHelpParams,
+    ) -> Result<lsproto::SignatureHelpResponse, Failure> {
+        service
+            .provide_signature_help(&params)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo `handleDefinition`.
     fn handle_definition(
         self: &Arc<Self>,
@@ -2081,6 +2093,10 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentTypeDefinitionInfo>(
             &mut handlers,
             Server::handle_type_definition,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentSignatureHelpInfo>(
+            &mut handlers,
+            Server::handle_signature_help,
         );
         register_language_service_document_request::<lsproto::TextDocumentPrepareRenameInfo>(
             &mut handlers,

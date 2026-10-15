@@ -16,8 +16,9 @@ use tsc_ls::LanguageService;
 use tsc_lsproto::{
     CallHierarchyIncomingCallsOrNull, CallHierarchyItem, CallHierarchyItemsOrNull,
     CallHierarchyOutgoingCallsOrNull, DocumentHighlightsOrNull, DocumentUri, LocationsOrNull,
-    Position, PositionEncodingKind, ReferenceContext, ReferenceParams, RenameParams,
-    ResolvedClientCapabilities, TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile,
+    MarkupKind, Position, PositionEncodingKind, ReferenceContext, ReferenceParams, RenameParams,
+    ResolvedClientCapabilities, SignatureHelpContext, SignatureHelpParams,
+    SignatureHelpTriggerKind, TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile,
     TextDocumentIdentifier, TextEditOrAnnotatedTextEditOrSnippetTextEdit, WorkspaceEditOrNull,
 };
 use tsc_program::{load_program, LibraryCatalog, ProgramLoadLimits, ProgramOptions};
@@ -124,6 +125,23 @@ fn with_service_preferences<T>(
     preferences: UserPreferences,
     run: impl FnOnce(&mut LanguageService<'_>, &Files) -> T,
 ) -> T {
+    with_service_capabilities(
+        files,
+        options,
+        preferences,
+        ResolvedClientCapabilities::default(),
+        run,
+    )
+}
+
+/// [`with_service_preferences`] for a client with these capabilities.
+fn with_service_capabilities<T>(
+    files: &[(&str, &str)],
+    options: CompilerOptions,
+    preferences: UserPreferences,
+    capabilities: ResolvedClientCapabilities,
+    run: impl FnOnce(&mut LanguageService<'_>, &Files) -> T,
+) -> T {
     let mut builder = MemoryCompilerHost::builder("/").case_sensitive(true);
     for (name, text) in files {
         builder = builder.file(PathBuf::from(name), text.as_bytes());
@@ -159,7 +177,6 @@ fn with_service_preferences<T>(
         ))
     });
     let files = Files(texts);
-    let capabilities = ResolvedClientCapabilities::default();
     let mut service = LanguageService::new(
         &mut live,
         &files,
@@ -449,6 +466,41 @@ fn workspace_symbols(files: &[(&str, &str)], query: &str) -> Vec<WorkspaceSymbol
                     )
                 })
                 .collect()
+        },
+    )
+}
+
+/// tsgo's signature help at a position, as the protocol's JSON, for the
+/// fourslash client (per-signature active parameters, markdown
+/// documentation).
+fn signature_help(
+    files: &[(&str, &str)],
+    options: CompilerOptions,
+    (line, character): (u32, u32),
+    context: Option<SignatureHelpContext>,
+) -> serde_json::Value {
+    let mut capabilities = ResolvedClientCapabilities::default();
+    let information = &mut capabilities
+        .text_document
+        .signature_help
+        .signature_information;
+    information.active_parameter_support = true;
+    information.documentation_format = vec![MarkupKind::MARKDOWN, MarkupKind::PLAIN_TEXT];
+    let uri = DocumentUri(format!("file://{}", files[0].0));
+    with_service_capabilities(
+        files,
+        options,
+        UserPreferences::default(),
+        capabilities,
+        |service, _| {
+            let params = SignatureHelpParams {
+                text_document: TextDocumentIdentifier { uri },
+                position: Position { line, character },
+                work_done_token: None,
+                context,
+            };
+            serde_json::to_value(service.provide_signature_help(&params).expect("an answer"))
+                .expect("JSON")
         },
     )
 }
@@ -861,5 +913,65 @@ fn a_computed_property_access_name_is_its_property() {
             Some("C".to_owned()),
             ((1, 4), (1, 21))
         )]
+    );
+}
+
+/// TestTrailingCommaSignatureHelp: a trailing comma counts an argument, so
+/// signature help's resolution picks the overload with two parameters.
+#[test]
+fn a_trailing_comma_counts_an_argument_in_signature_help() {
+    let text = "function str(n: number): string;\n/**\n * Stringifies a number with radix\n * @param radix The radix\n */\nfunction str(n: number, radix: number): string;\nfunction str(n: number, radix?: number): string { return \"\"; }\n\nstr(1, )\n\ndeclare function f<T>(a: T): T;\nf(2, );";
+    let help = signature_help(
+        &[("/trailingCommaSignatureHelp.ts", text)],
+        options(|_| {}),
+        (8, 7),
+        None,
+    );
+    assert_eq!(
+        help,
+        serde_json::json!({"signatures": [{"label": "str(n: number): string", "parameters": [{"label": "n: number"}], "activeParameter": 1}, {"label": "str(n: number, radix: number): string", "documentation": {"kind": "markdown", "value": "Stringifies a number with radix"}, "parameters": [{"label": "n: number"}, {"label": "radix: number", "documentation": {"kind": "markdown", "value": "The radix"}}], "activeParameter": 1}], "activeSignature": 1})
+    );
+}
+
+/// TestSignatureHelpNestedCallTrailingComma: an outer call that fails its
+/// arity only by signature help's trailing comma reports the call (tsgo
+/// 7.1's guard), not an excess argument past the arguments.
+#[test]
+fn a_nested_call_with_trailing_commas_has_signature_help() {
+    let help = signature_help(
+        &[(
+            "/signatureHelpNestedCallTrailingComma.ts",
+            "declare function outer<T>(range: T): T;\ndeclare function inner(a: any): any;\n\nouter(inner(undefined,),);",
+        )],
+        options(|_| {}),
+        (3, 11),
+        Some(SignatureHelpContext {
+            trigger_kind: SignatureHelpTriggerKind::INVOKED,
+            trigger_character: None,
+            is_retrigger: false,
+            active_signature_help: None,
+        }),
+    );
+    assert_eq!(
+        help,
+        serde_json::json!({"signatures": [{"label": "outer(range: any): any", "parameters": [{"label": "range: any"}], "activeParameter": 0}], "activeSignature": 0})
+    );
+}
+
+/// TestJsSignature_41059: in JavaScript, an unresolved method call finds a
+/// declaration of the name with call signatures (the library's
+/// `Generator.next`); its rest tuple union expands into a signature per
+/// tuple, the element named by the rest parameter's binding name.
+#[test]
+fn an_unresolved_javascript_call_finds_a_declaration_of_its_name() {
+    let help = signature_help(
+        &[("/Foo.js", "a.next();")],
+        options(|options| options.allow_js = true),
+        (0, 7),
+        None,
+    );
+    assert_eq!(
+        help,
+        serde_json::json!({"signatures": [{"label": "Generator.next(): IteratorResult<T, TReturn>", "parameters": []}, {"label": "Generator.next(value: TNext): IteratorResult<T, TReturn>", "parameters": [{"label": "value: TNext"}], "activeParameter": 0}], "activeSignature": 0})
     );
 }

@@ -4,12 +4,13 @@
 //! and `getRecommendedCompletion`.
 
 use tsc_checker::state::CheckResult;
-use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind, TokenScanner};
-use tsc_types::{ContextFlags, ElementFlags, SymbolFlags, SymbolId, TypeData, TypeFlags, TypeId};
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{ContextFlags, SymbolFlags, SymbolId, TypeFlags, TypeId};
 
+use crate::signature_help::Invocation;
 use crate::utilities::Touching;
 
-use super::context::{is_class_like, is_template_literal_kind, is_type_node_kind, Completions};
+use super::context::{is_class_like, is_type_node_kind, Completions};
 
 /// tsgo `argumentInfoForCompletions`: the call a position is an argument
 /// of, the argument's index and how many arguments the call has.
@@ -213,293 +214,28 @@ impl Completions<'_, '_, '_> {
     }
 
     /// tsgo `getArgumentInfoForCompletions`: the call, the index of the
-    /// argument at the position and the call's argument count.
+    /// argument at the position and the call's argument count (tsgo
+    /// `getImmediatelyContainingArgumentInfo`'s, signature help's); none for
+    /// a type argument list.
     pub(crate) fn argument_info_for_completions(
         &mut self,
         node: Touching,
         position: u32,
     ) -> CheckResult<Option<ArgumentInfo>> {
-        self.immediately_containing_argument_info(node, position)
-    }
-
-    /// tsgo `getImmediatelyContainingArgumentInfo` (signaturehelp.go), as
-    /// completions read it: none for a type argument list.
-    fn immediately_containing_argument_info(
-        &mut self,
-        node: Touching,
-        position: u32,
-    ) -> CheckResult<Option<ArgumentInfo>> {
-        let Some(parent) = self.parent(node) else {
+        let Some(info) = self.immediately_containing_argument_info(node, position)? else {
             return Ok(None);
         };
-        let parent_kind = self.node_kind(parent);
-        let node_kind = self.kind(node);
-        if matches!(
-            parent_kind,
-            SyntaxKind::CallExpression | SyntaxKind::NewExpression
-        ) {
-            // The argument or type argument list the token is in, and its
-            // index there.
-            let Some((list, argument_index)) = self.argument_or_parameter_list_and_index(node)?
-            else {
-                return Ok(None);
-            };
-            let type_arguments = match self.data(parent) {
-                NodeData::CallExpression(data) => data.type_arguments,
-                NodeData::NewExpression(data) => data.type_arguments,
-                _ => None,
-            };
-            let is_type_parameter_list = type_arguments.is_some_and(|type_arguments| {
-                list.is_some_and(|list| {
-                    self.list_range(type_arguments).0 == self.list_range(list).0
-                })
-            });
-            if is_type_parameter_list {
-                return Ok(None);
-            }
-            let argument_count = match list {
-                Some(list) => self.argument_index_or_count(list, parent, None)?,
-                None => 0,
-            };
-            return Ok(Some(ArgumentInfo {
-                invocation: parent,
-                argument_index,
-                argument_count,
-            }));
-        }
-        if node_kind == SyntaxKind::NoSubstitutionTemplateLiteral
-            && parent_kind == SyntaxKind::TaggedTemplateExpression
-        {
-            // Only inside the template.
-            if self.is_inside_template_literal(node, position) {
-                return Ok(Some(self.argument_info_for_template(parent, 0)));
-            }
-            return Ok(None);
-        }
-        if node_kind == SyntaxKind::TemplateHead {
-            if let Some(tag) = self.parent_of(parent).filter(|&grandparent| {
-                self.node_kind(grandparent) == SyntaxKind::TaggedTemplateExpression
-            }) {
-                let argument_index = if self.is_inside_template_literal(node, position) {
-                    0
-                } else {
-                    1
-                };
-                return Ok(Some(self.argument_info_for_template(tag, argument_index)));
-            }
-        }
-        if parent_kind == SyntaxKind::TemplateSpan {
-            let template = self.parent_of(parent);
-            if let Some(tag) = template
-                .and_then(|template| self.parent_of(template))
-                .filter(|&tag| self.node_kind(tag) == SyntaxKind::TaggedTemplateExpression)
-            {
-                // Just after a template tail, no argument.
-                if node_kind == SyntaxKind::TemplateTail
-                    && !self.is_inside_template_literal(node, position)
-                {
-                    return Ok(None);
-                }
-                let NodeData::TemplateExpression(data) = self.data(template.expect("a template"))
-                else {
-                    return Ok(None);
-                };
-                let span_index = self
-                    .node_list(data.template_spans)
-                    .iter()
-                    .position(|&span| span == parent)
-                    .expect("a span of its template");
-                let argument_index = if is_template_literal_kind(node_kind) {
-                    if self.is_inside_template_literal(node, position) {
-                        0
-                    } else {
-                        span_index + 2
-                    }
-                } else {
-                    span_index + 1
-                };
-                return Ok(Some(self.argument_info_for_template(tag, argument_index)));
-            }
-        }
-        if matches!(
-            parent_kind,
-            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement
-        ) {
-            return Ok(Some(ArgumentInfo {
-                invocation: parent,
-                argument_index: 0,
-                argument_count: 1,
-            }));
-        }
-        // Type arguments of `f <`: a type parameter list.
-        Ok(None)
-    }
-
-    /// tsgo `getArgumentListInfoForTemplate`: the template strings array
-    /// and a substitution per span.
-    fn argument_info_for_template(&self, tag: NodeId, argument_index: usize) -> ArgumentInfo {
-        let NodeData::TaggedTemplateExpression(data) = self.data(tag) else {
-            unreachable!("a tagged template");
-        };
-        let argument_count = match data.template.map(|template| self.data(template)) {
-            Some(NodeData::TemplateExpression(template)) => {
-                self.node_list(template.template_spans).len() + 1
-            }
-            _ => 1,
-        };
-        ArgumentInfo {
-            invocation: tag,
-            argument_index,
-            argument_count,
-        }
-    }
-
-    /// tsgo `isInsideTemplateLiteral`.
-    fn is_inside_template_literal(&self, node: Touching, position: u32) -> bool {
-        is_template_literal_kind(self.kind(node))
-            && (self.start(node) < position && position < self.end(node)
-                || self.is_unterminated_literal(node) && position == self.end(node))
-    }
-
-    /// tsgo `getArgumentOrParameterListAndIndex`: the list after `<` or
-    /// `(`, or the list holding the token, and the argument's index.
-    fn argument_or_parameter_list_and_index(
-        &mut self,
-        node: Touching,
-    ) -> CheckResult<Option<(Option<NodeArrayId>, usize)>> {
-        let parent = self.parent(node).expect("a token's parent");
-        let (type_arguments, arguments) = match self.data(parent) {
-            NodeData::CallExpression(data) => (data.type_arguments, data.arguments),
-            NodeData::NewExpression(data) => (data.type_arguments, data.arguments),
-            _ => (None, None),
-        };
-        match self.kind(node) {
-            // The list that starts right after: item 0 of a list just
-            // opened.
-            SyntaxKind::LessThanToken => return Ok(Some((type_arguments, 0))),
-            SyntaxKind::OpenParenToken => return Ok(Some((arguments, 0))),
-            _ => {}
-        }
-        // findContainingList: the last of the parent's lists that contains
-        // the token.
-        let (pos, end) = (self.pos(node), self.end(node));
-        let mut list = None;
-        for candidate in [type_arguments, arguments].into_iter().flatten() {
-            let (list_pos, list_end) = self.list_range(candidate);
-            if list_pos <= pos && end <= list_end {
-                list = Some(candidate);
-            }
-        }
-        let Some(list) = list else {
+        let Invocation::Call(invocation) = info.invocation else {
             return Ok(None);
         };
-        let argument_index = self.argument_index_or_count(list, parent, Some(node))?;
-        Ok(Some((Some(list), argument_index)))
-    }
-
-    /// tsgo `getArgumentIndexOrCount`: the index of the argument holding
-    /// `node`, or the list's argument count, counting a spread tuple's
-    /// required elements.
-    fn argument_index_or_count(
-        &mut self,
-        list: NodeArrayId,
-        parent: NodeId,
-        node: Option<Touching>,
-    ) -> CheckResult<usize> {
-        let arguments = self.tokens_of_node_list(list, parent);
-        let mut argument_index = 0;
-        let mut skip_comma = false;
-        for &argument in &arguments {
-            if Some(argument) == node {
-                if !skip_comma && self.kind(argument) == SyntaxKind::CommaToken {
-                    argument_index += 1;
-                }
-                return Ok(argument_index);
-            }
-            if self.kind(argument) == SyntaxKind::SpreadElement {
-                let Touching::Node(spread) = argument else {
-                    unreachable!("a spread element is a node");
-                };
-                argument_index += self.spread_element_count(spread)?;
-                skip_comma = true;
-                continue;
-            }
-            if self.kind(argument) != SyntaxKind::CommaToken {
-                argument_index += 1;
-                skip_comma = true;
-                continue;
-            }
-            if skip_comma {
-                skip_comma = false;
-                continue;
-            }
-            argument_index += 1;
+        if info.is_type_parameter_list {
+            return Ok(None);
         }
-        if node.is_some() {
-            return Ok(argument_index);
-        }
-        // `f(a,)` has a second argument.
-        if arguments
-            .last()
-            .is_some_and(|&last| self.kind(last) == SyntaxKind::CommaToken)
-        {
-            return Ok(argument_index + 1);
-        }
-        Ok(argument_index)
-    }
-
-    /// tsgo `getTokenFromNodeList`: a list's nodes and the tokens between
-    /// them.
-    fn tokens_of_node_list(&self, list: NodeArrayId, parent: NodeId) -> Vec<Touching> {
-        let array = self.request.state.binder.node_array(list);
-        let mut left = array.pos;
-        let mut index = 0;
-        let mut tokens = Vec::new();
-        while left < array.end {
-            if let Some(&node) = array.nodes.get(index) {
-                if left == self.record(node).pos {
-                    tokens.push(Touching::Node(node));
-                    left = self.record(node).end;
-                    index += 1;
-                    continue;
-                }
-            }
-            let scanner = TokenScanner::new(self.source, left as usize);
-            let end = scanner.token_end() as u32;
-            tokens.push(Touching::Token {
-                kind: scanner.token(),
-                pos: scanner.token_full_start() as u32,
-                end,
-                parent,
-            });
-            left = end;
-        }
-        tokens
-    }
-
-    /// tsgo `getSpreadElementCount`: the required elements a spread tuple
-    /// gives.
-    fn spread_element_count(&mut self, spread: NodeId) -> CheckResult<usize> {
-        let Some(expression) = self.expression_of(spread) else {
-            return Ok(0);
-        };
-        let spread_type = self.request.state.get_type_at_location(expression)?;
-        let tables = &self.request.state.tables;
-        if !tables.is_tuple_type(spread_type) {
-            return Ok(0);
-        }
-        let target = tables.reference_target(spread_type);
-        let TypeData::TupleTarget(tuple) = &tables.type_of(target).data else {
-            return Ok(0);
-        };
-        if tuple.fixed_length == 0 {
-            return Ok(0);
-        }
-        Ok(tuple
-            .element_flags
-            .iter()
-            .position(|&flags| !flags.intersects(ElementFlags::REQUIRED))
-            .unwrap_or(tuple.fixed_length))
+        Ok(Some(ArgumentInfo {
+            invocation,
+            argument_index: info.argument_index,
+            argument_count: info.argument_count,
+        }))
     }
 
     /// tsgo `getConstraintOfTypeArgumentProperty`: what a type argument

@@ -195,7 +195,10 @@ pub(crate) struct QuickInfoAndDocumentation {
 /// tsgo `classificationForSymbol`: a symbol's name's Visual Studio
 /// classification, as Strada's `displayPartKind` and `GetClassificationName`
 /// chain it.
-fn classification_for_symbol(state: &CheckerState<'_>, symbol: SymbolId) -> &'static str {
+pub(crate) fn classification_for_symbol(
+    state: &CheckerState<'_>,
+    symbol: SymbolId,
+) -> &'static str {
     let data = state.binder.symbol(symbol);
     let flags = data.flags;
     if flags.intersects(SymbolFlags::VARIABLE) {
