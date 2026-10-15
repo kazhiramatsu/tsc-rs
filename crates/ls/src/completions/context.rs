@@ -16,7 +16,8 @@ use crate::utilities::{is_class_element, is_function_like_kind, touching, Touchi
 
 use super::keywords::{is_class_member_completion_keyword, is_parameter_property_modifier};
 
-/// A completion request: the checker, the file and the position.
+/// A request at a position of a file: the checker, the file and the
+/// position (completions, and signature help, which shares tsgo's utilities).
 pub(crate) struct Completions<'r, 's, 'a> {
     pub(crate) request: &'r mut Request<'s, 'a>,
     pub(crate) file: usize,
@@ -1226,7 +1227,10 @@ impl Completions<'_, '_, '_> {
 
     /// tsgo `getPossibleTypeArgumentsInfo`: for `f <` that may start type
     /// arguments, the identifier called and the type arguments before.
-    fn possible_type_arguments_info(&self, token: Option<Touching>) -> Option<(NodeId, usize)> {
+    pub(crate) fn possible_type_arguments_info(
+        &self,
+        token: Option<Touching>,
+    ) -> Option<(NodeId, usize)> {
         // A file with no `<` has no type arguments.
         if !self.text().contains('<') {
             return None;
@@ -1343,7 +1347,7 @@ impl Completions<'_, '_, '_> {
     }
 
     /// tsgo `getPossibleGenericSignatures`.
-    fn possible_generic_signatures(
+    pub(crate) fn possible_generic_signatures(
         &mut self,
         called: NodeId,
         type_argument_count: usize,

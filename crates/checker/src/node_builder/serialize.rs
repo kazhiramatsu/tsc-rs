@@ -1453,6 +1453,37 @@ pub(crate) fn type_parameter_to_declaration_node(
     .map(Option::flatten)
 }
 
+/// tsgo `NodeBuilder.SymbolToParameterDeclaration` (nodebuilder.go:243-246):
+/// a parameter symbol's declaration, without its modifiers.
+pub(crate) fn symbol_to_parameter_declaration_node(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    parameter: SymbolId,
+    enclosing_declaration: Option<NodeId>,
+    flags: EmitNodeBuilderFlags,
+) -> BuildResult<Option<TransformNode>> {
+    with_context(
+        checker,
+        arena,
+        target,
+        enclosing_declaration,
+        Some(flags),
+        None,
+        None,
+        None,
+        None,
+        |checker, arena, target, context| {
+            super::signatures::symbol_to_parameter_declaration(
+                checker, arena, target, parameter, context, false,
+            )
+            .map(Some)
+        },
+        None,
+    )
+    .map(Option::flatten)
+}
+
 /// tsgo-port: NodeBuilder.SerializeTypeForDeclaration @7.1 (nodebuilder.go:133-137).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn serialize_type_for_declaration(

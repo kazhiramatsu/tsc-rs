@@ -358,7 +358,7 @@ impl DeclarationMap<'_, '_> {
 
 /// tsgo `ast.GetDeclarationName`: the text of a declaration's own name (a
 /// computed name's literal or property name); empty without one.
-fn get_declaration_name(source: &SourceFile, declaration: NodeId) -> String {
+pub(crate) fn get_declaration_name(source: &SourceFile, declaration: NodeId) -> String {
     let Some(name) = node_util::get_non_assigned_name_of_declaration(source, declaration) else {
         return String::new();
     };

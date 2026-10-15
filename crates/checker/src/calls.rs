@@ -87,6 +87,10 @@ struct ResolveCallCtx {
     /// 9108): the call was already being resolved when this resolution
     /// began.
     recursive_resolution: bool,
+    /// tsgo `CallState.signatureHelpTrailingComma` (checker.go:9130): a
+    /// call resolved for signature help whose arguments end with a comma
+    /// counts one argument more.
+    signature_help_trailing_comma: bool,
 }
 
 /// tsrs-native: the value carried out of one rollback-capable
@@ -3962,10 +3966,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 953dbc1e549a14a2152d422085bb1026d78c85964e4e14c962d7d0711c0875cb
     /// tsc-span: _tsc.js:76579-76870
     ///
-    /// candidatesOutArray / IsForSignatureHelp are LSP-only (always
-    /// None/false — signatureHelpTrailingComma stays false); reportErrors
-    /// is false only while the language service blocks inferences
-    /// (isInferencePartiallyBlocked). The chooseOverload/
+    /// candidatesOutArray and IsForSignatureHelp come from the language
+    /// service (signature help's resolution counts a trailing comma's
+    /// argument); reportErrors is false only while the language service
+    /// blocks inferences (isInferencePartiallyBlocked). The chooseOverload/
     /// addImplementationSuccessElaboration closures live on ResolveCallCtx.
     pub(crate) fn resolve_call(
         &mut self,
@@ -4055,6 +4059,13 @@ impl<'a> CheckerState<'a> {
             candidate_for_argument_arity_error: None,
             candidate_for_type_argument_error: None,
             recursive_resolution: self.call_resolution_stack.contains(&node),
+            signature_help_trailing_comma: check_mode.intersects(CheckMode::IS_FOR_SIGNATURE_HELP)
+                && match self.data_of(node) {
+                    NodeData::CallExpression(data) => data.arguments.is_some_and(|arguments| {
+                        self.binder.node_array(arguments).has_trailing_comma
+                    }),
+                    _ => false,
+                },
         };
 
         // tsgo resolveCall (checker.go:9108-9116): the call is on the
@@ -4376,6 +4387,7 @@ impl<'a> CheckerState<'a> {
                 candidate_for_argument_arity_error: None,
                 candidate_for_type_argument_error: None,
                 recursive_resolution: ctx.recursive_resolution,
+                signature_help_trailing_comma: ctx.signature_help_trailing_comma,
             };
             let chosen = state.choose_overload(
                 &mut probe_ctx,
@@ -4448,7 +4460,12 @@ impl<'a> CheckerState<'a> {
             let candidate = ctx.candidates[0];
             let args = ctx.args.clone();
             if !ctx.type_argument_nodes.is_empty()
-                || !self.has_correct_arity(node, &args, candidate, false)?
+                || !self.has_correct_arity(
+                    node,
+                    &args,
+                    candidate,
+                    ctx.signature_help_trailing_comma,
+                )?
             {
                 return Ok(None);
             }
@@ -4473,7 +4490,12 @@ impl<'a> CheckerState<'a> {
             let candidate = ctx.candidates[candidate_index];
             let args = ctx.args.clone();
             if !self.has_correct_type_argument_arity(candidate, &ctx.type_argument_nodes)
-                || !self.has_correct_arity(node, &args, candidate, false)?
+                || !self.has_correct_arity(
+                    node,
+                    &args,
+                    candidate,
+                    ctx.signature_help_trailing_comma,
+                )?
             {
                 continue;
             }
@@ -4483,6 +4505,7 @@ impl<'a> CheckerState<'a> {
             // constraints checks during type inference to avoid circularity
             // errors."
             let no_constraint_checks = ctx.recursive_resolution && ctx.candidates.len() == 1;
+            let signature_help_trailing_comma = ctx.signature_help_trailing_comma;
             let run_trial = |state: &mut Self| {
                 state.try_overload_candidate(
                     node,
@@ -4492,6 +4515,7 @@ impl<'a> CheckerState<'a> {
                     relation,
                     ctx.arg_check_mode,
                     no_constraint_checks,
+                    signature_help_trailing_comma,
                 )
             };
             let trial = if rollback_rejected_candidates {
@@ -4542,6 +4566,7 @@ impl<'a> CheckerState<'a> {
         relation: RelationKind,
         mut arg_check_mode: CheckMode,
         no_constraint_checks: bool,
+        signature_help_trailing_comma: bool,
     ) -> CheckResult<OverloadCandidateTrial> {
         let mut check_candidate;
         let mut inference_context: Option<InferenceContextId> = None;
@@ -4609,7 +4634,12 @@ impl<'a> CheckerState<'a> {
                 inferred_type_parameters.as_deref(),
             )?;
             if self.get_non_array_rest_type(candidate)?.is_some()
-                && !self.has_correct_arity(node, args, check_candidate, false)?
+                && !self.has_correct_arity(
+                    node,
+                    args,
+                    check_candidate,
+                    signature_help_trailing_comma,
+                )?
             {
                 return Ok(OverloadCandidateTrial {
                     disposition: OverloadCandidateDisposition::ArgumentArityError(check_candidate),
@@ -4656,7 +4686,12 @@ impl<'a> CheckerState<'a> {
                     inferred_type_parameters.as_deref(),
                 )?;
                 if self.get_non_array_rest_type(candidate)?.is_some()
-                    && !self.has_correct_arity(node, args, check_candidate, false)?
+                    && !self.has_correct_arity(
+                        node,
+                        args,
+                        check_candidate,
+                        signature_help_trailing_comma,
+                    )?
                 {
                     return Ok(OverloadCandidateTrial {
                         disposition: OverloadCandidateDisposition::ArgumentArityError(
@@ -5219,6 +5254,17 @@ impl<'a> CheckerState<'a> {
                 }
             }
             return Ok(diagnostic);
+        }
+        // tsgo 7.1 (checker.go:10020-10030): no excess argument when the
+        // count matches the parameters' (signature help's trailing comma
+        // can fail resolution so) — the call node's error.
+        if max >= args.len() {
+            let span = self.diag_span_for_call_node(node);
+            let chain = wrap_in_head(MessageChain::new(
+                error_message,
+                &[parameter_range, arg_count_text],
+            ));
+            return Ok(self.diagnostic_at_span(&span, chain));
         }
         // 76499-76519: over max — the excess-args range (end==pos bump).
         let pos = self.effective_arg_pos(&args[max]);

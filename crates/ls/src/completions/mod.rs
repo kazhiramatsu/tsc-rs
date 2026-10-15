@@ -24,8 +24,8 @@ use tsc_syntax::SyntaxKind;
 
 use crate::language_service::{LanguageService, LsError};
 
-use context::Completions;
-pub(crate) use context::{is_type_element, is_type_node_kind};
+pub(crate) use context::Completions;
+pub(crate) use context::{is_template_literal_kind, is_type_element, is_type_node_kind};
 pub(crate) use contextual::is_equality_operator_kind;
 use data::CompletionData;
 

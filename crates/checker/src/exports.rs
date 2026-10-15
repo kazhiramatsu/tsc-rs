@@ -88,6 +88,10 @@ const NODE_BUILDER_WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME: u32 = 1 << 9;
 const CLASSIFIED_NODE_BUILDER_FLAGS: u32 =
     NODE_BUILDER_IGNORE_ERRORS | 1 << 14 | NODE_BUILDER_WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME;
 
+/// tsgo signature help's `signatureHelpNodeBuilderFlags`:
+/// `OmitParameterModifiers | IgnoreErrors | UseAliasDefinedOutsideCurrentScope`.
+const SIGNATURE_HELP_NODE_BUILDER_FLAGS: u32 = 1 << 13 | NODE_BUILDER_IGNORE_ERRORS | 1 << 14;
+
 /// tsgo `VerbosityContext` (checker/nodebuilder.go): a hover's expansion
 /// level (0 only finds out whether a higher level shows more) and
 /// truncation length in; whether a higher level would show more and whether
@@ -1524,6 +1528,132 @@ impl CheckerState<'_> {
                 .map(Some),
             None => Ok(None),
         }
+    }
+
+    /// tsgo `GetExpandedParameters`: the signature's parameters with a rest
+    /// parameter of a tuple type expanded into the tuple's elements — one
+    /// list, or (unless `skip_union_expanding`) one for each tuple of a
+    /// union of tuples.
+    pub fn get_expanded_parameters(
+        &mut self,
+        signature: SignatureId,
+        skip_union_expanding: bool,
+    ) -> CheckResult<Vec<Vec<SymbolId>>> {
+        crate::node_builder::expanded_parameters(self, signature, skip_union_expanding)
+    }
+
+    /// Signature help's parameter label (tsgo `itemInfoForParameters`): the
+    /// parameter's declaration the node builder builds with signature
+    /// help's flags, printed into a display parts writer.
+    pub fn signature_help_parameter(
+        &mut self,
+        parameter: SymbolId,
+        enclosing_declaration: Option<NodeId>,
+    ) -> Result<Vec<DisplayPart>, String> {
+        let built = self.build_display_node(enclosing_declaration, |checker, arena, target| {
+            crate::node_builder::symbol_to_parameter_declaration_node(
+                checker,
+                arena,
+                target,
+                parameter,
+                enclosing_declaration,
+                EmitNodeBuilderFlags(SIGNATURE_HELP_NODE_BUILDER_FLAGS),
+            )
+        })?;
+        match built {
+            Some(node) => self.print_display_parts(node, Vec::new(), &mut |_, _| "text"),
+            None => Ok(Vec::new()),
+        }
+    }
+
+    /// Signature help's type parameter label (tsgo
+    /// `createSignatureHelpParameterForTypeParameter`): the type
+    /// parameter's declaration the node builder builds with signature
+    /// help's flags, printed as text.
+    pub fn signature_help_type_parameter(
+        &mut self,
+        ty: TypeId,
+        enclosing_declaration: Option<NodeId>,
+    ) -> Result<String, String> {
+        let node = self.build_display_node(enclosing_declaration, |checker, arena, target| {
+            crate::node_builder::type_parameter_to_declaration_node(
+                checker,
+                arena,
+                target,
+                ty,
+                enclosing_declaration,
+                Some(EmitNodeBuilderFlags(SIGNATURE_HELP_NODE_BUILDER_FLAGS)),
+                None,
+                None,
+                None,
+            )
+        })?;
+        let Some(node) = node else {
+            return Ok(String::new());
+        };
+        let options = PrinterOptions::new(NewLineKind::LineFeed).with_declaration_syntax(true);
+        self.print_display_node(node, options, StandaloneWriter::MultiLine)
+    }
+
+    /// Signature help's return type (tsgo `returnTypeToDisplayParts`): the
+    /// type node the node builder builds with signature help's flags,
+    /// printed into a display parts writer; none when it builds none.
+    pub fn signature_help_type(
+        &mut self,
+        ty: TypeId,
+        enclosing_declaration: Option<NodeId>,
+    ) -> Result<Option<Vec<DisplayPart>>, String> {
+        let built = self.build_display_node(enclosing_declaration, |checker, arena, target| {
+            crate::node_builder::type_to_type_node(
+                checker,
+                arena,
+                target,
+                ty,
+                enclosing_declaration,
+                Some(EmitNodeBuilderFlags(SIGNATURE_HELP_NODE_BUILDER_FLAGS)),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+        })?;
+        match built {
+            Some(node) => self
+                .print_display_parts(node, Vec::new(), &mut |_, _| "text")
+                .map(Some),
+            None => Ok(None),
+        }
+    }
+
+    /// tsgo `TypePredicateToString`: the predicate's node
+    /// (`UseAliasDefinedOutsideCurrentScope`, errors ignored, type
+    /// parameters in qualified names) printed on one line without comments.
+    pub fn type_predicate_to_string(
+        &mut self,
+        predicate: &crate::narrow::TypePredicate,
+    ) -> Result<String, String> {
+        let flags = 1 << 14
+            | NODE_BUILDER_IGNORE_ERRORS
+            | NODE_BUILDER_WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME;
+        let node = self.build_display_node(None, |checker, arena, target| {
+            crate::node_builder::type_predicate_to_type_predicate_node_with_identifier_symbols(
+                checker,
+                arena,
+                target,
+                predicate,
+                None,
+                EmitNodeBuilderFlags(flags),
+            )
+            .map(|built| built.map(|(node, _)| node))
+        })?;
+        let Some(node) = node else {
+            return Ok(String::new());
+        };
+        let options = PrinterOptions::new(NewLineKind::LineFeed)
+            .with_remove_comments(true)
+            .with_declaration_syntax(true);
+        self.print_display_node(node, options, StandaloneWriter::SingleLine)
     }
 
     /// tsgo `SignatureToStringEx`'s kind: an arrow-style signature is a
