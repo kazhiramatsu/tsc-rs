@@ -1278,3 +1278,50 @@ tsc-rs の span map は compiler の UTF-16 なので、LS には UTF-8（tsgo �
    の先の解決と元の座標の edit）。
 4. **L10d 残り**：format（文書と範囲）、folding、selection range、document symbol、code lens、inlay hint、file rename、
    code action。
+
+## L10a content mapper の LS の基盤・hover・diagnostics（#812）
+
+- **merge**：#812 → `06c507def`（hosted run 38710133417：rust 13m01s、conformance 32m10s、gates）。commit：0630ad711
+  （spanmap・syntax・checker）、0c85ec92a（harness の test mapper）、6e251cc36（lsp の spawner）、1af149fd3（変換・hover・
+  diagnostics）、ee4de8681（folding・symbol・format・rename・auto-import の対象）、e6fb19e5a（ratchet）。検査の後の main の
+  取り込みは L9 の merge（同じ code）、packet の README と README だけ。
+- **spanmap・syntax・checker**：tsgo `VirtualToOriginalSpanForFeature`・`VirtualToOriginalPositionForFeature`
+  （`virtualSpanSupportsFeature`）と UTF-8 の map（compiler の UTF-16 の map の写し。LS は tsgo の単位の byte）。parse した
+  source に `ContentMapperOutput`（mapper の識別・元の text・canonical と supplemental の出力の名前・UTF-8 の span map）。
+  提案の行にも `filterAndSortDiagnostics`（合成部分だけの不要 code の提案を出さない）。
+- **server**：tsgo `ServerOptions.Spawn`。`tsc-rs --lsp` は mapper を native に起動し、transcript の replay は harness の
+  in-process の test mapper（component・duplicate・duplicate-projection・prefixed-supplemental・unmapped-folding・hoisting。
+  tsgo の fourslash と同じ）。
+- **変換**：tsgo `Script` の `OriginalFileName`・`SpanMap`・`OriginalText`。`ToLSPPosition`・`ToLSPRange` は出力の virtual
+  の座標を元の file に戻す（`ForFeature` と fidelity）。`FromLSPPosition`・`FromLSPRange`・交わる range は file と
+  supplemental の出力の、feature に参加する segment の projection を全て返す（`sourceFileProjections`）。
+- **機能**：hover は single segment の projection を全て合わせる（内容を区切りで連ね、共通の range、VS の積み重ね）。
+  diagnostics は supplemental の出力も含め、mapper 自身の診断は元の範囲、合成部分の診断は file の先頭、出力の合成部分の
+  診断は 18080 一つに集約（関連情報に各診断）。folding・document symbol・workspace symbol は tsgo の feature の filter。
+  mapped な format（`getFormattingEditsForMappedRange`・`nonOverlappingFormattingRanges`）と範囲・on-type の format は exact
+  な projection 一つ。`GetRenameInfo` は最初の exact な projection、`getRenameInfoSuccess`・`renameEditRange` は exact を
+  求める。supplemental の出力は auto-import の対象にしない（`IsContentMapperSupplemental`）。
+- **教訓**：mapper を起動すると、mapper が無くて空の答えで偶然一致していた場面が崩れる（5 件。folding・symbol・format・
+  rename・auto-import を port して戻した）。replay は一致済みの content mapper の場面も一緒に回す。
+- **検査（1af149fd3 の conformance、ee4de8681 の suites と test）**：conformance 0 regressions（13,577 全て full、498 s）、
+  `--checkers 4` は既知の 4 件だけ、suites 0 regressions（lsp 24 行 none → full、**4,537 → 4,561**）、test（diagnostics 84・
+  harness 31 を含め全通過）、API client sync 356/356・async 365/365、clippy、fmt。
+- **README**：Status の language server の数（4,561）と、language server の節（content mapper の file は一部）。
+
+## L10b content mapper の LS の移動（#813）
+
+- **merge**：#813 → `3a5f725a6`（hosted run 38714441602：rust 13m40s、conformance 24m15s、gates）。commit：0b2ef8a43
+  （language service）、b2ae9cbf1（ratchet）。検査の後の main の取り込みは L10a の merge（同じ code）、packet の README と
+  README だけ。
+- **移動**：`ProvideDefinition`・`ProvideTypeDefinition`・`ProvideSourceDefinition` は single segment の projection を全て
+  合わせる。`createDefinitionLocations` は名前が feature の一つの segment に写らない移動先を落とし、文脈が写らなければ
+  名前の範囲（`sourceFileRangeToLSPLocationForFeature`）。switch の定義は写らなければ file のもの。
+- **references・implementation・VS references**：feature の一つの segment に写らない entry と定義を落とす
+  （`getLocationOfEntryForFeature`）。link の文脈は写る時だけ。supplemental の出力の entry は元の file に。
+- **document highlight**：single segment の projection を全て合わせ、元の file ごとにまとめる。highlight は写る時だけ。
+- **signature help**：help のある最初の single segment の projection。
+- **`{@link}`**：tsgo `documentationLocationMapper`。宣言が request の feature（hover・signature help）の一つの segment に
+  写る時だけ markdown の link、他は text。API の documentation はどこにも写さない（`noMappedLocation`）。
+- **検査（b2ae9cbf1）**：compiler の経路の変更なし（conformance は走らせない）、suites 0 regressions（lsp 8 行 none → full、
+  **4,561 → 4,569**）、test 全通過、API client sync 356/356・async 365/365、clippy、fmt。
+- **README**：Status の language server の数（4,569）と、content mapper の file で使える機能。
