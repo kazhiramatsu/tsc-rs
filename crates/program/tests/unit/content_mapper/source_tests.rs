@@ -249,9 +249,9 @@ fn the_cache_finds_a_transforms_outputs_while_a_program_holds_them() {
         output(".ts", &[".ts"]),
     )
     .unwrap();
-    cache.insert(&sources);
+    cache.insert(&sources, "");
     let found = cache
-        .get(file_name, "<template />", "transform-identity")
+        .get(file_name, "<template />", "transform-identity", "")
         .expect("the held outputs are found");
     assert!(Arc::ptr_eq(&found.canonical.text, &sources.canonical.text));
     assert!(Arc::ptr_eq(&found.canonical.info, &sources.canonical.info));
@@ -261,17 +261,21 @@ fn the_cache_finds_a_transforms_outputs_while_a_program_holds_them() {
     ));
     // Another content or transform identity is another key.
     assert!(cache
-        .get(file_name, "<template></template>", "transform-identity")
+        .get(file_name, "<template></template>", "transform-identity", "")
         .is_none());
     assert!(cache
-        .get(file_name, "<template />", "other-identity")
+        .get(file_name, "<template />", "other-identity", "")
+        .is_none());
+    // So is another locale (tsgo keys its cache with the context's).
+    assert!(cache
+        .get(file_name, "<template />", "transform-identity", "fr")
         .is_none());
     drop(found);
     assert_eq!(cache.len(), 1);
     // The outputs and their entry go with the last program holding them.
     drop(sources);
     assert!(cache
-        .get(file_name, "<template />", "transform-identity")
+        .get(file_name, "<template />", "transform-identity", "")
         .is_none());
     assert!(cache.is_empty());
     cache.purge();

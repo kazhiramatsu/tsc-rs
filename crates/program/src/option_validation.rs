@@ -675,7 +675,7 @@ pub fn ensure_path_is_non_module_name(path: &str) -> String {
 /// tsc-port: getEncodedRootLength @6.0.3 (absolute/nonzero projection)
 /// tsc-hash: ad42b701dd98c53ad89476947bccf551e3ab3db9ce0c9fc5009e16a41b49b1f9
 /// tsc-span: _tsc.js:5349-5386
-pub(crate) fn path_is_absolute<'a>(path: impl Into<JsStr<'a>>) -> bool {
+pub fn path_is_absolute<'a>(path: impl Into<JsStr<'a>>) -> bool {
     let path = path.into();
     let bytes = path.as_bytes();
     if matches!(bytes.first(), Some(b'/' | b'\\')) {

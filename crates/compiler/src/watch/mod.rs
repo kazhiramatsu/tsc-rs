@@ -608,9 +608,9 @@ impl<'a> Watcher<'a> {
             .and_then(|plan| plan.program_options().content_mapper_spec().cloned());
         let project = match spec {
             Some(spec) => {
-                let system = self.system;
+                let (system, locale) = (self.system, self.locale);
                 self.content_mapper_host
-                    .get_or_insert_with(|| cli::new_content_mapper_host(system))
+                    .get_or_insert_with(|| cli::new_content_mapper_host(system, locale))
                     .project(spec)
                     .map(Arc::new)
             }

@@ -2228,7 +2228,9 @@ pub fn transform_content_mapped(
     // tsgo's project compiler host: the outputs a program holds for the
     // same file, content and transform identity, without the mapper.
     let cache = project.content_mapped_cache();
-    let cached = cache.and_then(|cache| cache.get(file_name, content, &transform_identity));
+    let locale = cache.map(|_| project.locale()).unwrap_or_default();
+    let cached =
+        cache.and_then(|cache| cache.get(file_name, content, &transform_identity, &locale));
     let sources = match cached {
         Some(sources) => sources,
         None => {
@@ -2242,7 +2244,7 @@ pub fn transform_content_mapped(
             )?;
             let sources = virtual_sources(file_name, content, mapper, &transform_identity, output)?;
             if let Some(cache) = cache {
-                cache.insert(&sources);
+                cache.insert(&sources, &locale);
             }
             sources
         }
