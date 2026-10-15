@@ -259,10 +259,7 @@ impl Request<'_, '_> {
         position: usize,
     ) -> Option<TextDocumentPosition> {
         let text = self.host.read_file(file_name)?;
-        let script = TextScript {
-            file_name: file_name.to_owned(),
-            text: &text,
-        };
+        let script = TextScript::new(file_name, &text);
         Some(TextDocumentPosition {
             uri: DocumentUri(file_name_to_document_uri(file_name)),
             position: self.converters.to_lsp_position(&script, position),

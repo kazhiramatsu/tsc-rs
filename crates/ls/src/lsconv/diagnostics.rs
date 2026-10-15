@@ -2,6 +2,7 @@
 //! compiler diagnostic as the protocol's, its message flattened in the
 //! session's locale, its UTF-16 span converted to protocol positions.
 
+use tsc_diagnostics::spanmap::SpanMap;
 use tsc_diagnostics::{
     flattened_message, Diagnostic, DiagnosticCategory, MessageCatalog, PositionIndex,
 };
@@ -49,10 +50,31 @@ impl DiagnosticOptions {
     }
 }
 
-/// A file as a script: its name and its text (tsgo `ls.script`).
+/// A file as a script: its name and its text (tsgo `ls.script`), and for a
+/// content mapper's output its original file.
 pub struct TextScript<'a> {
     pub file_name: String,
     pub text: &'a str,
+    pub mapped: Option<MappedScript<'a>>,
+}
+
+/// A content mapper's output's original file (tsgo `OriginalFileName`,
+/// `OriginalText` and `SpanMap`).
+pub struct MappedScript<'a> {
+    pub original_file_name: String,
+    pub original_text: &'a str,
+    pub span_map: Option<&'a SpanMap>,
+}
+
+impl<'a> TextScript<'a> {
+    /// An ordinary file's script.
+    pub fn new(file_name: impl Into<String>, text: &'a str) -> Self {
+        Self {
+            file_name: file_name.into(),
+            text,
+            mapped: None,
+        }
+    }
 }
 
 impl Script for TextScript<'_> {
@@ -62,6 +84,22 @@ impl Script for TextScript<'_> {
 
     fn text(&self) -> &str {
         self.text
+    }
+
+    fn original_file_name(&self) -> &str {
+        self.mapped
+            .as_ref()
+            .map_or(&self.file_name, |mapped| &mapped.original_file_name)
+    }
+
+    fn span_map(&self) -> Option<&SpanMap> {
+        self.mapped.as_ref().and_then(|mapped| mapped.span_map)
+    }
+
+    fn original_text(&self) -> &str {
+        self.mapped
+            .as_ref()
+            .map_or(self.text, |mapped| mapped.original_text)
     }
 }
 
@@ -105,10 +143,14 @@ pub fn diagnostic_to_lsp<'a>(
                     .as_ref()
                     .map(|name| name.to_string_lossy().into_owned())
                     .unwrap_or_default();
+                // tsgo: a supplemental output's original file's URI.
+                let uri_file_name = file(&file_name)
+                    .map(|script| script.original_file_name().to_owned())
+                    .unwrap_or_else(|| file_name.clone());
                 DiagnosticRelatedInformation {
                     location: Location {
                         uri: lsproto::DocumentUri(tsc_program::uri::file_name_to_document_uri(
-                            &file_name,
+                            &uri_file_name,
                         )),
                         range: span_range(
                             converters,
@@ -116,6 +158,7 @@ pub fn diagnostic_to_lsp<'a>(
                             &file_name,
                             related.start,
                             related.length,
+                            None,
                         ),
                     },
                     message: related
@@ -148,6 +191,7 @@ pub fn diagnostic_to_lsp<'a>(
             &file_name.to_string_lossy(),
             diagnostic.start,
             diagnostic.length,
+            diagnostic.source.as_deref(),
         ),
         None => lsproto::Range::default(),
     };
@@ -179,24 +223,42 @@ pub fn diagnostic_to_lsp<'a>(
 }
 
 /// A diagnostic's UTF-16 span in a file as a protocol range; a file whose
-/// text is not known has a zero range.
+/// text is not known has a zero range. In a content mapper's output (tsgo
+/// `diagnosticScriptAndRange`), a mapper's own diagnostic (with a `source`)
+/// is at its original file's range already, and one in synthesized code
+/// has a zero range.
 fn span_range<'a>(
     converters: &Converters,
     file: &dyn Fn(&str) -> Option<TextScript<'a>>,
     file_name: &str,
     start: Option<u32>,
     length: Option<u32>,
+    source: Option<&str>,
 ) -> lsproto::Range {
     let Some(script) = file(file_name) else {
         return lsproto::Range::default();
     };
-    let positions = PositionIndex::new_static(script.text);
     let start = start.unwrap_or(0);
     let end = start.saturating_add(length.unwrap_or(0));
-    let byte = |position: u32| {
-        positions
-            .utf16_to_byte(position)
-            .unwrap_or(script.text.len() as u32) as usize
+    let bytes = |text: &str, start: u32, end: u32| {
+        let positions = PositionIndex::new_static(text);
+        let byte = |position: u32| {
+            positions
+                .utf16_to_byte(position)
+                .unwrap_or(text.len() as u32) as usize
+        };
+        byte(start)..byte(end)
     };
-    converters.to_lsp_range(&script, byte(start)..byte(end))
+    if script.span_map().is_some() && source.is_some_and(|source| !source.is_empty()) {
+        let original = TextScript::new(script.original_file_name(), script.original_text());
+        return converters.to_lsp_range(&original, bytes(original.text, start, end));
+    }
+    let (range, fidelity) =
+        converters.to_lsp_range_with_fidelity(&script, bytes(script.text, start, end));
+    if fidelity.is_none() {
+        // Diagnostics carry a range: a zero range means the file when the
+        // diagnostic is entirely in synthesized code.
+        return lsproto::Range::default();
+    }
+    range
 }

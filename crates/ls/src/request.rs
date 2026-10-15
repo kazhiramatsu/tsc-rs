@@ -126,3 +126,60 @@ impl LanguageService<'_> {
         }
     }
 }
+
+/// tsgo `MappedPosition[*ast.SourceFile]`: a document's position in one of
+/// its file's outputs.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct FileProjection {
+    pub(crate) file: usize,
+    pub(crate) position: u32,
+    pub(crate) fidelity: tsc_diagnostics::spanmap::Fidelity,
+}
+
+impl Request<'_, '_> {
+    /// tsgo `sourceFileProjections`: a file, then its content mapper's
+    /// supplemental outputs.
+    pub(crate) fn source_projections(&self, file: usize) -> Vec<usize> {
+        let binder = &self.state.binder;
+        let mut files = vec![file];
+        if let Some(output) = &binder.source(file).content_mapper {
+            for name in &output.supplemental {
+                if let Some(index) =
+                    (0..binder.file_count()).find(|&index| binder.source(index).file_name == *name)
+                {
+                    files.push(index);
+                }
+            }
+        }
+        files
+    }
+
+    /// tsgo `FromLSPPositionForSourceFile`: a document's position in its
+    /// file and its file's supplemental outputs, each projection whose
+    /// segment takes part in `feature`.
+    pub(crate) fn position_projections(
+        &self,
+        file: usize,
+        position: &Position,
+        feature: tsc_diagnostics::spanmap::Features,
+    ) -> Vec<FileProjection> {
+        let files = self.source_projections(file);
+        let scripts = files
+            .iter()
+            .map(|&file| script_of(self.state.binder.source(file)))
+            .collect::<Vec<_>>();
+        let scripts = scripts
+            .iter()
+            .map(|script| script as &dyn crate::lsconv::Script)
+            .collect::<Vec<_>>();
+        self.converters
+            .from_lsp_position_for_scripts(&scripts, position, feature)
+            .into_iter()
+            .map(|projection| FileProjection {
+                file: files[projection.script],
+                position: projection.position as u32,
+                fidelity: projection.fidelity,
+            })
+            .collect()
+    }
+}
