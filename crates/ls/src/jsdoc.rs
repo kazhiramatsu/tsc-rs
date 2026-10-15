@@ -387,7 +387,7 @@ impl Request<'_, '_> {
 
     /// tsgo `getDocumentationFromDeclaration`: the comment of the
     /// declaration's JSDoc (or its matching tag), then the tags.
-    fn documentation_from_declaration(
+    pub(crate) fn documentation_from_declaration(
         &mut self,
         _symbol: Option<SymbolId>,
         declaration: Option<NodeId>,
@@ -948,6 +948,25 @@ impl Request<'_, '_> {
                 if tag.comment.is_some()
                     && record.parent.is_some_and(|parent| {
                         self.node_kind(parent) == SyntaxKind::JSDocTypeLiteral
+                    }) =>
+            {
+                return Some(node);
+            }
+            // tsgo reparses a JSDoc signature's (`@callback`, `@overload`)
+            // `@param` and `@this` tags into parameters with a JSDoc of the
+            // tag's comment.
+            NodeData::JSDocParameterTag(tag)
+                if tag.comment.is_some()
+                    && record.parent.is_some_and(|parent| {
+                        self.node_kind(parent) == SyntaxKind::JSDocSignature
+                    }) =>
+            {
+                return Some(node);
+            }
+            NodeData::JSDocThisTag(tag)
+                if tag.comment.is_some()
+                    && record.parent.is_some_and(|parent| {
+                        self.node_kind(parent) == SyntaxKind::JSDocSignature
                     }) =>
             {
                 return Some(node);
