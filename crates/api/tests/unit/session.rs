@@ -721,8 +721,8 @@ fn echo_answers_its_parameters() {
 fn a_method_tsgo_has_is_not_implemented_yet_and_another_is_unknown() {
     let (session, _) = session(&[]);
     assert_eq!(
-        call(&session, "getImportAdderEdits", json!({})).unwrap_err(),
-        "api: invalid request: getImportAdderEdits is not implemented yet"
+        call(&session, "startCPUProfile", json!({})).unwrap_err(),
+        "api: invalid request: startCPUProfile is not implemented yet"
     );
     assert_eq!(
         call(&session, "nope", json!({})).unwrap_err(),
