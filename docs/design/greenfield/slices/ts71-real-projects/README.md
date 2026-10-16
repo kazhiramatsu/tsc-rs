@@ -25,8 +25,7 @@
 3. 「この辺でfable5.1へバトンタッチします」。
 
 つまり、まず差分を潰す（既存の実 project の残りと、新しい frontend project の LSP・CLI）。性能はその後。
-「signal.js」は SolidJS（signal を軸にした React の対抗）と解釈して solid を入れた。利用者には確かめていない（Preact
-Signals の意味なら足す）。
+「signal.js」は SolidJS（signal を軸にした React の対抗）。利用者に確かめた（「SolidJSで合っています」）。
 
 ## 1. 既存の project の LSP の残りの差分
 
