@@ -1613,3 +1613,97 @@ fn auto_imports_resolve_a_package_s_aliases_as_esm() {
     );
     session.close();
 }
+
+/// tsgo's program symlink cache also looks up the runtime dependencies of
+/// each emitted file's package scope as package directories
+/// (`GetSymlinkCache` → `ResolvePackageDirectory`: the nearest
+/// `node_modules/<name>`, no `paths`), so a workspace package that `paths`
+/// maps and only another package's `node_modules` links is still known by
+/// its link, and its file is named through the package's exports
+/// (`"./*": "./*"`) from a package that does not see the link. tsgo's
+/// answer at aa814927 (vue's `@vue/server-renderer/src/internal.js`).
+#[test]
+fn auto_imports_name_a_file_through_a_dependency_s_symlink() {
+    const A: &str = "rend\n";
+    let fs = Arc::new(
+        MemFs::from_entries(
+            [
+                ("/ws/package.json", Seed::file(r#"{"name": "root", "private": true}"#)),
+                (
+                    "/ws/tsconfig.json",
+                    Seed::file(
+                        r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true, "paths": {"@scope/*": ["./packages/*/src"]}}, "include": ["packages/*/src"]}"#,
+                    ),
+                ),
+                (
+                    "/ws/packages/a/package.json",
+                    Seed::file(r#"{"name": "@scope/a", "version": "1.0.0"}"#),
+                ),
+                ("/ws/packages/a/src/index.ts", Seed::file(A)),
+                (
+                    "/ws/packages/b/package.json",
+                    Seed::file(
+                        r#"{"name": "@scope/b", "version": "1.0.0", "exports": {".": {"types": "./dist/b.d.ts"}, "./*": "./*"}}"#,
+                    ),
+                ),
+                ("/ws/packages/b/src/index.ts", Seed::file("export const b = 1;\n")),
+                (
+                    "/ws/packages/b/src/internal.ts",
+                    Seed::file("export function renderThing(): void {}\n"),
+                ),
+                (
+                    "/ws/packages/c/package.json",
+                    Seed::file(
+                        r#"{"name": "@scope/c", "version": "1.0.0", "dependencies": {"@scope/b": "workspace:*"}}"#,
+                    ),
+                ),
+                ("/ws/packages/c/src/index.ts", Seed::file("export const c = 1;\n")),
+                (
+                    "/ws/packages/c/node_modules/@scope/b",
+                    Seed::symlink("/ws/packages/b"),
+                ),
+            ],
+            false,
+            Arc::new(SystemClock),
+        )
+        .unwrap(),
+    );
+    let mut session = Session::start_with(fs);
+    let mut client = RegistrationClient::default();
+    client.initialize(&mut session, serde_json::json!({}));
+    let a = "file:///ws/packages/a/src/index.ts";
+    client.notify(
+        &mut session,
+        "textDocument/didOpen",
+        serde_json::json!({"textDocument": {"uri": a, "languageId": "typescript", "version": 1, "text": A}}),
+    );
+    let response = client.request(
+        &mut session,
+        2,
+        "textDocument/completion",
+        serde_json::json!({"textDocument": {"uri": a}, "position": {"line": 0, "character": 4}}),
+    );
+    let auto_imports = response["result"]["items"]
+        .as_array()
+        .expect("the items")
+        .iter()
+        .filter(|item| item["data"].get("autoImport").is_some())
+        .map(|item| {
+            (
+                item["label"].as_str().expect("a label").to_owned(),
+                item["data"]["autoImport"]["moduleSpecifier"]
+                    .as_str()
+                    .expect("a specifier")
+                    .to_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        auto_imports,
+        [(
+            "renderThing".to_owned(),
+            "@scope/b/src/internal.js".to_owned()
+        )]
+    );
+    session.close();
+}

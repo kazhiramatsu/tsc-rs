@@ -209,9 +209,9 @@ pub use output_directories::{
 };
 pub use path::{CanonicalPath, ProgramPath};
 pub use prepared::{
-    ContentMapperProjectHandle, PackageJsonType, PackageMetadata, PackageRedirectFile, PathContext,
-    PathMapping, PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram,
-    PreparedProgramBuilder, PreparedProgramMode, PreparedRoot, PreparedSourceFile,
+    ContentMapperProjectHandle, DependencySymlink, PackageJsonType, PackageMetadata,
+    PackageRedirectFile, PathContext, PathMapping, PreparationDiagnostics, PreparedAuxiliaryFile,
+    PreparedProgram, PreparedProgramBuilder, PreparedProgramMode, PreparedRoot, PreparedSourceFile,
     PreparsedSourceFile, PreparsedSyntax, ProgramConfigFile, ProgramConfigSpan, ProgramOptions,
     ProjectReferenceFile, ReferencedProjectOptions, ResolutionTable, SourceFileId,
 };

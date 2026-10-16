@@ -1410,6 +1410,43 @@ impl<'a> ModuleResolver<'a> {
             .collect()
     }
 
+    /// tsgo-port: DefaultResolver.ResolvePackageDirectory @aa814927
+    /// (module/resolver.go:537-546, `resolvePackageDirectoryOnly` in
+    /// `loadModuleFromSpecificNodeModulesDirectory`): the nearest package
+    /// directory of `package_name` above `containing_directory` (skipping
+    /// `node_modules` directories themselves), `node_modules/<name>` before
+    /// `node_modules/@types/<mangled name>` at each level, with no `paths` and
+    /// no entry point; with its symlink spelling when a symlink reaches it.
+    /// Its `package.json` is read under the found spelling, which
+    /// module-specifier generation reads back (tsgo reads package.json files
+    /// lazily; the program's table holds the ones read while loading).
+    pub fn resolve_package_directory<'d, 'n>(
+        &mut self,
+        containing_directory: impl Into<JsStr<'d>>,
+        package_name: impl Into<JsStr<'n>>,
+    ) -> Result<Option<(ProgramPath, Option<ProgramPath>)>, ResolutionError> {
+        let containing_directory = containing_directory.into();
+        let package_name = package_name.into();
+        let types_name = mangle_scoped_package_name(package_name);
+        for ancestor in ancestor_directories(containing_directory) {
+            if base_name(&ancestor) == "node_modules" {
+                continue;
+            }
+            let node_modules = join_normalized(&ancestor, "node_modules");
+            let candidates = [
+                join_normalized(&node_modules, package_name),
+                join_normalized(&join_normalized(&node_modules, "@types"), &types_name),
+            ];
+            for directory in candidates {
+                if self.host.directory_exists_js(JsStr::from(&directory))? {
+                    self.load_package(&join_normalized(&directory, "package.json"))?;
+                    return self.realpath_program_path(&directory, true).map(Some);
+                }
+            }
+        }
+        Ok(None)
+    }
+
     /// Observe the nearest package scope used to derive a source file's
     /// implied Node format. A present manifest with no `type` field remains
     /// the nearest scope; lookup never falls through to an outer package.
