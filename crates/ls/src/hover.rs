@@ -785,7 +785,7 @@ impl<'a> Request<'_, 'a> {
                     verbosity,
                 )?;
             }
-            info.set_declaration(value_declaration);
+            info.set_declaration(self.tsgo_value_declaration(symbol));
         }
         if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
             let parent = self.parent(node);

@@ -2139,3 +2139,337 @@ fn a_deprecated_default_export_s_auto_import_is_deprecated() {
         )]
     );
 }
+
+/// Opens a JavaScript project of the given files (paths under
+/// `/home/projects`) and returns the response to one request on `uri`.
+fn request_in_javascript_project(
+    files: &[(&str, &str)],
+    uri: &str,
+    method: &str,
+    params: serde_json::Value,
+) -> Value {
+    let (mut session, mut client) = project_info_session(files);
+    client.initialize(
+        &mut session,
+        serde_json::json!({"textDocument": {
+            "documentSymbol": {"hierarchicalDocumentSymbolSupport": true},
+            "semanticTokens": {
+                "formats": ["relative"],
+                "requests": {"full": true},
+                "tokenModifiers": ["declaration", "definition", "readonly", "static", "deprecated", "abstract", "async", "modification", "documentation", "defaultLibrary", "local"],
+                "tokenTypes": ["namespace", "class", "enum", "interface", "struct", "typeParameter", "type", "parameter", "variable", "property", "enumMember", "decorator", "event", "function", "method", "macro", "label", "comment", "string", "keyword", "number", "regexp", "operator"]
+            }
+        }}),
+    );
+    let path = uri.strip_prefix("file://").expect("a file URI");
+    let text = files
+        .iter()
+        .find(|(name, _)| *name == path)
+        .map(|(_, text)| *text)
+        .expect("the opened file");
+    let language_id = if path.ends_with(".js") {
+        "javascript"
+    } else {
+        "typescript"
+    };
+    client.notify(
+        &mut session,
+        "textDocument/didOpen",
+        serde_json::json!({"textDocument": {"uri": uri, "languageId": language_id, "version": 0, "text": text}}),
+    );
+    let response = client.request(&mut session, 2, method, params);
+    session.close();
+    assert!(response.get("error").is_none(), "{response}");
+    response
+}
+
+const JAVASCRIPT_PROJECT_CONFIG: &str = r#"{"compilerOptions": {"allowJs": true, "checkJs": true, "strict": true, "noEmit": true, "module": "esnext", "moduleResolution": "bundler", "target": "es2022", "types": []}}"#;
+
+/// tsgo's document symbols of a JavaScript file take in what its reparser
+/// makes of the comments' tags: an `@import`'s bindings and the members of
+/// an inline `@typedef` type literal come before the typedef's own symbol
+/// and the host (found by the LSP test on svelte; pinned to tsgo aa814927).
+#[test]
+fn document_symbols_of_a_javascript_file_s_jsdoc_tags() {
+    let sym = "/** @import { A, B } from \"./types\" */\nimport { g } from \"./b.js\";\n\n/** @typedef {{ start?: number, end?: number }} NodeLike */\nexport class Parser {\n\tgenerate() {\n\t\treturn g(1);\n\t}\n}\n";
+    let response = request_in_javascript_project(
+        &[
+            ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+            ("/home/projects/sym.js", sym),
+            (
+                "/home/projects/b.js",
+                "export function g(x) {\n\treturn x;\n}\n",
+            ),
+            (
+                "/home/projects/types.d.ts",
+                "export interface A { a: number }\nexport interface B { b: number }\n",
+            ),
+        ],
+        "file:///home/projects/sym.js",
+        "textDocument/documentSymbol",
+        serde_json::json!({"textDocument": {"uri": "file:///home/projects/sym.js"}}),
+    );
+    fn flat(items: &[Value], depth: usize, acc: &mut Vec<String>) {
+        for item in items {
+            let range = &item["range"];
+            acc.push(format!(
+                "{}{} k{} {}:{}-{}:{}",
+                "  ".repeat(depth),
+                item["name"].as_str().unwrap(),
+                item["kind"],
+                range["start"]["line"],
+                range["start"]["character"],
+                range["end"]["line"],
+                range["end"]["character"]
+            ));
+            if let Some(children) = item["children"].as_array() {
+                flat(children, depth + 1, acc);
+            }
+        }
+    }
+    let mut lines = Vec::new();
+    flat(
+        response["result"].as_array().expect("symbols"),
+        0,
+        &mut lines,
+    );
+    assert_eq!(
+        lines,
+        [
+            "A k13 0:14-0:15",
+            "B k13 0:17-0:18",
+            "start k7 3:16-3:31",
+            "end k7 3:32-3:44",
+            "NodeLike k5 3:4-3:56",
+            "Parser k5 4:0-8:1",
+            "  generate k6 5:1-7:2",
+        ]
+    );
+}
+
+/// A JavaScript function with a `@this` tag folds from its parameter list:
+/// tsgo's reparser puts the `this` parameter at the tag's position, so the
+/// list spans the lines down to the function's own parameters; a function
+/// with the tag alone still folds from its brace (found by the LSP test on
+/// svelte; pinned to tsgo aa814927).
+#[test]
+fn a_function_with_a_this_tag_folds_from_its_parameters() {
+    let fold = "/**\n * @this {any}\n * @param {number} a\n * @param {number} b\n */\nexport function bubble(a, b) {\n\treturn this.x + a + b;\n}\n/**\n * @this {any}\n */\nexport function alone() {\n\treturn this.x;\n}\n";
+    let response = request_in_javascript_project(
+        &[
+            ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+            ("/home/projects/fold.js", fold),
+        ],
+        "file:///home/projects/fold.js",
+        "textDocument/foldingRange",
+        serde_json::json!({"textDocument": {"uri": "file:///home/projects/fold.js"}}),
+    );
+    let ranges = response["result"]
+        .as_array()
+        .expect("ranges")
+        .iter()
+        .filter(|range| range.get("kind").is_none())
+        .map(|range| {
+            (
+                range["startLine"].as_u64().unwrap(),
+                range["startCharacter"].as_u64().unwrap(),
+                range["endLine"].as_u64().unwrap(),
+                range["endCharacter"].as_u64().unwrap(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(ranges, [(5, 22, 7, 1), (11, 23, 13, 1)]);
+}
+
+/// `noErrorTruncation` does not reach the signature of a deprecation
+/// suggestion: tsgo's signatureToString builds its node without
+/// NoTruncation whatever the option says, so a long signature is cut
+/// (found by the LSP test on svelte; pinned to tsgo aa814927).
+#[test]
+fn a_deprecated_signature_s_message_is_cut_despite_no_error_truncation() {
+    let member = "Record<string, Record<string, Record<string, number>>>";
+    let dep = format!(
+        "/** @deprecated */\nexport function create(options: {{ a: {member}; b: {member}; c: {member}; d: {member}; e: {member}; f: {member} }}): void;\nexport function create(): void;\nexport function create() {{}}\ncreate(0 as any);\n"
+    );
+    let response = request_in_javascript_project(
+        &[
+            (
+                "/home/projects/tsconfig.json",
+                r#"{"compilerOptions": {"strict": true, "noEmit": true, "noErrorTruncation": true, "types": [], "module": "esnext", "target": "es2022"}}"#,
+            ),
+            ("/home/projects/dep.ts", &dep),
+        ],
+        "file:///home/projects/dep.ts",
+        "textDocument/diagnostic",
+        serde_json::json!({"textDocument": {"uri": "file:///home/projects/dep.ts"}}),
+    );
+    let deprecated = response["result"]["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .filter(|item| item["code"] == 6387)
+        .map(|item| item["message"].as_str().unwrap().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        deprecated,
+        ["The signature '(options: { a: Record<string, Record<string, Record<string, number>>>; b: Record<string, Record<string, Record<string, number>>>; c: Record<...>; d: Record<...>; e: Record<...>; f: Record<...>; }): void' of 'create' is deprecated."]
+    );
+}
+
+/// A JavaScript file's first relative import decides the ending of the
+/// module specifiers its auto-imports get, and tsgo's reparse puts an
+/// `@import` before the comment's host: `./types` (no extension) in front of
+/// `./c.js` means no extension (found by the LSP test on svelte; tsgo
+/// aa814927 names `./b`).
+#[test]
+fn a_jsdoc_import_decides_a_javascript_file_s_specifier_ending() {
+    let a = "/** @import { A } from './types' */\nimport { g } from './c.js';\n\nexport const x = g(1) + CONST";
+    let response = request_in_javascript_project(
+        &[
+            ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+            ("/home/projects/a.js", a),
+            ("/home/projects/b.js", "export const CONSTANT = 1;\n"),
+            (
+                "/home/projects/c.js",
+                "export function g(x) {\n\treturn x;\n}\n",
+            ),
+            (
+                "/home/projects/types.d.ts",
+                "export interface A { a: number }\n",
+            ),
+        ],
+        "file:///home/projects/a.js",
+        "textDocument/completion",
+        serde_json::json!({"textDocument": {"uri": "file:///home/projects/a.js"}, "position": {"line": 3, "character": 28}}),
+    );
+    let specifiers = response["result"]["items"]
+        .as_array()
+        .expect("the items")
+        .iter()
+        .filter(|item| item["label"] == "CONSTANT")
+        .map(|item| item["data"]["autoImport"]["moduleSpecifier"].clone())
+        .collect::<Vec<_>>();
+    assert_eq!(specifiers, [serde_json::json!("./b")]);
+}
+
+/// The members of a `@typedef {Object}` with `@property` tags are properties
+/// to the semantic tokens: tsgo's reparser makes property signatures of the
+/// tags, and those are the members' declarations there (found by the LSP
+/// test on svelte; pinned to tsgo aa814927).
+#[test]
+fn semantic_tokens_of_a_property_tag_typedef_s_members() {
+    let a = "/**\n * @typedef {Object} Last\n * @property {string} tag\n * @property {number} depth\n */\n\nexport class Parser {\n\t/** @type {Last | undefined} */\n\tlast;\n\t/** @param {string} name */\n\tcheck(name) {\n\t\tif (!this.last || this.last.tag !== name) {\n\t\t\treturn 0;\n\t\t}\n\t\treturn this.last.depth;\n\t}\n}\n";
+    let response = request_in_javascript_project(
+        &[
+            ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+            ("/home/projects/a.js", a),
+        ],
+        "file:///home/projects/a.js",
+        "textDocument/semanticTokens/full",
+        serde_json::json!({"textDocument": {"uri": "file:///home/projects/a.js"}}),
+    );
+    let data = response["result"]["data"]
+        .as_array()
+        .expect("token data")
+        .iter()
+        .map(|value| value.as_u64().unwrap())
+        .collect::<Vec<_>>();
+    // (line, character, length, type, modifiers) of the tokens on the lines
+    // reading the typedef's members.
+    let mut tokens = Vec::new();
+    let (mut line, mut character) = (0, 0);
+    for token in data.chunks(5) {
+        line += token[0];
+        character = if token[0] == 0 {
+            character + token[1]
+        } else {
+            token[1]
+        };
+        if line == 11 || line == 14 {
+            tokens.push((line, character, token[2], token[3], token[4]));
+        }
+    }
+    assert_eq!(
+        tokens,
+        [
+            (11, 12, 4, 9, 0),
+            (11, 25, 4, 9, 0),
+            (11, 30, 3, 9, 0),
+            (11, 38, 4, 7, 0),
+            (14, 14, 4, 9, 0),
+            (14, 19, 5, 9, 0),
+        ]
+    );
+}
+
+/// Signature help's JavaScript fallback (a call whose receiver has no call
+/// signatures: tsgo's createJSSignatureHelpItems takes the first declaration
+/// of the name with call signatures, lib files first) prefixes a signature
+/// with the declaration's container as named from the declaring file's
+/// scope: `IteratorObject.toArray`, not through the `declare global` block
+/// declaring it, and nothing for a type literal's property (tsgo aa814927;
+/// found by the LSP test on svelte).
+#[test]
+fn javascript_signature_help_fallback_prefixes_name_the_declaring_container() {
+    let text = "export function f(x) {\n\treturn x.toArray();\n}\n/** @param {{ store: null; unsubscribe: Function }} entry */\nexport function g(entry) {\n\tentry.unsubscribe();\n}\n";
+    let labels = |line: u32, character: u32| {
+        let response = request_in_javascript_project(
+            &[
+                (
+                    "/home/projects/tsconfig.json",
+                    r#"{"compilerOptions": {"allowJs": true, "checkJs": true, "strict": true, "noEmit": true, "module": "esnext", "moduleResolution": "bundler", "target": "esnext", "lib": ["esnext", "dom"], "types": []}}"#,
+                ),
+                ("/home/projects/a.js", text),
+            ],
+            "file:///home/projects/a.js",
+            "textDocument/signatureHelp",
+            serde_json::json!({"textDocument": {"uri": "file:///home/projects/a.js"}, "position": {"line": line, "character": character}}),
+        );
+        response["result"]["signatures"]
+            .as_array()
+            .expect("signatures")
+            .iter()
+            .map(|signature| signature["label"].as_str().expect("a label").to_owned())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(labels(1, 18), ["IteratorObject.toArray(): T[]"]);
+    assert_eq!(
+        labels(5, 19),
+        [
+            "unsubscribe(subscriptions: CookieStoreGetOptions[]): Promise<void>",
+            "unsubscribe(subscriptions: Iterable<CookieStoreGetOptions>): Promise<void>"
+        ]
+    );
+}
+
+/// A `@template` type parameter is not possibly referenced by a function
+/// type written in the same comment's `@param` type literal: tsgo's reparser
+/// moves the type parameter under the function, so the walk from the
+/// function type reaches it and finds no reference, the property's type
+/// stays the annotation's own type and the annotation is reused without
+/// `| undefined` (tsgo aa814927; found by the LSP test on svelte's `render`).
+#[test]
+fn a_jsdoc_template_is_not_referenced_by_a_function_type_in_a_param_type_literal() {
+    let index = "/**\n * @template {Record<string, any>} Props\n * @param {(props: Props) => void} component\n * @param {{ props?: Omit<Props, '$$slots'>; idPrefix?: string; transformError?: (error: unknown) => unknown | Promise<unknown> }} [options]\n * @returns {string}\n */\nexport function render(component, options = {}) {\n\treturn String(component) + String(options);\n}\n";
+    let a = "import { render } from './index.js';\n\n/** @param {(props: Record<string, any>) => void} component */\nexport function go(component) {\n\treturn render(component, { idPrefix: 'x' });\n}\n";
+    let response = request_in_javascript_project(
+        &[
+            ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+            ("/home/projects/index.js", index),
+            ("/home/projects/a.js", a),
+        ],
+        "file:///home/projects/a.js",
+        "textDocument/signatureHelp",
+        serde_json::json!({"textDocument": {"uri": "file:///home/projects/a.js"}, "position": {"line": 4, "character": 15}}),
+    );
+    let labels = response["result"]["signatures"]
+        .as_array()
+        .expect("signatures")
+        .iter()
+        .map(|signature| signature["label"].as_str().expect("a label").to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        labels,
+        ["render(component: (props: Record<string, any>) => void, options?: { props?: Omit<Record<string, any>, \"$$slots\"> | undefined; idPrefix?: string; transformError?: (error: unknown) => unknown | Promise<unknown>; } | undefined): string"]
+    );
+}
