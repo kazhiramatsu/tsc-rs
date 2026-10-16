@@ -1168,7 +1168,7 @@ impl Registry {
             }
         }
         let mut index = Index::default();
-        for exports in extraction.exports.values() {
+        for (_, exports) in &extraction.exports {
             for export in exports {
                 index.insert_as_words(Arc::new(export.clone()));
             }
@@ -1286,7 +1286,7 @@ impl Registry {
             .cloned()
             .collect();
         // Insert newly extracted exports into the index
-        for exports in extraction.exports.values() {
+        for (_, exports) in &extraction.exports {
             for export in exports {
                 index.insert_as_words(Arc::new(export.clone()));
             }

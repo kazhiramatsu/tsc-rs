@@ -280,6 +280,10 @@ impl<'r> View<'r> {
         let mut grouped: Vec<(GroupKey, Vec<Arc<Export>>)> = Vec::new();
         let mut group_of: std::collections::HashMap<GroupKey, usize> =
             std::collections::HashMap::new();
+        // Whether an export was found in its module's own file (not in an
+        // augmentation of the module from another file).
+        let declares_its_module =
+            |export: &Export| export.path == self.path_of(&export.module_file_name);
         'outer: for export in results {
             let name = export.name().to_owned();
             if !tsc_syntax::is_identifier_text(&name) {
@@ -332,7 +336,18 @@ impl<'r> View<'r> {
                             local_name: export.local_name.clone(),
                             through: String::new(),
                             target: export.target.clone(),
-                            path: export.path.clone(),
+                            // tsgo keeps the later export's path, in an index
+                            // order that is random: when one of the two is
+                            // the module file's own export and the other an
+                            // augmentation's, the module file's stays — the
+                            // answer tsgo gives when it names a module that
+                            // exports the symbol (the augmenting file does
+                            // not; user decision of 2026-10-16).
+                            path: if declares_its_module(slot) && !declares_its_module(&export) {
+                                slot.path.clone()
+                            } else {
+                                export.path.clone()
+                            },
                         });
                         continue 'outer;
                     }

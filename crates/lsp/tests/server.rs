@@ -1963,6 +1963,105 @@ fn auto_imports_name_a_file_from_its_own_exports_despite_an_augmentation() {
     );
 }
 
+/// An export the main file of a package and an addon's augmentation both
+/// declare is one completion group, named by whichever export came later in
+/// tsgo's index (Go's map order): the addon in 14 of 16 runs at aa814927,
+/// which `import { on } from "cm/addon/mode/overlay"` then rejects (TS2305:
+/// the addon exports nothing itself). The user decided (2026-10-16) that
+/// where tsgo's random answers include an invalid import, tsc-rs gives the
+/// valid one: the module file's own export keeps its path (found by the LSP
+/// test on playwright's `@types/codemirror`).
+#[test]
+fn auto_imports_name_an_export_by_the_file_declaring_it() {
+    const TEXT: &str = "export function f(): void {\n  \n}\n";
+    let entries = vec![
+        (
+            "/ws/package.json",
+            Seed::file(r#"{"name": "app", "dependencies": {"cm": "1.0.0"}}"#),
+        ),
+        (
+            "/ws/tsconfig.json",
+            Seed::file(
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}}"#,
+            ),
+        ),
+        (
+            "/ws/node_modules/cm/package.json",
+            Seed::file(r#"{"name": "cm", "version": "1.0.0", "types": "index.d.ts"}"#),
+        ),
+        (
+            "/ws/node_modules/cm/index.d.ts",
+            Seed::file(
+                "export function on(): void;\nexport function off(): void;\nexport function overlayMode(): void;\n",
+            ),
+        ),
+        (
+            "/ws/node_modules/cm/addon/mode/overlay.d.ts",
+            Seed::file(
+                "import \"../../\";\ndeclare module \"../../\" {\n    function overlayMode(): void;\n    function on(extra: number): void;\n}\n",
+            ),
+        ),
+        (
+            "/ws/other.ts",
+            Seed::file("import \"cm/addon/mode/overlay\";\nexport const g = 1;\n"),
+        ),
+        ("/ws/index.ts", Seed::file(TEXT)),
+    ];
+    let item = |label: &str, kind: i64, specifier: &str| {
+        (label.to_owned(), kind, specifier.to_owned(), 0, Value::Null)
+    };
+    assert_eq!(
+        auto_import_items(entries, TEXT, (1, 2)),
+        [
+            item("g", 6, "./other"),
+            item("off", 3, "cm"),
+            item("on", 3, "cm"),
+            item("overlayMode", 3, "cm"),
+        ]
+    );
+}
+
+/// A namespace declared in one project file and augmented from another
+/// (`declare module "../Schema"`) is one completion group; tsgo names it by
+/// the later of the two in its index (Go's map order): the augmenting file,
+/// which does not export it, in about half of effect's sessions and in 1 of
+/// 8 runs of this fixture at aa814927. The module file's own export keeps
+/// its path (user decision of 2026-10-16; found by the LSP test on effect's
+/// `Schema.Annotations`).
+#[test]
+fn auto_imports_name_an_augmented_namespace_by_its_declaring_file() {
+    // A type position: the namespace holds types only.
+    const TEXT: &str = "export function f(): void {\n  let x: \n}\n";
+    let entries = vec![
+        (
+            "/ws/tsconfig.json",
+            Seed::file(
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}}"#,
+            ),
+        ),
+        (
+            "/ws/Schema.ts",
+            Seed::file(
+                "export declare namespace Annotations {\n  interface Doc {\n    title?: string\n  }\n}\nexport const decode = 1\nexport const encode = 2\n",
+            ),
+        ),
+        (
+            "/ws/http/Api.ts",
+            Seed::file(
+                "import \"../Schema\"\ndeclare module \"../Schema\" {\n  namespace Annotations {\n    interface Doc {\n      status?: number\n    }\n  }\n}\nexport const handler = 1\nexport const route = 2\n",
+            ),
+        ),
+        ("/ws/index.ts", Seed::file(TEXT)),
+    ];
+    let item = |label: &str, kind: i64, specifier: &str| {
+        (label.to_owned(), kind, specifier.to_owned(), 0, Value::Null)
+    };
+    assert_eq!(
+        auto_import_items(entries, TEXT, (1, 9)),
+        [item("Annotations", 9, "./Schema")]
+    );
+}
+
 /// tsgo answers a cached specifier as relative whatever kind computing it
 /// gave, and ranks a `paths` kind against a relative one by directory
 /// separators only, so the group that computes three packages' specifiers
