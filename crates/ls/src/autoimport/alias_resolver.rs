@@ -18,8 +18,8 @@ use tsc_checker::state::CheckerState;
 use tsc_checker::{
     AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
     AuthoritativeModuleResolution, AuthoritativeNotFoundModule, AuthoritativePackageId,
-    AuthoritativeResolvedModule, AuthoritativeSourceMetadata, AuthoritativeSourceToken,
-    AuthoritativeUntypedModule, CompilerOptions, InputFile,
+    AuthoritativeResolutionMode, AuthoritativeResolvedModule, AuthoritativeSourceMetadata,
+    AuthoritativeSourceToken, AuthoritativeUntypedModule, CompilerOptions, InputFile,
 };
 use tsc_host::CompilerHost;
 use tsc_program::{
@@ -182,8 +182,13 @@ impl AliasResolver {
                 token: AuthoritativeSourceToken(index as u32),
                 file_name: JsString::from(file.file_name.as_str()),
                 may_be_emitted: false,
-                implied_node_format: None,
-                implied_node_format_for_emit: None,
+                // tsgo `aliasResolver`'s format hooks (`GetImpliedNodeFormatForEmit`,
+                // `GetEmitSyntaxForUsageLocation`, `GetDefaultResolutionModeForFile`,
+                // ...) answer ESNext for every file: a `.d.cts` file's
+                // `export { default as x } from "./x.cjs"` of an `export =`
+                // module has no synthetic default there.
+                implied_node_format: Some(AuthoritativeResolutionMode::EsNext),
+                implied_node_format_for_emit: Some(AuthoritativeResolutionMode::EsNext),
                 project_reference: None,
             })
             .collect();
