@@ -1069,7 +1069,16 @@ impl<'a> CheckerState<'a> {
         if declarations.len() != 1 {
             return Ok(true);
         }
-        let container = self.parent_of(declarations[0]);
+        let container = match self.parent_of(declarations[0]) {
+            // tsgo's reparser moves a `@template` type parameter under the
+            // declaration it belongs to (the function, class, typedef,
+            // callback or overload signature), so a node inside one of that
+            // declaration's reparsed JSDoc types walks up to it.
+            Some(tag) if self.kind_of(tag) == SyntaxKind::JSDocTemplateTag => self
+                .effective_container_for_jsdoc_template_tag(tag)
+                .or(Some(tag)),
+            other => other,
+        };
         let mut n = Some(node);
         while n != container {
             let Some(current) = n else {

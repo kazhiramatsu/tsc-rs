@@ -5611,7 +5611,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn display_truncation_type_node(&self) -> (JsString, SliceTypeNodeKind) {
-        if self.options.no_error_truncation == Some(true) {
+        if self.options.no_error_truncation == Some(true) && !self.display_signature_string {
             // NoTruncation uses `any` plus a synthetic elision
             // comment; typeToString's remove-comments printer leaves
             // the keyword face.
@@ -9742,14 +9742,13 @@ impl<'a> CheckerState<'a> {
         let saved_symbol_depth = std::mem::take(&mut self.display_symbol_depth);
         let saved_infer_type_parameters = std::mem::take(&mut self.display_infer_type_parameters);
         let saved_approximate_length = std::mem::replace(&mut self.display_approximate_length, 0);
-        let saved_max_truncation_length = std::mem::replace(
-            &mut self.display_max_truncation_length,
-            if self.options.no_error_truncation == Some(true) {
-                1_000_000
-            } else {
-                160
-            },
-        );
+        // tsgo signatureToString builds its node without NoTruncation whatever
+        // `noErrorTruncation` says (only typeToString reads the option), so a
+        // long signature is cut at the default length (svelte: `Record<...>`
+        // in a deprecated signature's message).
+        let saved_max_truncation_length =
+            std::mem::replace(&mut self.display_max_truncation_length, 160);
+        let saved_signature_string = std::mem::replace(&mut self.display_signature_string, true);
         let saved_truncating = std::mem::replace(&mut self.display_truncating, false);
         let saved_reverse_mapped_stack = std::mem::take(&mut self.display_reverse_mapped_stack);
         let saved_no_type_reduction = std::mem::replace(&mut self.display_no_type_reduction, false);
@@ -9761,6 +9760,7 @@ impl<'a> CheckerState<'a> {
         self.display_infer_type_parameters = saved_infer_type_parameters;
         self.display_approximate_length = saved_approximate_length;
         self.display_max_truncation_length = saved_max_truncation_length;
+        self.display_signature_string = saved_signature_string;
         self.display_truncating = saved_truncating;
         self.display_reverse_mapped_stack = saved_reverse_mapped_stack;
         self.display_no_type_reduction = saved_no_type_reduction;

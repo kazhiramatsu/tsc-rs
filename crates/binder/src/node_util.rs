@@ -1384,6 +1384,19 @@ pub fn get_all_super_type_nodes(source: &SourceFile, node: NodeId) -> Vec<NodeId
                 .into_iter()
                 .collect();
             nodes.extend(get_implements_heritage_clause_elements(source, node));
+            // tsgo's reparser appends a JavaScript class's `@implements`
+            // types to its implements clause (reparser.go:567-592).
+            if source.is_source_file_js() {
+                nodes.extend(
+                    crate::hosted::jsdoc_hosted(source)
+                        .implements_tags_of(node)
+                        .iter()
+                        .filter_map(|&tag| match &source.arena.node(tag).data {
+                            NodeData::JSDocImplementsTag(data) => data.class,
+                            _ => None,
+                        }),
+                );
+            }
             nodes
         }
         _ => Vec::new(),

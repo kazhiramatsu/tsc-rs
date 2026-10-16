@@ -4474,11 +4474,16 @@ pub(super) fn module_name_literals(
                 }
             }
             NodeData::JSDocImportTag(data) => {
+                // tsgo reparses an `@import` into an import declaration placed
+                // before the comment's host, so its specifier is among the
+                // static imports, in the comment's position (a JavaScript
+                // file's first relative import decides the specifier ending
+                // the language service infers).
                 if let Some(literal) = data.module_specifier.filter(|&literal| {
                     state.kind_of(literal) == SyntaxKind::StringLiteral
                         && literal_text(state, literal).is_some_and(|text| !text.is_empty())
                 }) {
-                    dynamic_imports.push(literal);
+                    static_imports.push(literal);
                 }
             }
             NodeData::CallExpression(data) => {
