@@ -85,16 +85,13 @@ impl<'program> CheckerSession<'program> {
     /// cite that difference
     /// Whether the checker reported a file-less row after the first `start`.
     pub(crate) fn reported_global_rows_since(&self, start: usize) -> bool {
-        self.lock_state()
-            .diagnostics[start..]
+        self.lock_state().diagnostics[start..]
             .iter()
             .any(|diagnostic| diagnostic.file_name.is_none())
     }
 
     pub fn get_global_diagnostics(&self) -> DiagnosticList {
-        let mut diagnostics = self.lock_state()
-            .visible_global_diagnostics
-            .clone();
+        let mut diagnostics = self.lock_state().visible_global_diagnostics.clone();
         tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
         diagnostics
     }
@@ -212,8 +209,7 @@ impl<'program> CheckerSession<'program> {
     /// tsrs-native: H2.8c evidence — how many source files ran the
     /// checkSourceFileWorker body in this session so far.
     pub fn checked_source_files(&self) -> u32 {
-        self.lock_state()
-            .checked_source_files
+        self.lock_state().checked_source_files
     }
 
     /// Lend the checked state to a harness query (the type and symbol
@@ -326,8 +322,7 @@ impl<'program> CheckerSession<'program> {
 /// methods retain the trait's typed unavailable default.
 impl EmitResolver for CheckerSession<'_> {
     fn has_global_name(&self, name: &str) -> Result<bool, EmitResolverError> {
-        Ok(self.lock_state()
-            .emit_has_global_name(name))
+        Ok(self.lock_state().emit_has_global_name(name))
     }
 
     fn collect_linked_aliases(
