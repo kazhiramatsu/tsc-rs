@@ -22,9 +22,9 @@ use tsc_emitter::{
 };
 use tsc_host::CompilerHost;
 use tsc_program::{
-    plan_source_requests, plan_source_requests_retaining_syntax, CanonicalPath, CompilerOptions,
-    PreparedProgram, PreparedProgramMode, PreparedSourceFile, ProgramPath, SourceFileId,
-    WorkerBudget,
+    plan_source_requests_cached, plan_source_requests_retaining_syntax, CanonicalPath,
+    CompilerOptions, PreparedProgram, PreparedProgramMode, PreparedSourceFile, ProgramPath,
+    SourceFileId, WorkerBudget,
 };
 use tsc_types::{JsStr, JsString};
 
@@ -129,7 +129,7 @@ impl LiveProgram {
                 return None;
             }
             let options = options_for_source(prepared, old)?;
-            let old_plan = plan_source_requests(old, options).ok()?;
+            let old_plan = plan_source_requests_cached(old, options, Some(documents)).ok()?;
             let (new_plan, syntax) =
                 plan_source_requests_retaining_syntax(&new, options, Some(documents)).ok()?;
             if !old_plan.has_same_requests(&new_plan)

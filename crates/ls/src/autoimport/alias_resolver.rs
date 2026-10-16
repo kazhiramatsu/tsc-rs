@@ -23,6 +23,7 @@ use tsc_checker::{
     AuthoritativeResolutionMode, AuthoritativeResolvedModule, AuthoritativeSourceMetadata,
     AuthoritativeSourceToken, AuthoritativeUntypedModule, CompilerOptions, InputFile,
 };
+use tsc_compiler::DocumentRegistry;
 use tsc_host::CompilerHost;
 use tsc_program::{
     HostResolvedModule, ModuleExtension, ModuleResolver, PreparedSourceFile, ProgramPath,
@@ -48,6 +49,47 @@ pub(super) struct AliasResolver {
     /// How many of `files` are the program's.
     pub(super) program_file_count: usize,
     pub(super) failed: Arc<Mutex<FailedLookups>>,
+    wanted: Arc<Mutex<WantedFiles>>,
+}
+
+/// tsgo's alias resolver reads a module's file when its checker resolves
+/// the module (`GetSourceFileForResolvedModule`). This checker has its files
+/// up front: `extract` runs over a checker of the files read so far and, while
+/// it resolved modules to files it had not read, again over a checker with
+/// those files too. The last answer is returned with its checker. A checker is
+/// kept until the next is built, so the next takes the documents both read.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn extract_from_resolved_files<'r, T>(
+    host: &dyn CompilerHost,
+    documents: Option<&DocumentRegistry>,
+    resolver: &mut ModuleResolver<'r>,
+    program_files: &[String],
+    other_files: &[String],
+    path_of: &dyn Fn(&str) -> String,
+    record_failures: bool,
+    mut extract: impl FnMut(&mut AliasResolver, &mut ModuleResolver<'r>) -> T,
+) -> Option<(AliasResolver, T)> {
+    let mut other_files = other_files.to_vec();
+    let mut previous: Option<AliasResolver> = None;
+    loop {
+        let mut alias = AliasResolver::new(
+            host,
+            documents,
+            resolver,
+            program_files,
+            &other_files,
+            path_of,
+            record_failures,
+        )?;
+        drop(previous.take());
+        let extracted = extract(&mut alias, resolver);
+        let wanted = alias.wanted_files();
+        if wanted.is_empty() {
+            return Some((alias, extracted));
+        }
+        other_files.extend(wanted);
+        previous = Some(alias);
+    }
 }
 
 /// One file the checker reads.
@@ -57,6 +99,8 @@ struct AliasFile {
     text: String,
     /// The module requests' resolutions, by specifier.
     resolutions: Vec<(String, AuthoritativeModuleResolution)>,
+    /// The requests resolved to a file not read yet: specifier, file name.
+    unread: Vec<(String, String)>,
 }
 
 impl AliasResolver {
@@ -68,6 +112,7 @@ impl AliasResolver {
     /// `record_failures` is off.
     pub(super) fn new(
         host: &dyn CompilerHost,
+        documents: Option<&DocumentRegistry>,
         resolver: &mut ModuleResolver<'_>,
         program_files: &[String],
         other_files: &[String],
@@ -93,6 +138,7 @@ impl AliasResolver {
                 path,
                 text,
                 resolutions: Vec::new(),
+                unread: Vec::new(),
             });
             Some(files.len() - 1)
         };
@@ -106,10 +152,18 @@ impl AliasResolver {
         for file_name in other_files {
             read(file_name, &mut files);
         }
-        let mut next = 0;
-        while next < files.len() {
+        // tsgo's checker reads a module's file when it resolves the module
+        // (`GetSourceFileForResolvedModule`); a request to a file this
+        // checker has not read is answered when it is read (see
+        // [`extract_from_resolved_files`]). A file read and found missing
+        // stays missing.
+        let attempted: BTreeSet<String> = program_files
+            .iter()
+            .chain(other_files)
+            .map(|file_name| path_of(file_name))
+            .collect();
+        for file in &mut files {
             let source = {
-                let file = &files[next];
                 let path = ProgramPath::from_js_parts(
                     JsStr::from_str(&file.file_name),
                     JsStr::from_str(&file.path),
@@ -117,17 +171,21 @@ impl AliasResolver {
                 .ok()?;
                 PreparedSourceFile::new(path, file.text.clone())
             };
-            let specifiers: Vec<String> = tsc_program::plan_source_requests(&source, &options)
-                .map(|plan| {
-                    let mut seen = BTreeSet::new();
-                    plan.module_requests()
-                        .iter()
-                        .map(|key| key.specifier().to_string_lossy().into_owned())
-                        .filter(|specifier| seen.insert(specifier.clone()))
-                        .collect()
-                })
-                .unwrap_or_default();
-            let containing = files[next].file_name.clone();
+            let specifiers: Vec<String> = tsc_program::plan_source_requests_cached(
+                &source,
+                &options,
+                documents.map(|documents| documents as &dyn tsc_program::ParseCache),
+            )
+            .map(|plan| {
+                let mut seen = BTreeSet::new();
+                plan.module_requests()
+                    .iter()
+                    .map(|key| key.specifier().to_string_lossy().into_owned())
+                    .filter(|specifier| seen.insert(specifier.clone()))
+                    .collect()
+            })
+            .unwrap_or_default();
+            let containing = file.file_name.clone();
             for specifier in specifiers {
                 let outcome = resolver
                     .resolve(
@@ -143,11 +201,18 @@ impl AliasResolver {
                             .display()
                             .to_string_lossy()
                             .into_owned();
-                        match read(&target_name, &mut files) {
-                            Some(target) => resolved(&module, target),
-                            None => AuthoritativeModuleResolution::NotFound(
-                                AuthoritativeNotFoundModule::default(),
-                            ),
+                        let target_path = path_of(&target_name);
+                        match index_by_path.get(&target_path) {
+                            Some(&target) => resolved(&module, target),
+                            None if attempted.contains(&target_path) => {
+                                AuthoritativeModuleResolution::NotFound(
+                                    AuthoritativeNotFoundModule::default(),
+                                )
+                            }
+                            None => {
+                                file.unread.push((specifier, target_name));
+                                continue;
+                            }
                         }
                     }
                     ResolutionOutcome::Resolved(module) => untyped(&module),
@@ -155,13 +220,23 @@ impl AliasResolver {
                         AuthoritativeNotFoundModule::default(),
                     ),
                 };
-                files[next].resolutions.push((specifier, resolution));
+                file.resolutions.push((specifier, resolution));
             }
-            next += 1;
         }
 
         let failed = Arc::new(Mutex::new(FailedLookups::default()));
+        let wanted = Arc::new(Mutex::new(WantedFiles::default()));
         let provider = AliasModuleProvider {
+            unread: files
+                .iter()
+                .enumerate()
+                .flat_map(|(index, file)| {
+                    file.unread.iter().map(move |(specifier, file_name)| {
+                        ((index as u32, specifier.clone()), file_name.clone())
+                    })
+                })
+                .collect(),
+            wanted: Arc::clone(&wanted),
             resolutions: files
                 .iter()
                 .enumerate()
@@ -217,14 +292,31 @@ impl AliasResolver {
                 .unwrap_or_else(|_| JsString::from("/")),
             files_outside_program,
         };
-        let checker =
-            LiveChecker::new(inputs, Box::new(provider), WorkerBudget::default(), None).ok()?;
+        // tsgo's alias resolver takes its files from the session's parse
+        // cache, as the programs do.
+        let checker = LiveChecker::new(
+            inputs,
+            Box::new(provider),
+            WorkerBudget::default(),
+            documents,
+        )
+        .ok()?;
         Some(Self {
             checker,
             files: names,
             program_file_count,
             failed,
+            wanted,
         })
+    }
+
+    /// The files the checker resolved a module to but has not read.
+    fn wanted_files(&self) -> Vec<String> {
+        self.wanted
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .files
+            .clone()
     }
 
     /// Run `query` over the checker.
@@ -306,9 +398,21 @@ fn untyped(module: &HostResolvedModule) -> AuthoritativeModuleResolution {
 struct AliasModuleProvider {
     /// By file token and specifier.
     resolutions: HashMap<(u32, String), AuthoritativeModuleResolution>,
+    /// The requests resolved to a file not read yet, by file token and
+    /// specifier: the file's name.
+    unread: HashMap<(u32, String), String>,
     /// The files by token: name and path.
     files: Vec<(String, String)>,
     failed: Option<Arc<Mutex<FailedLookups>>>,
+    wanted: Arc<Mutex<WantedFiles>>,
+}
+
+/// The files the checker resolved a module to but has not read, in the
+/// order it asked.
+#[derive(Default)]
+struct WantedFiles {
+    seen: BTreeSet<String>,
+    files: Vec<String>,
 }
 
 impl AuthoritativeModuleProvider for AliasModuleProvider {
@@ -317,6 +421,19 @@ impl AuthoritativeModuleProvider for AliasModuleProvider {
         request: AuthoritativeModuleRequest<'_>,
     ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
         let specifier = request.specifier.to_string_lossy().into_owned();
+        if let Some(file_name) = self
+            .unread
+            .get(&(request.source_token.0, specifier.clone()))
+        {
+            // Resolved: no failed lookup. The next checker reads the file.
+            let mut wanted = self.wanted.lock().unwrap_or_else(PoisonError::into_inner);
+            if wanted.seen.insert(file_name.clone()) {
+                wanted.files.push(file_name.clone());
+            }
+            return Ok(AuthoritativeModuleResolution::NotFound(
+                AuthoritativeNotFoundModule::default(),
+            ));
+        }
         let resolution = self
             .resolutions
             .get(&(request.source_token.0, specifier.clone()))

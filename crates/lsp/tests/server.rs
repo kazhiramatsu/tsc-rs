@@ -1833,6 +1833,64 @@ fn auto_imports_resolve_a_package_s_javascript_re_export() {
     );
 }
 
+/// tsgo's alias resolver reads a module's file when its checker resolves
+/// the module, so an export reached through a chain of re-exports
+/// (`export *` twice, then `export { deepValue } from "dep"`) is found, and a
+/// file only imported (`dep/unused`) is not read. tsc-rs's checker has its
+/// files up front and is built again with the files it resolved modules to
+/// until it resolved none it lacked. Pinned to tsgo's answer at aa814927.
+#[test]
+fn auto_imports_follow_a_chain_of_re_exports() {
+    const TEXT: &str = "import \"pkg\";\ndeepV\n";
+    let entries = vec![
+        (
+            "/ws/package.json",
+            Seed::file(r#"{"name": "app", "dependencies": {"pkg": "1.0.0"}}"#),
+        ),
+        (
+            "/ws/tsconfig.json",
+            Seed::file(
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}}"#,
+            ),
+        ),
+        (
+            "/ws/node_modules/pkg/package.json",
+            Seed::file(r#"{"name": "pkg", "version": "1.0.0", "types": "index.d.ts"}"#),
+        ),
+        (
+            "/ws/node_modules/pkg/index.d.ts",
+            Seed::file("export * from \"./a\";\n"),
+        ),
+        (
+            "/ws/node_modules/pkg/a.d.ts",
+            Seed::file("export * from \"./b\";\n"),
+        ),
+        (
+            "/ws/node_modules/pkg/b.d.ts",
+            Seed::file(
+                "export { deepValue } from \"dep\";\nimport { unused } from \"dep/unused\";\n",
+            ),
+        ),
+        (
+            "/ws/node_modules/dep/package.json",
+            Seed::file(r#"{"name": "dep", "version": "1.0.0", "types": "index.d.ts"}"#),
+        ),
+        (
+            "/ws/node_modules/dep/index.d.ts",
+            Seed::file("export declare const deepValue: number;\n"),
+        ),
+        (
+            "/ws/node_modules/dep/unused.d.ts",
+            Seed::file("export declare const unused: string;\n"),
+        ),
+        ("/ws/index.ts", Seed::file(TEXT)),
+    ];
+    assert_eq!(
+        auto_import_items(entries, TEXT, (1, 5)),
+        [("deepValue".to_owned(), 6, "pkg".to_owned(), 0, Value::Null)]
+    );
+}
+
 /// tsgo's `getNodeModifiers` reads the modifiers of any declaration node
 /// (`ast.IsDeclaration`: an export assignment included), so `export default`
 /// under a JSDoc `@deprecated` makes its auto-import item deprecated (found
