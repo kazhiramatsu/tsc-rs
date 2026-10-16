@@ -950,6 +950,17 @@ impl<'a> CheckerState<'a> {
                     })
                     .or_else(|| self.parent_of(loc))
             }
+            // An `@overload` signature is reparsed into an overload declaration
+            // beside its host (reparser.go:138-142): a name its parameters use
+            // resolves in the host's container, never in the host's locals.
+            SyntaxKind::JSDocSignature if self.is_in_js_file(loc) => self
+                .parent_of(loc)
+                .filter(|&tag| self.kind_of(tag) == SyntaxKind::JSDocOverloadTag)
+                .and_then(|tag| {
+                    tsc_binder::hosted::reparsed_overload_host(self.binder.source_of_node(tag), tag)
+                })
+                .and_then(|host| self.parent_of(host))
+                .or_else(|| self.parent_of(loc)),
             _ => self.parent_of(loc),
         }
     }

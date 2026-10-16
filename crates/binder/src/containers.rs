@@ -211,6 +211,61 @@ impl<'a> BinderWorker<'a> {
         }
     }
 
+    /// tsgo gives a reparsed `@overload` signature the `@template` type
+    /// parameters of its comment (reparser.go gatherTypeParameters: all of
+    /// them, or none when the comment also has a `@typedef` or `@callback`),
+    /// bound inside the overload's own container: they are declared here,
+    /// once the signature's locals exist (the comment's tags, the template
+    /// ones among them, are visited before the signature binds).
+    fn declare_overload_template_parameters(&mut self, signature: NodeId) {
+        let Some(tag) = parent_of(self.source, signature) else {
+            return;
+        };
+        if kind_of(self.source, tag) != SyntaxKind::JSDocOverloadTag
+            || crate::hosted::reparsed_overload_host(self.source, tag).is_none()
+        {
+            return;
+        }
+        let Some(document) = parent_of(self.source, tag) else {
+            return;
+        };
+        let NodeData::JSDoc(data) = &self.source.arena.node(document).data else {
+            return;
+        };
+        let tags = data
+            .tags
+            .map_or(&[][..], |tags| self.source.arena.node_array(tags).nodes)
+            .to_vec();
+        if tags.iter().any(|&tag| {
+            matches!(
+                kind_of(self.source, tag),
+                SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
+            )
+        }) {
+            return;
+        }
+        for template in tags {
+            let NodeData::JSDocTemplateTag(data) = &self.source.arena.node(template).data else {
+                continue;
+            };
+            let parameters = data
+                .type_parameters
+                .map_or(&[][..], |list| self.source.arena.node_array(list).nodes)
+                .to_vec();
+            for parameter in parameters {
+                self.declare_symbol(
+                    TableRef::Locals(signature),
+                    None,
+                    parameter,
+                    SymbolFlags::TYPE_PARAMETER,
+                    SymbolFlags::TYPE_PARAMETER_EXCLUDES,
+                    false,
+                    false,
+                );
+            }
+        }
+    }
+
     /// tsc-port: bindContainer @6.0.3
     /// tsc-hash: fef772b3e91e50f62414b2e5b26c7432798feb04e6372869308938583e7923b7
     /// tsc-span: _tsc.js:42734-42829
@@ -235,6 +290,9 @@ impl<'a> BinderWorker<'a> {
             if container_flags.intersects(ContainerFlags::HAS_LOCALS) {
                 self.locals.insert(node, SymbolTable::default());
                 self.add_to_container_chain(node);
+                if kind_of(self.source, node) == SyntaxKind::JSDocSignature {
+                    self.declare_overload_template_parameters(node);
+                }
             }
         } else if container_flags.intersects(ContainerFlags::IS_BLOCK_SCOPED_CONTAINER) {
             self.block_scope_container = Some(node);

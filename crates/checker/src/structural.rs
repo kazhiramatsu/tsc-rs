@@ -191,7 +191,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             } else if is_true(result)
                 && self.st.is_non_generic_object_type(target)?
+                // tsgo `isArrayOrTupleType(target)`: an array target skips
+                // the extra check of the target's optional properties too.
                 && !self.st.tables.is_tuple_type(target)
+                && !self.st.is_array_type(target)?
                 && self.flags(source).intersects(TypeFlags::INTERSECTION)
                 && self
                     .st

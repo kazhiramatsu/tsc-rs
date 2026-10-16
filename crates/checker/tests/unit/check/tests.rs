@@ -10404,3 +10404,219 @@ fn a_readonly_index_signature_counts_its_modifier() {
         },
     );
 }
+
+/// tsgo's `getContextualTypeForAssignmentExpression` reads `d.Type()` of
+/// the property `this.x = ...` assigns, which for a JavaScript property is
+/// the `@type` its reparser hosts on it: the object literal keeps its
+/// literal types and the arrow its parameter type, and the assignment then
+/// narrows the property (found by the diagnostics comparison on svelte;
+/// tsgo aa814927 reports nothing).
+#[test]
+fn js_this_property_assignments_are_contextually_typed_by_the_jsdoc_type() {
+    let text = "/** @typedef {{ type: 'element', name: string }} Element */\n\
+                export class Template {\n\
+                \t/** @type {Element | undefined} */\n\
+                \telement;\n\
+                \t/** @type {((anchor: object) => void) | undefined} */\n\
+                \tchildren;\n\
+                \t/** @param {string} name */\n\
+                \tpush_element(name) {\n\
+                \t\tthis.element = { type: 'element', name };\n\
+                \t\t/** @type {Element} */\n\
+                \t\tconst narrowed = this.element;\n\
+                \t\tthis.children = (anchor) => { narrowed; anchor; };\n\
+                \t}\n\
+                }\n";
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(checked_file_diags_with("a.js", text, &options), []);
+}
+
+/// tsgo prints a module symbol in TS2694 as a string literal of its name
+/// (`createExpressionFromSymbolChain`): `"est"` for `declare module 'est'`
+/// whatever quotes the declaration used, and a file's name when an
+/// augmentation merged into the file's module (found by the diagnostics
+/// comparison on svelte's `declare module 'estree'`; tsgo aa814927).
+#[test]
+fn import_type_namespace_errors_print_the_module_s_quoted_name() {
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    let rows = with_program_state(
+        &[
+            (
+                "est.d.ts",
+                "declare module 'est' {\n\texport interface Node { type: string }\n}\n",
+            ),
+            (
+                "f.js",
+                "/** @type {import('est').Decorator} */\nexport const d = {};\n",
+            ),
+        ],
+        &options,
+        |state| {
+            state.check_source_file(1);
+            diag_rows(state)
+        },
+    );
+    assert_eq!(
+        rows.iter()
+            .map(|row| (row.0, row.3.as_str()))
+            .collect::<Vec<_>>(),
+        [(
+            2694,
+            "Namespace '\"est\"' has no exported member 'Decorator'."
+        )]
+    );
+}
+
+/// tsgo's reparser gives an `@overload` signature the `@template` type
+/// parameters of its comment (every overload of the comment, all of its
+/// template tags), bound inside the overload's own container.
+/// tsc-rs declared them in the `JSDocSignature`'s locals before binding
+/// the signature, whose container binding then replaced that table, so a
+/// reference to the parameter in the overload's `@param` found nothing or
+/// the implementation's own parameter (found by the diagnostics comparison
+/// on svelte's `derived`; tsgo aa814927 reports nothing).
+#[test]
+fn jsdoc_overload_signatures_keep_their_template_type_parameters() {
+    let text = "/**\n\
+                 * @template T\n\
+                 * @overload\n\
+                 * @param {T} store\n\
+                 * @returns {T}\n\
+                 */\n\
+                /**\n\
+                 * @param {unknown} store\n\
+                 * @returns {unknown}\n\
+                 */\n\
+                export function onlyOverload(store) {\n\
+                \treturn store;\n\
+                }\n\
+                /**\n\
+                 * @template {object} S\n\
+                 * @template T\n\
+                 * @overload\n\
+                 * @param {S} store\n\
+                 * @param {(value: S) => T} fn\n\
+                 * @returns {T}\n\
+                 */\n\
+                /**\n\
+                 * @template {object} S\n\
+                 * @template T\n\
+                 * @param {S} store\n\
+                 * @param {Function} fn\n\
+                 * @returns {T}\n\
+                 */\n\
+                export function derived(store, fn) {\n\
+                \treturn fn(store);\n\
+                }\n\
+                /**\n\
+                 * @template T\n\
+                 * @overload\n\
+                 * @param {T} store\n\
+                 * @returns {T}\n\
+                 * @overload\n\
+                 * @param {T} store\n\
+                 * @param {number} times\n\
+                 * @returns {T}\n\
+                 */\n\
+                /**\n\
+                 * @param {unknown} store\n\
+                 * @param {number} [times]\n\
+                 * @returns {unknown}\n\
+                 */\n\
+                export function both(store, times) {\n\
+                \treturn store;\n\
+                }\n\
+                /** @type {{ n: number }} */\n\
+                export const x = onlyOverload({ n: 1 });\n\
+                /** @type {number} */\n\
+                export const y = derived({ n: 1 }, (v) => v.n * 2);\n\
+                /** @type {{ n: number }} */\n\
+                export const z = both({ n: 1 }, 2);\n";
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(checked_file_diags_with("a.js", text, &options), []);
+}
+
+/// tsgo's `structuredTypeRelatedTo` checks a target's optional properties
+/// against an intersection source only for a target that is not an array
+/// or tuple (`isArrayOrTupleType`); tsc-rs excluded tuples alone, so
+/// `T & object` was not comparable to `any[]` (found by the diagnostics
+/// comparison on svelte's proxy; tsgo aa814927 reports TS2352 for the
+/// object type only).
+#[test]
+fn a_generic_intersection_is_comparable_to_an_array_type() {
+    let rows = with_program_state(
+        &[
+            ("lib.d.ts", "interface Array<T> { length: number; }\n"),
+            (
+                "a.ts",
+                "export function g<T>(v: T & object) { return (v as any[]).length; }\n\
+                 export function h<T>(v: T & object) { return (v as { length: number }).length; }\n",
+            ),
+        ],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(1);
+            diag_rows(state)
+        },
+    );
+    assert_eq!(
+        rows.iter()
+            .map(|row| (row.0, row.3.contains("'{ length: number; }'")))
+            .collect::<Vec<_>>(),
+        [(2352, true)]
+    );
+}
+
+/// A `@template` after the `@overload` tag belongs to no one: the parser
+/// reports it (TS8039, a parser diagnostic outside these rows) and skips
+/// it, and the overload's parameters cannot see the implementation's type
+/// parameters either, since tsgo reparses the overload into a declaration
+/// beside the function (tsgo aa814927 reports TS2304 for `T` at both uses).
+#[test]
+fn jsdoc_overload_signatures_do_not_see_the_implementation_s_type_parameters() {
+    let text = "/**\n\
+                 * @overload\n\
+                 * @template T\n\
+                 * @param {T} store\n\
+                 * @returns {T}\n\
+                 */\n\
+                /**\n\
+                 * @template T\n\
+                 * @param {T} store\n\
+                 * @returns {T}\n\
+                 */\n\
+                export function f(store) {\n\
+                \treturn store;\n\
+                }\n";
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(
+        checked_file_diags_with("a.js", text, &options)
+            .iter()
+            .map(|row| (row.0, row.1))
+            .collect::<Vec<_>>(),
+        [(2304, 40), (2304, 61)]
+    );
+}
