@@ -337,6 +337,17 @@ pub(crate) struct BasicModuleSpecifierHost {
     project_references: Option<(std::sync::Arc<tsc_program::ResolvedProjectReferences>, bool)>,
 }
 
+impl CheckerState<'_> {
+    /// The checker's module-specifier host, built on the first lookup (a
+    /// declaration emit's or an auto-import's) and shared by the rest:
+    /// building it walks every file, and auto-imports ask it once per fix.
+    pub(crate) fn module_specifier_host(&self) -> std::sync::Arc<BasicModuleSpecifierHost> {
+        self.basic_module_specifier_host
+            .get_or_init(|| std::sync::Arc::new(BasicModuleSpecifierHost::new(self)))
+            .clone()
+    }
+}
+
 impl BasicModuleSpecifierHost {
     pub(crate) fn new(checker: &CheckerState<'_>) -> Self {
         let current_directory = checker.host_current_directory.clone();
@@ -1483,14 +1494,7 @@ fn specifier_result_for_module_symbol(
         )
         .map_err(|abort| checker_abort_error(checker, context, abort));
     }
-    let fallback = match &checker.basic_module_specifier_host {
-        Some(host) => host.clone(),
-        None => {
-            let host = std::sync::Arc::new(BasicModuleSpecifierHost::new(checker));
-            checker.basic_module_specifier_host = Some(host.clone());
-            host
-        }
-    };
+    let fallback = checker.module_specifier_host();
     let fallback: &BasicModuleSpecifierHost = &fallback;
     if let Some(primary) = context.tracker.caller_module_resolver_host() {
         let host = ModuleSpecifierHostWithFallback { primary, fallback };
