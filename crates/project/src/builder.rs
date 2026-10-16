@@ -785,7 +785,8 @@ impl<'a> ProjectCollectionBuilder<'a> {
                     let plan = (*self.with_content_mapper_project(plan))
                         .clone()
                         .with_added_root_files(project.typings_roots())
-                        .with_document_script_kinds(document_script_kinds);
+                        .with_document_script_kinds(document_script_kinds)
+                        .with_parse_cache(self.host.parse_cache());
                     match typings_location {
                         Some(typings_location) => plan.with_typings_location(typings_location),
                         None => plan,
@@ -814,7 +815,8 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 let mut program_options = roots
                     .program_options
                     .clone()
-                    .with_document_script_kinds(document_script_kinds);
+                    .with_document_script_kinds(document_script_kinds)
+                    .with_parse_cache(self.host.parse_cache());
                 if let Some(project) = self.content_mapper_project(&program_options) {
                     program_options = program_options.with_content_mapper_project(project);
                 }

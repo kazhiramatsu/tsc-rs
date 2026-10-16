@@ -32,7 +32,7 @@ use tsc_lsproto::{
     LspError, Message, NoParams, Notification, Request, RequestMessage, ResponseError,
     ResponseMessage,
 };
-use tsc_program::{ConfigOptionBag, LibraryCatalog};
+use tsc_program::{ConfigOptionBag, LibraryCatalog, WorkerBudget};
 use tsc_project::{Project, Session, SessionOptions, Snapshot};
 
 use crate::gofmt;
@@ -1033,7 +1033,9 @@ impl Server {
                 library_catalog: LibraryCatalog::typescript_7_1(Path::new(
                     &self.default_library_path,
                 )),
-                load_limits: DEFAULT_LOAD_LIMITS,
+                // tsgo's program loader parses and resolves on its workers
+                // (fileloader's `core.WorkGroup`), as the command line's.
+                load_limits: DEFAULT_LOAD_LIMITS.with_workers(WorkerBudget::automatic()),
                 run_external_code,
                 position_encoding,
                 watch_enabled,

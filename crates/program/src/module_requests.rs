@@ -11,6 +11,7 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags};
 
 use crate::module_resolution::is_external_module_name_relative;
+use crate::parse_cache::{CachedParse, ParseCache};
 use crate::prepared::{PreparedSourceFile, PreparsedSourceFile, PreparsedSyntax};
 use crate::resolution::{
     ResolutionError, ResolutionKey, ResolutionMode, TypeReferenceResolutionKey,
@@ -325,9 +326,11 @@ pub fn plan_static_module_requests(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
 ) -> Result<Vec<ResolutionKey>, ResolutionError> {
-    Ok(plan_module_requests_worker(source, options, false, false)?
-        .0
-        .into_module_requests())
+    Ok(
+        plan_module_requests_worker(source, options, false, false, None)?
+            .0
+            .into_module_requests(),
+    )
 }
 
 /// Plan the exact authoritative module keys for the H0 package-map program
@@ -358,7 +361,7 @@ pub fn plan_source_requests(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
 ) -> Result<SourceRequestPlan, ResolutionError> {
-    Ok(plan_module_requests_worker(source, options, true, true)?.0)
+    Ok(plan_module_requests_worker(source, options, true, true, None)?.0)
 }
 
 /// [`plan_source_requests`] that also retains the parse the plan was computed
@@ -366,16 +369,30 @@ pub fn plan_source_requests(
 /// take-once [`PreparsedSyntax`] slot so a later session can adopt the tree
 /// instead of parsing the same snapshot again. This is the only producer of
 /// a filled slot; the tree is the planner's own parse of `source`'s snapshot.
+/// A parse `cache` holds (tsgo's parse cache) is read instead of parsing,
+/// and the slot stays empty: the checker session takes the cache's document.
 pub fn plan_source_requests_retaining_syntax(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
+    cache: Option<&dyn ParseCache>,
 ) -> Result<(SourceRequestPlan, PreparsedSyntax), ResolutionError> {
     // The loader never asks for a request outside `SourceFile.imports`, so
     // it skips the whole-file walk for misplaced imports and exports.
     let started = std::time::Instant::now();
-    let (plan, parsed) = plan_module_requests_worker(source, options, true, false)?;
-    let parse_span = (started, std::time::Instant::now());
-    Ok((plan, PreparsedSyntax::new(parsed, parse_span)))
+    let (plan, parsed) = plan_module_requests_worker(source, options, true, false, cache)?;
+    let syntax = match parsed {
+        PlanningParse::Parsed(parsed) => {
+            PreparsedSyntax::new(parsed, (started, std::time::Instant::now()))
+        }
+        PlanningParse::Cached(parse) => PreparsedSyntax::cached(parse),
+    };
+    Ok((plan, syntax))
+}
+
+/// The tree the planner read: its own parse, or a cached one.
+enum PlanningParse {
+    Parsed(PreparsedSourceFile),
+    Cached(CachedParse),
 }
 
 /// Exact syntax projection used by the module-request planner. Exposed so
@@ -448,7 +465,8 @@ fn plan_module_requests_worker(
     options: &CompilerOptions,
     expanded: bool,
     nested_requests: bool,
-) -> Result<(SourceRequestPlan, PreparsedSourceFile), ResolutionError> {
+    cache: Option<&dyn ParseCache>,
+) -> Result<(SourceRequestPlan, PlanningParse), ResolutionError> {
     let module_kind = options.emit_module_kind();
     if (!expanded && !(100..=199).contains(&module_kind))
         || (expanded && !matches!(module_kind, 0..=7 | 99 | 100..=200))
@@ -484,12 +502,17 @@ fn plan_module_requests_worker(
     };
     let parse_options = source_request_parse_options(source, options);
     let javascript_file = parse_options.javascript_file();
-    let parsed = parse_source_file_from_snapshot(
-        file_name.to_owned(),
-        Arc::clone(source.snapshot()),
-        parse_options.clone(),
-        None,
-    );
+    let cached = cache.and_then(|cache| cache.find(file_name, source.text(), &parse_options));
+    let mut fresh = None;
+    let parsed: &SourceFile = match &cached {
+        Some(cached) => cached.source(),
+        None => fresh.insert(parse_source_file_from_snapshot(
+            file_name.to_owned(),
+            Arc::clone(source.snapshot()),
+            parse_options.clone(),
+            None,
+        )),
+    };
     let path_references: Vec<PlannedPathReference> = parsed
         .referenced_files
         .iter()
@@ -905,8 +928,9 @@ fn plan_module_requests_worker(
     } else {
         Vec::new()
     };
-    let positions = source.snapshot().positions();
-    let source_text = source.text();
+    // The tree's snapshot: a cached parse's has its index built already.
+    let positions = parsed.snapshot().positions();
+    let source_text = parsed.text();
     for occurrence in static_occurrences
         .into_iter()
         .chain(dynamic_occurrences)
@@ -953,7 +977,11 @@ fn plan_module_requests_worker(
         observed_request_occurrence_count,
         synthetic_imports: has_synthetic_tslib || has_synthetic_jsx_runtime,
     };
-    Ok((plan, PreparsedSourceFile::new(parse_options, parsed)))
+    let parsed = match fresh {
+        Some(fresh) => PlanningParse::Parsed(PreparsedSourceFile::new(parse_options, fresh)),
+        None => PlanningParse::Cached(cached.expect("the planner read the cache's parse")),
+    };
+    Ok((plan, parsed))
 }
 
 // tsc-port: getErrorSpanForNode (external module indicators) @6.0.3

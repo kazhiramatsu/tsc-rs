@@ -102,9 +102,29 @@ impl<F: FileSystem> VfsCompilerHost<F> {
     }
 }
 
+impl<F: FileSystem> crate::ParallelSourceReader for VfsCompilerHost<F> {
+    fn read_source_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
+        CompilerHost::read_file_js(self, path)
+    }
+}
+
 impl<F: FileSystem> CompilerHost for VfsCompilerHost<F> {
     fn current_directory_js(&self) -> Result<JsString, HostError> {
         Ok(JsString::from(self.current_directory.as_str()))
+    }
+
+    /// A file system that permits parallel reads reads as the loading
+    /// thread would from any thread (see [`FileSystem::permits_parallel_reads`]).
+    fn permits_source_read_ahead(&self) -> bool {
+        self.fs.permits_parallel_reads()
+    }
+
+    fn parallel_source_reader(&self) -> Option<&(dyn crate::ParallelSourceReader + Sync)> {
+        self.fs.permits_parallel_reads().then_some(self as _)
+    }
+
+    fn parallel_resolution_host(&self) -> Option<&(dyn CompilerHost + Sync)> {
+        self.fs.permits_parallel_reads().then_some(self as _)
     }
 
     fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
