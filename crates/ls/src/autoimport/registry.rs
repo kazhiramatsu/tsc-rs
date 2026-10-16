@@ -15,7 +15,7 @@ use tsc_host::CompilerHost;
 use tsc_program::{ModuleResolver, PreparedProgram, ResolvedEntrypoint};
 use tsc_types::JsStr;
 
-use super::alias_resolver::AliasResolver;
+use super::alias_resolver::extract_from_resolved_files;
 use super::index::Index;
 use super::node_modules::{
     discover_bucket_packages, extract_package, get_package_names_in_node_modules,
@@ -303,7 +303,7 @@ pub struct ProgramPackageFacts {
 
 /// What the registry asks of the snapshot it is built in (tsgo
 /// `RegistryCloneHost`).
-pub trait RegistryCloneHost {
+pub trait RegistryCloneHost: Sync {
     /// tsgo `GetDefaultProject`: the ID of a file's default project.
     fn default_project(&self, path: &str) -> Option<String>;
     /// tsgo `buildProjectBucket`: the paths of the files indexed and the
@@ -320,7 +320,9 @@ pub trait RegistryCloneHost {
     fn program_package_facts(&self, project: &str) -> Option<ProgramPackageFacts>;
     /// tsgo `FS()`: the snapshot's files, its current directory the
     /// session's.
-    fn fs(&self) -> &dyn CompilerHost;
+    fn fs(&self) -> &(dyn CompilerHost + Sync);
+    /// tsgo's parse cache: the documents the session's programs share.
+    fn documents(&self) -> Option<&tsc_compiler::DocumentRegistry>;
     /// tsgo `ToPath`.
     fn path_of(&self, file_name: &str) -> String;
 }
@@ -779,13 +781,32 @@ impl Registry {
         // with no main package extract directly from @types in the primary pass.
         let inputs = ExtractionInputs {
             host: fs,
+            documents: host.documents(),
             path_of: &path_of,
             project_reference_outputs: &project_reference_outputs,
             file_exclude_patterns: file_exclude_patterns.as_ref(),
         };
+        // tsgo extracts each unique package on its work group.
+        let workers = tsc_program::WorkerBudget::automatic();
+        let extract_all = |jobs: Vec<(String, &PackageJsonInfo, &str, bool)>| {
+            workers.map_ordered(
+                jobs,
+                |_| 1,
+                |(realpath, package_json, package_name, enable_directory_search)| {
+                    let result = extract_package(
+                        &inputs,
+                        package_json,
+                        package_name,
+                        enable_directory_search,
+                    );
+                    (realpath, result)
+                },
+            )
+        };
         let mut seen = BTreeSet::new();
         let mut extraction_cache: BTreeMap<String, PackageExtraction> = BTreeMap::new();
         let mut types_fallback_candidates = Vec::new();
+        let mut jobs = Vec::new();
         for task in &tasks {
             for package in &task.discovered {
                 if let Some(realpath) = &package.realpath {
@@ -802,14 +823,12 @@ impl Registry {
                                 target.insert(package.package_name.clone());
                             }
                         }
-                        if let Some(result) = extract_package(
-                            &inputs,
-                            &package.package_json,
-                            &package.package_name,
+                        jobs.push((
+                            realpath.clone(),
+                            &*package.package_json,
+                            package.package_name.as_str(),
                             enable_directory_search,
-                        ) {
-                            extraction_cache.insert(realpath.clone(), result);
-                        }
+                        ));
                     }
                     if package.types_realpath.is_some() {
                         types_fallback_candidates.push(package);
@@ -822,19 +841,23 @@ impl Registry {
                         if let Some(target) = &mut target_recursive_packages {
                             target.insert(package.package_name.clone());
                         }
-                        if let Some(result) = extract_package(
-                            &inputs,
-                            types_package_json,
-                            &package.package_name,
+                        jobs.push((
+                            types_realpath.clone(),
+                            &**types_package_json,
+                            package.package_name.as_str(),
                             true,
-                        ) {
-                            extraction_cache.insert(types_realpath.clone(), result);
-                        }
+                        ));
                     }
                 }
             }
         }
+        for (realpath, result) in extract_all(jobs) {
+            if let Some(result) = result {
+                extraction_cache.insert(realpath, result);
+            }
+        }
         // For packages whose main extraction yielded nothing, fall back to @types.
+        let mut jobs = Vec::new();
         for package in types_fallback_candidates {
             let (Some(realpath), Some(types_realpath), Some(types_package_json)) = (
                 &package.realpath,
@@ -851,10 +874,16 @@ impl Registry {
             if let Some(target) = &mut target_recursive_packages {
                 target.insert(package.package_name.clone());
             }
-            if let Some(result) =
-                extract_package(&inputs, types_package_json, &package.package_name, true)
-            {
-                extraction_cache.insert(types_realpath.clone(), result);
+            jobs.push((
+                types_realpath.clone(),
+                &**types_package_json,
+                package.package_name.as_str(),
+                true,
+            ));
+        }
+        for (realpath, result) in extract_all(jobs) {
+            if let Some(result) = result {
+                extraction_cache.insert(realpath, result);
             }
         }
         self.unique_package_count = seen.len();
@@ -987,37 +1016,42 @@ impl Registry {
                 .values()
                 .map(|source| source.file_name.clone())
                 .collect();
-            let Some(mut alias) = AliasResolver::new(
+            let realpath = |file_name: &str| super::node_modules::realpath(fs, file_name);
+            let Some((_, exports)) = extract_from_resolved_files(
                 fs,
+                host.documents(),
                 &mut resolver,
                 &root_files,
                 &source_file_names,
                 &path_of,
                 /* record_failures */ false,
+                |alias, resolver| {
+                    let mut exports = Vec::new();
+                    for (path, source) in &failed_sources {
+                        let Some(index) = alias.files.iter().position(|(_, file)| file == path)
+                        else {
+                            continue;
+                        };
+                        let mut resolve_module = |name: &str, containing_file: &str| {
+                            resolve_from(resolver, name, containing_file)
+                        };
+                        let extracted = alias.with_checker(|checker| {
+                            let mut extractor = super::Extractor {
+                                checker,
+                                path_of: &path_of,
+                                package_name: source.package_name.clone(),
+                                realpath: Some(&realpath),
+                                resolve_module: Some(&mut resolve_module),
+                            };
+                            extractor.extract_from_file(index).unwrap_or_default()
+                        });
+                        exports.extend(extracted.unwrap_or_default());
+                    }
+                    exports
+                },
             ) else {
                 continue;
             };
-            let realpath = |file_name: &str| super::node_modules::realpath(fs, file_name);
-            let mut exports = Vec::new();
-            for (path, source) in &failed_sources {
-                let Some(index) = alias.files.iter().position(|(_, file)| file == path) else {
-                    continue;
-                };
-                let mut resolve_module = |name: &str, containing_file: &str| {
-                    resolve_from(&mut resolver, name, containing_file)
-                };
-                let extracted = alias.with_checker(|checker| {
-                    let mut extractor = super::Extractor {
-                        checker,
-                        path_of: &path_of,
-                        package_name: source.package_name.clone(),
-                        realpath: Some(&realpath),
-                        resolve_module: Some(&mut resolve_module),
-                    };
-                    extractor.extract_from_file(index).unwrap_or_default()
-                });
-                exports.extend(extracted.unwrap_or_default());
-            }
             if let Some(bucket) = self.node_modules.get_mut(&directory_path) {
                 let index = Arc::make_mut(&mut bucket.index);
                 for export in exports {
