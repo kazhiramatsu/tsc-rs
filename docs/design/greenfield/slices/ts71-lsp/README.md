@@ -1669,3 +1669,41 @@ project の test を移して固定する。
   conformance 49・lsproto 31）、API client sync 356/356・async 365/365、clippy（`-D warnings`）、fmt。一回目の検査で
   program の UTF-16 の test（lone surrogate を含む path の exclude）と、6.0.3 の規則を固定していた checker の test 2 件が
   落ち、直してから全てを最後の bytes でやり直した。
+## 実 project の LSP 差分 test：node builder の cache の寿命（#823）
+
+- **merge**：#823 → `40a6f1669`（hosted run 38825894719）。commit：24a429f29（cache の寿命）、1cacc0c28（types writer）。
+- **tsgo の builder**：NodeBuilder は作った node の cache（`serializedTypes`、enclosing declaration ごと）を builder が
+  生きている間持つ。後の build は完全な node を数えた長さと共に再利用し、新しく作れば切り詰める所でも切らない。
+  - checker 自身の builder（`getNodeBuilder`、printer.go）：`typeToString`・`symbolToString`・`signatureToString`・
+    `typePredicateToString`・`SignatureToSignatureDeclaration`・`ExpandSymbolForHover`・`TypeParameterToStringEx`。
+    checker が生きている間、要求をまたいで持つ。
+  - 呼び出しごとに新しい builder（`getNodeBuilderEx`）：`TypeToTypeNode`・`TypeToTypeNodeEx`・
+    `TypePredicateToTypePredicateNode`。
+  - signature help の item ごとの builder：`getTypeHelpItem`・`itemInfoForTypeParameters`・`itemInfoForParameters`。
+  - types baseline の walker：node ごとに `NewNodeBuilder`。
+  hover の verbosity context を持つ build と enclosing declaration の無い build は cache を読み書きしない（変わらず）。
+- **実装**：checker の display arena が node builder の cache を持ち続ける（宣言の emit の request builder と同じ
+  `keep_node_builder_cache`）。`CheckerState::with_node_builder` が `NodeBuilder` 自身の cache を呼び出しの間だけ
+  display に貸す：signature help の item（label の build だけが通り、parameter の documentation は checker の
+  builder のまま）、`TypeToTypeNode` に当たる `type_to_type_node_with_flags`・`signature_help_type` は呼び出しごとに
+  新しいもの、conformance の types writer は node ごとに新しいもの。
+- **途中で見つかったこと**：最初は signature help の戻り値型も checker の cache を共有し、hono の signature help 2 件で
+  別の signature が切り詰めた node を再利用した（tsgo の `TypeToTypeNode` は新しい builder）。一回目の全体検査で
+  `fixSignatureCaching.types` が別の node の循環の中で作った node を再利用して 1 件 mismatch（tsgo の walker は node
+  ごとに新しい builder）。
+- **結果**（#822 の比較を同じ session で）：hono 44 → 40、zod 1 → 0、effect 70 → 68。残りは全て #822 で記録した有界の
+  違い（auto-import の specifier：hono 39・effect 67、hono の `Context<any, any, {}>` の hover、effect の
+  `Ordering.match` の末尾の comma）。
+- **test**（tsgo の答え aa814927 で固定）：`a_later_hover_reuses_the_checker_s_built_nodes`（前の hover の qualifier が
+  作った `typeof a` を後の hover が丸ごと再利用、単独なら `... 8 more ...`。test helper が一つの program に要求を順に
+  送る）、`signature_help_items_and_return_types_keep_their_own_built_nodes`（item の後の parameter が前の parameter
+  の node を再利用し、戻り値型は signature ごとに新しく作る）。どちらも変更なしでは落ち、後者は戻り値型が cache を
+  共有しても落ちる。
+- **検査（1cacc0c28）**：conformance 0 regressions（13,577 全て full、types・symbols 12,874 全て full、484 s）、
+  `--checkers 4` は既知の 4 件だけ（15,335 一致）、suites 0 regressions（ratchet は変わらず：lsp 4,583/4,584、tsc
+  227/229）、test 全通過（types 47・syntax 251・binder 78・program 683・checker 1,806・emitter 350・ls 228・lsp 58・
+  api 332・project 235・compiler 240・conformance 49・lsproto 31）、API client sync 356/356・async 365/365、clippy
+  （`-D warnings`）、fmt。
+- **有界の違い**：tsgo の checker pool は 30 秒使われない checker を捨てる（`IdleTimeout`）ので、editor の中で時間を
+  置くと tsgo の cache は空からやり直す。tsc-rs の query checker は捨てないので、間を置いた後の切り詰めの位置が違い
+  得る（生成した session には間が無い）。
