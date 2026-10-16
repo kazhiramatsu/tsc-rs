@@ -1109,7 +1109,7 @@ impl<'a> BinderWorker<'a> {
                     // Deliberately no addToContainerChain: tsc creates this
                     // locals table directly for JSDoc/infer type parameters.
                     self.locals.entry(container).or_default();
-                    self.declare_symbol(
+                    let symbol = self.declare_symbol(
                         TableRef::Locals(container),
                         None,
                         node,
@@ -1118,6 +1118,23 @@ impl<'a> BinderWorker<'a> {
                         false,
                         false,
                     );
+                    // tsgo gives every reparsed `@overload` of the comment all
+                    // of its `@template`s (reparser.go gatherTypeParameters);
+                    // the one symbol also sits in a table of the comment, which
+                    // a name in any of its overloads reaches (the checker's
+                    // overload signatures are instantiations of this symbol's
+                    // type, so a second symbol would split them).
+                    if let Some(document) =
+                        crate::hosted::overload_template_comment(self.source, tag)
+                    {
+                        if document != container {
+                            let name = self.symbols.symbol(symbol).escaped_name;
+                            self.locals
+                                .entry(document)
+                                .or_default()
+                                .insert(name, symbol);
+                        }
+                    }
                 }
                 None => {}
             }
@@ -1181,7 +1198,7 @@ impl<'a> BinderWorker<'a> {
             }
         }
         crate::hosted::template_tag_host(self.source, node)
-            .or_else(|| crate::hosted::overload_template_signature(self.source, node))
+            .or_else(|| crate::hosted::overload_template_comment(self.source, node))
     }
 
     /// tsc-port: getInferTypeContainer @6.0.3

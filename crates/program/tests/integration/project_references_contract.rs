@@ -229,3 +229,71 @@ fn a_referenced_source_resolves_to_its_output_or_reports_it_unbuilt() {
             .any(|file| file.path().display() == "/work/lib/tsconfig.json"));
     }
 }
+
+const INCLUDING_APP_CONFIG: &str = r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","noLib":true,"types":[],"strict":true,"noEmit":true},"include":["../lib/src/**/*"],"references":[{"path":"../lib"}]}"#;
+
+/// tsgo collectFiles: a root file that is a referenced project's source is
+/// redirected to the project's output declaration file, and when that is
+/// not built the root contributes neither a file nor a diagnostic (found by
+/// the diagnostics comparison on astro, whose `include` names files its
+/// test project owns; tsgo aa814927 reports nothing and lists nothing).
+/// The output's package.json scope is still looked up before the file is
+/// read (tsgo parseTask.load), so the probes along the unbuilt output's
+/// directories reach the build information's `missingPackageJsons`.
+#[test]
+fn a_root_redirected_to_an_unbuilt_output_is_dropped_silently() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/lib/tsconfig.json",
+            br#"{"compilerOptions":{"composite":true,"outDir":"dist","module":"esnext","moduleResolution":"bundler","target":"es2022","noLib":true,"types":[]},"include":["src"]}"#.to_vec(),
+        )
+        .file(
+            "/work/lib/src/index.ts",
+            b"export function add(a: number, b: number): number { return a + b; }\n".to_vec(),
+        )
+        .file("/work/app/tsconfig.json", INCLUDING_APP_CONFIG.as_bytes().to_vec())
+        .build()
+        .expect("build project reference host");
+    let adapter = CompilerConfigHost::new(&host);
+    let plan = parse_config_root_plan(
+        &adapter,
+        ConfigRootPlanRequest {
+            file_name: "/work/app/tsconfig.json".to_owned().into(),
+            text: INCLUDING_APP_CONFIG.to_owned(),
+            base_path: "/work".to_owned().into(),
+        },
+    )
+    .expect("parse app config");
+    let prepared = load_config_program_with_no_emit_override(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_7_1(PathBuf::from("/work/lib-files")),
+        LIMITS,
+    )
+    .expect("load the app");
+    assert!(
+        prepared.roots().is_empty(),
+        "the redirected root is dropped"
+    );
+    assert!(prepared
+        .source_files()
+        .iter()
+        .all(|source| !source.path().display().starts_with("/work/lib/")));
+    assert_eq!(
+        prepared
+            .diagnostics()
+            .program()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        Vec::<u32>::new()
+    );
+    assert!(
+        prepared
+            .package_json_probes()
+            .iter()
+            .any(|probe| probe.path == "/work/lib/dist/package.json" && !probe.exists),
+        "the unbuilt output's package.json is probed: {:?}",
+        prepared.package_json_probes()
+    );
+}

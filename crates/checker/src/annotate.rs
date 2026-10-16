@@ -2107,8 +2107,16 @@ impl<'a> CheckerState<'a> {
             // `symbolToString(..., DoNotIncludeSymbolChain)` still obtains
             // the declaration-backed written name. This is observable for
             // the internal `__global` symbol, whose declaration is the
-            // `global` keyword in a global augmentation.
-            let mut display = self.symbol_name_as_written(symbol);
+            // `global` keyword in a global augmentation. A module symbol
+            // (its name quoted) prints as a string literal of its name
+            // (tsgo createExpressionFromSymbolChain): double quotes
+            // whatever its declaration was written with, and the file's
+            // name when an augmentation merged into a file's module.
+            let mut display = if data.escaped_name.as_js().strip_prefix("\"").is_some() {
+                JsString::from(data.escaped_name.as_js())
+            } else {
+                self.symbol_name_as_written(symbol)
+            };
             if data.parent.is_none()
                 && data
                     .declarations
