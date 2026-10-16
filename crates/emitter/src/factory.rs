@@ -965,16 +965,18 @@ impl TransformArena {
         self.metadata.entry(node).or_default()
     }
 
-    /// The emit flags, synthetic comments and comment ranges of `root`'s
-    /// subtree dropped: tsgo's checker builds `TypeToTypeNodeEx`'s nodes in
-    /// an emit context of its own (`getNodeBuilderEx`:
-    /// `printer.NewEmitContext()`), which a printer of another context never
-    /// reads (a property's comment range from its declaration included).
-    pub fn forget_emit_flags_and_comments(
-        &mut self,
-        root: TransformNode,
-    ) -> Result<(), TransformError> {
+    /// `root`'s subtree as a printer of another emit context reads it: tsgo's
+    /// checker builds `TypeToTypeNode(Ex)`'s nodes in an emit context of its
+    /// own (`getNodeBuilderEx`: `printer.NewEmitContext()`), so the printer
+    /// reads none of their emit flags, synthetic comments and comment ranges
+    /// (a property's comment range from its declaration included), and
+    /// cannot trace a list to its original (`hasTrailingComma`): it trusts
+    /// the list's positions, and a binding pattern `cloneBindingName` cloned
+    /// (marked single-line, no ASCII escaping) keeps its source list's range
+    /// around synthesized elements, which reads as a trailing comma.
+    pub fn forget_emit_context(&mut self, root: TransformNode) -> Result<(), TransformError> {
         let mut pending = vec![root.node];
+        let mut cloned_patterns = Vec::new();
         while let Some(node) = pending.pop() {
             let syntax = &self.source(root.source)?.source.arena;
             if !syntax.contains_node(node) {
@@ -984,14 +986,31 @@ impl TransformArena {
                 pending.push(child);
                 false
             });
+            let elements = match &syntax.node(node).data {
+                NodeData::ObjectBindingPattern(data) => data.elements,
+                NodeData::ArrayBindingPattern(data) => data.elements,
+                _ => None,
+            };
             if let Some(metadata) = self
                 .metadata
                 .get_mut(&TransformNode::new(root.source, node))
             {
+                if metadata
+                    .flags
+                    .contains(EmitFlags::SINGLE_LINE | EmitFlags::NO_ASCII_ESCAPING)
+                {
+                    cloned_patterns.extend(elements);
+                }
                 metadata.flags = EmitFlags::NONE;
                 metadata.leading_comments.clear();
                 metadata.trailing_comments.clear();
                 metadata.comment_range = None;
+            }
+        }
+        let syntax = &mut self.source_mut(root.source)?.source.arena;
+        for elements in cloned_patterns {
+            if !syntax.node_array(elements).nodes.is_empty() {
+                syntax.node_array_mut(elements).has_trailing_comma = true;
             }
         }
         Ok(())
