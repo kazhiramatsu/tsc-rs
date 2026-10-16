@@ -1716,11 +1716,21 @@ fn auto_import_items(
     text: &str,
     (line, character): (u32, u32),
 ) -> Vec<(String, i64, String, i64, Value)> {
+    auto_import_items_in("file:///ws/index.ts", entries, text, (line, character))
+}
+
+/// The auto-import items of `text` at `(line, character)` in the open file
+/// `index` of a session over `entries`.
+fn auto_import_items_in(
+    index: &str,
+    entries: Vec<(&'static str, Seed)>,
+    text: &str,
+    (line, character): (u32, u32),
+) -> Vec<(String, i64, String, i64, Value)> {
     let fs = Arc::new(MemFs::from_entries(entries, false, Arc::new(SystemClock)).unwrap());
     let mut session = Session::start_with(fs);
     let mut client = RegistrationClient::default();
     client.initialize(&mut session, serde_json::json!({}));
-    let index = "file:///ws/index.ts";
     client.notify(
         &mut session,
         "textDocument/didOpen",
@@ -1888,6 +1898,114 @@ fn auto_imports_follow_a_chain_of_re_exports() {
     assert_eq!(
         auto_import_items(entries, TEXT, (1, 5)),
         [("deepValue".to_owned(), 6, "pkg".to_owned(), 0, Value::Null)]
+    );
+}
+
+/// tsgo fills an importing file's specifier cache (keyed by the file an
+/// export was found in) for whichever completion group asks first, in Go's
+/// map order. The `ContextVariableMap` augmentations of two middleware
+/// files merge into one export whose path is the last file's and whose
+/// module file is `src/index.ts`, so that file's own exports are named `..`
+/// when the merged export asks before them: one of tsgo's orders in four
+/// (2 of 8 runs at aa814927). tsc-rs asked in the order found, which was
+/// that order every time; a file several groups reach is now filled from
+/// the module file most of them give (found by the LSP test on hono).
+#[test]
+fn auto_imports_name_a_file_from_its_own_exports_despite_an_augmentation() {
+    const TEXT: &str = "export function f(): void {\n  \n}\n";
+    let middleware = |name: &str| {
+        format!(
+            "export const {name}One = 1\nexport const {name}Two = 2\nexport const {name}Three = 3\n\
+             declare module '../..' {{\n  interface ContextVariableMap {{\n    {name}: number\n  }}\n}}\n"
+        )
+    };
+    let entries = vec![
+        (
+            "/ws/tsconfig.json",
+            Seed::file(
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}, "include": ["src"]}"#,
+            ),
+        ),
+        (
+            "/ws/src/context.ts",
+            Seed::file("export interface ContextVariableMap {}\nexport class Context {}\n"),
+        ),
+        (
+            "/ws/src/index.ts",
+            Seed::file(
+                "export type { ContextVariableMap } from './context'\nexport { Context } from './context'\n",
+            ),
+        ),
+        (
+            "/ws/src/middleware/alpha/index.ts",
+            Seed::file(middleware("alpha")),
+        ),
+        (
+            "/ws/src/middleware/beta/index.ts",
+            Seed::file(middleware("beta")),
+        ),
+        ("/ws/src/helper/use.ts", Seed::file(TEXT)),
+    ];
+    let item = |label: &str, kind: i64, specifier: &str| {
+        (label.to_owned(), kind, specifier.to_owned(), 0, Value::Null)
+    };
+    assert_eq!(
+        auto_import_items_in("file:///ws/src/helper/use.ts", entries, TEXT, (1, 2)),
+        [
+            item("Context", 7, "../context"),
+            item("alphaOne", 6, "../middleware/alpha"),
+            item("alphaThree", 6, "../middleware/alpha"),
+            item("alphaTwo", 6, "../middleware/alpha"),
+            item("betaOne", 6, "../middleware/beta"),
+            item("betaThree", 6, "../middleware/beta"),
+            item("betaTwo", 6, "../middleware/beta"),
+        ]
+    );
+}
+
+/// tsgo answers a cached specifier as relative whatever kind computing it
+/// gave, and ranks a `paths` kind against a relative one by directory
+/// separators only, so the group that computes three packages' specifiers
+/// first ranks them in a cycle with the penalized index re-export (`.`) and
+/// the longer relative ones. That group is random in tsgo's map order, and
+/// `version` (declared first in `core`'s index, re-exported by six files)
+/// gets the three packages in 7 of 8 runs at aa814927; tsc-rs computed them
+/// first for `version` every time and kept one (found by the LSP test on
+/// vue).
+#[test]
+fn auto_imports_rank_a_shared_paths_specifier_as_cached() {
+    const TEXT: &str = "export function f(): void {\n  \n}\n";
+    let entries = vec![
+        (
+            "/ws/tsconfig.json",
+            Seed::file(
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true, "paths": {"@v/*": ["./packages/*/src"]}}, "include": ["packages/*/src"]}"#,
+            ),
+        ),
+        (
+            "/ws/packages/core/src/index.ts",
+            Seed::file(
+                "export const version = \"1\"\nexport const alpha = 1\nexport const beta = 2\nexport const gamma = 3\nexport const delta = 4\n",
+            ),
+        ),
+        ("/ws/packages/core/src/use.ts", Seed::file(TEXT)),
+        ("/ws/packages/dom/src/index.ts", Seed::file("export * from '@v/core'\n")),
+        ("/ws/packages/test/src/index.ts", Seed::file("export * from '@v/core'\n")),
+        ("/ws/packages/app/src/index.ts", Seed::file("export * from '@v/dom'\n")),
+        ("/ws/packages/app/src/runtime.ts", Seed::file("export * from '@v/dom'\n")),
+        ("/ws/packages/compat/src/esm-index.ts", Seed::file("export * from '@v/dom'\n")),
+        ("/ws/packages/compat/src/esm-runtime.ts", Seed::file("export * from '@v/dom'\n")),
+    ];
+    let expected: Vec<_> = ["alpha", "beta", "delta", "gamma", "version"]
+        .iter()
+        .flat_map(|name| {
+            ["@v/app", "@v/dom", "@v/test"]
+                .map(|package| (name.to_string(), 6, package.to_owned(), 0, Value::Null))
+        })
+        .collect();
+    assert_eq!(
+        auto_import_items_in("file:///ws/packages/core/src/use.ts", entries, TEXT, (1, 2)),
+        expected
     );
 }
 
