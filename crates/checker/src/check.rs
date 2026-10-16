@@ -7931,8 +7931,9 @@ impl<'a> CheckerState<'a> {
     /// namespace merged with the class prints `Clod.x`. Otherwise the scope
     /// walk (symbol_tables_in_scope below) consults each table in lexical
     /// order and the shared visited list rides across them like tsgo's
-    /// per-symbol visitedSymbolTables. The accessibleChainCache is a
-    /// recomputation-only economy the port skips.
+    /// per-symbol visitedSymbolTables. The chain is cached by the location
+    /// of the first table in scope (tsgo's `accessibleChainCache`, shared
+    /// by every enclosing declaration there).
     pub(crate) fn accessible_symbol_chain_at(
         &mut self,
         symbol: SymbolId,
@@ -7954,8 +7955,18 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
+        let key = (
+            symbol,
+            use_only_external_aliasing,
+            self.first_symbol_table_location(enclosing),
+            meaning,
+        );
+        if let Some(chain) = self.accessible_chain_cache.get(&key) {
+            return Ok(chain.clone());
+        }
         let tables = self.symbol_tables_in_scope(enclosing);
         let mut visited = Vec::new();
+        let mut result = None;
         for (table_key, table, is_local_name_lookup) in tables {
             if let Some(chain) = self.accessible_chain_from_table(
                 &table,
@@ -7968,10 +7979,67 @@ impl<'a> CheckerState<'a> {
                 enclosing,
                 use_only_external_aliasing,
             )? {
-                return Ok(Some(chain));
+                result = Some(chain);
+                break;
             }
         }
-        Ok(None)
+        self.accessible_chain_cache.insert(key, result.clone());
+        Ok(result)
+    }
+
+    /// tsgo `getAccessibleSymbolChainEx`'s `firstRelevantLocation`: the
+    /// location of the first table [`Self::symbol_tables_in_scope`] gives;
+    /// none when that is the globals.
+    fn first_symbol_table_location(&mut self, enclosing: Option<NodeId>) -> Option<NodeId> {
+        let mut location = enclosing;
+        while let Some(loc) = location {
+            let is_global_source_file = self.kind_of(loc) == SyntaxKind::SourceFile
+                && !self.binder.is_external_or_common_js_module_of_node(loc);
+            if !is_global_source_file && self.binder.locals_of_scope(loc).is_some() {
+                return Some(loc);
+            }
+            match self.kind_of(loc) {
+                SyntaxKind::SourceFile if is_global_source_file => {}
+                SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration => {
+                    if self.binder.node_symbol(loc).is_some() {
+                        return Some(loc);
+                    }
+                }
+                SyntaxKind::ClassDeclaration
+                | SyntaxKind::ClassExpression
+                | SyntaxKind::InterfaceDeclaration => {
+                    if let Some(symbol) = self.binder.node_symbol(loc) {
+                        let symbol = self.get_merged_symbol(symbol);
+                        let has_type_member =
+                            self.binder
+                                .symbol(symbol)
+                                .members()
+                                .iter()
+                                .any(|(_, &member)| {
+                                    self.binder
+                                        .symbol(member)
+                                        .flags
+                                        .intersects(tsc_types::SymbolFlags::TYPE)
+                                });
+                        if has_type_member {
+                            return Some(loc);
+                        }
+                    }
+                    if self.kind_of(loc) == SyntaxKind::ClassExpression {
+                        let name = match self.data_of(loc) {
+                            NodeData::ClassExpression(data) => data.name,
+                            _ => None,
+                        };
+                        if name.is_some() && self.binder.node_symbol(loc).is_some() {
+                            return Some(loc);
+                        }
+                    }
+                }
+                _ => {}
+            }
+            location = self.parent_of(loc);
+        }
+        None
     }
 
     /// tsgo-port: Checker.someSymbolTableInScope @7.1

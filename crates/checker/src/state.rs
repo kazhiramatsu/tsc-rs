@@ -1020,6 +1020,13 @@ pub struct CheckerState<'a> {
     /// [`CheckerState::module_specifier_host`].
     pub(crate) basic_module_specifier_host:
         std::cell::OnceCell<std::sync::Arc<crate::node_builder::chains::BasicModuleSpecifierHost>>,
+    /// tsgo `symbolContainerLinks.accessibleChainCache`: a symbol's
+    /// accessible chain by `useOnlyExternalAliasing`, the location of the
+    /// first table in scope and the meaning.
+    pub(crate) accessible_chain_cache: rustc_hash::FxHashMap<
+        (SymbolId, bool, Option<NodeId>, tsc_types::SymbolFlags),
+        Option<Vec<SymbolId>>,
+    >,
     /// tsrs-native: the harness ProgramJson `cwd` (tsc
     /// host.getCurrentDirectory). The oracle host absolutizes every
     /// program fileName against it (program-host.mjs
@@ -1691,6 +1698,7 @@ impl<'a> CheckerState<'a> {
             host_file_paths: Default::default(),
             host_input_snapshots: Default::default(),
             basic_module_specifier_host: std::cell::OnceCell::new(),
+            accessible_chain_cache: Default::default(),
             host_current_directory: "/".into(),
             host_package_json_module_types: Default::default(),
             host_package_json_values: Default::default(),
