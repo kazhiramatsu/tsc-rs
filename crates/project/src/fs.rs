@@ -4,7 +4,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io;
-use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError, RwLock};
 use std::time::SystemTime;
 
 use tsc_diagnostics::JsStr;
@@ -228,7 +228,9 @@ pub(crate) struct SnapshotFsBuilder {
     /// The file system the build reads, the open documents over it.
     base: Arc<dyn FileSystem>,
     paths: Paths,
-    files: Mutex<Files>,
+    /// Read from the loader's threads at once (tsgo's `dirty.SyncMap`): a
+    /// lookup takes a read lock, and a file is read with no lock held.
+    files: RwLock<Files>,
     aliases: Mutex<Aliases>,
     overlays: Overlays,
 }
@@ -244,7 +246,7 @@ impl SnapshotFsBuilder {
         Self {
             base,
             paths,
-            files: Mutex::new(files),
+            files: RwLock::new(files),
             aliases: Mutex::new(aliases),
             overlays,
         }
@@ -282,7 +284,11 @@ impl SnapshotFsBuilder {
     }
 
     fn with_files<T>(&self, operation: impl FnOnce(&mut Files) -> T) -> T {
-        operation(&mut self.files.lock().unwrap_or_else(PoisonError::into_inner))
+        operation(&mut self.files.write().unwrap_or_else(PoisonError::into_inner))
+    }
+
+    fn read_files<T>(&self, operation: impl FnOnce(&Files) -> T) -> T {
+        operation(&self.files.read().unwrap_or_else(PoisonError::into_inner))
     }
 
     /// tsgo `recordRealpathAlias`: a file in `node_modules` first read
@@ -357,7 +363,7 @@ impl SnapshotFsBuilder {
             ..Entries::default()
         };
         let mut cached = BTreeSet::new();
-        self.with_files(|files| {
+        self.read_files(|files| {
             for (path, file) in files
                 .range(prefix.clone()..)
                 .take_while(|(path, _)| path.starts_with(&prefix))
@@ -418,24 +424,39 @@ impl SnapshotFsBuilder {
     /// from the base and cached.
     pub(crate) fn get(&self, file_name: &str) -> Option<Arc<CachedFile>> {
         let path = self.paths.to_path(file_name);
-        if let Some(overlay) = self.overlays.get(&path) {
-            if !self.with_files(|files| files.contains_key(&path)) {
+        let cached = self.read_files(|files| files.get(&path).cloned());
+        if cached.is_none() {
+            if let Some(overlay) = self.overlays.get(&path) {
                 return Some(overlay.cached_file());
             }
         }
+        let read_name = match &cached {
+            Some(entry) if !entry.needs_reload => return cached,
+            Some(entry) => entry.file_name.clone(),
+            None => file_name.to_owned(),
+        };
+        // Read with no lock held; the entry another thread stored first is
+        // the one kept (tsgo's `LoadOrStore`).
+        let read = self.base.read(&read_name);
+        // A new entry's real path, made before the lock when the file was new.
+        let new_realpath_path = match (&read, &cached) {
+            (Ok(_), None) => Some(self.realpath_alias(&read_name, &path)),
+            _ => None,
+        };
         self.with_files(|files| {
-            let cached = files.get(&path).cloned();
-            let read_name = match &cached {
-                Some(entry) if !entry.needs_reload => return Some(Arc::clone(entry)),
-                Some(entry) => entry.file_name.clone(),
-                None => file_name.to_owned(),
-            };
-            match self.base.read(&read_name) {
+            let current = files.get(&path).cloned();
+            if let Some(entry) = &current {
+                if !entry.needs_reload {
+                    return Some(Arc::clone(entry));
+                }
+            }
+            match read {
                 Ok(content) => {
-                    let entry = Arc::new(match &cached {
+                    let entry = Arc::new(match &current {
                         Some(entry) => entry.reloaded(content.into()),
                         None => CachedFile {
-                            realpath_path: self.realpath_alias(&read_name, &path),
+                            realpath_path: new_realpath_path
+                                .unwrap_or_else(|| self.realpath_alias(&read_name, &path)),
                             line_map: OnceLock::new(),
                             file_name: read_name,
                             content: content.into(),
@@ -461,10 +482,11 @@ impl SnapshotFsBuilder {
     /// tsgo `FileExists`: a cached file exists while it can be read; others
     /// as the base says.
     pub(crate) fn file_exists(&self, file_name: &str) -> bool {
-        if self.is_open_file(&self.paths.to_path(file_name)) {
+        let path = self.paths.to_path(file_name);
+        if self.is_open_file(&path) {
             return true;
         }
-        let cached = self.with_files(|files| files.contains_key(&self.paths.to_path(file_name)));
+        let cached = self.read_files(|files| files.contains_key(&path));
         if cached {
             self.get(file_name).is_some()
         } else {
@@ -776,7 +798,9 @@ fn is_relevant_file_name(
 /// file change concerns the program.
 pub(crate) struct SourceFs<'a> {
     builder: &'a SnapshotFsBuilder,
-    seen: Option<Mutex<SeenFiles>>,
+    /// By a hash of the path, so the loader's threads seldom share a lock;
+    /// the parts are one record (a map and a set).
+    seen: Option<Box<[Mutex<SeenFiles>; SEEN_PARTS]>>,
 }
 
 /// A snapshot's files as a file system (tsgo's snapshot as a resolver's
@@ -852,6 +876,9 @@ impl FileSystem for SnapshotView {
     }
 }
 
+/// How many locks a build's record of what it looked for is split under.
+const SEEN_PARTS: usize = 16;
+
 /// What a program build looked for.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SeenFiles {
@@ -902,26 +929,46 @@ impl<'a> SourceFs<'a> {
     pub(crate) fn tracking(builder: &'a SnapshotFsBuilder) -> Self {
         Self {
             builder,
-            seen: Some(Mutex::default()),
+            seen: Some(Box::default()),
         }
     }
 
     /// tsgo `Track`: a file the program read without this file system.
     pub(crate) fn track_file(&self, path: String, file_name: String) {
-        self.track(|seen| {
+        self.track(&path.clone(), |seen| {
             seen.files.insert(path, file_name);
         });
     }
 
     pub(crate) fn into_seen(self) -> SeenFiles {
-        self.seen
-            .map(|seen| seen.into_inner().unwrap_or_else(PoisonError::into_inner))
-            .unwrap_or_default()
+        let mut all = SeenFiles::default();
+        for part in self.seen.into_iter().flat_map(|parts| *parts) {
+            let part = part.into_inner().unwrap_or_else(PoisonError::into_inner);
+            all.files.extend(part.files);
+            all.missing_directories.extend(part.missing_directories);
+        }
+        all
     }
 
-    fn track(&self, record: impl FnOnce(&mut SeenFiles)) {
-        if let Some(seen) = &self.seen {
-            record(&mut seen.lock().unwrap_or_else(PoisonError::into_inner));
+    fn track(&self, path: &str, record: impl FnOnce(&mut SeenFiles)) {
+        if let Some(parts) = &self.seen {
+            use std::hash::{BuildHasher, BuildHasherDefault};
+            let hash = BuildHasherDefault::<std::collections::hash_map::DefaultHasher>::default()
+                .hash_one(path);
+            let part = &parts[(hash % SEEN_PARTS as u64) as usize];
+            record(&mut part.lock().unwrap_or_else(PoisonError::into_inner));
+        }
+    }
+
+    /// tsgo `SeenFile`'s record of a file read or looked for, its path and
+    /// name made before the lock is taken.
+    fn track_file_probe(&self, path: &str) {
+        if self.seen.is_some() {
+            let key = self.builder.paths.to_path(path);
+            let name = self.builder.paths.absolute(path);
+            self.track(&key.clone(), |seen| {
+                seen.files.insert(key, name);
+            });
         }
     }
 }
@@ -939,12 +986,7 @@ impl FileSystem for SourceFs<'_> {
     }
 
     fn read(&self, path: &str) -> io::Result<Vec<u8>> {
-        self.track(|seen| {
-            seen.files.insert(
-                self.builder.paths.to_path(path),
-                self.builder.paths.absolute(path),
-            );
-        });
+        self.track_file_probe(path);
         self.builder
             .get(path)
             .map(|file| file.content.to_vec())
@@ -988,21 +1030,16 @@ impl FileSystem for SourceFs<'_> {
     }
 
     fn is_file(&self, path: &str) -> bool {
-        self.track(|seen| {
-            seen.files.insert(
-                self.builder.paths.to_path(path),
-                self.builder.paths.absolute(path),
-            );
-        });
+        self.track_file_probe(path);
         self.builder.file_exists(path)
     }
 
     fn is_dir(&self, path: &str) -> bool {
         let exists = self.builder.base.is_dir(path);
-        if !exists {
-            self.track(|seen| {
-                seen.missing_directories
-                    .insert(self.builder.paths.to_path(path));
+        if !exists && self.seen.is_some() {
+            let key = self.builder.paths.to_path(path);
+            self.track(&key.clone(), |seen| {
+                seen.missing_directories.insert(key);
             });
         }
         exists

@@ -12,7 +12,7 @@
 
 use rustc_hash::FxHashMap as HashMap;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, PoisonError, Weak};
+use std::sync::{Arc, PoisonError, Weak};
 
 use tsc_binder::{BindData, Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
 use tsc_program::content_mapper::source::ContentMappedSource;
@@ -171,7 +171,8 @@ pub(crate) fn lib_documents() -> &'static DocumentRegistry {
 pub struct DocumentRegistry {
     /// [`shared_identity_domain`], the domain of the library bundles too.
     identity_domain: IdentityDomain,
-    entries: Mutex<HashMap<(JsString, u64), Vec<RegistryEntry>>>,
+    /// Looked up by the loaders' threads at once: lookups take a read lock.
+    entries: std::sync::RwLock<HashMap<(JsString, u64), Vec<RegistryEntry>>>,
 }
 
 #[derive(Debug)]
@@ -184,7 +185,7 @@ impl DocumentRegistry {
     pub fn new() -> Self {
         Self {
             identity_domain: shared_identity_domain().clone(),
-            entries: Mutex::default(),
+            entries: std::sync::RwLock::default(),
         }
     }
 
@@ -201,7 +202,7 @@ impl DocumentRegistry {
         text: &str,
         address: &DocumentAddress,
     ) -> Option<Arc<BoundDocument>> {
-        let entries = self.lock();
+        let entries = self.read();
         entries
             .get(&(file_name.to_owned(), text_hash(text)))?
             .iter()
@@ -215,7 +216,7 @@ impl DocumentRegistry {
     pub fn insert(&self, address: DocumentAddress, document: &Arc<BoundDocument>) {
         let source = document.source();
         let key = (source.file_name.clone(), text_hash(source.text()));
-        let mut entries = self.lock();
+        let mut entries = self.write();
         let slot = entries.entry(key).or_default();
         slot.retain(|entry| entry.document.strong_count() > 0);
         slot.push(RegistryEntry {
@@ -228,7 +229,7 @@ impl DocumentRegistry {
     /// entries of the file). A content mapper's output is not one: tsgo
     /// keeps it in a cache of its own.
     pub fn documents_of(&self, file_name: JsStr<'_>) -> Vec<Arc<BoundDocument>> {
-        self.lock()
+        self.read()
             .iter()
             .filter(|((name, _), _)| name.as_js() == file_name)
             .flat_map(|(_, slot)| {
@@ -260,7 +261,7 @@ impl DocumentRegistry {
     /// Forget the entries no Program holds (tsgo deletes an entry when its
     /// count reaches zero).
     pub fn purge(&self) {
-        self.lock().retain(|_, slot| {
+        self.write().retain(|_, slot| {
             slot.retain(|entry| entry.document.strong_count() > 0);
             !slot.is_empty()
         });
@@ -268,7 +269,7 @@ impl DocumentRegistry {
 
     /// The number of documents a Program still holds.
     pub fn len(&self) -> usize {
-        self.lock()
+        self.read()
             .values()
             .flatten()
             .filter(|entry| entry.document.strong_count() > 0)
@@ -279,8 +280,14 @@ impl DocumentRegistry {
         self.len() == 0
     }
 
-    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<(JsString, u64), Vec<RegistryEntry>>> {
-        self.entries.lock().unwrap_or_else(PoisonError::into_inner)
+    fn read(&self) -> std::sync::RwLockReadGuard<'_, HashMap<(JsString, u64), Vec<RegistryEntry>>> {
+        self.entries.read().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn write(
+        &self,
+    ) -> std::sync::RwLockWriteGuard<'_, HashMap<(JsString, u64), Vec<RegistryEntry>>> {
+        self.entries.write().unwrap_or_else(PoisonError::into_inner)
     }
 }
 

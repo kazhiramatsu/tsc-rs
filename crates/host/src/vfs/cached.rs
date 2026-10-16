@@ -6,41 +6,43 @@
 
 use std::collections::HashMap;
 use std::io;
-use std::sync::{Mutex, PoisonError};
+use std::sync::{PoisonError, RwLock};
 use std::time::SystemTime;
 
 use super::{DirEntry, Entries, FileSystem, Metadata};
 
+/// Each map is read by the loader's threads at once (tsgo's `SyncMap`s).
 pub struct CachedFs<F> {
     fs: F,
-    metadata: Mutex<HashMap<String, Result<Metadata, io::ErrorKind>>>,
-    files: Mutex<HashMap<String, bool>>,
-    directories: Mutex<HashMap<String, bool>>,
-    realpaths: Mutex<HashMap<String, Result<String, io::ErrorKind>>>,
-    entries: Mutex<HashMap<String, Entries>>,
+    metadata: RwLock<HashMap<String, Result<Metadata, io::ErrorKind>>>,
+    files: RwLock<HashMap<String, bool>>,
+    directories: RwLock<HashMap<String, bool>>,
+    realpaths: RwLock<HashMap<String, Result<String, io::ErrorKind>>>,
+    entries: RwLock<HashMap<String, Entries>>,
 }
 
 impl<F: FileSystem> CachedFs<F> {
     pub fn new(fs: F) -> Self {
         Self {
             fs,
-            metadata: Mutex::default(),
-            files: Mutex::default(),
-            directories: Mutex::default(),
-            realpaths: Mutex::default(),
-            entries: Mutex::default(),
+            metadata: RwLock::default(),
+            files: RwLock::default(),
+            directories: RwLock::default(),
+            realpaths: RwLock::default(),
+            entries: RwLock::default(),
         }
     }
 }
 
-/// The cached answer for `path`, else `compute`'s, remembered.
+/// The cached answer for `path`, else `compute`'s (with no lock held),
+/// remembered; the answer stored first is kept (tsgo `LoadOrStore`).
 fn cached<T: Clone>(
-    cache: &Mutex<HashMap<String, T>>,
+    cache: &RwLock<HashMap<String, T>>,
     path: &str,
     compute: impl FnOnce() -> T,
 ) -> T {
     if let Some(value) = cache
-        .lock()
+        .read()
         .unwrap_or_else(PoisonError::into_inner)
         .get(path)
     {
@@ -48,10 +50,11 @@ fn cached<T: Clone>(
     }
     let value = compute();
     cache
-        .lock()
+        .write()
         .unwrap_or_else(PoisonError::into_inner)
-        .insert(path.to_owned(), value.clone());
-    value
+        .entry(path.to_owned())
+        .or_insert(value)
+        .clone()
 }
 
 impl<F: FileSystem> FileSystem for CachedFs<F> {
