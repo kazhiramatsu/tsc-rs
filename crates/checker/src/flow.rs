@@ -2330,12 +2330,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getReferenceCandidate @6.0.3
     /// tsc-hash: a2fb9d33d108f37f4cc17852884a58bc8ff23e81302c72d6c17d16f274694f3c
     /// tsc-span: _tsc.js:69911-69927
+    /// A parenthesized expression a JSDoc `@type` cast types: tsgo's reparser
+    /// wraps it in an `as` expression (reparser.go makeNewCast), which the
+    /// control flow analysis does not look through, so `(/** @type {T} */
+    /// (x)).p === 'a'` narrows neither `x` nor `x.p`.
+    fn is_jsdoc_type_cast(&self, inner: NodeId) -> bool {
+        self.reparsed_cast(inner)
+            .is_some_and(|cast| cast.is_assertion)
+    }
+
     pub(crate) fn get_reference_candidate(&self, node: NodeId) -> NodeId {
         match self.data_of(node) {
             NodeData::ParenthesizedExpression(data) => {
                 let Some(inner) = data.expression else {
                     return node;
                 };
+                if self.is_jsdoc_type_cast(inner) {
+                    return node;
+                }
                 self.get_reference_candidate(inner)
             }
             NodeData::BinaryExpression(data) => {
@@ -3190,8 +3202,10 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 match inner {
-                    Some(inner) => self.is_matching_synthetic_chain(base, props, this_root, inner),
-                    None => Ok(false),
+                    Some(inner) if !self.is_jsdoc_type_cast(inner) => {
+                        self.is_matching_synthetic_chain(base, props, this_root, inner)
+                    }
+                    _ => Ok(false),
                 }
             }
             SyntaxKind::BinaryExpression => {
@@ -3250,7 +3264,9 @@ impl<'a> CheckerState<'a> {
                     NodeData::NonNullExpression(data) => data.expression,
                     _ => None,
                 };
-                inner.is_some_and(|inner| self.is_matching_this_target(inner))
+                inner.is_some_and(|inner| {
+                    !self.is_jsdoc_type_cast(inner) && self.is_matching_this_target(inner)
+                })
             }
             SyntaxKind::BinaryExpression => {
                 let NodeData::BinaryExpression(data) = self.data_of(target) else {
@@ -3292,7 +3308,9 @@ impl<'a> CheckerState<'a> {
                     NodeData::NonNullExpression(data) => data.expression,
                     _ => None,
                 };
-                inner.is_some_and(|inner| self.is_this_reference_source(inner))
+                inner.is_some_and(|inner| {
+                    !self.is_jsdoc_type_cast(inner) && self.is_this_reference_source(inner)
+                })
             }
             SyntaxKind::ThisKeyword => true,
             _ => false,
@@ -3459,10 +3477,10 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 match inner {
-                    Some(inner) => {
+                    Some(inner) if !self.is_jsdoc_type_cast(inner) => {
                         self.real_node_matches_synthetic_chain(inner, base, props, this_root)
                     }
-                    None => Ok(false),
+                    _ => Ok(false),
                 }
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
@@ -3521,6 +3539,9 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 if let Some(inner) = inner {
+                    if self.is_jsdoc_type_cast(inner) {
+                        return Ok(false);
+                    }
                     return self.is_matching_reference(source, inner);
                 }
                 return Ok(false);
@@ -3608,8 +3629,10 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 match inner {
-                    Some(inner) => self.is_matching_reference(inner, target),
-                    None => Ok(false),
+                    Some(inner) if !self.is_jsdoc_type_cast(inner) => {
+                        self.is_matching_reference(inner, target)
+                    }
+                    _ => Ok(false),
                 }
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {

@@ -27,7 +27,7 @@ use super::type_nodes::{
     BuildResult,
 };
 use super::{
-    add_symbol_type_to_context, chains_symbol_to_entity_name_node, chains_symbol_to_type_node,
+    add_symbol_type_to_context, chains_symbol_to_type_node,
     existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count,
     get_enclosing_declaration_ignoring_fake_scope, get_module_specifier_override,
     get_type_from_type_node2, index_info_to_index_signature_declaration_helper, restore_flags,
@@ -96,7 +96,14 @@ pub(crate) fn build_symbol_display_node(
             if allow_any_node_kind {
                 symbol_to_node(checker, arena, target, context, symbol, meaning)
             } else {
-                chains_symbol_to_entity_name_node(checker, arena, target, context, symbol)
+                // tsgo `SymbolToEntityName` is `symbolToName(symbol, meaning,
+                // false)`: the symbol chain from the enclosing declaration,
+                // not the symbol's parents (a type literal's property prints
+                // bare, a `declare global` member without the block).
+                super::chains::symbol_to_name(
+                    checker, arena, target, symbol, context, meaning,
+                    /*expects_identifier*/ false,
+                )
             }
         },
         None,
@@ -754,14 +761,15 @@ pub(super) fn serialize_type_for_declaration_in_context(
                 let is_optional_annotated = !requires_adding_undefined
                     && annotated_kind
                     && checker.is_optional_declaration(declaration);
-                if pseudo_type_equivalent_to_type(
+                let equivalent = pseudo_type_equivalent_to_type(
                     checker,
                     context,
                     &pseudo,
                     r#type,
                     is_optional_annotated,
                     report_errors,
-                )? {
+                )?;
+                if equivalent {
                     // A reference with too few type arguments should still be
                     // serialized (strada's canReuseTypeNodeAnnotation); tsgo
                     // does not do that yet.

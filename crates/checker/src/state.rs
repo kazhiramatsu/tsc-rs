@@ -482,6 +482,9 @@ pub struct CheckerState<'a> {
     /// calls do not.
     pub(crate) display_approximate_length: usize,
     pub(crate) display_max_truncation_length: usize,
+    /// A signatureToString render: tsgo builds its node without NoTruncation
+    /// whatever `noErrorTruncation` says, so an elision is `...`.
+    pub(crate) display_signature_string: bool,
     pub(crate) display_truncating: bool,
     /// nodeBuilder context.reverseMappedStack
     /// (shouldUsePlaceholderForProperty, 52221-52240). It contains the
@@ -1566,6 +1569,7 @@ impl<'a> CheckerState<'a> {
             display_infer_type_parameters: Vec::new(),
             display_approximate_length: 0,
             display_max_truncation_length: 160,
+            display_signature_string: false,
             display_truncating: false,
             display_reverse_mapped_stack: Vec::new(),
             display_no_type_reduction: false,
