@@ -176,10 +176,10 @@ pub use loader::{
 };
 pub use module_requests::{
     default_js_doc_parsing_mode, plan_module_requests, plan_source_requests,
-    plan_source_requests_retaining_syntax, plan_static_module_requests,
-    set_default_js_doc_parsing_mode, source_request_parse_options, synthetic_imports,
-    PlannedLibReferenceDirective, PlannedPathReference, PlannedTypeReferenceDirective,
-    SourceRequestPlan, SyntheticImports,
+    plan_source_requests_cached, plan_source_requests_retaining_syntax,
+    plan_static_module_requests, set_default_js_doc_parsing_mode, source_request_parse_options,
+    synthetic_imports, PlannedLibReferenceDirective, PlannedPathReference,
+    PlannedTypeReferenceDirective, SourceRequestPlan, SyntheticImports,
 };
 pub use module_resolution::js_own_property_entries as package_json_own_entries;
 pub use module_resolution::{
