@@ -1878,8 +1878,22 @@ pub struct PreparedProgram {
     /// See [`PreparedProgram::import_extension_files`].
     import_extension_files: Vec<JsString>,
     resolutions: ResolutionTable,
-    dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
+    dependency_symlinks: Vec<DependencySymlink>,
     diagnostics: PreparationDiagnostics,
+}
+
+/// A runtime dependency of a package scope whose package directory a symlink
+/// reaches (tsgo `GetSymlinkCache`'s second pass, see
+/// [`PreparedProgram::dependency_symlinks`]): the scope's own
+/// `node_modules/<name>` and `node_modules/@types/<name>` (none for an
+/// `@types` name), and the package directory's `package.json` under its
+/// real path and its symlink spelling.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DependencySymlink {
+    pub adjacent: JsString,
+    pub adjacent_types: Option<JsString>,
+    pub real: JsString,
+    pub symlink: JsString,
 }
 
 /// A file of a package the load deduplicated (tsgo `redirectsFile`): it
@@ -2073,16 +2087,14 @@ impl PreparedProgram {
         &self.resolutions
     }
 
-    /// The resolutions of every runtime dependency (`dependencies`,
-    /// `peerDependencies`, `optionalDependencies`) declared by the package
-    /// scope of each non-library, non-`node_modules` source file, kept only
-    /// when the resolved file was reached through a symlink:
-    /// `(resolved_file, original_path)`. Upstream resolves these lazily inside
-    /// module-specifier generation (`getAllModulePathsWorker`) purely to feed
-    /// its symlink cache; the program resolves them once at preparation for
+    /// The runtime dependencies (`dependencies`, `peerDependencies`,
+    /// `optionalDependencies`) of the package scope of each file that may be
+    /// emitted, looked up as package directories, that a symlink reaches.
+    /// tsgo feeds them to its symlink cache when the program first asks for it
+    /// (`GetSymlinkCache`); the program looks them up once at preparation for
     /// the same cache (see [`crate::discover_symlink_facts`]).
-    pub fn dependency_symlink_resolutions(&self) -> &[(ProgramPath, ProgramPath)] {
-        &self.dependency_symlink_resolutions
+    pub fn dependency_symlinks(&self) -> &[DependencySymlink] {
+        &self.dependency_symlinks
     }
 
     pub fn diagnostics(&self) -> &PreparationDiagnostics {
@@ -2117,7 +2129,7 @@ pub struct PreparedProgramBuilder {
     import_extension_files: Vec<JsString>,
     text_by_canonical: rustc_hash::FxHashMap<CanonicalPath, Arc<str>>,
     resolutions: ResolutionTable,
-    dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
+    dependency_symlinks: Vec<DependencySymlink>,
     diagnostics: PreparationDiagnostics,
     fatal_error: Option<PreparationError>,
 }
@@ -2157,11 +2169,8 @@ impl PreparedProgramBuilder {
         self
     }
 
-    pub fn with_dependency_symlink_resolutions(
-        mut self,
-        resolutions: Vec<(ProgramPath, ProgramPath)>,
-    ) -> Self {
-        self.dependency_symlink_resolutions = resolutions;
+    pub fn with_dependency_symlinks(mut self, symlinks: Vec<DependencySymlink>) -> Self {
+        self.dependency_symlinks = symlinks;
         self
     }
 
@@ -2197,7 +2206,7 @@ impl PreparedProgramBuilder {
             import_extension_files: Vec::new(),
             text_by_canonical: rustc_hash::FxHashMap::default(),
             resolutions: ResolutionTable::default(),
-            dependency_symlink_resolutions: Vec::new(),
+            dependency_symlinks: Vec::new(),
             diagnostics: PreparationDiagnostics::default(),
             fatal_error: None,
         }
@@ -2713,7 +2722,7 @@ impl PreparedProgramBuilder {
             package_redirect_files: self.package_redirect_files,
             import_extension_files: self.import_extension_files,
             resolutions: self.resolutions,
-            dependency_symlink_resolutions: self.dependency_symlink_resolutions,
+            dependency_symlinks: self.dependency_symlinks,
             diagnostics: self.diagnostics,
         })
     }

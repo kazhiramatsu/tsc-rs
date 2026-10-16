@@ -934,37 +934,7 @@ impl CheckerState<'_> {
 
     /// tsgo `IsDeclaration` (ast/utilities.go:1302-1307).
     fn is_declaration_like_tsgo(&self, node: NodeId) -> bool {
-        if self.kind_of(node) == SyntaxKind::TypeParameter {
-            return self.parent_of(node).is_some();
-        }
-        // tsgo `IsDeclarationNode`: the nodes with declaration data, more
-        // kinds than tsc's declarations.
-        node_util::is_declaration(self.binder.source_of_node(node), node)
-            || matches!(
-                self.kind_of(node),
-                SyntaxKind::BinaryExpression
-                    | SyntaxKind::CallExpression
-                    | SyntaxKind::CallSignature
-                    | SyntaxKind::ConstructSignature
-                    | SyntaxKind::IndexSignature
-                    | SyntaxKind::FunctionType
-                    | SyntaxKind::ConstructorType
-                    | SyntaxKind::ExportAssignment
-                    | SyntaxKind::ExportDeclaration
-                    | SyntaxKind::ImportDeclaration
-                    | SyntaxKind::JSDocSignature
-                    | SyntaxKind::JSDocTypeLiteral
-                    | SyntaxKind::JsxAttributes
-                    | SyntaxKind::JsxSpreadAttribute
-                    | SyntaxKind::MappedType
-                    | SyntaxKind::MissingDeclaration
-                    | SyntaxKind::NoSubstitutionTemplateLiteral
-                    | SyntaxKind::ObjectLiteralExpression
-                    | SyntaxKind::SemicolonClassElement
-                    | SyntaxKind::SourceFile
-                    | SyntaxKind::SpreadAssignment
-                    | SyntaxKind::TypeLiteral
-            )
+        node_util::is_symbol_declaration(self.binder.source_of_node(node), node)
     }
 
     /// tsgo `IsDeclarationName` (ast/utilities.go:1310-1312): the `name`

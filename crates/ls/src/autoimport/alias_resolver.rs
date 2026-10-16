@@ -5,7 +5,9 @@
 //! non-relative module the checker cannot resolve is recorded: it may be an
 //! ambient module another package declares (the registry's second pass).
 //!
-//! tsgo reads a module's file when the checker first resolves it; tsc-rs's
+//! tsgo reads a module's file when the checker first resolves it, a
+//! JavaScript one included (`GetSourceFileForResolvedModule` parses any
+//! file, and an alias resolution reports no resolution diagnostic); tsc-rs's
 //! checker takes its files up front, so every module the files' requests
 //! resolve to is read before the checker is made, and the checker's lookups
 //! are answered from those resolutions.
@@ -18,8 +20,8 @@ use tsc_checker::state::CheckerState;
 use tsc_checker::{
     AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
     AuthoritativeModuleResolution, AuthoritativeNotFoundModule, AuthoritativePackageId,
-    AuthoritativeResolvedModule, AuthoritativeSourceMetadata, AuthoritativeSourceToken,
-    AuthoritativeUntypedModule, CompilerOptions, InputFile,
+    AuthoritativeResolutionMode, AuthoritativeResolvedModule, AuthoritativeSourceMetadata,
+    AuthoritativeSourceToken, AuthoritativeUntypedModule, CompilerOptions, InputFile,
 };
 use tsc_host::CompilerHost;
 use tsc_program::{
@@ -135,7 +137,7 @@ impl AliasResolver {
                     )
                     .unwrap_or(ResolutionOutcome::NotFound);
                 let resolution = match outcome {
-                    ResolutionOutcome::Resolved(module) if is_typescript(module.extension()) => {
+                    ResolutionOutcome::Resolved(module) if is_source(module.extension()) => {
                         let target_name = module
                             .resolved_file()
                             .display()
@@ -182,8 +184,13 @@ impl AliasResolver {
                 token: AuthoritativeSourceToken(index as u32),
                 file_name: JsString::from(file.file_name.as_str()),
                 may_be_emitted: false,
-                implied_node_format: None,
-                implied_node_format_for_emit: None,
+                // tsgo `aliasResolver`'s format hooks (`GetImpliedNodeFormatForEmit`,
+                // `GetEmitSyntaxForUsageLocation`, `GetDefaultResolutionModeForFile`,
+                // ...) answer ESNext for every file: a `.d.cts` file's
+                // `export { default as x } from "./x.cjs"` of an `export =`
+                // module has no synthetic default there.
+                implied_node_format: Some(AuthoritativeResolutionMode::EsNext),
+                implied_node_format_for_emit: Some(AuthoritativeResolutionMode::EsNext),
                 project_reference: None,
             })
             .collect();
@@ -236,7 +243,9 @@ impl AliasResolver {
 
 /// Whether the checker reads a resolved module's file: a TypeScript or
 /// declaration file (tsgo's resolver for the empty options finds no other).
-fn is_typescript(extension: &ModuleExtension) -> bool {
+/// A file tsgo's alias resolver parses when the checker resolves to it: a
+/// TypeScript or JavaScript one.
+fn is_source(extension: &ModuleExtension) -> bool {
     matches!(
         extension,
         ModuleExtension::Ts
@@ -246,6 +255,10 @@ fn is_typescript(extension: &ModuleExtension) -> bool {
             | ModuleExtension::Dmts
             | ModuleExtension::Cts
             | ModuleExtension::Dcts
+            | ModuleExtension::Js
+            | ModuleExtension::Jsx
+            | ModuleExtension::Mjs
+            | ModuleExtension::Cjs
     )
 }
 

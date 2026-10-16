@@ -324,6 +324,10 @@ fn load_native_program_files(
         )
         .collect::<Vec<_>>();
     let mut realpath_overrides: BTreeMap<String, String> = BTreeMap::new();
+    // tsgo's vfs mounts a link's target directory node at the link path, so
+    // the link's directory, and each one below it, realpaths to the target's
+    // (`ResolvePackageDirectory` realpaths a package directory).
+    let mut directory_realpath_overrides: BTreeMap<String, String> = BTreeMap::new();
     let resolve_physical = |overrides: &BTreeMap<String, String>, path: &str| -> String {
         let mut current = path.to_owned();
         for _ in 0..symlink_operations.len().max(1) {
@@ -346,13 +350,24 @@ fn load_native_program_files(
             if source_paths.contains_key(target) {
                 aliases.push((link.to_owned(), target.to_owned()));
             } else {
-                let prefix = format!("{}/", target.trim_end_matches('/'));
+                let target_prefix = target.trim_end_matches('/');
+                let prefix = format!("{target_prefix}/");
                 let link_prefix = link.trim_end_matches('/');
                 let mut descendants = source_paths.keys().collect::<Vec<_>>();
                 descendants.sort();
                 for descendant in descendants {
                     if let Some(suffix) = descendant.strip_prefix(&prefix) {
                         aliases.push((format!("{link_prefix}/{suffix}"), descendant.clone()));
+                        directory_realpath_overrides
+                            .insert(link_prefix.to_owned(), target_prefix.to_owned());
+                        let mut directory = suffix.rsplit_once('/').map(|(parent, _)| parent);
+                        while let Some(relative) = directory {
+                            directory_realpath_overrides.insert(
+                                format!("{link_prefix}/{relative}"),
+                                format!("{target_prefix}/{relative}"),
+                            );
+                            directory = relative.rsplit_once('/').map(|(parent, _)| parent);
+                        }
                     }
                 }
             }
@@ -378,6 +393,11 @@ fn load_native_program_files(
     }
     for (link, target) in realpath_overrides {
         host_builder = host_builder.realpath(PathBuf::from(link), PathBuf::from(target));
+    }
+    for (link, target) in directory_realpath_overrides {
+        if link != target {
+            host_builder = host_builder.realpath(PathBuf::from(link), PathBuf::from(target));
+        }
     }
     for directory in compiler_vfs_trailing_directory_aliases(
         source_paths.keys().map(|path| Path::new(path.as_str())),

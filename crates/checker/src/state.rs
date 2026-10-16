@@ -1012,10 +1012,11 @@ pub struct CheckerState<'a> {
         rustc_hash::FxHashMap<tsc_types::JsString, std::sync::Arc<tsc_diagnostics::TextSnapshot>>,
     >,
     /// The checker's module-specifier host view over its files, built on
-    /// the first declaration-emit specifier lookup and shared by the rest
-    /// (the file set and host inputs are fixed once the state is set up).
+    /// the first specifier lookup and shared by the rest (the file set and
+    /// host inputs are fixed once the state is set up); see
+    /// [`CheckerState::module_specifier_host`].
     pub(crate) basic_module_specifier_host:
-        Option<std::sync::Arc<crate::node_builder::chains::BasicModuleSpecifierHost>>,
+        std::cell::OnceCell<std::sync::Arc<crate::node_builder::chains::BasicModuleSpecifierHost>>,
     /// tsrs-native: the harness ProgramJson `cwd` (tsc
     /// host.getCurrentDirectory). The oracle host absolutizes every
     /// program fileName against it (program-host.mjs
@@ -1685,7 +1686,7 @@ impl<'a> CheckerState<'a> {
             module_name_outside_program: std::cell::Cell::new(false),
             host_file_paths: Default::default(),
             host_input_snapshots: Default::default(),
-            basic_module_specifier_host: None,
+            basic_module_specifier_host: std::cell::OnceCell::new(),
             host_current_directory: "/".into(),
             host_package_json_module_types: Default::default(),
             host_package_json_values: Default::default(),

@@ -250,7 +250,8 @@ impl CheckerState<'_> {
         use crate::node_builder::specifier::{
             get_module_specifier_preferences, SpecifierCompilerOptions,
         };
-        let host = crate::node_builder::chains::BasicModuleSpecifierHost::new(self);
+        let shared_host = self.module_specifier_host();
+        let host: &crate::node_builder::chains::BasicModuleSpecifierHost = &shared_host;
         let options = SpecifierCompilerOptions::new(self.options);
         let preferences = get_module_specifier_preferences(
             self,
@@ -259,14 +260,14 @@ impl CheckerState<'_> {
                 import_module_specifier_ending: ending_preference,
                 auto_import_specifier_exclude_regexes: Vec::new(),
             },
-            &host,
+            host,
             &options,
             importing_file,
             None,
         );
         preferences.get_allowed_endings_in_preferred_order(
             self,
-            &host,
+            host,
             &options,
             syntax_implied_node_format,
         )

@@ -451,7 +451,7 @@ fn node_modifiers(
 ) -> ScriptElementKindModifier {
     let source = state.binder.source_of_node(node);
     let mut flags = ModifierFlags::NONE;
-    if node_util::is_declaration(source, node) {
+    if node_util::is_symbol_declaration(source, node) {
         flags = node_util::get_combined_modifier_flags(source, node);
         if state.is_deprecated_declaration(node) {
             flags |= ModifierFlags::DEPRECATED;

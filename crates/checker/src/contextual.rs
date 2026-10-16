@@ -1702,22 +1702,22 @@ impl<'a> CheckerState<'a> {
         self.get_contextual_type_for_object_literal_element(node, context_flags)
     }
 
-    /// tsc-port: getContextualTypeForObjectLiteralElement @6.0.3
-    /// tsc-hash: 897522d69bac932ae4d3e05850282a0b1c05b992bf49ada7afea8a6e96ae27d7
-    /// tsc-span: _tsc.js:73211-73247
+    /// tsgo-port: getContextualTypeForObjectLiteralElement @aa814927
+    /// (checker.go:30474-30513): the element's own type node first (a
+    /// property's reparsed JSDoc type, an accessor's or a class method's
+    /// return type; signature help asks with a class method), unless it is an
+    /// object literal method.
     pub fn get_contextual_type_for_object_literal_element(
         &mut self,
         element: NodeId,
         context_flags: ContextFlags,
     ) -> CheckResult<Option<TypeId>> {
-        let object_literal = self.parent_of(element).expect("element has a literal");
-        if self.kind_of(element) == SyntaxKind::PropertyAssignment {
-            if let Some(property_assignment_type) =
-                self.get_contextual_type_for_variable_like_declaration(element, context_flags)?
-            {
-                return Ok(Some(property_assignment_type));
+        if let Some(type_node) = self.type_node_of(element) {
+            if !self.is_object_literal_method(element) {
+                return self.get_type_from_type_node(type_node).map(Some);
             }
         }
+        let object_literal = self.parent_of(element).expect("element has a literal");
         let Some(ty) = self.get_apparent_type_of_contextual_type(object_literal, context_flags)?
         else {
             return Ok(None);

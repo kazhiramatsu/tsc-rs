@@ -644,6 +644,357 @@ fn anonymous_or_mapped_mapper(
     }
 }
 
+/// tsgo-port: slices.SortFunc @go1.27 (`pdqsortCmpFunc` in
+/// `slices/zsortanyfunc.go`): pattern-defeating quicksort, with insertion
+/// sort for 12 elements or fewer and heapsort after too many bad pivots.
+/// tsgo sorts with it comparisons that are not a total order (auto-import
+/// fixes compare some kinds only against their own kind), so the same
+/// algorithm gives tsgo's order and never panics on an inconsistent
+/// comparison as the standard sorts may.
+pub fn sort_func_like_go<T>(data: &mut [T], mut cmp: impl FnMut(&T, &T) -> Ordering) {
+    let n = data.len();
+    // bits.Len(uint(n))
+    let limit = (usize::BITS - n.leading_zeros()) as usize;
+    pdqsort_go(data, 0, n, limit, &mut cmp);
+}
+
+/// Go's `cmp(data[i], data[j]) < 0`.
+fn go_less<T>(data: &[T], i: usize, j: usize, cmp: &mut impl FnMut(&T, &T) -> Ordering) -> bool {
+    cmp(&data[i], &data[j]) == Ordering::Less
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SortedHint {
+    Unknown,
+    Increasing,
+    Decreasing,
+}
+
+fn pdqsort_go<T>(
+    data: &mut [T],
+    mut a: usize,
+    mut b: usize,
+    mut limit: usize,
+    cmp: &mut impl FnMut(&T, &T) -> Ordering,
+) {
+    const MAX_INSERTION: usize = 12;
+    // Whether the last partitioning was reasonably balanced, and whether the
+    // slice was already partitioned.
+    let mut was_balanced = true;
+    let mut was_partitioned = true;
+    loop {
+        let length = b - a;
+        if length <= MAX_INSERTION {
+            insertion_sort_go(data, a, b, cmp);
+            return;
+        }
+        // Fall back to heapsort if too many bad choices were made.
+        if limit == 0 {
+            heap_sort_go(data, a, b, cmp);
+            return;
+        }
+        // If the last partitioning was imbalanced, break patterns.
+        if !was_balanced {
+            break_patterns_go(data, a, b);
+            limit -= 1;
+        }
+        let (mut pivot, mut hint) = choose_pivot_go(data, a, b, cmp);
+        if hint == SortedHint::Decreasing {
+            data[a..b].reverse();
+            // The pivot was pivot-a elements after the start; after the
+            // reversal it is pivot-a elements before the end.
+            pivot = (b - 1) - (pivot - a);
+            hint = SortedHint::Increasing;
+        }
+        // The slice is likely already sorted.
+        if was_balanced
+            && was_partitioned
+            && hint == SortedHint::Increasing
+            && partial_insertion_sort_go(data, a, b, cmp)
+        {
+            return;
+        }
+        // Probably many duplicate elements: partition into the elements
+        // equal to the pivot and the elements greater than it.
+        if a > 0 && !go_less(data, a - 1, pivot, cmp) {
+            a = partition_equal_go(data, a, b, pivot, cmp);
+            continue;
+        }
+        let (mid, already_partitioned) = partition_go(data, a, b, pivot, cmp);
+        was_partitioned = already_partitioned;
+        let (left_len, right_len) = (mid - a, b - mid);
+        let balance_threshold = length / 8;
+        if left_len < right_len {
+            was_balanced = left_len >= balance_threshold;
+            pdqsort_go(data, a, mid, limit, cmp);
+            a = mid + 1;
+        } else {
+            was_balanced = right_len >= balance_threshold;
+            pdqsort_go(data, mid + 1, b, limit, cmp);
+            b = mid;
+        }
+    }
+}
+
+/// Go `insertionSortCmpFunc`: `data[a..b]` by insertion.
+fn insertion_sort_go<T>(
+    data: &mut [T],
+    a: usize,
+    b: usize,
+    cmp: &mut impl FnMut(&T, &T) -> Ordering,
+) {
+    for i in a + 1..b {
+        let mut j = i;
+        while j > a && go_less(data, j, j - 1, cmp) {
+            data.swap(j, j - 1);
+            j -= 1;
+        }
+    }
+}
+
+/// Go `siftDownCmpFunc`: the heap property on `data[lo..hi]` of the heap
+/// rooted at `first`.
+fn sift_down_go<T>(
+    data: &mut [T],
+    lo: usize,
+    hi: usize,
+    first: usize,
+    cmp: &mut impl FnMut(&T, &T) -> Ordering,
+) {
+    let mut root = lo;
+    loop {
+        let mut child = 2 * root + 1;
+        if child >= hi {
+            break;
+        }
+        if child + 1 < hi && go_less(data, first + child, first + child + 1, cmp) {
+            child += 1;
+        }
+        if !go_less(data, first + root, first + child, cmp) {
+            return;
+        }
+        data.swap(first + root, first + child);
+        root = child;
+    }
+}
+
+/// Go `heapSortCmpFunc`.
+fn heap_sort_go<T>(data: &mut [T], a: usize, b: usize, cmp: &mut impl FnMut(&T, &T) -> Ordering) {
+    let first = a;
+    let hi = b - a;
+    if hi == 0 {
+        return;
+    }
+    // Build the heap with the greatest element at the top.
+    for i in (0..=(hi - 1) / 2).rev() {
+        sift_down_go(data, i, hi, first, cmp);
+    }
+    // Pop the elements, largest first, into the end of data.
+    for i in (0..hi).rev() {
+        data.swap(first, first + i);
+        sift_down_go(data, 0, i, first, cmp);
+    }
+}
+
+/// Go `partitionCmpFunc`: one quicksort partition around `data[pivot]`;
+/// the pivot's new index and whether the range was already partitioned.
+fn partition_go<T>(
+    data: &mut [T],
+    a: usize,
+    b: usize,
+    pivot: usize,
+    cmp: &mut impl FnMut(&T, &T) -> Ordering,
+) -> (usize, bool) {
+    data.swap(a, pivot);
+    // i and j are inclusive of the elements remaining to be partitioned.
+    let (mut i, mut j) = (a as isize + 1, b as isize - 1);
+    while i <= j && go_less(data, i as usize, a, cmp) {
+        i += 1;
+    }
+    while i <= j && !go_less(data, j as usize, a, cmp) {
+        j -= 1;
+    }
+    if i > j {
+        data.swap(j as usize, a);
+        return (j as usize, true);
+    }
+    data.swap(i as usize, j as usize);
+    i += 1;
+    j -= 1;
+    loop {
+        while i <= j && go_less(data, i as usize, a, cmp) {
+            i += 1;
+        }
+        while i <= j && !go_less(data, j as usize, a, cmp) {
+            j -= 1;
+        }
+        if i > j {
+            break;
+        }
+        data.swap(i as usize, j as usize);
+        i += 1;
+        j -= 1;
+    }
+    data.swap(j as usize, a);
+    (j as usize, false)
+}
+
+/// Go `partitionEqualCmpFunc`: the elements equal to `data[pivot]`, then
+/// the greater ones (none is smaller).
+fn partition_equal_go<T>(
+    data: &mut [T],
+    a: usize,
+    b: usize,
+    pivot: usize,
+    cmp: &mut impl FnMut(&T, &T) -> Ordering,
+) -> usize {
+    data.swap(a, pivot);
+    let (mut i, mut j) = (a as isize + 1, b as isize - 1);
+    loop {
+        while i <= j && !go_less(data, a, i as usize, cmp) {
+            i += 1;
+        }
+        while i <= j && go_less(data, a, j as usize, cmp) {
+            j -= 1;
+        }
+        if i > j {
+            break;
+        }
+        data.swap(i as usize, j as usize);
+        i += 1;
+        j -= 1;
+    }
+    i as usize
+}
+
+/// Go `partialInsertionSortCmpFunc`: a few adjacent out-of-order pairs
+/// shifted into place; whether the range ends sorted.
+fn partial_insertion_sort_go<T>(
+    data: &mut [T],
+    a: usize,
+    b: usize,
+    cmp: &mut impl FnMut(&T, &T) -> Ordering,
+) -> bool {
+    // The maximum number of adjacent out-of-order pairs shifted, and no
+    // shifting on short arrays.
+    const MAX_STEPS: usize = 5;
+    const SHORTEST_SHIFTING: usize = 50;
+    let mut i = a + 1;
+    for _ in 0..MAX_STEPS {
+        while i < b && !go_less(data, i, i - 1, cmp) {
+            i += 1;
+        }
+        if i == b {
+            return true;
+        }
+        if b - a < SHORTEST_SHIFTING {
+            return false;
+        }
+        data.swap(i, i - 1);
+        // Shift the smaller one to the left (Go stops at index 1, not at
+        // `a + 1`).
+        if i - a >= 2 {
+            let mut j = i - 1;
+            while j >= 1 {
+                if !go_less(data, j, j - 1, cmp) {
+                    break;
+                }
+                data.swap(j, j - 1);
+                j -= 1;
+            }
+        }
+        // Shift the greater one to the right.
+        if b - i >= 2 {
+            let mut j = i + 1;
+            while j < b {
+                if !go_less(data, j, j - 1, cmp) {
+                    break;
+                }
+                data.swap(j, j - 1);
+                j += 1;
+            }
+        }
+    }
+    false
+}
+
+/// Go `breakPatternsCmpFunc`: three elements around the middle swapped with
+/// pseudo-random ones (an xorshift seeded by the length).
+fn break_patterns_go<T>(data: &mut [T], a: usize, b: usize) {
+    let length = b - a;
+    if length >= 8 {
+        let mut random = length as u64;
+        // nextPowerOfTwo: 1 << bits.Len(uint(length))
+        let modulus = 1usize << (usize::BITS - length.leading_zeros());
+        let middle = a + (length / 4) * 2;
+        for index in middle - 1..=middle + 1 {
+            random ^= random << 13;
+            random ^= random >> 7;
+            random ^= random << 17;
+            let mut other = (random as usize) & (modulus - 1);
+            if other >= length {
+                other -= length;
+            }
+            data.swap(index, a + other);
+        }
+    }
+}
+
+/// Go `choosePivotCmpFunc`: a static pivot below 8 elements, the median of
+/// three below 50, else Tukey's ninther; with how sorted the range looks.
+fn choose_pivot_go<T>(
+    data: &mut [T],
+    a: usize,
+    b: usize,
+    cmp: &mut impl FnMut(&T, &T) -> Ordering,
+) -> (usize, SortedHint) {
+    const SHORTEST_NINTHER: usize = 50;
+    const MAX_SWAPS: usize = 4 * 3;
+    let l = b - a;
+    let mut swaps = 0;
+    let mut i = a + l / 4;
+    let mut j = a + l / 4 * 2;
+    let mut k = a + l / 4 * 3;
+    if l >= 8 {
+        if l >= SHORTEST_NINTHER {
+            i = median_go(data, i - 1, i, i + 1, &mut swaps, cmp);
+            j = median_go(data, j - 1, j, j + 1, &mut swaps, cmp);
+            k = median_go(data, k - 1, k, k + 1, &mut swaps, cmp);
+        }
+        // The median among i, j and k, into j.
+        j = median_go(data, i, j, k, &mut swaps, cmp);
+    }
+    match swaps {
+        0 => (j, SortedHint::Increasing),
+        MAX_SWAPS => (j, SortedHint::Decreasing),
+        _ => (j, SortedHint::Unknown),
+    }
+}
+
+/// Go `medianCmpFunc` (with `order2CmpFunc`): the index of the median of
+/// `data[a]`, `data[b]` and `data[c]`, counting the swaps made.
+fn median_go<T>(
+    data: &[T],
+    a: usize,
+    b: usize,
+    c: usize,
+    swaps: &mut usize,
+    cmp: &mut impl FnMut(&T, &T) -> Ordering,
+) -> usize {
+    let mut order2 = |x: usize, y: usize, swaps: &mut usize| {
+        if go_less(data, y, x, cmp) {
+            *swaps += 1;
+            (y, x)
+        } else {
+            (x, y)
+        }
+    };
+    let (a, b) = order2(a, b, swaps);
+    let (b, _c) = order2(b, c, swaps);
+    let (_a, b) = order2(a, b, swaps);
+    b
+}
+
 /// tsgo-port: slices.SortStableFunc @go1.26 (`stableCmpFunc` in
 /// `slices/zsortanyfunc.go`): insertion sort of 20-element blocks, then
 /// SymMerge passes. tsgo sorts a union's members with it
