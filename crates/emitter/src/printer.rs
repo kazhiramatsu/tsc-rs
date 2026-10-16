@@ -12678,10 +12678,19 @@ impl Printer {
                 .arena()
                 .node_ref(parent.source(), id)
                 .ok_or(PrinterError::UnknownStatement(id.index()))?;
+            if index > 0 {
+                writer.write_space(" ");
+            }
+            // tsgo emitListItems: the comments at the member's position (its
+            // intervening comments, `emitTrailingCommentsOfPosition` at its
+            // comment range: a previous property's same-line comment), then
+            // its own leading comments.
+            if !expression_context.nested_comments_suppressed() && !self.comments_disabled() {
+                self.emit_intervening_comments_of_node_position(transformation, member, writer)?;
+            }
             if index == 0 {
                 self.emit_leading_comments_for_node(transformation, member, writer)?;
             } else {
-                writer.write_space(" ");
                 self.emit_leading_comments_for_node_after_sibling(transformation, member, writer)?;
             }
             self.record_list_element_position(transformation, member)?;
