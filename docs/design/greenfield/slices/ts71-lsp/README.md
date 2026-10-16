@@ -1707,3 +1707,91 @@ project の test を移して固定する。
 - **有界の違い**：tsgo の checker pool は 30 秒使われない checker を捨てる（`IdleTimeout`）ので、editor の中で時間を
   置くと tsgo の cache は空からやり直す。tsc-rs の query checker は捨てないので、間を置いた後の切り詰めの位置が違い
   得る（生成した session には間が無い）。
+
+## 実 project の LSP 差分 test：playwright-core・vue・next.js（#824）
+
+- **merge**：#824 → `b8a7ff3e5`（hosted run 38863007896。rust の job は既知の終了の race（`pushed_config_diagnostics_match_tsgo` の
+  `EXIT 0`）で一度落ち、再実行で通った）。
+- **対象**：playwright-core（`packages/playwright-core/src`、328 file）、vue（`packages/*/src`、234 file）、next.js
+  （`packages/next/src`、1,457 file）。#822 と同じ生成した session（tsgo aa814927 が答え）。
+- **結果**：
+
+  | project | 要求 | 違い（最初） | 違い |
+  |---|---:|---:|---:|
+  | playwright-core | 60,108 | 41,310 | 50 |
+  | vue | 41,256 | 38 | 10 |
+  | next.js | 229,939 | 185 | 0 |
+  | hono（再実行） | 47,637 | — | 43 |
+  | zod（再実行） | 59,207 | — | 0 |
+  | effect（再実行） | 89,249 | — | 65 |
+  | TypeScript compiler（`src/compiler`） | 36,739 | — | 0 |
+  | vscode（`src/vs/base`、program は src 全体） | 89,329 | — | 0 |
+
+  （playwright の最初の数は下の panic の連鎖。残りは全て tsgo 自身の揺れで、同じ hono の session の tsgo どうしでも
+  completion が 10 件違った。）
+- **修正**：
+  - **auto-import の並べ替えは Go の `slices.SortFunc`**：tsgo の fix の比較は全順序でない（node core と re-export の
+    規則が同じ種類の fix 同士でしか比べない）。Rust の sort はこれで panic した（playwright の completion）。Go 1.27 の
+    pdqsort を `tsc_types::sort_func_like_go` に移し、tsgo が `slices.SortFunc` で並べる auto-import の 4 か所で使う。
+  - **panic した要求の後も checker を使う**：tsgo は panic した要求に panic を答え、`defer done()` で checker を pool
+    に返す。session の mutex が poison しても状態を取り戻す（前は以後の要求が全て失敗）。
+  - **module specifier の host は checker ごとに一つ**：auto-import は fix ごとに
+    `GetModuleSpecifiersForFileWithInfo` を聞き、そのたびに host（全 file の path・mode・text と program の symlink）
+    を作り直していた（next.js の completion 1 回が 175 秒）。最初の検索で作り、以後は共有する。
+  - **auto-import の registry の alias resolver は tsgo の形**：
+    - format の hook は全ての file を ESNext と答える。なので `.d.cts` の `export { default as ar } from "./ar.cjs"`
+      （`export =` の module）には合成 default が無い（playwright の zod 4 の locale）。alias resolver の file に ESNext
+      の format を持たせ、checker は拡張子より program の format を先に読む（実 program では一致）。
+    - 解決が届いた file はどれも parse する（`GetSourceFileForResolvedModule`。alias の解決は解決の診断を出さない）。
+      なので JS だけの package からの re-export は CommonJS の export に解ける（next.js の `createServerReference`）。
+      checker は program の外で読む file を拡張子で落とさない：`allowJs` 無しで落とすと target の token が分からず、
+      記録した失敗がその checker の以後の module の解決を全て失敗にしていた。
+  - **symlink cache の依存の pass は tsgo の形**：`GetSymlinkCache` は emit する file の package scope の実行時依存を
+    package directory として探し（`ResolvePackageDirectory`：近い `node_modules/<name>` か
+    `node_modules/@types/<name>`、`paths` は見ない）、scope の `node_modules/<name>`（`@types` も）が既に知っている
+    symlink の directory なら飛ばす。tsc-rs は module として解いたので、`paths` が写す workspace の package（vue の
+    `@vue/*`）の link が見えず、auto-import が相対 path で名付けていた。宣言 emit の specifier にも効く。
+  - **`getContextualTypeForObjectLiteralElement` は tsgo の形**：要素自身の型 node を先に答える（object literal の
+    method を除く）。class の method の parameter の中の signature help は戻り値型の signature を出す（playwright の
+    `debugProtocolLogger`）。
+  - **symbol の宣言は tsgo の `IsDeclaration`**（modifier を読む時）：`@deprecated` の付いた `export default` の
+    auto-import の item は deprecated（next.js の cache handler）。`node_util::is_symbol_declaration` は
+    `is_declaration_node` に、tsgo の reparse した宣言の代わりに tsc-rs が bind する JSDoc の tag を足したもの。
+  - **合成 default の wrapper の symbol は module の宣言を持つ**（tsgo `getTypeWithSyntheticDefaultImportType`）：
+    `await import('inspector')` の値の type definition は module へ行く。
+  - **別の emit context の printer**：tsgo は `TypeToTypeNode` の node を checker 自身の emit context で作る。
+    signature help の printer は list の元を辿れず位置を信じるので、`cloneBindingName` が clone した binding pattern
+    （元の list の範囲に合成した要素）は末尾の comma 付きで書かれる（`({ a, b, }: Box) => void`。effect の
+    `Ordering.match`・playwright の `bind`、前は有界として記録）。
+  - **1 行の type literal の member は間の comment を書く**（tsgo `emitListItems`）：comma の後ろの property の行末の
+    comment が signature help に出る（next.js の config schema）。
+- **残る違い（tsgo 自身の揺れ）**：
+  - node_modules の bucket は export を file の Go の map の順に index に入れるので、同じ ExportID の二つの export
+    （codemirror の augmentation と namespace）では後の方の `Path` が specifier を決める（tsgo は三つの session で
+    `json-lint`・`yaml-lint`・`html-lint` と答えた）。
+  - specifier の cache は hit を `Relative` と答えるので、どの group が file を先に計算するか（`range grouped`）で
+    順位が変わる：playwright の `registry`（tsgo は 6 回中 1 回 `.`）、vue の runtime-core の `version`（tsc-rs の順は
+    runtime-core の最初の export を最初に計算する）、hono の timing middleware。
+  - hono の `Context<any, any, {}>` の hover（#822 で記録）。
+- **調べ方**：tsgo の copy（scratchpad の `tsgo-debug`）の `GetSymlinkCache`・`GetModuleSpecifier`・
+  `tryGetModuleNameAsNodeModule`・`createExport` に `SYMLINK_LOG` へ書く行を足した。比較の script は記録（next.js は
+  8 GB）を一行ずつ並べて読む（丸ごと読むと 52 GB 使った）。`record` は 1 秒を超えた要求を `<name>.slow` に書く。
+- **test**（tsgo か Go の答えで固定、どれも変更なしでは落ちる）：types `the_go_sort_port_gives_go_s_order`・
+  `the_go_sort_port_tolerates_a_comparison_with_no_total_order`、compiler
+  `a_query_that_panicked_leaves_the_checker_to_the_next_query`、lsp `auto_imports_resolve_a_package_s_aliases_as_esm`・
+  `auto_imports_name_a_file_through_a_dependency_s_symlink`・`auto_imports_resolve_a_package_s_javascript_re_export`・
+  `a_deprecated_default_export_s_auto_import_is_deprecated`、ls
+  `signature_help_in_a_class_method_s_parameters_shows_its_return_type`・
+  `signature_help_return_types_print_cloned_binding_patterns_with_a_trailing_comma`・
+  `signature_help_prints_a_property_s_same_line_comment`・
+  `a_dynamically_imported_module_s_type_definition_goes_to_the_module`。
+- **検査（78ba62ea1、origin/main 4b2054a6a の上）**：conformance 0 regressions（13,577 全て full、types・symbols 12,874
+  全て full、477 s）、`--checkers 4` は既知の 4 件だけ（15,335 一致）、suites 0 regressions（ratchet は変わらず）、test
+  全通過（types 49・syntax 251・binder 78・program 682・checker 1,806・emitter 350・ls 232・lsp 62・api 332・project 235・
+  compiler 241・conformance 49・lsproto 31）、API client sync 356/356・async 365/365。d88ee5c9a（重複した `#[allow]` を
+  一つ消しただけ）で clippy（`-D warnings`）と fmt。27a5baad4 での一回目の全体検査は conformance の 3 件
+  （`symlinkedWorkspaceDependenciesNoDirectLink*GeneratesNonrelativeName`）を落とした：harness が link の directory の
+  realpath を返さず（file の alias だけ）、package directory を realpath する依存の pass が link を見失った。tsgo の
+  compiler runner の vfs と同じく link の directory も target に realpath するようにした（78ba62ea1）。
+- **性能の観察**（測定は利用者と一緒に）：session 全体の時間は tsgo の 2〜5 倍（next.js 1,246 秒対 324 秒、
+  TypeScript compiler 279 秒対 52 秒）。auto-import の completion は next.js で 1 回約 5 秒。
