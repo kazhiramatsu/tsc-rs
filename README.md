@@ -104,8 +104,11 @@ restarts a mapper whose package changes.
   own answer to the last one varies from run to run (October 15, 2026). In
   generated sessions over eight real projects (hono, zod, effect, the
   TypeScript compiler, playwright-core, vue, next.js and VS Code's
-  `src/vs/base`; 653,464 requests), 168 answers differ, all where `tsgo`'s
-  own answer varies from run to run (October 16, 2026).
+  `src/vs/base`; 653,464 requests), 57 answers differ (hono 4, vue 3,
+  playwright-core 50), all completions whose auto-import module specifier
+  `tsgo` itself picks differently from session to session; where one of
+  `tsgo`'s answers names a module that does not export the symbol, tsc-rs
+  gives the one that does (October 16, 2026).
 - **TypeScript 7 rules:** the default `target` is ES2026, and the options
   TypeScript 7 removed (`baseUrl`, `outFile`, `target: "es5"`, the `amd`,
   `umd` and `system` modules, …) are errors.
