@@ -76,7 +76,7 @@ impl Server {
     /// combined when more than one project was asked; none when no search
     /// completed.
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn search_across_projects<R>(
+    pub(super) fn search_across_projects<R: Send>(
         &self,
         context: &RequestContext,
         start: &CrossProjectStart,
@@ -84,11 +84,12 @@ impl Server {
         position: &Position,
         default_at: SearchPosition,
         search: impl Fn(
-            &mut LanguageService<'_>,
-            &DocumentUri,
-            &SearchPosition,
-            bool,
-        ) -> Result<Option<ProjectSearch<R>>, LsError>,
+                &mut LanguageService<'_>,
+                &DocumentUri,
+                &SearchPosition,
+                bool,
+            ) -> Result<Option<ProjectSearch<R>>, LsError>
+            + Sync,
         combine: fn(Vec<R>) -> R,
     ) -> Result<Option<R>, Failure> {
         let session = self.initialized_session();
@@ -139,57 +140,58 @@ impl Server {
                 );
             }
         }
+        // tsgo's work group: the queued projects are searched at once, and
+        // what they find is taken in the order they were queued.
+        let workers = tsc_program::WorkerBudget::automatic();
         loop {
-            while let Some((item, index)) = queue.pop_front() {
+            while !queue.is_empty() {
                 context.check()?;
-                let (snapshot, project) = match item.snapshot {
-                    Some(snapshot) => (snapshot, item.project),
-                    // tsgo `GetLanguageServiceForProjectWithFile`: the
-                    // project brought up to date, if it still has the file.
-                    None => {
-                        let (snapshot, project) = session
-                            .get_project_with_file(item.project.id(), &item.uri)
-                            .map_err(|error| tsc_lsproto::LspError::internal(error.to_string()))?;
-                        let Some(project) = project else {
-                            continue;
-                        };
-                        (snapshot, project)
-                    }
-                };
-                let with_definition = project.id() == &default_id && default_definition.is_none();
-                let found =
-                    self.with_language_service(context, &snapshot, &project, |service| {
-                        search(service, &item.uri, &item.at, with_definition)
-                            .map_err(language_service_failure)
-                    })?;
-                context.check()?;
-                let Some(found) = found else {
-                    continue;
-                };
-                if with_definition {
-                    default_definition = found.definition;
-                }
-                for location in found.original_locations {
-                    // tsgo `GetProjectsForFile`: the configured projects of
-                    // the file loaded.
-                    let Ok((_, projects)) = session.get_projects_for_file(&location.uri) else {
+                let wave = queue
+                    .drain(..)
+                    .map(|(item, index)| {
+                        let with_definition =
+                            item.project.id() == &default_id && default_definition.is_none();
+                        (item, index, with_definition)
+                    })
+                    .collect::<Vec<_>>();
+                let searches = workers.map_ordered(
+                    wave,
+                    |_| 1,
+                    |(item, index, with_definition)| {
+                        self.search_project(context, item, with_definition, &search)
+                            .map(|found| (index, with_definition, found))
+                    },
+                );
+                for searched in searches {
+                    let (index, with_definition, found) = searched?;
+                    let Some(found) = found else {
                         continue;
                     };
-                    for project in projects {
-                        enqueue(
-                            &mut responses,
-                            &mut queue,
-                            Item {
-                                project,
-                                snapshot: None,
-                                uri: location.uri.clone(),
-                                at: SearchPosition::Lsp(location.position.clone()),
-                            },
-                            true,
-                        );
+                    if with_definition {
+                        default_definition = found.definition;
                     }
+                    for location in found.original_locations {
+                        // tsgo `GetProjectsForFile`: the configured projects
+                        // of the file loaded.
+                        let Ok((_, projects)) = session.get_projects_for_file(&location.uri) else {
+                            continue;
+                        };
+                        for project in projects {
+                            enqueue(
+                                &mut responses,
+                                &mut queue,
+                                Item {
+                                    project,
+                                    snapshot: None,
+                                    uri: location.uri.clone(),
+                                    at: SearchPosition::Lsp(location.position.clone()),
+                                },
+                                true,
+                            );
+                        }
+                    }
+                    responses[index].result = Some(found.response);
                 }
-                responses[index].result = Some(found.response);
             }
             // More projects from the default project's definition: the
             // trees of the projects that reference the projects searched.
@@ -274,5 +276,42 @@ impl Server {
             return Ok(Some(combine(ordered)));
         }
         Ok(ordered.into_iter().next())
+    }
+
+    /// One item of tsgo `handleCrossProject`'s work group: the project
+    /// brought up to date when it was not the request's (tsgo
+    /// `GetLanguageServiceForProjectWithFile`; none when it no longer has
+    /// the file) and searched there.
+    fn search_project<R>(
+        &self,
+        context: &RequestContext,
+        item: Item,
+        with_definition: bool,
+        search: &(impl Fn(
+            &mut LanguageService<'_>,
+            &DocumentUri,
+            &SearchPosition,
+            bool,
+        ) -> Result<Option<ProjectSearch<R>>, LsError>
+              + Sync),
+    ) -> Result<Option<ProjectSearch<R>>, Failure> {
+        let (snapshot, project) = match item.snapshot {
+            Some(snapshot) => (snapshot, item.project),
+            None => {
+                let (snapshot, project) = self
+                    .initialized_session()
+                    .get_project_with_file(item.project.id(), &item.uri)
+                    .map_err(|error| tsc_lsproto::LspError::internal(error.to_string()))?;
+                let Some(project) = project else {
+                    return Ok(None);
+                };
+                (snapshot, project)
+            }
+        };
+        let found = self.with_language_service(context, &snapshot, &project, |service| {
+            search(service, &item.uri, &item.at, with_definition).map_err(language_service_failure)
+        })?;
+        context.check()?;
+        Ok(found)
     }
 }
