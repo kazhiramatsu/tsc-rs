@@ -1410,7 +1410,14 @@ impl<'a> CheckerState<'a> {
             "the display arena is already lent out"
         );
         self.emit_display_taken = true;
-        let arena = self.emit_display.take().unwrap_or_default();
+        // The display arena keeps the node builder's cache for the checker's
+        // lifetime (tsgo's `typeToStringNodebuilder` keeps its
+        // `serializedTypes`).
+        let arena = self.emit_display.take().unwrap_or_else(|| {
+            let mut arena = tsc_emitter::TransformArena::default();
+            arena.keep_node_builder_cache();
+            arena
+        });
         tsc_emitter::transform_nodes(arena, Vec::new(), Vec::new(), true)
             .expect("hook-less checker display transform must initialize")
     }
