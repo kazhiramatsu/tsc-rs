@@ -382,7 +382,7 @@ pub fn plan_source_requests_retaining_syntax(
     let (plan, parsed) = plan_module_requests_worker(source, options, true, false, cache)?;
     let syntax = match parsed {
         PlanningParse::Parsed(parsed) => {
-            PreparsedSyntax::new(parsed, (started, std::time::Instant::now()))
+            PreparsedSyntax::new(*parsed, (started, std::time::Instant::now()))
         }
         PlanningParse::Cached(parse) => PreparsedSyntax::cached(parse),
     };
@@ -391,7 +391,7 @@ pub fn plan_source_requests_retaining_syntax(
 
 /// The tree the planner read: its own parse, or a cached one.
 enum PlanningParse {
-    Parsed(PreparsedSourceFile),
+    Parsed(Box<PreparsedSourceFile>),
     Cached(CachedParse),
 }
 
@@ -566,7 +566,7 @@ fn plan_module_requests_worker(
     let mut augmentation_occurrences = Vec::new();
     let mut unpreprocessed_module_requests = BTreeSet::new();
     collect_static_module_references(StaticModuleReferenceContext {
-        parsed: &parsed,
+        parsed,
         source,
         expanded,
         static_mode,
@@ -614,7 +614,7 @@ fn plan_module_requests_worker(
                             let literal = parsed.arena.node(literal);
                             if let NodeData::StringLiteral(literal_data) = &literal.data {
                                 let mode_override = import_type.attributes.and_then(|attributes| {
-                                    resolution_mode_override(&parsed, attributes)
+                                    resolution_mode_override(parsed, attributes)
                                 });
                                 let mode = mode_override.unwrap_or(static_mode);
                                 dynamic_occurrences.push(ModuleRequestOccurrence {
@@ -678,7 +678,7 @@ fn plan_module_requests_worker(
                     if let NodeData::StringLiteral(literal) = &module_specifier.data {
                         let mode = import
                             .attributes
-                            .and_then(|attributes| resolution_mode_override(&parsed, attributes))
+                            .and_then(|attributes| resolution_mode_override(parsed, attributes))
                             .unwrap_or(static_mode);
                         if !literal.text.is_empty() {
                             dynamic_occurrences.push(ModuleRequestOccurrence {
@@ -719,7 +719,7 @@ fn plan_module_requests_worker(
                     // does not suppress the host resolution request.
                     if !arguments.is_empty() {
                         let argument = parsed.arena.node(arguments[0]);
-                        if let Some(specifier) = string_literal_like_text(&parsed, arguments[0]) {
+                        if let Some(specifier) = string_literal_like_text(parsed, arguments[0]) {
                             dynamic_occurrences.push(ModuleRequestOccurrence {
                                 pos: argument.pos,
                                 end: argument.end,
@@ -765,7 +765,7 @@ fn plan_module_requests_worker(
                         // does not affect resolution (bundler without package
                         // maps).
                         let argument = arguments[0];
-                        let specifier = string_literal_like_text(&parsed, argument)
+                        let specifier = string_literal_like_text(parsed, argument)
                             .expect("guarded string-literal-like require argument");
                         dynamic_occurrences.push(ModuleRequestOccurrence {
                             pos: parsed.arena.node(argument).pos,
@@ -822,7 +822,7 @@ fn plan_module_requests_worker(
                                 stack.push(tag);
                             } else {
                                 uncollected_import_types(
-                                    &parsed,
+                                    parsed,
                                     source,
                                     tag,
                                     static_mode,
@@ -849,7 +849,7 @@ fn plan_module_requests_worker(
     // lookup finds no resolution and reports the module as not found.
     if nested_requests {
         collect_nested_module_requests(
-            &parsed,
+            parsed,
             source,
             expanded,
             static_mode,
@@ -875,7 +875,7 @@ fn plan_module_requests_worker(
     // import index, so it participates in the authoritative resolution table
     // as well.
     let synthetic = synthetic_imports(
-        &parsed,
+        parsed,
         javascript_file,
         source.parse_file_name().ends_with(".tsx"),
         options,
@@ -978,7 +978,9 @@ fn plan_module_requests_worker(
         synthetic_imports: has_synthetic_tslib || has_synthetic_jsx_runtime,
     };
     let parsed = match fresh {
-        Some(fresh) => PlanningParse::Parsed(PreparsedSourceFile::new(parse_options, fresh)),
+        Some(fresh) => {
+            PlanningParse::Parsed(Box::new(PreparsedSourceFile::new(parse_options, fresh)))
+        }
         None => PlanningParse::Cached(cached.expect("the planner read the cache's parse")),
     };
     Ok((plan, parsed))
