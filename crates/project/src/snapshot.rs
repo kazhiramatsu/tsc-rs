@@ -428,6 +428,8 @@ struct AutoImportHost<'a> {
     paths: &'a Paths,
     /// tsgo `autoImportBuilderFS`: the snapshot build's files.
     fs: tsc_host::vfs::VfsCompilerHost<crate::fs::SourceFs<'a>>,
+    /// tsgo's parse cache.
+    documents: &'a DocumentRegistry,
 }
 
 impl AutoImportHost<'_> {
@@ -477,8 +479,12 @@ impl RegistryCloneHost for AutoImportHost<'_> {
         })
     }
 
-    fn fs(&self) -> &dyn tsc_host::CompilerHost {
+    fn fs(&self) -> &(dyn tsc_host::CompilerHost + Sync) {
         &self.fs
+    }
+
+    fn documents(&self) -> Option<&DocumentRegistry> {
+        Some(self.documents)
     }
 
     fn path_of(&self, file_name: &str) -> String {
@@ -1183,6 +1189,7 @@ impl SnapshotHost {
                     crate::fs::SourceFs::new(&fs),
                     self.paths.current_directory.clone(),
                 ),
+                documents: &self.documents,
             };
             Arc::new(base.auto_imports.clone_with(&change, &host))
         };
