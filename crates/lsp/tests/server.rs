@@ -1716,11 +1716,21 @@ fn auto_import_items(
     text: &str,
     (line, character): (u32, u32),
 ) -> Vec<(String, i64, String, i64, Value)> {
+    auto_import_items_in("file:///ws/index.ts", entries, text, (line, character))
+}
+
+/// The auto-import items of `text` at `(line, character)` in the open file
+/// `index` of a session over `entries`.
+fn auto_import_items_in(
+    index: &str,
+    entries: Vec<(&'static str, Seed)>,
+    text: &str,
+    (line, character): (u32, u32),
+) -> Vec<(String, i64, String, i64, Value)> {
     let fs = Arc::new(MemFs::from_entries(entries, false, Arc::new(SystemClock)).unwrap());
     let mut session = Session::start_with(fs);
     let mut client = RegistrationClient::default();
     client.initialize(&mut session, serde_json::json!({}));
-    let index = "file:///ws/index.ts";
     client.notify(
         &mut session,
         "textDocument/didOpen",
@@ -1888,6 +1898,213 @@ fn auto_imports_follow_a_chain_of_re_exports() {
     assert_eq!(
         auto_import_items(entries, TEXT, (1, 5)),
         [("deepValue".to_owned(), 6, "pkg".to_owned(), 0, Value::Null)]
+    );
+}
+
+/// tsgo fills an importing file's specifier cache (keyed by the file an
+/// export was found in) for whichever completion group asks first, in Go's
+/// map order. The `ContextVariableMap` augmentations of two middleware
+/// files merge into one export whose path is the last file's and whose
+/// module file is `src/index.ts`, so that file's own exports are named `..`
+/// when the merged export asks before them: one of tsgo's orders in four
+/// (2 of 8 runs at aa814927). tsc-rs asked in the order found, which was
+/// that order every time; a file several groups reach is now filled from
+/// the module file most of them give (found by the LSP test on hono).
+#[test]
+fn auto_imports_name_a_file_from_its_own_exports_despite_an_augmentation() {
+    const TEXT: &str = "export function f(): void {\n  \n}\n";
+    let middleware = |name: &str| {
+        format!(
+            "export const {name}One = 1\nexport const {name}Two = 2\nexport const {name}Three = 3\n\
+             declare module '../..' {{\n  interface ContextVariableMap {{\n    {name}: number\n  }}\n}}\n"
+        )
+    };
+    let entries = vec![
+        (
+            "/ws/tsconfig.json",
+            Seed::file(
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}, "include": ["src"]}"#,
+            ),
+        ),
+        (
+            "/ws/src/context.ts",
+            Seed::file("export interface ContextVariableMap {}\nexport class Context {}\n"),
+        ),
+        (
+            "/ws/src/index.ts",
+            Seed::file(
+                "export type { ContextVariableMap } from './context'\nexport { Context } from './context'\n",
+            ),
+        ),
+        (
+            "/ws/src/middleware/alpha/index.ts",
+            Seed::file(middleware("alpha")),
+        ),
+        (
+            "/ws/src/middleware/beta/index.ts",
+            Seed::file(middleware("beta")),
+        ),
+        ("/ws/src/helper/use.ts", Seed::file(TEXT)),
+    ];
+    let item = |label: &str, kind: i64, specifier: &str| {
+        (label.to_owned(), kind, specifier.to_owned(), 0, Value::Null)
+    };
+    assert_eq!(
+        auto_import_items_in("file:///ws/src/helper/use.ts", entries, TEXT, (1, 2)),
+        [
+            item("Context", 7, "../context"),
+            item("alphaOne", 6, "../middleware/alpha"),
+            item("alphaThree", 6, "../middleware/alpha"),
+            item("alphaTwo", 6, "../middleware/alpha"),
+            item("betaOne", 6, "../middleware/beta"),
+            item("betaThree", 6, "../middleware/beta"),
+            item("betaTwo", 6, "../middleware/beta"),
+        ]
+    );
+}
+
+/// An export the main file of a package and an addon's augmentation both
+/// declare is one completion group, named by whichever export came later in
+/// tsgo's index (Go's map order): the addon in 14 of 16 runs at aa814927,
+/// which `import { on } from "cm/addon/mode/overlay"` then rejects (TS2305:
+/// the addon exports nothing itself). The user decided (2026-10-16) that
+/// where tsgo's random answers include an invalid import, tsc-rs gives the
+/// valid one: the module file's own export keeps its path (found by the LSP
+/// test on playwright's `@types/codemirror`).
+#[test]
+fn auto_imports_name_an_export_by_the_file_declaring_it() {
+    const TEXT: &str = "export function f(): void {\n  \n}\n";
+    let entries = vec![
+        (
+            "/ws/package.json",
+            Seed::file(r#"{"name": "app", "dependencies": {"cm": "1.0.0"}}"#),
+        ),
+        (
+            "/ws/tsconfig.json",
+            Seed::file(
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}}"#,
+            ),
+        ),
+        (
+            "/ws/node_modules/cm/package.json",
+            Seed::file(r#"{"name": "cm", "version": "1.0.0", "types": "index.d.ts"}"#),
+        ),
+        (
+            "/ws/node_modules/cm/index.d.ts",
+            Seed::file(
+                "export function on(): void;\nexport function off(): void;\nexport function overlayMode(): void;\n",
+            ),
+        ),
+        (
+            "/ws/node_modules/cm/addon/mode/overlay.d.ts",
+            Seed::file(
+                "import \"../../\";\ndeclare module \"../../\" {\n    function overlayMode(): void;\n    function on(extra: number): void;\n}\n",
+            ),
+        ),
+        (
+            "/ws/other.ts",
+            Seed::file("import \"cm/addon/mode/overlay\";\nexport const g = 1;\n"),
+        ),
+        ("/ws/index.ts", Seed::file(TEXT)),
+    ];
+    let item = |label: &str, kind: i64, specifier: &str| {
+        (label.to_owned(), kind, specifier.to_owned(), 0, Value::Null)
+    };
+    assert_eq!(
+        auto_import_items(entries, TEXT, (1, 2)),
+        [
+            item("g", 6, "./other"),
+            item("off", 3, "cm"),
+            item("on", 3, "cm"),
+            item("overlayMode", 3, "cm"),
+        ]
+    );
+}
+
+/// A namespace declared in one project file and augmented from another
+/// (`declare module "../Schema"`) is one completion group; tsgo names it by
+/// the later of the two in its index (Go's map order): the augmenting file,
+/// which does not export it, in about half of effect's sessions and in 1 of
+/// 8 runs of this fixture at aa814927. The module file's own export keeps
+/// its path (user decision of 2026-10-16; found by the LSP test on effect's
+/// `Schema.Annotations`).
+#[test]
+fn auto_imports_name_an_augmented_namespace_by_its_declaring_file() {
+    // A type position: the namespace holds types only.
+    const TEXT: &str = "export function f(): void {\n  let x: \n}\n";
+    let entries = vec![
+        (
+            "/ws/tsconfig.json",
+            Seed::file(
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}}"#,
+            ),
+        ),
+        (
+            "/ws/Schema.ts",
+            Seed::file(
+                "export declare namespace Annotations {\n  interface Doc {\n    title?: string\n  }\n}\nexport const decode = 1\nexport const encode = 2\n",
+            ),
+        ),
+        (
+            "/ws/http/Api.ts",
+            Seed::file(
+                "import \"../Schema\"\ndeclare module \"../Schema\" {\n  namespace Annotations {\n    interface Doc {\n      status?: number\n    }\n  }\n}\nexport const handler = 1\nexport const route = 2\n",
+            ),
+        ),
+        ("/ws/index.ts", Seed::file(TEXT)),
+    ];
+    let item = |label: &str, kind: i64, specifier: &str| {
+        (label.to_owned(), kind, specifier.to_owned(), 0, Value::Null)
+    };
+    assert_eq!(
+        auto_import_items(entries, TEXT, (1, 9)),
+        [item("Annotations", 9, "./Schema")]
+    );
+}
+
+/// tsgo answers a cached specifier as relative whatever kind computing it
+/// gave, and ranks a `paths` kind against a relative one by directory
+/// separators only, so the group that computes three packages' specifiers
+/// first ranks them in a cycle with the penalized index re-export (`.`) and
+/// the longer relative ones. That group is random in tsgo's map order, and
+/// `version` (declared first in `core`'s index, re-exported by six files)
+/// gets the three packages in 7 of 8 runs at aa814927; tsc-rs computed them
+/// first for `version` every time and kept one (found by the LSP test on
+/// vue).
+#[test]
+fn auto_imports_rank_a_shared_paths_specifier_as_cached() {
+    const TEXT: &str = "export function f(): void {\n  \n}\n";
+    let entries = vec![
+        (
+            "/ws/tsconfig.json",
+            Seed::file(
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true, "paths": {"@v/*": ["./packages/*/src"]}}, "include": ["packages/*/src"]}"#,
+            ),
+        ),
+        (
+            "/ws/packages/core/src/index.ts",
+            Seed::file(
+                "export const version = \"1\"\nexport const alpha = 1\nexport const beta = 2\nexport const gamma = 3\nexport const delta = 4\n",
+            ),
+        ),
+        ("/ws/packages/core/src/use.ts", Seed::file(TEXT)),
+        ("/ws/packages/dom/src/index.ts", Seed::file("export * from '@v/core'\n")),
+        ("/ws/packages/test/src/index.ts", Seed::file("export * from '@v/core'\n")),
+        ("/ws/packages/app/src/index.ts", Seed::file("export * from '@v/dom'\n")),
+        ("/ws/packages/app/src/runtime.ts", Seed::file("export * from '@v/dom'\n")),
+        ("/ws/packages/compat/src/esm-index.ts", Seed::file("export * from '@v/dom'\n")),
+        ("/ws/packages/compat/src/esm-runtime.ts", Seed::file("export * from '@v/dom'\n")),
+    ];
+    let expected: Vec<_> = ["alpha", "beta", "delta", "gamma", "version"]
+        .iter()
+        .flat_map(|name| {
+            ["@v/app", "@v/dom", "@v/test"]
+                .map(|package| (name.to_string(), 6, package.to_owned(), 0, Value::Null))
+        })
+        .collect();
+    assert_eq!(
+        auto_import_items_in("file:///ws/packages/core/src/use.ts", entries, TEXT, (1, 2)),
+        expected
     );
 }
 
