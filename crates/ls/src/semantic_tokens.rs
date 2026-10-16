@@ -656,6 +656,9 @@ fn token_from_declaration_mapping(kind: SyntaxKind) -> Option<TokenType> {
         SyntaxKind::GetAccessor
         | SyntaxKind::SetAccessor
         | SyntaxKind::PropertySignature
+        // tsgo's reparser makes a property signature of a `@property` tag
+        // (a typedef's member), and that is the member's declaration there.
+        | SyntaxKind::JSDocPropertyTag
         | SyntaxKind::PropertyAssignment
         | SyntaxKind::ShorthandPropertyAssignment => TokenType::Property,
         SyntaxKind::InterfaceDeclaration => TokenType::Interface,

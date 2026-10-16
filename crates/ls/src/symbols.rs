@@ -181,7 +181,37 @@ impl Request<'_, '_> {
         let source = self.state.binder.source_of_node(node);
         let record = self.state.binder.node_record(node);
         if let Some(js_doc) = record.js_doc {
-            for &comment in self.state.binder.node_array(js_doc).nodes {
+            let comments = self.state.binder.node_array(js_doc).nodes.to_vec();
+            // tsgo's reparser makes statements of a comment's typedef,
+            // callback and import tags and puts them before their host
+            // (reparseUnhosted); the parts of those statements that are not
+            // reparsed nodes themselves — an inline type literal's members,
+            // an import's bindings — get symbols of their own there, before
+            // the tags' symbols and the host's.
+            for &comment in &comments {
+                let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
+                    continue;
+                };
+                for tag in self.node_list(data.tags) {
+                    let reparsed = match &self.state.binder.node_record(tag).data {
+                        NodeData::JSDocTypedefTag(typedef) => {
+                            typedef.type_expression.and_then(|expression| {
+                                match &self.state.binder.node_record(expression).data {
+                                    NodeData::JSDocTypeExpression(expression) => expression.r#type,
+                                    _ => None,
+                                }
+                            })
+                        }
+                        NodeData::JSDocCallbackTag(callback) => callback.type_expression,
+                        NodeData::JSDocImportTag(import) => import.import_clause,
+                        _ => None,
+                    };
+                    if let Some(reparsed) = reparsed {
+                        self.visit_document_symbol(state, reparsed);
+                    }
+                }
+            }
+            for &comment in &comments {
                 let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
                     continue;
                 };
