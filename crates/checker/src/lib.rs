@@ -6039,6 +6039,14 @@ fn build_lib_bundle(libs: &[&InputFile]) -> &'static LibBundle {
     let data = binders_into_data(binders);
     let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
     let documents = publish_bound_documents_from_handles(sources, data);
+    // A Program's loader finds the libraries there as tsgo's finds them in
+    // its parse cache.
+    for (lib, document) in libs.iter().zip(&documents) {
+        crate::program::lib_documents().insert(
+            DocumentAddress::new(&lib_parse_options(lib), &identity_domain),
+            document,
+        );
+    }
     let documents: &'static [Arc<BoundDocument>] = Box::leak(documents.into_boxed_slice());
     Box::leak(Box::new(LibBundle {
         documents,
@@ -6060,6 +6068,20 @@ fn build_owned_lib_bundle(libs: &[&InputFile]) -> OwnedHarnessLibBundle {
     }
 }
 
+/// The options a library is parsed with.
+fn lib_parse_options(lib: &InputFile) -> tsc_syntax::ParseOptions {
+    tsc_syntax::ParseOptions {
+        script_kind: tsc_syntax::ScriptKind::Ts,
+        force_external_module: false,
+        detect_external_module_from_jsx: false,
+        node_id_base: 0,
+        node_array_id_base: 0,
+        js_doc_parsing_mode: lib
+            .js_doc_parsing_mode
+            .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
+    }
+}
+
 /// Materialize the library prefix: adopt each library's loader-planned tree
 /// when it is provably the parse this session would perform, otherwise parse.
 /// Returns the sources with the parse work actually performed.
@@ -6072,16 +6094,7 @@ fn parse_lib_sources(
     let mut work = LibParseWork::default();
     let mut pending: Vec<PendingProgramSource> = Vec::new();
     for lib in libs {
-        let parse_options = tsc_syntax::ParseOptions {
-            script_kind: tsc_syntax::ScriptKind::Ts,
-            force_external_module: false,
-            detect_external_module_from_jsx: false,
-            node_id_base: 0,
-            node_array_id_base: 0,
-            js_doc_parsing_mode: lib
-                .js_doc_parsing_mode
-                .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
-        };
+        let parse_options = lib_parse_options(lib);
         pending.push(match lib.take_preparsed_source(&parse_options) {
             Some(source) => {
                 work.adopted += 1;

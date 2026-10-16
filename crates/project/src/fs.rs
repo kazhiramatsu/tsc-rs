@@ -931,6 +931,13 @@ impl FileSystem for SourceFs<'_> {
         self.builder.base.case_sensitive()
     }
 
+    /// A build's reads are the snapshot's files (read once from the file
+    /// system, under its lock) and what it records is a set, so tsgo's
+    /// parallel program loader reads it as the loading thread would.
+    fn permits_parallel_reads(&self) -> bool {
+        true
+    }
+
     fn read(&self, path: &str) -> io::Result<Vec<u8>> {
         self.track(|seen| {
             seen.files.insert(

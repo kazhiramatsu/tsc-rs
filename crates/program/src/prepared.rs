@@ -137,6 +137,10 @@ pub struct PreparsedSyntax {
     /// When the planner's parse ran (`--generateTrace`'s `createSourceFile`
     /// span); kept after the tree is adopted.
     parse_span: Option<(std::time::Instant, std::time::Instant)>,
+    /// The parse another Program holds that the planner read instead of
+    /// parsing (the slot stays empty): kept in the cache until the checker
+    /// session takes it from there.
+    cached: Option<crate::CachedParse>,
 }
 
 impl PreparsedSyntax {
@@ -147,6 +151,15 @@ impl PreparsedSyntax {
         Self {
             slot: Arc::new(Mutex::new(Some(parsed))),
             parse_span: Some(parse_span),
+            cached: None,
+        }
+    }
+
+    /// The planner read `parse` from the parse cache.
+    pub(crate) fn cached(parse: crate::CachedParse) -> Self {
+        Self {
+            cached: Some(parse),
+            ..Self::default()
         }
     }
 
@@ -177,6 +190,7 @@ impl fmt::Debug for PreparsedSyntax {
         formatter
             .debug_struct("PreparsedSyntax")
             .field("available", &self.is_available())
+            .field("cached", &self.cached.is_some())
             .finish()
     }
 }
@@ -1434,6 +1448,9 @@ pub struct ProgramOptions {
     /// The script kinds of the files whose handles give one (an editor's
     /// open documents' languages), by canonical path.
     document_script_kinds: Option<Arc<BTreeMap<String, ScriptKind>>>,
+    /// The parses other Programs hold (the project system's compiler host,
+    /// tsgo `ParseCache`), which the loader takes instead of parsing.
+    parse_cache: crate::ParseCacheHandle,
 }
 
 /// A [`crate::content_mapper::Project`] in a program's options: programs are
@@ -1529,6 +1546,16 @@ impl ProgramOptions {
             .as_ref()?
             .get(path.as_js().to_string_lossy().as_ref())
             .copied()
+    }
+
+    pub fn with_parse_cache(mut self, cache: crate::ParseCacheHandle) -> Self {
+        self.parse_cache = cache;
+        self
+    }
+
+    /// The parses other Programs hold, when the host shares them.
+    pub fn parse_cache(&self) -> Option<&dyn crate::ParseCache> {
+        self.parse_cache.get()
     }
 
     pub fn with_content_mapper_project(mut self, project: ContentMapperProjectHandle) -> Self {

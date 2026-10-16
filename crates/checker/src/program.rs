@@ -153,6 +153,14 @@ pub fn shared_identity_domain() -> &'static IdentityDomain {
     DOMAIN.get_or_init(IdentityDomain::reclaiming)
 }
 
+/// The libraries of the process's library bundles (which live as long as
+/// the process), where a Program's loader finds them (tsgo's parse cache
+/// holds the bundled libraries' parses too).
+pub(crate) fn lib_documents() -> &'static DocumentRegistry {
+    static DOCUMENTS: std::sync::OnceLock<DocumentRegistry> = std::sync::OnceLock::new();
+    DOCUMENTS.get_or_init(DocumentRegistry::new)
+}
+
 /// tsgo's parse cache (`project/parsecache.go`): the parsed and bound
 /// sources Programs hold, found again by file name, text and
 /// [`DocumentAddress`], so a Program built again shares the documents of the
@@ -231,6 +239,24 @@ impl DocumentRegistry {
             .collect()
     }
 
+    /// tsgo `ParseCache.Acquire` as a Program's loader asks it (the project
+    /// system's `compilerHost.GetSourceFile`): the source a Program holds of
+    /// `file_name` with `text`, parsed with `options` in the registry's
+    /// domain.
+    fn find_parse(
+        &self,
+        file_name: JsStr<'_>,
+        text: &str,
+        options: &ParseOptions,
+    ) -> Option<tsc_program::CachedParse> {
+        let address = DocumentAddress::new(options, &self.identity_domain);
+        let document = self
+            .get(file_name, text, &address)
+            .or_else(|| lib_documents().get(file_name, text, &address))?;
+        let source = Arc::clone(&document.parsed.source);
+        Some(tsc_program::CachedParse::new(source, document))
+    }
+
     /// Forget the entries no Program holds (tsgo deletes an entry when its
     /// count reaches zero).
     pub fn purge(&self) {
@@ -255,6 +281,17 @@ impl DocumentRegistry {
 
     fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<(JsString, u64), Vec<RegistryEntry>>> {
         self.entries.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+impl tsc_program::ParseCache for DocumentRegistry {
+    fn find(
+        &self,
+        file_name: JsStr<'_>,
+        text: &str,
+        options: &ParseOptions,
+    ) -> Option<tsc_program::CachedParse> {
+        self.find_parse(file_name, text, options)
     }
 }
 

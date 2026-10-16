@@ -113,6 +113,7 @@ mod module_requests;
 mod module_resolution;
 mod option_validation;
 mod output_directories;
+mod parse_cache;
 mod path;
 mod prepared;
 mod project_references;
@@ -207,6 +208,7 @@ pub use output_directories::{
     output_file_names, relative_path_from_directory, source_file_may_be_emitted_for_options,
     source_file_path_in_new_directory,
 };
+pub use parse_cache::{CachedParse, ParseCache, ParseCacheHandle};
 pub use path::{CanonicalPath, ProgramPath};
 pub use prepared::{
     ContentMapperProjectHandle, DependencySymlink, PackageJsonType, PackageMetadata,

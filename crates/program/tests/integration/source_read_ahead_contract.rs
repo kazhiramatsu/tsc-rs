@@ -26,9 +26,9 @@ use std::path::{Path, PathBuf};
 
 use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
 use tsc_program::{
-    load_no_lib_program, plan_source_requests_retaining_syntax, CompilerOptions, PreparedProgram,
-    PreparedSourceFile, ProgramLoadError, ProgramLoadLimit, ProgramLoadLimits, ProgramOptions,
-    ProgramPath, WorkerBudget,
+    load_no_lib_program, plan_source_requests_retaining_syntax, CachedParse, CompilerOptions,
+    ParseCache, PreparedProgram, PreparedSourceFile, ProgramLoadError, ProgramLoadLimit,
+    ProgramLoadLimits, ProgramOptions, ProgramPath, WorkerBudget,
 };
 
 const GENEROUS_LIMIT: usize = 1_024;
@@ -808,7 +808,7 @@ fn prepared_source_equality_ignores_the_preparsed_slot_in_every_state() {
     let text = "export const a = 1;\n";
     let absent = PreparedSourceFile::new(path.clone(), text);
     let (_plan, syntax) =
-        plan_source_requests_retaining_syntax(&absent, &compiler_options()).expect("plan");
+        plan_source_requests_retaining_syntax(&absent, &compiler_options(), None).expect("plan");
     // The planner parsed `absent`'s own snapshot, so the cache attaches to a
     // clone of that prepared source (same snapshot), as the loader does.
     let available = absent.clone().with_preparsed_syntax(syntax);
@@ -853,7 +853,7 @@ fn prepared_source_equality_ignores_the_preparsed_slot_in_every_state() {
     ));
     assert_eq!(same_text_other_snapshot, absent);
     let (_plan, other_syntax) =
-        plan_source_requests_retaining_syntax(&same_text_other_snapshot, &compiler_options())
+        plan_source_requests_retaining_syntax(&same_text_other_snapshot, &compiler_options(), None)
             .expect("plan");
     assert_eq!(
         same_text_other_snapshot
@@ -865,6 +865,78 @@ fn prepared_source_equality_ignores_the_preparsed_slot_in_every_state() {
     // A distinct text is still a distinct prepared source.
     let other = PreparedSourceFile::new(path, "export const a = 2;\n");
     assert_ne!(absent, other);
+}
+
+/// A parse cache that answers one tree for any file and records what the
+/// planner asked it.
+struct OneTreeCache {
+    tree: std::sync::Arc<tsc_syntax::SourceFile>,
+    asked: std::sync::Mutex<Vec<(String, String, u32)>>,
+}
+
+impl ParseCache for OneTreeCache {
+    fn find(
+        &self,
+        file_name: tsc_types::JsStr<'_>,
+        text: &str,
+        options: &tsc_syntax::ParseOptions,
+    ) -> Option<CachedParse> {
+        self.asked.lock().expect("asked").push((
+            file_name.to_string_lossy().into_owned(),
+            text.to_owned(),
+            options.node_id_base,
+        ));
+        Some(CachedParse::new(
+            std::sync::Arc::clone(&self.tree),
+            std::sync::Arc::new(()),
+        ))
+    }
+}
+
+/// tsgo's project system hands a Program's loader the parse another Program
+/// holds (`compilerHost.GetSourceFile` over the parse cache): the planner
+/// reads it instead of parsing, and keeps no parse of its own.
+#[test]
+fn the_planner_reads_a_cached_parse_instead_of_parsing() {
+    let path = ProgramPath::from_trusted_parts("/work/a.ts", "/work/a.ts").expect("trusted path");
+    let text = "export const a = 1;\n";
+    let prepared = PreparedSourceFile::new(path, text);
+    let options = compiler_options();
+    // The cache's tree imports `./b` and the prepared text imports nothing,
+    // so the plan shows which tree the planner read.
+    let tree = tsc_syntax::parse_source_file(
+        "/work/a.ts",
+        "import \"./b\";\nexport const a = 1;\n",
+        tsc_program::source_request_parse_options(&prepared, &options),
+        None,
+    );
+    let cache = OneTreeCache {
+        tree: std::sync::Arc::new(tree),
+        asked: std::sync::Mutex::default(),
+    };
+    let specifiers = |plan: &tsc_program::SourceRequestPlan| {
+        plan.module_requests()
+            .iter()
+            .map(|key| key.specifier().to_string_lossy().into_owned())
+            .collect::<Vec<_>>()
+    };
+    let (plan, syntax) =
+        plan_source_requests_retaining_syntax(&prepared, &options, Some(&cache)).expect("plan");
+    assert_eq!(specifiers(&plan), ["./b"]);
+    assert!(
+        !syntax.is_available(),
+        "the planner kept no parse of its own"
+    );
+    assert_eq!(
+        *cache.asked.lock().expect("asked"),
+        [("/work/a.ts".to_owned(), text.to_owned(), 0)]
+    );
+
+    // Without a cache the planner parses the prepared text.
+    let (plan, syntax) =
+        plan_source_requests_retaining_syntax(&prepared, &options, None).expect("plan");
+    assert!(specifiers(&plan).is_empty());
+    assert!(syntax.is_available());
 }
 
 /// A memory-backed host that reads and resolves from any thread (as the

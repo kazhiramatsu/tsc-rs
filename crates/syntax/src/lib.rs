@@ -9,6 +9,7 @@ mod incremental;
 pub mod jsdoc_hosted;
 mod keywords;
 pub mod kind;
+mod name_table;
 pub mod nodes;
 pub mod observable_fields;
 mod parser;
@@ -43,6 +44,7 @@ pub use incremental::{
 };
 pub use jsdoc_hosted::{HostedCast, HostedTypeParameters, JsDocHosted, JsDocHostedCell};
 pub use kind::SyntaxKind;
+pub use name_table::{NameTable, NameTableCell};
 pub use nodes::{
     JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData,
 };
@@ -221,6 +223,9 @@ pub struct SourceFile {
     /// tsgo's hosted JSDoc reparse of a JavaScript file, filled on first
     /// use by the binder (`tsc_binder::jsdoc_hosted`).
     pub jsdoc_hosted: JsDocHostedCell,
+    /// tsgo `SourceFile.GetNameTable`, filled on first use by the language
+    /// service.
+    pub name_table: NameTableCell,
 }
 
 impl SourceFile {
@@ -279,6 +284,7 @@ impl SourceFile {
             jsx_runtime_pragma: None,
             comment_directives: Vec::new(),
             jsdoc_hosted: JsDocHostedCell::default(),
+            name_table: NameTableCell::default(),
         }
     }
 

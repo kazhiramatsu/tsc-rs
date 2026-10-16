@@ -667,3 +667,27 @@ fn os_writes_report_go_path_errors() {
     assert_eq!(fs.read(&format!("{root_path}/new/dir/a.js")).unwrap(), b"x");
     std::fs::remove_dir_all(&root).unwrap();
 }
+
+/// tsgo `cachedvfs`: what the cache answered about an entry (its metadata,
+/// existence and accessible entries) it answers again whatever the file
+/// system below now holds; reads go through.
+#[test]
+fn a_cached_file_system_answers_entries_as_it_first_did() {
+    let fs = Arc::new(MemFs::new(false, clock()));
+    fs.write_creating_dirs("/a/b.ts", b"one").expect("write");
+    let cached = CachedFs::new(Arc::clone(&fs));
+    assert!(cached.is_file("/a/b.ts"));
+    assert!(cached.is_dir("/a"));
+    assert!(!cached.is_file("/a/c.ts"));
+    assert_eq!(cached.metadata("/a/b.ts").expect("stat").len(), 3);
+    assert_eq!(cached.accessible_entries("/a").files, ["b.ts"]);
+
+    fs.remove("/a/b.ts").expect("remove");
+    fs.write_creating_dirs("/a/c.ts", b"two").expect("write");
+    assert!(cached.is_file("/a/b.ts"));
+    assert!(!cached.is_file("/a/c.ts"));
+    assert_eq!(cached.metadata("/a/b.ts").expect("stat").len(), 3);
+    assert_eq!(cached.accessible_entries("/a").files, ["b.ts"]);
+    assert_eq!(cached.read("/a/c.ts").expect("read"), b"two");
+    assert!(cached.read("/a/b.ts").is_err());
+}
