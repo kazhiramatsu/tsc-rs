@@ -5,7 +5,7 @@
 
 use crate::jsdoc::LinkLocations;
 use tsc_checker::state::{CheckResult, SignatureId, SignatureKind};
-use tsc_checker::DisplayPart;
+use tsc_checker::{DisplayPart, NodeBuilder};
 use tsc_diagnostics::spanmap::FEATURE_SIGNATURE_HELP;
 use tsc_lsproto::{
     MarkupContent, MarkupKind, ParameterInformation, SignatureHelp, SignatureHelpContext,
@@ -1345,6 +1345,8 @@ impl Completions<'_, '_, '_> {
         enclosing_declaration: Option<NodeId>,
         vs_capability: bool,
     ) -> CheckResult<Vec<ItemInfo>> {
+        // tsgo prints the item's labels with a node builder of its own.
+        let mut builder = NodeBuilder::default();
         let signature = self.request.state.signature_of(candidate).clone();
         let type_parameters = match signature.target {
             Some(target) => self
@@ -1359,7 +1361,7 @@ impl Completions<'_, '_, '_> {
         let signature_help_type_parameters: Vec<SignatureHelpParameter> = type_parameters
             .iter()
             .map(|&type_parameter| {
-                self.type_parameter_parameter(type_parameter, enclosing_declaration)
+                self.type_parameter_parameter(&mut builder, type_parameter, enclosing_declaration)
             })
             .collect();
         // The type parameters' label.
@@ -1388,7 +1390,8 @@ impl Completions<'_, '_, '_> {
                 if index > 0 {
                     list_parts.write_punctuation(", ");
                 }
-                let parameter_parts = self.parameter_parts(parameter, enclosing_declaration);
+                let parameter_parts =
+                    self.parameter_parts(&mut builder, parameter, enclosing_declaration);
                 list_parts.write_parts(&parameter_parts);
             }
             list_parts.write_punctuation(")");
@@ -1410,12 +1413,14 @@ impl Completions<'_, '_, '_> {
         markdown: bool,
         vs_capability: bool,
     ) -> CheckResult<Vec<ItemInfo>> {
+        // tsgo prints the item's labels with a node builder of its own.
+        let mut builder = NodeBuilder::default();
         let signature = self.request.state.signature_of(candidate).clone();
         let type_parameters = signature.type_parameters.clone().unwrap_or_default();
         let signature_help_type_parameters: Vec<SignatureHelpParameter> = type_parameters
             .iter()
             .map(|&type_parameter| {
-                self.type_parameter_parameter(type_parameter, enclosing_declaration)
+                self.type_parameter_parameter(&mut builder, type_parameter, enclosing_declaration)
             })
             .collect();
         // The type parameters' label, like `<T, U>`.
@@ -1457,7 +1462,8 @@ impl Completions<'_, '_, '_> {
                 if index > 0 {
                     list_parts.write_punctuation(", ");
                 }
-                let parameter_parts = self.parameter_parts(parameter, enclosing_declaration);
+                let parameter_parts =
+                    self.parameter_parts(&mut builder, parameter, enclosing_declaration);
                 let label: String = parameter_parts
                     .iter()
                     .map(|part| part.text.as_str())
@@ -1479,12 +1485,15 @@ impl Completions<'_, '_, '_> {
     /// `SymbolToParameterDeclaration` written into a display parts writer).
     fn parameter_parts(
         &mut self,
+        builder: &mut NodeBuilder,
         parameter: SymbolId,
         enclosing_declaration: Option<NodeId>,
     ) -> Vec<DisplayPart> {
         self.request
             .state
-            .signature_help_parameter(parameter, enclosing_declaration)
+            .with_node_builder(builder, |state| {
+                state.signature_help_parameter(parameter, enclosing_declaration)
+            })
             .unwrap_or_default()
     }
 
@@ -1537,13 +1546,16 @@ impl Completions<'_, '_, '_> {
     /// tsgo `createSignatureHelpParameterForTypeParameter`.
     fn type_parameter_parameter(
         &mut self,
+        builder: &mut NodeBuilder,
         type_parameter: tsc_types::TypeId,
         enclosing_declaration: Option<NodeId>,
     ) -> SignatureHelpParameter {
         let label = self
             .request
             .state
-            .signature_help_type_parameter(type_parameter, enclosing_declaration)
+            .with_node_builder(builder, |state| {
+                state.signature_help_type_parameter(type_parameter, enclosing_declaration)
+            })
             .unwrap_or_default();
         SignatureHelpParameter {
             info: ParameterInformation {
@@ -1570,10 +1582,13 @@ impl Completions<'_, '_, '_> {
         }
         let enclosing_declaration =
             self.enclosing_declaration_of_invocation(argument_info.invocation);
+        // tsgo `getTypeHelpItem` prints the type parameters with a node
+        // builder of its own.
+        let mut builder = NodeBuilder::default();
         let parameters: Vec<SignatureHelpParameter> = type_parameters
             .iter()
             .map(|&type_parameter| {
-                self.type_parameter_parameter(type_parameter, enclosing_declaration)
+                self.type_parameter_parameter(&mut builder, type_parameter, enclosing_declaration)
             })
             .collect();
         // The label: the symbol's name and its type parameters.

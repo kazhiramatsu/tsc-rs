@@ -109,10 +109,32 @@ fn provide_hover(
     files: &[(&str, &str)],
     options: CompilerOptions,
     file: &str,
-    (line, character): (u32, u32),
+    position: (u32, u32),
     verbosity_level: Option<i32>,
     vs_capability: bool,
 ) -> Option<Hover> {
+    provide_hovers(
+        files,
+        options,
+        file,
+        &[position],
+        verbosity_level,
+        vs_capability,
+    )
+    .pop()
+    .expect("one answer")
+}
+
+/// tsgo's hovers at `positions` of `file`, asked in turn of one program (a
+/// session's requests share its checker).
+fn provide_hovers(
+    files: &[(&str, &str)],
+    options: CompilerOptions,
+    file: &str,
+    positions: &[(u32, u32)],
+    verbosity_level: Option<i32>,
+    vs_capability: bool,
+) -> Vec<Option<Hover>> {
     let mut builder = MemoryCompilerHost::builder("/").case_sensitive(true);
     for (name, text) in files {
         builder = builder.file(PathBuf::from(name), text.as_bytes());
@@ -161,15 +183,20 @@ fn provide_hover(
         &capabilities,
         None,
     );
-    let params = HoverParams {
-        text_document: TextDocumentIdentifier {
-            uri: DocumentUri(format!("file://{file}")),
-        },
-        position: Position { line, character },
-        work_done_token: None,
-        verbosity_level,
-    };
-    service.provide_hover(&params).expect("an answer")
+    positions
+        .iter()
+        .map(|&(line, character)| {
+            let params = HoverParams {
+                text_document: TextDocumentIdentifier {
+                    uri: DocumentUri(format!("file://{file}")),
+                },
+                position: Position { line, character },
+                work_done_token: None,
+                verbosity_level,
+            };
+            service.provide_hover(&params).expect("an answer")
+        })
+        .collect()
 }
 
 /// tsgo's hover at `(line, character)` of `file`: the markdown value, the
@@ -1676,4 +1703,61 @@ fn a_jsdoc_link_above_a_variable_statement_skips_its_initializer() {
             false,
         ))
     );
+}
+
+/// The first line of a hover's markdown code block.
+fn hover_head(hover: Option<Hover>) -> String {
+    let MarkupContentOrStringOrMarkedStringWithLanguageOrMarkedStrings::MarkupContent(content) =
+        hover.expect("a hover").contents
+    else {
+        panic!("markup content");
+    };
+    content
+        .value
+        .lines()
+        .nth(1)
+        .expect("a code line")
+        .to_owned()
+}
+
+/// tsgo's checker keeps one node builder for its displays
+/// (`typeToStringNodebuilder`), whose cache of built nodes outlives a
+/// request: once a hover's qualifier has built `typeof a` alone, a later
+/// qualifier reuses that whole node where a fresh build would cut it (found
+/// by the LSP test on zod). Pinned to tsgo's answers at aa814927.
+#[test]
+fn a_later_hover_reuses_the_checker_s_built_nodes() {
+    let a = (0..12)
+        .map(|index| format!("a{index}: string"))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let b = (0..12)
+        .map(|index| format!("b{index}: number"))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let text = format!("declare const a: {{ {a} }};\ninterface Box<T> {{ get(): T }}\ninterface Pair<U, T> {{ get(): T }}\ndeclare const y: Box<typeof a>;\ndeclare const x: Pair<{{ {b} }}, typeof a>;\ny.get();\nx.get();\n");
+    let files = [("/a.ts", text.as_str())];
+    let pair = format!("(method) Pair<{{ {}; }}, ", b);
+    let alone = hover_head(provide_hover(
+        &files,
+        options(|_| {}),
+        "/a.ts",
+        (6, 2),
+        None,
+        false,
+    ));
+    assert_eq!(
+        alone,
+        format!("{pair}{{ a0: string; a1: string; a2: string; ... 8 more ...; a11: string; }}>.get(): {{")
+    );
+    let mut hovers = provide_hovers(
+        &files,
+        options(|_| {}),
+        "/a.ts",
+        &[(5, 2), (6, 2)],
+        None,
+        false,
+    );
+    let after = hover_head(hovers.pop().expect("two answers"));
+    assert_eq!(after, format!("{pair}{{ {a}; }}>.get(): {{"));
 }
