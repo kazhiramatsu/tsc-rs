@@ -1239,6 +1239,16 @@ impl ConfigRootPlan {
         self
     }
 
+    /// The plan whose program takes the parses other Programs hold.
+    pub fn with_parse_cache(mut self, cache: crate::ParseCacheHandle) -> Self {
+        self.module_resolution_options.program_options = self
+            .module_resolution_options
+            .program_options
+            .clone()
+            .with_parse_cache(cache);
+        self
+    }
+
     /// The plan with the script kinds its files' handles give (an editor's
     /// open documents' languages), which the programs loaded from it parse
     /// with.

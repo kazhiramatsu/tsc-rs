@@ -1406,15 +1406,15 @@ impl Completions<'_, '_, '_> {
         unique_names: &mut HashSet<String>,
         entries: &mut Vec<CompletionItem>,
     ) {
-        for (name, pos) in self.request.name_table(self.source) {
+        for (name, &pos) in self.request.name_table(self.source) {
             // Not an identifier written only at the position.
             if pos == Some(self.position) {
                 continue;
             }
-            if !unique_names.contains(&name) && is_identifier_text_of_variant(&name, false) {
+            if !unique_names.contains(name) && is_identifier_text_of_variant(name, false) {
                 unique_names.insert(name.clone());
                 entries.push(CompletionItem {
-                    label: name,
+                    label: name.clone(),
                     kind: Some(CompletionItemKind::TEXT),
                     sort_text: Some(sort_text::JAVASCRIPT_IDENTIFIERS.to_owned()),
                     commit_characters: Some(Vec::new()),

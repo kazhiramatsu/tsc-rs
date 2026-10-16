@@ -1906,7 +1906,13 @@ impl ParallelReadAhead<'_> {
                     (Some(mapper), Some((_, project))) => {
                         self.transform_ahead(resolver, &path, bytes, &mapper, project)
                     }
-                    _ => parse_root_ahead(&path, bytes, self.options, scope.as_ref()),
+                    _ => parse_root_ahead(
+                        &path,
+                        bytes,
+                        self.options,
+                        scope.as_ref(),
+                        self.program_options.parse_cache(),
+                    ),
                 }
             }
         };
@@ -1970,7 +1976,11 @@ impl ParallelReadAhead<'_> {
                     .with_content_mapped(canonical.info)
                     .with_implied_node_formats(implied, implied_for_emit);
                 let canonical = Box::new(
-                    match plan_source_requests_retaining_syntax(&prepared, self.options) {
+                    match plan_source_requests_retaining_syntax(
+                        &prepared,
+                        self.options,
+                        self.program_options.parse_cache(),
+                    ) {
                         Ok((plan, syntax)) => PrefetchedParse {
                             implied,
                             implied_for_emit,
@@ -2288,6 +2298,7 @@ fn parse_root_ahead(
     bytes: Vec<u8>,
     options: &CompilerOptions,
     package_scope: Option<&PackageMetadata>,
+    parse_cache: Option<&dyn crate::ParseCache>,
 ) -> PrefetchedRead {
     let byte_len = bytes.len();
     // Under the phase trace a large source reports its decode, snapshot and
@@ -2311,7 +2322,7 @@ fn parse_root_ahead(
             tsc_types::trace::mark(&format!("load: snapshot {name}"), prepare_started);
         }
         let plan_started = std::time::Instant::now();
-        let planned = plan_source_requests_retaining_syntax(&prepared, options);
+        let planned = plan_source_requests_retaining_syntax(&prepared, options, parse_cache);
         if let Some((_, name)) = &traced {
             tsc_types::trace::mark(&format!("load: parse and plan {name}"), plan_started);
         }
@@ -2872,6 +2883,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let mut pending = pending.into_iter();
         let mut stopped = false;
         let options = self.compiler_options;
+        let parse_cache = self.program_options.parse_cache();
         let parsed = workers.map_streamed(
             capacity,
             |_| {
@@ -2922,7 +2934,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             |(index, path, scope, bytes)| {
                 let large_parse_started = (tsc_types::trace::enabled() && bytes.len() >= 256 << 10)
                     .then(|| (std::time::Instant::now(), bytes.len()));
-                let parsed = parse_root_ahead(&path, bytes, options, scope.as_ref());
+                let parsed = parse_root_ahead(&path, bytes, options, scope.as_ref(), parse_cache);
                 if let Some((started, len)) = large_parse_started {
                     tsc_types::trace::mark(
                         &format!("load: parse {:?} ({len} bytes)", path.display()),
@@ -2966,6 +2978,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         workers: WorkerBudget,
     ) -> Vec<(ProgramPath, PrefetchedRead)> {
         let options = self.compiler_options;
+        let parse_cache = self.program_options.parse_cache();
         let max_source_file_bytes = self.limits.max_source_file_bytes;
         let max_source_files = self.limits.max_source_files;
         let max_total_source_bytes = self.limits.max_total_source_bytes;
@@ -2998,7 +3011,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                             let large_parse_started = (tsc_types::trace::enabled()
                                 && bytes.len() >= 256 << 10)
                                 .then(|| (std::time::Instant::now(), bytes.len()));
-                            let parsed = parse_root_ahead(&path, bytes, options, scope.as_ref());
+                            let parsed = parse_root_ahead(
+                                &path,
+                                bytes,
+                                options,
+                                scope.as_ref(),
+                                parse_cache,
+                            );
                             if let Some((started, len)) = large_parse_started {
                                 tsc_types::trace::mark(
                                     &format!("load: parse {:?} ({len} bytes)", path.display()),
@@ -5204,7 +5223,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 Some(planned) => planned,
                 // The planning parse is the only parse of this snapshot: the
                 // checker session adopts it after proving equal parse options.
-                None => match plan_source_requests_retaining_syntax(&prepared, options_for_file) {
+                None => match plan_source_requests_retaining_syntax(
+                    &prepared,
+                    options_for_file,
+                    self.program_options.parse_cache(),
+                ) {
                     Ok((plan, syntax)) => {
                         prepared = prepared.with_preparsed_syntax(syntax);
                         Ok(plan)

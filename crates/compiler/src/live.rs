@@ -130,7 +130,8 @@ impl LiveProgram {
             }
             let options = options_for_source(prepared, old)?;
             let old_plan = plan_source_requests(old, options).ok()?;
-            let (new_plan, syntax) = plan_source_requests_retaining_syntax(&new, options).ok()?;
+            let (new_plan, syntax) =
+                plan_source_requests_retaining_syntax(&new, options, Some(documents)).ok()?;
             if !old_plan.has_same_requests(&new_plan)
                 || new_plan.has_synthetic_imports()
                 || check_directive(old.text()) != check_directive(new.text())
@@ -169,7 +170,9 @@ impl LiveProgram {
                 files_outside_program: 0,
             },
             Box::new(provider),
-            WorkerBudget::serial(),
+            // tsgo parses and binds a program's files on its workers
+            // (`BindSourceFiles`' work group).
+            WorkerBudget::automatic(),
             documents,
         )
         .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
