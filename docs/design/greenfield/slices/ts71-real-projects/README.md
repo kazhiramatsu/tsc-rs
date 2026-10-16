@@ -31,13 +31,13 @@
 
 最新の記録（`~/dev/real-projects.noindex/lsp-compare/out-<name>`、tsc-rs は slice 2〜3 の build、tsgo aa814927）：
 
-| project | 要求 | 違い | A | B | C |
-|---|---:|---:|---:|---:|---:|
-| hono（`src`） | 47,637 | 43 | 15 | 6 | 22 |
-| vue（`packages/*/src`） | 41,256 | 11 | 5 | 4 | 2 |
-| effect（`packages/effect/src`） | 89,249 | 68 | 未 | 未 | 未 |
-| playwright-core（`src`） | 60,108 | 50 | 未 | 未 | 未 |
-| zod・TypeScript compiler・next.js・vscode の `src/vs/base` | — | 0 | | | |
+| project | 要求 | 違い（#827 の前） | A | B | C | #827 の後 |
+|---|---:|---:|---:|---:|---:|---:|
+| hono（`src`） | 47,637 | 43 | 15 | 6 | 22 | 4（全て B） |
+| vue（`packages/*/src`） | 41,256 | 11 | 5 | 4 | 2 | 3（全て B） |
+| effect（`packages/effect/src`） | 89,249 | 68 | — | — | — | 0 |
+| playwright-core（`src`） | 60,108 | 50 | — | — | — | 50（codemirror の 5 label、label ごとに B） |
+| zod・TypeScript compiler・next.js・vscode の `src/vs/base` | — | 0 | | | | 0 |
 
 - A：tsgo の答えは再実行のどれでも同じで、tsc-rs だけが違う。B：tsgo の答えは揺れ、tsc-rs はその一つと同じ。C：tsgo は
   揺れ、tsc-rs はどれとも違う。hono は tsgo を 4 回（`out-hono`・`out-hono-tsgo1`・`out-hono-tsgo2`・`out-hono-5`）、vue は
@@ -94,43 +94,64 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 - 小さな再現：`lsp-compare/repro/vue-mini`（`packages/runtime-core/src/componentSlots.ts` の 1:5 で completion）。tsgo は
   `version <- .`、tsc-rs は相対 path の三つ。`vue-compat` と `vue/src/runtime.ts` を外すと両方 `.`。
 
-### 直し方の案（未実装）
+### 修正 1：auto-import の group の順（PR #827、2026-10-16、Fable 5.1）
 
-`View::get_completions` と `get_module_specifier`（view.rs:790）で、tsgo の最も出やすい結果を返す。tsgo の順は乱数なので、
-どの決まった順も tsgo の可能な順の一つで、その中で最も出やすい結果を選ぶ。
+- **merge**：#827 → `ae6f234f3`（hosted run 38911087732）。commit：9f3052b43（共有 file の specifier を先に埋める）、85292efd1（package の export は entrypoint の順）。
+- **tsgo の順の性質**：Go の map の走査は、要素が少ない map（package の数 file）では挿入順にほぼ従う（2 要素なら 7/8 が
+  挿入順）。要素が多い map（group の数千、project の file の数百）では hash 次第で、run ごとにほぼ一様な乱数。したがって
+  tsc-rs の決まった順は、小さい map では tsgo の挿入順、大きい map では「tsgo の最も出やすい結果」を狙う。
+- **共有 file の specifier**（`crates/ls/src/autoimport/view.rs` `fill_shared_specifiers`）：要求の group のうち、import する
+  file の specifier cache を読む export（package 名が無く、未解決の specifier でなく、ambient でなく、既存の import に
+  足せない）を file（`Export.path`）ごとに数え、2 つ以上の group が届く file は、どの group より先に、その group が与える
+  module file 名の多数派から specifier を計算して cache に入れる（tsgo では、どの group が最初に計算するかは一様に
+  乱数で、他の group が先に計算している確率は (n−1)/n）。1 つの group だけが届く file は今までどおり（tsgo でも必ず
+  その group が計算し、kind は本来のもの）。
+  - hono：middleware の index の `declare module '../..'` の export（path はその index、module file は `src/index.ts`）が
+    index 自身の export より先に計算して `../..` で汚していた 41 件が消えた。
+  - vue：`version` の group が三つの package の index の path を最初に計算して paths の kind になり、罰のある `.` と
+    順位の比較が循環していた 5 件が消えた。
+- **package の export の順**（`crates/ls/src/autoimport/node_modules.rs`）：`PackageExtraction.exports` と
+  `BucketExtraction.exports` は path の `BTreeMap` から、entrypoint の順の `Vec` にした。tsgo は package ごとの map を
+  entrypoint の順（main の file が先、次に directory の探索順）に埋めて Go の順で読む。main の file と addon の
+  augmentation の両方が宣言する export は一つの group に merge され、後の export の path が specifier を決める（tsgo は
+  addon の側が 8 回中 6 回）。tsc-rs は path の順で main の file（`index.d.ts`）が最後になり、常に main の側だった
+  （playwright の `@types/codemirror` の `overlayMode`）。
+- **test**（lsp。tsgo aa814927 の最頻の答えで固定、どれも変更なしでは落ちる）：
+  `auto_imports_name_a_file_from_its_own_exports_despite_an_augmentation`（二つの middleware が `'../..'` を augment：
+  汚れない。tsgo は file ごとに 8 回中 6 回）、`auto_imports_rank_a_shared_paths_specifier_as_cached`（`@v/*` の paths の
+  六つの file が再 export する `version`：三つの package。8 回中 7 回）、
+  `auto_imports_name_an_export_an_addon_augments_by_the_addon`（main と addon の augmentation が宣言する `overlayMode`：
+  addon の specifier。8 回中 6 回）。test の helper `auto_import_items_in` は開く file を指定できる。
+- **session**（tsgo aa814927、`nice -n 20`。違いは tsgo の再実行と突き合わせて A/B/C に分けた）：
 
-- 処理の前に、この要求の export のうち cache に届くものを path ごとに数える。数えるのは：
-  - 届くもの：package 名が無く、`unresolved_module_specifier` が無く、module id が ambient でなく、`GetFixes` で
-    `tryAddToExistingImport` が先に返さないもの。
-  - 数える値：group の数 n、通常の export と augmentation の export の数。
-- cache に無い path を計算する時：
-  - n ≥ 2：その path の多数派（通常の export）の module file 名から specifier を作って cache に入れ、kind は `Relative` で
-    返す。tsgo では、別の group が先に計算している確率が (n−1)/n。
-  - n = 1：今のまま（tsgo でも必ず最初）。
-- これで hono の汚染（cache の値）と vue の循環（kind）の両方が tsgo の多数派になる見込み。
-- 回帰 test（tsgo の多数派の答えで固定し、変更なしで落ちることを確かめる。crates/lsp/tests の auto-import の test の
-  helper を使う）：
-  1. vue-mini 相当：`@vue/*` の paths、`export *` の連鎖、`.` の index。
-  2. hono 相当：`declare module '../..'` の augmentation と通常の export が同じ file。
-- suites の lsp（4,583/4,584）に、この順に依存する baseline が無いかを見る。
+  | project | 要求 | 前 | 後（2 回） | tsgo の run | 残りの種類 |
+  |---|---:|---:|---:|---:|---|
+  | hono（`src`） | 47,637 | 43（A 15・B 6・C 22） | 4・10（全て B） | 6 | その run で tsgo の順が汚した middleware |
+  | vue（`packages/*/src`） | 41,256 | 11（A 5・B 4・C 2） | 5・3（全て B） | 5 | その run で tsgo が最初に計算した group |
+  | effect（`packages/effect/src`） | 89,249 | 68 | 11・11（全て B） | 4 | `Annotations`（`Schema.ts` の宣言と `HttpApiSchema.ts` の augmentation の merge：後の file の path。2 file の順は 1/2） |
+  | playwright-core（`src`） | 60,108 | 50 | 50・50（label ごとに B） | 4 | `@types/codemirror` の `on`/`off`/`signal`/`overlayMode`/`lint`：57 file の map の順（tsgo の 4 run で label ごとに答えが割れる） |
 
-### まだ見ていない差分
+  playwright の 50 件は、5 つの label の組み合わせが run ごとに違うので答え全体では C になるが、label ごとには tsc-rs の
+  答えは tsgo のどれかの run の答え（`lint` は 7 file のうち tsc-rs は `yaml-lint`。4 run では css・json）。
+- **検査**：8934a33aa（origin/main 41316289c の上）で release binary を作り直し、`nice -n 20`・worker 2：conformance 0 regressions、`--checkers 4` は既知の 4 件（15,335 一致）、suites 0 regressions（ratchet は変わらず、lsp 4,583/4,584、tsc 227/229）、全 crate の test（types 49・syntax 251・binder 78・program 683・checker 1,806・emitter 350・ls 232・lsp 67・api 332・project 235・compiler 241・conformance 49・lsproto 31）、clippy（ls・lsp、`-D warnings`）、fmt、API client sync 356/356・async 365/365。
+- **道具**（`~/dev/real-projects.noindex/lsp-compare`）：`stability.py OUT [tsgo の jsonl…]`（A/B/C）、`show.py OUT KEY`
+  （項目の違い）、`items.py SERVER ROOT FILE LINE CHAR [label の接頭辞…]`（一つの server の auto-import の項目）、
+  `replay.py SERVER ROOT GLOB KEY`（session の file の接頭辞を再生して、答えが変わる最短の接頭辞を二分探索。
+  `lsp-compare.py record --file-list` と `--until`）、`repro/{vue-mini2,hono-mini,cm-mini}`（tsgo を繰り返し走らせた
+  小さな再現）。
 
-- effect の 68：#822・#823 の記録では auto-import の specifier が 67 で、同じ種類の見込み。ほかに `HttpApiSchema`/`Schema` の
-  再 export。
-- playwright-core の 50：
-  - codemirror の `lint`/`overlayMode`：node_modules の bucket の merge で、後の export の `Path` が残る。
-  - `registry`（#824 の記録）。
-- hono の hover：tsgo は `Context<any, any, {}>`、tsc-rs は `Context<E extends Env = any, ...>`（B。#822 の記録では tsgo は
-  5 回中 2 回、宣言の型引数を答えた）。
-- vue の B・C：`findDir`・`resolveDirective` の候補の有無、`getCurrentScope <- .`、`TrackOpTypes` の specifier。
-- slice 3 の build の vue は 11 件、slice 2 の build は 9 件。増えた 2 件が slice 3 の変更によるものかは未確認。
-- 調べ方：
-  - `stability.py OUT [tsgo の再実行の jsonl ...]`：A/B/C に分ける。
-  - `show.py OUT KEY`：項目の違いを見る。
-  - `both.py`・`lsp-compare.py probe --raw`：一つの位置を両方の server に尋ねる。
-  - tsgo だけの再実行：`lsp-compare.py record --server <tsgo> --name tsgo --root <root> --files <glob> --out out-<name>-tsgoN`
-    （`run.sh` の中身と同じ引数）。
+### 残りと見方
+
+- hono の hover `Context<any, any, {}>.header`（B）：tsgo は 4 回に 1 回ほど宣言の型引数の形を答える。新しい session と、その
+  file 自身の前の要求を再生した後では両 server とも具体化した形。前の file の要求が query checker に残す状態が次の対象
+  （`lsp-compare/replay.py` で session の file の接頭辞を二分探索できる）。
+- tsgo の bug：augment するだけの file から import する specifier（hono の `../..`、effect の `./http-api/HttpApiSchema.ts`、
+  codemirror の addon）。本家に該当 issue は無く（2026-10-16 時点。関連の #64821 は preference 変更時の cache 消去で別件、
+  `tsc/internal/ls/autoimport` の source は本家 main と vendored commit で同一）、下書きは
+  `target/claude-tools/handover/tsgo-autoimport-issue.md`（利用者の判断待ち）。
+- 調べ方：`stability.py OUT [tsgo の再実行の jsonl…]`（A/B/C）、`show.py OUT KEY`（項目の違い）、`items.py`（一つの server の
+  auto-import の項目）、`lsp-compare.py probe --raw`、tsgo だけの再実行は `lsp-compare.py record --server <tsgo> --name tsgo
+  --root <root> --files <glob> --out out-<name>-tsgoN`。
 
 ## 2. 新しい frontend project（取得と依存の install まで済み）
 
