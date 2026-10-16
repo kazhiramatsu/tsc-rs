@@ -9,6 +9,7 @@
 //! given (`\` becomes `/`, `.` and `..` segments are resolved, a trailing
 //! separator is dropped), as tsgo's file systems do.
 
+mod cached;
 mod host;
 mod memory;
 mod os;
@@ -19,6 +20,7 @@ use std::io;
 use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, SystemTime};
 
+pub use cached::CachedFs;
 pub use host::VfsCompilerHost;
 pub use memory::{Entry, EntryContents, MemFs, Seed};
 pub use os::OsFs;
@@ -67,6 +69,15 @@ pub trait FileSystem: Send + Sync {
     /// Whether `path` names a file.
     fn is_file(&self, path: &str) -> bool {
         self.metadata(path).is_ok_and(|metadata| metadata.is_file())
+    }
+
+    /// Whether a program's loader may read and look up from several
+    /// threads at once (its source read-ahead, tsgo's parse tasks): every
+    /// read answers what the loading thread's would, and the reads leave no
+    /// observable order. A file system whose reads reach a client keeps the
+    /// default.
+    fn permits_parallel_reads(&self) -> bool {
+        false
     }
 
     /// Whether `path` names a directory.
@@ -154,6 +165,9 @@ macro_rules! delegate_file_system {
             }
             fn is_file(&self, path: &str) -> bool {
                 (**self).is_file(path)
+            }
+            fn permits_parallel_reads(&self) -> bool {
+                (**self).permits_parallel_reads()
             }
             fn is_dir(&self, path: &str) -> bool {
                 (**self).is_dir(path)

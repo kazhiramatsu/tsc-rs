@@ -863,7 +863,7 @@ pub struct SnapshotHost {
     snapshot_id: AtomicU64,
     /// tsgo `parseCache`: the parsed and bound sources the snapshots'
     /// programs share.
-    documents: DocumentRegistry,
+    documents: Arc<DocumentRegistry>,
     /// tsgo `contentMapperHost`: the content mappers' processes the
     /// programs share.
     content_mapper_host: Option<ContentMapperHost>,
@@ -899,7 +899,7 @@ impl SnapshotHost {
             fs,
             paths,
             snapshot_id: AtomicU64::new(0),
-            documents: DocumentRegistry::new(),
+            documents: Arc::new(DocumentRegistry::new()),
             content_mapper_host,
             content_mapped_cache: Arc::default(),
         }
@@ -935,6 +935,12 @@ impl SnapshotHost {
     /// The documents the programs share (tsgo's parse cache).
     pub fn documents(&self) -> &DocumentRegistry {
         &self.documents
+    }
+
+    /// The documents the programs share as their loaders read them (tsgo's
+    /// compiler host `GetSourceFile` over the parse cache).
+    pub fn parse_cache(&self) -> tsc_program::ParseCacheHandle {
+        tsc_program::ParseCacheHandle::new(Arc::clone(&self.documents) as _)
     }
 
     /// tsgo `NewRootSnapshot`: an empty snapshot with ID 0.
@@ -1033,8 +1039,11 @@ impl SnapshotHost {
             }
             None => (documents_over_host, None, overlays),
         };
+        // tsgo `newSnapshotFSBuilderFromSource`: the snapshot's file system
+        // remembers what it answered about entries while it builds and
+        // serves the snapshot (tsgo `cachedvfs`).
         let fs = SnapshotFsBuilder::new(
-            file_system,
+            Arc::new(tsc_host::vfs::CachedFs::new(file_system)),
             Arc::clone(&base.fs.files),
             Arc::clone(&base.fs.aliases),
             self.paths.clone(),
