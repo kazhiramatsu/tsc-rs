@@ -802,12 +802,7 @@ fn get_possible_symbol_reference_positions(
 
 /// Go `strings.Index` over bytes.
 fn index_of(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.len() > haystack.len() {
-        return None;
-    }
-    haystack
-        .windows(needle.len())
-        .position(|window| window == needle)
+    memchr::memmem::find(haystack, needle)
 }
 
 /// tsgo `getMergedAliasedSymbolOfNamespaceExportDeclaration`: at `export as
@@ -1047,7 +1042,6 @@ fn get_referenced_symbols_for_symbol(
         import_tracker: None,
         symbol_to_references: HashMap::new(),
         file_to_seen_symbols: HashMap::new(),
-        name_tables: HashMap::new(),
     };
 
     let export_specifier = if is_for_rename_with_prefix_and_suffix_text(options) {
@@ -1284,8 +1278,6 @@ struct RefState<'r, 's, 'a, 'f> {
     import_tracker: Option<ImportTracker>,
     symbol_to_references: HashMap<SymbolId, usize>,
     file_to_seen_symbols: HashMap<usize, HashSet<SymbolId>>,
-    /// tsgo caches a file's name table on the file.
-    name_tables: HashMap<usize, HashSet<String>>,
 }
 
 /// How `forEachRelatedSymbol` reports a related symbol: tsgo's callbacks of
@@ -2580,12 +2572,8 @@ impl RefState<'_, '_, '_, '_> {
     /// tsgo `searchForName`: search for all occurrences of an identifier in a
     /// source file (and filter out the ones that match).
     fn search_for_name(&mut self, file: usize, search: &RefSearch) -> CheckResult<()> {
-        if !self.name_tables.contains_key(&file) {
-            let source = self.request.state.binder.source(file);
-            let names = self.request.name_table(source).into_keys().collect();
-            self.name_tables.insert(file, names);
-        }
-        if self.name_tables[&file].contains(&search.text) {
+        let source = self.request.state.binder.source(file);
+        if self.request.name_table(source).contains_key(&search.text) {
             self.get_references_in_source_file(file, search, true)?;
         }
         Ok(())
