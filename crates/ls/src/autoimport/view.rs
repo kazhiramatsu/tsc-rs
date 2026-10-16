@@ -275,7 +275,11 @@ impl<'r> View<'r> {
     ) -> CheckResult<Vec<FixAndExport>> {
         let results = self.search(prefix, QueryKind::WordPrefix);
         type GroupKey = (ExportId, String, String);
+        // tsgo's groups are a map; these keep the order they were found in,
+        // with the map from a key to its group.
         let mut grouped: Vec<(GroupKey, Vec<Arc<Export>>)> = Vec::new();
+        let mut group_of: std::collections::HashMap<GroupKey, usize> =
+            std::collections::HashMap::new();
         'outer: for export in results {
             let name = export.name().to_owned();
             if !tsc_syntax::is_identifier_text(&name) {
@@ -306,7 +310,8 @@ impl<'r> View<'r> {
                 // detected.
                 key.2 = format!("node:{}", key.2);
             }
-            if let Some((_, existing)) = grouped.iter_mut().find(|(known, _)| *known == key) {
+            if let Some(&group) = group_of.get(&key) {
+                let existing = &mut grouped[group].1;
                 for slot in existing.iter_mut() {
                     if slot.id == export.id {
                         *slot = Arc::new(Export {
@@ -334,6 +339,7 @@ impl<'r> View<'r> {
                 }
                 existing.push(export);
             } else {
+                group_of.insert(key.clone(), grouped.len());
                 grouped.push((key, vec![export]));
             }
         }
