@@ -1707,3 +1707,83 @@ fn auto_imports_name_a_file_through_a_dependency_s_symlink() {
     );
     session.close();
 }
+
+/// The auto-import items of `text` at `(line, character)` in a session over
+/// `entries` (with `/ws/index.ts` holding `text`): label, kind, specifier,
+/// import kind and tags.
+fn auto_import_items(
+    entries: Vec<(&'static str, Seed)>,
+    text: &str,
+    (line, character): (u32, u32),
+) -> Vec<(String, i64, String, i64, Value)> {
+    let fs = Arc::new(MemFs::from_entries(entries, false, Arc::new(SystemClock)).unwrap());
+    let mut session = Session::start_with(fs);
+    let mut client = RegistrationClient::default();
+    client.initialize(&mut session, serde_json::json!({}));
+    let index = "file:///ws/index.ts";
+    client.notify(
+        &mut session,
+        "textDocument/didOpen",
+        serde_json::json!({"textDocument": {"uri": index, "languageId": "typescript", "version": 1, "text": text}}),
+    );
+    let response = client.request(
+        &mut session,
+        2,
+        "textDocument/completion",
+        serde_json::json!({"textDocument": {"uri": index}, "position": {"line": line, "character": character}}),
+    );
+    session.close();
+    let mut items = response["result"]["items"]
+        .as_array()
+        .expect("the items")
+        .iter()
+        .filter(|item| item["data"].get("autoImport").is_some())
+        .map(|item| {
+            let auto_import = &item["data"]["autoImport"];
+            (
+                item["label"].as_str().expect("a label").to_owned(),
+                item["kind"].as_i64().expect("a kind"),
+                auto_import["moduleSpecifier"]
+                    .as_str()
+                    .expect("a specifier")
+                    .to_owned(),
+                auto_import["importKind"].as_i64().expect("an import kind"),
+                item.get("tags").cloned().unwrap_or(Value::Null),
+            )
+        })
+        .collect::<Vec<_>>();
+    items.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
+    items
+}
+
+/// tsgo's `getNodeModifiers` reads the modifiers of any declaration node
+/// (`ast.IsDeclaration`: an export assignment included), so `export default`
+/// under a JSDoc `@deprecated` makes its auto-import item deprecated (found
+/// by the LSP test on next.js). Pinned to tsgo's answer at aa814927.
+#[test]
+fn a_deprecated_default_export_s_auto_import_is_deprecated() {
+    const INDEX: &str = "export const x = 1;\noldV\n";
+    let entries = vec![
+        (
+            "/ws/tsconfig.json",
+            Seed::file(
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}}"#,
+            ),
+        ),
+        (
+            "/ws/oldValue.ts",
+            Seed::file("/**\n * @deprecated Use the other one.\n */\nexport default 42;\n"),
+        ),
+        ("/ws/index.ts", Seed::file(INDEX)),
+    ];
+    assert_eq!(
+        auto_import_items(entries, INDEX, (1, 4)),
+        [(
+            "oldValue".to_owned(),
+            5,
+            "./oldValue".to_owned(),
+            1,
+            serde_json::json!([1])
+        )]
+    );
+}
