@@ -361,7 +361,18 @@ pub fn plan_source_requests(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
 ) -> Result<SourceRequestPlan, ResolutionError> {
-    Ok(plan_module_requests_worker(source, options, true, true, None)?.0)
+    plan_source_requests_cached(source, options, None)
+}
+
+/// [`plan_source_requests`] over the parse `cache` holds of the source, when
+/// it holds one (tsgo's parse cache: the auto-import alias resolver's files,
+/// the file a reused Program replaces).
+pub fn plan_source_requests_cached(
+    source: &PreparedSourceFile,
+    options: &CompilerOptions,
+    cache: Option<&dyn ParseCache>,
+) -> Result<SourceRequestPlan, ResolutionError> {
+    Ok(plan_module_requests_worker(source, options, true, true, cache)?.0)
 }
 
 /// [`plan_source_requests`] that also retains the parse the plan was computed
