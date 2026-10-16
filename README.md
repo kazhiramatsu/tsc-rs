@@ -98,7 +98,9 @@ restarts a mapper whose package changes.
 - **Real projects:** `tsc-rs --noEmit` printed the same output as `tsgo` on
   all 9,067 DefinitelyTyped packages, all 2,756 azure-sdk-for-js
   configurations and all 38 material-ui projects (October 2026, one
-  checker).
+  checker). On the 157 tsconfigs of astro, remix, nuxt, SolidJS and svelte,
+  the diagnostics and the emitted JavaScript and declaration files are the
+  same as `tsgo`'s (October 17, 2026).
 - **Language server:** in 4,583 of the 4,584 sessions of TypeScript 7.1's
   language server tests, tsc-rs answers exactly as `tsgo` does; `tsgo`'s
   own answer to the last one varies from run to run (October 15, 2026). In

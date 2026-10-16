@@ -190,6 +190,69 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 5. 違いは checker・LSP・tsgo の揺れに分ける。tsgo の揺れは再実行で確かめる（A/B/C）。直したものは Rust の回帰 test に
    固定する。
 
+### 修正 2：frontend project の compiler・emitter の差分（PR #828、2026-10-17、Fable 5.1）
+
+- **merge**：#828 → `39d8a0121`（hosted run 38956397408）。commit：54cec86a5（emit：書き換えた specifier の引用符、line comment の
+  次の export specifier）、95153f130（check：`@overload` の型引数、`this` property の文脈型、`T & object` と array の
+  comparable、TS2694 の module 名）、73a8c2a73（program：未 build の参照先出力に redirect される root、package scope の順）、
+  1ce172122（check：overload の template の型引数は symbol 一つのまま、comment の table に置く）。
+- **比べたもの**（tsgo aa814927、`nice -n 20`。`frontend/compare-all.sh <label> both`：各 tsconfig の `-p --noEmit` の診断と、
+  outDir を分けた emit の tree）：astro 30・remix 100・nuxt 4・solid 17・svelte 6 の 157 tsconfig。前（base1）：診断の違い
+  5（astro 1・svelte 4）、emit の違い 76（remix 99・astro 2・svelte 3 → remix は引用符だけで 863 file）。後（base3）：
+  診断 157/157、emit 157/157 が同一。
+- **六つの種類と直し方**（どれも tsgo の経路に合わせて既存の code を変えた）：
+  1. **書き換えた specifier の引用符**（remix）：`rewriteRelativeImportExtensions` が `'./a.ts'` を `"./a.js"` にしていた。
+     tsgo は literal の TokenFlags（single quote）を写す。`relative_imports.rs` `rewrite_literal` は flag が無ければ source の
+     引用符を読む。CommonJS の `require('./a.js')` も同じ。
+  2. **line comment の次の export specifier**（remix `fetch-router`）：`export { a, a as b, // shorthand\n c }` で次の行の `c`
+     の前に space が付いていた。tsgo は sibling の space を comment の前に書く。named import/export の worker は行頭なら
+     space を書かない（他の list の worker は既にそうしていた）。
+  3. **field の `@type` と `this.x = …`**（svelte 3 file）：initializer の無い field に JSDoc の型があると代入の文脈型を失い、
+     literal 型が広がり（TS2322）、arrow の仮引数が implicit any（TS7006）、`push` が TS2345 になっていた。tsgo の
+     `d.Type()` は reparse した `@type` を含む（`contextual.rs`）。
+  4. **`@overload` の型引数**（svelte `derived`）：overload の `@template` を signature の locals に宣言した後で signature
+     の container の bind が table を作り直し、`T` が見つからない（TS2304）か実装側の型引数に解決して呼び出しが
+     TS2345/TS7006 になっていた。template の型引数の symbol は一つのまま（checker の overload signature はその型の
+     instantiation なので、symbol を増やすと `.types`・d.ts の名前が `T_1` に割れる：最初の版が
+     `jsDocGenericOverloads`・`jsFileFunctionOverloads2`・`jsFileMethodOverloads2`・`jsdocVariadicInOverload` を落とした）、
+     comment（JSDoc node）を key にした table にも置く（host の無い comment ではそこだけ：
+     `hosted::overload_template_comment`）。overload 内の名前は signature の locals → comment の table → host を飛ばして
+     host の container の順で解決する（tsgo の reparse した overload 宣言は host の隣。`resolve.rs` `advance_walk`、
+     last location は host）。実装側の locals は見えないので、`@overload` の後ろに置いた `@template` は実装が同名を
+     宣言していても TS2304（`overloadTag4`）。
+  5. **`T & object` を `any[]` に cast**（svelte proxy）：intersection の source と array の target の comparable 判定で
+     target の optional property の追加検査に入っていた。tsgo は tuple だけでなく array も除く（`isArrayOrTupleType`）。
+  6. **TS2694 の module 名**（svelte）：`import('est').Decorator` の message が `'est'`。tsgo は symbol の escaped name
+     `'"est"'`（`annotate.rs` `get_fully_qualified_name`）。
+  7. **未 build の参照先出力に redirect される root**（astro `markdoc`）：参照 project が持つ file を `include` が含むと root は
+     その project の出力 `.d.ts` に redirect され、未 build なら tsgo は file も診断も出さない（TypeScript 6.0.3 は TS6305。
+     本家への issue 候補、`handover/upstream-tests-pr.md`）。`resolve_root_sources` で落とす。package.json の scope は file を
+     読む前に引く（tsgo `parseTask.load` の順）ので、tsbuildinfo の `missingPackageJsons` も一致する。
+- **test**（どれも変更なしでは落ちる。program の probe の assert は astro の tsbuildinfo の一致で確かめた）：checker
+  `jsdoc_overload_signatures_keep_their_template_type_parameters`、
+  `jsdoc_overload_signatures_do_not_see_the_implementation_s_type_parameters`、
+  `js_this_property_assignments_are_contextually_typed_by_the_jsdoc_type`、
+  `a_generic_intersection_is_comparable_to_an_array_type`、`import_type_namespace_errors_print_the_module_s_quoted_name`；
+  emitter `rewritten_module_specifiers_keep_their_quotes`、`export_list_item_after_a_line_comment_starts_its_line`；
+  program `a_root_redirected_to_an_unbuilt_output_is_dropped_silently`。
+- **本家の test 形式**：同じ 5 件を tsgo の test 形式で書き、tsgo の出力を記録した（`target/claude-tools/handover/upstream-tests/`）。
+  利用者が「test case の不足」の issue と PR を本家に出す（`upstream-tests-pr.md`）。conformance の corpus にはどれも無い
+  形（`rewriteRelativeImportExtensions` の test は全部 double quote、`@overload` の test は実装側にも同じ `@template`、…）。
+- **検査**：1ce172122（origin/main cf8fb7444 の上）で release binary を作り直し、`taskpolicy -c maintenance nice -n 20`・
+  worker 1（利用者の就寝中）：conformance 0 regressions（13,577 full、emit 13,569 full・mismatch 0、5,083 s）、
+  `--checkers 4` は既知の 4 件（15,335 一致）、suites 0 regressions（ratchet 変わらず）、全 crate の test（types 49・syntax 251・
+  binder 78・program 684・checker 1,811・emitter 352・ls 232・lsp 67・api 332・project 235・compiler 241・conformance 49・
+  lsproto 31）、fmt。clippy は hosted の `rust` job。73a8c2a73 での最初の full run は overload の修正の第 1 版で 4 件
+  regress（`.types`・d.ts の `T_1` 改名）、1ce172122 で解消。関連する既存の conformance case 23 件（`jsFileFunctionOverloads*`・`jsFileMethodOverloads*`・`jsDocGenericOverloads`・`overloadTag1-3`・
+  `templateInsideCallback`・`jsdocVariadicInOverload`・`jsdocTemplateTag*`・`jsdocImportTypeNodeNamespace`・
+  `annotatedThisPropertyInitializerDoesntNarrow`・`rewriteRelativeImportExtensions*`）は個別に full。
+- **道具**：`~/dev/real-projects.noindex/emit-compare.py`（outDir を分けて両方で emit し tree を比べる。違う tree は
+  `frontend/work/<repo>-<label>/` に残る）、`frontend/compare-all.sh <label> [diag|emit|both]`、`frontend/<repo>-projects.txt`、
+  `lsp-compare/repro/{svelte-js,overload,overload2,overload3,overload4,derived,comparable,comparable2,astro-refs,…}`、
+  `handover/upstream-tests/run-case.py`（本家形式の case を tsgo で走らせる）。
+- **残り**：frontend repo の LSP session（astro・svelte・solid・remix・nuxt、`lsp-compare/run.sh`）、hono の
+  `Context<any, any, {}>.header` の hover（B、tsgo 3/4）。
+
 ## 3. 性能の slice 3（local のみ、未 push）
 
 - **worktree と branch**：`/Users/hiramatsu/dev/tsc-rs-p34` の `perf/ts71-lsp-request-threads`、HEAD は `b121051dd`
