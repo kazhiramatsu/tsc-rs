@@ -34,40 +34,58 @@ pub fn discover_symlink_facts(prepared: &PreparedProgram) -> SymlinkFacts {
     let mut facts = SymlinkFacts::default();
     let mut seen_files: BTreeSet<JsString> = BTreeSet::new();
     let mut seen_directories: BTreeSet<JsString> = BTreeSet::new();
-    let mut process = |resolved_file: &ProgramPath, original_path: Option<&ProgramPath>| {
-        let Some(original_path) = original_path else {
-            return;
-        };
-        let real = path_text(resolved_file);
-        let symlink = path_text(original_path);
-        if seen_files.insert(canonical(&symlink, case_sensitive)) {
-            facts.files.push((real.clone(), symlink.clone()));
-        }
-        if let Some((common_real, common_symlink)) =
-            guess_directory_symlink(&real, &symlink, case_sensitive)
-        {
-            if !contains_ignored_path(&common_symlink)
-                && seen_directories.insert(canonical(&common_symlink, case_sensitive))
-            {
-                facts.directories.push((common_real, common_symlink));
+    let mut process =
+        |real: JsString, symlink: JsString, seen_directories: &mut BTreeSet<JsString>| {
+            if seen_files.insert(canonical(&symlink, case_sensitive)) {
+                facts.files.push((real.clone(), symlink.clone()));
             }
-        }
-    };
+            if let Some((common_real, common_symlink)) =
+                guess_directory_symlink(&real, &symlink, case_sensitive)
+            {
+                if !contains_ignored_path(&common_symlink)
+                    && seen_directories.insert(canonical(&common_symlink, case_sensitive))
+                {
+                    facts.directories.push((common_real, common_symlink));
+                }
+            }
+        };
     for (_, resolution) in prepared.resolutions().modules() {
         if let ResolutionOutcome::Resolved(module) = resolution.outcome() {
-            process(module.target().resolved_file(), module.original_path());
+            if let Some(original_path) = module.original_path() {
+                process(
+                    path_text(module.target().resolved_file()),
+                    path_text(original_path),
+                    &mut seen_directories,
+                );
+            }
         }
     }
     for (_, resolution) in prepared.resolutions().type_references() {
         if let ResolutionOutcome::Resolved(directive) = resolution.outcome() {
-            process(directive.target(), directive.original_path());
+            if let Some(original_path) = directive.original_path() {
+                process(
+                    path_text(directive.target()),
+                    path_text(original_path),
+                    &mut seen_directories,
+                );
+            }
         }
     }
-    // `getAllModulePathsWorker`'s prelude: the package scope's runtime
-    // dependencies, resolved from `<package>/package.json`, feed the same
-    // cache (`links.setSymlinksFromResolution`).
-    for (resolved_file, original_path) in prepared.dependency_symlink_resolutions() {
-        process(resolved_file, Some(original_path));
+    // tsgo `GetSymlinkCache`'s second pass: a package scope's runtime
+    // dependency reached through a symlink, unless the scope's own
+    // `node_modules/<name>` (or `node_modules/@types/<name>`) is a symlinked
+    // directory the cache knows already (`HasDirectory`).
+    for dependency in prepared.dependency_symlinks() {
+        let known =
+            |directory: &JsString| seen_directories.contains(&canonical(directory, case_sensitive));
+        if known(&dependency.adjacent) || dependency.adjacent_types.as_ref().is_some_and(known) {
+            continue;
+        }
+        process(
+            dependency.real.clone(),
+            dependency.symlink.clone(),
+            &mut seen_directories,
+        );
     }
     facts
 }

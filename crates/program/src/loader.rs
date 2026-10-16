@@ -981,12 +981,16 @@ fn load_program_worker(
     staged
         .package_json_probes
         .extend(resolver.take_package_json_probes());
-    // Before the package table is collected: the prelude's resolutions read
-    // package.json files under their symlink spellings, and module-specifier
-    // generation later reads those spellings back (upstream shares one
-    // package.json info cache between resolution and specifier generation).
-    let dependency_symlink_resolutions =
-        resolve_runtime_dependency_symlinks(&mut resolver, &staged)?;
+    // Before the package table is collected: the prelude reads each found
+    // package directory's package.json under its symlink spelling, which
+    // module-specifier generation reads back (tsgo reads package.json files
+    // lazily from one cache).
+    let dependency_symlinks = resolve_runtime_dependency_symlinks(
+        &mut resolver,
+        &staged,
+        &compiler_options,
+        program_options.config_file_path().map(ProgramPath::display),
+    )?;
     let mut packages_by_path = BTreeMap::new();
     for package in resolver.observed_package_metadata() {
         packages_by_path
@@ -1026,38 +1030,42 @@ fn load_program_worker(
         mode,
         staged,
         packages,
-        dependency_symlink_resolutions,
+        dependency_symlinks,
         path_context,
         compiler_options,
         program_options,
     )
 }
 
-/// tsc-port: getAllModulePathsWorker @6.0.3
-/// tsc-hash: 29f3f2796fae09795c9ba292485de9c6f7c91888e1b419dc364964bc6814c791
-/// tsc-span: _tsc.js:45717-45741
-///
-/// The prelude of upstream's module-path enumeration: for an importing file
-/// outside `node_modules`, every runtime dependency of its package scope is
-/// resolved from `<packageDirectory>/package.json` and the resolution is fed
-/// to the symlink cache (`links.setSymlinksFromResolution`). Upstream runs it
-/// lazily per importing file whenever a module specifier is computed; the
-/// program runs it once here, over every non-library source outside
-/// `node_modules`, and keeps only the resolutions that went through a
-/// symlink — the only observable product (the cache) is identical.
+/// tsgo-port: Program.GetSymlinkCache @aa814927 (program.go:2330-2378),
+/// its second pass: the runtime dependencies of the package scope of each
+/// file that may be emitted (each scope once), looked up as package
+/// directories (`ResolvePackageDirectory`: the nearest `node_modules/<name>`,
+/// no `paths`). The ones a symlink reaches feed the cache unless the scope's
+/// own `node_modules/<name>` or `node_modules/@types/<name>` is a symlinked
+/// directory the cache knows by then, a rule [`crate::discover_symlink_facts`]
+/// applies after the resolutions' links.
 fn resolve_runtime_dependency_symlinks(
     resolver: &mut ModuleResolver<'_>,
     staged: &CompleteGraph,
-) -> Result<Vec<(ProgramPath, ProgramPath)>, ProgramLoadError> {
+    compiler_options: &CompilerOptions,
+    config_path: Option<JsStr<'_>>,
+) -> Result<Vec<crate::DependencySymlink>, ProgramLoadError> {
+    let context = resolver.path_context();
+    let current_directory = context.current_directory().display().to_owned();
+    let case_sensitive = context.use_case_sensitive_file_names();
     let mut seen_scopes: BTreeSet<CanonicalPath> = BTreeSet::new();
-    let mut seen_pairs: BTreeSet<(CanonicalPath, CanonicalPath)> = BTreeSet::new();
-    let mut resolutions = Vec::new();
+    let mut symlinks = Vec::new();
     for source in &staged.sources {
-        if source.library_priority.is_some() {
-            continue;
-        }
         let file = source.prepared.path();
-        if display_path_contains_node_modules(file.display()) {
+        if !crate::output_directories::source_file_may_be_emitted_for_options(
+            file.display(),
+            source.prepared.may_be_emitted() && source.has_non_external_reason,
+            compiler_options,
+            config_path,
+            current_directory.as_js(),
+            case_sensitive,
+        ) {
             continue;
         }
         let Some(package) = resolver
@@ -1076,13 +1084,12 @@ fn resolve_runtime_dependency_symlinks(
         if !seen_scopes.insert(package.package_json().canonical().clone()) {
             continue;
         }
+        let directory = crate::js_path::directory_name(package.package_json().display());
+        let node_modules =
+            crate::js_path::combine_paths(directory.as_js(), JsStr::from_str("node_modules"));
         for name in runtime_dependency_names(package.package_json(), package.text()) {
-            let outcome = resolver
-                .resolve(
-                    package.package_json().display(),
-                    &name,
-                    ResolutionMode::Unspecified,
-                )
+            let found = resolver
+                .resolve_package_directory(directory.as_js(), name.as_js())
                 .map_err(|error| {
                     ProgramLoadError::resolution_js(
                         ProgramLoadOperation::ResolveModule,
@@ -1091,22 +1098,26 @@ fn resolve_runtime_dependency_symlinks(
                         error,
                     )
                 })?;
-            let ResolutionOutcome::Resolved(module) = outcome else {
+            let Some((real, Some(symlink))) = found else {
                 continue;
             };
-            let Some(original_path) = module.original_path() else {
-                continue;
+            let package_json = |directory: &ProgramPath| {
+                crate::js_path::combine_paths(directory.display(), JsStr::from_str("package.json"))
             };
-            let pair = (
-                module.resolved_file().canonical().clone(),
-                original_path.canonical().clone(),
-            );
-            if seen_pairs.insert(pair) {
-                resolutions.push((module.resolved_file().clone(), original_path.clone()));
-            }
+            symlinks.push(crate::DependencySymlink {
+                adjacent: crate::js_path::combine_paths(node_modules.as_js(), name.as_js()),
+                adjacent_types: (!name.starts_with("@types")).then(|| {
+                    crate::js_path::combine_paths(
+                        node_modules.as_js(),
+                        crate::js_string_ops::types_package_name(name.as_js()).as_js(),
+                    )
+                }),
+                real: package_json(&real),
+                symlink: package_json(&symlink),
+            });
         }
     }
-    Ok(resolutions)
+    Ok(symlinks)
 }
 
 /// tsc-port: getAllRuntimeDependencies @6.0.3
@@ -7019,7 +7030,7 @@ fn publish_program(
     mode: PreparedProgramMode,
     mut staged: CompleteGraph,
     packages: Vec<PackageMetadata>,
-    dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
+    dependency_symlinks: Vec<crate::DependencySymlink>,
     path_context: PathContext,
     compiler_options: CompilerOptions,
     program_options: ProgramOptions,
@@ -7039,7 +7050,7 @@ fn publish_program(
             PreparedProgram::emitting_builder(path_context, compiler_options.clone())
         }
     };
-    builder = builder.with_dependency_symlink_resolutions(dependency_symlink_resolutions);
+    builder = builder.with_dependency_symlinks(dependency_symlinks);
     // The package.json files every resolver of the load probed, each once.
     let mut package_json_probes = BTreeMap::new();
     for probe in staged.package_json_probes.iter().cloned() {
@@ -8599,24 +8610,6 @@ pub fn load_emitting_program_js(
         None,
     )
 }
-
-/// The `/node_modules/` membership test on a display path, evaluated on the
-/// JavaScript string itself: either separator counts on both sides, exactly
-/// like the former `replace('\\', "/").contains("/node_modules/")`, and no
-/// UTF-8 projection of the path is made.
-fn display_path_contains_node_modules(path: JsStr<'_>) -> bool {
-    const NAME: &[u8] = b"node_modules";
-    let is_separator = |byte: u8| byte == b'/' || byte == b'\\';
-    path.as_bytes().windows(NAME.len() + 2).any(|window| {
-        is_separator(window[0])
-            && &window[1..=NAME.len()] == NAME
-            && is_separator(window[NAME.len() + 1])
-    })
-}
-
-#[cfg(test)]
-#[path = "../tests/unit/loader/node_modules_membership_tests.rs"]
-mod node_modules_membership_tests;
 
 #[cfg(test)]
 #[path = "../tests/unit/loader/typed_error_source_tests.rs"]
