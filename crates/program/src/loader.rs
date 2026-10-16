@@ -4912,6 +4912,28 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             self.bind_existing_source(existing, task)?;
             return Ok(Some(existing));
         }
+        // Package deduplication is decided when the files are collected
+        // (`collect_files`), as tsgo's parse tasks load every copy and its
+        // subtasks and the collect walk redirects the later copies. A
+        // library is a script: tsgo looks up no package.json for it. The
+        // scope is looked up before the file is read (tsgo parseTask.load:
+        // loadSourceFileMetaData, then parseSourceFile), so a missing file,
+        // such as the unbuilt output a root redirects to, leaves the same
+        // package.json probes in the resolver's record.
+        let package_scope = if class.library_priority().is_some() {
+            None
+        } else {
+            self.resolver
+                .package_scope_for_file(path.display())
+                .map_err(|error| {
+                    ProgramLoadError::resolution_js(
+                        ProgramLoadOperation::ObservePackageScope,
+                        Some(path.display().to_owned()),
+                        None,
+                        error,
+                    )
+                })?
+        };
         // A retained read-ahead result stands in for the host call it already
         // made (see `prefetch_roots`); otherwise the host is queried here. A
         // content mapper's supplemental output came with its file.
@@ -5026,24 +5048,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 DecodedSource::PrefetchedMapped(mapped) => DecodedSource::Text(mapped.content),
                 decoded => decoded,
             },
-        };
-        // Package deduplication is decided when the files are collected
-        // (`collect_files`), as tsgo's parse tasks load every copy and its
-        // subtasks and the collect walk redirects the later copies. A
-        // library is a script: tsgo looks up no package.json for it.
-        let package_scope = if class.library_priority().is_some() {
-            None
-        } else {
-            self.resolver
-                .package_scope_for_file(path.display())
-                .map_err(|error| {
-                    ProgramLoadError::resolution_js(
-                        ProgramLoadOperation::ObservePackageScope,
-                        Some(path.display().to_owned()),
-                        None,
-                        error,
-                    )
-                })?
         };
         let file_name = path.display();
         // A file of a referenced project takes its project's options (tsgo
@@ -6798,6 +6802,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// diagnostics (a root that is also a missing library reports the
     /// library's diagnostic in place of its own).
     fn resolve_root_sources(&mut self) {
+        let mut dropped = Vec::new();
         for index in 0..self.roots.len() {
             let Some(task) = self.roots[index].task else {
                 continue;
@@ -6810,6 +6815,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     .root_inclusions
                     .push(path.display().to_owned()),
                 None => {
+                    // tsgo collectFiles: a root redirected to a referenced
+                    // project's output that is not built is neither a file
+                    // of the program nor a diagnostic.
+                    if self.tasks[task].redirect.is_some() {
+                        dropped.push(index);
+                        continue;
+                    }
                     let diagnostic = match self
                         .missing_library_diagnostics
                         .get(&path.display().to_owned())
@@ -6837,6 +6849,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     self.roots[index].missing_diagnostic = Some(diagnostic);
                 }
             }
+        }
+        for index in dropped.into_iter().rev() {
+            self.roots.remove(index);
         }
     }
 
