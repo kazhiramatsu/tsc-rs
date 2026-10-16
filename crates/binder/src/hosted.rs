@@ -45,10 +45,11 @@ pub fn template_tag_host(source: &SourceFile, tag: NodeId) -> Option<NodeId> {
         })
 }
 
-/// The `@overload` signature whose type parameters a `@template` tag's are
-/// when the comment hosts them on nothing else: tsgo gives a reparsed overload
-/// every `@template` of its comment (reparser.go:162-164).
-pub fn overload_template_signature(source: &SourceFile, tag: NodeId) -> Option<NodeId> {
+/// The comment whose reparsed `@overload`s have a `@template` tag's type
+/// parameters: tsgo gives every reparsed overload of a comment all of its
+/// `@template`s (reparser.go:162-164). The binder keeps those type parameters
+/// in a table of the comment, which a name in any of its overloads reaches.
+pub fn overload_template_comment(source: &SourceFile, tag: NodeId) -> Option<NodeId> {
     let document = source.arena.node(tag).parent?;
     let NodeData::JSDoc(data) = &source.arena.node(document).data else {
         return None;
@@ -57,14 +58,13 @@ pub fn overload_template_signature(source: &SourceFile, tag: NodeId) -> Option<N
         .tags
         .map_or(&[][..], |tags| source.arena.node_array(tags).nodes);
     tags.iter()
-        .find_map(|&candidate| match &source.arena.node(candidate).data {
-            NodeData::JSDocOverloadTag(overload)
-                if reparsed_overload_host(source, candidate).is_some() =>
-            {
-                overload.type_expression
-            }
-            _ => None,
+        .any(|&candidate| {
+            matches!(
+                &source.arena.node(candidate).data,
+                NodeData::JSDocOverloadTag(_)
+            ) && reparsed_overload_host(source, candidate).is_some()
         })
+        .then_some(document)
 }
 
 /// The function, method or constructor an `@overload` tag is reparsed into an

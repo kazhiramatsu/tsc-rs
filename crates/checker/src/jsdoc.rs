@@ -794,7 +794,8 @@ impl<'a> CheckerState<'a> {
     /// tsgo (TypeScript 7.1): the declaration a `@template` tag's type
     /// parameters belong to — a `@typedef` or `@callback` of the same comment,
     /// else the function or class whose reparsed type parameters they are
-    /// (reparser.go:297-344, 457-475).
+    /// (reparser.go:297-344, 457-475), else the comment whose reparsed
+    /// overloads have them (the binder's table of that comment).
     pub(crate) fn effective_container_for_jsdoc_template_tag(&self, tag: NodeId) -> Option<NodeId> {
         if let Some(document) = self.parent_of(tag) {
             if let NodeData::JSDoc(data) = self.data_of(document) {
@@ -809,6 +810,6 @@ impl<'a> CheckerState<'a> {
         }
         let source = self.binder.source_of_node(tag);
         tsc_binder::hosted::template_tag_host(source, tag)
-            .or_else(|| tsc_binder::hosted::overload_template_signature(source, tag))
+            .or_else(|| tsc_binder::hosted::overload_template_comment(source, tag))
     }
 }
