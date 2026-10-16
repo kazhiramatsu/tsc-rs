@@ -115,6 +115,11 @@ noEmit、d.ts、js emit でtsgoより速くなる、ピークメモリを少な�
 - **残り**：package の bucket の最初の作成はまだ tsgo の約 2.5 倍（vue の package で最初の completion 0.15 s 対 0.06 s）：
   読んだ file の要求を全部先に解決し（tsgo は checker が求めた時）、段ごとに checker を作り直す。
 
+## slice 3：要求の thread・symbol の連鎖・build の file の lock（local のみ、未 push）
+
+2026-10-16 の利用者の指示で差分の修正を先にすることになり、slice 3 は local の branch のまま Fable 5.1 に引き継いだ。
+branch・commit・済んだ検査・残りは [ts71-real-projects](../ts71-real-projects/README.md) の「3. 性能の slice 3」。
+
 ## 起点（slice 1 の途中、名前の表と parse cache の後・並列化の前）
 
 editor と同じ本文、`nice -n 20` の session の時間。差の大きい要求の種類が次の slice の対象。
