@@ -162,9 +162,8 @@ impl AliasResolver {
             .chain(other_files)
             .map(|file_name| path_of(file_name))
             .collect();
-        for next in 0..files.len() {
+        for file in &mut files {
             let source = {
-                let file = &files[next];
                 let path = ProgramPath::from_js_parts(
                     JsStr::from_str(&file.file_name),
                     JsStr::from_str(&file.path),
@@ -186,7 +185,7 @@ impl AliasResolver {
                     .collect()
             })
             .unwrap_or_default();
-            let containing = files[next].file_name.clone();
+            let containing = file.file_name.clone();
             for specifier in specifiers {
                 let outcome = resolver
                     .resolve(
@@ -211,7 +210,7 @@ impl AliasResolver {
                                 )
                             }
                             None => {
-                                files[next].unread.push((specifier, target_name));
+                                file.unread.push((specifier, target_name));
                                 continue;
                             }
                         }
@@ -221,7 +220,7 @@ impl AliasResolver {
                         AuthoritativeNotFoundModule::default(),
                     ),
                 };
-                files[next].resolutions.push((specifier, resolution));
+                file.resolutions.push((specifier, resolution));
             }
         }
 
