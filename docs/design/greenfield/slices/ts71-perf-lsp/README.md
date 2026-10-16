@@ -66,6 +66,55 @@ noEmit、d.ts、js emit でtsgoより速くなる、ピークメモリを少な�
 - **残り**：project の作り直しはまだ tsgo の約 2 倍（hono の test の project 50〜80 ms 対 27〜55 ms、強制した 11 project の
   作り直し 0.35 s 対 0.026 s：cache の木の import の巡回、registry の本文の hash、直列の識別子と bind の予約）。
 
+## slice 2：auto-import の completion（#826）
+
+- **merge**：#826 → `955b29c50`（hosted run 38890844211）。commit：ea7a51285（cache の計画）、8e411b198（alias resolver）、
+  90d6b7500（group の map）、75fd25763（clippy）。
+- **alias resolver は解決した file だけを読む**：tsgo の `aliasResolver` は checker に entrypoint だけを渡し
+  （`SourceFiles()`）、module を解決した時にその file を読んで bind する（`GetSourceFileForResolvedModule`）。tsc-rs は到達
+  できる全 file の全要求を先に読んでいた（vitest の型から jsdom の JS が 1,054 file、vue の root の bucket を作るたびに
+  494 ms。tsgo も open file の依存が変わるたびに作り直すが約 10 ms）。tsc-rs の checker は file を先に持つので、読んだ
+  file で checker を作り、まだ読んでいない file に解決した要求は記録して（失敗した lookup にはしない）、その file を足した
+  checker で抽出をやり直す。足りない file が無くなるまで繰り返す（`extract_from_resolved_files`）。読む file は tsgo と同じ。
+- **alias resolver の parse と document**：session の parse cache から計画し（`plan_source_requests_cached`）、checker は
+  session の document を共有する（`RegistryCloneHost::documents`）。前は二度 parse し、何も共有しなかった。
+- **package の抽出を並列に**：tsgo は実 path ごとの package を work group で抽出し、その後 `@types` の代わりを抽出する。
+  二つの波とも worker で行う（入力は `Sync`）。
+- **completion の group は map で引く**：tsgo の group は map。tsc-rs は順序のため `Vec` に持ち、export ごとに線形に探して
+  いた（候補の数の二乗。playwright-core の completion は毎回 172 ms、tsgo 39 ms）。鍵から位置を引く map を併せて持つ
+  （順序は変わらない）。
+- **編集の古い file**：`LiveProgram::reuse` は古い file の計画も parse cache から作る（前は編集のたびに parse し直していた）。
+- **計測**（`nice -n 20`、editor と同じ本文）：
+
+  | 場面 | 前（#825） | 後 | tsgo |
+  |---|---:|---:|---:|
+  | vue：package で最初の completion（`runtime-core/src/apiWatch.ts`） | 0.83 s | 0.16 s | 0.06 s |
+  | vue：同じ completion の繰り返し（2.6 MB） | 51 ms | 22 ms | 27 ms |
+  | playwright-core：completion の繰り返し（`client/frame.ts`、3.5 MB） | 172 ms | 41 ms | 39 ms |
+
+  | project | 要求 | 前（#825） | 後 | tsgo | 違い |
+  |---|---:|---:|---:|---:|---:|
+  | vue（`packages/*/src`） | 41,256 | 23.3 s | 16.0 s | 12.2 s | 9 |
+  | playwright-core（`src`） | 60,108 | 42.0 s | 33.8 s | 26.8 s | 50 |
+  | effect（`packages/effect/src`） | 89,249 | 76.1 s | 60.1 s | 63.0 s | 69 |
+  | hono（`src`） | 47,637 | 42.9 s | 40.0 s | 22.5 s | 45 |
+  | zod（`packages/zod/src`） | 59,207 | 20.9 s | 20.3 s | 22.3 s | 0 |
+  | TypeScript compiler（`src/compiler`） | 36,739 | 44.8 s | 43.7 s | 49.0 s | 0 |
+
+  （vue・playwright-core・effect・zod の「前」は #825 の途中の build。）違いは #822 と #824 で記録した種類：vue の
+  runtime-core の `version`/`TrackOpTypes` の import 先（ほか 4 件は tsgo だけの再実行 2 回で違う答えか tsc-rs と同じ答え）、
+  playwright-core の codemirror の `lint`/`overlayMode` と `registry`、effect の `HttpApiSchema`/`Schema` の再 export、hono の
+  middleware の import 先と hover。hono の tsc-rs の 45 件の答えは、#825 より前の今朝の記録と byte まで同じ（tsgo の答えは
+  16 件で変わった）。比較の道具に `classify.py`（違う項目の名前でまとめる）を足した。
+- **test**：lsp `auto_imports_follow_a_chain_of_re_exports`（`export *` 二段と `export { deepValue } from "dep"`：tsgo の
+  候補。import だけの file は読まない）。これと #824 の `auto_imports_resolve_a_package_s_javascript_re_export` は、抽出を
+  一つの checker で止めると落ちる。
+- **検査（d156958b2、origin/main c4b20f75c と merge 済み）**：conformance 0 regressions、`--checkers 4` は既知の 4 件、suites
+  0 regressions（ratchet は変わらず、lsp 4,583/4,584、tsc 227/229）、全 crate の test（lsp 63）、API client sync 356/356・
+  async 365/365。75fd25763 で clippy（`-D warnings`）、fmt、ls・lsp の test。
+- **残り**：package の bucket の最初の作成はまだ tsgo の約 2.5 倍（vue の package で最初の completion 0.15 s 対 0.06 s）：
+  読んだ file の要求を全部先に解決し（tsgo は checker が求めた時）、段ごとに checker を作り直す。
+
 ## 起点（slice 1 の途中、名前の表と parse cache の後・並列化の前）
 
 editor と同じ本文、`nice -n 20` の session の時間。差の大きい要求の種類が次の slice の対象。
