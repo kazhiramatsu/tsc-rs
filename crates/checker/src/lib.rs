@@ -2769,7 +2769,6 @@ impl PendingProgramSource {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 /// `files_outside_program`: how many of `files`, at their end, are read
 /// outside the Program (a resolution target of the auto-import registry's
 /// alias resolver, which tsgo parses whatever its extension).
