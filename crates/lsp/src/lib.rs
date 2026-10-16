@@ -10,6 +10,7 @@ pub mod logger;
 pub mod lspwatcher;
 pub mod progress;
 pub mod queue;
+pub mod request_threads;
 pub mod server;
 pub mod stack_sanitizer;
 

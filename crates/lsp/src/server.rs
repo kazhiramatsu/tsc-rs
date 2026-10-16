@@ -189,6 +189,9 @@ struct ServerState {
 /// tsgo `Server`.
 pub struct Server {
     requests: DynamicQueue<RequestMessage>,
+    /// The threads the requests handled concurrently run on (tsgo's
+    /// goroutines).
+    request_threads: Arc<crate::request_threads::RequestThreads>,
     outgoing: DynamicQueue<Message>,
     pending_client_requests: Mutex<HashMap<Id, Arc<AtomicBool>>>,
     pending_server_requests: Mutex<HashMap<Id, mpsc::Sender<ResponseMessage>>>,
@@ -284,6 +287,7 @@ impl Server {
         crate::stack_sanitizer::capture_panic_stacks();
         Arc::new(Self {
             requests: DynamicQueue::new(),
+            request_threads: Arc::default(),
             outgoing: DynamicQueue::new(),
             pending_client_requests: Mutex::default(),
             pending_server_requests: Mutex::default(),
@@ -370,6 +374,7 @@ impl Server {
         lock(&self.stop_reason).get_or_insert(reason);
         self.stopped.store(true, Ordering::SeqCst);
         self.requests.close();
+        self.request_threads.stop();
         self.outgoing.close();
         let (complete, ready) = &self.init_complete;
         drop(lock(complete));
@@ -481,15 +486,12 @@ impl Server {
                 }
                 Ok(Some(work)) => {
                     let server = Arc::clone(self);
-                    let spawned = std::thread::Builder::new()
-                        .name("tsc-rs-lsp-request".to_owned())
-                        .stack_size(tsc_program::WORKER_STACK_BYTES)
-                        .spawn(move || {
-                            if let Err(failure) = work() {
-                                server.handle_failure(request.id.clone(), failure);
-                            }
-                            server.remove_request(&request);
-                        });
+                    let spawned = self.request_threads.run(Box::new(move || {
+                        if let Err(failure) = work() {
+                            server.handle_failure(request.id.clone(), failure);
+                        }
+                        server.remove_request(&request);
+                    }));
                     if let Err(error) = spawned {
                         self.logger
                             .error(self, &format!("cannot start a request thread: {error}"));
