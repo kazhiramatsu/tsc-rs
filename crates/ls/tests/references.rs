@@ -1421,3 +1421,22 @@ fn signature_help_items_and_return_types_keep_their_own_built_nodes() {
         ]
     );
 }
+
+/// tsgo's signature help in a method's parameter list takes the contextual
+/// type of the method as an object literal element
+/// (`GetContextualTypeForObjectLiteralElement`), which answers the
+/// element's own type node unless it is an object literal method: a class
+/// method's return type, whose call signature the help shows with the
+/// parameter's index (found by the LSP test on playwright). Pinned to tsgo's
+/// answers at aa814927.
+#[test]
+fn signature_help_in_a_class_method_s_parameters_shows_its_return_type() {
+    let text = "type Logger = (direction: \"send\" | \"receive\", message: object) => void;\nclass Helper {\n    static wrap(first: number, logger?: Logger): Logger {\n        return (direction, message) => {};\n    }\n}\n";
+    for (character, active) in [(17, 0), (33, 1)] {
+        assert_eq!(
+            signature_help(&[("/a.ts", text)], options(|_| {}), (2, character), None),
+            serde_json::json!({"signatures": [{"label": "Logger(direction: \"send\" | \"receive\", message: object): void", "parameters": [{"label": "direction: \"send\" | \"receive\""}, {"label": "message: object"}], "activeParameter": active}], "activeSignature": 0}),
+            "at character {character}"
+        );
+    }
+}
