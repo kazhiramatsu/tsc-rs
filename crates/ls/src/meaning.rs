@@ -1001,12 +1001,19 @@ impl Request<'_, '_> {
 
 impl Request<'_, '_> {
     /// tsgo `SourceFile.GetNameTable`: each identifier's (and name-like
-    /// literal's) text, with its position when it occurs once.
-    pub(crate) fn name_table(
+    /// literal's) text, with its position when it occurs once; computed
+    /// once per file (`nameTableOnce`).
+    pub(crate) fn name_table<'s>(
         &self,
-        source: &tsc_syntax::SourceFile,
-    ) -> std::collections::BTreeMap<String, Option<u32>> {
-        let mut table = std::collections::BTreeMap::<String, Option<u32>>::new();
+        source: &'s tsc_syntax::SourceFile,
+    ) -> &'s tsc_syntax::NameTable {
+        source
+            .name_table
+            .get_or_init(|| self.compute_name_table(source))
+    }
+
+    fn compute_name_table(&self, source: &tsc_syntax::SourceFile) -> tsc_syntax::NameTable {
+        let mut table = tsc_syntax::NameTable::new();
         let mut stack = vec![source.root];
         let arena = &source.arena;
         while let Some(node) = stack.pop() {

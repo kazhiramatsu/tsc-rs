@@ -10571,6 +10571,7 @@ fn parse_source_file_from_snapshot_worker(
         jsx_runtime_pragma: finished.jsx_runtime_pragma,
         comment_directives: finished.comment_directives,
         jsdoc_hosted: crate::JsDocHostedCell::default(),
+        name_table: crate::NameTableCell::default(),
     };
     (source, incremental_stats)
 }
@@ -10744,6 +10745,7 @@ fn parse_json_text_with_options(
         jsx_runtime_pragma: finished.jsx_runtime_pragma,
         comment_directives: finished.comment_directives,
         jsdoc_hosted: crate::JsDocHostedCell::default(),
+        name_table: crate::NameTableCell::default(),
     }
 }
 
