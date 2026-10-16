@@ -7263,13 +7263,21 @@ impl<'a> CheckerState<'a> {
         &self,
         location: NodeId,
     ) -> ModuleResolutionMode {
+        // The program's answer (tsgo `GetDefaultResolutionModeForFile`) before
+        // the extension's: the auto-import registry's alias resolver answers
+        // ESNext for every file, a `.cts` one included.
+        let authoritative = self
+            .authoritative_module_provider
+            .is_some()
+            .then(|| self.implied_node_format_for_emit(location));
+        if let Some(Some(mode)) = authoritative {
+            return mode;
+        }
         if let Some(mode) = self.implied_resolution_mode_from_extension(location) {
             return mode;
         }
-        if self.authoritative_module_provider.is_some() {
-            return self
-                .implied_node_format_for_emit(location)
-                .unwrap_or(ModuleResolutionMode::Unknown);
+        if authoritative.is_some() {
+            return ModuleResolutionMode::Unknown;
         }
         let module_kind = self
             .module_options_for_file(self.binder.file_index_of_node(location))
@@ -7501,13 +7509,15 @@ impl<'a> CheckerState<'a> {
     }
 
     fn static_resolution_mode_for_file(&self, location: NodeId) -> ModuleResolutionMode {
-        if let Some(mode) = self.implied_resolution_mode_from_extension(location) {
-            return mode;
-        }
+        // The program's answer (tsgo `GetEmitSyntaxForUsageLocation`) before
+        // the extension's, as in `default_resolution_mode_for_file`.
         if self.authoritative_module_provider.is_some() {
             if let Some(mode) = self.implied_node_format_for_emit(location) {
                 return mode;
             }
+        }
+        if let Some(mode) = self.implied_resolution_mode_from_extension(location) {
+            return mode;
         }
         let module_kind = self
             .module_options_for_file(self.binder.file_index_of_node(location))

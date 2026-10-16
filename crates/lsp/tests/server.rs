@@ -1518,3 +1518,98 @@ fn the_builtin_watcher_reports_changes_on_disk() {
     session.close();
     let _ = std::fs::remove_dir_all(&directory);
 }
+
+/// tsgo's auto-import registry extracts a package's exports with its alias
+/// resolver, whose format hooks answer ESNext for every file
+/// (`aliasresolver.go`): there a `.d.cts` file's
+/// `export { default as ar } from "./ar.cjs"` of an `export =` module has
+/// no synthetic default, so the re-export resolves to nothing (kind
+/// unknown, the completion's Property) and groups with its re-export
+/// through `export *`, which wins on the shorter specifier, while the
+/// `export =` module's own default stays a group of its own. tsgo's answer
+/// at aa814927 (playwright's zod 4 locales).
+#[test]
+fn auto_imports_resolve_a_package_s_aliases_as_esm() {
+    const INDEX: &str = "import \"pkg/locales\";\nar\n";
+    let fs = Arc::new(
+        MemFs::from_entries(
+            [
+                (
+                    "/ws/package.json",
+                    Seed::file(r#"{"name": "app", "dependencies": {"pkg": "1.0.0"}}"#),
+                ),
+                (
+                    "/ws/tsconfig.json",
+                    Seed::file(
+                        r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}}"#,
+                    ),
+                ),
+                ("/ws/index.ts", Seed::file(INDEX)),
+                (
+                    "/ws/node_modules/pkg/package.json",
+                    Seed::file(
+                        r#"{"name": "pkg", "version": "1.0.0", "type": "module", "exports": {"./locales": {"types": "./locales/index.d.cts"}, "./v4/locales": {"types": "./v4/locales/index.d.cts"}, "./v4/locales/*": {"types": "./v4/locales/*"}}}"#,
+                    ),
+                ),
+                (
+                    "/ws/node_modules/pkg/locales/index.d.cts",
+                    Seed::file("export * from \"../v4/locales/index.cjs\";\n"),
+                ),
+                (
+                    "/ws/node_modules/pkg/v4/locales/index.d.cts",
+                    Seed::file("export { default as ar } from \"./ar.cjs\";\n"),
+                ),
+                (
+                    "/ws/node_modules/pkg/v4/locales/ar.d.cts",
+                    Seed::file(
+                        "declare function _default(): { localeError: string };\nexport = _default;\n",
+                    ),
+                ),
+            ],
+            false,
+            Arc::new(SystemClock),
+        )
+        .unwrap(),
+    );
+    let mut session = Session::start_with(fs);
+    let mut client = RegistrationClient::default();
+    client.initialize(&mut session, serde_json::json!({}));
+    let index = "file:///ws/index.ts";
+    client.notify(
+        &mut session,
+        "textDocument/didOpen",
+        serde_json::json!({"textDocument": {"uri": index, "languageId": "typescript", "version": 1, "text": INDEX}}),
+    );
+    let response = client.request(
+        &mut session,
+        2,
+        "textDocument/completion",
+        serde_json::json!({"textDocument": {"uri": index}, "position": {"line": 1, "character": 2}}),
+    );
+    let mut items = response["result"]["items"]
+        .as_array()
+        .expect("the items")
+        .iter()
+        .filter(|item| item["label"] == "ar")
+        .map(|item| {
+            let auto_import = &item["data"]["autoImport"];
+            (
+                item["kind"].as_i64().expect("a kind"),
+                auto_import["moduleSpecifier"]
+                    .as_str()
+                    .expect("a specifier")
+                    .to_owned(),
+                auto_import["importKind"].as_i64().expect("an import kind"),
+            )
+        })
+        .collect::<Vec<_>>();
+    items.sort();
+    assert_eq!(
+        items,
+        [
+            (3, "pkg/v4/locales/ar.cjs".to_owned(), 1),
+            (10, "pkg/locales".to_owned(), 0),
+        ]
+    );
+    session.close();
+}
