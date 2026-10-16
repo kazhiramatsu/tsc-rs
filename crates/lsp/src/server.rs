@@ -503,7 +503,10 @@ impl Server {
     /// tsgo's `handleError` in the dispatch loop.
     fn handle_failure(&self, id: Option<Id>, failure: Failure) {
         let failure = match failure {
-            Failure::Exit => return self.stop(),
+            // tsgo's exit handler returns io.EOF, which its run loop takes
+            // as a normal end (not an error) whichever arrives first, the
+            // notification or the input's end.
+            Failure::Exit => return self.stop_with(StopReason::EndOfInput),
             Failure::Cancelled => Failure::from(ErrorCode::REQUEST_CANCELLED),
             failure => failure,
         };

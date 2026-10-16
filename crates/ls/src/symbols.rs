@@ -373,25 +373,6 @@ impl Request<'_, '_> {
                     }
                 }
             }
-            SyntaxKind::ParenthesizedExpression => {
-                for child in self.children(node) {
-                    self.visit_document_symbol(state, child);
-                }
-                // tsgo's reparser makes `/** @type {T} */ (x)` the `as`
-                // expression `x as T`, whose type is visited after the
-                // expression: an inline type literal's members get symbols.
-                let cast = match &record.data {
-                    NodeData::ParenthesizedExpression(data) => {
-                        data.expression.and_then(|expression| {
-                            tsc_binder::hosted::jsdoc_hosted(source).cast_of(expression)
-                        })
-                    }
-                    _ => None,
-                };
-                if let Some(cast) = cast {
-                    self.visit_document_symbol(state, cast.type_node);
-                }
-            }
             _ => {
                 for child in self.children(node) {
                     self.visit_document_symbol(state, child);
@@ -1130,19 +1111,6 @@ impl DeclarationMap<'_, '_> {
             | SyntaxKind::PropertySignature => {
                 self.add(node);
             }
-            SyntaxKind::ParenthesizedExpression => {
-                self.visit_children(node);
-                // tsgo's reparser makes `/** @type {T} */ (x)` the `as`
-                // expression `x as T`, whose type is visited after the
-                // expression: an inline type literal's members get symbols.
-                if let NodeData::ParenthesizedExpression(parenthesized) = data {
-                    if let Some(cast) = parenthesized.expression.and_then(|expression| {
-                        tsc_binder::hosted::jsdoc_hosted(source).cast_of(expression)
-                    }) {
-                        self.visit(cast.type_node);
-                    }
-                }
-            }
             SyntaxKind::ExportDeclaration => {
                 // Handle named exports case e.g.:
                 //    export {a, b as B} from "mod";
@@ -1294,12 +1262,43 @@ fn has_implementation_ts_file_extension(file_name: &str) -> bool {
 }
 
 /// A node's children (tsgo `ForEachChild`).
+/// A node's children as tsgo's navigation bar walks them: with the JSDoc
+/// types tsgo's reparser gives a JavaScript file's nodes — a parameter's
+/// `@param` type after its name, and the type of a `/** @type {T} */ (x)`
+/// cast (tsgo's `x as T`) after the expression — so an inline type
+/// literal's members get symbols.
 fn children(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
     let mut children = Vec::new();
     tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
         children.push(child);
         false
     });
+    if !source.is_source_file_js() {
+        return children;
+    }
+    let hosted = tsc_binder::hosted::jsdoc_hosted(source);
+    match &source.arena.node(node).data {
+        NodeData::Parameter(data) => {
+            if data.r#type.is_none() {
+                if let Some(r#type) = hosted.type_of(node) {
+                    let at = data
+                        .name
+                        .and_then(|name| children.iter().position(|&child| child == name))
+                        .map_or(0, |index| index + 1);
+                    children.insert(at, r#type);
+                }
+            }
+        }
+        NodeData::ParenthesizedExpression(data) => {
+            if let Some(cast) = data
+                .expression
+                .and_then(|expression| hosted.cast_of(expression))
+            {
+                children.push(cast.type_node);
+            }
+        }
+        _ => {}
+    }
     children
 }
 

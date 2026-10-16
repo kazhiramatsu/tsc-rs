@@ -2474,13 +2474,17 @@ fn a_jsdoc_template_is_not_referenced_by_a_function_type_in_a_param_type_literal
     );
 }
 
-/// The type of a `/** @type {T} */ (x)` cast is tsgo's `as` expression's
-/// type, visited after the expression by the navigation bar: an inline type
-/// literal's members are symbols of the enclosing function (tsgo aa814927;
-/// found by the LSP test on svelte).
+/// tsgo's navigation bar walks a JavaScript file's reparsed JSDoc types: the
+/// type of a `/** @type {T} */ (x)` cast (its `as` expression) after the
+/// expression, also as a variable's initializer, and the `@param` types of a
+/// function expression or arrow a variable is initialized with (its
+/// parameters are children of the initializer); an inline type literal's
+/// members are symbols of the enclosing declaration. A function
+/// declaration's parameters are not walked (tsgo aa814927; found by the LSP
+/// test on svelte).
 #[test]
-fn document_symbols_of_a_jsdoc_cast_s_type_literal_members() {
-    let text = "/**\n * @template T\n * @param {T} value\n * @returns {T}\n */\nexport function clone(value) {\n\tif (typeof (/** @type {T & { toJSON?: any } } */ (value).toJSON) === 'function') {\n\t\treturn /** @type {T & { toJSON(): any } } */ (value).toJSON();\n\t}\n\treturn value;\n}\n\n/** @type {(options: { filename: string }) => 'injected' | 'external'} */\nexport const css = (options) => (options.filename ? 'injected' : 'external');\n";
+fn document_symbols_of_reparsed_jsdoc_type_literals() {
+    let text = "/**\n * @template T\n * @param {T} value\n * @returns {T}\n */\nexport function clone(value) {\n\tif (typeof (/** @type {T & { toJSON?: any } } */ (value).toJSON) === 'function') {\n\t\treturn /** @type {T & { toJSON(): any } } */ (value).toJSON();\n\t}\n\tconst effect = /** @type {T & { nodes: string[] } } */ (value);\n\treturn effect;\n}\n\n/**\n * @param {string[]} comments\n * @param {{ preserve_whitespace: number }} state\n * @returns {number}\n */\nexport const visitors = (comments, state) => comments.length + state.preserve_whitespace;\n\n/**\n * @param {{ depth: number }} options\n */\nexport function walk(options) {\n\treturn options.depth;\n}\n";
     let response = request_in_javascript_project(
         &[
             ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
@@ -2517,10 +2521,14 @@ fn document_symbols_of_a_jsdoc_cast_s_type_literal_members() {
     assert_eq!(
         lines,
         [
-            "clone k12 5:0-10:1",
+            "clone k12 5:0-11:1",
             "  toJSON k7 6:30-6:42",
             "  toJSON k6 7:26-7:39",
-            "css k13 13:13-13:76",
+            "  effect k13 9:7-9:63",
+            "    nodes k7 9:33-9:48",
+            "visitors k13 18:13-18:88",
+            "  preserve_whitespace k7 15:13-15:40",
+            "walk k12 23:0-25:1",
         ]
     );
 }
