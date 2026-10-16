@@ -2473,3 +2473,99 @@ fn a_jsdoc_template_is_not_referenced_by_a_function_type_in_a_param_type_literal
         ["render(component: (props: Record<string, any>) => void, options?: { props?: Omit<Record<string, any>, \"$$slots\"> | undefined; idPrefix?: string; transformError?: (error: unknown) => unknown | Promise<unknown>; } | undefined): string"]
     );
 }
+
+/// The type of a `/** @type {T} */ (x)` cast is tsgo's `as` expression's
+/// type, visited after the expression by the navigation bar: an inline type
+/// literal's members are symbols of the enclosing function (tsgo aa814927;
+/// found by the LSP test on svelte).
+#[test]
+fn document_symbols_of_a_jsdoc_cast_s_type_literal_members() {
+    let text = "/**\n * @template T\n * @param {T} value\n * @returns {T}\n */\nexport function clone(value) {\n\tif (typeof (/** @type {T & { toJSON?: any } } */ (value).toJSON) === 'function') {\n\t\treturn /** @type {T & { toJSON(): any } } */ (value).toJSON();\n\t}\n\treturn value;\n}\n\n/** @type {(options: { filename: string }) => 'injected' | 'external'} */\nexport const css = (options) => (options.filename ? 'injected' : 'external');\n";
+    let response = request_in_javascript_project(
+        &[
+            ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+            ("/home/projects/cast.js", text),
+        ],
+        "file:///home/projects/cast.js",
+        "textDocument/documentSymbol",
+        serde_json::json!({"textDocument": {"uri": "file:///home/projects/cast.js"}}),
+    );
+    fn flat(items: &[Value], depth: usize, acc: &mut Vec<String>) {
+        for item in items {
+            let range = &item["range"];
+            acc.push(format!(
+                "{}{} k{} {}:{}-{}:{}",
+                "  ".repeat(depth),
+                item["name"].as_str().unwrap(),
+                item["kind"],
+                range["start"]["line"],
+                range["start"]["character"],
+                range["end"]["line"],
+                range["end"]["character"]
+            ));
+            if let Some(children) = item["children"].as_array() {
+                flat(children, depth + 1, acc);
+            }
+        }
+    }
+    let mut lines = Vec::new();
+    flat(
+        response["result"].as_array().expect("symbols"),
+        0,
+        &mut lines,
+    );
+    assert_eq!(
+        lines,
+        [
+            "clone k12 5:0-10:1",
+            "  toJSON k7 6:30-6:42",
+            "  toJSON k6 7:26-7:39",
+            "css k13 13:13-13:76",
+        ]
+    );
+}
+
+/// A TypeScript file's declaration is deprecated for completions by tsgo's
+/// scanner text scan of its comment, a `@deprecated` followed by whitespace,
+/// `}`, `*` or the comment's end (the JSDoc itself is parsed lazily):
+/// `@deprecated:` marks nothing (tsgo aa814927; found by the LSP test on
+/// SolidJS).
+#[test]
+fn a_deprecated_tag_followed_by_a_colon_does_not_deprecate_a_typescript_declaration() {
+    let lib = "/** @deprecated: use `other` instead */\nexport function fnColon() {}\n/** @deprecated use `other` instead */\nexport function fnPlain() {}\n";
+    let a = "import { fnColon, fnPlain } from './lib.js';\nexport function use(foo) {\n\tfnColon();\n\tfnPlain();\n\treturn foo({ ...fn });\n}\n";
+    let response = request_in_javascript_project(
+        &[
+            ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+            ("/home/projects/lib.ts", lib),
+            ("/home/projects/a.js", a),
+        ],
+        "file:///home/projects/a.js",
+        "textDocument/completion",
+        serde_json::json!({"textDocument": {"uri": "file:///home/projects/a.js"}, "position": {"line": 4, "character": 18}, "context": {"triggerKind": 1}}),
+    );
+    let mut tags = response["result"]["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .filter(|item| {
+            item["label"]
+                .as_str()
+                .is_some_and(|label| label.starts_with("fn"))
+        })
+        .map(|item| {
+            (
+                item["label"].as_str().unwrap().to_owned(),
+                item["tags"].clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+    tags.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(
+        tags,
+        [
+            ("fnColon".to_owned(), serde_json::Value::Null),
+            ("fnPlain".to_owned(), serde_json::json!([1])),
+        ]
+    );
+}

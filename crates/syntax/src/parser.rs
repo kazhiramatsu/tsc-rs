@@ -463,6 +463,25 @@ pub fn comment_ranges(text: &str, pos: usize, trailing: bool) -> Vec<(usize, usi
 }
 
 /// tsgo `GetJSDocCommentRanges` of a node of `kind` at full start `pos`.
+/// tsgo `scanner.go hasJSDocTag(commentText, "deprecated")` over each `@`
+/// of a comment: the tag name followed by whitespace, `}`, `*` or the end.
+fn comment_has_deprecated_tag(comment: &str) -> bool {
+    let bytes = comment.as_bytes();
+    let mut rest = bytes;
+    while let Some(at) = rest.iter().position(|&byte| byte == b'@') {
+        rest = &rest[at + 1..];
+        if let Some(after) = rest.strip_prefix(b"deprecated") {
+            if after
+                .first()
+                .is_none_or(|&byte| matches!(byte, b' ' | b'\t' | b'\n' | b'\r' | b'}' | b'*'))
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 pub fn jsdoc_comment_ranges(text: &str, kind: SyntaxKind, pos: usize) -> Vec<(usize, usize)> {
     let mut ranges = if matches!(
         kind,
@@ -10057,11 +10076,21 @@ impl<'text> Parser<'text> {
                 .clone();
             let mut docs = Vec::new();
             let mut deprecated = false;
+            let javascript = self.javascript_file;
             for (start, comment_end) in ranges {
                 if comment_end <= end {
                     let parsed = jsdoc::parse_jsdoc_comment(self, start, comment_end, flags);
                     docs.push(parsed.node);
-                    deprecated |= parsed.deprecated;
+                    // tsgo parses a TypeScript file's JSDoc lazily and marks
+                    // a deprecated host from the scanner's text scan of the
+                    // comment (a `@deprecated` followed by whitespace, `}`,
+                    // `*` or the comment's end: scanner.go hasJSDocTag); a
+                    // JavaScript file's eager parse marks any `@deprecated`.
+                    deprecated |= if javascript {
+                        parsed.deprecated
+                    } else {
+                        comment_has_deprecated_tag(&self.source_text[start..comment_end])
+                    };
                 }
             }
             if docs.is_empty() {

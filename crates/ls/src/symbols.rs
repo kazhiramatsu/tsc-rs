@@ -373,6 +373,25 @@ impl Request<'_, '_> {
                     }
                 }
             }
+            SyntaxKind::ParenthesizedExpression => {
+                for child in self.children(node) {
+                    self.visit_document_symbol(state, child);
+                }
+                // tsgo's reparser makes `/** @type {T} */ (x)` the `as`
+                // expression `x as T`, whose type is visited after the
+                // expression: an inline type literal's members get symbols.
+                let cast = match &record.data {
+                    NodeData::ParenthesizedExpression(data) => {
+                        data.expression.and_then(|expression| {
+                            tsc_binder::hosted::jsdoc_hosted(source).cast_of(expression)
+                        })
+                    }
+                    _ => None,
+                };
+                if let Some(cast) = cast {
+                    self.visit_document_symbol(state, cast.type_node);
+                }
+            }
             _ => {
                 for child in self.children(node) {
                     self.visit_document_symbol(state, child);
@@ -1110,6 +1129,19 @@ impl DeclarationMap<'_, '_> {
             | SyntaxKind::PropertyDeclaration
             | SyntaxKind::PropertySignature => {
                 self.add(node);
+            }
+            SyntaxKind::ParenthesizedExpression => {
+                self.visit_children(node);
+                // tsgo's reparser makes `/** @type {T} */ (x)` the `as`
+                // expression `x as T`, whose type is visited after the
+                // expression: an inline type literal's members get symbols.
+                if let NodeData::ParenthesizedExpression(parenthesized) = data {
+                    if let Some(cast) = parenthesized.expression.and_then(|expression| {
+                        tsc_binder::hosted::jsdoc_hosted(source).cast_of(expression)
+                    }) {
+                        self.visit(cast.type_node);
+                    }
+                }
             }
             SyntaxKind::ExportDeclaration => {
                 // Handle named exports case e.g.:
