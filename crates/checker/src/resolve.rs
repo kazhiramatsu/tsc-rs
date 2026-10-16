@@ -924,7 +924,8 @@ impl<'a> CheckerState<'a> {
         last_self_reference_location: &mut Option<NodeId>,
         loc: NodeId,
     ) -> Option<NodeId> {
-        if self.is_self_reference_location(loc, *last_location) {
+        let previous = *last_location;
+        if self.is_self_reference_location(loc, previous) {
             *last_self_reference_location = Some(loc);
         }
         *last_location = Some(loc);
@@ -949,6 +950,27 @@ impl<'a> CheckerState<'a> {
                         )
                     })
                     .or_else(|| self.parent_of(loc))
+            }
+            // A name in an `@overload` reaches its comment (the comment's
+            // `@template`s live in a table of the comment) and then the host's
+            // container: tsgo reparses the overload into a declaration beside
+            // its host (reparser.go:138-142), so the host's own locals are
+            // never seen. The host stands in for the reparsed overload as the
+            // last location (it carries the modifiers the overload copies).
+            SyntaxKind::JSDoc
+                if self.is_in_js_file(loc)
+                    && previous
+                        .is_some_and(|tag| self.kind_of(tag) == SyntaxKind::JSDocOverloadTag) =>
+            {
+                match previous.and_then(|tag| {
+                    tsc_binder::hosted::reparsed_overload_host(self.binder.source_of_node(tag), tag)
+                }) {
+                    Some(host) => {
+                        *last_location = Some(host);
+                        self.parent_of(host)
+                    }
+                    None => self.parent_of(loc),
+                }
             }
             _ => self.parent_of(loc),
         }

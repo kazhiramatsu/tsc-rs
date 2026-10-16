@@ -162,7 +162,26 @@ pub(super) fn rewrite_literal(
     let single_quote = context
         .arena()
         .literal_properties(node)
-        .and_then(crate::LiteralNodeProperties::string_literal_single_quote);
+        .and_then(crate::LiteralNodeProperties::string_literal_single_quote)
+        .or_else(|| {
+            // A parsed literal keeps the quote it was written with (tsgo
+            // copies the token's SingleQuote flag).
+            let record = context.arena().node(node).ok()?;
+            if record.end == u32::MAX {
+                return None;
+            }
+            let last = (record.end as usize).checked_sub(1)?;
+            let byte = context
+                .arena()
+                .source(node.source())
+                .ok()?
+                .syntax()
+                .text()
+                .as_bytes()
+                .get(last)
+                .copied()?;
+            Some(byte == b'\'')
+        });
     let text = text.to_utf16();
     context
         .factory()?
