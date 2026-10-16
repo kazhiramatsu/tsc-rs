@@ -158,6 +158,93 @@ fn module_transforms_preserve_js_name_values() {
     }
 }
 
+/// tsgo writes a named export list's sibling space before a line comment
+/// that follows the comma, so the specifier after the comment starts its
+/// line at the indentation (remix's `fetch-router/src/routes.ts`); tsc-rs
+/// wrote the space after the comment's newline.
+#[test]
+fn export_list_item_after_a_line_comment_starts_its_line() {
+    let parsed = parse_source_file(
+        "/project/routes.ts",
+        "export {\n  a,\n  a as b, // shorthand\n  c,\n} from \"./m.js\";\n",
+        Default::default(),
+        None,
+    );
+    assert!(parsed.parse_diagnostics.is_empty());
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::ES_NEXT.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_ecmascript_module(&options),
+        ],
+        false,
+    )
+    .unwrap();
+    let printed = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .unwrap();
+    assert_eq!(
+        printed.text(),
+        "export { a, a as b, // shorthand\nc, } from \"./m.js\";\n"
+    );
+}
+
+/// tsgo copies a rewritten module specifier's token flags
+/// (`rewriteModuleSpecifier`: `NewStringLiteral(updatedText,
+/// node.TokenFlags)`), so `'./a.ts'` becomes `'./a.js'` in its own quotes
+/// (found by the emit comparison on remix, whose sources use single quotes).
+#[test]
+fn rewritten_module_specifiers_keep_their_quotes() {
+    let parsed = parse_source_file(
+        "/project/input.ts",
+        "import { a } from './a.ts';\nexport * from \"./b.ts\";\nexport { a };\n",
+        Default::default(),
+        None,
+    );
+    assert!(parsed.parse_diagnostics.is_empty());
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::ES_NEXT.bits()),
+        rewrite_relative_import_extensions: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_ecmascript_module(&options),
+        ],
+        false,
+    )
+    .unwrap();
+    let printed = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .unwrap();
+    assert_eq!(
+        printed.text(),
+        "import { a } from './a.js';\nexport * from \"./b.js\";\nexport { a };\n"
+    );
+}
+
 /// tsgo emits every recovered tree, so the preflight admits each case
 /// whatever its recovery, and leaves the parser's facts untouched.
 #[test]
@@ -233,10 +320,10 @@ use super::{
     CommonJsFileLevelGeneratedBindingExports,
 };
 use crate::{
-    create_printer, transform_nodes, EmitConstantValue, EmitEnumMemberValue,
-    EmitExportContainerMode, EmitFlags, EmitResolver, EmitResolverError, EmitResolverNode,
-    JavaScriptNumber, NewLineKind, PrintRequest, PrinterOptions, TransformArena, TransformFlags,
-    TransformRoot,
+    create_printer, transform_ecmascript_module, transform_nodes, EmitConstantValue,
+    EmitEnumMemberValue, EmitExportContainerMode, EmitFlags, EmitResolver, EmitResolverError,
+    EmitResolverNode, JavaScriptNumber, NewLineKind, PrintRequest, PrinterOptions, TransformArena,
+    TransformFlags, TransformRoot,
 };
 
 struct EnumBindingResolver {

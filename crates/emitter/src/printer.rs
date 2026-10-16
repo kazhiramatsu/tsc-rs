@@ -16043,7 +16043,11 @@ impl Printer {
                         temporary_indent = true;
                     }
                     writer.write_line(false);
-                } else {
+                } else if !writer.is_at_start_of_line() {
+                    // A single-line comment after the comma has already
+                    // advanced the writer: tsgo writes the sibling space
+                    // before that comment, so the next specifier starts its
+                    // line without one.
                     writer.write_space(" ");
                 }
             }
