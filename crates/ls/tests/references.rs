@@ -1440,3 +1440,33 @@ fn signature_help_in_a_class_method_s_parameters_shows_its_return_type() {
         );
     }
 }
+
+/// tsgo prints a signature help item's return type with a printer of
+/// signature help's emit context, but builds it in the checker's own
+/// (`TypeToTypeNode`): the printer cannot trace a binding pattern that
+/// `cloneBindingName` cloned to its original list and trusts the clone's
+/// positions (the source list's range around synthesized elements), so the
+/// pattern prints with a trailing comma there; the item's own parameters
+/// share signature help's context and print as written (found by the LSP
+/// test on effect and playwright). Pinned to tsgo's answers at aa814927.
+#[test]
+fn signature_help_return_types_print_cloned_binding_patterns_with_a_trailing_comma() {
+    let text = "interface Box { a: number; b: string }\ndeclare function direct({ a, b }: Box): void;\ndeclare function nested(): ({ a, b }: Box) => void;\nfunction implemented({ a, b }: Box) { return ({ a: a2, b: b2 }: Box) => a2; }\ndeclare const handler: { bind(thisArg: unknown): typeof implemented };\ndirect();\nnested();\nimplemented();\nhandler.bind();\n";
+    let label = |position| {
+        let help = signature_help(&[("/a.ts", text)], options(|_| {}), position, None);
+        help["signatures"][0]["label"]
+            .as_str()
+            .expect("a label")
+            .to_owned()
+    };
+    assert_eq!(label((5, 7)), "direct({ a, b }: Box): void");
+    assert_eq!(label((6, 7)), "nested(): ({ a, b, }: Box) => void");
+    assert_eq!(
+        label((7, 12)),
+        "implemented({ a, b }: Box): ({ a: a2, b: b2, }: Box) => number"
+    );
+    assert_eq!(
+        label((8, 13)),
+        "bind(thisArg: unknown): ({ a, b, }: Box) => ({ a: a2, b: b2, }: Box) => number"
+    );
+}

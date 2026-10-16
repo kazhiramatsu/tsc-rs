@@ -1217,7 +1217,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
                 // Built in the checker's own emit context.
                 self.tracker
                     .arena()
-                    .forget_emit_flags_and_comments(node)
+                    .forget_emit_context(node)
                     .map_err(transform_error)?;
                 return Ok(Some(node));
             }
@@ -1652,7 +1652,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
         // Built in the checker's own emit context (tsgo `TypeToTypeNodeEx`).
         self.tracker
             .arena()
-            .forget_emit_flags_and_comments(type_node)
+            .forget_emit_context(type_node)
             .map_err(transform_error)?;
         let type_reference = match &self
             .tracker
