@@ -8158,6 +8158,11 @@ impl<'a> CheckerState<'a> {
                 SymbolFlags::TYPE_LITERAL,
                 tsc_types::EscapedName::internal(InternalSymbolName::TYPE),
             );
+            // tsgo: the wrapper's symbol carries the module's declarations
+            // (`anonymousSymbol.SetDeclarations(originalSymbol.Declarations())`),
+            // which a type definition of the imported module's value reaches.
+            let declarations = self.binder.symbol(original_symbol).declarations.clone();
+            self.binder.symbol_mut(anonymous_symbol).declarations = declarations;
             let default_containing_object = self.create_default_property_wrapper_for_module(
                 symbol,
                 Some(original_symbol),

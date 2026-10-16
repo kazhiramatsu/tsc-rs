@@ -450,3 +450,36 @@ fn a_declared_constructor_variable_goes_to_its_call_return_type() {
     // A primitive return type has no declarations.
     assert_eq!(at(7, 10), vec![]);
 }
+
+/// tsgo gives the symbol of a module's synthetic default wrapper the
+/// module's declarations (`getTypeWithSyntheticDefaultImportType`:
+/// `anonymousSymbol.SetDeclarations(originalSymbol.Declarations())`), so a
+/// type definition of a dynamically imported module's value goes to the
+/// module (found by the LSP test on next.js). Pinned to tsgo's answer at
+/// aa814927.
+#[test]
+fn a_dynamically_imported_module_s_type_definition_goes_to_the_module() {
+    let files = [
+        (
+            "/types.d.ts",
+            "declare module 'inspectorish' {\n    export function url(): string | undefined;\n}\n",
+        ),
+        (
+            "/a.ts",
+            "export async function start() {\n    const inspector = await import('inspectorish');\n    return inspector.url();\n}\n",
+        ),
+    ];
+    let options = options(|options| {
+        options.module = Some(99);
+        options.module_resolution = Some(100);
+    });
+    assert_eq!(
+        links(&files, options, "/a.ts", (1, 11), Request::TypeDefinition),
+        vec![(
+            ((1, 10), (1, 19)),
+            "/types.d.ts",
+            ((0, 0), (2, 1)),
+            ((0, 15), (0, 29))
+        )]
+    );
+}
