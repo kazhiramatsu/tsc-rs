@@ -1421,3 +1421,68 @@ fn signature_help_items_and_return_types_keep_their_own_built_nodes() {
         ]
     );
 }
+
+/// tsgo's signature help in a method's parameter list takes the contextual
+/// type of the method as an object literal element
+/// (`GetContextualTypeForObjectLiteralElement`), which answers the
+/// element's own type node unless it is an object literal method: a class
+/// method's return type, whose call signature the help shows with the
+/// parameter's index (found by the LSP test on playwright). Pinned to tsgo's
+/// answers at aa814927.
+#[test]
+fn signature_help_in_a_class_method_s_parameters_shows_its_return_type() {
+    let text = "type Logger = (direction: \"send\" | \"receive\", message: object) => void;\nclass Helper {\n    static wrap(first: number, logger?: Logger): Logger {\n        return (direction, message) => {};\n    }\n}\n";
+    for (character, active) in [(17, 0), (33, 1)] {
+        assert_eq!(
+            signature_help(&[("/a.ts", text)], options(|_| {}), (2, character), None),
+            serde_json::json!({"signatures": [{"label": "Logger(direction: \"send\" | \"receive\", message: object): void", "parameters": [{"label": "direction: \"send\" | \"receive\""}, {"label": "message: object"}], "activeParameter": active}], "activeSignature": 0}),
+            "at character {character}"
+        );
+    }
+}
+
+/// tsgo prints a signature help item's return type with a printer of
+/// signature help's emit context, but builds it in the checker's own
+/// (`TypeToTypeNode`): the printer cannot trace a binding pattern that
+/// `cloneBindingName` cloned to its original list and trusts the clone's
+/// positions (the source list's range around synthesized elements), so the
+/// pattern prints with a trailing comma there; the item's own parameters
+/// share signature help's context and print as written (found by the LSP
+/// test on effect and playwright). Pinned to tsgo's answers at aa814927.
+#[test]
+fn signature_help_return_types_print_cloned_binding_patterns_with_a_trailing_comma() {
+    let text = "interface Box { a: number; b: string }\ndeclare function direct({ a, b }: Box): void;\ndeclare function nested(): ({ a, b }: Box) => void;\nfunction implemented({ a, b }: Box) { return ({ a: a2, b: b2 }: Box) => a2; }\ndeclare const handler: { bind(thisArg: unknown): typeof implemented };\ndirect();\nnested();\nimplemented();\nhandler.bind();\n";
+    let label = |position| {
+        let help = signature_help(&[("/a.ts", text)], options(|_| {}), position, None);
+        help["signatures"][0]["label"]
+            .as_str()
+            .expect("a label")
+            .to_owned()
+    };
+    assert_eq!(label((5, 7)), "direct({ a, b }: Box): void");
+    assert_eq!(label((6, 7)), "nested(): ({ a, b, }: Box) => void");
+    assert_eq!(
+        label((7, 12)),
+        "implemented({ a, b }: Box): ({ a: a2, b: b2, }: Box) => number"
+    );
+    assert_eq!(
+        label((8, 13)),
+        "bind(thisArg: unknown): ({ a, b, }: Box) => ({ a: a2, b: b2, }: Box) => number"
+    );
+}
+
+/// tsgo writes the comments at each member's position before the member in
+/// a single-line type literal (`emitListItems`: `emitTrailingCommentsOfPosition`
+/// at its comment range), so a property's same-line comment after its comma,
+/// which the next member's comment range starts with, prints in signature
+/// help (found by the LSP test on next.js). Pinned to tsgo's answer at
+/// aa814927.
+#[test]
+fn signature_help_prints_a_property_s_same_line_comment() {
+    let text = "const o = {\n  page: \"\",\n  query: 1, // trailing note\n\n  // leading note\n  rest: true,\n};\ndeclare function g<T>(v: T): void;\ng(o);\n";
+    let help = signature_help(&[("/a.ts", text)], options(|_| {}), (8, 2), None);
+    assert_eq!(
+        help["signatures"][0]["label"],
+        "g(v: { page: string; query: number; // trailing note  // leading note rest: boolean; }): void"
+    );
+}

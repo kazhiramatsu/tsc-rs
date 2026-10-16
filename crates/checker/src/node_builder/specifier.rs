@@ -1143,7 +1143,8 @@ pub(crate) fn get_module_specifiers_for_file_with_info(
     module_file_name: &JsString,
     user_preferences: &ModuleSpecifierUserPreferences,
 ) -> CheckResult<(Vec<JsString>, Option<ModuleSpecifierKind>)> {
-    let host = super::chains::BasicModuleSpecifierHost::new(state);
+    let shared_host = state.module_specifier_host();
+    let host: &super::chains::BasicModuleSpecifierHost = &shared_host;
     let compiler_options = SpecifierCompilerOptions::of_program(state);
     let options = ModuleSpecifierOptions {
         override_import_mode: None,
@@ -1155,12 +1156,12 @@ pub(crate) fn get_module_specifiers_for_file_with_info(
     let file_index = state.binder.file_index_of_node(importing_file);
     let info = get_info(
         &source_name(&state.binder.source(file_index).file_name),
-        &host,
+        host,
     );
     let module_paths = get_all_module_paths_worker(
         &info,
         &source_name(module_file_name),
-        &host,
+        host,
         &compiler_options,
         &options,
     );
@@ -1171,7 +1172,7 @@ pub(crate) fn get_module_specifiers_for_file_with_info(
         &compiler_options,
         importing_file,
         importing_node,
-        &host,
+        host,
         user_preferences,
         &options,
         true,
@@ -1190,7 +1191,8 @@ pub(crate) fn update_module_specifier(
     to_file_name: &JsString,
     user_preferences: &ModuleSpecifierUserPreferences,
 ) -> JsString {
-    let host = super::chains::BasicModuleSpecifierHost::new(state);
+    let shared_host = state.module_specifier_host();
+    let host: &super::chains::BasicModuleSpecifierHost = &shared_host;
     let compiler_options = SpecifierCompilerOptions::of_program(state);
     let file_index = state.binder.file_index_of_node(literal);
     let importing_file = state.binder.source(file_index).root;
@@ -1198,14 +1200,14 @@ pub(crate) fn update_module_specifier(
     let options = ModuleSpecifierOptions {
         override_import_mode: Some(override_import_mode),
     };
-    let info = get_info(importing_file_name, &host);
+    let info = get_info(importing_file_name, host);
     let module_paths =
-        get_all_module_paths_worker(&info, to_file_name, &host, &compiler_options, &options);
+        get_all_module_paths_worker(&info, to_file_name, host, &compiler_options, &options);
     let old_import_specifier = literal_text_in_source(state, file_index, literal);
     let preferences = get_module_specifier_preferences(
         state,
         user_preferences,
-        &host,
+        host,
         &compiler_options,
         importing_file,
         old_import_specifier,
@@ -1213,7 +1215,7 @@ pub(crate) fn update_module_specifier(
     let resolution_mode = match override_import_mode {
         EmitResolutionMode::None => get_default_resolution_mode_for_file(
             emit_resolver_node_for_file(state, file_index, importing_file),
-            &host,
+            host,
             &compiler_options,
         ),
         mode => mode,
@@ -1224,7 +1226,7 @@ pub(crate) fn update_module_specifier(
             module_path,
             &info,
             importing_file,
-            &host,
+            host,
             &compiler_options,
             user_preferences,
             false,
@@ -1240,7 +1242,7 @@ pub(crate) fn update_module_specifier(
         to_file_name,
         &info,
         &compiler_options,
-        &host,
+        host,
         resolution_mode,
         &preferences,
         false,

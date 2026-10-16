@@ -422,7 +422,9 @@ fn get_import_fix_for_symbol(
     for export in exports {
         fixes.extend(view.get_fixes(checker, export, false, is_valid_type_only_use_site, None)?);
     }
-    fixes.sort_by(|a, b| view.compare_fixes_for_ranking(a, b));
+    // tsgo `slices.SortFunc`: not stable, and its comparison is no total
+    // order.
+    tsc_types::sort_func_like_go(&mut fixes, |a, b| view.compare_fixes_for_ranking(a, b));
     Ok(fixes.into_iter().next())
 }
 

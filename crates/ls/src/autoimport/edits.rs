@@ -415,7 +415,8 @@ pub(super) fn add_to_existing_import<'a>(
         }
         {
             let arena = tracker.syntax(file);
-            new_specifiers.sort_by(|a, b| {
+            // tsgo `slices.SortFunc` (not stable).
+            tsc_types::sort_func_like_go(&mut new_specifiers, |a, b| {
                 compare_import_or_export_specifiers(arena, a.node(), b.node(), comparer, type_order)
             });
         }
@@ -1105,7 +1106,8 @@ pub(super) fn insert_imports<'a>(
     let mut sorted_new_imports = imports;
     {
         let arena = tracker.syntax(file);
-        sorted_new_imports.sort_by(|a, b| {
+        // tsgo `slices.SortFunc` (not stable).
+        tsc_types::sort_func_like_go(&mut sorted_new_imports, |a, b| {
             compare_imports_or_require_statements(arena, a.node(), b.node(), comparer)
         });
     }

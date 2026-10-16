@@ -587,6 +587,36 @@ fn a_query_runs_on_its_own_checker() {
     );
 }
 
+/// tsgo answers a request whose handler panicked with the panic
+/// (`Server.recover`) and releases the checker it held for the next request
+/// (`defer done()`; only a canceled checker is disposed): a query that
+/// panics while it holds the query checker leaves the checker to the next
+/// query.
+#[test]
+fn a_query_that_panicked_leaves_the_checker_to_the_next_query() {
+    let mut live = LiveProgram::new(prepared(
+        &[("/work/a.ts", "const a: number = 1;\n")],
+        CompilerOptions::default(),
+    ))
+    .expect("create the live program");
+    let script = live.file_index("/work/a.ts").expect("the script");
+    let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        live.with_query_checker(|_| panic!("a request's panic"))
+    }));
+    assert!(panicked.is_err());
+    let name = live
+        .with_query_checker(|state| {
+            state
+                .binder
+                .source(script)
+                .file_name
+                .to_string_lossy()
+                .into_owned()
+        })
+        .expect("the query checker");
+    assert_eq!(name, "/work/a.ts");
+}
+
 /// A Program without files (a synthetic program with no roots and no
 /// library) has no checker, as in the batch drivers; its diagnostics are
 /// the batch session's.

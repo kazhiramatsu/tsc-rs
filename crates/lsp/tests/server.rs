@@ -1518,3 +1518,349 @@ fn the_builtin_watcher_reports_changes_on_disk() {
     session.close();
     let _ = std::fs::remove_dir_all(&directory);
 }
+
+/// tsgo's auto-import registry extracts a package's exports with its alias
+/// resolver, whose format hooks answer ESNext for every file
+/// (`aliasresolver.go`): there a `.d.cts` file's
+/// `export { default as ar } from "./ar.cjs"` of an `export =` module has
+/// no synthetic default, so the re-export resolves to nothing (kind
+/// unknown, the completion's Property) and groups with its re-export
+/// through `export *`, which wins on the shorter specifier, while the
+/// `export =` module's own default stays a group of its own. tsgo's answer
+/// at aa814927 (playwright's zod 4 locales).
+#[test]
+fn auto_imports_resolve_a_package_s_aliases_as_esm() {
+    const INDEX: &str = "import \"pkg/locales\";\nar\n";
+    let fs = Arc::new(
+        MemFs::from_entries(
+            [
+                (
+                    "/ws/package.json",
+                    Seed::file(r#"{"name": "app", "dependencies": {"pkg": "1.0.0"}}"#),
+                ),
+                (
+                    "/ws/tsconfig.json",
+                    Seed::file(
+                        r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}}"#,
+                    ),
+                ),
+                ("/ws/index.ts", Seed::file(INDEX)),
+                (
+                    "/ws/node_modules/pkg/package.json",
+                    Seed::file(
+                        r#"{"name": "pkg", "version": "1.0.0", "type": "module", "exports": {"./locales": {"types": "./locales/index.d.cts"}, "./v4/locales": {"types": "./v4/locales/index.d.cts"}, "./v4/locales/*": {"types": "./v4/locales/*"}}}"#,
+                    ),
+                ),
+                (
+                    "/ws/node_modules/pkg/locales/index.d.cts",
+                    Seed::file("export * from \"../v4/locales/index.cjs\";\n"),
+                ),
+                (
+                    "/ws/node_modules/pkg/v4/locales/index.d.cts",
+                    Seed::file("export { default as ar } from \"./ar.cjs\";\n"),
+                ),
+                (
+                    "/ws/node_modules/pkg/v4/locales/ar.d.cts",
+                    Seed::file(
+                        "declare function _default(): { localeError: string };\nexport = _default;\n",
+                    ),
+                ),
+            ],
+            false,
+            Arc::new(SystemClock),
+        )
+        .unwrap(),
+    );
+    let mut session = Session::start_with(fs);
+    let mut client = RegistrationClient::default();
+    client.initialize(&mut session, serde_json::json!({}));
+    let index = "file:///ws/index.ts";
+    client.notify(
+        &mut session,
+        "textDocument/didOpen",
+        serde_json::json!({"textDocument": {"uri": index, "languageId": "typescript", "version": 1, "text": INDEX}}),
+    );
+    let response = client.request(
+        &mut session,
+        2,
+        "textDocument/completion",
+        serde_json::json!({"textDocument": {"uri": index}, "position": {"line": 1, "character": 2}}),
+    );
+    let mut items = response["result"]["items"]
+        .as_array()
+        .expect("the items")
+        .iter()
+        .filter(|item| item["label"] == "ar")
+        .map(|item| {
+            let auto_import = &item["data"]["autoImport"];
+            (
+                item["kind"].as_i64().expect("a kind"),
+                auto_import["moduleSpecifier"]
+                    .as_str()
+                    .expect("a specifier")
+                    .to_owned(),
+                auto_import["importKind"].as_i64().expect("an import kind"),
+            )
+        })
+        .collect::<Vec<_>>();
+    items.sort();
+    assert_eq!(
+        items,
+        [
+            (3, "pkg/v4/locales/ar.cjs".to_owned(), 1),
+            (10, "pkg/locales".to_owned(), 0),
+        ]
+    );
+    session.close();
+}
+
+/// tsgo's program symlink cache also looks up the runtime dependencies of
+/// each emitted file's package scope as package directories
+/// (`GetSymlinkCache` → `ResolvePackageDirectory`: the nearest
+/// `node_modules/<name>`, no `paths`), so a workspace package that `paths`
+/// maps and only another package's `node_modules` links is still known by
+/// its link, and its file is named through the package's exports
+/// (`"./*": "./*"`) from a package that does not see the link. tsgo's
+/// answer at aa814927 (vue's `@vue/server-renderer/src/internal.js`).
+#[test]
+fn auto_imports_name_a_file_through_a_dependency_s_symlink() {
+    const A: &str = "rend\n";
+    let fs = Arc::new(
+        MemFs::from_entries(
+            [
+                ("/ws/package.json", Seed::file(r#"{"name": "root", "private": true}"#)),
+                (
+                    "/ws/tsconfig.json",
+                    Seed::file(
+                        r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true, "paths": {"@scope/*": ["./packages/*/src"]}}, "include": ["packages/*/src"]}"#,
+                    ),
+                ),
+                (
+                    "/ws/packages/a/package.json",
+                    Seed::file(r#"{"name": "@scope/a", "version": "1.0.0"}"#),
+                ),
+                ("/ws/packages/a/src/index.ts", Seed::file(A)),
+                (
+                    "/ws/packages/b/package.json",
+                    Seed::file(
+                        r#"{"name": "@scope/b", "version": "1.0.0", "exports": {".": {"types": "./dist/b.d.ts"}, "./*": "./*"}}"#,
+                    ),
+                ),
+                ("/ws/packages/b/src/index.ts", Seed::file("export const b = 1;\n")),
+                (
+                    "/ws/packages/b/src/internal.ts",
+                    Seed::file("export function renderThing(): void {}\n"),
+                ),
+                (
+                    "/ws/packages/c/package.json",
+                    Seed::file(
+                        r#"{"name": "@scope/c", "version": "1.0.0", "dependencies": {"@scope/b": "workspace:*"}}"#,
+                    ),
+                ),
+                ("/ws/packages/c/src/index.ts", Seed::file("export const c = 1;\n")),
+                (
+                    "/ws/packages/c/node_modules/@scope/b",
+                    Seed::symlink("/ws/packages/b"),
+                ),
+            ],
+            false,
+            Arc::new(SystemClock),
+        )
+        .unwrap(),
+    );
+    let mut session = Session::start_with(fs);
+    let mut client = RegistrationClient::default();
+    client.initialize(&mut session, serde_json::json!({}));
+    let a = "file:///ws/packages/a/src/index.ts";
+    client.notify(
+        &mut session,
+        "textDocument/didOpen",
+        serde_json::json!({"textDocument": {"uri": a, "languageId": "typescript", "version": 1, "text": A}}),
+    );
+    let response = client.request(
+        &mut session,
+        2,
+        "textDocument/completion",
+        serde_json::json!({"textDocument": {"uri": a}, "position": {"line": 0, "character": 4}}),
+    );
+    let auto_imports = response["result"]["items"]
+        .as_array()
+        .expect("the items")
+        .iter()
+        .filter(|item| item["data"].get("autoImport").is_some())
+        .map(|item| {
+            (
+                item["label"].as_str().expect("a label").to_owned(),
+                item["data"]["autoImport"]["moduleSpecifier"]
+                    .as_str()
+                    .expect("a specifier")
+                    .to_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        auto_imports,
+        [(
+            "renderThing".to_owned(),
+            "@scope/b/src/internal.js".to_owned()
+        )]
+    );
+    session.close();
+}
+
+/// The auto-import items of `text` at `(line, character)` in a session over
+/// `entries` (with `/ws/index.ts` holding `text`): label, kind, specifier,
+/// import kind and tags.
+fn auto_import_items(
+    entries: Vec<(&'static str, Seed)>,
+    text: &str,
+    (line, character): (u32, u32),
+) -> Vec<(String, i64, String, i64, Value)> {
+    let fs = Arc::new(MemFs::from_entries(entries, false, Arc::new(SystemClock)).unwrap());
+    let mut session = Session::start_with(fs);
+    let mut client = RegistrationClient::default();
+    client.initialize(&mut session, serde_json::json!({}));
+    let index = "file:///ws/index.ts";
+    client.notify(
+        &mut session,
+        "textDocument/didOpen",
+        serde_json::json!({"textDocument": {"uri": index, "languageId": "typescript", "version": 1, "text": text}}),
+    );
+    let response = client.request(
+        &mut session,
+        2,
+        "textDocument/completion",
+        serde_json::json!({"textDocument": {"uri": index}, "position": {"line": line, "character": character}}),
+    );
+    session.close();
+    let mut items = response["result"]["items"]
+        .as_array()
+        .expect("the items")
+        .iter()
+        .filter(|item| item["data"].get("autoImport").is_some())
+        .map(|item| {
+            let auto_import = &item["data"]["autoImport"];
+            (
+                item["label"].as_str().expect("a label").to_owned(),
+                item["kind"].as_i64().expect("a kind"),
+                auto_import["moduleSpecifier"]
+                    .as_str()
+                    .expect("a specifier")
+                    .to_owned(),
+                auto_import["importKind"].as_i64().expect("an import kind"),
+                item.get("tags").cloned().unwrap_or(Value::Null),
+            )
+        })
+        .collect::<Vec<_>>();
+    items.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
+    items
+}
+
+/// tsgo's alias resolver parses the JavaScript file a package's re-export
+/// resolves to (`GetSourceFileForResolvedModule`; an alias resolution
+/// reports no resolution diagnostic), so `export { createRef } from 'jsdep'`
+/// of a JavaScript-only package resolves to its CommonJS export, and the
+/// package's other aliases still resolve: `hrtime` groups with its
+/// declaration (found by the LSP test on next.js). tsc-rs's checker had
+/// dropped the JavaScript file without `allowJs`, failing every later module
+/// lookup of that checker. Pinned to tsgo's answers at aa814927.
+#[test]
+fn auto_imports_resolve_a_package_s_javascript_re_export() {
+    let entries = || {
+        vec![
+            (
+                "/ws/package.json",
+                Seed::file(r#"{"name": "app", "dependencies": {"pkg": "1.0.0"}}"#),
+            ),
+            (
+                "/ws/tsconfig.json",
+                Seed::file(
+                    r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}}"#,
+                ),
+            ),
+            (
+                "/ws/node_modules/pkg/package.json",
+                Seed::file(r#"{"name": "pkg", "version": "1.0.0"}"#),
+            ),
+            (
+                "/ws/node_modules/pkg/src/trace/index.ts",
+                Seed::file("import { hrtime } from './trace';\nexport { hrtime };\n"),
+            ),
+            (
+                "/ws/node_modules/pkg/src/trace/trace.ts",
+                Seed::file("export function hrtime(): number { return 0; }\n"),
+            ),
+            (
+                "/ws/node_modules/pkg/src/other.ts",
+                Seed::file("export { createRef } from 'jsdep';\n"),
+            ),
+            (
+                "/ws/node_modules/jsdep/package.json",
+                Seed::file(r#"{"name": "jsdep", "version": "1.0.0", "main": "index.js"}"#),
+            ),
+            (
+                "/ws/node_modules/jsdep/index.js",
+                Seed::file("exports.createRef = function () {};\n"),
+            ),
+        ]
+    };
+    let with_index = |text: &'static str| {
+        let mut entries = entries();
+        entries.push(("/ws/index.ts", Seed::file(text)));
+        entries
+    };
+    const HRT: &str = "import \"pkg/src/other\";\nhrt\n";
+    assert_eq!(
+        auto_import_items(with_index(HRT), HRT, (1, 3)),
+        [(
+            "hrtime".to_owned(),
+            3,
+            "pkg/src/trace".to_owned(),
+            0,
+            Value::Null
+        )]
+    );
+    const CRE: &str = "import \"pkg/src/other\";\ncre\n";
+    assert_eq!(
+        auto_import_items(with_index(CRE), CRE, (1, 3)),
+        [(
+            "createRef".to_owned(),
+            6,
+            "pkg/src/other".to_owned(),
+            0,
+            Value::Null
+        )]
+    );
+}
+
+/// tsgo's `getNodeModifiers` reads the modifiers of any declaration node
+/// (`ast.IsDeclaration`: an export assignment included), so `export default`
+/// under a JSDoc `@deprecated` makes its auto-import item deprecated (found
+/// by the LSP test on next.js). Pinned to tsgo's answer at aa814927.
+#[test]
+fn a_deprecated_default_export_s_auto_import_is_deprecated() {
+    const INDEX: &str = "export const x = 1;\noldV\n";
+    let entries = vec![
+        (
+            "/ws/tsconfig.json",
+            Seed::file(
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}}"#,
+            ),
+        ),
+        (
+            "/ws/oldValue.ts",
+            Seed::file("/**\n * @deprecated Use the other one.\n */\nexport default 42;\n"),
+        ),
+        ("/ws/index.ts", Seed::file(INDEX)),
+    ];
+    assert_eq!(
+        auto_import_items(entries, INDEX, (1, 4)),
+        [(
+            "oldValue".to_owned(),
+            5,
+            "./oldValue".to_owned(),
+            1,
+            serde_json::json!([1])
+        )]
+    );
+}

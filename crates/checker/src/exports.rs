@@ -1677,7 +1677,7 @@ impl CheckerState<'_> {
                     display
                         .arena_mut()
                         .expect("checker display result remains live")
-                        .forget_emit_flags_and_comments(node)
+                        .forget_emit_context(node)
                 })
                 .map_err(|error| format!("type node builder: {error:?}"))?;
             state

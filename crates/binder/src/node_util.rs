@@ -936,6 +936,20 @@ pub fn is_declaration_node(source: &SourceFile, node: NodeId) -> bool {
     }
 }
 
+/// tsgo `ast.IsDeclaration` over a symbol's declaration in tsc-rs's tree:
+/// [`is_declaration_node`], and the JSDoc tags tsc-rs binds where tsgo binds
+/// their reparsed declarations (a `@typedef`'s or `@callback`'s type alias,
+/// a `@property`'s property signature).
+pub fn is_symbol_declaration(source: &SourceFile, node: NodeId) -> bool {
+    is_declaration_node(source, node)
+        || matches!(
+            kind_of(source, node),
+            SyntaxKind::JSDocTypedefTag
+                | SyntaxKind::JSDocCallbackTag
+                | SyntaxKind::JSDocPropertyTag
+        )
+}
+
 /// tsc isDeclaration/isDeclarationKind (_tsc.js 12455-12469).
 pub fn is_declaration(source: &SourceFile, node: NodeId) -> bool {
     let kind = kind_of(source, node);

@@ -2769,10 +2769,14 @@ impl PendingProgramSource {
     }
 }
 
+/// `files_outside_program`: how many of `files`, at their end, are read
+/// outside the Program (a resolution target of the auto-import registry's
+/// alias resolver, which tsgo parses whatever its extension).
 #[allow(clippy::too_many_arguments)]
 fn parse_program_inputs(
     libs: &[InputFile],
     files: &[InputFile],
+    files_outside_program: usize,
     options: &CompilerOptions,
     current_directory: JsStr<'_>,
     identity_domain: &IdentityDomain,
@@ -2880,10 +2884,12 @@ fn parse_program_inputs(
         // tsc createProgram only loads roots with supported extensions;
         // anything else (.txt, extensionless, .js without allowJs) never
         // yields syntactic diagnostics. allowNonTsExtensions (transpile
-        // routes) admits every root the Program loader accepted.
+        // routes) admits every root the Program loader accepted, and a file
+        // read outside the Program is no root.
         if !is_supported_source_file_name(&file.name, options.allow_js)
             && file.content_mapped.is_none()
             && options.allow_non_ts_extensions != Some(true)
+            && index < files.len().saturating_sub(files_outside_program)
         {
             continue;
         }
@@ -4179,6 +4185,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     } = parse_program_inputs(
         libs,
         files,
+        0,
         options,
         current_directory,
         identity_domain,
@@ -5057,6 +5064,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     } = parse_program_inputs(
         libs,
         files,
+        0,
         options,
         current_directory,
         identity_domain,
