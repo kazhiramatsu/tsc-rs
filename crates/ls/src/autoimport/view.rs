@@ -374,7 +374,11 @@ impl<'r> View<'r> {
         // need to consider the name in our sorting here; we only need to produce a
         // stable relative ordering between completions that the client will consider
         // equivalent.
-        fixes.sort_by(|a, b| self.compare_fixes_for_sorting(&a.fix, &b.fix));
+        // tsgo `slices.SortFunc`: its comparison is no total order (some
+        // kinds compare only against their own kind), so Go's algorithm.
+        tsc_types::sort_func_like_go(&mut fixes, |a, b| {
+            self.compare_fixes_for_sorting(&a.fix, &b.fix)
+        });
         Ok(fixes)
     }
 

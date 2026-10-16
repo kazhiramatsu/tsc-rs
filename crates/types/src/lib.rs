@@ -32,7 +32,7 @@ pub use ty::{
     MappedTypeModifiers, MapperId, PseudoBigInt, ReverseMappedTypeData, SubstitutionTypeData,
     SymbolId, TemplateText, TupleTargetData, Type, TypeData, TypeId,
 };
-pub use type_order::{TypeOrder, TypeOrderContext};
+pub use type_order::{sort_func_like_go, TypeOrder, TypeOrderContext};
 pub use version::{
     compiler_version_satisfies, Version, TYPESCRIPT_VERSION, TYPESCRIPT_VERSION_MAJOR_MINOR,
 };
