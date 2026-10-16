@@ -1756,6 +1756,83 @@ fn auto_import_items(
     items
 }
 
+/// tsgo's alias resolver parses the JavaScript file a package's re-export
+/// resolves to (`GetSourceFileForResolvedModule`; an alias resolution
+/// reports no resolution diagnostic), so `export { createRef } from 'jsdep'`
+/// of a JavaScript-only package resolves to its CommonJS export, and the
+/// package's other aliases still resolve: `hrtime` groups with its
+/// declaration (found by the LSP test on next.js). tsc-rs's checker had
+/// dropped the JavaScript file without `allowJs`, failing every later module
+/// lookup of that checker. Pinned to tsgo's answers at aa814927.
+#[test]
+fn auto_imports_resolve_a_package_s_javascript_re_export() {
+    let entries = || {
+        vec![
+            (
+                "/ws/package.json",
+                Seed::file(r#"{"name": "app", "dependencies": {"pkg": "1.0.0"}}"#),
+            ),
+            (
+                "/ws/tsconfig.json",
+                Seed::file(
+                    r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "noLib": true}}"#,
+                ),
+            ),
+            (
+                "/ws/node_modules/pkg/package.json",
+                Seed::file(r#"{"name": "pkg", "version": "1.0.0"}"#),
+            ),
+            (
+                "/ws/node_modules/pkg/src/trace/index.ts",
+                Seed::file("import { hrtime } from './trace';\nexport { hrtime };\n"),
+            ),
+            (
+                "/ws/node_modules/pkg/src/trace/trace.ts",
+                Seed::file("export function hrtime(): number { return 0; }\n"),
+            ),
+            (
+                "/ws/node_modules/pkg/src/other.ts",
+                Seed::file("export { createRef } from 'jsdep';\n"),
+            ),
+            (
+                "/ws/node_modules/jsdep/package.json",
+                Seed::file(r#"{"name": "jsdep", "version": "1.0.0", "main": "index.js"}"#),
+            ),
+            (
+                "/ws/node_modules/jsdep/index.js",
+                Seed::file("exports.createRef = function () {};\n"),
+            ),
+        ]
+    };
+    let with_index = |text: &'static str| {
+        let mut entries = entries();
+        entries.push(("/ws/index.ts", Seed::file(text)));
+        entries
+    };
+    const HRT: &str = "import \"pkg/src/other\";\nhrt\n";
+    assert_eq!(
+        auto_import_items(with_index(HRT), HRT, (1, 3)),
+        [(
+            "hrtime".to_owned(),
+            3,
+            "pkg/src/trace".to_owned(),
+            0,
+            Value::Null
+        )]
+    );
+    const CRE: &str = "import \"pkg/src/other\";\ncre\n";
+    assert_eq!(
+        auto_import_items(with_index(CRE), CRE, (1, 3)),
+        [(
+            "createRef".to_owned(),
+            6,
+            "pkg/src/other".to_owned(),
+            0,
+            Value::Null
+        )]
+    );
+}
+
 /// tsgo's `getNodeModifiers` reads the modifiers of any declaration node
 /// (`ast.IsDeclaration`: an export assignment included), so `export default`
 /// under a JSDoc `@deprecated` makes its auto-import item deprecated (found

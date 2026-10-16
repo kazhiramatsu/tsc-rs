@@ -179,6 +179,7 @@ impl LiveChecker {
             parse_program_inputs(
                 &libs,
                 &files,
+                files_outside_program,
                 &options,
                 current_directory.as_js(),
                 &identity_domain,
