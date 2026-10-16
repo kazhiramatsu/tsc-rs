@@ -1105,6 +1105,13 @@ impl<'a> BinderWorker<'a> {
                         SymbolFlags::TYPE_PARAMETER_EXCLUDES,
                     );
                 }
+                // An `@overload` signature's type parameters are declared
+                // when the signature's container binds
+                // (declare_overload_template_parameters): tsgo binds the
+                // reparsed overload's own type parameter list inside it,
+                // after its locals exist.
+                Some(container)
+                    if kind_of(self.source, container) == SyntaxKind::JSDocSignature => {}
                 Some(container) => {
                     // Deliberately no addToContainerChain: tsc creates this
                     // locals table directly for JSDoc/infer type parameters.

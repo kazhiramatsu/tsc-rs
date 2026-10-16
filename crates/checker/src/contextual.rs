@@ -1295,15 +1295,14 @@ impl<'a> CheckerState<'a> {
                     if let Some(declaration) =
                         property.and_then(|property| self.binder.symbol(property).value_declaration)
                     {
-                        let unannotated_property = match self.data_of(declaration) {
-                            NodeData::PropertyDeclaration(data) => {
-                                data.r#type.is_none() && data.initializer.is_none()
-                            }
-                            NodeData::PropertySignature(data) => {
-                                data.r#type.is_none() && data.initializer.is_none()
-                            }
-                            _ => false,
-                        };
+                        // tsgo `d.Type()`: a JavaScript property's reparsed
+                        // `@type` is its annotation.
+                        let unannotated_property =
+                            matches!(
+                                self.kind_of(declaration),
+                                SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature
+                            ) && self.effective_type_annotation_node(declaration).is_none()
+                                && self.initializer_of(declaration).is_none();
                         if unannotated_property {
                             return Ok(None);
                         }
