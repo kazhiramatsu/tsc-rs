@@ -1548,3 +1548,35 @@ fn a_jsdoc_implements_tag_relates_a_method_to_the_interface_s_apparent_member() 
         vec![((8, 1), (8, 9)), ((15, 25), (15, 33)), ((20, 10), (20, 18))]
     );
 }
+
+/// The name of a plain `name is T` predicate in a hosted `@returns` is not a
+/// reference of the parameter: tsgo resolves a JSDoc name through its
+/// reparsed clone, found by a position search that misses a node starting
+/// where the clone's root starts (ast.GetReparsedNodeForNode), and from the
+/// comment the parameter is not visible. `asserts name is T` starts at
+/// `asserts` and is found (tsgo aa814927; found by the LSP test on svelte).
+#[test]
+fn a_plain_jsdoc_predicate_does_not_name_its_parameter() {
+    let files = [(
+        "/a.js",
+        "/**\n * @param {any} obj\n * @returns {obj is Date}\n */\nexport function is_date(obj) {\n\treturn Object.prototype.toString.call(obj) === '[object Date]';\n}\n",
+    )];
+    let mut highlights = document_highlights(
+        &files,
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        }),
+        "/a.js",
+        (4, 24),
+    );
+    highlights.sort();
+    assert_eq!(
+        highlights,
+        vec![
+            (((1, 16), (1, 19)), 2),
+            (((4, 24), (4, 27)), 3),
+            (((5, 39), (5, 42)), 2),
+        ]
+    );
+}
