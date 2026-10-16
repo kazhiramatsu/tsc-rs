@@ -280,6 +280,10 @@ impl<'r> View<'r> {
         let mut grouped: Vec<(GroupKey, Vec<Arc<Export>>)> = Vec::new();
         let mut group_of: std::collections::HashMap<GroupKey, usize> =
             std::collections::HashMap::new();
+        // Whether an export was found in its module's own file (not in an
+        // augmentation of the module from another file).
+        let declares_its_module =
+            |export: &Export| export.path == self.path_of(&export.module_file_name);
         'outer: for export in results {
             let name = export.name().to_owned();
             if !tsc_syntax::is_identifier_text(&name) {
@@ -332,7 +336,18 @@ impl<'r> View<'r> {
                             local_name: export.local_name.clone(),
                             through: String::new(),
                             target: export.target.clone(),
-                            path: export.path.clone(),
+                            // tsgo keeps the later export's path, in an index
+                            // order that is random: when one of the two is
+                            // the module file's own export and the other an
+                            // augmentation's, the module file's stays — the
+                            // answer tsgo gives when it names a module that
+                            // exports the symbol (the augmenting file does
+                            // not; user decision of 2026-10-16).
+                            path: if declares_its_module(slot) && !declares_its_module(&export) {
+                                slot.path.clone()
+                            } else {
+                                export.path.clone()
+                            },
                         });
                         continue 'outer;
                     }
@@ -343,6 +358,12 @@ impl<'r> View<'r> {
                 grouped.push((key, vec![export]));
             }
         }
+
+        self.fill_shared_specifiers(
+            checker,
+            grouped.iter().map(|(_, exports)| exports.as_slice()),
+            is_type_only_location,
+        )?;
 
         let mut fixes = Vec::new();
         for (_, exports) in grouped {
@@ -859,10 +880,27 @@ impl<'r> View<'r> {
                 }
             }
         }
+        let (specifier, kind) = self.module_specifier_of_file(checker, &export.module_file_name)?;
+        if let Some(cache) = cache {
+            cache
+                .lock()
+                .expect("specifier cache")
+                .insert(export.path.clone(), specifier.clone());
+        }
+        Ok((specifier, kind))
+    }
+
+    /// tsgo `GetModuleSpecifier`'s computation for a module file: the first
+    /// specifier not through node_modules, else none.
+    fn module_specifier_of_file(
+        &self,
+        checker: &mut CheckerState<'_>,
+        module_file_name: &str,
+    ) -> CheckResult<(String, Option<ModuleSpecifierKind>)> {
         let root = self.source(checker).root;
         let (specifiers, kind) = checker.get_module_specifiers_for_file_with_info(
             root,
-            &tsc_types::JsString::from(export.module_file_name.as_str()),
+            &tsc_types::JsString::from(module_file_name),
             &self.preferences,
         )?;
         // !!! unsure when this could return multiple specifiers combined with the
@@ -870,24 +908,97 @@ impl<'r> View<'r> {
         //     very rare.
         for specifier in specifiers {
             let specifier = specifier.to_string_lossy().into_owned();
-            if specifier.contains("/node_modules/") {
+            if !specifier.contains("/node_modules/") {
+                return Ok((specifier, kind));
+            }
+        }
+        Ok((String::new(), None))
+    }
+
+    /// Whether `GetModuleSpecifier` reads the importing file's specifier
+    /// cache for `export`: an export of a file outside node_modules, or a
+    /// relative augmentation it resolved.
+    fn reads_specifier_cache(export: &Export) -> bool {
+        export.unresolved_module_specifier.is_empty()
+            && export.id.module_id.as_module_specifier().is_none()
+            && export.package_name.is_empty()
+    }
+
+    /// tsgo computes a file's module specifier once per importing file
+    /// (`specifierCache`, keyed by the file an export was found in; a later
+    /// lookup is answered from the cache, as relative) for whichever group
+    /// of `GetCompletions` asks first, and its groups come in Go's map
+    /// order: the group that fills a file's entry is random, and a file
+    /// several groups reach is nearly always answered from the cache.
+    /// tsc-rs's groups come in the order found, which repeated one of
+    /// tsgo's least likely orders every time (hono: the merged
+    /// `declare module '../..'` export filled the last middleware's entry
+    /// with `../..`; vue: `version` filled three packages' entries as paths
+    /// kinds, and the ranking cycled). So a file two or more groups reach
+    /// is filled before any group asks, from the module file name most of
+    /// those groups give, each being as likely to be tsgo's first.
+    fn fill_shared_specifiers<'a>(
+        &mut self,
+        checker: &mut CheckerState<'_>,
+        groups: impl Iterator<Item = &'a [Arc<Export>]>,
+        is_valid_type_only_use_site: bool,
+    ) -> CheckResult<()> {
+        let Some(cache) = self.registry.specifier_cache(&self.importing_file_path) else {
+            return Ok(());
+        };
+        let cache = Arc::clone(cache);
+        // Each file's module file names, one per group that reaches it.
+        let mut reached: Vec<(String, Vec<String>)> = Vec::new();
+        let mut slot_of: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
+        for exports in groups {
+            let mut seen: BTreeSet<&str> = BTreeSet::new();
+            for export in exports {
+                if !Self::reads_specifier_cache(export) || seen.contains(export.path.as_str()) {
+                    continue;
+                }
+                if self
+                    .try_add_to_existing_import(checker, export, is_valid_type_only_use_site)?
+                    .is_some()
+                {
+                    continue;
+                }
+                seen.insert(&export.path);
+                let slot = *slot_of.entry(export.path.clone()).or_insert_with(|| {
+                    reached.push((export.path.clone(), Vec::new()));
+                    reached.len() - 1
+                });
+                reached[slot].1.push(export.module_file_name.clone());
+            }
+        }
+        for (path, module_file_names) in reached {
+            if module_file_names.len() < 2
+                || cache.lock().expect("specifier cache").contains_key(&path)
+            {
                 continue;
             }
-            if let Some(cache) = cache {
-                cache
-                    .lock()
-                    .expect("specifier cache")
-                    .insert(export.path.clone(), specifier.clone());
+            // The module file name most groups give; the first found on a tie.
+            let mut counted: Vec<(&str, usize)> = Vec::new();
+            for name in &module_file_names {
+                match counted.iter_mut().find(|(counted, _)| *counted == name) {
+                    Some(entry) => entry.1 += 1,
+                    None => counted.push((name, 1)),
+                }
             }
-            return Ok((specifier, kind));
-        }
-        if let Some(cache) = cache {
+            let most = counted
+                .iter()
+                .fold(
+                    counted[0],
+                    |best, &entry| if entry.1 > best.1 { entry } else { best },
+                )
+                .0;
+            let (specifier, _) = self.module_specifier_of_file(checker, most)?;
             cache
                 .lock()
                 .expect("specifier cache")
-                .insert(export.path.clone(), String::new());
+                .insert(path, specifier);
         }
-        Ok((String::new(), None))
+        Ok(())
     }
 
     /// tsgo `CompareFixesForSorting`: by rank, then by specifier.
