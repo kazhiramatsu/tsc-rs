@@ -1470,3 +1470,19 @@ fn signature_help_return_types_print_cloned_binding_patterns_with_a_trailing_com
         "bind(thisArg: unknown): ({ a, b, }: Box) => ({ a: a2, b: b2, }: Box) => number"
     );
 }
+
+/// tsgo writes the comments at each member's position before the member in
+/// a single-line type literal (`emitListItems`: `emitTrailingCommentsOfPosition`
+/// at its comment range), so a property's same-line comment after its comma,
+/// which the next member's comment range starts with, prints in signature
+/// help (found by the LSP test on next.js). Pinned to tsgo's answer at
+/// aa814927.
+#[test]
+fn signature_help_prints_a_property_s_same_line_comment() {
+    let text = "const o = {\n  page: \"\",\n  query: 1, // trailing note\n\n  // leading note\n  rest: true,\n};\ndeclare function g<T>(v: T): void;\ng(o);\n";
+    let help = signature_help(&[("/a.ts", text)], options(|_| {}), (8, 2), None);
+    assert_eq!(
+        help["signatures"][0]["label"],
+        "g(v: { page: string; query: number; // trailing note  // leading note rest: boolean; }): void"
+    );
+}
