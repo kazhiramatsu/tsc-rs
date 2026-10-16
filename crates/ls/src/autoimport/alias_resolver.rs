@@ -5,7 +5,9 @@
 //! non-relative module the checker cannot resolve is recorded: it may be an
 //! ambient module another package declares (the registry's second pass).
 //!
-//! tsgo reads a module's file when the checker first resolves it; tsc-rs's
+//! tsgo reads a module's file when the checker first resolves it, a
+//! JavaScript one included (`GetSourceFileForResolvedModule` parses any
+//! file, and an alias resolution reports no resolution diagnostic); tsc-rs's
 //! checker takes its files up front, so every module the files' requests
 //! resolve to is read before the checker is made, and the checker's lookups
 //! are answered from those resolutions.
@@ -135,7 +137,7 @@ impl AliasResolver {
                     )
                     .unwrap_or(ResolutionOutcome::NotFound);
                 let resolution = match outcome {
-                    ResolutionOutcome::Resolved(module) if is_typescript(module.extension()) => {
+                    ResolutionOutcome::Resolved(module) if is_source(module.extension()) => {
                         let target_name = module
                             .resolved_file()
                             .display()
@@ -241,7 +243,9 @@ impl AliasResolver {
 
 /// Whether the checker reads a resolved module's file: a TypeScript or
 /// declaration file (tsgo's resolver for the empty options finds no other).
-fn is_typescript(extension: &ModuleExtension) -> bool {
+/// A file tsgo's alias resolver parses when the checker resolves to it: a
+/// TypeScript or JavaScript one.
+fn is_source(extension: &ModuleExtension) -> bool {
     matches!(
         extension,
         ModuleExtension::Ts
@@ -251,6 +255,10 @@ fn is_typescript(extension: &ModuleExtension) -> bool {
             | ModuleExtension::Dmts
             | ModuleExtension::Cts
             | ModuleExtension::Dcts
+            | ModuleExtension::Js
+            | ModuleExtension::Jsx
+            | ModuleExtension::Mjs
+            | ModuleExtension::Cjs
     )
 }
 
