@@ -10621,6 +10621,37 @@ fn jsdoc_overload_signatures_do_not_see_the_implementation_s_type_parameters() {
     );
 }
 
+/// An object `@typedef`'s `@property {T=}` type is checked: tsgo's reparser
+/// makes a property signature of the tag, whose declaration check resolves
+/// the optional type (getTypeFromTypeNode's JSDocOptionalType arm) and so
+/// reports its inner type reference; the tag's type expression check had
+/// stopped at the `T=` node (webpack's `@import` bindings used only in such
+/// types were reported unused, and `InstanceType<List>=` of a value-only
+/// import lost its TS2749; tsgo aa814927 reports both names below).
+#[test]
+fn an_object_typedef_s_optional_property_type_is_checked() {
+    let text = "/**\n * @typedef {object} O\n * @property {Nope=} x x\n * @property {Nope2} y y\n */\n/** @type {O} */\nconst o = { y: 1 };\nmodule.exports = o;\n";
+    let rows = with_program_state(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    let nope = text.find("Nope=").expect("the optional type") as u32;
+    let nope2 = text.find("Nope2").expect("the other type") as u32;
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        [(2304, nope), (2304, nope2)]
+    );
+}
+
 /// tsgo's reparser wraps a JSDoc `@type` cast in an `as` expression, which
 /// the control flow analysis does not look through: `(/** @type {E} */
 /// (node.expression)).type === 'x'` narrows neither `node.expression` nor

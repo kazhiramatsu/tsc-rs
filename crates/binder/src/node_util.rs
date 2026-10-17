@@ -87,6 +87,28 @@ pub fn get_jsdoc_root(source: &SourceFile, node: NodeId) -> Option<NodeId> {
     None
 }
 
+/// tsgo parser.go parseListIndex: the type alias or import declaration its
+/// reparser makes of a `@typedef`, `@callback` or `@import` tag is propagated
+/// out of any list but a source file's or a block's statements (class and
+/// object literal members, parameters, switch clauses, …) to the nearest such
+/// list, before the element being parsed there — the statement the comment's
+/// host is part of. That statement is the declaration's host: a typedef in a
+/// class body is declared in the file (and exported with it), not in the
+/// class (webpack's `JavascriptParser` reported one unused).
+pub fn jsdoc_statement_host(source: &SourceFile, host: NodeId) -> NodeId {
+    let mut node = host;
+    while let Some(parent) = parent_of(source, node) {
+        if matches!(
+            kind_of(source, parent),
+            SyntaxKind::SourceFile | SyntaxKind::Block | SyntaxKind::ModuleBlock
+        ) {
+            return node;
+        }
+        node = parent;
+    }
+    node
+}
+
 /// tsc-port: getJSDocHost @6.0.3
 /// tsc-hash: b693b84ddd06dca629b90d76ea5060d059793320ad0b808c90a9bd575cbccbe1
 /// tsc-span: _tsc.js:15515-15524
@@ -796,18 +818,17 @@ pub fn get_jsdoc_modifier_flags_no_cache(source: &SourceFile, id: NodeId) -> Mod
             _ => ModifierFlags::NONE,
         };
     }
-    visit_owned_jsdoc_tags(source, id, |tag| {
-        if kind_of(source, tag) == SyntaxKind::JSDocDeprecatedTag {
-            flags |= ModifierFlags::DEPRECATED;
-        }
-        false
-    });
+    // tsgo has no modifier flag from a `@deprecated` tag: deprecation is the
+    // JSDoc host's node flag (IsDeprecatedDeclarationWithCachedFlags), so a
+    // declaration that is not the host — a `this.x = …` assignment under its
+    // statement's comment — is not deprecated (webpack's
+    // `compilationDependencies` completion carried the deprecated tag).
     flags
 }
 
 /// tsc getEffectiveModifierFlags (getModifierFlagsWorker with includeJSDoc,
-/// _tsc.js 16964-16985): JSDoc modifiers, `@deprecated` included, count in
-/// JavaScript files only.
+/// _tsc.js 16964-16985): JSDoc modifiers count in JavaScript files only
+/// (tsgo: the reparser's hosted modifier tags; `@deprecated` is no modifier).
 pub fn get_effective_modifier_flags(source: &SourceFile, id: NodeId) -> ModifierFlags {
     let syntactic = get_syntactic_modifier_flags(source, id);
     if node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE) {
