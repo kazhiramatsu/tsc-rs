@@ -1013,6 +1013,11 @@ impl<'a> BinderWorker<'a> {
         let Some(&symbol) = self.node_symbol.get(&node) else {
             return;
         };
+        // Each overload declaration's symbol is the host's (tsgo's
+        // `declareSymbol` sets it; `symbolMatchesSignature` reads it).
+        for &name in &names {
+            self.node_symbol.insert(name, symbol);
+        }
         let export_symbol = self.symbols.symbol(symbol).export_symbol;
         for symbol in std::iter::once(symbol).chain(export_symbol) {
             let mut declarations = self.symbols.symbol(symbol).declarations.to_vec();

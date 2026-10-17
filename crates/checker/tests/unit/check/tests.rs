@@ -10621,6 +10621,154 @@ fn jsdoc_overload_signatures_do_not_see_the_implementation_s_type_parameters() {
     );
 }
 
+/// A `@this {T}` before a function declaration's `@type {Fn}`: tsgo's
+/// reparser processes the tags in order and the `@this` adds a typed `this`
+/// parameter first, so the `@type` finds a typed parameter and gives the
+/// function no signature — its parameters are implicitly `any` (tsgo
+/// aa814927; webpack's `generateError`; TypeScript 6.0.3 used the `@type`
+/// in either order — tsgo memo 9).
+#[test]
+fn a_this_tag_before_a_function_s_type_tag_leaves_its_parameters_untyped() {
+    let text = "/**\n * @this {{ map: { [name: string]: string } }}\n * @type {(error: { message: string }, name: string) => string}\n */\nfunction g(error, name) {\n\treturn this.map[name] + error.message;\n}\nmodule.exports = { g };\n";
+    let rows = with_program_state(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    let error = text.find("(error, name)").expect("the parameters") as u32 + 1;
+    let name = text.find("(error, name)").expect("the parameters") as u32 + 8;
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        [(7006, error), (7006, name)]
+    );
+}
+
+/// A module-level `let` assigned in another function is an outer variable
+/// at its uses there, assumed initialized, in a CommonJS module as in an ES
+/// module (tsgo aa814927; webpack's `lib/javascript/ScopeAnalyzer.js`
+/// reported TS2454 at every use of its lazily required `NodeType`).
+#[test]
+fn a_common_js_module_s_let_assigned_in_another_function_is_assumed_initialized() {
+    let text = "/** @type {{ Identifier: number }} */\nlet A;\nfunction load() {\n\tif (A === undefined) {\n\t\tA = { Identifier: 1 };\n\t}\n}\nclass C {\n\tm() {\n\t\tload();\n\t\treturn A.Identifier;\n\t}\n}\nmodule.exports = { C };\n";
+    let rows = with_program_state(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        []
+    );
+}
+
+/// The same `let` without a JSDoc type is control-flow typed, and its uses
+/// in other functions are implicitly `any` (TS7034 at the declaration,
+/// TS7005 at the uses), not "possibly undefined" (tsgo aa814927).
+#[test]
+fn a_common_js_module_s_untyped_let_used_in_another_function_is_implicitly_any() {
+    let text = "let A;\nfunction load() {\n\tif (A === undefined) {\n\t\tA = { Identifier: 1 };\n\t}\n}\nclass C {\n\tm() {\n\t\tload();\n\t\treturn A.Identifier;\n\t}\n}\nmodule.exports = { C };\n";
+    let rows = with_program_state(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    let declaration = text.find("let A;").expect("the declaration") as u32 + 4;
+    let compared = text.find("A === undefined").expect("the comparison") as u32;
+    let accessed = text.find("A.Identifier").expect("the access") as u32;
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        [(7034, declaration), (7005, compared), (7005, accessed)]
+    );
+}
+
+/// A missing property's message names the containing type as tsgo's
+/// `typeToString` prints it: an empty type literal by its alias, not `{}`
+/// (tsgo aa814927; webpack's `lib/asset/AssetGenerator.js` on
+/// `AssetGeneratorDataUrlOptions`).
+#[test]
+fn a_missing_property_names_an_empty_type_literal_s_alias() {
+    let text = "type EmptyOptions = {};\ntype Options = { a?: EmptyOptions; b: EmptyOptions };\ndeclare const o: Options;\no.a!.dataUrl;\no.b.filename;\nexport {};\n";
+    let rows = with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    assert_eq!(
+        rows.iter()
+            .map(|row| (row.0, row.3.as_str()))
+            .collect::<Vec<_>>(),
+        [
+            (
+                2339,
+                "Property 'dataUrl' does not exist on type 'EmptyOptions'."
+            ),
+            (
+                2339,
+                "Property 'filename' does not exist on type 'EmptyOptions'."
+            ),
+        ]
+    );
+}
+
+/// tsgo's reparser makes a JavaScript setter's `@returns` its return type
+/// annotation and a for-of variable's `@type` its type annotation before the
+/// grammar checks run: TS1095 and TS2483 (tsgo aa814927; webpack's
+/// `set chunkName(value)` and `for (const /** @type {Chunk} */ chunk of …)`;
+/// TypeScript 6.0.3 reported neither — tsgo memo 8).
+#[test]
+fn reparsed_setter_returns_and_for_of_variable_types_are_grammar_errors() {
+    let text = "class C {\n\t/**\n\t * @param {string | undefined} value v\n\t * @returns {void}\n\t */\n\tset name(value) {}\n\tget name() { return \"\"; }\n}\nfor (const /** @type {string} */ s of [\"a\"]) {}\nmodule.exports = { C };\n";
+    let rows = with_program_state(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    let setter_name = text.find("set name(").expect("the setter") as u32 + 4;
+    let variable = text.find("s of [").expect("the for-of variable") as u32;
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        [(1095, setter_name), (2483, variable)]
+    );
+}
+
 /// An object `@typedef`'s `@property {T=}` type is checked: tsgo's reparser
 /// makes a property signature of the tag, whose declaration check resolves
 /// the optional type (getTypeFromTypeNode's JSDocOptionalType arm) and so

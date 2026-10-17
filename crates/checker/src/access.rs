@@ -3269,86 +3269,6 @@ impl<'a> CheckerState<'a> {
 
     // ---- reportNonexistentProperty + the suggestion helpers ----
 
-    fn is_chained_this_property_assignment(&self, access_expression: NodeId) -> bool {
-        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
-            || !self.is_in_js_file(access_expression)
-            || !node_util::is_assignment_target(
-                self.binder.source_of_node(access_expression),
-                access_expression,
-            )
-        {
-            return false;
-        }
-        let NodeData::PropertyAccessExpression(access) = self.data_of(access_expression) else {
-            return false;
-        };
-        access.expression.is_some_and(|receiver| {
-            matches!(
-                self.data_of(receiver),
-                NodeData::PropertyAccessExpression(inner)
-                    if inner
-                        .expression
-                        .is_some_and(|base| self.kind_of(base) == SyntaxKind::ThisKeyword)
-            )
-        })
-    }
-
-    fn is_chained_identifier_property_assignment(&self, access_expression: NodeId) -> bool {
-        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
-            || !self.is_in_js_file(access_expression)
-        {
-            return false;
-        }
-        let NodeData::PropertyAccessExpression(access) = self.data_of(access_expression) else {
-            return false;
-        };
-        if access
-            .expression
-            .is_none_or(|receiver| self.kind_of(receiver) != SyntaxKind::Identifier)
-        {
-            return false;
-        }
-        self.parent_of(access_expression).is_some_and(|parent| {
-            matches!(
-                self.data_of(parent),
-                NodeData::PropertyAccessExpression(outer)
-                    if outer.expression == Some(access_expression)
-            ) && node_util::is_assignment_target(self.binder.source_of_node(parent), parent)
-        })
-    }
-
-    /// The missing intermediate access in
-    /// `let A; A = {}; A.prototype.b = {}`. Its parent, not the
-    /// `A.prototype` node itself, is the assignment target. Requiring
-    /// an uninitialized value declaration distinguishes this closed
-    /// reassignment from ordinary initialized JS expando containers.
-    fn is_chained_uninitialized_identifier_property_assignment(
-        &mut self,
-        access_expression: NodeId,
-    ) -> CheckResult<bool> {
-        if !self.is_chained_identifier_property_assignment(access_expression) {
-            return Ok(false);
-        }
-        let receiver = match self.data_of(access_expression) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            _ => None,
-        };
-        let Some(symbol) = receiver
-            .map(|receiver| self.get_resolved_symbol(receiver))
-            .transpose()?
-            .flatten()
-        else {
-            return Ok(false);
-        };
-        let declaration = self.binder.symbol(symbol).value_declaration;
-        Ok(declaration.is_some_and(|declaration| {
-            matches!(
-                self.data_of(declaration),
-                NodeData::VariableDeclaration(data) if data.initializer.is_none()
-            )
-        }))
-    }
-
     /// tsc-port: reportNonexistentProperty @6.0.3
     /// tsc-hash: 307d53095640744e1815787c33792c951a7a0c7fc169193870ec78298aca5f7c
     /// tsc-span: _tsc.js:75416-75470
@@ -3434,30 +3354,15 @@ impl<'a> CheckerState<'a> {
                     &[],
                 ));
             } else {
-                let access_expression = self.parent_of(prop_node).unwrap_or(prop_node);
-                let render_chained_this_empty_object = self
-                    .is_chained_this_property_assignment(access_expression)
-                    && self.is_empty_anonymous_object_type(containing_type)?;
-                let render_chained_uninitialized_identifier_empty_object = self.kind_of(prop_node)
-                    != SyntaxKind::PrivateIdentifier
-                    && self.is_chained_uninitialized_identifier_property_assignment(
-                        access_expression,
-                    )?
-                    && self.is_empty_anonymous_object_type(containing_type)?;
-                let container = if self.is_empty_anonymous_type_literal(containing_type)?
-                    || render_chained_this_empty_object
-                    || render_chained_uninitialized_identifier_empty_object
-                {
-                    JsString::from("{}")
-                } else {
-                    // tsc retains the raw intersection identity for
-                    // elaborateNeverIntersection, while typeToString
-                    // renders its cached reduction. Keep those two
-                    // concerns separate: reducing the report target
-                    // itself would lose the diagnostic-chain reason.
-                    let display_type = self.get_reduced_type(containing_type)?;
-                    self.type_to_string(display_type)?
-                };
+                // tsgo prints the containing type as is (an empty type
+                // literal by its alias: `EmptyOptions`, not `{}`); tsc
+                // retains the raw intersection identity for
+                // elaborateNeverIntersection, while typeToString renders
+                // its cached reduction. Keep those two concerns separate:
+                // reducing the report target itself would lose the
+                // diagnostic-chain reason.
+                let display_type = self.get_reduced_type(containing_type)?;
+                let container = self.type_to_string(display_type)?;
                 let lib_suggestion = self.get_suggested_lib_for_non_existent_property(
                     &missing_property,
                     containing_type,
@@ -3544,38 +3449,6 @@ impl<'a> CheckerState<'a> {
         }
         self.push_error_diagnostic(diagnostic);
         Ok(())
-    }
-
-    /// The one anonymous nodeBuilder spelling needed by the
-    /// missing-property head. Keeping this local avoids making `{}` a
-    /// generic relation-error display for unrelated synthesized empty
-    /// object/array fallbacks.
-    fn is_empty_anonymous_type_literal(&mut self, ty: TypeId) -> CheckResult<bool> {
-        if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT)
-            || !self
-                .tables
-                .object_flags_of(ty)
-                .intersects(tsc_types::ObjectFlags::ANONYMOUS)
-        {
-            return Ok(false);
-        }
-        let Some(symbol) = self.tables.type_of(ty).symbol else {
-            return Ok(false);
-        };
-        if !self
-            .binder
-            .symbol(symbol)
-            .flags
-            .intersects(SymbolFlags::TYPE_LITERAL)
-        {
-            return Ok(false);
-        }
-        let resolved = self.resolve_structured_type_members(ty)?;
-        let members = self.members_of(resolved);
-        Ok(members.properties.is_empty()
-            && members.call_signatures.is_empty()
-            && members.construct_signatures.is_empty()
-            && members.index_infos.is_empty())
     }
 
     /// tsc-port: typeHasStaticProperty @6.0.3
