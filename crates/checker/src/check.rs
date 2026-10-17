@@ -2282,6 +2282,19 @@ impl<'a> CheckerState<'a> {
             _ => unreachable!("kind/data agree"),
         };
         self.check_source_element(type_expression);
+        // tsgo's reparser makes a property signature of a JSDoc type
+        // literal's tag (reparser.go reparseJSDocTypeLiteral), and
+        // checkPropertySignature → checkVariableLikeDeclaration resolves its
+        // type: a tag without a type reports the member's implicit `any`
+        // (TS7008, or the TS7045 suggestion — prettier's `@property logger`)
+        // whether or not anything uses the property.
+        if self
+            .parent_of(node)
+            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::JSDocTypeLiteral)
+        {
+            let symbol = self.get_symbol_of_declaration(node)?;
+            self.get_type_of_symbol(symbol)?;
+        }
         Ok(())
     }
 
@@ -5729,10 +5742,19 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
+            let saved = std::mem::replace(&mut self.display_collision_retry, true);
+            let mut retried = Ok(());
             for &(ty, result_index) in collisions {
-                rendered[result_index] =
-                    self.type_to_string_node(ty, /*fully_qualified*/ true)?;
+                match self.type_to_string_node(ty, /*fully_qualified*/ true) {
+                    Ok(node) => rendered[result_index] = node,
+                    Err(abort) => {
+                        retried = Err(abort);
+                        break;
+                    }
+                }
             }
+            self.display_collision_retry = saved;
+            retried?;
         }
         Ok(rendered)
     }
@@ -7457,7 +7479,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
-        enclosing: NodeId,
+        enclosing: Option<NodeId>,
     ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         // symbolToTypeNode's lookupSymbolChain yields a module root only
         // without UseAliasDefinedOutsideCurrentScope, which tsgo's
@@ -7467,14 +7489,11 @@ impl<'a> CheckerState<'a> {
         // as `import("…").Amd`.
         let chain = self
             .symbol_chain(
-                symbol,
-                meaning,
-                /*end_of_chain*/ true,
-                /*yield_module_symbol*/ false,
-                Some(enclosing),
+                symbol, meaning, /*end_of_chain*/ true, /*yield_module_symbol*/ false,
+                enclosing,
             )?
             .expect("getSymbolChain with endOfChain always yields (52991-52999)");
-        self.symbol_chain_to_type_face(&chain, meaning, Some(enclosing))
+        self.symbol_chain_to_type_face(&chain, meaning, enclosing)
     }
 
     /// createAccessFromSymbolChain's TypeNode construction over an
@@ -7581,13 +7600,36 @@ impl<'a> CheckerState<'a> {
         // unrelated same-written-name parameters as `T`/`T` for
         // getTypeNamesForErrorDisplay's 2719 branch instead of
         // inventing container-qualified faces such as `I.T`.
-        if fully_qualified
-            && !self
-                .binder
-                .symbol(symbol)
-                .flags
-                .intersects(tsc_types::SymbolFlags::TYPE_PARAMETER)
-        {
+        let is_type_parameter = self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(tsc_types::SymbolFlags::TYPE_PARAMETER);
+        // tsgo lookupSymbolChainWorker: an enclosing declaration arms the
+        // chain walk as UseFullyQualifiedType does. A relation error
+        // displays an object literal's type with the literal as the
+        // enclosing declaration (getTypeNamesForErrorDisplay), so a
+        // property's namespace member prints through its accessible
+        // container or alias — `{ b: Rule.CodePathSegment; }` (ESLint's
+        // diagnostic texts) — where the unarmed face printed
+        // `CodePathSegment`.
+        if !is_type_parameter {
+            if !fully_qualified {
+                if let Some(enclosing) = self.display_enclosing {
+                    return self.symbol_to_type_face_at(symbol, meaning, Some(enclosing));
+                }
+            } else if self.display_collision_retry {
+                // mapToTypeNodes' same-written-name retry adds
+                // UseFullyQualifiedType to typeToString's flags, which keep
+                // UseAliasDefinedOutsideCurrentScope: the chain is walked
+                // without module roots (`SourceLocation | AST.SourceLocation`,
+                // `Scope.Reference | Reference`), unlike
+                // getTypeNameForErrorDisplay's retry below, whose only flag is
+                // UseFullyQualifiedType.
+                return self.symbol_to_type_face_at(symbol, meaning, self.display_enclosing);
+            }
+        }
+        if fully_qualified && !is_type_parameter {
             // yield_module_symbol TRUE — symbolToTypeNode flavor
             // (53115): the `typeof import("...")` faces REQUIRE module
             // roots.
@@ -12167,7 +12209,13 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         op: impl FnOnce(&mut Self) -> CheckResult<T>,
     ) -> CheckResult<T> {
-        let saved = self.display_enclosing.replace(node);
+        // enterNewScope pushes its fake scope only when the context has an
+        // enclosing declaration; a context without one keeps printing
+        // unarmed (bare symbol faces).
+        let saved = self.display_enclosing;
+        if saved.is_some() {
+            self.display_enclosing = Some(node);
+        }
         let result = op(self);
         self.display_enclosing = saved;
         result
@@ -12219,7 +12267,7 @@ impl<'a> CheckerState<'a> {
         } else {
             symbol
         };
-        let (mut text, kind) = self.symbol_to_type_face_at(symbol, meaning, enclosing)?;
+        let (mut text, kind) = self.symbol_to_type_face_at(symbol, meaning, Some(enclosing))?;
         if !type_arguments.is_empty() {
             text.push('<');
             text.push_js((&crate::join_js_texts(type_arguments, ", ")).into());

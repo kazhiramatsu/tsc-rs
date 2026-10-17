@@ -504,6 +504,10 @@ pub struct CheckerState<'a> {
     /// entity-name accessibility/shortest symbol chains, and
     /// unique-symbol ancestry all consume the parked declaration.
     pub(crate) display_enclosing: Option<NodeId>,
+    /// mapToTypeNodes' same-written-name retry is running: UseFullyQualifiedType
+    /// added to typeToString's flags, which keep UseAliasDefinedOutsideCurrentScope
+    /// (no module roots), unlike getTypeNameForErrorDisplay's retry.
+    pub(crate) display_collision_retry: bool,
     /// nodeBuilder context.mapper while rendering instantiated
     /// signatures. This is deliberately separate from
     /// active_type_mappers, which is instantiateType's recursion/cache
@@ -1574,6 +1578,7 @@ impl<'a> CheckerState<'a> {
             display_reverse_mapped_stack: Vec::new(),
             display_no_type_reduction: false,
             display_enclosing: None,
+            display_collision_retry: false,
             display_mappers: Vec::new(),
             display_reuse_had_error: false,
             display_reuse_visit_depth: 0,

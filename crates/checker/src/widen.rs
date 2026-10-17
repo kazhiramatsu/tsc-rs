@@ -604,6 +604,21 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::Member_0_implicitly_has_an_1_type_but_a_better_type_may_be_inferred_from_usage
                 }
             }
+            // tsgo's reparser makes a property signature of a JSDoc type
+            // literal's `@property`/`@param options.x` (reparser.go
+            // reparseJSDocTypeLiteral), so a tag without a type is a member's
+            // implicit `any` (prettier's `@property logger`), not a variable's.
+            SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag
+                if self
+                    .parent_of(declaration)
+                    .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::JSDocTypeLiteral) =>
+            {
+                if no_implicit_any {
+                    &diagnostics::Member_0_implicitly_has_an_1_type
+                } else {
+                    &diagnostics::Member_0_implicitly_has_an_1_type_but_a_better_type_may_be_inferred_from_usage
+                }
+            }
             SyntaxKind::Parameter => {
                 let (name, dot_dot_dot) = match self.data_of(declaration) {
                     NodeData::Parameter(data) => (data.name, data.dot_dot_dot_token.is_some()),

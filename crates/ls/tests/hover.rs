@@ -1979,7 +1979,8 @@ fn a_nested_cast_s_type_name_has_no_hover() {
 fn an_alias_to_two_overload_declarations_shows_the_first_one_s_overload_tag() {
     let files = [("/lib.d.ts", "/**\n * @overload\n *\n * Reads ignore files and returns objects with the ignore patterns.\n *\n * @param {string[]} paths The paths of ignore files to include.\n * @returns {string[]}\n */\nexport function includeIgnoreFile(paths: string[]): string[];\n/**\n * @overload\n *\n * Reads an ignore file and returns an object with the ignore patterns.\n *\n * @param {string} paths The path of the ignore file to include.\n * @returns {string}\n */\nexport function includeIgnoreFile(paths: string): string;\n"), ("/a.ts", "import { includeIgnoreFile } from \"./lib\";\nexport { includeIgnoreFile };\n")];
     for position in [(0, 9), (1, 9)] {
-        let (text, range, _) = hover(&files, options(|_| {}), "/a.ts", position, None).expect("a hover");
+        let (text, range, _) =
+            hover(&files, options(|_| {}), "/a.ts", position, None).expect("a hover");
         assert_eq!(text, "```typescript\n(alias) function includeIgnoreFile(paths: string[]): string[]\n(alias) function includeIgnoreFile(paths: string): string\n```\n\n\n*@overload* — Reads ignore files and returns objects with the ignore patterns.", "at {position:?}");
         assert_eq!(range, ((position.0, 9), (position.0, 26)));
     }
