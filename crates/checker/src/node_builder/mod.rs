@@ -1,8 +1,8 @@
 pub(crate) mod chains;
 mod context;
 mod hover;
-mod pseudo;
-mod serialize;
+pub(crate) mod pseudo;
+pub(crate) mod serialize;
 mod signatures;
 pub(crate) mod specifier;
 mod tracker;

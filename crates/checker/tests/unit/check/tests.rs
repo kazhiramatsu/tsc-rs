@@ -4,6 +4,7 @@ use tsc_types::{CompilerOptions, ObjectFlags, ScriptTarget, SymbolFlags, TypeDat
 
 use crate::state::test_support::{with_program_state, with_program_state_allow_parse_diagnostics};
 use crate::state::CheckerState;
+use crate::{check_program, InputFile};
 
 #[test]
 fn literal_type_displays_and_diagnostics_retain_typescript_utf16_values() {
@@ -4478,6 +4479,12 @@ fn reused_this_type_query_recovers_through_its_this_container() {
         )]
     );
 
+    // The object literal is the parameter's type: its member `f` prints
+    // through the pseudo type of its function expression (tsgo
+    // serializeTypeForDeclaration with the enclosing declaration), whose
+    // parameter `x: typeof this` recovers to the literal already being
+    // printed — `(x: ...) => void`, not the member elided as a whole (tsgo
+    // aa814927; tsc 6.0.3 printed `{ f: ...; }`).
     let object = "const o = { f: function(x: typeof this) {} }; let n: number = o.f;";
     let rows = checked_diags(object)
         .into_iter()
@@ -4489,7 +4496,8 @@ fn reused_this_type_query_recovers_through_its_this_container() {
             2322,
             (object.rfind("let n").expect("failing declaration") + 4) as u32,
             1,
-            "Type '(x: { f: ...; }) => void' is not assignable to type 'number'.".to_owned(),
+            "Type '(x: { f: (x: ...) => void; }) => void' is not assignable to type 'number'."
+                .to_owned(),
         )]
     );
 
@@ -11094,4 +11102,68 @@ fn a_jsdoc_type_cast_is_opaque_to_narrowing() {
         rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
         [(2339, 219), (2339, 250)]
     );
+}
+
+/// The TS2322 message of `const n: number = o` for an object literal `o`,
+/// whose type prints with the literal as the enclosing declaration
+/// (getTypeNamesForErrorDisplay).
+fn object_literal_relation_message(source: &str) -> String {
+    let options = CompilerOptions {
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    // The globals the fixtures need (the harness has no lib); tsgo's
+    // messages were pinned with this same file under `noLib`.
+    let lib = "interface Array<T> { length: number; [n: number]: T; }\ninterface ReadonlyArray<T> { readonly length: number; readonly [n: number]: T; }\ninterface Object {}\ninterface Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\ninterface IArguments {}\ninterface Symbol {}\ninterface BigInt {}\ndeclare var String: { (value?: any): string };\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\n";
+    let result = check_program(
+        &[
+            InputFile::new("lib-min.d.ts".to_owned(), lib.to_owned()),
+            InputFile::new("a.ts".to_owned(), source.to_owned()),
+        ],
+        &options,
+    );
+    let diagnostic = result
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code() == 2322)
+        .expect("the relation error");
+    diagnostic
+        .message
+        .text
+        .as_str()
+        .expect("scalar message")
+        .to_owned()
+}
+
+/// tsgo prints an object literal's members from the pseudo types of their
+/// declarations when the literal is the enclosing declaration
+/// (serializeTypeForDeclaration → pseudoTypeToNode), and those parts charge
+/// nothing toward the 160-character truncation budget — only the member
+/// names do. tsc-rs charged every member's type, so thirty-eight boolean
+/// members hit the budget after ten and printed `... 27 more ...; valueOf:
+/// boolean; }`, where tsgo prints sixteen and cuts the whole string at 320
+/// characters (tsgo aa814927; ESLint's `source-code.js` TS2322).
+#[test]
+fn an_object_literal_s_literal_members_charge_nothing_toward_truncation() {
+    assert_eq!(object_literal_relation_message("const o = { Array: true, Boolean: true, constructor: true, Date: true, decodeURI: true, decodeURIComponent: true, encodeURI: true, encodeURIComponent: true, Error: true, escape: true, eval: true, EvalError: true, Function: true, hasOwnProperty: true, Infinity: true, isFinite: true, isNaN: true, isPrototypeOf: true, JSON: true, Math: true, NaN: true, Number: true, Object: true, parseFloat: true, parseInt: true, propertyIsEnumerable: true, RangeError: true, ReferenceError: true, RegExp: true, String: true, SyntaxError: true, toLocaleString: true, toString: true, TypeError: true, undefined: true, unescape: true, URIError: true, valueOf: true };\nconst n: number = o;\nexport { n };\n"), "Type '{ Array: boolean; Boolean: boolean; constructor: boolean; Date: boolean; decodeURI: boolean; decodeURIComponent: boolean; encodeURI: boolean; encodeURIComponent: boolean; Error: boolean; escape: boolean; eval: boolean; EvalError: boolean; Function: boolean; hasOwnProperty: boolean; Infinity: boolean; isFinite: boole...' is not assignable to type 'number'.");
+}
+
+/// A nested object literal prints through the same pseudo path (no `... N
+/// more ...` marker inside a pseudo literal, no charge), and only the array
+/// initializers the pseudochecker cannot type fall back to the checker's
+/// types, which charge: tsgo truncates at `minItems: nu...`, tsc-rs elided
+/// `message: ...; }; required: ...` earlier (tsgo aa814927; ESLint's
+/// `no-restricted-imports.js` TS2322).
+#[test]
+fn a_nested_object_literal_prints_through_the_pseudo_path() {
+    assert_eq!(object_literal_relation_message("const o = {\n\tanyOf: [\n\t\t{ type: \"array\", items: { oneOf: [{ type: \"string\" }, { type: \"object\", properties: { name: { type: \"string\" }, message: { type: \"string\" } }, required: [\"name\"], additionalProperties: false }] }, uniqueItems: true, minItems: 0 },\n\t\t{ type: \"object\", properties: { name: { type: \"string\" }, message: { type: \"string\" }, importNames: { type: \"array\" }, allowImportNames: { type: \"array\" }, allowTypeImports: { type: \"boolean\" } }, additionalProperties: false, required: [\"name\"] },\n\t],\n};\nconst n: number = o;\nexport { n };\n"), "Type '{ anyOf: ({ type: string; items: { oneOf: ({ type: string; properties?: undefined; required?: undefined; additionalProperties?: undefined; } | { type: string; properties: { name: { type: string; }; message: { type: string; }; }; required: string[]; additionalProperties: boolean; })[]; }; ... 4 more ...; minItems: nu...' is not assignable to type 'number'.");
+}
+
+/// Accessor, method, arrow, `as const` tuple, cast, keyword and literal
+/// members all print from their pseudo types without charging; tsc-rs cut
+/// to `seventh: bigint; ... 6 more ...; fourteenth: ...; }` where tsgo
+/// reaches `twelfth: ......` (tsgo aa814927).
+#[test]
+fn an_object_literal_s_accessor_method_and_literal_members_print_from_pseudo_types() {
+    assert_eq!(object_literal_relation_message("const o = {\n\tget first() { return \"first value here\"; },\n\tset first(value: string) {},\n\tsecond(count: number): string { return String(count); },\n\tthird: <T extends string>(value: T, ...rest: number[]) => value,\n\tfourth: [1, \"two\", true] as const,\n\tfifth: null as string | null,\n\tsixth: undefined,\n\tseventh: 10n,\n\teighth: 0x10,\n\tninth: \"nine\",\n\ttenth: { a: 1, b: \"two\", c: { d: true } },\n\televenth: true,\n\ttwelfth: [1, 2, 3],\n\tthirteenth: () => 1,\n\tfourteenth: function (x: string) { return x; },\n};\nconst n: number = o;\nexport { n };\n"), "Type '{ first: string; second(count: number): string; third: <T extends string>(value: T, ...rest: number[]) => T; fourth: readonly [1, \"two\", true]; fifth: string | null; sixth: undefined; seventh: bigint; eighth: number; ninth: string; tenth: { a: number; b: string; c: { d: boolean; }; }; eleventh: boolean; twelfth: ......' is not assignable to type 'number'.");
 }

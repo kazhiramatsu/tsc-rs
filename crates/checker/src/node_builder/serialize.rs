@@ -10,7 +10,7 @@ use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{ObjectFlags, SymbolFlags, TypeData, TypeFlags, TypeId};
 
 use crate::pseudochecker::{could_already_refer_to_undefined_type, PseudoChecker, PseudoType};
-use crate::state::{CheckAbort, CheckerState, IndexInfo, SignatureId};
+use crate::state::{CheckAbort, CheckResult, CheckerState, IndexInfo, SignatureId};
 
 use super::pseudo::{
     pseudo_return_type_matches_predicate, pseudo_type_equivalent_to_type,
@@ -201,7 +201,7 @@ fn callback_abort_error(
     }
 }
 
-fn has_inferred_type(checker: &CheckerState<'_>, node: NodeId) -> bool {
+pub(crate) fn has_inferred_type(checker: &CheckerState<'_>, node: NodeId) -> bool {
     matches!(
         checker.kind_of(node),
         SyntaxKind::Parameter
@@ -221,7 +221,7 @@ fn has_inferred_type(checker: &CheckerState<'_>, node: NodeId) -> bool {
     )
 }
 
-fn node_is_synthesized(checker: &CheckerState<'_>, node: NodeId) -> bool {
+pub(crate) fn node_is_synthesized(checker: &CheckerState<'_>, node: NodeId) -> bool {
     tsc_types::NodeFlags::from_bits(checker.node_flags(node))
         .intersects(tsc_types::NodeFlags::SYNTHESIZED)
 }
@@ -367,7 +367,7 @@ fn recover_suppressed_type_reference(
 /// node_modules resolver when this port deliberately suppresses that resolver
 /// band. The recovery is limited to a directly imported, zero-argument call
 /// initializer whose symbol type is already the error intrinsic.
-fn recover_suppressed_import_call_return_type(
+pub(crate) fn recover_suppressed_import_call_return_type(
     checker: &mut CheckerState<'_>,
     declaration: NodeId,
 ) -> Option<TypeId> {
@@ -519,7 +519,7 @@ pub(super) fn is_actively_expanding(context: &NodeBuilderContext<'_>) -> bool {
 
 /// tsgo `hasTypeAnnotation` (nodebuilderimpl.go:234-244): the declaration
 /// has a written type (a type alias's type is not an annotation).
-fn has_type_annotation(checker: &CheckerState<'_>, declaration: NodeId) -> bool {
+pub(crate) fn has_type_annotation(checker: &CheckerState<'_>, declaration: NodeId) -> bool {
     match checker.kind_of(declaration) {
         SyntaxKind::TypeAliasDeclaration | SyntaxKind::JSDocTypedefTag => false,
         kind if node_util::is_function_like_kind(kind) => {
@@ -538,7 +538,7 @@ fn has_type_annotation(checker: &CheckerState<'_>, declaration: NodeId) -> bool 
 }
 
 /// tsgo `ast.IsVariableLike` (ast/utilities.go:3077-3084).
-fn is_variable_like(checker: &CheckerState<'_>, node: NodeId) -> bool {
+pub(crate) fn is_variable_like(checker: &CheckerState<'_>, node: NodeId) -> bool {
     matches!(
         checker.kind_of(node),
         SyntaxKind::BindingElement
@@ -1693,8 +1693,18 @@ fn serialize_type_for_expression_in_context(
 pub(super) fn get_regular_type_of_expression(
     checker: &mut CheckerState<'_>,
     context: &NodeBuilderContext<'_>,
-    mut expression: NodeId,
+    expression: NodeId,
 ) -> BuildResult<TypeId> {
+    regular_type_of_expression_core(checker, expression)
+        .map_err(|abort| checker_abort_error(checker, context, abort))
+}
+
+/// [`get_regular_type_of_expression`] without the node builder's context
+/// (the display path reads it too).
+pub(crate) fn regular_type_of_expression_core(
+    checker: &mut CheckerState<'_>,
+    mut expression: NodeId,
+) -> CheckResult<TypeId> {
     if let Some(parent) = checker.parent_of(expression) {
         let is_right_side = matches!(
             checker.data_of(parent),
@@ -1707,9 +1717,7 @@ pub(super) fn get_regular_type_of_expression(
             expression = parent;
         }
     }
-    let r#type = checker
-        .get_type_of_expression(expression)
-        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    let r#type = checker.get_type_of_expression(expression)?;
     Ok(checker.regular_type_of_literal_type(r#type))
 }
 
@@ -2119,7 +2127,7 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
     }
 }
 
-fn contains_non_missing_undefined(checker: &CheckerState<'_>, r#type: TypeId) -> bool {
+pub(crate) fn contains_non_missing_undefined(checker: &CheckerState<'_>, r#type: TypeId) -> bool {
     let candidate = match &checker.tables.type_of(r#type).data {
         TypeData::Union { types, .. } => types.first().copied().unwrap_or(r#type),
         _ => r#type,

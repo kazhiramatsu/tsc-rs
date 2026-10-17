@@ -21,10 +21,10 @@ use crate::narrow::{TypePredicate, TypePredicateKind};
 use crate::pseudochecker::{
     PseudoChecker, PseudoObjectElement, PseudoObjectElementKind, PseudoParameter, PseudoType,
 };
-use crate::state::{CheckerState, SignatureId};
+use crate::state::{CheckResult, CheckerState, SignatureId};
 
 use super::serialize::{
-    get_regular_type_of_expression, report_inference_fallback,
+    regular_type_of_expression_core, report_inference_fallback,
     serialize_return_type_for_signature_in_context, serialize_type_for_declaration_in_context,
     syntactic_try_reuse_existing_node,
 };
@@ -857,20 +857,45 @@ pub(super) fn pseudo_type_equivalent_to_type(
     is_optional_annotated: bool,
     report_errors: bool,
 ) -> BuildResult<bool> {
+    let mut reports = Vec::new();
+    let result = pseudo_type_equivalent_to_type_core(
+        checker,
+        &mut reports,
+        pseudo,
+        r#type,
+        is_optional_annotated,
+        report_errors,
+    )
+    .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    for node in reports {
+        report_inference_fallback(checker, context, node)?;
+    }
+    Ok(result)
+}
+
+/// [`pseudo_type_equivalent_to_type`] without the node builder's context: the inference
+/// fallbacks to report are collected in `reports` (the display path, which
+/// reports none, reads the same pseudo-type equivalence).
+pub(crate) fn pseudo_type_equivalent_to_type_core(
+    checker: &mut CheckerState<'_>,
+    reports: &mut Vec<NodeId>,
+    pseudo: &PseudoType,
+    r#type: TypeId,
+    is_optional_annotated: bool,
+    report_errors: bool,
+) -> CheckResult<bool> {
     // An error type is charitably equal: this may be single-file checking.
     if checker.tables.is_error_type(r#type) {
         return Ok(true);
     }
     // Compare types when the pseudo type maps to one (objects and other
     // structures are compared below).
-    let type_from_pseudo = pseudo_type_to_type(checker, context, pseudo)?;
+    let type_from_pseudo = pseudo_type_to_type_core(checker, pseudo)?;
     if type_from_pseudo == Some(r#type) {
         return Ok(true);
     }
     let undefined_stripped = if is_optional_annotated {
-        checker
-            .get_type_with_facts(r#type, TypeFacts::NE_UNDEFINED)
-            .map_err(|abort| checker_abort_error(checker, context, abort))?
+        checker.get_type_with_facts(r#type, TypeFacts::NE_UNDEFINED)?
     } else {
         r#type
     };
@@ -882,7 +907,7 @@ pub(super) fn pseudo_type_equivalent_to_type(
             // Unions may not be identical by id, through aliasing and the
             // like.
             if both_unions(checker, type_from_pseudo, undefined_stripped)
-                && types_identical(checker, context, type_from_pseudo, undefined_stripped)?
+                && types_identical_core(checker, type_from_pseudo, undefined_stripped)?
             {
                 return Ok(true);
             }
@@ -895,7 +920,7 @@ pub(super) fn pseudo_type_equivalent_to_type(
             return Ok(true);
         }
         if both_unions(checker, type_from_pseudo, r#type)
-            && types_identical(checker, context, type_from_pseudo, r#type)?
+            && types_identical_core(checker, type_from_pseudo, r#type)?
         {
             return Ok(true);
         }
@@ -906,18 +931,18 @@ pub(super) fn pseudo_type_equivalent_to_type(
             // let the parent fall back to the checker's type.
             if report_errors {
                 if inferred.error_nodes.is_empty() {
-                    report_inference_fallback(checker, context, inferred.expression)?;
+                    reports.push(inferred.expression);
                 } else {
                     for &node in &inferred.error_nodes {
-                        report_inference_fallback(checker, context, node)?;
+                        reports.push(node);
                     }
                 }
             }
             Ok(false)
         }
-        PseudoType::ObjectLiteral(elements) => pseudo_object_literal_equivalent_to_type(
+        PseudoType::ObjectLiteral(elements) => pseudo_object_literal_equivalent_to_type_core(
             checker,
-            context,
+            reports,
             elements,
             undefined_stripped,
             report_errors,
@@ -938,16 +963,14 @@ pub(super) fn pseudo_type_equivalent_to_type(
             if non_required {
                 return Ok(false);
             }
-            let element_types = checker
-                .get_type_arguments(undefined_stripped)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?;
+            let element_types = checker.get_type_arguments(undefined_stripped)?;
             if elements.len() != element_types.len() {
                 return Ok(false);
             }
             for (element, element_type) in elements.iter().zip(element_types) {
-                if !pseudo_type_equivalent_to_type(
+                if !pseudo_type_equivalent_to_type_core(
                     checker,
-                    context,
+                    reports,
                     element,
                     element_type,
                     false,
@@ -959,9 +982,7 @@ pub(super) fn pseudo_type_equivalent_to_type(
             Ok(true)
         }
         PseudoType::SingleCallSignature(signature) => {
-            let Some(target_signature) = checker
-                .get_single_call_signature(undefined_stripped)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?
+            let Some(target_signature) = checker.get_single_call_signature(undefined_stripped)?
             else {
                 return Ok(false);
             };
@@ -972,13 +993,13 @@ pub(super) fn pseudo_type_equivalent_to_type(
                 .map_or(0, Vec::len);
             if target_type_parameter_count != signature.type_parameters.len() {
                 if report_errors {
-                    report_inference_fallback(checker, context, signature.signature)?;
+                    reports.push(signature.signature);
                 }
                 return Ok(false);
             }
-            if !pseudo_parameters_equivalent_to_parameters(
+            if !pseudo_parameters_equivalent_to_parameters_core(
                 checker,
-                context,
+                reports,
                 &signature.parameters,
                 target_signature,
                 report_errors,
@@ -986,29 +1007,24 @@ pub(super) fn pseudo_type_equivalent_to_type(
             )? {
                 return Ok(false);
             }
-            let predicate = checker
-                .get_type_predicate_of_signature(target_signature)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?;
+            let predicate = checker.get_type_predicate_of_signature(target_signature)?;
             if let Some(predicate) = predicate {
-                if !pseudo_return_type_matches_predicate(
+                if !pseudo_return_type_matches_predicate_core(
                     checker,
-                    context,
                     &signature.return_type,
                     &predicate,
                 )? {
                     if report_errors {
-                        report_inference_fallback(checker, context, signature.signature)?;
+                        reports.push(signature.signature);
                     }
                     return Ok(false);
                 }
             } else {
-                let return_type = checker
-                    .get_return_type_of_signature(target_signature)
-                    .map_err(|abort| checker_abort_error(checker, context, abort))?;
+                let return_type = checker.get_return_type_of_signature(target_signature)?;
                 // The return type reports its own error.
-                if !pseudo_type_equivalent_to_type(
+                if !pseudo_type_equivalent_to_type_core(
                     checker,
-                    context,
+                    reports,
                     &signature.return_type,
                     return_type,
                     false,
@@ -1021,7 +1037,7 @@ pub(super) fn pseudo_type_equivalent_to_type(
         }
         PseudoType::NoResult(declaration) => {
             if report_errors {
-                report_inference_fallback(checker, context, *declaration)?;
+                reports.push(*declaration);
             }
             Ok(false)
         }
@@ -1034,30 +1050,28 @@ fn both_unions(checker: &CheckerState<'_>, left: TypeId, right: TypeId) -> bool 
         && checker.tables.flags_of(right).intersects(TypeFlags::UNION)
 }
 
-fn types_identical(
+/// [`types_identical`] without the node builder's context: the inference
+/// fallbacks to report are collected in `reports` (the display path, which
+/// reports none, reads the same pseudo-type equivalence).
+pub(crate) fn types_identical_core(
     checker: &mut CheckerState<'_>,
-    context: &NodeBuilderContext<'_>,
     left: TypeId,
     right: TypeId,
-) -> BuildResult<bool> {
-    Ok(checker
-        .compare_types_identical(left, right)
-        .map_err(|abort| checker_abort_error(checker, context, abort))?
-        == Ternary::TRUE)
+) -> CheckResult<bool> {
+    Ok(checker.compare_types_identical(left, right)? == Ternary::TRUE)
 }
 
-/// pseudoTypeEquivalentToType's object literal arm
-/// (pseudotypenodebuilder.go:418-524).
-fn pseudo_object_literal_equivalent_to_type(
+/// [`pseudo_object_literal_equivalent_to_type`] without the node builder's context: the inference
+/// fallbacks to report are collected in `reports` (the display path, which
+/// reports none, reads the same pseudo-type equivalence).
+pub(crate) fn pseudo_object_literal_equivalent_to_type_core(
     checker: &mut CheckerState<'_>,
-    context: &mut NodeBuilderContext<'_>,
+    reports: &mut Vec<NodeId>,
     elements: &[PseudoObjectElement],
     undefined_stripped: TypeId,
     report_errors: bool,
-) -> BuildResult<bool> {
-    let target_properties = checker
-        .get_properties_of_type(undefined_stripped)
-        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+) -> CheckResult<bool> {
+    let target_properties = checker.get_properties_of_type(undefined_stripped)?;
     // A get/set pair is two elements but one property: count declarations.
     let target_declaration_count: usize = target_properties
         .iter()
@@ -1070,9 +1084,7 @@ fn pseudo_object_literal_equivalent_to_type(
         let mut target_property = None;
         if let Some(element_symbol) = checker.node_symbol(element.member) {
             let name = checker.binder.symbol(element_symbol).escaped_name;
-            target_property = checker
-                .get_property_of_type_ex(undefined_stripped, name, false)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?;
+            target_property = checker.get_property_of_type_ex(undefined_stripped, name, false)?;
         }
         let target_property = match target_property {
             Some(property) => property,
@@ -1095,7 +1107,7 @@ fn pseudo_object_literal_equivalent_to_type(
                     Some(property) => property,
                     None => {
                         if report_errors {
-                            report_inference_fallback(checker, context, element.member)?;
+                            reports.push(element.member);
                         }
                         return Ok(false);
                     }
@@ -1107,19 +1119,17 @@ fn pseudo_object_literal_equivalent_to_type(
             .intersects(SymbolFlags::OPTIONAL);
         if element.optional != target_is_optional {
             if report_errors {
-                report_inference_fallback(checker, context, element.member)?;
+                reports.push(element.member);
             }
             return Ok(false);
         }
-        let property_type = checker
-            .get_type_of_symbol(target_property)
-            .map_err(|abort| checker_abort_error(checker, context, abort))?;
+        let property_type = checker.get_type_of_symbol(target_property)?;
         let property_type = checker.remove_missing_type(property_type, target_is_optional);
         match &element.kind {
             PseudoObjectElementKind::PropertyAssignment { r#type, .. } => {
-                if !pseudo_type_equivalent_to_type(
+                if !pseudo_type_equivalent_to_type_core(
                     checker,
-                    context,
+                    reports,
                     r#type,
                     property_type,
                     element.optional,
@@ -1131,11 +1141,11 @@ fn pseudo_object_literal_equivalent_to_type(
                             // non-reporting comparison skipped.
                             PseudoType::Inferred(inferred) if !inferred.error_nodes.is_empty() => {
                                 for &node in &inferred.error_nodes {
-                                    report_inference_fallback(checker, context, node)?;
+                                    reports.push(node);
                                 }
                             }
                             _ if !is_structural_pseudo_type(r#type) => {
-                                report_inference_fallback(checker, context, element.member)?;
+                                reports.push(element.member);
                             }
                             _ => {}
                         }
@@ -1148,17 +1158,15 @@ fn pseudo_object_literal_equivalent_to_type(
                 return_type,
                 ..
             } => {
-                let Some(target_signature) = checker
-                    .get_single_call_signature(property_type)
-                    .map_err(|abort| checker_abort_error(checker, context, abort))?
+                let Some(target_signature) = checker.get_single_call_signature(property_type)?
                 else {
                     // Without a single call signature there is nothing to
                     // validate.
                     continue;
                 };
-                if !pseudo_parameters_equivalent_to_parameters(
+                if !pseudo_parameters_equivalent_to_parameters_core(
                     checker,
-                    context,
+                    reports,
                     parameters,
                     target_signature,
                     report_errors,
@@ -1166,23 +1174,17 @@ fn pseudo_object_literal_equivalent_to_type(
                 )? {
                     return Ok(false);
                 }
-                let predicate = checker
-                    .get_type_predicate_of_signature(target_signature)
-                    .map_err(|abort| checker_abort_error(checker, context, abort))?;
+                let predicate = checker.get_type_predicate_of_signature(target_signature)?;
                 let matches = match predicate {
-                    Some(predicate) => pseudo_return_type_matches_predicate(
-                        checker,
-                        context,
-                        return_type,
-                        &predicate,
-                    )?,
+                    Some(predicate) => {
+                        pseudo_return_type_matches_predicate_core(checker, return_type, &predicate)?
+                    }
                     None => {
-                        let target_return = checker
-                            .get_return_type_of_signature(target_signature)
-                            .map_err(|abort| checker_abort_error(checker, context, abort))?;
-                        pseudo_type_equivalent_to_type(
+                        let target_return =
+                            checker.get_return_type_of_signature(target_signature)?;
+                        pseudo_type_equivalent_to_type_core(
                             checker,
-                            context,
+                            reports,
                             return_type,
                             target_return,
                             false,
@@ -1192,40 +1194,38 @@ fn pseudo_object_literal_equivalent_to_type(
                 };
                 if !matches {
                     if report_errors {
-                        report_inference_fallback(checker, context, element.member)?;
+                        reports.push(element.member);
                     }
                     return Ok(false);
                 }
             }
             PseudoObjectElementKind::GetAccessor { r#type, .. } => {
-                if !pseudo_type_equivalent_to_type(
+                if !pseudo_type_equivalent_to_type_core(
                     checker,
-                    context,
+                    reports,
                     r#type,
                     property_type,
                     false,
                     false,
                 )? {
                     if report_errors {
-                        report_inference_fallback(checker, context, element.member)?;
+                        reports.push(element.member);
                     }
                     return Ok(false);
                 }
             }
             PseudoObjectElementKind::SetAccessor { parameter, .. } => {
-                let write_type = checker
-                    .get_write_type_of_symbol(target_property)
-                    .map_err(|abort| checker_abort_error(checker, context, abort))?;
-                if !pseudo_type_equivalent_to_type(
+                let write_type = checker.get_write_type_of_symbol(target_property)?;
+                if !pseudo_type_equivalent_to_type_core(
                     checker,
-                    context,
+                    reports,
                     &parameter.r#type,
                     write_type,
                     false,
                     false,
                 )? {
                     if report_errors {
-                        report_inference_fallback(checker, context, element.member)?;
+                        reports.push(element.member);
                     }
                     return Ok(false);
                 }
@@ -1235,45 +1235,44 @@ fn pseudo_object_literal_equivalent_to_type(
     Ok(true)
 }
 
-/// tsgo-port: NodeBuilderImpl.pseudoParametersEquivalentToParameters @7.1
-/// (pseudotypenodebuilder.go:585-630).
-fn pseudo_parameters_equivalent_to_parameters(
+/// [`pseudo_parameters_equivalent_to_parameters`] without the node builder's context: the inference
+/// fallbacks to report are collected in `reports` (the display path, which
+/// reports none, reads the same pseudo-type equivalence).
+pub(crate) fn pseudo_parameters_equivalent_to_parameters_core(
     checker: &mut CheckerState<'_>,
-    context: &mut NodeBuilderContext<'_>,
+    reports: &mut Vec<NodeId>,
     parameters: &[PseudoParameter],
     target_signature: SignatureId,
     report_errors: bool,
     non_parameter_error_location: NodeId,
-) -> BuildResult<bool> {
+) -> CheckResult<bool> {
     let signature = checker.signature_of(target_signature).clone();
     let mut parameters = parameters;
     if let Some(this_parameter) = signature.this_parameter {
         let Some(first) = parameters.first() else {
             // A missing `this` parameter.
             if report_errors {
-                report_inference_fallback(checker, context, non_parameter_error_location)?;
+                reports.push(non_parameter_error_location);
             }
             return Ok(false);
         };
         if !checker.parameter_is_this_keyword(first.parameter) {
             if report_errors {
-                report_inference_fallback(checker, context, non_parameter_error_location)?;
+                reports.push(non_parameter_error_location);
             }
             return Ok(false);
         }
-        let parameter_type = checker
-            .get_type_of_parameter(this_parameter)
-            .map_err(|abort| checker_abort_error(checker, context, abort))?;
-        if !pseudo_type_equivalent_to_type(
+        let parameter_type = checker.get_type_of_parameter(this_parameter)?;
+        if !pseudo_type_equivalent_to_type_core(
             checker,
-            context,
+            reports,
             &first.r#type,
             parameter_type,
             first.optional,
             false,
         )? {
             if report_errors {
-                report_inference_fallback(checker, context, first.parameter)?;
+                reports.push(first.parameter);
             }
             return Ok(false);
         }
@@ -1281,36 +1280,32 @@ fn pseudo_parameters_equivalent_to_parameters(
     }
     if signature.parameters.len() != parameters.len() {
         if report_errors {
-            report_inference_fallback(checker, context, non_parameter_error_location)?;
+            reports.push(non_parameter_error_location);
         }
         return Ok(false);
     }
     for (parameter, &target_parameter) in parameters.iter().zip(&signature.parameters) {
         let target_optional = match checker.binder.symbol(target_parameter).value_declaration {
-            Some(declaration) => checker
-                .emit_is_optional_parameter(declaration)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?,
+            Some(declaration) => checker.emit_is_optional_parameter(declaration)?,
             None => false,
         };
         if parameter.optional != target_optional {
             if report_errors {
-                report_inference_fallback(checker, context, parameter.parameter)?;
+                reports.push(parameter.parameter);
             }
             return Ok(false);
         }
-        let parameter_type = checker
-            .get_type_of_parameter(target_parameter)
-            .map_err(|abort| checker_abort_error(checker, context, abort))?;
-        if !pseudo_type_equivalent_to_type(
+        let parameter_type = checker.get_type_of_parameter(target_parameter)?;
+        if !pseudo_type_equivalent_to_type_core(
             checker,
-            context,
+            reports,
             &parameter.r#type,
             parameter_type,
             parameter.optional,
             false,
         )? {
             if report_errors {
-                report_inference_fallback(checker, context, parameter.parameter)?;
+                reports.push(parameter.parameter);
             }
             return Ok(false);
         }
@@ -1341,6 +1336,19 @@ pub(super) fn pseudo_return_type_matches_predicate(
     return_type: &PseudoType,
     predicate: &TypePredicate,
 ) -> BuildResult<bool> {
+    let result = pseudo_return_type_matches_predicate_core(checker, return_type, predicate)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    Ok(result)
+}
+
+/// [`pseudo_return_type_matches_predicate`] without the node builder's context: the inference
+/// fallbacks to report are collected in `reports` (the display path, which
+/// reports none, reads the same pseudo-type equivalence).
+pub(crate) fn pseudo_return_type_matches_predicate_core(
+    checker: &mut CheckerState<'_>,
+    return_type: &PseudoType,
+    predicate: &TypePredicate,
+) -> CheckResult<bool> {
     let PseudoType::Direct(node) = return_type else {
         return Ok(false);
     };
@@ -1376,11 +1384,9 @@ pub(super) fn pseudo_return_type_matches_predicate(
             let Some(type_node) = predicate_type_node else {
                 return Ok(false);
             };
-            let from_node = checker
-                .get_type_from_type_node(type_node)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?;
+            let from_node = checker.get_type_from_type_node(type_node)?;
             if from_node != predicate_type
-                && !types_identical(checker, context, from_node, predicate_type)?
+                && !types_identical_core(checker, from_node, predicate_type)?
             {
                 return Ok(false);
             }
@@ -1402,38 +1408,38 @@ pub(super) fn pseudo_type_to_type(
     context: &NodeBuilderContext<'_>,
     pseudo: &PseudoType,
 ) -> BuildResult<Option<TypeId>> {
+    let result = pseudo_type_to_type_core(checker, pseudo)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    Ok(result)
+}
+
+/// [`pseudo_type_to_type`] without the node builder's context: the inference
+/// fallbacks to report are collected in `reports` (the display path, which
+/// reports none, reads the same pseudo-type equivalence).
+pub(crate) fn pseudo_type_to_type_core(
+    checker: &mut CheckerState<'_>,
+    pseudo: &PseudoType,
+) -> CheckResult<Option<TypeId>> {
     let strict_null_checks = checker
         .options
         .strict_option_value(checker.options.strict_null_checks);
     let intrinsics = &checker.tables.intrinsics;
     let r#type = match pseudo {
-        PseudoType::Direct(type_node) => checker
-            .get_type_from_type_node(*type_node)
-            .map_err(|abort| checker_abort_error(checker, context, abort))?,
+        PseudoType::Direct(type_node) => checker.get_type_from_type_node(*type_node)?,
         PseudoType::Inferred(inferred) => {
             if inferred.is_signature_return {
-                let signature = checker
-                    .get_signature_from_declaration(inferred.expression)
-                    .map_err(|abort| checker_abort_error(checker, context, abort))?;
-                checker
-                    .get_return_type_of_signature(signature)
-                    .map_err(|abort| checker_abort_error(checker, context, abort))?
+                let signature = checker.get_signature_from_declaration(inferred.expression)?;
+                checker.get_return_type_of_signature(signature)?
             } else {
-                let regular =
-                    get_regular_type_of_expression(checker, context, inferred.expression)?;
-                checker
-                    .get_widened_type(regular)
-                    .map_err(|abort| checker_abort_error(checker, context, abort))?
+                let regular = regular_type_of_expression_core(checker, inferred.expression)?;
+                checker.get_widened_type(regular)?
             }
         }
         PseudoType::NoResult(_) => return Ok(None),
         PseudoType::MaybeConstLocation(location) => {
-            let in_const_context = checker
-                .is_const_context(location.node)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?;
-            return pseudo_type_to_type(
+            let in_const_context = checker.is_const_context(location.node)?;
+            return pseudo_type_to_type_core(
                 checker,
-                context,
                 if in_const_context {
                     &location.const_type
                 } else {
@@ -1450,7 +1456,7 @@ pub(super) fn pseudo_type_to_type(
                     has_elided_type = true;
                     continue;
                 }
-                match pseudo_type_to_type(checker, context, member)? {
+                match pseudo_type_to_type_core(checker, member)? {
                     Some(r#type) => types.push(r#type),
                     None => return Ok(None),
                 }
@@ -1464,9 +1470,7 @@ pub(super) fn pseudo_type_to_type(
                     }
                 }
                 1 => types[0],
-                _ => checker
-                    .get_union_type_ex(&types, UnionReduction::Literal)
-                    .map_err(|abort| checker_abort_error(checker, context, abort))?,
+                _ => checker.get_union_type_ex(&types, UnionReduction::Literal)?,
             }
         }
         PseudoType::Undefined => intrinsics.undefined_widening,
@@ -1480,9 +1484,7 @@ pub(super) fn pseudo_type_to_type(
         // The cached expression types are a shortcut to the literal types.
         PseudoType::StringLiteral(source)
         | PseudoType::NumericLiteral(source)
-        | PseudoType::BigIntLiteral(source) => {
-            get_regular_type_of_expression(checker, context, *source)?
-        }
+        | PseudoType::BigIntLiteral(source) => regular_type_of_expression_core(checker, *source)?,
         PseudoType::ObjectLiteral(_)
         | PseudoType::SingleCallSignature(_)
         | PseudoType::Tuple(_) => return Ok(None),
