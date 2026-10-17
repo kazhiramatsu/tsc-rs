@@ -2351,3 +2351,33 @@ fn unused_declarations_group_by_their_owners_like_tsgo() {
         ]
     );
 }
+
+/// tsgo reparses the `@template` tags of a `@typedef` (or `@callback`) into
+/// the type alias's type parameter list spanning the tags, from the first
+/// tag's `@` to the last tag's end (the next tag's `@`), and reports
+/// TS6205 over that list like a function's (`rangeOfTypeParameters`: one
+/// character before and after). tsgo aa814927; webpack's
+/// `lib/serialization/Serializer.js` and `lib/util/serialization.js`.
+#[test]
+fn all_type_parameters_unused_spans_a_typedef_s_template_tags() {
+    let text = "/**\n * Defines the serializer middleware type used by this module.\n * @template [T=number]\n * @template [K=number]\n * @template [C=number]\n * @typedef {{ x: number }} SerializerMiddleware\n */\n\n/**\n * Defines the serializer type used by this module.\n * @template D, S, C\n * @typedef {{ y: number }} Serializer\n */\n\n/**\n * @template T\n * @template U\n * @param {number} n n\n * @returns {number} n\n */\nfunction f(n) {\n\treturn n;\n}\nmodule.exports = { f };\n";
+    let rows = unused_rows_for_files(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        },
+    );
+    // (line, column) ranges 2:2-5:4, 10:2-11:4 and 15:2-17:4.
+    assert_eq!(
+        rows.iter()
+            .map(|row| (row.0, row.1, row.2, row.3))
+            .collect::<Vec<_>>(),
+        [
+            (6205, DiagnosticCategory::Suggestion, 69, 74),
+            (6205, DiagnosticCategory::Suggestion, 251, 23),
+            (6205, DiagnosticCategory::Suggestion, 320, 32),
+        ]
+    );
+}

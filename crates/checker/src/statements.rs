@@ -2378,7 +2378,12 @@ impl<'a> CheckerState<'a> {
                 let name = self.name_of_node(first);
                 return Ok(self.grammar_error_on_node(name.unwrap_or(first), message, &[]));
             }
-            if self.type_annotation_of(first).is_some() {
+            // tsgo's reparser makes a JavaScript for-of variable's `@type`
+            // its type annotation before this grammar check runs, so
+            // `for (const /** @type {T} */ x of …)` is TS2483 (webpack's
+            // `HotModuleReplacementPlugin.js`; TypeScript 6.0.3 reported
+            // nothing — tsgo memo 8).
+            if self.effective_type_annotation_node(first).is_some() {
                 let message = if self.kind_of(node) == SyntaxKind::ForInStatement {
                     &diagnostics::The_left_hand_side_of_a_for_in_statement_cannot_use_a_type_annotation
                 } else {

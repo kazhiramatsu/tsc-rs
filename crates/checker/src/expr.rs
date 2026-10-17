@@ -2010,7 +2010,24 @@ impl<'a> CheckerState<'a> {
             return AccessKind::Read;
         };
         match self.data_of(parent) {
-            NodeData::ParenthesizedExpression(_) => self.access_kind(parent),
+            // tsgo reparses `/** @type {T} */ (x)` into `x as T`, and its
+            // accessKind has no arm for an `as` expression: the `x` of
+            // `(x) = v` or `(x)++` under a cast is a read (webpack's
+            // `(load) = undefined`, `(len)++` highlights).
+            NodeData::ParenthesizedExpression(data) => {
+                let source = self.binder.source_of_node(parent);
+                if source.is_source_file_js()
+                    && data.expression.is_some_and(|expression| {
+                        tsc_binder::hosted::jsdoc_hosted(source)
+                            .cast_of(expression)
+                            .is_some()
+                    })
+                {
+                    AccessKind::Read
+                } else {
+                    self.access_kind(parent)
+                }
+            }
             NodeData::PrefixUnaryExpression(data) => {
                 if matches!(
                     data.operator,

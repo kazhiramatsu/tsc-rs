@@ -49,6 +49,15 @@ impl<'a> CheckerState<'a> {
     /// The range of the reparsed type parameter list: the hosted `@template`
     /// tags, from the first one's start to the last one's end.
     pub(crate) fn reparsed_type_parameter_range(&self, node: NodeId) -> Option<(u32, u32)> {
+        if matches!(
+            self.kind_of(node),
+            SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
+        ) {
+            return tsc_binder::hosted::typedef_type_parameter_range(
+                self.binder.source_of_node(node),
+                node,
+            );
+        }
         self.hosted_jsdoc(node)
             .type_parameters_of(node)
             .map(|list| (list.pos, list.end))

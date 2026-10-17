@@ -67,6 +67,25 @@ pub fn overload_template_comment(source: &SourceFile, tag: NodeId) -> Option<Nod
         .then_some(document)
 }
 
+/// reparser.go gatherTypeParameters for a `@typedef` or `@callback`: the
+/// type alias it is reparsed into takes the comment's `@template` type
+/// parameters as a list spanning the tags, from the first tag's start to the
+/// last tag's end (the next tag's `@`, or the comment's close).
+pub fn typedef_type_parameter_range(source: &SourceFile, tag: NodeId) -> Option<(u32, u32)> {
+    let js_doc = source.arena.node(tag).parent?;
+    let NodeData::JSDoc(document) = &source.arena.node(js_doc).data else {
+        return None;
+    };
+    let mut range: Option<(u32, u32)> = None;
+    for &candidate in source.arena.node_array(document.tags?).nodes {
+        let node = source.arena.node(candidate);
+        if matches!(node.data, NodeData::JSDocTemplateTag(_)) {
+            range = Some((range.map_or(node.pos, |(pos, _)| pos), node.end));
+        }
+    }
+    range
+}
+
 /// The function, method or constructor an `@overload` tag is reparsed into an
 /// overload of (reparser.go:138-142): its JSDoc's host, outside object
 /// literals.
@@ -528,10 +547,22 @@ impl Reparser<'_, '_> {
         let Some(fun) = self.function_like_host(parent) else {
             return;
         };
-        let untyped_parameters = self
-            .written_parameters(fun)
-            .iter()
-            .all(|&parameter| !self.has_type(parameter));
+        // reparser.go: `noTypedParams` reads the parameters as reparsed so
+        // far, and a `@this {T}` processed before this tag has added a typed
+        // `this` parameter (reparseHosted's KindJSDocThisTag arm), so the
+        // function keeps no full signature from a later `@type` (webpack's
+        // `/** @this {ByTypeGenerator} @type {GenerateErrorFn} */ function
+        // generateError(error, module, generateContext)`: parameters `any`).
+        let typed_this = self
+            .hosted
+            .this_tags
+            .get(&fun)
+            .is_some_and(|&tag| self.tag_type(tag).is_some());
+        let untyped_parameters = !typed_this
+            && self
+                .written_parameters(fun)
+                .iter()
+                .all(|&parameter| !self.has_type(parameter));
         if !self.has_type_parameters(fun) && !self.has_type(fun) && untyped_parameters {
             if let Some(r#type) = r#type {
                 self.hosted.full_signatures.insert(fun, r#type);

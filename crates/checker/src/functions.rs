@@ -4633,6 +4633,11 @@ impl<'a> CheckerState<'a> {
                 &[],
             ));
         }
+        // tsgo's reparser makes a JavaScript accessor's `@returns` its return
+        // type annotation before this grammar check runs, so a setter with
+        // one is TS1095 (webpack's `set chunkName(value)`; TypeScript 6.0.3
+        // reported nothing — tsgo memo 8).
+        let type_node = type_node.or_else(|| self.effective_return_type_node(accessor));
         if !is_get {
             if let Some(type_node) = type_node {
                 let _ = type_node;
@@ -5261,34 +5266,14 @@ impl<'a> CheckerState<'a> {
         let root = node_util::get_root_declaration(source, declaration);
         match self.kind_of(root) {
             SyntaxKind::Parameter => true,
+            // A catch clause variable, or a mutable local variable: a `let`
+            // that is neither exported nor a global file's top-level
+            // statement (a CommonJS module's is local, like an ES module's:
+            // webpack's lazily required `NodeType`).
             SyntaxKind::VariableDeclaration => {
-                let parent = self.parent_of(root);
-                let is_catch =
-                    parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CatchClause);
-                if is_catch {
-                    return true;
-                }
-                // isMutableLocalVariableDeclaration: `let` list, not
-                // exported, and not a global-file top-level statement.
-                const LET: i32 = 1;
-                let let_list = parent.is_some_and(|parent| self.node_flags(parent) & LET != 0);
-                if !let_list {
-                    return false;
-                }
-                let exported = node_util::get_combined_modifier_flags(source, root)
-                    .intersects(tsc_types::ModifierFlags::EXPORT);
-                if exported {
-                    return false;
-                }
-                let statement = parent.and_then(|parent| self.parent_of(parent));
-                let global_top_level = statement.is_some_and(|statement| {
-                    self.kind_of(statement) == SyntaxKind::VariableStatement
-                        && self.parent_of(statement).is_some_and(|container| {
-                            self.kind_of(container) == SyntaxKind::SourceFile
-                                && source.external_module_indicator.is_none()
-                        })
-                });
-                !global_top_level
+                self.parent_of(root)
+                    .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CatchClause)
+                    || self.is_mutable_local_variable_declaration(root)
             }
             _ => false,
         }

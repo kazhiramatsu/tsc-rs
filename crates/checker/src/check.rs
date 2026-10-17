@@ -7459,12 +7459,18 @@ impl<'a> CheckerState<'a> {
         meaning: tsc_types::SymbolFlags,
         enclosing: NodeId,
     ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
+        // symbolToTypeNode's lookupSymbolChain yields a module root only
+        // without UseAliasDefinedOutsideCurrentScope, which tsgo's
+        // typeToString (this printer's caller) always sets: a reused
+        // annotation's name that the enclosing scope cannot reach prints
+        // bare (`amd?: Amd` of a spread of another module's options), not
+        // as `import("…").Amd`.
         let chain = self
             .symbol_chain(
                 symbol,
                 meaning,
                 /*end_of_chain*/ true,
-                /*yield_module_symbol*/ true,
+                /*yield_module_symbol*/ false,
                 Some(enclosing),
             )?
             .expect("getSymbolChain with endOfChain always yields (52991-52999)");

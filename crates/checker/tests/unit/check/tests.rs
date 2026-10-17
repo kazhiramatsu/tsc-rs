@@ -5511,12 +5511,15 @@ fn reused_entity_recovery_uses_the_shortest_context_name() {
                     })
                     .expect("bare context declaration")
             };
+            // No alias in scope: tsgo's typeToString sets
+            // UseAliasDefinedOutsideCurrentScope, so symbolToTypeNode's chain
+            // yields no module root — the bare name, not `import("./m").Q`.
             state.display_enclosing = Some(bare_enclosing);
             assert_eq!(
                 state
                     .type_annotation_text_display(reference)
-                    .expect("import recovery"),
-                "import(\"./m\").Q"
+                    .expect("bare recovery"),
+                "Q"
             );
         },
     );
@@ -10618,6 +10621,218 @@ fn jsdoc_overload_signatures_do_not_see_the_implementation_s_type_parameters() {
             .map(|row| (row.0, row.1))
             .collect::<Vec<_>>(),
         [(2304, 40), (2304, 61)]
+    );
+}
+
+/// A `@this {T}` before a function declaration's `@type {Fn}`: tsgo's
+/// reparser processes the tags in order and the `@this` adds a typed `this`
+/// parameter first, so the `@type` finds a typed parameter and gives the
+/// function no signature — its parameters are implicitly `any` (tsgo
+/// aa814927; webpack's `generateError`; TypeScript 6.0.3 used the `@type`
+/// in either order — tsgo memo 9).
+#[test]
+fn a_this_tag_before_a_function_s_type_tag_leaves_its_parameters_untyped() {
+    let text = "/**\n * @this {{ map: { [name: string]: string } }}\n * @type {(error: { message: string }, name: string) => string}\n */\nfunction g(error, name) {\n\treturn this.map[name] + error.message;\n}\nmodule.exports = { g };\n";
+    let rows = with_program_state(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    let error = text.find("(error, name)").expect("the parameters") as u32 + 1;
+    let name = text.find("(error, name)").expect("the parameters") as u32 + 8;
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        [(7006, error), (7006, name)]
+    );
+}
+
+/// A module-level `let` assigned in another function is an outer variable
+/// at its uses there, assumed initialized, in a CommonJS module as in an ES
+/// module (tsgo aa814927; webpack's `lib/javascript/ScopeAnalyzer.js`
+/// reported TS2454 at every use of its lazily required `NodeType`).
+#[test]
+fn a_common_js_module_s_let_assigned_in_another_function_is_assumed_initialized() {
+    let text = "/** @type {{ Identifier: number }} */\nlet A;\nfunction load() {\n\tif (A === undefined) {\n\t\tA = { Identifier: 1 };\n\t}\n}\nclass C {\n\tm() {\n\t\tload();\n\t\treturn A.Identifier;\n\t}\n}\nmodule.exports = { C };\n";
+    let rows = with_program_state(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        []
+    );
+}
+
+/// The same `let` without a JSDoc type is control-flow typed, and its uses
+/// in other functions are implicitly `any` (TS7034 at the declaration,
+/// TS7005 at the uses), not "possibly undefined" (tsgo aa814927).
+#[test]
+fn a_common_js_module_s_untyped_let_used_in_another_function_is_implicitly_any() {
+    let text = "let A;\nfunction load() {\n\tif (A === undefined) {\n\t\tA = { Identifier: 1 };\n\t}\n}\nclass C {\n\tm() {\n\t\tload();\n\t\treturn A.Identifier;\n\t}\n}\nmodule.exports = { C };\n";
+    let rows = with_program_state(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    let declaration = text.find("let A;").expect("the declaration") as u32 + 4;
+    let compared = text.find("A === undefined").expect("the comparison") as u32;
+    let accessed = text.find("A.Identifier").expect("the access") as u32;
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        [(7034, declaration), (7005, compared), (7005, accessed)]
+    );
+}
+
+/// A missing property's message names the containing type as tsgo's
+/// `typeToString` prints it: an empty type literal by its alias, not `{}`
+/// (tsgo aa814927; webpack's `lib/asset/AssetGenerator.js` on
+/// `AssetGeneratorDataUrlOptions`).
+#[test]
+fn a_missing_property_names_an_empty_type_literal_s_alias() {
+    let text = "type EmptyOptions = {};\ntype Options = { a?: EmptyOptions; b: EmptyOptions };\ndeclare const o: Options;\no.a!.dataUrl;\no.b.filename;\nexport {};\n";
+    let rows = with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    assert_eq!(
+        rows.iter()
+            .map(|row| (row.0, row.3.as_str()))
+            .collect::<Vec<_>>(),
+        [
+            (
+                2339,
+                "Property 'dataUrl' does not exist on type 'EmptyOptions'."
+            ),
+            (
+                2339,
+                "Property 'filename' does not exist on type 'EmptyOptions'."
+            ),
+        ]
+    );
+}
+
+/// A property read through a JSDoc cast is no narrowable reference: tsgo
+/// reparses the cast into an `as` expression, which its binder gives no
+/// flow node, so the constructor's "used before being assigned" check
+/// (TS2565, for the uncast `upper.depth`) does not reach
+/// `/** @type {Scope} */ (upper).variableScope` (tsgo aa814927; webpack's
+/// `ScopeAnalyzer.js`).
+#[test]
+fn a_property_read_through_a_jsdoc_cast_is_not_a_flow_reference() {
+    let text = "class Scope {\n\t/**\n\t * @param {Scope | undefined} upper upper\n\t * @param {boolean} isVarScope var scope\n\t */\n\tconstructor(upper, isVarScope) {\n\t\t/** @type {Scope} the nearest enclosing scope */\n\t\tthis.variableScope = isVarScope\n\t\t\t? this\n\t\t\t: /** @type {Scope} */ (upper).variableScope;\n\t\t/** @type {number} */\n\t\tthis.depth = upper ? upper.depth + 1 : 0;\n\t}\n}\nmodule.exports = Scope;\n";
+    let rows = with_program_state(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    let depth = text.find("upper.depth").expect("the uncast read") as u32 + 6;
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        [(2565, depth)]
+    );
+}
+
+/// A relation error prints a reused annotation's name that the enclosing
+/// scope cannot reach bare: tsgo's typeToString sets
+/// UseAliasDefinedOutsideCurrentScope, so symbolToTypeNode's chain yields no
+/// module root (`amd?: Amd`, not `import("./types").Amd`) (tsgo aa814927;
+/// webpack's `CssModulesPlugin.js` TS2345 on `{ defaultMode,
+/// ...parserOptions }`).
+#[test]
+fn a_spread_property_s_unreachable_alias_prints_bare_in_an_error() {
+    // The imported file first, as a program orders them: the spread's
+    // properties print in declaration order.
+    let rows = with_program_state(
+        &[
+            ("types.d.ts", "export type Amd = false | { [index: string]: any };\nexport interface Options {\n\tamd?: Amd;\n\tcommonjs?: boolean;\n}\n"),
+            ("a.ts", "import type { Options } from \"./types\";\nexport function f(options: Options) {\n\tconst n: number = { mode: \"auto\", ...options };\n\treturn n;\n}\n"),
+        ],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(1);
+            diag_rows(state)
+        },
+    );
+    assert_eq!(
+        rows.iter()
+            .map(|row| (row.0, row.3.as_str()))
+            .collect::<Vec<_>>(),
+        [(
+            2322,
+            "Type '{ amd?: Amd; commonjs?: boolean; mode: string; }' is not assignable to type 'number'."
+        )]
+    );
+}
+
+/// tsgo's reparser makes a JavaScript setter's `@returns` its return type
+/// annotation and a for-of variable's `@type` its type annotation before the
+/// grammar checks run: TS1095 and TS2483 (tsgo aa814927; webpack's
+/// `set chunkName(value)` and `for (const /** @type {Chunk} */ chunk of …)`;
+/// TypeScript 6.0.3 reported neither — tsgo memo 8).
+#[test]
+fn reparsed_setter_returns_and_for_of_variable_types_are_grammar_errors() {
+    let text = "class C {\n\t/**\n\t * @param {string | undefined} value v\n\t * @returns {void}\n\t */\n\tset name(value) {}\n\tget name() { return \"\"; }\n}\nfor (const /** @type {string} */ s of [\"a\"]) {}\nmodule.exports = { C };\n";
+    let rows = with_program_state(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    let setter_name = text.find("set name(").expect("the setter") as u32 + 4;
+    let variable = text.find("s of [").expect("the for-of variable") as u32;
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        [(1095, setter_name), (2483, variable)]
     );
 }
 
