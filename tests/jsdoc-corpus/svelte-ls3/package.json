@@ -1,0 +1,1 @@
+{"name": "pkg", "type": "module", "imports": {"#client": "./src/internal/client/types.d.ts"}}

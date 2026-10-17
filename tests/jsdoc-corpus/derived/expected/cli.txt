@@ -1,0 +1,3 @@
+store/utils.js(2,25): error TS2307: Cannot find module '../internal/client/runtime.js' or its corresponding type declarations.
+store/utils.js(34,2): error TS2578: Unused '@ts-expect-error' directive.
+exit 2

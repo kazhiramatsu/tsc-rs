@@ -1,0 +1,2 @@
+deprecated.js(14,15): error TS1003: Identifier expected.
+exit 2

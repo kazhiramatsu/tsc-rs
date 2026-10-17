@@ -1,0 +1,1 @@
+a.js:27:8:definition  # tsgo answers the `this` of a `@this` function at 0:0 (tsgo memo 3); the user decided to keep the valid range

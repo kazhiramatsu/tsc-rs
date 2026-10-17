@@ -1,0 +1,1 @@
+{"name": "pkg", "type": "module", "imports": {"#compiler": {"types": "./src/compiler/private.d.ts", "default": "./src/compiler/index.js"}, "#plain": "./src/other/plain.js"}}

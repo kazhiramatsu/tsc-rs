@@ -1,0 +1,72 @@
+{"id": "arrow.js:diagnostic", "file": "arrow.js", "method": "textDocument/diagnostic", "params": {}}
+{"id": "arrow.js:documentSymbol", "file": "arrow.js", "method": "textDocument/documentSymbol", "params": {}}
+{"id": "arrow.js:semanticTokens", "file": "arrow.js", "method": "textDocument/semanticTokens/full", "params": {}}
+{"id": "arrow.js:5:0:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 5, "character": 0}}}
+{"id": "arrow.js:5:0:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 5, "character": 0}}}
+{"id": "arrow.js:5:0:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 5, "character": 0}}}
+{"id": "arrow.js:5:0:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 5, "character": 0}}}
+{"id": "arrow.js:5:6:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 5, "character": 6}}}
+{"id": "arrow.js:5:6:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 5, "character": 6}}}
+{"id": "arrow.js:5:6:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 5, "character": 6}}}
+{"id": "arrow.js:5:6:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 5, "character": 6}}}
+{"id": "arrow.js:5:22:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 5, "character": 22}}}
+{"id": "arrow.js:5:22:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 5, "character": 22}}}
+{"id": "arrow.js:5:22:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 5, "character": 22}}}
+{"id": "arrow.js:5:22:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 5, "character": 22}}}
+{"id": "arrow.js:6:1:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 6, "character": 1}}}
+{"id": "arrow.js:6:1:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 6, "character": 1}}}
+{"id": "arrow.js:6:1:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 6, "character": 1}}}
+{"id": "arrow.js:6:1:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 6, "character": 1}}}
+{"id": "arrow.js:6:7:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 6, "character": 7}}}
+{"id": "arrow.js:6:7:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 6, "character": 7}}}
+{"id": "arrow.js:6:7:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 6, "character": 7}}}
+{"id": "arrow.js:6:7:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 6, "character": 7}}}
+{"id": "arrow.js:12:6:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 12, "character": 6}}}
+{"id": "arrow.js:12:6:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 12, "character": 6}}}
+{"id": "arrow.js:12:6:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 12, "character": 6}}}
+{"id": "arrow.js:12:6:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 12, "character": 6}}}
+{"id": "arrow.js:12:15:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 12, "character": 15}}}
+{"id": "arrow.js:12:15:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 12, "character": 15}}}
+{"id": "arrow.js:12:15:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 12, "character": 15}}}
+{"id": "arrow.js:12:15:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 12, "character": 15}}}
+{"id": "arrow.js:12:28:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 12, "character": 28}}}
+{"id": "arrow.js:12:28:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 12, "character": 28}}}
+{"id": "arrow.js:12:28:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 12, "character": 28}}}
+{"id": "arrow.js:12:28:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 12, "character": 28}}}
+{"id": "arrow.js:12:36:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 12, "character": 36}}}
+{"id": "arrow.js:12:36:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 12, "character": 36}}}
+{"id": "arrow.js:12:36:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 12, "character": 36}}}
+{"id": "arrow.js:12:36:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 12, "character": 36}}}
+{"id": "arrow.js:12:41:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 12, "character": 41}}}
+{"id": "arrow.js:12:41:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 12, "character": 41}}}
+{"id": "arrow.js:12:41:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 12, "character": 41}}}
+{"id": "arrow.js:12:41:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 12, "character": 41}}}
+{"id": "arrow.js:14:1:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 14, "character": 1}}}
+{"id": "arrow.js:14:1:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 14, "character": 1}}}
+{"id": "arrow.js:14:1:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 14, "character": 1}}}
+{"id": "arrow.js:14:1:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 14, "character": 1}}}
+{"id": "arrow.js:14:26:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 14, "character": 26}}}
+{"id": "arrow.js:14:26:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 14, "character": 26}}}
+{"id": "arrow.js:14:26:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 14, "character": 26}}}
+{"id": "arrow.js:14:26:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 14, "character": 26}}}
+{"id": "arrow.js:16:0:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 16, "character": 0}}}
+{"id": "arrow.js:16:0:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 16, "character": 0}}}
+{"id": "arrow.js:16:0:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 16, "character": 0}}}
+{"id": "arrow.js:16:0:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 16, "character": 0}}}
+{"id": "arrow.js:16:7:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 16, "character": 7}}}
+{"id": "arrow.js:16:7:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 16, "character": 7}}}
+{"id": "arrow.js:16:7:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 16, "character": 7}}}
+{"id": "arrow.js:16:7:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 16, "character": 7}}}
+{"id": "arrow.js:16:17:hover", "file": "arrow.js", "method": "textDocument/hover", "params": {"position": {"line": 16, "character": 17}}}
+{"id": "arrow.js:16:17:definition", "file": "arrow.js", "method": "textDocument/definition", "params": {"position": {"line": 16, "character": 17}}}
+{"id": "arrow.js:16:17:typeDefinition", "file": "arrow.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 16, "character": 17}}}
+{"id": "arrow.js:16:17:documentHighlight", "file": "arrow.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 16, "character": 17}}}
+{"id": "arrow.js:5:0:references", "file": "arrow.js", "method": "textDocument/references", "params": {"position": {"line": 5, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "arrow.js:5:6:references", "file": "arrow.js", "method": "textDocument/references", "params": {"position": {"line": 5, "character": 6}, "context": {"includeDeclaration": true}}}
+{"id": "arrow.js:6:1:references", "file": "arrow.js", "method": "textDocument/references", "params": {"position": {"line": 6, "character": 1}, "context": {"includeDeclaration": true}}}
+{"id": "arrow.js:12:6:references", "file": "arrow.js", "method": "textDocument/references", "params": {"position": {"line": 12, "character": 6}, "context": {"includeDeclaration": true}}}
+{"id": "arrow.js:12:28:references", "file": "arrow.js", "method": "textDocument/references", "params": {"position": {"line": 12, "character": 28}, "context": {"includeDeclaration": true}}}
+{"id": "arrow.js:12:41:references", "file": "arrow.js", "method": "textDocument/references", "params": {"position": {"line": 12, "character": 41}, "context": {"includeDeclaration": true}}}
+{"id": "arrow.js:14:26:references", "file": "arrow.js", "method": "textDocument/references", "params": {"position": {"line": 14, "character": 26}, "context": {"includeDeclaration": true}}}
+{"id": "arrow.js:16:7:references", "file": "arrow.js", "method": "textDocument/references", "params": {"position": {"line": 16, "character": 7}, "context": {"includeDeclaration": true}}}
+{"id": "arrow.js:12:23:signatureHelp", "file": "arrow.js", "method": "textDocument/signatureHelp", "params": {"position": {"line": 12, "character": 23}, "context": {"triggerKind": 1, "isRetrigger": false}}}

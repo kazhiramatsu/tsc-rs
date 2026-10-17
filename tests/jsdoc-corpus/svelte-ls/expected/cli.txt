@@ -1,0 +1,6 @@
+a.js(1,22): error TS2305: Module '"./types"' has no exported member 'Source'.
+a.js(79,21): error TS2339: Property 'properties' does not exist on type 'Expression'.
+  Property 'properties' does not exist on type 'ArrayExpression'.
+a.js(80,21): error TS2339: Property 'elements' does not exist on type 'Expression'.
+  Property 'elements' does not exist on type 'ObjectExpression'.
+exit 2

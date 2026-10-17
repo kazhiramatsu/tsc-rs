@@ -1,0 +1,4 @@
+v3-js.js(1,19): error TS7006: Parameter 'actual' implicitly has an 'any' type.
+v5.js(1,19): error TS7006: Parameter 'first' implicitly has an 'any' type.
+v5.js(1,26): error TS7006: Parameter 'actual' implicitly has an 'any' type.
+exit 2

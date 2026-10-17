@@ -1,0 +1,88 @@
+{"id": "scope.js:diagnostic", "file": "scope.js", "method": "textDocument/diagnostic", "params": {}}
+{"id": "scope.js:documentSymbol", "file": "scope.js", "method": "textDocument/documentSymbol", "params": {}}
+{"id": "scope.js:semanticTokens", "file": "scope.js", "method": "textDocument/semanticTokens/full", "params": {}}
+{"id": "scope.js:0:0:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 0, "character": 0}}}
+{"id": "scope.js:0:0:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 0, "character": 0}}}
+{"id": "scope.js:0:0:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 0, "character": 0}}}
+{"id": "scope.js:0:0:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 0, "character": 0}}}
+{"id": "scope.js:0:6:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 0, "character": 6}}}
+{"id": "scope.js:0:6:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 0, "character": 6}}}
+{"id": "scope.js:0:6:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 0, "character": 6}}}
+{"id": "scope.js:0:6:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 0, "character": 6}}}
+{"id": "scope.js:5:1:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 5, "character": 1}}}
+{"id": "scope.js:5:1:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 5, "character": 1}}}
+{"id": "scope.js:5:1:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 5, "character": 1}}}
+{"id": "scope.js:5:1:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 5, "character": 1}}}
+{"id": "scope.js:5:13:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 5, "character": 13}}}
+{"id": "scope.js:5:13:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 5, "character": 13}}}
+{"id": "scope.js:5:13:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 5, "character": 13}}}
+{"id": "scope.js:5:13:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 5, "character": 13}}}
+{"id": "scope.js:5:20:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 5, "character": 20}}}
+{"id": "scope.js:5:20:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 5, "character": 20}}}
+{"id": "scope.js:5:20:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 5, "character": 20}}}
+{"id": "scope.js:5:20:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 5, "character": 20}}}
+{"id": "scope.js:7:2:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 7, "character": 2}}}
+{"id": "scope.js:7:2:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 7, "character": 2}}}
+{"id": "scope.js:7:2:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 7, "character": 2}}}
+{"id": "scope.js:7:2:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 7, "character": 2}}}
+{"id": "scope.js:7:7:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 7, "character": 7}}}
+{"id": "scope.js:7:7:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 7, "character": 7}}}
+{"id": "scope.js:7:7:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 7, "character": 7}}}
+{"id": "scope.js:7:7:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 7, "character": 7}}}
+{"id": "scope.js:7:23:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 7, "character": 23}}}
+{"id": "scope.js:7:23:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 7, "character": 23}}}
+{"id": "scope.js:7:23:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 7, "character": 23}}}
+{"id": "scope.js:7:23:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 7, "character": 23}}}
+{"id": "scope.js:8:5:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 8, "character": 5}}}
+{"id": "scope.js:8:5:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 8, "character": 5}}}
+{"id": "scope.js:8:5:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 8, "character": 5}}}
+{"id": "scope.js:8:5:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 8, "character": 5}}}
+{"id": "scope.js:9:27:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 9, "character": 27}}}
+{"id": "scope.js:9:27:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 9, "character": 27}}}
+{"id": "scope.js:9:27:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 9, "character": 27}}}
+{"id": "scope.js:9:27:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 9, "character": 27}}}
+{"id": "scope.js:9:34:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 9, "character": 34}}}
+{"id": "scope.js:9:34:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 9, "character": 34}}}
+{"id": "scope.js:9:34:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 9, "character": 34}}}
+{"id": "scope.js:9:34:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 9, "character": 34}}}
+{"id": "scope.js:11:2:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 11, "character": 2}}}
+{"id": "scope.js:11:2:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 11, "character": 2}}}
+{"id": "scope.js:11:2:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 11, "character": 2}}}
+{"id": "scope.js:11:2:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 11, "character": 2}}}
+{"id": "scope.js:11:7:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 11, "character": 7}}}
+{"id": "scope.js:11:7:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 11, "character": 7}}}
+{"id": "scope.js:11:7:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 11, "character": 7}}}
+{"id": "scope.js:11:7:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 11, "character": 7}}}
+{"id": "scope.js:11:15:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 11, "character": 15}}}
+{"id": "scope.js:11:15:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 11, "character": 15}}}
+{"id": "scope.js:11:15:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 11, "character": 15}}}
+{"id": "scope.js:11:15:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 11, "character": 15}}}
+{"id": "scope.js:11:23:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 11, "character": 23}}}
+{"id": "scope.js:11:23:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 11, "character": 23}}}
+{"id": "scope.js:11:23:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 11, "character": 23}}}
+{"id": "scope.js:11:23:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 11, "character": 23}}}
+{"id": "scope.js:11:29:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 11, "character": 29}}}
+{"id": "scope.js:11:29:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 11, "character": 29}}}
+{"id": "scope.js:11:29:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 11, "character": 29}}}
+{"id": "scope.js:11:29:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 11, "character": 29}}}
+{"id": "scope.js:14:0:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 14, "character": 0}}}
+{"id": "scope.js:14:0:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 14, "character": 0}}}
+{"id": "scope.js:14:0:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 14, "character": 0}}}
+{"id": "scope.js:14:0:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 14, "character": 0}}}
+{"id": "scope.js:14:7:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 14, "character": 7}}}
+{"id": "scope.js:14:7:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 14, "character": 7}}}
+{"id": "scope.js:14:7:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 14, "character": 7}}}
+{"id": "scope.js:14:7:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 14, "character": 7}}}
+{"id": "scope.js:14:17:hover", "file": "scope.js", "method": "textDocument/hover", "params": {"position": {"line": 14, "character": 17}}}
+{"id": "scope.js:14:17:definition", "file": "scope.js", "method": "textDocument/definition", "params": {"position": {"line": 14, "character": 17}}}
+{"id": "scope.js:14:17:typeDefinition", "file": "scope.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 14, "character": 17}}}
+{"id": "scope.js:14:17:documentHighlight", "file": "scope.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 14, "character": 17}}}
+{"id": "scope.js:0:0:references", "file": "scope.js", "method": "textDocument/references", "params": {"position": {"line": 0, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "scope.js:5:1:references", "file": "scope.js", "method": "textDocument/references", "params": {"position": {"line": 5, "character": 1}, "context": {"includeDeclaration": true}}}
+{"id": "scope.js:5:20:references", "file": "scope.js", "method": "textDocument/references", "params": {"position": {"line": 5, "character": 20}, "context": {"includeDeclaration": true}}}
+{"id": "scope.js:7:23:references", "file": "scope.js", "method": "textDocument/references", "params": {"position": {"line": 7, "character": 23}, "context": {"includeDeclaration": true}}}
+{"id": "scope.js:9:27:references", "file": "scope.js", "method": "textDocument/references", "params": {"position": {"line": 9, "character": 27}, "context": {"includeDeclaration": true}}}
+{"id": "scope.js:11:2:references", "file": "scope.js", "method": "textDocument/references", "params": {"position": {"line": 11, "character": 2}, "context": {"includeDeclaration": true}}}
+{"id": "scope.js:11:23:references", "file": "scope.js", "method": "textDocument/references", "params": {"position": {"line": 11, "character": 23}, "context": {"includeDeclaration": true}}}
+{"id": "scope.js:14:0:references", "file": "scope.js", "method": "textDocument/references", "params": {"position": {"line": 14, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "scope.js:5:13:signatureHelp", "file": "scope.js", "method": "textDocument/signatureHelp", "params": {"position": {"line": 5, "character": 13}, "context": {"triggerKind": 1, "isRetrigger": false}}}

@@ -106,6 +106,17 @@ Its report is `target/suites-ts71/<profile>/report.json`; `--dump
 <directory>` keeps tsc-rs's rendering of the differing baselines, and
 `--update` records the new tiers without lowering any.
 
+The JSDoc corpus (`tests/jsdoc-corpus/`, its README) keeps small JavaScript
+projects with the answers tsgo gives on them — the command line's
+diagnostics and a replayed language-server session per case — because
+tsgo's own test suite barely covers the JSDoc shapes real projects use. It
+runs with the command-line crate's tests (`cargo test -p tsc-rs-cli --test
+jsdoc_corpus`, so also in the hosted `rust` job) and needs no tsgo; a
+difference its `known.txt` does not list fails, and a listed difference
+that disappears must be removed from the list. `scripts/jsdoc_corpus.py
+update` refreshes a case's baselines from the vendored tsgo; `init` samples
+the requests of a new case.
+
 ### GitHub Actions
 
 `.github/workflows/ci.yml` runs on pull requests, merge groups and pushes

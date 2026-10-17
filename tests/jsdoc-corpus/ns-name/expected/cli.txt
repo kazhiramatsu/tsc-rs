@@ -1,0 +1,5 @@
+f.js(1,26): error TS2694: Namespace '"est"' has no exported member 'Decorator'.
+f.js(3,31): error TS2694: Namespace '"${ROOT}/mod"' has no exported member 'Missing'.
+g.ts(1,36): error TS2694: Namespace '"${ROOT}/mod"' has no exported member 'Missing'.
+g.ts(2,31): error TS2694: Namespace '"est"' has no exported member 'Decorator'.
+exit 2

@@ -1,0 +1,120 @@
+{"id": "a.js:diagnostic", "file": "a.js", "method": "textDocument/diagnostic", "params": {}}
+{"id": "a.js:documentSymbol", "file": "a.js", "method": "textDocument/documentSymbol", "params": {}}
+{"id": "a.js:semanticTokens", "file": "a.js", "method": "textDocument/semanticTokens/full", "params": {}}
+{"id": "a.js:1:0:hover", "file": "a.js", "method": "textDocument/hover", "params": {"position": {"line": 1, "character": 0}}}
+{"id": "a.js:1:0:definition", "file": "a.js", "method": "textDocument/definition", "params": {"position": {"line": 1, "character": 0}}}
+{"id": "a.js:1:0:typeDefinition", "file": "a.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 1, "character": 0}}}
+{"id": "a.js:1:0:documentHighlight", "file": "a.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 1, "character": 0}}}
+{"id": "a.js:1:9:hover", "file": "a.js", "method": "textDocument/hover", "params": {"position": {"line": 1, "character": 9}}}
+{"id": "a.js:1:9:definition", "file": "a.js", "method": "textDocument/definition", "params": {"position": {"line": 1, "character": 9}}}
+{"id": "a.js:1:9:typeDefinition", "file": "a.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 1, "character": 9}}}
+{"id": "a.js:1:9:documentHighlight", "file": "a.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 1, "character": 9}}}
+{"id": "a.js:1:13:hover", "file": "a.js", "method": "textDocument/hover", "params": {"position": {"line": 1, "character": 13}}}
+{"id": "a.js:1:13:definition", "file": "a.js", "method": "textDocument/definition", "params": {"position": {"line": 1, "character": 13}}}
+{"id": "a.js:1:13:typeDefinition", "file": "a.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 1, "character": 13}}}
+{"id": "a.js:1:13:documentHighlight", "file": "a.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 1, "character": 13}}}
+{"id": "a.js:3:0:hover", "file": "a.js", "method": "textDocument/hover", "params": {"position": {"line": 3, "character": 0}}}
+{"id": "a.js:3:0:definition", "file": "a.js", "method": "textDocument/definition", "params": {"position": {"line": 3, "character": 0}}}
+{"id": "a.js:3:0:typeDefinition", "file": "a.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 3, "character": 0}}}
+{"id": "a.js:3:0:documentHighlight", "file": "a.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 3, "character": 0}}}
+{"id": "a.js:3:7:hover", "file": "a.js", "method": "textDocument/hover", "params": {"position": {"line": 3, "character": 7}}}
+{"id": "a.js:3:7:definition", "file": "a.js", "method": "textDocument/definition", "params": {"position": {"line": 3, "character": 7}}}
+{"id": "a.js:3:7:typeDefinition", "file": "a.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 3, "character": 7}}}
+{"id": "a.js:3:7:documentHighlight", "file": "a.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 3, "character": 7}}}
+{"id": "a.js:3:13:hover", "file": "a.js", "method": "textDocument/hover", "params": {"position": {"line": 3, "character": 13}}}
+{"id": "a.js:3:13:definition", "file": "a.js", "method": "textDocument/definition", "params": {"position": {"line": 3, "character": 13}}}
+{"id": "a.js:3:13:typeDefinition", "file": "a.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 3, "character": 13}}}
+{"id": "a.js:3:13:documentHighlight", "file": "a.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 3, "character": 13}}}
+{"id": "a.js:3:17:hover", "file": "a.js", "method": "textDocument/hover", "params": {"position": {"line": 3, "character": 17}}}
+{"id": "a.js:3:17:definition", "file": "a.js", "method": "textDocument/definition", "params": {"position": {"line": 3, "character": 17}}}
+{"id": "a.js:3:17:typeDefinition", "file": "a.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 3, "character": 17}}}
+{"id": "a.js:3:17:documentHighlight", "file": "a.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 3, "character": 17}}}
+{"id": "a.js:3:24:hover", "file": "a.js", "method": "textDocument/hover", "params": {"position": {"line": 3, "character": 24}}}
+{"id": "a.js:3:24:definition", "file": "a.js", "method": "textDocument/definition", "params": {"position": {"line": 3, "character": 24}}}
+{"id": "a.js:3:24:typeDefinition", "file": "a.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 3, "character": 24}}}
+{"id": "a.js:3:24:documentHighlight", "file": "a.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 3, "character": 24}}}
+{"id": "a.js:1:0:references", "file": "a.js", "method": "textDocument/references", "params": {"position": {"line": 1, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "a.js:1:9:references", "file": "a.js", "method": "textDocument/references", "params": {"position": {"line": 1, "character": 9}, "context": {"includeDeclaration": true}}}
+{"id": "a.js:1:13:references", "file": "a.js", "method": "textDocument/references", "params": {"position": {"line": 1, "character": 13}, "context": {"includeDeclaration": true}}}
+{"id": "a.js:3:0:references", "file": "a.js", "method": "textDocument/references", "params": {"position": {"line": 3, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "a.js:3:7:references", "file": "a.js", "method": "textDocument/references", "params": {"position": {"line": 3, "character": 7}, "context": {"includeDeclaration": true}}}
+{"id": "a.js:3:13:references", "file": "a.js", "method": "textDocument/references", "params": {"position": {"line": 3, "character": 13}, "context": {"includeDeclaration": true}}}
+{"id": "a.js:3:17:references", "file": "a.js", "method": "textDocument/references", "params": {"position": {"line": 3, "character": 17}, "context": {"includeDeclaration": true}}}
+{"id": "a.js:3:24:references", "file": "a.js", "method": "textDocument/references", "params": {"position": {"line": 3, "character": 24}, "context": {"includeDeclaration": true}}}
+{"id": "a.js:3:19:signatureHelp", "file": "a.js", "method": "textDocument/signatureHelp", "params": {"position": {"line": 3, "character": 19}, "context": {"triggerKind": 1, "isRetrigger": false}}}
+{"id": "b.js:diagnostic", "file": "b.js", "method": "textDocument/diagnostic", "params": {}}
+{"id": "b.js:documentSymbol", "file": "b.js", "method": "textDocument/documentSymbol", "params": {}}
+{"id": "b.js:semanticTokens", "file": "b.js", "method": "textDocument/semanticTokens/full", "params": {}}
+{"id": "b.js:0:0:hover", "file": "b.js", "method": "textDocument/hover", "params": {"position": {"line": 0, "character": 0}}}
+{"id": "b.js:0:0:definition", "file": "b.js", "method": "textDocument/definition", "params": {"position": {"line": 0, "character": 0}}}
+{"id": "b.js:0:0:typeDefinition", "file": "b.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 0, "character": 0}}}
+{"id": "b.js:0:0:documentHighlight", "file": "b.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 0, "character": 0}}}
+{"id": "b.js:0:7:hover", "file": "b.js", "method": "textDocument/hover", "params": {"position": {"line": 0, "character": 7}}}
+{"id": "b.js:0:7:definition", "file": "b.js", "method": "textDocument/definition", "params": {"position": {"line": 0, "character": 7}}}
+{"id": "b.js:0:7:typeDefinition", "file": "b.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 0, "character": 7}}}
+{"id": "b.js:0:7:documentHighlight", "file": "b.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 0, "character": 7}}}
+{"id": "b.js:0:16:hover", "file": "b.js", "method": "textDocument/hover", "params": {"position": {"line": 0, "character": 16}}}
+{"id": "b.js:0:16:definition", "file": "b.js", "method": "textDocument/definition", "params": {"position": {"line": 0, "character": 16}}}
+{"id": "b.js:0:16:typeDefinition", "file": "b.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 0, "character": 16}}}
+{"id": "b.js:0:16:documentHighlight", "file": "b.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 0, "character": 16}}}
+{"id": "b.js:0:18:hover", "file": "b.js", "method": "textDocument/hover", "params": {"position": {"line": 0, "character": 18}}}
+{"id": "b.js:0:18:definition", "file": "b.js", "method": "textDocument/definition", "params": {"position": {"line": 0, "character": 18}}}
+{"id": "b.js:0:18:typeDefinition", "file": "b.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 0, "character": 18}}}
+{"id": "b.js:0:18:documentHighlight", "file": "b.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 0, "character": 18}}}
+{"id": "b.js:1:1:hover", "file": "b.js", "method": "textDocument/hover", "params": {"position": {"line": 1, "character": 1}}}
+{"id": "b.js:1:1:definition", "file": "b.js", "method": "textDocument/definition", "params": {"position": {"line": 1, "character": 1}}}
+{"id": "b.js:1:1:typeDefinition", "file": "b.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 1, "character": 1}}}
+{"id": "b.js:1:1:documentHighlight", "file": "b.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 1, "character": 1}}}
+{"id": "b.js:1:8:hover", "file": "b.js", "method": "textDocument/hover", "params": {"position": {"line": 1, "character": 8}}}
+{"id": "b.js:1:8:definition", "file": "b.js", "method": "textDocument/definition", "params": {"position": {"line": 1, "character": 8}}}
+{"id": "b.js:1:8:typeDefinition", "file": "b.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 1, "character": 8}}}
+{"id": "b.js:1:8:documentHighlight", "file": "b.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 1, "character": 8}}}
+{"id": "b.js:3:0:hover", "file": "b.js", "method": "textDocument/hover", "params": {"position": {"line": 3, "character": 0}}}
+{"id": "b.js:3:0:definition", "file": "b.js", "method": "textDocument/definition", "params": {"position": {"line": 3, "character": 0}}}
+{"id": "b.js:3:0:typeDefinition", "file": "b.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 3, "character": 0}}}
+{"id": "b.js:3:0:documentHighlight", "file": "b.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 3, "character": 0}}}
+{"id": "b.js:3:7:hover", "file": "b.js", "method": "textDocument/hover", "params": {"position": {"line": 3, "character": 7}}}
+{"id": "b.js:3:7:definition", "file": "b.js", "method": "textDocument/definition", "params": {"position": {"line": 3, "character": 7}}}
+{"id": "b.js:3:7:typeDefinition", "file": "b.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 3, "character": 7}}}
+{"id": "b.js:3:7:documentHighlight", "file": "b.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 3, "character": 7}}}
+{"id": "b.js:3:13:hover", "file": "b.js", "method": "textDocument/hover", "params": {"position": {"line": 3, "character": 13}}}
+{"id": "b.js:3:13:definition", "file": "b.js", "method": "textDocument/definition", "params": {"position": {"line": 3, "character": 13}}}
+{"id": "b.js:3:13:typeDefinition", "file": "b.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 3, "character": 13}}}
+{"id": "b.js:3:13:documentHighlight", "file": "b.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 3, "character": 13}}}
+{"id": "b.js:0:0:references", "file": "b.js", "method": "textDocument/references", "params": {"position": {"line": 0, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "b.js:0:7:references", "file": "b.js", "method": "textDocument/references", "params": {"position": {"line": 0, "character": 7}, "context": {"includeDeclaration": true}}}
+{"id": "b.js:0:16:references", "file": "b.js", "method": "textDocument/references", "params": {"position": {"line": 0, "character": 16}, "context": {"includeDeclaration": true}}}
+{"id": "b.js:0:18:references", "file": "b.js", "method": "textDocument/references", "params": {"position": {"line": 0, "character": 18}, "context": {"includeDeclaration": true}}}
+{"id": "b.js:1:1:references", "file": "b.js", "method": "textDocument/references", "params": {"position": {"line": 1, "character": 1}, "context": {"includeDeclaration": true}}}
+{"id": "b.js:1:8:references", "file": "b.js", "method": "textDocument/references", "params": {"position": {"line": 1, "character": 8}, "context": {"includeDeclaration": true}}}
+{"id": "b.js:3:0:references", "file": "b.js", "method": "textDocument/references", "params": {"position": {"line": 3, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "b.js:3:7:references", "file": "b.js", "method": "textDocument/references", "params": {"position": {"line": 3, "character": 7}, "context": {"includeDeclaration": true}}}
+{"id": "b.js:0:18:signatureHelp", "file": "b.js", "method": "textDocument/signatureHelp", "params": {"position": {"line": 0, "character": 18}, "context": {"triggerKind": 1, "isRetrigger": false}}}
+{"id": "types.d.ts:diagnostic", "file": "types.d.ts", "method": "textDocument/diagnostic", "params": {}}
+{"id": "types.d.ts:documentSymbol", "file": "types.d.ts", "method": "textDocument/documentSymbol", "params": {}}
+{"id": "types.d.ts:semanticTokens", "file": "types.d.ts", "method": "textDocument/semanticTokens/full", "params": {}}
+{"id": "types.d.ts:0:0:hover", "file": "types.d.ts", "method": "textDocument/hover", "params": {"position": {"line": 0, "character": 0}}}
+{"id": "types.d.ts:0:0:definition", "file": "types.d.ts", "method": "textDocument/definition", "params": {"position": {"line": 0, "character": 0}}}
+{"id": "types.d.ts:0:0:typeDefinition", "file": "types.d.ts", "method": "textDocument/typeDefinition", "params": {"position": {"line": 0, "character": 0}}}
+{"id": "types.d.ts:0:0:documentHighlight", "file": "types.d.ts", "method": "textDocument/documentHighlight", "params": {"position": {"line": 0, "character": 0}}}
+{"id": "types.d.ts:0:7:hover", "file": "types.d.ts", "method": "textDocument/hover", "params": {"position": {"line": 0, "character": 7}}}
+{"id": "types.d.ts:0:7:definition", "file": "types.d.ts", "method": "textDocument/definition", "params": {"position": {"line": 0, "character": 7}}}
+{"id": "types.d.ts:0:7:typeDefinition", "file": "types.d.ts", "method": "textDocument/typeDefinition", "params": {"position": {"line": 0, "character": 7}}}
+{"id": "types.d.ts:0:7:documentHighlight", "file": "types.d.ts", "method": "textDocument/documentHighlight", "params": {"position": {"line": 0, "character": 7}}}
+{"id": "types.d.ts:0:17:hover", "file": "types.d.ts", "method": "textDocument/hover", "params": {"position": {"line": 0, "character": 17}}}
+{"id": "types.d.ts:0:17:definition", "file": "types.d.ts", "method": "textDocument/definition", "params": {"position": {"line": 0, "character": 17}}}
+{"id": "types.d.ts:0:17:typeDefinition", "file": "types.d.ts", "method": "textDocument/typeDefinition", "params": {"position": {"line": 0, "character": 17}}}
+{"id": "types.d.ts:0:17:documentHighlight", "file": "types.d.ts", "method": "textDocument/documentHighlight", "params": {"position": {"line": 0, "character": 17}}}
+{"id": "types.d.ts:0:21:hover", "file": "types.d.ts", "method": "textDocument/hover", "params": {"position": {"line": 0, "character": 21}}}
+{"id": "types.d.ts:0:21:definition", "file": "types.d.ts", "method": "textDocument/definition", "params": {"position": {"line": 0, "character": 21}}}
+{"id": "types.d.ts:0:21:typeDefinition", "file": "types.d.ts", "method": "textDocument/typeDefinition", "params": {"position": {"line": 0, "character": 21}}}
+{"id": "types.d.ts:0:21:documentHighlight", "file": "types.d.ts", "method": "textDocument/documentHighlight", "params": {"position": {"line": 0, "character": 21}}}
+{"id": "types.d.ts:0:24:hover", "file": "types.d.ts", "method": "textDocument/hover", "params": {"position": {"line": 0, "character": 24}}}
+{"id": "types.d.ts:0:24:definition", "file": "types.d.ts", "method": "textDocument/definition", "params": {"position": {"line": 0, "character": 24}}}
+{"id": "types.d.ts:0:24:typeDefinition", "file": "types.d.ts", "method": "textDocument/typeDefinition", "params": {"position": {"line": 0, "character": 24}}}
+{"id": "types.d.ts:0:24:documentHighlight", "file": "types.d.ts", "method": "textDocument/documentHighlight", "params": {"position": {"line": 0, "character": 24}}}
+{"id": "types.d.ts:0:0:references", "file": "types.d.ts", "method": "textDocument/references", "params": {"position": {"line": 0, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "types.d.ts:0:7:references", "file": "types.d.ts", "method": "textDocument/references", "params": {"position": {"line": 0, "character": 7}, "context": {"includeDeclaration": true}}}
+{"id": "types.d.ts:0:17:references", "file": "types.d.ts", "method": "textDocument/references", "params": {"position": {"line": 0, "character": 17}, "context": {"includeDeclaration": true}}}
+{"id": "types.d.ts:0:21:references", "file": "types.d.ts", "method": "textDocument/references", "params": {"position": {"line": 0, "character": 21}, "context": {"includeDeclaration": true}}}
+{"id": "types.d.ts:0:24:references", "file": "types.d.ts", "method": "textDocument/references", "params": {"position": {"line": 0, "character": 24}, "context": {"includeDeclaration": true}}}

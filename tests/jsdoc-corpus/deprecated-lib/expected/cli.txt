@@ -1,0 +1,6 @@
+src/a.js(1,10): error TS18042: 'OldThing' is a type and cannot be imported in JavaScript files. Use 'import("./lib.js").OldThing' in a JSDoc type annotation.
+src/a.js(1,20): error TS18042: 'OldOne' is a type and cannot be imported in JavaScript files. Use 'import("./lib.js").OldOne' in a JSDoc type annotation.
+src/a.js(2,21): error TS7006: Parameter 'foo' implicitly has an 'any' type.
+src/a.js(3,18): error TS2304: Cannot find name 'Old'.
+src/a.js(3,36): error TS2304: Cannot find name 'HTMLPar'.
+exit 2

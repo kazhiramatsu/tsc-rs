@@ -1,0 +1,2 @@
+a.js(15,21): error TS2741: Property 'filePath' is missing in type '{}' but required in type '{ filePath: any; warn?: boolean; }'.
+exit 2
