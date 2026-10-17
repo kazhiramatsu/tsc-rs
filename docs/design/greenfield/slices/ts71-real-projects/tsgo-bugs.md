@@ -129,8 +129,9 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
   `as` node は自分の JSDoc を持たず Pos は `e` の full start なので、`astnav.getTokenAtPosition` の `GetTokenPosOfNode(as, includeJSDoc=true)` は
   `e` の先頭 JSDoc を飛ばした `(` になり、`e` 自身の JSDoc の中の位置は「どの子にも含まれない」。外側の cast の JSDoc は括弧 node 自身のものなので
   届く。再現 `lsp-compare/repro/nested-cast`（documentHighlight 9:32：tsgo 3 件・tsc-rs 5 件、hover 11:51：tsgo null）、`repro/w2-arrow`。
-- tsc-rs の扱い：利用者の決定（2026-10-17「入れ子castはtsgoに合わせてください」）で tsgo に合わせる：`ls/astnav.rs start_of_node` が hosted cast の
-  operand の自分の JSDoc を start に含めない（次の PR）。
+- tsc-rs の扱い：利用者の決定（2026-10-17「入れ子castはtsgoに合わせてください」）で tsgo に合わせた（PR #833、`ls/astnav.rs start_of_node` が
+  hosted cast の operand の自分の JSDoc を start に含めない、test `a_nested_cast_s_jsdoc_is_out_of_reach_for_highlights`・
+  `a_nested_cast_s_type_name_has_no_hover`）。
 - 報告：未投稿。
 
 ### 11. reparse した宣言への definition の targetRange が `0:0`
@@ -167,3 +168,26 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
 - tsc-rs の扱い：bounded で残す（利用者の決定 2026-10-17「@importの件はboundedで残してOKです」）。合わせるには tsgo の clone 列（file 内の
   reparse 位置の列）を模す必要があり重い。webpack の 5 件（references +1 ずつ）はこの扱い。
 - 報告：未投稿。
+
+### 14. constructor の `this[SYMBOL] = …` に TS2323「Cannot redeclare exported variable '\xFEassignment'」
+
+- 見つけた日・場所：2026-10-17、ESLint 8ffeb8c の `lib/languages/js/source-code/token-store/index.js:298-300`
+  （`this[TOKENS] = tokens;`、`this[COMMENTS] = comments;`、`this[INDEX_MAP] = …`：computed な symbol key への代入 3 つ）。
+- 現象：tsgo が TS2323「Cannot redeclare exported variable '�assignment'」を 3 回報告する。名前は内部名
+  `ast.InternalSymbolNameAssignmentDeclaration`（`"\xFE" + "assignment"`、symbol.go）がそのまま漏れたもので、error 自体も根拠が無い（export も
+  再宣言も無い）。TypeScript 6.0.3 は何も報告しない。tsc-rs も報告しない。
+- 根拠：未確認（binder が computed key の `this` 代入を internal 名で宣言し、checker の重複宣言検査がそれを export 名と見なす経路が疑わしい）。
+- tsc-rs の扱い：提案 = bounded（壊れた内部名の error は再現しない。利用者の判断待ち）。ESLint の session の 1 件（diagnostic）はこの扱い。
+- 報告：未投稿（報告候補）。
+
+### 15. 型の無い `@property` に Member の implicit any（TS7008 / suggestion TS7045）
+
+- 見つけた日・場所：2026-10-18、prettier 344d6dc の `src/cli/context.js:9-17`（`@typedef {Object} Context` の `@property logger` 等、型無し 6 つ）。
+- 現象：tsgo は reparse した property signature の型を `checkPropertySignature` で解決するので、型の無い `@property`・`@param options.x` に
+  「Member 'logger' implicitly has an 'any' type」（noImplicitAny なら TS7008 の error、そうでなければ TS7045 の suggestion）を、その property を
+  誰も使わなくても報告する。TypeScript 6.0.3 は、その property の型を何かが要求した時だけ「Variable 'logger' implicitly has an 'any' type」
+  （TS7005/7043）を報告する。バグではなく 6.0.3 との差（reparse 設計の帰結）。
+- 再現：`target/claude-tools/handover/repro/tprop/a.js`（strict：tsgo TS7008 ×3、6.0.3 系の tsc-rs は TS7005 ×3）。
+- tsc-rs の扱い：tsgo に合わせる（次の PR：`check.rs check_jsdoc_property_like_tag` が type literal の tag の型を解決し、`widen.rs report_implicit_any`
+  が Member の文言を使う）。
+- 報告：不要（差の記録のみ）。

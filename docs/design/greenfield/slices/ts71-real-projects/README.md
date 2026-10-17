@@ -485,6 +485,62 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 - **道具**：`handover/webpack2-chain.sh`（release build → focused 87 case → tsc-rs だけの再記録と比較）、repro
   `lsp-compare/repro/{w2-sym,w2-unused,w2-hover}`、`scratchpad` の t2454/talias の変種。
 
+### 修正 7：webpack の全体 session の差分、その 3（PR #833、2026-10-17/18、Fable 5.1）
+
+- **merge**：#833 → `a9d85213b`（hosted run 39049920116）。commit：6d38b7c63（ls）、2d1d9d1da（checker）、a8cfe702c（binder・checker・ls）。
+- **比べたもの**：webpack e12e1224 の `lib/**/*.js`（790 file、134,174 request）：#832 の後の 113 件 → 修正後 92 件（tsc-rs だけ記録し直して
+  `out-webpack` の tsgo の記録と比較）。preact 630a87e（`src`・`hooks`・`compat`・`debug`・`test-utils`・`jsx-runtime` の JS、33 file、
+  5,307 request）：3 件（全部 `@this` 関数の `this` の definition で tsgo が 0:0 を返すもの、memo 3、利用者の決定で有効な範囲を返す）。
+  SvelteKit dd2d975（`packages/kit/src/**/*.js`、382 file、50,333 request）：3 → 1 件（`error` の completion の sortText は 4. で直した。
+  残り：object literal の union の hover 1 = property の順序が session に依存（1 file の session なら両者一致）。auto-import `Redirect` の差は再記録では出なかった）。ESLint 8ffeb8c（`lib/**/*.js`、`tsconfig.base.json` を継ぐ session 用
+  tsconfig、389 file、68,905 request）：12 → 12 件（key は file の診断単位なので、TS18048 ×2 を 5. で直しても `eslint.js` の key は別の文言差で残る。残り：tsgo が
+  namespace の member を container か alias 経由で修飾する診断文言 6 file（`Linter.Config<RulesConfig>`・`ESLint.Options`・`Scope.Reference`・`Rule.CodePathSegment`・
+  `Rule.NodeParentExtension`・`AST.SourceLocation`。原因判明、次の PR）、長い object literal の文言の切り詰め位置の差 4 file（`source-code.js`・
+  `no-restricted-globals/imports/modules.js`）、constructor の `this[SYMBOL] = …` への tsgo だけの TS2323 ×3 = memo 14、alias の hover に `@overload` の
+  comment が出ない 1（原因を絞った、次の PR））。
+  prettier 344d6dc（`src/**/*.js` を含む session 用 tsconfig、541 file、79,819 request）：5 件（型の無い `@property` に tsgo が出す TS7045 の
+  suggestion ×6 = 1 件、object literal を自分の中で印字する時に tsgo が `...` にする TS2339/TS2551 の文言 3、`ArrayLike<T>.length` の hover 1 = session
+  順序、`@this` の definition 0:0 = memo 3）。prettier の run 1（prettier 自身の tsconfig、168 件）は JSDoc の計測ではない：除外 file が inferred project
+  になり、tsc-rs の ATA が `@types/core-js` 等を取り込む差（別件）。
+- **種類と直し方**（どれも tsgo の経路に合わせて既存の code を変えた。test は変更なしでは落ちる）：
+  1. **cast の中身の JSDoc は位置探索から届かない（ls `astnav`、利用者の決定 2026-10-17「入れ子castはtsgoに合わせてください」）**：tsgo の reparser は
+     括弧の中身を `e as T` に置き換え、`as` node は自分の JSDoc を持たず位置は `e` の full start なので、`getTokenAtPosition` は `e` 自身の先頭 JSDoc を
+     飛ばす。入れ子 cast の型名に hover/definition/references が無く、型位置の `null` は keyword references・highlight に出ず、cast の括弧の中の arrow の
+     `@param` も highlight に出ない（`ModuleConcatenationPlugin.js`・`syntax-printer.js`・`lib/index.js`。TypeScript 6.0.3 は全部届く、memo 10）。
+     `start_of_node` が hosted cast の operand の JSDoc を start に含めない。test `a_nested_cast_s_jsdoc_is_out_of_reach_for_highlights`、
+     `a_nested_cast_s_type_name_has_no_hover`。
+  2. **contextual な signatureHelp の label に typedef の property 名（ls）**：`@type {Utils}` の object literal の method の parameter list の中で、
+     tsgo の `chooseBetterSymbol` は function type から reparse した property signature へ上がる。こちらではその tag が宣言（`ImportPhase.js` の
+     `isEvaluation(phase)`）。test `javascript_contextual_signature_help_names_the_typedef_property`。
+  3. **generic な JS arrow が context-sensitive な callback から推論する（checker）**：`isTypeParameterPossiblyReferenced` は hosted な JSDoc 型の中の
+     node から型 parameter の container まで上る。tsgo の reparser はその型を host の関数の下に置くので関数に届くが、こちらは元の comment を
+     VariableStatement・file まで上って arrow に会わず、comment の中の type literal を全部「参照の可能性あり」にしていた。`@param {(program: { kind: string }) => T}` の
+     `{ kind: string }` が `T` を outer type parameter に持ち、推論 context の fixing mapper で instantiate した時点で `T` が any に固定され、callback の
+     戻り値からの推論が効かなかった（webpack `syntax-printer.js` の `readSource(…, (program, …) => adoptEstree(…))` が any：property token も error も
+     出ない。function 宣言が host なら正しかった）。JSDoc comment から host の function-like host へ続けて上る。
+     test `a_generic_javascript_arrow_infers_from_a_context_sensitive_callback`。
+  4. **`@overload` の 1 つが `@deprecated` でも関数は deprecated でない（binder・checker）**：tsgo の reparse した overload 宣言は parser の context flag しか
+     持たないので、completion の「全宣言が deprecated」は成り立たない。こちらでは `@overload` tag の名前を deprecated にせず、binder が export された
+     関数の local symbol にも overload 宣言を載せる（module 内の completion が読む方）。SvelteKit の `error`：sortText `11`・tag 無し。
+     test `a_function_with_one_deprecated_overload_is_not_deprecated_for_completions`。
+  5. **入れ子 tag の property 名は最後の識別子（checker）**：tsgo の reparser は `@param options.x` の property signature を右端の識別子で名付ける。こちらは
+     rest 要素が property を除外する時に書かれた qualified name を式として検査し、ESLint の `lintText` が自分の `@param [options.filePath]` に
+     `'options' is possibly 'undefined'` を出していた。test `nested_param_tags_of_an_optional_object_parameter_are_not_checked_as_expressions`。
+  6. **contextual な signatureHelp に `@callback`・function 型 `@typedef` の alias 名（ls）**：`chooseBetterSymbol` が function type の親から type alias へ
+     （`GetExportsFromDataFn(data, …)`）。2. の test に含む。
+- **bounded（利用者の決定 2026-10-17「@importの件はboundedで残してOKです」）**：`@import X, { T } from` の default 名が X の references に出ない
+  （webpack の 5 file、小さい再現では tsgo も出す、memo 13）。
+- **残り**：92 件（全部 class A）：hover の `Array<T>.length`/`Set<T>.size`/`Map<K, V>.size` の qualifier 43（session の順序依存、1 file なら両方 instantiate 形）、`TypedHookMap<…>` の intersection の hover 16・signatureHelp 14 と `NormalModuleFactory.js` の TS2322 文言（原因判明：tsgo の reparse した `@typedef` は type alias なので、その型の中の参照は deferred な型参照になり、conditional type の instantiate ごとに新しい `SyncBailHook<…>` ができて同じ表示の 17 member が残る。tsc-rs は 12 に併合していた。次の PR）、signatureHelp の label 6（`Serializer.js` の候補選択 3：tsgo は `WebpackError.serialize({ write }: ObjectSerializerContext)`、tsc-rs は `HookWebpackError.serialize(context: …)`；`create(Dep, …)` 2：tsgo は alias `ContextDependencyHelpers.PartialContextDependencyOptions` を保ち、tsc-rs は `Partial<Omit<…>>` に展開；`parseObjectExpression` 1：tsgo は `values: Record<string, …>` に展開し、tsc-rs は alias `Values` を保つ）、切り詰め 2（`htmlMinify.js`）、JS generic の `@returns {ParserByType[T]}` が呼び出しの hover で instantiate されない 2、bounded の 8（`@import` の default 名 5 = memo 13・利用者の決定、`@this` の 0:0 definition 3 = memo 3）。
+- **検査**：a8cfe702c で（release build、nice 20、`cargo -j 2`、worker 2）：`conformance_ts71.py --workers 2 --check` 12,829 case・15,339 configuration、lane A 13,577 full・
+  text/category/location/mismatch 0、ratchet 0 regressions（変更なし）。`--checkers 4` + `conformance_ts71_compare.py`：15,335 一致・4 差（既知の直列/並列差
+  `incorrectRecursiveMappedTypeConstraint`・`mutuallyRecursiveInference`・`typeParameterWithInvalidConstraintType`・`recursiveMappedTypes`、#832 と同じ 4 件）。
+  `suites_ts71.py --update` → `--check` exit 0、5,315 baseline・0 regressions・ratchet 変更なし（既知の 3 mismatch：lsp `TestCompletionForStringLiteralNonrelativeImport2` =
+  tsgo が run ごとに変わる、`tsc/generateTrace` ×2）。focused case 114（`handover/slice3-focused.sh` + slice 2 の list）全部 full。全 crate の test 合格（types 49、syntax 251、
+  binder 78、program 684、checker 1,823、emitter 352、ls 248、lsp 89、api 332、project 235、compiler 241、conformance 49、lsproto 31）。fmt clean。clippy は hosted gates。
+  log：`target/claude-tools/logs/slice3-final`・`slice3c`・`slice3d`。
+- **道具**：repro `lsp-compare/repro/{nested-cast,w2-arrow,w2-sighelp,w2-infer,w2-import,w2-import2}`、`handover/slice3-focused.sh`（`@template` を含む
+  61 case）、`handover/slice3-sessions.sh`、`handover/jsdoc-sessions.sh <label>`（preact/kit/eslint/prettier）、`handover/jsdoc-install*.sh`。
+
 ## 3. 性能の slice 3（local のみ、未 push）
 
 - **worktree と branch**：`/Users/hiramatsu/dev/tsc-rs-p34` の `perf/ts71-lsp-request-threads`、HEAD は `b121051dd`
