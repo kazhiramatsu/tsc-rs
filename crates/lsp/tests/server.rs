@@ -1743,6 +1743,106 @@ fn auto_imports_name_a_file_through_a_dependency_s_symlink() {
     session.close();
 }
 
+/// A program that reads the sources of its referenced projects (the
+/// language server's) loads a referenced project's source in place of the
+/// output declaration file a resolution reaches through the package's
+/// exports. tsgo's redirected parse task carries no package id, so the
+/// source does not register the package for the collect walk's package
+/// deduplication, and a later output of the same package is still walked
+/// (its redirect recorded); a resolution to an output also finds the source
+/// by the static redirect (`getSourceFileWithRedirect`). Here `y-error`
+/// comes first and imports `./y.js`, so `y.ts` is collected before the
+/// `dist/y.d.ts` redirect: the program failed to build ("resolved
+/// non-JavaScript target … has no independent program membership") and
+/// every request answered "no project found" (astro's
+/// `packages/astro/src` through `@astrojs/internal-helpers`; tsgo
+/// aa814927 answers the hover).
+#[test]
+fn a_referenced_project_s_output_resolves_to_its_source_after_another_output_of_the_package() {
+    const M: &str = "export { isParsed } from \"@x/b/y-error\";\nimport type { Parsed } from \"@x/b/y\";\nexport const n: Parsed = { value: 1 };\n";
+    let fs = Arc::new(
+        MemFs::from_entries(
+            [
+                (
+                    "/ws/configs/tsconfig.base.json",
+                    Seed::file(
+                        r#"{"compilerOptions": {"composite": true, "declaration": true, "emitDeclarationOnly": true, "strict": true, "allowJs": true, "noLib": true, "module": "nodenext", "moduleResolution": "nodenext", "target": "esnext", "types": [], "outDir": "${configDir}/node_modules/.cache/out"}}"#,
+                    ),
+                ),
+                (
+                    "/ws/configs/tsconfig.build.json",
+                    Seed::file(
+                        r#"{"extends": "./tsconfig.base.json", "compilerOptions": {"rootDir": "${configDir}/src", "outDir": "${configDir}/dist"}, "include": ["${configDir}/src"]}"#,
+                    ),
+                ),
+                (
+                    "/ws/a/tsconfig.json",
+                    Seed::file(
+                        r#"{"extends": "../configs/tsconfig.base.json", "files": ["./bin.mjs"], "references": [{"path": "./tsconfig.build.json"}]}"#,
+                    ),
+                ),
+                (
+                    "/ws/a/tsconfig.build.json",
+                    Seed::file(
+                        r#"{"extends": "../configs/tsconfig.build.json", "references": [{"path": "../b/tsconfig.json"}]}"#,
+                    ),
+                ),
+                ("/ws/a/bin.mjs", Seed::file("export const bin = 1;\n")),
+                ("/ws/a/src/m.ts", Seed::file(M)),
+                (
+                    "/ws/b/tsconfig.json",
+                    Seed::file(
+                        r#"{"extends": "../configs/tsconfig.base.json", "files": [], "references": [{"path": "./tsconfig.build.json"}]}"#,
+                    ),
+                ),
+                (
+                    "/ws/b/tsconfig.build.json",
+                    Seed::file(r#"{"extends": "../configs/tsconfig.build.json"}"#),
+                ),
+                (
+                    "/ws/b/package.json",
+                    Seed::file(
+                        r#"{"name": "@x/b", "version": "1.0.0", "type": "module", "exports": {"./y": "./dist/y.js", "./y-error": "./dist/y-error.js"}}"#,
+                    ),
+                ),
+                (
+                    "/ws/b/src/y.ts",
+                    Seed::file("export interface Parsed { value: number }\nexport function parse(text: string): Parsed { return { value: Number(text) }; }\n"),
+                ),
+                (
+                    "/ws/b/src/y-error.ts",
+                    Seed::file("import type { Parsed } from \"./y.js\";\nexport function isParsed(x: unknown): x is Parsed { return typeof x === \"object\" && x !== null; }\n"),
+                ),
+                ("/ws/a/node_modules/@x/b", Seed::symlink("/ws/b")),
+            ],
+            false,
+            Arc::new(SystemClock),
+        )
+        .unwrap(),
+    );
+    let mut session = Session::start_with(fs);
+    let mut client = RegistrationClient::default();
+    client.initialize(&mut session, serde_json::json!({}));
+    let m = "file:///ws/a/src/m.ts";
+    client.notify(
+        &mut session,
+        "textDocument/didOpen",
+        serde_json::json!({"textDocument": {"uri": m, "languageId": "typescript", "version": 1, "text": M}}),
+    );
+    let response = client.request(
+        &mut session,
+        2,
+        "textDocument/hover",
+        serde_json::json!({"textDocument": {"uri": m}, "position": {"line": 2, "character": 13}}),
+    );
+    assert_eq!(
+        response["result"]["contents"]["value"].as_str(),
+        Some("const n: Parsed"),
+        "{response}"
+    );
+    session.close();
+}
+
 /// The auto-import items of `text` at `(line, character)` in a session over
 /// `entries` (with `/ws/index.ts` holding `text`): label, kind, specifier,
 /// import kind and tags.

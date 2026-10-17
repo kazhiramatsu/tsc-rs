@@ -4785,10 +4785,19 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         }
         let path = self.tasks[task].path.clone();
         if let Some((output, _source_name)) = self.project_reference_redirect(path.canonical())? {
-            // tsgo parseTask.redirect: the output declaration file is loaded
-            // with this task's reason (increaseDepth and elideOnDepth are not
-            // copied), and the source path then names it.
-            let reason = self.tasks[task].reason.clone();
+            // tsgo parseTask.redirect: the file loaded instead gets this
+            // task's include reason, not its package id (a redirected parse
+            // task has none): a referenced project's source then does not
+            // register the package, and the collect walk's package
+            // deduplication keeps walking the redirects of the package's
+            // other outputs (astro's `@astrojs/internal-helpers/yaml` after
+            // `yaml-error`, whose source had registered the package: the
+            // walk skipped the redirect and no resolution could bind to
+            // it). increaseDepth and elideOnDepth are not copied either.
+            let reason = DiscoveryReason {
+                package_id: None,
+                ..self.tasks[task].reason.clone()
+            };
             let class = self.tasks[task].class;
             let tree_depth = self.tasks[task].tree_depth;
             let redirect = self.new_task(
@@ -7146,6 +7155,13 @@ fn publish_program(
                 })?;
         }
     }
+    // tsgo getSourceFileWithRedirect: a resolution to a file the program
+    // loaded under another name through a project reference finds that
+    // file by the static redirect (`getParseFileRedirectByFileName`): the
+    // source read in place of an output declaration file, or the output
+    // the command read in place of a source.
+    let project_references = program_options.project_references().cloned();
+    let reads_reference_sources = program_options.project_reference_sources();
     builder.set_program_options(program_options);
 
     if let Some(config_file) = config_file {
@@ -7258,12 +7274,27 @@ fn publish_program(
             };
             Some((module.package_id()?, module.extension()))
         }));
+    let redirected_source = |path: &CanonicalPath| -> Option<SourceFileId> {
+        let references = project_references.as_ref()?;
+        let redirected = if reads_reference_sources {
+            references.source_for_output(path)?.source().to_owned()
+        } else {
+            references.output_for_source(path)?.output_dts()?.to_owned()
+        };
+        let redirected = crate::module_resolution::make_program_path(
+            redirected.as_js(),
+            case_sensitive_file_names,
+        )
+        .ok()?;
+        source_by_canonical.get(redirected.canonical()).copied()
+    };
     for resolution in staged.module_resolutions {
         let key_path = resolution.key.source().as_js().to_owned();
         let specifier = resolution.key.specifier().to_owned();
         let bound = bind_module_resolution(
             resolution.host,
             &source_by_canonical,
+            &redirected_source,
             &package_map,
             resolution.loads_source,
             resolution.unloaded_reason,
@@ -7287,8 +7318,8 @@ fn publish_program(
     for resolution in staged.type_resolutions {
         let key_path = resolution.key.origin().canonical_path().as_js().to_owned();
         let specifier = resolution.key.specifier().to_owned();
-        let bound =
-            bind_type_resolution(resolution.host, &source_by_canonical).map_err(|error| {
+        let bound = bind_type_resolution(resolution.host, &source_by_canonical, &redirected_source)
+            .map_err(|error| {
                 ProgramLoadError::resolution_js(
                     ProgramLoadOperation::BindResolutions,
                     Some(key_path),
@@ -7320,6 +7351,7 @@ fn publish_program(
 fn bind_module_resolution(
     host: HostModuleResolution,
     source_by_canonical: &FxHashMap<CanonicalPath, SourceFileId>,
+    redirected_source: &dyn Fn(&CanonicalPath) -> Option<SourceFileId>,
     package_map: &BTreeMap<JsString, bool>,
     loads_source: bool,
     unloaded_reason: Option<UnloadedModuleReason>,
@@ -7340,7 +7372,10 @@ fn bind_module_resolution(
                     .unwrap_or(false),
             )
         });
-    let owned_source = source_by_canonical.get(module.resolved_file().canonical());
+    let owned_source = source_by_canonical
+        .get(module.resolved_file().canonical())
+        .copied()
+        .or_else(|| redirected_source(module.resolved_file().canonical()));
     let target = if no_resolve && owned_source.is_none() {
         ResolvedModuleTarget::Unloaded {
             resolved_file: module.resolved_file().clone(),
@@ -7370,7 +7405,7 @@ fn bind_module_resolution(
         }
     } else if let Some(source) = owned_source {
         ResolvedModuleTarget::Source {
-            source: *source,
+            source,
             resolved_file: module.resolved_file().clone(),
         }
     } else {
@@ -7395,11 +7430,16 @@ fn bind_module_resolution(
 fn bind_type_resolution(
     host: ResolutionOutcome<HostResolvedTypeReferenceDirective>,
     source_by_canonical: &FxHashMap<CanonicalPath, SourceFileId>,
+    redirected_source: &dyn Fn(&CanonicalPath) -> Option<SourceFileId>,
 ) -> Result<TypeReferenceResolution, ResolutionError> {
     let ResolutionOutcome::Resolved(host) = host else {
         return Ok(TypeReferenceResolution::not_found());
     };
-    let Some(source) = source_by_canonical.get(host.resolved_file().canonical()) else {
+    let Some(source) = source_by_canonical
+        .get(host.resolved_file().canonical())
+        .copied()
+        .or_else(|| redirected_source(host.resolved_file().canonical()))
+    else {
         return Err(ResolutionError::invalid_data(format!(
             "resolved type-reference target {} is not owned by the prepared program",
             host.resolved_file().display().to_string_lossy()
@@ -7407,7 +7447,7 @@ fn bind_type_resolution(
     };
     let target = host.resolved_file().clone();
     Ok(TypeReferenceResolution::resolved(
-        host.into_resolved_type_reference_directive(target, *source)?,
+        host.into_resolved_type_reference_directive(target, source)?,
     ))
 }
 
