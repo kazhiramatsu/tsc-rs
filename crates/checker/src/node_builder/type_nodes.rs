@@ -4559,15 +4559,17 @@ pub(super) fn add_property_to_element_list(
     let name = name?;
     let display_name = checker.symbol_display_name(property);
     let approximate_name_length = if late_bound_name {
-        // Upstream late-bound names embed a small, program-local symbol id
-        // (`__@name@N`). Rust's globally allocated SymbolId is commonly five
-        // digits in this replay, but that allocator detail must not inflate
-        // NodeBuilder's truncation accounting. The probe's corresponding
-        // program-local suffix is two digits.
+        // tsgo measures its late-bound name "\xfe@<name>@<symbol id>", whose
+        // ids start at 2^48 (ast.BlockIdOffset) and so have fifteen digits
+        // in any program: `name + 18`. The Rust name's own prefix and id
+        // digits must not decide where a type is truncated (nuxt's signature
+        // help elided "... 4 more ..." after `[Symbol.toStringTag]`).
         let mut parts = display_name.as_js().split_ascii(b'@');
         let suffix = parts.next_back().expect("split always returns one part");
-        if parts.next_back().is_some() && suffix.as_bytes().iter().all(u8::is_ascii_digit) {
-            js_len(&display_name) - suffix.len_units() + suffix.len_units().min(2)
+        let prefix = parts.next();
+        if let Some(prefix) = prefix.filter(|_| suffix.as_bytes().iter().all(u8::is_ascii_digit)) {
+            // The name between the first and the last `@`.
+            js_len(&display_name) - prefix.len_units() - suffix.len_units() - 2 + 18
         } else {
             js_len(&display_name)
         }

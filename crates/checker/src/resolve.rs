@@ -744,9 +744,16 @@ impl<'a> CheckerState<'a> {
                 // block statement list (parser.go:610-642 moves them out of
                 // class bodies, object literals, case clauses and parameter
                 // lists), so names resolve from that list, not from the host.
+                // Only a JavaScript file is reparsed: in a TypeScript file the
+                // tags stay under their host, whose type parameters a
+                // `@typedef`'s types see (webpack-dev-middleware's
+                // `middleware.d.ts`: `Response` in a `@property` type is the
+                // host function's type parameter, not the global).
                 SyntaxKind::JSDocTypedefTag
                 | SyntaxKind::JSDocCallbackTag
-                | SyntaxKind::JSDocImportTag => {
+                | SyntaxKind::JSDocImportTag
+                    if self.is_in_js_file(loc) =>
+                {
                     // A namespaced alias is reparsed inside its namespaces
                     // (reparser.go wrapInJSDocNamespace), so names resolve
                     // from their exports first, innermost first.

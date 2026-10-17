@@ -1791,6 +1791,76 @@ fn javascript_return_type_predicate() {
     );
 }
 
+/// In a TypeScript file tsgo does not reparse JSDoc, so a `@typedef`'s
+/// types stay under their host and see its type parameters: the `Response`
+/// of a `@property` type in a declaration file generated from JavaScript is
+/// the host function's type parameter, not the global `Response` (tsgo
+/// aa814927; webpack-dev-middleware's `middleware.d.ts` in nuxt's session,
+/// where tsc-rs counted it among the global's references).
+#[test]
+fn a_jsdoc_typedef_in_a_declaration_file_sees_its_host_s_type_parameters() {
+    let files = [(
+        "/mw.d.ts",
+        "/**\n * @template {ServerResponse} Response\n * @typedef {object} SendErrorOptions\n * @property {Modify<Request, Response>=} modify\n */\nexport function send<Response>(res: Response): void;\nexport interface ServerResponse { status: number }\nexport type Modify<A, B> = (a: A, b: B) => void;\n",
+    )];
+    assert_eq!(
+        hover(&files, options(|_| {}), "/mw.d.ts", (3, 30), None),
+        Some((
+            "```typescript\n(type parameter) Response in send<Response>(res: Response): void\n```\n"
+                .to_owned(),
+            ((3, 30), (3, 38)),
+            false,
+        ))
+    );
+}
+
+/// A reused type annotation whose `import()` names a module reachable only
+/// through a `node_modules` path fails its reuse boundary, and the boundary
+/// restores the builder's error state: the property is serialized afresh
+/// without the import (tsgo aa814927 `finalizeBoundary`; remix's hover over
+/// a `createClient()` result, whose redis module re-exports pnpm-nested
+/// RESP types, panicked with "should always get typenode").
+#[test]
+fn a_reused_import_type_through_node_modules_falls_back_to_a_fresh_type() {
+    let files = [
+        (
+            "/node_modules/pkg/package.json",
+            "{\"name\": \"pkg\", \"version\": \"1.0.0\", \"types\": \"index.d.ts\"}\n",
+        ),
+        (
+            "/node_modules/pkg/index.d.ts",
+            "export declare const x: {\n    f: () => import(\"other/dist/inner\").T;\n    g: (a: import(\"other/dist/inner\").T) => void;\n};\n",
+        ),
+        (
+            "/node_modules/pkg/node_modules/other/package.json",
+            "{\"name\": \"other\", \"version\": \"1.0.0\"}\n",
+        ),
+        (
+            "/node_modules/pkg/node_modules/other/dist/inner.d.ts",
+            "export interface T { t: number }\n",
+        ),
+        ("/src/a.ts", "import { x } from 'pkg'\nconst y = x\nexport { y }\n"),
+    ];
+    assert_eq!(
+        hover(
+            &files,
+            options(|options| {
+                options.module = Some(199);
+                options.module_resolution = Some(99);
+            }),
+            "/src/a.ts",
+            (1, 6),
+            None,
+        ),
+        Some((
+            "```typescript\nconst y: {\n    f: () => T;\n    g: (a: T) => void;\n}\n```\n"
+                .to_owned(),
+            ((1, 6), (1, 7)),
+            true,
+        ))
+    );
+}
+
 /// The property of an instantiated interface is qualified by the type
 /// arguments it was instantiated with, not by the interface's type parameter
 /// declarations with their defaults (svelte's `Value<V = unknown>`; tsgo

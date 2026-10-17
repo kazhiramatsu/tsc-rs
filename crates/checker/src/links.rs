@@ -4182,6 +4182,17 @@ impl LinksTables {
     /// tail assignment tolerates a deterministic re-entrant duplicate
     /// (the worker has no sentinel), so Resolved→Resolved(equal) is
     /// accepted; a DIFFERENT table is a protocol bug.
+    /// Forget a module's resolved exports (and its type-only export-star
+    /// map): tsgo keeps the exports `getExportsOfModule` resolves apart from
+    /// the late-bound table `getResolvedMembersOrExportsOfSymbol` fills, so
+    /// a module augmentation merged into a transient module (in place) is
+    /// seen by the exports resolved afterwards; here both share this slot.
+    pub fn clear_symbol_module_exports(&mut self, id: SymbolId) {
+        let cold = &mut self.symbol_cold;
+        *cold.resolved_exports.slot(id) = LinkSlot::Vacant;
+        cold.type_only_export_star_map.set(id, None);
+    }
+
     pub fn set_symbol_module_exports(
         &mut self,
         id: SymbolId,

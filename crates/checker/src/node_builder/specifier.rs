@@ -1594,6 +1594,7 @@ pub(crate) fn get_local_module_specifier<'path>(
         info.case_sensitive,
         &allowed_endings,
         options,
+        host,
     ) {
         relative_path
     } else {
@@ -1604,6 +1605,7 @@ pub(crate) fn get_local_module_specifier<'path>(
         );
         process_ending(
             &ensure_path_is_non_module_name(&relative),
+            Some(module_file_name),
             &allowed_endings,
             options,
             Some(host),
@@ -1655,6 +1657,7 @@ pub(crate) fn get_local_module_specifier<'path>(
     let from_paths = if paths_only || from_package_json_imports.is_none() {
         try_get_module_name_from_paths(
             &relative_to_base_url,
+            Some(module_file_name),
             &options.paths,
             &allowed_endings,
             &base_directory,
@@ -1671,7 +1674,7 @@ pub(crate) fn get_local_module_specifier<'path>(
 
     let maybe_non_relative = from_package_json_imports.or_else(|| {
         if from_paths.is_none() && base_url.is_some() {
-            process_ending(&relative_to_base_url, &allowed_endings, options, None)
+            process_ending(&relative_to_base_url, None, &allowed_endings, options, None)
         } else {
             from_paths
         }
@@ -2139,6 +2142,7 @@ pub(crate) fn get_top_namespace(state: &CheckerState<'_>, mut declaration: NodeI
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn try_get_module_name_from_paths<'path>(
     relative_to_base_url: impl Into<JsStr<'path>>,
+    module_file_name: Option<JsStr<'path>>,
     paths: &[ModulePathMapping],
     allowed_endings: &[ModuleSpecifierEnding],
     base_directory: impl Into<JsStr<'path>>,
@@ -2162,8 +2166,14 @@ pub(crate) fn try_get_module_name_from_paths<'path>(
             let mut candidates: Vec<(Option<ModuleSpecifierEnding>, JsString)> = allowed_endings
                 .iter()
                 .filter_map(|&ending| {
-                    process_ending(relative_to_base_url, &[ending], compiler_options, None)
-                        .map(|value| (Some(ending), value))
+                    process_ending(
+                        relative_to_base_url,
+                        module_file_name,
+                        &[ending],
+                        compiler_options,
+                        Some(host),
+                    )
+                    .map(|value| (Some(ending), value))
                 })
                 .collect();
             if extension_from_path(&pattern).is_some() {
@@ -2176,6 +2186,7 @@ pub(crate) fn try_get_module_name_from_paths<'path>(
                         && tsc_program::has_suffix(value.as_js(), suffix, case_sensitive)
                         && validate_ending(
                             relative_to_base_url,
+                            module_file_name,
                             ending,
                             value,
                             compiler_options,
@@ -2198,7 +2209,14 @@ pub(crate) fn try_get_module_name_from_paths<'path>(
             }) || candidates.iter().any(|(ending, value)| {
                 *ending == Some(ModuleSpecifierEnding::Minimal)
                     && pattern == *value
-                    && validate_ending(relative_to_base_url, *ending, value, compiler_options, host)
+                    && validate_ending(
+                        relative_to_base_url,
+                        module_file_name,
+                        *ending,
+                        value,
+                        compiler_options,
+                        host,
+                    )
             }) {
                 return Some(mapping.key.clone());
             }
@@ -2212,6 +2230,7 @@ pub(crate) fn try_get_module_name_from_paths<'path>(
 /// tsc-span: _tsc.js:45846-45848
 pub(crate) fn validate_ending<'path>(
     relative_to_base_url: impl Into<JsStr<'path>>,
+    module_file_name: Option<JsStr<'path>>,
     ending: Option<ModuleSpecifierEnding>,
     value: impl Into<JsStr<'path>>,
     compiler_options: &SpecifierCompilerOptions,
@@ -2222,6 +2241,7 @@ pub(crate) fn validate_ending<'path>(
     ending != Some(ModuleSpecifierEnding::Minimal)
         || process_ending(
             relative_to_base_url,
+            module_file_name,
             &[ModuleSpecifierEnding::Minimal],
             compiler_options,
             Some(host),
@@ -2619,6 +2639,7 @@ pub(crate) fn try_get_module_name_from_root_dirs<'path>(
     case_sensitive: bool,
     allowed_endings: &[ModuleSpecifierEnding],
     compiler_options: &SpecifierCompilerOptions,
+    host: &dyn EmitModuleSpecifierHost,
 ) -> Option<JsString> {
     let module_file_name = module_file_name.into();
     let source_directory = source_directory.into();
@@ -2646,7 +2667,13 @@ pub(crate) fn try_get_module_name_from_root_dirs<'path>(
         })
         .min_by_key(|path| count_directory_separators(path))
         .filter(|path| !path.is_empty())?;
-    process_ending(&shortest, allowed_endings, compiler_options, None)
+    process_ending(
+        &shortest,
+        Some(module_file_name),
+        allowed_endings,
+        compiler_options,
+        Some(host),
+    )
 }
 
 /// tsc-port: tryGetModuleNameAsNodeModule @6.0.3
@@ -2723,6 +2750,12 @@ pub(crate) fn try_get_module_name_as_node_module(
                         .as_ref()
                         .map(JsString::as_js)
                         .unwrap_or(module_path.path.as_js()),
+                    Some(
+                        module_file_name
+                            .as_ref()
+                            .map(JsString::as_js)
+                            .unwrap_or(module_path.path.as_js()),
+                    ),
                     &allowed_endings,
                     options,
                     Some(host),
@@ -2836,6 +2869,7 @@ pub(crate) fn try_directory_with_package_json<'path>(
                 byte_path_slice(path, package_root_path.as_bytes().len() + 1..).unwrap_or_default();
             if let Some(from_paths) = try_get_module_name_from_paths(
                 submodule_name,
+                Some(path),
                 &version_paths,
                 allowed_endings,
                 package_root_path,
@@ -2980,6 +3014,7 @@ pub(crate) fn get_paths_relative_to_root_dirs<'path>(
 /// tsc-span: _tsc.js:46196-46233
 pub(crate) fn process_ending<'path>(
     file_name: impl Into<JsStr<'path>>,
+    module_file_name: Option<JsStr<'path>>,
     allowed_endings: &[ModuleSpecifierEnding],
     options: &SpecifierCompilerOptions,
     host: Option<&dyn EmitModuleSpecifierHost>,
@@ -3023,10 +3058,19 @@ pub(crate) fn process_ending<'path>(
                 .as_js()
                 .strip_suffix("/index")
                 .unwrap_or(no_extension.as_js());
-            if host.is_some_and(|host| {
-                without_index != no_extension.as_js()
-                    && try_get_any_file_from_path(host, without_index).is_some()
-            }) {
+            // tsgo: `/index` stays when a file named like the directory lies
+            // next to the module file (`sourceFileName.Directory()`); the
+            // specifier's own spelling would resolve against the host's
+            // current directory (nuxt's root `internal.d.ts` kept
+            // `./internal/index` for `packages/kit/src/internal/index.ts`).
+            if host
+                .zip(module_file_name)
+                .is_some_and(|(host, module_file_name)| {
+                    without_index != no_extension.as_js()
+                        && try_get_any_file_from_path(host, &directory_path(module_file_name))
+                            .is_some()
+                })
+            {
                 no_extension
             } else {
                 without_index.to_owned()
