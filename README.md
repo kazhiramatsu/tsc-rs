@@ -106,12 +106,14 @@ restarts a mapper whose package changes.
   own answer to the last one varies from run to run (October 15, 2026). In
   generated sessions over eight real projects (hono, zod, effect, the
   TypeScript compiler, playwright-core, vue, next.js and VS Code's
-  `src/vs/base`; 653,464 requests), 57 answers differ (hono 4, vue 3,
-  playwright-core 50), all completions whose auto-import module specifier
-  `tsgo` itself picks differently from session to session; where one of
-  `tsgo`'s answers names a module that does not export the symbol, tsc-rs
-  gives the one that does (October 16, 2026). In a session over svelte's
-  JavaScript sources (368 files, 61,659 requests) 50 answers differ: 48
+  `src/vs/base`; 653,464 requests), 69 answers differ (hono 18, vue 1,
+  playwright-core 50): 68 completions whose auto-import module specifier
+  `tsgo` itself picks differently from session to session (tsc-rs gives its
+  most frequent answer, and where one of `tsgo`'s answers names a module
+  that does not export the symbol, the one that does) and one hover whose
+  display depends on which files `tsgo`'s checker saw first (October 17,
+  2026). In a session over svelte's JavaScript sources (368 files, 61,659
+  requests) 49 answers differ: 47
   completions whose auto-import module specifier depends on the order in
   which `tsgo` fills its specifier cache in a file's first completion (it
   varies between runs), one hover that depends on which files `tsgo`'s

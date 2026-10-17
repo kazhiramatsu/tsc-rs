@@ -149,6 +149,11 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
   codemirror の addon）。本家に該当 issue は無く（2026-10-16 時点。関連の #64821 は preference 変更時の cache 消去で別件、
   `tsc/internal/ls/autoimport` の source は本家 main と vendored commit で同一）、下書きは
   `target/claude-tools/handover/tsgo-autoimport-issue.md`（利用者の判断待ち）。
+- **再実行 2026-10-17（main `02e340443` の bytes、#830 の後、recorder は ATA を待つ）**：hono 18（completion 17 + hover 1。11 回分の tsgo 記録との
+  照合で全部 class B、17 件は tsc-rs が tsgo の最頻の答え（11 回中 7〜10 回）、残る hover は `Context<any, any, {}>.header` で tsgo が 6/5 に割れる）、
+  zod 0、effect 0、vue 1（B）、playwright 50（codemirror の label、C）、TypeScript compiler 0、VS Code base 0、next.js 0（229,939 request）、
+  solid 0、svelte 49（completion 47 B + definition 1 = tsgo の `@this` bug + hover 1 C）。astro 0・nuxt 13（C）・remix 0 は修正 4 の通り。
+  log：`target/claude-tools/logs/rerun13/`（`handover/rerun13-chain.sh`、8 project は前回と同じ file 列 `lsp-compare/lists/*.txt` で `rerun.sh --file-list`）。
 - 調べ方：`stability.py OUT [tsgo の再実行の jsonl…]`（A/B/C）、`show.py OUT KEY`（項目の違い）、`items.py`（一つの server の
   auto-import の項目）、`lsp-compare.py probe --raw`、tsgo だけの再実行は `lsp-compare.py record --server <tsgo> --name tsgo
   --root <root> --files <glob> --out out-<name>-tsgoN`。

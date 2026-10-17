@@ -83,3 +83,52 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
 - 現象：4,584 件中 1 件は tsgo 自身の答えが run ごとに変わる（README の「4,583 of 4,584」）。
 - tsc-rs の扱い：記録のみ。
 - 報告：未投稿。
+
+### 7. JSDoc の型位置に書いた値（型を持たない symbol）が TS2749 になる
+
+- 見つけた日・場所：2026-10-17、webpack の `lib/javascript/JavascriptParser.js`（`@property {InstanceType<ESMStarExportsList>=}`、
+  `ESMStarExportsList` は値だけを export する `@import` の binding）。
+- 現象：tsgo は「'X' refers to a value, but is being used as a type here. Did you mean 'typeof X'?」（TS2749）を報告する。
+  TypeScript 6.0.3 は JS file の JSDoc では値を型として読む（`getTypeFromJSDocValueReference`）ので報告しない。
+- 根拠：tsgo `checker.go` `getTypeReferenceType` の末尾が `// !!! Resolving values as types for JS` のまま `errorType` を返し、
+  `getSymbolFromTypeReference` は Type の意味だけで解決する（6.0.3 の Type|Value の再試行が無い）。再現
+  `lsp-compare/repro/webpack-mini`（`lib/main.js` の `List`）：tsc 6.0.3 exit 0、tsgo は TS2749。
+- tsc-rs の扱い：tsgo に合わせてある（`annotate.rs` も Type の意味だけ）。本家が実装すれば追随する。
+- 報告：未投稿（tsgo の TODO らしく、issue というより実装待ち）。
+
+### 8. JS の setter の `@returns` が TS1095、`for (const /** @type {T} */ x of …)` が TS2483
+
+- 見つけた日・場所：2026-10-17、webpack の `lib/graph/AsyncDependenciesBlock.js`（setter）、`lib/hmr/HotModuleReplacementPlugin.js`（for-of）。
+- 現象：tsgo は JS file で `set x(v) {}` に `@returns {void}` があると「A 'set' accessor cannot have a return type annotation.」（TS1095）、
+  for-of の変数に `@type` があると「The left-hand side of a 'for...of' statement cannot use a type annotation.」（TS2483）を報告する。
+  tsc 6.0.3 はどちらも報告しない（JSDoc の型は注釈ではない）。
+- 根拠：tsgo の reparser が `@returns` を setter の戻り値注釈に、`@type` を for-of 変数の型注釈にしてから文法検査が走る。再現
+  `lsp-compare/repro/fn-type-tag/a.js`。
+- tsc-rs の扱い：未対応（次の slice で tsgo に合わせる予定）。
+- 報告：未投稿。
+
+### 9. `@this` が `@type` より前にある関数宣言では `@type` の signature が効かない
+
+- 見つけた日・場所：2026-10-17、webpack の `lib/module/Generator.js`（`/** @this {ByTypeGenerator} @type {GenerateErrorFn} */ function generateError(error, module, generateContext)`）。
+- 現象：tsgo では parameter が全部 `any`（TS7006）。`@type` を先に書けば効く。tsc 6.0.3 はどちらの順でも `@type` の signature を使う。
+- 根拠：reparser は tag を順に処理し、`@this` が型付きの `this` parameter を先に足すので、`@type` の「parameter に型が無いとき」条件
+  （reparser.go の `noTypedParams`）が偽になる。再現 `lsp-compare/repro/alias-empty/a.js` の `g`。
+- tsc-rs の扱い：未対応（次の slice で tsgo に合わせる予定）。
+- 報告：未投稿。
+
+### 10. 入れ子の `@type` cast の内側の型参照が references・highlight に出ない
+
+- 見つけた日・場所：2026-10-17、webpack の `lib/javascript/syntax-printer.js`（`/** @type {Node[]} */ (\n /** @type {Node[] | null} */ (null))` が多数）。
+- 現象：外側の cast の括弧の中に行を変えて書いた内側の cast の型名（`Node`）が、tsgo の references に数えられない（webpack で 45 件、
+  同じ形で `null` の documentHighlight も 2 件少ない）。1 行に書いた入れ子（`/** @type {Scope} */ (/** @type {Scope | null} */ (null))`）は数えられる。
+- 根拠：再現 `lsp-compare/repro/nested-cast/a.js`（references of `Node`：tsgo 8 件、tsc-rs 9 件、差は内側 cast の 1 件）。機構は未確認
+  （memo 5 と同じ `GetReparsedNodeForNode` の位置探索が疑わしい）。
+- tsc-rs の扱い：未対応（調査中。合わせるか、5. と同様に tsgo の経路を確かめてから決める）。
+- 報告：未投稿。
+
+### 11. reparse した宣言への definition の targetRange が `0:0`
+
+- 見つけた日・場所：2026-10-17、webpack の `lib/javascript/syntax-parser.js:7493`、`lib/resolve/getResolveOptionsKey.js:30`、`lib/template/ChunkTemplate.js:173`。
+- 現象：definition が同じ file の `0:0` を指す（3. の `@this` parameter と同じ症状。何の宣言かは未確認）。
+- tsc-rs の扱い：正しい範囲を返す（3. と同じ）。
+- 報告：未投稿。
