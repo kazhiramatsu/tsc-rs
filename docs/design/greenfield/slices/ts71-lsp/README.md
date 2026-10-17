@@ -122,8 +122,8 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
 
 ## L1 protocol と server（PR #772）
 
-- **merge**：#772 → `d55466f02`（hosted run 38351038264：rust 9m18s、conformance 13m12s、gates）。commit：958c06f97（protocol の型）、
-  905198a17（server）、1abf202bf（vendor の file 数の契約 test、59,634）。最初の hosted run（38347536520）はその契約で止まった。
+- **merge**：#772 → `b7158ecdc`（hosted run 38351038264：rust 9m18s、conformance 13m12s、gates）。commit：958c06f97（protocol の型）、
+  698af9a37（server）、3d4a4fb44（vendor の file 数の契約 test、59,634）。最初の hosted run（38347536520）はその契約で止まった。
 - **protocol の型**：`scripts/generate_lsp_protocol.py` が vendor した tsgo の `lsp_generated.go` から生成（402 struct、97 union、
   47 列挙、81 request、23 notification、resolved capability の `omitzero` の JSON）。hosted の rust job が `--check` を実行する。
 - **server**：tsgo `lsp.Server` の三つの loop、取消、client への request（`ts<n>`）、`initialize`・`initialized`・`shutdown`・
@@ -133,7 +133,7 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   file 名は `tsc_program::uri` に移した。
 - **tsgo との照合**：tsgo で記録した session（`scripts/lsp_transcript.py --normalize`、`crates/lsp/tests/fixtures/`）を test が
   in-process で再生し、message が全て一致する（VS Code 型の initialize からの一連と、誤りの経路）。
-- **検査（905198a17）**：suites 0 regressions、conformance 0 regressions（15,339、483 s）、API client sync 337/356・async 346/365
+- **検査（698af9a37）**：suites 0 regressions、conformance 0 regressions（15,339、483 s）、API client sync 337/356・async 346/365
   （変わらず）、lsp の test（lsproto 26、message 5、queue 3、server 6）、clippy、fmt。
 - **有界の違い**：不正な params の誤りの詳細（tsgo の JSON v2 は最も内側の Go の型と JSON pointer（`within "/capabilities"`）か
   byte offset を書く。tsc-rs は params の型名まで。JSON の構文誤りの文言も違う。Go は "cannot"／"unable to" を process ごとに
@@ -142,8 +142,8 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
 
 ## L1c user preferences（PR #773）
 
-- **merge**：#773 → `a9c98a8da`（hosted run 38354260439：rust 8m12s、conformance 13m42s、gates）。commit：0061fe498（preferences）、
-  10ca5ce2b（記録した session が最後の handler の log を待ってから入力を閉じる。最初の hosted run 38352336923 はその log の
+- **merge**：#773 → `65b2e05bf`（hosted run 38354260439：rust 8m12s、conformance 13m42s、gates）。commit：44146b45f（preferences）、
+  38fdcad2b（記録した session が最後の handler の log を待ってから入力を閉じる。最初の hosted run 38352336923 はその log の
   競合で止まった。tsgo で記録し直した transcript は変わらない）。
 - **preferences**：vendor した tsgo の `tools/userPreferences.schema.json` から `scripts/generate_lsp_preferences.py`（tsgo
   `tools/gen-preferences` の移植）が `crates/ls/src/lsutil/user_preferences_generated.rs` を生成する（hosted の rust job が
@@ -154,15 +154,15 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   `workspace/didChangeConfiguration` で読み直して session に保つ。
 - **tsgo との照合**：`userpreferences_test.go` の 10 test、tsgo 自身（Go の probe）で parse と直列化した 10 の設定が tsc-rs と
   同じ形（`crates/ls/tests/fixtures/preferences.json`）、server の三つの出所の test。vendor の file 数の契約は 59,635。
-- **検査（0061fe498）**：suites 0 regressions、conformance 0 regressions（15,339、507 s）、`--checkers 4` の対照は既知の 4 件だけ、
+- **検査（44146b45f）**：suites 0 regressions、conformance 0 regressions（15,339、507 s）、`--checkers 4` の対照は既知の 4 件だけ、
   API client sync 337/356・async 346/365（変わらず）、clippy、fmt。
 - **有界の違い**：auto-import の除外（`ParsedAutoImportFileExcludePatterns`、`IsModuleSpecifierExcluded`）は L5。
 
 ## L2a session（PR #774）
 
-- **merge**：#774 → `026a7f683`（hosted run 38358291473：rust 7m58s、conformance 15m56s、gates）。commit：8abffa88c（lsconv と URI）、
-  0fb750399（overlay）、70f337dc7（open file を持つ snapshot）、4074878d7（Session）、dde477d27（server の document 通知）、
-  3b5ca0b07（test）。
+- **merge**：#774 → `30279da3a`（hosted run 38358291473：rust 7m58s、conformance 15m56s、gates）。commit：b9c158da6（lsconv と URI）、
+  eb0499111（overlay）、c4a690579（open file を持つ snapshot）、5d9874db0（Session）、f926027ba（server の document 通知）、
+  29972e16b（test）。
 - **lsconv**：tsgo の `LSPLineMap` と位置の変換（UTF-8・UTF-16）、`LanguageKindToScriptKind`、`FileNameToDocumentURI` と動的な
   file 名（`^/~ts-uri~/…`）。`ScriptKind` は `tsc_syntax` に移した。
 - **overlay と snapshot**：tsgo `overlayfs.go`（`processChanges` の畳み込みと panic を含む）。snapshot の更新（`SnapshotChange`）が
@@ -179,7 +179,7 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
 - **tsgo との照合**：tsgo の test の移植（overlayfs 13、session、projectlifetime 8、customconfigfilename、untitled、
   projectcollectionbuilder 13 と defaultproject、configfilechanges 7、ProgramUpdateKind 6、snapshot の一部、background queue）。
   session の test は 200 回の連続実行で失敗なし。
-- **検査（3b5ca0b07）**：conformance 0 regressions（15,339、486 s）、suites 0 regressions、API client sync 337/356・
+- **検査（29972e16b）**：conformance 0 regressions（15,339、486 s）、suites 0 regressions、API client sync 337/356・
   async 346/365（変わらず）、clippy、fmt。
 - **有界の違い**：open document の言語種別がまだ parse に届かない（次の slice、`SourceFile.ScriptKind`）。session の log は
   `Processed N file changes` だけで、tsgo の builder の log tree は L2c。watch の登録（L2b）、config 診断の push、診断の refresh、
@@ -189,21 +189,21 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
 
 ## source file の script kind（PR #775）
 
-- **merge**：#775 → `9515f8394`（hosted run 38362451488：rust 12m18s、conformance 20m53s、gates）。commit：2de7f2f62（script kind）、
-  67eabeeca（`SourceFile::from_tree` の clippy の許可だけ）。
+- **merge**：#775 → `0883beab6`（hosted run 38362451488：rust 12m18s、conformance 20m53s、gates）。commit：d0cdd313c（script kind）、
+  15dc8e1e8（`SourceFile::from_tree` の clippy の許可だけ）。
 - **内容**：parse は tsgo の script kind をとり（言語の variant と JavaScript の context はそこから決まる、tsgo
   `initializeState`）、source file が保つ（`SourceFile.script_kind`、`is_source_file_js`）。prepared source の kind は content
   mapper の出力の仮想名、file handle（open document の言語）、file 名の順。project は open document の言語を load の時に渡し
   （保存した command line には入れない）、言語の変わった document は program の in-place の再利用をしない。checker の
   `IsSourceFileJS`・`IsPlainJSFile`・`IsInJSFile` に当たる判定は kind を読み、拡張子による対応の判定は tsgo と同じく名前のまま。
-- **検査（2de7f2f62）**：conformance 0 regressions（15,339、500 s）、`--checkers 4` の対照は既知の 4 件だけ、suites 0 regressions、
+- **検査（d0cdd313c）**：conformance 0 regressions（15,339、500 s）、`--checkers 4` の対照は既知の 4 件だけ、suites 0 regressions、
   API client sync 337/356・async 346/365（変わらず）、crate の test（syntax 247、binder 78、program 669、checker 1,798、
   emitter 341、compiler 215、project 140、api 298、lsp 12）、clippy、fmt。L2a の有界の違い（untitled の JavaScript が
   TypeScript として parse される）を解消した。
 
 ## L2b file の監視（PR #776）
 
-- **merge**：#776 → `d73cdec53`（hosted run 38364892878：rust 12m39s、conformance 20m53s、gates）。commit：3bcf9a7b3（ef70ffd4a を
+- **merge**：#776 → `117de4293`（hosted run 38364892878：rust 12m39s、conformance 20m53s、gates）。commit：e19f1959f（ef70ffd4a を
   main に rebase、差はドキュメントだけ）。
 - **監視**（`crates/project/src/watch.rs`）：tsgo の `WatchedFiles`（求められた時に計算し、clone は元の watcher を保って変わった
   時だけ process 全体の counter から新しい ID をとる）、glob を watch 全体で数える registry（client への登録は一度、どの watch も
@@ -223,7 +223,7 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
 
 ## L2c config の診断の push と refresh（PR #777）
 
-- **merge**：#777 → `be84cfa42`（hosted run 38369297130：rust 12m8s、conformance 21m32s、gates）。commit：6002bf8fe
+- **merge**：#777 → `1b2f9c8f2`（hosted run 38369297130：rust 12m8s、conformance 21m32s、gates）。commit：70bf8c263
   （6131868d4 を main に rebase、差はドキュメントだけ）。
 - **push の診断**（tsgo `publishProgramDiagnostics`）：snapshot の採用ごとに、開いた file のある configured project の
   `tsconfig.json` へ、config の parse の診断と program の診断と、作られた checker の global の診断（`LiveProgram::
@@ -249,9 +249,9 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
 
 ## L3a transcript の記録と再生（PR #778）
 
-- **merge**：#778 → `8bdd5df36`（hosted run 38377954175：rust 11m43s、conformance 20m31s、gates。一度目の run 38375873279 は
+- **merge**：#778 → `3390cf4d0`（hosted run 38377954175：rust 11m43s、conformance 20m31s、gates。一度目の run 38375873279 は
   `documents_reach_the_session` が log の順に依って落ちた：L2c の採用 log が background で間に入るため。test を順に依らない形に
-  した ecc532dea）。commit：c8fb8f871、ratchet 8a3107fa1、ecc532dea。
+  した e27ab0122）。commit：f7e648cb3、ratchet a169e2aa9、e27ab0122。
 - **記録**（`scripts/lsp_transcripts.py`）：tsgo の fourslash の harness・4,372 の test file・その util と
   `lsptestutil` を pin した checkout の `internal/tsrsfourslash` に写し、import を写しに向け、known failing の skip（383）を外し、
   記録器（`scripts/lsp_transcripts_dump/tsrs_record.go`：pipe の frame の両方向、harness の file の書き込みと削除、file と
@@ -277,16 +277,16 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   `DidChangeCompilerOptionsForInferredProjects`、snapshot と builder が inferred project の option を運ぶ。semantic token の
   legend に tsgo の `local`（transcript で見つかった）。
 - **時点の結果**：initialize 4,584/4,584、完全一致の場面 18（ratchet に `lsp/<test>` 4,584 行）。
-- **検査（c8fb8f871 + 8a3107fa1）**：release build、`suites_ts71.py --update` と `--check` 0 regressions、
+- **検査（f7e648cb3 + a169e2aa9）**：release build、`suites_ts71.py --update` と `--check` 0 regressions、
   `lsp_transcripts.py --check` 一致、API client sync 337/356・async 346/365（変わらず）、test、clippy、fmt。compiler の経路に
   届かないので conformance は回していない。
 
 ## L3b pull の診断（PR #779）
 
-- **merge**：#779 → `616f7224d`（hosted run 38392705342：rust 12m4s、conformance 29m8s、gates。一度目の run 38390971840 は
+- **merge**：#779 → `e5a65d11d`（hosted run 38392705342：rust 12m4s、conformance 29m8s、gates。一度目の run 38390971840 は
   checker の単体 test が tsc 6.0.3 の構築 signature の文（`'(): object'`）を固定していて落ちた：tsgo は `new (): object`。七つの
-  提案を Go の probe で確かめて期待値を直した 43bbc6f71）。commit：a08c179c4、618eb8c8f、5009c3863、e47138dbf、ratchet
-  3b34134d2、43bbc6f71。
+  提案を Go の probe で確かめて期待値を直した dbd854e87）。commit：b69cecb54、01590459e、38c7c867c、f787e9e87、ratchet
+  fd2df8fa7、dbd854e87。
 - **言語 service**：`tsc_ls::LanguageService`（program、converters、preferences、client の capability、locale の catalog）と
   `provide_diagnostics`（tsgo `getAllDiagnostics`：構文、意味、提案、宣言を出す時は宣言の診断）。server は tsgo の
   `registerLanguageServiceDocumentRequestHandler`（同期の部分で既定の project、後で program に handler、panic は tsgo の
@@ -298,15 +298,15 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   `crates/compiler/tests/language_service_diagnostics.rs` の 9（8 が修正前に失敗）、shard の test 1、project の test 1。
 - **見つけた罠**：CLI の `run` が process 全体の設定（未使用の識別子の提案、JSDoc の parse mode）を変え、同じ process の後の LSP の
   場面に漏れた（suites で 812 → 1,039）。suites の tsc の `render()` で保存と復元。設定を実行ごとにするのは後の候補。
-- **検査（3b34134d2 + 43bbc6f71）**：conformance 0 regressions（全 13,577 full）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（fd2df8fa7 + dbd854e87）**：conformance 0 regressions（全 13,577 full）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（lsp 150 full、診断 1,039/1,043、残りは content mapper の 4 → L10）、API client sync 337/356・async 346/365、
   test、clippy、fmt。
 
 ## L3c go to definition と type definition（PR #780）
 
-- **merge**：#780 → `577bc9afa`（hosted run 38404039864：rust 8m34s、conformance 23m30s、gates）。commit：169f32702（tree view と
-  astnav を言語 service へ）、a4a6962eb（sourcemap の decoder と document position mapper を emitter へ）、3b7d7c1cd（機能）、
-  ratchet 764e5dce9。
+- **merge**：#780 → `7adc501d8`（hosted run 38404039864：rust 8m34s、conformance 23m30s、gates）。commit：ca9012a9b（tree view と
+  astnav を言語 service へ）、6db4e9605（sourcemap の decoder と document position mapper を emitter へ）、cda8ba959（機能）、
+  ratchet 165ce1bbb。
 - **言語 service**：tsgo `ls/definition.go`（`ProvideDefinition`、`ProvideTypeDefinition`、`createDefinitionLocations`、
   `getDeclarationsFromLocation`、文脈型からの object literal の property、呼ばれた signature の宣言、override、label、`switch` と
   関数の keyword、index signature）、`getReferenceAtPosition`（triple-slash の path・types・lib、相対の module 指定子）、
@@ -319,16 +319,16 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   した宣言で解決）。
 - **回帰 test**：`crates/ls/tests/definition.rs` の 6（decorator、`@import`、declaration map、`IgnoreNodeInferences` の二つ：
   union の方は遮断なしで失敗、type definition の戻り値型）、emitter の source mapper の test。
-- **検査（764e5dce9）**：conformance 0 regressions（全 full、sourcemap は共有 decoder で 13,577 full）、`--checkers 4` は既知の
+- **検査（165ce1bbb）**：conformance 0 regressions（全 full、sourcemap は共有 decoder で 13,577 full）、`--checkers 4` は既知の
   4 だけ、suites 0 regressions（lsp 392 full、definition 472/482、typeDefinition 59/64、診断 1,039/1,043）、API client sync
   337/356・async 346/365、test、clippy、fmt。
 - **有界の違い**：content mapper（L10）の 5 test、`preferGoToSourceDefinition`（L7）の 1 test。
 
 ## L3d-1 hover の verbosity 0（PR #781）
 
-- **merge**：#781 → `25ae95f8f`（hosted run 38427807862：rust 9m13s、conformance 19m7s、gates）。commit：2aa391a01
-  （JSDoc の `@` と comment の終わり）、7bd80f600（printer の一行の type literal、末尾の semicolon の省略、`EscapeString`）、
-  d91f8e159（checker の表示の文字列と verbosity、hover の node builder の規則）、1ce3f6c18（hover）、ratchet dc58ad3f4。
+- **merge**：#781 → `400bc11d1`（hosted run 38427807862：rust 9m13s、conformance 19m7s、gates）。commit：a9e0ac987
+  （JSDoc の `@` と comment の終わり）、56fc87aa5（printer の一行の type literal、末尾の semicolon の省略、`EscapeString`）、
+  8b65b3035（checker の表示の文字列と verbosity、hover の node builder の規則）、1bab022a9（hover）、ratchet a34e40978。
 - **言語 service**：tsgo `ls/hover.go`（`ProvideHover`、`getQuickInfoAndDeclarationAtLocation` と全ての symbol の種類の表示、
   `getNodeForQuickInfo`、`getSymbolAtLocationForQuickInfo`、`shouldGetType`、呼び出しと `new` の signature）、`ls/jsdoc.go`
   （symbol・signature・alias の documentation、tag、link とその名前）、`getMeaningFromLocation` と `getAdjustedLocation`。
@@ -345,15 +345,15 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   `EscapeString`。
 - **回帰 test**（利用者の指示：conformance で捕まえられない誤りは Rust の test に）：`crates/ls/tests/hover.rs` の 17（期待値は
   transcript の tsgo の答えのまま）、checker の node builder の単体 test は tsgo の `shouldExpandType` を固定。
-- **検査（dc58ad3f4）**：conformance 0 regressions（全 13,577 full、488 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（a34e40978）**：conformance 0 regressions（全 13,577 full、488 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（lsp 893 full、hover 2,325/2,455、definition・typeDefinition・診断は変わらず）、API client sync 337/356・
   async 346/365、test、clippy、fmt。
 - **有界の違い**：verbosity 1 以上（L3d-2）68、Visual Studio の `_vs_rawContent`（L3d-3）53、content mapper（L10）9。
 
 ## L3d-2 hover の verbosity 1 以上（PR #782）
 
-- **merge**：#782 → `ebd61b3fb`（hosted run 38433092888：rust 9m43s、conformance 28m50s、gates）。commit：5b99c750b
-  （checker の展開）、bc85c7b40（hover）、ratchet 64b8fc669。
+- **merge**：#782 → `1284daff3`（hosted run 38433092888：rust 9m43s、conformance 28m50s、gates）。commit：53513b346
+  （checker の展開）、8818e85c9（hover）、ratchet 38e62b52d。
 - **checker**（`crates/checker/src/node_builder/hover.rs`）：tsgo `checker/nodebuilder_hover.go` と
   `NodeBuilder.ExpandSymbolForHover`。hover が見せる宣言を直接作る：enum の member（書いた初期化子か定数値）、class の
   member・constructor・index signature・heritage 句（class の修飾子つき）、interface の signature と property、
@@ -365,15 +365,15 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   （panic していた）、class（abstract、mixin の基底、interface との統合）、interface の member の順、namespace（alias、
   default export、型 alias、default export の関数の binding、interface・class の heritage、crash の場面）、切り詰め、
   import attributes 付きの pattern ambient module。
-- **検査（56a630eab、main 789857f83 への rebase は packet の README だけ、ratchet 64b8fc669）**：conformance 0
+- **検査（56a630eab、main a0de78fb9 への rebase は packet の README だけ、ratchet 38e62b52d）**：conformance 0
   regressions（全 13,577 full、481 s）、`--checkers 4` は既知の 4 だけ、suites 0 regressions（lsp 925 full、hover
   2,393/2,455）、API client sync 337/356・async 346/365、test（checker 1,797、ls 61、api 295）、clippy、fmt。
 - **有界の違い**：Visual Studio の `_vs_rawContent`（L3d-3）53、content mapper（L10）9。
 
 ## L3d-3 Visual Studio の hover の raw content（PR #783）
 
-- **merge**：#783 → `7dee0bc8c`（hosted run 38443134012：rust 8m8s、conformance 28m30s、gates）。commit：90417ac14
-  （printer の display parts）、30fe05e6d（checker の分類された印字）、dff3e7ad5（hover）、ratchet bb6b909e4。
+- **merge**：#783 → `1031f83d7`（hosted run 38443134012：rust 8m8s、conformance 28m30s、gates）。commit：1f93e200d
+  （printer の display parts）、90fe8bb15（checker の分類された印字）、157a8bb87（hover）、ratchet 377007e6a。
 - **printer**：単独の印字が書くたびの分類を記録する（tsgo の `displayPartsWriter`：一行、改行は空白）。識別子は symbol に
   与えられた分類で（tsgo `IdToSymbol`）、token の node は tsgo の `emitTokenNode` と同じく keyword か punctuation、配列型の
   括弧は二つの punctuation。普通の出力は変わらない。
@@ -386,7 +386,7 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   `GetSymbolModifiers` を `lsutil/symbol_display.rs` に port）と comment だけの documentation を加える。
 - **回帰 test**：`crates/ls/tests/hover.rs` に Visual Studio の 5（計 39）：alias の icon と documentation の要約、省略可能と
   rest の引数名、accessibility ごとの method の icon、property、tag なしの documentation の要約。
-- **検査（bb6b909e4、ratchet の commit は code を変えない）**：conformance 0 regressions（全 13,577 full、478 s）、
+- **検査（377007e6a、ratchet の commit は code を変えない）**：conformance 0 regressions（全 13,577 full、478 s）、
   `--checkers 4` は既知の 4 だけ、suites 0 regressions（lsp 930 full、hover 2,446/2,455）、API client sync 337/356・
   async 346/365、test（emitter 348、checker 1,797、ls 66、api 295、compiler 225、conformance 49）、clippy、fmt。
 - **有界の違い**：content mapper（L10）9。transcript の hover は他が全て tsgo と同じ。
@@ -416,8 +416,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L4a completion の土台（PR #784）
 
-- **merge**：#784 → `56b2c8e52`（hosted run 38458124716：rust 12m33s、conformance 23m48s、gates）。commit：bb15bb98e
-  （checker の service）、89ce863de（completion）、ratchet f394701e4。
+- **merge**：#784 → `3165d7889`（hosted run 38458124716：rust 12m33s、conformance 23m48s、gates）。commit：4597dcead
+  （checker の service）、6761b372b（completion）、ratchet 90ce0a2f3。
 - **checker**：tsgo の completion が使う service（`IsValidPropertyAccess`、`GetAllPossiblePropertiesOfTypes`、
   `GetNonOptionalType`、`GetStringIndexType`、`GetNumberIndexType`、`TryGetMemberInModuleExportsAndProperties`、
   `GetExportsAndPropertiesOfModule`、`GetJsxIntrinsicTagNamesAt`、`TryGetThisTypeAtEx`、`GetAccessibleSymbolChain`、
@@ -435,7 +435,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   signature は型引数の並びが空でも nil でない（`new Bar<` は型引数の位置）。
 - **回帰 test**：`crates/ls/tests/completion.rs` に 24（期待値は transcript の tsgo の答え。大きな一覧は件数・既定値・要の
   項目）。
-- **検査（f394701e4）**：conformance 0 regressions（全 13,577 full、478 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（90ce0a2f3）**：conformance 0 regressions（全 13,577 full、478 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（lsp 1,371 full、completion 1,164/2,419、441 行が none→full）、API client sync 337/356・async 346/365、
   test（syntax 228、checker 1,797、ls 90、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。
 - **有界の違い**：L4b〜L4e、auto-import（L5）、content mapper（L10）、JSDoc の `function(...)` 型（tsgo は `function` と
@@ -443,8 +443,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L4b 決まった形の場所の completion（PR #785）
 
-- **merge**：#785 → `e4db6609f`（hosted run 38465407861：rust 11m48s、conformance 29m55s、gates）。commit：6702fcccd
-  （completion）、ratchet 65003da6b。
+- **merge**：#785 → `cf2fb3792`（hosted run 38465407861：rust 11m48s、conformance 29m55s、gates）。commit：f5bb8fcc9
+  （completion）、ratchet 46344558c。
 - **言語 service**（`crates/ls/src/completions/searches.rs` ほか）：tsgo の `tryGetGlobalSymbols` が global の前に試す
   探索。型引数の object 型の member（制約の member から書いたものを除く）、object literal の文脈上の property と binding
   pattern の property（JavaScript の引数は `@param` の型。checker の `type_node_of` が tsgo の `Node.Type`）、書いた member と
@@ -453,7 +453,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   sortText）。JSX の閉じ tag、`break`・`continue` の label、JSX attribute の snippet（`name={$1}`・`name="$1"`）、method
   snippet の設定時の object literal property の sortText も。
 - **回帰 test**：`crates/ls/tests/completion.rs` に 11（計 35）。
-- **検査（65003da6b）**：conformance 0 regressions（全 13,577 full、476 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（46344558c）**：conformance 0 regressions（全 13,577 full、476 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（lsp 1,527 full、completion 1,550/2,419、156 行が none→full）、API client sync 337/356・async 346/365、test
   （checker 1,797、ls 101、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。
 - **有界の違い**：class member・object literal method・網羅的な switch の case の snippet は tsgo の formatter
@@ -461,8 +461,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L4c-1 文字列リテラルの completion（PR #786）
 
-- **merge**：#786 → `656b39336`（hosted run 38473329341：rust 12m37s、conformance 23m48s、gates）。commit：fddecc587
-  （checker の候補一覧）、c0aa39f9c（completion）、ratchet a510edf5a。
+- **merge**：#786 → `33b843829`（hosted run 38473329341：rust 12m37s、conformance 23m48s、gates）。commit：fc48eea48
+  （checker の候補一覧）、eadc7a612（completion）、ratchet 83e116ed1。
 - **checker**：tsgo の `candidatesOutArray`。`getResolvedSignature` は候補を求められると cache 済みの呼び出しも解決し直し、
   `resolveCall` は候補を返し（選んだ候補・失敗の候補の位置はその instantiation。tsgo の slice の共有と同じ）、その間は
   error を報告せず、失敗では常に最長の候補を選ぶ。`GetCandidateSignaturesForStringLiteralCompletions`（編集中の引数からの
@@ -472,15 +472,15 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   `new`・JSX の引数（候補の引数の型。引数の数も）、case 句（書いた case を除く）、import・export specifier、`in` 演算子。
   項目は tsgo の置き換え範囲と、literal の引用符に合わせた escape（tsgo は引用符を literal の値から読む）。
 - **回帰 test**：`crates/ls/tests/completion.rs` に 11（計 46）。
-- **検査（a510edf5a）**：conformance 0 regressions（全 13,577 full、491 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（83e116ed1）**：conformance 0 regressions（全 13,577 full、491 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（lsp 1,592 full、completion 1,688/2,419、65 行が none→full）、API client sync 337/356・async 346/365、test
   （checker 1,797、emitter 196、ls 112、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。
 - **有界の違い**：path・module 名・triple-slash 参照（L4c-2）、snippet（L8）、L4d、L4e、L5、L10。
 
 ## L4c-2 path の completion（PR #787）
 
-- **merge**：#787 → `c444c2d7c`（hosted run 38480483705：rust 8m27s、conformance 29m30s、gates）。commit：a9229cad1
-  （module 解決の部品）、c241be164（path completion）、ratchet f12c0b6d0。
+- **merge**：#787 → `b4496c6de`（hosted run 38480483705：rust 8m27s、conformance 29m30s、gates）。commit：427158120
+  （module 解決の部品）、7012bb05f（path completion）、ratchet 071ed41b5。
 - **言語 service の host**：tsgo の `ls.Host` の file system（`ReadDirectory`・`GetDirectories`・`DirectoryExists`・
   `FileExists`。module specifier の completion だけが使う）。snapshot は open document を除いた file system（tsgo の
   `s.fs.fs`、`vfsmatch.ReadDirectory`）で答える。request が host を持つ。
@@ -496,7 +496,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   type root（resolver 自身も使う）、options の `GetResolvePackageJsonExports`・`Imports`。
 - **回帰 test**：`crates/ls/tests/completion.rs` に 10（計 56）。test の host は test の file だけを並べる（tsgo は library
   を bundle する）。
-- **検査（f12c0b6d0）**：conformance 0 regressions（全 13,577 full、488 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（071ed41b5）**：conformance 0 regressions（全 13,577 full、488 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（lsp 1,650 full、completion 1,935/2,419、58 行が none→full）、API client sync 337/356・async 346/365、test
   （checker 1,797、program 114、types 44、ls 122、lsp 14、api 295、compiler 225、conformance 49、project 186）、clippy、
   fmt。
@@ -506,8 +506,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L4d JSDoc の completion（PR #788）
 
-- **merge**：#788 → `91d20e42b`（hosted run 38486266220：rust 12m21s、conformance 29m56s、gates）。commit：b5bc6f8b0
-  （parser）、8efdd5fb7（JSDoc completion）、ratchet b27a449b6。
+- **merge**：#788 → `e58c88646`（hosted run 38486266220：rust 12m21s、conformance 29m56s、gates）。commit：7341aae8e
+  （parser）、87d20b253（JSDoc completion）、ratchet 94d386223。
 - **言語 service**（`crates/ls/src/completions/jsdoc.rs`）：tag 名の位置では JSDoc の tag 名（comment の行頭なら `@`
   付き）と、tag のない各 parameter の `@param` tag（JavaScript では既定値の型、分割代入の parameter は property 付きの
   `@param {object}`。tsgo はここで snippet を出さない）。`@param` の名前の位置では、他の tag が持たない parameter 名。
@@ -520,7 +520,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 - **回帰 test**：`crates/ls/tests/completion.rs` に 9（計 65。tag 名と tag、関数のない `@param`、parameter 名、
   JavaScript の既定値と分割代入、変数文の template（parse し直し）、snippet の template、字下げされた method、
   短い閉じていない comment）。
-- **検査（b27a449b6）**：conformance 0 regressions（全 13,577 full、489 s。parser の修正で動く configuration はない）、
+- **検査（94d386223）**：conformance 0 regressions（全 13,577 full、489 s。parser の修正で動く configuration はない）、
   suites 0 regressions（lsp 1,665 full、completion 2,044/2,419、15 行が none→full）、API client sync 337/356・async
   346/365、test（syntax 228、checker 1,797、ls 131、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。
   checker の変更はないので `--checkers 4` はなし。
@@ -529,8 +529,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L4e completionItem/resolve（PR #789）
 
-- **merge**：#789 → `ada4b40a4`（hosted run 38491566623：rust 10m12s、conformance 20m3s、gates）。commit：66cdc6af1
-  （resolve）、ratchet c7ca6550e。L4（completion）はこれで auto-import（L5）、snippet（L8）、content mapper（L10）を
+- **merge**：#789 → `ea74a5424`（hosted run 38491566623：rust 10m12s、conformance 20m3s、gates）。commit：514d99bb5
+  （resolve）、ratchet 522faf8da。L4（completion）はこれで auto-import（L5）、snippet（L8）、content mapper（L10）を
   除いて終わり。
 - **言語 service**（`crates/ls/src/completions/resolve.rs`）：tsgo の `getCompletionItemDetails`。item data の位置で
   completion を計算し直し、表示名と source で symbol を見つける。detail は symbol の quick info、documentation は
@@ -542,7 +542,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   default project が答える。panic は tsgo の `recover` の error。
 - **回帰 test**：`crates/ls/tests/completion.rs` に `resolve` の harness と 5（計 70。keyword、JSDoc tag、文字列リテラル
   （literal 型、method、documentation 付きの property）、documentation 付きの変数、library の型の member）。
-- **検査（c7ca6550e）**：suites 0 regressions（lsp 1,797 full、resolve 424/655、132 行がすべて none→full）、API client
+- **検査（522faf8da）**：suites 0 regressions（lsp 1,797 full、resolve 424/655、132 行がすべて none→full）、API client
   sync 337/356・async 346/365、test（ls 136、lsp 14）、clippy、fmt。compiler の path に触れないので conformance と
   `--checkers 4` はなし。
 - **有界の違い**：auto-import の item（resolve 227。L5）、content mapper の file（4。先の completion の panic が session
@@ -550,8 +550,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L8a formatter（PR #790）
 
-- **merge**：#790 → `78ce78edc`（hosted run 38498011478：rust 12m36s、conformance 30m28s、gates）。commit：625b8d85c（scanner の
-  trivia token）、7438008c6（formatter と formatting の request）、ratchet ca677878b。
+- **merge**：#790 → `4b4cd0861`（hosted run 38498011478：rust 12m36s、conformance 30m28s、gates）。commit：a2a8279f1（scanner の
+  trivia token）、cbf3d50c5（formatter と formatting の request）、ratchet 1d7789c20。
 - **順序**：L8 の format と change tracker を L5 の前に置く。tsgo の change tracker は挿入する node を formatter で整形し、
   L5 の import の edit と L4b に残した snippet がそれを使う。
 - **scanner**（`crates/syntax/src/scanner.rs`）：tsgo の `SetSkipTrivia(false)`。空白、改行（`\r\n` は一つ）、comment
@@ -577,7 +577,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   `baseIndentSize`、`semicolons: remove`）、comment（tab 入りの複数行）、JSX、template、数値の後の `.`、型引数と `<<`、
   mapped・conditional 型、連鎖した呼び出し、semicolon のない文、JSDoc comment から始まる範囲、parse error、conflict
   marker）。`crates/syntax/tests/scanner_trivia.rs` に 3（Go の probe で tsgo の scanner から取った token 列）。
-- **検査（ca677878b）**：conformance 0 regressions（全 13,577 full、482 s）、suites 0 regressions（lsp 2,208 full、411 行が
+- **検査（1d7789c20）**：conformance 0 regressions（全 13,577 full、482 s）、suites 0 regressions（lsp 2,208 full、411 行が
   すべて none→full。onTypeFormatting 3,092/3,092、formatting 172/175、rangeFormatting 31/32）、API client sync
   337/356・async 346/365、test（syntax 250、ls 175、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。checker
   の変更はないので `--checkers 4` はなし。
@@ -586,9 +586,9 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L8b-1 挿入する node の印字・位置・字下げ（PR #791）
 
-- **merge**：#791 → `9e8dbe0bd`（hosted run 38508650596：rust 12m46s、conformance 19m53s、gates）。commit：7994bad42（型注釈・modifier の
-  投影と完了 node の判定の共有）、6361272ba（`PrintAndPositionNode` と `preserveSourceNewlines`）、63b75f280
-  （`GetIndentation` と API の `formatNodeForInsertion`）、3aacf33e9（test）。
+- **merge**：#791 → `80d8531b7`（hosted run 38508650596：rust 12m46s、conformance 19m53s、gates）。commit：3df17d6ef（型注釈・modifier の
+  投影と完了 node の判定の共有）、b8aba24c6（`PrintAndPositionNode` と `preserveSourceNewlines`）、3cabf2f0b
+  （`GetIndentation` と API の `formatNodeForInsertion`）、534e84205（test）。
 - **共有**：binder の `node_util` に `type_annotation_of(_data)`・`type_node_of`・`modifiers_of_data`。checker（自分の node
   参照のまま）、印字の位置付け、言語 service が同じ照合を使う。tsgo の `PositionBelongsToNode`・`IsCompletedNode` は
   completion から `lsutil/completed_node.rs` に移り、smart indenter も使う（答えは変わらない）。
@@ -616,7 +616,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   二つの style の全位置への挿入 977。tsgo が答えるものはすべて一致。
 - **回帰 test**：`crates/ls/tests/insertion.rs`（22 文の印字と位置、44 の挿入、各位置の字下げ。tsgo から）、
   `crates/api/tests/unit/session_print.rs` に 2（snapshot の設定での `formatNodeForInsertion`、error の順）。
-- **検査（63b75f280。3aacf33e9 は test だけ）**：conformance 0 regressions（全 13,577 full、493 s）、`--checkers 4` は既知の
+- **検査（3cabf2f0b。534e84205 は test だけ）**：conformance 0 regressions（全 13,577 full、493 s）、`--checkers 4` は既知の
   4 だけ違う（checker の変更は `type_annotation_of` の共有だけ）、suites 0 regressions（ratchet の変化なし、lsp 2,208
   full）、API client sync 340/356・async 349/365（`formatNodeForInsertion` の 3 が通り、他の失敗は同じ）、test（binder 78、
   checker 1,798、emitter 348、ls 178、lsp 14、api 297、project 186、compiler 225、conformance 49）、clippy、fmt。
@@ -627,9 +627,9 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L8b-2 行の区切り・change tracker・organize imports・codeAction（PR #792）
 
-- **merge**：#792 → `97e04c83b`（hosted run 38524336858：rust 12m47s、conformance 21m34s、gates）。commit：33b851b4b（tsgo の
-  行の区切りと source の node の `preserveSourceNewlines`）、b1121eb25（change tracker、organize imports、
-  `textDocument/codeAction`）、3e3b3a3d5（JSDoc 補完の改行）、1632d7530（ratchet）、6026fcfe2（`emitList` の MultiLine 規則）。
+- **merge**：#792 → `9d24c7ad0`（hosted run 38524336858：rust 12m47s、conformance 21m34s、gates）。commit：591dd6ab3（tsgo の
+  行の区切りと source の node の `preserveSourceNewlines`）、3ca915e9d（change tracker、organize imports、
+  `textDocument/codeAction`）、ec2744bbd（JSDoc 補完の改行）、a63a86fe7（ratchet）、be4a37958（`emitList` の MultiLine 規則）。
 - **印字**（`crates/emitter/src/printer.rs`）：tsgo の `getLeadingLineTerminatorCount`・`getSeparatingLineTerminatorCount`・
   `getClosingLineTerminatorCount`（`getEffectiveLines`、`siblingNodePositionsAreComparable`、`originalNodesHaveSameParent`、
   `shouldEmitOnNewLine`、括弧式の前後の改行）を change tracker が印字する全 list に。tsgo は source の行を、親のない最初の
@@ -656,8 +656,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   printer に同じ木を印字させ、両 fixture の 488 ケースすべてで一致。
 - **回帰 test**：`crates/ls/tests/insertion.rs`（source の node 109 文の印字と位置）、`crates/ls/tests/completion.rs`
   （JSDoc の改行：crlf・lf・既定。tsgo の Go probe から）、emitter の契約 fixture。
-- **検査（6026fcfe2）**：conformance 0 regressions（全 13,577 full、483 s）、`--checkers 4` は既知の 4 だけ違う、suites 0
-  regressions（ratchet は b1121eb25 の後に 242 行 none→full。lsp 2,208 → 2,450 full、codeAction 291/772 = organize
+- **検査（be4a37958）**：conformance 0 regressions（全 13,577 full、483 s）、`--checkers 4` は既知の 4 だけ違う、suites 0
+  regressions（ratchet は 3ca915e9d の後に 242 行 none→full。lsp 2,208 → 2,450 full、codeAction 291/772 = organize
   imports 140/140 と空の quick fix 151）、API client sync 340/356・async 349/365、test（syntax 250、binder 78、checker
   1,798、emitter 348、ls 180、lsp 14、api 297、project 186、compiler 225、conformance 49）、clippy、fmt。
 - **有界の違い**：quick fix 480 と fix-all 1（import の修正は L5、型注釈と interface の実装は L8c）、content mapper（L10）。
@@ -687,9 +687,9 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L5a project の auto-import と completion（PR #793）
 
-- **merge**：#793 → `0df57afe2`（hosted run 38549670836：rust 12m16s、conformance 30m42s、gates）。commit：f2a6aec33（tsgo の
-  triple-slash と pinned comment の規則）、eaf1d4bda（tsgo の vfsmatch）、d068934ea（auto-import の completion と edit）、
-  ace6ff8bc（ratchet）。
+- **merge**：#793 → `30a6310a9`（hosted run 38549670836：rust 12m16s、conformance 30m42s、gates）。commit：d7c28c402（tsgo の
+  triple-slash と pinned comment の規則）、f0a39af24（tsgo の vfsmatch）、4e36b82ea（auto-import の completion と edit）、
+  b691e2d1a（ratchet）。
 - **registry**（`crates/ls/src/autoimport/`）：`Export`（module と export の ID、構文、flag、別名の先、script element kind）、
   program の file からの抽出（binder の symbol、別名の解決に checker）、語の頭文字の `Index`、snapshot ごとの
   `Registry`（project の bucket、dirty の印、要求された file のための再構築）。bucket の対象は tsgo の `buildProjectBucket`
@@ -707,7 +707,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 - **共有した tsgo の部品**：`tsc_program::vfsmatch`（`SpecMatcher`。config の wildcard directory の除外も使う）、emitter の
   `is_recognized_triple_slash_comment`・`is_pinned_comment`（`<amd-module/>`、`/*!*/` は pinned でない）、
   `tsc_syntax::get_shebang`。
-- **検査（d068934ea）**：conformance 0 regressions（全 13,577 full、497 s）、`--checkers 4` は既知の 4 だけ違う、suites 0
+- **検査（4e36b82ea）**：conformance 0 regressions（全 13,577 full、497 s）、`--checkers 4` は既知の 4 だけ違う、suites 0
   regressions（ratchet は main のものから `--update`：111 行 none→full、下げは無し。lsp 2,450 → 2,561 full、completion
   2,213/2,419、resolve 651/655、import の completion の場面の resolve 130/130）、API client sync 340/356・async 349/365、
   test（syntax 251、binder 78、program 674、checker 1,798、emitter 350、ls 180、lsp 14、api 297、project 186、compiler
@@ -722,9 +722,9 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L5b import の code fix（PR #794）
 
-- **merge**：#794 → `099b417d6`（hosted run 38559044085：rust 12m、conformance 30m07s、gates）。commit：467bcc7d1（Go の
-  unicode の関数と `IsIntrinsicJsxName` を `tsc_syntax` に）、4d17a859f（module specifier の `paths` の pattern と project
-  reference の出力）、d499c1be0（import の code fix）、0d1cffb0c（ratchet）。
+- **merge**：#794 → `aeeffc91a`（hosted run 38559044085：rust 12m、conformance 30m07s、gates）。commit：967950fc4（Go の
+  unicode の関数と `IsIntrinsicJsxName` を `tsc_syntax` に）、29794e210（module specifier の `paths` の pattern と project
+  reference の出力）、c0438e50c（import の code fix）、e1365be70（ratchet）。
 - **code fix の枠組み**（`crates/ls/src/code_actions/mod.rs`）：tsgo の `ProvideCodeActions` の provider の loop（要求の診断
   ごとに quick fix、`CodeAction.Compare` での重複除去）、provider ごとの「file 全体の修正」（修正できる診断が 2 つ以上の
   とき）、`source.fixAll`。今の provider は import だけ（L8c で型注釈と interface の実装を足す）。
@@ -741,7 +741,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   `ResolvedProjectReferences::output_dts_of_source` を共有）。
 - **共有**：`tsc_syntax::go_unicode`（LS から移し、Go の `SimpleFold`・`EqualFold` を戻した。vfsmatch の大文字小文字を
   区別しない比較も Go の `EqualFold` に）、`tsc_syntax::is_intrinsic_jsx_name`（checker と emitter の私的な写しを置換）。
-- **検査（d499c1be0）**：conformance 0 regressions（全 13,577 full、493 s）、`--checkers 4` は既知の 4 だけ違う、suites 0
+- **検査（c0438e50c）**：conformance 0 regressions（全 13,577 full、493 s）、`--checkers 4` は既知の 4 だけ違う、suites 0
   regressions（ratchet は main のものから `--update`：180 行 none→full、下げは無し。lsp 2,561 → 2,741 full、codeAction
   291 → 527/772。完全に一致する場面で `Add import from` 166/226、`Update import from` 56/63、`Add all missing imports`
   33/38、`Remove 'type' …` 11/11、`Change …` 7/7、`Fix All` 1/1）、API client sync 340/356・async 349/365、test（syntax
@@ -771,8 +771,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L5c node_modules の auto-import（PR #795）
 
-- **merge**：#795 → `48b70ea1c`（hosted run 38577604092：rust 13m、conformance 32m07s、gates）。commit：99058b315（package の
-  entrypoint と alias resolver の checker の事実）、916ff2f7c（node_modules bucket）、8d5e2c95d（ratchet）。
+- **merge**：#795 → `9a721f557`（hosted run 38577604092：rust 13m、conformance 32m07s、gates）。commit：9d6f8fd03（package の
+  entrypoint と alias resolver の checker の事実）、e923d0323（node_modules bucket）、a72b02a45（ratchet）。
 - **entrypoint**（`tsc_program` の `module_resolution/entrypoints.rs`）：tsgo `GetEntrypointsFromPackageJsonInfo`。`exports` の
   target を条件付きで（tsgo の除外条件の積み方そのまま）、pattern は config の走査（= tsgo `vfs.ReadDirectory`）で、無ければ
   main と directory search。symlink の entrypoint は実体の path。package 名・拡張子・prefix/suffix の補助関数は checker の
@@ -789,7 +789,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   entrypoint の specifier（`ProcessEntrypointEnding`）、`node:` の core module の group と順位（tsgo の program 側の
   `UsesUriStyleNodeCoreModules` は設定されないので file の import だけで決まる）。project bucket は program の package を記録し、
   相対の module augmentation は既定の options で解決（tsgo `moduleResolver`）。
-- **検査（916ff2f7c）**：conformance 0 regressions（全 13,577 full、490 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（e923d0323）**：conformance 0 regressions（全 13,577 full、490 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（ratchet は HEAD から `--update`：105 行 none→full。lsp 2,741 → 2,846 full、completion 2,213 → 2,285/2,419、
   codeAction 527 → 592/772）、API client sync 340/356・async 349/365、test（program 680、checker 1,800、ls 184 ほか全通過）、
   clippy、fmt、Unicode の表。
@@ -811,8 +811,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L8c-1 interface の実装（PR #796）
 
-- **merge**：#796 → `8bbdc20ca`（hosted run 38601240787：rust 9m38s、conformance 28m35s、gates）。commit：92c0ba566（node builder
-  を呼び出し側の arena に、thisless の instantiation、匿名の名前、型の子の comment）、63caa9074（interface の実装）、c65d0576e
+- **merge**：#796 → `d1cfca8f6`（hosted run 38601240787：rust 9m38s、conformance 28m35s、gates）。commit：bc21fa275（node builder
+  を呼び出し側の arena に、thisless の instantiation、匿名の名前、型の子の comment）、ecb9a94dd（interface の実装）、083716771
   （ratchet）。
 - **provider**（`code_actions/implement_interface.rs`、`missing_member.rs`）：tsgo の
   `FixClassIncorrectlyImplementsInterfaceProvider` と missing member fixer。実装する型ごとの `Implement interface 'I'` と fix-all
@@ -832,7 +832,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   - 宣言出力の comment：signature の return type、型 parameter の名前・制約・既定、mapped type の parameter・name type・type、
     template literal type の span の型、関数型の return type の後ろの comment を tsgo のとおり出す（`m(): string /** c */;` の
     comment が落ちていた。conformance は検出しない）。
-- **検査（63caa9074 のコード）**：conformance 0 regressions（全 13,577 full、470 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（ecb9a94dd のコード）**：conformance 0 regressions（全 13,577 full、470 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（ratchet は HEAD から `--update`：92 行 none→full。lsp 2,846 → 2,938 full）、2420・2720 の diagnostic を持つ
   96 場面すべて一致、宣言出力の probe 4 file が tsgo と byte 一致、test（checker 1,802、compiler 226、ls 184 ほか全通過）、
   API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
@@ -841,8 +841,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L8c-2 型注釈の code fix（PR #797）
 
-- **merge**：#797 → `91773991b`（hosted run 38610122507：rust 13m36s、conformance 20m53s、gates）。commit：3c2d08aaf（checker・
-  emitter の export）、d91ed0fac（型注釈の code fix）、8caf60d71（ratchet）。
+- **merge**：#797 → `200369129`（hosted run 38610122507：rust 13m36s、conformance 20m53s、gates）。commit：c429da02b（checker・
+  emitter の export）、0bf9147f5（型注釈の code fix）、fb13c1586（ratchet）。
 - **provider**（`code_actions/missing_type_annotation.rs`）：tsgo の `IsolatedDeclarationsFixProvider`
   （`codeactions_fixmissingtypeannotation.go`）。`Add annotation of type`、`Add return type`、`Add satisfies and an inline type
   assertion`、`Extract …`、expando、`Mark array literal as const` と fix-all `Add all missing type annotations`。
@@ -853,7 +853,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   見ない：tuple が複数行にならない）。checker の export：`type_predicate_to_type_predicate_node_in_arena`、
   `requires_adding_implicit_undefined`、`get_widened_literal_type`、`EmitNodeBuilderFlags::ALLOW_UNIQUE_ES_SYMBOL_TYPE`。
   tsgo の `ast.IsDeclaration` は `node_util::is_declaration_node` に一本化。
-- **検査（8caf60d71）**：conformance 0 regressions（全 13,577 full、475 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（fb13c1586）**：conformance 0 regressions（全 13,577 full、475 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（ratchet は HEAD から `--update`：68 行 none→full。lsp 2,938 → 3,006 full）、対象の 69 場面のうち 68 が一致、
   test（checker 1,802、compiler 226、ls 184 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、
   clippy、fmt。
@@ -884,9 +884,9 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L7a 参照の検索（#798）
 
-- **merge**：#798 → `fc5829124`（hosted run 38632470929：rust 13m3s、conformance 30m46s、gates。最初の run の後に main
+- **merge**：#798 → `01aeda193`（hosted run 38632470929：rust 13m3s、conformance 30m46s、gates。最初の run の後に main
   が進み、branch protection の strict（base に追いついていること）で merge できなかったので `gh pr update-branch` で
-  main を取り込み、その run で通った）。commit：e72d75eb6（compiler 側）、954f9eb58（language service）、703883718
+  main を取り込み、その run で通った）。commit：765543519（compiler 側）、e538e9662（language service）、f8028bf42
   （ratchet）。
 - **compiler 側**：JSDoc の `C#m` を qualified name に、`@see {…}` の link 名（tsgo `parseJSDocLinkName`・
   `parseJSDocNameReference`。tsc 6.0.3 の `JSDocMemberName` は消した）、tsgo の `resolveJSDocMemberName` と class member の
@@ -902,7 +902,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   JavaScript file の `@import` を module の参照に数える（tsgo の reparse した `JSImportDeclaration` の位置）が、
   auto-import の既存 import には数えない（tsgo の `JSDocImportTag` の case は成り立たない）。回帰 test は
   `crates/ls/tests/references.rs`（11 件）。
-- **検査（703883718）**：conformance 0 regressions（全 13,577 full、485 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（f8028bf42）**：conformance 0 regressions（全 13,577 full、485 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（ratchet は HEAD から `--update`：424 行 none→full。lsp 3,006 → 3,430 full）、参照の 480 場面のうち 440 が
   一致、test（checker 1,802、ls 195 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、
   fmt。
@@ -913,8 +913,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L7b document highlight（#799）
 
-- **merge**：#799 → `b0672b2c0`（hosted run 38637173027：rust 13m7s、conformance 21m35s、gates）。commit：8c5e4a0ee（checker
-  の this 型）、59c70ce72（document highlight）、43ea828b1（ratchet）。検査の後の main の取り込み（759fb2fcf）は packet の
+- **merge**：#799 → `7eca40f9c`（hosted run 38637173027：rust 13m7s、conformance 21m35s、gates）。commit：39c70a6f2（checker
+  の this 型）、b26c208b7（document highlight）、dc6363c98（ratchet）。検査の後の main の取り込み（764fb62c0）は packet の
   README だけ。
 - **checker**：this を持たない interface の this 型は error 型（tsgo の `getThisType` は
   `Coalesce(declaredType.thisType, errorType)`）。`typeof this` だけを持つ interface では ContainsThis が立たず this 型が
@@ -926,7 +926,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   async/await、yield、modifier）。共有：`Navigator::children_from_non_js_doc`（tsgo `getChildrenFromNonJSDocNode`）、
   欠けた（幅 0 の）token の開始位置（tsgo `GetTokenPosOfNode`）、completion と formatter の
   `IsWhiteSpaceSingleLine` を一つに。回帰 test は `crates/ls/tests/references.rs`。
-- **検査（43ea828b1）**：conformance 0 regressions（全 13,577 full、487 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（dc6363c98）**：conformance 0 regressions（全 13,577 full、487 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（147 行 none→full。lsp 3,430 → 3,577 full）、highlight の 153 場面のうち 147、参照の 480 場面のうち 442 が
   一致、test（checker 1,802、ls 197 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、
   clippy、fmt。
@@ -934,9 +934,9 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L7c rename・ファイルの rename（#800）
 
-- **merge**：#800 → `d23c53345`（hosted run 38643214451：rust 10m55s、conformance 21m22s、gates）。commit：b3b24daf2
-  （共有の tspath 補助）、d78c195b8（rename・prepare rename）、e8cd61379（`change_full_extension` の修正）、1f3814515
-  （ファイルの rename）、c5a0900a0（ratchet）。検査の後の main の取り込みは L7b の merge（同じ code）と packet の
+- **merge**：#800 → `dcc2ae3d4`（hosted run 38643214451：rust 10m55s、conformance 21m22s、gates）。commit：fd9af80ee
+  （共有の tspath 補助）、718068194（rename・prepare rename）、8a5c14758（`change_full_extension` の修正）、817dbf891
+  （ファイルの rename）、7837100b3（ratchet）。検査の後の main の取り込みは L7b の merge（同じ code）と packet の
   README だけ。
 - **rename**（`rename.rs`、tsgo `rename.go`）：`GetRenameInfo`（宣言のある symbol、contextual な文字列リテラル型を持つ
   文字列、label。標準 library・`default` の import・別の `node_modules` package の symbol は不可。相対 module specifier
@@ -955,15 +955,15 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   `workspace/willRenameFiles` はその全部で tsgo の重複除去をする。`textDocument/rename` は tsgo と同じく plain な request
   handler にした（willRenameFiles を持たない client の module specifier の rename が、既定 project の program の外で
   ファイルの rename の編集を計算できるように）。
-- **検査（c5a0900a0）**：conformance 0 regressions（全 13,577 full、489 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（7837100b3）**：conformance 0 regressions（全 13,577 full、489 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（243 行 none→full。lsp 3,577 → 3,820 full）、rename・prepareRename・willRenameFiles の 257 場面のうち 253、
   test（program 681、ls 201 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
 - **有界の違い**：content mapper の 4 場面（L10）。
 
 ## L7d call hierarchy・code lens（#801）
 
-- **merge**：#801 → `e7b6bf76e`（hosted run 38647895390：conformance 31m36s、rust は 1 回目に 1 件落ちて再実行で 12m42s、
-  gates）。commit：997c4ee7d（共有の補助）、77e3b109d（call hierarchy・code lens）、098031cf3（ratchet）。検査の後の main
+- **merge**：#801 → `7b4a25842`（hosted run 38647895390：conformance 31m36s、rust は 1 回目に 1 件落ちて再実行で 12m42s、
+  gates）。commit：a85834dd2（共有の補助）、6235f0cbd（call hierarchy・code lens）、06a1d62cf（ratchet）。検査の後の main
   の取り込みは L7c の merge（同じ code）と packet の README だけ。
 - **1 回目の rust の失敗**：`crates/lsp/tests/server.rs` の `pushed_config_diagnostics_match_tsgo` で、server の終了 status
   が tsgo の記録の 0 でなく 1。fixture は `exit` を送ってすぐ入力を閉じる。reader の入力の終わり（正常）と dispatcher の
@@ -983,15 +983,15 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 - **code lens**（`code_lens.rs`、tsgo `codelens.go`）：preference が有効にする references・implementations の lens（overload
   は 1 度）、resolve で数と client の show-locations command。session から消えた file の lens は `ContentModified`。
   tsgo `getSymbolKindFromNode` で `symbols.rs` を始めた。
-- **検査（098031cf3）**：conformance 0 regressions（全 13,577 full、490 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（06a1d62cf）**：conformance 0 regressions（全 13,577 full、490 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（48 行 none→full。lsp 3,820 → 3,868 full）、call hierarchy・code lens の 55 場面のうち 48、test（ls 202 ほか
   全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
 - **有界の違い**：複数 project の 3 場面（L7e の orchestrator）、content mapper の 4 場面（L10）。
 
 ## L7e source definition・workspace symbol（#802）
 
-- **merge**：#802 → `6e7aa4ed2`（hosted run 38655436044：rust 10m49s、conformance 31m0s、gates）。commit：175800cf4
-  （compiler 側）、13df917ea（language service）、0e3bbe394（ratchet）。検査の後の main の取り込みは L7d の merge（同じ code）
+- **merge**：#802 → `f0dac87cc`（hosted run 38655436044：rust 10m49s、conformance 31m0s、gates）。commit：0b484dd2f
+  （compiler 側）、90f4f5bef（language service）、fa85b72cb（ratchet）。検査の後の main の取り込みは L7d の merge（同じ code）
   と packet の README だけ。
 - **compiler 側**：tsgo 7.1 の `GetNonAssignedNameOfDeclaration` に識別子の場合はない（6.0.3 は識別子を返した）。tsgo が
   reparse で作る宣言を表す識別子だけは名前を持つ：`@overload` tag の名前（host の名前の複製）と `@this` tag の上の識別子
@@ -1009,7 +1009,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 - **workspace symbol**（`symbols.rs`、tsgo `ProvideWorkspaceSymbols`）：file ごとの declaration map（overload の組は一度）、
   tsgo の一致の点数と順、先頭の 256 件。`currentProject` の範囲では文書の project、それ以外は全 project（project tree を
   読み込んで）。
-- **検査（0e3bbe394）**：conformance 0 regressions（全 13,577 full、485 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（fa85b72cb）**：conformance 0 regressions（全 13,577 full、485 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（108 行 none→full。lsp 3,868 → 3,976）、source definition 91/91・workspace symbol 17/17、test（program 682、
   checker 1,803、ls 204 ほか全通過）、API client sync 340/356・async 349/365（main と同じ失敗の一覧）、clippy、fmt。
 - **回帰 test**：`crates/ls/tests/references.rs`（parameter property と計算された名前の property の workspace symbol）、
@@ -1017,8 +1017,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L7e-3 複数 project の検索（#803）
 
-- **merge**：#803 → `70bb9cd82`（hosted run 38661143906：conformance 31m27s、rust は 1 回目に 1 件落ちて再実行で 12m58s、
-  gates）。commit：de1eb3c47（project）、9966b26a4（検索）、b89791f38（ratchet）。検査の後の main の取り込みは L7e の
+- **merge**：#803 → `370d0fbee`（hosted run 38661143906：conformance 31m27s、rust は 1 回目に 1 件落ちて再実行で 12m58s、
+  gates）。commit：a10dc9f23（project）、439b46674（検索）、4985f09a8（ratchet）。検査の後の main の取り込みは L7e の
   merge（同じ code）と packet の README だけ。
 - **1 回目の rust の失敗**：`crates/cli/tests/integration/cli_contract.rs` の
   `string_literal_export_names_are_allowed_in_declaration_files_like_tsgo` で、test が起動した `tsc-rs` が signal で終わった
@@ -1039,7 +1039,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   で検索し、tsgo の順に並べ、二つ以上の project を尋ねた時は tsgo `combine*` で合わせる。単一 project の入口（tsgo の
   orchestrator のない経路）は一つの project の答えを返し、変換は結合を真似ない（implementation の位置は重複を残し、全ての
   edit が落ちた rename は空の `changes`）。
-- **検査（b89791f38）**：conformance 0 regressions（全 13,577 full、487 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（4985f09a8）**：conformance 0 regressions（全 13,577 full、487 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（35 行 none→full。lsp 3,976 → 4,011）、対象の method を送る 731 場面のうち元の full 685 は維持、35 が新たに
   full、content mapper の 11 が残る、test（project 187 ほか全通過）、API client sync 340/356・async 349/365（main と同じ）、
   clippy、fmt。
@@ -1048,8 +1048,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L6a signature help（#804）
 
-- **merge**：#804 → `10a7a157d`（hosted run 38667955418：rust 9m16s、conformance 24m21s、gates）。commit：4f21a1665
-  （printer）、30e05e9c1（checker）、0bd58ed3c（language service と server）、ab3c36198（ratchet）。検査の後の main の
+- **merge**：#804 → `a7592734b`（hosted run 38667955418：rust 9m16s、conformance 24m21s、gates）。commit：c9105cf4c
+  （printer）、6b1d5358f（checker）、500450c32（language service と server）、f3a5a6dbd（ratchet）。検査の後の main の
   取り込みは L7e-3 の merge（同じ code）と packet の README だけ。
 - **printer**：tsgo の printer は識別子の文字を `writeKind` で書く（`emitParameterName` の引数名は parameter、
   `emitPropertyName` の property 名は property：property と method の signature と宣言、accessor、property と shorthand の
@@ -1069,7 +1069,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   ない時に呼ばれた名前の宣言を探す。tsgo `getImmediatelyContainingArgumentInfo` は一つの移植で、completions の
   `getArgumentInfoForCompletions` もそれを読む（completions の部分的な複製は消した）。JSDoc signature（`@callback`、
   `@overload`）の `@param`・`@this` tag は tsgo の reparse した引数（tag の comment を JSDoc に持つ）を表す。
-- **検査（ab3c36198）**：conformance 0 regressions（全 13,577 full、486 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（f3a5a6dbd）**：conformance 0 regressions（全 13,577 full、486 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（181 行 none→full、全て signature help。lsp 4,011 → 4,192）、signature help 181/184、test（ls 207 ほか全通過）、
   API client sync 340/356・async 349/365（main と同じ）、clippy、fmt。
 - **回帰 test**：`crates/ls/tests/references.rs`（末尾の comma の引数が overload を選ぶ、入れ子の呼び出しの末尾の comma、
@@ -1078,8 +1078,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L6b document symbol（#805）
 
-- **merge**：#805 → `869b783c3`（hosted run 38671480253：rust 12m28s、conformance 32m5s、gates）。commit：cc4b9a97b
-  （binder）、db755f06c（language service と server）、7493be908（ratchet）。検査の後の main の取り込みは L6a の merge
+- **merge**：#805 → `5ece24096`（hosted run 38671480253：rust 12m28s、conformance 32m5s、gates）。commit：1488bab3f
+  （binder）、4ec776e1c（language service と server）、3e23eb56c（ratchet）。検査の後の main の取り込みは L6a の merge
   （同じ code）と packet の README だけ。
 - **binder**：tsgo 7.1 `GetAssignedName`。element access に代入された関数・class 式は access の literal の引数だけで名前が
   付く（6.0.3 は他の引数でも access 自体で名前を付けた。`f[Symbol.iterator]` の関数は tsgo では `<function>`）。
@@ -1089,7 +1089,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   同名の namespace も合わせる。tsgo の名前（escape した引用文字列、callback の `f("literal") callback`、`<function>`、
   `<class>`、`export=`、`default`、`constructor`、`()`、`new()`、`[]`）を 150 文字で切り、範囲は名前を選ぶ。名前・種類・
   範囲ごとに一つ。階層を持たない client には symbol information に平らにする。
-- **検査（7493be908）**：conformance 0 regressions（全 13,577 full、500 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（3e23eb56c）**：conformance 0 regressions（全 13,577 full、500 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（85 行 none→full、全て document symbol。lsp 4,192 → 4,277）、document symbol 85/86、call hierarchy と
   workspace symbol（`GetAssignedName` を読む）56/56、test（ls 208 ほか全通過）、API client sync 340/356・async 349/365
   （main と同じ）、clippy、fmt。
@@ -1098,8 +1098,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L6c folding range と selection range（#806）
 
-- **merge**：#806 → `4ec90196e`（hosted run 38675002932：rust 8m20s、conformance 22m7s、gates）。commit：5427a06a4
-  （language service と server）、9e690ac87（ratchet）。検査の後の main の取り込みは L6b の merge（同じ code）と packet の
+- **merge**：#806 → `a20f978b9`（hosted run 38675002932：rust 8m20s、conformance 22m7s、gates）。commit：07bd0dfa6
+  （language service と server）、8c45e10ce（ratchet）。検査の後の main の取り込みは L6b の merge（同じ code）と packet の
   README だけ。
 - **folding range**（`crates/ls/src/folding.rs`、tsgo `folding.go`）：深さ 40 までの node の範囲（block。関数は引数が
   複数行なら開き括弧から。class・interface・enum・型 literal の本体、case 節、object と array の literal と binding
@@ -1116,7 +1116,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   型は tsgo の selection の子（`-readonly`・`-?` をまとめ、型引数を括弧とまとめ、colon で分ける）。範囲は 999 まで、
   内側を残す。
 - **共有**：`getLineEndOfPosition` と位置の行は一つの helper（completions の二つの複製をまとめた）。
-- **検査（9e690ac87）**：language service と server だけの変更（compiler の経路なし）なので compiler の conformance と
+- **検査（8c45e10ce）**：language service と server だけの変更（compiler の経路なし）なので compiler の conformance と
   並列の対照は走らせていない。suites 0 regressions（73 行 none→full、全て folding と selection range。lsp 4,277 →
   4,350）、folding と selection range 73/76、test（language service を使う crate：ls 209、lsp 14、api 297、conformance
   49、全通過）、API client sync 340/356・async 349/365（main と同じ）、clippy、fmt。
@@ -1128,9 +1128,9 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L6d semantic token・linked editing・auto insert（#807）
 
-- **merge**：#807 → `0f1cc2116`（hosted run 38683880598：rust 10m44s、conformance 18m33s、gates）。commit：12fa39a80
-  （syntax）、8190b94fe（language service と server）、ae36322ea（ratchet）、1fea28237（modifier の共有）。最初の head
-  `1fea28237` の run 38680567352 も通ったが、その間に README を main に入れたため strict な main の更新（`gh pr
+- **merge**：#807 → `d727a8257`（hosted run 38683880598：rust 10m44s、conformance 18m33s、gates）。commit：371e1187d
+  （syntax）、ba080f075（language service と server）、ec6215374（ratchet）、09b39d9c3（modifier の共有）。最初の head
+  `09b39d9c3` の run 38680567352 も通ったが、その間に README を main に入れたため strict な main の更新（`gh pr
   update-branch`）で CI をもう一度回した（文書は PR の gates 待ちの間に main へ入れない）。
 - **syntax**：tsgo `ast.TagNamesAreEquivalent` を `tsc_syntax::utilities` の共有の関数にし、parser もそれを呼ぶ（動作は
   同じ）。
@@ -1142,11 +1142,11 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   language service に移した。
 - **modifier**：`node_util::get_combined_modifier_flags` は JavaScript の member の JSDoc（`@readonly` など）から tsgo の
   parser が reparse する modifier を hosted の reparse 表から既に数える（class の property・method・accessor、object
-  literal の中では無し、代入、変数は無し）。最初に同じ規則を別に書いてしまい、`1fea28237` で共有の helper に替えた。
+  literal の中では無し、代入、変数は無し）。最初に同じ規則を別に書いてしまい、`09b39d9c3` で共有の helper に替えた。
 - **linked editing と auto insert**（`crates/ls/src/jsx_tags.rs`）：fragment の `<`・`</` の後の位置か、要素の二つの tag 名
   （どちらかの中、両方が整い同じ文字のとき）と tsgo の word pattern。`>` で閉じていない要素（fragment）の開き tag を
   終えた後に閉じ tag の snippet（`$` は escape、利用者が auto closing tag を切っていなければ）。
-- **検査（1fea28237）**：conformance 0 regressions（全 13,577 full）、suites 0 regressions（61 行 none→full、semantic
+- **検査（09b39d9c3）**：conformance 0 regressions（全 13,577 full）、suites 0 regressions（61 行 none→full、semantic
   token 46・linked editing 12・auto insert 3。lsp 4,350 → 4,411）、61/61、test（ls 211 ほか全通過）、API client sync
   340/356・async 349/365（main と同じ）、clippy、fmt。
 - **回帰 test**：`crates/ls/tests/references.rs`（reparse した JSDoc の modifier の readonly、範囲の token と既定の
@@ -1155,8 +1155,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L6e inlay hint（#808）
 
-- **merge**：#808 → `0145889fc`（hosted run 38685712417：rust 9m13s、conformance 30m49s、gates）。commit：a7207fee4
-  （checker）、1c75182f2（language service と server）、b2be032a8（ratchet）。検査の後の main の取り込みは L6d の
+- **merge**：#808 → `1bb41ce0e`（hosted run 38685712417：rust 9m13s、conformance 30m49s、gates）。commit：4245e7ab3
+  （checker）、8e26c0d29（language service と server）、47243797d（ratchet）。検査の後の main の取り込みは L6d の
   merge（同じ code）、packet の README と README だけ。
 - **checker**：`INLAY_HINT_NODE_BUILDER_FLAGS`（tsgo `typeToInlayHintParts` の node builder の flag）と
   `has_context_sensitive_parameters` の公開（動作は同じ）。
@@ -1169,7 +1169,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   hint も）。tsgo の区切りのまま（型引数の間は `,`、`keyof` の後に空白なし）。
 - **JavaScript**：tsgo の `Node.Type()` は `node_util::type_node_of`（JSDoc の `@type`・`@param`・`@returns` の型を持つ
   宣言には hint なし）。tsgo `IsVarConst`（`const` だけ、`using`・`await using` は違う）。
-- **検査（b2be032a8）**：conformance 0 regressions（全 13,577 full、489 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（47243797d）**：conformance 0 regressions（全 13,577 full、489 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（64 行 none→full、全て inlay hint。lsp 4,411 → 4,475）、64/65、test（ls 213 ほか全通過）、API client sync
   340/356・async 349/365（main と同じ）、clippy、fmt。
 - **回帰 test**：`crates/ls/tests/references.rs`（JSDoc の型は型の hint を出さない、変数・ラベル付き rest の tuple と rest
@@ -1179,8 +1179,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L4f completion の snippet（#809）
 
-- **merge**：#809 → `175bfc382`（hosted run 38692085292：rust 11m26s、conformance 31m19s、gates）。commit：3aa544a3c
-  （checker）、bf9305269（emitter）、06d744a37（language service）、ae404a493（ratchet）。
+- **merge**：#809 → `a66b39bfc`（hosted run 38692085292：rust 11m26s、conformance 31m19s、gates）。commit：739b56597
+  （checker）、88ac5bc3e（emitter）、80dde74a8（language service）、23c5e1413（ratchet）。
 - **checker**：override の検査が tsgo の `MemberOverrideStatus`（override が要る、不正な override、なし）を返し、型の表示は
   報告する時だけ作る（tsgo の順。tsc は基底 class の表示を先に作っていた）。`get_member_override_modifier_status`（tsgo の
   service 向けの入口）。`ast.CanHaveDecorators` は `node_util` へ。
@@ -1197,7 +1197,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   label の detail は引数の並び、property の下に並べる）、switch の残りの case（literal の union に、clause のない member の
   case を一つの snippet item に。enum member は auto-import できる型 node を式に）。共有：change tracker の snippet の
   print、`TypeToAutoImportableTypeNode`、completion の source の定数、`IsDynamicFileName`、`isRightOfDotOrQuestionDot`。
-- **検査（ae404a493）**：conformance 0 regressions（全 13,577 full、484 s。template literal の一回の write、override の
+- **検査（23c5e1413）**：conformance 0 regressions（全 13,577 full、484 s。template literal の一回の write、override の
   遅延表示、tracker の共有しない複製は compiler の出力を変えない）、`--checkers 4` は既知の 4 だけ、suites 0 regressions
   （59 行 none→full：class member・object literal method・switch case の 54 場面と、completion が class member の宣言である
   auto-import の 5 場面。lsp 4,475 → 4,534）、test（全 crate 通過）、API client sync 340/356・async 349/365（main と同じ）、
@@ -1207,8 +1207,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L5d auto-import の module specifier（#810）
 
-- **merge**：#810 → `6eb8c5633`（hosted run 38695913803：rust 12m45s、conformance 31m27s、gates）。commit：340eefb7d
-  （checker）、da45e14a6（language service）、f04602cab（ratchet）。検査の後の main の取り込みは L4f の merge（同じ code）、
+- **merge**：#810 → `cd2ce72ec`（hosted run 38695913803：rust 12m45s、conformance 31m27s、gates）。commit：c34ab9bc6
+  （checker）、f1316c535（language service）、fee175eda（ratchet）。検査の後の main の取り込みは L4f の merge（同じ code）、
   packet の README と README だけ。
 - **checker（tsgo の module specifier）**：`getPathsRelativeToRootDirs` は別の volume の root を空の相対 path として残す
   （tsc は捨てた。`rootDirs: ["D:/"]` の project は tsgo の `./` になる）、`isPathRelativeToParent` は
@@ -1217,7 +1217,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   飛ばした。解決は既に読んでいた）。base URL の選択は tsgo の `..` の前置の判定。
 - **language service**：解決しない module augmentation の名前は `./`・`../` の時だけ取り込む file からの相対に直し、
   root からの名前（`/types/rooted.css`）はそのまま（tsgo `ModuleSpecifier.IsRelative`）。
-- **検査（f04602cab）**：conformance 0 regressions（全 13,577 full、484 s）、`--checkers 4` は既知の 4 だけ、suites 0
+- **検査（fee175eda）**：conformance 0 regressions（全 13,577 full、484 s）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（3 行 none→full：TestAutoImportCssModule、TestAutoImportPackageJsonImportsHashSlashNodenext、
   TestAutoImportsWithRootDirsAndRootedPath01。lsp 4,534 → 4,537）、test（全 crate 通過）、API client sync 340/356・async
   349/365（main と同じ）、clippy、fmt。
@@ -1227,8 +1227,8 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 
 ## L9 API の LS（#811）
 
-- **merge**：#811 → `0e00062bd`（hosted run 38700647220：rust 13m10s、conformance 30m59s、gates）。commit：308e29254
-  （language service）、23af4dbb8（API）、824f47e5d（test）。検査の後の main の取り込みは L5d の merge（同じ code）、
+- **merge**：#811 → `03edfd0b4`（hosted run 38700647220：rust 13m10s、conformance 30m59s、gates）。commit：d7ee32a1f
+  （language service）、898ac86b3（API）、b22baa2b7（test）。検査の後の main の取り込みは L5d の merge（同じ code）、
   packet の README と README だけ。
 - **language service**：API が呼ぶ tsgo の入口。`GetCompletionsAtPosition`（API が求める時は symbol の item に symbol。内部
   の list の `CompletionItem.Symbol` を `getCompletionEntriesFromSymbols` が付ける。string の property 名も）、
@@ -1245,7 +1245,7 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   （tsgo の JSON v2 は nil の slice をそう書く）。
 - **oracle**：tsgo 自身の client の上の probe（62 request：client の test の場面と端の場面）で tsgo と tsc-rs の応答が一致
   （symbol と parse の id は各実装のもの、global の completion は集合で比べる。tsgo は Go の map の順に並べる）。
-- **検査（23af4dbb8）**：compiler の経路の変更なし（conformance は走らせない）、suites 0 regressions（行の変化なし。
+- **検査（898ac86b3）**：compiler の経路の変更なし（conformance は走らせない）、suites 0 regressions（行の変化なし。
   lsp 4,537）、test（api 305 ほか全通過）、API client **sync 356/356・async 365/365**（main は 340/349）、clippy、fmt。
 - **回帰 test**：`crates/api/tests/unit/session_language_service.rs`（8 本。期待値は tsgo の応答）。
 - **有界の違い**：symbol の handle の id と source file の node id は各実装のもの。`printNode` の `preserveSourceNewlines`
@@ -1281,9 +1281,9 @@ tsc-rs の span map は compiler の UTF-16 なので、LS には UTF-8（tsgo �
 
 ## L10a content mapper の LS の基盤・hover・diagnostics（#812）
 
-- **merge**：#812 → `06c507def`（hosted run 38710133417：rust 13m01s、conformance 32m10s、gates）。commit：0630ad711
-  （spanmap・syntax・checker）、0c85ec92a（harness の test mapper）、6e251cc36（lsp の spawner）、1af149fd3（変換・hover・
-  diagnostics）、ee4de8681（folding・symbol・format・rename・auto-import の対象）、e6fb19e5a（ratchet）。検査の後の main の
+- **merge**：#812 → `b120cf5e6`（hosted run 38710133417：rust 13m01s、conformance 32m10s、gates）。commit：731355668
+  （spanmap・syntax・checker）、179e43d10（harness の test mapper）、55758414a（lsp の spawner）、e54df0552（変換・hover・
+  diagnostics）、dcad04d9e（folding・symbol・format・rename・auto-import の対象）、5800895f2（ratchet）。検査の後の main の
   取り込みは L9 の merge（同じ code）、packet の README と README だけ。
 - **spanmap・syntax・checker**：tsgo `VirtualToOriginalSpanForFeature`・`VirtualToOriginalPositionForFeature`
   （`virtualSpanSupportsFeature`）と UTF-8 の map（compiler の UTF-16 の map の写し。LS は tsgo の単位の byte）。parse した
@@ -1303,15 +1303,15 @@ tsc-rs の span map は compiler の UTF-16 なので、LS には UTF-8（tsgo �
   求める。supplemental の出力は auto-import の対象にしない（`IsContentMapperSupplemental`）。
 - **教訓**：mapper を起動すると、mapper が無くて空の答えで偶然一致していた場面が崩れる（5 件。folding・symbol・format・
   rename・auto-import を port して戻した）。replay は一致済みの content mapper の場面も一緒に回す。
-- **検査（1af149fd3 の conformance、ee4de8681 の suites と test）**：conformance 0 regressions（13,577 全て full、498 s）、
+- **検査（e54df0552 の conformance、dcad04d9e の suites と test）**：conformance 0 regressions（13,577 全て full、498 s）、
   `--checkers 4` は既知の 4 件だけ、suites 0 regressions（lsp 24 行 none → full、**4,537 → 4,561**）、test（diagnostics 84・
   harness 31 を含め全通過）、API client sync 356/356・async 365/365、clippy、fmt。
 - **README**：Status の language server の数（4,561）と、language server の節（content mapper の file は一部）。
 
 ## L10b content mapper の LS の移動（#813）
 
-- **merge**：#813 → `3a5f725a6`（hosted run 38714441602：rust 13m40s、conformance 24m15s、gates）。commit：0b2ef8a43
-  （language service）、b2ae9cbf1（ratchet）。検査の後の main の取り込みは L10a の merge（同じ code）、packet の README と
+- **merge**：#813 → `2fe83df15`（hosted run 38714441602：rust 13m40s、conformance 24m15s、gates）。commit：96051b97f
+  （language service）、89cb1336e（ratchet）。検査の後の main の取り込みは L10a の merge（同じ code）、packet の README と
   README だけ。
 - **移動**：`ProvideDefinition`・`ProvideTypeDefinition`・`ProvideSourceDefinition` は single segment の projection を全て
   合わせる。`createDefinitionLocations` は名前が feature の一つの segment に写らない移動先を落とし、文脈が写らなければ
@@ -1322,14 +1322,14 @@ tsc-rs の span map は compiler の UTF-16 なので、LS には UTF-8（tsgo �
 - **signature help**：help のある最初の single segment の projection。
 - **`{@link}`**：tsgo `documentationLocationMapper`。宣言が request の feature（hover・signature help）の一つの segment に
   写る時だけ markdown の link、他は text。API の documentation はどこにも写さない（`noMappedLocation`）。
-- **検査（b2ae9cbf1）**：compiler の経路の変更なし（conformance は走らせない）、suites 0 regressions（lsp 8 行 none → full、
+- **検査（89cb1336e）**：compiler の経路の変更なし（conformance は走らせない）、suites 0 regressions（lsp 8 行 none → full、
   **4,561 → 4,569**）、test 全通過、API client sync 356/356・async 365/365、clippy、fmt。
 - **README**：Status の language server の数（4,569）と、content mapper の file で使える機能。
 
 ## L10c content mapper の LS の completion・edit・残りの機能（#814）
 
-- **merge**：#814 → `9dab64918`（hosted run 38718568469：rust 11m11s、conformance 24m57s、gates）。commit：0428fe0b5
-  （language service）、851940199（ratchet）。検査の後の main の取り込みは L10b の merge（同じ code）、packet の README と
+- **merge**：#814 → `74c67efdf`（hosted run 38718568469：rust 11m11s、conformance 24m57s、gates）。commit：e948ab86a
+  （language service）、27a793974（ratchet）。検査の後の main の取り込みは L10b の merge（同じ code）、packet の README と
   README だけ。計画の L10d（code lens・selection range）もここで行った。
 - **change tracker**：tsgo `getTextChangesFromChanges`・`computeNewText`・`toLSPEditRange`・`fromLSPEditRange`。
   `GetChanges` は元の file ごとの edit と、元の text に書き戻せない file（verbatim の span の外の edit、projection の間で
@@ -1346,7 +1346,7 @@ tsc-rs の span map は compiler の UTF-16 なので、LS には UTF-8（tsgo �
   token・inlay hint・code action にも tsgo の projection と feature の filter。LSP の位置を取る機能は全て projection を
   通り、language service の素の LSP 位置の入口（`with_request`）は無くなった。
 - **回帰 test**：tsgo `TestTextEditsConflictAtSameInsertionPointAcrossProjections`（`change::tests`）。
-- **検査（851940199）**：compiler の経路の変更なし（conformance は走らせない）、suites 0 regressions（lsp 14 行 none →
+- **検査（27a793974）**：compiler の経路の変更なし（conformance は走らせない）、suites 0 regressions（lsp 14 行 none →
   full、**4,569 → 4,583 / 4,584**。残る 1 は tsgo の答えが非決定的な `TestCompletionForStringLiteralNonrelativeImport2`）、
   content mapper の 56 場面全て一致、test（ls 214 ほか全通過）、API client sync 356/356・async 365/365、clippy、fmt。
 - **次（L10d）**：project system と server の content mapper。tsgo の `project/contentmapper_test.go` の LSP の session の
@@ -1357,8 +1357,8 @@ tsc-rs の span map は compiler の UTF-16 なので、LS には UTF-8（tsgo �
 
 ## L10d project system と server の content mapper（#815）
 
-- **merge**：#815 → `aca646f67`（hosted run 38726499368：rust 13m07s、conformance 30m50s、gates）。commit：3340fd688
-  （compiler・program）、b1f292d90（project）、7b783ecbe（lsp）。検査の後の main の取り込みは L10c の merge（同じ code）、
+- **merge**：#815 → `8a3b0a88a`（hosted run 38726499368：rust 13m07s、conformance 30m50s、gates）。commit：adf541bee
+  （compiler・program）、9d7fc175d（project）、757bedebe（lsp）。検査の後の main の取り込みは L10c の merge（同じ code）、
   packet の README と README だけ。
 - **locale**：tsgo `locale.Locale` は tag を持つ（`Locale.String()`、既定は空）。tsc-rs の `Locale` も翻訳と tag を持つ。
   mapper の host の `SetLocale`（新しい locale で初期化し直し、動いている process を閉じる）、project system の content
@@ -1376,7 +1376,7 @@ tsc-rs の span map は compiler の UTF-16 なので、LS には UTF-8（tsgo �
 - **test**：tsgo の LSP の session の場面の移植 `crates/project/tests/content_mappers.rs`（10）、server の
   `content_mapper_contributions_before_did_open`（tsgo `TestSetContentMapperContributionsBeforeDidOpen`）、parser の 4、
   program の locale の cache、compiler の tag。
-- **検査（7b783ecbe）**：conformance 0 regressions（13,577 全て full、485 s）、`--checkers 4` は既知の 4 件だけ、suites 0
+- **検査（757bedebe）**：conformance 0 regressions（13,577 全て full、485 s）、`--checkers 4` は既知の 4 件だけ、suites 0
   regressions（行の変化なし、lsp 4,583）、test 全通過（lsp 19・project 197・compiler 227 ほか）、API client sync 356/356・
   async 365/365、clippy、fmt。
 - **有界の違い**：`TestContentMapperInferredProjectSurvivesTypingsInstall` は ATA と共に L11。tsgo の
@@ -1403,7 +1403,7 @@ project の test を移して固定する。
 
 ## L11a 進捗表示・project 情報・telemetry（#816）
 
-- **merge**：#816 → `864a30cb7`（hosted run 38732142217：rust 10m44s、conformance 31m35s、gates）。commit：3781a23c4
+- **merge**：#816 → `afc758856`（hosted run 38732142217：rust 10m44s、conformance 31m35s、gates）。commit：320251fd7
   （lsp・project）。検査の後の main の取り込みは L10d の merge（同じ code）、packet の README と README だけ。
 - **進捗**：tsgo `projectLoadingProgress`（`lsp/progress.go`）。project の読み込みが遅延（`tsc-rs --lsp` で 250 ms、
   `cmd/tsc/lsp.go` と同じ）を超えた時だけ `window/workDoneProgress/create` と `$/progress`（begin・report・end）、実行中の
@@ -1415,7 +1415,7 @@ project の test を移して固定する。
 - **test**：tsgo `TestProgress` の各場面（`synctest` の偽の時刻は state の明示の段階に）、
   `TestProgressNotificationsEndToEnd`、`TestInitializeCodeActionKinds`、`TestProjectInfoConfiguredProject`・
   `TestProjectInfoInferredProject`、project 情報の 2 件（tsgo に test なし、`collectProjectInfoTelemetry` から固定）。
-- **検査（3781a23c4）**：compiler の経路の変更なし（conformance は回さず）、suites 0 regressions（行の変化なし、lsp
+- **検査（320251fd7）**：compiler の経路の変更なし（conformance は回さず）、suites 0 regressions（行の変化なし、lsp
   4,583）、test 全通過（lsp 33・project 199・api 305 ほか）、API client sync 356/356・async 365/365、clippy、fmt。
 - **有界の違い**：Go runtime 固有の部分（5 分ごとの性能 telemetry、要求失敗の telemetry の Go の stack、`IsActive`、
   profile の command `custom/runGC`・`save*Profile`・`start/stopCPUProfile`）は利用者の判断待ち（2026-10-15 に
@@ -1423,8 +1423,8 @@ project の test を移して固定する。
 
 ## L11b 言語サーバーの上の API session（#817）
 
-- **merge**：#817 → `84b47514b`（hosted run 38739655322：rust 12m02s、conformance 32m07s、gates）。commit：6524708ae
-  （api・project）、6554005f2（lsp）。検査の後の main の取り込みは L11a の merge（同じ code）と packet の README だけ。
+- **merge**：#817 → `24291b006`（hosted run 38739655322：rust 12m02s、conformance 32m07s、gates）。commit：1d4946e83
+  （api・project）、3ef8485c0（lsp）。検査の後の main の取り込みは L11a の merge（同じ code）と packet の README だけ。
 - **API session**：tsgo `NewLSPSession`（project session の snapshot host を共有、要求は editor の locale で、要求の
   file system は editor の開いた文書の上に）、`getCurrentLanguageServerSnapshot`（`APIUpdate`：保留の変更を流し、失敗した
   要求は採らないが流した変更は進める。session が開いた project・file は閉じるか終わるまで開いたまま、作った program だけ
@@ -1439,7 +1439,7 @@ project の test を移して固定する。
 - **test**：tsgo `session_apistate_test.go` の言語サーバーの 13 件、`session_requestfilesystem_test.go` の editor の
   文書を伴う 10 件（大きな layer の場面を editor 付きに）、`session_completion_test.go` の 2 件、
   `session_module_resolution_test.go` の 1 件、server の pipe 越しの端から端まで。
-- **検査（6554005f2）**：conformance 0 regressions（13,577 全て full、504 s）、`--checkers 4` は既知の 4 件だけ、suites 0
+- **検査（3ef8485c0）**：conformance 0 regressions（13,577 全て full、504 s）、`--checkers 4` は既知の 4 件だけ、suites 0
   regressions（行の変化なし）、test 全通過（lsp 34・api 330・project 199 ほか）、API client sync 356/356・async 365/365、
   clippy、fmt。
 - **有界の違い**：tsc-rs の非同期 API 接続は要求を一つずつ扱い、client への呼び出しの答えは呼び出し側で読む（別 thread の
@@ -1452,9 +1452,9 @@ project の test を移して固定する。
 
 ## L11c CPU profile・要求失敗の telemetry・flaky diagnostics（#818）
 
-- **merge**：#818 → `2e799e9f5`（hosted run 38746347290：conformance 32m18s、rust は 1 回目に既知の終了の競合
+- **merge**：#818 → `9c99ba484`（hosted run 38746347290：conformance 32m18s、rust は 1 回目に既知の終了の競合
   （`pushed_config_diagnostics_match_tsgo` の `EXIT 0` と `EXIT 1`、L7d と同じ）で落ち、失敗した job の再実行で
-  11m06s で通過、gates）。commit：50852b7f6（compiler・lsp）。検査の後の main の取り込みは L11b の merge（同じ code）と
+  11m06s で通過、gates）。commit：9ae79a0cd（compiler・lsp）。検査の後の main の取り込みは L11b の merge（同じ code）と
   packet の README と README だけ。
 - **CPU profile**：tsgo `internal/pprof` を pprof-rs で（利用者の判断 2026-10-15）。Unix の `SIGPROF` で 1 秒 100 回の
   採取、Go の形式（gzip した `perftools.profiles.Profile`、`samples/count` と `cpu/nanoseconds`）の符号化はここで書き、
@@ -1476,7 +1476,7 @@ project の test を移して固定する。
   `TestFlakyDiagnosticTrackingParallelEmit`（`noEmitOnError` の両方）、tsgo `stack_sanitizer_test.go` の Rust の stack
   への置き換え（利用者の checkout の path 付きの debug の stack、release の stack）と generic secret の場面はそのまま、
   本物の panic の stack での `recover` の答えと telemetry。
-- **検査（50852b7f6）**：conformance 0 regressions（13,577 全て full、501 s。`--pprofDir` の wrapper は option なしで
+- **検査（9ae79a0cd）**：conformance 0 regressions（13,577 全て full、501 s。`--pprofDir` の wrapper は option なしで
   出力を変えない）、`--checkers 4` は既知の 4 件だけ、suites 0 regressions（行の変化なし、lsp 4,583・tsc 227）、test
   全通過（lsp 41・compiler 233・lsproto 31 ほか）、API client sync 356/356・async 365/365、clippy、fmt。
 - **有界の違い**：tsgo の 5 分ごとの性能 telemetry（Go の runtime の統計）は移さない。CPU profile は Unix の signal が要る
@@ -1486,8 +1486,8 @@ project の test を移して固定する。
 
 ## L11d 型の自動取得（ATA）（#819）
 
-- **merge**：#819 → `5cc9e7ed3`（hosted run 38755394431：rust 14m12s、conformance 32m07s、gates）。commit：
-  c1d58024d（project の `ata` package）、35ea06e2e（program・project・lsp）。検査の後の main の取り込みは #818 の merge
+- **merge**：#819 → `181c9595c`（hosted run 38755394431：rust 14m12s、conformance 32m07s、gates）。commit：
+  4ff06acde（project の `ata` package）、cfd8f2e76（program・project・lsp）。検査の後の main の取り込みは #818 の merge
   （この branch の土台の code）と L11c の記録だけ。
 - **`project/ata`**：tsgo `DiscoverTypings`（config の include、`package.json`・`bower.json` の依存と型を持たない導入済み
   package、tsgo の typesMap のよく知られた script 名、JSX の React、解決できない import（Node の core module は node）。
@@ -1510,7 +1510,7 @@ project の test を移して固定する。
   `SetupWithTypingsInstaller` と npm の mock）と、やり直した解決が typings の cache に着くことの確認（tsgo の assertion は
   この経路なしでも通る）。`contentmapper_test.go` の `TestContentMapperInferredProjectSurvivesTypingsInstall`（L10d から
   持ち越し）。project の test の session は tsgo の `Setup` と同じく typings を install する（全て変わらず通る）。
-- **検査（35ea06e2e）**：conformance 0 regressions（13,577 全て full、484 s）、`--checkers 4` は既知の 4 件だけ、suites 0
+- **検査（cfd8f2e76）**：conformance 0 regressions（13,577 全て full、484 s）、`--checkers 4` は既知の 4 件だけ、suites 0
   regressions（行の変化なし）、test 全通過（project 235・lsp 41・api 330・compiler 233 ほか）、API client sync 356/356・
   async 365/365、clippy、fmt。
 - **有界の違い**：tsgo の `MustParse` は壊れた registry や lock file の version で panic、tsc-rs はその typing を cache に
@@ -1520,8 +1520,8 @@ project の test を移して固定する。
 
 ## L11e 内蔵の file 監視（#820）
 
-- **merge**：#820 → `8c09c5367`（hosted run 38761956035：rust 14m16s（Linux の inotify でも監視の test が通る）、
-  conformance 32m46s、gates）。commit：d5e023df7（compiler・lsp）。検査の後の main の取り込みは #819 の merge（この
+- **merge**：#820 → `0d8b60fe3`（hosted run 38761956035：rust 14m16s（Linux の inotify でも監視の test が通る）、
+  conformance 32m46s、gates）。commit：cac8aede5（compiler・lsp）。検査の後の main の取り込みは #819 の merge（この
   branch の土台の code）と L11d の記録だけ。
 - **lspwatcher**：tsgo `lsp/lspwatcher`。client が `workspace/didChangeWatchedFiles` の動的登録を持たず、system が木を
   一度に監視できる時（macOS の FSEvents、Windows の ReadDirectoryChangesW：tsgo `HasFastRecursiveBackend`）、server が
@@ -1546,7 +1546,7 @@ project の test を移して固定する。
   file system で 6（共有、再帰、消えた directory の終わり、callback からの監視の開始、error の message）。manager の
   `handleWatchTerminated`。server の端から端（macOS と Windows）：client に watcher を登録せず、disk の変更が session の
   diagnostics に届く（watcher の変更を捨てると落ちることを確かめた）。
-- **検査（d5e023df7）**：conformance 0 regressions（13,577 全て full、525 s）、`--checkers 4` は既知の 4 件だけ、
+- **検査（cac8aede5）**：conformance 0 regressions（13,577 全て full、525 s）、`--checkers 4` は既知の 4 件だけ、
   suites 0 regressions（行の変化なし。tscWatch・tsbuildWatch は harness の backend で変わらず）、test 全通過（lsp 58・
   compiler 240 ほか。本物の file system の監視の test は macOS で 5 回続けて通過）、API client sync 356/356・async
   365/365、clippy、fmt。
@@ -1562,8 +1562,8 @@ project の test を移して固定する。
 
 ## P5-5b `printNode` の `preserveSourceNewlines`（#821）
 
-- **merge**：#821 → `77f1e192b`（hosted run 38776929704：rust 12m14s、conformance 32m38s、gates）。commit：659d679b2
-  （emitter・api）。検査は main を取り込んだ bc4aaada1 で（merge の前の main の取り込みは無し）。
+- **merge**：#821 → `df8e03129`（hosted run 38776929704：rust 12m14s、conformance 32m38s、gates）。commit：fcc973bcd
+  （emitter・api）。検査は main を取り込んだ 4d91a00e2 で（merge の前の main の取り込みは無し）。
 - **tsgo の振る舞い**（decode した木）：tsgo の decoder は factory で親の無い node を作る。そのため option があると、
   list の最初の項目の前に行を書かない（`getLeadingLineTerminatorCount` は次の token そのものから測る：
   `getPreviousNonWhitespacePosition` が token の位置から始まり、常に 0）、項目の間にも書かない（親の無い兄弟は比べられ
@@ -1587,7 +1587,7 @@ project の test を移して固定する。
 - **test**：`preserveSourceNewlines` の 14 の形（文、二度書く comment、file の末尾の comment、member、enum、tuple、
   block、埋め込み文の comment、decorator、case 節、prologue、回復した block）と括弧の被演算子を tsgo の答え（aa814927）
   で固定。前者は option を渡さないと落ちる。
-- **検査（bc4aaada1）**：conformance 0 regressions（13,577 全て full、482 s。既定の emit が変えた list を通る）、`--checkers 4` は
+- **検査（4d91a00e2）**：conformance 0 regressions（13,577 全て full、482 s。既定の emit が変えた list を通る）、`--checkers 4` は
   既知の 4 件だけ、suites 0 regressions（行の変化なし。lsp 4,583/4,584：LS の change tracker も
   `preserveSourceNewlines` で印字する）、test 全通過（emitter 350・api 332・ls 214 ほか）、API client sync 356/356・
   async 365/365、clippy、fmt。
@@ -1611,8 +1611,8 @@ project の test を移して固定する。
 
 ## 実 project の LSP 差分 test：hono・zod・effect の一回目（#822）
 
-- **merge**：#822 → `d4fd421c2`（hosted run 38816901429）。commit：30d9013ff（hono）、95ce5e324（zod）、0cf991f8b（effect）、
-  696498dda（exclude の照合が lone surrogate を保つ・6.0.3 の規則を固定していた test を tsgo へ）。
+- **merge**：#822 → `a7e97dae3`（hosted run 38816901429）。commit：c68211b40（hono）、6307bcbec（zod）、28545cbe7（effect）、
+  ed424dcde（exclude の照合が lone surrogate を保つ・6.0.3 の規則を固定していた test を tsgo へ）。
 - **道具**（repository の外、`~/dev/real-projects.noindex/lsp-compare`）：`lsp-compare.py record` が project の
   `src/**/*.ts` を一つずつ開き、file ごとに diagnostic・document symbol・folding・semantic token・formatting、散らした
   識別子で hover・definition・type definition・document highlight、その一部で references、`.` の後で completion、`(` の
@@ -1663,7 +1663,7 @@ project の test を移して固定する。
   - effect の `Ordering.match` の signature help：tsgo は戻り値型で `{ onEqual, onGreaterThan, onLessThan, }` と書く。
     位置で決める `NodeList.HasTrailingComma` が clone した要素の list（位置を持つ list に合成した要素）で真になり、別の
     emit context の printer は元の list を辿って直せない。tsc-rs の list は末尾の comma を flag で持つ。
-- **検査（696498dda）**：conformance 0 regressions（13,577 全て full、492 s）、`--checkers 4` は既知の 4 件だけ（15,335 一致）、
+- **検査（ed424dcde）**：conformance 0 regressions（13,577 全て full、492 s）、`--checkers 4` は既知の 4 件だけ（15,335 一致）、
   suites 0 regressions（ratchet は変わらず。lsp 4,583/4,584、tsc 227/229 は generateTrace の 2 件）、test 全通過（types 47・
   syntax 251・binder 78・program 683・checker 1,806・emitter 350・ls 226・lsp 58・api 332・project 235・compiler 240・
   conformance 49・lsproto 31）、API client sync 356/356・async 365/365、clippy（`-D warnings`）、fmt。一回目の検査で
@@ -1671,7 +1671,7 @@ project の test を移して固定する。
   落ち、直してから全てを最後の bytes でやり直した。
 ## 実 project の LSP 差分 test：node builder の cache の寿命（#823）
 
-- **merge**：#823 → `40a6f1669`（hosted run 38825894719）。commit：24a429f29（cache の寿命）、1cacc0c28（types writer）。
+- **merge**：#823 → `c62c43acb`（hosted run 38825894719）。commit：76b8288bc（cache の寿命）、b4b74a056（types writer）。
 - **tsgo の builder**：NodeBuilder は作った node の cache（`serializedTypes`、enclosing declaration ごと）を builder が
   生きている間持つ。後の build は完全な node を数えた長さと共に再利用し、新しく作れば切り詰める所でも切らない。
   - checker 自身の builder（`getNodeBuilder`、printer.go）：`typeToString`・`symbolToString`・`signatureToString`・
@@ -1699,7 +1699,7 @@ project の test を移して固定する。
   送る）、`signature_help_items_and_return_types_keep_their_own_built_nodes`（item の後の parameter が前の parameter
   の node を再利用し、戻り値型は signature ごとに新しく作る）。どちらも変更なしでは落ち、後者は戻り値型が cache を
   共有しても落ちる。
-- **検査（1cacc0c28）**：conformance 0 regressions（13,577 全て full、types・symbols 12,874 全て full、484 s）、
+- **検査（b4b74a056）**：conformance 0 regressions（13,577 全て full、types・symbols 12,874 全て full、484 s）、
   `--checkers 4` は既知の 4 件だけ（15,335 一致）、suites 0 regressions（ratchet は変わらず：lsp 4,583/4,584、tsc
   227/229）、test 全通過（types 47・syntax 251・binder 78・program 683・checker 1,806・emitter 350・ls 228・lsp 58・
   api 332・project 235・compiler 240・conformance 49・lsproto 31）、API client sync 356/356・async 365/365、clippy
@@ -1710,7 +1710,7 @@ project の test を移して固定する。
 
 ## 実 project の LSP 差分 test：playwright-core・vue・next.js（#824）
 
-- **merge**：#824 → `b8a7ff3e5`（hosted run 38863007896。rust の job は既知の終了の race（`pushed_config_diagnostics_match_tsgo` の
+- **merge**：#824 → `65d0692e4`（hosted run 38863007896。rust の job は既知の終了の race（`pushed_config_diagnostics_match_tsgo` の
   `EXIT 0`）で一度落ち、再実行で通った）。
 - **対象**：playwright-core（`packages/playwright-core/src`、328 file）、vue（`packages/*/src`、234 file）、next.js
   （`packages/next/src`、1,457 file）。#822 と同じ生成した session（tsgo aa814927 が答え）。
@@ -1785,13 +1785,13 @@ project の test を移して固定する。
   `signature_help_return_types_print_cloned_binding_patterns_with_a_trailing_comma`・
   `signature_help_prints_a_property_s_same_line_comment`・
   `a_dynamically_imported_module_s_type_definition_goes_to_the_module`。
-- **検査（78ba62ea1、origin/main 4b2054a6a の上）**：conformance 0 regressions（13,577 全て full、types・symbols 12,874
+- **検査（57fea92cf、origin/main 3dfa47352 の上）**：conformance 0 regressions（13,577 全て full、types・symbols 12,874
   全て full、477 s）、`--checkers 4` は既知の 4 件だけ（15,335 一致）、suites 0 regressions（ratchet は変わらず）、test
   全通過（types 49・syntax 251・binder 78・program 682・checker 1,806・emitter 350・ls 232・lsp 62・api 332・project 235・
-  compiler 241・conformance 49・lsproto 31）、API client sync 356/356・async 365/365。d88ee5c9a（重複した `#[allow]` を
-  一つ消しただけ）で clippy（`-D warnings`）と fmt。27a5baad4 での一回目の全体検査は conformance の 3 件
+  compiler 241・conformance 49・lsproto 31）、API client sync 356/356・async 365/365。79bacc21d（重複した `#[allow]` を
+  一つ消しただけ）で clippy（`-D warnings`）と fmt。c4ffb0412 での一回目の全体検査は conformance の 3 件
   （`symlinkedWorkspaceDependenciesNoDirectLink*GeneratesNonrelativeName`）を落とした：harness が link の directory の
   realpath を返さず（file の alias だけ）、package directory を realpath する依存の pass が link を見失った。tsgo の
-  compiler runner の vfs と同じく link の directory も target に realpath するようにした（78ba62ea1）。
+  compiler runner の vfs と同じく link の directory も target に realpath するようにした（57fea92cf）。
 - **性能の観察**（測定は利用者と一緒に）：session 全体の時間は tsgo の 2〜5 倍（next.js 1,246 秒対 324 秒、
   TypeScript compiler 279 秒対 52 秒）。auto-import の completion は next.js で 1 回約 5 秒。

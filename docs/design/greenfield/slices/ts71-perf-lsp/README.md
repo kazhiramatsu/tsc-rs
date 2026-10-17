@@ -22,8 +22,8 @@ noEmit、d.ts、js emit でtsgoより速くなる、ピークメモリを少な�
 
 ## slice 1：references と program の読み込み（#825）
 
-- **merge**：#825 → `7d8fba5b4`（hosted run 38881695652）。commit：148584dd0（名前の表）、2b7f23ef9（projects をまたぐ検索）、
-  a2715bb6f（program の読み込み）、49cb8a1fc（planner の clippy）。
+- **merge**：#825 → `0ea502d21`（hosted run 38881695652）。commit：7b3edf580（名前の表）、4cf22627a（projects をまたぐ検索）、
+  048d99c39（program の読み込み）、24890b8b2（planner の clippy）。
 - **名前の表は file ごとに一度**：tsgo は `SourceFile.GetNameTable` を file に持つ（`nameTableOnce`）。tsc-rs は大域の
   references のたびに、検索する program の全 file（library を含む）の表を所有の文字列の `BTreeMap` で作っていた。表を
   `SourceFile` の cell（`NameTableCell`）に置き、候補の位置は memmem（Go `strings.Index`）で探す。
@@ -60,16 +60,16 @@ noEmit、d.ts、js emit でtsgoより速くなる、ピークメモリを少な�
   `../../middleware/timing`）、2 件は rest の型の property の順（以前の 5 回と tsgo だけの 2 回は tsc-rs と同じ順）。
 - **test**：program `the_planner_reads_a_cached_parse_instead_of_parsing`、host
   `a_cached_file_system_answers_entries_as_it_first_did`。
-- **検査（a2715bb6f）**：conformance 0 regressions、`--checkers 4` は既知の 4 件、suites 0 regressions（ratchet は変わらず、
+- **検査（048d99c39）**：conformance 0 regressions、`--checkers 4` は既知の 4 件、suites 0 regressions（ratchet は変わらず、
   lsp 4,583/4,584、tsc 227/229。suites は 33 s、#824 の時は 249 s）、全 crate の test、API client sync 356/356・async
-  365/365。49cb8a1fc で clippy（`-D warnings`）、fmt、program の test。
+  365/365。24890b8b2 で clippy（`-D warnings`）、fmt、program の test。
 - **残り**：project の作り直しはまだ tsgo の約 2 倍（hono の test の project 50〜80 ms 対 27〜55 ms、強制した 11 project の
   作り直し 0.35 s 対 0.026 s：cache の木の import の巡回、registry の本文の hash、直列の識別子と bind の予約）。
 
 ## slice 2：auto-import の completion（#826）
 
-- **merge**：#826 → `955b29c50`（hosted run 38890844211）。commit：ea7a51285（cache の計画）、8e411b198（alias resolver）、
-  90d6b7500（group の map）、75fd25763（clippy）。
+- **merge**：#826 → `f298be6af`（hosted run 38890844211）。commit：0489ce606（cache の計画）、0f5a3a7c8（alias resolver）、
+  1b686b3ea（group の map）、8f6a08e91（clippy）。
 - **alias resolver は解決した file だけを読む**：tsgo の `aliasResolver` は checker に entrypoint だけを渡し
   （`SourceFiles()`）、module を解決した時にその file を読んで bind する（`GetSourceFileForResolvedModule`）。tsc-rs は到達
   できる全 file の全要求を先に読んでいた（vitest の型から jsdom の JS が 1,054 file、vue の root の bucket を作るたびに
@@ -109,9 +109,9 @@ noEmit、d.ts、js emit でtsgoより速くなる、ピークメモリを少な�
 - **test**：lsp `auto_imports_follow_a_chain_of_re_exports`（`export *` 二段と `export { deepValue } from "dep"`：tsgo の
   候補。import だけの file は読まない）。これと #824 の `auto_imports_resolve_a_package_s_javascript_re_export` は、抽出を
   一つの checker で止めると落ちる。
-- **検査（d156958b2、origin/main c4b20f75c と merge 済み）**：conformance 0 regressions、`--checkers 4` は既知の 4 件、suites
+- **検査（53d72e28a、origin/main 18a35e729 と merge 済み）**：conformance 0 regressions、`--checkers 4` は既知の 4 件、suites
   0 regressions（ratchet は変わらず、lsp 4,583/4,584、tsc 227/229）、全 crate の test（lsp 63）、API client sync 356/356・
-  async 365/365。75fd25763 で clippy（`-D warnings`）、fmt、ls・lsp の test。
+  async 365/365。8f6a08e91 で clippy（`-D warnings`）、fmt、ls・lsp の test。
 - **残り**：package の bucket の最初の作成はまだ tsgo の約 2.5 倍（vue の package で最初の completion 0.15 s 対 0.06 s）：
   読んだ file の要求を全部先に解決し（tsgo は checker が求めた時）、段ごとに checker を作り直す。
 

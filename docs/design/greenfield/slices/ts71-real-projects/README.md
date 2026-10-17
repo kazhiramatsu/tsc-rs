@@ -96,7 +96,7 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 
 ### 修正 1：auto-import の group の順（PR #827、2026-10-16、Fable 5.1）
 
-- **merge**：#827 → `ae6f234f3`（hosted run 38911087732）。commit：9f3052b43（共有 file の specifier を先に埋める）、85292efd1（package の export は entrypoint の順）。
+- **merge**：#827 → `0ca4b8aec`（hosted run 38911087732）。commit：c07baee0f（共有 file の specifier を先に埋める）、85292efd1（package の export は entrypoint の順）。
 - **tsgo の順の性質**：Go の map の走査は、要素が少ない map（package の数 file）では挿入順にほぼ従う（2 要素なら 7/8 が
   挿入順）。要素が多い map（group の数千、project の file の数百）では hash 次第で、run ごとにほぼ一様な乱数。したがって
   tsc-rs の決まった順は、小さい map では tsgo の挿入順、大きい map では「tsgo の最も出やすい結果」を狙う。
@@ -133,7 +133,7 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 
   playwright の 50 件は、5 つの label の組み合わせが run ごとに違うので答え全体では C になるが、label ごとには tsc-rs の
   答えは tsgo のどれかの run の答え（`lint` は 7 file のうち tsc-rs は `yaml-lint`。4 run では css・json）。
-- **検査**：8934a33aa（origin/main 41316289c の上）で release binary を作り直し、`nice -n 20`・worker 2：conformance 0 regressions、`--checkers 4` は既知の 4 件（15,335 一致）、suites 0 regressions（ratchet は変わらず、lsp 4,583/4,584、tsc 227/229）、全 crate の test（types 49・syntax 251・binder 78・program 683・checker 1,806・emitter 350・ls 232・lsp 67・api 332・project 235・compiler 241・conformance 49・lsproto 31）、clippy（ls・lsp、`-D warnings`）、fmt、API client sync 356/356・async 365/365。
+- **検査**：13482a6db（origin/main 84d5ec7fa の上）で release binary を作り直し、`nice -n 20`・worker 2：conformance 0 regressions、`--checkers 4` は既知の 4 件（15,335 一致）、suites 0 regressions（ratchet は変わらず、lsp 4,583/4,584、tsc 227/229）、全 crate の test（types 49・syntax 251・binder 78・program 683・checker 1,806・emitter 350・ls 232・lsp 67・api 332・project 235・compiler 241・conformance 49・lsproto 31）、clippy（ls・lsp、`-D warnings`）、fmt、API client sync 356/356・async 365/365。
 - **道具**（`~/dev/real-projects.noindex/lsp-compare`）：`stability.py OUT [tsgo の jsonl…]`（A/B/C）、`show.py OUT KEY`
   （項目の違い）、`items.py SERVER ROOT FILE LINE CHAR [label の接頭辞…]`（一つの server の auto-import の項目）、
   `replay.py SERVER ROOT GLOB KEY`（session の file の接頭辞を再生して、答えが変わる最短の接頭辞を二分探索。
@@ -192,10 +192,10 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 
 ### 修正 2：frontend project の compiler・emitter の差分（PR #828、2026-10-17、Fable 5.1）
 
-- **merge**：#828 → `39d8a0121`（hosted run 38956397408）。commit：54cec86a5（emit：書き換えた specifier の引用符、line comment の
-  次の export specifier）、95153f130（check：`@overload` の型引数、`this` property の文脈型、`T & object` と array の
-  comparable、TS2694 の module 名）、73a8c2a73（program：未 build の参照先出力に redirect される root、package scope の順）、
-  1ce172122（check：overload の template の型引数は symbol 一つのまま、comment の table に置く）。
+- **merge**：#828 → `8c6468703`（hosted run 38956397408）。commit：fcb612110（emit：書き換えた specifier の引用符、line comment の
+  次の export specifier）、1ef5d7d6e（check：`@overload` の型引数、`this` property の文脈型、`T & object` と array の
+  comparable、TS2694 の module 名）、058a275d7（program：未 build の参照先出力に redirect される root、package scope の順）、
+  a65f19659（check：overload の template の型引数は symbol 一つのまま、comment の table に置く）。
 - **比べたもの**（tsgo aa814927、`nice -n 20`。`frontend/compare-all.sh <label> both`：各 tsconfig の `-p --noEmit` の診断と、
   outDir を分けた emit の tree）：astro 30・remix 100・nuxt 4・solid 17・svelte 6 の 157 tsconfig。前（base1）：診断の違い
   5（astro 1・svelte 4）、emit の違い 76（remix 99・astro 2・svelte 3 → remix は引用符だけで 863 file）。後（base3）：
@@ -238,12 +238,12 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 - **本家の test 形式**：同じ 5 件を tsgo の test 形式で書き、tsgo の出力を記録した（`target/claude-tools/handover/upstream-tests/`）。
   利用者が「test case の不足」の issue と PR を本家に出す（`upstream-tests-pr.md`）。conformance の corpus にはどれも無い
   形（`rewriteRelativeImportExtensions` の test は全部 double quote、`@overload` の test は実装側にも同じ `@template`、…）。
-- **検査**：1ce172122（origin/main cf8fb7444 の上）で release binary を作り直し、`taskpolicy -c maintenance nice -n 20`・
+- **検査**：a65f19659（origin/main 7a5e280ff の上）で release binary を作り直し、`taskpolicy -c maintenance nice -n 20`・
   worker 1（利用者の就寝中）：conformance 0 regressions（13,577 full、emit 13,569 full・mismatch 0、5,083 s）、
   `--checkers 4` は既知の 4 件（15,335 一致）、suites 0 regressions（ratchet 変わらず）、全 crate の test（types 49・syntax 251・
   binder 78・program 684・checker 1,811・emitter 352・ls 232・lsp 67・api 332・project 235・compiler 241・conformance 49・
-  lsproto 31）、fmt。clippy は hosted の `rust` job。73a8c2a73 での最初の full run は overload の修正の第 1 版で 4 件
-  regress（`.types`・d.ts の `T_1` 改名）、1ce172122 で解消。関連する既存の conformance case 23 件（`jsFileFunctionOverloads*`・`jsFileMethodOverloads*`・`jsDocGenericOverloads`・`overloadTag1-3`・
+  lsproto 31）、fmt。clippy は hosted の `rust` job。058a275d7 での最初の full run は overload の修正の第 1 版で 4 件
+  regress（`.types`・d.ts の `T_1` 改名）、a65f19659 で解消。関連する既存の conformance case 23 件（`jsFileFunctionOverloads*`・`jsFileMethodOverloads*`・`jsDocGenericOverloads`・`overloadTag1-3`・
   `templateInsideCallback`・`jsdocVariadicInOverload`・`jsdocTemplateTag*`・`jsdocImportTypeNodeNamespace`・
   `annotatedThisPropertyInitializerDoesntNarrow`・`rewriteRelativeImportExtensions*`）は個別に full。
 - **道具**：`~/dev/real-projects.noindex/emit-compare.py`（outDir を分けて両方で emit し tree を比べる。違う tree は
@@ -255,11 +255,11 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 
 ### 修正 3：svelte・SolidJS の LSP session の差分（PR #829、2026-10-17、Fable 5.1）
 
-- **merge**：#829 → `454fc3e82`（hosted run 38984723179）。commit：d8ceea5c0・275a756b9（checker・ls の 12 種類）、73b597c78（述語の
-  開き名、cast の symbol、`@deprecated:`）、ab72524d6・f89031775（symbol walker の reparse 後の子、lsp test harness の `send_and_close`）。
+- **merge**：#829 → `22b7f8413`（hosted run 38984723179）。commit：3b4827895・41aaf229c（checker・ls の 12 種類）、759a7e8fe（述語の
+  開き名、cast の symbol、`@deprecated:`）、2dfb3d32b・ed5624d75（symbol walker の reparse 後の子、lsp test harness の `send_and_close`）。
 - **比べたもの**：svelte 40bb084 `packages/svelte/src/**/*.js`（368 file、`lsp-compare/run.sh svelte … 40`、
   `TSRS_WORKERS=1 TSRS_CHECKERS=1`、`nice -n 20`）。recorder は `.js` を `languageId: javascript` で開くよう直した
-  （前の run は両 server とも TS として開いていた）。前：61,659 request のうち 387 が違う。後：50（f89031775。completion 48 = 下の class B、hover 1、definition 1）。solid（23 file、3,824 request）：前 1 → 後 0。
+  （前の run は両 server とも TS として開いていた）。前：61,659 request のうち 387 が違う。後：50（ed5624d75。completion 48 = 下の class B、hover 1、definition 1）。solid（23 file、3,824 request）：前 1 → 後 0。
 - **種類と直し方**（どれも tsgo の経路に合わせて既存の code を変えた）：
   1. **documentSymbol 286**：`@import` の binding と inline `@typedef` の type literal の member は、tsgo の reparse が
      host の前に置く statement の symbol として、typedef 自身と host より前に出る（`symbols.rs`）。
@@ -341,10 +341,10 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
   `a_plain_jsdoc_predicate_does_not_name_its_parameter`；checker `a_jsdoc_type_cast_is_opaque_to_narrowing`。
   lsp の fixture harness は `send` の直後の `close` を 1 つの lock で行う（`Session::send_and_close`）：hosted で `exit` 通知と入力終端の
   race（tsgo の `Run` も read loop の io.EOF と dispatch loop の cancel の早い方）に負けて `EXIT 1` になった。server は変えていない。
-- **検査**：73b597c78 で `scripts/conformance_ts71.py --workers 2 --check` exit 0（12,829 case、lane A 13,577/13,577 full、mismatch 0、
+- **検査**：759a7e8fe で `scripts/conformance_ts71.py --workers 2 --check` exit 0（12,829 case、lane A 13,577/13,577 full、mismatch 0、
   ratchet 0 regressions）、`--checkers 4` + `conformance_ts71_compare.py`：15,335 一致・4 違い（既知の partition 依存 4 件）；
-  f89031775（その後の commit は crates/ls・crates/lsp・test のみ）で `scripts/suites_ts71.py --update` → `--check` exit 0（5,315 baseline、
-  0 regressions、ratchet 不変）、lsp server 38/38（exit の 2 test は 25 回連続 pass）、ls 240/240；他 crate は 73b597c78 で全 pass；fmt clean。
+  ed5624d75（その後の commit は crates/ls・crates/lsp・test のみ）で `scripts/suites_ts71.py --update` → `--check` exit 0（5,315 baseline、
+  0 regressions、ratchet 不変）、lsp server 38/38（exit の 2 test は 25 回連続 pass）、ls 240/240；他 crate は 759a7e8fe で全 pass；fmt clean。
   hosted gates（rust・conformance・plan）pass。
 - **道具**：`lsp-compare/summarize.py OUT [per] [maxdiffs]`、`lsp-compare.py language_id()`、repro
   `lsp-compare/repro/{svelte-ls*,hl-order,sem-tokens,ls-tests,spec-ending,imports-alias,dts-pair,svelte-transition,value-default,equals-alias,iterator-global,js-fallback,render-sig,tostring-refs,pred-hl,deprecated-colon,cast-symbols*,ambient-self,inferred-ata}`、
@@ -354,7 +354,7 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 ## 3. 性能の slice 3（local のみ、未 push）
 
 - **worktree と branch**：`/Users/hiramatsu/dev/tsc-rs-p34` の `perf/ts71-lsp-request-threads`、HEAD は `b121051dd`
-  （origin/main `630f0cb24` を merge 済み）。commit：
+  （origin/main `d51b8a347` を merge 済み）。commit：
   - c7e141653 lsp: requests run on kept threads（`crates/lsp/src/request_threads.rs`、test は
     `crates/lsp/tests/request_threads.rs`）
   - 86b7efdd8 checker: accessible symbol chains are cached（tsgo `accessibleChainCache`）
@@ -399,7 +399,7 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
   - exit status を本当に見る。
   - PR の流れに従い、merge は merge commit だけ。
 - conformance が見られない修正は Rust の回帰 test にする（2026-10-13 の利用者の指示）。
-- commit は `git -c user.name=kazhiramatsu -c user.email=kazutakehiramatsu@gmail.com commit`（trailer なし）。merge commit も
+- commit は repo の設定の identity で（`git commit`。`-c user.email=` で上書きしない。trailer なし）。merge commit も
   `--amend --no-edit --reset-author` で同じ author にする。gh は `-R kazhiramatsu/tsc-rs`。
 - tsgo は `target/typescript7/bin/tsc-aa814927`（本家 microsoft/TypeScript `aa8149273`）。source は
   `target/typescript7/upstream/tsc/internal`。repository は名前で呼ぶ（「上流」は tsc-rs の main と読まれた。「本家」と書く）。

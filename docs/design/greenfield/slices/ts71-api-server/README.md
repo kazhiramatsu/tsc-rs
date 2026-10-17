@@ -1828,6 +1828,6 @@ token を `emitToken` で書く。その差の出る所を tsgo に合わせた�
 
 ### P5-5b の完了（2026-10-16）
 
-- P5-5b（`printNode` の `preserveSourceNewlines`）は LSP の作業で完了した：#821 → `77f1e192b`。記録は
+- P5-5b（`printNode` の `preserveSourceNewlines`）は LSP の作業で完了した：#821 → `df8e03129`。記録は
   [LSP packet](../ts71-lsp/README.md) の P5-5b の節。L9（LS の handler 6、`formatNodeForInsertion`）と合わせて P5 は全て
   終わった。
