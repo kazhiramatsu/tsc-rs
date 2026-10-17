@@ -192,8 +192,13 @@ impl Request<'_, '_> {
             // (reparseUnhosted); the parts of those statements that are not
             // reparsed nodes themselves — an inline type literal's members,
             // an import's bindings — get symbols of their own there, before
-            // the tags' symbols and the host's.
-            for &comment in &comments {
+            // the tags' symbols and the host's. Only a JavaScript file is
+            // reparsed: in a TypeScript file an `@import`'s bindings are no
+            // symbols (astro's `vite-plugin-config-alias/index.ts`, whose
+            // comment text "CSS @import statements" parses as a tag), while
+            // the typedef and callback tags below are (tsgo's navigation
+            // bar adds them from any file's JSDoc).
+            for &comment in comments.iter().filter(|_| source.is_source_file_js()) {
                 let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
                     continue;
                 };

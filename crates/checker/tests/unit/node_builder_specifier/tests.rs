@@ -214,6 +214,7 @@ fn process_ending_honors_js_minimal_and_index_preferences() {
     assert_eq!(
         process_ending(
             "./pkg/index.ts",
+            Some("./pkg/index.ts".into()),
             &[ModuleSpecifierEnding::Minimal],
             &options,
             Some(&host),
@@ -226,6 +227,7 @@ fn process_ending_honors_js_minimal_and_index_preferences() {
     assert_eq!(
         process_ending(
             "./pkg/index.ts",
+            Some("./pkg/index.ts".into()),
             &[ModuleSpecifierEnding::Minimal],
             &options,
             Some(&host),
@@ -237,6 +239,7 @@ fn process_ending_honors_js_minimal_and_index_preferences() {
     assert_eq!(
         process_ending(
             "./pkg/index.ts",
+            None,
             &[ModuleSpecifierEnding::Index],
             &options,
             None,
@@ -248,6 +251,7 @@ fn process_ending_honors_js_minimal_and_index_preferences() {
     assert_eq!(
         process_ending(
             "./value.ts",
+            None,
             &[ModuleSpecifierEnding::JsExtension],
             &options,
             None,
@@ -553,6 +557,7 @@ fn paths_patterns_resolve_against_the_base_directory() {
                      case_sensitive: bool| {
         try_get_module_name_from_paths(
             relative_to_base_url,
+            None,
             mappings,
             &[ModuleSpecifierEnding::Minimal],
             base_directory,

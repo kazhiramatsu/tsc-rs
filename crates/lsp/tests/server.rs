@@ -1743,6 +1743,263 @@ fn auto_imports_name_a_file_through_a_dependency_s_symlink() {
     session.close();
 }
 
+/// A program that reads the sources of its referenced projects (the
+/// language server's) loads a referenced project's source in place of the
+/// output declaration file a resolution reaches through the package's
+/// exports. tsgo's redirected parse task carries no package id, so the
+/// source does not register the package for the collect walk's package
+/// deduplication, and a later output of the same package is still walked
+/// (its redirect recorded); a resolution to an output also finds the source
+/// by the static redirect (`getSourceFileWithRedirect`). Here `y-error`
+/// comes first and imports `./y.js`, so `y.ts` is collected before the
+/// `dist/y.d.ts` redirect: the program failed to build ("resolved
+/// non-JavaScript target … has no independent program membership") and
+/// every request answered "no project found" (astro's
+/// `packages/astro/src` through `@astrojs/internal-helpers`; tsgo
+/// aa814927 answers the hover).
+#[test]
+fn a_referenced_project_s_output_resolves_to_its_source_after_another_output_of_the_package() {
+    const M: &str = "export { isParsed } from \"@x/b/y-error\";\nimport type { Parsed } from \"@x/b/y\";\nexport const n: Parsed = { value: 1 };\n";
+    let fs = Arc::new(
+        MemFs::from_entries(
+            [
+                (
+                    "/ws/configs/tsconfig.base.json",
+                    Seed::file(
+                        r#"{"compilerOptions": {"composite": true, "declaration": true, "emitDeclarationOnly": true, "strict": true, "allowJs": true, "noLib": true, "module": "nodenext", "moduleResolution": "nodenext", "target": "esnext", "types": [], "outDir": "${configDir}/node_modules/.cache/out"}}"#,
+                    ),
+                ),
+                (
+                    "/ws/configs/tsconfig.build.json",
+                    Seed::file(
+                        r#"{"extends": "./tsconfig.base.json", "compilerOptions": {"rootDir": "${configDir}/src", "outDir": "${configDir}/dist"}, "include": ["${configDir}/src"]}"#,
+                    ),
+                ),
+                (
+                    "/ws/a/tsconfig.json",
+                    Seed::file(
+                        r#"{"extends": "../configs/tsconfig.base.json", "files": ["./bin.mjs"], "references": [{"path": "./tsconfig.build.json"}]}"#,
+                    ),
+                ),
+                (
+                    "/ws/a/tsconfig.build.json",
+                    Seed::file(
+                        r#"{"extends": "../configs/tsconfig.build.json", "references": [{"path": "../b/tsconfig.json"}]}"#,
+                    ),
+                ),
+                ("/ws/a/bin.mjs", Seed::file("export const bin = 1;\n")),
+                ("/ws/a/src/m.ts", Seed::file(M)),
+                (
+                    "/ws/b/tsconfig.json",
+                    Seed::file(
+                        r#"{"extends": "../configs/tsconfig.base.json", "files": [], "references": [{"path": "./tsconfig.build.json"}]}"#,
+                    ),
+                ),
+                (
+                    "/ws/b/tsconfig.build.json",
+                    Seed::file(r#"{"extends": "../configs/tsconfig.build.json"}"#),
+                ),
+                (
+                    "/ws/b/package.json",
+                    Seed::file(
+                        r#"{"name": "@x/b", "version": "1.0.0", "type": "module", "exports": {"./y": "./dist/y.js", "./y-error": "./dist/y-error.js"}}"#,
+                    ),
+                ),
+                (
+                    "/ws/b/src/y.ts",
+                    Seed::file("export interface Parsed { value: number }\nexport function parse(text: string): Parsed { return { value: Number(text) }; }\n"),
+                ),
+                (
+                    "/ws/b/src/y-error.ts",
+                    Seed::file("import type { Parsed } from \"./y.js\";\nexport function isParsed(x: unknown): x is Parsed { return typeof x === \"object\" && x !== null; }\n"),
+                ),
+                ("/ws/a/node_modules/@x/b", Seed::symlink("/ws/b")),
+            ],
+            false,
+            Arc::new(SystemClock),
+        )
+        .unwrap(),
+    );
+    let mut session = Session::start_with(fs);
+    let mut client = RegistrationClient::default();
+    client.initialize(&mut session, serde_json::json!({}));
+    let m = "file:///ws/a/src/m.ts";
+    client.notify(
+        &mut session,
+        "textDocument/didOpen",
+        serde_json::json!({"textDocument": {"uri": m, "languageId": "typescript", "version": 1, "text": M}}),
+    );
+    let response = client.request(
+        &mut session,
+        2,
+        "textDocument/hover",
+        serde_json::json!({"textDocument": {"uri": m}, "position": {"line": 2, "character": 13}}),
+    );
+    assert_eq!(
+        response["result"]["contents"]["value"].as_str(),
+        Some("const n: Parsed"),
+        "{response}"
+    );
+    session.close();
+}
+
+/// A module augmented twice (`vue` by vue-router's declaration file, then by
+/// the project's `declare module 'vue'`) is a transient merged symbol the
+/// second augmentation merges into in place; the exports resolved while
+/// merging the export-star targets must not stay cached, or an import of the
+/// re-exported interface finds the unmerged export-star target. tsgo's
+/// definitions of `ComponentInternalInstance` imported from 'vue' are the
+/// interface and the project's augmentation (aa814927; nuxt's
+/// `server-prefetch.ts`, where tsc-rs gave the interface only and found
+/// references in that file only).
+#[test]
+fn an_import_s_definitions_include_an_augmentation_merged_after_another() {
+    const USE: &str = "import type { ComponentInternalInstance } from 'vue';\nexport const s: ComponentInternalInstance | null = null;\n";
+    let fs = Arc::new(
+        MemFs::from_entries(
+            [
+                (
+                    "/ws/tsconfig.json",
+                    Seed::file(r#"{"compilerOptions": {"strict": true, "module": "esnext", "moduleResolution": "bundler", "target": "es2022", "noLib": true, "types": []}, "include": ["src"]}"#),
+                ),
+                ("/ws/node_modules/vue/package.json", Seed::file(r#"{"name": "vue", "version": "3.5.0", "types": "./index.d.ts"}"#)),
+                ("/ws/node_modules/vue/index.d.ts", Seed::file("export * from './dom';\nexport declare const version: string;\n")),
+                ("/ws/node_modules/vue/dom.d.ts", Seed::file("export * from './core';\nexport declare function render(): void;\n")),
+                ("/ws/node_modules/vue/core.d.ts", Seed::file("export interface ComponentInternalInstance {\n  uid: number;\n}\nexport declare function getCurrentInstance(): ComponentInternalInstance | null;\n")),
+                ("/ws/node_modules/vue-router/package.json", Seed::file(r#"{"name": "vue-router", "version": "4.0.0", "types": "./index.d.ts"}"#)),
+                ("/ws/node_modules/vue-router/index.d.ts", Seed::file("export declare function useRouter(): number;\ndeclare module 'vue' {\n  interface ComponentCustomProperties {\n    $router: number;\n  }\n}\n")),
+                ("/ws/src/a-router.ts", Seed::file("import { useRouter } from 'vue-router';\nexport const r = useRouter();\n")),
+                ("/ws/src/use.ts", Seed::file(USE)),
+                ("/ws/src/z-augments.ts", Seed::file("declare module 'vue' {\n  interface ComponentInternalInstance {\n    _nuxt: number;\n  }\n}\nexport {};\n")),
+            ],
+            false,
+            Arc::new(SystemClock),
+        )
+        .unwrap(),
+    );
+    let mut session = Session::start_with(fs);
+    let mut client = RegistrationClient::default();
+    client.initialize(&mut session, serde_json::json!({}));
+    let use_uri = "file:///ws/src/use.ts";
+    client.notify(
+        &mut session,
+        "textDocument/didOpen",
+        serde_json::json!({"textDocument": {"uri": use_uri, "languageId": "typescript", "version": 1, "text": USE}}),
+    );
+    let response = client.request(
+        &mut session,
+        2,
+        "textDocument/definition",
+        serde_json::json!({"textDocument": {"uri": use_uri}, "position": {"line": 0, "character": 14}}),
+    );
+    let targets = response["result"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{response}"))
+        .iter()
+        .map(|location| {
+            let uri = location["uri"]
+                .as_str()
+                .or(location["targetUri"].as_str())
+                .expect("a uri");
+            let range = if location.get("range").is_some() {
+                &location["range"]
+            } else {
+                &location["targetRange"]
+            };
+            (
+                uri.rsplit('/').next().expect("a name").to_owned(),
+                range["start"]["line"].as_u64().expect("a line"),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        targets,
+        [("core.d.ts".to_owned(), 0), ("z-augments.ts".to_owned(), 1)]
+    );
+    session.close();
+}
+
+/// tsgo reparses JSDoc in JavaScript files only: in a TypeScript file an
+/// `@import` tag's bindings are no document symbols (astro's
+/// `vite-plugin-config-alias/index.ts`, whose comment text "CSS @import
+/// statements" parses as an import tag of `statements`), while `@typedef`
+/// and `@callback` tags are symbols of any file (tsgo aa814927).
+#[test]
+fn document_symbols_of_a_typescript_file_skip_jsdoc_import_bindings() {
+    let text = "/**\n * Regex matching CSS @import statements with the specifier in capture group 1.\n */\nexport const cssImportRE = /x/g;\n/**\n * @typedef {object} Opts\n * @property {number} size\n */\n/** @callback Cb */\nexport const b = 2;\n/** @import { Foo } from \"./foo\" */\nexport const c = 3;\n";
+    let response = request_in_javascript_project(
+        &[
+            ("/home/projects/ws/a.ts", text),
+            ("/home/projects/ws/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+        ],
+        "file:///home/projects/ws/a.ts",
+        "textDocument/documentSymbol",
+        serde_json::json!({"textDocument": {"uri": "file:///home/projects/ws/a.ts"}}),
+    );
+    let names = response["result"]
+        .as_array()
+        .expect("symbols")
+        .iter()
+        .map(|symbol| {
+            format!(
+                "{} k{}",
+                symbol["name"].as_str().expect("a name"),
+                symbol["kind"]
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        names,
+        ["cssImportRE k13", "Opts k5", "Cb k5", "b k13", "c k13"]
+    );
+}
+
+/// An auto-import's relative specifier drops a trailing `/index` unless a
+/// file named like the directory lies next to the module file — tsgo checks
+/// the module file's own directory. The specifier's spelling resolved
+/// against the host's current directory instead, so a root-level
+/// `internal.d.ts` in the program kept `./internal/index` for
+/// `src/internal/index.ts`, and the declaring file's `./internal/renderer`
+/// then tied with it (nuxt's `packages/kit/src/constants.ts`; tsgo aa814927
+/// offers `./internal` once per name).
+#[test]
+fn an_index_specifier_is_kept_only_for_a_sibling_named_like_its_directory() {
+    const TEXT: &str = "export const DEFAULT_JS_FILE_EXTENSIONS: string[] = ['.mjs', SERV]\n";
+    let items = auto_import_items_in(
+        "file:///ws/src/constants.ts",
+        vec![
+            (
+                "/ws/tsconfig.json",
+                Seed::file(r#"{"compilerOptions": {"strict": true, "module": "preserve", "allowImportingTsExtensions": true, "noLib": true, "types": []}, "include": ["src", "internal.d.ts"]}"#),
+            ),
+            ("/ws/internal.d.ts", Seed::file("export declare const sentinel: number;\n")),
+            (
+                "/ws/src/internal/renderer.ts",
+                Seed::file("export const SERVER_RUNTIME_VERSION = 1\nexport function getServerRuntime(): number { return SERVER_RUNTIME_VERSION }\n"),
+            ),
+            (
+                "/ws/src/internal/index.ts",
+                Seed::file("export { SERVER_RUNTIME_VERSION, getServerRuntime } from './renderer'\n"),
+            ),
+            ("/ws/src/constants.ts", Seed::file(TEXT)),
+        ],
+        TEXT,
+        (0, 64),
+    );
+    let specifiers = items
+        .iter()
+        .filter(|(label, ..)| label == "SERVER_RUNTIME_VERSION" || label == "getServerRuntime")
+        .map(|(label, _, specifier, ..)| (label.as_str(), specifier.as_str()))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        specifiers,
+        [
+            ("SERVER_RUNTIME_VERSION", "./internal"),
+            ("getServerRuntime", "./internal")
+        ]
+    );
+}
+
 /// The auto-import items of `text` at `(line, character)` in a session over
 /// `entries` (with `/ws/index.ts` holding `text`): label, kind, specifier,
 /// import kind and tags.

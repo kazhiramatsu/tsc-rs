@@ -1221,7 +1221,16 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 }
-                self.merge_symbol(main_module, augmentation_symbol, false);
+                let merged = self.merge_symbol(main_module, augmentation_symbol, false);
+                // A module already augmented is transient and merged into in
+                // place: the exports resolved above (for the export-star
+                // targets) no longer hold what this augmentation added, and
+                // an import would find the unmerged export-star target (nuxt:
+                // `ComponentInternalInstance` from 'vue' after vue-router's
+                // augmentation of 'vue' merged first — its definitions and
+                // references lacked `augments.ts`). tsgo resolves the module's
+                // exports only after every augmentation merged.
+                self.links.clear_symbol_module_exports(merged);
             }
         } else {
             self.error_at_js(

@@ -340,6 +340,7 @@ pub(crate) struct SyntacticRecoveryBoundary {
     previous_recovery_tracked_symbols: Option<Vec<RecoveryTrackedSymbol>>,
     previous_tracked_symbols: Option<Vec<TrackedSymbol>>,
     previous_approximate_length: u32,
+    previous_encountered_error: bool,
 }
 
 impl SyntacticRecoveryBoundary {
@@ -359,6 +360,7 @@ impl SyntacticRecoveryBoundary {
             previous_recovery_tracked_symbols,
             previous_tracked_symbols,
             previous_approximate_length: context.approximate_length,
+            previous_encountered_error: context.encountered_error,
         }
     }
 
@@ -419,9 +421,14 @@ impl SyntacticRecoveryBoundary {
         context.tracked_symbols = self.previous_tracked_symbols;
         context.recovery_boundary_had_error = self.previous_had_error;
         context.recovery_boundary_depth = self.previous_depth;
-        // tsgo `finalizeBoundary`: the length the attempt added is dropped;
-        // a reused node counts as its source text.
+        // tsgo `finalizeBoundary`: the length the attempt added is dropped
+        // (a reused node counts as its source text), and so is an error the
+        // attempt met — a failed reuse falls back to a fresh serialization,
+        // which must still produce a node (an `import()` whose module is
+        // only reachable through `node_modules` is re-serialized without the
+        // import; remix's hover over a redis client panicked instead).
         context.approximate_length = self.previous_approximate_length;
+        context.encountered_error = self.previous_encountered_error;
         if succeeded {
             for (symbol, symbol_flags, enclosing, synthetic, meaning) in buffered {
                 context.tracker.track_symbol(
