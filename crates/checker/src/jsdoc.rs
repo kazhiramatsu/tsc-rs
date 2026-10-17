@@ -75,6 +75,15 @@ impl<'a> CheckerState<'a> {
         self.hosted_jsdoc(function).this_tag_of(function)
     }
 
+    /// The type of a JavaScript function's reparsed `this` parameter: its
+    /// `@this` tag's type (the parameter has none when the tag has none).
+    pub(crate) fn reparsed_this_type_node(&self, function: NodeId) -> Option<NodeId> {
+        match self.data_of(self.reparsed_this_tag(function)?) {
+            NodeData::JSDocThisTag(data) => self.jsdoc_type_expression_type(data.type_expression),
+            _ => None,
+        }
+    }
+
     /// The modifier tags reparsed into modifiers of a JavaScript member,
     /// constructor or binary expression.
     pub(crate) fn reparsed_modifier_tags(&self, node: NodeId) -> &'a [NodeId] {

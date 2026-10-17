@@ -1985,3 +1985,41 @@ fn an_alias_to_two_overload_declarations_shows_the_first_one_s_overload_tag() {
         assert_eq!(range, ((position.0, 9), (position.0, 26)));
     }
 }
+
+/// A JavaScript method's `@returns {X[T]}` reused in a call's hover carries
+/// the call's type arguments: tsgo re-serializes the written node with its
+/// mapper, so `f.mapped("a")` shows `Mapped["a"]`, `Indexed["a"]`,
+/// `Mapped["a"] | null` (tsgo aa814927; the JSDoc corpus case w2-generic and
+/// webpack's implicitTypeLoaderFallback.js printed `Mapped[T]`).
+#[test]
+fn a_javascript_returns_index_access_is_instantiated_in_a_call_s_hover() {
+    let files = [("/a.js", "/** @typedef {{ [K in string]: K extends \"a\" ? number : string }} Mapped */\n/** @typedef {{ [k: string]: number }} Indexed */\nclass F {\n\t/**\n\t * @template {string} T\n\t * @param {T} type type\n\t * @returns {Mapped[T] | null} value\n\t */\n\torNull(type) { return /** @type {any} */ (null); }\n\t/**\n\t * @template {string} T\n\t * @param {T} type type\n\t * @returns {Indexed[T]} value\n\t */\n\tindexed(type) { return /** @type {any} */ (null); }\n\t/**\n\t * @template {string} T\n\t * @param {T} type type\n\t * @returns {Mapped[T]} value\n\t */\n\tmapped(type) { return /** @type {any} */ (null); }\n}\nconst f = new F();\nconst a = f.orNull(\"a\");\nconst b = f.indexed(\"a\");\nconst c = f.mapped(\"a\");\nmodule.exports = { a, b, c };\n")];
+    let javascript = || {
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        })
+    };
+    for (position, head, end) in [
+        (
+            (23, 12),
+            "(method) F.orNull<\"a\">(type: \"a\"): Mapped[\"a\"] | null",
+            18,
+        ),
+        (
+            (24, 12),
+            "(method) F.indexed<\"a\">(type: \"a\"): Indexed[\"a\"]",
+            19,
+        ),
+        (
+            (25, 12),
+            "(method) F.mapped<\"a\">(type: \"a\"): Mapped[\"a\"]",
+            18,
+        ),
+    ] {
+        let (text, range, _) =
+            hover(&files, javascript(), "/a.js", position, None).expect("a hover");
+        assert_eq!(text, format!("```typescript\n{head}\n```\n\n\n*@template* `T`\n\n*@param* `type` — type\n\n*@returns* — value"), "at {position:?}");
+        assert_eq!(range, ((position.0, 12), (position.0, end)));
+    }
+}
