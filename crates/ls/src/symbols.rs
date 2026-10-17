@@ -178,6 +178,72 @@ impl Request<'_, '_> {
         }
     }
 
+    /// Whether a node is an element of a source file's or a block's
+    /// statement list — where tsgo's parser keeps the declarations its
+    /// reparser makes of JSDoc tags (parseListIndex).
+    fn is_statement_list_element(&self, node: NodeId) -> bool {
+        self.state
+            .binder
+            .node_record(node)
+            .parent
+            .is_some_and(|parent| {
+                matches!(
+                    self.node_kind(parent),
+                    SyntaxKind::SourceFile | SyntaxKind::Block | SyntaxKind::ModuleBlock
+                )
+            })
+    }
+
+    /// The JSDoc hosts in a statement's subtree outside nested blocks, in
+    /// the order their nodes finish parsing (children before their parent):
+    /// the order tsgo's parser propagates their reparsed declarations out
+    /// to the statement's list.
+    fn hoisted_jsdoc_hosts(&self, node: NodeId, hosts: &mut Vec<NodeId>) {
+        let source = self.state.binder.source_of_node(node);
+        let mut children = Vec::new();
+        tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+            children.push(child);
+            false
+        });
+        for child in children {
+            if !matches!(
+                self.node_kind(child),
+                SyntaxKind::Block | SyntaxKind::ModuleBlock
+            ) {
+                self.hoisted_jsdoc_hosts(child, hosts);
+            }
+            if self.state.binder.node_record(child).js_doc.is_some() {
+                hosts.push(child);
+            }
+        }
+    }
+
+    /// The symbols of what tsgo's reparser makes of a comment's typedef,
+    /// callback and import tags, in tag order.
+    fn visit_reparsed_jsdoc_children(&mut self, state: &mut DocumentSymbols, comment: NodeId) {
+        let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
+            return;
+        };
+        for tag in self.node_list(data.tags) {
+            let reparsed = match &self.state.binder.node_record(tag).data {
+                NodeData::JSDocTypedefTag(typedef) => {
+                    typedef.type_expression.and_then(|expression| {
+                        match &self.state.binder.node_record(expression).data {
+                            NodeData::JSDocTypeExpression(expression) => expression.r#type,
+                            _ => None,
+                        }
+                    })
+                }
+                NodeData::JSDocCallbackTag(callback) => callback.type_expression,
+                NodeData::JSDocImportTag(import) => import.import_clause,
+                _ => None,
+            };
+            if let Some(reparsed) = reparsed {
+                self.visit_document_symbol(state, reparsed);
+            }
+        }
+    }
+
     /// tsgo `getDocumentSymbolsForChildren`'s `visit`: the symbols of a
     /// declaration (with its body's or initializer's as its children), of a
     /// JSDoc typedef or callback, or of an expando assignment to a function
@@ -185,42 +251,42 @@ impl Request<'_, '_> {
     fn visit_document_symbol(&mut self, state: &mut DocumentSymbols, node: NodeId) {
         let source = self.state.binder.source_of_node(node);
         let record = self.state.binder.node_record(node);
-        if let Some(js_doc) = record.js_doc {
-            let comments = self.state.binder.node_array(js_doc).nodes.to_vec();
-            // tsgo's reparser makes statements of a comment's typedef,
-            // callback and import tags and puts them before their host
-            // (reparseUnhosted); the parts of those statements that are not
-            // reparsed nodes themselves — an inline type literal's members,
-            // an import's bindings — get symbols of their own there, before
-            // the tags' symbols and the host's. Only a JavaScript file is
-            // reparsed: in a TypeScript file an `@import`'s bindings are no
-            // symbols (astro's `vite-plugin-config-alias/index.ts`, whose
-            // comment text "CSS @import statements" parses as a tag), while
-            // the typedef and callback tags below are (tsgo's navigation
-            // bar adds them from any file's JSDoc).
-            for &comment in comments.iter().filter(|_| source.is_source_file_js()) {
-                let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
+        // tsgo's reparser makes statements of a comment's typedef, callback
+        // and import tags (reparseUnhosted), and its parser propagates them
+        // out of any list but a source file's or a block's statements
+        // (parseListIndex: class and object literal members, parameters,
+        // switch clauses) to stand before the statement the host is part
+        // of. The parts of those statements that are not reparsed nodes
+        // themselves — an inline type literal's members, an import's
+        // bindings — get symbols of their own there, before the tags'
+        // symbols and the statement's: a host that is such a statement
+        // emits them for every comment in its subtree outside nested
+        // blocks, inner hosts first (their nodes finish parsing first), and
+        // a host inside one emits none (webpack's `JavascriptParser` lists
+        // a class-body typedef's members at the top of the file). Only a
+        // JavaScript file is reparsed: in a TypeScript file an `@import`'s
+        // bindings are no symbols (astro's `vite-plugin-config-alias/
+        // index.ts`, whose comment text "CSS @import statements" parses as
+        // a tag), while the typedef and callback tags below are (tsgo's
+        // navigation bar adds them from any file's JSDoc).
+        if source.is_source_file_js() && self.is_statement_list_element(node) {
+            let mut hosts = Vec::new();
+            self.hoisted_jsdoc_hosts(node, &mut hosts);
+            hosts.push(node);
+            let mut seen = std::collections::HashSet::new();
+            for host in hosts {
+                let Some(js_doc) = self.state.binder.node_record(host).js_doc else {
                     continue;
                 };
-                for tag in self.node_list(data.tags) {
-                    let reparsed = match &self.state.binder.node_record(tag).data {
-                        NodeData::JSDocTypedefTag(typedef) => {
-                            typedef.type_expression.and_then(|expression| {
-                                match &self.state.binder.node_record(expression).data {
-                                    NodeData::JSDocTypeExpression(expression) => expression.r#type,
-                                    _ => None,
-                                }
-                            })
-                        }
-                        NodeData::JSDocCallbackTag(callback) => callback.type_expression,
-                        NodeData::JSDocImportTag(import) => import.import_clause,
-                        _ => None,
-                    };
-                    if let Some(reparsed) = reparsed {
-                        self.visit_document_symbol(state, reparsed);
+                for comment in self.state.binder.node_array(js_doc).nodes.to_vec() {
+                    if seen.insert(comment) {
+                        self.visit_reparsed_jsdoc_children(state, comment);
                     }
                 }
             }
+        }
+        if let Some(js_doc) = record.js_doc {
+            let comments = self.state.binder.node_array(js_doc).nodes.to_vec();
             for &comment in &comments {
                 let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
                     continue;
@@ -1305,6 +1371,43 @@ fn children(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
                 .and_then(|expression| hosted.cast_of(expression))
             {
                 children.push(cast.type_node);
+            }
+        }
+        // An assignment declaration's binary expression gets its statement's
+        // `@type` as its type (reparseHosted, KindExpressionStatement):
+        // `/** @type {Map<string, { source: string }>} */ this.x = new Map()`
+        // in webpack's constructor lists `source`.
+        NodeData::BinaryExpression(_) => {
+            if let Some(r#type) = hosted.type_of(node) {
+                children.push(r#type);
+            }
+        }
+        // A function's `@returns` type is its return type annotation, walked
+        // before the body when the function is reached as a child (an
+        // initializer's arrow): webpack's `getOptions` lists the `name` of
+        // its `@returns {… & { name: string }}`.
+        NodeData::FunctionDeclaration(_)
+        | NodeData::FunctionExpression(_)
+        | NodeData::ArrowFunction(_)
+        | NodeData::MethodDeclaration(_)
+        | NodeData::GetAccessor(_)
+        | NodeData::SetAccessor(_) => {
+            let (written_type, body) = match &source.arena.node(node).data {
+                NodeData::FunctionDeclaration(data) => (data.r#type, data.body),
+                NodeData::FunctionExpression(data) => (data.r#type, data.body),
+                NodeData::ArrowFunction(data) => (data.r#type, data.body),
+                NodeData::MethodDeclaration(data) => (data.r#type, data.body),
+                NodeData::GetAccessor(data) => (data.r#type, data.body),
+                NodeData::SetAccessor(data) => (data.r#type, data.body),
+                _ => unreachable!("kind/data agree"),
+            };
+            if written_type.is_none() {
+                if let Some(return_type) = hosted.type_of(node) {
+                    let at = body
+                        .and_then(|body| children.iter().position(|&child| child == body))
+                        .unwrap_or(children.len());
+                    children.insert(at, return_type);
+                }
             }
         }
         _ => {}

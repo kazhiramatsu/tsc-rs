@@ -2825,6 +2825,197 @@ fn document_symbols_of_reparsed_jsdoc_type_literals() {
     );
 }
 
+/// The diagnostics of a JavaScript file as `(code, start line, start
+/// character, end character)`.
+fn javascript_diagnostics(files: &[(&str, &str)], uri: &str) -> Vec<(i64, i64, i64, i64)> {
+    let response = request_in_javascript_project(
+        files,
+        uri,
+        "textDocument/diagnostic",
+        serde_json::json!({"textDocument": {"uri": uri}}),
+    );
+    response["result"]["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .map(|item| {
+            (
+                item["code"].as_i64().expect("a code"),
+                item["range"]["start"]["line"].as_i64().unwrap(),
+                item["range"]["start"]["character"].as_i64().unwrap(),
+                item["range"]["end"]["character"].as_i64().unwrap(),
+            )
+        })
+        .collect()
+}
+
+/// The document symbols of a JavaScript file, one line per symbol with its
+/// depth, kind and range.
+fn javascript_document_symbols(files: &[(&str, &str)], uri: &str) -> Vec<String> {
+    let response = request_in_javascript_project(
+        files,
+        uri,
+        "textDocument/documentSymbol",
+        serde_json::json!({"textDocument": {"uri": uri}}),
+    );
+    fn flat(items: &[Value], depth: usize, acc: &mut Vec<String>) {
+        for item in items {
+            let range = &item["range"];
+            acc.push(format!(
+                "{}{} k{} {}:{}-{}:{}",
+                "  ".repeat(depth),
+                item["name"].as_str().unwrap(),
+                item["kind"],
+                range["start"]["line"],
+                range["start"]["character"],
+                range["end"]["line"],
+                range["end"]["character"]
+            ));
+            if let Some(children) = item["children"].as_array() {
+                flat(children, depth + 1, acc);
+            }
+        }
+    }
+    let mut lines = Vec::new();
+    flat(
+        response["result"].as_array().expect("symbols"),
+        0,
+        &mut lines,
+    );
+    lines
+}
+
+/// An `@import` binding used only in an object typedef's `@property {T=}`
+/// type is used: the optional type's inner reference is checked (tsgo's
+/// reparsed property signature resolves it). A value-only binding there is
+/// TS2749 and, its resolution failed, unused (tsgo aa814927; webpack's
+/// `Compilation.js` reported four such imports unused and missed the error).
+#[test]
+fn a_jsdoc_import_used_only_in_an_optional_property_type_is_used() {
+    let lib = "export class Dep {}\nexport const List = class {};\n";
+    let imports = "/** @import { Dep, List } from './lib.js' */\n/**\n * @typedef {object} Options\n * @property {Dep[]=} deps deps\n * @property {InstanceType<List>=} list list\n */\n/** @param {Options} options */\nexport function f(options) {\n\treturn options;\n}\n";
+    assert_eq!(
+        javascript_diagnostics(
+            &[
+                ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+                ("/home/projects/lib.js", lib),
+                ("/home/projects/imports.js", imports),
+            ],
+            "file:///home/projects/imports.js",
+        ),
+        [(2749, 4, 27, 31), (6196, 0, 19, 23)]
+    );
+}
+
+/// tsgo's parser moves the type alias its reparser makes of a `@typedef` in
+/// a class body out to the file's statements, before the class
+/// (parseListIndex propagates it out of the class members): the typedef is
+/// the module's export, so not unused, and an inline type literal's members
+/// are symbols at the top, before the class, while the tag's own symbol
+/// stays at its host (tsgo aa814927; webpack's `JavascriptParser` reported
+/// `Calculated` unused and nested its members under the class).
+#[test]
+fn a_typedef_in_a_class_body_is_hoisted_to_the_file_s_statements() {
+    let text = "export class C {\n\t/** @typedef {{ range?: number, value: string }} Calculated */\n\n\t/** @typedef {{ unused: boolean }} Spare */\n\tm() {\n\t\treturn 1;\n\t}\n}\n/** @type {Calculated} */\nexport const c = { value: 'x' };\n";
+    let files = [
+        ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+        ("/home/projects/hoist.js", text),
+    ];
+    assert_eq!(
+        javascript_diagnostics(&files, "file:///home/projects/hoist.js"),
+        []
+    );
+    assert_eq!(
+        javascript_document_symbols(&files, "file:///home/projects/hoist.js"),
+        [
+            "range k7 1:17-1:32",
+            "value k7 1:33-1:46",
+            "unused k7 3:17-3:32",
+            "C k5 0:0-7:1",
+            "  Calculated k5 1:5-1:60",
+            "  Spare k5 3:5-3:41",
+            "  m k6 4:1-6:2",
+            "c k13 9:13-9:31",
+            "  value k7 9:19-9:29",
+        ]
+    );
+}
+
+/// tsgo's reparser gives a `this.x = …` assignment statement's `@type` to
+/// the binary expression and an arrow's `@returns` to the arrow as its
+/// return type, both walked by the navigation bar: the type literals'
+/// members are symbols of the constructor and of the variable (tsgo
+/// aa814927; webpack's `Compilation` constructor and `getOptions`).
+#[test]
+fn document_symbols_of_an_assignment_s_type_and_an_arrow_s_returns_type() {
+    let text = "export class C {\n\tconstructor() {\n\t\t/** @type {Map<string, { source: string, info: number }>} */\n\t\tthis._embedded = new Map();\n\t}\n}\n/**\n * @param {string} name\n * @returns {{ name: string, stage: number }}\n */\nexport const normalize = (name) => ({ name, stage: 0 });\n";
+    assert_eq!(
+        javascript_document_symbols(
+            &[
+                ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+                ("/home/projects/symbols.js", text),
+            ],
+            "file:///home/projects/symbols.js",
+        ),
+        [
+            "C k5 0:0-5:1",
+            "  constructor k9 1:1-4:2",
+            "    source k7 2:27-2:42",
+            "    info k7 2:43-2:55",
+            "normalize k13 10:13-10:55",
+            "  name k7 8:15-8:28",
+            "  stage k7 8:29-8:42",
+            "  name k7 10:38-10:42",
+            "  stage k7 10:44-10:52",
+        ]
+    );
+}
+
+/// A `@deprecated` comment on a `this.x = …` statement deprecates nothing
+/// for completions: tsgo's deprecation is the JSDoc host's node flag, which
+/// the assignment's own declaration does not combine, and no modifier flag
+/// comes from the tag; a class property with the comment is deprecated
+/// (tsgo aa814927; webpack's `compilationDependencies`).
+#[test]
+fn a_this_assignment_under_a_deprecated_comment_is_not_deprecated_for_completions() {
+    let text = "export class C {\n\t/** @deprecated */\n\tgone = 1;\n\tconstructor() {\n\t\t/**\n\t\t * @deprecated\n\t\t * @type {{ add: (item: string) => void }}\n\t\t */\n\t\tthis.deps = { add(item) {} };\n\t\t/** @deprecated */\n\t\tthis.old = 1;\n\t}\n\tm() {\n\t\treturn this.;\n\t}\n}\n";
+    let response = request_in_javascript_project(
+        &[
+            ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+            ("/home/projects/deprecated.js", text),
+        ],
+        "file:///home/projects/deprecated.js",
+        "textDocument/completion",
+        serde_json::json!({"textDocument": {"uri": "file:///home/projects/deprecated.js"}, "position": {"line": 13, "character": 14}, "context": {"triggerKind": 1}}),
+    );
+    let mut tags = response["result"]["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .filter(|item| {
+            item["label"]
+                .as_str()
+                .is_some_and(|label| ["deps", "gone", "old", "m"].contains(&label))
+        })
+        .map(|item| {
+            (
+                item["label"].as_str().unwrap().to_owned(),
+                item["tags"].clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+    tags.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(
+        tags,
+        [
+            ("deps".to_owned(), serde_json::Value::Null),
+            ("gone".to_owned(), serde_json::json!([1])),
+            ("m".to_owned(), serde_json::Value::Null),
+            ("old".to_owned(), serde_json::Value::Null),
+        ]
+    );
+}
+
 /// A TypeScript file's declaration is deprecated for completions by tsgo's
 /// scanner text scan of its comment, a `@deprecated` followed by whitespace,
 /// `}`, `*` or the comment's end (the JSDoc itself is parsed lazily):

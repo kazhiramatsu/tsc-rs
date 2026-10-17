@@ -1010,11 +1010,17 @@ impl Request<'_, '_> {
             }
             // tsgo reparses a JSDoc signature's (`@callback`, `@overload`)
             // `@param` and `@this` tags into parameters with a JSDoc of the
-            // tag's comment.
+            // tag's comment, and a nested `@param options.x` tag of a
+            // parameter's type literal into a property signature with one
+            // (reparseJSDocTypeLiteral takes parameter tags too; webpack's
+            // `processRuntimeRequirements({ chunks })` hover lost "chunks").
             NodeData::JSDocParameterTag(tag)
                 if tag.comment.is_some()
                     && record.parent.is_some_and(|parent| {
-                        self.node_kind(parent) == SyntaxKind::JSDocSignature
+                        matches!(
+                            self.node_kind(parent),
+                            SyntaxKind::JSDocSignature | SyntaxKind::JSDocTypeLiteral
+                        )
                     }) =>
             {
                 return Some(node);

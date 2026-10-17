@@ -507,6 +507,34 @@ fn a_javascript_method_s_type_definition_is_its_return_type_s() {
     );
 }
 
+/// A call through a parameter typed by a JSDoc `@callback` goes to the
+/// parameter only: tsgo reparses the callback into a function type, which
+/// `tryGetSignatureDeclaration` does not go to (tsgo aa814927; webpack's
+/// `callback(…)` in `Compiler.js` listed the `@callback` too).
+#[test]
+fn a_call_of_a_jsdoc_callback_typed_parameter_goes_to_the_parameter_only() {
+    let text = "/**\n * @callback Done\n * @param {Error | null} err\n * @returns {void}\n */\n/** @param {Done} done */\nexport function run(done) {\n\tdone(null);\n}\n";
+    let file = [("/callback.js", text)];
+    assert_eq!(
+        links(
+            &file,
+            options(|options| {
+                options.allow_js = true;
+                options.check_js = Some(true);
+            }),
+            "/callback.js",
+            (7, 2),
+            Request::Definition,
+        ),
+        vec![(
+            ((7, 1), (7, 5)),
+            "/callback.js",
+            ((6, 20), (6, 24)),
+            ((6, 20), (6, 24))
+        )]
+    );
+}
+
 /// The TypeScript twin of the JavaScript method above: a method's own type
 /// goes to its one call signature's return type, which has no declarations
 /// (tsgo aa814927 answers nothing).
