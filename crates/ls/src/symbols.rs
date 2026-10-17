@@ -117,11 +117,16 @@ fn flatten_document_symbols(
 }
 
 impl Request<'_, '_> {
+    /// A node's children as tsgo's navigation bar walks them (`children`).
+    fn navigation_children(&self, node: NodeId) -> Vec<NodeId> {
+        children(self.state.binder.source_of_node(node), node)
+    }
+
     /// tsgo `getDocumentSymbolsForChildren`: the symbols of a node's
     /// children, expandos merged into their targets.
     fn document_symbols_for_children(&mut self, node: NodeId) -> Vec<DocumentSymbol> {
         let mut state = DocumentSymbols::default();
-        for child in self.children(node) {
+        for child in self.navigation_children(node) {
             self.visit_document_symbol(&mut state, child);
         }
         merge_expandos(state.symbols)
@@ -139,7 +144,7 @@ impl Request<'_, '_> {
         };
         let saved_targets = std::mem::take(&mut state.expando_targets);
         let saved_symbols = std::mem::take(&mut state.symbols);
-        for child in self.children(node) {
+        for child in self.navigation_children(node) {
             self.visit_document_symbol(state, child);
         }
         state.expando_targets = saved_targets;
@@ -354,7 +359,7 @@ impl Request<'_, '_> {
                         self.visit_expando_assignment(state, node);
                     }
                     _ => {
-                        for child in self.children(node) {
+                        for child in self.navigation_children(node) {
                             self.visit_document_symbol(state, child);
                         }
                     }
@@ -368,13 +373,13 @@ impl Request<'_, '_> {
                     let children = self.document_symbols_of_node(state, data.expression);
                     self.add_document_symbol(state, node, None, children);
                 } else {
-                    for child in self.children(node) {
+                    for child in self.navigation_children(node) {
                         self.visit_document_symbol(state, child);
                     }
                 }
             }
             _ => {
-                for child in self.children(node) {
+                for child in self.navigation_children(node) {
                     self.visit_document_symbol(state, child);
                 }
             }
@@ -433,7 +438,7 @@ impl Request<'_, '_> {
                 .is_some_and(|name| state.expando_targets.contains(name))
         });
         let (Some(target), true) = (target, is_target) else {
-            for child in self.children(node) {
+            for child in self.navigation_children(node) {
                 self.visit_document_symbol(state, child);
             }
             return;

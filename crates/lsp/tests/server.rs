@@ -42,6 +42,17 @@ impl Pipe {
         ready.notify_all();
     }
 
+    /// `data` and then the end, under one lock: a reader finds both at
+    /// once.
+    fn write_and_close(&self, data: &[u8]) {
+        let (state, ready) = &*self.0;
+        let mut guard = state.lock().unwrap();
+        guard.0.extend(data);
+        guard.1 = true;
+        drop(guard);
+        ready.notify_all();
+    }
+
     fn contents(&self) -> String {
         let (state, _) = &*self.0;
         String::from_utf8(state.lock().unwrap().0.iter().copied().collect()).unwrap()
@@ -171,6 +182,19 @@ impl Session {
         self.input_pipe.close();
     }
 
+    /// `text` and the input's end together, as a client that closes its
+    /// end right after a message (tsgo's transcript tool writes `exit` and
+    /// closes stdin). The server's read loop reads the message and then the
+    /// end at once, so the server ends as the input did, before the
+    /// dispatch loop handles the message: tsgo's `Run` takes the first of
+    /// the read loop's io.EOF and the dispatch loop's cancellation, and a
+    /// separate close could come after the read loop blocked for the next
+    /// message.
+    fn send_and_close(&mut self, text: &str) {
+        let frame = format!("Content-Length: {}\r\n\r\n{text}", text.len());
+        self.input_pipe.write_and_close(frame.as_bytes());
+    }
+
     fn finish(&mut self) -> Result<(), String> {
         self.run.take().unwrap().join().unwrap()
     }
@@ -287,9 +311,20 @@ fn run_fixture(name: &str) -> (String, String) {
             }
         }
     };
-    for step in script["steps"].as_array().unwrap() {
+    let steps = script["steps"].as_array().unwrap();
+    let mut index = 0;
+    while let Some(step) = steps.get(index) {
+        index += 1;
         if let Some(message) = step.get("send") {
-            session.send(&message.to_string());
+            if steps
+                .get(index)
+                .is_some_and(|next| next.get("close").is_some())
+            {
+                session.send_and_close(&message.to_string());
+                index += 1;
+            } else {
+                session.send(&message.to_string());
+            }
         } else if let Some(text) = step.get("raw") {
             session.send(text.as_str().unwrap());
         } else if let Some(id) = step.get("wait") {
