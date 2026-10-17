@@ -3481,6 +3481,17 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::ArrayType
             | SyntaxKind::TupleType => self.is_resolved_by_type_alias(parent),
             SyntaxKind::TypeAliasDeclaration => true,
+            // tsgo's reparser clones a `@typedef`'s type straight under the
+            // type alias it makes (reparser.go `KindJSDocTypedefTag`), so a
+            // reference nested in it is deferred and every instantiation of
+            // the alias's conditional type makes a new one: webpack's
+            // `RecordFactoryFromTuple` keeps 17 `SyncBailHook<…>` members
+            // that print alike (tsc-rs merged them). A `@callback`'s
+            // function type and a type literal's `@property` types are not
+            // in this chain in tsgo either.
+            SyntaxKind::JSDocTypeExpression => self
+                .parent_of(parent)
+                .is_some_and(|tag| self.kind_of(tag) == SyntaxKind::JSDocTypedefTag),
             _ => false,
         }
     }

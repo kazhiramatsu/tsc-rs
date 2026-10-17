@@ -253,6 +253,93 @@ fn checked_js_publishes_loose_parameter_suggestions() {
     assert_eq!(published, [7044]);
 }
 
+/// A JSDoc type literal's `@property`/`@param options.x` without a type is a
+/// member whose implicit `any` is reported when the tag is checked, whether
+/// or not anything uses the property: tsgo's reparser makes a property
+/// signature of the tag and checkPropertySignature resolves its type — TS7008
+/// under noImplicitAny, the TS7045 suggestion otherwise (tsgo aa814927;
+/// prettier's `src/cli/context.js` had six such `@property` tags that tsc-rs
+/// reported as variables, and only when used).
+#[test]
+fn untyped_property_tags_of_a_type_literal_are_implicit_any_members() {
+    let text = "/**\n * @typedef {Object} Context\n * @property logger\n * @property {string[]} rawArguments\n * @property argv\n */\n\n/**\n * @param {string} text the text\n * @param {Object} [options] the options\n * @param options.filePath the path\n * @param {boolean} [options.warn] warn\n * @returns {string} result\n */\nfunction lint(text, options = {}) {\n\treturn text + (options.filePath || \"\") + (options.warn ? \"!\" : \"\");\n}\n\n/** @type {Context} */\nconst context = { logger: 1, rawArguments: [], argv: 2 };\nmodule.exports = { lint, context };\n";
+    let start = |tag: &str, name: &str| {
+        let tag_at = text.find(tag).expect("the tag");
+        (tag_at + tag.len() - name.len()) as u32
+    };
+    let expected = |member: &str, code: u32| {
+        let suffix = if code == 7008 {
+            "."
+        } else {
+            ", but a better type may be inferred from usage."
+        };
+        format!("Member '{member}' implicitly has an 'any' type{suffix}")
+    };
+    for (no_implicit_any, code) in [(false, 7045), (true, 7008)] {
+        let options = CompilerOptions {
+            strict: Some(false),
+            no_implicit_any: Some(no_implicit_any),
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let rows = check_program(
+            &[InputFile::new("a.js".to_owned(), text.to_owned())],
+            &options,
+        )
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| matches!(diagnostic.code(), 7005 | 7008 | 7043 | 7045))
+        .map(|diagnostic| {
+            (
+                diagnostic.start.expect("spanned diagnostic"),
+                diagnostic.length.expect("spanned diagnostic"),
+                diagnostic.code(),
+                diagnostic.category(),
+                diagnostic
+                    .message
+                    .text
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+        let category = if no_implicit_any {
+            tsc_diagnostics::DiagnosticCategory::Error
+        } else {
+            tsc_diagnostics::DiagnosticCategory::Suggestion
+        };
+        assert_eq!(
+            rows,
+            [
+                (
+                    start("@property logger", "logger"),
+                    6,
+                    code,
+                    category,
+                    expected("logger", code)
+                ),
+                (
+                    start("@property argv", "argv"),
+                    4,
+                    code,
+                    category,
+                    expected("argv", code)
+                ),
+                (
+                    start("@param options.filePath", "filePath"),
+                    8,
+                    code,
+                    category,
+                    expected("filePath", code)
+                ),
+            ],
+            "noImplicitAny {no_implicit_any}"
+        );
+    }
+}
+
 #[test]
 fn unchecked_js_does_not_publish_loose_implicit_any_suggestions() {
     let options = CompilerOptions {

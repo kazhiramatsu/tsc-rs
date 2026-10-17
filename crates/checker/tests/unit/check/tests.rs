@@ -10863,6 +10863,119 @@ fn nested_param_tags_of_an_optional_object_parameter_are_not_checked_as_expressi
     );
 }
 
+/// A type reference nested in a `@typedef`'s type is resolved by a type alias
+/// — tsgo's reparser clones the typedef's type straight under the type alias
+/// it makes — so it is a deferred type reference, and each instantiation of
+/// the typedef's conditional type makes a new one: the hooks of the three
+/// `any`-keyed rows stay three intersection members that print alike (tsgo
+/// aa814927; webpack's `RecordFactoryFromTuple` kept 17 `SyncBailHook<…>`
+/// where tsc-rs merged them into 12 — 30 hovers and signature helps).
+#[test]
+fn a_reference_nested_in_a_typedef_s_type_is_a_deferred_type_reference() {
+    let text = "/** @typedef {{ js: 1 }} JsParser */\n/** @typedef {{ jpo: 1 }} JsParserOptions */\n/** @typedef {{ p: 1 }} Parser */\n/** @typedef {{ po: 1 }} ParserOptions */\n/**\n * @typedef {[\n * [any, JsParser, JsParserOptions],\n * [any, JsParser, JsParserOptions],\n * [any, JsParser, JsParserOptions],\n * [string, Parser, ParserOptions],\n * ]} Entries\n */\n/**\n * @template {unknown[]} T\n * @template {number[]} I\n * @typedef {{ [K in keyof I]: K extends keyof I ? I[K] extends keyof T ? T[I[K]] : never : never }} ExtractTupleElements\n */\n/**\n * @template {unknown[]} T\n * @template {number[]} A\n * @template [R=void]\n * @typedef {T extends [infer Head extends [string, ...unknown[]], ...infer Tail extends [string, ...unknown[]][]] ? Record<Head[0], SyncBailHook<ExtractTupleElements<Head, A>, R extends number ? Head[R] : R>> & RecordFactoryFromTuple<Tail, A, R> : unknown } RecordFactoryFromTuple\n */\n/** @type {TypedHookMap<RecordFactoryFromTuple<Entries, [2], 1>>} */\nconst map = /** @type {any} */ ({});\n/** @type {number} */\nconst n = map.for(\"c\");\nmodule.exports = { n };\n";
+    let rows = with_program_state(
+        &[("globals.d.ts", "interface Object {}\ninterface Function {}\ninterface CallableFunction {}\ninterface NewableFunction {}\ninterface Array<T> { length: number; [n: number]: T; }\ninterface ReadonlyArray<T> { readonly length: number; readonly [n: number]: T; }\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\ninterface IArguments {}\ntype Record<K extends keyof any, T> = { [P in K]: T };\ndeclare class UnsetAdditionalOptions { _UnsetAdditionalOptions: true; }\ndeclare class SyncBailHook<T, R, AdditionalOptions = UnsetAdditionalOptions> { call(...args: T extends unknown[] ? T : never): R; options: AdditionalOptions; }\ndeclare class TypedHookMap<M extends Record<any, SyncBailHook<any, any>>> { for<K extends keyof M>(key: K): M[K]; }\n"), ("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(1);
+            diag_rows(state)
+        },
+    );
+    let n = text.find("const n = ").expect("the declaration") as u32 + "const ".len() as u32;
+    assert_eq!(
+        rows.iter()
+            .map(|row| (row.0, row.1, row.2, row.3.as_str()))
+            .collect::<Vec<_>>(),
+        [(
+            2322,
+            n,
+            1,
+            "Type 'SyncBailHook<[JsParserOptions], JsParser, UnsetAdditionalOptions> & SyncBailHook<[JsParserOptions], JsParser, UnsetAdditionalOptions> & ... & ...' is not assignable to type 'number'."
+        )]
+    );
+}
+
+/// A relation error displays an object literal's type with the literal as
+/// the enclosing declaration, and an enclosing declaration arms the symbol
+/// chain walk (tsgo lookupSymbolChainWorker): a property whose type is a
+/// namespace member prints through the accessible container or alias —
+/// `Local.Seg`, `Rule.CodePathSegment`, `T.Linter.Config<number>` (tsgo
+/// aa814927; ESLint's eight diagnostic texts printed bare names in tsc-rs).
+#[test]
+fn an_object_literal_s_error_display_qualifies_a_namespace_member_through_its_accessible_container()
+{
+    let text = "namespace Local { export interface Seg { id: string; } }\nimport { Rule } from \"types\";\nimport * as T from \"types\";\nexport function h(a: Local.Seg, b: Rule.CodePathSegment, c: T.Linter.Config<number>) {\n\tconst v1: number = { a };\n\tconst v2: number = { b };\n\tconst v3: number = { c };\n\treturn v1 + v2 + v3;\n}\n";
+    let rows = with_program_state(
+        &[("globals.d.ts", "interface Object {}\ninterface Function {}\ninterface CallableFunction {}\ninterface NewableFunction {}\ninterface Array<T> { length: number; [n: number]: T; }\ninterface ReadonlyArray<T> { readonly length: number; readonly [n: number]: T; }\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\ninterface IArguments {}\ntype Record<K extends keyof any, T> = { [P in K]: T };\ndeclare module \"types\" {\n\texport namespace Linter {\n\t\tinterface Config<Rules = RulesRecord> { rules?: Rules; name?: string; }\n\t\ttype RulesRecord = Record<string, number>;\n\t}\n\texport namespace Rule {\n\t\tinterface CodePathSegment { id: string; }\n\t}\n}\n"), ("d.ts", text)],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(1);
+            diag_rows(state)
+        },
+    );
+    assert_eq!(
+        rows.iter()
+            .map(|row| (row.0, row.3.as_str()))
+            .collect::<Vec<_>>(),
+        [
+            (
+                2322,
+                "Type '{ a: Local.Seg; }' is not assignable to type 'number'."
+            ),
+            (
+                2322,
+                "Type '{ b: Rule.CodePathSegment; }' is not assignable to type 'number'."
+            ),
+            (
+                2322,
+                "Type '{ c: T.Linter.Config<number>; }' is not assignable to type 'number'."
+            ),
+        ]
+    );
+}
+
+/// A union's same-written-name members are re-rendered fully qualified
+/// with typeToString's other flags kept (tsgo mapToTypeNodes adds
+/// UseFullyQualifiedType to the context's flags), so the chain walk yields no
+/// module root: `SourceLocation | AST.SourceLocation`, `Scope.Reference |
+/// Reference` — not `import("estree").SourceLocation` (tsgo aa814927;
+/// ESLint's complexity.js and no-console.js texts).
+#[test]
+fn a_union_s_same_name_retry_qualifies_without_module_roots() {
+    let text = "import type { SourceLocation } from \"estree\";\nimport type { AST, Scope } from \"types\";\nclass Reference { resolved = true; }\ndeclare const loc: SourceLocation | AST.SourceLocation | null;\ndeclare const ref: Scope.Reference | Reference;\nconst s: string = loc;\nconst t: string = ref;\nexport { s, t };\n";
+    let heads = with_program_state(
+        &[("globals.d.ts", "interface Object {}\ninterface Function {}\ninterface CallableFunction {}\ninterface NewableFunction {}\ninterface Array<T> { length: number; [n: number]: T; }\ninterface ReadonlyArray<T> { readonly length: number; readonly [n: number]: T; }\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\ninterface IArguments {}\ndeclare module \"estree\" {\n\texport interface SourceLocation { source?: string; }\n}\ndeclare module \"types\" {\n\texport namespace AST {\n\t\tinterface SourceLocation { start: number; }\n\t}\n\texport namespace Scope {\n\t\tinterface Reference { identifier: string; }\n\t}\n}\n"), ("a.ts", text)],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(1);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.file_name.is_some() && diagnostic.code() == 2322)
+                .map(|diagnostic| diagnostic.message.text.as_str().expect("scalar head").to_owned())
+                .collect::<Vec<_>>()
+        },
+    );
+    assert_eq!(
+        heads,
+        [
+            "Type 'SourceLocation | AST.SourceLocation | null' is not assignable to type 'string'.",
+            "Type 'Scope.Reference | Reference' is not assignable to type 'string'.",
+        ]
+    );
+}
+
 /// tsgo's reparser makes a JavaScript setter's `@returns` its return type
 /// annotation and a for-of variable's `@type` its type annotation before the
 /// grammar checks run: TS1095 and TS2483 (tsgo aa814927; webpack's
