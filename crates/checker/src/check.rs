@@ -2004,11 +2004,21 @@ impl<'a> CheckerState<'a> {
                 self.check_source_element_children(node);
                 Ok(())
             }
-            SyntaxKind::JSDocNonNullableType | SyntaxKind::JSDocNullableType => {
+            // tsgo checks no `T=` node either, but the property signature its
+            // reparser makes of an object typedef's `@property {T=}` resolves
+            // its type when the declaration is checked (getTypeFromTypeNode's
+            // KindJSDocOptionalType arm), which reports what the inner type
+            // reports; the `@property` tag's type expression is checked here
+            // instead (webpack's `@import` bindings used only in such types
+            // were reported unused, and a value used as a type went unreported).
+            SyntaxKind::JSDocNonNullableType
+            | SyntaxKind::JSDocNullableType
+            | SyntaxKind::JSDocOptionalType => {
                 self.check_jsdoc_type_is_in_js_file(node)?;
                 let inner = match self.data_of(node) {
                     NodeData::JSDocNonNullableType(data) => data.r#type,
                     NodeData::JSDocNullableType(data) => data.r#type,
+                    NodeData::JSDocOptionalType(data) => data.r#type,
                     _ => unreachable!("kind/data agree"),
                 };
                 self.check_source_element(inner);

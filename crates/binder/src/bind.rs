@@ -24,7 +24,8 @@ use crate::node_util::{
     is_narrowable_reference, is_narrowing_expression, is_object_literal_method,
     is_object_literal_or_class_expression_method_or_accessor, is_parameter_property_declaration,
     is_part_of_parameter_declaration, is_part_of_type_query, is_potentially_executable_node,
-    jsdoc_full_name, jsdoc_type_expression, kind_of, name_field_of, parent_of, statements_of,
+    jsdoc_full_name, jsdoc_statement_host, jsdoc_type_expression, kind_of, name_field_of,
+    parent_of, statements_of,
 };
 use crate::symbols::{InternalSymbolName, SymbolId};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticArgument, DiagnosticMessage};
@@ -2392,6 +2393,7 @@ impl<'a> BinderWorker<'a> {
             else {
                 continue;
             };
+            let host = jsdoc_statement_host(self.source, host);
             self.container = Some(
                 self.enclosing_container_from(host)
                     .unwrap_or(self.source.root),
@@ -2437,7 +2439,8 @@ impl<'a> BinderWorker<'a> {
         let save_block_scope_container = self.block_scope_container;
         let save_current_flow = self.current_flow;
         for import_tag in imports {
-            let host = get_jsdoc_host(self.source, import_tag);
+            let host = get_jsdoc_host(self.source, import_tag)
+                .map(|host| jsdoc_statement_host(self.source, host));
             self.container = Some(
                 host.and_then(|host| self.enclosing_container_from(host))
                     .unwrap_or(self.source.root),

@@ -1269,7 +1269,9 @@ fn jsdoc_visibility_tags_contribute_effective_modifier_flags() {
     let flags = crate::node_util::get_combined_modifier_flags(&source, property);
     assert!(flags.intersects(ModifierFlags::PRIVATE));
     assert!(flags.intersects(ModifierFlags::READONLY));
-    assert!(flags.intersects(ModifierFlags::DEPRECATED));
+    // tsgo: a `@deprecated` tag is the host's node flag
+    // (IsDeprecatedDeclarationWithCachedFlags), never a modifier flag.
+    assert!(!flags.intersects(ModifierFlags::DEPRECATED));
 }
 
 #[test]

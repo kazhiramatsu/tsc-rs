@@ -1861,6 +1861,35 @@ fn a_reused_import_type_through_node_modules_falls_back_to_a_fresh_type() {
     );
 }
 
+/// A nested `@param options.fs file system` tag documents the property it
+/// declares: tsgo's reparser makes a property signature of it with the tag
+/// as its JSDoc, like a typedef's `@property` (tsgo aa814927; webpack's
+/// `processRuntimeRequirements({ chunks })` hover showed "chunks").
+#[test]
+fn a_nested_param_tag_documents_its_property() {
+    let files = [(
+        "/docs.js",
+        "/**\n * @param {object} options options\n * @param {string} options.fs file system\n */\nexport function run(options) {}\nrun({ fs: 'memory' });\n",
+    )];
+    assert_eq!(
+        hover(
+            &files,
+            options(|options| {
+                options.allow_js = true;
+                options.check_js = Some(true);
+            }),
+            "/docs.js",
+            (5, 6),
+            None,
+        ),
+        Some((
+            "```typescript\n(property) fs: string\n```\nfile system".to_owned(),
+            ((5, 6), (5, 8)),
+            false,
+        ))
+    );
+}
+
 /// The property of an instantiated interface is qualified by the type
 /// arguments it was instantiated with, not by the interface's type parameter
 /// declarations with their defaults (svelte's `Value<V = unknown>`; tsgo

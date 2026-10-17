@@ -695,10 +695,12 @@ impl<'a> Request<'_, 'a> {
             return Ok(None);
         };
         let kind = self.node_kind(declaration);
-        Ok(
-            (is_function_like_kind(kind) && kind != SyntaxKind::FunctionType)
-                .then_some(declaration),
-        )
+        // tsgo reparses a `@callback`'s signature into a function type, which
+        // a call through a parameter of that type does not go to (webpack's
+        // `callback(…)` listed the callback's tag too).
+        Ok((is_function_like_kind(kind)
+            && !matches!(kind, SyntaxKind::FunctionType | SyntaxKind::JSDocSignature))
+        .then_some(declaration))
     }
 
     /// tsgo `getAncestorCallLikeExpression`: the call-like expression that
