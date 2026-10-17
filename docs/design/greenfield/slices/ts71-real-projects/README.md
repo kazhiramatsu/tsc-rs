@@ -436,6 +436,55 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 - **道具**：repro `lsp-compare/repro/{webpack-mini,webpack-tests,typedef-prop,fn-type-tag,alias-empty,nested-cast,let-assigned,w2-cli,w2-cli2,w2-ls}`、
   `lsp-compare/rerun.sh`（file list で記録）、`lists/webpack-probe.txt`、`handover/webpack-chain1.sh`。tsgo memo 7〜11 はこの session から。
 
+### 修正 6：webpack の全体 session の差分、その 2（PR #832、2026-10-17、Fable 5.1）
+
+- **merge**：#832 → `112754ba2`（hosted run 39039629967）。commit：78c493e8a（binder・checker）、4ec5077ce（ls・lsp test）、58d917681（binder の cast）、ba4ff875b（診断 printer）。
+- **比べたもの**：webpack e12e1224 の `lib/**/*.js`（790 file、134,174 request）。#831 の後の 156 件（tsgo の 3 回の記録で全部 class A）→
+  修正後 113 件（tsc-rs だけ記録し直して `out-webpack` の tsgo の記録と比べた）。
+- **種類と直し方**（どれも tsgo の経路に合わせて既存の code を変えた。test は変更なしでは落ちる）：
+  1. **reparse した `@overload` は host の symbol を持つ（binder・ls definition）**：tsgo の `declareSymbol` が overload 宣言に method の symbol を
+     付け、`symbolMatchesSignature` がそれを読むので、呼び出しは解決先の overload へ行く（`hash.digest("hex")` が 1 つ目へ行っていた、definition 12 件）。
+     test `a_call_goes_to_the_jsdoc_overload_it_resolves_to`。
+  2. **`@this` が `@type` より前なら parameter は型なし（binder hosted）**：reparser.go の `noTypedParams` はそこまでに reparse した parameter を読み、
+     `@this` が型付きの `this` を先に足している（memo 9、`Generator.js` の `generateError`：TS7006 ×3 と hover・definition・completion・
+     typeDefinition・semantic token）。test `a_this_tag_before_a_function_s_type_tag_leaves_its_parameters_untyped`。
+  3. **cast の括弧への代入は名前の Read（checker `access_kind`）**：tsgo の `accessKind` に `as` 式の arm が無い（`(load) = undefined`、`(len)++` の
+     documentHighlight）。test `an_assignment_to_a_jsdoc_cast_is_a_read_of_the_name`。
+  4. **reparse した注釈の文法検査 TS1095・TS2483（checker）**：setter の `@returns` は戻り値注釈、for-of 変数の `@type` は型注釈として文法検査に
+     かかる（memo 8）。test `reparsed_setter_returns_and_for_of_variable_types_are_grammar_errors`。
+  5. **TS6205 の範囲は typedef の `@template` tag 列（checker unused）**：tsgo の reparse した type parameter list は最初の tag の `@` から最後の
+     tag の終わり（次の tag の `@`）までで、`rangeOfTypeParameters` が前後 1 文字広げる。こちらは type parameter の範囲だった
+     （`Serializer.js`、`util/serialization.js`）。test `all_type_parameters_unused_spans_a_typedef_s_template_tags`。
+  6. **CommonJS module の top-level `let` は mutable local（checker）**：`isParameterOrMutableLocalVariable` が「global file」を ES module だけで
+     判定していたので、他の関数で代入される `let` が assigned と記録されず、外側の使用が TS2454（`ScopeAnalyzer.js` の遅延 require の
+     `NodeType` 252 件）、型なしの `let` は implicit any（TS7034/7005）でなく possibly undefined（TS18048）になっていた。規則を
+     `is_mutable_local_variable_declaration` に一本化。test `a_common_js_module_s_let_assigned_in_another_function_is_assumed_initialized`、
+     `a_common_js_module_s_untyped_let_used_in_another_function_is_implicitly_any`。
+  7. **無い property の message は空の type literal を alias 名で（checker）**：tsgo の `reportNonexistentProperty` は `typeToString(containingType)`
+     そのまま。こちらの `{}` 特別扱い（3 つの helper）を外した（`AssetGenerator.js` の 'EmptyGeneratorOptions'）。
+     test `a_missing_property_names_an_empty_type_literal_s_alias`。
+  8. **入れ子 `@param options.x` は property token（ls semantic tokens）**：reparser の property signature が宣言（`state.ast`、`targetProperties: tp`）。
+     test `semantic_tokens_of_nested_param_tag_properties`。
+  9. **documentSymbol：host の型は代入先の object より前、`@template` の constraint、`@returns` は body の後（ls）**。
+     test `document_symbols_of_jsdoc_template_constraints`、`document_symbols_of_a_this_assignment_s_type_before_its_object`。
+  10. **cast の括弧は narrowable reference でない（binder）**：tsgo の binder の `isNarrowableReference` に reparse した `as` 式の arm が無く、cast 越しの
+      property 読みに flow node が付かない。constructor の `/** @type {Scope} */ (upper).variableScope` は TS2565 にならない（cast 無しの
+      `upper.depth` は tsgo もなる。TypeScript 6.0.3 はどちらも報告しない、memo 12）。test `a_property_read_through_a_jsdoc_cast_is_not_a_flow_reference`。
+  11. **再利用した注釈の届かない名前は error 文字列で bare（checker の診断 printer）**：tsgo の typeToString は UseAliasDefinedOutsideCurrentScope を
+      常に立て、symbolToTypeNode の chain は module root を出さない。こちらの再利用の復旧は出していた（spread した他 module の options の
+      `amd?: import("…/WebpackOptions").Amd`、pure TypeScript でも同じ）。test `a_spread_property_s_unreachable_alias_prints_bare_in_an_error`。
+- **残り（113 件、全部 class A）**：hover 63（`Array<Module>.length` 等の qualifier を宣言の形 `Array<T>.length` で出す 43 件 = session の順序依存、1 file なら両方とも instantiate 形 `repro/w2-hover`；`TypedHookMap<…>` の intersection 要素数 16 件 = signatureHelp 14 件・NormalModuleFactory.js の TS2322 文言 4 件と同じ推論の差 `ParserOptions | [EmptyParserOptions]` 対 `[EmptyParserOptions]`；切り詰め 2 件 htmlMinify.js；JS の generic `@returns {ParserByType[T]}` が呼び出しの hover で instantiate されない 2 件 `repro/w2-generic`、TS 版は一致）、signatureHelp 24（intersection 14、`@typedef` の property の function type を呼ぶ label に callee 名が無い 4、`middleware.serialize` の候補選択 3、`ContextDependencyHelpers.PartialContextDependencyOptions` の alias を tsgo が保つ 2、`values: Values` 1）、references 17・documentHighlight 4（入れ子 cast、memo 10；cast の中の arrow の `@param`）、definition 3（`@this` 関数の `this`、0:0、memo 3、利用者の決定で現状維持）、semanticTokens 1（syntax-printer.js の `toplevel.*`：JS の generic arrow（`@template T`）を context-sensitive な callback で呼ぶと tsc-rs は T = any、`repro/w2-infer/d.js`、次 slice の最初）、diagnostic 1（NormalModuleFactory.js、上記）。
+- **検査**：branch 先頭 ba4ff875b（commit 78c493e8a・4ec5077ce・58d917681・ba4ff875b）、tsgo aa814927、log は `target/claude-tools/logs/webpack2c/`（chain）と
+  `webpack2-final/`（`final.sh`）、nice 20・`cargo -j 2`・worker 2。focused 114 case（JSDoc の typedef/import/overload/`@this`/template/cast と、`{}` の
+  無い property・JS の TS2454/TS2565・TS6205 を印字する baseline）は全部 full・mismatch 0。`conformance_ts71.py --workers 2 --check` exit 0：12,829 case、
+  lane A 13,577/13,577 full、mismatch 0、emit 13,569 full / 0 mismatch、ratchet 0 regressions（507 s）。`--checkers 4`（exit 0）+ compare：15,335 一致、
+  4 件は既知の partition 依存（incorrectRecursiveMappedTypeConstraint・mutuallyRecursiveInference・typeParameterWithInvalidConstraintType・recursiveMappedTypes）。
+  `suites_ts71.py --update` → `--check` exit 0、0 regressions、ratchet 変更なし。全 crate の test 合格（types 49、syntax 251、binder 78、program 684、checker 1,821、
+  emitter 352、ls 246、lsp 87 = batch 86 + 単独で通る watcher test、api 332、project 235、compiler 241、conformance 49、lsproto 31）。clippy（binder・checker・ls・lsp、
+  all targets、`-D warnings`）と fmt は clean。hosted gates は 39039629967。
+- **道具**：`handover/webpack2-chain.sh`（release build → focused 87 case → tsc-rs だけの再記録と比較）、repro
+  `lsp-compare/repro/{w2-sym,w2-unused,w2-hover}`、`scratchpad` の t2454/talias の変種。
+
 ## 3. 性能の slice 3（local のみ、未 push）
 
 - **worktree と branch**：`/Users/hiramatsu/dev/tsc-rs-p34` の `perf/ts71-lsp-request-threads`、HEAD は `b121051dd`

@@ -125,9 +125,11 @@ restarts a mapper whose package changes.
   differ in 13 answers, all nuxt completions whose auto-import module
   specifier `tsgo` itself picks differently from run to run; a session over
   webpack's `lib/**/*.js` (790 JavaScript files, 134,174 requests) differs in
-  156 answers after a first round of fixes, mostly hovers and signature helps
-  of one intersection type and references and highlights inside nested
-  `@type` casts, under repair (October 17, 2026).
+  113 answers after two rounds of fixes: 43 hovers whose `Array<T>.length`
+  qualifier depends on the session's order, 34 hovers and signature helps
+  of one intersection type (an inference difference), references and
+  highlights inside nested `@type` casts, and a few `@this` definitions,
+  under repair (October 17, 2026).
 - **TypeScript 7 rules:** the default `target` is ES2026, and the options
   TypeScript 7 removed (`baseUrl`, `outFile`, `target: "es5"`, the `amd`,
   `umd` and `system` modules, …) are errors.
