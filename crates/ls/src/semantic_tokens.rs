@@ -361,6 +361,17 @@ impl Request<'_, '_> {
         if self.node_kind(declaration) == SyntaxKind::BindingElement {
             declaration = self.declaration_for_binding_element(declaration);
         }
+        // tsgo's reparser makes a property signature of a nested `@param
+        // options.x` tag too (reparseJSDocTypeLiteral takes parameter tags
+        // like property tags): webpack's `state.ast` under `@param {…}
+        // state.ast` is a property token.
+        if self.node_kind(declaration) == SyntaxKind::JSDocParameterTag
+            && self
+                .parent_of(declaration)
+                .is_some_and(|parent| self.node_kind(parent) == SyntaxKind::JSDocTypeLiteral)
+        {
+            return Some(TokenType::Property);
+        }
         token_from_declaration_mapping(self.node_kind(declaration))
     }
 

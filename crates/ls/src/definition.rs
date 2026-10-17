@@ -695,12 +695,27 @@ impl<'a> Request<'_, 'a> {
             return Ok(None);
         };
         let kind = self.node_kind(declaration);
-        // tsgo reparses a `@callback`'s signature into a function type, which
-        // a call through a parameter of that type does not go to (webpack's
-        // `callback(…)` listed the callback's tag too).
-        Ok((is_function_like_kind(kind)
-            && !matches!(kind, SyntaxKind::FunctionType | SyntaxKind::JSDocSignature))
-        .then_some(declaration))
+        if kind == SyntaxKind::JSDocSignature {
+            // tsgo reparses a `@callback`'s signature into a function type,
+            // which a call through a parameter of that type does not go to
+            // (webpack's `callback(…)` listed the callback's tag too), and an
+            // `@overload`'s into a function or method declaration at the
+            // tag's name, the one a call resolving to it goes to
+            // (`hash.digest("hex")` → the second overload). tsc-rs's node
+            // for that declaration is the tag's name.
+            let Some(tag) = self.parent_of(declaration) else {
+                return Ok(None);
+            };
+            let source = self.state.binder.source_of_node(tag);
+            return Ok(match &source.arena.node(tag).data {
+                NodeData::JSDocOverloadTag(data) => data.tag_name,
+                _ => None,
+            });
+        }
+        Ok(
+            (is_function_like_kind(kind) && kind != SyntaxKind::FunctionType)
+                .then_some(declaration),
+        )
     }
 
     /// tsgo `getAncestorCallLikeExpression`: the call-like expression that

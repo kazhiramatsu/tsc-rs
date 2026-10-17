@@ -3016,6 +3016,118 @@ fn a_this_assignment_under_a_deprecated_comment_is_not_deprecated_for_completion
     );
 }
 
+/// A `@template {C} T`'s constraint is the reparsed type parameter's
+/// constraint, which tsgo's navigation bar walks with the class's or an
+/// initializer arrow's children: an inline type literal's members are
+/// symbols there (tsgo aa814927; webpack's `SnapshotIterable` and
+/// `mergeToObject`).
+#[test]
+fn document_symbols_of_jsdoc_template_constraints() {
+    let text = "/**\n * @template {{ keys(): IterableIterator<string> } | undefined} T\n */\nexport class SnapshotIterable {\n\t/** @param {T} value value */\n\tconstructor(value) {\n\t\tthis.value = value;\n\t}\n}\n/**\n * @template {{ name: string }} T\n * @param {T[]} items items\n * @returns {T | undefined} merged\n */\nexport const mergeToObject = (items) => items[0];\n";
+    assert_eq!(
+        javascript_document_symbols(
+            &[
+                ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+                ("/home/projects/templates.js", text),
+            ],
+            "file:///home/projects/templates.js",
+        ),
+        [
+            "SnapshotIterable k5 3:0-8:1",
+            "  keys k6 1:16-1:48",
+            "  constructor k9 5:1-7:2",
+            "mergeToObject k13 14:13-14:48",
+            "  name k7 10:16-10:28",
+        ]
+    );
+}
+
+/// The `@type` of a `this.x = {…}` statement is the assignment's type node,
+/// which tsgo's navigation bar walks before the assigned object literal: the
+/// type literal's members come before the object's methods (tsgo aa814927;
+/// webpack's `Compilation.js` listed them after).
+#[test]
+fn document_symbols_of_a_this_assignment_s_type_before_its_object() {
+    let text = "class Resolver {\n\tconstructor() {\n\t\t/** @type {{ add: (x: number) => void, remove: () => void }} */\n\t\tthis.deps = {\n\t\t\tadd(x) {},\n\t\t\tremove() {}\n\t\t};\n\t\t/** @type {Map<string, () => void>} */\n\t\tthis.hooks = new Map();\n\t}\n}\n/** @type {{ run: (name: string) => void, stop: () => void }} */\nconst tasks = {\n\trun(name) {},\n\tstop() {}\n};\nmodule.exports = { Resolver, tasks };\n";
+    assert_eq!(
+        javascript_document_symbols(
+            &[
+                ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+                ("/home/projects/deps.js", text),
+            ],
+            "file:///home/projects/deps.js",
+        ),
+        [
+            "Resolver k5 0:0-10:1",
+            "  constructor k9 1:1-9:2",
+            "    add k7 2:15-2:40",
+            "    remove k7 2:41-2:59",
+            "    add k6 4:3-4:12",
+            "    remove k6 5:3-5:14",
+            "tasks k13 12:6-15:1",
+            "  run k6 13:1-13:13",
+            "  stop k6 14:1-14:10",
+        ]
+    );
+}
+
+/// The properties a nested `@param options.x` tag declares are properties to
+/// the semantic tokens, on an arrow's parameter and in a destructured
+/// parameter's pattern: tsgo's reparser makes property signatures of the
+/// tags (tsgo aa814927; webpack's `state.ast` and `targetProperties: tp`).
+#[test]
+fn semantic_tokens_of_nested_param_tag_properties() {
+    let text = "/**\n * @param {Object} state state\n * @param {{ kind: string }} state.ast ast\n * @param {string} state.name name\n * @returns {string} s\n */\nconst describe = (state) => state.ast.kind + state.name;\n\n/**\n * @param {string} output output\n * @param {Object} options options\n * @param {string} options.context context\n * @param {number} options.targetProperties target properties\n * @returns {string} s\n */\nconst applyDefaults = (output, { context, targetProperties: tp }) => output + context + tp;\nmodule.exports = { describe, applyDefaults };\n";
+    let response = request_in_javascript_project(
+        &[
+            ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+            ("/home/projects/nested.js", text),
+        ],
+        "file:///home/projects/nested.js",
+        "textDocument/semanticTokens/full",
+        serde_json::json!({"textDocument": {"uri": "file:///home/projects/nested.js"}}),
+    );
+    let data = response["result"]["data"]
+        .as_array()
+        .expect("token data")
+        .iter()
+        .map(|value| value.as_u64().unwrap())
+        .collect::<Vec<_>>();
+    let mut tokens = Vec::new();
+    let (mut line, mut character) = (0, 0);
+    for token in data.chunks(5) {
+        line += token[0];
+        character = if token[0] == 0 {
+            character + token[1]
+        } else {
+            token[1]
+        };
+        if line == 6 || line == 15 {
+            tokens.push((line, character, token[2], token[3]));
+        }
+    }
+    assert_eq!(
+        tokens,
+        [
+            (6, 6, 8, 13),
+            (6, 18, 5, 7),
+            (6, 28, 5, 7),
+            (6, 34, 3, 9),
+            (6, 38, 4, 9),
+            (6, 45, 5, 7),
+            (6, 51, 4, 9),
+            (15, 6, 13, 13),
+            (15, 23, 6, 7),
+            (15, 33, 7, 7),
+            (15, 42, 16, 9),
+            (15, 60, 2, 7),
+            (15, 69, 6, 7),
+            (15, 78, 7, 7),
+            (15, 88, 2, 7),
+        ]
+    );
+}
+
 /// A TypeScript file's declaration is deprecated for completions by tsgo's
 /// scanner text scan of its comment, a `@deprecated` followed by whitespace,
 /// `}`, `*` or the comment's end (the JSDoc itself is parsed lazily):

@@ -1373,13 +1373,57 @@ fn children(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
                 children.push(cast.type_node);
             }
         }
+        // A `@template {C} T`'s constraint is the reparsed type parameter's,
+        // walked with the type parameters before the parameters or members
+        // (webpack's `SnapshotIterable`'s `{ keys(): … }`, `mergeToObject`'s
+        // `{ name: string }`).
+        NodeData::ClassDeclaration(_)
+        | NodeData::ClassExpression(_)
+        | NodeData::FunctionDeclaration(_)
+        | NodeData::FunctionExpression(_)
+        | NodeData::ArrowFunction(_)
+        | NodeData::MethodDeclaration(_)
+        | NodeData::GetAccessor(_)
+        | NodeData::SetAccessor(_)
+            if hosted.type_parameters_of(node).is_some() =>
+        {
+            let constraints: Vec<NodeId> = hosted
+                .type_parameters_of(node)
+                .map(|parameters| {
+                    parameters
+                        .tags
+                        .iter()
+                        .filter_map(|&tag| match &source.arena.node(tag).data {
+                            NodeData::JSDocTemplateTag(data) => data.constraint,
+                            _ => None,
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            if !constraints.is_empty() {
+                let at = tsc_binder::node_util::name_field_of(source, node)
+                    .and_then(|name| children.iter().position(|&child| child == name))
+                    .map_or(0, |index| index + 1);
+                children.splice(at..at, constraints);
+            }
+            // The `@returns` type below still applies to the functions.
+            return children_with_return_type(source, hosted, node, children);
+        }
         // An assignment declaration's binary expression gets its statement's
         // `@type` as its type (reparseHosted, KindExpressionStatement):
         // `/** @type {Map<string, { source: string }>} */ this.x = new Map()`
         // in webpack's constructor lists `source`.
-        NodeData::BinaryExpression(_) => {
+        NodeData::BinaryExpression(data) => {
             if let Some(r#type) = hosted.type_of(node) {
-                children.push(r#type);
+                // Before the right operand: the type's members come before
+                // the operand's symbols in tsgo's tree (webpack's
+                // `compilationDependencies`'s `add` of the `@type` before the
+                // object literal's `add`).
+                let at = data
+                    .right
+                    .and_then(|right| children.iter().position(|&child| child == right))
+                    .unwrap_or(children.len());
+                children.insert(at, r#type);
             }
         }
         // A function's `@returns` type is its return type annotation, walked
@@ -1392,25 +1436,39 @@ fn children(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
         | NodeData::MethodDeclaration(_)
         | NodeData::GetAccessor(_)
         | NodeData::SetAccessor(_) => {
-            let (written_type, body) = match &source.arena.node(node).data {
-                NodeData::FunctionDeclaration(data) => (data.r#type, data.body),
-                NodeData::FunctionExpression(data) => (data.r#type, data.body),
-                NodeData::ArrowFunction(data) => (data.r#type, data.body),
-                NodeData::MethodDeclaration(data) => (data.r#type, data.body),
-                NodeData::GetAccessor(data) => (data.r#type, data.body),
-                NodeData::SetAccessor(data) => (data.r#type, data.body),
-                _ => unreachable!("kind/data agree"),
-            };
-            if written_type.is_none() {
-                if let Some(return_type) = hosted.type_of(node) {
-                    let at = body
-                        .and_then(|body| children.iter().position(|&child| child == body))
-                        .unwrap_or(children.len());
-                    children.insert(at, return_type);
-                }
-            }
+            return children_with_return_type(source, hosted, node, children);
         }
         _ => {}
+    }
+    children
+}
+
+/// A function's `@returns` type as its return type annotation among its
+/// children, before the body (tsgo's reparser; walked when the function is
+/// reached as a child, as an initializer's arrow: webpack's `getOptions`
+/// lists the `name` of its `@returns {… & { name: string }}`).
+fn children_with_return_type(
+    source: &SourceFile,
+    hosted: &tsc_syntax::JsDocHosted,
+    node: NodeId,
+    mut children: Vec<NodeId>,
+) -> Vec<NodeId> {
+    let (written_type, body) = match &source.arena.node(node).data {
+        NodeData::FunctionDeclaration(data) => (data.r#type, data.body),
+        NodeData::FunctionExpression(data) => (data.r#type, data.body),
+        NodeData::ArrowFunction(data) => (data.r#type, data.body),
+        NodeData::MethodDeclaration(data) => (data.r#type, data.body),
+        NodeData::GetAccessor(data) => (data.r#type, data.body),
+        NodeData::SetAccessor(data) => (data.r#type, data.body),
+        _ => return children,
+    };
+    if written_type.is_none() {
+        if let Some(return_type) = hosted.type_of(node) {
+            let at = body
+                .and_then(|body| children.iter().position(|&child| child == body))
+                .unwrap_or(children.len());
+            children.insert(at, return_type);
+        }
     }
     children
 }

@@ -535,6 +535,52 @@ fn a_call_of_a_jsdoc_callback_typed_parameter_goes_to_the_parameter_only() {
     );
 }
 
+/// A call that resolves to a JSDoc `@overload` goes to that overload: tsgo
+/// reparses each `@overload` into a declaration at its tag's name, and the
+/// definition's context is that name widened to the method's (tsgo aa814927;
+/// webpack's `hash.digest("hex")` went to the first overload).
+#[test]
+fn a_call_goes_to_the_jsdoc_overload_it_resolves_to() {
+    let text = "class Hash {\n\t/**\n\t * Calculates the digest\n\t * @overload\n\t * @returns {Buffer} digest\n\t */\n\t/**\n\t * Calculates the digest\n\t * @overload\n\t * @param {string} encoding encoding of the return value\n\t * @returns {string} digest\n\t */\n\t/**\n\t * Calculates the digest\n\t * @param {string=} encoding encoding of the return value\n\t * @returns {string | Buffer} digest\n\t */\n\tdigest(encoding) {\n\t\treturn encoding ? \"\" : Buffer.alloc(0);\n\t}\n}\nconst h = new Hash();\nconst s = h.digest(\"hex\");\nconst b = h.digest();\nmodule.exports = { s, b };\n";
+    let file = [("/overload.js", text)];
+    let javascript = || {
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        })
+    };
+    assert_eq!(
+        links(
+            &file,
+            javascript(),
+            "/overload.js",
+            (22, 14),
+            Request::Definition
+        ),
+        vec![(
+            ((22, 12), (22, 18)),
+            "/overload.js",
+            ((8, 5), (17, 7)),
+            ((17, 1), (17, 7))
+        )]
+    );
+    assert_eq!(
+        links(
+            &file,
+            javascript(),
+            "/overload.js",
+            (23, 14),
+            Request::Definition
+        ),
+        vec![(
+            ((23, 12), (23, 18)),
+            "/overload.js",
+            ((3, 5), (17, 7)),
+            ((17, 1), (17, 7))
+        )]
+    );
+}
+
 /// The TypeScript twin of the JavaScript method above: a method's own type
 /// goes to its one call signature's return type, which has no declarations
 /// (tsgo aa814927 answers nothing).

@@ -1580,3 +1580,32 @@ fn a_plain_jsdoc_predicate_does_not_name_its_parameter() {
         ]
     );
 }
+
+/// `/** @type {T} */ (x) = v` and `(x)++` are reads of `x` in a JavaScript
+/// file: tsgo's reparser makes the cast an `as` expression, which its
+/// `accessKind` does not look through (tsgo aa814927; webpack's
+/// `lazyModule.js` and `HashedModuleIdsPlugin.js` highlights).
+#[test]
+fn an_assignment_to_a_jsdoc_cast_is_a_read_of_the_name() {
+    let text = "/**\n * @template T\n * @param {() => T} load load\n * @returns {() => T} getter\n */\nexport const lazy = (load) => {\n\t/** @type {T | undefined} */\n\tlet value;\n\tlet len = 4;\n\treturn () => {\n\t\tif (value === undefined) {\n\t\t\tvalue = load();\n\t\t\t/** @type {(() => T) | undefined} */\n\t\t\t(load) = undefined;\n\t\t}\n\t\t/** @type {number} */ (len)++;\n\t\treturn /** @type {T} */ (value);\n\t};\n};\n";
+    let files = [("/casts.js", text)];
+    let javascript = || {
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        })
+    };
+    let mut load = document_highlights(&files, javascript(), "/casts.js", (13, 4));
+    load.sort();
+    assert_eq!(
+        load,
+        [
+            (((5, 21), (5, 25)), 3),
+            (((11, 11), (11, 15)), 2),
+            (((13, 4), (13, 8)), 2),
+        ]
+    );
+    let mut len = document_highlights(&files, javascript(), "/casts.js", (15, 26));
+    len.sort();
+    assert_eq!(len, [(((8, 5), (8, 8)), 3), (((15, 25), (15, 28)), 2)]);
+}
