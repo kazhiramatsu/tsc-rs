@@ -1032,8 +1032,18 @@ impl<'a> Navigator<'a> {
         }
         if include_js_doc {
             if let Found::Node(view) = found {
-                if let Some(&js_doc) = self.js_docs(view).first() {
-                    return self.start_of_node(Found::Node(js_doc), false);
+                // tsgo reparses `/** @type {T} */ (e)` into `(e as T)`
+                // (reparser.go reparseHosted): the `as` expression has no
+                // JSDoc of its own and starts at `e`'s full position, so
+                // `GetTokenPosOfNode` skips `e`'s own leading JSDoc and a
+                // position inside it is in no child's range — the tokens of
+                // a nested cast's type, or of an arrow's JSDoc inside a
+                // cast, are not found (webpack's `(/** @type {Node[] | null}
+                // */ (null))`; the user's decision to match tsgo).
+                if !self.is_cast_operand(view) {
+                    if let Some(&js_doc) = self.js_docs(view).first() {
+                        return self.start_of_node(Found::Node(js_doc), false);
+                    }
                 }
             }
         }
@@ -1042,6 +1052,23 @@ impl<'a> Navigator<'a> {
             ..SkipTriviaOptions::default()
         };
         skip_trivia_ex(text, pos as usize, options) as u32
+    }
+
+    /// The expression a JSDoc cast's parentheses wrap: the operand of tsgo's
+    /// reparsed `as` (or `satisfies`) expression.
+    fn is_cast_operand(&self, view: View) -> bool {
+        let View::Node(id) = view else {
+            return false;
+        };
+        let Some(parent) = self.file.arena.node(id).parent else {
+            return false;
+        };
+        matches!(
+            &self.file.arena.node(parent).data,
+            NodeData::ParenthesizedExpression(data) if data.expression == Some(id)
+        ) && tsc_binder::hosted::jsdoc_hosted(self.file)
+            .cast_of(id)
+            .is_some()
     }
 
     pub fn kind(&self, found: Found) -> SyntaxKind {

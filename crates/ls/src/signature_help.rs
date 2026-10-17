@@ -603,6 +603,21 @@ impl Completions<'_, '_, '_> {
                     if crate::utilities::can_have_symbol(self.node_kind(parent)) {
                         return self.request.state.binder.node_symbol(parent);
                     }
+                    // tsgo's reparser makes a property signature of a
+                    // `@property`/`@param` tag with the tag's type as a
+                    // clone whose parent is that signature: the function
+                    // type written in the tag names the property (webpack's
+                    // `isEvaluation(phase)` under `@type {ImportPhaseUtils}`).
+                    if self.node_kind(parent) == SyntaxKind::JSDocTypeExpression {
+                        if let Some(tag) = self.parent_of(parent).filter(|&tag| {
+                            matches!(
+                                self.node_kind(tag),
+                                SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag
+                            )
+                        }) {
+                            return self.request.state.binder.node_symbol(tag);
+                        }
+                    }
                 }
             }
         }

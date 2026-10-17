@@ -1949,3 +1949,22 @@ fn javascript_overloads_have_no_documentation() {
         Some(("```typescript\nfunction toStore<V>(get: () => V, set: (v: V) => void): V\nfunction toStore<V>(get: () => V): V\n```\n".to_owned(), ((24, 9), (24, 16)), false))
     );
 }
+
+/// tsgo's token search cannot reach a nested cast's own JSDoc (the
+/// reparsed `as` expression has none and starts at its operand's full
+/// position), so the inner cast's type name has no hover while the outer
+/// one does (tsgo aa814927; the user decided to match tsgo here).
+#[test]
+fn a_nested_cast_s_type_name_has_no_hover() {
+    let files = [("/nested.js", "/** @typedef {{ kind: string, body: Node[] }} Node */\n/** @typedef {{ parent: Scope | null }} Scope */\n/**\n * @param {{ statements: Node[], scope: Scope }} state state\n * @param {Node} previous previous\n * @returns {Node[]} nodes\n */\nfunction reset(state, previous) {\n\tstate.statements = /** @type {Node[]} */ (\n\t\t/** @type {Node[] | null} */ (null)\n\t);\n\tstate.scope = /** @type {Scope} */ (/** @type {Scope | null} */ (null));\n\tprevious.body = [\n\t\t.../** @type {Node[]} */ (previous.body),\n\t\t.../** @type {Node[]} */ (state.statements)\n\t];\n\treturn previous.body;\n}\nmodule.exports = reset;\n")];
+    let javascript = || {
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        })
+    };
+    assert!(hover(&files, javascript(), "/nested.js", (11, 51), None).is_none());
+    let outer = hover(&files, javascript(), "/nested.js", (11, 27), None).expect("the outer cast");
+    assert_eq!(outer.1, ((11, 26), (11, 31)));
+    assert!(hover(&files, javascript(), "/nested.js", (9, 14), None).is_none());
+}

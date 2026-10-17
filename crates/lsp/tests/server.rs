@@ -3071,6 +3071,42 @@ fn document_symbols_of_a_this_assignment_s_type_before_its_object() {
     );
 }
 
+/// Signature help inside an object literal method's own parameter list,
+/// under a `@type {Utils}` whose `@property` is a function type, names the
+/// property: tsgo's contextual invocation takes the function type's symbol
+/// and `chooseBetterSymbol` climbs to the reparsed property signature (tsgo
+/// aa814927; webpack's `ImportPhase.js` `isEvaluation(phase)`).
+#[test]
+fn javascript_contextual_signature_help_names_the_typedef_property() {
+    let text = "/**\n * @typedef {object} Utils\n * @property {(phase: number | undefined) => boolean} isEvaluation true if evaluation\n * @property {(phase: number) => string} stringify name of phase\n */\n\n/** @type {Utils} */\nconst Utils = {\n\tisEvaluation(phase) {\n\t\treturn phase === 1;\n\t},\n\tstringify(phase) {\n\t\treturn String(phase);\n\t}\n};\nconst ok = Utils.isEvaluation(1);\nmodule.exports = { ok };\n";
+    let labels = |line: u32, character: u32| {
+        let response = request_in_javascript_project(
+            &[
+                ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+                ("/home/projects/utils.js", text),
+            ],
+            "file:///home/projects/utils.js",
+            "textDocument/signatureHelp",
+            serde_json::json!({"textDocument": {"uri": "file:///home/projects/utils.js"}, "position": {"line": line, "character": character}}),
+        );
+        response["result"]["signatures"]
+            .as_array()
+            .expect("signatures")
+            .iter()
+            .map(|signature| signature["label"].as_str().expect("a label").to_owned())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        labels(8, 14),
+        ["isEvaluation(phase: number | undefined): boolean"]
+    );
+    assert_eq!(labels(11, 11), ["stringify(phase: number): string"]);
+    assert_eq!(
+        labels(15, 30),
+        ["isEvaluation(phase: number | undefined): boolean"]
+    );
+}
+
 /// The properties a nested `@param options.x` tag declares are properties to
 /// the semantic tokens, on an arrow's parameter and in a destructured
 /// parameter's pattern: tsgo's reparser makes property signatures of the
