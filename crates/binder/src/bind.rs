@@ -1018,8 +1018,19 @@ impl<'a> BinderWorker<'a> {
         for &name in &names {
             self.node_symbol.insert(name, symbol);
         }
+        // An exported function's local symbol declares the overloads too
+        // (tsgo binds each reparsed overload like the host: the local and
+        // the export symbol), which completions in the module read.
         let export_symbol = self.symbols.symbol(symbol).export_symbol;
-        for symbol in std::iter::once(symbol).chain(export_symbol) {
+        let local_symbol = self
+            .node_local_symbol
+            .get(&node)
+            .copied()
+            .filter(|&local| local != symbol);
+        for symbol in std::iter::once(symbol)
+            .chain(export_symbol)
+            .chain(local_symbol)
+        {
             let mut declarations = self.symbols.symbol(symbol).declarations.to_vec();
             let index = declarations
                 .iter()

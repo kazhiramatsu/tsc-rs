@@ -598,26 +598,41 @@ impl Completions<'_, '_, '_> {
             return Some(symbol);
         }
         for &declaration in &data.declarations {
-            if self.node_kind(declaration) == SyntaxKind::FunctionType {
+            let kind = self.node_kind(declaration);
+            if kind == SyntaxKind::FunctionType {
                 if let Some(parent) = self.parent_of(declaration) {
                     if crate::utilities::can_have_symbol(self.node_kind(parent)) {
                         return self.request.state.binder.node_symbol(parent);
                     }
                     // tsgo's reparser makes a property signature of a
-                    // `@property`/`@param` tag with the tag's type as a
-                    // clone whose parent is that signature: the function
-                    // type written in the tag names the property (webpack's
-                    // `isEvaluation(phase)` under `@type {ImportPhaseUtils}`).
+                    // `@property`/`@param` tag and a type alias of a
+                    // `@typedef`, each with the tag's type as a clone whose
+                    // parent is that declaration: the function type written
+                    // in the tag names the property or the alias (webpack's
+                    // `isEvaluation(phase)` under `@type {ImportPhaseUtils}`,
+                    // `getExportsFromData` under `@type {GetExportsFromDataFn}`).
                     if self.node_kind(parent) == SyntaxKind::JSDocTypeExpression {
                         if let Some(tag) = self.parent_of(parent).filter(|&tag| {
                             matches!(
                                 self.node_kind(tag),
-                                SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag
+                                SyntaxKind::JSDocPropertyTag
+                                    | SyntaxKind::JSDocParameterTag
+                                    | SyntaxKind::JSDocTypedefTag
                             )
                         }) {
                             return self.request.state.binder.node_symbol(tag);
                         }
                     }
+                }
+            }
+            // A `@callback`'s signature is the function type of the alias
+            // tsgo reparses the tag into; the tag is that declaration here.
+            if kind == SyntaxKind::JSDocSignature {
+                if let Some(tag) = self
+                    .parent_of(declaration)
+                    .filter(|&tag| self.node_kind(tag) == SyntaxKind::JSDocCallbackTag)
+                {
+                    return self.request.state.binder.node_symbol(tag);
                 }
             }
         }
