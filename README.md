@@ -113,8 +113,8 @@ restarts a mapper whose package changes.
   that does not export the symbol, the one that does) and one hover whose
   display depends on which files `tsgo`'s checker saw first (October 17,
   2026). In a session over svelte's JavaScript sources (368 files, 61,659
-  requests) 49 answers differ: 47
-  completions whose auto-import module specifier depends on the order in
+  requests) 49 answers differ: 47 completions whose auto-import module
+  specifier depends on the order in
   which `tsgo` fills its specifier cache in a file's first completion (it
   varies between runs), one hover that depends on which files `tsgo`'s
   checker saw first, and one definition where `tsgo` reports an empty range
@@ -123,8 +123,11 @@ restarts a mapper whose package changes.
   (680 files, 113,109 requests), nuxt's `packages/*/src` (507 files, 85,414
   requests) and remix's `packages/*/src` (796 files, 118,095 requests)
   differ in 13 answers, all nuxt completions whose auto-import module
-  specifier `tsgo` itself picks differently from run to run (October 17,
-  2026).
+  specifier `tsgo` itself picks differently from run to run; a session over
+  webpack's `lib/**/*.js` (790 JavaScript files, 134,174 requests) differs in
+  156 answers after a first round of fixes, mostly hovers and signature helps
+  of one intersection type and references and highlights inside nested
+  `@type` casts, under repair (October 17, 2026).
 - **TypeScript 7 rules:** the default `target` is ES2026, and the options
   TypeScript 7 removed (`baseUrl`, `outFile`, `target: "es5"`, the `amd`,
   `umd` and `system` modules, …) are errors.
