@@ -399,6 +399,43 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 - **道具**：repro `lsp-compare/repro/{index-ending,unsafe-import,jsdoc-typedef}`、`handover/instrument-node-builder.py`（node builder の
   `return Ok(None)` と property 長の一時 trace）、計装した tsgo（`nodebuilderimpl.go` に同じ trace、build 後に元へ戻した）。
 
+### 修正 5：webpack の JavaScript（probe 6 file）の差分（PR #831、2026-10-17、Fable 5.1）
+
+- **merge**：#831 → `06dd75112`（hosted run 39029179330）。commit：c387f9b30（binder・checker）、14c0308f3（ls・lsp test）。
+- **比べたもの**：webpack e12e1224 の `lib/{Compilation,Compiler,NormalModule,javascript/JavascriptParser,cache/PackFileCacheStrategy,util/createHash}.js`
+  （6 file、960 request、`lsp-compare/rerun.sh webpack-probe … lists/webpack-probe.txt 40`）：12 件違う → 修正後 0（`lib/Compilation.js:documentSymbol`
+  の 1 件は後述の順序の差）。全体（`lib/**/*.js` 790 file、134,174 request、tsgo 694 s・tsc-rs 699 s）：156 件 — 下の「残り」。
+- **種類と直し方**（どれも tsgo の経路に合わせて既存の code を変えた）：
+  1. **object typedef の `@property {T=}` の型が検査されない（checker）**：tsgo の reparser は tag から property signature を作り、宣言の検査で
+     optional 型を解決する（`getTypeFromTypeNode` の JSDocOptionalType）ので内側の参照の誤りが出る。こちらは tag の型式の検査が `T=` で止まっていた。
+     そこでしか使わない `@import` の binding が未使用（TS6196/6192）になり、値だけの import を型に使った TS2749 も出なかった（`check.rs`）。
+  2. **class 本体の `@typedef` は file のもの（binder・ls）**：tsgo の parser は reparser が作った type alias / import 宣言を、source file と block の
+     statement list 以外の list（class・object literal の member、parameter、switch clause）から外へ出し、host を含む statement の前に置く
+     （`parseListIndex`）。typedef は module の export になり（未使用にならない）、inline type literal の member は file の先頭側の symbol、
+     tag 自身の symbol は host の位置のまま。`jsdoc_statement_host` が binding の container を選び、symbol walker は statement で部分木の
+     reparse 分を出す（`node_util.rs`・`bind.rs`・`symbols.rs`）。
+  3. **`this.x = …` の `@type` と arrow の `@returns` の documentSymbol（ls）**：reparser は代入の binary expression に文の `@type` を、arrow に
+     `@returns` を戻り値注釈として付け、navigation bar は子として辿る（`symbols.rs children()`）。
+  4. **`this.x = …` の文の `@deprecated` は deprecate しない（binder）**：tsgo の deprecate は JSDoc host の node flag（`IsDeprecatedDeclarationWithCachedFlags`）で、
+     代入の宣言はそれを合成しない。tag から modifier flag は作られない（`node_util.rs get_jsdoc_modifier_flags_no_cache`）。
+  5. **入れ子の `@param options.x desc` が property の docs（ls hover）**：`reparseJSDocTypeLiteral` は parameter tag も property signature にし、tag を
+     その JSDoc にする（`ls/jsdoc.rs`）。
+  6. **`@callback` 型の parameter 経由の呼び出しの definition は parameter だけ（ls definition）**：tsgo は callback を function type に reparse し、
+     `tryGetSignatureDeclaration` はそこへ行かない（`definition.rs`）。
+- **残り（全体 session 156 件、次の slice）**：hover 66（`Array<T>.length` 等の qualifier 37 = tsgo の状態依存の疑い、再実行で分類中；
+  `TypedHookMap<RecordFactoryFromTuple<…>>` の intersection の要素数 16）、signatureHelp 24（同じ intersection）、references 17（入れ子 cast の内側を tsgo が
+  数えない、memo 10）、definition 15（JSDoc `@overload` の 2 つ目への位置、`0:0`）、documentHighlight 13（cast 括弧への代入の Read/Write、入れ子 cast）、
+  diagnostic 10（TS1095/TS2483 = memo 8、CommonJS の `let` の TS2454、空 alias `{}` の表示、TS6205 の位置、TS2322/2345 の文言）、documentSymbol 4、
+  semanticTokens 4（入れ子 `@param` の property token）、typeDefinition 2、completion 1。詳細は memory とこの packet の次の記録。
+- **test**（どれも変更なしでは落ちる）：checker `an_object_typedef_s_optional_property_type_is_checked`；lsp server
+  `a_jsdoc_import_used_only_in_an_optional_property_type_is_used`、`a_typedef_in_a_class_body_is_hoisted_to_the_file_s_statements`、
+  `document_symbols_of_an_assignment_s_type_and_an_arrow_s_returns_type`、`a_this_assignment_under_a_deprecated_comment_is_not_deprecated_for_completions`；
+  ls hover `a_nested_param_tag_documents_its_property`、definition `a_call_of_a_jsdoc_callback_typed_parameter_goes_to_the_parameter_only`；binder の
+  `jsdoc_visibility_tags_contribute_effective_modifier_flags` は deprecated flag が無いことを確かめる。
+- **検査**：14c0308f3 で focused の 37 case（typedef・import・deprecated）全部 full；`scripts/conformance_ts71.py --workers 2 --check` exit 0（12,829 case、lane A 13,577/13,577 full、mismatch 0、emit 13,569 full / 0 mismatch、ratchet 0 regressions、510 s）；`--checkers 4` + `conformance_ts71_compare.py`：15,335 一致・4 違い（既知の partition 依存 4 件）；`scripts/suites_ts71.py --update` → `--check` exit 0（0 regressions、ratchet 不変）；全 crate の test pass（types 49、syntax 251、binder 78、program 684、checker 1813、emitter 352、ls 244、lsp 84、api 332、project 235、compiler 241、conformance 49、lsproto 31）；clippy（binder・checker・ls・lsp）・fmt clean。hosted gates pass （14c0308f3 と、main を取り込んだ eda368a92 の両方）。
+- **道具**：repro `lsp-compare/repro/{webpack-mini,webpack-tests,typedef-prop,fn-type-tag,alias-empty,nested-cast,let-assigned,w2-cli,w2-cli2,w2-ls}`、
+  `lsp-compare/rerun.sh`（file list で記録）、`lists/webpack-probe.txt`、`handover/webpack-chain1.sh`。tsgo memo 7〜11 はこの session から。
+
 ## 3. 性能の slice 3（local のみ、未 push）
 
 - **worktree と branch**：`/Users/hiramatsu/dev/tsc-rs-p34` の `perf/ts71-lsp-request-threads`、HEAD は `b121051dd`
