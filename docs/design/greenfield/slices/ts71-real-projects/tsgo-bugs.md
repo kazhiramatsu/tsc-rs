@@ -83,3 +83,15 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
 - 現象：4,584 件中 1 件は tsgo 自身の答えが run ごとに変わる（README の「4,583 of 4,584」）。
 - tsc-rs の扱い：記録のみ。
 - 報告：未投稿。
+
+### 7. JSDoc の型位置に書いた値（型を持たない symbol）が TS2749 になる
+
+- 見つけた日・場所：2026-10-17、webpack の `lib/javascript/JavascriptParser.js`（`@property {InstanceType<ESMStarExportsList>=}`、
+  `ESMStarExportsList` は値だけを export する `@import` の binding）。
+- 現象：tsgo は「'X' refers to a value, but is being used as a type here. Did you mean 'typeof X'?」（TS2749）を報告する。
+  TypeScript 6.0.3 は JS file の JSDoc では値を型として読む（`getTypeFromJSDocValueReference`）ので報告しない。
+- 根拠：tsgo `checker.go` `getTypeReferenceType` の末尾が `// !!! Resolving values as types for JS` のまま `errorType` を返し、
+  `getSymbolFromTypeReference` は Type の意味だけで解決する（6.0.3 の Type|Value の再試行が無い）。再現
+  `lsp-compare/repro/webpack-mini`（`lib/main.js` の `List`）：tsc 6.0.3 exit 0、tsgo は TS2749。
+- tsc-rs の扱い：tsgo に合わせてある（`annotate.rs` も Type の意味だけ）。本家が実装すれば追随する。
+- 報告：未投稿（tsgo の TODO らしく、issue というより実装待ち）。
