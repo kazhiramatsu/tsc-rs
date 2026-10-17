@@ -1,1 +1,0 @@
-a.js:13:12:hover  # a JS generic method's `@returns {ByType[T]}` is not instantiated in the call's hover (tsc-rs prints `ByType[T]`, tsgo `ByType["a"]`); webpack implicitTypeLoaderFallback.js, to fix

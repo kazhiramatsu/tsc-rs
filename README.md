@@ -125,9 +125,9 @@ restarts a mapper whose package changes.
   differ in 13 answers, all nuxt completions whose auto-import module
   specifier `tsgo` itself picks differently from run to run; a session over
   webpack's `lib/**/*.js` (790 JavaScript files, 134,174 requests) differs in
-  62 answers after four rounds of fixes: 43 hovers whose
+  60 answers after five rounds of fixes: 43 hovers whose
   `Array<T>.length` qualifier depends on the session's order, 6
-  signature-help labels, 4 truncated or uninstantiated hovers, one file's
+  signature-help labels, 2 truncated hovers, one file's
   diagnostics whose inferred type argument differs, 5 references of an
   `@import` default name `tsgo` misses and 3 `@this` definitions `tsgo`
   answers at an empty range; sessions over

@@ -1219,23 +1219,32 @@ impl<'a> CheckerState<'a> {
                 Ok(true)
             }
             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
-                let (r#type, body, type_parameters, parameters) = match self.data_of(node) {
-                    NodeData::MethodDeclaration(data) => (
-                        data.r#type,
-                        data.body,
-                        data.type_parameters,
-                        data.parameters,
-                    ),
-                    NodeData::MethodSignature(data) => {
-                        (data.r#type, None, data.type_parameters, data.parameters)
-                    }
+                let (body, parameters) = match self.data_of(node) {
+                    NodeData::MethodDeclaration(data) => (data.body, data.parameters),
+                    NodeData::MethodSignature(data) => (None, data.parameters),
                     _ => unreachable!("method kind implies payload"),
                 };
+                // tsgo reads the reparsed method: a JavaScript method's
+                // `@returns` type is its type, its `@template` type
+                // parameters are its type parameters and its `@this` tag is
+                // its first parameter. A method with a body and a `@returns`
+                // type is then not taken to reference every type parameter
+                // in scope (its class's `this` type among them), so its type
+                // is not instantiated for the `this` argument and its type
+                // parameters are not cloned: a call's mapper maps the `T`
+                // the written `@returns {X[T]}` resolves to, and the call's
+                // hover reuses that node as `X["a"]`.
+                let r#type = self.effective_return_type_node(node);
                 if r#type.is_none() && body.is_some() {
                     return Ok(true);
                 }
-                for child in self.nodes_of(type_parameters) {
+                for child in self.type_parameter_declarations_of(node) {
                     if self.contains_reference(tp, child)? {
+                        return Ok(true);
+                    }
+                }
+                if let Some(this_type) = self.reparsed_this_type_node(node) {
+                    if self.contains_reference(tp, this_type)? {
                         return Ok(true);
                     }
                 }
@@ -3350,7 +3359,13 @@ impl<'a> CheckerState<'a> {
     // ---- node utilities for the containsReference walker ----
 
     /// tsrs-native: owned child-list adapter around the syntax crate's
-    /// forEachChild traversal; tsc passes callbacks directly.
+    /// forEachChild traversal; tsc passes callbacks directly. tsgo's
+    /// reparser writes a JavaScript node's hosted JSDoc into its syntax
+    /// (`jsdoc_hosted`), so its forEachChild also visits a function's or
+    /// class's `@template` type parameters, a function's `@this` parameter
+    /// type, a declaration's `@type` or `@param` type, a function's
+    /// `@returns` type or whole-function `@type`, and the type of the cast
+    /// wrapped around an expression.
     pub(crate) fn children_of(&self, node: NodeId) -> Vec<NodeId> {
         let source = self.binder.source_of_node(node);
         let mut children = Vec::new();
@@ -3358,6 +3373,14 @@ impl<'a> CheckerState<'a> {
             children.push(child);
             false
         });
+        if self.is_in_js_file(node) {
+            let hosted = self.hosted_jsdoc(node);
+            children.extend(self.reparsed_type_parameters(node));
+            children.extend(self.reparsed_this_type_node(node));
+            children.extend(hosted.type_of(node));
+            children.extend(hosted.full_signature_of(node));
+            children.extend(hosted.cast_of(node).map(|cast| cast.type_node));
+        }
         children
     }
 
