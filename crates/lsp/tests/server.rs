@@ -3071,6 +3071,115 @@ fn document_symbols_of_a_this_assignment_s_type_before_its_object() {
     );
 }
 
+/// Signature help inside an object literal method's own parameter list,
+/// under a `@type {Utils}` whose `@property` is a function type, names the
+/// property: tsgo's contextual invocation takes the function type's symbol
+/// and `chooseBetterSymbol` climbs to the reparsed property signature (tsgo
+/// aa814927; webpack's `ImportPhase.js` `isEvaluation(phase)`).
+#[test]
+fn javascript_contextual_signature_help_names_the_typedef_property() {
+    let text = "/**\n * @typedef {object} Utils\n * @property {(phase: number | undefined) => boolean} isEvaluation true if evaluation\n * @property {(phase: number) => string} stringify name of phase\n */\n\n/** @type {Utils} */\nconst Utils = {\n\tisEvaluation(phase) {\n\t\treturn phase === 1;\n\t},\n\tstringify(phase) {\n\t\treturn String(phase);\n\t}\n};\nconst ok = Utils.isEvaluation(1);\nmodule.exports = { ok };\n";
+    let labels = |line: u32, character: u32| {
+        let response = request_in_javascript_project(
+            &[
+                ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+                ("/home/projects/utils.js", text),
+            ],
+            "file:///home/projects/utils.js",
+            "textDocument/signatureHelp",
+            serde_json::json!({"textDocument": {"uri": "file:///home/projects/utils.js"}, "position": {"line": line, "character": character}}),
+        );
+        response["result"]["signatures"]
+            .as_array()
+            .expect("signatures")
+            .iter()
+            .map(|signature| signature["label"].as_str().expect("a label").to_owned())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        labels(8, 14),
+        ["isEvaluation(phase: number | undefined): boolean"]
+    );
+    assert_eq!(labels(11, 11), ["stringify(phase: number): string"]);
+    assert_eq!(
+        labels(15, 30),
+        ["isEvaluation(phase: number | undefined): boolean"]
+    );
+    // The alias a `@callback` or a function-type `@typedef` declares names
+    // the arrow a `@type` gives it (webpack's `GetExportsFromDataFn`).
+    let aliases = "/**\n * @callback GetExportsFn\n * @param {string} data data\n * @param {number=} depth depth\n * @returns {string[] | null} exports\n */\n/** @typedef {(data: string, depth?: number) => string[] | null} GetExportsTypedef */\n\n/** @type {GetExportsFn} */\nconst getExportsA = (data, depth = 1) => (depth > 0 ? [data] : null);\n/** @type {GetExportsTypedef} */\nconst getExportsB = (data, depth = 1) => (depth > 0 ? [data] : null);\nmodule.exports = { getExportsA, getExportsB };\n";
+    let alias_labels = |line: u32, character: u32| {
+        let response = request_in_javascript_project(
+            &[
+                ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+                ("/home/projects/aliases.js", aliases),
+            ],
+            "file:///home/projects/aliases.js",
+            "textDocument/signatureHelp",
+            serde_json::json!({"textDocument": {"uri": "file:///home/projects/aliases.js"}, "position": {"line": line, "character": character}}),
+        );
+        response["result"]["signatures"]
+            .as_array()
+            .expect("signatures")
+            .iter()
+            .map(|signature| signature["label"].as_str().expect("a label").to_owned())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        alias_labels(9, 22),
+        ["GetExportsFn(data: string, depth?: number | undefined): string[] | null"]
+    );
+    assert_eq!(
+        alias_labels(11, 22),
+        ["GetExportsTypedef(data: string, depth?: number): string[] | null"]
+    );
+}
+
+/// A function with `@overload`s is deprecated to completions only when
+/// every declaration is: tsgo's reparsed overload declarations carry no
+/// deprecated flag, so one `@deprecated` overload leaves `error` live
+/// (sortText `11`, no tag), while a plain `@deprecated` function is
+/// deprecated (tsgo aa814927; SvelteKit's `error`).
+#[test]
+fn a_function_with_one_deprecated_overload_is_not_deprecated_for_completions() {
+    let text = "/**\n * Throws an error.\n * @overload\n * @param {number} status status\n * @param {string} message message\n * @returns {never} nothing\n */\n/**\n * Throws an error.\n * @overload\n * @deprecated Passing a body is deprecated\n * @param {number} status status\n * @param {{ message: string }} body body\n * @returns {never} nothing\n */\n/**\n * @param {number} status status\n * @param {string | { message: string }} message message\n * @returns {never} nothing\n */\nexport function error(status, message) {\n\tthrow new Error(String(status) + String(message));\n}\n/** @deprecated use error */\nexport function fail() {}\nexport function other() {\n\treturn err;\n}\n";
+    let response = request_in_javascript_project(
+        &[
+            ("/home/projects/tsconfig.json", JAVASCRIPT_PROJECT_CONFIG),
+            ("/home/projects/overloads.js", text),
+        ],
+        "file:///home/projects/overloads.js",
+        "textDocument/completion",
+        serde_json::json!({"textDocument": {"uri": "file:///home/projects/overloads.js"}, "position": {"line": 26, "character": 11}, "context": {"triggerKind": 1}}),
+    );
+    let mut items = response["result"]["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .filter(|item| {
+            item["label"]
+                .as_str()
+                .is_some_and(|label| ["error", "fail", "other"].contains(&label))
+        })
+        .map(|item| {
+            (
+                item["label"].as_str().unwrap().to_owned(),
+                item["sortText"].as_str().unwrap().to_owned(),
+                item["tags"].clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+    items.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(
+        items,
+        [
+            ("error".to_owned(), "11".to_owned(), serde_json::Value::Null),
+            ("fail".to_owned(), "z11".to_owned(), serde_json::json!([1])),
+            ("other".to_owned(), "11".to_owned(), serde_json::Value::Null),
+        ]
+    );
+}
+
 /// The properties a nested `@param options.x` tag declares are properties to
 /// the semantic tokens, on an arrow's parameter and in a destructured
 /// parameter's pattern: tsgo's reparser makes property signatures of the

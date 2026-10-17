@@ -426,6 +426,18 @@ impl<'a> CheckerState<'a> {
                 let text = self.jsx_attribute_name_text(name);
                 Ok(self.tables.get_string_literal_type(&text))
             }
+            // tsgo's reparser names the property signature it makes of a
+            // nested `@param options.x`/`@property` tag by the rightmost
+            // identifier (reparseJSDocTypeLiteral); the written qualified
+            // name is no expression to check (ESLint's `lintText` reported
+            // its `options` "possibly undefined" from a rest element's
+            // omitted keys).
+            NodeData::QualifiedName(data) => {
+                let right = data
+                    .right
+                    .expect("parser invariant: a qualified name has a right");
+                self.get_literal_type_from_property_name(right)
+            }
             // isExpression(name) tail (61979-61981): remaining name
             // kinds (BigIntLiteral et al) check as expressions; true
             // non-expressions bottom out in checkExpression's own

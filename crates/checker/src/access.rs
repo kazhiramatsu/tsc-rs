@@ -1523,6 +1523,18 @@ impl<'a> CheckerState<'a> {
         // combined modifier flags (a JSDoc tag scan per ancestor, called for
         // every property access through isDeprecatedSymbol) add nothing.
         let source = self.binder.source_of_node(declaration);
+        // tsgo's reparsed `@overload` declaration (the tag's name here) gets
+        // the parser's context flags only (reparser.go finishReparsedNode),
+        // never the host's deprecated flag: a function with overloads is
+        // deprecated to completions only when every declaration is, so one
+        // `@deprecated` overload leaves it live (SvelteKit's `error`).
+        if self.kind_of(declaration) == SyntaxKind::Identifier
+            && self
+                .parent_of(declaration)
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::JSDocOverloadTag)
+        {
+            return false;
+        }
         node_util::get_combined_node_flags(source, declaration).intersects(NodeFlags::DEPRECATED)
     }
 

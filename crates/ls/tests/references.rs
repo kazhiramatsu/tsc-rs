@@ -1609,3 +1609,43 @@ fn an_assignment_to_a_jsdoc_cast_is_a_read_of_the_name() {
     len.sort();
     assert_eq!(len, [(((8, 5), (8, 8)), 3), (((15, 25), (15, 28)), 2)]);
 }
+
+/// tsgo reparses `/** @type {T} */ (e)` into `(e as T)`, and its token
+/// search cannot reach `e`'s own leading JSDoc (the `as` expression has
+/// none and starts at `e`'s full position): the `null` type keywords of
+/// nested casts are no highlights of `null`, and the `@param args` of an
+/// arrow inside a cast is no highlight of the parameter (tsgo aa814927;
+/// webpack's `ModuleConcatenationPlugin.js` and `lib/index.js`; the user
+/// decided to match tsgo here).
+#[test]
+fn a_nested_cast_s_jsdoc_is_out_of_reach_for_highlights() {
+    let javascript = || {
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        })
+    };
+    let nested = [("/nested.js", "/** @typedef {{ kind: string, body: Node[] }} Node */\n/** @typedef {{ parent: Scope | null }} Scope */\n/**\n * @param {{ statements: Node[], scope: Scope }} state state\n * @param {Node} previous previous\n * @returns {Node[]} nodes\n */\nfunction reset(state, previous) {\n\tstate.statements = /** @type {Node[]} */ (\n\t\t/** @type {Node[] | null} */ (null)\n\t);\n\tstate.scope = /** @type {Scope} */ (/** @type {Scope | null} */ (null));\n\tprevious.body = [\n\t\t.../** @type {Node[]} */ (previous.body),\n\t\t.../** @type {Node[]} */ (state.statements)\n\t];\n\treturn previous.body;\n}\nmodule.exports = reset;\n")];
+    let expected = [
+        (((1, 32), (1, 36)), 2),
+        (((9, 32), (9, 36)), 2),
+        (((11, 66), (11, 70)), 2),
+    ];
+    let mut at_inner = document_highlights(&nested, javascript(), "/nested.js", (9, 32));
+    at_inner.sort();
+    assert_eq!(at_inner, expected);
+    let mut at_typedef = document_highlights(&nested, javascript(), "/nested.js", (1, 32));
+    at_typedef.sort();
+    assert_eq!(at_typedef, expected);
+    let arrow = [("/arrow.js", "/**\n * @template {(...args: number[]) => number} T\n * @param {() => T} factory factory\n * @returns {T} function\n */\nconst lazyFunction = (factory) => {\n\tconst f = /** @type {unknown} */ (\n\t\t/**\n\t\t * Handles the callback.\n\t\t * @param {number[]} args args\n\t\t * @returns {number} result\n\t\t */\n\t\t(...args) => factory()(...args) + args.length\n\t);\n\treturn /** @type {T} */ (f);\n};\nmodule.exports = lazyFunction;\n")];
+    let mut args = document_highlights(&arrow, javascript(), "/arrow.js", (12, 7));
+    args.sort();
+    assert_eq!(
+        args,
+        [
+            (((12, 6), (12, 10)), 3),
+            (((12, 28), (12, 32)), 2),
+            (((12, 36), (12, 40)), 2),
+        ]
+    );
+}

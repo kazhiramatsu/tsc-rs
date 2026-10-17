@@ -10807,6 +10807,62 @@ fn a_spread_property_s_unreachable_alias_prints_bare_in_an_error() {
     );
 }
 
+/// A JavaScript generic arrow (`@template T`, `@param {(p: X) => T}`,
+/// `@returns {T}`) called with a context-sensitive arrow infers T from the
+/// arrow's return type in the second inference pass, as a function
+/// declaration host does: `toplevel` is `Toplevel`, not `any` (tsgo
+/// aa814927; webpack's `syntax-printer.js` `readSource`).
+#[test]
+fn a_generic_javascript_arrow_infers_from_a_context_sensitive_callback() {
+    let text = "/** @typedef {{ body: string }} Toplevel */\n/**\n * @template T\n * @param {(program: { kind: string }) => T} convert converts\n * @returns {T} what convert made\n */\nconst run = (convert) => convert({ kind: \"k\" });\n/**\n * @param {{ kind: string }} program program\n * @returns {Toplevel} toplevel\n */\nconst adopt = (program) => ({ body: program.kind });\nconst toplevel = run((program) => adopt(program));\n/** @type {number} */\nconst n = toplevel.body;\nmodule.exports = { n };\n";
+    let rows = with_program_state(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    let n = text.find("const n = ").expect("the typed constant") as u32 + 6;
+    assert_eq!(
+        rows.iter()
+            .map(|row| (row.0, row.1, row.3.as_str()))
+            .collect::<Vec<_>>(),
+        [(2322, n, "Type 'string' is not assignable to type 'number'.")]
+    );
+}
+
+/// The nested `@param [options.filePath]` tags of an optional object
+/// parameter are no expressions: tsgo reports nothing for them even when
+/// the body destructures `options || {}` with a rest element (tsgo
+/// aa814927; ESLint's `lintText` got two TS18048 at the tag names).
+#[test]
+fn nested_param_tags_of_an_optional_object_parameter_are_not_checked_as_expressions() {
+    let text = "class Linter {\n\t/**\n\t * Executes the current configuration on text.\n\t * @param {string} textOrSourceCode The source code.\n\t * @param {Object} [options] The options.\n\t * @param {string} [options.filePath] The path to the file of the source code.\n\t * @param {boolean} [options.warnIgnored] When set to true, warn if given filePath is an ignored path.\n\t * @returns {string} result\n\t */\n\tlintText(textOrSourceCode, options = {}) {\n\t\tconst { filePath, warnIgnored, ...unknownOptions } = options || {};\n\t\treturn textOrSourceCode + (filePath || \"\") + (warnIgnored ? \"!\" : \"\") + (unknownOptions ? \"?\" : \"\");\n\t}\n}\nmodule.exports = Linter;\n";
+    let rows = with_program_state(
+        &[("globals.d.ts", "interface Object {}\ninterface Function {}\ninterface Array<T> {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\ninterface IArguments {}\n"), ("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(1);
+            diag_rows(state)
+        },
+    );
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        []
+    );
+}
+
 /// tsgo's reparser makes a JavaScript setter's `@returns` its return type
 /// annotation and a for-of variable's `@type` its type annotation before the
 /// grammar checks run: TS1095 and TS2483 (tsgo aa814927; webpack's

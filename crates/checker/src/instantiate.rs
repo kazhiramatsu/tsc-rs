@@ -1097,7 +1097,21 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            n = self.parent_of(current);
+            // tsgo's reparser puts a hosted tag's types under the function
+            // the comment's host declares (a `const f = (…) => …`'s
+            // initializer), so a node in such a type walks up into that
+            // function, not the statement: a `@param {(p: X) => T}`'s `X`
+            // of a generic arrow does not reference `T` (its instantiation
+            // fixed `T` to `any` before the callback's return could be
+            // inferred — webpack's `readSource`).
+            n = if self.kind_of(current) == SyntaxKind::JSDoc {
+                self.parent_of(current).map(|host| {
+                    tsc_binder::hosted::function_like_host(self.binder.source_of_node(host), host)
+                        .unwrap_or(host)
+                })
+            } else {
+                self.parent_of(current)
+            };
         }
         self.contains_reference(tp, node)
     }
