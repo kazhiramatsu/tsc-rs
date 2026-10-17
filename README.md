@@ -110,7 +110,14 @@ restarts a mapper whose package changes.
   playwright-core 50), all completions whose auto-import module specifier
   `tsgo` itself picks differently from session to session; where one of
   `tsgo`'s answers names a module that does not export the symbol, tsc-rs
-  gives the one that does (October 16, 2026).
+  gives the one that does (October 16, 2026). In a session over svelte's
+  JavaScript sources (368 files, 61,659 requests) 50 answers differ: 48
+  completions whose auto-import module specifier depends on the order in
+  which `tsgo` fills its specifier cache in a file's first completion (it
+  varies between runs), one hover that depends on which files `tsgo`'s
+  checker saw first, and one definition where `tsgo` reports an empty range
+  for a `@this` parameter; a session over SolidJS's sources (23 files, 3,824
+  requests) answers identically (October 17, 2026).
 - **TypeScript 7 rules:** the default `target` is ES2026, and the options
   TypeScript 7 removed (`baseUrl`, `outFile`, `target: "es5"`, the `amd`,
   `umd` and `system` modules, …) are errors.

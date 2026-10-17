@@ -253,6 +253,104 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 - **残り**：frontend repo の LSP session（astro・svelte・solid・remix・nuxt、`lsp-compare/run.sh`）、hono の
   `Context<any, any, {}>.header` の hover（B、tsgo 3/4）。
 
+### 修正 3：svelte・SolidJS の LSP session の差分（PR #829、2026-10-17、Fable 5.1）
+
+- **merge**：#829 → `454fc3e82`（hosted run 38984723179）。commit：d8ceea5c0・275a756b9（checker・ls の 12 種類）、73b597c78（述語の
+  開き名、cast の symbol、`@deprecated:`）、ab72524d6・f89031775（symbol walker の reparse 後の子、lsp test harness の `send_and_close`）。
+- **比べたもの**：svelte 40bb084 `packages/svelte/src/**/*.js`（368 file、`lsp-compare/run.sh svelte … 40`、
+  `TSRS_WORKERS=1 TSRS_CHECKERS=1`、`nice -n 20`）。recorder は `.js` を `languageId: javascript` で開くよう直した
+  （前の run は両 server とも TS として開いていた）。前：61,659 request のうち 387 が違う。後：50（f89031775。completion 48 = 下の class B、hover 1、definition 1）。solid（23 file、3,824 request）：前 1 → 後 0。
+- **種類と直し方**（どれも tsgo の経路に合わせて既存の code を変えた）：
+  1. **documentSymbol 286**：`@import` の binding と inline `@typedef` の type literal の member は、tsgo の reparse が
+     host の前に置く statement の symbol として、typedef 自身と host より前に出る（`symbols.rs`）。
+  2. **module specifier の ending 54+17（completion・hover・signatureHelp）**：`@import` 宣言は static import の先頭
+     （tsgo の `file.Imports()` は reparse した JSImportDeclaration を host の前に数える）。svelte compiler の
+     `/** @import { Context } from '../types' */` が最初の相対 import なので ending は minimal。`import("…/constants")`
+     の表示と、`fly`/`migrate` の auto-import の二重（`…/transition/index.js` と `…/transition/public.js` が
+     separator 数で同点 → tsgo も MinAll で両方残す経路。minimal なら `../transition` が勝つ）も同じ原因（`specifier.rs`
+     `module_name_literals`）。
+  3. **semanticTokens 12**：`@property` で書いた typedef の member（JSDocPropertyTag）は property（`semantic_tokens.rs`）。
+  4. **typeDefinition 4（JS method）**：`is_thisless*` が構文上の注釈しか見ず、`@returns {string}` の JS method が
+     this-mapper で instantiate され、symbol が `type.symbol` と一致せず戻り値型への redirect が効かなかった。tsgo の
+     reparse は `@returns`・`@param`・`@template` を method の注釈にするので effective な注釈を読む（`annotate.rs`）。
+  5. **`@type` cast の narrowing 3+（hover・typeDefinition・references）**：`/** @type {T} */ (x)` は tsgo では `as` 式で
+     narrowing に不透明。`flow.rs` の reference 判定で cast の括弧を reference にしない。
+  6. **documentHighlight 4・hover 1（`@returns {asserts name is T}` / `{name is T}`）**：述語の `name` は host 関数の
+     parameter に解決する（tsgo の reparse は `@returns` の型を関数の戻り値注釈にするので `lastLocation === location.type`。
+     `resolve.rs`：JSDocReturnTag を last location に持つ FUNCTION_SCOPED_VARIABLE は見える）。hover の述語表示も同じ原因。
+  7. **foldingRange 4**：`@this` のある関数は `(` から畳む（`folding.rs`）。
+  8. **hover の docs 3**：`@overload` のある JS 関数の value declaration は tsgo では最初の reparse した overload なので
+     docs が無い（`ls/jsdoc.rs` `tsgo_value_declaration`）。
+  9. **diagnostic 2（TS6387）**：`signatureToString` は `noErrorTruncation` を見ない（160 文字で `...`、`display_signature_string`）。
+  10. **references 2（`Object.prototype.toString`）**：JS class の `@implements` は tsgo の reparse で implements clause に
+      なる。`is_date` の `Object.prototype.toString` から、`ICompileDiagnostic` を実装する `CompileDiagnostic.toString` へ、
+      interface の見かけの `Object` member 経由で届く（`node_util.rs` `get_all_super_type_nodes`）。
+  11. **signatureHelp 5（JS fallback の接頭辞）**：receiver に call signature が無い呼び出し（`generator._sources.toArray()`、
+      `entry.unsubscribe()` の `Function`）は tsgo の `createJSSignatureHelpItems` が program 中の同名宣言（lib が先）を使い、
+      `SymbolToStringEx(symbol, 宣言の file, None, UseAliasDefinedOutsideCurrentScope)` で接頭辞を作る。ALLOW_ANY_NODE_KIND の
+      無い `symbolToString` は tsgo では `symbolToName`（enclosing から見た symbol chain）だが、こちらは `symbolToEntityNameNode`
+      （`symbol.parent` を素朴に辿る、`any` の alias 表示用）を使っていたので `__global.IteratorObject.toArray`・`__type.unsubscribe`
+      になっていた（`serialize.rs` `build_symbol_display_node`）。
+  12. **signatureHelp 1（`render` の `transformError?:`）**：`src/internal/server/index.js` の `@template Props` と
+      `@param {{ …; transformError?: (error: unknown) => unknown }}`。`isTypeParameterPossiblyReferenced` が `@template` の
+      型引数の container を JSDocTemplateTag にしていたため、`@param` 型の中の function type から辿り着けず「参照されるかも」
+      → 型を instantiate → 注釈の型と別物 → 注釈を再利用できず `((error: unknown) => unknown) | undefined`。tsgo の reparse は
+      型引数を関数の下に置くので container は host（typedef/callback の tag、overload の comment も同じ規則、
+      `instantiate.rs`）。
+  13. **documentHighlight 7（`@returns {x is T}` の述語名）**：plain な述語の名前は tsgo では参照にならない（`asserts x is T` はなる）。
+      tsgo は JSDoc の名前を reparse した clone 経由で解決するが、clone を位置の二分探索で探す `ast.GetReparsedNodeForNode` は
+      clone の根と同じ位置から始まる node（型の先頭 token）を取りこぼし、comment 側から解決して parameter が見えない。
+      checker の表示は clone 経由で解決するので 6. の規則はそのまま、services の symbol lookup（`getSymbolAtLocation`）だけが
+      `@returns` の型を開く名前に symbol を返さない（`location.rs` `opens_hosted_return_type_predicate`）。
+  14. **documentSymbol 12（`@type` cast・`@param` の型 literal）**：`/** @type {T & { toJSON?: any }} */ (value)` は tsgo の `as` 式で、
+      navigation bar は式の後に型を辿る。変数初期化子の cast（`const e = /** @type {…} */ (x)`）と、関数式・arrow を初期化子に
+      持つ変数の `@param {{ … }}` 型（tsgo は初期化子の子を `forEachChild` で辿るので parameter の reparse した型も）も同じ。
+      symbol walker の `children()` が reparse 後の子（parameter の `@param` 型、cast の型）を含む（`symbols.rs`）。
+  15. **solid の completion 1（`@deprecated:`）**：TS file の JSDoc は tsgo では遅延 parse で、deprecated の印は scanner の
+      文字列走査（`@deprecated` の次が空白・`}`・`*`・末尾：`hasJSDocTag`）。`@deprecated:` は印にならない（JS file は eager
+      parse でどの `@deprecated` tag も印）（`parser.rs` `comment_has_deprecated_tag`）。
+- **残り（bounded）**：
+  - solid の `src/{reactive,render}/*.d.ts`（`.ts` と同名の生成 `.d.ts`。`tsconfig.json` の include は `.ts` を優先するので
+    どの project にも属さず inferred project）：run ごとに 2〜10 件が違い、両 server とも run 間で揺れていた。原因は ATA
+    （自動型取得）の timing：inferred project は両 server とも background で global typings cache の `@types` を取り込み、
+    取り込み前の答え（global completion 1,141 件・lib symbol の references 347 件）と後の答え（1,159 件・13,213 件）は
+    両 server で一致する（`lsp-compare/ata-probe.py`：tsgo は open の約 1.1 s 後、tsc-rs は約 0.6 s 後に取り込む）。recorder の
+    request がその間に届いていた。recorder は open ごとに「Installing types」の progress の終わりを待つようにした
+    （`lsp-compare.py settle_types`、`window.workDoneProgress` を initialize に追加）→ solid の最終 session は 0 件。
+    （前に書いた「lib が node_modules/typescript/lib 由来」は誤り：`HTMLParamElement` の deprecated が消えるのも typings
+    （`@types/*` の再宣言）が加わった後の状態。）
+  - completion 48（auto-import の specifier の種類と再 export の罰則）：file で最初の auto-import 補完は tsgo でも実行ごとに
+    答えが変わる（class B）。tsgo の specifier cache は importing file ごと・export の file 単位で、cache hit は常に
+    `ResultKindRelative`、fresh な計算は `paths`/`imports` なら `ResultKindPaths`。`isFixPossiblyReExportingImportingFile`
+    の罰則は両方 Relative のときだけ効くので、最初の補完で group がどの順で cache を埋めるか（Go の map 順）で
+    `#compiler` が 2 件か 1 件か、`svelte` か `../index-client` かが変わる。再現 `repro/ambient-self`（`src/compiler/use/a.js`）
+    を tsgo で 3 回走らせると最初の補完は 3 通り、2 回目以降は安定。こちらは 2 回目以降と同じ答え（全部 cache hit）を返す。
+    最頻の答えを返す設計（PR #827 の `fill_shared_specifiers` の拡張）は別 slice。
+  - hover `Value<V = unknown>.equals`（1）：checker の状態依存。単独で record すると両 server とも `Value<V = unknown>`。
+    tsgo の session では、`sources.js` より前に開いた file の check が `Value<V>` の member を `equals` の型解決前に
+    instantiate していた（partition が違えば答えが変わる）。class C。
+  - definition `this`（1）：tsgo の bug（hosted `@this` の parameter 名の Loc が 0 → targetRange 0:0）。こちらは正しい範囲を返す
+    （2026-10-16 の auto-import の決定と同じ扱い）。
+- **test**（どれも変更なしでは落ちる）：lsp server `document_symbols_of_a_javascript_file_s_jsdoc_tags`、`a_function_with_a_this_tag_folds_from_its_parameters`、
+  `semantic_tokens_of_a_property_tag_typedef_s_members`、`a_deprecated_signature_s_message_is_cut_despite_no_error_truncation`、
+  `a_jsdoc_import_decides_a_javascript_file_s_specifier_ending`、`javascript_signature_help_fallback_prefixes_name_the_declaring_container`、
+  `a_jsdoc_template_is_not_referenced_by_a_function_type_in_a_param_type_literal`、`document_symbols_of_reparsed_jsdoc_type_literals`、
+  `a_deprecated_tag_followed_by_a_colon_does_not_deprecate_a_typescript_declaration`；ls definition `a_javascript_method_s_type_definition_is_its_return_type_s`
+  （+ TS 版）、hover `javascript_return_type_predicate`・`javascript_overloads_have_no_documentation`・`javascript_instantiated_qualifier_has_no_defaults`、
+  references `a_jsdoc_asserts_predicate_names_its_parameter`・`a_jsdoc_implements_tag_relates_a_method_to_the_interface_s_apparent_member`・
+  `a_plain_jsdoc_predicate_does_not_name_its_parameter`；checker `a_jsdoc_type_cast_is_opaque_to_narrowing`。
+  lsp の fixture harness は `send` の直後の `close` を 1 つの lock で行う（`Session::send_and_close`）：hosted で `exit` 通知と入力終端の
+  race（tsgo の `Run` も read loop の io.EOF と dispatch loop の cancel の早い方）に負けて `EXIT 1` になった。server は変えていない。
+- **検査**：73b597c78 で `scripts/conformance_ts71.py --workers 2 --check` exit 0（12,829 case、lane A 13,577/13,577 full、mismatch 0、
+  ratchet 0 regressions）、`--checkers 4` + `conformance_ts71_compare.py`：15,335 一致・4 違い（既知の partition 依存 4 件）；
+  f89031775（その後の commit は crates/ls・crates/lsp・test のみ）で `scripts/suites_ts71.py --update` → `--check` exit 0（5,315 baseline、
+  0 regressions、ratchet 不変）、lsp server 38/38（exit の 2 test は 25 回連続 pass）、ls 240/240；他 crate は 73b597c78 で全 pass；fmt clean。
+  hosted gates（rust・conformance・plan）pass。
+- **道具**：`lsp-compare/summarize.py OUT [per] [maxdiffs]`、`lsp-compare.py language_id()`、repro
+  `lsp-compare/repro/{svelte-ls*,hl-order,sem-tokens,ls-tests,spec-ending,imports-alias,dts-pair,svelte-transition,value-default,equals-alias,iterator-global,js-fallback,render-sig,tostring-refs,pred-hl,deprecated-colon,cast-symbols*,ambient-self,inferred-ata}`、
+  `lsp-compare/ata-probe.py`（ATA の前後の答えと progress・log を見る）、recorder の `settle_types`（open ごとに「Installing types」の progress の終わりを待つ）、
+  `packages/svelte-scratch`（svelte package の tests 抜きの rsync copy、`src/server/index.d.ts` を v2 に単純化）。
+
 ## 3. 性能の slice 3（local のみ、未 push）
 
 - **worktree と branch**：`/Users/hiramatsu/dev/tsc-rs-p34` の `perf/ts71-lsp-request-threads`、HEAD は `b121051dd`
