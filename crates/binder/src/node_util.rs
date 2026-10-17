@@ -2290,9 +2290,16 @@ pub fn is_narrowable_reference(source: &SourceFile, expr: NodeId) -> bool {
         NodeData::PropertyAccessExpression(data) => data
             .expression
             .is_some_and(|expression| is_narrowable_reference(source, expression)),
-        NodeData::ParenthesizedExpression(data) => data
-            .expression
-            .is_some_and(|expression| is_narrowable_reference(source, expression)),
+        // tsgo reparses `/** @type {T} */ (x)` into `x as T`, which no arm
+        // of its isNarrowableReference admits: a JavaScript cast's
+        // parentheses are no reference (webpack's `(upper).variableScope`
+        // in a constructor was "used before being assigned").
+        NodeData::ParenthesizedExpression(data) => data.expression.is_some_and(|expression| {
+            crate::hosted::jsdoc_hosted(source)
+                .cast_of(expression)
+                .is_none()
+                && is_narrowable_reference(source, expression)
+        }),
         NodeData::NonNullExpression(data) => data
             .expression
             .is_some_and(|expression| is_narrowable_reference(source, expression)),

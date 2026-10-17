@@ -10740,6 +10740,35 @@ fn a_missing_property_names_an_empty_type_literal_s_alias() {
     );
 }
 
+/// A property read through a JSDoc cast is no narrowable reference: tsgo
+/// reparses the cast into an `as` expression, which its binder gives no
+/// flow node, so the constructor's "used before being assigned" check
+/// (TS2565, for the uncast `upper.depth`) does not reach
+/// `/** @type {Scope} */ (upper).variableScope` (tsgo aa814927; webpack's
+/// `ScopeAnalyzer.js`).
+#[test]
+fn a_property_read_through_a_jsdoc_cast_is_not_a_flow_reference() {
+    let text = "class Scope {\n\t/**\n\t * @param {Scope | undefined} upper upper\n\t * @param {boolean} isVarScope var scope\n\t */\n\tconstructor(upper, isVarScope) {\n\t\t/** @type {Scope} the nearest enclosing scope */\n\t\tthis.variableScope = isVarScope\n\t\t\t? this\n\t\t\t: /** @type {Scope} */ (upper).variableScope;\n\t\t/** @type {number} */\n\t\tthis.depth = upper ? upper.depth + 1 : 0;\n\t}\n}\nmodule.exports = Scope;\n";
+    let rows = with_program_state(
+        &[("a.js", text)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            diag_rows(state)
+        },
+    );
+    let depth = text.find("upper.depth").expect("the uncast read") as u32 + 6;
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        [(2565, depth)]
+    );
+}
+
 /// tsgo's reparser makes a JavaScript setter's `@returns` its return type
 /// annotation and a for-of variable's `@type` its type annotation before the
 /// grammar checks run: TS1095 and TS2483 (tsgo aa814927; webpack's
