@@ -117,7 +117,12 @@ restarts a mapper whose package changes.
   varies between runs), one hover that depends on which files `tsgo`'s
   checker saw first, and one definition where `tsgo` reports an empty range
   for a `@this` parameter; a session over SolidJS's sources (23 files, 3,824
-  requests) answers identically (October 17, 2026).
+  requests) answers identically; sessions over astro's `packages/astro/src`
+  (680 files, 113,109 requests), nuxt's `packages/*/src` (507 files, 85,414
+  requests) and remix's `packages/*/src` (796 files, 118,095 requests)
+  differ in 13 answers, all nuxt completions whose auto-import module
+  specifier `tsgo` itself picks differently from run to run (October 17,
+  2026).
 - **TypeScript 7 rules:** the default `target` is ES2026, and the options
   TypeScript 7 removed (`baseUrl`, `outFile`, `target: "es5"`, the `amd`,
   `umd` and `system` modules, …) are errors.

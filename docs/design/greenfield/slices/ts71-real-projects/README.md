@@ -351,6 +351,49 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
   `lsp-compare/ata-probe.py`（ATA の前後の答えと progress・log を見る）、recorder の `settle_types`（open ごとに「Installing types」の progress の終わりを待つ）、
   `packages/svelte-scratch`（svelte package の tests 抜きの rsync copy、`src/server/index.d.ts` を v2 に単純化）。
 
+### 修正 4：astro・nuxt・remix の LSP session の差分（PR #830、2026-10-17、Fable 5.1）
+
+- **merge**：#830 → `02e340443`（hosted run 39007760258）。commit：601c504de（program）、121931ed8（checker）、e42f344ed（ls・lsp test）。
+- **比べたもの**：astro 484822f `packages/astro/src/**/*.ts`、nuxt 5adfcb1・remix b65325d `packages/*/src/**/*.ts`
+  （`lsp-compare/run.sh <name> … 40`、`TSRS_WORKERS=1 TSRS_CHECKERS=1`、`nice -n 20`、recorder は open ごとに ATA の終わりを待つ）。
+  前：astro は全 request が「no project found」、nuxt 31、remix 1（hover の panic）。後（e42f344ed）：astro 0（680 file、113,109 request）、nuxt 13（507 file、85,414 request）、remix 0（796 file、118,095 request）。
+- **種類と直し方**（どれも tsgo の経路に合わせて既存の code を変えた）：
+  1. **astro：全 request が失敗（program loader）**：参照 project の source を読む program は出力 `.d.ts` を source に redirect する。
+     redirect の subtask が親の package id を継いでいたため、collect walk の package 単位の重複除去が同じ package の後続の出力の
+     redirect を飛ばし、出力名で bind した resolution の持ち主の source が無かった。tsgo の redirect 済み parse task は package id を
+     持たず、bind 時に `getSourceFileWithRedirect` で出力を source に引き直す（`loader.rs`）。
+  2. **astro：TS file の JSDoc 本文の `@import`（documentSymbol 1）**：tsgo が `@import` の binding を symbol に出すのは reparse で
+     statement になる JS file だけ。「CSS @import statements」という comment が `statements` という symbol になっていた（`symbols.rs`）。
+  3. **nuxt：二度 augment された module 越しの definition・references（6）**：`vue` の 2 つ目の augmentation は、`getExportsOfModule` の
+     cache が既に埋まった transient module にその場で merge され、import は merge 前の export-star の先を引いていた。merge 後に
+     cache を消す（`merge.rs`・`links.rs`）。
+  4. **nuxt：宣言 file の `@typedef` の `@property` 型（references 1）**：TS file では tsgo は JSDoc を reparse しないので typedef の型は
+     host の下のままで host の type parameter が見える。webpack-dev-middleware の `middleware.d.ts` の `Response` が global に解決され
+     global の references に数えられていた。typedef への hop は JS file だけ（`resolve.rs`）。
+  5. **nuxt：signatureHelp が tsgo の「... 4 more ...」を省かず全 member を出す（1）**：tsgo は late-bound property 名を
+     `"\xfe@<name>@<symbol id>"` で測り、id は 2^48 始まりで常に 15 桁。こちらは 2 桁と仮定していた。概算長は `name + 18`
+     （`type_nodes.rs`。計装した tsgo と property ごとの長さ 76/132/149/170 が一致）。
+  6. **nuxt：auto-import の specifier `./internal/index`（completion 1）**：`processEnding` の minimal ending は、module file の
+     directory（`sourceFileName.Directory()`）に directory と同名の file があるときだけ `/index` を残す。こちらは specifier の綴り自体を
+     current directory 基準で引いていたので、nuxt の root の `internal.d.ts` が `packages/kit/src/internal/index.ts` の `/index` を残し、
+     宣言 file の `./internal/renderer` と同点になっていた。`process_ending`・`validate_ending`・`try_get_module_name_from_paths`・
+     `try_get_module_name_from_root_dirs` が module file 名を受け取り、tsgo が host を渡す所では host も渡す（`specifier.rs`）。
+  7. **remix：hover の panic「should always get typenode」（1）**：再利用する型注釈の `import()` が `node_modules` 経由でしか名前の
+     付かない module（pnpm の入れ子 `@redis/client` の RESP 型）を指すと unsafe import が報告される。tsgo の再利用の recovery
+     boundary は error を記録し、`finalizeBoundary` で `encounteredError` を元に戻して、その property を import 無しで新しく
+     serialize する（`NumberReply<number>`）。こちらの boundary は flag を戻さず、builder が node を返さず panic した（`mod.rs`
+     `SyntacticRecoveryBoundary`）。
+- **残り（bounded）**：nuxt の completion 22 は tsgo 自身の揺れ：webpack の `bundle` 9 件は class B で tsc-rs は tsgo の最頻
+  （3 回中 2 回）と同じ；`#app` 13 件は tsgo が 3 回で 3 通り（class C）。最終 session の 13 件は `packages/nuxt/src/app/` の file ごとに 1 件（その file で最初の auto-import 補完）：`index.ts` が再 export する symbol を tsgo は run ごとに違う部分集合で `#app`（alias 経由の index）か `#app/*`（宣言 file。`createError` は `#app/composables` と `#app/error` の 2 件）で名付ける（3 run で 3 通り、一度は `../../../../nitro-server/src/runtime/server`）。こちらは常に宣言 file（tsgo の同じ file の 2 回目以降の補完と同じ）。最頻の答えの模倣は既出の別 slice（利用者に確認）。
+- **test**（どれも変更なしでは落ちる）：lsp server `a_referenced_project_s_output_resolves_to_its_source_after_another_output_of_the_package`、
+  `an_import_s_definitions_include_an_augmentation_merged_after_another`、`document_symbols_of_a_typescript_file_skip_jsdoc_import_bindings`、
+  `an_index_specifier_is_kept_only_for_a_sibling_named_like_its_directory`；ls hover
+  `a_jsdoc_typedef_in_a_declaration_file_sees_its_host_s_type_parameters`、`a_reused_import_type_through_node_modules_falls_back_to_a_fresh_type`；
+  checker の specifier の unit test は module file 名を渡す。
+- **検査**：e42f344ed で `scripts/conformance_ts71.py --workers 2 --check` exit 0（12,829 case、lane A 13,577/13,577 full、mismatch 0、emit 13,569 full / 0 mismatch、ratchet 0 regressions、499 s）、`--checkers 4` + `conformance_ts71_compare.py`：15,335 一致・4 違い（既知の partition 依存 4 件）、`scripts/suites_ts71.py --update` → `--check` exit 0（0 regressions、ratchet 不変）、全 crate の test pass（types 49、syntax 251、binder 78、program 684、checker 1812、emitter 352、ls 242、lsp 80、api 332、project 235、compiler 241、conformance 49、lsproto 31）、fmt・clippy clean。hosted gates（rust・conformance・plan）pass。
+- **道具**：repro `lsp-compare/repro/{index-ending,unsafe-import,jsdoc-typedef}`、`handover/instrument-node-builder.py`（node builder の
+  `return Ok(None)` と property 長の一時 trace）、計装した tsgo（`nodebuilderimpl.go` に同じ trace、build 後に元へ戻した）。
+
 ## 3. 性能の slice 3（local のみ、未 push）
 
 - **worktree と branch**：`/Users/hiramatsu/dev/tsc-rs-p34` の `perf/ts71-lsp-request-threads`、HEAD は `b121051dd`
