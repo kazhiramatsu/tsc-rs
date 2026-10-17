@@ -1,0 +1,162 @@
+{
+  "capabilities": {
+    "experimental": {
+      "hoverVerbosityLevel": true
+    },
+    "general": {
+      "positionEncodings": [
+        "utf-8"
+      ]
+    },
+    "textDocument": {
+      "completion": {
+        "completionItem": {
+          "commitCharactersSupport": true,
+          "documentationFormat": [
+            "markdown",
+            "plaintext"
+          ],
+          "insertReplaceSupport": true,
+          "labelDetailsSupport": false,
+          "preselectSupport": true,
+          "snippetSupport": false
+        },
+        "completionList": {
+          "itemDefaults": [
+            "commitCharacters",
+            "editRange"
+          ]
+        }
+      },
+      "definition": {
+        "linkSupport": true
+      },
+      "diagnostic": {
+        "relatedInformation": true,
+        "tagSupport": {
+          "valueSet": [
+            1,
+            2
+          ]
+        }
+      },
+      "documentSymbol": {
+        "hierarchicalDocumentSymbolSupport": true
+      },
+      "foldingRange": {
+        "foldingRange": {
+          "collapsedText": true
+        },
+        "foldingRangeKind": {
+          "valueSet": [
+            "comment",
+            "imports",
+            "region"
+          ]
+        },
+        "rangeLimit": 5000
+      },
+      "hover": {
+        "contentFormat": [
+          "markdown",
+          "plaintext"
+        ]
+      },
+      "implementation": {
+        "linkSupport": true
+      },
+      "publishDiagnostics": {
+        "relatedInformation": true,
+        "tagSupport": {
+          "valueSet": [
+            1,
+            2
+          ]
+        }
+      },
+      "semanticTokens": {
+        "formats": [
+          "relative"
+        ],
+        "requests": {
+          "full": true
+        },
+        "tokenModifiers": [
+          "declaration",
+          "definition",
+          "readonly",
+          "static",
+          "deprecated",
+          "abstract",
+          "async",
+          "modification",
+          "documentation",
+          "defaultLibrary",
+          "local"
+        ],
+        "tokenTypes": [
+          "namespace",
+          "class",
+          "enum",
+          "interface",
+          "struct",
+          "typeParameter",
+          "type",
+          "parameter",
+          "variable",
+          "property",
+          "enumMember",
+          "decorator",
+          "event",
+          "function",
+          "method",
+          "macro",
+          "label",
+          "comment",
+          "string",
+          "keyword",
+          "number",
+          "regexp",
+          "operator"
+        ]
+      },
+      "signatureHelp": {
+        "contextSupport": true,
+        "signatureInformation": {
+          "activeParameterSupport": true,
+          "documentationFormat": [
+            "markdown",
+            "plaintext"
+          ],
+          "parameterInformation": {
+            "labelOffsetSupport": true
+          }
+        }
+      },
+      "typeDefinition": {
+        "linkSupport": true
+      }
+    },
+    "workspace": {
+      "configuration": true,
+      "fileOperations": {
+        "willRename": true
+      },
+      "workspaceEdit": {
+        "documentChanges": true,
+        "resourceOperations": [
+          "rename"
+        ]
+      }
+    },
+    "window": {
+      "workDoneProgress": true
+    }
+  },
+  "initializationOptions": {
+    "codeLensShowLocationsCommandName": "typescript.showCodeLensLocations"
+  },
+  "locale": "en-US",
+  "processId": null,
+  "rootUri": null
+}

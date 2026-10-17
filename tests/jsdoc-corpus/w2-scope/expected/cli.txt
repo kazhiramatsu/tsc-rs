@@ -1,0 +1,2 @@
+scope.js(12,30): error TS2565: Property 'depth' is used before being assigned.
+exit 2

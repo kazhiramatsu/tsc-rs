@@ -1,0 +1,10 @@
+src/internal/client/reactivity/sources.js(1,15): error TS2305: Module '"#client"' has no exported member 'Derived'.
+src/internal/client/reactivity/sources.js(1,24): error TS2459: Module '"#client"' declares 'Effect' locally, but it is not exported.
+src/internal/client/reactivity/sources.js(1,32): error TS2459: Module '"#client"' declares 'Source' locally, but it is not exported.
+src/internal/client/reactivity/sources.js(1,40): error TS2459: Module '"#client"' declares 'Value' locally, but it is not exported.
+src/internal/client/types.d.ts(1,28): error TS2307: Cannot find module '#shared' or its corresponding type declarations.
+src/internal/client/types.d.ts(2,30): error TS2307: Cannot find module './constants.js' or its corresponding type declarations.
+src/internal/client/types.d.ts(3,28): error TS2307: Cannot find module './reactivity/batch.js' or its corresponding type declarations.
+src/internal/client/types.d.ts(4,44): error TS2307: Cannot find module './reactivity/types.js' or its corresponding type declarations.
+src/internal/client/types.d.ts(212,15): error TS2307: Cannot find module './reactivity/types' or its corresponding type declarations.
+exit 2

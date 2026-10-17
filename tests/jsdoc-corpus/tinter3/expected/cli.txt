@@ -1,0 +1,7 @@
+a.js(11,5): error TS2749: 'A_TYPE' refers to a value, but is being used as a type here. Did you mean 'typeof A_TYPE'?
+a.js(12,5): error TS2749: 'B_TYPE' refers to a value, but is being used as a type here. Did you mean 'typeof B_TYPE'?
+a.js(13,5): error TS2749: 'C_TYPE' refers to a value, but is being used as a type here. Did you mean 'typeof C_TYPE'?
+a.js(14,5): error TS2749: 'D_TYPE' refers to a value, but is being used as a type here. Did you mean 'typeof D_TYPE'?
+a.js(32,7): error TS2322: Type 'SyncBailHook<[JsParserOptions], JsParser, UnsetAdditionalOptions> & SyncBailHook<[JsParserOptions], JsParser, UnsetAdditionalOptions> & ... & ... & ...' is not assignable to type 'number'.
+a.js(34,7): error TS2322: Type 'SyncBailHook<[JsParserOptions], JsParser, UnsetAdditionalOptions> & SyncBailHook<[JsParserOptions], JsParser, UnsetAdditionalOptions> & ... & ... & ...' is not assignable to type 'number'.
+exit 2

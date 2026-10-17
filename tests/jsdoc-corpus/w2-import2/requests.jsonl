@@ -1,0 +1,119 @@
+{"id": "Generator.js:diagnostic", "file": "Generator.js", "method": "textDocument/diagnostic", "params": {}}
+{"id": "Generator.js:documentSymbol", "file": "Generator.js", "method": "textDocument/documentSymbol", "params": {}}
+{"id": "Generator.js:semanticTokens", "file": "Generator.js", "method": "textDocument/semanticTokens/full", "params": {}}
+{"id": "Generator.js:3:0:hover", "file": "Generator.js", "method": "textDocument/hover", "params": {"position": {"line": 3, "character": 0}}}
+{"id": "Generator.js:3:0:definition", "file": "Generator.js", "method": "textDocument/definition", "params": {"position": {"line": 3, "character": 0}}}
+{"id": "Generator.js:3:0:typeDefinition", "file": "Generator.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 3, "character": 0}}}
+{"id": "Generator.js:3:0:documentHighlight", "file": "Generator.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 3, "character": 0}}}
+{"id": "Generator.js:3:6:hover", "file": "Generator.js", "method": "textDocument/hover", "params": {"position": {"line": 3, "character": 6}}}
+{"id": "Generator.js:3:6:definition", "file": "Generator.js", "method": "textDocument/definition", "params": {"position": {"line": 3, "character": 6}}}
+{"id": "Generator.js:3:6:typeDefinition", "file": "Generator.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 3, "character": 6}}}
+{"id": "Generator.js:3:6:documentHighlight", "file": "Generator.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 3, "character": 6}}}
+{"id": "Generator.js:8:1:hover", "file": "Generator.js", "method": "textDocument/hover", "params": {"position": {"line": 8, "character": 1}}}
+{"id": "Generator.js:8:1:definition", "file": "Generator.js", "method": "textDocument/definition", "params": {"position": {"line": 8, "character": 1}}}
+{"id": "Generator.js:8:1:typeDefinition", "file": "Generator.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 8, "character": 1}}}
+{"id": "Generator.js:8:1:documentHighlight", "file": "Generator.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 8, "character": 1}}}
+{"id": "Generator.js:8:10:hover", "file": "Generator.js", "method": "textDocument/hover", "params": {"position": {"line": 8, "character": 10}}}
+{"id": "Generator.js:8:10:definition", "file": "Generator.js", "method": "textDocument/definition", "params": {"position": {"line": 8, "character": 10}}}
+{"id": "Generator.js:8:10:typeDefinition", "file": "Generator.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 8, "character": 10}}}
+{"id": "Generator.js:8:10:documentHighlight", "file": "Generator.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 8, "character": 10}}}
+{"id": "Generator.js:9:2:hover", "file": "Generator.js", "method": "textDocument/hover", "params": {"position": {"line": 9, "character": 2}}}
+{"id": "Generator.js:9:2:definition", "file": "Generator.js", "method": "textDocument/definition", "params": {"position": {"line": 9, "character": 2}}}
+{"id": "Generator.js:9:2:typeDefinition", "file": "Generator.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 9, "character": 2}}}
+{"id": "Generator.js:9:2:documentHighlight", "file": "Generator.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 9, "character": 2}}}
+{"id": "Generator.js:9:9:hover", "file": "Generator.js", "method": "textDocument/hover", "params": {"position": {"line": 9, "character": 9}}}
+{"id": "Generator.js:9:9:definition", "file": "Generator.js", "method": "textDocument/definition", "params": {"position": {"line": 9, "character": 9}}}
+{"id": "Generator.js:9:9:typeDefinition", "file": "Generator.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 9, "character": 9}}}
+{"id": "Generator.js:9:9:documentHighlight", "file": "Generator.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 9, "character": 9}}}
+{"id": "Generator.js:12:0:hover", "file": "Generator.js", "method": "textDocument/hover", "params": {"position": {"line": 12, "character": 0}}}
+{"id": "Generator.js:12:0:definition", "file": "Generator.js", "method": "textDocument/definition", "params": {"position": {"line": 12, "character": 0}}}
+{"id": "Generator.js:12:0:typeDefinition", "file": "Generator.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 12, "character": 0}}}
+{"id": "Generator.js:12:0:documentHighlight", "file": "Generator.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 12, "character": 0}}}
+{"id": "Generator.js:12:7:hover", "file": "Generator.js", "method": "textDocument/hover", "params": {"position": {"line": 12, "character": 7}}}
+{"id": "Generator.js:12:7:definition", "file": "Generator.js", "method": "textDocument/definition", "params": {"position": {"line": 12, "character": 7}}}
+{"id": "Generator.js:12:7:typeDefinition", "file": "Generator.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 12, "character": 7}}}
+{"id": "Generator.js:12:7:documentHighlight", "file": "Generator.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 12, "character": 7}}}
+{"id": "Generator.js:12:17:hover", "file": "Generator.js", "method": "textDocument/hover", "params": {"position": {"line": 12, "character": 17}}}
+{"id": "Generator.js:12:17:definition", "file": "Generator.js", "method": "textDocument/definition", "params": {"position": {"line": 12, "character": 17}}}
+{"id": "Generator.js:12:17:typeDefinition", "file": "Generator.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 12, "character": 17}}}
+{"id": "Generator.js:12:17:documentHighlight", "file": "Generator.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 12, "character": 17}}}
+{"id": "Generator.js:3:0:references", "file": "Generator.js", "method": "textDocument/references", "params": {"position": {"line": 3, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "Generator.js:3:6:references", "file": "Generator.js", "method": "textDocument/references", "params": {"position": {"line": 3, "character": 6}, "context": {"includeDeclaration": true}}}
+{"id": "Generator.js:8:1:references", "file": "Generator.js", "method": "textDocument/references", "params": {"position": {"line": 8, "character": 1}, "context": {"includeDeclaration": true}}}
+{"id": "Generator.js:8:10:references", "file": "Generator.js", "method": "textDocument/references", "params": {"position": {"line": 8, "character": 10}, "context": {"includeDeclaration": true}}}
+{"id": "Generator.js:9:2:references", "file": "Generator.js", "method": "textDocument/references", "params": {"position": {"line": 9, "character": 2}, "context": {"includeDeclaration": true}}}
+{"id": "Generator.js:9:9:references", "file": "Generator.js", "method": "textDocument/references", "params": {"position": {"line": 9, "character": 9}, "context": {"includeDeclaration": true}}}
+{"id": "Generator.js:12:0:references", "file": "Generator.js", "method": "textDocument/references", "params": {"position": {"line": 12, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "Generator.js:12:7:references", "file": "Generator.js", "method": "textDocument/references", "params": {"position": {"line": 12, "character": 7}, "context": {"includeDeclaration": true}}}
+{"id": "Generator.js:8:10:signatureHelp", "file": "Generator.js", "method": "textDocument/signatureHelp", "params": {"position": {"line": 8, "character": 10}, "context": {"triggerKind": 1, "isRetrigger": false}}}
+{"id": "NormalModule.js:diagnostic", "file": "NormalModule.js", "method": "textDocument/diagnostic", "params": {}}
+{"id": "NormalModule.js:documentSymbol", "file": "NormalModule.js", "method": "textDocument/documentSymbol", "params": {}}
+{"id": "NormalModule.js:semanticTokens", "file": "NormalModule.js", "method": "textDocument/semanticTokens/full", "params": {}}
+{"id": "NormalModule.js:1:0:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 1, "character": 0}}}
+{"id": "NormalModule.js:1:0:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 1, "character": 0}}}
+{"id": "NormalModule.js:1:0:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 1, "character": 0}}}
+{"id": "NormalModule.js:1:0:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 1, "character": 0}}}
+{"id": "NormalModule.js:1:6:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 1, "character": 6}}}
+{"id": "NormalModule.js:1:6:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 1, "character": 6}}}
+{"id": "NormalModule.js:1:6:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 1, "character": 6}}}
+{"id": "NormalModule.js:1:6:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 1, "character": 6}}}
+{"id": "NormalModule.js:7:1:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 7, "character": 1}}}
+{"id": "NormalModule.js:7:1:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 7, "character": 1}}}
+{"id": "NormalModule.js:7:1:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 7, "character": 1}}}
+{"id": "NormalModule.js:7:1:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 7, "character": 1}}}
+{"id": "NormalModule.js:7:7:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 7, "character": 7}}}
+{"id": "NormalModule.js:7:7:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 7, "character": 7}}}
+{"id": "NormalModule.js:7:7:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 7, "character": 7}}}
+{"id": "NormalModule.js:7:7:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 7, "character": 7}}}
+{"id": "NormalModule.js:7:18:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 7, "character": 18}}}
+{"id": "NormalModule.js:7:18:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 7, "character": 18}}}
+{"id": "NormalModule.js:7:18:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 7, "character": 18}}}
+{"id": "NormalModule.js:7:18:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 7, "character": 18}}}
+{"id": "NormalModule.js:8:2:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 8, "character": 2}}}
+{"id": "NormalModule.js:8:2:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 8, "character": 2}}}
+{"id": "NormalModule.js:8:2:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 8, "character": 2}}}
+{"id": "NormalModule.js:8:2:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 8, "character": 2}}}
+{"id": "NormalModule.js:8:9:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 8, "character": 9}}}
+{"id": "NormalModule.js:8:9:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 8, "character": 9}}}
+{"id": "NormalModule.js:8:9:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 8, "character": 9}}}
+{"id": "NormalModule.js:8:9:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 8, "character": 9}}}
+{"id": "NormalModule.js:8:19:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 8, "character": 19}}}
+{"id": "NormalModule.js:8:19:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 8, "character": 19}}}
+{"id": "NormalModule.js:8:19:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 8, "character": 19}}}
+{"id": "NormalModule.js:8:19:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 8, "character": 19}}}
+{"id": "NormalModule.js:8:35:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 8, "character": 35}}}
+{"id": "NormalModule.js:8:35:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 8, "character": 35}}}
+{"id": "NormalModule.js:8:35:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 8, "character": 35}}}
+{"id": "NormalModule.js:8:35:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 8, "character": 35}}}
+{"id": "NormalModule.js:8:43:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 8, "character": 43}}}
+{"id": "NormalModule.js:8:43:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 8, "character": 43}}}
+{"id": "NormalModule.js:8:43:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 8, "character": 43}}}
+{"id": "NormalModule.js:8:43:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 8, "character": 43}}}
+{"id": "NormalModule.js:8:47:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 8, "character": 47}}}
+{"id": "NormalModule.js:8:47:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 8, "character": 47}}}
+{"id": "NormalModule.js:8:47:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 8, "character": 47}}}
+{"id": "NormalModule.js:8:47:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 8, "character": 47}}}
+{"id": "NormalModule.js:11:0:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 11, "character": 0}}}
+{"id": "NormalModule.js:11:0:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 11, "character": 0}}}
+{"id": "NormalModule.js:11:0:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 11, "character": 0}}}
+{"id": "NormalModule.js:11:0:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 11, "character": 0}}}
+{"id": "NormalModule.js:11:7:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 11, "character": 7}}}
+{"id": "NormalModule.js:11:7:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 11, "character": 7}}}
+{"id": "NormalModule.js:11:7:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 11, "character": 7}}}
+{"id": "NormalModule.js:11:7:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 11, "character": 7}}}
+{"id": "NormalModule.js:11:17:hover", "file": "NormalModule.js", "method": "textDocument/hover", "params": {"position": {"line": 11, "character": 17}}}
+{"id": "NormalModule.js:11:17:definition", "file": "NormalModule.js", "method": "textDocument/definition", "params": {"position": {"line": 11, "character": 17}}}
+{"id": "NormalModule.js:11:17:typeDefinition", "file": "NormalModule.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 11, "character": 17}}}
+{"id": "NormalModule.js:11:17:documentHighlight", "file": "NormalModule.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 11, "character": 17}}}
+{"id": "NormalModule.js:1:0:references", "file": "NormalModule.js", "method": "textDocument/references", "params": {"position": {"line": 1, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "NormalModule.js:1:6:references", "file": "NormalModule.js", "method": "textDocument/references", "params": {"position": {"line": 1, "character": 6}, "context": {"includeDeclaration": true}}}
+{"id": "NormalModule.js:7:7:references", "file": "NormalModule.js", "method": "textDocument/references", "params": {"position": {"line": 7, "character": 7}, "context": {"includeDeclaration": true}}}
+{"id": "NormalModule.js:8:2:references", "file": "NormalModule.js", "method": "textDocument/references", "params": {"position": {"line": 8, "character": 2}, "context": {"includeDeclaration": true}}}
+{"id": "NormalModule.js:8:19:references", "file": "NormalModule.js", "method": "textDocument/references", "params": {"position": {"line": 8, "character": 19}, "context": {"includeDeclaration": true}}}
+{"id": "NormalModule.js:8:35:references", "file": "NormalModule.js", "method": "textDocument/references", "params": {"position": {"line": 8, "character": 35}, "context": {"includeDeclaration": true}}}
+{"id": "NormalModule.js:8:47:references", "file": "NormalModule.js", "method": "textDocument/references", "params": {"position": {"line": 8, "character": 47}, "context": {"includeDeclaration": true}}}
+{"id": "NormalModule.js:11:7:references", "file": "NormalModule.js", "method": "textDocument/references", "params": {"position": {"line": 11, "character": 7}, "context": {"includeDeclaration": true}}}
+{"id": "NormalModule.js:7:7:signatureHelp", "file": "NormalModule.js", "method": "textDocument/signatureHelp", "params": {"position": {"line": 7, "character": 7}, "context": {"triggerKind": 1, "isRetrigger": false}}}
+{"id": "NormalModule.js:8:28:signatureHelp", "file": "NormalModule.js", "method": "textDocument/signatureHelp", "params": {"position": {"line": 8, "character": 28}, "context": {"triggerKind": 1, "isRetrigger": false}}}
+{"id": "NormalModule.js:8:43:signatureHelp", "file": "NormalModule.js", "method": "textDocument/signatureHelp", "params": {"position": {"line": 8, "character": 43}, "context": {"triggerKind": 1, "isRetrigger": false}}}
+{"id": "NormalModule.js:8:53:signatureHelp", "file": "NormalModule.js", "method": "textDocument/signatureHelp", "params": {"position": {"line": 8, "character": 53}, "context": {"triggerKind": 1, "isRetrigger": false}}}

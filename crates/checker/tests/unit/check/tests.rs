@@ -10976,6 +10976,34 @@ fn a_union_s_same_name_retry_qualifies_without_module_roots() {
     );
 }
 
+/// A signature string keeps the default truncation budget whatever
+/// `noErrorTruncation` says (tsgo signatureToStringEx never sets
+/// NoTruncation from the option), so a long parameter type still prints its
+/// `... N more ...` member before the last one: the TS6387 deprecation
+/// message (tsgo aa814927; the JSDoc corpus case `ls-tests`, whose tsconfig
+/// sets noErrorTruncation — tsc-rs dropped the marker and kept truncating).
+#[test]
+fn a_signature_string_under_no_error_truncation_keeps_its_more_members_marker() {
+    let messages = with_program_state(
+        &[("globals.d.ts", "interface Object {}\ninterface Function {}\ninterface CallableFunction {}\ninterface NewableFunction {}\ninterface Array<T> { length: number; [n: number]: T; }\ninterface ReadonlyArray<T> { readonly length: number; readonly [n: number]: T; }\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\ninterface IArguments {}\ninterface MapLike<K, V> { get(key: K): V; }\ninterface SetLike<T> { has(value: T): boolean; }\ninterface Deferred<T> { then(): T; }\n"), ("dep.ts", "/** @deprecated */\nexport function create(options: { a: MapLike<string, SetLike<Deferred<number[]>>>; b: MapLike<string, SetLike<Deferred<number[]>>>; c: MapLike<string, SetLike<Deferred<number[]>>>; d: MapLike<string, SetLike<Deferred<number[]>>>; e: MapLike<string, SetLike<Deferred<number[]>>>; f: MapLike<string, SetLike<Deferred<number[]>>>; g: MapLike<string, SetLike<Deferred<number[]>>>; h: MapLike<string, SetLike<Deferred<number[]>>> }): void;\nexport function create(): void;\nexport function create() {}\ncreate(0 as any);\n")],
+        &CompilerOptions {
+            strict: Some(true),
+            no_error_truncation: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(1);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 6387)
+                .map(|diagnostic| diagnostic.message.text.as_str().expect("scalar head").to_owned())
+                .collect::<Vec<_>>()
+        },
+    );
+    assert_eq!(messages, ["The signature '(options: { a: MapLike<string, SetLike<Deferred<number[]>>>; b: MapLike<string, SetLike<Deferred<number[]>>>; c: MapLike<string, SetLike<Deferred<...>>>; ... 4 more ...; h: MapLike<...>; }): void' of 'create' is deprecated."]);
+}
+
 /// tsgo's reparser makes a JavaScript setter's `@returns` its return type
 /// annotation and a for-of variable's `@type` its type annotation before the
 /// grammar checks run: TS1095 and TS2483 (tsgo aa814927; webpack's

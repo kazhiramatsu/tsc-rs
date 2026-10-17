@@ -1,0 +1,2 @@
+mw.js(6,47): error TS7008: Member 't' implicitly has an 'any' type.
+exit 2

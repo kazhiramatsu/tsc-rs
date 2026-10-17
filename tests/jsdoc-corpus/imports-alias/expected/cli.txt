@@ -1,0 +1,5 @@
+src/compiler/index.js(2,23): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/compiler/legacy.js(3,24): error TS2304: Cannot find name 'migrat'.
+src/compiler/legacy.js(4,18): error TS2304: Cannot find name 'plai'.
+src/compiler/migrate/index.js(1,25): error TS7006: Parameter 'x' implicitly has an 'any' type.
+exit 2

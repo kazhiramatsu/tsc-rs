@@ -1,0 +1,6 @@
+a.js(22,7): error TS2322: Type 'string[]' is not assignable to type 'number'.
+b.js(16,7): error TS2322: Type 'string[]' is not assignable to type 'number'.
+b.js(19,7): error TS2322: Type 'string[]' is not assignable to type 'number'.
+c.ts(5,7): error TS2322: Type 'string[]' is not assignable to type 'number'.
+d.js(15,7): error TS2322: Type 'string[]' is not assignable to type 'number'.
+exit 2

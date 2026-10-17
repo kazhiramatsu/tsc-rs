@@ -1,0 +1,5 @@
+a.ts(6,7): error TS2322: Type 'SourceLocation | AST.SourceLocation | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+a.ts(7,7): error TS2322: Type 'Scope.Reference | Reference' is not assignable to type 'string'.
+  Type 'Reference' is not assignable to type 'string'.
+exit 2

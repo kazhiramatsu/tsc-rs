@@ -1,0 +1,142 @@
+{"id": "src/cast.js:diagnostic", "file": "src/cast.js", "method": "textDocument/diagnostic", "params": {}}
+{"id": "src/cast.js:documentSymbol", "file": "src/cast.js", "method": "textDocument/documentSymbol", "params": {}}
+{"id": "src/cast.js:semanticTokens", "file": "src/cast.js", "method": "textDocument/semanticTokens/full", "params": {}}
+{"id": "src/cast.js:5:0:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 5, "character": 0}}}
+{"id": "src/cast.js:5:0:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 5, "character": 0}}}
+{"id": "src/cast.js:5:0:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 5, "character": 0}}}
+{"id": "src/cast.js:5:0:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 5, "character": 0}}}
+{"id": "src/cast.js:5:7:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 5, "character": 7}}}
+{"id": "src/cast.js:5:7:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 5, "character": 7}}}
+{"id": "src/cast.js:5:7:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 5, "character": 7}}}
+{"id": "src/cast.js:5:7:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 5, "character": 7}}}
+{"id": "src/cast.js:5:16:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 5, "character": 16}}}
+{"id": "src/cast.js:5:16:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 5, "character": 16}}}
+{"id": "src/cast.js:5:16:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 5, "character": 16}}}
+{"id": "src/cast.js:5:16:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 5, "character": 16}}}
+{"id": "src/cast.js:5:22:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 5, "character": 22}}}
+{"id": "src/cast.js:5:22:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 5, "character": 22}}}
+{"id": "src/cast.js:5:22:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 5, "character": 22}}}
+{"id": "src/cast.js:5:22:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 5, "character": 22}}}
+{"id": "src/cast.js:6:1:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 6, "character": 1}}}
+{"id": "src/cast.js:6:1:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 6, "character": 1}}}
+{"id": "src/cast.js:6:1:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 6, "character": 1}}}
+{"id": "src/cast.js:6:1:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 6, "character": 1}}}
+{"id": "src/cast.js:6:5:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 6, "character": 5}}}
+{"id": "src/cast.js:6:5:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 6, "character": 5}}}
+{"id": "src/cast.js:6:5:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 6, "character": 5}}}
+{"id": "src/cast.js:6:5:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 6, "character": 5}}}
+{"id": "src/cast.js:6:51:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 6, "character": 51}}}
+{"id": "src/cast.js:6:51:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 6, "character": 51}}}
+{"id": "src/cast.js:6:51:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 6, "character": 51}}}
+{"id": "src/cast.js:6:51:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 6, "character": 51}}}
+{"id": "src/cast.js:6:58:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 6, "character": 58}}}
+{"id": "src/cast.js:6:58:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 6, "character": 58}}}
+{"id": "src/cast.js:6:58:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 6, "character": 58}}}
+{"id": "src/cast.js:6:58:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 6, "character": 58}}}
+{"id": "src/cast.js:7:2:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 7, "character": 2}}}
+{"id": "src/cast.js:7:2:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 7, "character": 2}}}
+{"id": "src/cast.js:7:2:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 7, "character": 2}}}
+{"id": "src/cast.js:7:2:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 7, "character": 2}}}
+{"id": "src/cast.js:7:48:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 7, "character": 48}}}
+{"id": "src/cast.js:7:48:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 7, "character": 48}}}
+{"id": "src/cast.js:7:48:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 7, "character": 48}}}
+{"id": "src/cast.js:7:48:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 7, "character": 48}}}
+{"id": "src/cast.js:7:55:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 7, "character": 55}}}
+{"id": "src/cast.js:7:55:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 7, "character": 55}}}
+{"id": "src/cast.js:7:55:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 7, "character": 55}}}
+{"id": "src/cast.js:7:55:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 7, "character": 55}}}
+{"id": "src/cast.js:9:1:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 9, "character": 1}}}
+{"id": "src/cast.js:9:1:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 9, "character": 1}}}
+{"id": "src/cast.js:9:1:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 9, "character": 1}}}
+{"id": "src/cast.js:9:1:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 9, "character": 1}}}
+{"id": "src/cast.js:9:7:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 9, "character": 7}}}
+{"id": "src/cast.js:9:7:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 9, "character": 7}}}
+{"id": "src/cast.js:9:7:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 9, "character": 7}}}
+{"id": "src/cast.js:9:7:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 9, "character": 7}}}
+{"id": "src/cast.js:9:57:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 9, "character": 57}}}
+{"id": "src/cast.js:9:57:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 9, "character": 57}}}
+{"id": "src/cast.js:9:57:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 9, "character": 57}}}
+{"id": "src/cast.js:9:57:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 9, "character": 57}}}
+{"id": "src/cast.js:10:1:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 10, "character": 1}}}
+{"id": "src/cast.js:10:1:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 10, "character": 1}}}
+{"id": "src/cast.js:10:1:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 10, "character": 1}}}
+{"id": "src/cast.js:10:1:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 10, "character": 1}}}
+{"id": "src/cast.js:10:8:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 10, "character": 8}}}
+{"id": "src/cast.js:10:8:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 10, "character": 8}}}
+{"id": "src/cast.js:10:8:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 10, "character": 8}}}
+{"id": "src/cast.js:10:8:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 10, "character": 8}}}
+{"id": "src/cast.js:18:0:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 18, "character": 0}}}
+{"id": "src/cast.js:18:0:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 18, "character": 0}}}
+{"id": "src/cast.js:18:0:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 18, "character": 0}}}
+{"id": "src/cast.js:18:0:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 18, "character": 0}}}
+{"id": "src/cast.js:18:7:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 18, "character": 7}}}
+{"id": "src/cast.js:18:7:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 18, "character": 7}}}
+{"id": "src/cast.js:18:7:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 18, "character": 7}}}
+{"id": "src/cast.js:18:7:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 18, "character": 7}}}
+{"id": "src/cast.js:18:13:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 18, "character": 13}}}
+{"id": "src/cast.js:18:13:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 18, "character": 13}}}
+{"id": "src/cast.js:18:13:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 18, "character": 13}}}
+{"id": "src/cast.js:18:13:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 18, "character": 13}}}
+{"id": "src/cast.js:18:25:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 18, "character": 25}}}
+{"id": "src/cast.js:18:25:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 18, "character": 25}}}
+{"id": "src/cast.js:18:25:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 18, "character": 25}}}
+{"id": "src/cast.js:18:25:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 18, "character": 25}}}
+{"id": "src/cast.js:18:35:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 18, "character": 35}}}
+{"id": "src/cast.js:18:35:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 18, "character": 35}}}
+{"id": "src/cast.js:18:35:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 18, "character": 35}}}
+{"id": "src/cast.js:18:35:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 18, "character": 35}}}
+{"id": "src/cast.js:18:45:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 18, "character": 45}}}
+{"id": "src/cast.js:18:45:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 18, "character": 45}}}
+{"id": "src/cast.js:18:45:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 18, "character": 45}}}
+{"id": "src/cast.js:18:45:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 18, "character": 45}}}
+{"id": "src/cast.js:18:54:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 18, "character": 54}}}
+{"id": "src/cast.js:18:54:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 18, "character": 54}}}
+{"id": "src/cast.js:18:54:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 18, "character": 54}}}
+{"id": "src/cast.js:18:54:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 18, "character": 54}}}
+{"id": "src/cast.js:18:63:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 18, "character": 63}}}
+{"id": "src/cast.js:18:63:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 18, "character": 63}}}
+{"id": "src/cast.js:18:63:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 18, "character": 63}}}
+{"id": "src/cast.js:18:63:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 18, "character": 63}}}
+{"id": "src/cast.js:18:69:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 18, "character": 69}}}
+{"id": "src/cast.js:18:69:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 18, "character": 69}}}
+{"id": "src/cast.js:18:69:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 18, "character": 69}}}
+{"id": "src/cast.js:18:69:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 18, "character": 69}}}
+{"id": "src/cast.js:23:0:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 23, "character": 0}}}
+{"id": "src/cast.js:23:0:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 23, "character": 0}}}
+{"id": "src/cast.js:23:0:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 23, "character": 0}}}
+{"id": "src/cast.js:23:0:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 23, "character": 0}}}
+{"id": "src/cast.js:23:7:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 23, "character": 7}}}
+{"id": "src/cast.js:23:7:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 23, "character": 7}}}
+{"id": "src/cast.js:23:7:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 23, "character": 7}}}
+{"id": "src/cast.js:23:7:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 23, "character": 7}}}
+{"id": "src/cast.js:23:16:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 23, "character": 16}}}
+{"id": "src/cast.js:23:16:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 23, "character": 16}}}
+{"id": "src/cast.js:23:16:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 23, "character": 16}}}
+{"id": "src/cast.js:23:16:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 23, "character": 16}}}
+{"id": "src/cast.js:23:21:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 23, "character": 21}}}
+{"id": "src/cast.js:23:21:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 23, "character": 21}}}
+{"id": "src/cast.js:23:21:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 23, "character": 21}}}
+{"id": "src/cast.js:23:21:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 23, "character": 21}}}
+{"id": "src/cast.js:24:1:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 24, "character": 1}}}
+{"id": "src/cast.js:24:1:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 24, "character": 1}}}
+{"id": "src/cast.js:24:1:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 24, "character": 1}}}
+{"id": "src/cast.js:24:1:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 24, "character": 1}}}
+{"id": "src/cast.js:24:8:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 24, "character": 8}}}
+{"id": "src/cast.js:24:8:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 24, "character": 8}}}
+{"id": "src/cast.js:24:8:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 24, "character": 8}}}
+{"id": "src/cast.js:24:8:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 24, "character": 8}}}
+{"id": "src/cast.js:24:16:hover", "file": "src/cast.js", "method": "textDocument/hover", "params": {"position": {"line": 24, "character": 16}}}
+{"id": "src/cast.js:24:16:definition", "file": "src/cast.js", "method": "textDocument/definition", "params": {"position": {"line": 24, "character": 16}}}
+{"id": "src/cast.js:24:16:typeDefinition", "file": "src/cast.js", "method": "textDocument/typeDefinition", "params": {"position": {"line": 24, "character": 16}}}
+{"id": "src/cast.js:24:16:documentHighlight", "file": "src/cast.js", "method": "textDocument/documentHighlight", "params": {"position": {"line": 24, "character": 16}}}
+{"id": "src/cast.js:5:0:references", "file": "src/cast.js", "method": "textDocument/references", "params": {"position": {"line": 5, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "src/cast.js:6:1:references", "file": "src/cast.js", "method": "textDocument/references", "params": {"position": {"line": 6, "character": 1}, "context": {"includeDeclaration": true}}}
+{"id": "src/cast.js:7:2:references", "file": "src/cast.js", "method": "textDocument/references", "params": {"position": {"line": 7, "character": 2}, "context": {"includeDeclaration": true}}}
+{"id": "src/cast.js:9:7:references", "file": "src/cast.js", "method": "textDocument/references", "params": {"position": {"line": 9, "character": 7}, "context": {"includeDeclaration": true}}}
+{"id": "src/cast.js:18:0:references", "file": "src/cast.js", "method": "textDocument/references", "params": {"position": {"line": 18, "character": 0}, "context": {"includeDeclaration": true}}}
+{"id": "src/cast.js:18:35:references", "file": "src/cast.js", "method": "textDocument/references", "params": {"position": {"line": 18, "character": 35}, "context": {"includeDeclaration": true}}}
+{"id": "src/cast.js:18:69:references", "file": "src/cast.js", "method": "textDocument/references", "params": {"position": {"line": 18, "character": 69}, "context": {"includeDeclaration": true}}}
+{"id": "src/cast.js:23:21:references", "file": "src/cast.js", "method": "textDocument/references", "params": {"position": {"line": 23, "character": 21}, "context": {"includeDeclaration": true}}}
+{"id": "src/cast.js:5:22:signatureHelp", "file": "src/cast.js", "method": "textDocument/signatureHelp", "params": {"position": {"line": 5, "character": 22}, "context": {"triggerKind": 1, "isRetrigger": false}}}
+{"id": "src/cast.js:7:62:signatureHelp", "file": "src/cast.js", "method": "textDocument/signatureHelp", "params": {"position": {"line": 7, "character": 62}, "context": {"triggerKind": 1, "isRetrigger": false}}}
+{"id": "src/cast.js:23:21:signatureHelp", "file": "src/cast.js", "method": "textDocument/signatureHelp", "params": {"position": {"line": 23, "character": 21}, "context": {"triggerKind": 1, "isRetrigger": false}}}

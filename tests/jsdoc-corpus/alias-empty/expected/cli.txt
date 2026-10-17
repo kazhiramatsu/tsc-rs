@@ -1,0 +1,5 @@
+a.js(4,9): error TS18048: 'o.a' is possibly 'undefined'.
+a.js(4,13): error TS2339: Property 'dataUrl' does not exist on type 'EmptyOptions'.
+a.js(10,12): error TS7006: Parameter 'error' implicitly has an 'any' type.
+a.js(10,19): error TS7006: Parameter 'name' implicitly has an 'any' type.
+exit 2

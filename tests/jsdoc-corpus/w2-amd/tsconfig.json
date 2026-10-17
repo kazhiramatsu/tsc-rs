@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "types": [],
+    "lib": [
+      "es2017"
+    ]
+  },
+  "files": [
+    "a.js",
+    "types.d.ts",
+    "v3.ts"
+  ]
+}

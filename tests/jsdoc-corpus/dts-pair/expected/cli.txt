@@ -1,0 +1,3 @@
+src/use/a.js(1,21): error TS7006: Parameter 'foo' implicitly has an 'any' type.
+src/use/a.js(2,18): error TS2304: Cannot find name 'fl'.
+exit 2

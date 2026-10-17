@@ -1,0 +1,4 @@
+a.js(7,10): error TS2454: Variable 'NodeType' is used before being assigned.
+a.js(7,32): error TS2454: Variable 'n' is used before being assigned.
+a.js(11,9): error TS2454: Variable 'n' is used before being assigned.
+exit 2

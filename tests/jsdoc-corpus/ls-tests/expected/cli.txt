@@ -1,0 +1,2 @@
+b.js(1,19): error TS7006: Parameter 'x' implicitly has an 'any' type.
+exit 2

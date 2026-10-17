@@ -1,0 +1,4 @@
+v4_cjs_noJSDoc.js(1,5): error TS7034: Variable 'A' implicitly has type 'any' in some locations where its type cannot be determined.
+v4_cjs_noJSDoc.js(3,6): error TS7005: Variable 'A' implicitly has an 'any' type.
+v4_cjs_noJSDoc.js(10,10): error TS7005: Variable 'A' implicitly has an 'any' type.
+exit 2

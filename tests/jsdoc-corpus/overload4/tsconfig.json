@@ -1,0 +1,4 @@
+{
+  "compilerOptions": { "allowJs": true, "checkJs": true, "strict": true, "noEmit": true, "types": [] },
+  "files": ["a.js"]
+}

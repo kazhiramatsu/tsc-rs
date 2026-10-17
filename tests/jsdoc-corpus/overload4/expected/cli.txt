@@ -1,0 +1,4 @@
+a.js(3,5): error TS8039: A JSDoc '@template' tag may not follow a '@typedef', '@callback', or '@overload' tag
+a.js(4,12): error TS2304: Cannot find name 'T'.
+a.js(5,14): error TS2304: Cannot find name 'T'.
+exit 2

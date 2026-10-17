@@ -1,0 +1,1 @@
+{"compilerOptions": {"allowJs": true, "checkJs": true, "noEmit": true, "strict": true, "types": [], "lib": ["es2017"]}, "include": ["*.ts", "*.js"]}

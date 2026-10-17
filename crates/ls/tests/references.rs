@@ -526,6 +526,43 @@ fn document_symbols(files: &[(&str, &str)]) -> serde_json::Value {
     )
 }
 
+/// The type literal tsgo's reparser builds from nested `@param options.x`
+/// tags has reparsed property signatures, for which its navigation bar adds
+/// no symbol and into which it does not walk: an inline `{ kind: string }`
+/// written in such a tag lists nothing, while a destructured parameter's
+/// binding elements do (tsgo aa814927; the JSDoc corpus case `w2-ls`).
+#[test]
+fn a_nested_param_tag_s_type_literal_has_no_document_symbols() {
+    let symbols = document_symbols_js(&[("/nested.js", "/**\n * @param {Object} state state\n * @param {{ kind: string }} state.ast ast\n * @param {string} state.name name\n * @returns {string} s\n */\nconst describe = (state) => state.ast.kind + state.name;\n\n/**\n * @param {string} output output\n * @param {Object} options options\n * @param {string} options.context context\n * @param {number} options.targetProperties target properties\n * @returns {string} s\n */\nconst applyDefaults = (output, { context, targetProperties: tp }) => output + context + tp;\nmodule.exports = { describe, applyDefaults };\n")]);
+    assert_eq!(
+        symbols,
+        serde_json::json!([{"children": [], "kind": 13, "name": "describe", "range": {"end": {"character": 55, "line": 6}, "start": {"character": 6, "line": 6}}, "selectionRange": {"end": {"character": 14, "line": 6}, "start": {"character": 6, "line": 6}}}, {"children": [{"children": [], "kind": 13, "name": "context", "range": {"end": {"character": 40, "line": 15}, "start": {"character": 33, "line": 15}}, "selectionRange": {"end": {"character": 40, "line": 15}, "start": {"character": 33, "line": 15}}}, {"children": [], "kind": 13, "name": "tp", "range": {"end": {"character": 62, "line": 15}, "start": {"character": 42, "line": 15}}, "selectionRange": {"end": {"character": 62, "line": 15}, "start": {"character": 60, "line": 15}}}], "kind": 13, "name": "applyDefaults", "range": {"end": {"character": 90, "line": 15}, "start": {"character": 6, "line": 15}}, "selectionRange": {"end": {"character": 19, "line": 15}, "start": {"character": 6, "line": 15}}}])
+    );
+}
+
+/// `document_symbols` for a JavaScript file (checkJs on).
+fn document_symbols_js(files: &[(&str, &str)]) -> serde_json::Value {
+    let mut capabilities = ResolvedClientCapabilities::default();
+    capabilities
+        .text_document
+        .document_symbol
+        .hierarchical_document_symbol_support = true;
+    let uri = DocumentUri(format!("file://{}", files[0].0));
+    with_service_capabilities(
+        files,
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        }),
+        UserPreferences::default(),
+        capabilities,
+        |service, _| {
+            serde_json::to_value(service.provide_document_symbols(&uri).expect("an answer"))
+                .expect("JSON")
+        },
+    )
+}
+
 /// tsgo's folding ranges of the first file, as the protocol's JSON, for a
 /// client that shows collapsed text.
 fn folding_ranges(files: &[(&str, &str)]) -> serde_json::Value {

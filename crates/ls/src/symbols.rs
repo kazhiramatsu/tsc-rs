@@ -449,6 +449,13 @@ impl Request<'_, '_> {
                     }
                 }
             }
+            // tsgo's reparser builds the type literal of nested `@param
+            // options.x`/`@property` tags with property signatures it marks
+            // reparsed (reparseJSDocTypeLiteral), and its navigation bar
+            // adds no symbol for a reparsed node and does not walk into a
+            // property signature: nothing under such a literal is a symbol
+            // (the members of a written `{ a: string }` are).
+            SyntaxKind::JSDocTypeLiteral => {}
             _ => {
                 for child in self.navigation_children(node) {
                     self.visit_document_symbol(state, child);

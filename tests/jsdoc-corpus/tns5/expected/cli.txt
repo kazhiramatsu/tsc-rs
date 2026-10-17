@@ -1,0 +1,4 @@
+d.ts(5,8): error TS2322: Type '{ a: Local.Seg; }' is not assignable to type 'number'.
+d.ts(6,8): error TS2322: Type '{ b: Rule.CodePathSegment; }' is not assignable to type 'number'.
+d.ts(7,8): error TS2322: Type '{ c: T.Linter.Config<number>; }' is not assignable to type 'number'.
+exit 2

@@ -1,0 +1,3 @@
+a.js(32,7): error TS2322: Type 'SyncBailHook<[JsParserOptions], JsParser, UnsetAdditionalOptions> & SyncBailHook<[JsParserOptions], JsParser, UnsetAdditionalOptions> & ... & ... & ...' is not assignable to type 'number'.
+a.js(34,7): error TS2322: Type 'SyncBailHook<[JsParserOptions], JsParser, UnsetAdditionalOptions> & SyncBailHook<[JsParserOptions], JsParser, UnsetAdditionalOptions> & ... & ... & ...' is not assignable to type 'number'.
+exit 2

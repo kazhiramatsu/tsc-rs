@@ -1,0 +1,3 @@
+a.js(8,8): error TS2322: Type '{ amd?: Amd; commonjs?: boolean; mode: string; }' is not assignable to type 'number'.
+v3.ts(3,8): error TS2322: Type '{ amd?: Amd; commonjs?: boolean; }' is not assignable to type 'number'.
+exit 2
