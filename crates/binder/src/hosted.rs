@@ -90,6 +90,14 @@ pub fn typedef_type_parameter_range(source: &SourceFile, tag: NodeId) -> Option<
 /// overload of (reparser.go:138-142): its JSDoc's host, outside object
 /// literals.
 pub fn reparsed_overload_host(source: &SourceFile, tag: NodeId) -> Option<NodeId> {
+    // The reparser runs for JavaScript files only (parser/jsdoc.go:
+    // `if p.isJavaScript() { p.reparseTags(node, jsdoc) }`): an `@overload`
+    // in a TypeScript file declares nothing, and the function's value
+    // declaration — whose tags-only JSDoc documents an alias hover — stays
+    // the first written one.
+    if !node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE) {
+        return None;
+    }
     let host = source
         .arena
         .node(tag)
