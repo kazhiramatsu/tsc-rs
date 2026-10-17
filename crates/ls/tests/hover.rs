@@ -1761,3 +1761,92 @@ fn a_later_hover_reuses_the_checker_s_built_nodes() {
     let after = hover_head(hovers.pop().expect("two answers"));
     assert_eq!(after, format!("{pair}{{ {a}; }}>.get(): {{"));
 }
+
+/// A JavaScript function's `@returns {name is T}` is its signature's type
+/// predicate, which the hover prints as tsgo does (found by the LSP test on
+/// svelte; tsc-rs printed `boolean`).
+#[test]
+fn javascript_return_type_predicate() {
+    let files = [(
+        "/a.js",
+        "/**\n * @param {string} name\n * @returns {name is \"a\"}\n */\nexport function is_a(name) {\n\treturn name === 'a';\n}\n",
+    )];
+    assert_eq!(
+        hover(
+            &files,
+            options(|options| {
+                options.allow_js = true;
+                options.check_js = Some(true);
+            }),
+            "/a.js",
+            (4, 16),
+            None
+        ),
+        Some((
+            "```typescript\nfunction is_a(name: string): name is \"a\"\n```\n\n\n*@param* `name`\n\n*@returns*"
+                .to_owned(),
+            ((4, 16), (4, 20)),
+            false,
+        ))
+    );
+}
+
+/// The property of an instantiated interface is qualified by the type
+/// arguments it was instantiated with, not by the interface's type parameter
+/// declarations with their defaults (svelte's `Value<V = unknown>`; tsgo
+/// aa814927 prints `Value<V>`).
+#[test]
+fn javascript_instantiated_qualifier_has_no_defaults() {
+    let files = [
+        (
+            "/types.d.ts",
+            "export interface Signal {\n\tf: number;\n}\nexport type Equals = (this: Value, value: unknown) => boolean;\nexport interface Value<V = unknown> extends Signal {\n\tequals: Equals;\n\tv: V;\n}\n",
+        ),
+        (
+            "/a.js",
+            "/** @import { Value } from './types' */\n\n/**\n * @template V\n * @param {Value<V>} source\n * @param {V} value\n * @returns {V}\n */\nexport function internal_set(source, value) {\n\tif (!source.equals(value)) {\n\t\treturn value;\n\t}\n\treturn value;\n}\n",
+        ),
+    ];
+    assert_eq!(
+        hover(
+            &files,
+            options(|options| {
+                options.allow_js = true;
+                options.check_js = Some(true);
+            }),
+            "/a.js",
+            (9, 13),
+            None
+        ),
+        Some((
+            "```typescript\n(property) Value<V>.equals: (this: Value, value: unknown) => boolean\n```\n"
+                .to_owned(),
+            ((9, 13), (9, 19)),
+            true,
+        ))
+    );
+}
+
+/// A JavaScript function with `@overload` tags is declared first by the
+/// overloads tsgo's reparser makes statements of, which have no JSDoc of
+/// their own: its hover shows the signatures without the implementation's
+/// documentation, at the `function` keyword and through a re-export alike
+/// (found by the LSP test on svelte; pinned to tsgo aa814927).
+#[test]
+fn javascript_overloads_have_no_documentation() {
+    let files = [("/a.js", "/**\n * @template V\n * @overload\n * @param {() => V} get\n * @param {(v: V) => void} set\n * @returns {V}\n */\n/**\n * @template V\n * @overload\n * @param {() => V} get\n * @returns {V}\n */\n/**\n * Create a store from a function that returns state.\n * @template V\n * @param {() => V} get\n * @param {(v: V) => void} [set]\n * @returns {V}\n */\nexport function toStore(get, set) {\n\treturn get();\n}\n\nexport { toStore as derived };\n")];
+    let compiler_options = || {
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        })
+    };
+    assert_eq!(
+        hover(&files, compiler_options(), "/a.js", (20, 7), None),
+        Some(("```typescript\nfunction toStore<V>(get: () => V, set: (v: V) => void): V\nfunction toStore<V>(get: () => V): V\n```\n".to_owned(), ((20, 7), (20, 15)), false))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/a.js", (24, 9), None),
+        Some(("```typescript\nfunction toStore<V>(get: () => V, set: (v: V) => void): V\nfunction toStore<V>(get: () => V): V\n```\n".to_owned(), ((24, 9), (24, 16)), false))
+    );
+}

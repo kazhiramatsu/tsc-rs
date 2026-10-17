@@ -6929,69 +6929,49 @@ impl<'a> CheckerState<'a> {
     }
 
     fn is_thisless_type_parameter(&self, node: NodeId) -> bool {
-        let constraint = match self.data_of(node) {
-            NodeData::TypeParameter(data) => data.constraint,
-            _ => None,
-        };
-        constraint.is_none_or(|constraint| self.is_thisless_type(constraint))
+        self.effective_constraint_of_type_parameter_node(node)
+            .is_none_or(|constraint| self.is_thisless_type(constraint))
     }
 
+    /// The annotation is the effective one: tsgo's reparser gives a
+    /// JavaScript declaration its JSDoc type.
     fn is_thisless_variable_like_declaration(&self, node: NodeId) -> bool {
-        let (annotation, initializer) = match self.data_of(node) {
-            NodeData::PropertyDeclaration(data) => (data.r#type, data.initializer),
-            NodeData::PropertySignature(data) => (data.r#type, data.initializer),
-            NodeData::Parameter(data) => (data.r#type, data.initializer),
-            _ => (None, None),
+        let initializer = match self.data_of(node) {
+            NodeData::PropertyDeclaration(data) => data.initializer,
+            NodeData::PropertySignature(data) => data.initializer,
+            NodeData::Parameter(data) => data.initializer,
+            _ => None,
         };
-        match annotation {
+        match self.effective_type_annotation_node(node) {
             Some(annotation) => self.is_thisless_type(annotation),
             None => initializer.is_none(),
         }
     }
 
+    /// The return type and type parameters are the effective ones: tsgo's
+    /// reparser gives a JavaScript method its `@returns` type and
+    /// `@template` type parameters (a JavaScript method's own symbol then
+    /// stays in its class's members, as a TypeScript one's does).
     fn is_thisless_function_like_declaration(&self, node: NodeId) -> bool {
-        let (kind, return_type, parameters, type_parameters) = match self.data_of(node) {
-            NodeData::MethodDeclaration(data) => (
-                SyntaxKind::MethodDeclaration,
-                data.r#type,
-                data.parameters,
-                data.type_parameters,
-            ),
-            NodeData::MethodSignature(data) => (
-                SyntaxKind::MethodSignature,
-                data.r#type,
-                data.parameters,
-                data.type_parameters,
-            ),
-            NodeData::Constructor(data) => (
-                SyntaxKind::Constructor,
-                data.r#type,
-                data.parameters,
-                data.type_parameters,
-            ),
-            NodeData::GetAccessor(data) => (
-                SyntaxKind::GetAccessor,
-                data.r#type,
-                data.parameters,
-                data.type_parameters,
-            ),
-            NodeData::SetAccessor(data) => (
-                SyntaxKind::SetAccessor,
-                data.r#type,
-                data.parameters,
-                data.type_parameters,
-            ),
+        let (kind, parameters) = match self.data_of(node) {
+            NodeData::MethodDeclaration(data) => (SyntaxKind::MethodDeclaration, data.parameters),
+            NodeData::MethodSignature(data) => (SyntaxKind::MethodSignature, data.parameters),
+            NodeData::Constructor(data) => (SyntaxKind::Constructor, data.parameters),
+            NodeData::GetAccessor(data) => (SyntaxKind::GetAccessor, data.parameters),
+            NodeData::SetAccessor(data) => (SyntaxKind::SetAccessor, data.parameters),
             _ => return false,
         };
         let return_ok = kind == SyntaxKind::Constructor
-            || return_type.is_some_and(|annotation| self.is_thisless_type(annotation));
+            || self
+                .effective_return_type_node(node)
+                .is_some_and(|annotation| self.is_thisless_type(annotation));
         return_ok
             && self
                 .nodes_of(parameters)
                 .iter()
                 .all(|&parameter| self.is_thisless_variable_like_declaration(parameter))
             && self
-                .nodes_of(type_parameters)
+                .type_parameter_declarations_of(node)
                 .iter()
                 .all(|&parameter| self.is_thisless_type_parameter(parameter))
     }

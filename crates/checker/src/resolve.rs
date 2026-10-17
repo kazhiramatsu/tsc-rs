@@ -365,14 +365,19 @@ impl<'a> CheckerState<'a> {
                                     .intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
                                 {
                                     // A hosted `@param` type is reparsed into
-                                    // the parameter in tsgo.
+                                    // the parameter in tsgo, a hosted `@returns`
+                                    // type into the return type annotation (the
+                                    // parameter a `name is T` predicate names).
                                     use_result = last_location.is_some_and(|l| {
                                         matches!(
                                             self.kind_of(l),
                                             SyntaxKind::Parameter | SyntaxKind::JSDocParameterTag
                                         )
                                     }) || (last_location.is_some()
-                                        && last_location == self.type_annotation_of(loc)
+                                        && (last_location == self.type_annotation_of(loc)
+                                            || last_location.is_some_and(|l| {
+                                                self.kind_of(l) == SyntaxKind::JSDocReturnTag
+                                            }))
                                         && self
                                             .binder
                                             .symbol(found)

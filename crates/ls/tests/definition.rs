@@ -483,3 +483,45 @@ fn a_dynamically_imported_module_s_type_definition_goes_to_the_module() {
         )]
     );
 }
+
+/// tsgo `getTypeOfSymbolAtLocation` takes a function's own type to its one
+/// call signature's return type, so the type definition of a JavaScript
+/// method whose return type has no declarations is none (found by the LSP
+/// test on svelte; tsgo aa814927 answers nothing).
+#[test]
+fn a_javascript_method_s_type_definition_is_its_return_type_s() {
+    let text = "export class Parser {\n\t/** @returns {string} */\n\tgenerate() {\n\t\treturn 'x';\n\t}\n}\nexport function use() {\n\tconst p = new Parser();\n\treturn p.generate();\n}\n";
+    let file = [("/a.js", text)];
+    assert_eq!(
+        links(
+            &file,
+            options(|options| {
+                options.allow_js = true;
+                options.check_js = Some(true);
+            }),
+            "/a.js",
+            (8, 11),
+            Request::TypeDefinition,
+        ),
+        vec![]
+    );
+}
+
+/// The TypeScript twin of the JavaScript method above: a method's own type
+/// goes to its one call signature's return type, which has no declarations
+/// (tsgo aa814927 answers nothing).
+#[test]
+fn a_method_s_type_definition_is_its_return_type_s() {
+    let text = "export class Parser {\n\tgenerate(): string {\n\t\treturn 'x';\n\t}\n}\nexport function use() {\n\tconst p = new Parser();\n\treturn p.generate();\n}\n";
+    let file = [("/a.ts", text)];
+    assert_eq!(
+        links(
+            &file,
+            options(|_| {}),
+            "/a.ts",
+            (7, 11),
+            Request::TypeDefinition
+        ),
+        vec![]
+    );
+}

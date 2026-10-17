@@ -1486,3 +1486,97 @@ fn signature_help_prints_a_property_s_same_line_comment() {
         "g(v: { page: string; query: number; // trailing note  // leading note rest: boolean; }): void"
     );
 }
+
+/// The parameter an `asserts` predicate of a JavaScript `@returns` names is
+/// a reference to it (found by the LSP test on svelte; tsgo aa814927 lists
+/// it among the highlights).
+#[test]
+fn a_jsdoc_asserts_predicate_names_its_parameter() {
+    let files = [(
+        "/a.js",
+        "/**\n * @template T\n * @param {any} actual\n * @param {T} expected\n * @returns {asserts actual is T}\n */\nexport function equal(actual, expected) {\n\tif (actual !== expected) throw new Error('x');\n}\n",
+    )];
+    // Highlights are compared as a set: tsgo's own order of them varies.
+    let mut highlights = document_highlights(
+        &files,
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        }),
+        "/a.js",
+        (6, 22),
+    );
+    highlights.sort();
+    assert_eq!(
+        highlights,
+        vec![
+            (((2, 16), (2, 22)), 2),
+            (((4, 21), (4, 27)), 2),
+            (((6, 22), (6, 28)), 3),
+            (((7, 5), (7, 11)), 2),
+        ]
+    );
+}
+
+/// A JavaScript class's `@implements` is a super type for find all
+/// references, as tsgo's reparser makes it a heritage clause: from
+/// `Object.prototype.toString`, the `toString` of a class implementing an
+/// interface without one is related through the interface's apparent
+/// `Object` member (tsgo aa814927; found by the LSP test on svelte).
+#[test]
+fn a_jsdoc_implements_tag_relates_a_method_to_the_interface_s_apparent_member() {
+    let files = [(
+        "/a.js",
+        "/**\n * @typedef {{ code: string; message: string }} IDiag\n */\n\n/** @implements {IDiag} */\nexport class C {\n\tcode = 'x';\n\tmessage = 'm';\n\ttoString() {\n\t\treturn 'c';\n\t}\n}\n\n/** @param {unknown} obj */\nexport function is_date(obj) {\n\treturn Object.prototype.toString.call(obj) === '[object Date]';\n}\n\n/** @param {C} c */\nexport function g(c) {\n\treturn c.toString();\n}\n",
+    )];
+    let mut found: Vec<_> = references(
+        &files,
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        }),
+        "/a.js",
+        (15, 25),
+    )
+    .into_iter()
+    .filter(|(file, _)| *file == "/a.js")
+    .map(|(_, range)| range)
+    .collect();
+    found.sort();
+    assert_eq!(
+        found,
+        vec![((8, 1), (8, 9)), ((15, 25), (15, 33)), ((20, 10), (20, 18))]
+    );
+}
+
+/// The name of a plain `name is T` predicate in a hosted `@returns` is not a
+/// reference of the parameter: tsgo resolves a JSDoc name through its
+/// reparsed clone, found by a position search that misses a node starting
+/// where the clone's root starts (ast.GetReparsedNodeForNode), and from the
+/// comment the parameter is not visible. `asserts name is T` starts at
+/// `asserts` and is found (tsgo aa814927; found by the LSP test on svelte).
+#[test]
+fn a_plain_jsdoc_predicate_does_not_name_its_parameter() {
+    let files = [(
+        "/a.js",
+        "/**\n * @param {any} obj\n * @returns {obj is Date}\n */\nexport function is_date(obj) {\n\treturn Object.prototype.toString.call(obj) === '[object Date]';\n}\n",
+    )];
+    let mut highlights = document_highlights(
+        &files,
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        }),
+        "/a.js",
+        (4, 24),
+    );
+    highlights.sort();
+    assert_eq!(
+        highlights,
+        vec![
+            (((1, 16), (1, 19)), 2),
+            (((4, 24), (4, 27)), 3),
+            (((5, 39), (5, 42)), 2),
+        ]
+    );
+}

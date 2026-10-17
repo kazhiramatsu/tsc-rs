@@ -164,6 +164,16 @@ impl CheckerState<'_> {
     /// tsgo `GetSymbolAtLocation` (checker.go:32069-32076): lookups the API
     /// makes report no errors.
     pub fn get_symbol_at_location(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
+        if self.opens_hosted_return_type_predicate(node) {
+            // tsgo resolves a JSDoc name through its reparsed clone, found by
+            // a position search that misses a node starting where the clone's
+            // root starts (ast.GetReparsedNodeForNode): the name opening a
+            // hosted `@returns {name is T}` resolves from the comment, where
+            // the parameter is not visible. `asserts name is T` starts at
+            // `asserts` and is found. (The checker's own display resolves
+            // through the clone, as resolve.rs does.)
+            return Ok(None);
+        }
         if let Some(reparsed) = self.jsdoc_reparsed_name(node) {
             return match reparsed {
                 Some(declaration) => self.get_symbol_of_declaration(declaration).map(Some),
@@ -171,6 +181,27 @@ impl CheckerState<'_> {
             };
         }
         self.get_symbol_at_location_ex(node, true)
+    }
+
+    /// The name of a `name is T` predicate that is the whole type of a
+    /// JavaScript `@returns` tag: it starts where the predicate starts.
+    fn opens_hosted_return_type_predicate(&self, node: NodeId) -> bool {
+        if !matches!(self.data_of(node), NodeData::Identifier(_)) || !self.is_in_js_file(node) {
+            return false;
+        }
+        let Some(predicate) = self
+            .parent_of(node)
+            .filter(|&parent| self.kind_of(parent) == SyntaxKind::TypePredicate)
+        else {
+            return false;
+        };
+        if self.binder.node_record(predicate).pos != self.binder.node_record(node).pos {
+            return false;
+        }
+        self.parent_of(predicate)
+            .filter(|&expression| self.kind_of(expression) == SyntaxKind::JSDocTypeExpression)
+            .and_then(|expression| self.parent_of(expression))
+            .is_some_and(|tag| self.kind_of(tag) == SyntaxKind::JSDocReturnTag)
     }
 
     /// tsgo resolves a JSDoc name through its reparsed clone

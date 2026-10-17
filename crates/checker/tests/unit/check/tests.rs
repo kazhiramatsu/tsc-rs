@@ -10620,3 +10620,35 @@ fn jsdoc_overload_signatures_do_not_see_the_implementation_s_type_parameters() {
         [(2304, 40), (2304, 61)]
     );
 }
+
+/// tsgo's reparser wraps a JSDoc `@type` cast in an `as` expression, which
+/// the control flow analysis does not look through: `(/** @type {E} */
+/// (node.expression)).type === 'x'` narrows neither `node.expression` nor
+/// the property reads after it, so each branch reads the union (found by the
+/// LSP test on svelte's LetDirective; tsgo aa814927 reports TS2339 twice).
+#[test]
+fn a_jsdoc_type_cast_is_opaque_to_narrowing() {
+    let rows = with_program_state(
+        &[
+            (
+                "types.d.ts",
+                "export interface ArrayExpression { type: 'ArrayExpression'; elements: number[]; }\nexport interface ObjectExpression { type: 'ObjectExpression'; properties: string[]; }\nexport type Expression = ArrayExpression | ObjectExpression;\n",
+            ),
+            ("a.js", "/** @import { Expression } from './types' */\n/** @param {{ expression: Expression }} node */\nexport function f(node) {\n\treturn /** @type {Expression} */ (node.expression).type === 'ObjectExpression'\n\t\t? node.expression.properties\n\t\t: node.expression.elements;\n}\n"),
+        ],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(1);
+            diag_rows(state)
+        },
+    );
+    assert_eq!(
+        rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
+        [(2339, 219), (2339, 250)]
+    );
+}

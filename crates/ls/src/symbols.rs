@@ -117,11 +117,16 @@ fn flatten_document_symbols(
 }
 
 impl Request<'_, '_> {
+    /// A node's children as tsgo's navigation bar walks them (`children`).
+    fn navigation_children(&self, node: NodeId) -> Vec<NodeId> {
+        children(self.state.binder.source_of_node(node), node)
+    }
+
     /// tsgo `getDocumentSymbolsForChildren`: the symbols of a node's
     /// children, expandos merged into their targets.
     fn document_symbols_for_children(&mut self, node: NodeId) -> Vec<DocumentSymbol> {
         let mut state = DocumentSymbols::default();
-        for child in self.children(node) {
+        for child in self.navigation_children(node) {
             self.visit_document_symbol(&mut state, child);
         }
         merge_expandos(state.symbols)
@@ -139,7 +144,7 @@ impl Request<'_, '_> {
         };
         let saved_targets = std::mem::take(&mut state.expando_targets);
         let saved_symbols = std::mem::take(&mut state.symbols);
-        for child in self.children(node) {
+        for child in self.navigation_children(node) {
             self.visit_document_symbol(state, child);
         }
         state.expando_targets = saved_targets;
@@ -181,7 +186,37 @@ impl Request<'_, '_> {
         let source = self.state.binder.source_of_node(node);
         let record = self.state.binder.node_record(node);
         if let Some(js_doc) = record.js_doc {
-            for &comment in self.state.binder.node_array(js_doc).nodes {
+            let comments = self.state.binder.node_array(js_doc).nodes.to_vec();
+            // tsgo's reparser makes statements of a comment's typedef,
+            // callback and import tags and puts them before their host
+            // (reparseUnhosted); the parts of those statements that are not
+            // reparsed nodes themselves — an inline type literal's members,
+            // an import's bindings — get symbols of their own there, before
+            // the tags' symbols and the host's.
+            for &comment in &comments {
+                let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
+                    continue;
+                };
+                for tag in self.node_list(data.tags) {
+                    let reparsed = match &self.state.binder.node_record(tag).data {
+                        NodeData::JSDocTypedefTag(typedef) => {
+                            typedef.type_expression.and_then(|expression| {
+                                match &self.state.binder.node_record(expression).data {
+                                    NodeData::JSDocTypeExpression(expression) => expression.r#type,
+                                    _ => None,
+                                }
+                            })
+                        }
+                        NodeData::JSDocCallbackTag(callback) => callback.type_expression,
+                        NodeData::JSDocImportTag(import) => import.import_clause,
+                        _ => None,
+                    };
+                    if let Some(reparsed) = reparsed {
+                        self.visit_document_symbol(state, reparsed);
+                    }
+                }
+            }
+            for &comment in &comments {
                 let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
                     continue;
                 };
@@ -324,7 +359,7 @@ impl Request<'_, '_> {
                         self.visit_expando_assignment(state, node);
                     }
                     _ => {
-                        for child in self.children(node) {
+                        for child in self.navigation_children(node) {
                             self.visit_document_symbol(state, child);
                         }
                     }
@@ -338,13 +373,13 @@ impl Request<'_, '_> {
                     let children = self.document_symbols_of_node(state, data.expression);
                     self.add_document_symbol(state, node, None, children);
                 } else {
-                    for child in self.children(node) {
+                    for child in self.navigation_children(node) {
                         self.visit_document_symbol(state, child);
                     }
                 }
             }
             _ => {
-                for child in self.children(node) {
+                for child in self.navigation_children(node) {
                     self.visit_document_symbol(state, child);
                 }
             }
@@ -403,7 +438,7 @@ impl Request<'_, '_> {
                 .is_some_and(|name| state.expando_targets.contains(name))
         });
         let (Some(target), true) = (target, is_target) else {
-            for child in self.children(node) {
+            for child in self.navigation_children(node) {
                 self.visit_document_symbol(state, child);
             }
             return;
@@ -1232,12 +1267,43 @@ fn has_implementation_ts_file_extension(file_name: &str) -> bool {
 }
 
 /// A node's children (tsgo `ForEachChild`).
+/// A node's children as tsgo's navigation bar walks them: with the JSDoc
+/// types tsgo's reparser gives a JavaScript file's nodes — a parameter's
+/// `@param` type after its name, and the type of a `/** @type {T} */ (x)`
+/// cast (tsgo's `x as T`) after the expression — so an inline type
+/// literal's members get symbols.
 fn children(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
     let mut children = Vec::new();
     tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
         children.push(child);
         false
     });
+    if !source.is_source_file_js() {
+        return children;
+    }
+    let hosted = tsc_binder::hosted::jsdoc_hosted(source);
+    match &source.arena.node(node).data {
+        NodeData::Parameter(data) => {
+            if data.r#type.is_none() {
+                if let Some(r#type) = hosted.type_of(node) {
+                    let at = data
+                        .name
+                        .and_then(|name| children.iter().position(|&child| child == name))
+                        .map_or(0, |index| index + 1);
+                    children.insert(at, r#type);
+                }
+            }
+        }
+        NodeData::ParenthesizedExpression(data) => {
+            if let Some(cast) = data
+                .expression
+                .and_then(|expression| hosted.cast_of(expression))
+            {
+                children.push(cast.type_node);
+            }
+        }
+        _ => {}
+    }
     children
 }
 

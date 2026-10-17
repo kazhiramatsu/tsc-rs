@@ -747,8 +747,20 @@ impl<'a> Outlining<'a> {
     /// open paren when its parameters take several lines).
     fn function_span(&self, function: NodeId, body: NodeId) -> Option<FoldingRange> {
         let parameters = crate::utilities::parameters_in(self.source, function);
-        let multi_line = match (parameters.first(), parameters.last()) {
-            (Some(&first), Some(&last)) => !self.on_same_line(self.pos(first), self.end(last)),
+        // tsgo's reparser puts a parameter made of a JavaScript function's
+        // `@this` tag first in the list, at the tag name's position
+        // (reparser.go:491-512), so with a parameter on the function's line
+        // the list takes several lines.
+        let this_tag = tsc_binder::hosted::jsdoc_hosted(self.source)
+            .this_tag_of(function)
+            .map(|tag| match &self.source.arena.node(tag).data {
+                NodeData::JSDocThisTag(data) => data.tag_name.unwrap_or(tag),
+                _ => tag,
+            });
+        let first = this_tag.or(parameters.first().copied());
+        let last = parameters.last().copied().or(this_tag);
+        let multi_line = match (first, last) {
+            (Some(first), Some(last)) => !self.on_same_line(self.pos(first), self.end(last)),
             _ => false,
         };
         let open = if multi_line {

@@ -333,10 +333,7 @@ impl Request<'_, '_> {
         }
         for candidate in candidates {
             let declaration = self
-                .state
-                .binder
-                .symbol(candidate)
-                .value_declaration
+                .tsgo_value_declaration(candidate)
                 .or_else(|| self.declarations_of(candidate).first().copied());
             let Some(declaration) = declaration else {
                 continue;
@@ -400,6 +397,37 @@ impl Request<'_, '_> {
 
     /// tsgo `getDocumentationFromDeclaration`: the comment of the
     /// declaration's JSDoc (or its matching tag), then the tags.
+    /// tsgo's value declaration of a symbol. A JavaScript function whose
+    /// comments have `@overload` tags is declared first by the overloads
+    /// tsgo's reparser makes statements of (bound before the function, with
+    /// no JSDoc of their own), so the first overload's signature stands in:
+    /// the hover shows the function's signatures without its documentation.
+    pub(crate) fn tsgo_value_declaration(&self, symbol: SymbolId) -> Option<NodeId> {
+        let value = self.state.binder.symbol(symbol).value_declaration?;
+        let source = self.state.binder.source_of_node(value);
+        let record = self.state.binder.node_record(value);
+        let Some(js_doc) = record.js_doc else {
+            return Some(value);
+        };
+        for &comment in self.state.binder.node_array(js_doc).nodes {
+            let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
+                continue;
+            };
+            for tag in self.node_list(data.tags) {
+                let NodeData::JSDocOverloadTag(overload) = &self.state.binder.node_record(tag).data
+                else {
+                    continue;
+                };
+                if tsc_binder::hosted::reparsed_overload_host(source, tag) == Some(value) {
+                    if let Some(signature) = overload.type_expression {
+                        return Some(signature);
+                    }
+                }
+            }
+        }
+        Some(value)
+    }
+
     pub(crate) fn documentation_from_declaration(
         &mut self,
         _symbol: Option<SymbolId>,
