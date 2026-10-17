@@ -104,7 +104,8 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
   tsc 6.0.3 はどちらも報告しない（JSDoc の型は注釈ではない）。
 - 根拠：tsgo の reparser が `@returns` を setter の戻り値注釈に、`@type` を for-of 変数の型注釈にしてから文法検査が走る。再現
   `lsp-compare/repro/fn-type-tag/a.js`。
-- tsc-rs の扱い：未対応（次の slice で tsgo に合わせる予定）。
+- tsc-rs の扱い：tsgo に合わせた（PR #832、`functions.rs check_grammar_accessor`・`statements.rs`、test
+  `reparsed_setter_returns_and_for_of_variable_types_are_grammar_errors`）。
 - 報告：未投稿。
 
 ### 9. `@this` が `@type` より前にある関数宣言では `@type` の signature が効かない
@@ -113,22 +114,56 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
 - 現象：tsgo では parameter が全部 `any`（TS7006）。`@type` を先に書けば効く。tsc 6.0.3 はどちらの順でも `@type` の signature を使う。
 - 根拠：reparser は tag を順に処理し、`@this` が型付きの `this` parameter を先に足すので、`@type` の「parameter に型が無いとき」条件
   （reparser.go の `noTypedParams`）が偽になる。再現 `lsp-compare/repro/alias-empty/a.js` の `g`。
-- tsc-rs の扱い：未対応（次の slice で tsgo に合わせる予定）。
+- tsc-rs の扱い：tsgo に合わせた（PR #832、`hosted.rs reparse_type_tag` の `typed_this`、test
+  `a_this_tag_before_a_function_s_type_tag_leaves_its_parameters_untyped`）。
 - 報告：未投稿。
 
 ### 10. 入れ子の `@type` cast の内側の型参照が references・highlight に出ない
 
 - 見つけた日・場所：2026-10-17、webpack の `lib/javascript/syntax-printer.js`（`/** @type {Node[]} */ (\n /** @type {Node[] | null} */ (null))` が多数）。
-- 現象：外側の cast の括弧の中に行を変えて書いた内側の cast の型名（`Node`）が、tsgo の references に数えられない（webpack で 45 件、
-  同じ形で `null` の documentHighlight も 2 件少ない）。1 行に書いた入れ子（`/** @type {Scope} */ (/** @type {Scope | null} */ (null))`）は数えられる。
-- 根拠：再現 `lsp-compare/repro/nested-cast/a.js`（references of `Node`：tsgo 8 件、tsc-rs 9 件、差は内側 cast の 1 件）。機構は未確認
-  （memo 5 と同じ `GetReparsedNodeForNode` の位置探索が疑わしい）。
-- tsc-rs の扱い：未対応（調査中。合わせるか、5. と同様に tsgo の経路を確かめてから決める）。
+- 現象：内側の cast の JSDoc の中にあるものが tsgo の位置探索に届かない：型名の hover・definition・references が無く、型位置の `null` が
+  keyword references・documentHighlight に出ず（webpack で references 12 件 +45 ずつ、highlight 3 件）、cast の括弧の中に書いた arrow の
+  `@param` 名も highlight に出ない（`lib/index.js:140`）。1 行の入れ子でも同じ（以前の「1 行なら数えられる」は誤り：hover 11:51 は null）。
+  TypeScript 6.0.3 は全部届く。
+- 根拠：tsgo の reparser は `/** @type {T} */ (e)` の括弧の中身を `e as T` に置き換える（reparser.go 382-389、`parent.SetExpression(makeNewCast(…))`）。
+  `as` node は自分の JSDoc を持たず Pos は `e` の full start なので、`astnav.getTokenAtPosition` の `GetTokenPosOfNode(as, includeJSDoc=true)` は
+  `e` の先頭 JSDoc を飛ばした `(` になり、`e` 自身の JSDoc の中の位置は「どの子にも含まれない」。外側の cast の JSDoc は括弧 node 自身のものなので
+  届く。再現 `lsp-compare/repro/nested-cast`（documentHighlight 9:32：tsgo 3 件・tsc-rs 5 件、hover 11:51：tsgo null）、`repro/w2-arrow`。
+- tsc-rs の扱い：利用者の決定（2026-10-17「入れ子castはtsgoに合わせてください」）で tsgo に合わせる：`ls/astnav.rs start_of_node` が hosted cast の
+  operand の自分の JSDoc を start に含めない（次の PR）。
 - 報告：未投稿。
 
 ### 11. reparse した宣言への definition の targetRange が `0:0`
 
 - 見つけた日・場所：2026-10-17、webpack の `lib/javascript/syntax-parser.js:7493`、`lib/resolve/getResolveOptionsKey.js:30`、`lib/template/ChunkTemplate.js:173`。
-- 現象：definition が同じ file の `0:0` を指す（3. の `@this` parameter と同じ症状。何の宣言かは未確認）。
-- tsc-rs の扱い：正しい範囲を返す（3. と同じ）。
+- 現象：definition が同じ file の `0:0` を指す。3 件とも `@this {T}` を持つ関数の中の `this`（`syntax-parser.js:7493` の `this.value`、
+  `getResolveOptionsKey.js:30` の `this[name]`、`ChunkTemplate.js:173` の `this._outputOptions`）で、3. と同じ（reparse した `this` parameter の
+  名前が Loc 0）。preact の `component.js` でも 3 件同じ。
+- tsc-rs の扱い：3. と同じ（`@this` tag の `this` の範囲を返す）。
+- 報告：未投稿。
+
+### 12. JSDoc cast の括弧の中身は flow 解析の reference にならない
+
+- 見つけた日・場所：2026-10-17、webpack の `lib/javascript/ScopeAnalyzer.js:144`
+  （constructor の `this.variableScope = isVarScope ? this : /** @type {Scope} */ (upper).variableScope;`）。
+- 現象：tsgo は `(upper).variableScope` を flow 解析の reference にしない（TS2565「used before being assigned」が出ない）。
+  TypeScript 6.0.3（webpack の node_modules の tsc）は cast の有無によらず TS2565 を報告しない。tsgo は cast 無しの `upper.depth` だけ報告し、
+  tsc-rs もそこは修正前から tsgo と同じ。
+- 根拠：tsgo の reparser は cast を `as` 式にし、binder の `isNarrowableReference` に `as` の arm が無い（parenthesized・non-null はある）ので
+  flow node が付かず、`getFlowTypeOfReference` は宣言型を返す。再現 `lsp-compare/repro/w2-scope/scope.js`。
+- tsc-rs の扱い：tsgo に合わせた（PR #832、binder `node_util::is_narrowable_reference`、test
+  `a_property_read_through_a_jsdoc_cast_is_not_a_flow_reference`）。checker 側の `getReferenceCandidate`・`isMatchingReference` は既に cast を通さない。
+- 報告：未投稿（6.0.3 との差として報告候補）。
+
+### 13. `@import` の default 名が、file によっては class の references に出ない
+
+- 見つけた日・場所：2026-10-17、webpack の `lib/module/NormalModule.js:170`（`/** @import Generator, { GenerateErrorFn } from "./Generator" */`）、
+  同じ形が Compilation.js（ModuleFactory）、NormalModule.js（Parser）、JavascriptGenerator.js（DependencyTemplate）、ConcatenatedModule.js（Hash）。
+- 現象：`class Generator`（Generator.js:70）の references に tsgo は `@import` の default 名（170:12）を含めない（named binding や `@type {Generator}` の
+  使用は含める）。小さい再現（`repro/w2-import`、`w2-import2`：同じ CommonJS `module.exports = X` + `@import X, { T } from`）では tsgo も含めるので、
+  file の中身（多数の多行 `@import`・typedef）に依存する。
+- 根拠の候補：memo 5 と同じ `ast.GetReparsedNodeForNode` の位置二分探索（JSDoc の識別子を reparse した clone に写す）が、近くの clone の並びで
+  取りこぼし、`getSymbolAtLocation` が nil になる。未確認。
+- tsc-rs の扱い：bounded で残す（利用者の決定 2026-10-17「@importの件はboundedで残してOKです」）。合わせるには tsgo の clone 列（file 内の
+  reparse 位置の列）を模す必要があり重い。webpack の 5 件（references +1 ずつ）はこの扱い。
 - 報告：未投稿。
