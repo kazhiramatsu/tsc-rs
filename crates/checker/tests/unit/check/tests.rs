@@ -5511,12 +5511,15 @@ fn reused_entity_recovery_uses_the_shortest_context_name() {
                     })
                     .expect("bare context declaration")
             };
+            // No alias in scope: tsgo's typeToString sets
+            // UseAliasDefinedOutsideCurrentScope, so symbolToTypeNode's chain
+            // yields no module root — the bare name, not `import("./m").Q`.
             state.display_enclosing = Some(bare_enclosing);
             assert_eq!(
                 state
                     .type_annotation_text_display(reference)
-                    .expect("import recovery"),
-                "import(\"./m\").Q"
+                    .expect("bare recovery"),
+                "Q"
             );
         },
     );
@@ -10766,6 +10769,41 @@ fn a_property_read_through_a_jsdoc_cast_is_not_a_flow_reference() {
     assert_eq!(
         rows.iter().map(|row| (row.0, row.1)).collect::<Vec<_>>(),
         [(2565, depth)]
+    );
+}
+
+/// A relation error prints a reused annotation's name that the enclosing
+/// scope cannot reach bare: tsgo's typeToString sets
+/// UseAliasDefinedOutsideCurrentScope, so symbolToTypeNode's chain yields no
+/// module root (`amd?: Amd`, not `import("./types").Amd`) (tsgo aa814927;
+/// webpack's `CssModulesPlugin.js` TS2345 on `{ defaultMode,
+/// ...parserOptions }`).
+#[test]
+fn a_spread_property_s_unreachable_alias_prints_bare_in_an_error() {
+    // The imported file first, as a program orders them: the spread's
+    // properties print in declaration order.
+    let rows = with_program_state(
+        &[
+            ("types.d.ts", "export type Amd = false | { [index: string]: any };\nexport interface Options {\n\tamd?: Amd;\n\tcommonjs?: boolean;\n}\n"),
+            ("a.ts", "import type { Options } from \"./types\";\nexport function f(options: Options) {\n\tconst n: number = { mode: \"auto\", ...options };\n\treturn n;\n}\n"),
+        ],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(1);
+            diag_rows(state)
+        },
+    );
+    assert_eq!(
+        rows.iter()
+            .map(|row| (row.0, row.3.as_str()))
+            .collect::<Vec<_>>(),
+        [(
+            2322,
+            "Type '{ amd?: Amd; commonjs?: boolean; mode: string; }' is not assignable to type 'number'."
+        )]
     );
 }
 
