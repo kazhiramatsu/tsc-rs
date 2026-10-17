@@ -434,6 +434,8 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 
 ## 5. 決まりと道具
 
+- tsgo の bug と思われる現象は [tsgo-bugs.md](tsgo-bugs.md) に積む（利用者の指示 2026-10-17。報告は利用者が行う）。
+
 - CLAUDE.md の決まり：
   - tsgo に合わせる時は既存の経路を変える。
   - tsgo の答えで unit test を書く。
