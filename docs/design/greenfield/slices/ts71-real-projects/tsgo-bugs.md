@@ -188,6 +188,6 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
   誰も使わなくても報告する。TypeScript 6.0.3 は、その property の型を何かが要求した時だけ「Variable 'logger' implicitly has an 'any' type」
   （TS7005/7043）を報告する。バグではなく 6.0.3 との差（reparse 設計の帰結）。
 - 再現：`target/claude-tools/handover/repro/tprop/a.js`（strict：tsgo TS7008 ×3、6.0.3 系の tsc-rs は TS7005 ×3）。
-- tsc-rs の扱い：tsgo に合わせる（次の PR：`check.rs check_jsdoc_property_like_tag` が type literal の tag の型を解決し、`widen.rs report_implicit_any`
-  が Member の文言を使う）。
+- tsc-rs の扱い：tsgo に合わせた（PR #834：`check.rs check_jsdoc_property_like_tag` が type literal の tag の型を解決し、`widen.rs report_implicit_any`
+  が Member の文言を使う。test `untyped_property_tags_of_a_type_literal_are_implicit_any_members`）。
 - 報告：不要（差の記録のみ）。
