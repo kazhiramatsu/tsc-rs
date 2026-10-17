@@ -594,6 +594,44 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
   再現 `handover/repro/{tdeferred,tprop,tns5,tns6,tovl2,tinter3,tinter3-v12}`、`handover/slice4-chain{1,2}.sh`、`handover/jsdoc-sessions-p35.sh`、
   `handover/jsdoc-corpus-suite-design.md`（次の slice）。
 
+### 修正 9：JSDoc corpus（tsgo の答えを持つ小さな project の suite）と、それが見つけた 2 件（PR #835、2026-10-18、Fable 5.1）
+
+- **merge**：#835 → `7f05e1b30`（hosted run 39064206564）。commit：14709b568（ls）、546c2c3a7（checker）、204b05f30（corpus・script・test・docs）。
+- **何を入れたか**：tsgo の test suite は実 project の JSDoc の形をほとんど含まない（conformance 12,829 case 中：JSDoc cast 31、入れ子 cast 6、const arrow の
+  `@template` 2、`@import` 27、context-sensitive な callback を渡す generic JS arrow 0）ので、#829〜#834 の差分はすべて LSP session から出た。それらの
+  再現用に縮めた project を、tsgo 自身の答えと一緒に suite として残す（利用者の決定 2026-10-17「そうしてください」）。
+  - `tests/jsdoc-corpus/`（README あり）：60 case（source 210 file）。各 case に `requests.jsonl`（合計 12,919 request：file ごとに diagnostics・
+    documentSymbol・semanticTokens、識別子の spread に hover・definition・typeDefinition・documentHighlight、その一部に references、`(` の後に
+    signatureHelp）、`expected/cli.txt`（tsgo の `tsc -p . --pretty false` の出力と exit code）、`expected/lsp.jsonl`（request ごとの tsgo の答え。
+    差分記録器と同じ正規化：`{"result": …}`、tsgo が順序付けない配列は sort、case の絶対 path は `${ROOT}`、canonical JSON）、`known.txt`（差があってよい
+    id と理由 = ratchet）。
+  - `crates/cli/tests/jsdoc_corpus.rs`：全 case に `tsc-rs -p .` と `tsc-rs --lsp --stdio`（case ごとに 1 session、file は 1 度だけ open、共通の
+    `initialize.json`、UTF-16）を流して `expected/` と比べる。`known.txt` に無い差は fail、載っているのに一致した id も fail（ratchet は前にしか動かない）。
+    `JSDOC_CORPUS_CASE=<name>` で 1 case、`JSDOC_CORPUS_DUMP=<dir>` で tsc-rs の答えを保存。debug build で 60 case 約 11 秒。
+  - `scripts/jsdoc_corpus.py`：`init <case>`（request の sampling）、`update [<case>…]`（vendored tsgo で `expected/` を作り直す。tsgo が要るのはここだけ、
+    local で実行して commit）、`check`（同じ比較を Python から、`--server`・`--dump`）。
+  - `docs/setup.md` に説明。local の `final.sh` は crate test の後にこの test を走らせる（`tests.sh` は cli crate を回さない）。
+- **known.txt（5 答え）**：`@this` 関数の `this` の definition を tsgo が空の範囲で返す 4（memo 3、利用者の決定で有効な範囲：`alias-empty`・
+  `ls-tests` ×2・`svelte-ls`）、JS generic method の `@returns {ByType[T]}` が呼び出しの hover で instantiate されない 1（`w2-generic`、webpack
+  `implicitTypeLoaderFallback.js`、直す）。
+- **corpus が見つけた 2 件（直した。test は変更なしでは落ちる）**：
+  1. **入れ子 `@param options.x` の type literal は documentSymbol を持たない（ls `symbols.rs`）**：tsgo の reparser はその literal を reparsed 印の
+     property signature で組み（`reparseJSDocTypeLiteral`）、navigation bar は reparsed node に symbol を足さず property signature の中にも入らないので、
+     そこに書いた inline の `{ kind: string }` は何も列挙しない（parameter の型として直接書いた `{ a: string }` の `a` は列挙する）。こちらは関数の下に
+     `kind` を出していた（`w2-ls/nested.js`）。test `a_nested_param_tag_s_type_literal_has_no_document_symbols`。
+  2. **signature 文字列は `noErrorTruncation` でも `... N more ...` の member を保つ（checker `check.rs`）**：tsgo の `signatureToStringEx` は option から
+     NoTruncation を立てないので、TS6387 の deprecation 文言は既定の予算で長い parameter 型を切り詰め、最後の member の前に marker を出す。こちらは同じく
+     切り詰めながら option を見て marker を落とし `c: …; h: Map<...>` と出していた（`ls-tests/dep3.ts`、TypeScript file）。union の marker と elision
+     placeholder も同じ context flag に揃えた。test `a_signature_string_under_no_error_truncation_keeps_its_more_members_marker`。
+- **検査**：最終バイトで（release build、nice 20、`cargo -j 2`、worker 2）：`conformance_ts71.py --workers 2 --check` 12,829 case・15,339 configuration、lane A 13,577 full・
+  mismatch 0、ratchet 0 regressions（変更なし）。`--checkers 4` + compare：15,335 一致・4 差（既知の 4 件、#832〜#834 と同じ）。`suites_ts71.py --update` → `--check`
+  exit 0、5,315 baseline・0 regressions・ratchet 変更なし（既知の 3 mismatch）。全 crate の test 合格（types 49、syntax 251、binder 78、program 684、checker 1,828、
+  emitter 352、ls 250、lsp 89、api 332、project 235、compiler 241、conformance 49、lsproto 31）。JSDoc corpus（`cargo test -p tsc-rs-cli --test jsdoc_corpus`）：
+  60 case・12,919 答え、連続 2 回合格（各 11 秒。hermetic 化の前は project 外の file が inferred project になり ATA で 1 答えが機械依存だった：全 case `types: []`、
+  全 source file を project に入れ、`update` が `--listFiles` で検査する）。fmt clean、clippy（checker・ls・cli、all targets、`-D warnings`）clean。
+  `scripts/jsdoc_corpus.py check --server target/release/tsc-rs`：60/60 ok。log：`target/claude-tools/logs/slice5-final`・`slice5`。
+- **道具**：`handover/jsdoc-corpus-suite-design.md`、`handover/slice5-chain1.sh`、`handover/slice5-pr-body.md`。
+
 ## 3. 性能の slice 3（local のみ、未 push）
 
 - **worktree と branch**：`/Users/hiramatsu/dev/tsc-rs-p34` の `perf/ts71-lsp-request-threads`、HEAD は `b121051dd`
