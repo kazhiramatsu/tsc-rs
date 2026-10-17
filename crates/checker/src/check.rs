@@ -5633,8 +5633,18 @@ impl<'a> CheckerState<'a> {
         self.display_add_approximate_length(2 * (Self::slice_js_length(name) + 1));
     }
 
+    /// The context's NoTruncation: typeToString sets it from
+    /// noErrorTruncation, signatureToString never does (tsgo
+    /// signatureToStringEx), so a signature string truncates with the
+    /// default budget and prints the `... N more ...` members and `...`
+    /// placeholders whatever the option says (ls-tests' TS6387 under
+    /// noErrorTruncation).
+    fn display_no_truncation(&self) -> bool {
+        self.options.no_error_truncation == Some(true) && !self.display_signature_string
+    }
+
     fn display_truncation_type_node(&self) -> (JsString, SliceTypeNodeKind) {
-        if self.options.no_error_truncation == Some(true) && !self.display_signature_string {
+        if self.display_no_truncation() {
             // NoTruncation uses `any` plus a synthetic elision
             // comment; typeToString's remove-comments printer leaves
             // the keyword face.
@@ -5680,7 +5690,7 @@ impl<'a> CheckerState<'a> {
                 let last = self.type_to_string_node(types[types.len() - 1], fully_qualified)?;
                 return Ok(vec![
                     first,
-                    if self.options.no_error_truncation == Some(true) {
+                    if self.display_no_truncation() {
                         ("any".into(), SliceTypeNodeKind::Keyword)
                     } else {
                         (
@@ -5698,7 +5708,7 @@ impl<'a> CheckerState<'a> {
         for (index, &ty) in types.iter().enumerate() {
             let ordinal = index + 1;
             if self.display_check_truncation_length() && ordinal + 2 < types.len() - 1 {
-                rendered.push(if self.options.no_error_truncation == Some(true) {
+                rendered.push(if self.display_no_truncation() {
                     ("any".into(), SliceTypeNodeKind::Keyword)
                 } else {
                     (
@@ -9382,7 +9392,7 @@ impl<'a> CheckerState<'a> {
         for (index, &property) in properties.iter().enumerate() {
             let ordinal = index + 1;
             if self.display_check_truncation_length() && ordinal + 2 < properties.len() - 1 {
-                if self.options.no_error_truncation != Some(true) {
+                if !self.display_no_truncation() {
                     rendered.push(crate::concat_js(&[
                         &"... ",
                         &(properties.len() - ordinal),
@@ -9472,7 +9482,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:52212-52222
     fn reverse_mapped_elision_placeholder(&mut self) -> (JsString, SliceTypeNodeKind) {
         self.display_add_approximate_length(3);
-        if self.options.no_error_truncation == Some(true) {
+        if self.display_no_truncation() {
             // The printer removes the synthetic `/* elided */`
             // comment from the AnyKeyword node.
             ("any".into(), SliceTypeNodeKind::Keyword)
