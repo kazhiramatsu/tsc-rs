@@ -125,16 +125,22 @@ restarts a mapper whose package changes.
   differ in 13 answers, all nuxt completions whose auto-import module
   specifier `tsgo` itself picks differently from run to run; a session over
   webpack's `lib/**/*.js` (790 JavaScript files, 134,174 requests) differs in
-  58 answers after seven rounds of fixes: 43 hovers whose
-  `Array<T>.length` qualifier depends on the session's order, 6
-  signature-help labels, one file's
-  diagnostics whose inferred type argument differs, 5 references of an
-  `@import` default name `tsgo` misses and 3 `@this` definitions `tsgo`
-  answers at an empty range; sessions over
+  55 answers after eight rounds of fixes: 43 hovers whose
+  `Array<T>.length` qualifier depends on the session's order, 3
+  signature-help labels whose union members `tsgo` orders by first use,
+  one file's diagnostics whose inferred type argument differs, 5
+  references of an `@import` default name `tsgo` misses and 3 `@this`
+  definitions `tsgo` answers at an empty range; sessions over
   preact (33 files, 5,307 requests), SvelteKit's `packages/kit/src` (382
   files, 50,333 requests), ESLint's `lib` (389 files, 68,905 requests) and
   prettier's `src` (541 files, 79,819 requests) differ in 3, 1, 1 and 3
-  answers (October 18, 2026).
+  answers; sessions over NestJS's `packages` (1,000 files, 144,763
+  requests), RxJS's `packages/rxjs/src` (231 files, 41,628 requests),
+  Excalidraw's `packages/excalidraw` (501 files, 85,695 requests) and
+  puppeteer-core's `src` (214 files, 36,954 requests) differ in 1, 2, 82
+  and 18 answers, 78 of them Excalidraw completions whose auto-import
+  source `tsgo` lists only once its session has seen the package's own
+  index (October 18, 2026).
 - **TypeScript 7 rules:** the default `target` is ES2026, and the options
   TypeScript 7 removed (`baseUrl`, `outFile`, `target: "es5"`, the `amd`,
   `umd` and `system` modules, …) are errors.
