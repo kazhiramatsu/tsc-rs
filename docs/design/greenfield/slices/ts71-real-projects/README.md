@@ -662,6 +662,29 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 - **道具**：`handover/slice6-chain0.sh`（修正なしで test が落ちる確認 → chain 1）、`handover/slice6-chain1.sh`、`handover/slice6-pr-body.md`、
   `handover/jsdoc-sessions-notes.md`（2026-10-18 06:05）。
 
+### 修正 11：JS の `@template {X} C` の制約は括弧の内側の型（PR #837、2026-10-18、Fable 5.1）
+
+- **merge**：#837 → `247e23f9a`（hosted run 39080260366）。
+- **現象**：webpack `lib/html/htmlMinify.js` の `util` の hover（予算 500）で、tsgo は `readonly registerNotSerializable: (Constructor: Constructor) => void;`
+  と出すのにこちらは `readonly registerNotSerializable: ...;`（session の「truncation budget」hover 2 件）。さらに JS の `/** @template {T} T */` の TS2313 を
+  tsgo は括弧内の `T`（`a.js(2,15)`）に出し、こちらは `{`（`a.js(2,14)`）に出していた。
+- **原因**：tsgo の reparser は `@template {X} C` の型パラメータの constraint に括弧内の型を clone する（`gatherTypeParameters` の `constraint.Type()`）が、
+  `get_constraint_declaration` は `JSDocTypeExpression`（`{X}`）全体を返していた。node builder は書かれた constraint を再利用し、再利用した node の
+  span を予算に加算する（tsgo `nodecopy.go`）ので、JS の constraint 1 つにつき 2 文字多く加算し、webpack では `register*` getter 4 つの後で
+  `registerNotSerializable` の関数型を予算超過で訪れて `...` にしていた。両 builder に一時 trace（tsgo は scratchpad に別 build、`TSGO_TRACE_PROP`；
+  tsc-rs は `TSRS_TRACE_PROP`、いずれも除去済み）を入れて member ごとの approximateLength を突き合わせて特定。修正後は一致し、webpack の hover も同一。
+- **修正**（checker `constraints.rs`）：`@template` の constraint 宣言は type expression の内側の型。
+- **test**（修正なしでは落ちる）：ls hover `a_javascript_template_constraint_charges_the_type_inside_its_braces`（制約つき getter 16 個で最後の member の型が
+  ちょうど予算 500 に乗る：tsgo は `readonly registerLast: (s: string) => void;`、こちらは `...` だった）、checker
+  `a_circular_template_constraint_is_reported_on_the_type_inside_its_braces`。
+- **検査**：最終バイトで（release build、nice 20、`cargo -j 2`、worker 2）：`conformance_ts71.py --workers 2 --check` 12,829 case・15,339 configuration、lane A 13,577 full・
+  mismatch 0、ratchet 0 regressions（変更なし）。`--checkers 4` + compare：15,335 一致・4 差（既知の 4 件）。`suites_ts71.py --update` → `--check` exit 0、
+  5,315 baseline・0 regressions・ratchet 変更なし（既知の 3 mismatch）。全 crate の test 合格（types 49、syntax 251、binder 78、program 684、checker 1,829、
+  emitter 352、ls 252、lsp 89、api 332、project 235、compiler 241、conformance 49、lsproto 31）、JSDoc corpus 60 case 合格。fmt・clippy clean。
+  log：`target/claude-tools/logs/slice7`・`logs/slice7/final`。
+- **道具**：`handover/slice7-plan.md`（残りは diagnostic 側 = string path の pseudo 経路の移植）、`scratchpad/ttp2`〜`ttp6`（trace 用 repro）、
+  `scratchpad/build-tsgo-trace.sh`（計測用 tsgo の build と vendored checkout の復元）。
+
 ## 3. 性能の slice 3（local のみ、未 push）
 
 - **worktree と branch**：`/Users/hiramatsu/dev/tsc-rs-p34` の `perf/ts71-lsp-request-threads`、HEAD は `b121051dd`
