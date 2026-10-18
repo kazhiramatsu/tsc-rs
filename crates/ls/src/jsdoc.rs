@@ -16,6 +16,7 @@ use crate::utilities::{token_start, Touching};
 enum CommentPart<'a> {
     Text(&'a str),
     Link {
+        node: NodeId,
         kind: SyntaxKind,
         name: Option<NodeId>,
         text: &'a str,
@@ -70,16 +71,19 @@ fn comment_parts<'a>(
                 match &record.data {
                     NodeData::JSDocText(text) => Some(CommentPart::Text(&text.text)),
                     NodeData::JSDocLink(link) => Some(CommentPart::Link {
+                        node: part,
                         kind: record.kind,
                         name: link.name,
                         text: &link.text,
                     }),
                     NodeData::JSDocLinkCode(link) => Some(CommentPart::Link {
+                        node: part,
                         kind: record.kind,
                         name: link.name,
                         text: &link.text,
                     }),
                     NodeData::JSDocLinkPlain(link) => Some(CommentPart::Link {
+                        node: part,
                         kind: record.kind,
                         name: link.name,
                         text: &link.text,
@@ -92,33 +96,17 @@ fn comment_parts<'a>(
 }
 
 /// tsgo `scanner.GetTextOfJSDocComment`: a comment's parts as text, a link
-/// as `{@link name text}`.
+/// as its source text (`GetTextOfNode`, so `{@link Page | page}` keeps the
+/// space before its `|`), trailing whitespace trimmed.
 fn text_of_comment(state: &CheckerState<'_>, comment: Option<&JSDocComment>) -> String {
     let mut text = String::new();
     for part in comment_parts(state, comment) {
         match part {
             CommentPart::Text(part) => text.push_str(part),
-            CommentPart::Link {
-                kind,
-                name,
-                text: link_text,
-            } => {
-                let tag = match kind {
-                    SyntaxKind::JSDocLinkCode => "linkcode",
-                    SyntaxKind::JSDocLinkPlain => "linkplain",
-                    _ => "link",
-                };
-                text.push_str("{@");
-                text.push_str(tag);
-                text.push(' ');
-                if let Some(name) = name {
-                    text.push_str(&source_text_of(state, name));
-                }
-                text.push_str(link_text);
-                text.push('}');
-            }
+            CommentPart::Link { node, .. } => text.push_str(&source_text_of(state, node)),
         }
     }
+    text.truncate(text.trim_end().len());
     text
 }
 
@@ -601,6 +589,7 @@ impl Request<'_, '_> {
                     kind,
                     name,
                     text: link_text,
+                    ..
                 } => {
                     let link_text = link_text.to_owned();
                     self.write_js_doc_link(

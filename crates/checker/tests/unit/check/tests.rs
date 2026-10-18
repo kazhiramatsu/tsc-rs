@@ -11203,3 +11203,35 @@ fn a_recursive_mapped_type_s_revisit_is_the_cyclic_placeholder() {
         ["Property 'id' does not exist on type '{ readonly type: \"A\"; readonly parent: ...; readonly value: number; }'."]
     );
 }
+
+/// tsgo's approximate length is Go's `len()`, UTF-8 bytes: a string literal
+/// type of sixty three-byte characters charges 182, so the tuple is over the
+/// 160 budget after it and elides `... 5 more ...`. tsc-rs counted UTF-16
+/// units (62) and printed every element (tsgo aa814927; excalidraw's
+/// `deburredLetters` hover elides its members the same way).
+#[test]
+fn a_non_ascii_literal_charges_its_utf8_bytes_toward_truncation() {
+    let big = "あ".repeat(60);
+    assert_eq!(
+        object_literal_relation_message(&format!(
+            "declare const v: [\"{big}\", 1, 2, 3, 4, 5, 6];\nconst n: number = v;\nexport {{ n }};\n"
+        )),
+        format!("Type '[\"{big}\", ... 5 more ..., 6]' is not assignable to type 'number'.")
+    );
+}
+
+/// The declared constraint of an instantiated signature's type parameter is
+/// reused when its type under the signature's mapper is the constraint
+/// (tsgo typeToTypeNodeHelperWithPossibleReusableTypeNode →
+/// tryReuseExistingNodeHelper): `K extends T` with `T = { ... }` prints the
+/// instantiation, but the recovery boundary discards what that print
+/// charged and the node counts its two-character source span. tsc-rs
+/// compared the constraint with the uninstantiated `T`, printed it
+/// structurally and charged every character, so the first signature's
+/// return type was already over the budget: `Obs<...>; <K>...` where tsgo
+/// prints `Obs<K>; <K>(k...` (tsgo aa814927; RxJS's
+/// `combine-latest-all.spec.ts` TS2345 elaborations).
+#[test]
+fn a_reused_constraint_of_an_instantiated_signature_charges_its_source_span() {
+    assert_eq!(object_literal_relation_message("interface Obs<T> {\n    groupBy: {\n        <K extends T>(keySelector: (value: T) => value is K): Obs<K>;\n        <K>(keySelector: (value: T) => K): Obs<K>;\n    };\n}\ndeclare const a: Obs<{ aaaaaaaaaa: number; bbbbbbbbbb: string; cccccccccc: boolean; dddddddddd: number; eeeeeeeeee: string; ffffffffff: boolean }>;\nconst b: Obs<string>[\"groupBy\"] = a.groupBy;\nexport { b };\n"), "Type '{ <K extends { aaaaaaaaaa: number; bbbbbbbbbb: string; cccccccccc: boolean; dddddddddd: number; eeeeeeeeee: string; ffffffffff: boolean; }>(keySelector: (value: { aaaaaaaaaa: number; bbbbbbbbbb: string; cccccccccc: boolean; dddddddddd: number; eeeeeeeeee: string; ffffffffff: boolean; }) => value is K): Obs<K>; <K>(k...' is not assignable to type '{ <K extends string>(keySelector: (value: string) => value is K): Obs<K>; <K>(keySelector: (value: string) => K): Obs<K>; }'.");
+}

@@ -534,6 +534,28 @@ fn duplicate_accessor_declaration_errors_merge_and_sort_their_related_rows() {
     );
 }
 
+/// tsgo caches getIterationTypesOfIterable by the type AND the use's
+/// AllowsSync/AllowsAsync/ForOf flags (checker.go:6467-6487). Checking the
+/// async generator's return type `AwaitableIterable<number>` (AllowsAsync
+/// alone) caches "not iterable" for `Iterable<number> | AsyncIterable<number>`,
+/// and the `yield*` and `for await` over the same union (AllowsSync |
+/// AllowsAsync) miss that entry and resolve the sync constituent. tsc-rs kept
+/// one "async iterable" slot per type and reported TS2504 twice (tsgo
+/// aa814927; puppeteer's `AriaQueryHandler.ts` and `AsyncIterableUtil.ts`).
+#[test]
+fn a_sync_or_async_iterable_union_is_iterated_after_its_generator_return_type_check() {
+    let text = "type AwaitableIterable<T> = Iterable<T> | AsyncIterable<T>;\ndeclare function q(): AwaitableIterable<number>;\nasync function* g(): AwaitableIterable<number> {\n    yield* q();\n}\nasync function h(iterable: AwaitableIterable<number>) {\n    for await (const value of iterable) {\n        value;\n    }\n}\nexport { g, h };\n";
+    let file = "/a.ts";
+    assert_eq!(
+        diagnostics(
+            &[(file, text)],
+            options(|options| options.strict = Some(true)),
+            file
+        ),
+        Vec::<Row>::new()
+    );
+}
+
 #[test]
 fn jsx_attributes_report_their_deprecated_contextual_properties() {
     // tsgo `checkJsxAttributes` defers `checkContextualDeprecations` too.

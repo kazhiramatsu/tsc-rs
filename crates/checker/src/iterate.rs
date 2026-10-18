@@ -112,19 +112,13 @@ impl IterationTypesResult {
     }
 }
 
-/// The five per-type cache slots (tsc type[cacheKey]).
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum IterationCacheKey {
-    Iterable,
-    AsyncIterable,
-    Iterator,
-    AsyncIterator,
-    IteratorResult,
-}
+/// tsgo IterationTypesKey (checker.go:6472): the iterable cache's key, a
+/// type and its use's CACHE_FLAGS.
+pub type IterationTypesKey = (TypeId, IterationUse);
 
 /// The sync/async resolver pair (47301/47316) — tsc closes over
-/// global getters, cache keys, the awaited hook, and the diagnostic
-/// flavors; the port dispatches on this tag.
+/// global getters, the awaited hook, and the diagnostic flavors; the
+/// port dispatches on this tag.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum IterResolver {
     Sync,
@@ -132,20 +126,6 @@ pub(crate) enum IterResolver {
 }
 
 impl IterResolver {
-    fn iterable_cache_key(self) -> IterationCacheKey {
-        match self {
-            IterResolver::Sync => IterationCacheKey::Iterable,
-            IterResolver::Async => IterationCacheKey::AsyncIterable,
-        }
-    }
-
-    fn iterator_cache_key(self) -> IterationCacheKey {
-        match self {
-            IterResolver::Sync => IterationCacheKey::Iterator,
-            IterResolver::Async => IterationCacheKey::AsyncIterator,
-        }
-    }
-
     fn iterator_symbol_name(self) -> &'static str {
         match self {
             IterResolver::Sync => "iterator",
@@ -488,36 +468,16 @@ impl<'a> CheckerState<'a> {
         Ok(IterationTypesResult::No)
     }
 
-    /// tsc-port: getCachedIterationTypes @6.0.3
-    /// tsc-hash: a2443aaea77ddd3a6c0b583bfa8a876123c9d6570ca1477a0f614c5ff38d9867
-    /// tsc-span: _tsc.js:84056-84058
-    fn get_cached_iteration_types(
-        &self,
-        ty: TypeId,
-        key: IterationCacheKey,
-    ) -> Option<IterationTypesResult> {
-        let cold = self.links.type_cold();
-        let cache = match key {
-            IterationCacheKey::Iterable => &cold.iteration_types_of_iterable,
-            IterationCacheKey::AsyncIterable => &cold.iteration_types_of_async_iterable,
-            IterationCacheKey::Iterator => &cold.iteration_types_of_iterator,
-            IterationCacheKey::AsyncIterator => &cold.iteration_types_of_async_iterator,
-            IterationCacheKey::IteratorResult => &cold.iteration_types_of_iterator_result,
-        };
-        *cache.get(ty)
+    /// tsgo iterationTypesCache (checker.go:647, 6476-6485): the iterable
+    /// verdict of a type under a use's CACHE_FLAGS. Iterators and iterator
+    /// results are not cached (getIterationTypesOfIteratorWorker,
+    /// getIterationTypesOfIteratorResult).
+    fn get_cached_iteration_types(&self, key: IterationTypesKey) -> Option<IterationTypesResult> {
+        self.links.type_cold().iteration_types.get(&key).copied()
     }
 
-    /// tsc-port: setCachedIterationTypes @6.0.3
-    /// tsc-hash: 88c6f180fbf4e691848e221f1d75fb9788b4a643b2b7b93f8a0eba1766b5e0c1
-    /// tsc-span: _tsc.js:84059-84061
-    fn set_cached_iteration_types(
-        &mut self,
-        ty: TypeId,
-        key: IterationCacheKey,
-        value: IterationTypesResult,
-    ) -> IterationTypesResult {
-        self.links.set_type_iteration_types(ty, key, value);
-        value
+    fn set_cached_iteration_types(&mut self, key: IterationTypesKey, value: IterationTypesResult) {
+        self.links.set_iteration_types(key, value);
     }
 
     // ---- entry points ----
@@ -874,110 +834,34 @@ impl<'a> CheckerState<'a> {
         if self.is_type_any(ty) {
             return Ok(Some(self.any_iteration_types()));
         }
-        if !self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
-            let mut container = error_target.map(|_| IterationErrorContainer {
-                errors: Vec::new(),
-                skip_logging: true,
-            });
-            let iteration_types = self.get_iteration_types_of_iterable_worker(
-                ty,
-                use_,
-                error_target,
-                &mut container,
-            )?;
-            if iteration_types == IterationTypesResult::No {
-                if let Some(error_target) = error_target {
-                    // tsgo (checker.go:6511-6522): "We defer the diagnostic
-                    // because TypeToString may attempt to resolve symbols
-                    // that are already being resolved, possibly causing
-                    // circularities." tsc 6.0 reported here, and the type
-                    // of a generator that yields itself printed '() => any'.
-                    let related: Vec<RelatedInfo> = container
-                        .as_ref()
-                        .map(|container| {
-                            container
-                                .errors
-                                .iter()
-                                .map(related_info_from_diagnostic)
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    self.deferred_diagnostics.push(
-                        crate::state::DeferredDiagnostic::TypeNotIterable {
-                            target: error_target.to_deferred(),
-                            ty,
-                            allow_async_iterables: use_
-                                .intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG),
-                            related,
-                        },
-                    );
-                }
-                return Ok(None);
-            }
-            if let Some(container) = container {
-                // Collected during a SUCCESSFUL resolution (the
-                // mustHaveAValue face): each row adds once.
-                for diagnostic in container.errors {
-                    self.push_error_diagnostic(diagnostic);
-                }
-            }
-            return Ok(iteration_types.types());
-        }
-        let cache_key = if use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG) {
-            IterationCacheKey::AsyncIterable
-        } else {
-            IterationCacheKey::Iterable
-        };
-        // tsgo getIterationTypesOfIterable (checker.go:6440-6454): a cached
-        // failure is recomputed when errors are reported, so every use of a
-        // non-iterable union reports, and that recomputation is not cached.
+        // tsgo getIterationTypesOfIterable (checker.go:6467-6487): one cache
+        // keyed by the type AND the use's AllowsSync/AllowsAsync/ForOf flags.
+        // "If we are reporting errors and encounter a cached
+        // `noIterationTypes`, we should ignore the cached value and continue
+        // as if nothing was cached. In addition, we should not cache any new
+        // results for this call." An async generator's return type (AllowsAsync
+        // alone) caching No for `Iterable<T> | AsyncIterable<T>` therefore
+        // never reaches a `yield*` or `for await` over it (AllowsSync |
+        // AllowsAsync); strada's one "async iterable" slot per type did, and
+        // tsc-rs reported TS2504 there.
+        let key = (ty, use_ & IterationUse::CACHE_FLAGS);
         let mut no_cache = false;
-        if let Some(cached) = self.get_cached_iteration_types(ty, cache_key) {
+        if let Some(cached) = self.get_cached_iteration_types(key) {
             if error_target.is_none() || cached != IterationTypesResult::No {
                 return Ok(cached.types());
             }
             no_cache = true;
         }
-        let constituents: Vec<TypeId> = match &self.tables.type_of(ty).data {
-            tsc_types::TypeData::Union { types, .. } => types.to_vec(),
-            _ => unreachable!("union flag implies union data"),
-        };
-        let mut all_iteration_types: Vec<Option<IterationTypesResult>> = Vec::new();
-        for constituent in constituents {
-            // tsgo getIterationTypesOfIterableWorker (checker.go:6458-6473):
-            // each constituent resolves without an error node; one that is
-            // not iterable reports the union.
-            let iteration_types =
-                self.get_iteration_types_of_iterable_worker(constituent, use_, None, &mut None)?;
-            if iteration_types == IterationTypesResult::No {
-                if let Some(error_target) = error_target {
-                    // Deferred as well (checker.go:6463-6467).
-                    self.deferred_diagnostics.push(
-                        crate::state::DeferredDiagnostic::TypeNotIterable {
-                            target: error_target.to_deferred(),
-                            ty,
-                            allow_async_iterables: use_
-                                .intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG),
-                            related: Vec::new(),
-                        },
-                    );
-                }
-                if !no_cache {
-                    self.set_cached_iteration_types(ty, cache_key, IterationTypesResult::No);
-                }
-                return Ok(None);
-            }
-            all_iteration_types.push(Some(iteration_types));
-        }
-        let iteration_types = if all_iteration_types.is_empty() {
-            IterationTypesResult::No
-        } else {
-            self.combine_iteration_types(&all_iteration_types)?
-        };
+        let mut container = error_target.map(|_| IterationErrorContainer {
+            errors: Vec::new(),
+            skip_logging: true,
+        });
+        let result =
+            self.get_iteration_types_of_iterable_worker(ty, use_, error_target, &mut container)?;
         if !no_cache {
-            self.set_cached_iteration_types(ty, cache_key, iteration_types);
+            self.set_cached_iteration_types(key, result);
         }
-        Ok(iteration_types.types())
+        Ok(result.types())
     }
 
     /// tsc-port: getAsyncFromSyncIterationTypes @6.0.3
@@ -1036,6 +920,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getIterationTypesOfIterableWorker @6.0.3
     /// tsc-hash: c4a8f8d6494501c7a4662b292dec10d491259ff8b625e88a5f2b2f475144a8bf
     /// tsc-span: _tsc.js:84129-84175
+    /// tsgo getIterationTypesOfIterableWorker (checker.go:6489-6557): a
+    /// union resolves each constituent without an error node and reports
+    /// the union; any other type tries the async fast and slow lookups, then
+    /// the sync ones, awaiting a sync iterable's types for an async use. The
+    /// slow lookups' diagnostics are added when a lookup succeeds and
+    /// attached as related information when none does. Nothing is cached
+    /// here; the caller keys its cache by the type and the use.
     fn get_iteration_types_of_iterable_worker(
         &mut self,
         ty: TypeId,
@@ -1043,94 +934,128 @@ impl<'a> CheckerState<'a> {
         error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
     ) -> CheckResult<IterationTypesResult> {
+        let allow_async_iterables = use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG);
+        if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
+            let constituents: Vec<TypeId> = match &self.tables.type_of(ty).data {
+                tsc_types::TypeData::Union { types, .. } => types.to_vec(),
+                _ => unreachable!("union flag implies union data"),
+            };
+            let mut all_iteration_types = Vec::with_capacity(constituents.len());
+            for constituent in constituents {
+                let iteration_types = self.get_iteration_types_of_iterable_worker(
+                    constituent,
+                    use_,
+                    None,
+                    &mut None,
+                )?;
+                if iteration_types == IterationTypesResult::No {
+                    if let Some(error_target) = error_target {
+                        // Deferred like the non-union report below
+                        // (checker.go:6494-6498).
+                        self.deferred_diagnostics.push(
+                            crate::state::DeferredDiagnostic::TypeNotIterable {
+                                target: error_target.to_deferred(),
+                                ty,
+                                allow_async_iterables,
+                                related: Vec::new(),
+                            },
+                        );
+                    }
+                    return Ok(IterationTypesResult::No);
+                }
+                all_iteration_types.push(Some(iteration_types));
+            }
+            return self.combine_iteration_types(&all_iteration_types);
+        }
         if self.is_type_any(ty) {
             return Ok(IterationTypesResult::Types(self.any_iteration_types()));
         }
-        let mut no_cache = false;
-        if use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG) {
-            let mut iteration_types = match self
-                .get_cached_iteration_types(ty, IterResolver::Async.iterable_cache_key())
+        if allow_async_iterables {
+            if let Some(iteration_types) =
+                self.get_iteration_types_of_iterable_fast(ty, IterResolver::Async)?
             {
-                Some(cached) => Some(cached),
-                None => self.get_iteration_types_of_iterable_fast(ty, IterResolver::Async)?,
-            };
-            if let Some(found) = iteration_types {
-                if found == IterationTypesResult::No && error_target.is_some() {
-                    no_cache = true;
+                return if use_.intersects(IterationUse::FOR_OF_FLAG) {
+                    // for-await over an async iterable re-awaits.
+                    self.get_async_from_sync_iteration_types(iteration_types, error_target)
                 } else {
-                    return if use_.intersects(IterationUse::FOR_OF_FLAG) {
-                        // for-await over an async iterable re-awaits.
-                        self.get_async_from_sync_iteration_types(found, error_target)
-                    } else {
-                        Ok(found)
-                    };
-                }
+                    Ok(iteration_types)
+                };
             }
-            iteration_types = Some(self.get_iteration_types_of_iterable_slow(
+            let iteration_types = self.get_iteration_types_of_iterable_slow(
                 ty,
                 IterResolver::Async,
                 error_target,
                 container,
-                no_cache,
-            )?);
-            if iteration_types != Some(IterationTypesResult::No) {
-                return Ok(iteration_types.expect("just assigned"));
+            )?;
+            if iteration_types != IterationTypesResult::No {
+                self.push_collected_iteration_diagnostics(container);
+                return Ok(iteration_types);
             }
         }
         if use_.intersects(IterationUse::ALLOWS_SYNC_ITERABLES_FLAG) {
-            let mut iteration_types = match self
-                .get_cached_iteration_types(ty, IterResolver::Sync.iterable_cache_key())
+            if let Some(iteration_types) =
+                self.get_iteration_types_of_iterable_fast(ty, IterResolver::Sync)?
             {
-                Some(cached) => Some(cached),
-                None => self.get_iteration_types_of_iterable_fast(ty, IterResolver::Sync)?,
-            };
-            if let Some(found) = iteration_types {
-                if found == IterationTypesResult::No && error_target.is_some() {
-                    no_cache = true;
-                } else if use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG) {
-                    if found != IterationTypesResult::No {
-                        let async_types =
-                            self.get_async_from_sync_iteration_types(found, error_target)?;
-                        return Ok(if no_cache {
-                            async_types
-                        } else {
-                            self.set_cached_iteration_types(
-                                ty,
-                                IterationCacheKey::AsyncIterable,
-                                async_types,
-                            )
-                        });
-                    }
+                return if allow_async_iterables {
+                    self.get_async_from_sync_iteration_types(iteration_types, error_target)
                 } else {
-                    return Ok(found);
-                }
+                    Ok(iteration_types)
+                };
             }
-            iteration_types = Some(self.get_iteration_types_of_iterable_slow(
+            let iteration_types = self.get_iteration_types_of_iterable_slow(
                 ty,
                 IterResolver::Sync,
                 error_target,
                 container,
-                no_cache,
-            )?);
-            if iteration_types != Some(IterationTypesResult::No) {
-                let found = iteration_types.expect("just assigned");
-                if use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG) {
-                    let async_types =
-                        self.get_async_from_sync_iteration_types(found, error_target)?;
-                    return Ok(if no_cache {
-                        async_types
-                    } else {
-                        self.set_cached_iteration_types(
-                            ty,
-                            IterationCacheKey::AsyncIterable,
-                            async_types,
-                        )
-                    });
-                }
-                return Ok(found);
+            )?;
+            if iteration_types != IterationTypesResult::No {
+                self.push_collected_iteration_diagnostics(container);
+                return if allow_async_iterables {
+                    self.get_async_from_sync_iteration_types(iteration_types, error_target)
+                } else {
+                    Ok(iteration_types)
+                };
             }
         }
+        if let Some(error_target) = error_target {
+            // tsgo (checker.go:6546-6555): "We defer the diagnostic because
+            // TypeToString may attempt to resolve symbols that are already
+            // being resolved, possibly causing circularities." tsc 6.0
+            // reported here, and the type of a generator that yields itself
+            // printed '() => any'.
+            let related: Vec<RelatedInfo> = container
+                .as_ref()
+                .map(|container| {
+                    container
+                        .errors
+                        .iter()
+                        .map(related_info_from_diagnostic)
+                        .collect()
+                })
+                .unwrap_or_default();
+            self.deferred_diagnostics
+                .push(crate::state::DeferredDiagnostic::TypeNotIterable {
+                    target: error_target.to_deferred(),
+                    ty,
+                    allow_async_iterables,
+                    related,
+                });
+        }
         Ok(IterationTypesResult::No)
+    }
+
+    /// The slow lookups' diagnostics, collected during a SUCCESSFUL
+    /// resolution (the mustHaveAValue face): each row adds once (tsgo
+    /// checker.go:6513-6517, 6537-6541).
+    fn push_collected_iteration_diagnostics(
+        &mut self,
+        container: &mut Option<IterationErrorContainer>,
+    ) {
+        if let Some(container) = container {
+            for diagnostic in container.errors.drain(..) {
+                self.push_error_diagnostic(diagnostic);
+            }
+        }
     }
 
     /// tsc-port: getIterationTypesOfIterableFast @6.0.3
@@ -1164,11 +1089,7 @@ impl<'a> CheckerState<'a> {
                 Some(resolved_return),
                 Some(next_type),
             );
-            return Ok(Some(self.set_cached_iteration_types(
-                ty,
-                resolver.iterable_cache_key(),
-                IterationTypesResult::Types(types),
-            )));
+            return Ok(Some(IterationTypesResult::Types(types)));
         }
         let builtin = self.resolver_global_builtin_iterator_types(resolver)?;
         if self.is_reference_to_some_type(ty, &builtin) {
@@ -1187,11 +1108,7 @@ impl<'a> CheckerState<'a> {
                 Some(resolved_return),
                 Some(next_type),
             );
-            return Ok(Some(self.set_cached_iteration_types(
-                ty,
-                resolver.iterable_cache_key(),
-                IterationTypesResult::Types(types),
-            )));
+            return Ok(Some(IterationTypesResult::Types(types)));
         }
         Ok(None)
     }
@@ -1205,7 +1122,6 @@ impl<'a> CheckerState<'a> {
         resolver: IterResolver,
         error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
-        no_cache: bool,
     ) -> CheckResult<IterationTypesResult> {
         let property_name =
             self.get_property_name_for_known_symbol_name(resolver.iterator_symbol_name())?;
@@ -1223,12 +1139,7 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         if method_type.is_some_and(|method_type| self.is_type_any(method_type)) {
-            let any_types = IterationTypesResult::Types(self.any_iteration_types());
-            return Ok(if no_cache {
-                any_types
-            } else {
-                self.set_cached_iteration_types(ty, resolver.iterable_cache_key(), any_types)
-            });
+            return Ok(IterationTypesResult::Types(self.any_iteration_types()));
         }
         let all_signatures = match method_type {
             Some(method_type) => {
@@ -1277,15 +1188,7 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            return Ok(if no_cache {
-                IterationTypesResult::No
-            } else {
-                self.set_cached_iteration_types(
-                    ty,
-                    resolver.iterable_cache_key(),
-                    IterationTypesResult::No,
-                )
-            });
+            return Ok(IterationTypesResult::No);
         }
         let mut return_types = Vec::new();
         for &signature in &valid_signatures {
@@ -1293,21 +1196,15 @@ impl<'a> CheckerState<'a> {
         }
         let iterator_type =
             self.get_intersection_type(&return_types, tsc_types::IntersectionFlags::default())?;
-        let iteration_types = self
+        Ok(self
             .get_iteration_types_of_iterator_worker(
                 iterator_type,
                 resolver,
                 error_target,
                 container,
-                no_cache,
             )?
             .map(IterationTypesResult::Types)
-            .unwrap_or(IterationTypesResult::No);
-        Ok(if no_cache {
-            iteration_types
-        } else {
-            self.set_cached_iteration_types(ty, resolver.iterable_cache_key(), iteration_types)
-        })
+            .unwrap_or(IterationTypesResult::No))
     }
 
     /// tsc-port: reportTypeNotIterableError @6.0.3
@@ -1405,13 +1302,8 @@ impl<'a> CheckerState<'a> {
         let capture = error_node
             .is_some()
             .then(|| self.begin_tsc_eager_iteration_diagnostic_capture());
-        let result = self.get_iteration_types_of_iterator_worker(
-            ty,
-            resolver,
-            error_target,
-            container,
-            /*no_cache*/ false,
-        );
+        let result =
+            self.get_iteration_types_of_iterator_worker(ty, resolver, error_target, container);
         if let Some(capture) = capture {
             self.end_tsc_eager_iteration_diagnostic_capture(capture);
         }
@@ -1421,38 +1313,25 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getIterationTypesOfIteratorWorker @6.0.3
     /// tsc-hash: 656e73dd7c45124a0cdedb5fc01d28479e1a5fcca483cda15a82871b0aecdad4
     /// tsc-span: _tsc.js:84281-84292
+    ///
+    /// tsgo (checker.go:6717-6726) keeps no iterator cache: the fast
+    /// lookup, then the slow one.
     fn get_iteration_types_of_iterator_worker(
         &mut self,
         ty: TypeId,
         resolver: IterResolver,
         error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
-        no_cache: bool,
     ) -> CheckResult<Option<IterationTypes>> {
         if self.is_type_any(ty) {
             return Ok(Some(self.any_iteration_types()));
         }
-        let mut no_cache = no_cache;
-        let mut iteration_types =
-            match self.get_cached_iteration_types(ty, resolver.iterator_cache_key()) {
-                Some(cached) => Some(cached),
-                None => self.get_iteration_types_of_iterator_fast(ty, resolver)?,
-            };
-        if iteration_types == Some(IterationTypesResult::No) && error_target.is_some() {
-            iteration_types = None;
-            no_cache = true;
+        if let Some(iteration_types) = self.get_iteration_types_of_iterator_fast(ty, resolver)? {
+            return Ok(iteration_types.types());
         }
-        let iteration_types = match iteration_types {
-            Some(found) => found,
-            None => self.get_iteration_types_of_iterator_slow(
-                ty,
-                resolver,
-                error_target,
-                container,
-                no_cache,
-            )?,
-        };
-        Ok(iteration_types.types())
+        Ok(self
+            .get_iteration_types_of_iterator_slow(ty, resolver, error_target, container)?
+            .types())
     }
 
     /// tsc-port: getIterationTypesOfIteratorFast @6.0.3
@@ -1482,11 +1361,7 @@ impl<'a> CheckerState<'a> {
                 Some(arguments[1]),
                 Some(arguments[2]),
             );
-            return Ok(Some(self.set_cached_iteration_types(
-                ty,
-                resolver.iterator_cache_key(),
-                IterationTypesResult::Types(types),
-            )));
+            return Ok(Some(IterationTypesResult::Types(types)));
         }
         let builtin = self.resolver_global_builtin_iterator_types(resolver)?;
         if self.is_reference_to_some_type(ty, &builtin) {
@@ -1495,11 +1370,7 @@ impl<'a> CheckerState<'a> {
             let unknown = self.tables.intrinsics.unknown;
             let types =
                 self.create_iteration_types(Some(arguments[0]), Some(return_type), Some(unknown));
-            return Ok(Some(self.set_cached_iteration_types(
-                ty,
-                resolver.iterator_cache_key(),
-                IterationTypesResult::Types(types),
-            )));
+            return Ok(Some(IterationTypesResult::Types(types)));
         }
         Ok(None)
     }
@@ -1513,7 +1384,6 @@ impl<'a> CheckerState<'a> {
         resolver: IterResolver,
         error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
-        no_cache: bool,
     ) -> CheckResult<IterationTypesResult> {
         let next =
             self.get_iteration_types_of_method(ty, resolver, "next", error_target, container)?;
@@ -1521,12 +1391,7 @@ impl<'a> CheckerState<'a> {
             self.get_iteration_types_of_method(ty, resolver, "return", error_target, container)?;
         let throw =
             self.get_iteration_types_of_method(ty, resolver, "throw", error_target, container)?;
-        let iteration_types = self.combine_iteration_types(&[next, return_, throw])?;
-        Ok(if no_cache {
-            iteration_types
-        } else {
-            self.set_cached_iteration_types(ty, resolver.iterator_cache_key(), iteration_types)
-        })
+        self.combine_iteration_types(&[next, return_, throw])
     }
 
     /// tsc-port: isIteratorResult @6.0.3
@@ -1560,29 +1425,18 @@ impl<'a> CheckerState<'a> {
         if self.is_type_any(ty) {
             return Ok(IterationTypesResult::Types(self.any_iteration_types()));
         }
-        if let Some(cached) = self.get_cached_iteration_types(ty, IterationCacheKey::IteratorResult)
-        {
-            return Ok(cached);
-        }
+        // tsgo getIterationTypesOfIteratorResult (checker.go:6851): uncached.
         let yield_result_type = self.get_global_iterator_yield_result_type(false)?;
         if self.is_reference_to_type(ty, yield_result_type) {
             let yield_type = self.get_type_arguments(ty)?[0];
             let types = self.create_iteration_types(Some(yield_type), None, None);
-            return Ok(self.set_cached_iteration_types(
-                ty,
-                IterationCacheKey::IteratorResult,
-                IterationTypesResult::Types(types),
-            ));
+            return Ok(IterationTypesResult::Types(types));
         }
         let return_result_type = self.get_global_iterator_return_result_type(false)?;
         if self.is_reference_to_type(ty, return_result_type) {
             let return_type = self.get_type_arguments(ty)?[0];
             let types = self.create_iteration_types(None, Some(return_type), None);
-            return Ok(self.set_cached_iteration_types(
-                ty,
-                IterationCacheKey::IteratorResult,
-                IterationTypesResult::Types(types),
-            ));
+            return Ok(IterationTypesResult::Types(types));
         }
         let yield_iterator_result = self.filter_type_with(ty, |state, t| {
             state.is_iterator_result(t, IterationTypeKind::YIELD)
@@ -1609,20 +1463,12 @@ impl<'a> CheckerState<'a> {
             None
         };
         if yield_type.is_none() && return_type.is_none() {
-            return Ok(self.set_cached_iteration_types(
-                ty,
-                IterationCacheKey::IteratorResult,
-                IterationTypesResult::No,
-            ));
+            return Ok(IterationTypesResult::No);
         }
         let void_type = self.tables.intrinsics.void;
         let types =
             self.create_iteration_types(yield_type, Some(return_type.unwrap_or(void_type)), None);
-        Ok(self.set_cached_iteration_types(
-            ty,
-            IterationCacheKey::IteratorResult,
-            IterationTypesResult::Types(types),
-        ))
+        Ok(IterationTypesResult::Types(types))
     }
 
     /// tsc-port: getIterationTypesOfMethod @6.0.3

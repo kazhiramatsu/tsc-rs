@@ -2069,3 +2069,70 @@ fn a_javascript_template_constraint_charges_the_type_inside_its_braces() {
     assert_eq!(hover_text, expected);
     assert_eq!(range, ((line, 6), (line, 7)));
 }
+
+/// An `@example` tag's text is its comment's source text (tsgo
+/// scanner.GetTextOfJSDocComment writes a link with GetTextOfNode), so
+/// `{@link Page | page}` keeps the space before its `|`; tsc-rs rebuilt the
+/// link from its name and text and printed `{@link Page| page}` (tsgo
+/// aa814927; puppeteer's `Frame`, `Page` and `ScreenRecorder` hovers).
+#[test]
+fn an_example_tag_keeps_a_link_s_source_text() {
+    let files = [(
+        "/a.ts",
+        "class Page {}\n/**\n * Opens a page.\n *\n * @example\n * Creating a {@link Page | page}:\n *\n * ```ts\n * const page = await open();\n * ```\n */\ndeclare function open(): Promise<Page>;\nopen();\n",
+    )];
+    let (text, range, _) = hover(&files, options(|_| {}), "/a.ts", (12, 1), None).expect("a hover");
+    assert_eq!(
+        text,
+        "```typescript\nfunction open(): Promise<Page>\n```\nOpens a page.\n\n*@example*\n````tsx\nCreating a {@link Page | page}:\n\n```ts\nconst page = await open();\n```\n````\n"
+    );
+    assert_eq!(range, ((12, 0), (12, 4)));
+}
+
+/// A property name charges its UTF-8 byte count toward the hover's 500
+/// budget (tsgo `len(ast.SymbolName(propertySymbol)) + 1`, Go bytes): forty
+/// three-byte characters charge 121 each, so the sixth member is over the
+/// budget and the literal elides `... 6 more ...`. tsc-rs charged UTF-16
+/// units (41) and printed all twelve (tsgo aa814927; excalidraw's
+/// `deburredLetters` hover, 190 two-byte names).
+#[test]
+fn a_non_ascii_property_name_charges_its_utf8_bytes_toward_the_hover_budget() {
+    let base = [
+        "あいうえおかきくけこさしすせそたちつてと",
+        "いろはにほへとちりぬるをわかよたれそつね",
+        "うぐいすのこえがきこえるはるのあさぼらけ",
+        "えにしだのはながさくみちをあるいてゆくよ",
+        "おおぞらにくもがながれてゆくひるさがりに",
+        "かぜがふくたびにこのはがまうあきのひのよ",
+        "きょうもまたあめがふるそらをみあげてみる",
+        "くさばなのかおりがただようのはらにてみる",
+        "けさのゆきがまちをしろくそめあげたあさに",
+        "こもれびのなかであそぶこどもたちのこえが",
+        "さくらさくころにはまたあおうとちかうひと",
+        "しずかなよるにほしがまたたくそらのしたで",
+    ];
+    let names: Vec<String> = base
+        .iter()
+        .map(|name| {
+            let mut full = (*name).to_owned();
+            full.extend(name.chars().rev());
+            full
+        })
+        .collect();
+    let mut text = String::from("const o = {\n");
+    for name in &names {
+        text.push_str(&format!("    {name}: 'x',\n"));
+    }
+    text.push_str("};\nexport { o };\n");
+    let files = [("/a.ts", text.as_str())];
+    let (hover_text, range, _) =
+        hover(&files, options(|_| {}), "/a.ts", (0, 6), None).expect("a hover");
+    let mut expected = String::from("```typescript\nconst o: {\n");
+    for name in &names[..5] {
+        expected.push_str(&format!("    {name}: string;\n"));
+    }
+    expected.push_str("    ... 6 more ...;\n");
+    expected.push_str(&format!("    {}: string;\n}}\n```\n", names[11]));
+    assert_eq!(hover_text, expected);
+    assert_eq!(range, ((0, 6), (0, 7)));
+}

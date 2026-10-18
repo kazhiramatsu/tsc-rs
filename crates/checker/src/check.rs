@@ -5627,9 +5627,12 @@ impl<'a> CheckerState<'a> {
         self.display_approximate_length = self.display_approximate_length.saturating_add(length);
     }
 
-    /// JS string `.length`, used by nodeBuilder's estimate counters.
+    /// tsgo's `len(text)` in the estimate counters: Go strings are UTF-8,
+    /// so a non-ASCII name or literal charges its byte count, not its
+    /// UTF-16 units (a sixty-character `"あ…"` literal charges 182 and the
+    /// tuple after it elides).
     fn slice_js_length<'n>(text: impl Into<tsc_types::JsStr<'n>>) -> usize {
-        text.into().len_units()
+        text.into().as_bytes().len()
     }
 
     /// createAccessFromSymbolChain on the ordinary one-symbol chain
@@ -6365,7 +6368,7 @@ impl<'a> CheckerState<'a> {
                     // `"AB\r\nC"` spells its escapes (oracle-pinned).
                     // The JS display value retains lone surrogate units;
                     // only the final output sink may encode/project them.
-                    self.display_add_approximate_length(text.len() + 2);
+                    self.display_add_approximate_length(text.len_utf8() + 2);
                     Ok((
                         crate::concat_js(&[
                             &"\"",
@@ -9122,7 +9125,7 @@ impl<'a> CheckerState<'a> {
                 string_literal_name(name, false)?.into()
             };
             let value_text = string_literal_name_text(value, false)?;
-            self.display_add_approximate_length(Self::slice_js_length(name) + value.len() + 4);
+            self.display_add_approximate_length(Self::slice_js_length(name) + value.len_utf8() + 4);
             attributes.push(crate::concat_js(&[&(name_text), &": ", &(value_text)]));
         }
         self.display_add_approximate_length(16 + 2 * (attributes.len() - 1));
@@ -10374,7 +10377,13 @@ impl<'a> CheckerState<'a> {
         // 6.0.3 the same): the parameter symbol's name and `: ` and a
         // separator, after its type.
         let accounted_name_length = match face.symbol {
-            Some(symbol) => self.binder.symbol(symbol).escaped_name.as_js().len_units(),
+            Some(symbol) => self
+                .binder
+                .symbol(symbol)
+                .escaped_name
+                .as_js()
+                .as_bytes()
+                .len(),
             None => Self::slice_js_length(&name_text),
         };
         self.display_add_approximate_length(accounted_name_length + 3);
@@ -10941,11 +10950,23 @@ impl<'a> CheckerState<'a> {
         let constraint = self.get_constraint_of_type_parameter(type_parameter)?;
         let constraint_text = match constraint {
             Some(constraint) => {
+                // tsgo typeToTypeNodeHelperWithPossibleReusableTypeNode
+                // (nodebuilderimpl.go:1670-1682): the declared constraint
+                // is reused when its type UNDER THE CONTEXT MAPPER is the
+                // constraint, through tryReuseExistingNodeHelper alone —
+                // no canReuseTypeNode gate. The existing-node visitor
+                // re-serializes a type parameter the mapper remaps inside
+                // the recovery boundary, so `K extends T` of an
+                // instantiated signature prints the instantiation but
+                // charges the node's source span.
                 let mut reused = None;
                 if let Some(declaration) = self.get_constraint_declaration(type_parameter) {
                     let annotation_type = self.get_type_from_type_node(declaration)?;
-                    if annotation_type == constraint {
-                        reused = self.reusable_annotation_node_text(declaration)?;
+                    let mapper = self.display_mappers.last().copied();
+                    if self.instantiate_type(annotation_type, mapper)? == constraint {
+                        reused = self
+                            .reused_type_node_boundary_face(declaration)?
+                            .map(|face| face.text);
                     }
                 }
                 Some(match reused {

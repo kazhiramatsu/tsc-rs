@@ -51,8 +51,9 @@ fn has_flag(context: &NodeBuilderContext<'_>, flag: u32) -> bool {
     context.flags.0 & flag != 0
 }
 
+/// tsgo's `len(parameterSymbol.Name())`: UTF-8 bytes (see type_nodes.rs).
 fn source_name_length(checker: &CheckerState<'_>, symbol: SymbolId) -> usize {
-    checker.symbol_display_name(symbol).len_units()
+    checker.symbol_display_name(symbol).as_bytes().len()
 }
 
 fn node_array(
@@ -1838,7 +1839,7 @@ pub(crate) fn index_info_to_index_signature_declaration_helper(
         Some(type_node) => type_node,
         None => required_type_node(checker, arena, target, index_info.value_type, context)?,
     };
-    add_approximate_length(context, name_text.encode_utf16().count() + 4);
+    add_approximate_length(context, name_text.len() + 4);
     let modifiers = if index_info.is_readonly {
         add_approximate_length(context, 9);
         let readonly = create_token(arena, target, SyntaxKind::ReadonlyKeyword)?;

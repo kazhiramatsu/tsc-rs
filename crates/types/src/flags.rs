@@ -1235,6 +1235,10 @@ impl IterationUse {
     pub const GENERATOR_RETURN_TYPE: Self = Self(1);
     /// tsc IterationUse.AsyncGeneratorReturnType
     pub const ASYNC_GENERATOR_RETURN_TYPE: Self = Self(2);
+    /// tsgo IterationUseCacheFlags (checker.go:505): AllowsSyncIterablesFlag |
+    /// AllowsAsyncIterablesFlag | ForOfFlag, the use bits that key
+    /// getIterationTypesOfIterable's cache.
+    pub const CACHE_FLAGS: Self = Self(11);
 
     pub const fn from_bits(bits: i32) -> Self {
         Self(bits)

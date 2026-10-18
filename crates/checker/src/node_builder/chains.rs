@@ -55,8 +55,9 @@ fn has_flag(context: &NodeBuilderContext<'_>, flag: u32) -> bool {
     context.flags.0 & flag != 0
 }
 
+/// tsgo's `len(name)`: UTF-8 bytes (see type_nodes.rs).
 fn js_len<'t>(text: impl Into<JsStr<'t>>) -> usize {
-    text.into().len_units()
+    text.into().as_bytes().len()
 }
 
 fn value_meaning(meaning: EmitSymbolMeaning) -> bool {
