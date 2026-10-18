@@ -125,15 +125,15 @@ restarts a mapper whose package changes.
   differ in 13 answers, all nuxt completions whose auto-import module
   specifier `tsgo` itself picks differently from run to run; a session over
   webpack's `lib/**/*.js` (790 JavaScript files, 134,174 requests) differs in
-  60 answers after five rounds of fixes: 43 hovers whose
+  58 answers after seven rounds of fixes: 43 hovers whose
   `Array<T>.length` qualifier depends on the session's order, 6
-  signature-help labels, 2 truncated hovers, one file's
+  signature-help labels, one file's
   diagnostics whose inferred type argument differs, 5 references of an
   `@import` default name `tsgo` misses and 3 `@this` definitions `tsgo`
   answers at an empty range; sessions over
   preact (33 files, 5,307 requests), SvelteKit's `packages/kit/src` (382
   files, 50,333 requests), ESLint's `lib` (389 files, 68,905 requests) and
-  prettier's `src` (541 files, 79,819 requests) differ in 3, 1, 5 and 5
+  prettier's `src` (541 files, 79,819 requests) differ in 3, 1, 1 and 3
   answers (October 18, 2026).
 - **TypeScript 7 rules:** the default `target` is ES2026, and the options
   TypeScript 7 removed (`baseUrl`, `outFile`, `target: "es5"`, the `amd`,
