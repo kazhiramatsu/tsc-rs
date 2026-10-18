@@ -2023,3 +2023,49 @@ fn a_javascript_returns_index_access_is_instantiated_in_a_call_s_hover() {
         assert_eq!(range, ((position.0, 12), (position.0, end)));
     }
 }
+
+/// A JavaScript `@template {X} C` constraint is reused as the type inside
+/// its braces, so it charges that type's span toward the hover's budget
+/// (tsgo's reparser clones `constraint.Type()`); tsc-rs reused the braced
+/// expression and charged two more per constraint, and a member whose type
+/// was visited exactly at the 500-character hover budget printed `...`
+/// (tsgo aa814927; webpack's `htmlMinify.js` hover of `util` elided
+/// `registerNotSerializable`'s type). Sixteen constrained getters put the
+/// last member's type exactly at the budget.
+#[test]
+fn a_javascript_template_constraint_charges_the_type_inside_its_braces() {
+    let mut text =
+        String::from("/** @typedef {new (...args: any[]) => any} Constructor */\nclass M {\n");
+    for i in 1..=16 {
+        text.push_str(&format!(
+            "\t/**\n\t * @template {{Constructor}} C\n\t * @returns {{void}}\n\t */\n\tstatic k{i}() {{}}\n"
+        ));
+    }
+    text.push_str(
+        "\t/**\n\t * @param {string} s the s\n\t * @returns {void}\n\t */\n\tstatic plain(s) {}\n}\nconst o = {\n",
+    );
+    for i in 1..=16 {
+        text.push_str(&format!("\tget k{i}() {{ return M.k{i}; }},\n"));
+    }
+    text.push_str("\tget registerLast() { return M.plain; },\n};\nmodule.exports = o;\n");
+    let line = text
+        .lines()
+        .position(|line| line.starts_with("const o"))
+        .expect("the object") as u32;
+    let files = [("/a.js", text.as_str())];
+    let javascript = options(|options| {
+        options.allow_js = true;
+        options.check_js = Some(true);
+    });
+    let (hover_text, range, _) =
+        hover(&files, javascript, "/a.js", (line, 6), None).expect("a hover");
+    let mut expected = String::from("```typescript\nconst o: {\n");
+    for i in 1..=16 {
+        expected.push_str(&format!(
+            "    readonly k{i}: <C extends Constructor>() => void;\n"
+        ));
+    }
+    expected.push_str("    readonly registerLast: (s: string) => void;\n}\n```\n");
+    assert_eq!(hover_text, expected);
+    assert_eq!(range, ((line, 6), (line, 7)));
+}

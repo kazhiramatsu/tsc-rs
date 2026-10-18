@@ -63,10 +63,16 @@ impl<'a> CheckerState<'a> {
                         let NodeData::JSDocTemplateTag(template) = self.data_of(parent) else {
                             return None;
                         };
+                        // tsgo's reparser gives the tag's first type parameter
+                        // the type inside the constraint's braces
+                        // (gatherTypeParameters clones `constraint.Type()`):
+                        // a reused constraint charges that type's span, and a
+                        // circular constraint is reported on it.
                         (self.nodes_of(template.type_parameters).first().copied()
                             == Some(declaration))
                         .then_some(template.constraint)
                         .flatten()
+                        .and_then(|constraint| self.jsdoc_type_expression_type(Some(constraint)))
                     })
                 }
                 _ => None,

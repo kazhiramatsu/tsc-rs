@@ -2,6 +2,7 @@ use tsc_types::{CompilerOptions, SymbolFlags, TypeFlags};
 
 use crate::state::test_support::with_program_state;
 use crate::state::CheckerState;
+use crate::{check_program, InputFile};
 
 fn annotation_of_var(state: &CheckerState, name: &str) -> tsc_syntax::NodeId {
     crate::relpin::find_probe_annotation(state.binder.source(0), name).expect("var with annotation")
@@ -245,4 +246,32 @@ fn unconstrained_type_parameter_intersections_intern_plainly() {
             assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
         },
     );
+}
+
+/// tsgo's reparser gives a JavaScript `@template {T} T` type parameter the
+/// type inside the braces as its constraint (gatherTypeParameters clones
+/// `constraint.Type()`), so a circular constraint is reported on that type,
+/// `a.js(2,15)`, not on the `{` (tsgo aa814927). The same node is what a
+/// hover reuses, charging the type's span and not the braces' toward its
+/// budget.
+#[test]
+fn a_circular_template_constraint_is_reported_on_the_type_inside_its_braces() {
+    let text = "/**\n * @template {T} T\n * @param {T} x the x\n * @returns {void}\n */\nfunction f(x) {}\nmodule.exports = { f };\n";
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        ..CompilerOptions::default()
+    };
+    let result = check_program(
+        &[InputFile::new("a.js".to_owned(), text.to_owned())],
+        &options,
+    );
+    let circular: Vec<(Option<u32>, Option<u32>)> = result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 2313)
+        .map(|diagnostic| (diagnostic.start, diagnostic.length))
+        .collect();
+    let inner = text.find("{T} T").expect("the constraint") as u32 + 1;
+    assert_eq!(circular, [(Some(inner), Some(1))]);
 }
