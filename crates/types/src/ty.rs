@@ -106,6 +106,30 @@ impl TemplateText {
         self.units.len()
     }
 
+    /// The UTF-8 byte length, what Go's `len()` of the text is: tsgo's
+    /// node builder charges string literals by it (a lone surrogate
+    /// encodes as three bytes, as Go's RuneError does).
+    pub fn len_utf8(&self) -> usize {
+        let mut bytes = 0;
+        let mut units = self.units.iter().copied().peekable();
+        while let Some(unit) = units.next() {
+            bytes += match unit {
+                0..=0x7f => 1,
+                0x80..=0x7ff => 2,
+                0xd800..=0xdbff
+                    if units
+                        .peek()
+                        .is_some_and(|next| (0xdc00..=0xdfff).contains(next)) =>
+                {
+                    units.next();
+                    4
+                }
+                _ => 3,
+            };
+        }
+        bytes
+    }
+
     pub fn is_empty(&self) -> bool {
         self.units.is_empty()
     }

@@ -886,20 +886,11 @@ pub struct TypeLinksCold {
     /// the context-free widening memo; context-carrying calls bypass
     /// it in both directions.
     pub widened: SparseLinks<TypeId, Option<TypeId>>,
-    /// tsc type[iterationTypesCacheKey] (get/setCachedIterationTypes
-    /// 84056-84061): the five §4 verdict slots. `Some(No)` is the
-    /// cached noIterationTypes poison — distinguishable from "never
-    /// computed" (None), per the m4-58 §4 sentinel rule.
-    pub iteration_types_of_iterable:
-        SparseLinks<TypeId, Option<crate::iterate::IterationTypesResult>>,
-    pub iteration_types_of_async_iterable:
-        SparseLinks<TypeId, Option<crate::iterate::IterationTypesResult>>,
-    pub iteration_types_of_iterator:
-        SparseLinks<TypeId, Option<crate::iterate::IterationTypesResult>>,
-    pub iteration_types_of_async_iterator:
-        SparseLinks<TypeId, Option<crate::iterate::IterationTypesResult>>,
-    pub iteration_types_of_iterator_result:
-        SparseLinks<TypeId, Option<crate::iterate::IterationTypesResult>>,
+    /// tsgo iterationTypesCache (checker.go:647): getIterationTypesOfIterable's
+    /// verdict per type and use CACHE_FLAGS. `No` is the cached
+    /// noIterationTypes, which a reporting lookup recomputes without caching.
+    pub iteration_types:
+        HashMap<crate::iterate::IterationTypesKey, crate::iterate::IterationTypesResult>,
 }
 
 impl TypeLinksCold {
@@ -991,11 +982,7 @@ impl TypeLinksCold {
             promised_type_of_promise,
             awaited_type_of_type,
             widened,
-            iteration_types_of_iterable,
-            iteration_types_of_async_iterable,
-            iteration_types_of_iterator,
-            iteration_types_of_async_iterator,
-            iteration_types_of_iterator_result,
+            iteration_types,
         } = self;
         sparse_memory_usage([
             mapped_type_parameter.memory_usage(),
@@ -1034,11 +1021,14 @@ impl TypeLinksCold {
             promised_type_of_promise.memory_usage(),
             awaited_type_of_type.memory_usage(),
             widened.memory_usage(),
-            iteration_types_of_iterable.memory_usage(),
-            iteration_types_of_async_iterable.memory_usage(),
-            iteration_types_of_iterator.memory_usage(),
-            iteration_types_of_async_iterator.memory_usage(),
-            iteration_types_of_iterator_result.memory_usage(),
+            (
+                iteration_types.len(),
+                iteration_types.capacity()
+                    * std::mem::size_of::<(
+                        crate::iterate::IterationTypesKey,
+                        crate::iterate::IterationTypesResult,
+                    )>(),
+            ),
         ])
     }
 }
@@ -3582,38 +3572,18 @@ impl LinksTables {
         *slot = Some(widened);
     }
 
-    /// tsrs-native: the links half of setCachedIterationTypes
-    /// (84059-84061; the tsc-port header lives on iterate.rs's
-    /// set_cached_iteration_types). A PLAIN ASSIGNMENT like tsc's
-    /// `type[cacheKey] = cachedTypes` — no write-once discipline: the
-    /// for-await async-from-sync fallback legitimately OVERWRITES a
-    /// cached AsyncIterable=No verdict (the async slow path caches No,
-    /// then the sync branch re-caches the awaited sync-derived triple
-    /// under the SAME async key, worker 84139-84174).
-    pub fn set_type_iteration_types(
+    /// tsrs-native: the links half of tsgo's
+    /// `c.iterationTypesCache[key] = result` (checker.go:6484), a plain
+    /// assignment keyed by the type and its use's CACHE_FLAGS.
+    pub fn set_iteration_types(
         &mut self,
-        id: TypeId,
-        key: crate::iterate::IterationCacheKey,
+        key: crate::iterate::IterationTypesKey,
         value: crate::iterate::IterationTypesResult,
     ) {
         // This is a pure, reproducible memo. Candidate-local callers
         // already carry `value`, so publishing it is unnecessary and
         // would let a rejected overload warm shared type state.
-        let cold = &mut self.type_cold;
-        let cache = match key {
-            crate::iterate::IterationCacheKey::Iterable => &mut cold.iteration_types_of_iterable,
-            crate::iterate::IterationCacheKey::AsyncIterable => {
-                &mut cold.iteration_types_of_async_iterable
-            }
-            crate::iterate::IterationCacheKey::Iterator => &mut cold.iteration_types_of_iterator,
-            crate::iterate::IterationCacheKey::AsyncIterator => {
-                &mut cold.iteration_types_of_async_iterator
-            }
-            crate::iterate::IterationCacheKey::IteratorResult => {
-                &mut cold.iteration_types_of_iterator_result
-            }
-        };
-        *cache.slot(id) = Some(value);
+        self.type_cold.iteration_types.insert(key, value);
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable

@@ -1121,8 +1121,11 @@ pub(super) fn add_approximate_length(context: &mut NodeBuilderContext<'_>, amoun
     context.approximate_length += u32::try_from(amount).unwrap_or(u32::MAX);
 }
 
+/// tsgo's `len(name)` in the approximate-length estimate: Go strings are
+/// UTF-8, so a non-ASCII name charges its byte count, not its UTF-16 units
+/// (excalidraw's `deburredLetters` hover elides `... 22 more ...` members).
 fn js_len<'n>(text: impl Into<tsc_types::JsStr<'n>>) -> usize {
-    text.into().len_units()
+    text.into().as_bytes().len()
 }
 
 fn require_node(
@@ -1655,7 +1658,7 @@ fn type_to_type_node_worker(
         else {
             unreachable!("StringLiteral flag implies string literal payload")
         };
-        add_approximate_length(context, value.len() + 2);
+        add_approximate_length(context, value.len_utf8() + 2);
         let single_quote = has_flag(context, USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE);
         let literal = arena
             .factory()
@@ -4569,7 +4572,7 @@ pub(super) fn add_property_to_element_list(
         let prefix = parts.next();
         if let Some(prefix) = prefix.filter(|_| suffix.as_bytes().iter().all(u8::is_ascii_digit)) {
             // The name between the first and the last `@`.
-            js_len(&display_name) - prefix.len_units() - suffix.len_units() - 2 + 18
+            js_len(&display_name) - prefix.as_bytes().len() - suffix.as_bytes().len() - 2 + 18
         } else {
             js_len(&display_name)
         }
