@@ -1,0 +1,2 @@
+a.ts(18,7): error TS2322: Type '{ first: string; second(count: number): string; third: <T extends string>(value: T, ...rest: number[]) => T; fourth: readonly [1, "two", true]; fifth: string | null; sixth: undefined; seventh: bigint; eighth: number; ninth: string; tenth: { a: number; b: string; c: { d: boolean; }; }; eleventh: boolean; twelfth: ......' is not assignable to type 'number'.
+exit 2

@@ -1,0 +1,3 @@
+use.js(3,96): error TS7006: Parameter 'o' implicitly has an 'any' type.
+use.js(3,99): error TS7006: Parameter 'r' implicitly has an 'any' type.
+exit 2

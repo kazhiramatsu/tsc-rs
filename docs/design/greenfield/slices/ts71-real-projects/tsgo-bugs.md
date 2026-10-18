@@ -191,3 +191,15 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
 - tsc-rs の扱い：tsgo に合わせた（PR #834：`check.rs check_jsdoc_property_like_tag` が type literal の tag の型を解決し、`widen.rs report_implicit_any`
   が Member の文言を使う。test `untyped_property_tags_of_a_type_literal_are_implicit_any_members`）。
 - 報告：不要（差の記録のみ）。
+
+### 16. `declare module "*.scss"` の `declare` への typeDefinition が、pattern module を使う import を見た後は `[]` になる
+
+- 見つけた日・場所：2026-10-18、Excalidraw 4c37956 の `packages/excalidraw/global.d.ts:58`（`declare module "*.scss";`）への
+  typeDefinition（58:0 = `declare` keyword）。
+- 現象：その file だけを開いた server は宣言自身の位置（targetSelectionRange = `"*.scss"`）を返すが、`.scss` を import する file
+  （`components/Card.tsx`）を先に開いて診断してから聞くと `[]` を返す。tsgo・tsc-rs とも同じ（1 file の probe は両者とも位置、
+  `--touch components/Card.tsx` の後は両者とも `[]`）。session では tsgo が位置、tsc-rs が `[]` と分かれた＝答えが server 内の状態
+  （pattern ambient module を解決済みかどうか）に依存している。
+- 根拠：未確認（pattern module を解決すると module symbol の links が変わり、`declare` keyword からの型定義探索が空になる経路が疑わしい）。
+- tsc-rs の扱い：bounded（同じ条件では同じ答え；session の差は状態の順序）。Excalidraw の session の 1 件（typeDefinition）はこの扱い。
+- 報告：未投稿（報告候補：どちらの答えが意図かは本家の判断）。

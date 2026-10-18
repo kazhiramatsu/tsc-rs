@@ -727,6 +727,30 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 - **道具**：`handover/slice7-plan.md`、`handover/slice7b-tests.sh`・`slice7b-chain2.sh`・`slice7b-chain3.sh`、`scratchpad/tflat2`・`tnest2`・`tacc2`・
   `tthis1`（最小 lib の repro）、`handover/jsdoc-sessions-notes.md`（2026-10-18 10:30）。
 
+### 修正 13：JSDoc typedef の alias — function 内では local、file の top では top-level（PR #839、2026-10-18、Fable 5.1）
+
+- **merge**：#839 → `36cdecc7c`（hosted run 39090722612）。
+- **現象**：webpack `WorkerAndWorkletPlugin.js` の signature help が `values: Values`（tsgo は `values: Record<string, …>`）。縮小 repro では function 内の
+  `@typedef {Record<string, number>} LocalValues` を `@type` に使った `const values` の hover が `LocalValues`（tsgo は `Record<string, number>`）。
+  top-level の typedef は両者とも名前を保つ。
+- **原因**：`getTypeFromTypeAliasReference` は `isLocalTypeAlias(symbol) || !isLocalTypeAlias(aliasSymbol)` のときだけ参照側の alias を generic alias の
+  instantiation に付ける（function 内の `type Values = Record<…>` は両者とも `Record<string, number>` と印字）。こちらの `is_local_type_alias` は
+  TypeAliasDeclaration しか alias と見なさず、function 内の `@typedef` を local と判定しなかった。
+- **修正**（checker `annotate.rs`）：reparse 済みの `@typedef`/`@callback` も alias 宣言（tsgo の `isTypeAlias` は JSTypeAliasDeclaration を含む）。tsgo の
+  reparser は comment の属する文の隣に hoist するので、containing function はその文の親から探す（top-level 関数に付いた typedef は local でない）。
+- **test**：ls hover `a_typedef_inside_a_function_is_a_local_type_alias`（修正なしでは `LocalValues` で落ちる）。
+- **2 つ目：top-level の `@typedef` alias は non-generic top-level type。** tsgo の `isNonGenericTopLevelType` は type alias 宣言か reparse 済みの
+  JSTypeAliasDeclaration を受けるが、こちらは `type` 宣言だけだったので、top-level の JS typedef が alias する型は「型変数を含みうる」と見なされ、generic な
+  呼び出しの mapper で構造の同じ別 object に再 instantiate された。書かれた `@param {PartialContextDependencyOptions}` が parameter の型と一致しなくなり、
+  signature help は複製の方を印字した：webpack `ContextDependencyHelpers.create` の `contextOptions: Partial<Omit<ContextDependencyOptions, "resource">>`
+  （tsgo は `ContextDependencyHelpers.PartialContextDependencyOptions`；`CommonJsImportsParserPlugin.js:234`・`URLParserPlugin.js:322`）。修正後は実位置で一致
+  （`instantiate.rs`）。test ls hover `a_top_level_typedef_alias_survives_a_generic_call_s_instantiation`（修正なしでは落ちる）。repro `scratchpad/talias3`。
+- **corpus**：この回の repro 4 case を JSDoc corpus に追加（`alias-local`・`alias-generic`・`mapped-cycle`・`pseudo-members`、839 request、tsgo の答えと一致）。
+- **webpack 再記録（この slice の binary、6402bd543）**：790 file・134,174 request で 58 → 55 件（signature help 6 → 3；残る 3 件は `Serializer.js` の union member 順、43 hover は qualifier の session 依存、diagnostic 1・references 5・definition 3 は従来どおり）。
+- **session（sessions2）**：NestJS（1,000 file・144,763 request）1 件 = `Stream.Duplex` の qualifier が tsgo の session 順に依存（1 file の probe は両者 `Stream.Duplex`、class B）。RxJS（231 file・41,628 request）2 file＝長い TS2345 の elaboration 内で `<...>` の省略位置が違う（class A：instantiate 済み signature の `K extends T` の constraint node 再利用、次 slice）。Excalidraw（85,695 request）82 件＝completion 78（tsgo の session だけが package 自身の index 経由の auto-import source `..`/`@excalidraw/excalidraw` を出す、1 file probe は両者同一 → class B）、hover 3（190 member の object literal で tsgo だけ `... 22 more ...` に省略 → class A：tsgo の approximate length は Go の `len()` = UTF-8 byte、次 slice）、typeDefinition 1（`declare module "*.scss"` の `declare`：両 server とも 1 file では位置、`.scss` を import する file を touch した後は `[]`、tsgo も同じに振れる → session 内の状態順の差、bounded）。Puppeteer（puppeteer-core）18 件＝hover 16（`@example` 内の `{@link X | y}` の `|` 前の空白を tsc-rs が落とす → class A、次 slice）、diagnostic 2（`Iterable<T> | AsyncIterable<T>` への `yield*`/`for await` に tsc-rs だけ TS2504：iteration types cache の key、class A、次 slice）。
+- **検査**：`cargo fmt --check`・`cargo clippy`（checker・ls）0；`conformance-ts71 --workers 2 --check`：12,829 case / 15,339 configuration、lane A 13,577 full、mismatch 0、ratchet 0 regressions（493 s）；`--checkers 4` の control：ratchet 0、`conformance_ts71_compare.py` 15,335 identical / 4 differ（既知の partition 依存 4 件：incorrectRecursiveMappedTypeConstraint・mutuallyRecursiveInference・typeParameterWithInvalidConstraintType・recursiveMappedTypes）；`suites_ts71.py --update` → `--check` 0 regressions / 0 above / 0 not listed（ratchet 変更なし）；crate test：types 49・syntax 251・binder 78・program 684・checker 1,833・emitter 352・ls 254・lsp 89・api 332・project 235・compiler 241・conformance 49・lsproto 31、失敗 0；JSDoc corpus gate 0（839 request）。source identity：branch `fix/ts71-local-typedef-alias` 6402bd543（main d0897abb9 上）、tsgo aa814927。
+- **道具**：`scratchpad/talias2`・`talias5`、`handover/slice8b-tests.sh`。
+
 ## 3. 性能の slice 3（local のみ、未 push）
 
 - **worktree と branch**：`/Users/hiramatsu/dev/tsc-rs-p34` の `perf/ts71-lsp-request-threads`、HEAD は `b121051dd`
