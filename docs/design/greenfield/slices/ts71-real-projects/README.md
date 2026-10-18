@@ -685,6 +685,48 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
 - **道具**：`handover/slice7-plan.md`（残りは diagnostic 側 = string path の pseudo 経路の移植）、`scratchpad/ttp2`〜`ttp6`（trace 用 repro）、
   `scratchpad/build-tsgo-trace.sh`（計測用 tsgo の build と vendored checkout の復元）。
 
+### 修正 12：diagnostic の object literal の member は宣言の pseudo 型で印字する（PR #838、2026-10-18、Fable 5.1）
+
+- **merge**：#838 → `d9ddaa621`（hosted run 39085195418）。
+- **現象**：ESLint `source-code.js` の TS2322 が `... 27 more ...; valueOf: boolean; }`（tsgo は 16 member を出して 320 文字で切る）、
+  `no-restricted-globals/imports/modules.js` の TS2322 が `message: ...; }; required: ...` を早く省略（tsgo は残して後で `... 4 more ...`）。
+  session の「truncation budget」diagnostic 4 件。
+- **原因**：tsgo の `typeToString` は enclosing declaration があると（relation error の object literal は `getTypeNamesForErrorDisplay` が
+  渡す）member を `serializeTypeForDeclaration` の tryReuse で印字する：宣言の pseudo 型（pseudochecker の構文的な読み：literal の初期化子・入れ子
+  literal・arrow・`as const` tuple・cast・accessor の戻り）が member の型と等価なら `pseudoTypeToNode` で組む。この経路自体は予算に加算せず、再利用
+  した node の span（`nodecopy.go`：要素名・literal・型パラメータ宣言・書かれた型 node）だけを加算し、pseudochecker が諦める member
+  （`Inferred`/`NoResult`：呼び出し・配列 literal・識別子）だけが checker の型に落ちて通常どおり加算する。こちらの string 表示経路（check.rs、
+  diagnostic の printer）は error 型の member にしか pseudo 経路を使わず、全 member の checker 型を印字・加算していたので予算が早く尽き、
+  `... N more ...`・`...`・320 文字の hard cut の位置がずれていた。
+- **修正**：`node_builder/pseudo.rs`・`serialize.rs` の pseudo 等価判定（pseudoTypeEquivalentToType と object literal・parameter・predicate・
+  pseudoTypeToType・getRegularTypeOfExpression）を context 非依存の core（`*_core`、`CheckResult`、報告する inference fallback は `reports` に集める）
+  と node builder の薄い wrapper に分け、表示経路も同じ等価判定を読む（並行コピーなし。呼ばれなくなった wrapper は削除）。`check.rs`
+  `property_signature`：enclosing があれば `pseudo_declaration_text`（serializeTypeForDeclaration の pseudo 分岐）と `pseudo_text`
+  （pseudoTypeToNode の text 版：Direct は existing-node visitor で再利用、Inferred/NoResult は宣言か signature の checker 型、MaybeConstLocation の
+  const context 判定、union は平坦化し `undefined` は 1 つ、keyword、literal は書かれたまま、`readonly [...]`、scope に入った `<T>(…) => R`、
+  const context では readonly の object literal、method signature か const の関数型 property、accessor。再利用した名前・literal・型パラメータ宣言は
+  span を加算）が annotation 再利用の block と `error_property_pseudo_type_text` を置き換える（error 型は等価判定の側で charitably 等価）。
+- **test**（`crates/checker/tests/unit/check/tests.rs`。harness に lib が無いので最小 lib を同梱し、同じ lib の `noLib` で tsgo の文面を固定。3 本とも
+  修正なしでは落ちる）：`an_object_literal_s_literal_members_charge_nothing_toward_truncation`（boolean 38 member → 320 文字の hard cut
+  `isFinite: boole...`）、`a_nested_object_literal_prints_through_the_pseudo_path`（配列初期化子は fallback して加算：`... 4 more ...; minItems: nu...`）、
+  `an_object_literal_s_accessor_method_and_literal_members_print_from_pseudo_types`（accessor の対・method・generic arrow・`as const` tuple・
+  cast・literal・入れ子 literal：`twelfth: ......`）。既存の `reused_this_type_query_recovers_through_its_this_container` の `typeof this` parameter
+  の case は tsgo の `(x: { f: (x: ...) => void; }) => void`（member は pseudo signature で印字され、再帰する parameter が literal に戻る）に更新
+  （tsc 6.0.3 とこれまでの tsc-rs は `{ f: ...; }`）。
+- **2 つ目の commit：mapped 型も diagnostic printer で `createAnonymousTypeNode` の経路を通る。** tsgo は anonymous と mapped の object 型を同じく
+  `createAnonymousTypeNode` → `visitAndTransformType`（visited 判定・truncation の省略・symbol depth の上限）に通すが、こちらの string 表示は mapped 型を
+  member から直接印字していたので、印字中に再び現れる再帰 mapped 型（prettier の `ExtendNode<_Node>`：`parent` の member が印字中の node 型）を予算が
+  尽きるまで入れ子に印字していた（tsgo は `parent: ...`）。prettier の `handle-comments.js`・`strip-chain-element-wrappers.js` の TS2339（「`...` placeholder」の
+  session 2 行）。test `a_recursive_mapped_type_s_revisit_is_the_cyclic_placeholder`（修正なしでは落ちる）。repro `scratchpad/tplace2`〜`tplace5`。
+- **session**：ESLint 5 → 1（truncation の 4 file が一致。残りは `token-store/index.js` の TS2323 = memo 14）、prettier 6 → 3（2 つ目の commit で `...` placeholder の diagnostic 2 件が消えた。残り：`group.js:40:31` の auto-import（session 依存）・`template-literal.js` の ArrayLike hover（session 依存）・`@this` 0:0）、webpack 60 → 58（#837 の `htmlMinify.js` hover 2 件が消え、新規なし。残り 58 = qualifier 43・signatureHelp 6・`@import` references 5・`@this` 3・NMF 1）
+- **検査**：最終バイトで（release build、nice 20、`cargo -j 2`、worker 2）：`conformance_ts71.py --workers 2 --check` 12,829 case・15,339 configuration、lane A 13,577 full・
+  mismatch 0、ratchet 0 regressions（変更なし）。`--checkers 4` + compare：15,335 一致・4 差（既知の 4 件）。`suites_ts71.py --update` → `--check` exit 0、
+  5,315 baseline・0 regressions・ratchet 変更なし（既知の 3 mismatch）。全 crate の test 合格（types 49、syntax 251、binder 78、program 684、checker 1,833、
+  emitter 352、ls 252、lsp 89、api 332、project 235、compiler 241、conformance 49、lsproto 31）、JSDoc corpus 60 case 合格。fmt・clippy clean。
+  新しい test 4 本は修正なしでは落ちる。log：`target/claude-tools/logs/slice7b`・`logs/slice7b/final`。
+- **道具**：`handover/slice7-plan.md`、`handover/slice7b-tests.sh`・`slice7b-chain2.sh`・`slice7b-chain3.sh`、`scratchpad/tflat2`・`tnest2`・`tacc2`・
+  `tthis1`（最小 lib の repro）、`handover/jsdoc-sessions-notes.md`（2026-10-18 10:30）。
+
 ## 3. 性能の slice 3（local のみ、未 push）
 
 - **worktree と branch**：`/Users/hiramatsu/dev/tsc-rs-p34` の `perf/ts71-lsp-request-threads`、HEAD は `b121051dd`
