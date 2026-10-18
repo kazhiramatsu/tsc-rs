@@ -2302,19 +2302,33 @@ impl<'a> CheckerState<'a> {
     fn is_non_generic_top_level_type(&self, ty: TypeId) -> bool {
         let source = self.tables.type_of(ty);
         if let (Some(alias_symbol), None) = (source.alias_symbol, &source.alias_type_arguments) {
-            let declaration = self
-                .binder
-                .symbol(alias_symbol)
-                .declarations
+            // tsgo: a type alias declaration, else the reparsed
+            // `@typedef` / `@callback` (its JSTypeAliasDeclaration).
+            let declarations = &self.binder.symbol(alias_symbol).declarations;
+            let declaration = declarations
                 .iter()
                 .copied()
-                .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration);
+                .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration)
+                .or_else(|| {
+                    declarations
+                        .iter()
+                        .copied()
+                        .find(|&declaration| self.is_jsdoc_type_alias(declaration))
+                });
             // findAncestor(declaration.parent, SourceFile → true,
             // ModuleDeclaration → false, else "quit"): only a DIRECT
-            // source-file parent answers true.
+            // source-file parent answers true. tsgo's reparser hoists a
+            // comment's typedef beside the statement the comment belongs
+            // to, so a tag's parent is that statement's parent.
             return declaration.is_some_and(|declaration| {
-                self.parent_of(declaration)
-                    .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::SourceFile)
+                let parent = if self.is_jsdoc_type_alias(declaration) {
+                    self.parent_of(declaration)
+                        .and_then(|document| self.parent_of(document))
+                        .and_then(|host| self.parent_of(host))
+                } else {
+                    self.parent_of(declaration)
+                };
+                parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::SourceFile)
             });
         }
         false

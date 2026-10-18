@@ -1,0 +1,6 @@
+a.ts(11,3): error TS2339: Property 'id' does not exist on type 'Node'.
+  Property 'id' does not exist on type '{ readonly type: "A"; readonly parent: (... & P) | ({ readonly type: "B"; readonly parent: (... & P) | (... & P) | ({ readonly type: "C"; readonly items: ((... & P) | (... & P) | (... & P))[]; } & P); } & P) | (... & P); readonly value: ... & P; } & P'.
+a.ts(13,31): error TS2339: Property 'id' does not exist on type '{ readonly type: "B"; readonly parent: ({ readonly type: "A"; readonly parent: (... & P) | (... & P) | ({ readonly type: "C"; readonly items: ((... & P) | (... & P) | (... & P))[]; } & P); readonly value: ... & P; } & P) | (... & P) | (... & P); } & P'.
+a.ts(13,44): error TS2339: Property 'id' does not exist on type '({ readonly type: "A"; readonly parent: (... & P) | ({ readonly type: "B"; readonly parent: (... & P) | (... & P) | ({ readonly type: "C"; readonly items: ((... & P) | (... & P) | (... & P))[]; } & P); } & P) | (... & P); readonly value: ... & P; } & P) | (... & P) | (... & P)'.
+  Property 'id' does not exist on type '{ readonly type: "A"; readonly parent: (... & P) | ({ readonly type: "B"; readonly parent: (... & P) | (... & P) | ({ readonly type: "C"; readonly items: ((... & P) | (... & P) | (... & P))[]; } & P); } & P) | (... & P); readonly value: ... & P; } & P'.
+exit 2
