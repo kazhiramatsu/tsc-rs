@@ -6572,17 +6572,6 @@ impl<'a> CheckerState<'a> {
         if self
             .tables
             .object_flags_of(ty)
-            .intersects(ObjectFlags::MAPPED)
-        {
-            // tsgo visitAndTransformType (#63969).
-            if self.tables.type_of(ty).symbol.is_some() && self.display_check_truncation_length() {
-                return Ok(self.display_truncation_type_node());
-            }
-            return self.type_node_from_object_type(ty, fully_qualified);
-        }
-        if self
-            .tables
-            .object_flags_of(ty)
             .intersects(ObjectFlags::REFERENCE)
         {
             // tsgo typeToTypeNode (#63969, #64556): a deferred reference, an
@@ -6614,8 +6603,12 @@ impl<'a> CheckerState<'a> {
             && self
                 .tables
                 .object_flags_of(ty)
-                .intersects(ObjectFlags::ANONYMOUS)
+                .intersects(ObjectFlags::ANONYMOUS | ObjectFlags::MAPPED)
         {
+            // tsgo typeToTypeNodeWorker: an anonymous or mapped object type
+            // is createAnonymousTypeNode's, so a mapped type too is a cycle
+            // when it is reached again (`parent: ...`), is elided once
+            // truncating and is bounded by its symbol's depth.
             return self.anonymous_object_type_to_string(ty, fully_qualified);
         }
         if flags.intersects(TypeFlags::INDEX) {

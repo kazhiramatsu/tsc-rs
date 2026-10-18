@@ -11167,3 +11167,39 @@ fn a_nested_object_literal_prints_through_the_pseudo_path() {
 fn an_object_literal_s_accessor_method_and_literal_members_print_from_pseudo_types() {
     assert_eq!(object_literal_relation_message("const o = {\n\tget first() { return \"first value here\"; },\n\tset first(value: string) {},\n\tsecond(count: number): string { return String(count); },\n\tthird: <T extends string>(value: T, ...rest: number[]) => value,\n\tfourth: [1, \"two\", true] as const,\n\tfifth: null as string | null,\n\tsixth: undefined,\n\tseventh: 10n,\n\teighth: 0x10,\n\tninth: \"nine\",\n\ttenth: { a: 1, b: \"two\", c: { d: true } },\n\televenth: true,\n\ttwelfth: [1, 2, 3],\n\tthirteenth: () => 1,\n\tfourteenth: function (x: string) { return x; },\n};\nconst n: number = o;\nexport { n };\n"), "Type '{ first: string; second(count: number): string; third: <T extends string>(value: T, ...rest: number[]) => T; fourth: readonly [1, \"two\", true]; fifth: string | null; sixth: undefined; seventh: bigint; eighth: number; ninth: string; tenth: { a: number; b: string; c: { d: boolean; }; }; eleventh: boolean; twelfth: ......' is not assignable to type 'number'.");
 }
+
+/// A mapped type reached again while it is being printed is the cyclic
+/// placeholder, like any anonymous object type (tsgo typeToTypeNodeWorker
+/// → createAnonymousTypeNode → visitAndTransformType): the recursive
+/// `ExtendNode<A>` prints `parent: ...`. tsc-rs printed mapped types
+/// without the visited check and nested the same object until the budget
+/// ran out (tsgo aa814927; prettier's `handle-comments.js` TS2339 texts).
+#[test]
+fn a_recursive_mapped_type_s_revisit_is_the_cyclic_placeholder() {
+    let source = "interface A { readonly type: \"A\"; readonly parent: A; readonly value: number; }\ntype ExtendNode<Input> = Input extends A\n  ? { [Key in keyof Input]: ExtendNode<Input[Key]> }\n  : Input;\ntype Node = ExtendNode<A>;\ndeclare const n: Node;\nn.id;\nexport {};\n";
+    let options = CompilerOptions {
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    let result = check_program(
+        &[InputFile::new("a.ts".to_owned(), source.to_owned())],
+        &options,
+    );
+    let messages: Vec<String> = result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 2339)
+        .map(|diagnostic| {
+            diagnostic
+                .message
+                .text
+                .as_str()
+                .expect("scalar message")
+                .to_owned()
+        })
+        .collect();
+    assert_eq!(
+        messages,
+        ["Property 'id' does not exist on type '{ readonly type: \"A\"; readonly parent: ...; readonly value: number; }'."]
+    );
+}
