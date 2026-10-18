@@ -1810,13 +1810,29 @@ struct InferTypesWalker<'r, 'a> {
     /// 68640: min-tracked priority of every inference actually landed;
     /// MaxValue until the first candidate records.
     inference_priority: InferencePriority,
-    /// 68641: lazily created in tsc; HashMap::default() allocates nothing
-    /// until the first insert, so a plain map is the same. Keyed by
-    /// the invokeOnce `source.id + "," + target.id` pair.
-    visited: HashMap<(TypeId, TypeId), InferencePriority>,
+    /// tsgo invokeOnce (inference.go:11-17, 347): the visited map is keyed
+    /// by the pair AND the walker's priority, contravariant and bivariant
+    /// state, so a pair first inferred contravariantly (a method's
+    /// parameters) is inferred again when it recurs covariantly (the
+    /// parameters of a callback parameter). strada keyed `source.id + ","
+    /// + target.id` alone and skipped the second visit — webpack's
+    /// `new SyncBailHook(["parserOptions"])` lost the `[ParserOptions]`
+    /// candidates its `tap` callback contributes.
+    visited: HashMap<InferenceKey, InferencePriority>,
     source_stack: Vec<TypeId>,
     target_stack: Vec<TypeId>,
     expanding_flags: ExpandingFlags,
+}
+
+/// tsgo InferenceKey (inference.go:11-17): what one invokeOnce visit is
+/// identified by.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+struct InferenceKey {
+    source: TypeId,
+    target: TypeId,
+    priority: InferencePriority,
+    contravariant: bool,
+    bivariant: bool,
 }
 
 /// The invokeOnce `action` parameter (68833): tsc passes one of three
@@ -2415,7 +2431,7 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-hash: c16739c2347cd9cf605ea953aaab71f5324c1e4c662a4e1c75eb95c2cf4e570a
     /// tsc-span: _tsc.js:68833-68858
     ///
-    /// Pair-memoized action dispatch with the depth-2 expansion guard
+    /// Visit-memoized action dispatch (InferenceKey) with the depth-2 expansion guard
     /// (isDeeplyNestedType over the walker stacks). An Err from the
     /// action propagates without running the postlude, exactly as a
     /// tsc throw would skip it — the walker (visited map, stacks) dies
@@ -2426,7 +2442,13 @@ impl InferTypesWalker<'_, '_> {
         target: TypeId,
         action: InferAction,
     ) -> CheckResult<()> {
-        let key = (source, target);
+        let key = InferenceKey {
+            source,
+            target,
+            priority: self.priority,
+            contravariant: self.contravariant,
+            bivariant: self.bivariant,
+        };
         if let Some(&status) = self.visited.get(&key) {
             self.inference_priority = self.inference_priority.min(status);
             return Ok(());

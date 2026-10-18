@@ -11235,3 +11235,20 @@ fn a_non_ascii_literal_charges_its_utf8_bytes_toward_truncation() {
 fn a_reused_constraint_of_an_instantiated_signature_charges_its_source_span() {
     assert_eq!(object_literal_relation_message("interface Obs<T> {\n    groupBy: {\n        <K extends T>(keySelector: (value: T) => value is K): Obs<K>;\n        <K>(keySelector: (value: T) => K): Obs<K>;\n    };\n}\ndeclare const a: Obs<{ aaaaaaaaaa: number; bbbbbbbbbb: string; cccccccccc: boolean; dddddddddd: number; eeeeeeeeee: string; ffffffffff: boolean }>;\nconst b: Obs<string>[\"groupBy\"] = a.groupBy;\nexport { b };\n"), "Type '{ <K extends { aaaaaaaaaa: number; bbbbbbbbbb: string; cccccccccc: boolean; dddddddddd: number; eeeeeeeeee: string; ffffffffff: boolean; }>(keySelector: (value: { aaaaaaaaaa: number; bbbbbbbbbb: string; cccccccccc: boolean; dddddddddd: number; eeeeeeeeee: string; ffffffffff: boolean; }) => value is K): Obs<K>; <K>(k...' is not assignable to type '{ <K extends string>(keySelector: (value: string) => value is K): Obs<K>; <K>(keySelector: (value: string) => K): Obs<K>; }'.");
 }
+
+/// tsgo's inference walker memoizes an invokeOnce visit by the source and
+/// target AND the walker's priority, contravariant and bivariant state
+/// (InferenceKey), so the pair `[A]` → `AsArray<T>` first met through
+/// `promise(...args)` (contravariant) is inferred again through the `tap`
+/// callback's parameters (covariant) and contributes `[A]` and `A`. tsc-rs
+/// keyed the pair alone, skipped the second visit and inferred `[C]` (tsgo
+/// aa814927; webpack's `NormalModuleFactory.js` printed
+/// `SyncBailHook<[EmptyParserOptions], …>` where tsgo prints
+/// `SyncBailHook<ParserOptions | [EmptyParserOptions], …>`).
+#[test]
+fn a_pair_inferred_contravariantly_is_inferred_again_covariantly() {
+    assert_eq!(
+        object_literal_relation_message("type AsArray<T> = T extends any[] ? T : [T];\ndeclare class Box<T> { value: T }\ndeclare class Hook<T, R> {\n    constructor(name: string);\n    interceptors: Box<T>[];\n    promise(...args: AsArray<T>): R;\n    tap(fn: (...args: AsArray<T>) => R): void;\n}\ndeclare class Shape<T extends any[], R> {\n    interceptors: Box<[C]>[];\n    promise(...args: T): R;\n    tap(fn: (...args: T) => R): void;\n    extra: string;\n}\ninterface A { a: number }\ninterface B { b: number }\ninterface C { c: number }\ndeclare class HookMap<H> {\n    constructor(factory: () => H);\n    get(): H;\n}\nconst m: HookMap<Shape<[A], B>> = new HookMap(() => new Hook(\"x\"));\nexport { m };\n"),
+        "Type 'HookMap<Hook<A | [A] | [C], B>>' is not assignable to type 'HookMap<Shape<[A], B>>'."
+    );
+}
