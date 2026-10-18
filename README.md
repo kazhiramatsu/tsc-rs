@@ -137,10 +137,10 @@ restarts a mapper whose package changes.
   answers; sessions over NestJS's `packages` (1,000 files, 144,763
   requests), RxJS's `packages/rxjs/src` (231 files, 41,628 requests),
   Excalidraw's `packages/excalidraw` (501 files, 85,695 requests) and
-  puppeteer-core's `src` (214 files, 36,954 requests) differ in 1, 2, 82
-  and 18 answers, 78 of them Excalidraw completions whose auto-import
-  source `tsgo` lists only once its session has seen the package's own
-  index (October 18, 2026).
+  puppeteer-core's `src` (214 files, 36,954 requests) differ in 1, 0, 77
+  and 0 answers after the ninth round of fixes, the 77 Excalidraw
+  completions whose auto-import source `tsgo` lists only once its session
+  has seen the package's own index (October 18, 2026).
 - **TypeScript 7 rules:** the default `target` is ES2026, and the options
   TypeScript 7 removed (`baseUrl`, `outFile`, `target: "es5"`, the `amd`,
   `umd` and `system` modules, …) are errors.
