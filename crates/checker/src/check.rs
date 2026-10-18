@@ -19,6 +19,12 @@
 //! flow mechanism and explicit-error face; M7 8.4 supplies the
 //! default-options suggestion projection.
 
+use crate::node_builder::pseudo::{pseudo_type_equivalent_to_type_core, pseudo_type_to_type_core};
+use crate::node_builder::serialize::contains_non_missing_undefined;
+use crate::pseudochecker::{
+    could_already_refer_to_undefined_type, PseudoObjectElement, PseudoObjectElementKind,
+    PseudoParameter, PseudoType,
+};
 use tsc_binder::{node_util, SymbolId};
 use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticCategory, DiagnosticMessage, JsString,
@@ -6566,17 +6572,6 @@ impl<'a> CheckerState<'a> {
         if self
             .tables
             .object_flags_of(ty)
-            .intersects(ObjectFlags::MAPPED)
-        {
-            // tsgo visitAndTransformType (#63969).
-            if self.tables.type_of(ty).symbol.is_some() && self.display_check_truncation_length() {
-                return Ok(self.display_truncation_type_node());
-            }
-            return self.type_node_from_object_type(ty, fully_qualified);
-        }
-        if self
-            .tables
-            .object_flags_of(ty)
             .intersects(ObjectFlags::REFERENCE)
         {
             // tsgo typeToTypeNode (#63969, #64556): a deferred reference, an
@@ -6608,8 +6603,12 @@ impl<'a> CheckerState<'a> {
             && self
                 .tables
                 .object_flags_of(ty)
-                .intersects(ObjectFlags::ANONYMOUS)
+                .intersects(ObjectFlags::ANONYMOUS | ObjectFlags::MAPPED)
         {
+            // tsgo typeToTypeNodeWorker: an anonymous or mapped object type
+            // is createAnonymousTypeNode's, so a mapped type too is a cycle
+            // when it is reached again (`parent: ...`), is elided once
+            // truncating and is bounded by its symbol's depth.
             return self.anonymous_object_type_to_string(ty, fully_qualified);
         }
         if flags.intersects(TypeFlags::INDEX) {
@@ -9703,31 +9702,14 @@ impl<'a> CheckerState<'a> {
                 return Ok(());
             }
         }
-        // serializeTypeForDeclaration → syntacticNodeBuilder.typeFromProperty
-        // (53487-53507, 133921-133940): an explicit property
-        // annotation is reusable in an enclosing-scoped render. The
-        // question-token equivalence deliberately compares the
-        // annotation against the property's undefined-stripped type.
+        // tsgo serializeTypeForDeclaration (nodebuilderimpl.go:2253) with an
+        // enclosing declaration: the pseudo type of the property's value
+        // declaration (its written annotation, its literal initializer, …)
+        // prints when it describes the property's type, and what the pseudo
+        // type builds charges nothing toward the truncation budget.
         let mut type_text = None;
         if !use_reverse_mapped_placeholder {
-            if let Some(declaration) = self.binder.symbol(property).declarations.first().copied() {
-                if let Some(annotation) = self.effective_type_annotation_node(declaration) {
-                    type_text = self.annotation_reuse_text(
-                        annotation,
-                        property_type,
-                        /*requires_adding_undefined*/ false,
-                        self.is_optional_declaration(declaration),
-                        /*is_parameter*/ false,
-                    )?;
-                }
-            }
-        }
-        if type_text.is_none()
-            && !use_reverse_mapped_placeholder
-            && self.display_enclosing.is_some()
-            && self.tables.is_error_type(property_type)
-        {
-            type_text = self.error_property_pseudo_type_text(property, fully_qualified)?;
+            type_text = self.pseudo_declaration_text(property, property_type, fully_qualified)?;
         }
         let type_text = match type_text {
             Some(text) => text,
@@ -10587,56 +10569,6 @@ impl<'a> CheckerState<'a> {
             return self.type_predicate_text(&predicate, fully_qualified);
         }
         self.type_to_string_ex(return_type, fully_qualified)
-    }
-
-    /// tsgo serializeTypeForDeclaration (checker/nodebuilderimpl.go) with an
-    /// enclosing declaration: the pseudo type of the property's value
-    /// declaration is compared with the property's type, and an error type
-    /// counts as equal ("we charitably assume equality",
-    /// pseudotypenodebuilder.go:363-366), so the pseudo type is printed in
-    /// place of `any`. The value declaration of an object literal property
-    /// that is written twice is the first one: `{ a: 1, a: missing }`
-    /// prints `{ a: number; }`. tsc 6.0 printed the property's type.
-    ///
-    /// The pseudo type of a property assignment prints as the declaration's
-    /// own type does, with two exceptions: an expression the pseudochecker
-    /// gives up on (`Inferred`) prints the checker's type, here `any`, and
-    /// a type assertion prints its type node as written.
-    fn error_property_pseudo_type_text(
-        &mut self,
-        property: SymbolId,
-        fully_qualified: bool,
-    ) -> CheckResult<Option<JsString>> {
-        let data = self.binder.symbol(property);
-        let Some(declaration) = data
-            .value_declaration
-            .or_else(|| data.declarations.first().copied())
-        else {
-            return Ok(None);
-        };
-        if !matches!(
-            self.kind_of(declaration),
-            SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
-        ) {
-            return Ok(None);
-        }
-        let pseudo =
-            crate::pseudochecker::PseudoChecker::new(self).get_type_of_declaration(declaration);
-        match pseudo {
-            crate::pseudochecker::PseudoType::Inferred(_) => Ok(None),
-            crate::pseudochecker::PseudoType::Direct(type_node) => {
-                self.reusable_annotation_node_text(type_node)
-            }
-            _ => {
-                let symbol = self.get_symbol_of_declaration(declaration)?;
-                if symbol == self.unknown_symbol {
-                    return Ok(None);
-                }
-                let declared = self.get_type_of_symbol(symbol)?;
-                let declared = self.get_widened_literal_type(declared)?;
-                Ok(Some(self.type_to_string_ex(declared, fully_qualified)?))
-            }
-        }
     }
 
     /// tsc-port: typeFromSingleReturnExpression @6.0.3 (the reusable
@@ -14661,4 +14593,677 @@ mod tests;
 pub(crate) struct NameAsWritten {
     pub(crate) name: JsString,
     pub(crate) anonymous: bool,
+}
+
+// ---- the pseudo-type display of a declaration (tsgo serializeTypeForDeclaration
+// with an enclosing declaration; pseudotypenodebuilder.go pseudoTypeToNode) ----
+
+impl<'a> CheckerState<'a> {
+    /// tsgo serializeTypeForDeclaration (nodebuilderimpl.go:2253) with an
+    /// enclosing declaration: a property whose value declaration has an
+    /// inferred type (or is an accessor) prints the pseudo type of that
+    /// declaration when it describes the property's type. The parts the
+    /// pseudo type builds charge nothing toward the truncation budget
+    /// (pseudotypenodebuilder.go has no approximateLength); only the checker
+    /// types it falls back to do. An error type is charitably equal, so an
+    /// unresolved property prints its declaration's pseudo type in place of
+    /// `any`.
+    fn pseudo_declaration_text(
+        &mut self,
+        property: SymbolId,
+        property_type: TypeId,
+        fully_qualified: bool,
+    ) -> CheckResult<Option<JsString>> {
+        if self.display_enclosing.is_none() {
+            return Ok(None);
+        }
+        let (value_declaration, declarations) = {
+            let data = self.binder.symbol(property);
+            (data.value_declaration, data.declarations.clone())
+        };
+        let Some(declaration) = value_declaration.or_else(|| declarations.first().copied()) else {
+            return Ok(None);
+        };
+        let accessor = matches!(
+            self.kind_of(declaration),
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+        );
+        let inferred = crate::node_builder::serialize::has_inferred_type(self, declaration)
+            && !crate::node_builder::serialize::node_is_synthesized(self, declaration)
+            && !self
+                .tables
+                .object_flags_of(property_type)
+                .intersects(ObjectFlags::REQUIRES_WIDENING);
+        if !(accessor || inferred) {
+            return Ok(None);
+        }
+        let mut pseudo = {
+            let pseudochecker = crate::pseudochecker::PseudoChecker::new(self);
+            if accessor {
+                pseudochecker.get_type_of_accessor(declaration)
+            } else {
+                pseudochecker.get_type_of_declaration(declaration)
+            }
+        };
+        // Binary expressions annotate first-in-wins: the first one with an
+        // annotation types the rest.
+        if matches!(pseudo, PseudoType::NoResult(_))
+            && self.kind_of(declaration) == SyntaxKind::BinaryExpression
+        {
+            if let Some(annotated) = declarations
+                .iter()
+                .copied()
+                .find(|&other| crate::node_builder::serialize::has_type_annotation(self, other))
+            {
+                pseudo = crate::pseudochecker::PseudoChecker::new(self)
+                    .get_type_of_declaration(annotated);
+            }
+        }
+        let annotated_kind = matches!(
+            self.kind_of(declaration),
+            SyntaxKind::Parameter
+                | SyntaxKind::PropertySignature
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::JSDocParameterTag
+                | SyntaxKind::JSDocPropertyTag
+        );
+        let requires_adding_undefined = annotated_kind
+            && self.emit_requires_adding_implicit_undefined_to_declaration(
+                declaration,
+                Some(property),
+                self.display_enclosing,
+            )?;
+        let is_optional_annotated = !requires_adding_undefined
+            && annotated_kind
+            && self.is_optional_declaration(declaration);
+        // The display path reports no inference fallbacks.
+        let mut reports = Vec::new();
+        if pseudo_type_equivalent_to_type_core(
+            self,
+            &mut reports,
+            &pseudo,
+            property_type,
+            is_optional_annotated,
+            false,
+        )? {
+            if requires_adding_undefined && contains_non_missing_undefined(self, property_type) {
+                if let Some(pseudo_type) = pseudo_type_to_type_core(self, &pseudo)? {
+                    if !contains_non_missing_undefined(self, pseudo_type) {
+                        pseudo = PseudoType::Union(vec![pseudo, PseudoType::Undefined]);
+                    }
+                }
+            }
+            return self
+                .pseudo_text_with_checker_fallback(
+                    &pseudo,
+                    property_type,
+                    property,
+                    fully_qualified,
+                )
+                .map(Some);
+        }
+        let should_add_undefined = requires_adding_undefined
+            && match pseudo_type_to_type_core(self, &pseudo)? {
+                Some(pseudo_type) => !contains_non_missing_undefined(self, pseudo_type),
+                None => !could_already_refer_to_undefined_type(self, &pseudo),
+            };
+        if should_add_undefined {
+            let pseudo = PseudoType::Union(vec![pseudo, PseudoType::Undefined]);
+            if pseudo_type_equivalent_to_type_core(
+                self,
+                &mut reports,
+                &pseudo,
+                property_type,
+                false,
+                false,
+            )? {
+                return self
+                    .pseudo_text_with_checker_fallback(
+                        &pseudo,
+                        property_type,
+                        property,
+                        fully_qualified,
+                    )
+                    .map(Some);
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsgo pseudoTypeToNodeWithCheckerFallback: an `Inferred` pseudo type,
+    /// and a written type the JavaScript reuse rules refuse, print the
+    /// checker's type; everything else prints its pseudo type.
+    fn pseudo_text_with_checker_fallback(
+        &mut self,
+        pseudo: &PseudoType,
+        checker_type: TypeId,
+        property: SymbolId,
+        fully_qualified: bool,
+    ) -> CheckResult<JsString> {
+        match pseudo {
+            PseudoType::Inferred(_) => {
+                return self.type_to_string_ex(checker_type, fully_qualified)
+            }
+            PseudoType::Direct(existing) => {
+                // canReuseExistingJSTypeNode: an intended JSDoc type and a
+                // reference with the wrong number of type arguments print
+                // the type instead.
+                if self
+                    .get_intended_type_from_jsdoc_type_reference(*existing)?
+                    .is_some()
+                    || !self
+                        .reference_annotation_argument_count_compatible(*existing, checker_type)?
+                {
+                    return self.type_to_string_ex(checker_type, fully_qualified);
+                }
+            }
+            _ => {}
+        }
+        Ok(self
+            .pseudo_text(pseudo, Some((property, checker_type)), fully_qualified)?
+            .0)
+    }
+
+    /// tsgo pseudoTypeToNode (pseudotypenodebuilder.go:47-325) as text: the
+    /// pseudo type's own structure, with the checker's types only where the
+    /// pseudochecker gave up (`Inferred`, `NoResult`). `pinned` is the
+    /// property being printed and its type (tsgo's enclosingSymbolTypes),
+    /// which a declaration fallback for that same symbol reads back.
+    fn pseudo_text(
+        &mut self,
+        pseudo: &PseudoType,
+        pinned: Option<(SymbolId, TypeId)>,
+        fully_qualified: bool,
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
+        let strict_null_checks = self.tables.strict_null_checks;
+        match pseudo {
+            PseudoType::Direct(node) => self.reused_pseudo_node_text(*node, fully_qualified),
+            PseudoType::Inferred(inferred) => {
+                let node = inferred.expression;
+                if inferred.is_signature_return {
+                    let signature = self.get_signature_from_declaration(node)?;
+                    return self.signature_return_text(signature, fully_qualified);
+                }
+                // The parent declaration's symbol type handles the
+                // expression's widening without duplicating it.
+                if let Some(parent) = self.parent_of(node) {
+                    if self.kind_of(parent) == SyntaxKind::ReturnStatement {
+                        if let Some(enclosing) = self.get_containing_function(node) {
+                            if matches!(
+                                self.kind_of(enclosing),
+                                SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+                            ) {
+                                return self.declaration_fallback_text(
+                                    enclosing,
+                                    pinned,
+                                    fully_qualified,
+                                );
+                            }
+                            let signature = self.get_signature_from_declaration(enclosing)?;
+                            return self.signature_return_text(signature, fully_qualified);
+                        }
+                    }
+                    if matches!(
+                        self.data_of(parent),
+                        NodeData::ArrowFunction(data) if data.body == Some(node)
+                    ) {
+                        let signature = self.get_signature_from_declaration(parent)?;
+                        return self.signature_return_text(signature, fully_qualified);
+                    }
+                    if tsc_binder::node_util::is_declaration_node(
+                        self.binder.source_of_node(parent),
+                        parent,
+                    ) {
+                        return self.declaration_fallback_text(parent, pinned, fully_qualified);
+                    }
+                }
+                let ty = self.get_type_of_expression(node)?;
+                self.type_to_string_node(ty, fully_qualified)
+            }
+            PseudoType::NoResult(node) => {
+                let node = *node;
+                if node_util::is_function_like_kind(self.kind_of(node))
+                    && !matches!(
+                        self.kind_of(node),
+                        SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+                    )
+                {
+                    let signature = self.get_signature_from_declaration(node)?;
+                    return self.signature_return_text(signature, fully_qualified);
+                }
+                self.declaration_fallback_text(node, pinned, fully_qualified)
+            }
+            PseudoType::MaybeConstLocation(location) => {
+                // checkExpressionWithContextualType's literal widening rules.
+                let mut in_const_context = self.is_const_context(location.node)?;
+                if !in_const_context
+                    && crate::pseudochecker::PseudoChecker::new(self)
+                        .is_in_const_context(location.node)
+                {
+                    // Only consult the contextual type when the syntax is a
+                    // const context too: getContextualType answers
+                    // post-inference types here that initial checking may not
+                    // have had.
+                    let contextual_type =
+                        self.get_contextual_type(location.node, tsc_types::ContextFlags::NONE)?;
+                    if let Some(const_type) = pseudo_type_to_type_core(self, &location.const_type)?
+                    {
+                        let instantiated = self.instantiate_contextual_type(
+                            contextual_type,
+                            location.node,
+                            tsc_types::ContextFlags::NONE,
+                        )?;
+                        if self.is_literal_of_contextual_type(const_type, instantiated)? {
+                            in_const_context = true;
+                        }
+                    }
+                }
+                let chosen = if in_const_context {
+                    &location.const_type
+                } else {
+                    &location.regular_type
+                };
+                self.pseudo_text(chosen, pinned, fully_qualified)
+            }
+            PseudoType::Union(members) => {
+                let mut texts: Vec<JsString> = Vec::with_capacity(members.len());
+                let mut has_elided_type = false;
+                let mut has_undefined = false;
+                for member in members {
+                    if !strict_null_checks
+                        && matches!(member, PseudoType::Undefined | PseudoType::Null)
+                    {
+                        has_elided_type = true;
+                        continue;
+                    }
+                    let (text, kind) = self.pseudo_text(member, pinned, fully_qualified)?;
+                    // A union member flattens; only the first `undefined`
+                    // keyword stays.
+                    if kind == SliceTypeNodeKind::Keyword && text == "undefined" {
+                        if has_undefined {
+                            continue;
+                        }
+                        has_undefined = true;
+                    }
+                    if kind != SliceTypeNodeKind::Union && union_constituent_needs_parens(kind) {
+                        texts.push(crate::concat_js(&[&"(", &(text), &")"]));
+                    } else {
+                        texts.push(text);
+                    }
+                }
+                Ok(match texts.len() {
+                    0 => (
+                        if has_elided_type { "any" } else { "never" }.into(),
+                        SliceTypeNodeKind::Keyword,
+                    ),
+                    1 => {
+                        let text = texts.pop().expect("one member");
+                        let kind = if text.as_str().is_some_and(|text| text.starts_with('(')) {
+                            SliceTypeNodeKind::Reference
+                        } else {
+                            SliceTypeNodeKind::Keyword
+                        };
+                        (text, kind)
+                    }
+                    _ => (
+                        crate::join_js_texts(&texts, " | "),
+                        SliceTypeNodeKind::Union,
+                    ),
+                })
+            }
+            PseudoType::Undefined => Ok((
+                if strict_null_checks {
+                    "undefined"
+                } else {
+                    "any"
+                }
+                .into(),
+                SliceTypeNodeKind::Keyword,
+            )),
+            PseudoType::Null => Ok(if strict_null_checks {
+                ("null".into(), SliceTypeNodeKind::Literal)
+            } else {
+                ("any".into(), SliceTypeNodeKind::Keyword)
+            }),
+            PseudoType::String => Ok(("string".into(), SliceTypeNodeKind::Keyword)),
+            PseudoType::Number => Ok(("number".into(), SliceTypeNodeKind::Keyword)),
+            PseudoType::BigInt => Ok(("bigint".into(), SliceTypeNodeKind::Keyword)),
+            PseudoType::Boolean => Ok(("boolean".into(), SliceTypeNodeKind::Keyword)),
+            PseudoType::False => Ok(("false".into(), SliceTypeNodeKind::Literal)),
+            PseudoType::True => Ok(("true".into(), SliceTypeNodeKind::Literal)),
+            PseudoType::StringLiteral(source)
+            | PseudoType::NumericLiteral(source)
+            | PseudoType::BigIntLiteral(source) => {
+                // The literal as written: tsgo reuses the node, and a reused
+                // node charges its source span (nodecopy.go
+                // tryReuseExistingNodeHelper).
+                self.charge_reused_node_span(*source);
+                Ok((
+                    self.text_of_node(*source)?.into(),
+                    SliceTypeNodeKind::Literal,
+                ))
+            }
+            PseudoType::SingleCallSignature(signature) => {
+                let declaration = signature.signature;
+                self.with_reused_node_scope(declaration, |state| {
+                    let type_parameters = state
+                        .pseudo_type_parameters_text(&signature.type_parameters, fully_qualified)?;
+                    let parameters = state.pseudo_parameters_text(
+                        &signature.parameters,
+                        pinned,
+                        fully_qualified,
+                    )?;
+                    let (return_text, _) =
+                        state.pseudo_text(&signature.return_type, pinned, fully_qualified)?;
+                    Ok((
+                        crate::concat_js(&[
+                            &(type_parameters),
+                            &"(",
+                            &(parameters),
+                            &") => ",
+                            &(return_text),
+                        ]),
+                        SliceTypeNodeKind::FunctionType,
+                    ))
+                })
+            }
+            PseudoType::Tuple(elements) => {
+                let mut texts = Vec::with_capacity(elements.len());
+                for element in elements {
+                    texts.push(self.pseudo_text(element, pinned, fully_qualified)?.0);
+                }
+                // Pseudo tuples come from `as const`, so they are `readonly`.
+                Ok((
+                    crate::concat_js(&[&"readonly [", &(crate::join_js_texts(&texts, ", ")), &"]"]),
+                    SliceTypeNodeKind::TypeOperator,
+                ))
+            }
+            PseudoType::ObjectLiteral(elements) => {
+                self.pseudo_object_literal_text(elements, pinned, fully_qualified)
+            }
+        }
+    }
+
+    /// tsgo tryReuseExistingNodeHelper (nodecopy.go:222-232): a reused node
+    /// charges its source span, leading trivia included, toward the
+    /// truncation budget.
+    fn charge_reused_node_span(&mut self, node: NodeId) {
+        let span = self.end_of(node).saturating_sub(self.pos_of(node)) as usize;
+        self.display_add_approximate_length(span);
+    }
+
+    /// tsgo reuseTypeNode (nodecopy.go:56-76): the written node through the
+    /// existing-node visitor (its source span charged), else its type.
+    fn reused_pseudo_node_text(
+        &mut self,
+        node: NodeId,
+        fully_qualified: bool,
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
+        if let Some(face) = self.reused_type_node_boundary_face(node)? {
+            return Ok((face.text, face.kind));
+        }
+        let ty = self.get_type_from_type_node(node)?;
+        let mapper = self.display_mappers.last().copied();
+        let ty = self.instantiate_type(ty, mapper)?;
+        self.type_to_string_node(ty, fully_qualified)
+    }
+
+    /// tsgo serializeReturnTypeForSignature for a pseudo type's fallback.
+    fn signature_return_text(
+        &mut self,
+        signature: SignatureId,
+        fully_qualified: bool,
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
+        Ok((
+            self.serialize_return_type_for_signature_display(signature, fully_qualified)?,
+            SliceTypeNodeKind::Reference,
+        ))
+    }
+
+    /// tsgo serializeTypeForDeclaration(declaration, nil, nil, false): the
+    /// declaration's symbol type (the pinned property's type for that
+    /// property; a setter's write type; otherwise the widened literal type)
+    /// under the current mapper, printed as a type.
+    fn declaration_fallback_text(
+        &mut self,
+        declaration: NodeId,
+        pinned: Option<(SymbolId, TypeId)>,
+        fully_qualified: bool,
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
+        let symbol = self.get_symbol_of_declaration(declaration)?;
+        let symbol = (symbol != self.unknown_symbol).then_some(symbol);
+        let mapper = self.display_mappers.last().copied();
+        let error = self.tables.intrinsics.error;
+        let mut ty = match symbol {
+            None => {
+                if crate::node_builder::serialize::is_variable_like(self, declaration) {
+                    self.get_type_for_variable_like_declaration(
+                        declaration,
+                        false,
+                        tsc_types::CheckMode::NORMAL,
+                    )?
+                    .unwrap_or(error)
+                } else {
+                    error
+                }
+            }
+            Some(symbol) => match pinned {
+                Some((pinned_symbol, pinned_type)) if pinned_symbol == symbol => pinned_type,
+                _ => {
+                    let flags = self.symbol_flags(symbol);
+                    if flags.intersects(SymbolFlags::ACCESSOR)
+                        && self.kind_of(declaration) == SyntaxKind::SetAccessor
+                    {
+                        let write = self.get_write_type_of_symbol(symbol)?;
+                        self.instantiate_type(write, mapper)?
+                    } else if !flags.intersects(SymbolFlags::TYPE_LITERAL | SymbolFlags::SIGNATURE)
+                    {
+                        let symbol_type = self.get_type_of_symbol(symbol)?;
+                        let widened = self.get_widened_literal_type(symbol_type)?;
+                        self.instantiate_type(widened, mapper)?
+                    } else {
+                        error
+                    }
+                }
+            },
+        };
+        if ty == error {
+            if let Some(recovered) =
+                crate::node_builder::serialize::recover_suppressed_import_call_return_type(
+                    self,
+                    declaration,
+                )
+            {
+                ty = self.instantiate_type(recovered, mapper)?;
+            }
+        }
+        // A parameter adds `undefined` when its declaration requires it.
+        if matches!(
+            self.kind_of(declaration),
+            SyntaxKind::Parameter | SyntaxKind::JSDocParameterTag
+        ) && self.emit_requires_adding_implicit_undefined_to_declaration(
+            declaration,
+            symbol,
+            self.display_enclosing,
+        )? {
+            ty = self.get_optional_type(ty, false)?;
+        }
+        self.type_to_string_node(ty, fully_qualified)
+    }
+
+    /// The reused type parameter declarations of a pseudo signature, as
+    /// `<…>` (tsgo reuseNode on each written declaration).
+    fn pseudo_type_parameters_text(
+        &mut self,
+        type_parameters: &[NodeId],
+        fully_qualified: bool,
+    ) -> CheckResult<JsString> {
+        if type_parameters.is_empty() {
+            return Ok(JsString::new());
+        }
+        let mut texts = Vec::with_capacity(type_parameters.len());
+        for &declaration in type_parameters {
+            // tsgo reuses each written declaration, charging its span.
+            self.charge_reused_node_span(declaration);
+            let symbol = self.get_symbol_of_declaration(declaration)?;
+            let ty = self.get_declared_type_of_symbol(symbol)?;
+            texts.push(self.type_parameter_to_declaration_display(ty, fully_qualified)?);
+        }
+        Ok(crate::concat_js(&[
+            &"<",
+            &(crate::join_js_texts(&texts, ", ")),
+            &">",
+        ]))
+    }
+
+    /// tsgo pseudoParametersToNodeList / pseudoParameterToNode: each
+    /// parameter's name as declared, `?` or `...` as recorded, and its pseudo
+    /// type; the parameters charge nothing.
+    fn pseudo_parameters_text(
+        &mut self,
+        parameters: &[PseudoParameter],
+        pinned: Option<(SymbolId, TypeId)>,
+        fully_qualified: bool,
+    ) -> CheckResult<JsString> {
+        let mut texts = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
+            let name = match self.data_of(parameter.parameter) {
+                NodeData::Parameter(data) => data.name,
+                NodeData::JSDocParameterTag(data) => data.name,
+                _ => None,
+            };
+            let name_text: JsString = match name {
+                Some(name) => match self.data_of(name) {
+                    NodeData::Identifier(data) => data.text().into(),
+                    NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_) => {
+                        self.binding_pattern_text(name)?
+                    }
+                    _ => self.member_name_node_text(name)?,
+                },
+                None => {
+                    let symbol = self.get_symbol_of_declaration(parameter.parameter)?;
+                    self.symbol_display_name(symbol)
+                }
+            };
+            let (type_text, _) = self.pseudo_text(&parameter.r#type, pinned, fully_qualified)?;
+            texts.push(crate::concat_js(&[
+                &(if parameter.rest { "..." } else { "" }),
+                &(name_text),
+                &(if parameter.optional { "?" } else { "" }),
+                &": ",
+                &(type_text),
+            ]));
+        }
+        Ok(crate::join_js_texts(&texts, ", "))
+    }
+
+    /// tsgo pseudoTypeToNode's object literal arm: the members from the
+    /// pseudo elements (readonly under a const context, methods as method
+    /// signatures or, under const, function-typed properties, accessors as
+    /// written), with no truncation marker and no charge.
+    fn pseudo_object_literal_text(
+        &mut self,
+        elements: &[PseudoObjectElement],
+        pinned: Option<(SymbolId, TypeId)>,
+        fully_qualified: bool,
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
+        let Some(first) = elements.first() else {
+            return Ok(("{}".into(), SliceTypeNodeKind::TypeLiteral));
+        };
+        // The checker's isConstContext (not the pseudochecker's) also makes
+        // an object in a const type parameter's argument position readonly.
+        let object_literal = self.parent_of(first.member).unwrap_or(first.member);
+        let is_const = self.is_const_context(object_literal)?;
+        let mut rendered = Vec::with_capacity(elements.len());
+        for element in elements {
+            let readonly = is_const
+                || matches!(
+                    element.kind,
+                    PseudoObjectElementKind::PropertyAssignment { readonly: true, .. }
+                );
+            let modifier = if readonly { "readonly " } else { "" };
+            // tsgo reuseName reuses the written name, charging its span.
+            self.charge_reused_node_span(element.name);
+            let name = match self.node_symbol(element.member) {
+                Some(symbol) => self.property_name_display(symbol, fully_qualified)?,
+                None => self.member_name_node_text(element.name)?,
+            };
+            let text = match &element.kind {
+                PseudoObjectElementKind::Method {
+                    signature,
+                    type_parameters,
+                    parameters,
+                    return_type,
+                } => {
+                    let declaration = *signature;
+                    self.with_reused_node_scope(declaration, |state| {
+                        let type_parameters =
+                            state.pseudo_type_parameters_text(type_parameters, fully_qualified)?;
+                        let parameters =
+                            state.pseudo_parameters_text(parameters, pinned, fully_qualified)?;
+                        let (return_text, _) =
+                            state.pseudo_text(return_type, pinned, fully_qualified)?;
+                        Ok(if is_const {
+                            crate::concat_js(&[
+                                &(modifier),
+                                &(name),
+                                &": ",
+                                &(type_parameters),
+                                &"(",
+                                &(parameters),
+                                &") => ",
+                                &(return_text),
+                            ])
+                        } else {
+                            crate::concat_js(&[
+                                &(modifier),
+                                &(name),
+                                &(type_parameters),
+                                &"(",
+                                &(parameters),
+                                &"): ",
+                                &(return_text),
+                            ])
+                        })
+                    })?
+                }
+                PseudoObjectElementKind::PropertyAssignment { r#type, .. } => {
+                    let (type_text, _) = self.pseudo_text(r#type, pinned, fully_qualified)?;
+                    crate::concat_js(&[&(modifier), &(name), &": ", &(type_text)])
+                }
+                PseudoObjectElementKind::SetAccessor {
+                    signature,
+                    parameter,
+                } => {
+                    let declaration = *signature;
+                    self.with_reused_node_scope(declaration, |state| {
+                        let parameters = state.pseudo_parameters_text(
+                            std::slice::from_ref(parameter),
+                            pinned,
+                            fully_qualified,
+                        )?;
+                        Ok(crate::concat_js(&[
+                            &"set ",
+                            &(name),
+                            &"(",
+                            &(parameters),
+                            &")",
+                        ]))
+                    })?
+                }
+                PseudoObjectElementKind::GetAccessor { signature, r#type } => {
+                    let declaration = *signature;
+                    self.with_reused_node_scope(declaration, |state| {
+                        let (type_text, _) = state.pseudo_text(r#type, pinned, fully_qualified)?;
+                        Ok(crate::concat_js(&[&"get ", &(name), &"(): ", &(type_text)]))
+                    })?
+                }
+            };
+            rendered.push(text);
+        }
+        Ok((
+            crate::concat_js(&[&"{ ", &(crate::join_js_texts(&rendered, "; ")), &"; }"]),
+            SliceTypeNodeKind::TypeLiteral,
+        ))
+    }
 }
