@@ -3286,15 +3286,32 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: db92e7ec2cc0c83423b0931394ac73aabadd9028b9f2a3a8a98024bcaef6f4f7
     /// tsc-span: _tsc.js:60336-60340
     fn is_local_type_alias(&self, symbol: SymbolId) -> bool {
+        // tsgo isTypeAlias: a type alias declaration or a reparsed `@typedef`
+        // / `@callback` (its JSTypeAliasDeclaration).
         let declaration = self
             .binder
             .symbol(symbol)
             .declarations
             .iter()
             .copied()
-            .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration);
+            .find(|&declaration| {
+                self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration
+                    || self.is_jsdoc_type_alias(declaration)
+            });
         declaration.is_some_and(|declaration| {
-            let mut current = self.parent_of(declaration);
+            // tsgo's reparser hoists a comment's `@typedef` beside the
+            // statement the comment belongs to (parser.go parseListIndex),
+            // so the containing function is sought from that statement's
+            // parent: a typedef inside a function body is local (its
+            // `Record<…>` prints without the alias, as a local `type` does),
+            // one on a top-level function is not.
+            let mut current = if self.is_jsdoc_type_alias(declaration) {
+                self.parent_of(declaration)
+                    .and_then(|document| self.parent_of(document))
+                    .and_then(|host| self.parent_of(host))
+            } else {
+                self.parent_of(declaration)
+            };
             while let Some(node) = current {
                 if tsc_binder::node_util::is_function_like_kind(self.kind_of(node)) {
                     return true;

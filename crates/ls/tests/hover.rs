@@ -2069,3 +2069,56 @@ fn a_javascript_template_constraint_charges_the_type_inside_its_braces() {
     assert_eq!(hover_text, expected);
     assert_eq!(range, ((line, 6), (line, 7)));
 }
+
+/// A `@typedef` inside a function body is a local type alias, so a
+/// `Record<string, number>` it names prints without the alias — as a local
+/// `type` alias does (getTypeFromTypeAliasReference's isLocalTypeAlias): tsgo
+/// hovers `const values: Record<string, number>`; a top-level typedef keeps
+/// its name. tsc-rs counted only `type` declarations as aliases and hovered
+/// `const values: LocalValues` (tsgo aa814927; webpack's
+/// `WorkerAndWorkletPlugin.js` `values: Values` signature help).
+#[test]
+fn a_typedef_inside_a_function_is_a_local_type_alias() {
+    let text = "/** @typedef {Record<string, number>} TopValues */\n/** @type {TopValues} */\nconst top = {};\nfunction parse() {\n\t/** @typedef {Record<string, number>} LocalValues */\n\t/** @type {LocalValues} */\n\tconst values = {};\n\treturn { values };\n}\nmodule.exports = { top, parse };\n";
+    let files = [("/b.js", text)];
+    let javascript = || {
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        })
+    };
+    let (top, _, _) = hover(&files, javascript(), "/b.js", (2, 6), None).expect("a hover");
+    assert_eq!(top, "```typescript\nconst top: TopValues\n```\n");
+    let (local, _, _) = hover(&files, javascript(), "/b.js", (6, 7), None).expect("a hover");
+    assert_eq!(
+        local,
+        "```typescript\nconst values: Record<string, number>\n```\n"
+    );
+}
+
+/// A top-level `@typedef` alias is a non-generic top-level type, as a
+/// top-level `type` alias is (tsgo's isNonGenericTopLevelType also accepts
+/// the reparsed JSTypeAliasDeclaration), so instantiating a signature that
+/// mentions it leaves the type itself: the parameter's written
+/// `PartialContextDependencyOptions` is reused in the call's hover. tsc-rs
+/// re-instantiated `Partial<Omit<ContextDependencyOptions, "resource">>`
+/// under the call's mapper into a second object and printed that (tsgo
+/// aa814927; webpack's `ContextDependencyHelpers.create` signature help).
+#[test]
+fn a_top_level_typedef_alias_survives_a_generic_call_s_instantiation() {
+    let files = [
+        ("/options.js", "/** @typedef {{ resource: string; recursive?: boolean; regExp?: RegExp }} ContextOptions */\nmodule.exports = {};\n"),
+        ("/helpers.js", "/** @typedef {import(\"./options\").ContextOptions} ContextDependencyOptions */\n/** @typedef {Partial<Omit<ContextDependencyOptions, \"resource\">>} PartialContextDependencyOptions */\n/** @typedef {{ new (options: ContextDependencyOptions, range: number): object }} ContextDependencyConstructor */\n/**\n * @template {ContextDependencyConstructor} T\n * @param {T} Dep the Dependency class\n * @param {string} request the request\n * @param {PartialContextDependencyOptions} contextOptions the options\n * @returns {InstanceType<T>} dep\n */\nconst create = (Dep, request, contextOptions) => /** @type {InstanceType<T>} */ (new Dep({ resource: request, ...contextOptions }, 1));\nmodule.exports = { create };\n"),
+        ("/use.js", "const ContextDependencyHelpers = require(\"./helpers\");\nclass Dep {\n\t/**\n\t * @param {import(\"./options\").ContextOptions} o the options\n\t * @param {number} r the range\n\t */\n\tconstructor(o, r) {\n\t\tthis.o = o;\n\t\tthis.r = r;\n\t}\n}\nconst dep = ContextDependencyHelpers.create(Dep, \"req\", { recursive: true });\nmodule.exports = { dep };\n"),
+    ];
+    let javascript = options(|options| {
+        options.allow_js = true;
+        options.check_js = Some(true);
+    });
+    let (text, _, _) = hover(&files, javascript, "/use.js", (11, 40), None).expect("a hover");
+    let signature = text.lines().nth(1).expect("the signature line");
+    assert_eq!(
+        signature,
+        "(property) create: <typeof Dep>(Dep: typeof Dep, request: string, contextOptions: ContextDependencyHelpers.PartialContextDependencyOptions) => Dep"
+    );
+}
