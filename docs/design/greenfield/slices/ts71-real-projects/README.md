@@ -632,6 +632,59 @@ runtime-test・vue の index と、`vue/src/runtime`・`vue-compat/src/esm-index
   `scripts/jsdoc_corpus.py check --server target/release/tsc-rs`：60/60 ok。log：`target/claude-tools/logs/slice5-final`・`slice5`。
 - **道具**：`handover/jsdoc-corpus-suite-design.md`、`handover/slice5-chain1.sh`、`handover/slice5-pr-body.md`。
 
+### 修正 10：JS method の `@returns {X[T]}` が呼び出しの hover で instantiate されない（PR #836、2026-10-18、Fable 5.1）
+
+- **merge**：#836 → `83e8a676a`（hosted run 39074664075）。
+- **現象**：`@template {string} T`・`@param {T} type`・`@returns {Mapped[T]}` の JS class method を `f.mapped("a")` と呼ぶと、hover が
+  `(method) F.mapped<"a">(type: "a"): Mapped[T]` だった（tsgo は `Mapped["a"]`）。corpus `w2-generic` の known 1 件、webpack
+  `implicitTypeLoaderFallback.js` ×2。
+- **原因**：`isTypeParameterPossiblyReferenced` の `containsReference` の MethodDeclaration 分岐（本体があり return 型が無ければ true）。tsgo の
+  checker は reparse 済みの node を見る —— JS method の `@returns` の型は `Type`、`@template` は `TypeParameters`、`@this` は先頭の parameter —— ので、
+  `@returns` のある JS method は class の `this` 型を「参照しうる」とされず、その型は `this` 引数で instantiate されず（`resolveTypeReferenceMembers` は
+  `[thisType]` を class 型で埋め、`Mapped[T]` では `isThisless` が偽）、型パラメータも clone されない。こちらは構文上の `.type`（JS には無い）を見て
+  `this` mapper で method の型を instantiate し、`T` を clone していた。呼び出しの mapper は clone が key、書かれた `@returns {Mapped[T]}` の `T` は
+  宣言の方に解決されるので、node が `T` のまま再利用された。TS の twin も同じ機構：素の class は `Indexed["a"]`、namespace と merge した class
+  （宣言 2 つ = possibly referenced）は両者とも `Indexed[T]`。
+- **修正**（checker `instantiate.rs`・`jsdoc.rs`）：method 分岐は effective な return 型・type parameter 宣言・`@this` の型を見る。`children_of`
+  （walker の forEachChild adapter。`containsSameNamedThisProperty` も使う）は JS node の hosted reparse（type parameter、`@this` の型、
+  `@type`/`@param`/`@returns` の型、関数全体の `@type`、cast の型）を足す —— tsgo の生成 `ForEachChild` が訪れる node。helper
+  `reparsed_this_type_node` を追加。
+- **test**：ls hover `a_javascript_returns_index_access_is_instantiated_in_a_call_s_hover`（`Mapped["a"] | null`・`Indexed["a"]`・`Mapped["a"]`。
+  修正なしでは `Mapped[T] | null` で落ちる）。corpus `w2-generic/known.txt` を削除（一致した id は ratchet が fail させる）。
+- **session**：webpack 62 → 60（implicitTypeLoaderFallback ×2 が消えた。残り：qualifier 43、signatureHelp 6、truncation 2、`@import`
+  references 5、`@this` 0:0 3、NMF の推論 1）。prettier 5 → 6（新規 1 件は `indent.js:60:12` の auto-import `align`：1 file の probe では両者とも tsc-rs の答え＝tsgo の session 依存、`group.js:40:31` と同じ class）、ESLint 5（変化なし：truncation 4・TS2323 memo 14）、SvelteKit 1（key は変わった：`query.js:84:10` の auto-import `read` を tsgo の session だけが足す。1 file の probe は両者同一＝tsc-rs の答え、class B。前回の `routing.spec.js:365` は再現せず）、preact 3（変化なし：`component.js` の `this` definition 3 件、tsgo の 0:0 = memo 3）。
+- **検査**：最終バイトで（release build、nice 20、`cargo -j 2`、worker 2）：`conformance_ts71.py --workers 2 --check` 12,829 case・15,339 configuration、lane A 13,577 full・
+  mismatch 0、ratchet 0 regressions（変更なし）。`--checkers 4` + compare：15,335 一致・4 差（既知の 4 件、#832〜#835 と同じ）。`suites_ts71.py --update` → `--check`
+  exit 0、5,315 baseline・0 regressions・ratchet 変更なし（既知の 3 mismatch）。全 crate の test 合格（types 49、syntax 251、binder 78、program 684、checker 1,828、
+  emitter 352、ls 251、lsp 89、api 332、project 235、compiler 241、conformance 49、lsproto 31）。JSDoc corpus 60 case 合格（`w2-generic` の hover を ratchet が強制）。
+  fmt clean、clippy（checker・ls・cli、all targets、`-D warnings`）clean。focused：#834 の JSDoc 関連 116 case すべて full、`jsdoc_corpus.py check` 60/60。
+  hover test は修正なしでは `Mapped[T] | null` で落ちる。log：`target/claude-tools/logs/slice6`・`logs/slice6/final`。
+- **道具**：`handover/slice6-chain0.sh`（修正なしで test が落ちる確認 → chain 1）、`handover/slice6-chain1.sh`、`handover/slice6-pr-body.md`、
+  `handover/jsdoc-sessions-notes.md`（2026-10-18 06:05）。
+
+### 修正 11：JS の `@template {X} C` の制約は括弧の内側の型（PR #837、2026-10-18、Fable 5.1）
+
+- **merge**：#837 → `247e23f9a`（hosted run 39080260366）。
+- **現象**：webpack `lib/html/htmlMinify.js` の `util` の hover（予算 500）で、tsgo は `readonly registerNotSerializable: (Constructor: Constructor) => void;`
+  と出すのにこちらは `readonly registerNotSerializable: ...;`（session の「truncation budget」hover 2 件）。さらに JS の `/** @template {T} T */` の TS2313 を
+  tsgo は括弧内の `T`（`a.js(2,15)`）に出し、こちらは `{`（`a.js(2,14)`）に出していた。
+- **原因**：tsgo の reparser は `@template {X} C` の型パラメータの constraint に括弧内の型を clone する（`gatherTypeParameters` の `constraint.Type()`）が、
+  `get_constraint_declaration` は `JSDocTypeExpression`（`{X}`）全体を返していた。node builder は書かれた constraint を再利用し、再利用した node の
+  span を予算に加算する（tsgo `nodecopy.go`）ので、JS の constraint 1 つにつき 2 文字多く加算し、webpack では `register*` getter 4 つの後で
+  `registerNotSerializable` の関数型を予算超過で訪れて `...` にしていた。両 builder に一時 trace（tsgo は scratchpad に別 build、`TSGO_TRACE_PROP`；
+  tsc-rs は `TSRS_TRACE_PROP`、いずれも除去済み）を入れて member ごとの approximateLength を突き合わせて特定。修正後は一致し、webpack の hover も同一。
+- **修正**（checker `constraints.rs`）：`@template` の constraint 宣言は type expression の内側の型。
+- **test**（修正なしでは落ちる）：ls hover `a_javascript_template_constraint_charges_the_type_inside_its_braces`（制約つき getter 16 個で最後の member の型が
+  ちょうど予算 500 に乗る：tsgo は `readonly registerLast: (s: string) => void;`、こちらは `...` だった）、checker
+  `a_circular_template_constraint_is_reported_on_the_type_inside_its_braces`。
+- **検査**：最終バイトで（release build、nice 20、`cargo -j 2`、worker 2）：`conformance_ts71.py --workers 2 --check` 12,829 case・15,339 configuration、lane A 13,577 full・
+  mismatch 0、ratchet 0 regressions（変更なし）。`--checkers 4` + compare：15,335 一致・4 差（既知の 4 件）。`suites_ts71.py --update` → `--check` exit 0、
+  5,315 baseline・0 regressions・ratchet 変更なし（既知の 3 mismatch）。全 crate の test 合格（types 49、syntax 251、binder 78、program 684、checker 1,829、
+  emitter 352、ls 252、lsp 89、api 332、project 235、compiler 241、conformance 49、lsproto 31）、JSDoc corpus 60 case 合格。fmt・clippy clean。
+  log：`target/claude-tools/logs/slice7`・`logs/slice7/final`。
+- **道具**：`handover/slice7-plan.md`（残りは diagnostic 側 = string path の pseudo 経路の移植）、`scratchpad/ttp2`〜`ttp6`（trace 用 repro）、
+  `scratchpad/build-tsgo-trace.sh`（計測用 tsgo の build と vendored checkout の復元）。
+
 ## 3. 性能の slice 3（local のみ、未 push）
 
 - **worktree と branch**：`/Users/hiramatsu/dev/tsc-rs-p34` の `perf/ts71-lsp-request-threads`、HEAD は `b121051dd`
