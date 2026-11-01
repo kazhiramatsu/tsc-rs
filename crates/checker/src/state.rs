@@ -227,9 +227,115 @@ pub struct ResolvedMembers {
     /// plus inherited ones; see [`MemberTable`].
     pub members: MemberTable,
     pub properties: Vec<SymbolId>,
+    /// The signatures and index infos, which most resolved types have none
+    /// of (three empty lists were 72 of a record's 152 bytes, over a million
+    /// records on VS Code).
+    extras: Option<Box<MembersExtras>>,
+}
+
+/// The call and construct signatures and the index infos of a resolved
+/// type, allocated when the type has any.
+#[derive(Clone, Debug, Default)]
+pub struct MembersExtras {
     pub call_signatures: Vec<SignatureId>,
     pub construct_signatures: Vec<SignatureId>,
     pub index_infos: Vec<IndexInfo>,
+}
+
+impl ResolvedMembers {
+    pub fn new(
+        members: MemberTable,
+        properties: Vec<SymbolId>,
+        call_signatures: Vec<SignatureId>,
+        construct_signatures: Vec<SignatureId>,
+        index_infos: Vec<IndexInfo>,
+    ) -> Self {
+        let extras = (!call_signatures.is_empty()
+            || !construct_signatures.is_empty()
+            || !index_infos.is_empty())
+        .then(|| {
+            Box::new(MembersExtras {
+                call_signatures,
+                construct_signatures,
+                index_infos,
+            })
+        });
+        Self {
+            members,
+            properties,
+            extras,
+        }
+    }
+
+    pub fn call_signatures(&self) -> &[SignatureId] {
+        self.extras
+            .as_ref()
+            .map_or(&[], |extras| extras.call_signatures.as_slice())
+    }
+
+    pub fn construct_signatures(&self) -> &[SignatureId] {
+        self.extras
+            .as_ref()
+            .map_or(&[], |extras| extras.construct_signatures.as_slice())
+    }
+
+    pub fn index_infos(&self) -> &[IndexInfo] {
+        self.extras
+            .as_ref()
+            .map_or(&[], |extras| extras.index_infos.as_slice())
+    }
+
+    /// The lists for writing, allocated on the first write.
+    pub fn extras_mut(&mut self) -> &mut MembersExtras {
+        self.extras.get_or_insert_with(Default::default)
+    }
+
+    /// Replace the call signatures (tsc writes the three lists one at a
+    /// time); an empty list needs no record.
+    pub fn set_call_signatures(&mut self, call_signatures: Vec<SignatureId>) {
+        if !call_signatures.is_empty() || self.extras.is_some() {
+            self.extras_mut().call_signatures = call_signatures;
+        }
+    }
+
+    pub fn set_construct_signatures(&mut self, construct_signatures: Vec<SignatureId>) {
+        if !construct_signatures.is_empty() || self.extras.is_some() {
+            self.extras_mut().construct_signatures = construct_signatures;
+        }
+    }
+
+    pub fn set_index_infos(&mut self, index_infos: Vec<IndexInfo>) {
+        if !index_infos.is_empty() || self.extras.is_some() {
+            self.extras_mut().index_infos = index_infos;
+        }
+    }
+
+    /// Replace the three lists.
+    pub fn set_lists(
+        &mut self,
+        call_signatures: Vec<SignatureId>,
+        construct_signatures: Vec<SignatureId>,
+        index_infos: Vec<IndexInfo>,
+    ) {
+        self.extras = Self::new(
+            MemberTable::default(),
+            Vec::new(),
+            call_signatures,
+            construct_signatures,
+            index_infos,
+        )
+        .extras;
+    }
+
+    /// Bytes the lists own on the heap, for memory accounting.
+    pub fn extras_heap_bytes(&self) -> usize {
+        self.extras.as_ref().map_or(0, |extras| {
+            std::mem::size_of::<MembersExtras>()
+                + extras.call_signatures.capacity() * 4
+                + extras.construct_signatures.capacity() * 4
+                + extras.index_infos.capacity() * std::mem::size_of::<IndexInfo>()
+        })
+    }
 }
 
 /// The target of an in-flight lazy resolution (tsc pushes the symbol/
@@ -1165,9 +1271,7 @@ impl<'a> CheckerState<'a> {
             .map(|members| {
                 members.members.heap_bytes()
                     + members.properties.capacity() * 4
-                    + members.call_signatures.capacity() * 4
-                    + members.construct_signatures.capacity() * 4
-                    + members.index_infos.capacity() * std::mem::size_of::<IndexInfo>()
+                    + members.extras_heap_bytes()
             })
             .sum();
         rows.push((

@@ -370,9 +370,9 @@ impl<'a> CheckerState<'a> {
                     let members = self.resolve_structured_type_members(t)?;
                     let resolved = self.members_of(members);
                     if resolved.properties.is_empty()
-                        && resolved.call_signatures.is_empty()
-                        && resolved.construct_signatures.is_empty()
-                        && resolved.index_infos.is_empty()
+                        && resolved.call_signatures().is_empty()
+                        && resolved.construct_signatures().is_empty()
+                        && resolved.index_infos().is_empty()
                     {
                         has_empty_object = true;
                         break;

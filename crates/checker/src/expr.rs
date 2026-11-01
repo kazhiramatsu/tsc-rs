@@ -3172,13 +3172,13 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(id).object_flags = source_object_flags;
         self.tables.type_mut(id).symbol = symbol;
         self.order_named_members_if_stable(&mut properties, symbol);
-        let members_id = self.alloc_members(crate::state::ResolvedMembers {
-            members: self.member_table(&members),
+        let members_id = self.alloc_members(crate::state::ResolvedMembers::new(
+            self.member_table(&members),
             properties,
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
+            Vec::new(),
+            Vec::new(),
             index_infos,
-        });
+        ));
         self.links
             .set_fresh_type_members(id, crate::links::LinkSlot::Resolved(members_id));
         Ok(id)

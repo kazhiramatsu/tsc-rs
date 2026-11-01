@@ -8040,7 +8040,7 @@ impl<'a> CheckerState<'a> {
         }
         let members = self.resolve_structured_type_members(ty)?;
         let resolved = self.members_of(members);
-        Ok(!resolved.call_signatures.is_empty() || !resolved.construct_signatures.is_empty())
+        Ok(!resolved.call_signatures().is_empty() || !resolved.construct_signatures().is_empty())
     }
 
     /// tsc-port: createDefaultPropertyWrapperForModule @6.0.3
@@ -8223,7 +8223,7 @@ impl<'a> CheckerState<'a> {
         let members_id = self.resolve_structured_type_members(module_type)?;
         let resolved = self.members_of(members_id);
         let member_table = resolved.members.clone();
-        let index_infos = resolved.index_infos.clone();
+        let index_infos = resolved.index_infos().to_vec();
         let properties = self.get_named_members(&member_table, Some(result))?;
         let anonymous = self.make_resolved_anonymous_type(
             Some(result),

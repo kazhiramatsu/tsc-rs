@@ -4252,13 +4252,13 @@ impl<'a> CheckerState<'a> {
             }
             let mut properties: Vec<SymbolId> = members.values().copied().collect();
             state.order_named_members_if_stable(&mut properties, None);
-            Ok(ResolvedMembers {
-                members: state.member_table(&members),
+            Ok(ResolvedMembers::new(
+                state.member_table(&members),
                 properties,
-                call_signatures: Vec::new(),
-                construct_signatures: Vec::new(),
+                Vec::new(),
+                Vec::new(),
                 index_infos,
-            })
+            ))
         })(self);
         match resolved {
             Ok(resolved) => {
@@ -4398,11 +4398,13 @@ impl<'a> CheckerState<'a> {
                 .set_fresh_symbol_type(length_symbol, LinkSlot::Resolved(data.length_type));
             properties.push(length_symbol);
             let members = self.symbol_list_to_table(&properties);
-            let id = self.alloc_members(ResolvedMembers {
-                members: self.member_table(&members),
+            let id = self.alloc_members(ResolvedMembers::new(
+                self.member_table(&members),
                 properties,
-                ..ResolvedMembers::default()
-            });
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ));
             // Resolving a tuple target can re-enter this routine while
             // synthesizing one of its member types.  The nested call owns
             // the first published table; use it rather than attempting a
@@ -4436,11 +4438,13 @@ impl<'a> CheckerState<'a> {
         // retracts the parked table.
         let call_symbol = members.get(&self.binder, InternalSymbolName::CALL);
         let new_symbol = members.get(&self.binder, InternalSymbolName::NEW);
-        let id = self.alloc_members(ResolvedMembers {
+        let id = self.alloc_members(ResolvedMembers::new(
             members,
             properties,
-            ..ResolvedMembers::default()
-        });
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        ));
         // `getMembersOfSymbol`/`getNamedMembers` may force the same target
         // through a self-referential member.  That nested evaluation can
         // publish the declared-members table before this frame reaches its
@@ -4458,11 +4462,13 @@ impl<'a> CheckerState<'a> {
         self.links.set_type_declared_members(target, id);
         let filled = (|state: &mut Self| -> CheckResult<()> {
             let call_signatures = state.get_signatures_of_symbol(call_symbol)?;
-            state.members_mut(id).call_signatures = call_signatures;
+            state.members_mut(id).set_call_signatures(call_signatures);
             let construct_signatures = state.get_signatures_of_symbol(new_symbol)?;
-            state.members_mut(id).construct_signatures = construct_signatures;
+            state
+                .members_mut(id)
+                .set_construct_signatures(construct_signatures);
             let index_infos = state.get_index_infos_of_symbol(symbol)?;
-            state.members_mut(id).index_infos = index_infos;
+            state.members_mut(id).set_index_infos(index_infos);
             Ok(())
         })(self);
         match filled {
@@ -4520,21 +4526,21 @@ impl<'a> CheckerState<'a> {
                     MemberTable::from_symbols(&self.binder, &declared)
                 }
             };
-            call_signatures = self.members_of(source).call_signatures.clone();
-            construct_signatures = self.members_of(source).construct_signatures.clone();
-            index_infos = self.members_of(source).index_infos.clone();
+            call_signatures = self.members_of(source).call_signatures().to_vec();
+            construct_signatures = self.members_of(source).construct_signatures().to_vec();
+            index_infos = self.members_of(source).index_infos().to_vec();
         } else {
             let type_mapper =
                 self.create_type_mapper(type_parameters.to_vec(), Some(type_arguments.to_vec()));
             mapper = Some(type_mapper);
             let declared_properties = self.members_of(source).properties.clone();
             members = self.create_instantiated_symbol_table(&declared_properties, type_mapper)?;
-            let declared_calls = self.members_of(source).call_signatures.clone();
+            let declared_calls = self.members_of(source).call_signatures().to_vec();
             call_signatures = self.instantiate_signature_list(&declared_calls, type_mapper)?;
-            let declared_constructs = self.members_of(source).construct_signatures.clone();
+            let declared_constructs = self.members_of(source).construct_signatures().to_vec();
             construct_signatures =
                 self.instantiate_signature_list(&declared_constructs, type_mapper)?;
-            let declared_index_infos = self.members_of(source).index_infos.clone();
+            let declared_index_infos = self.members_of(source).index_infos().to_vec();
             index_infos = self.instantiate_index_info_list(&declared_index_infos, type_mapper)?;
         }
         let base_types = self.get_base_types(source_type)?;
@@ -4604,13 +4610,13 @@ impl<'a> CheckerState<'a> {
         }
         let container = self.tables.type_of(ty).symbol;
         let properties = self.get_named_members(&members, container)?;
-        let id = self.alloc_members(ResolvedMembers {
+        let id = self.alloc_members(ResolvedMembers::new(
             members,
             properties,
             call_signatures,
             construct_signatures,
             index_infos,
-        });
+        ));
         self.links
             .set_type_members(self.speculation_depth, ty, LinkSlot::Resolved(id));
         Ok(id)
@@ -7073,13 +7079,13 @@ impl<'a> CheckerState<'a> {
                 let index_infos = state.instantiate_index_info_list(&target_index_infos, mapper)?;
                 let container = state.tables.type_of(ty).symbol;
                 let properties = state.get_named_members(&members, container)?;
-                return Ok(ResolvedMembers {
+                return Ok(ResolvedMembers::new(
                     members,
                     properties,
                     call_signatures,
                     construct_signatures,
                     index_infos,
-                });
+                ));
             }
             let symbol = state
                 .tables
@@ -7102,13 +7108,13 @@ impl<'a> CheckerState<'a> {
                     members.get(&state.binder, InternalSymbolName::NEW),
                 )?;
                 let index_infos = state.get_index_infos_of_symbol(symbol)?;
-                return Ok(ResolvedMembers {
+                return Ok(ResolvedMembers::new(
                     members,
                     properties,
                     call_signatures,
                     construct_signatures,
                     index_infos,
-                });
+                ));
             }
             // 58341-58407: the value-side tail — exports as members,
             // static base inheritance for classes, call/construct
@@ -7146,10 +7152,13 @@ impl<'a> CheckerState<'a> {
                 // must see `b` in the staged table.
                 let stage_id = state.publish_anonymous_members_stage(
                     ty,
-                    ResolvedMembers {
-                        members: members.clone(),
-                        ..ResolvedMembers::default()
-                    },
+                    ResolvedMembers::new(
+                        members.clone(),
+                        Vec::new(),
+                        Vec::new(),
+                        Vec::new(),
+                        Vec::new(),
+                    ),
                 );
                 active_id = Some(stage_id);
                 let container = state.tables.type_of(ty).symbol;
@@ -7271,13 +7280,13 @@ impl<'a> CheckerState<'a> {
                 }
                 let container = state.tables.type_of(ty).symbol;
                 let properties = state.get_named_members(&members, container)?;
-                Ok(ResolvedMembers {
+                Ok(ResolvedMembers::new(
                     members,
                     properties,
                     call_signatures,
                     construct_signatures,
                     index_infos,
-                })
+                ))
             }
         })(self);
         match resolved {
@@ -10648,13 +10657,13 @@ impl<'a> CheckerState<'a> {
             .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS | object_flags;
         self.order_named_members_if_stable(&mut properties, None);
-        let members_id = self.alloc_members(crate::state::ResolvedMembers {
-            members: self.member_table(&members),
+        let members_id = self.alloc_members(crate::state::ResolvedMembers::new(
+            self.member_table(&members),
             properties,
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_infos: string_index_info.into_iter().collect(),
-        });
+            Vec::new(),
+            Vec::new(),
+            string_index_info.into_iter().collect(),
+        ));
         self.links
             .set_fresh_type_members(id, crate::links::LinkSlot::Resolved(members_id));
         if include_pattern_in_type {
