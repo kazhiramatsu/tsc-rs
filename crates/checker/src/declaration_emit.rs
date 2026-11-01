@@ -47,11 +47,6 @@ impl std::ops::BitOr for SymbolFormatFlags {
 
 fn declaration_emit_symbol_builder_abort(error: EmitResolverError) -> CheckAbort {
     match error {
-        EmitResolverError::CheckerAborted { reason, .. }
-            if reason == OracleCrashKind::OuterJsdocTemplateReferenceDisplay.description() =>
-        {
-            CheckAbort::OracleCrash(OracleCrashKind::OuterJsdocTemplateReferenceDisplay)
-        }
         error => panic!("symbolToString NodeBuilder failed unexpectedly: {error}"),
     }
 }

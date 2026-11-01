@@ -6969,9 +6969,7 @@ impl<'a> CheckerState<'a> {
                 .parent_symbol_of_type_parameter_display(type_parameters[argument_start])
                 .filter(|_| arguments.len() >= outer_type_parameter_count)
             else {
-                return Err(CheckAbort::OracleCrash(
-                    OracleCrashKind::OuterJsdocTemplateReferenceDisplay,
-                ));
+                panic!("outer JSDoc template reference display");
             };
             let group_start = argument_start;
             argument_start += 1;
