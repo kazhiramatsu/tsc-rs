@@ -253,12 +253,54 @@ main（#846 込み）を取り込んだ byte（f3）では VS Code 186.84 → 18
 main の取り込み `a2da70d1a`、文書 `05794d4e1`）。hosted run
 [41353036842](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41353036842)（`05794d4e1`）：全 job pass。
 
+## slice 7：profile の小さな切り口（branch `perf/ts71-profile-cuts`）
+
+#847 の byte で VS Code（1 thread）の samply profile を取り直した（`perf11/s-f3.json.gz`。`flat2.py` が 1 本の profile の
+self/inclusive、`chains.py` が関数名を切らずに呼び出し連鎖を出す）。work 11,984 sample のうち上位は memmove 5.0%、
+`PagedTable::get` 2.3%、`try_file_index_of_node` 1.8%、malloc/free 系 4.5%、scanner 5%、`__open` 2.1%（`std::fs::read` と
+`read_dir`。file ごとに 1 回で正常）。driver の側に、tsc の動作と無関係に消せる項目が 4 つあった。
+
+1. **file ごとの diagnostic の組み立て**（`semantic_diagnostics_for_program_file`、self 142 sample = 1.2%）：file ごとに checker の
+   全 row を file 名で filter していた（file 1 万 × row 1 万）。`checker_diagnostics_by_file` が row を一度だけ file 別に分け、
+   組み立てはその slice を読む（serial・sharded の両 driver、library prefix の完了後にもう一度）。1 file だけの getter は従来のまま。
+2. **行表の遅延**（`DensePositionIndex::new`、92 sample）：parser の `to_utf16`（parse diagnostic の位置）と loader の import span の
+   変換が、全 file の行表（byte と UTF-16 の行頭）まで作っていた。変換に要るのは非 ASCII 文字の表だけなので、行表は
+   `OnceLock<LineTables>` にして最初の行の問い合わせで作る（static な index は従来どおり構築時）。
+3. **resolved file name の正規化**（90 sample）：`resolveExternalModule` が型付きの import でも、untyped JS の拡張子判定のために
+   resolved file name を正規化していた。判定は拡張子だけなので正規化前の名前で行い、untyped JS のときだけ正規化する。
+4. **終了時の drop**（約 190 sample = 1.6%）：CLI は報告後に `_exit` するのに、checker の state・program の document・lib の
+   document を drop してから戻っていた。`AuthoritativeRun::leak_at_end`（CLI の batch 経路が `leak_program` から渡す。
+   harness・LSP・API は false）で `mem::forget` に任せる。
+
+試して捨てた：loader の `resolve_with_facts` が request ごとに containing file を正規化する（56 sample）ので、最後の file の
+正規化結果を resolver に持たせた。命令数は VS Code・Next.js・zod・TypeScript のどれも変わらず（±0.1%）、捨てた。
+
+**計測**（1 thread、f3 = #847 の byte → g3 = main を取り込んだ最終 byte）：
+
+| case | 命令数 | peak footprint | peak RSS |
+|---|---:|---:|---:|
+| VS Code | 185.83 → 180.05 G（−3.1%） | 4,179 → 4,159 MB | 4,278 → 4,264 MB |
+| TypeScript compiler noEmit | 12.37 → 12.27 G（−0.8%） | 207 → 206 MB | 221 → 218 MB |
+| Next.js noEmit | 38.31 → 37.75 G（−1.5%） | 882 → 871 MB | 907 → 929 MB |
+| zod | 26.91 → 26.59 G（−1.2%） | 831 → 824 MB | 859 → 852 MB |
+| effect | 22.91 → 22.80 G（−0.5%） | 630 → 631 MB | 644 → 654 MB |
+| hono | 3.74 → 3.68 G（−1.6%） | 129 → 126 MB | 143 → 141 MB |
+| vue | 20.49 → 20.34 G（−0.7%） | 370 → 374 MB | 398 → 394 MB |
+| playwright | 18.34 → 18.10 G（−1.3%） | 480 → 481 MB | 496 → 499 MB |
+
+出力は 8 case で f3 と一致。1〜4 を merge 前の byte で測った g1 も同じ（VS Code 185.15 → 180.06 G）。peak は項目 4 で変わらない
+（forget は確保を増やさず、peak は check の途中）。
+
+
 ## 次の候補（効果の大きい順の見込み）
 
 1. `resolve_name` の `locals` は file ごとの `FxHashMap<NodeId, SymbolTable>`（`locals_of` が残る routing の最大の呼び出し元）。
    tsrs は node の field。program 全体で一つの map にすれば routing は消える（VS Code で約 36 万 entry）。
 2. JSDoc の hosted 表（`get_name_of_declaration` 18 か所など）：JS file の node だけが要るので、node の flag で先に分岐する。
-3. checker の memory：transient symbol 448 MB、symbol links 254 MB、`Type` 64 → 48 byte（上）、Union・Reference の list を
-   `TypeListId` に。
-4. 複製して返す API（`get_signatures_of_type`・`get_properties_of_type`、tsrs R18：−1〜−4%）。
-5. parser（tsrs R14：parse だけで −23.5%）、PGO + fat LTO（R7：−13〜14%、build の話）。
+3. scanner の token value（`scan_identifier_parts` が識別子を `JsString` に複製して keyword 判定で memcmp：memmove 60 +
+   self 97 sample）。escape のない識別子は source の slice を指す（tsgo の形）。`token_value` の読み手 61 か所。
+4. parser の relocate（`relocate_with_leases` + `relocate_node_data` 97 sample）：parse 後に store の slot へ複製している。
+5. checker の memory：transient symbol 384 MB、symbol links 254 MB（record を page に直接置けば `get` の load が 4 → 2。
+   node/type links は疎なので不可）、`Type` 64 → 48 byte（上）、Union・Reference の list を `TypeListId` に。
+6. 複製して返す API（`get_signatures_of_type`・`get_properties_of_type`、tsrs R18：−1〜−4%）。
+7. PGO + fat LTO（R7：−13〜14%、build の話）。

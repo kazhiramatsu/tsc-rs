@@ -4469,15 +4469,20 @@ impl<'a> CheckerState<'a> {
                 // suggestion. This is observable when allowJs brought
                 // a node_modules implementation into the program; the
                 // returned symbol remains authoritative.
-                if let Some(error_node) = error_node {
+                // The extension test reads the name as resolved: lexical
+                // normalization keeps the last segment, and every import
+                // resolved to a typed file leaves here without the
+                // normalized path.
+                if let Some(error_node) =
+                    error_node.filter(|_| Self::is_untyped_javascript_path(&resolved_file_name))
+                {
                     let resolved_file_path = Self::normalize_program_path(&resolved_file_name, "");
-                    if Self::is_untyped_javascript_path(&resolved_file_path)
-                        && if self.authoritative_module_provider.is_some() {
-                            resolved.is_external_library_import
-                        } else {
-                            Self::node_modules_package_root_for_path(&resolved_file_path).is_some()
-                        }
-                    {
+                    let external_library = if self.authoritative_module_provider.is_some() {
+                        resolved.is_external_library_import
+                    } else {
+                        Self::node_modules_package_root_for_path(&resolved_file_path).is_some()
+                    };
+                    if external_library {
                         let untyped = if self.authoritative_module_provider.is_some() {
                             UntypedModuleResolution {
                                 resolved_file_name: resolved_file_path,
