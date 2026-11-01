@@ -1152,9 +1152,9 @@ impl<'context> JsxVisitor<'context> {
     fn create_numeric_literal(&mut self, value: u32) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
                 text: value.to_string(),
-            }),
+            })),
             TransformFlags::NONE,
         )
     }

@@ -297,7 +297,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
     ) -> Result<TransformNode, EmitResolverError> {
         self.create_node(
             source,
-            NodeData::StringLiteral(StringLiteralData { text: text.into() }),
+            NodeData::StringLiteral(Box::new(StringLiteralData { text: text.into() })),
             TransformFlags::NONE,
         )
     }
@@ -1629,14 +1629,14 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             };
             result_parameters.push(self.create_node(
                 source,
-                NodeData::Parameter(ParameterData {
+                NodeData::Parameter(Box::new(ParameterData {
                     name: Some(name.node()),
                     modifiers: None,
                     dot_dot_dot_token: dot_dot_dot,
                     question_token,
                     r#type,
                     initializer: None,
-                }),
+                })),
                 TransformFlags::CONTAINS_TYPE_SCRIPT,
             )?);
         }

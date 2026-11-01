@@ -336,7 +336,9 @@ impl<'a> Decoder<'a> {
                 text: string(text),
                 contains_only_trivia_white_spaces: common & 1 != 0,
             })),
-            SyntaxKind::JSDocText => NodeData::JSDocText(JSDocTextData { text: string(text) }),
+            SyntaxKind::JSDocText => {
+                NodeData::JSDocText(Box::new(JSDocTextData { text: string(text) }))
+            }
             SyntaxKind::JSDocLink => NodeData::JSDocLink(Box::new(JSDocLinkData {
                 name: None,
                 text: string(text),
@@ -369,9 +371,9 @@ impl<'a> Decoder<'a> {
         match syntax_kind {
             SyntaxKind::StringLiteral => {
                 let token_flags = self.extended(data, 1);
-                let node_data = NodeData::StringLiteral(StringLiteralData {
+                let node_data = NodeData::StringLiteral(Box::new(StringLiteralData {
                     text: js_string(text),
-                });
+                }));
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena
                     .node_mut(node)
@@ -385,7 +387,8 @@ impl<'a> Decoder<'a> {
             }
             SyntaxKind::NumericLiteral => {
                 let token_flags = self.extended(data, 1);
-                let node_data = NodeData::NumericLiteral(NumericLiteralData { text: string(text) });
+                let node_data =
+                    NodeData::NumericLiteral(Box::new(NumericLiteralData { text: string(text) }));
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena.node_mut(node).set_numeric_literal_flags(
                     (token_flags & TokenFlags::NUMERIC_LITERAL_FLAGS.bits() as u32) as u16,
@@ -393,14 +396,16 @@ impl<'a> Decoder<'a> {
                 Ok(node)
             }
             SyntaxKind::BigIntLiteral => {
-                let node_data = NodeData::BigIntLiteral(BigIntLiteralData { text: string(text) });
+                let node_data =
+                    NodeData::BigIntLiteral(Box::new(BigIntLiteralData { text: string(text) }));
                 Ok(self.arena.alloc_node(node_data, pos, end, flags))
             }
             SyntaxKind::RegularExpressionLiteral => {
                 let token_flags = self.extended(data, 1);
-                let node_data = NodeData::RegularExpressionLiteral(RegularExpressionLiteralData {
-                    text: string(text),
-                });
+                let node_data =
+                    NodeData::RegularExpressionLiteral(Box::new(RegularExpressionLiteralData {
+                        text: string(text),
+                    }));
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena
                     .node_mut(node)

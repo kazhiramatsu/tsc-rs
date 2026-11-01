@@ -503,7 +503,7 @@ impl<'context> Es2018Visitor<'context> {
             NodeData::FunctionExpression(data) => {
                 Some(self.visit_function_expression(original, *data)?)
             }
-            NodeData::ArrowFunction(data) => Some(self.visit_arrow_function(original, data)?),
+            NodeData::ArrowFunction(data) => Some(self.visit_arrow_function(original, *data)?),
             NodeData::ClassDeclaration(data) if self.super_capture_is_active() => {
                 Some(self.visit_super_capture_boundary(original, NodeData::ClassDeclaration(data))?)
             }
@@ -513,9 +513,9 @@ impl<'context> Es2018Visitor<'context> {
             NodeData::MethodDeclaration(data) => {
                 Some(self.visit_method_declaration(original, *data)?)
             }
-            NodeData::GetAccessor(data) => Some(self.visit_get_accessor(original, data)?),
-            NodeData::SetAccessor(data) => Some(self.visit_set_accessor(original, data)?),
-            NodeData::Constructor(data) => Some(self.visit_constructor(original, data)?),
+            NodeData::GetAccessor(data) => Some(self.visit_get_accessor(original, *data)?),
+            NodeData::SetAccessor(data) => Some(self.visit_set_accessor(original, *data)?),
+            NodeData::Constructor(data) => Some(self.visit_constructor(original, *data)?),
             // `transformES2018` deliberately uses the propagated subtree bit,
             // not a scan for a direct `SpreadAssignment`. A prior transform
             // can synthesize an object literal around a value that still owns
@@ -2272,7 +2272,7 @@ impl<'context> Es2018Visitor<'context> {
         data.modifiers = transformed.modifiers;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::ArrowFunction(data))
+        self.update_without_visit(original, NodeData::ArrowFunction(Box::new(data)))
     }
 
     fn visit_method_declaration(
@@ -2319,7 +2319,7 @@ impl<'context> Es2018Visitor<'context> {
         data.modifiers = transformed.modifiers;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::GetAccessor(data))
+        self.update_without_visit(original, NodeData::GetAccessor(Box::new(data)))
     }
 
     fn visit_set_accessor(
@@ -2341,7 +2341,7 @@ impl<'context> Es2018Visitor<'context> {
         data.modifiers = transformed.modifiers;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::SetAccessor(data))
+        self.update_without_visit(original, NodeData::SetAccessor(Box::new(data)))
     }
 
     fn visit_constructor(
@@ -2363,7 +2363,7 @@ impl<'context> Es2018Visitor<'context> {
         data.modifiers = transformed.modifiers;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::Constructor(data))
+        self.update_without_visit(original, NodeData::Constructor(Box::new(data)))
     }
 
     fn transform_function(
@@ -2595,14 +2595,14 @@ impl<'context> Es2018Visitor<'context> {
             let flags = self.context.arena().propagate_child_flags(name)?;
             forwarded.push(self.context.factory()?.create_node(
                 self.source,
-                NodeData::Parameter(tsc_syntax::nodes::ParameterData {
+                NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
                     modifiers: None,
                     dot_dot_dot_token: None,
                     name: Some(name.node()),
                     question_token: None,
                     r#type: None,
                     initializer: None,
-                }),
+                })),
                 flags,
             )?);
         }
@@ -2645,7 +2645,7 @@ impl<'context> Es2018Visitor<'context> {
             )?;
             if follows_object_rest {
                 deferred_helpers.object_rest |= self.pattern_contains_object_rest(name)?;
-                visited.push(self.visit_parameter_after_object_rest(parameter, data, name, mode)?);
+                visited.push(self.visit_parameter_after_object_rest(parameter, *data, name, mode)?);
             } else if self.pattern_contains_object_rest(name)? {
                 follows_object_rest = true;
                 deferred_helpers.object_rest = true;
@@ -2805,11 +2805,11 @@ impl<'context> Es2018Visitor<'context> {
         let flags = flags_after_update(
             self.context.arena(),
             parameter,
-            &NodeData::Parameter(data.clone()),
+            &NodeData::Parameter(Box::new(data.clone())),
         )?;
         self.context
             .factory()?
-            .update_node(parameter, NodeData::Parameter(data), flags)
+            .update_node(parameter, NodeData::Parameter(Box::new(data)), flags)
     }
 
     fn visit_modifier_array_without_async(
@@ -4364,9 +4364,9 @@ impl<'context> Es2018Visitor<'context> {
         let text = text.into();
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
                 text: text.to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -4638,14 +4638,14 @@ impl<'context> Es2018Visitor<'context> {
         let name = self.create_identifier(name)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
                 name: Some(name.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -4668,14 +4668,14 @@ impl<'context> Es2018Visitor<'context> {
             | self.context.arena().propagate_child_flags(body)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
+            NodeData::ArrowFunction(Box::new(tsc_syntax::nodes::ArrowFunctionData {
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
                 equals_greater_than_token: Some(arrow.node()),
-            }),
+            })),
             flags,
         )
     }
@@ -4719,14 +4719,14 @@ impl<'context> Es2018Visitor<'context> {
         let flags = self.context.arena().propagate_child_flags(body)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::GetAccessor(tsc_syntax::nodes::GetAccessorData {
+            NodeData::GetAccessor(Box::new(tsc_syntax::nodes::GetAccessorData {
                 name: Some(name.node()),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             flags,
         )
     }
@@ -4747,14 +4747,14 @@ impl<'context> Es2018Visitor<'context> {
             | self.context.arena().propagate_child_flags(body)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
                 name: Some(name.node()),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             flags,
         )
     }
@@ -4993,9 +4993,9 @@ impl<'context> Es2018Visitor<'context> {
     fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
         let zero = self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
                 text: "0".to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         let flags = self.context.arena().propagate_child_flags(zero)?;

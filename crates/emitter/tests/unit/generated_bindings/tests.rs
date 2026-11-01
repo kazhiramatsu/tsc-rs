@@ -48,9 +48,9 @@ impl UnfinalizedGeneratedNameTransformer {
     ) -> Result<TransformNode, TransformError> {
         let zero = context.factory()?.create_node(
             source,
-            NodeData::NumericLiteral(syntax_nodes::NumericLiteralData {
+            NodeData::NumericLiteral(Box::new(syntax_nodes::NumericLiteralData {
                 text: "0".to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         context.factory()?.create_node(

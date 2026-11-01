@@ -421,13 +421,13 @@ impl<'context> TargetVisitor<'context> {
             NodeData::FunctionExpression(data) => {
                 Some(self.visit_function_expression(original, *data)?)
             }
-            NodeData::ArrowFunction(data) => Some(self.visit_arrow_function(original, data)?),
+            NodeData::ArrowFunction(data) => Some(self.visit_arrow_function(original, *data)?),
             NodeData::MethodDeclaration(data) => {
                 Some(self.visit_method_declaration(original, *data)?)
             }
-            NodeData::GetAccessor(data) => Some(self.visit_get_accessor(original, data)?),
-            NodeData::SetAccessor(data) => Some(self.visit_set_accessor(original, data)?),
-            NodeData::Constructor(data) => Some(self.visit_constructor(original, data)?),
+            NodeData::GetAccessor(data) => Some(self.visit_get_accessor(original, *data)?),
+            NodeData::SetAccessor(data) => Some(self.visit_set_accessor(original, *data)?),
+            NodeData::Constructor(data) => Some(self.visit_constructor(original, *data)?),
             NodeData::Token => Some(id),
             data => Some(self.update_generic(original, data)?),
         };
@@ -1273,7 +1273,7 @@ impl<'context> TargetVisitor<'context> {
             self.visit_optional_node(data.equals_greater_than_token)?;
         (data.parameters, data.body) =
             self.visit_function_scope(SyntaxKind::ArrowFunction, data.parameters, data.body, true)?;
-        self.update_without_visit(original, NodeData::ArrowFunction(data))
+        self.update_without_visit(original, NodeData::ArrowFunction(Box::new(data)))
     }
 
     fn visit_method_declaration(
@@ -1308,7 +1308,7 @@ impl<'context> TargetVisitor<'context> {
         data.r#type = self.visit_optional_node(data.r#type)?;
         (data.parameters, data.body) =
             self.visit_function_scope(SyntaxKind::GetAccessor, data.parameters, data.body, false)?;
-        self.update_without_visit(original, NodeData::GetAccessor(data))
+        self.update_without_visit(original, NodeData::GetAccessor(Box::new(data)))
     }
 
     fn visit_set_accessor(
@@ -1322,7 +1322,7 @@ impl<'context> TargetVisitor<'context> {
         data.r#type = self.visit_optional_node(data.r#type)?;
         (data.parameters, data.body) =
             self.visit_function_scope(SyntaxKind::SetAccessor, data.parameters, data.body, false)?;
-        self.update_without_visit(original, NodeData::SetAccessor(data))
+        self.update_without_visit(original, NodeData::SetAccessor(Box::new(data)))
     }
 
     fn visit_constructor(
@@ -1336,7 +1336,7 @@ impl<'context> TargetVisitor<'context> {
         data.r#type = self.visit_optional_node(data.r#type)?;
         (data.parameters, data.body) =
             self.visit_function_scope(SyntaxKind::Constructor, data.parameters, data.body, false)?;
-        self.update_without_visit(original, NodeData::Constructor(data))
+        self.update_without_visit(original, NodeData::Constructor(Box::new(data)))
     }
 
     fn visit_function_scope(
@@ -2429,9 +2429,9 @@ impl<'context> TargetVisitor<'context> {
     fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
         let zero = self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
                 text: "0".to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         let flags = self.child_flags(&[zero])?;

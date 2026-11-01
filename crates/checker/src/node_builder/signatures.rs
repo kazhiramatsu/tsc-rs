@@ -581,14 +581,14 @@ pub(crate) fn signature_to_signature_declaration_helper(
             SyntaxKind::MethodSignature => create_node(
                 arena,
                 target,
-                NodeData::MethodSignature(MethodSignatureData {
+                NodeData::MethodSignature(Box::new(MethodSignatureData {
                     name,
                     type_parameters,
                     parameters,
                     r#type: return_id,
                     question_token,
                     modifiers,
-                }),
+                })),
             )?,
             SyntaxKind::MethodDeclaration => create_node(
                 arena,
@@ -608,38 +608,38 @@ pub(crate) fn signature_to_signature_declaration_helper(
             SyntaxKind::Constructor => create_node(
                 arena,
                 target,
-                NodeData::Constructor(ConstructorData {
+                NodeData::Constructor(Box::new(ConstructorData {
                     name: None,
                     type_parameters: None,
                     parameters,
                     r#type: None,
                     body: None,
                     modifiers,
-                }),
+                })),
             )?,
             SyntaxKind::GetAccessor => create_node(
                 arena,
                 target,
-                NodeData::GetAccessor(GetAccessorData {
+                NodeData::GetAccessor(Box::new(GetAccessorData {
                     name,
                     type_parameters: None,
                     parameters,
                     r#type: return_id,
                     body: None,
                     modifiers,
-                }),
+                })),
             )?,
             SyntaxKind::SetAccessor => create_node(
                 arena,
                 target,
-                NodeData::SetAccessor(SetAccessorData {
+                NodeData::SetAccessor(Box::new(SetAccessorData {
                     name,
                     type_parameters: None,
                     parameters,
                     r#type: None,
                     body: None,
                     modifiers,
-                }),
+                })),
             )?,
             SyntaxKind::IndexSignature => create_node(
                 arena,
@@ -743,14 +743,14 @@ pub(crate) fn signature_to_signature_declaration_helper(
                 create_node(
                     arena,
                     target,
-                    NodeData::ArrowFunction(ArrowFunctionData {
+                    NodeData::ArrowFunction(Box::new(ArrowFunctionData {
                         type_parameters,
                         parameters,
                         r#type: return_id,
                         body: Some(body.node()),
                         modifiers,
                         equals_greater_than_token: None,
-                    }),
+                    })),
                 )?
             }
             // tsgo writes no JSDoc function type (nodebuilderimpl.go:1950-1952).
@@ -1147,14 +1147,14 @@ fn try_get_this_parameter_declaration(
                     return create_node(
                         arena,
                         target,
-                        NodeData::Parameter(ParameterData {
+                        NodeData::Parameter(Box::new(ParameterData {
                             name: Some(name.node()),
                             modifiers: None,
                             dot_dot_dot_token: None,
                             question_token: None,
                             r#type: Some(type_node.node()),
                             initializer: None,
-                        }),
+                        })),
                     )
                     .map(Some);
                 }
@@ -1427,14 +1427,14 @@ pub(crate) fn symbol_to_parameter_declaration(
     let node = create_node(
         arena,
         target,
-        NodeData::Parameter(ParameterData {
+        NodeData::Parameter(Box::new(ParameterData {
             name: Some(name.node()),
             modifiers,
             dot_dot_dot_token: dot_dot_dot_token.map(TransformNode::node),
             question_token: question_token.map(TransformNode::node),
             r#type: type_node.map(TransformNode::node),
             initializer: None,
-        }),
+        })),
     )?;
     add_approximate_length(context, source_name_length(checker, parameter) + 3);
     Ok(node)
@@ -1826,14 +1826,14 @@ pub(crate) fn index_info_to_index_signature_declaration_helper(
     let parameter = create_node(
         arena,
         target,
-        NodeData::Parameter(ParameterData {
+        NodeData::Parameter(Box::new(ParameterData {
             name: Some(name.node()),
             modifiers: None,
             dot_dot_dot_token: None,
             question_token: None,
             r#type: Some(indexer_type.node()),
             initializer: None,
-        }),
+        })),
     )?;
     let type_node = match type_node {
         Some(type_node) => type_node,

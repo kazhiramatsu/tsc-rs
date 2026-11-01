@@ -916,7 +916,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 self.record_named_evaluation_of_identifier(data.name, data.initializer, true)?;
                 Some(self.update_generic(original, NodeData::VariableDeclaration(data))?)
             }
-            NodeData::Parameter(data) => Some(self.visit_parameter_declaration(original, data)?),
+            NodeData::Parameter(data) => Some(self.visit_parameter_declaration(original, *data)?),
             NodeData::BindingElement(data) => {
                 self.record_named_evaluation_of_identifier(
                     data.name,
@@ -1783,7 +1783,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     });
                     plans.push(PropertyPlan {
                         original: *member,
-                        data: member_data,
+                        data: *member_data,
                         name,
                         is_static,
                         is_private,
@@ -3608,14 +3608,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 .create_node_array(self.source, vec![value])?;
             self.context.factory()?.create_node(
                 self.source,
-                NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
+                NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
                     name: Some(name),
                     type_parameters: None,
                     parameters: Some(parameters.array()),
                     r#type: None,
                     body: Some(body.node()),
                     modifiers,
-                }),
+                })),
                 TransformFlags::NONE,
             )?
         } else {
@@ -3625,14 +3625,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 .create_node_array(self.source, Vec::new())?;
             self.context.factory()?.create_node(
                 self.source,
-                NodeData::GetAccessor(tsc_syntax::nodes::GetAccessorData {
+                NodeData::GetAccessor(Box::new(tsc_syntax::nodes::GetAccessorData {
                     name: Some(name),
                     type_parameters: None,
                     parameters: Some(parameters.array()),
                     r#type: None,
                     body: Some(body.node()),
                     modifiers,
-                }),
+                })),
                 TransformFlags::NONE,
             )?
         };
@@ -4198,11 +4198,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let flags = flags_after_update(
             self.context.arena(),
             plan.original,
-            &NodeData::PropertyDeclaration(data.clone()),
+            &NodeData::PropertyDeclaration(Box::new(data.clone())),
         )?;
         let updated = self.context.factory()?.update_node(
             plan.original,
-            NodeData::PropertyDeclaration(data),
+            NodeData::PropertyDeclaration(Box::new(data)),
             flags,
         )?;
         self.set_source_map_range_past_decorators(updated, plan.original, plan.data.modifiers)
@@ -4233,14 +4233,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         })?;
         let field = self.context.factory()?.create_node(
             self.source,
-            NodeData::PropertyDeclaration(tsc_syntax::nodes::PropertyDeclarationData {
+            NodeData::PropertyDeclaration(Box::new(tsc_syntax::nodes::PropertyDeclarationData {
                 name: Some(backing.node()),
                 modifiers,
                 question_token: None,
                 exclamation_token: None,
                 r#type: None,
                 initializer: Some(initializer.node()),
-            }),
+            })),
             TransformFlags::CONTAINS_CLASS_FIELDS,
         )?;
         self.set_original_and_range(field, plan.original)?;
@@ -4331,14 +4331,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .create_node_array(self.source, Vec::new())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::GetAccessor(tsc_syntax::nodes::GetAccessorData {
+            NodeData::GetAccessor(Box::new(tsc_syntax::nodes::GetAccessorData {
                 name: Some(name),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -4377,14 +4377,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let body = self.create_block(vec![statement], false)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
                 name: Some(name),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -4600,14 +4600,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let body = self.create_block(statements, true)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::Constructor(tsc_syntax::nodes::ConstructorData {
+            NodeData::Constructor(Box::new(tsc_syntax::nodes::ConstructorData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -5004,9 +5004,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let text = text.into();
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
                 text: text.to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -5014,9 +5014,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
                 text: text.to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -5289,14 +5289,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let name = self.create_identifier(name)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
                 name: Some(name.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -5317,14 +5317,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         )?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
+            NodeData::ArrowFunction(Box::new(tsc_syntax::nodes::ArrowFunctionData {
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
                 equals_greater_than_token: Some(arrow.node()),
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -5862,7 +5862,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         data.r#type = None;
         data.initializer = self.visit_optional_node(data.initializer)?;
         let name = data.name;
-        let updated = self.update_data(original, NodeData::Parameter(data))?;
+        let updated = self.update_data(original, NodeData::Parameter(Box::new(data)))?;
         if updated != original.node() {
             let updated_node = self.node(updated);
             let record = self.context.arena().node(original)?;
@@ -5999,10 +5999,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             name_kind,
             SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
         ) {
-            self.add_default_value_assignment_for_binding_pattern(parameter, data, name)
+            self.add_default_value_assignment_for_binding_pattern(parameter, *data, name)
         } else if let Some(initializer) = data.initializer.map(|initializer| self.node(initializer))
         {
-            self.add_default_value_assignment_for_initializer(parameter, data, name, initializer)
+            self.add_default_value_assignment_for_initializer(parameter, *data, name, initializer)
         } else {
             Ok(parameter)
         }
@@ -6056,7 +6056,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let if_statement = self.create_if_statement(condition, block)?;
         self.add_initialization_statement(if_statement)?;
         data.initializer = None;
-        let updated = NodeData::Parameter(data);
+        let updated = NodeData::Parameter(Box::new(data));
         let flags = flags_after_update(self.context.arena(), parameter, &updated)?;
         self.context
             .factory()?
@@ -6098,7 +6098,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         self.add_initialization_statement(statement)?;
         data.name = Some(self.create_binding_identifier(&alias)?.node());
         data.initializer = None;
-        let updated = NodeData::Parameter(data);
+        let updated = NodeData::Parameter(Box::new(data));
         let flags = flags_after_update(self.context.arena(), parameter, &updated)?;
         self.context
             .factory()?
@@ -8980,14 +8980,14 @@ impl StandardDecoratorVisitor<'_> {
         let parameter_name = self.create_binding_identifier(parameter)?;
         let parameter = self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
                 name: Some(parameter_name.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         let parameters = self
@@ -8999,14 +8999,14 @@ impl StandardDecoratorVisitor<'_> {
         let accessor_name = self.create_identifier("value")?;
         let setter = self.context.factory()?.create_node(
             self.source,
-            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
                 name: Some(accessor_name.node()),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         let object = self.create_object_literal(vec![setter], false)?;

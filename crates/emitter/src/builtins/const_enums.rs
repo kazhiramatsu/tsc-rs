@@ -303,9 +303,9 @@ fn constant_substitute(
         let substitute = match &value {
             EmitConstantValue::String(value) => factory.create_node(
                 source,
-                NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+                NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
                     text: tsc_types::JsString::from_code_units(value.code_units()),
-                }),
+                })),
                 TransformFlags::NONE,
             )?,
             EmitConstantValue::Number(value) => {
@@ -348,9 +348,9 @@ fn constant_substitute(
                     let magnitude = if value < 0.0 { -value } else { value };
                     let literal = factory.create_node(
                         source,
-                        NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+                        NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
                             text: tsc_types::js_number_to_string(magnitude),
-                        }),
+                        })),
                         TransformFlags::NONE,
                     )?;
                     if value < 0.0 {

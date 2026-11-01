@@ -75,9 +75,9 @@ impl Transformer for LiteralTransformer {
         let literal = match data {
             NodeData::Identifier(identifier) => context.factory()?.create_node(
                 source,
-                NodeData::StringLiteral(StringLiteralData {
+                NodeData::StringLiteral(Box::new(StringLiteralData {
                     text: identifier.text().into(),
-                }),
+                })),
                 TransformFlags::NONE,
             )?,
             NodeData::StringLiteral(_) => context.factory()?.clone_node(name)?,

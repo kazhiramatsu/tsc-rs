@@ -687,14 +687,14 @@ impl Transformer for SyntheticArrowTokenOriginalTransformer {
         )?;
         let arrow = context.factory()?.create_node(
             source,
-            NodeData::ArrowFunction(ArrowFunctionData {
+            NodeData::ArrowFunction(Box::new(ArrowFunctionData {
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
                 equals_greater_than_token: Some(arrow_token.node()),
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         let statement = context.factory()?.create_node(
