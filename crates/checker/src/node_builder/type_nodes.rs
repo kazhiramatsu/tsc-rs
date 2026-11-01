@@ -1508,9 +1508,13 @@ fn type_to_type_node_worker(
     if flags.intersects(TypeFlags::ANY) {
         if let Some(alias) = ty.alias_symbol {
             let name = chains_symbol_to_entity_name_node(checker, arena, target, context, alias)?;
-            let arguments = match ty.alias_type_arguments.as_deref() {
+            let alias_arguments = checker
+                .tables
+                .alias_type_arguments(r#type)
+                .map(<[TypeId]>::to_vec);
+            let arguments = match alias_arguments {
                 Some(arguments) => {
-                    map_to_type_nodes(checker, arena, target, arguments, context, false)?
+                    map_to_type_nodes(checker, arena, target, &arguments, context, false)?
                 }
                 None => None,
             };
@@ -1812,9 +1816,13 @@ fn type_to_type_node_worker(
                 || is_type_symbol_accessible(checker, arena, target, alias, context)?;
             if accessible {
                 if !should_expand_type(checker, r#type, context, true) {
-                    let arguments = match ty.alias_type_arguments.as_deref() {
+                    let alias_arguments = checker
+                        .tables
+                        .alias_type_arguments(r#type)
+                        .map(<[TypeId]>::to_vec);
+                    let arguments = match alias_arguments {
                         Some(arguments) => {
-                            map_to_type_nodes(checker, arena, target, arguments, context, false)?
+                            map_to_type_nodes(checker, arena, target, &arguments, context, false)?
                         }
                         None => None,
                     };

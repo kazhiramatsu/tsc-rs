@@ -28,7 +28,7 @@ fn generic_alias_instantiates_with_alias_stamping_and_interning() {
                 .intersects(TypeFlags::UNION));
             assert_eq!(state.tables.type_of(instantiated).alias_symbol, Some(a));
             assert_eq!(
-                state.tables.type_of(instantiated).alias_type_arguments.as_deref(),
+                state.tables.alias_type_arguments(instantiated),
                 Some(&[state.tables.intrinsics.string][..])
             );
             let w = annotation_of(state, "w");
@@ -150,11 +150,7 @@ fn declared_alias_union_carries_the_alias_with_parameter_arguments() {
                 .expect("inherited alias symbol");
             assert_eq!(state.binder.symbol(alias).escaped_name, "L");
             assert_eq!(
-                state
-                    .tables
-                    .type_of(instantiated)
-                    .alias_type_arguments
-                    .as_deref(),
+                state.tables.alias_type_arguments(instantiated),
                 Some(&[state.tables.intrinsics.string][..])
             );
         },

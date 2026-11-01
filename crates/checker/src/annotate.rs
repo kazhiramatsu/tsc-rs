@@ -1399,11 +1399,14 @@ impl<'a> CheckerState<'a> {
             Some(symbol) => {
                 let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
                 let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
+                let alias_type_arguments = self
+                    .tables
+                    .intern_alias_arguments(alias_type_arguments.as_deref());
                 let ty = self.tables.type_mut(id);
                 ty.object_flags = ObjectFlags::ANONYMOUS;
                 ty.symbol = Some(symbol);
                 ty.alias_symbol = alias_symbol;
-                ty.alias_type_arguments = alias_type_arguments.map(Vec::into_boxed_slice);
+                ty.alias_type_arguments = alias_type_arguments;
                 id
             }
         };
@@ -1926,9 +1929,12 @@ impl<'a> CheckerState<'a> {
         let ty = self.tables.create_deferred_reference_shell(target);
         self.links
             .set_fresh_type_deferred_reference_links(ty, node, mapper);
+        let alias_type_arguments = self
+            .tables
+            .intern_alias_arguments(alias_type_arguments.as_deref());
         let type_object = self.tables.type_mut(ty);
         type_object.alias_symbol = alias_symbol;
-        type_object.alias_type_arguments = alias_type_arguments.map(Vec::into_boxed_slice);
+        type_object.alias_type_arguments = alias_type_arguments;
         Ok(ty)
     }
 
@@ -2854,9 +2860,12 @@ impl<'a> CheckerState<'a> {
             .create_mapped_type(node.index(), None, None, symbol);
         let alias_symbol = self.get_alias_symbol_for_type_node(node);
         let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
+        let alias_type_arguments = self
+            .tables
+            .intern_alias_arguments(alias_type_arguments.as_deref());
         let type_object = self.tables.type_mut(mapped);
         type_object.alias_symbol = alias_symbol;
-        type_object.alias_type_arguments = alias_type_arguments.map(Vec::into_boxed_slice);
+        type_object.alias_type_arguments = alias_type_arguments;
 
         // tsc publishes this shell before resolving the constraint. Keep the
         // same recursive identity in typed transient state, then commit the

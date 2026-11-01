@@ -787,9 +787,7 @@ impl Session {
                     }
                     "getAliasTypeArgumentsOfType" => state
                         .tables
-                        .type_of(ty)
-                        .alias_type_arguments
-                        .as_deref()
+                        .alias_type_arguments(ty)
                         .unwrap_or_default()
                         .to_vec(),
                     "getBaseTypes" => state.get_base_types(ty).map_err(aborted)?,
@@ -1617,15 +1615,16 @@ impl Query<'_, '_> {
         let flags = data.flags;
         let symbol = data.symbol;
         let alias_symbol = data.alias_symbol;
-        let alias_type_arguments = data.alias_type_arguments.clone();
+        let alias_type_arguments = tables
+            .alias_type_arguments(ty)
+            .unwrap_or_default()
+            .iter()
+            .map(|&ty| Self::type_handle(ty))
+            .collect();
         let mut response = TypeResponse {
             id,
             flags: flags.bits() as u32,
-            alias_type_arguments: alias_type_arguments
-                .iter()
-                .flatten()
-                .map(|&ty| Self::type_handle(ty))
-                .collect(),
+            alias_type_arguments,
             ..TypeResponse::default()
         };
         if flags.intersects(TypeFlags::FRESHABLE) {

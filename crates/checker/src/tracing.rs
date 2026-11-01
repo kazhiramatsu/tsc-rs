@@ -195,8 +195,8 @@ impl CheckerState<'_> {
             }
             _ => {}
         }
-        if let Some(arguments) = &record.alias_type_arguments {
-            descriptor.alias_type_arguments = trace_ids(arguments);
+        if let Some(arguments) = record.alias_type_arguments {
+            descriptor.alias_type_arguments = trace_ids(self.tables.list(arguments));
         }
         // A reference's target and its resolved arguments (a target is a
         // reference to itself over its type parameters).

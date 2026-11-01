@@ -454,9 +454,10 @@ fn alias_instantiations_are_different_references() {
                         origin: None,
                     },
                 );
+                let arguments = checker.tables.intern_type_list(arguments);
                 let ty = checker.tables.type_mut(union);
                 ty.alias_symbol = Some(alias);
-                ty.alias_type_arguments = Some(arguments.into());
+                ty.alias_type_arguments = Some(arguments);
                 union
             };
             let of_string = aliased(&[string]);

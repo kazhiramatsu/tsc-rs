@@ -6089,9 +6089,10 @@ impl<'a> CheckerState<'a> {
         // survive.
         if flags.intersects(TypeFlags::ANY) {
             let type_of = self.tables.type_of(ty);
-            if let (Some(alias_symbol), alias_arguments) =
-                (type_of.alias_symbol, type_of.alias_type_arguments.clone())
-            {
+            if let (Some(alias_symbol), alias_arguments) = (
+                type_of.alias_symbol,
+                self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec),
+            ) {
                 let name = if fully_qualified
                     || self
                         .get_check_flags(alias_symbol)
@@ -6408,9 +6409,10 @@ impl<'a> CheckerState<'a> {
         fully_qualified: bool,
     ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         let type_of = self.tables.type_of(ty);
-        if let (Some(alias_symbol), alias_arguments) =
-            (type_of.alias_symbol, type_of.alias_type_arguments.clone())
-        {
+        if let (Some(alias_symbol), alias_arguments) = (
+            type_of.alias_symbol,
+            self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec),
+        ) {
             return match alias_arguments {
                 Some(arguments) if !arguments.is_empty() => {
                     // Type-argument lists never parenthesize in the

@@ -4694,9 +4694,9 @@ impl<'a> CheckerState<'a> {
         let type_record = self.tables.type_of(ty);
         Ok(awaited_symbol.is_some()
             && type_record.alias_symbol == awaited_symbol
-            && type_record
-                .alias_type_arguments
-                .as_ref()
+            && self
+                .tables
+                .alias_type_arguments(ty)
                 .is_some_and(|args| args.len() == 1))
     }
 
@@ -4715,9 +4715,7 @@ impl<'a> CheckerState<'a> {
         if self.is_awaited_type_instantiation(ty)? {
             let args = self
                 .tables
-                .type_of(ty)
-                .alias_type_arguments
-                .as_ref()
+                .alias_type_arguments(ty)
                 .expect("isAwaitedTypeInstantiation checked the arguments");
             return Ok(args[0]);
         }

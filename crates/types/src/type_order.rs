@@ -474,8 +474,8 @@ fn compare_type_names(
             return compare_type_lists(
                 tables,
                 ctx,
-                tables.type_of(t1).alias_type_arguments.as_deref(),
-                tables.type_of(t2).alias_type_arguments.as_deref(),
+                tables.alias_type_arguments(t1),
+                tables.alias_type_arguments(t2),
             );
         }
         return Ordering::Equal;

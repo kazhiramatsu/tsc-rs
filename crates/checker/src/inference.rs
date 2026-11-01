@@ -597,9 +597,7 @@ impl<'a> CheckerState<'a> {
         }
         let alias_type_arguments = self
             .tables
-            .type_of(ty)
-            .alias_type_arguments
-            .as_deref()
+            .alias_type_arguments(ty)
             .filter(|arguments| !arguments.is_empty())
             .map(<[TypeId]>::to_vec);
         if let Some(arguments) = alias_type_arguments {
@@ -1922,13 +1920,20 @@ impl InferTypesWalker<'_, '_> {
         }
         if let Some(alias) = self.st.tables.type_of(source).alias_symbol {
             if Some(alias) == self.st.tables.type_of(target).alias_symbol {
-                if let Some(source_args) =
-                    self.st.tables.type_of(source).alias_type_arguments.clone()
+                if let Some(source_args) = self
+                    .st
+                    .tables
+                    .alias_type_arguments(source)
+                    .map(<[TypeId]>::to_vec)
                 {
                     // 68658-68663: infer between the (filled) alias
                     // argument lists under the alias' measured
                     // variances.
-                    let target_args = self.st.tables.type_of(target).alias_type_arguments.clone();
+                    let target_args = self
+                        .st
+                        .tables
+                        .alias_type_arguments(target)
+                        .map(<[TypeId]>::to_vec);
                     let params = self
                         .st
                         .links

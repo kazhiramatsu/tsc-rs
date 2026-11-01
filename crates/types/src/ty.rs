@@ -440,7 +440,8 @@ pub struct Type {
     pub object_flags: ObjectFlags,
     pub symbol: Option<SymbolId>,
     pub alias_symbol: Option<SymbolId>,
-    pub alias_type_arguments: Option<Box<[TypeId]>>,
+    /// The alias type arguments as an interned list (`TypeTables::list`).
+    pub alias_type_arguments: Option<crate::tables::TypeListId>,
     /// tsc FreshableType.freshType — lazily wired
     /// (getFreshTypeOfLiteralType 63066); eagerly wired for the four
     /// boolean literal intrinsics (47070-47077).
@@ -451,6 +452,9 @@ pub struct Type {
     pub regular_type: Option<TypeId>,
     pub data: TypeData,
 }
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<Type>() == 72);
 
 impl Type {
     pub fn new(flags: TypeFlags, data: TypeData) -> Self {
