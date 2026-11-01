@@ -293,9 +293,9 @@ fn apply_generic(
         // keeps, so the route expresses the cooked update only where the
         // marker is unset already (a synthesized literal).
         (true, "cooked") if has_extended_unicode_escape.is_some() => return Ok(None),
-        (true, "cooked") => NodeData::StringLiteral(StringLiteralData {
+        (true, "cooked") => NodeData::StringLiteral(Box::new(StringLiteralData {
             text: JsString::from_code_units(after),
-        }),
+        })),
         (false, "cooked") => template_payload(kind, JsString::from_code_units(after), raw_text),
         (false, "raw") => match scalar(after) {
             Some(raw) => template_payload(kind, text, Some(raw)),
@@ -445,7 +445,7 @@ fn factory_case(case: &Value, route: Route) -> Outcome {
                     base = Some(identifier);
                     let literal = arena.factory().create_node(
                         source,
-                        NodeData::StringLiteral(StringLiteralData { text: "abc".into() }),
+                        NodeData::StringLiteral(Box::new(StringLiteralData { text: "abc".into() })),
                         TransformFlags::NONE,
                     )?;
                     arena

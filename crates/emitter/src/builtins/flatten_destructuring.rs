@@ -222,7 +222,7 @@ fn convert_to_object_assignment_element(
         };
         let shorthand = context.factory()?.create_node(
             source,
-            NodeData::ShorthandPropertyAssignment(
+            NodeData::ShorthandPropertyAssignment(Box::new(
                 tsc_syntax::nodes::ShorthandPropertyAssignmentData {
                     name: Some(name.node()),
                     equals_token: None,
@@ -231,7 +231,7 @@ fn convert_to_object_assignment_element(
                     question_token: None,
                     exclamation_token: None,
                 },
-            ),
+            )),
             flags,
         )?;
         return with_original_and_range(context, shorthand, element);

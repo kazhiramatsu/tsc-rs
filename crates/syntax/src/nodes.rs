@@ -94,7 +94,7 @@ pub struct Node {
 // A large Program holds tens of millions of node records, so their size
 // is a memory budget: growing it is a deliberate decision.
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Node>() == 56);
+const _: () = assert!(std::mem::size_of::<Node>() == 48);
 
 impl tsc_store::StoreRecord for Node {
     const REGION: usize = 0;
@@ -1541,10 +1541,10 @@ pub enum NodeData {
     ArrayBindingPattern(ArrayBindingPatternData),
     ArrayLiteralExpression(ArrayLiteralExpressionData),
     ArrayType(ArrayTypeData),
-    ArrowFunction(ArrowFunctionData),
+    ArrowFunction(Box<ArrowFunctionData>),
     AsExpression(AsExpressionData),
     AwaitExpression(AwaitExpressionData),
-    BigIntLiteral(BigIntLiteralData),
+    BigIntLiteral(Box<BigIntLiteralData>),
     BinaryExpression(BinaryExpressionData),
     BindingElement(BindingElementData),
     Block(BlockData),
@@ -1562,7 +1562,7 @@ pub enum NodeData {
     ConditionalExpression(ConditionalExpressionData),
     ConditionalType(ConditionalTypeData),
     ConstructSignature(ConstructSignatureData),
-    Constructor(ConstructorData),
+    Constructor(Box<ConstructorData>),
     ConstructorType(ConstructorTypeData),
     ContinueStatement(ContinueStatementData),
     DebuggerStatement(DebuggerStatementData),
@@ -1586,7 +1586,7 @@ pub enum NodeData {
     FunctionDeclaration(Box<FunctionDeclarationData>),
     FunctionExpression(Box<FunctionExpressionData>),
     FunctionType(FunctionTypeData),
-    GetAccessor(GetAccessorData),
+    GetAccessor(Box<GetAccessorData>),
     HeritageClause(HeritageClauseData),
     Identifier(IdentifierData),
     IfStatement(IfStatementData),
@@ -1637,7 +1637,7 @@ pub enum NodeData {
     JSDocSignature(JSDocSignatureData),
     JSDocTag(Box<JSDocTagData>),
     JSDocTemplateTag(Box<JSDocTemplateTagData>),
-    JSDocText(JSDocTextData),
+    JSDocText(Box<JSDocTextData>),
     JSDocThisTag(Box<JSDocThisTagData>),
     JSDocThrowsTag(Box<JSDocThrowsTagData>),
     JSDocTypeExpression(JSDocTypeExpressionData),
@@ -1659,10 +1659,10 @@ pub enum NodeData {
     JsxText(Box<JsxTextData>),
     LabeledStatement(LabeledStatementData),
     LiteralType(LiteralTypeData),
-    MappedType(MappedTypeData),
+    MappedType(Box<MappedTypeData>),
     MetaProperty(MetaPropertyData),
     MethodDeclaration(Box<MethodDeclarationData>),
-    MethodSignature(MethodSignatureData),
+    MethodSignature(Box<MethodSignatureData>),
     MissingDeclaration(MissingDeclarationData),
     ModuleBlock(ModuleBlockData),
     ModuleDeclaration(ModuleDeclarationData),
@@ -1675,13 +1675,13 @@ pub enum NodeData {
     NewExpression(NewExpressionData),
     NoSubstitutionTemplateLiteral(Box<NoSubstitutionTemplateLiteralData>),
     NonNullExpression(NonNullExpressionData),
-    NotEmittedStatement(NotEmittedStatementData),
-    NumericLiteral(NumericLiteralData),
+    NotEmittedStatement(Box<NotEmittedStatementData>),
+    NumericLiteral(Box<NumericLiteralData>),
     ObjectBindingPattern(ObjectBindingPatternData),
     ObjectLiteralExpression(ObjectLiteralExpressionData),
     OmittedExpression(OmittedExpressionData),
     OptionalType(OptionalTypeData),
-    Parameter(ParameterData),
+    Parameter(Box<ParameterData>),
     ParenthesizedExpression(ParenthesizedExpressionData),
     ParenthesizedType(ParenthesizedTypeData),
     PartiallyEmittedExpression(PartiallyEmittedExpressionData),
@@ -1690,19 +1690,19 @@ pub enum NodeData {
     PrivateIdentifier(PrivateIdentifierData),
     PropertyAccessExpression(PropertyAccessExpressionData),
     PropertyAssignment(PropertyAssignmentData),
-    PropertyDeclaration(PropertyDeclarationData),
+    PropertyDeclaration(Box<PropertyDeclarationData>),
     PropertySignature(PropertySignatureData),
     QualifiedName(QualifiedNameData),
-    RegularExpressionLiteral(RegularExpressionLiteralData),
+    RegularExpressionLiteral(Box<RegularExpressionLiteralData>),
     RestType(RestTypeData),
     ReturnStatement(ReturnStatementData),
     SatisfiesExpression(SatisfiesExpressionData),
-    SetAccessor(SetAccessorData),
-    ShorthandPropertyAssignment(ShorthandPropertyAssignmentData),
+    SetAccessor(Box<SetAccessorData>),
+    ShorthandPropertyAssignment(Box<ShorthandPropertyAssignmentData>),
     SourceFile(SourceFileData),
     SpreadAssignment(SpreadAssignmentData),
     SpreadElement(SpreadElementData),
-    StringLiteral(StringLiteralData),
+    StringLiteral(Box<StringLiteralData>),
     SwitchStatement(SwitchStatementData),
     SyntaxList(SyntaxListData),
     TaggedTemplateExpression(TaggedTemplateExpressionData),
@@ -1948,14 +1948,14 @@ impl NodeData {
                 Self::ArrayLiteralExpression(ArrayLiteralExpressionData { elements: None })
             }
             SyntaxKind::ArrayType => Self::ArrayType(ArrayTypeData { element_type: None }),
-            SyntaxKind::ArrowFunction => Self::ArrowFunction(ArrowFunctionData {
+            SyntaxKind::ArrowFunction => Self::ArrowFunction(Box::new(ArrowFunctionData {
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 body: None,
                 modifiers: None,
                 equals_greater_than_token: None,
-            }),
+            })),
             SyntaxKind::AsExpression => Self::AsExpression(AsExpressionData {
                 expression: None,
                 r#type: None,
@@ -1963,9 +1963,9 @@ impl NodeData {
             SyntaxKind::AwaitExpression => {
                 Self::AwaitExpression(AwaitExpressionData { expression: None })
             }
-            SyntaxKind::BigIntLiteral => Self::BigIntLiteral(BigIntLiteralData {
+            SyntaxKind::BigIntLiteral => Self::BigIntLiteral(Box::new(BigIntLiteralData {
                 text: String::new(),
-            }),
+            })),
             SyntaxKind::BinaryExpression => Self::BinaryExpression(BinaryExpressionData {
                 left: None,
                 operator_token: None,
@@ -2045,14 +2045,14 @@ impl NodeData {
                 parameters: None,
                 r#type: None,
             }),
-            SyntaxKind::Constructor => Self::Constructor(ConstructorData {
+            SyntaxKind::Constructor => Self::Constructor(Box::new(ConstructorData {
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 body: None,
                 modifiers: None,
-            }),
+            })),
             SyntaxKind::ConstructorType => Self::ConstructorType(ConstructorTypeData {
                 type_parameters: None,
                 parameters: None,
@@ -2165,14 +2165,14 @@ impl NodeData {
                 r#type: None,
                 modifiers: None,
             }),
-            SyntaxKind::GetAccessor => Self::GetAccessor(GetAccessorData {
+            SyntaxKind::GetAccessor => Self::GetAccessor(Box::new(GetAccessorData {
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 body: None,
                 modifiers: None,
-            }),
+            })),
             SyntaxKind::HeritageClause => Self::HeritageClause(HeritageClauseData {
                 token: SyntaxKind::HeritageClause,
                 types: None,
@@ -2438,9 +2438,9 @@ impl NodeData {
                     type_parameters: None,
                 }))
             }
-            SyntaxKind::JSDocText => Self::JSDocText(JSDocTextData {
+            SyntaxKind::JSDocText => Self::JSDocText(Box::new(JSDocTextData {
                 text: String::new(),
-            }),
+            })),
             SyntaxKind::JSDocThisTag => Self::JSDocThisTag(Box::new(JSDocThisTagData {
                 tag_name: None,
                 comment: None,
@@ -2526,14 +2526,14 @@ impl NodeData {
                 statement: None,
             }),
             SyntaxKind::LiteralType => Self::LiteralType(LiteralTypeData { literal: None }),
-            SyntaxKind::MappedType => Self::MappedType(MappedTypeData {
+            SyntaxKind::MappedType => Self::MappedType(Box::new(MappedTypeData {
                 readonly_token: None,
                 type_parameter: None,
                 name_type: None,
                 question_token: None,
                 r#type: None,
                 members: None,
-            }),
+            })),
             SyntaxKind::MetaProperty => Self::MetaProperty(MetaPropertyData {
                 keyword_token: SyntaxKind::MetaProperty,
                 name: None,
@@ -2551,14 +2551,14 @@ impl NodeData {
                     modifiers: None,
                 }))
             }
-            SyntaxKind::MethodSignature => Self::MethodSignature(MethodSignatureData {
+            SyntaxKind::MethodSignature => Self::MethodSignature(Box::new(MethodSignatureData {
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 question_token: None,
                 modifiers: None,
-            }),
+            })),
             SyntaxKind::MissingDeclaration => {
                 Self::MissingDeclaration(MissingDeclarationData { modifiers: None })
             }
@@ -2605,11 +2605,11 @@ impl NodeData {
                 Self::NonNullExpression(NonNullExpressionData { expression: None })
             }
             SyntaxKind::NotEmittedStatement => {
-                Self::NotEmittedStatement(NotEmittedStatementData {})
+                Self::NotEmittedStatement(Box::new(NotEmittedStatementData {}))
             }
-            SyntaxKind::NumericLiteral => Self::NumericLiteral(NumericLiteralData {
+            SyntaxKind::NumericLiteral => Self::NumericLiteral(Box::new(NumericLiteralData {
                 text: String::new(),
-            }),
+            })),
             SyntaxKind::ObjectBindingPattern => {
                 Self::ObjectBindingPattern(ObjectBindingPatternData { elements: None })
             }
@@ -2618,14 +2618,14 @@ impl NodeData {
             }
             SyntaxKind::OmittedExpression => Self::OmittedExpression(OmittedExpressionData {}),
             SyntaxKind::OptionalType => Self::OptionalType(OptionalTypeData { r#type: None }),
-            SyntaxKind::Parameter => Self::Parameter(ParameterData {
+            SyntaxKind::Parameter => Self::Parameter(Box::new(ParameterData {
                 name: None,
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            }),
+            })),
             SyntaxKind::ParenthesizedExpression => {
                 Self::ParenthesizedExpression(ParenthesizedExpressionData { expression: None })
             }
@@ -2666,14 +2666,16 @@ impl NodeData {
                 question_token: None,
                 exclamation_token: None,
             }),
-            SyntaxKind::PropertyDeclaration => Self::PropertyDeclaration(PropertyDeclarationData {
-                name: None,
-                modifiers: None,
-                question_token: None,
-                exclamation_token: None,
-                r#type: None,
-                initializer: None,
-            }),
+            SyntaxKind::PropertyDeclaration => {
+                Self::PropertyDeclaration(Box::new(PropertyDeclarationData {
+                    name: None,
+                    modifiers: None,
+                    question_token: None,
+                    exclamation_token: None,
+                    r#type: None,
+                    initializer: None,
+                }))
+            }
             SyntaxKind::PropertySignature => Self::PropertySignature(PropertySignatureData {
                 name: None,
                 question_token: None,
@@ -2686,9 +2688,9 @@ impl NodeData {
                 right: None,
             }),
             SyntaxKind::RegularExpressionLiteral => {
-                Self::RegularExpressionLiteral(RegularExpressionLiteralData {
+                Self::RegularExpressionLiteral(Box::new(RegularExpressionLiteralData {
                     text: String::new(),
-                })
+                }))
             }
             SyntaxKind::RestType => Self::RestType(RestTypeData { r#type: None }),
             SyntaxKind::ReturnStatement => {
@@ -2698,23 +2700,23 @@ impl NodeData {
                 expression: None,
                 r#type: None,
             }),
-            SyntaxKind::SetAccessor => Self::SetAccessor(SetAccessorData {
+            SyntaxKind::SetAccessor => Self::SetAccessor(Box::new(SetAccessorData {
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 body: None,
                 modifiers: None,
-            }),
+            })),
             SyntaxKind::ShorthandPropertyAssignment => {
-                Self::ShorthandPropertyAssignment(ShorthandPropertyAssignmentData {
+                Self::ShorthandPropertyAssignment(Box::new(ShorthandPropertyAssignmentData {
                     name: None,
                     equals_token: None,
                     object_assignment_initializer: None,
                     modifiers: None,
                     question_token: None,
                     exclamation_token: None,
-                })
+                }))
             }
             SyntaxKind::SourceFile => Self::SourceFile(SourceFileData {
                 statements: None,
@@ -2726,9 +2728,9 @@ impl NodeData {
             SyntaxKind::SpreadElement => {
                 Self::SpreadElement(SpreadElementData { expression: None })
             }
-            SyntaxKind::StringLiteral => Self::StringLiteral(StringLiteralData {
+            SyntaxKind::StringLiteral => Self::StringLiteral(Box::new(StringLiteralData {
                 text: tsc_types::JsString::new(),
-            }),
+            })),
             SyntaxKind::SwitchStatement => Self::SwitchStatement(SwitchStatementData {
                 expression: None,
                 case_block: None,

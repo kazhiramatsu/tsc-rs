@@ -874,14 +874,14 @@ fn access_parenthesization_matches_typescript_kind_and_range_boundaries() {
     let arrow = factory
         .create_node(
             source,
-            NodeData::ArrowFunction(ArrowFunctionData {
+            NodeData::ArrowFunction(Box::new(ArrowFunctionData {
                 type_parameters: None,
                 parameters: Some(empty.array()),
                 r#type: None,
                 body: Some(value.node()),
                 modifiers: None,
                 equals_greater_than_token: Some(arrow_token.node()),
-            }),
+            })),
             TransformFlags::NONE,
         )
         .unwrap();

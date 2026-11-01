@@ -1593,9 +1593,9 @@ fn create_string_literal<'t>(
     let literal = create_node(
         arena,
         target,
-        NodeData::StringLiteral(StringLiteralData {
+        NodeData::StringLiteral(Box::new(StringLiteralData {
             text: text.into().to_owned(),
-        }),
+        })),
     )?;
     arena
         .literal_properties_mut(literal)

@@ -3800,9 +3800,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         let text = text.into();
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
                 text: text.to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -3810,9 +3810,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
                 text: text.to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
