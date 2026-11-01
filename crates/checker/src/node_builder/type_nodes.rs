@@ -1600,7 +1600,7 @@ fn type_to_type_node_worker(
                 let literal = create_node(
                     arena,
                     target,
-                    NodeData::StringLiteral(StringLiteralData { text: member_name }),
+                    NodeData::StringLiteral(Box::new(StringLiteralData { text: member_name })),
                 )?;
                 let literal = create_literal_type_node(arena, target, literal)?;
                 let parent_data = arena.node(parent_name).map_err(factory_error)?.data.clone();
@@ -1685,7 +1685,7 @@ fn type_to_type_node_worker(
         let literal = create_node(
             arena,
             target,
-            NodeData::NumericLiteral(NumericLiteralData { text: magnitude }),
+            NodeData::NumericLiteral(Box::new(NumericLiteralData { text: magnitude })),
         )?;
         let literal = if value < 0.0 {
             create_node(
@@ -1713,9 +1713,9 @@ fn type_to_type_node_worker(
         let literal = create_node(
             arena,
             target,
-            NodeData::BigIntLiteral(BigIntLiteralData {
+            NodeData::BigIntLiteral(Box::new(BigIntLiteralData {
                 text: format!("{text}n"),
-            }),
+            })),
         )?;
         return create_literal_type_node(arena, target, literal).map(Some);
     }
@@ -2679,14 +2679,14 @@ fn create_mapped_type_node_from_type(
     let node = create_node(
         arena,
         target,
-        NodeData::MappedType(MappedTypeData {
+        NodeData::MappedType(Box::new(MappedTypeData {
             readonly_token: readonly_token.map(TransformNode::node),
             type_parameter: Some(parameter_node.node()),
             name_type: name_type.map(TransformNode::node),
             question_token: question_token.map(TransformNode::node),
             r#type: template.map(TransformNode::node),
             members: None,
-        }),
+        })),
     )?;
     add_approximate_length(context, 10);
     let result = set_single_line(arena, node);

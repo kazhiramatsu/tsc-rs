@@ -1376,7 +1376,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     value_use,
                 )?)
             }
-            NodeData::Parameter(data) => Some(self.visit_parameter(original, data)?),
+            NodeData::Parameter(data) => Some(self.visit_parameter(original, *data)?),
             NodeData::FunctionDeclaration(data) => Some(self.visit_function_scope(
                 original,
                 NodeData::FunctionDeclaration(data),
@@ -1894,7 +1894,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         data: tsc_syntax::nodes::ParameterData,
     ) -> Result<NodeId, TransformError> {
         if self.parameters_in_enclosing_environment {
-            return self.update_generic(original, NodeData::Parameter(data));
+            return self.update_generic(original, NodeData::Parameter(Box::new(data)));
         }
         let was_in_parameters = self
             .context
@@ -1902,7 +1902,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .contains(LexicalEnvironmentFlags::IN_PARAMETERS);
         self.context
             .set_lexical_environment_flags(LexicalEnvironmentFlags::IN_PARAMETERS, true)?;
-        let transformed = self.update_generic(original, NodeData::Parameter(data));
+        let transformed = self.update_generic(original, NodeData::Parameter(Box::new(data)));
         let restored = self.context.set_lexical_environment_flags(
             LexicalEnvironmentFlags::IN_PARAMETERS,
             was_in_parameters,
@@ -3544,14 +3544,16 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             let modifiers = self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
             let backing = self.context.factory()?.create_node(
                 self.source,
-                NodeData::PropertyDeclaration(tsc_syntax::nodes::PropertyDeclarationData {
-                    name: Some(storage.node()),
-                    modifiers,
-                    question_token: None,
-                    exclamation_token: None,
-                    r#type: None,
-                    initializer: data.initializer,
-                }),
+                NodeData::PropertyDeclaration(Box::new(
+                    tsc_syntax::nodes::PropertyDeclarationData {
+                        name: Some(storage.node()),
+                        modifiers,
+                        question_token: None,
+                        exclamation_token: None,
+                        r#type: None,
+                        initializer: data.initializer,
+                    },
+                )),
                 TransformFlags::CONTAINS_CLASS_FIELDS,
             )?;
             self.generated_auto_accessor_backings.insert(backing.node());
@@ -3862,14 +3864,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .create_node_array(self.source, Vec::new())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::GetAccessor(tsc_syntax::nodes::GetAccessorData {
+            NodeData::GetAccessor(Box::new(tsc_syntax::nodes::GetAccessorData {
                 name: Some(name),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -3883,14 +3885,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let value = self.create_identifier("value")?;
         let parameter = self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
                 name: Some(value.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         let parameters = self
@@ -3903,14 +3905,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let body = self.create_block(vec![statement], false)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
                 name: Some(name),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -5249,14 +5251,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let parameter_name = self.create_binding_identifier(value_binding)?;
         let parameter = self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
                 name: Some(parameter_name.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         let parameters = self
@@ -5268,14 +5270,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let accessor_name = self.create_identifier("value")?;
         let setter = self.context.factory()?.create_node(
             self.source,
-            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
                 name: Some(accessor_name.node()),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         let object = self.create_object_literal(vec![setter], false)?;
@@ -6233,10 +6235,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         .contains(&member.node())
                     {
                         self.with_static_auto_accessor_bindings(|visitor| {
-                            visitor.create_private_getter_function(member, data, function_name)
+                            visitor.create_private_getter_function(member, *data, function_name)
                         })?
                     } else {
-                        self.create_private_getter_function(member, data, function_name)?
+                        self.create_private_getter_function(member, *data, function_name)?
                     };
                     operations
                         .pending
@@ -6280,10 +6282,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         .contains(&member.node())
                     {
                         self.with_static_auto_accessor_bindings(|visitor| {
-                            visitor.create_private_setter_function(member, data, function_name)
+                            visitor.create_private_setter_function(member, *data, function_name)
                         })?
                     } else {
-                        self.create_private_setter_function(member, data, function_name)?
+                        self.create_private_setter_function(member, *data, function_name)?
                     };
                     operations
                         .pending
@@ -8820,14 +8822,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .create_node_array(self.source, Vec::new())?;
         let constructor = self.context.factory()?.create_node(
             self.source,
-            NodeData::Constructor(tsc_syntax::nodes::ConstructorData {
+            NodeData::Constructor(Box::new(tsc_syntax::nodes::ConstructorData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         let constructor = self.context.factory()?.set_text_range(constructor, class)?;
@@ -9618,9 +9620,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let text = text.into();
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
                 text: text.to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -9661,9 +9663,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
         let zero = self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
                 text: "0".to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         self.context.factory()?.create_node(
@@ -9980,14 +9982,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         )?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
+            NodeData::ArrowFunction(Box::new(tsc_syntax::nodes::ArrowFunctionData {
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
                 equals_greater_than_token: Some(arrow.node()),
-            }),
+            })),
             TransformFlags::CONTAINS_LEXICAL_THIS,
         )
     }

@@ -1739,7 +1739,7 @@ impl<'arena> NodeFactory<'arena> {
         };
         self.create_node(
             source,
-            NodeData::NumericLiteral(NumericLiteralData { text }),
+            NodeData::NumericLiteral(Box::new(NumericLiteralData { text })),
             flags,
         )
     }
@@ -1754,7 +1754,7 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         self.create_node(
             source,
-            NodeData::BigIntLiteral(BigIntLiteralData { text: text.into() }),
+            NodeData::BigIntLiteral(Box::new(BigIntLiteralData { text: text.into() })),
             TransformFlags::CONTAINS_ES_2020,
         )
     }
@@ -1770,7 +1770,7 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         let literal = self.create_node(
             source,
-            NodeData::StringLiteral(StringLiteralData { text: text.into() }),
+            NodeData::StringLiteral(Box::new(StringLiteralData { text: text.into() })),
             TransformFlags::NONE,
         )?;
         self.arena
@@ -1936,9 +1936,9 @@ impl<'arena> NodeFactory<'arena> {
         };
         let literal = self.create_node(
             source,
-            NodeData::StringLiteral(StringLiteralData {
+            NodeData::StringLiteral(Box::new(StringLiteralData {
                 text: JsString::from_code_units(text),
-            }),
+            })),
             flags,
         )?;
         self.arena
@@ -2840,14 +2840,14 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         self.create_node(
             source,
-            NodeData::MappedType(MappedTypeData {
+            NodeData::MappedType(Box::new(MappedTypeData {
                 readonly_token: self.optional_node_id(source, readonly_token)?,
                 type_parameter: Some(self.node_id(source, type_parameter)?),
                 name_type: self.optional_node_id(source, name_type)?,
                 question_token: self.optional_node_id(source, question_token)?,
                 r#type: self.optional_node_id(source, r#type)?,
                 members: self.optional_array_id(source, members)?,
-            }),
+            })),
             TransformFlags::CONTAINS_TYPE_SCRIPT,
         )
     }
@@ -3009,14 +3009,14 @@ impl<'arena> NodeFactory<'arena> {
         }
         self.create_node(
             source,
-            NodeData::Parameter(ParameterData {
+            NodeData::Parameter(Box::new(ParameterData {
                 name: Some(self.node_id(source, name)?),
                 modifiers: self.optional_array_id(source, modifiers)?,
                 dot_dot_dot_token: self.optional_node_id(source, dot_dot_dot_token)?,
                 question_token: self.optional_node_id(source, question_token)?,
                 r#type: self.optional_node_id(source, r#type)?,
                 initializer: self.optional_node_id(source, initializer)?,
-            }),
+            })),
             flags,
         )
     }
@@ -3127,14 +3127,14 @@ impl<'arena> NodeFactory<'arena> {
         }
         self.create_node(
             source,
-            NodeData::PropertyDeclaration(PropertyDeclarationData {
+            NodeData::PropertyDeclaration(Box::new(PropertyDeclarationData {
                 name: Some(self.node_id(source, name)?),
                 modifiers: self.optional_array_id(source, modifiers)?,
                 question_token: self.optional_node_id(source, question_token)?,
                 exclamation_token: self.optional_node_id(source, exclamation_token)?,
                 r#type: self.optional_node_id(source, r#type)?,
                 initializer: self.optional_node_id(source, initializer)?,
-            }),
+            })),
             flags,
         )
     }
@@ -3155,14 +3155,14 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         self.create_node(
             source,
-            NodeData::MethodSignature(MethodSignatureData {
+            NodeData::MethodSignature(Box::new(MethodSignatureData {
                 name: Some(self.node_id(source, name)?),
                 type_parameters: self.optional_array_id(source, type_parameters)?,
                 parameters: Some(self.array_id(source, parameters)?),
                 r#type: self.optional_node_id(source, r#type)?,
                 question_token: self.optional_node_id(source, question_token)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
-            }),
+            })),
             TransformFlags::CONTAINS_TYPE_SCRIPT,
         )
     }
@@ -3286,14 +3286,14 @@ impl<'arena> NodeFactory<'arena> {
         };
         self.create_node(
             source,
-            NodeData::Constructor(ConstructorData {
+            NodeData::Constructor(Box::new(ConstructorData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(self.array_id(source, parameters)?),
                 r#type: None,
                 body: self.optional_node_id(source, body)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
-            }),
+            })),
             flags,
         )
     }
@@ -3327,14 +3327,14 @@ impl<'arena> NodeFactory<'arena> {
         };
         self.create_node(
             source,
-            NodeData::GetAccessor(GetAccessorData {
+            NodeData::GetAccessor(Box::new(GetAccessorData {
                 name: Some(self.node_id(source, name)?),
                 type_parameters: None,
                 parameters: Some(self.array_id(source, parameters)?),
                 r#type: self.optional_node_id(source, r#type)?,
                 body: self.optional_node_id(source, body)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
-            }),
+            })),
             flags,
         )
     }
@@ -3361,14 +3361,14 @@ impl<'arena> NodeFactory<'arena> {
         };
         self.create_node(
             source,
-            NodeData::SetAccessor(SetAccessorData {
+            NodeData::SetAccessor(Box::new(SetAccessorData {
                 name: Some(self.node_id(source, name)?),
                 type_parameters: None,
                 parameters: Some(self.array_id(source, parameters)?),
                 r#type: None,
                 body: self.optional_node_id(source, body)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
-            }),
+            })),
             flags,
         )
     }
@@ -3594,7 +3594,7 @@ impl<'arena> NodeFactory<'arena> {
         }
         self.create_node(
             source,
-            NodeData::ArrowFunction(ArrowFunctionData {
+            NodeData::ArrowFunction(Box::new(ArrowFunctionData {
                 type_parameters: self.optional_array_id(source, type_parameters)?,
                 parameters: Some(self.array_id(source, parameters)?),
                 r#type: self.optional_node_id(source, r#type)?,
@@ -3602,7 +3602,7 @@ impl<'arena> NodeFactory<'arena> {
                 modifiers: self.optional_array_id(source, modifiers)?,
                 equals_greater_than_token: self
                     .optional_node_id(source, equals_greater_than_token)?,
-            }),
+            })),
             flags,
         )
     }
@@ -5089,7 +5089,7 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         let node = self.create_node(
             original.source,
-            NodeData::NotEmittedStatement(tsc_syntax::nodes::NotEmittedStatementData {}),
+            NodeData::NotEmittedStatement(Box::new(tsc_syntax::nodes::NotEmittedStatementData {})),
             TransformFlags::NONE,
         )?;
         self.arena.set_original_node(node, Some(original))?;
@@ -5552,14 +5552,14 @@ impl<'arena> NodeFactory<'arena> {
 
         self.update_node(
             original,
-            NodeData::Constructor(tsc_syntax::nodes::ConstructorData {
+            NodeData::Constructor(Box::new(tsc_syntax::nodes::ConstructorData {
                 modifiers,
                 name: original_data.name,
                 type_parameters,
                 parameters,
                 r#type,
                 body,
-            }),
+            })),
             transform_flags,
         )
     }
@@ -5598,14 +5598,14 @@ impl<'arena> NodeFactory<'arena> {
 
         self.update_node(
             original,
-            NodeData::GetAccessor(tsc_syntax::nodes::GetAccessorData {
+            NodeData::GetAccessor(Box::new(tsc_syntax::nodes::GetAccessorData {
                 modifiers,
                 name,
                 type_parameters,
                 parameters,
                 r#type,
                 body,
-            }),
+            })),
             transform_flags,
         )
     }
@@ -5649,14 +5649,14 @@ impl<'arena> NodeFactory<'arena> {
 
         self.update_node(
             original,
-            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
                 modifiers,
                 name,
                 type_parameters,
                 parameters,
                 r#type,
                 body,
-            }),
+            })),
             transform_flags,
         )
     }

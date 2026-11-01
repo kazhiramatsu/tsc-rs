@@ -8,7 +8,7 @@ use crate::nodes::{
 fn finalizes_parent_links_and_error_aggregation() {
     let mut arena = NodeArena::new();
     let stmt = arena.alloc_node(
-        NodeData::StringLiteral(StringLiteralData { text: "x".into() }),
+        NodeData::StringLiteral(Box::new(StringLiteralData { text: "x".into() })),
         0,
         1,
         NodeFlags::THIS_NODE_HAS_ERROR,
@@ -58,9 +58,9 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
         NodeFlags::JS_DOC,
     );
     let comment_text = arena.alloc_node(
-        NodeData::JSDocText(JSDocTextData {
+        NodeData::JSDocText(Box::new(JSDocTextData {
             text: "description".to_owned(),
-        }),
+        })),
         17,
         28,
         NodeFlags::JS_DOC,

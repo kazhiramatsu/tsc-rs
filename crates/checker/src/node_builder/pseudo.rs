@@ -711,14 +711,14 @@ fn pseudo_object_element_to_node(
                     create_node(
                         arena,
                         target,
-                        NodeData::MethodSignature(MethodSignatureData {
+                        NodeData::MethodSignature(Box::new(MethodSignatureData {
                             name: Some(name.node()),
                             modifiers,
                             question_token: None,
                             type_parameters,
                             parameters: Some(parameters),
                             r#type: Some(return_type.node()),
-                        }),
+                        })),
                     )?
                 }
             }
@@ -745,14 +745,14 @@ fn pseudo_object_element_to_node(
                 create_node(
                     arena,
                     target,
-                    NodeData::SetAccessor(SetAccessorData {
+                    NodeData::SetAccessor(Box::new(SetAccessorData {
                         name: Some(name.node()),
                         type_parameters: None,
                         parameters: Some(parameters),
                         r#type: None,
                         body: None,
                         modifiers: None,
-                    }),
+                    })),
                 )?
             }
             PseudoObjectElementKind::GetAccessor { r#type, .. } => {
@@ -762,14 +762,14 @@ fn pseudo_object_element_to_node(
                 create_node(
                     arena,
                     target,
-                    NodeData::GetAccessor(GetAccessorData {
+                    NodeData::GetAccessor(Box::new(GetAccessorData {
                         name: Some(name.node()),
                         type_parameters: None,
                         parameters: Some(parameters),
                         r#type: Some(r#type.node()),
                         body: None,
                         modifiers: None,
-                    }),
+                    })),
                 )?
             }
         };
@@ -831,14 +831,14 @@ fn pseudo_parameter_to_node(
     let node = create_node(
         arena,
         target,
-        NodeData::Parameter(ParameterData {
+        NodeData::Parameter(Box::new(ParameterData {
             name: Some(name.node()),
             modifiers: None,
             dot_dot_dot_token: dot_dot_dot_token.map(TransformNode::node),
             question_token: question_token.map(TransformNode::node),
             r#type: Some(r#type.node()),
             initializer: None,
-        }),
+        })),
     )?;
     if checker.kind_of(parameter.parameter) == SyntaxKind::Parameter {
         return set_comment_range_2(checker, arena, node, parameter.parameter, context);

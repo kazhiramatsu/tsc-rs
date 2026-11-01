@@ -486,7 +486,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                         }
                         let text = comments.join("");
                         parts.push(self.finish(
-                            NodeData::JSDocText(JSDocTextData { text }),
+                            NodeData::JSDocText(Box::new(JSDocTextData { text })),
                             link_end.unwrap_or(start),
                             comment_end,
                         ));
@@ -526,9 +526,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let trimmed_comments = comments.join("");
         if !parts.is_empty() && !trimmed_comments.is_empty() {
             parts.push(self.finish(
-                NodeData::JSDocText(JSDocTextData {
+                NodeData::JSDocText(Box::new(JSDocTextData {
                     text: trimmed_comments.clone(),
-                }),
+                })),
                 link_end.unwrap_or(start),
                 comments_pos.unwrap_or(scan_end),
             ));
@@ -638,9 +638,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     let link_start = self.token_end().saturating_sub(1);
                     if let Some(link) = self.try_parse_jsdoc_link(link_start) {
                         parts.push(self.finish(
-                            NodeData::JSDocText(JSDocTextData {
+                            NodeData::JSDocText(Box::new(JSDocTextData {
                                 text: comments.join(""),
-                            }),
+                            })),
                             link_end.unwrap_or(comments_pos),
                             comment_end,
                         ));
@@ -697,9 +697,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let trimmed = Self::trim_end(&joined_comments).to_owned();
         if !parts.is_empty() && !trimmed.is_empty() {
             parts.push(self.finish(
-                NodeData::JSDocText(JSDocTextData {
+                NodeData::JSDocText(Box::new(JSDocTextData {
                     text: trimmed.clone(),
-                }),
+                })),
                 link_end.unwrap_or(comments_pos),
                 self.node_pos(),
             ));

@@ -1920,7 +1920,9 @@ impl<'context> EsNextVisitor<'context> {
     fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData { text: text.into() }),
+            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
+                text: text.into(),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -1948,9 +1950,9 @@ impl<'context> EsNextVisitor<'context> {
     fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
         let zero = self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
                 text: "0".to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         self.context.factory()?.create_node(

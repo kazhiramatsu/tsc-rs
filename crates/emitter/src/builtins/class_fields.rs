@@ -446,9 +446,9 @@ impl ClassFieldsTransformer<'_> {
             let mut factory = context.substitution_factory()?;
             let zero = factory.create_node(
                 node.source(),
-                NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+                NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
                     text: "0".to_owned(),
-                }),
+                })),
                 TransformFlags::NONE,
             )?;
             let void_zero = factory.create_node(
@@ -753,14 +753,14 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             .factory()?
             .create_node_array(self.source, Vec::new())?;
         self.create_class_field_node(
-            NodeData::GetAccessor(tsc_syntax::nodes::GetAccessorData {
+            NodeData::GetAccessor(Box::new(tsc_syntax::nodes::GetAccessorData {
                 name: Some(name),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -774,14 +774,14 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
     ) -> Result<TransformNode, TransformError> {
         let value = self.create_identifier("value")?;
         let parameter = self.create_class_field_node(
-            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
                 name: Some(value.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         let parameters = self
@@ -793,14 +793,14 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         let statement = self.create_expression_statement(assignment)?;
         let body = self.create_block(vec![statement], false)?;
         self.create_class_field_node(
-            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
                 name: Some(name),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -1023,11 +1023,13 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         let flags = super::flags_after_update(
             self.context.arena(),
             original,
-            &NodeData::PropertyDeclaration(data.clone()),
+            &NodeData::PropertyDeclaration(Box::new(data.clone())),
         )?;
-        self.context
-            .factory()?
-            .update_node(original, NodeData::PropertyDeclaration(data), flags)
+        self.context.factory()?.update_node(
+            original,
+            NodeData::PropertyDeclaration(Box::new(data)),
+            flags,
+        )
     }
 
     fn update_generic(
@@ -1107,14 +1109,14 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             TransformFlags::NONE,
         )?;
         self.create_class_field_node(
-            NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
+            NodeData::ArrowFunction(Box::new(tsc_syntax::nodes::ArrowFunctionData {
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
                 equals_greater_than_token: Some(arrow.node()),
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -2011,7 +2013,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             data.exclamation_token = None;
             data.r#type = None;
             data.initializer = None;
-            return self.update_property(original, data).map(Some);
+            return self.update_property(original, *data).map(Some);
         }
         if !private
             && !self.use_define_for_class_fields
@@ -2068,7 +2070,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         data.exclamation_token = None;
         data.r#type = None;
         data.initializer = self.visit_optional_node(data.initializer)?;
-        self.update_property(original, data).map(Some)
+        self.update_property(original, *data).map(Some)
     }
 
     fn retained_property_initializer(
@@ -2709,7 +2711,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                         if self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
                             && self.should_transform_retained_auto_accessors()
                         {
-                            output.extend(self.transform_retained_auto_accessor(member, data)?);
+                            output.extend(self.transform_retained_auto_accessor(member, *data)?);
                         } else if let Some(member) = self.transform_retained_field(member)? {
                             output.push(member);
                         }
@@ -3105,14 +3107,14 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 .create_node_array(self.source, Vec::new())?,
         };
         let node = self.create_class_field_node(
-            NodeData::Constructor(tsc_syntax::nodes::ConstructorData {
+            NodeData::Constructor(Box::new(tsc_syntax::nodes::ConstructorData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         self.context.factory()?.set_text_range(node, container)?;
@@ -3813,9 +3815,9 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
 
     fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
         let zero = self.create_class_field_node(
-            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
                 text: "0".to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         self.create_class_field_node(

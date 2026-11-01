@@ -471,7 +471,7 @@ impl Transformer for TypeScriptTransformer<'_> {
             NodeData::ShorthandPropertyAssignment(data)
                 if self.active_namespace_emit_depth != 0 =>
             {
-                self.substitute_namespace_shorthand(context, node, data)
+                self.substitute_namespace_shorthand(context, node, *data)
             }
             _ => Ok(node),
         }
@@ -727,9 +727,9 @@ fn ensure_use_strict_prologue(
 
     let literal = context.factory()?.create_node(
         source,
-        NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+        NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
             text: "use strict".into(),
-        }),
+        })),
         TransformFlags::NONE,
     )?;
     let statement = context.factory()?.create_node(
@@ -2019,9 +2019,9 @@ fn insert_external_helpers_import_declaration(
     )?;
     let specifier = context.factory()?.create_node(
         source,
-        NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+        NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
             text: "tslib".into(),
-        }),
+        })),
         TransformFlags::NONE,
     )?;
     let declaration = context.factory()?.create_node(
@@ -7394,7 +7394,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     self.visit_parenthesized_expression(original, data)?
                 }
                 NodeData::ShorthandPropertyAssignment(data) => {
-                    self.visit_shorthand_property_assignment(original, data)?
+                    self.visit_shorthand_property_assignment(original, *data)?
                 }
                 NodeData::PropertyAssignment(data) => {
                     self.visit_property_assignment(original, data)?
@@ -7434,13 +7434,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 NodeData::FunctionExpression(data) => {
                     self.visit_function_expression(original, *data)?
                 }
-                NodeData::ArrowFunction(data) => self.visit_arrow_function(original, data)?,
+                NodeData::ArrowFunction(data) => self.visit_arrow_function(original, *data)?,
                 NodeData::MethodDeclaration(data) => {
                     self.visit_method_declaration(original, *data)?
                 }
-                NodeData::GetAccessor(data) => self.visit_get_accessor(original, data)?,
-                NodeData::SetAccessor(data) => self.visit_set_accessor(original, data)?,
-                NodeData::Constructor(data) => self.visit_constructor(original, data)?,
+                NodeData::GetAccessor(data) => self.visit_get_accessor(original, *data)?,
+                NodeData::SetAccessor(data) => self.visit_set_accessor(original, *data)?,
+                NodeData::Constructor(data) => self.visit_constructor(original, *data)?,
                 NodeData::ClassStaticBlockDeclaration(data) => {
                     self.visit_class_static_block(original, data)?
                 }
@@ -7518,7 +7518,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 concise_body,
             },
         )?;
-        self.update_generic_without_visit(original, NodeData::ArrowFunction(data))
+        self.update_generic_without_visit(original, NodeData::ArrowFunction(Box::new(data)))
     }
 
     fn visit_method_declaration(
@@ -7561,7 +7561,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 concise_body: false,
             },
         )?;
-        self.update_generic_without_visit(original, NodeData::GetAccessor(data))
+        self.update_generic_without_visit(original, NodeData::GetAccessor(Box::new(data)))
     }
 
     fn visit_set_accessor(
@@ -7581,7 +7581,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 concise_body: false,
             },
         )?;
-        self.update_generic_without_visit(original, NodeData::SetAccessor(data))
+        self.update_generic_without_visit(original, NodeData::SetAccessor(Box::new(data)))
     }
 
     fn visit_constructor(
@@ -7601,7 +7601,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 concise_body: false,
             },
         )?;
-        self.update_generic_without_visit(original, NodeData::Constructor(data))
+        self.update_generic_without_visit(original, NodeData::Constructor(Box::new(data)))
     }
 
     fn visit_class_static_block(
@@ -7987,7 +7987,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if value == name {
             return self.update_generic_without_visit(
                 original,
-                NodeData::ShorthandPropertyAssignment(data),
+                NodeData::ShorthandPropertyAssignment(Box::new(data)),
             );
         }
         let value = if let Some(initializer) = data
@@ -10349,9 +10349,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
                 text: text.to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -10394,14 +10394,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let name = self.create_identifier(name)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
                 name: Some(name.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -10446,14 +10446,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         )?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
+            NodeData::ArrowFunction(Box::new(tsc_syntax::nodes::ArrowFunctionData {
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
                 equals_greater_than_token: Some(arrow.node()),
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -11813,7 +11813,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         if self.legacy_decorators
                             && self.has_modifier(data.modifiers, SyntaxKind::Decorator)?
                         {
-                            Some(self.update_ambient_property_declaration(original, data)?)
+                            Some(self.update_ambient_property_declaration(original, *data)?)
                         } else {
                             None
                         }
@@ -11836,7 +11836,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         data.type_parameters = None;
                         data.r#type = None;
                         data.modifiers = None;
-                        Some(self.update_constructor_declaration(original, data)?)
+                        Some(self.update_constructor_declaration(original, *data)?)
                     }
                 }
                 NodeData::MethodDeclaration(mut data) => {
@@ -11864,7 +11864,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         }
                         data.type_parameters = None;
                         data.r#type = None;
-                        Some(self.update_get_accessor_declaration(original, data)?)
+                        Some(self.update_get_accessor_declaration(original, *data)?)
                     }
                 }
                 NodeData::SetAccessor(mut data) => {
@@ -11881,7 +11881,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         }
                         data.type_parameters = None;
                         data.r#type = None;
-                        Some(self.update_set_accessor_declaration(original, data)?)
+                        Some(self.update_set_accessor_declaration(original, *data)?)
                     }
                 }
                 NodeData::CallExpression(mut data) => {
@@ -12108,14 +12108,14 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         }
         let property = self.context.factory()?.create_node(
             self.source,
-            NodeData::PropertyDeclaration(tsc_syntax::nodes::PropertyDeclarationData {
+            NodeData::PropertyDeclaration(Box::new(tsc_syntax::nodes::PropertyDeclarationData {
                 name: Some(name),
                 modifiers: None,
                 question_token: None,
                 exclamation_token: None,
                 r#type: None,
                 initializer: None,
-            }),
+            })),
             TransformFlags::CONTAINS_CLASS_FIELDS,
         )?;
         self.context
@@ -14214,9 +14214,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
                 text: text.to_owned(),
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -14452,14 +14452,14 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     fn create_parameter(&mut self, name: TransformNode) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
                 name: Some(name.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -14661,7 +14661,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         data.exclamation_token = None;
         data.r#type = None;
         data.initializer = None;
-        let data = NodeData::PropertyDeclaration(data);
+        let data = NodeData::PropertyDeclaration(Box::new(data));
         let flags = flags_after_update(self.context.arena(), original, &data)?;
         Ok(self
             .context
@@ -14717,7 +14717,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         original: TransformNode,
         data: tsc_syntax::nodes::SetAccessorData,
     ) -> Result<NodeId, TransformError> {
-        let mut runtime_data = NodeData::SetAccessor(data);
+        let mut runtime_data = NodeData::SetAccessor(Box::new(data));
         try_visit_transform_children(&mut runtime_data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &runtime_data)?;
         let NodeData::SetAccessor(runtime_data) = runtime_data else {
@@ -14743,7 +14743,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         original: TransformNode,
         data: tsc_syntax::nodes::ConstructorData,
     ) -> Result<NodeId, TransformError> {
-        let mut runtime_data = NodeData::Constructor(data);
+        let mut runtime_data = NodeData::Constructor(Box::new(data));
         try_visit_transform_children(&mut runtime_data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &runtime_data)?;
         let NodeData::Constructor(runtime_data) = runtime_data else {
@@ -14768,7 +14768,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         original: TransformNode,
         data: tsc_syntax::nodes::GetAccessorData,
     ) -> Result<NodeId, TransformError> {
-        let mut runtime_data = NodeData::GetAccessor(data);
+        let mut runtime_data = NodeData::GetAccessor(Box::new(data));
         try_visit_transform_children(&mut runtime_data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &runtime_data)?;
         let NodeData::GetAccessor(runtime_data) = runtime_data else {
