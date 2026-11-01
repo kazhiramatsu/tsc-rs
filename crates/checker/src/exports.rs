@@ -307,9 +307,8 @@ impl CheckerState<'_> {
     /// types, or a template literal type's.
     pub fn get_types_of_type(&self, ty: TypeId) -> Vec<TypeId> {
         match &self.tables.type_of(ty).data {
-            TypeData::Union { types, .. }
-            | TypeData::Intersection { types }
-            | TypeData::TemplateLiteral { types, .. } => types.to_vec(),
+            TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+            TypeData::TemplateLiteral(data) => data.types.to_vec(),
             _ => panic!("Unhandled case in Type.Types"),
         }
     }
@@ -338,7 +337,7 @@ impl CheckerState<'_> {
                 this_type,
             } => InterfaceTypeParts {
                 type_parameters: type_parameters.to_vec(),
-                outer_type_parameter_count: *outer_type_parameter_count,
+                outer_type_parameter_count: *outer_type_parameter_count as usize,
                 this_type: Some(*this_type),
             },
             TypeData::TupleTarget(target) => InterfaceTypeParts {

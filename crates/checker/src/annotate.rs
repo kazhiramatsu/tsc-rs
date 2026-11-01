@@ -1980,7 +1980,7 @@ impl<'a> CheckerState<'a> {
                     else {
                         unreachable!("TypeReference-node deferrals target class/interface types");
                     };
-                    let outer_count = *outer_type_parameter_count;
+                    let outer_count = *outer_type_parameter_count as usize;
                     let type_parameters = type_parameters.to_vec();
                     let effective = state
                         .get_effective_type_arguments(node, &type_parameters[outer_count..])?;
@@ -2531,7 +2531,10 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } => (type_parameters.to_vec(), *outer_type_parameter_count),
+            } => (
+                type_parameters.to_vec(),
+                *outer_type_parameter_count as usize,
+            ),
             _ => (Vec::new(), 0),
         };
         let local_type_parameters = &type_parameters[outer_count..];
@@ -3381,8 +3384,8 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } if type_parameters.len() > *outer_type_parameter_count => {
-                let locals: Vec<JsString> = type_parameters[*outer_type_parameter_count..]
+            } if type_parameters.len() > *outer_type_parameter_count as usize => {
+                let locals: Vec<JsString> = type_parameters[*outer_type_parameter_count as usize..]
                     .iter()
                     .map(|&parameter| {
                         self.tables
@@ -3866,7 +3869,7 @@ impl<'a> CheckerState<'a> {
                 ObjectFlags::from_bits(kind.bits() | ObjectFlags::REFERENCE.bits());
             generic_type.data = TypeData::GenericType {
                 type_parameters: type_parameters.into_boxed_slice(),
-                outer_type_parameter_count: outer_count,
+                outer_type_parameter_count: outer_count as u32,
                 this_type,
             };
         }
@@ -6183,7 +6186,10 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } => (*outer_type_parameter_count, type_parameters.to_vec()),
+            } => (
+                *outer_type_parameter_count as usize,
+                type_parameters.to_vec(),
+            ),
             _ => return Ok(true),
         };
         if outer_count == 0 {
@@ -6305,8 +6311,8 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } if type_parameters.len() > *outer_type_parameter_count => {
-                Some(type_parameters[*outer_type_parameter_count..].to_vec())
+            } if type_parameters.len() > *outer_type_parameter_count as usize => {
+                Some(type_parameters[*outer_type_parameter_count as usize..].to_vec())
             }
             _ => None,
         };

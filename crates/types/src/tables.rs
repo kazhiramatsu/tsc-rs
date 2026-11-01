@@ -17,9 +17,9 @@ use std::cmp::Ordering;
 
 use crate::flags::{AccessFlags, ElementFlags, ObjectFlags, TypeFlags};
 use crate::ty::{
-    ConditionalRootData, ConditionalRootId, ConditionalTypeData, LiteralValue, MappedTypeData,
-    MapperId, PseudoBigInt, ReverseMappedTypeData, SubstitutionTypeData, SymbolId, TemplateText,
-    TupleTargetData, Type, TypeData, TypeId,
+    ConditionalRootData, ConditionalRootId, ConditionalTypeData, IntrinsicData, LiteralValue,
+    MappedTypeData, MapperId, PseudoBigInt, ReverseMappedTypeData, SubstitutionTypeData, SymbolId,
+    TemplateLiteralData, TemplateText, TupleTargetData, Type, TypeData, TypeId,
 };
 use crate::type_order::TypeOrder;
 
@@ -352,7 +352,7 @@ impl TypeTables {
                 } => text.heap_bytes(),
                 TypeData::Literal {
                     value: LiteralValue::BigInt(value),
-                } => value.base10_value.capacity(),
+                } => std::mem::size_of::<PseudoBigInt>() + value.base10_value.capacity(),
                 TypeData::UniqueESSymbol { escaped_name } => escaped_name.heap_bytes(),
                 TypeData::Union { types, .. } | TypeData::Intersection { types } => {
                     list_bytes(types)
@@ -366,10 +366,15 @@ impl TypeTables {
                         + list_bytes(&data.type_parameters)
                         + std::mem::size_of_val(&*data.element_flags)
                 }
-                TypeData::TemplateLiteral { texts, types } => {
-                    texts.iter().map(TemplateText::heap_bytes).sum::<usize>()
-                        + std::mem::size_of_val(&**texts)
-                        + list_bytes(types)
+                TypeData::TemplateLiteral(data) => {
+                    std::mem::size_of::<TemplateLiteralData>()
+                        + data
+                            .texts
+                            .iter()
+                            .map(TemplateText::heap_bytes)
+                            .sum::<usize>()
+                        + std::mem::size_of_val(&*data.texts)
+                        + list_bytes(&data.types)
                 }
                 TypeData::GenericType {
                     type_parameters, ..
@@ -679,7 +684,10 @@ impl TypeTables {
         object_flags: ObjectFlags,
         debug_name: Option<&'static str>,
     ) -> TypeId {
-        let id = self.create_type(flags, TypeData::Intrinsic { name, debug_name });
+        let id = self.create_type(
+            flags,
+            TypeData::Intrinsic(Box::new(IntrinsicData { name, debug_name })),
+        );
         // objectFlags | CouldContainTypeVariablesComputed |
         // IsGenericTypeComputed | IsUnknownLikeUnionComputed |
         // IsNeverIntersectionComputed (50116).
@@ -1006,7 +1014,7 @@ impl TypeTables {
         }
         let id = self.create_literal_type(
             TypeFlags::BIG_INT_LITERAL,
-            LiteralValue::BigInt(value),
+            LiteralValue::BigInt(Box::new(value)),
             None,
         );
         self.bigint_literal_types.insert(key, id);
@@ -2866,8 +2874,8 @@ impl TypeTables {
         if ty.flags.intersects(TypeFlags::from_bits(
             TypeFlags::BOOLEAN_LITERAL.bits() | TypeFlags::NULLABLE.bits(),
         )) {
-            if let TypeData::Intrinsic { name, .. } = &ty.data {
-                return Some(TemplateText::from_utf8(name));
+            if let TypeData::Intrinsic(data) = &ty.data {
+                return Some(TemplateText::from_utf8(data.name));
             }
         }
         None
@@ -2883,10 +2891,10 @@ impl TypeTables {
     ) -> TypeId {
         self.create_type(
             TypeFlags::TEMPLATE_LITERAL,
-            TypeData::TemplateLiteral {
+            TypeData::TemplateLiteral(Box::new(TemplateLiteralData {
                 texts: texts.into_boxed_slice(),
                 types: types.into_boxed_slice(),
-            },
+            })),
         )
     }
 
@@ -3004,13 +3012,13 @@ impl TypeTables {
                     None => return Ok(false),
                 }
             } else if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-                let TypeData::TemplateLiteral {
-                    texts: inner_texts,
-                    types: inner_types,
-                } = self.type_of(t).data.clone()
-                else {
+                let TypeData::TemplateLiteral(inner) = self.type_of(t).data.clone() else {
                     unreachable!("template flag implies template data");
                 };
+                let TemplateLiteralData {
+                    texts: inner_texts,
+                    types: inner_types,
+                } = *inner;
                 spans.push_text(&inner_texts[0]);
                 let inner_tail: Vec<TemplateText> = inner_texts.to_vec();
                 if !self.add_spans(spans, &inner_tail, &inner_types)? {
@@ -3234,9 +3242,10 @@ impl TypeTables {
     pub fn is_pattern_literal_type(&self, id: TypeId) -> bool {
         let flags = self.flags_of(id);
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-            let TypeData::TemplateLiteral { types, .. } = &self.type_of(id).data else {
+            let TypeData::TemplateLiteral(data) = &self.type_of(id).data else {
                 unreachable!("template flag implies template data");
             };
+            let types = &data.types;
             return types
                 .iter()
                 .all(|&t| self.is_pattern_literal_placeholder_type(t));

@@ -755,7 +755,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(t).data {
-                TypeData::TemplateLiteral { texts, types } => (texts.to_vec(), types.to_vec()),
+                TypeData::TemplateLiteral(data) => (data.texts.to_vec(), data.types.to_vec()),
                 _ => unreachable!("template flag implies template data"),
             };
             let mut constraints: Vec<TypeId> = Vec::new();

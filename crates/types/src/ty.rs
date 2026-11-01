@@ -67,13 +67,13 @@ impl PseudoBigInt {
 /// `\uD800` without identifying them with U+FFFD.
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct TemplateText {
-    units: Vec<u16>,
+    units: Box<[u16]>,
 }
 
 impl TemplateText {
     /// Bytes this text owns on the heap, for memory accounting.
     pub fn heap_bytes(&self) -> usize {
-        self.units.capacity() * std::mem::size_of::<u16>()
+        self.units.len() * std::mem::size_of::<u16>()
     }
 
     pub fn from_utf8(text: &str) -> Self {
@@ -84,13 +84,13 @@ impl TemplateText {
 
     pub fn from_utf16(units: &[u16]) -> Self {
         Self {
-            units: units.to_vec(),
+            units: units.into(),
         }
     }
 
     pub fn from_js(text: crate::JsStr<'_>) -> Self {
         Self {
-            units: text.to_utf16(),
+            units: text.to_utf16().into_boxed_slice(),
         }
     }
 
@@ -135,7 +135,9 @@ impl TemplateText {
     }
 
     pub fn push_text(&mut self, other: &Self) {
-        self.units.extend_from_slice(other.units());
+        let mut units = self.units.to_vec();
+        units.extend_from_slice(other.units());
+        self.units = units.into_boxed_slice();
     }
 
     /// Convert only when every UTF-16 unit belongs to a Unicode scalar.
@@ -167,7 +169,7 @@ impl From<&str> for TemplateText {
 pub enum LiteralValue {
     String(TemplateText),
     Number(f64),
-    BigInt(PseudoBigInt),
+    BigInt(Box<PseudoBigInt>),
 }
 
 /// Synthesized tuple target payload (createTupleTargetType 61156).
@@ -300,6 +302,21 @@ impl std::ops::BitOr for MappedTypeModifiers {
     }
 }
 
+/// An intrinsic type's names (createIntrinsicType 50111); boxed, there
+/// being a few dozen intrinsic types.
+#[derive(Clone, Debug, PartialEq)]
+pub struct IntrinsicData {
+    pub name: &'static str,
+    pub debug_name: Option<&'static str>,
+}
+
+/// getTemplateLiteralType (62057): texts.len() == types.len() + 1.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TemplateLiteralData {
+    pub texts: Box<[TemplateText]>,
+    pub types: Box<[TypeId]>,
+}
+
 /// Per-kind payload (greenfield §4.2 TypeData). M3 carries the kinds
 /// the relation pins can construct; StringMapping landed with M4 5.2;
 /// IndexedAccess arrived with the keyof follow-up; Mapped and
@@ -309,10 +326,7 @@ impl std::ops::BitOr for MappedTypeModifiers {
 pub enum TypeData {
     /// any/unknown/string/... incl. error/silentNever/wildcard/missing
     /// variants (createIntrinsicType 50111).
-    Intrinsic {
-        name: &'static str,
-        debug_name: Option<&'static str>,
-    },
+    Intrinsic(Box<IntrinsicData>),
     /// String/number/bigint/boolean-literal types. The fresh/regular
     /// pair lives on Type::fresh_type/regular_type (freshness is
     /// STRUCTURE: fresh_type == self).
@@ -378,10 +392,7 @@ pub enum TypeData {
         constraint: Option<TypeId>,
     },
     /// getTemplateLiteralType (62057): texts.len() == types.len() + 1.
-    TemplateLiteral {
-        texts: Box<[TemplateText]>,
-        types: Box<[TypeId]>,
-    },
+    TemplateLiteral(Box<TemplateLiteralData>),
     /// createStringMappingType (62163): `Uppercase<T>` over a generic
     /// operand — Type::symbol names the intrinsic alias.
     StringMapping {
@@ -426,7 +437,7 @@ pub enum TypeData {
         /// non-generic classes and this-ful interfaces).
         type_parameters: Box<[TypeId]>,
         /// Length of the outerTypeParameters prefix.
-        outer_type_parameter_count: usize,
+        outer_type_parameter_count: u32,
         /// Synthesized thisType (isThisType, constraint = this target).
         this_type: TypeId,
     },
@@ -454,7 +465,7 @@ pub struct Type {
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Type>() == 72);
+const _: () = assert!(std::mem::size_of::<Type>() == 64);
 
 impl Type {
     pub fn new(flags: TypeFlags, data: TypeData) -> Self {

@@ -1953,7 +1953,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(ty).data {
-                TypeData::TemplateLiteral { texts, types } => (texts.to_vec(), types.to_vec()),
+                TypeData::TemplateLiteral(data) => (data.texts.to_vec(), data.types.to_vec()),
                 _ => unreachable!("template flag implies template data"),
             };
             let new_types = self.instantiate_types(&types, mapper)?;
@@ -3244,7 +3244,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(ty).data {
-                TypeData::TemplateLiteral { texts, types } => (texts.to_vec(), types.to_vec()),
+                TypeData::TemplateLiteral(data) => (data.texts.to_vec(), data.types.to_vec()),
                 _ => unreachable!("template flag implies template data"),
             };
             let (new_texts, new_types) =

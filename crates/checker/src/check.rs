@@ -3232,7 +3232,7 @@ impl<'a> CheckerState<'a> {
             } = &self.tables.type_of(target).data
             {
                 // type.target.localTypeParameters.
-                let locals = type_parameters[*outer_type_parameter_count..].to_vec();
+                let locals = type_parameters[*outer_type_parameter_count as usize..].to_vec();
                 return Ok((!locals.is_empty()).then_some(locals));
             }
         }
@@ -6286,7 +6286,8 @@ impl<'a> CheckerState<'a> {
             return self.symbol_type_face(symbol, fully_qualified);
         }
         match self.tables.type_of(ty).data.clone() {
-            TypeData::Intrinsic { name, .. } => {
+            TypeData::Intrinsic(intrinsic) => {
+                let name = intrinsic.name;
                 // tsc-port: typeToTypeNodeWorker @6.0.3
                 // tsc-span: _tsc.js:51314-51330
                 //
@@ -6606,7 +6607,7 @@ impl<'a> CheckerState<'a> {
         // (22120-22126).
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(ty).data {
-                TypeData::TemplateLiteral { texts, types } => (texts.clone(), types.clone()),
+                TypeData::TemplateLiteral(data) => (data.texts.clone(), data.types.clone()),
                 _ => unreachable!("TEMPLATE_LITERAL flag implies TemplateLiteral data"),
             };
             let mut out = JsString::from("`");
@@ -6930,7 +6931,10 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } => (type_parameters.to_vec(), *outer_type_parameter_count),
+            } => (
+                type_parameters.to_vec(),
+                *outer_type_parameter_count as usize,
+            ),
             _ => {
                 unreachable!("reference targets are GenericType or symbol-less TupleTarget")
             }
