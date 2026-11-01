@@ -1,5 +1,5 @@
 use tsc_binder::bind_source_file;
-use tsc_syntax::{parse_source_file, ParseOptions, ScriptKind};
+use tsc_syntax::{parse_published_source_file, ParseOptions, ScriptKind};
 use tsc_types::{CompilerOptions, TypeData, TypeFlags, UnionReduction};
 
 use crate::relpin::find_probe_annotation;
@@ -8,7 +8,7 @@ use crate::state::CheckerState;
 
 fn with_state<R>(text: &str, run: impl FnOnce(&mut CheckerState) -> R) -> R {
     let options = CompilerOptions::default();
-    let source = parse_source_file(
+    let source = parse_published_source_file(
         "unions-test.ts".to_owned(),
         text.to_owned(),
         ParseOptions {

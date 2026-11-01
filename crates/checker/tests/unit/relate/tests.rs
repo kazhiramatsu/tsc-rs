@@ -1,5 +1,5 @@
 use tsc_binder::bind_source_file;
-use tsc_syntax::{parse_source_file, ParseOptions, ScriptKind};
+use tsc_syntax::{parse_published_source_file, ParseOptions, ScriptKind};
 use tsc_types::{
     CompilerOptions, ElementFlags, IntersectionState, RelationComparisonResult, TupleTargetFlags,
 };
@@ -9,7 +9,7 @@ use crate::state::CheckerState;
 
 fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
     let options = CompilerOptions::default();
-    let source = parse_source_file(
+    let source = parse_published_source_file(
         "relate-test.ts".to_owned(),
         String::new(),
         ParseOptions {

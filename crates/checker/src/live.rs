@@ -156,7 +156,7 @@ impl LiveChecker {
         let identity_domain = bundle
             .map(|bundle| bundle.identity_domain.clone())
             .or_else(|| documents.map(|documents| documents.identity_domain().clone()))
-            .unwrap_or_else(IdentityDomain::ephemeral);
+            .unwrap_or_else(IdentityDomain::new);
 
         let mut work_counters = CheckWorkCounters::default();
         let ParsedProgramInputs {

@@ -26,13 +26,11 @@ fn property(state: &mut CheckerState, ty: TypeId, name: &str) -> tsc_binder::Sym
 fn parameter_annotation_type(state: &mut CheckerState, name: &str) -> TypeId {
     let annotation = {
         let source = state.binder.source(0);
-        (0..source.arena.len())
-            .find_map(|index| {
-                let NodeData::Parameter(parameter) = &source
-                    .arena
-                    .node(tsc_syntax::NodeId::new(index as u32))
-                    .data
-                else {
+        source
+            .arena
+            .node_ids()
+            .find_map(|node| {
+                let NodeData::Parameter(parameter) = &source.arena.node(node).data else {
                     return None;
                 };
                 let declared_name = parameter.name?;

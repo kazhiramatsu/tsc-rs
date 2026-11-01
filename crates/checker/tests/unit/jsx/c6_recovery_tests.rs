@@ -3,8 +3,8 @@ use tsc_syntax::nodes::{
     EmptyStatementData, JsxAttributeData, JsxAttributesData, JsxSelfClosingElementData,
     JsxSpreadAttributeData,
 };
-use tsc_syntax::{parse_source_file, NodeData, ParseOptions, ScriptKind, SyntaxKind};
-use tsc_types::{CheckMode, CompilerOptions, NodeFlags};
+use tsc_syntax::{parse_source_file, NodeData, NodeId, ParseOptions, ScriptKind, SyntaxKind};
+use tsc_types::{CheckMode, CompilerOptions, IdentityDomain, NodeFlags};
 
 use super::JsxReferenceKind;
 use crate::state::test_support::with_program_state;
@@ -142,6 +142,28 @@ fn synthetic_attribute_recovery_preserves_a_bound_sibling() {
     ] {
         source.arena.node_mut(opening).parent = Some(source_root);
     }
+    // The checker reads a published tree; publication moves the ids.
+    source
+        .relocate_into_identity_domain(&IdentityDomain::new())
+        .expect("test source identities");
+    let at = |node: NodeId| NodeId::new(node.index() + source.arena.node_base());
+    let (
+        valid_attribute,
+        value_tag_opening,
+        unbound_attribute,
+        synthetic_attributes,
+        synthetic_opening,
+        attributes_missing_opening,
+        tag_missing_opening,
+    ) = (
+        at(valid_attribute),
+        at(value_tag_opening),
+        at(unbound_attribute),
+        at(synthetic_attributes),
+        at(synthetic_opening),
+        at(attributes_missing_opening),
+        at(tag_missing_opening),
+    );
 
     let options = CompilerOptions {
         jsx: Some(1),

@@ -8,9 +8,7 @@ use super::SpeculationOutcome;
 use crate::flow::FlowType;
 use crate::links::LinkSlot;
 use crate::state::test_support::with_program_state;
-use crate::state::{
-    CheckAbort, CheckerState, InProgressMappedType, ResolvedMembers, SignatureKind,
-};
+use crate::state::{CheckerState, InProgressMappedType, ResolvedMembers, SignatureKind};
 
 fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
     with_program_state(
@@ -131,7 +129,7 @@ fn nonexistent_property_cache_persists_across_every_transaction_boundary() {
             .insert_node_non_existent_prop_key(0, node, permanent.clone()));
         let baseline = cache_keys(state, node);
         let mut observed = Vec::new();
-        for outcome in 0..4 {
+        for outcome in 0..3 {
             let mut visible_inside = false;
             let result: crate::state::CheckResult<()> = state.speculate(|state| {
                 state.links.insert_node_non_existent_prop_key(
@@ -148,22 +146,14 @@ fn nonexistent_property_cache_persists_across_every_transaction_boundary() {
                 match outcome {
                     0 => Ok(SpeculationOutcome::Commit(())),
                     1 => Ok(SpeculationOutcome::Rollback(())),
-                    2 => Ok(SpeculationOutcome::Reject(())),
-                    _ => Err(CheckAbort::BoundaryProbe),
+                    _ => Ok(SpeculationOutcome::Reject(())),
                 }
             });
-            assert_eq!(
-                result,
-                if outcome == 3 {
-                    Err(CheckAbort::BoundaryProbe)
-                } else {
-                    Ok(())
-                }
-            );
+            assert_eq!(result, Ok(()));
             observed.push((visible_inside, cache_keys(state, node) == baseline));
         }
         // Visible inside the trial and kept afterwards, whatever the outcome.
-        assert_eq!(observed, [(true, false); 4]);
+        assert_eq!(observed, [(true, false); 3]);
     });
 }
 
@@ -801,27 +791,6 @@ fn signature_return_seals_persist_through_rollback() {
             ));
         },
     );
-}
-
-/// The boundary ordering rule: by the time the caller sees the
-/// Err, the rollback has already happened — outer Err-revert twins
-/// run at the entry depth.
-#[test]
-fn speculate_rolls_back_before_err_reaches_caller() {
-    with_state(|state| {
-        // Not an oracle-crash containment event: the test-only
-        // variant exercises transaction ordering without adding a
-        // production abort kind.
-        let boundary_probe = || CheckAbort::BoundaryProbe;
-        let before = observe(state);
-        let result: Result<(), _> = state.speculate(|state| {
-            assert_eq!(state.speculation_depth, 1);
-            mutate_everything(state);
-            Err(boundary_probe())
-        });
-        assert_eq!(result, Err(boundary_probe()));
-        assert_eq!(observe(state), reported_once(before));
-    });
 }
 
 #[test]

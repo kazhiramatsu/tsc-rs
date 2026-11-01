@@ -150,8 +150,7 @@ impl<'a> CheckerState<'a> {
     /// tsc `reference.flowNode` (the canHaveFlowNode side table).
     /// tsrs-native: binder node_flow side-table read.
     pub(crate) fn flow_node_of(&self, node: NodeId) -> Option<FlowId> {
-        let file = self.binder.file_index_of_node(node);
-        self.binder.file(file).node_flow.get(&node).copied()
+        tsc_binder::published_node_flow(node)
     }
 
     /// tsrs-native: per-file FlowArena flags read.

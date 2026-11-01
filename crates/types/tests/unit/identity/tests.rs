@@ -1,21 +1,19 @@
 use super::*;
 
-fn small_domain(policy: IdentityAllocationPolicy) -> IdentityDomain {
-    IdentityDomain::with_limits(
-        policy,
-        IdentityLimits {
-            node_end: 16,
-            node_array_end: 16,
-            persistent_symbol_end: 16,
-            private_name_serial_end: 17,
-        },
-    )
+fn small_domain() -> IdentityDomain {
+    IdentityDomain::with_limits(IdentityLimits {
+        node_end: 16,
+        node_array_end: 16,
+        persistent_symbol_end: 16,
+        private_name_serial_end: 17,
+        node_array_item_end: 16,
+    })
     .unwrap()
 }
 
 #[test]
 fn reclaiming_leases_never_overlap_and_release_only_after_last_clone() {
-    let domain = small_domain(IdentityAllocationPolicy::Reclaiming);
+    let domain = small_domain();
     let first = domain.lease(IdentitySpace::Node, 5).unwrap();
     let retained = first.clone();
     let second = domain.lease(IdentitySpace::Node, 4).unwrap();
@@ -33,7 +31,7 @@ fn reclaiming_leases_never_overlap_and_release_only_after_last_clone() {
 
 #[test]
 fn exhaustion_is_typed_and_never_wraps() {
-    let domain = small_domain(IdentityAllocationPolicy::Reclaiming);
+    let domain = small_domain();
     let _full = domain.lease(IdentitySpace::Symbol, 16).unwrap();
     assert_eq!(
         domain.lease(IdentitySpace::Symbol, 1).unwrap_err(),
@@ -46,36 +44,19 @@ fn exhaustion_is_typed_and_never_wraps() {
 }
 
 #[test]
-fn provisional_seal_is_atomic_and_cancel_reopens_every_space() {
-    let domain = small_domain(IdentityAllocationPolicy::EphemeralBump);
-    {
-        let reservation = domain
-            .reserve_provisional(&[IdentitySpace::Node, IdentitySpace::NodeArray])
-            .unwrap();
-        assert_eq!(reservation.base(IdentitySpace::Node).unwrap(), 0);
-        assert!(matches!(
-            domain.lease(IdentitySpace::Node, 1),
-            Err(IdentityError::ProvisionalAllocationActive(
-                IdentitySpace::Node
-            ))
-        ));
-    }
-    let reservation = domain
-        .reserve_provisional(&[IdentitySpace::Node, IdentitySpace::NodeArray])
-        .unwrap();
-    let leases = reservation
-        .seal(&[(IdentitySpace::Node, 3), (IdentitySpace::NodeArray, 2)])
-        .unwrap();
-    assert_eq!(leases[0].range(), IdentityRange::new(0, 3));
-    assert_eq!(leases[1].range(), IdentityRange::new(0, 2));
-    let stats = domain.stats().unwrap();
-    assert_eq!(stats.space(IdentitySpace::Node).active_ranges, 1);
-    assert!(!stats.space(IdentitySpace::Node).provisional);
+fn domains_of_one_process_never_share_an_identity() {
+    let first = IdentityDomain::new();
+    let second = IdentityDomain::new();
+    let one = first.lease(IdentitySpace::Node, 8).unwrap();
+    let other = second.lease(IdentitySpace::Node, 8).unwrap();
+    assert!(!one.range().overlaps(other.range()));
+    assert!(!first.same_domain(&second));
+    assert!(first.owns(&one) && !second.owns(&one));
 }
 
 #[test]
 fn batch_failure_changes_no_identity_space() {
-    let domain = small_domain(IdentityAllocationPolicy::Reclaiming);
+    let domain = small_domain();
     let error = domain
         .lease_batch(&[(IdentitySpace::Node, 3), (IdentitySpace::NodeArray, 17)])
         .unwrap_err();
@@ -89,4 +70,31 @@ fn batch_failure_changes_no_identity_space() {
     let stats = domain.stats().unwrap();
     assert_eq!(stats.space(IdentitySpace::Node).bump, 0);
     assert_eq!(stats.space(IdentitySpace::Node).active_ranges, 0);
+}
+
+#[test]
+fn a_lease_is_claimed_once_at_a_time() {
+    let domain = IdentityDomain::new();
+    let lease = domain.lease(IdentitySpace::Node, 3).unwrap();
+    let claim = lease.claim().expect("free lease");
+    assert!(lease.claim().is_none());
+    assert_eq!(claim.lease().range(), lease.range());
+    drop(claim);
+    assert!(lease.claim().is_some());
+}
+
+#[test]
+fn a_watch_sees_a_lease_released_by_its_last_holder() {
+    let domain = IdentityDomain::new();
+    let lease = domain.lease(IdentitySpace::Node, 3).unwrap();
+    let watch = lease.watch();
+    assert!(watch.is_held());
+    assert!(watch.watches(&lease));
+    let other = domain.lease(IdentitySpace::Node, 1).unwrap();
+    assert!(!watch.watches(&other));
+    let held = lease.clone();
+    drop(lease);
+    assert!(watch.is_held());
+    drop(held);
+    assert!(!watch.is_held());
 }

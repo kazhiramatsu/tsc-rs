@@ -1,0 +1,16 @@
+[package]
+name = "tsc-rs-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[package.metadata.tsc-rs]
+role = "store"
+dev-profile-opt-level = 3
+
+[lib]
+name = "tsc_store"
+path = "src/lib.rs"
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true

@@ -40,9 +40,7 @@ use tsc_types::{
 
 use crate::evaluate::EvalValue;
 use crate::program::ProgramFileId;
-use crate::state::{
-    CheckAbort, CheckResult, CheckerState, OracleCrashKind, SignatureId, SignatureKind,
-};
+use crate::state::{CheckResult, CheckerState, SignatureId, SignatureKind};
 use tsc_binder::NameKey;
 
 /// Debug-only unwind census (the abort-unwind invariant):
@@ -6960,24 +6958,13 @@ impl<'a> CheckerState<'a> {
         let mut outer_reference: Option<JsString> = None;
         let mut argument_start = 0;
         while argument_start < outer_type_parameter_count {
-            // TypeScript 6.0.3 passes this absent JSDoc-template
-            // parent into lookupSymbolChainWorker and crashes.
-            // Preserve that oracle behavior as typed control flow:
-            // do not invent a class parent or a non-tsc display
-            // face.
-            let Some(parent) = self
-                .parent_symbol_of_type_parameter_display(type_parameters[argument_start])
-                .filter(|_| arguments.len() >= outer_type_parameter_count)
-            else {
-                return Err(CheckAbort::OracleCrash(
-                    OracleCrashKind::OuterJsdocTemplateReferenceDisplay,
-                ));
-            };
+            let parent =
+                self.parent_symbol_of_type_parameter_display(type_parameters[argument_start]);
             let group_start = argument_start;
             argument_start += 1;
             while argument_start < outer_type_parameter_count
                 && self.parent_symbol_of_type_parameter_display(type_parameters[argument_start])
-                    == Some(parent)
+                    == parent
             {
                 argument_start += 1;
             }
@@ -6996,6 +6983,7 @@ impl<'a> CheckerState<'a> {
                     fully_qualified,
                     /*is_bare_list*/ false,
                 )?;
+                let parent = parent.expect("a printed outer type parameter group has a parent");
                 let parent_name = self.type_reference_symbol_name(parent, fully_qualified)?;
                 outer_reference = Some(match outer_reference {
                     Some(root) => crate::concat_js(&[&(root), &".", &(parent_name)]),

@@ -7725,7 +7725,7 @@ fn content_mapper_directives_drop_diagnostics_in_their_ranges_and_report_unused_
     // `Expect` reports its code and text at its original range under the
     // mapper's source.
     use tsc_diagnostics::spanmap::{DirectivePolicy, MappedDiagnosticDirective};
-    let mut source = tsc_syntax::parse_source_file(
+    let mut source = tsc_syntax::parse_published_source_file(
         "/p/a.vue",
         "let a: number = 'x';\nlet b: number = 'y';\n",
         tsc_syntax::ParseOptions::default(),

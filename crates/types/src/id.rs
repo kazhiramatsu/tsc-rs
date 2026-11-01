@@ -42,6 +42,14 @@ macro_rules! id_type {
             pub const fn index(self) -> u32 {
                 self.0.get() - 1
             }
+
+            /// The identity's store position: the index plus one, the stored
+            /// value, so that reading a record computes nothing but its
+            /// address.
+            #[inline(always)]
+            pub const fn position(self) -> u32 {
+                self.0.get()
+            }
         }
 
         impl Default for $name {

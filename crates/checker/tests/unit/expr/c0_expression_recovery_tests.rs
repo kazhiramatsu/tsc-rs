@@ -3,8 +3,8 @@ use tsc_syntax::nodes::{
     DeleteExpressionData, EmptyStatementData, ParenthesizedExpressionData, PropertyAssignmentData,
     SpreadElementData, TypeOfExpressionData,
 };
-use tsc_syntax::{parse_source_file, NodeData, ParseOptions, ScriptKind, SyntaxKind};
-use tsc_types::{CheckMode, CompilerOptions, NodeFlags};
+use tsc_syntax::{parse_source_file, NodeData, NodeId, ParseOptions, ScriptKind, SyntaxKind};
+use tsc_types::{CheckMode, CompilerOptions, IdentityDomain, NodeFlags};
 
 use crate::state::CheckerState;
 
@@ -63,6 +63,20 @@ fn missing_expression_slots_use_operator_specific_recovery_values() {
         0,
         0,
         NodeFlags::NONE,
+    );
+    // The checker reads a published tree; publication moves the ids.
+    source
+        .relocate_into_identity_domain(&IdentityDomain::new())
+        .expect("test source identities");
+    let at = |node: NodeId| NodeId::new(node.index() + source.arena.node_base());
+    let (parenthesized, spread, property, type_of, delete, detached_this, unbound_class) = (
+        at(parenthesized),
+        at(spread),
+        at(property),
+        at(type_of),
+        at(delete),
+        at(detached_this),
+        at(unbound_class),
     );
 
     let options = CompilerOptions::default();

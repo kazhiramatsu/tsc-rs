@@ -41,50 +41,22 @@ pub(crate) struct ImpliedNodeFormatMemo {
     pub(crate) for_file: Option<Option<crate::modules::ModuleResolutionMode>>,
 }
 
-/// A tsc oracle crash that the Rust checker must reproduce as typed
-/// control flow instead of inventing a diagnostic or silently
-/// continuing with a partial relation result.
+/// The checker's failure channel, which no value inhabits: checker functions
+/// keep their `CheckResult` signatures while `Err` is unrepresentable, so
+/// every `?` compiles to nothing.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum OracleCrashKind {
-    OuterJsdocTemplateReferenceDisplay,
-}
-
-impl OracleCrashKind {
-    /// tsrs-native: stable label for a pinned oracle-crash deviation.
-    pub const fn description(self) -> &'static str {
-        match self {
-            Self::OuterJsdocTemplateReferenceDisplay => "outer JSDoc template reference display",
-        }
-    }
-}
-
-/// Typed checker abort. Production aborts represent an observed tsc
-/// crash, not missing implementation debt.
-///
-/// tsc has no Result error object counterpart; this Rust-only channel
-/// unwinds transactional checker state to a containment boundary.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CheckAbort {
-    OracleCrash(OracleCrashKind),
-    /// Synthetic abort used only to pin transaction rollback ordering.
-    #[cfg(test)]
-    BoundaryProbe,
-}
+pub enum CheckAbort {}
 
 impl CheckAbort {
     /// tsrs-native: debug label for the Rust checker-abort channel.
     pub const fn description(self) -> &'static str {
-        match self {
-            Self::OracleCrash(kind) => kind.description(),
-            #[cfg(test)]
-            Self::BoundaryProbe => "transaction boundary probe",
-        }
+        match self {}
     }
 }
 
 impl std::fmt::Display for CheckAbort {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(self.description())
+    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {}
     }
 }
 
@@ -2347,13 +2319,8 @@ impl<'a> CheckerState<'a> {
     /// the abort mirrors tsc's crash rather than representing
     /// unimplemented checker behavior.
     pub(crate) fn mark_oracle_crash_range(&mut self, node: NodeId, abort: CheckAbort) {
-        match abort {
-            CheckAbort::OracleCrash(_) => self.mark_partially_checked_range(node),
-            #[cfg(test)]
-            CheckAbort::BoundaryProbe => {
-                panic!("test-only boundary probe reached a production containment boundary")
-            }
-        }
+        let _ = node;
+        match abort {}
     }
 
     fn mark_partially_checked_range(&mut self, node: NodeId) {

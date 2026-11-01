@@ -17,8 +17,8 @@ mod version;
 pub use escaped_name::EscapedName;
 pub use flags::*;
 pub use identity::{
-    IdentityAllocationPolicy, IdentityDomain, IdentityDomainStats, IdentityError, IdentityLease,
-    IdentityLimits, IdentityRange, IdentityReservation, IdentitySpace, IdentitySpaceStats,
+    IdentityClaim, IdentityDomain, IdentityDomainStats, IdentityError, IdentityLease,
+    IdentityLeaseWatch, IdentityLimits, IdentityRange, IdentitySpace, IdentitySpaceStats,
     TRANSIENT_SYMBOL_BIT,
 };
 pub use options::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};

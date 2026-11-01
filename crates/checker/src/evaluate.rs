@@ -1492,13 +1492,13 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed arena projection for tsc's direct
     /// `node.pos` property access.
     pub(crate) fn pos_of(&self, node: NodeId) -> u32 {
-        self.binder.source_of_node(node).arena.node(node).pos
+        self.binder.node_record(node).pos
     }
 
     /// tsrs-native: typed arena projection for tsc's direct
     /// `node.end` property access.
     pub(crate) fn end_of(&self, node: NodeId) -> u32 {
-        self.binder.source_of_node(node).arena.node(node).end
+        self.binder.node_record(node).end
     }
 
     /// tsc-port: skipParentheses @6.0.3

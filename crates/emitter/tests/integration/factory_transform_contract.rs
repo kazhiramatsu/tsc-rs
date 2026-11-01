@@ -1407,7 +1407,7 @@ impl Transformer for ResolverProjectionTransformer {
 
 #[test]
 fn resolver_projection_rejects_synthetic_ids_that_alias_the_next_program_source() {
-    let identity_domain = IdentityDomain::reclaiming();
+    let identity_domain = IdentityDomain::new();
     let parsed = parse_source_file_from_snapshot_in_identity_domain(
         "current.ts",
         TextSnapshot::new("export const current = 1;\n", DocumentVersion::new("1")),

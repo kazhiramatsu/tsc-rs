@@ -3,8 +3,8 @@ use tsc_syntax::nodes::{
     ElementAccessExpressionData, EmptyStatementData, JsxNamespacedNameData, NonNullExpressionData,
     PropertyAccessExpressionData, QualifiedNameData,
 };
-use tsc_syntax::{parse_source_file, NodeData, ParseOptions, ScriptKind, SyntaxKind};
-use tsc_types::{CheckMode, CompilerOptions, NodeFlags};
+use tsc_syntax::{parse_source_file, NodeData, NodeId, ParseOptions, ScriptKind, SyntaxKind};
+use tsc_types::{CheckMode, CompilerOptions, IdentityDomain, NodeFlags};
 
 use crate::state::CheckerState;
 
@@ -104,6 +104,34 @@ fn recovered_entity_names_keep_source_text_and_valid_siblings_keep_entity_render
         0,
         5,
         NodeFlags::OPTIONAL_CHAIN,
+    );
+    // The checker reads a published tree; publication moves the ids.
+    source
+        .relocate_into_identity_domain(&IdentityDomain::new())
+        .expect("test source identities");
+    let at = |node: NodeId| NodeId::new(node.index() + source.arena.node_base());
+    let (
+        identifier,
+        missing_jsx_name,
+        non_entity,
+        missing_qualified_name,
+        missing_property_name,
+        missing_property_chain_name,
+        missing_non_null_operand,
+        missing_element_receiver,
+        missing_element_argument,
+        missing_element_chain_receiver,
+    ) = (
+        at(identifier),
+        at(missing_jsx_name),
+        at(non_entity),
+        at(missing_qualified_name),
+        at(missing_property_name),
+        at(missing_property_chain_name),
+        at(missing_non_null_operand),
+        at(missing_element_receiver),
+        at(missing_element_argument),
+        at(missing_element_chain_receiver),
     );
     let options = CompilerOptions::default();
     let binder = bind_source_file(&source);

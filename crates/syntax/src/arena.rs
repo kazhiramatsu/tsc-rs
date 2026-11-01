@@ -2,15 +2,25 @@ use crate::for_each_child::{for_each_child, NodeLookup};
 use crate::nodes::{Node, NodeArray, NodeArrayId, NodeArrayRecord, NodeData, NodeId};
 use crate::relocate::{collect_node_data_ids, relocate_node_data, remap_node_data_ids};
 use crate::SyntaxKind;
+use tsc_store::StoreVec;
 use tsc_types::{IdentityError, IdentityLease, IdentityRange, IdentitySpace, NodeFlags};
+
+/// The identity ranges one tree is published to.
+#[derive(Clone, Debug)]
+pub struct SyntaxLeases {
+    pub nodes: IdentityLease,
+    pub arrays: IdentityLease,
+    pub array_items: IdentityLease,
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct NodeArena {
-    nodes: Vec<Node>,
-    arrays: Vec<NodeArrayRecord>,
+    nodes: StoreVec<Node>,
+    arrays: StoreVec<NodeArrayRecord>,
     /// The elements of every array in allocation order: each record's
-    /// `items..items + len` range of this store.
-    array_items: Vec<NodeId>,
+    /// `items..items + len` positions of this store, counted from
+    /// `item_base`.
+    array_items: StoreVec<NodeId>,
     /// tsc Node.transformFlags per node slot, written only on an emit
     /// session's copy of a tree (the emitter's transform-flag classifier and
     /// factory); a parsed arena keeps none, so its node records carry no
@@ -25,18 +35,25 @@ pub struct NodeArena {
     /// paths (relpin, ast-diff, tests) keep base 0 and are unchanged.
     node_base: u32,
     array_base: u32,
-    node_lease: Option<IdentityLease>,
-    array_lease: Option<IdentityLease>,
+    item_base: u32,
+    leases: Option<SyntaxLeases>,
 }
 
 impl PartialEq for NodeArena {
     fn eq(&self, other: &Self) -> bool {
-        // A lease is an ownership capability, not observable AST content.
+        // A lease is an ownership capability, not observable AST content, and
+        // where the item store sits is layout: an array's record compares by
+        // its elements' offset.
         self.nodes == other.nodes
-            && self.arrays == other.arrays
-            && self.array_items == other.array_items
             && self.node_base == other.node_base
             && self.array_base == other.array_base
+            && self.array_items == other.array_items
+            && self.arrays.len() == other.arrays.len()
+            && self.arrays.iter().zip(other.arrays.iter()).all(|(a, b)| {
+                a.items - self.item_base == b.items - other.item_base
+                    && (a.len, a.pos, a.end, a.has_trailing_comma, a.is_missing_list)
+                        == (b.len, b.pos, b.end, b.has_trailing_comma, b.is_missing_list)
+            })
     }
 }
 
@@ -46,6 +63,8 @@ pub(crate) struct SyntaxIdentityRelocation {
     new_nodes: IdentityRange,
     old_arrays: IdentityRange,
     new_arrays: IdentityRange,
+    old_items: IdentityRange,
+    new_items: IdentityRange,
 }
 
 /// Reusable dense scratch state for immutable old-subtree copies.
@@ -251,8 +270,8 @@ impl SubtreeCopier {
         for old_id in &self.old_arrays {
             let old_index = self.array_index(*old_id);
             let new_id = self.array_map[old_index];
-            let record = &destination.arrays[destination.array_index(new_id)];
-            let items = record.items as usize..(record.items + record.len) as usize;
+            let items =
+                destination.item_range(&destination.arrays[destination.array_index(new_id)]);
             for node in &mut destination.array_items[items] {
                 let index = (node.index() - self.old_node_base) as usize;
                 debug_assert_eq!(self.node_marks[index], self.generation);
@@ -418,8 +437,7 @@ impl NodeArena {
     /// capabilities. This lets emit clone a `SourceFile` once, then append
     /// synthetic nodes without copying the complete syntax storage again.
     pub fn into_detached(mut self) -> Self {
-        self.node_lease = None;
-        self.array_lease = None;
+        self.leases = None;
         self
     }
 
@@ -451,16 +469,18 @@ impl NodeArena {
         self.array_base
     }
 
-    pub fn node_identity_lease(&self) -> Option<&IdentityLease> {
-        self.node_lease.as_ref()
-    }
-
-    pub fn array_identity_lease(&self) -> Option<&IdentityLease> {
-        self.array_lease.as_ref()
+    pub fn identity_leases(&self) -> Option<&SyntaxLeases> {
+        self.leases.as_ref()
     }
 
     pub fn has_identity_leases(&self) -> bool {
-        self.node_lease.is_some() && self.array_lease.is_some()
+        self.leases.is_some()
+    }
+
+    /// Whether the tree lives at its identities in the store, where a
+    /// Program reads it.
+    pub fn is_published(&self) -> bool {
+        self.nodes.is_published()
     }
 
     /// One past the last allocated NodeId — the next file's node base.
@@ -532,8 +552,12 @@ impl NodeArena {
                 .checked_add(offset)
                 .expect("node-array identity space exhausted"),
         );
-        let items =
-            u32::try_from(self.array_items.len()).expect("node-array item store exceeds u32");
+        let items = self
+            .item_base
+            .checked_add(
+                u32::try_from(self.array_items.len()).expect("node-array item store exceeds u32"),
+            )
+            .expect("node-array item store exceeds u32");
         let len = u32::try_from(nodes.len()).expect("node array length exceeds u32");
         self.array_items.extend_from_slice(nodes);
         self.arrays.push(NodeArrayRecord {
@@ -621,12 +645,19 @@ impl NodeArena {
     pub fn node_array(&self, id: NodeArrayId) -> NodeArray<'_> {
         let record = &self.arrays[self.array_index(id)];
         NodeArray {
-            nodes: &self.array_items[record.items as usize..(record.items + record.len) as usize],
+            nodes: &self.array_items[self.item_range(record)],
             pos: record.pos,
             end: record.end,
             has_trailing_comma: record.has_trailing_comma,
             is_missing_list: record.is_missing_list,
         }
+    }
+
+    /// The range of the item store that holds the elements of `record`.
+    #[inline]
+    fn item_range(&self, record: &NodeArrayRecord) -> std::ops::Range<usize> {
+        let start = (record.items - self.item_base) as usize;
+        start..start + record.len as usize
     }
 
     /// The stored record of `id`, for writing its range and list markers;
@@ -638,6 +669,11 @@ impl NodeArena {
 
     pub fn node_arrays(&self) -> &[NodeArrayRecord] {
         &self.arrays
+    }
+
+    /// How many elements the arena's arrays hold together.
+    pub fn array_item_count(&self) -> usize {
+        self.array_items.len()
     }
 
     /// tsc NodeArray.transformFlags of `id`: none until an emit session writes them.
@@ -674,48 +710,57 @@ impl NodeArena {
 
     pub(crate) fn identity_relocation(
         &self,
-        node_lease: &IdentityLease,
-        array_lease: &IdentityLease,
+        leases: &SyntaxLeases,
     ) -> Result<SyntaxIdentityRelocation, IdentityError> {
-        if self.node_lease.is_some() || self.array_lease.is_some() {
+        if self.leases.is_some() {
             return Err(IdentityError::InvalidLease {
                 space: IdentitySpace::Node,
                 detail: "syntax arena is already identity-owned",
             });
         }
+        let item_count = u32::try_from(self.array_items.len()).expect("item store exceeds u32");
         validate_lease(
-            node_lease,
+            &leases.nodes,
             IdentitySpace::Node,
             self.node_base,
             self.node_end(),
-            false,
         )?;
         validate_lease(
-            array_lease,
+            &leases.arrays,
             IdentitySpace::NodeArray,
             self.array_base,
             self.array_end(),
-            false,
         )?;
-        if !node_lease.same_domain(array_lease) {
+        validate_lease(
+            &leases.array_items,
+            IdentitySpace::NodeArrayItem,
+            self.item_base,
+            self.item_base + item_count,
+        )?;
+        if !leases.nodes.same_domain(&leases.arrays)
+            || !leases.nodes.same_domain(&leases.array_items)
+        {
             return Err(IdentityError::InvalidLease {
                 space: IdentitySpace::Node,
-                detail: "node and node-array leases belong to different domains",
+                detail: "a tree's leases belong to different domains",
             });
         }
         Ok(SyntaxIdentityRelocation {
             old_nodes: IdentityRange::new(self.node_base, self.node_end()),
-            new_nodes: node_lease.range(),
+            new_nodes: leases.nodes.range(),
             old_arrays: IdentityRange::new(self.array_base, self.array_end()),
-            new_arrays: array_lease.range(),
+            new_arrays: leases.arrays.range(),
+            old_items: IdentityRange::new(self.item_base, self.item_base + item_count),
+            new_items: leases.array_items.range(),
         })
     }
 
+    /// Rewrite the tree's identities into `leases` and move it to the store
+    /// at them: its records are final from here on.
     pub(crate) fn apply_identity_relocation(
         &mut self,
         relocation: SyntaxIdentityRelocation,
-        node_lease: IdentityLease,
-        array_lease: IdentityLease,
+        leases: SyntaxLeases,
     ) -> Result<(), IdentityError> {
         for node in &mut self.nodes {
             if let Some(parent) = &mut node.parent {
@@ -729,46 +774,17 @@ impl NodeArena {
         for node in &mut self.array_items {
             relocation.node(node)?;
         }
+        for record in &mut self.arrays {
+            record.items =
+                record.items - relocation.old_items.start() + relocation.new_items.start();
+        }
         self.node_base = relocation.new_nodes.start();
         self.array_base = relocation.new_arrays.start();
-        self.node_lease = Some(node_lease);
-        self.array_lease = Some(array_lease);
-        Ok(())
-    }
-
-    pub(crate) fn attach_identity_leases(
-        &mut self,
-        node_lease: IdentityLease,
-        array_lease: IdentityLease,
-    ) -> Result<(), IdentityError> {
-        if self.node_lease.is_some() || self.array_lease.is_some() {
-            return Err(IdentityError::InvalidLease {
-                space: IdentitySpace::Node,
-                detail: "syntax arena is already identity-owned",
-            });
-        }
-        validate_lease(
-            &node_lease,
-            IdentitySpace::Node,
-            self.node_base,
-            self.node_end(),
-            true,
-        )?;
-        validate_lease(
-            &array_lease,
-            IdentitySpace::NodeArray,
-            self.array_base,
-            self.array_end(),
-            true,
-        )?;
-        if !node_lease.same_domain(&array_lease) {
-            return Err(IdentityError::InvalidLease {
-                space: IdentitySpace::Node,
-                detail: "node and node-array leases belong to different domains",
-            });
-        }
-        self.node_lease = Some(node_lease);
-        self.array_lease = Some(array_lease);
+        self.item_base = relocation.new_items.start();
+        self.nodes.publish(relocation.new_nodes.start() + 1);
+        self.arrays.publish(relocation.new_arrays.start() + 1);
+        self.array_items.publish(relocation.new_items.start());
+        self.leases = Some(leases);
         Ok(())
     }
 
@@ -1019,7 +1035,6 @@ fn validate_lease(
     space: IdentitySpace,
     old_start: u32,
     old_end: u32,
-    require_same_base: bool,
 ) -> Result<(), IdentityError> {
     if lease.space() != space {
         return Err(IdentityError::InvalidLease {
@@ -1031,12 +1046,6 @@ fn validate_lease(
         return Err(IdentityError::InvalidLease {
             space,
             detail: "lease length differs from the arena allocation count",
-        });
-    }
-    if require_same_base && lease.range().start() != old_start {
-        return Err(IdentityError::InvalidLease {
-            space,
-            detail: "direct-construction lease base differs from the arena base",
         });
     }
     Ok(())

@@ -7,66 +7,43 @@ fn parse(text: &str) -> SourceFile {
 
 #[test]
 fn bind_relocation_matches_direct_nonzero_symbols_and_private_serials() {
-    let domain = IdentityDomain::reclaiming();
-    let symbol_gap = domain.lease(IdentitySpace::Symbol, 13).unwrap();
-    let serial_gap = domain.lease(IdentitySpace::PrivateNameSerial, 9).unwrap();
+    let domain = IdentityDomain::new();
+    // Leases ahead of the bind keep its bases away from the start of the
+    // spaces in a fresh process.
+    let _symbol_gap = domain.lease(IdentitySpace::Symbol, 13).unwrap();
+    let _serial_gap = domain.lease(IdentitySpace::PrivateNameSerial, 9).unwrap();
     let mut source = parse(
         "export class Box { #value = 1; copy(other: Box) { return other.#value + this.#value; } }",
     );
     source.relocate_into_identity_domain(&domain).unwrap();
 
     let relocated = Binder::bind_in_identity_domain(&source, &domain).unwrap();
-    let mut direct = Binder::with_bases(&source, 10, 13);
-    direct.bind_source_file();
-
     assert!(relocated.identity_owned_by(&domain));
-    assert_eq!(
-        relocated.symbols.identity_lease().unwrap().range().start(),
-        13
-    );
-    assert_eq!(
-        relocated
-            .private_name_serial_lease()
-            .unwrap()
-            .range()
-            .start(),
-        10
-    );
-    assert_eq!(relocated.symbols, direct.symbols);
-    assert_eq!(relocated.node_symbol, direct.node_symbol);
-    assert_eq!(relocated.node_local_symbol, direct.node_local_symbol);
-    assert_eq!(relocated.locals, direct.locals);
-    assert_eq!(relocated.classifiable_names, direct.classifiable_names);
-    assert_eq!(relocated.assigned_symbol_ids, direct.assigned_symbol_ids);
-    assert_eq!(relocated.next_symbol_id, direct.next_symbol_id);
+    let symbol_base = relocated.symbols.identity_lease().unwrap().range().start();
+    let serial_base = relocated
+        .private_name_serial_lease()
+        .unwrap()
+        .range()
+        .start();
     assert!(relocated
         .symbols
         .symbols()
         .iter()
         .flat_map(|symbol| symbol.members().keys())
-        .any(|name| name.starts_with("__#10@")));
-
+        .any(|name| name.starts_with(&format!("__#{serial_base}@"))));
+    let expected = BindData::from_binder(&relocated);
+    // A published tree is bound once at a time: the direct bind follows.
     drop(relocated);
-    assert_eq!(
-        domain
-            .stats()
-            .unwrap()
-            .space(IdentitySpace::Symbol)
-            .active_ranges,
-        1
-    );
-    drop(direct);
-    drop(source);
-    drop(symbol_gap);
-    drop(serial_gap);
-    assert_eq!(
-        domain
-            .stats()
-            .unwrap()
-            .space(IdentitySpace::Symbol)
-            .active_ranges,
-        0
-    );
+
+    let mut direct = Binder::with_bases(&source, serial_base, symbol_base);
+    direct.bind_source_file();
+    assert_eq!(expected.symbols, direct.symbols);
+    assert_eq!(expected.node_symbol, direct.node_symbol);
+    assert_eq!(expected.node_local_symbol, direct.node_local_symbol);
+    assert_eq!(expected.locals, direct.locals);
+    assert_eq!(expected.classifiable_names, direct.classifiable_names);
+    assert_eq!(expected.assigned_symbol_ids, direct.assigned_symbol_ids);
+    assert_eq!(expected.next_symbol_id, direct.next_symbol_id);
 }
 
 fn statements(source: &SourceFile) -> Vec<NodeId> {
@@ -335,32 +312,21 @@ fn parse_in_domain(name: &str, text: &str, domain: &IdentityDomain) -> SourceFil
 /// them in Program order; that must publish exactly the symbol and
 /// private-name-serial identities of the sequential in-domain bind.
 #[test]
-fn local_bind_with_in_order_relocation_matches_sequential_ephemeral_binding() {
+fn local_bind_with_in_order_relocation_matches_direct_binding_at_the_same_bases() {
     let texts = [
         "export class Box { #value = 1; copy(other: Box) { return other.#value + this.#value; } }\nexport const boxed = new Box();\n",
         "class Other { #x = 2; #y = 3; read() { return this.#x + this.#y; } }\nlet other = new Other();\nfunction f(a: number) { let b = a; return b; }\n",
         "export {};\nlet unused = 1;\nnamespace N { export const n = 1; }\n",
     ];
 
-    let sequential_domain = IdentityDomain::ephemeral();
-    let sequential_sources: Vec<SourceFile> = texts
+    let domain = IdentityDomain::new();
+    let sources: Vec<SourceFile> = texts
         .iter()
         .enumerate()
-        .map(|(index, text)| parse_in_domain(&format!("/f{index}.ts"), text, &sequential_domain))
+        .map(|(index, text)| parse_in_domain(&format!("/f{index}.ts"), text, &domain))
         .collect();
-    let sequential: Vec<Binder<'_>> = sequential_sources
-        .iter()
-        .map(|source| Binder::bind_in_identity_domain(source, &sequential_domain).unwrap())
-        .collect();
-
-    let parallel_domain = IdentityDomain::ephemeral();
-    let parallel_sources: Vec<SourceFile> = texts
-        .iter()
-        .enumerate()
-        .map(|(index, text)| parse_in_domain(&format!("/f{index}.ts"), text, &parallel_domain))
-        .collect();
-    let mut parallel: Vec<Binder<'_>> = std::thread::scope(|scope| {
-        let handles: Vec<_> = parallel_sources
+    let mut relocated: Vec<Binder<'_>> = std::thread::scope(|scope| {
+        let handles: Vec<_> = sources
             .iter()
             .rev()
             .map(|source| scope.spawn(|| Binder::bind_local(source)))
@@ -372,42 +338,16 @@ fn local_bind_with_in_order_relocation_matches_sequential_ephemeral_binding() {
         bound.reverse();
         bound
     });
-    for binder in &mut parallel {
+    for binder in &mut relocated {
         assert!(binder.symbol_identity_lease().is_none());
-        binder
-            .relocate_into_identity_domain(&parallel_domain)
-            .unwrap();
-        assert!(binder.identity_owned_by(&parallel_domain));
+        binder.relocate_into_identity_domain(&domain).unwrap();
+        assert!(binder.identity_owned_by(&domain));
     }
 
-    for (expected, actual) in sequential.iter().zip(&parallel) {
-        assert_eq!(
-            expected.symbol_identity_lease().unwrap().range(),
-            actual.symbol_identity_lease().unwrap().range()
-        );
-        assert_eq!(
-            expected.private_name_serial_lease().unwrap().range(),
-            actual.private_name_serial_lease().unwrap().range()
-        );
-        assert_eq!(
-            expected.private_name_serial_base,
-            actual.private_name_serial_base
-        );
-        assert_eq!(expected.next_symbol_id, actual.next_symbol_id);
-        assert_eq!(expected.symbols, actual.symbols);
-        assert_eq!(expected.node_symbol, actual.node_symbol);
-        assert_eq!(expected.node_local_symbol, actual.node_local_symbol);
-        assert_eq!(expected.locals, actual.locals);
-        assert_eq!(expected.classifiable_names, actual.classifiable_names);
-        assert_eq!(expected.assigned_symbol_ids, actual.assigned_symbol_ids);
-        assert_eq!(expected.bind_diagnostics, actual.bind_diagnostics);
-        assert_eq!(expected.node_flow, actual.node_flow);
-        assert_eq!(expected.node_flags_mut, actual.node_flags_mut);
-    }
     // The three files occupy strictly increasing, gap-free identity ranges.
     let mut previous_symbol_end = None;
     let mut previous_serial_end = None;
-    for binder in &parallel {
+    for binder in &relocated {
         let symbols = binder.symbol_identity_lease().unwrap().range();
         let serials = binder.private_name_serial_lease().unwrap().range();
         if let Some(end) = previous_symbol_end {
@@ -419,10 +359,64 @@ fn local_bind_with_in_order_relocation_matches_sequential_ephemeral_binding() {
         previous_symbol_end = Some(symbols.end());
         previous_serial_end = Some(serials.end());
     }
-    for space in [IdentitySpace::Symbol, IdentitySpace::PrivateNameSerial] {
+
+    // Each relocated bind equals a bind constructed directly at its bases.
+    // The relocated binders go first: a published tree is bound once at a
+    // time.
+    let expected: Vec<(u32, u32, BindData)> = relocated
+        .iter()
+        .map(|binder| {
+            (
+                binder.symbol_identity_lease().unwrap().range().start(),
+                binder.private_name_serial_lease().unwrap().range().start(),
+                BindData::from_binder(binder),
+            )
+        })
+        .collect();
+    drop(relocated);
+    for (source, (symbol_base, serial_base, expected)) in sources.iter().zip(expected) {
+        let mut direct = Binder::with_bases(source, serial_base, symbol_base);
+        direct.bind_source_file();
         assert_eq!(
-            sequential_domain.stats().unwrap().space(space).bump,
-            parallel_domain.stats().unwrap().space(space).bump
+            expected.private_name_serial_base,
+            direct.private_name_serial_base
         );
+        assert_eq!(expected.next_symbol_id, direct.next_symbol_id);
+        assert_eq!(expected.symbols, direct.symbols);
+        assert_eq!(expected.node_symbol, direct.node_symbol);
+        assert_eq!(expected.node_local_symbol, direct.node_local_symbol);
+        assert_eq!(expected.locals, direct.locals);
+        assert_eq!(expected.classifiable_names, direct.classifiable_names);
+        assert_eq!(expected.assigned_symbol_ids, direct.assigned_symbol_ids);
+        assert_eq!(expected.bind_diagnostics, direct.bind_diagnostics);
+        assert_eq!(expected.node_flow, direct.node_flow);
+        assert_eq!(expected.node_flags_mut, direct.node_flags_mut);
     }
+}
+
+#[test]
+#[should_panic(expected = "a published tree is bound once at a time")]
+fn a_published_tree_is_bound_once_at_a_time() {
+    let domain = IdentityDomain::new();
+    let source = parse_in_domain("/once.ts", "let a = 1;", &domain);
+    let _first = Binder::bind_in_identity_domain(&source, &domain).unwrap();
+    let _second = Binder::bind_in_identity_domain(&source, &domain).unwrap();
+}
+
+#[test]
+fn a_dropped_bind_lets_its_tree_be_bound_again() {
+    let domain = IdentityDomain::new();
+    let source = parse_in_domain("/again.ts", "let a = 1;", &domain);
+    let first = Binder::bind_in_identity_domain(&source, &domain).unwrap();
+    let expected = BindData::from_binder(&first);
+    drop(first);
+    let second = Binder::bind_in_identity_domain(&source, &domain).unwrap();
+    // The second bind's symbols have identities of their own; the tables
+    // name the same nodes.
+    assert_eq!(expected.classifiable_names, second.classifiable_names);
+    assert!(expected
+        .node_symbol
+        .iter()
+        .map(|(node, _)| node)
+        .eq(second.node_symbol.iter().map(|(node, _)| node)));
 }

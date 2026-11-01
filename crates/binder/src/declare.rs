@@ -23,11 +23,11 @@ use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticArgument, DiagnosticList, DiagnosticMessage,
     MessageChain, RelatedInfo,
 };
+use tsc_store::{StoreRecord, StoreVec};
 use tsc_syntax::{NodeArena, NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::{
-    EscapedName, IdentityAllocationPolicy, IdentityDomain, IdentityError, IdentityLease,
-    IdentityRange, IdentitySpace, JsString, ModifierFlags, NodeFlags, SymbolFlags,
-    TRANSIENT_SYMBOL_BIT,
+    EscapedName, IdentityClaim, IdentityDomain, IdentityError, IdentityLease, IdentityRange,
+    IdentitySpace, JsString, ModifierFlags, NodeFlags, SymbolFlags, TRANSIENT_SYMBOL_BIT,
 };
 
 /// Which symbol table a declaration lands in. tsc passes the table
@@ -130,6 +130,8 @@ pub struct BinderWorker<'a> {
     /// tsc jsDocImports: import clauses bind after the ordinary JSDoc
     /// walk, in the enclosing scope of the last attached JSDoc host.
     pub js_doc_imports: Vec<NodeId>,
+    /// See [`BindData`]'s field.
+    tree_claim: TreeClaim,
 }
 
 /// The completed, checker-consumed half of one bind operation.
@@ -166,6 +168,24 @@ pub struct BindData {
     pub possibly_exhaustive: FxHashMap<NodeId, bool>,
     pub node_fallthrough_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     pub emit_flags: i32,
+    /// The bind's claim on its tree's node positions, where the per-node
+    /// tables above sit; it outlives them (the fields drop in order).
+    _tree_claim: TreeClaim,
+}
+
+/// The exclusive use of a published tree's node positions in the stores
+/// for one bind's per-node tables: a tree is bound once at a time, since a
+/// Program reads the tables by position. None for an unpublished tree. A
+/// clone of a bind copies its tables to the heap, so it claims nothing.
+#[derive(Debug, Default)]
+struct TreeClaim {
+    _claim: Option<IdentityClaim>,
+}
+
+impl Clone for TreeClaim {
+    fn clone(&self) -> Self {
+        Self { _claim: None }
+    }
 }
 
 /// Compatibility name retained for existing binder/checker callers. New
@@ -259,6 +279,7 @@ impl BindData {
             possibly_exhaustive: binder.possibly_exhaustive.clone(),
             node_fallthrough_flow: binder.node_fallthrough_flow.clone(),
             emit_flags: binder.emit_flags,
+            _tree_claim: binder.tree_claim.clone(),
         }
     }
 
@@ -307,6 +328,23 @@ impl<'a> BinderWorker<'a> {
     /// `symbol_base` so SymbolIds are program-unique, mirroring the
     /// parse-side NodeId bases (ParseOptions::node_id_base).
     pub fn with_bases(source: &'a SourceFile, next_symbol_id: u32, symbol_base: u32) -> Self {
+        // About one symbol per six nodes: size the arena once instead of
+        // growing (and moving every symbol) a dozen times.
+        let symbols =
+            SymbolArena::with_base_and_capacity(symbol_base, source.arena.nodes().len() / 6);
+        Self::with_symbols(source, next_symbol_id, symbols)
+    }
+
+    fn with_symbols(source: &'a SourceFile, next_symbol_id: u32, symbols: SymbolArena) -> Self {
+        // Before the tables below claim the tree's node positions.
+        let tree_claim = TreeClaim {
+            _claim: source.arena.identity_leases().map(|leases| {
+                leases
+                    .nodes
+                    .claim()
+                    .expect("a published tree is bound once at a time")
+            }),
+        };
         let mut flow = crate::flow::FlowArena::default();
         // tsc createBinder: unreachableFlow is allocated once up front.
         let unreachable_flow = flow.create_flow_node(
@@ -321,10 +359,8 @@ impl<'a> BinderWorker<'a> {
         Self {
             source,
             common_js_module_indicator: None,
-            // About one symbol per six nodes: size the arena once instead of
-            // growing (and moving every symbol) a dozen times.
-            symbols: SymbolArena::with_base_and_capacity(symbol_base, node_count / 6),
-            node_symbol: NodeSymbolMap::with_len(source.arena.node_base(), node_count),
+            symbols,
+            node_symbol: NodeSymbolMap::for_tree(&source.arena),
             node_local_symbol: FxHashMap::default(),
             locals: FxHashMap::with_capacity_and_hasher(node_count / 32, Default::default()),
             bind_diagnostics: Vec::new(),
@@ -351,7 +387,7 @@ impl<'a> BinderWorker<'a> {
             current_false_target: None,
             current_exception_target: None,
             pre_switch_case_flow: None,
-            node_flow: NodeFlowMap::with_len(source.arena.node_base(), node_count),
+            node_flow: NodeFlowMap::for_tree(&source.arena),
             node_end_flow: FxHashMap::default(),
             node_return_flow: FxHashMap::default(),
             node_flow_when_true: FxHashMap::default(),
@@ -367,6 +403,7 @@ impl<'a> BinderWorker<'a> {
             emit_flags: 0,
             delayed_type_aliases: Vec::new(),
             js_doc_imports: Vec::new(),
+            tree_claim,
             child_scratch: Vec::new(),
         }
     }
@@ -431,12 +468,16 @@ impl<'a> BinderWorker<'a> {
         binder
     }
 
-    /// Bind `source` at identities reserved before binding: symbols allocate
-    /// from `symbol_base`, private-name serials from `serial_base`. The
-    /// reservations are published afterwards with
+    /// Bind `source` at identities reserved before binding: symbols are
+    /// built in the store over `symbols`, private-name serials allocate from
+    /// `serial_base`. The reservations are published afterwards with
     /// [`Self::attach_reserved_leases`], so no identity is rewritten.
-    pub fn bind_reserved(source: &'a SourceFile, symbol_base: u32, serial_base: u32) -> Self {
-        let mut binder = Self::with_bases(source, serial_base, symbol_base);
+    pub fn bind_reserved(source: &'a SourceFile, symbols: IdentityRange, serial_base: u32) -> Self {
+        let mut binder = Self::with_symbols(
+            source,
+            serial_base,
+            SymbolArena::at_reserved(symbols.start(), symbols.len()),
+        );
         binder.bind_source_file();
         binder
     }
@@ -492,9 +533,8 @@ impl<'a> BinderWorker<'a> {
         Ok(true)
     }
 
-    /// Bind one source and publish completed symbol/private-name identities.
-    /// Ephemeral domains construct directly at a sealed tail; reclaiming
-    /// domains bind locally and relocate only after exact counts are known.
+    /// Bind one source locally and publish its symbol and private-name
+    /// identities once their exact counts are known.
     pub fn bind_in_identity_domain(
         source: &'a SourceFile,
         domain: &IdentityDomain,
@@ -505,33 +545,10 @@ impl<'a> BinderWorker<'a> {
                 detail: "bound source does not belong to the requested identity domain",
             });
         }
-        match domain.policy() {
-            IdentityAllocationPolicy::EphemeralBump => {
-                let reservation = domain.reserve_provisional(&[
-                    IdentitySpace::Symbol,
-                    IdentitySpace::PrivateNameSerial,
-                ])?;
-                let mut binder = Self::with_bases(
-                    source,
-                    reservation.base(IdentitySpace::PrivateNameSerial)?,
-                    reservation.base(IdentitySpace::Symbol)?,
-                );
-                binder.bind_source_file();
-                let (symbol_count, serial_count) = binder.identity_counts()?;
-                let leases = reservation.seal(&[
-                    (IdentitySpace::Symbol, symbol_count),
-                    (IdentitySpace::PrivateNameSerial, serial_count),
-                ])?;
-                binder.attach_identity_leases(domain, leases)?;
-                Ok(binder)
-            }
-            IdentityAllocationPolicy::Reclaiming => {
-                let mut binder = Self::with_bases(source, 1, 0);
-                binder.bind_source_file();
-                binder.relocate_into_identity_domain(domain)?;
-                Ok(binder)
-            }
-        }
+        let mut binder = Self::with_bases(source, 1, 0);
+        binder.bind_source_file();
+        binder.relocate_into_identity_domain(domain)?;
+        Ok(binder)
     }
 
     pub fn relocate_into_identity_domain(
@@ -591,32 +608,6 @@ impl<'a> BinderWorker<'a> {
                 detail: "private-name serial counter precedes its base",
             })?;
         Ok((symbol_count, serial_count))
-    }
-
-    fn attach_identity_leases(
-        &mut self,
-        domain: &IdentityDomain,
-        leases: Vec<IdentityLease>,
-    ) -> Result<(), IdentityError> {
-        let (symbol_lease, serial_lease) = bind_leases(leases)?;
-        if !domain.owns(&symbol_lease)
-            || !domain.owns(&serial_lease)
-            || !symbol_lease.same_domain(&serial_lease)
-        {
-            return Err(IdentityError::InvalidLease {
-                space: IdentitySpace::Symbol,
-                detail: "bind leases do not share the requested domain",
-            });
-        }
-        self.symbols.attach_identity_lease(symbol_lease)?;
-        validate_serial_lease(
-            &serial_lease,
-            self.private_name_serial_base,
-            self.next_symbol_id,
-            true,
-        )?;
-        self.private_name_serial_lease = Some(serial_lease);
-        Ok(())
     }
 
     fn apply_identity_relocation(
@@ -1328,6 +1319,7 @@ impl BinderWorker<'_> {
             delayed_type_aliases: _,
             js_doc_imports: _,
             child_scratch: _,
+            tree_claim: _,
         } = self;
 
         if private_name_serial_lease.is_some() {
@@ -1567,6 +1559,7 @@ impl BinderWorker<'_> {
             delayed_type_aliases: _,
             js_doc_imports: _,
             child_scratch: _,
+            tree_claim,
         } = self;
         BindData {
             common_js_module_indicator,
@@ -1593,6 +1586,7 @@ impl BinderWorker<'_> {
             possibly_exhaustive,
             node_fallthrough_flow,
             emit_flags,
+            _tree_claim: tree_claim,
         }
     }
 }
@@ -1615,38 +1609,77 @@ const BINDER_NODE_FLAGS: [NodeFlags; 6] = [
 
 const BINDER_NODE_FLAG_MASK: i32 = unpack_binder_node_flags(u8::MAX);
 
+/// `unpack_binder_node_flags` of every byte the overlay can hold.
+const BINDER_NODE_FLAG_VALUES: [i32; 256] = {
+    let mut values = [0; 256];
+    let mut bits = 0;
+    while bits < 256 {
+        values[bits] = unpack_binder_node_flags(bits as u8);
+        bits += 1;
+    }
+    values
+};
+
 /// The binder's view of tsc node.flags for one source: the parse-time flags
 /// in the arena with the binder-owned bits overlaid, one byte per node (bit
 /// `i` stands for `BINDER_NODE_FLAGS[i]`) instead of a copy of every
 /// node's flags.
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct BinderNodeFlags(Vec<u8>);
+pub struct BinderNodeFlags(StoreVec<PackedNodeFlags>);
+
+/// The binder-owned bits of one node's flags.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(transparent)]
+pub struct PackedNodeFlags(u8);
+
+impl StoreRecord for PackedNodeFlags {
+    const REGION: usize = 6;
+}
+
+impl PackedNodeFlags {
+    /// `parsed` with the binder-owned bits replaced.
+    #[inline]
+    fn over(self, parsed: i32) -> NodeFlags {
+        NodeFlags::from_bits(
+            parsed & !BINDER_NODE_FLAG_MASK | BINDER_NODE_FLAG_VALUES[self.0 as usize],
+        )
+    }
+}
+
+/// tsc `node.flags` of a published, bound node.
+#[inline(always)]
+pub fn published_node_flags(node: NodeId) -> NodeFlags {
+    let parsed = tsc_syntax::published_node(node).flags;
+    tsc_store::get::<PackedNodeFlags>(node.position()).over(parsed)
+}
 
 impl BinderNodeFlags {
     fn new(arena: &NodeArena) -> Self {
-        Self(
-            arena
-                .nodes()
-                .iter()
-                .map(|node| pack_binder_node_flags(node.flags))
-                .collect(),
-        )
+        let mut flags = if arena.is_published() {
+            StoreVec::claim(arena.node_base() + 1, arena.len() as u32)
+        } else {
+            let mut flags = StoreVec::with_capacity(arena.len());
+            flags.resize(arena.len(), PackedNodeFlags::default());
+            flags
+        };
+        for (slot, node) in flags.iter_mut().zip(arena.nodes()) {
+            *slot = PackedNodeFlags(pack_binder_node_flags(node.flags));
+        }
+        Self(flags)
     }
 
-    /// Bytes this overlay owns on the heap, for memory accounting.
+    /// Bytes this overlay owns, for memory accounting.
     pub fn heap_bytes(&self) -> usize {
         self.0.capacity()
     }
 
     /// The flags of the node at `index`, whose parse-time flags are `parsed`.
     fn get(&self, index: usize, parsed: i32) -> NodeFlags {
-        NodeFlags::from_bits(
-            parsed & !BINDER_NODE_FLAG_MASK | unpack_binder_node_flags(self.0[index]),
-        )
+        self.0[index].over(parsed)
     }
 
     fn set(&mut self, index: usize, flags: NodeFlags) {
-        self.0[index] = pack_binder_node_flags(flags.bits());
+        self.0[index] = PackedNodeFlags(pack_binder_node_flags(flags.bits()));
     }
 }
 
@@ -1678,9 +1711,43 @@ const fn unpack_binder_node_flags(bits: u8) -> i32 {
 /// and both the binder's inserts and the checker's lookups are a bounds check
 /// and an index.
 #[derive(Clone, Debug, Default)]
-pub struct DenseNodeMap<V> {
+pub struct DenseNodeMap<V>
+where
+    NodeSlot<V>: StoreRecord,
+{
     base: u32,
-    slots: Vec<Option<V>>,
+    slots: StoreVec<NodeSlot<V>>,
+}
+
+/// One node's entry of a [`DenseNodeMap`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(transparent)]
+pub struct NodeSlot<V>(Option<V>);
+
+impl<V> Default for NodeSlot<V> {
+    fn default() -> Self {
+        Self(None)
+    }
+}
+
+impl StoreRecord for NodeSlot<SymbolId> {
+    const REGION: usize = 4;
+}
+
+impl StoreRecord for NodeSlot<crate::flow::FlowId> {
+    const REGION: usize = 5;
+}
+
+/// tsc `node.symbol` of a published, bound node.
+#[inline(always)]
+pub fn published_node_symbol(node: NodeId) -> Option<SymbolId> {
+    tsc_store::get::<NodeSlot<SymbolId>>(node.position()).0
+}
+
+/// tsc `node.flowNode` of a published, bound node.
+#[inline(always)]
+pub fn published_node_flow(node: NodeId) -> Option<crate::flow::FlowId> {
+    tsc_store::get::<NodeSlot<crate::flow::FlowId>>(node.position()).0
 }
 
 /// tsc `node.symbol`: the declaring symbol of a node.
@@ -1692,16 +1759,27 @@ pub type NodeSymbolMap = DenseNodeMap<SymbolId>;
 /// the binder's per-file hash maps.
 pub type NodeFlowMap = DenseNodeMap<crate::flow::FlowId>;
 
-impl<V: Copy> DenseNodeMap<V> {
-    /// Bytes this map owns on the heap, for memory accounting.
+impl<V: Copy> DenseNodeMap<V>
+where
+    NodeSlot<V>: StoreRecord,
+{
+    /// Bytes this map owns, for memory accounting.
     pub fn heap_bytes(&self) -> usize {
         self.slots.capacity() * std::mem::size_of::<Option<V>>()
     }
 
-    pub fn with_len(base: u32, len: usize) -> Self {
+    /// The empty map of `arena`'s nodes: in the store at their positions for
+    /// a published tree, where a Program reads it.
+    pub fn for_tree(arena: &NodeArena) -> Self {
         Self {
-            base,
-            slots: vec![None; len],
+            base: arena.node_base(),
+            slots: if arena.is_published() {
+                StoreVec::claim(arena.node_base() + 1, arena.len() as u32)
+            } else {
+                let mut slots = StoreVec::with_capacity(arena.len());
+                slots.resize(arena.len(), NodeSlot::default());
+                slots
+            },
         }
     }
 
@@ -1712,7 +1790,7 @@ impl<V: Copy> DenseNodeMap<V> {
     }
 
     pub fn get(&self, node: &NodeId) -> Option<&V> {
-        self.slots.get(self.slot(node)?)?.as_ref()
+        self.slots.get(self.slot(node)?)?.0.as_ref()
     }
 
     pub fn insert(&mut self, node: NodeId, value: V) -> Option<V> {
@@ -1720,14 +1798,14 @@ impl<V: Copy> DenseNodeMap<V> {
             .slot(&node)
             .expect("a bound node belongs to the bind's own arena");
         if index >= self.slots.len() {
-            self.slots.resize(index + 1, None);
+            self.slots.resize(index + 1, NodeSlot::default());
         }
-        self.slots[index].replace(value)
+        self.slots[index].0.replace(value)
     }
 
     pub fn remove(&mut self, node: &NodeId) -> Option<V> {
         let index = self.slot(node)?;
-        self.slots.get_mut(index)?.take()
+        self.slots.get_mut(index)?.0.take()
     }
 
     pub fn contains_key(&self, node: &NodeId) -> bool {
@@ -1735,7 +1813,7 @@ impl<V: Copy> DenseNodeMap<V> {
     }
 
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
-        self.slots.iter_mut().flatten()
+        self.slots.iter_mut().filter_map(|slot| slot.0.as_mut())
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (NodeId, V)> + '_ {
@@ -1743,12 +1821,16 @@ impl<V: Copy> DenseNodeMap<V> {
             .iter()
             .enumerate()
             .filter_map(move |(index, slot)| {
-                slot.map(|value| (NodeId::new(self.base + index as u32), value))
+                slot.0
+                    .map(|value| (NodeId::new(self.base + index as u32), value))
             })
     }
 }
 
-impl<V: Copy> std::ops::Index<&NodeId> for DenseNodeMap<V> {
+impl<V: Copy> std::ops::Index<&NodeId> for DenseNodeMap<V>
+where
+    NodeSlot<V>: StoreRecord,
+{
     type Output = V;
 
     fn index(&self, node: &NodeId) -> &V {
@@ -1758,7 +1840,10 @@ impl<V: Copy> std::ops::Index<&NodeId> for DenseNodeMap<V> {
 
 /// Two maps are equal when they hold the same node → value entries for the
 /// same arena base; unused trailing slots do not count.
-impl<V: Copy + PartialEq> PartialEq for DenseNodeMap<V> {
+impl<V: Copy + PartialEq> PartialEq for DenseNodeMap<V>
+where
+    NodeSlot<V>: StoreRecord,
+{
     fn eq(&self, other: &Self) -> bool {
         self.base == other.base && self.iter().eq(other.iter())
     }

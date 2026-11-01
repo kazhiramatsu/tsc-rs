@@ -1,9 +1,9 @@
-use tsc_syntax::{parse_source_file, ParseOptions};
+use tsc_syntax::{parse_published_source_file, ParseOptions};
 
 use super::get_js_syntactic_diagnostics;
 
 fn js_syntactic_diagnostics(text: &str) -> Vec<tsc_diagnostics::Diagnostic> {
-    let source = parse_source_file(
+    let source = parse_published_source_file(
         "a.js".to_owned(),
         text.to_owned(),
         ParseOptions {
@@ -102,7 +102,7 @@ fn unchecked_js_parameter_decorators_report_at_the_decorator() {
     // a parameter decorator of an unchecked JavaScript file is TS1206 at the
     // decorator (parameterDecoratorInJsFile(checkjs=false)).
     let text = "class Foo {\n    method(@dec x) {}\n}\n";
-    let source = parse_source_file(
+    let source = parse_published_source_file(
         "a.js".to_owned(),
         text.to_owned(),
         ParseOptions {

@@ -1,5 +1,5 @@
 use tsc_binder::bind_source_file;
-use tsc_syntax::{parse_source_file, ParseOptions, ScriptKind, SourceFile};
+use tsc_syntax::{parse_published_source_file, ParseOptions, ScriptKind, SourceFile};
 use tsc_types::{
     CheckFlags, CompilerOptions, ElementFlags, ObjectFlags, SignatureFlags, TypeData, TypeFlags,
     TypeId,
@@ -12,7 +12,7 @@ use crate::state::CheckerState;
 use crate::{check_program, InputFile};
 
 fn parse(text: &str) -> SourceFile {
-    let source = parse_source_file(
+    let source = parse_published_source_file(
         "annotate-test.ts".to_owned(),
         text.to_owned(),
         ParseOptions {

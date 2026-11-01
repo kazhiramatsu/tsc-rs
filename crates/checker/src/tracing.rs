@@ -134,10 +134,9 @@ impl CheckerState<'_> {
             ..TypeDescriptor::default()
         };
         // A token per recursion identity, in the order identities appear.
-        if let Ok(identity) = self.get_recursion_identity(ty) {
-            let next = recursion_ids.len();
-            descriptor.recursion_id = Some(*recursion_ids.entry(identity).or_insert(next));
-        }
+        let Ok(identity) = self.get_recursion_identity(ty);
+        let next = recursion_ids.len();
+        descriptor.recursion_id = Some(*recursion_ids.entry(identity).or_insert(next));
         if flags.bits() & INTRINSIC_FLAGS != 0 {
             if let TypeData::Intrinsic { name, .. } = &record.data {
                 descriptor.intrinsic_name = Some((*name).to_owned());

@@ -1,14 +1,16 @@
 //! Collision-safe identity ranges shared by parsed and bound documents.
 //!
 //! A domain is intentionally opaque: numeric ids are meaningful only while
-//! their lease is alive and only beside other leases from the same domain.
-//! Long-lived domains reclaim released intervals. One-shot programs use the
-//! bump policy and may reserve the current tail provisionally so parsing and
-//! binding can construct directly at their final bases.
+//! their lease is alive. Every domain [`new`](IdentityDomain::new) makes
+//! allocates from one process-wide state, so an identity names one record of
+//! the process: the stores (`tsc_store`) keep a record at the position of its
+//! identity, in any domain. A domain is the owner a document is checked
+//! against. Released intervals are reclaimed.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock, Weak};
 
 /// Persistent symbols occupy the low half of `SymbolId`. The checker owns the
 /// tagged high half for session-local transient symbols.
@@ -21,14 +23,16 @@ pub enum IdentitySpace {
     NodeArray = 1,
     Symbol = 2,
     PrivateNameSerial = 3,
+    NodeArrayItem = 4,
 }
 
 impl IdentitySpace {
-    pub const ALL: [Self; 4] = [
+    pub const ALL: [Self; 5] = [
         Self::Node,
         Self::NodeArray,
         Self::Symbol,
         Self::PrivateNameSerial,
+        Self::NodeArrayItem,
     ];
 
     const fn index(self) -> usize {
@@ -50,14 +54,9 @@ impl fmt::Display for IdentitySpace {
             Self::NodeArray => "node-array",
             Self::Symbol => "persistent-symbol",
             Self::PrivateNameSerial => "private-name-serial",
+            Self::NodeArrayItem => "node-array-item",
         })
     }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum IdentityAllocationPolicy {
-    EphemeralBump,
-    Reclaiming,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -66,6 +65,7 @@ pub struct IdentityLimits {
     pub node_array_end: u32,
     pub persistent_symbol_end: u32,
     pub private_name_serial_end: u32,
+    pub node_array_item_end: u32,
 }
 
 impl IdentityLimits {
@@ -75,6 +75,7 @@ impl IdentityLimits {
             IdentitySpace::NodeArray => self.node_array_end,
             IdentitySpace::Symbol => self.persistent_symbol_end,
             IdentitySpace::PrivateNameSerial => self.private_name_serial_end,
+            IdentitySpace::NodeArrayItem => self.node_array_item_end,
         }
     }
 }
@@ -88,6 +89,7 @@ impl Default for IdentityLimits {
             node_array_end: u32::MAX,
             persistent_symbol_end: TRANSIENT_SYMBOL_BIT,
             private_name_serial_end: u32::MAX,
+            node_array_item_end: u32::MAX,
         }
     }
 }
@@ -137,8 +139,6 @@ pub enum IdentityError {
     },
     EmptyReservation,
     DuplicateSpace(IdentitySpace),
-    ProvisionalAllocationActive(IdentitySpace),
-    ProvisionalAllocationUnsupported,
     ReservationMismatch,
     Exhausted {
         space: IdentitySpace,
@@ -162,15 +162,6 @@ impl fmt::Display for IdentityError {
             Self::DuplicateSpace(space) => {
                 write!(formatter, "identity reservation repeats {space}")
             }
-            Self::ProvisionalAllocationActive(space) => {
-                write!(
-                    formatter,
-                    "a provisional {space} allocation is already active"
-                )
-            }
-            Self::ProvisionalAllocationUnsupported => formatter.write_str(
-                "provisional tail allocation is only available in an ephemeral identity domain",
-            ),
             Self::ReservationMismatch => {
                 formatter.write_str("identity reservation spaces and sealed counts disagree")
             }
@@ -205,7 +196,6 @@ struct RangeAllocator {
     bump: u32,
     free: BTreeMap<u32, u32>,
     active: BTreeMap<u32, ActiveRange>,
-    provisional: Option<u64>,
 }
 
 impl RangeAllocator {
@@ -216,7 +206,6 @@ impl RangeAllocator {
             bump: start,
             free: BTreeMap::new(),
             active: BTreeMap::new(),
-            provisional: None,
         }
     }
 
@@ -225,29 +214,23 @@ impl RangeAllocator {
         space: IdentitySpace,
         count: u32,
         lease_id: u64,
-        policy: IdentityAllocationPolicy,
     ) -> Result<IdentityRange, IdentityError> {
-        if self.provisional.is_some() {
-            return Err(IdentityError::ProvisionalAllocationActive(space));
-        }
         if count == 0 {
             return Ok(IdentityRange::new(self.bump, self.bump));
         }
 
-        if policy == IdentityAllocationPolicy::Reclaiming {
-            let candidate = self
-                .free
-                .iter()
-                .find_map(|(&start, &end)| (end - start >= count).then_some((start, end)));
-            if let Some((start, free_end)) = candidate {
-                let end = start + count;
-                self.free.remove(&start);
-                if end < free_end {
-                    self.free.insert(end, free_end);
-                }
-                self.insert_active(space, IdentityRange::new(start, end), lease_id)?;
-                return Ok(IdentityRange::new(start, end));
+        let candidate = self
+            .free
+            .iter()
+            .find_map(|(&start, &end)| (end - start >= count).then_some((start, end)));
+        if let Some((start, free_end)) = candidate {
+            let end = start + count;
+            self.free.remove(&start);
+            if end < free_end {
+                self.free.insert(end, free_end);
             }
+            self.insert_active(space, IdentityRange::new(start, end), lease_id)?;
+            return Ok(IdentityRange::new(start, end));
         }
 
         let end = self
@@ -262,34 +245,6 @@ impl RangeAllocator {
         let range = IdentityRange::new(self.bump, end);
         self.bump = end;
         self.insert_active(space, range, lease_id)?;
-        Ok(range)
-    }
-
-    fn seal_tail(
-        &mut self,
-        space: IdentitySpace,
-        token: u64,
-        count: u32,
-        lease_id: u64,
-    ) -> Result<IdentityRange, IdentityError> {
-        if self.provisional != Some(token) {
-            return Err(IdentityError::ReservationMismatch);
-        }
-        let end = self
-            .bump
-            .checked_add(count)
-            .filter(|end| *end <= self.limit)
-            .ok_or(IdentityError::Exhausted {
-                space,
-                requested: count,
-                limit: self.limit,
-            })?;
-        let range = IdentityRange::new(self.bump, end);
-        self.bump = end;
-        self.provisional = None;
-        if count != 0 {
-            self.insert_active(space, range, lease_id)?;
-        }
         Ok(range)
     }
 
@@ -334,7 +289,7 @@ impl RangeAllocator {
         Ok(())
     }
 
-    fn release(&mut self, range: IdentityRange, lease_id: u64, policy: IdentityAllocationPolicy) {
+    fn release(&mut self, range: IdentityRange, lease_id: u64) {
         if range.is_empty() {
             return;
         }
@@ -347,7 +302,7 @@ impl RangeAllocator {
             }),
             "released identity range was not the active lease"
         );
-        if active.is_none() || policy == IdentityAllocationPolicy::EphemeralBump {
+        if active.is_none() {
             return;
         }
 
@@ -384,16 +339,24 @@ impl RangeAllocator {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 struct DomainState {
-    allocators: [RangeAllocator; 4],
+    allocators: [RangeAllocator; 5],
     next_lease_id: u64,
-    next_token: u64,
+}
+
+impl DomainState {
+    fn new(limits: IdentityLimits) -> Self {
+        Self {
+            allocators: IdentitySpace::ALL
+                .map(|space| RangeAllocator::new(space.default_start(), limits.end(space))),
+            next_lease_id: 1,
+        }
+    }
 }
 
 struct IdentityDomainInner {
-    policy: IdentityAllocationPolicy,
-    state: Mutex<DomainState>,
+    state: Arc<Mutex<DomainState>>,
 }
 
 #[derive(Clone)]
@@ -405,32 +368,33 @@ impl fmt::Debug for IdentityDomain {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("IdentityDomain")
-            .field("policy", &self.inner.policy)
             .finish_non_exhaustive()
     }
 }
 
+impl Default for IdentityDomain {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IdentityDomain {
-    pub fn ephemeral() -> Self {
-        Self::with_limits(
-            IdentityAllocationPolicy::EphemeralBump,
-            IdentityLimits::default(),
-        )
-        .expect("default ephemeral identity limits are valid")
+    /// A new owner over the process's identities.
+    pub fn new() -> Self {
+        static STATE: OnceLock<Arc<Mutex<DomainState>>> = OnceLock::new();
+        Self {
+            inner: Arc::new(IdentityDomainInner {
+                state: Arc::clone(STATE.get_or_init(|| {
+                    Arc::new(Mutex::new(DomainState::new(IdentityLimits::default())))
+                })),
+            }),
+        }
     }
 
-    pub fn reclaiming() -> Self {
-        Self::with_limits(
-            IdentityAllocationPolicy::Reclaiming,
-            IdentityLimits::default(),
-        )
-        .expect("default reclaiming identity limits are valid")
-    }
-
-    pub fn with_limits(
-        policy: IdentityAllocationPolicy,
-        limits: IdentityLimits,
-    ) -> Result<Self, IdentityError> {
+    /// A domain with identities of its own, for testing the allocator: what
+    /// it leases collides with the process's identities, so no document is
+    /// ever published from it.
+    pub fn with_limits(limits: IdentityLimits) -> Result<Self, IdentityError> {
         for space in IdentitySpace::ALL {
             let start = space.default_start();
             let end = limits.end(space);
@@ -440,19 +404,9 @@ impl IdentityDomain {
         }
         Ok(Self {
             inner: Arc::new(IdentityDomainInner {
-                policy,
-                state: Mutex::new(DomainState {
-                    allocators: IdentitySpace::ALL
-                        .map(|space| RangeAllocator::new(space.default_start(), limits.end(space))),
-                    next_lease_id: 1,
-                    next_token: 1,
-                }),
+                state: Arc::new(Mutex::new(DomainState::new(limits))),
             }),
         })
-    }
-
-    pub fn policy(&self) -> IdentityAllocationPolicy {
-        self.inner.policy
     }
 
     pub fn same_domain(&self, other: &Self) -> bool {
@@ -476,113 +430,25 @@ impl IdentityDomain {
     ) -> Result<Vec<IdentityLease>, IdentityError> {
         validate_spaces(requests.iter().map(|(space, _)| *space))?;
         let mut state = self.lock()?;
-        let allocated = if self.inner.policy == IdentityAllocationPolicy::EphemeralBump {
-            // Bump allocations only ever fail before touching the allocator
-            // (limit) or at the active-range insertion, so a failed batch is
-            // undone in place; cloning the domain state (its active ranges
-            // grow with every file) per transaction is what a Program of a
-            // few hundred files would otherwise pay hundreds of times.
-            Self::allocate_batch_in_place(&mut state, requests, self.inner.policy)?
-        } else {
-            let mut trial = state.clone();
-            let allocated = Self::allocate_batch_in_place(&mut trial, requests, self.inner.policy)?;
-            *state = trial;
-            allocated
-        };
+        let mut allocated = Vec::with_capacity(requests.len());
+        for &(space, count) in requests {
+            let lease_id = state.next_lease_id;
+            state.next_lease_id += 1;
+            match state.allocators[space.index()].allocate(space, count, lease_id) {
+                Ok(range) => allocated.push((space, range, lease_id)),
+                Err(error) => {
+                    for (space, range, lease_id) in allocated {
+                        state.allocators[space.index()].release(range, lease_id);
+                    }
+                    return Err(error);
+                }
+            }
+        }
         drop(state);
         Ok(allocated
             .into_iter()
             .map(|(space, range, lease_id)| self.make_lease(space, range, lease_id))
             .collect())
-    }
-
-    /// Allocate every request of a batch on `state`, restoring the state on
-    /// failure (the lease serial, each allocator's bump position and the
-    /// active ranges inserted by this batch).
-    fn allocate_batch_in_place(
-        state: &mut DomainState,
-        requests: &[(IdentitySpace, u32)],
-        policy: IdentityAllocationPolicy,
-    ) -> Result<Vec<(IdentitySpace, IdentityRange, u64)>, IdentityError> {
-        let next_lease_id = state.next_lease_id;
-        let bumps = state
-            .allocators
-            .iter()
-            .map(|allocator| allocator.bump)
-            .collect::<Vec<_>>();
-        let mut allocated = Vec::with_capacity(requests.len());
-        let mut failure = None;
-        for &(space, count) in requests {
-            let lease_id = state.next_lease_id;
-            let result = state
-                .next_lease_id
-                .checked_add(1)
-                .ok_or(IdentityError::InvalidLease {
-                    space,
-                    detail: "lease serial exhausted",
-                })
-                .and_then(|next| {
-                    state.next_lease_id = next;
-                    state.allocators[space.index()].allocate(space, count, lease_id, policy)
-                });
-            match result {
-                Ok(range) => allocated.push((space, range, lease_id)),
-                Err(error) => {
-                    failure = Some(error);
-                    break;
-                }
-            }
-        }
-        let Some(error) = failure else {
-            return Ok(allocated);
-        };
-        for (space, range, _) in allocated {
-            if range.start() != range.end() {
-                state.allocators[space.index()]
-                    .active
-                    .remove(&range.start());
-            }
-        }
-        for (allocator, bump) in state.allocators.iter_mut().zip(bumps) {
-            allocator.bump = bump;
-        }
-        state.next_lease_id = next_lease_id;
-        Err(error)
-    }
-
-    /// Opens the current bump tail without advancing it. Only one one-shot
-    /// publisher may hold a provisional reservation for a given space.
-    pub fn reserve_provisional(
-        &self,
-        spaces: &[IdentitySpace],
-    ) -> Result<IdentityReservation, IdentityError> {
-        if self.inner.policy != IdentityAllocationPolicy::EphemeralBump {
-            return Err(IdentityError::ProvisionalAllocationUnsupported);
-        }
-        validate_spaces(spaces.iter().copied())?;
-        let mut state = self.lock()?;
-        let mut trial = state.clone();
-        let token = trial.next_token;
-        trial.next_token = trial
-            .next_token
-            .checked_add(1)
-            .ok_or(IdentityError::ReservationMismatch)?;
-        let mut bases = Vec::with_capacity(spaces.len());
-        for &space in spaces {
-            let allocator = &mut trial.allocators[space.index()];
-            if allocator.provisional.is_some() {
-                return Err(IdentityError::ProvisionalAllocationActive(space));
-            }
-            allocator.provisional = Some(token);
-            bases.push((space, allocator.bump));
-        }
-        *state = trial;
-        Ok(IdentityReservation {
-            domain: self.clone(),
-            token,
-            bases,
-            active: true,
-        })
     }
 
     pub fn stats(&self) -> Result<IdentityDomainStats, IdentityError> {
@@ -599,13 +465,9 @@ impl IdentityDomain {
                     .sum(),
                 bump: allocator.bump,
                 free_ranges: allocator.free.len(),
-                provisional: allocator.provisional.is_some(),
             }
         });
-        Ok(IdentityDomainStats {
-            policy: self.inner.policy,
-            spaces,
-        })
+        Ok(IdentityDomainStats { spaces })
     }
 
     pub fn active_ranges(&self, space: IdentitySpace) -> Result<Vec<IdentityRange>, IdentityError> {
@@ -633,6 +495,7 @@ impl IdentityDomain {
                 space,
                 range,
                 lease_id,
+                claimed: AtomicBool::new(false),
             }),
         }
     }
@@ -658,6 +521,8 @@ struct IdentityLeaseInner {
     space: IdentitySpace,
     range: IdentityRange,
     lease_id: u64,
+    /// Whether an [`IdentityClaim`] is live.
+    claimed: AtomicBool,
 }
 
 impl Drop for IdentityLeaseInner {
@@ -667,7 +532,7 @@ impl Drop for IdentityLeaseInner {
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        state.allocators[self.space.index()].release(self.range, self.lease_id, self.domain.policy);
+        state.allocators[self.space.index()].release(self.range, self.lease_id);
     }
 }
 
@@ -687,6 +552,27 @@ impl IdentityLease {
 
     pub fn same_domain(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.inner.domain, &other.inner.domain)
+    }
+
+    /// A view of the lease that does not hold it: whether it is still held
+    /// by a document, a clone of one or a claim.
+    pub fn watch(&self) -> IdentityLeaseWatch {
+        IdentityLeaseWatch {
+            inner: Arc::downgrade(&self.inner),
+        }
+    }
+
+    /// The exclusive use of what the lease's identities name beyond the
+    /// records themselves: the tables a bind keeps at a tree's node
+    /// positions. One claim is live at a time; `None` while another is.
+    pub fn claim(&self) -> Option<IdentityClaim> {
+        self.inner
+            .claimed
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+            .then(|| IdentityClaim {
+                lease: self.clone(),
+            })
     }
 
     pub fn belongs_to(&self, domain: &IdentityDomain) -> bool {
@@ -720,95 +606,54 @@ impl PartialEq for IdentityLease {
 
 impl Eq for IdentityLease {}
 
-pub struct IdentityReservation {
-    domain: IdentityDomain,
-    token: u64,
-    bases: Vec<(IdentitySpace, u32)>,
-    active: bool,
+/// An [`IdentityLease::watch`].
+#[derive(Clone)]
+pub struct IdentityLeaseWatch {
+    inner: Weak<IdentityLeaseInner>,
 }
 
-impl fmt::Debug for IdentityReservation {
+impl IdentityLeaseWatch {
+    /// Whether the watched lease is still held.
+    pub fn is_held(&self) -> bool {
+        self.inner.strong_count() > 0
+    }
+
+    /// Whether `lease` is the watched one.
+    pub fn watches(&self, lease: &IdentityLease) -> bool {
+        std::ptr::eq(self.inner.as_ptr(), Arc::as_ptr(&lease.inner))
+    }
+}
+
+/// A live [`IdentityLease::claim`]; dropping it lets the lease be claimed
+/// again.
+pub struct IdentityClaim {
+    lease: IdentityLease,
+}
+
+impl IdentityClaim {
+    pub fn lease(&self) -> &IdentityLease {
+        &self.lease
+    }
+}
+
+impl Drop for IdentityClaim {
+    fn drop(&mut self) {
+        self.lease.inner.claimed.store(false, Ordering::Release);
+    }
+}
+
+impl fmt::Debug for IdentityClaim {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
-            .debug_struct("IdentityReservation")
-            .field("bases", &self.bases)
-            .field("active", &self.active)
-            .finish_non_exhaustive()
-    }
-}
-
-impl IdentityReservation {
-    pub fn base(&self, space: IdentitySpace) -> Result<u32, IdentityError> {
-        self.bases
-            .iter()
-            .find_map(|&(candidate, base)| (candidate == space).then_some(base))
-            .ok_or(IdentityError::ReservationMismatch)
-    }
-
-    /// Atomically seals the observed counts and turns the provisional tails
-    /// into ordinary RAII leases.
-    pub fn seal(
-        mut self,
-        counts: &[(IdentitySpace, u32)],
-    ) -> Result<Vec<IdentityLease>, IdentityError> {
-        validate_spaces(counts.iter().map(|(space, _)| *space))?;
-        let requested: BTreeSet<_> = counts.iter().map(|(space, _)| *space).collect();
-        let reserved: BTreeSet<_> = self.bases.iter().map(|(space, _)| *space).collect();
-        if requested != reserved {
-            return Err(IdentityError::ReservationMismatch);
-        }
-
-        let mut state = self.domain.lock()?;
-        let mut trial = state.clone();
-        let mut allocated = Vec::with_capacity(counts.len());
-        for &(space, count) in counts {
-            let lease_id = trial.next_lease_id;
-            trial.next_lease_id =
-                trial
-                    .next_lease_id
-                    .checked_add(1)
-                    .ok_or(IdentityError::InvalidLease {
-                        space,
-                        detail: "lease serial exhausted",
-                    })?;
-            let range =
-                trial.allocators[space.index()].seal_tail(space, self.token, count, lease_id)?;
-            allocated.push((space, range, lease_id));
-        }
-        *state = trial;
-        drop(state);
-        self.active = false;
-        Ok(allocated
-            .into_iter()
-            .map(|(space, range, lease_id)| self.domain.make_lease(space, range, lease_id))
-            .collect())
-    }
-}
-
-impl Drop for IdentityReservation {
-    fn drop(&mut self) {
-        if !self.active {
-            return;
-        }
-        let mut state = self
-            .domain
-            .inner
-            .state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        for &(space, _) in &self.bases {
-            let provisional = &mut state.allocators[space.index()].provisional;
-            if *provisional == Some(self.token) {
-                *provisional = None;
-            }
-        }
+            .debug_struct("IdentityClaim")
+            .field("lease", &self.lease)
+            .finish()
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IdentityDomainStats {
-    pub policy: IdentityAllocationPolicy,
-    pub spaces: [IdentitySpaceStats; 4],
+    pub spaces: [IdentitySpaceStats; 5],
 }
 
 impl IdentityDomainStats {
@@ -824,7 +669,6 @@ pub struct IdentitySpaceStats {
     pub active_values: u64,
     pub bump: u32,
     pub free_ranges: usize,
-    pub provisional: bool,
 }
 
 #[cfg(test)]

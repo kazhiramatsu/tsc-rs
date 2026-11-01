@@ -1667,7 +1667,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
     if !effective_libs.is_empty() && !cache_enabled {
         // Cache-off is the L3 A/B path. Keep the parsed and bound prefix local
         // so repeated disabled-cache calls do not leak one bundle each.
-        let identity_domain = IdentityDomain::ephemeral();
+        let identity_domain = IdentityDomain::new();
         let (lib_sources, lib_work) = parse_lib_sources(
             &effective_libs,
             &identity_domain,
@@ -1708,7 +1708,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
     };
     let identity_domain = bundle
         .map(|bundle| bundle.identity_domain.clone())
-        .unwrap_or_else(IdentityDomain::ephemeral);
+        .unwrap_or_else(IdentityDomain::new);
 
     check_program_with_prebound_libs_at_observed(
         libs,
@@ -1750,7 +1750,7 @@ pub fn check_program_with_owned_libs_at<'cwd>(
         .iter()
         .filter(|lib| !fixture_names.contains(&lib.name.as_js()))
         .collect();
-    let identity_domain = IdentityDomain::ephemeral();
+    let identity_domain = IdentityDomain::new();
     let (lib_sources, lib_work) = parse_lib_sources(
         &effective_libs,
         &identity_domain,
@@ -2558,7 +2558,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
             };
             let identity_domain = bundle
                 .map(|bundle| bundle.identity_domain.clone())
-                .unwrap_or_else(IdentityDomain::ephemeral);
+                .unwrap_or_else(IdentityDomain::new);
             check_program_with_prebound_libs_at_observed(
                 libs,
                 files,
@@ -2577,7 +2577,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
             )
         }
     } else {
-        let identity_domain = IdentityDomain::ephemeral();
+        let identity_domain = IdentityDomain::new();
         let tracing = run.tracing.as_ref();
         let (lib_sources, lib_work) =
             parse_lib_sources(&effective_libs, &identity_domain, workers, tracing);
@@ -2726,7 +2726,7 @@ pub(crate) enum SharedDocument {
 /// the calling thread) and its rewrite into the leased ranges (on a worker).
 enum PendingProgramSource {
     Ready(tsc_syntax::SourceFile),
-    Leased(tsc_syntax::SourceFile, IdentityLease, IdentityLease),
+    Leased(tsc_syntax::SourceFile, tsc_syntax::SyntaxLeases),
     /// The source of a document a Program already holds.
     Shared(Arc<tsc_syntax::SourceFile>),
 }
@@ -2735,13 +2735,13 @@ impl PendingProgramSource {
     fn weight(&self) -> usize {
         match self {
             Self::Ready(_) | Self::Shared(_) => 0,
-            Self::Leased(source, _, _) => source.arena.nodes().len(),
+            Self::Leased(source, _) => source.arena.nodes().len(),
         }
     }
 
     fn source_mut(&mut self) -> &mut tsc_syntax::SourceFile {
         match self {
-            Self::Ready(source) | Self::Leased(source, _, _) => source,
+            Self::Ready(source) | Self::Leased(source, _) => source,
             Self::Shared(_) => unreachable!("a shared source is not edited"),
         }
     }
@@ -2749,9 +2749,9 @@ impl PendingProgramSource {
     fn relocate(self) -> tsc_syntax::SourceFile {
         match self {
             Self::Ready(source) => source,
-            Self::Leased(mut source, node_lease, array_lease) => {
+            Self::Leased(mut source, leases) => {
                 source
-                    .relocate_with_leases(node_lease, array_lease)
+                    .relocate_with_leases(leases)
                     .expect("source identity relocation failed");
                 source
             }
@@ -3046,10 +3046,10 @@ fn parse_program_inputs(
         let mut pending = match file.take_preparsed_source(&parse_options) {
             Some(source_file) => {
                 work_counters.record_adoption();
-                let (node_lease, array_lease) = source_file
+                let leases = source_file
                     .lease_identities(identity_domain)
                     .expect("source identity allocation failed");
-                PendingProgramSource::Leased(source_file, node_lease, array_lease)
+                PendingProgramSource::Leased(source_file, leases)
             }
             None => {
                 work_counters.record_parse(file.text().len());
@@ -6055,7 +6055,7 @@ fn build_lib_bundle(libs: &[&InputFile]) -> &'static LibBundle {
 }
 
 fn build_owned_lib_bundle(libs: &[&InputFile]) -> OwnedHarnessLibBundle {
-    let identity_domain = IdentityDomain::reclaiming();
+    let identity_domain = IdentityDomain::new();
     let (sources, _lib_work) =
         parse_lib_sources(libs, &identity_domain, WorkerBudget::serial(), None);
     let binders = bind_lib_sources(&sources, &identity_domain, WorkerBudget::serial(), None);
@@ -6098,10 +6098,10 @@ fn parse_lib_sources(
         pending.push(match lib.take_preparsed_source(&parse_options) {
             Some(source) => {
                 work.adopted += 1;
-                let (node_lease, array_lease) = source
+                let leases = source
                     .lease_identities(identity_domain)
                     .expect("library source identity allocation failed");
-                PendingProgramSource::Leased(source, node_lease, array_lease)
+                PendingProgramSource::Leased(source, leases)
             }
             None => {
                 work.parsed += 1;
@@ -6192,7 +6192,7 @@ fn bind_reserved_in_program_order<'a>(
             });
             let mut binder = tsc_binder::Binder::bind_reserved(
                 sources[index],
-                symbol_lease.range().start(),
+                symbol_lease.range(),
                 serial_lease.range().start(),
             );
             let attached = binder

@@ -4,7 +4,7 @@ use crate::relocate::{collect_node_data_ids, remap_node_data_ids};
 use crate::ScriptKind;
 use std::collections::HashMap;
 use tsc_diagnostics::{DocumentVersion, MessageChain, VersionedTextStore};
-use tsc_types::{IdentityDomain, IdentitySpace};
+use tsc_types::IdentityDomain;
 
 #[derive(Clone, Debug, PartialEq)]
 struct CanonicalNode {
@@ -988,7 +988,7 @@ fn external_module_and_top_level_await_reparse_remain_fresh_equivalent() {
 
 #[test]
 fn language_service_snapshot_versions_are_owned_and_old_versions_drop_promptly() {
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let old_snapshot = TextSnapshot::new(
         "const before = 1;\nconst value = 2;\nconst after = 3;",
         DocumentVersion::new("old"),
@@ -1003,6 +1003,7 @@ fn language_service_snapshot_versions_are_owned_and_old_versions_drop_promptly()
     .unwrap();
     drop(old_snapshot);
     assert!(old_snapshot_weak.upgrade().is_some());
+    let old_nodes = source.arena.identity_leases().unwrap().nodes.watch();
 
     let edit = source.text().find("2;").unwrap();
     let new_snapshot = TextSnapshot::new(
@@ -1024,31 +1025,26 @@ fn language_service_snapshot_versions_are_owned_and_old_versions_drop_promptly()
     assert!(old_snapshot_weak.upgrade().is_none());
     assert!(Arc::ptr_eq(updated.source.snapshot(), &new_snapshot));
     assert_eq!(updated.source.snapshot().document_version().as_str(), "new");
-    assert_eq!(
-        domain
-            .stats()
-            .unwrap()
-            .space(IdentitySpace::Node)
-            .active_ranges,
-        1
-    );
+    // The old version's identities went with it; the new version holds its own.
+    let new_nodes = updated
+        .source
+        .arena
+        .identity_leases()
+        .unwrap()
+        .nodes
+        .watch();
+    assert!(!old_nodes.is_held());
+    assert!(new_nodes.is_held());
 
     drop(updated);
-    assert_eq!(
-        domain
-            .stats()
-            .unwrap()
-            .space(IdentitySpace::Node)
-            .active_ranges,
-        0
-    );
+    assert!(!new_nodes.is_held());
 }
 
 #[test]
 fn deterministic_unicode_edit_sequence_is_fresh_equivalent_and_reclaims_old_ranges() {
     let initial = "// UTF-16 境界😀\ninterface Box { value: string; next?: Box; }\nconst first = { value: \"α😀\" };\nfunction read(x: Box) { return x.value; }\nconst last = read({ value: \"終\" });\n";
     let mut store = VersionedTextStore::new(initial, DocumentVersion::new("0"));
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let mut source = Arc::new(
         crate::parse_source_file_from_snapshot_in_identity_domain(
             "unicode.ts",
@@ -1094,6 +1090,8 @@ fn deterministic_unicode_edit_sequence_is_fresh_equivalent_and_reclaims_old_rang
             )
             .unwrap();
         let snapshot = store.snapshot();
+        let old_leases = source.arena.identity_leases().unwrap();
+        let (old_nodes, old_arrays) = (old_leases.nodes.watch(), old_leases.arrays.watch());
         let updated = update_language_service_source_file_in_identity_domain(
             source,
             Arc::clone(&snapshot),
@@ -1121,9 +1119,10 @@ fn deterministic_unicode_edit_sequence_is_fresh_equivalent_and_reclaims_old_rang
         );
         source = updated.source;
 
-        let stats = domain.stats().unwrap();
-        assert_eq!(stats.space(IdentitySpace::Node).active_ranges, 1);
-        assert_eq!(stats.space(IdentitySpace::NodeArray).active_ranges, 1);
+        // The old version's identities are reclaimed with it.
+        let leases = source.arena.identity_leases().unwrap();
+        assert!(!old_nodes.is_held() || old_nodes.watches(&leases.nodes));
+        assert!(!old_arrays.is_held() || old_arrays.watches(&leases.arrays));
     }
 }
 
