@@ -213,12 +213,48 @@ checker の memory で最大の項目 resolved members（VS Code で 1,224,722 �
 `ccef290b5`）。出力は 5 case で一致、local の conformance：12,829 case、mismatch 0、退行 0、suites 退行 0。hosted run
 [41347213089](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41347213089)（`ccef290b5`）：全 job pass。
 
+## slice 6：64 byte の type（branch `perf/ts71-type-48`）
+
+`Type` は 80 byte だった（flag 2 つ・symbol・alias symbol・fresh/regular 4 × 4 byte、alias type argument の
+`Option<Box<[TypeId]>>` 16 byte、`TypeData` 40 byte）。VS Code で 2.58M 件、`Vec` の容量 4M × 80 = 320 MiB。二段で 64 byte にする。
+
+- **alias type argument を intern した list に**：`alias_type_arguments: Option<TypeListId>`（4 byte）。list の interner は
+  list を一度だけ持つ（`lists: Vec<Box<[TypeId]>>` + `HashTable<TypeListId>`。以前は map の key にも複製があった）。読み手は
+  `tables.alias_type_arguments(id)`（`Option<&[TypeId]>`）、書き手は `intern_alias_arguments`。subtype cache の key（slice 3）と
+  同じ list。`Type` 72 byte。
+- **少数の kind だけが持つ payload を Box に**：inline の最大 40 byte は intrinsic の名前 2 つ（`&'static str` × 2）、template
+  literal の texts と types、bigint literal の `PseudoBigInt`、generic type の `usize` の outer parameter count。intrinsic と
+  template literal は `Box<IntrinsicData>`・`Box<TemplateLiteralData>`、bigint は `Box<PseudoBigInt>`、count は `u32`
+  （読み手で `as usize`）。`TemplateText` も `Vec<u16>` から `Box<[u16]>`。inline の最大は 24 byte（list を持つ kind）で
+  `TypeData` 32・`Type` 64 byte（`const` の assert で固定）。読み手の書き換え（checker で Intrinsic 7 か所、TemplateLiteral
+  10 か所、count 13 か所、api で 4 か所）は compile error の span から。
+
+**計測**（1 thread、d2 = #845 の merge → f2。両段の合計）：
+
+| case | 命令数 | peak footprint | peak RSS |
+|---|---:|---:|---:|
+| VS Code | 187.31 → 184.62 G（−1.4%） | 4,284 → 4,232 MB（−1.2%） | 4,476 → 4,418 MB |
+| TypeScript compiler noEmit | 12.58 → 12.37 G（−1.7%） | 212 → 208 MB | 224 → 220 MB |
+| Next.js noEmit | 38.71 → 37.79 G（−2.4%） | 907 → 892 MB | 936 → 920 MB |
+| zod | 27.22 → 26.54 G（−2.5%） | 867 → 841 MB | 894 → 869 MB |
+| effect | 23.13 → 22.75 G（−1.6%） | 654 → 637 MB | 671 → 661 MB |
+
+一段目だけ（f1）は VS Code 187.37 → 185.87 G、4,285 → 4,253 MB。`TSRS_MEMORY_REPORT` の type record は 320 → 256 MiB、
+type list map は 31.4 → 26.8 MiB（entry は 619k → 625k。alias list が加わり、複製が消えた）。命令数の減りは record が
+cache line 1 本（64 byte 整列）に収まることと alias list の複製が消えたことによると見る。
+
+main（#846 込み）を取り込んだ byte（f3）では VS Code 186.84 → 185.85 G、peak footprint 4,284 → 4,180 MB、peak RSS 4,493 → 4,287 MB
+（d2 比。#846 の分を含む）。出力は 7 case で d2 と一致。
+
+48 byte までの残り：fresh/regular の 8 byte を literal と union だけの side table に（56）、`alias_symbol` + `alias_type_arguments`
+の組を `Option<AliasId>` に（48）。どちらも読み手が多いので別の slice。
+
 ## 次の候補（効果の大きい順の見込み）
 
 1. `resolve_name` の `locals` は file ごとの `FxHashMap<NodeId, SymbolTable>`（`locals_of` が残る routing の最大の呼び出し元）。
    tsrs は node の field。program 全体で一つの map にすれば routing は消える（VS Code で約 36 万 entry）。
 2. JSDoc の hosted 表（`get_name_of_declaration` 18 か所など）：JS file の node だけが要るので、node の flag で先に分岐する。
-3. `Node` 56 byte（`NodeData` を inline に持つ）。tsrs の node header は 24 byte。syntax 1,017 MB の大半。
-4. checker の memory：resolved members 464 MB（1.2M × 380 byte）、transient symbol 448 MB、symbol links 254 MB。
-5. 複製して返す API（`get_signatures_of_type`・`get_properties_of_type`、tsrs R18：−1〜−4%）。
-6. parser（tsrs R14：parse だけで −23.5%）、PGO + fat LTO（R7：−13〜14%、build の話）。
+3. checker の memory：transient symbol 448 MB、symbol links 254 MB、`Type` 64 → 48 byte（上）、Union・Reference の list を
+   `TypeListId` に。
+4. 複製して返す API（`get_signatures_of_type`・`get_properties_of_type`、tsrs R18：−1〜−4%）。
+5. parser（tsrs R14：parse だけで −23.5%）、PGO + fat LTO（R7：−13〜14%、build の話）。
