@@ -476,9 +476,8 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) != SyntaxKind::Identifier {
             return Ok(());
         }
-        let source = self.binder.source_of_node(node);
         let parent = self.parent_of(node);
-        let is_expression_or_shorthand_name = node_util::is_expression_node(source, node)
+        let is_expression_or_shorthand_name = node_util::is_expression_node(&Published, node)
             || parent.is_some_and(|parent| match self.data_of(parent) {
                 NodeData::ShorthandPropertyAssignment(data) => {
                     data.object_assignment_initializer.or(data.name) == Some(node)
@@ -8492,8 +8491,8 @@ impl<'a> CheckerState<'a> {
         if !node_util::is_entity_name_expression(&Published, receiver) {
             return Ok(None);
         }
-        if tsc_binder::assignment::is_module_exports_access_expression(source, left)
-            || tsc_binder::assignment::is_exports_identifier(source, receiver)
+        if tsc_binder::assignment::is_module_exports_access_expression(&Published, left)
+            || tsc_binder::assignment::is_exports_identifier(&Published, receiver)
         {
             return Ok(self.node_symbol(source.root));
         }
@@ -11075,8 +11074,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn display_enclosing_for(&mut self, ty: TypeId) -> Option<NodeId> {
         let symbol = self.tables.type_of(ty).symbol?;
         let value_declaration = self.binder.symbol(symbol).value_declaration?;
-        let source = self.binder.source_of_node(value_declaration);
-        if !tsc_binder::node_util::is_expression_node(source, value_declaration) {
+        if !tsc_binder::node_util::is_expression_node(&Published, value_declaration) {
             return None;
         }
         if self.is_context_sensitive(value_declaration) {
@@ -12701,14 +12699,13 @@ impl<'a> CheckerState<'a> {
     }
 
     fn is_js_exports_entity_name_display(&self, leftmost: NodeId) -> bool {
-        let source = self.binder.source_of_node(leftmost);
-        if tsc_binder::assignment::is_exports_identifier(source, leftmost) {
+        if tsc_binder::assignment::is_exports_identifier(&Published, leftmost) {
             return true;
         }
         let Some(parent) = self.parent_of(leftmost) else {
             return false;
         };
-        if tsc_binder::assignment::is_module_exports_access_expression(source, parent) {
+        if tsc_binder::assignment::is_module_exports_access_expression(&Published, parent) {
             return true;
         }
         matches!(
@@ -12716,7 +12713,7 @@ impl<'a> CheckerState<'a> {
             NodeData::QualifiedName(data)
                 if data.left.is_some_and(|left| self.identifier_text_of(left) == Some("module"))
                     && data.right.is_some_and(|right| {
-                        tsc_binder::assignment::is_exports_identifier(source, right)
+                        tsc_binder::assignment::is_exports_identifier(&Published, right)
                     })
         )
     }

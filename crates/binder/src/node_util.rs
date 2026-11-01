@@ -121,38 +121,38 @@ pub fn get_jsdoc_host(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
     (tree.node_array(docs).nodes.last().copied() == Some(js_doc)).then_some(host)
 }
 
-pub fn get_source_of_assignment(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    let NodeData::ExpressionStatement(statement) = &source.arena.node(node).data else {
+pub fn get_source_of_assignment(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
+    let NodeData::ExpressionStatement(statement) = &tree.node(node).data else {
         return None;
     };
     let expression = statement.expression?;
-    let NodeData::BinaryExpression(binary) = &source.arena.node(expression).data else {
+    let NodeData::BinaryExpression(binary) = &tree.node(expression).data else {
         return None;
     };
     binary
         .operator_token
-        .is_some_and(|token| kind_of(source, token) == SyntaxKind::EqualsToken)
-        .then(|| crate::assignment::get_right_most_assigned_expression(source, expression))
+        .is_some_and(|token| kind_of(tree, token) == SyntaxKind::EqualsToken)
+        .then(|| crate::assignment::get_right_most_assigned_expression(tree, expression))
 }
 
-pub fn get_source_of_defaulted_assignment(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    let NodeData::ExpressionStatement(statement) = &source.arena.node(node).data else {
+pub fn get_source_of_defaulted_assignment(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
+    let NodeData::ExpressionStatement(statement) = &tree.node(node).data else {
         return None;
     };
     let expression = statement.expression?;
-    let NodeData::BinaryExpression(binary) = &source.arena.node(expression).data else {
+    let NodeData::BinaryExpression(binary) = &tree.node(expression).data else {
         return None;
     };
-    if crate::assignment::get_assignment_declaration_kind(source, expression)
+    if crate::assignment::get_assignment_declaration_kind(tree, expression)
         == crate::assignment::AssignmentDeclarationKind::None
     {
         return None;
     }
     let right = binary.right?;
-    let NodeData::BinaryExpression(defaulted) = &source.arena.node(right).data else {
+    let NodeData::BinaryExpression(defaulted) = &tree.node(right).data else {
         return None;
     };
-    let operator = defaulted.operator_token.map(|token| kind_of(source, token));
+    let operator = defaulted.operator_token.map(|token| kind_of(tree, token));
     matches!(
         operator,
         Some(SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken)
@@ -205,34 +205,34 @@ pub fn get_nested_module_declaration(tree: &impl NodeLookup, node: NodeId) -> Op
 /// tsc-port: getEffectiveJSDocHost @6.0.3
 /// tsc-hash: ca435509b2c5c1c6e598a84874ed1acb719e56d826668972fc0fd3a374dfaee3
 /// tsc-span: _tsc.js:15509-15514
-pub fn get_effective_jsdoc_host(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    let host = get_jsdoc_host(source, node)?;
-    get_source_of_defaulted_assignment(source, host)
-        .or_else(|| get_source_of_assignment(source, host))
+pub fn get_effective_jsdoc_host(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
+    let host = get_jsdoc_host(tree, node)?;
+    get_source_of_defaulted_assignment(tree, host)
+        .or_else(|| get_source_of_assignment(tree, host))
         .or_else(|| {
-            get_single_initializer_of_variable_statement_or_property_declaration(source, host)
+            get_single_initializer_of_variable_statement_or_property_declaration(tree, host)
         })
-        .or_else(|| get_single_variable_of_variable_statement(source, host))
-        .or_else(|| get_nested_module_declaration(source, host))
+        .or_else(|| get_single_variable_of_variable_statement(tree, host))
+        .or_else(|| get_nested_module_declaration(tree, host))
         .or(Some(host))
 }
 
 /// tsc-port: getHostSignatureFromJSDoc @6.0.3
 /// tsc-hash: 9b5b1bbaafdcf0b45d4aa46856b689a0795ac0eda656dec2cf3159b905045bb4
 /// tsc-span: _tsc.js:15502-15508
-pub fn get_host_signature_from_jsdoc(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    let host = get_effective_jsdoc_host(source, node)?;
-    if let NodeData::PropertySignature(data) = &source.arena.node(host).data {
+pub fn get_host_signature_from_jsdoc(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
+    let host = get_effective_jsdoc_host(tree, node)?;
+    if let NodeData::PropertySignature(data) = &tree.node(host).data {
         if let Some(r#type) = data.r#type {
-            if is_function_like_kind(kind_of(source, r#type))
-                || kind_of(source, r#type) == SyntaxKind::JSDocSignature
+            if is_function_like_kind(kind_of(tree, r#type))
+                || kind_of(tree, r#type) == SyntaxKind::JSDocSignature
             {
                 return Some(r#type);
             }
         }
     }
-    (is_function_like_kind(kind_of(source, host))
-        || kind_of(source, host) == SyntaxKind::JSDocSignature)
+    (is_function_like_kind(kind_of(tree, host))
+        || kind_of(tree, host) == SyntaxKind::JSDocSignature)
         .then_some(host)
 }
 
@@ -293,33 +293,32 @@ fn is_assignment_expression_node(tree: &impl NodeLookup, node: NodeId) -> bool {
         .is_some_and(|token| is_assignment_operator(kind_of(tree, token)))
 }
 
-fn get_next_jsdoc_comment_location(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    let parent = parent_of(source, node)?;
+fn get_next_jsdoc_comment_location(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
+    let parent = parent_of(tree, node)?;
     if matches!(
-        kind_of(source, parent),
+        kind_of(tree, parent),
         SyntaxKind::PropertyAssignment
             | SyntaxKind::ExportAssignment
             | SyntaxKind::PropertyDeclaration
             | SyntaxKind::ReturnStatement
-    ) || kind_of(source, parent) == SyntaxKind::ExpressionStatement
-        && kind_of(source, node) == SyntaxKind::PropertyAccessExpression
-        || get_nested_module_declaration(source, parent).is_some()
-        || is_assignment_expression_node(source, node)
+    ) || kind_of(tree, parent) == SyntaxKind::ExpressionStatement
+        && kind_of(tree, node) == SyntaxKind::PropertyAccessExpression
+        || get_nested_module_declaration(tree, parent).is_some()
+        || is_assignment_expression_node(tree, node)
     {
         return Some(parent);
     }
-    if let Some(grand) = parent_of(source, parent) {
-        if get_single_variable_of_variable_statement(source, grand) == Some(node)
-            || is_assignment_expression_node(source, parent)
+    if let Some(grand) = parent_of(tree, parent) {
+        if get_single_variable_of_variable_statement(tree, grand) == Some(node)
+            || is_assignment_expression_node(tree, parent)
         {
             return Some(grand);
         }
-        if let Some(great) = parent_of(source, grand) {
-            if get_single_variable_of_variable_statement(source, great).is_some()
-                || get_single_initializer_of_variable_statement_or_property_declaration(
-                    source, great,
-                ) == Some(node)
-                || get_source_of_defaulted_assignment(source, great).is_some()
+        if let Some(great) = parent_of(tree, grand) {
+            if get_single_variable_of_variable_statement(tree, great).is_some()
+                || get_single_initializer_of_variable_statement_or_property_declaration(tree, great)
+                    == Some(node)
+                || get_source_of_defaulted_assignment(tree, great).is_some()
             {
                 return Some(great);
             }
@@ -329,11 +328,11 @@ fn get_next_jsdoc_comment_location(source: &SourceFile, node: NodeId) -> Option<
 }
 
 fn visit_owned_jsdoc_tags(
-    source: &SourceFile,
+    tree: &impl NodeLookup,
     host: NodeId,
     mut visitor: impl FnMut(NodeId) -> bool,
 ) {
-    let initializer = match &source.arena.node(host).data {
+    let initializer = match &tree.node(host).data {
         NodeData::BindingElement(data) => data.initializer,
         NodeData::Parameter(data) => data.initializer,
         NodeData::PropertyAssignment(data) => data.initializer,
@@ -343,31 +342,29 @@ fn visit_owned_jsdoc_tags(
         _ => None,
     };
     if initializer
-        .and_then(|initializer| source.arena.node(initializer).js_doc)
-        .is_some_and(|docs| {
-            visit_owned_jsdoc_tags_from_attachment(source, host, docs, &mut visitor)
-        })
+        .and_then(|initializer| tree.node(initializer).js_doc)
+        .is_some_and(|docs| visit_owned_jsdoc_tags_from_attachment(tree, host, docs, &mut visitor))
     {
         return;
     }
 
     let mut location = Some(host);
     while let Some(node) = location {
-        if source.arena.node(node).js_doc.is_some_and(|docs| {
-            visit_owned_jsdoc_tags_from_attachment(source, host, docs, &mut visitor)
+        if tree.node(node).js_doc.is_some_and(|docs| {
+            visit_owned_jsdoc_tags_from_attachment(tree, host, docs, &mut visitor)
         }) {
             return;
         }
-        location = get_next_jsdoc_comment_location(source, node);
+        location = get_next_jsdoc_comment_location(tree, node);
     }
 }
 
 /// AST-only port of tsc getJSDocTypeTag. JSDoc attachments are
 /// materialized by the parser; binder must never rescan source text.
-pub fn get_jsdoc_type_tag(source: &SourceFile, host: NodeId) -> Option<NodeId> {
+pub fn get_jsdoc_type_tag(tree: &impl NodeLookup, host: NodeId) -> Option<NodeId> {
     let mut first = None;
-    visit_owned_jsdoc_tags(source, host, |tag| {
-        if kind_of(source, tag) == SyntaxKind::JSDocTypeTag {
+    visit_owned_jsdoc_tags(tree, host, |tag| {
+        if kind_of(tree, tag) == SyntaxKind::JSDocTypeTag {
             first = Some(tag);
             true
         } else {
@@ -375,9 +372,9 @@ pub fn get_jsdoc_type_tag(source: &SourceFile, host: NodeId) -> Option<NodeId> {
         }
     });
     first.filter(|&tag| {
-        jsdoc_type_expression(source, tag).is_some_and(|expression| {
+        jsdoc_type_expression(tree, tag).is_some_and(|expression| {
             matches!(
-                &source.arena.node(expression).data,
+                &tree.node(expression).data,
                 NodeData::JSDocTypeExpression(data) if data.r#type.is_some()
             )
         })
@@ -398,10 +395,10 @@ fn jsdoc_type_expression_type(tree: &impl NodeLookup, expression: NodeId) -> Opt
 /// tsc-port: getJSDocReturnTag @6.0.3
 /// tsc-hash: 9b02cc14a58da114906e21bbb106c7cf8c0bf85e3555915f43e295c59776dd20
 /// tsc-span: _tsc.js:11708-11710
-pub fn get_jsdoc_return_tag(source: &SourceFile, host: NodeId) -> Option<NodeId> {
+pub fn get_jsdoc_return_tag(tree: &impl NodeLookup, host: NodeId) -> Option<NodeId> {
     let mut first = None;
-    visit_owned_jsdoc_tags(source, host, |tag| {
-        if kind_of(source, tag) == SyntaxKind::JSDocReturnTag {
+    visit_owned_jsdoc_tags(tree, host, |tag| {
+        if kind_of(tree, tag) == SyntaxKind::JSDocReturnTag {
             first = Some(tag);
             true
         } else {
@@ -418,28 +415,25 @@ pub fn get_jsdoc_return_tag(source: &SourceFile, host: NodeId) -> Option<NodeId>
 /// tsc-port: getJSDocReturnType @6.0.3
 /// tsc-hash: 7bcd67792fdeaceeecc2c6ff990b94e0065646e3068932012592c00efafe9eea
 /// tsc-span: _tsc.js:11728-11744
-pub fn get_jsdoc_return_type(source: &SourceFile, host: NodeId) -> Option<NodeId> {
+pub fn get_jsdoc_return_type(tree: &impl NodeLookup, host: NodeId) -> Option<NodeId> {
     if let Some(expression) =
-        get_jsdoc_return_tag(source, host).and_then(|tag| jsdoc_type_expression(source, tag))
+        get_jsdoc_return_tag(tree, host).and_then(|tag| jsdoc_type_expression(tree, tag))
     {
-        return jsdoc_type_expression_type(source, expression);
+        return jsdoc_type_expression_type(tree, expression);
     }
-    let tag = get_jsdoc_type_tag(source, host)?;
-    let r#type = jsdoc_type_expression(source, tag)
-        .and_then(|expression| jsdoc_type_expression_type(source, expression))?;
-    match &source.arena.node(r#type).data {
+    let tag = get_jsdoc_type_tag(tree, host)?;
+    let r#type = jsdoc_type_expression(tree, tag)
+        .and_then(|expression| jsdoc_type_expression_type(tree, expression))?;
+    match &tree.node(r#type).data {
         NodeData::TypeLiteral(data) => data
             .members
             .and_then(|members| {
-                source
-                    .arena
-                    .node_array(members)
-                    .nodes
-                    .iter()
-                    .find_map(|&member| match &source.arena.node(member).data {
+                tree.node_array(members).nodes.iter().find_map(|&member| {
+                    match &tree.node(member).data {
                         NodeData::CallSignature(data) => Some(data.r#type),
                         _ => None,
-                    })
+                    }
+                })
             })
             .flatten(),
         NodeData::FunctionType(data) => data.r#type,
@@ -452,40 +446,40 @@ pub fn get_jsdoc_return_type(source: &SourceFile, host: NodeId) -> Option<NodeId
 /// tsc-port: getJSDocParameterTagsWorker @6.0.3
 /// tsc-hash: c4ae77082ed964a051e20d75c5bc3a2241efe281cb9beccbb1491403bb38c5c4
 /// tsc-span: _tsc.js:11591-11606
-pub fn get_jsdoc_parameter_tags(source: &SourceFile, parameter: NodeId) -> Vec<NodeId> {
-    let NodeData::Parameter(data) = &source.arena.node(parameter).data else {
+pub fn get_jsdoc_parameter_tags(tree: &impl NodeLookup, parameter: NodeId) -> Vec<NodeId> {
+    let NodeData::Parameter(data) = &tree.node(parameter).data else {
         return Vec::new();
     };
-    let (Some(name), Some(parent)) = (data.name, parent_of(source, parameter)) else {
+    let (Some(name), Some(parent)) = (data.name, parent_of(tree, parameter)) else {
         return Vec::new();
     };
     let mut tags = Vec::new();
-    visit_owned_jsdoc_tags(source, parent, |tag| {
-        if kind_of(source, tag) == SyntaxKind::JSDocParameterTag {
+    visit_owned_jsdoc_tags(tree, parent, |tag| {
+        if kind_of(tree, tag) == SyntaxKind::JSDocParameterTag {
             tags.push(tag);
         }
         false
     });
-    if let NodeData::Identifier(name) = &source.arena.node(name).data {
+    if let NodeData::Identifier(name) = &tree.node(name).data {
         return tags
             .into_iter()
             .filter(|&tag| {
-                let NodeData::JSDocParameterTag(data) = &source.arena.node(tag).data else {
+                let NodeData::JSDocParameterTag(data) = &tree.node(tag).data else {
                     return false;
                 };
                 data.name.is_some_and(|tag_name| {
-                    matches!(&source.arena.node(tag_name).data,
+                    matches!(&tree.node(tag_name).data,
                         NodeData::Identifier(tag_name) if tag_name.escaped_text == name.escaped_text)
                 })
             })
             .collect();
     }
     let mut index = 0;
-    let found = tsc_syntax::for_each_child(&source.arena, source.arena.node(parent), |child| {
+    let found = tsc_syntax::for_each_child(tree, tree.node(parent), |child| {
         if child == parameter {
             return true;
         }
-        if kind_of(source, child) == SyntaxKind::Parameter {
+        if kind_of(tree, child) == SyntaxKind::Parameter {
             index += 1;
         }
         false
@@ -2454,8 +2448,8 @@ pub fn is_identifier_name(tree: &impl NodeLookup, node: NodeId) -> bool {
 /// tsc-port: isExpressionNode @6.0.3
 /// tsc-hash: dbdda74b7f80ed1103f600e9472a5e4449f2b936cf0eb3cca4e3cf845bd2e3e3
 /// tsc-span: _tsc.js:14739-14803
-pub fn is_expression_node(source: &SourceFile, node: NodeId) -> bool {
-    match kind_of(source, node) {
+pub fn is_expression_node(tree: &impl NodeLookup, node: NodeId) -> bool {
+    match kind_of(tree, node) {
         SyntaxKind::SuperKeyword
         | SyntaxKind::NullKeyword
         | SyntaxKind::TrueKeyword
@@ -2497,48 +2491,48 @@ pub fn is_expression_node(source: &SourceFile, node: NodeId) -> bool {
             // expression in parse trees; keep true.
             true
         }
-        SyntaxKind::ExpressionWithTypeArguments => parent_of(source, node).is_some_and(|parent| {
+        SyntaxKind::ExpressionWithTypeArguments => parent_of(tree, node).is_some_and(|parent| {
             !matches!(
-                kind_of(source, parent),
+                kind_of(tree, parent),
                 SyntaxKind::HeritageClause | SyntaxKind::JSDocAugmentsTag
             )
         }),
         SyntaxKind::QualifiedName => {
             let mut current = node;
-            while let Some(parent) = parent_of(source, current) {
-                if kind_of(source, parent) == SyntaxKind::QualifiedName {
+            while let Some(parent) = parent_of(tree, current) {
+                if kind_of(tree, parent) == SyntaxKind::QualifiedName {
                     current = parent;
                 } else {
                     break;
                 }
             }
-            is_expression_name_parent(source, current)
+            is_expression_name_parent(tree, current)
         }
         SyntaxKind::PrivateIdentifier => {
-            let Some(parent) = parent_of(source, node) else {
+            let Some(parent) = parent_of(tree, node) else {
                 return false;
             };
-            match &source.arena.node(parent).data {
+            match &tree.node(parent).data {
                 NodeData::BinaryExpression(data) => {
                     data.left == Some(node)
                         && data
                             .operator_token
-                            .is_some_and(|token| kind_of(source, token) == SyntaxKind::InKeyword)
+                            .is_some_and(|token| kind_of(tree, token) == SyntaxKind::InKeyword)
                 }
                 _ => false,
             }
         }
         SyntaxKind::Identifier => {
-            if is_expression_name_parent(source, node) {
+            if is_expression_name_parent(tree, node) {
                 return true;
             }
-            is_in_expression_context(source, node)
+            is_in_expression_context(tree, node)
         }
         SyntaxKind::NumericLiteral
         | SyntaxKind::BigIntLiteral
         | SyntaxKind::StringLiteral
         | SyntaxKind::NoSubstitutionTemplateLiteral
-        | SyntaxKind::ThisKeyword => is_in_expression_context(source, node),
+        | SyntaxKind::ThisKeyword => is_in_expression_context(tree, node),
         _ => false,
     }
 }
@@ -2573,20 +2567,20 @@ fn is_jsx_tag_name(tree: &impl NodeLookup, node: NodeId) -> bool {
 /// tsc-hash: 0f2387b198c4ceea64de5780c0199fd0d2a34cbe4abfa7d56c44b4a3e891da24
 /// tsc-span: _tsc.js:14272-14274
 ///
-fn is_part_of_type_expression_with_type_arguments(source: &SourceFile, node: NodeId) -> bool {
-    let Some(clause) = parent_of(source, node) else {
+fn is_part_of_type_expression_with_type_arguments(tree: &impl NodeLookup, node: NodeId) -> bool {
+    let Some(clause) = parent_of(tree, node) else {
         return false;
     };
     if matches!(
-        kind_of(source, clause),
+        kind_of(tree, clause),
         SyntaxKind::JSDocImplementsTag | SyntaxKind::JSDocAugmentsTag
     ) {
         return true;
     }
-    if kind_of(source, clause) != SyntaxKind::HeritageClause {
+    if kind_of(tree, clause) != SyntaxKind::HeritageClause {
         return false;
     }
-    !is_expression_with_type_arguments_in_class_extends_clause(source, node)
+    !is_expression_with_type_arguments_in_class_extends_clause(tree, node)
 }
 
 /// tsc-port: isExpressionWithTypeArgumentsInClassExtendsClause @6.0.3
@@ -2598,44 +2592,44 @@ fn is_part_of_type_expression_with_type_arguments(source: &SourceFile, node: Nod
 /// grandparent, non-implements token, or an effective class-like host
 /// for a JSDoc augments tag.
 fn is_expression_with_type_arguments_in_class_extends_clause(
-    source: &SourceFile,
+    tree: &impl NodeLookup,
     node: NodeId,
 ) -> bool {
-    let Some(clause) = parent_of(source, node) else {
+    let Some(clause) = parent_of(tree, node) else {
         return false;
     };
-    if kind_of(source, clause) == SyntaxKind::JSDocAugmentsTag {
-        return get_effective_jsdoc_host(source, clause).is_some_and(|host| {
+    if kind_of(tree, clause) == SyntaxKind::JSDocAugmentsTag {
+        return get_effective_jsdoc_host(tree, clause).is_some_and(|host| {
             matches!(
-                kind_of(source, host),
+                kind_of(tree, host),
                 SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
             )
         });
     }
-    if kind_of(source, clause) != SyntaxKind::HeritageClause {
+    if kind_of(tree, clause) != SyntaxKind::HeritageClause {
         return false;
     }
-    let Some(class) = parent_of(source, clause) else {
+    let Some(class) = parent_of(tree, clause) else {
         return false;
     };
     if !matches!(
-        kind_of(source, class),
+        kind_of(tree, class),
         SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
     ) {
         return false;
     }
-    let NodeData::HeritageClause(data) = &source.arena.node(clause).data else {
+    let NodeData::HeritageClause(data) = &tree.node(clause).data else {
         return false;
     };
     data.token != SyntaxKind::ImplementsKeyword
 }
 
 /// tsc isInExpressionContext (14806-region).
-pub fn is_in_expression_context(source: &SourceFile, node: NodeId) -> bool {
-    let Some(parent) = parent_of(source, node) else {
+pub fn is_in_expression_context(tree: &impl NodeLookup, node: NodeId) -> bool {
+    let Some(parent) = parent_of(tree, node) else {
         return false;
     };
-    match &source.arena.node(parent).data {
+    match &tree.node(parent).data {
         NodeData::VariableDeclaration(data) => data.initializer == Some(node),
         NodeData::Parameter(data) => data.initializer == Some(node),
         NodeData::PropertyDeclaration(data) => data.initializer == Some(node),
@@ -2654,18 +2648,18 @@ pub fn is_in_expression_context(source: &SourceFile, node: NodeId) -> bool {
         NodeData::ThrowStatement(data) => data.expression == Some(node),
         NodeData::ForStatement(data) => {
             data.initializer == Some(node)
-                && kind_of(source, node) != SyntaxKind::VariableDeclarationList
+                && kind_of(tree, node) != SyntaxKind::VariableDeclarationList
                 || data.condition == Some(node)
                 || data.incrementor == Some(node)
         }
         NodeData::ForInStatement(data) => {
             data.initializer == Some(node)
-                && kind_of(source, node) != SyntaxKind::VariableDeclarationList
+                && kind_of(tree, node) != SyntaxKind::VariableDeclarationList
                 || data.expression == Some(node)
         }
         NodeData::ForOfStatement(data) => {
             data.initializer == Some(node)
-                && kind_of(source, node) != SyntaxKind::VariableDeclarationList
+                && kind_of(tree, node) != SyntaxKind::VariableDeclarationList
                 || data.expression == Some(node)
         }
         NodeData::TypeAssertionExpression(data) => data.expression == Some(node),
@@ -2688,7 +2682,7 @@ pub fn is_in_expression_context(source: &SourceFile, node: NodeId) -> bool {
             // context. The prior blanket grand != HeritageClause test
             // killed flow nodes (and 2454) under every class extends.
             data.expression == Some(node)
-                && !is_part_of_type_expression_with_type_arguments(source, parent)
+                && !is_part_of_type_expression_with_type_arguments(tree, parent)
         }
         NodeData::ShorthandPropertyAssignment(data) => {
             data.object_assignment_initializer == Some(node)
@@ -2698,7 +2692,7 @@ pub fn is_in_expression_context(source: &SourceFile, node: NodeId) -> bool {
         // declaration name, not an expression.
         NodeData::FunctionExpression(data) => data.name != Some(node),
         NodeData::ClassExpression(data) => data.name != Some(node),
-        _ => is_expression_node(source, parent),
+        _ => is_expression_node(tree, parent),
     }
 }
 

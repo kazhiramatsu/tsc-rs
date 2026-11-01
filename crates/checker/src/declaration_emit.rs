@@ -419,11 +419,13 @@ impl CheckerState<'_> {
             _ => return Ok(false),
         };
         let symbol = if self.kind_of(declaration) == SyntaxKind::VariableDeclaration {
-            let source = self.binder.source_of_node(declaration);
             let (has_type, initializer) = match self.data_of(declaration) {
                 NodeData::VariableDeclaration(data) => (
                     data.r#type.is_some(),
-                    tsc_binder::assignment::get_declared_expando_initializer(source, declaration),
+                    tsc_binder::assignment::get_declared_expando_initializer(
+                        &Published,
+                        declaration,
+                    ),
                 ),
                 _ => (false, None),
             };
@@ -2278,8 +2280,7 @@ impl<'a> CheckerState<'a> {
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
     ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
         let method = tsc_emitter::EmitResolverMethod::CreateTypeOfExpression;
-        let source = self.binder.source_of_node(expression);
-        if !node_util::is_expression_node(source, expression) {
+        if !node_util::is_expression_node(&Published, expression) {
             return any_keyword_fallback(arena, target, method).map(Some);
         }
         crate::node_builder::serialize_type_for_expression(

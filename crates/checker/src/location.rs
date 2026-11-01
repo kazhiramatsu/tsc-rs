@@ -433,7 +433,7 @@ impl CheckerState<'_> {
                         }
                     }
                 }
-                if node_util::is_in_expression_context(self.binder.source_of_node(node), node) {
+                if node_util::is_in_expression_context(&Published, node) {
                     let ty = self.check_expression(node, CheckMode::NORMAL)?;
                     return Ok(self.tables.type_of(ty).symbol);
                 }
@@ -465,8 +465,7 @@ impl CheckerState<'_> {
                 }
                 if self.kind_of(parent) == SyntaxKind::CallExpression
                     && tsc_binder::assignment::is_bindable_object_define_property_call(
-                        self.binder.source_of_node(parent),
-                        parent,
+                        &Published, parent,
                     )
                     && self.call_argument(parent, 1) == Some(node)
                 {
@@ -942,7 +941,6 @@ impl CheckerState<'_> {
     /// tsgo `IsExpressionNode` (ast/utilities.go:1997-2030): the port's
     /// classifier, minus the callee of `import.defer(...)`.
     pub fn is_expression_node_like_tsgo(&self, node: NodeId) -> bool {
-        let source = self.binder.source_of_node(node);
         if self.kind_of(node) == SyntaxKind::MetaProperty {
             if let Some(parent) = self.parent_of(node) {
                 if self.is_import_call(parent)
@@ -953,7 +951,7 @@ impl CheckerState<'_> {
             }
             return true;
         }
-        node_util::is_expression_node(source, node)
+        node_util::is_expression_node(&Published, node)
     }
 
     /// tsgo `IsDeclaration` (ast/utilities.go:1302-1307).

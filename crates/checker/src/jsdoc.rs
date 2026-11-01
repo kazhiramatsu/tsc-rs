@@ -372,8 +372,7 @@ impl<'a> CheckerState<'a> {
             return None;
         }
         Some(tsc_binder::assignment::get_right_most_assigned_expression(
-            self.binder.source_of_node(expression),
-            expression,
+            &Published, expression,
         ))
     }
 

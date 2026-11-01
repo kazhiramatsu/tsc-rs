@@ -586,7 +586,7 @@ impl<'a> CheckerState<'a> {
         context_flags: ContextFlags,
     ) -> CheckResult<Option<TypeId>> {
         let parent = self.parent_of(declaration).expect("member has a class");
-        if !node_util::is_expression_node(self.binder.source_of_node(parent), parent) {
+        if !node_util::is_expression_node(&Published, parent) {
             return Ok(None);
         }
         let Some(parent_type) = self.get_contextual_type(parent, context_flags)? else {

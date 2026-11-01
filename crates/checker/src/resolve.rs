@@ -2095,8 +2095,7 @@ impl<'a> CheckerState<'a> {
                     NodeData::ShorthandPropertyAssignment(data) if data.name == Some(use_site)
                 )
             });
-        !node_util::is_expression_node(self.binder.source_of_node(use_site), use_site)
-            && !shorthand_property_name
+        !node_util::is_expression_node(&Published, use_site) && !shorthand_property_name
     }
 
     /// tsc-port: onSuccessfullyResolvedSymbolCallback @6.0.3

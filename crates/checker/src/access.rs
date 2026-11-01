@@ -862,7 +862,6 @@ impl<'a> CheckerState<'a> {
     /// static entity access (`C.p`, `C.prototype.p` aside); otherwise a
     /// non-accessor class property declaration.
     fn is_class_instance_property(&self, node: NodeId) -> bool {
-        let source = self.binder.source_of_node(node);
         if self.is_in_js_file(node) {
             if let NodeData::BinaryExpression(data) = self.data_of(node) {
                 let Some(left) = data.left else {
@@ -870,15 +869,17 @@ impl<'a> CheckerState<'a> {
                 };
                 let bindable_static_access =
                     tsc_binder::assignment::is_bindable_static_access_expression(
-                        source, left, false,
+                        &Published, left, false,
                     );
-                let prototype_access = tsc_binder::assignment::access_expression_of(source, left)
-                    .is_some_and(|expression| {
-                        tsc_binder::assignment::is_prototype_access(source, expression)
-                    });
+                let prototype_access = tsc_binder::assignment::access_expression_of(
+                    &Published, left,
+                )
+                .is_some_and(|expression| {
+                    tsc_binder::assignment::is_prototype_access(&Published, expression)
+                });
                 return (!bindable_static_access || !prototype_access)
                     && !tsc_binder::assignment::is_bindable_static_name_expression(
-                        source, left, true,
+                        &Published, left, true,
                     );
             }
         }
@@ -1262,7 +1263,7 @@ impl<'a> CheckerState<'a> {
             .parent_of(priv_id)
             .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ForInStatement);
         if !parent_is_for_in {
-            if !node_util::is_expression_node(self.binder.source_of_node(priv_id), priv_id) {
+            if !node_util::is_expression_node(&Published, priv_id) {
                 self.grammar_error_on_node(
                     priv_id,
                     &tsc_diagnostics::gen::Private_identifiers_are_only_allowed_in_class_bodies_and_may_only_be_used_as_part_of_a_class_member_declaration_property_access_or_on_the_left_hand_side_of_an_in_expression,
@@ -1304,7 +1305,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         priv_id: NodeId,
     ) -> CheckResult<Option<SymbolId>> {
-        if !node_util::is_expression_node(self.binder.source_of_node(priv_id), priv_id) {
+        if !node_util::is_expression_node(&Published, priv_id) {
             return Ok(None);
         }
         if let crate::links::LinkSlot::Resolved(symbol) = self

@@ -5837,8 +5837,8 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(declaration) != SyntaxKind::CallExpression {
             return Ok(false);
         }
-        let source = self.binder.source_of_node(declaration);
-        if !tsc_binder::assignment::is_bindable_object_define_property_call(source, declaration) {
+        if !tsc_binder::assignment::is_bindable_object_define_property_call(&Published, declaration)
+        {
             return Ok(false);
         }
         let NodeData::CallExpression(call) = self.data_of(declaration) else {

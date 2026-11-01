@@ -2156,14 +2156,13 @@ fn is_declaration_name(checker: &CheckerState<'_>, node: NodeId) -> bool {
 }
 
 fn is_js_exports_entity_name(checker: &CheckerState<'_>, leftmost: NodeId) -> bool {
-    let source = checker.binder.source_of_node(leftmost);
-    if tsc_binder::assignment::is_exports_identifier(source, leftmost) {
+    if tsc_binder::assignment::is_exports_identifier(&Published, leftmost) {
         return true;
     }
     let Some(parent) = checker.parent_of(leftmost) else {
         return false;
     };
-    if tsc_binder::assignment::is_module_exports_access_expression(source, parent) {
+    if tsc_binder::assignment::is_module_exports_access_expression(&Published, parent) {
         return true;
     }
     matches!(
@@ -2171,7 +2170,7 @@ fn is_js_exports_entity_name(checker: &CheckerState<'_>, leftmost: NodeId) -> bo
         NodeData::QualifiedName(data)
             if data.left.is_some_and(|left| checker.identifier_text_of(left) == Some("module"))
                 && data.right.is_some_and(|right| {
-                    tsc_binder::assignment::is_exports_identifier(source, right)
+                    tsc_binder::assignment::is_exports_identifier(&Published, right)
                 })
     )
 }

@@ -2343,10 +2343,8 @@ impl<'a> CheckerState<'a> {
         };
         let declarations = self.binder.symbol(immediate).declarations.clone();
         let is_module_exports = declarations.iter().any(|&declaration| {
-            tsc_binder::assignment::get_assignment_declaration_kind(
-                self.binder.source_of_node(declaration),
-                declaration,
-            ) == tsc_binder::assignment::AssignmentDeclarationKind::ModuleExports
+            tsc_binder::assignment::get_assignment_declaration_kind(&Published, declaration)
+                == tsc_binder::assignment::AssignmentDeclarationKind::ModuleExports
         });
         let Some(parent) = self
             .binder
@@ -9026,7 +9024,7 @@ impl<'a> CheckerState<'a> {
                     tsc_binder::AssignmentDeclarationKind::ModuleExports
                     | tsc_binder::AssignmentDeclarationKind::ExportsProperty => {
                         let rightmost = tsc_binder::assignment::get_right_most_assigned_expression(
-                            source, node,
+                            &Published, node,
                         );
                         let checked = self.check_expression_cached(rightmost, CheckMode::NORMAL)?;
                         self.regular_type_of_literal_type(checked)
@@ -9274,7 +9272,7 @@ impl<'a> CheckerState<'a> {
                     break;
                 }
                 let kind = tsc_binder::assignment::get_assignment_declaration_kind(
-                    self.binder.source_of_node(declaration),
+                    &Published,
                     declaration,
                 );
                 if !self.is_possibly_aliased_this_property(declaration, kind)? {

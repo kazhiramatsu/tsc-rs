@@ -1360,7 +1360,6 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(());
         }
-        let source = self.binder.source_of_node(location);
         let parent = self.parent_of(location);
         // No semantic question can be answered within a `with` block.
         if self
@@ -1384,7 +1383,7 @@ impl<'a> CheckerState<'a> {
             if !self.unspecified_reference_is_resolved_by_check(location, parent) {
                 return Ok(());
             }
-            let is_expression = node_util::is_expression_node(source, location)
+            let is_expression = node_util::is_expression_node(&Published, location)
                 || parent.is_some_and(|parent| {
                     matches!(
                         self.data_of(parent),

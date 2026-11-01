@@ -349,13 +349,12 @@ impl<'a> CheckerState<'a> {
             // Step 12: the value declaration's own initializer row.
             let initializer = self.only_expression_initializer_of(node);
             if let Some(initializer) = initializer {
-                let source = self.binder.source_of_node(node);
                 let is_js_object_literal_initializer = self.is_in_js_file(node)
                     && matches!(
                         self.data_of(initializer),
                         NodeData::ObjectLiteralExpression(data)
                             if self.nodes_of(data.properties).is_empty()
-                                || tsc_binder::assignment::is_prototype_access(source, name)
+                                || tsc_binder::assignment::is_prototype_access(&Published, name)
                     )
                     && !self.binder.symbol(symbol).exports().is_empty();
                 if !is_js_object_literal_initializer
@@ -1789,9 +1788,8 @@ impl<'a> CheckerState<'a> {
         ) else {
             return Some(initializer);
         };
-        let source = self.binder.source_of_node(node);
         if node_util::is_entity_name_expression(&Published, name)
-            && tsc_binder::assignment::is_same_entity_name(source, name, left)
+            && tsc_binder::assignment::is_same_entity_name(&Published, name, left)
         {
             Some(right)
         } else {
