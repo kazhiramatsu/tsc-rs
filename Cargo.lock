@@ -803,6 +803,7 @@ dependencies = [
  "indexmap",
  "rustc-hash",
  "tsc-rs-diagnostics",
+ "tsc-rs-store",
  "tsc-rs-syntax",
  "tsc-rs-types",
 ]
@@ -1018,6 +1019,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsc-rs-store"
+version = "0.1.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "tsc-rs-syntax"
 version = "0.1.0"
 dependencies = [
@@ -1026,6 +1034,7 @@ dependencies = [
  "serde_json",
  "stats_alloc",
  "tsc-rs-diagnostics",
+ "tsc-rs-store",
  "tsc-rs-types",
 ]
 

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/store",
     "crates/syntax",
     "crates/binder",
     "crates/types",
@@ -50,6 +51,7 @@ tsc-lsp = { package = "tsc-rs-lsp", path = "crates/lsp" }
 tsc-lsproto = { package = "tsc-rs-lsproto", path = "crates/lsproto" }
 tsc-program = { package = "tsc-rs-program", path = "crates/program" }
 tsc-project = { package = "tsc-rs-project", path = "crates/project" }
+tsc-store = { package = "tsc-rs-store", path = "crates/store" }
 tsc-syntax = { package = "tsc-rs-syntax", path = "crates/syntax" }
 tsc-types = { package = "tsc-rs-types", path = "crates/types" }
 sha2 = "0.10"
@@ -86,6 +88,8 @@ opt-level = 3
 [profile.dev.package.tsc-rs-emitter]
 opt-level = 3
 [profile.dev.package.tsc-rs-harness]
+opt-level = 3
+[profile.dev.package.tsc-rs-store]
 opt-level = 3
 [profile.dev.package.tsc-rs-syntax]
 opt-level = 3
