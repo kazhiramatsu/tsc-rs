@@ -66,19 +66,29 @@ struct DensePositionIndex {
     ascii_prefix_end: u32,
     /// Every non-ASCII character, in text order.
     wide: Vec<WideCharacter>,
-    line_starts_byte: Vec<u32>,
-    line_starts_utf16: Vec<u32>,
-    /// The line of the last UTF-16 line/character lookup: consecutive
-    /// lookups (a printer mapping every node boundary of a source) mostly
-    /// stay on one line, which is then answered without a binary search. A
-    /// stale hint only costs the search.
-    line_hint: std::sync::atomic::AtomicU32,
+    /// The line tables, built with the index for a static one and on the
+    /// first line query for a lazy one: a parse or a module request converts
+    /// positions of every source, while lines are asked of the few sources
+    /// whose diagnostics are rendered.
+    lines: OnceLock<LineTables>,
     /// The `wide` partition point of the last conversion: a printer's
     /// conversions run through the text in order, so the next position
     /// usually shares the preceding wide character, which is then answered
     /// with two comparisons instead of a binary search. A stale hint only
     /// costs the search.
     wide_hint: std::sync::atomic::AtomicU32,
+}
+
+/// The line starts of a text in both domains.
+#[derive(Debug)]
+struct LineTables {
+    starts_byte: Vec<u32>,
+    starts_utf16: Vec<u32>,
+    /// The line of the last UTF-16 line/character lookup: consecutive
+    /// lookups (a printer mapping every node boundary of a source) mostly
+    /// stay on one line, which is then answered without a binary search. A
+    /// stale hint only costs the search.
+    hint: std::sync::atomic::AtomicU32,
 }
 
 /// One non-ASCII character: where it ends in both domains, and its widths.
@@ -119,27 +129,42 @@ impl DensePositionIndex {
         let ascii_prefix_end = wide
             .first()
             .map_or(byte_len, |first| first.byte_end - u32::from(first.byte_len));
-        let mut index = Self {
+        Self {
             byte_len,
             utf16_len,
             ascii_prefix_end,
             wide,
-            line_starts_byte: Vec::new(),
-            line_starts_utf16: Vec::new(),
-            line_hint: std::sync::atomic::AtomicU32::new(0),
+            lines: OnceLock::new(),
             wide_hint: std::sync::atomic::AtomicU32::new(0),
-        };
-        index.line_starts_byte = compute_line_starts_byte(text);
-        index.line_starts_utf16 = index
-            .line_starts_byte
+        }
+    }
+
+    /// The index with its line tables built.
+    fn with_lines(text: &str) -> Self {
+        let index = Self::new(text);
+        let _ = index.lines.set(index.build_lines(text));
+        index
+    }
+
+    fn build_lines(&self, text: &str) -> LineTables {
+        let starts_byte = compute_line_starts_byte(text);
+        let starts_utf16 = starts_byte
             .iter()
             .map(|&start| {
-                index
-                    .byte_to_utf16(start)
+                self.byte_to_utf16(start)
                     .expect("a line starts at a scalar boundary")
             })
             .collect();
-        index
+        LineTables {
+            starts_byte,
+            starts_utf16,
+            hint: std::sync::atomic::AtomicU32::new(0),
+        }
+    }
+
+    /// The line tables, built from `text` on first use.
+    fn lines(&self, text: &str) -> &LineTables {
+        self.lines.get_or_init(|| self.build_lines(text))
     }
 
     const fn utf16_len(&self) -> u32 {
@@ -149,9 +174,9 @@ impl DensePositionIndex {
     /// The line containing UTF-16 `position` (already bounds-checked) and
     /// the offset within it: the hinted line when the position lies on it,
     /// otherwise the greatest line start at or before the position.
-    fn line_and_character_utf16(&self, position: u32) -> Option<LineAndCharacter> {
-        let starts = &self.line_starts_utf16;
-        let hint = self.line_hint.load(std::sync::atomic::Ordering::Relaxed) as usize;
+    fn line_and_character_utf16(lines: &LineTables, position: u32) -> Option<LineAndCharacter> {
+        let starts = &lines.starts_utf16;
+        let hint = lines.hint.load(std::sync::atomic::Ordering::Relaxed) as usize;
         let line = if hint < starts.len()
             && starts[hint] <= position
             && starts.get(hint + 1).is_none_or(|&next| position < next)
@@ -161,7 +186,8 @@ impl DensePositionIndex {
             let line = starts
                 .partition_point(|&start| start <= position)
                 .checked_sub(1)?;
-            self.line_hint
+            lines
+                .hint
                 .store(line as u32, std::sync::atomic::Ordering::Relaxed);
             line
         };
@@ -673,7 +699,7 @@ impl PositionIndex {
     pub fn new_static(text: &str) -> Self {
         Self {
             byte_len: u32::try_from(text.len()).expect("source text must fit in u32"),
-            data: PositionIndexData::StaticDense(DensePositionIndex::new(text)),
+            data: PositionIndexData::StaticDense(DensePositionIndex::with_lines(text)),
             detached: false,
         }
     }
@@ -724,6 +750,19 @@ impl PositionIndex {
         }
     }
 
+    /// The dense index's line tables (a lazy index builds them now).
+    fn dense_lines(&self) -> Option<&LineTables> {
+        match &self.data {
+            PositionIndexData::StaticDense(dense) => dense.lines.get(),
+            PositionIndexData::LazyDense { text, dense } => Some(
+                dense
+                    .get_or_init(|| DensePositionIndex::new(text))
+                    .lines(text),
+            ),
+            PositionIndexData::PersistentLines(_) => None,
+        }
+    }
+
     pub const fn kind(&self) -> PositionIndexKind {
         match self.data {
             PositionIndexData::StaticDense(_) | PositionIndexData::LazyDense { .. } => {
@@ -747,7 +786,7 @@ impl PositionIndex {
     pub fn line_count(&self) -> u32 {
         match &self.data {
             PositionIndexData::PersistentLines(tree) => tree.line_count(),
-            _ => u32::try_from(self.dense().expect("static index").line_starts_byte.len())
+            _ => u32::try_from(self.dense_lines().expect("static index").starts_byte.len())
                 .expect("source line count must fit in u32"),
         }
     }
@@ -794,14 +833,14 @@ impl PositionIndex {
     pub fn line_start_byte(&self, line: u32) -> Option<u32> {
         match &self.data {
             PositionIndexData::PersistentLines(tree) => tree.line_start_byte(line),
-            _ => self.dense()?.line_starts_byte.get(line as usize).copied(),
+            _ => self.dense_lines()?.starts_byte.get(line as usize).copied(),
         }
     }
 
     pub fn line_start_utf16(&self, line: u32) -> Option<u32> {
         match &self.data {
             PositionIndexData::PersistentLines(tree) => tree.line_start_utf16(line),
-            _ => self.dense()?.line_starts_utf16.get(line as usize).copied(),
+            _ => self.dense_lines()?.starts_utf16.get(line as usize).copied(),
         }
     }
 
@@ -820,8 +859,8 @@ impl PositionIndex {
         if position > self.utf16_len() {
             return None;
         }
-        if let Some(dense) = self.dense() {
-            return dense.line_and_character_utf16(position);
+        if let Some(lines) = self.dense_lines() {
+            return DensePositionIndex::line_and_character_utf16(lines, position);
         }
         let line = greatest_line_start(self.line_count(), position, |line| {
             self.line_start_utf16(line)
