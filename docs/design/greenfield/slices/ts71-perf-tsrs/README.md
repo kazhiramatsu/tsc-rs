@@ -275,6 +275,10 @@ self/inclusive、`chains.py` が関数名を切らずに呼び出し連鎖を出
 試して捨てた：loader の `resolve_with_facts` が request ごとに containing file を正規化する（56 sample）ので、最後の file の
 正規化結果を resolver に持たせた。命令数は VS Code・Next.js・zod・TypeScript のどれも変わらず（±0.1%）、捨てた。
 
+**記録。** PR [#848](https://github.com/kazhiramatsu/tsc-rs/pull/848) → merge `954211217`（2026-11-02。commit `b7f30d5a6` + `8c917d15d`、
+main の取り込み `147192bdb`、文書 `e205ca209` + `ed6ae31ee`）。hosted run
+[41359453613](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41359453613)（`ed6ae31ee`）：全 job pass。
+
 **計測**（1 thread、f3 = #847 の byte → g3 = main を取り込んだ最終 byte）：
 
 | case | 命令数 | peak footprint | peak RSS |
