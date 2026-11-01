@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use tsc_binder::{node_util, InternalSymbolName, SymbolId};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, JsStr, JsString};
-use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     CheckFlags, CheckMode, ConditionalRootData, ContextFlags, ElementFlags, IntersectionFlags,
     LiteralValue, MappedTypeData, MappedTypeModifiers, ModifierFlags, ObjectFlags, PseudoBigInt,
@@ -1244,17 +1244,15 @@ impl<'a> CheckerState<'a> {
         mut node: NodeId,
     ) -> CheckResult<TypeId> {
         if self.is_in_js_file(node) && self.kind_of(node) == SyntaxKind::JSDocTypeExpression {
-            let source = self.binder.source_of_node(node);
             let js_doc =
                 std::iter::successors(self.parent_of(node), |&current| self.parent_of(current))
                     .find(|&current| self.kind_of(current) == SyntaxKind::JSDoc);
             if let Some(js_doc) = js_doc {
                 let host = self.parent_of(js_doc).filter(|&host| {
-                    source
-                        .arena
+                    Published
                         .node(host)
                         .js_doc
-                        .and_then(|docs| source.arena.node_array(docs).nodes.last().copied())
+                        .and_then(|docs| Published.node_array(docs).nodes.last().copied())
                         == Some(js_doc)
                 });
                 if let Some(host) = host {
@@ -1318,7 +1316,7 @@ impl<'a> CheckerState<'a> {
         match self.data_of(node) {
             NodeData::VariableDeclaration(data) => {
                 // isVarConst: (combined & BlockScoped) == Const.
-                let combined = node_util::get_combined_node_flags(source, node);
+                let combined = node_util::get_combined_node_flags(&Published, node);
                 let block_scoped = tsc_types::NodeFlags::from_bits(
                     tsc_types::NodeFlags::LET.bits()
                         | tsc_types::NodeFlags::CONST.bits()
@@ -1848,9 +1846,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: aa0c087eb26daf6a716a057c5006108dd99b1f00b86becb8add0490dab33d15d
     /// tsc-span: _tsc.js:63133-63159
     fn get_this_type(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let source = self.binder.source_of_node(node);
         let container = tsc_binder::node_util::get_this_container(
-            source, node, /*include_arrow_functions*/ false,
+            &Published, node, /*include_arrow_functions*/ false,
         );
         let parent = container.and_then(|container| self.parent_of(container));
         if let (Some(container), Some(parent)) = (container, parent) {
@@ -2221,9 +2218,8 @@ impl<'a> CheckerState<'a> {
         let module_symbol = self
             .resolve_external_module_symbol(Some(inner_module_symbol), false)?
             .expect("resolveExternalModuleSymbol of Some is Some");
-        let source = self.binder.source_of_node(node);
         let qualifier =
-            qualifier.filter(|&qualifier| !node_util::node_is_missing(source, Some(qualifier)));
+            qualifier.filter(|&qualifier| !node_util::node_is_missing(&Published, Some(qualifier)));
         let resolved = if let Some(qualifier) = qualifier {
             let mut name_stack = self.identifier_chain(qualifier);
             name_stack.reverse(); // pop() consumes head-first
@@ -6448,7 +6444,7 @@ impl<'a> CheckerState<'a> {
                     return None;
                 }
                 let source = self.binder.source_of_node(name);
-                let raw = source.arena.node(name);
+                let raw = Published.node(name);
                 let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
                 let end = if matches!(
                     kind,
@@ -6489,7 +6485,7 @@ impl<'a> CheckerState<'a> {
             )
         }) {
             let source = self.binder.source_of_node(name);
-            let raw = source.arena.node(name);
+            let raw = Published.node(name);
             let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
             if let Some(token) =
                 tsc_syntax::scan_byte_tokens(&source.text()[start..], source.language_variant)
@@ -6552,10 +6548,7 @@ impl<'a> CheckerState<'a> {
             .iter()
             .copied()
             .find(|&declaration| {
-                node_util::is_auto_accessor_property_declaration(
-                    self.binder.source_of_node(declaration),
-                    declaration,
-                )
+                node_util::is_auto_accessor_property_declaration(&Published, declaration)
             });
         let computed = (|state: &mut Self| -> CheckResult<Option<TypeId>> {
             // (A JavaScript getter's `@type` is its reparsed return type.)
@@ -6739,10 +6732,7 @@ impl<'a> CheckerState<'a> {
             .or_else(|| {
                 self.declaration_of_kind(symbol, SyntaxKind::PropertyDeclaration)
                     .filter(|&declaration| {
-                        node_util::is_auto_accessor_property_declaration(
-                            self.binder.source_of_node(declaration),
-                            declaration,
-                        )
+                        node_util::is_auto_accessor_property_declaration(&Published, declaration)
                     })
             });
         let annotation = self.annotated_accessor_type_node(setter);
@@ -6813,7 +6803,7 @@ impl<'a> CheckerState<'a> {
             }
             NodeData::PropertyDeclaration(_) => {
                 debug_assert!(node_util::has_syntactic_modifier(
-                    self.binder.source_of_node(accessor),
+                    &Published,
                     accessor,
                     ModifierFlags::ACCESSOR,
                 ));
@@ -7141,10 +7131,7 @@ impl<'a> CheckerState<'a> {
                             .intersects(SymbolFlags::VALUE_MODULE)
                             && !declarations.is_empty()
                             && declarations.iter().all(|&declaration| {
-                                node_util::is_ambient_module(
-                                    state.binder.source_of_node(declaration),
-                                    declaration,
-                                )
+                                node_util::is_ambient_module(&Published, declaration)
                             });
                         if !member_flags.intersects(SymbolFlags::BLOCK_SCOPED)
                             && !ambient_module_only
@@ -8144,8 +8131,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         };
         if self.kind_of(decl) == SyntaxKind::BindingElement {
-            let source = self.binder.source_of_node(decl);
-            match tsc_binder::node_util::walk_up_binding_elements_and_patterns(source, decl) {
+            match tsc_binder::node_util::walk_up_binding_elements_and_patterns(&Published, decl) {
                 Some(walked) => decl = walked,
                 None => return Ok(false),
             }
@@ -8343,7 +8329,7 @@ impl<'a> CheckerState<'a> {
     /// #-name) inside an Ambient-flagged subtree.
     fn declaration_belongs_to_private_ambient_member(&self, declaration: NodeId) -> bool {
         let source = self.binder.source_of_node(declaration);
-        let root = node_util::get_root_declaration(source, declaration);
+        let root = node_util::get_root_declaration(&Published, declaration);
         let member = if self.kind_of(root) == SyntaxKind::Parameter {
             self.parent_of(root).unwrap_or(root)
         } else {
@@ -8444,7 +8430,11 @@ impl<'a> CheckerState<'a> {
             return self.get_type_for_binding_element(declaration);
         }
         let is_property = (kind == SyntaxKind::PropertyDeclaration
-            && !node_util::has_syntactic_modifier(source, declaration, ModifierFlags::ACCESSOR))
+            && !node_util::has_syntactic_modifier(
+                &Published,
+                declaration,
+                ModifierFlags::ACCESSOR,
+            ))
             || matches!(
                 kind,
                 SyntaxKind::PropertySignature | SyntaxKind::JSDocPropertyTag
@@ -8496,7 +8486,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(ModifierFlags::EXPORT);
             let ambient = self.node_flags(declaration) & tsc_types::NodeFlags::AMBIENT.bits() != 0;
             if !name_is_binding_pattern && !exported && !ambient {
-                let constant = node_util::get_combined_node_flags(source, declaration).bits()
+                let constant = node_util::get_combined_node_flags(&Published, declaration).bits()
                     & tsc_types::NodeFlags::CONSTANT.bits()
                     != 0;
                 let initializer = self.initializer_of(declaration);
@@ -8789,8 +8779,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 621724a8fdb0fa42184253babb0c36ecf2e7a3862a4216921af939fec7741262
     /// tsc-span: _tsc.js:13709-13712
     fn is_catch_clause_variable_declaration_or_binding_element(&self, declaration: NodeId) -> bool {
-        let source = self.binder.source_of_node(declaration);
-        let root = node_util::get_root_declaration(source, declaration);
+        let root = node_util::get_root_declaration(&Published, declaration);
         self.kind_of(root) == SyntaxKind::VariableDeclaration
             && self
                 .parent_of(root)
@@ -8965,10 +8954,7 @@ impl<'a> CheckerState<'a> {
             let literal_or_property = left.is_some_and(|left| match self.data_of(left) {
                 NodeData::ElementAccessExpression(access) => {
                     access.argument_expression.is_some_and(|argument| {
-                        node_util::is_string_or_numeric_literal_like(
-                            self.binder.source_of_node(argument),
-                            argument,
-                        )
+                        node_util::is_string_or_numeric_literal_like(&Published, argument)
                     })
                 }
                 _ => true,
@@ -9000,8 +8986,7 @@ impl<'a> CheckerState<'a> {
             .declarations
             .iter()
             .find_map(|&declaration| {
-                let source = self.binder.source_of_node(declaration);
-                node_util::get_this_container(source, declaration, false)
+                node_util::get_this_container(&Published, declaration, false)
                     .filter(|&container| self.kind_of(container) == SyntaxKind::Constructor)
             })
     }
@@ -9223,9 +9208,8 @@ impl<'a> CheckerState<'a> {
     /// getDeclaringConstructor walk; Rust callers already own the
     /// declaration iteration and need the matched container.
     pub(crate) fn assignment_constructor_container(&self, expression: NodeId) -> Option<NodeId> {
-        let source = self.binder.source_of_node(expression);
         let container = node_util::get_this_container(
-            source, expression, /*include_arrow_functions*/ false,
+            &Published, expression, /*include_arrow_functions*/ false,
         )?;
         match self.kind_of(container) {
             SyntaxKind::Constructor => Some(container),
@@ -9306,10 +9290,7 @@ impl<'a> CheckerState<'a> {
                             result = false;
                             break;
                         };
-                        if !node_util::is_string_or_numeric_literal_like(
-                            self.binder.source_of_node(declaration),
-                            argument,
-                        ) {
+                        if !node_util::is_string_or_numeric_literal_like(&Published, argument) {
                             result = false;
                             break;
                         }
@@ -9717,15 +9698,11 @@ impl<'a> CheckerState<'a> {
             // 59725-59730: an overload IMPLEMENTATION immediately
             // following its final overload signature contributes no
             // signature of its own.
-            if i > 0
-                && node_util::body_of(self.binder.source_of_node(declaration), declaration)
-                    .is_some()
-            {
+            if i > 0 && node_util::body_of(&Published, declaration).is_some() {
                 let previous = declarations[i - 1];
                 let same_parent = self.parent_of(declaration) == self.parent_of(previous);
                 let same_kind = self.kind_of(declaration) == self.kind_of(previous);
-                let source = self.binder.source_of_node(declaration);
-                let adjacent = source.arena.node(declaration).pos
+                let adjacent = Published.node(declaration).pos
                     == self
                         .binder
                         .source_of_node(previous)
@@ -9951,11 +9928,9 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::FunctionDeclaration
                 | SyntaxKind::Constructor
         );
-        let is_immediately_invoked = node_util::get_immediately_invoked_function_expression(
-            self.binder.source_of_node(declaration),
-            declaration,
-        )
-        .is_some();
+        let is_immediately_invoked =
+            node_util::get_immediately_invoked_function_expression(&Published, declaration)
+                .is_some();
         // tsgo (checker.go:20184-20189): every parameter of the JavaScript
         // function is untyped — the reparsed `@param` types and a `@this`
         // type count — and the function has no contextual type.
@@ -9986,7 +9961,7 @@ impl<'a> CheckerState<'a> {
         let mut this_tag_in_signature = false;
         let mut min_argument_count = 0u32;
         let parameter_start = usize::from(node_util::is_jsdoc_construct_signature(
-            self.binder.source_of_node(declaration),
+            &Published,
             declaration,
         ));
         for (i, &parameter) in self
@@ -10093,17 +10068,14 @@ impl<'a> CheckerState<'a> {
             // are optional) rides the node_util walk.
             let iife_optional = is_normal_parameter
                 && type_node.is_none()
-                && node_util::get_immediately_invoked_function_expression(
-                    self.binder.source_of_node(declaration),
-                    declaration,
-                )
-                .is_some_and(|iife| {
-                    let argument_count = match self.data_of(iife) {
-                        NodeData::CallExpression(call) => self.nodes_of(call.arguments).len(),
-                        _ => 0,
-                    };
-                    parameters.len() > argument_count
-                });
+                && node_util::get_immediately_invoked_function_expression(&Published, declaration)
+                    .is_some_and(|iife| {
+                        let argument_count = match self.data_of(iife) {
+                            NodeData::CallExpression(call) => self.nodes_of(call.arguments).len(),
+                            _ => 0,
+                        };
+                        parameters.len() > argument_count
+                    });
             let is_optional_parameter = question_token.is_some()
                 || initializer.is_some()
                 || self.is_rest_parameter_declaration(parameter)
@@ -10300,10 +10272,7 @@ impl<'a> CheckerState<'a> {
         let annotation = declaration.and_then(|declaration| match self.data_of(declaration) {
             NodeData::FunctionType(data) => data.r#type,
             NodeData::JSDocFunctionType(data) => {
-                if node_util::is_jsdoc_construct_signature(
-                    self.binder.source_of_node(declaration),
-                    declaration,
-                ) {
+                if node_util::is_jsdoc_construct_signature(&Published, declaration) {
                     self.nodes_of(data.parameters)
                         .first()
                         .and_then(|&parameter| match self.data_of(parameter) {
@@ -10386,8 +10355,10 @@ impl<'a> CheckerState<'a> {
                 if let Some(annotation) = annotation {
                     return state.get_type_from_type_node(annotation);
                 }
-                let source = state.binder.source_of_node(declaration);
-                if node_util::node_is_missing(source, node_util::body_of(source, declaration)) {
+                if node_util::node_is_missing(
+                    &Published,
+                    node_util::body_of(&Published, declaration),
+                ) {
                     Ok(state.tables.intrinsics.any)
                 } else {
                     state.get_return_type_from_body(declaration, tsc_types::CheckMode::NORMAL)
@@ -10572,10 +10543,9 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         };
         let (initializer, name) = (data.initializer, data.name);
-        let source = self.binder.source_of_node(element);
         if initializer.is_some() {
             let contextual_type = match name {
-                Some(name) if node_util::is_binding_pattern(source, name) => self
+                Some(name) if node_util::is_binding_pattern(&Published, name) => self
                     .get_type_from_binding_pattern(
                         name, /*include_pattern_in_type*/ true, /*report_errors*/ false,
                     )?,
@@ -10593,7 +10563,7 @@ impl<'a> CheckerState<'a> {
             ));
         }
         if let Some(name) = name {
-            if node_util::is_binding_pattern(source, name) {
+            if node_util::is_binding_pattern(&Published, name) {
                 return self.get_type_from_binding_pattern(
                     name,
                     include_pattern_in_type,

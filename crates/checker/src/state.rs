@@ -10,7 +10,7 @@
 use tsc_binder::{Binder, InternalSymbolName, SymbolId, SymbolTable};
 use tsc_diagnostics::JsStr;
 use tsc_diagnostics::{Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain};
-use tsc_syntax::{NodeId, SourceFile};
+use tsc_syntax::{NodeId, NodeLookup, Published, SourceFile};
 use tsc_types::{
     CheckFlags, CompilerOptions, ExpandingFlags, ObjectFlags, PseudoBigInt, SignatureFlags,
     SymbolFlags, TypeData, TypeFlags, TypeId, TypeSystemPropertyName, TypeTables,
@@ -2325,8 +2325,7 @@ impl<'a> CheckerState<'a> {
 
     fn mark_partially_checked_range(&mut self, node: NodeId) {
         let file_index = self.binder.file_index_of_node(node);
-        let source = self.binder.source_of_node(node);
-        let raw = source.arena.node(node);
+        let raw = Published.node(node);
         let range = (raw.pos, raw.end);
         let ranges = self.partially_checked_ranges.entry(file_index).or_default();
         if !ranges.contains(&range) {
@@ -2342,7 +2341,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn mark_partially_checked_node(&mut self, node: NodeId, reason: impl Into<String>) {
         self.mark_partially_checked_range(node);
         let source = self.binder.source_of_node(node);
-        let raw = source.arena.node(node);
+        let raw = Published.node(node);
         let to_utf16 = |byte: u32| {
             source
                 .positions()

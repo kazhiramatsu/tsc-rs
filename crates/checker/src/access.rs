@@ -14,7 +14,7 @@
 
 use tsc_binder::node_util;
 use tsc_diagnostics::DiagnosticCategory;
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     CheckMode, EscapedName, IntersectionFlags, JsStr, JsString, MappedTypeModifiers, ModifierFlags,
     NodeFlags, SymbolFlags, SymbolId, TypeFacts, TypeFlags, TypeId, UnionReduction,
@@ -38,7 +38,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ThisKeyword => Ok("this".to_owned()),
             SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier => {
                 let source = self.binder.source_of_node(node);
-                let raw = source.arena.node(node);
+                let raw = Published.node(node);
                 if raw.end == raw.pos {
                     // getFullWidth == 0: parse-recovery synthesized —
                     // idText.
@@ -193,8 +193,7 @@ impl<'a> CheckerState<'a> {
         if !was_optional {
             return Ok(ty);
         }
-        let source = self.binder.source_of_node(node);
-        if node_util::is_outermost_optional_chain(source, node) {
+        if node_util::is_outermost_optional_chain(&Published, node) {
             self.get_optional_type(ty, /*is_property*/ false)
         } else {
             self.add_optional_type_marker(ty)
@@ -209,10 +208,9 @@ impl<'a> CheckerState<'a> {
         expr_type: TypeId,
         expression: NodeId,
     ) -> CheckResult<TypeId> {
-        let source = self.binder.source_of_node(expression);
-        if node_util::is_expression_of_optional_chain_root(source, expression) {
+        if node_util::is_expression_of_optional_chain_root(&Published, expression) {
             self.get_non_nullable_type(expr_type)
-        } else if node_util::is_optional_chain(source, expression) {
+        } else if node_util::is_optional_chain(&Published, expression) {
             Ok(self.remove_optional_type_marker(expr_type))
         } else {
             Ok(expr_type)
@@ -683,9 +681,8 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<TypeId>> {
-        let source = self.binder.source_of_node(node);
         let this_container =
-            node_util::get_this_container(source, node, /*include_arrow_functions*/ false);
+            node_util::get_this_container(&Published, node, /*include_arrow_functions*/ false);
         let this_parameter = this_container
             .filter(|&container| {
                 tsc_binder::node_util::is_function_like_kind(self.kind_of(container))
@@ -798,14 +795,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 473286bbde1a0ff408905a5d5f0833cd6c37d75ca6ba96c30b069679d9184ced
     /// tsc-span: _tsc.js:87230-87251
     pub(crate) fn get_containing_class_of(&self, node: NodeId) -> Option<NodeId> {
-        node_util::get_containing_class(self.binder.source_of_node(node), node)
+        node_util::get_containing_class(&Published, node)
     }
 
     fn is_node_used_during_class_initialization(&self, node: NodeId) -> bool {
         self.find_ancestor(Some(node), |state, element| {
             let kind = state.kind_of(element);
             let ctor_with_body = kind == SyntaxKind::Constructor
-                && node_util::body_of(state.binder.source_of_node(element), element).is_some();
+                && node_util::body_of(&Published, element).is_some();
             if ctor_with_body || kind == SyntaxKind::PropertyDeclaration {
                 crate::expr::Ancestor::Yes
             } else if matches!(
@@ -991,8 +988,7 @@ impl<'a> CheckerState<'a> {
                 .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier);
             if is_private_element {
                 let decl_class = self.get_containing_class_of(value_declaration);
-                let source = self.binder.source_of_node(node);
-                return Ok(!node_util::is_optional_chain(source, node)
+                return Ok(!node_util::is_optional_chain(&Published, node)
                     && decl_class.is_some_and(|class| {
                         self.find_ancestor(Some(node), |_, parent| {
                             if parent == class {
@@ -1035,8 +1031,7 @@ impl<'a> CheckerState<'a> {
             // deterministic semantic value is errorType.
             return Ok(self.tables.intrinsics.error);
         };
-        let source = self.binder.source_of_node(node);
-        if node_util::node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
+        if node_util::node_flags(&Published, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
             // checkNonNullChain (77955-77959).
             let left_type = self.check_expression(expression, CheckMode::NORMAL)?;
             let non_optional_type = self.get_optional_expression_type(left_type, expression)?;
@@ -1074,8 +1069,7 @@ impl<'a> CheckerState<'a> {
         let (Some(expression), Some(name)) = (data.expression, data.name) else {
             return Ok(self.tables.intrinsics.error);
         };
-        let source = self.binder.source_of_node(node);
-        if node_util::node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
+        if node_util::node_flags(&Published, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
             return self.check_property_access_chain(node, check_mode);
         }
         let left_type = self.check_non_null_expression(expression)?;
@@ -1118,14 +1112,14 @@ impl<'a> CheckerState<'a> {
         let (Some(left), Some(right)) = (data.left, data.right) else {
             return Ok(self.tables.intrinsics.error);
         };
-        let source = self.binder.source_of_node(node);
-        let left_type =
-            if node_util::is_part_of_type_query(source, node) && self.is_this_identifier(left) {
-                let this_type = self.check_this_expression(left)?;
-                self.check_non_null_type(this_type, left)?
-            } else {
-                self.check_non_null_expression(left)?
-            };
+        let left_type = if node_util::is_part_of_type_query(&Published, node)
+            && self.is_this_identifier(left)
+        {
+            let this_type = self.check_this_expression(left)?;
+            self.check_non_null_type(this_type, left)?
+        } else {
+            self.check_non_null_expression(left)?
+        };
         self.check_property_access_expression_or_qualified_name(
             node, left, left_type, right, check_mode, /*write_only*/ false,
         )
@@ -1206,7 +1200,6 @@ impl<'a> CheckerState<'a> {
         // isDecorator(n)): a class-like hit BEFORE any decorator quits
         // the walk — a class expression inside a decorator argument
         // contains its own body's references.
-        let source = self.binder.source_of_node(node);
         let mut decorator: Option<NodeId> = None;
         let mut probe = self.parent_of(node);
         while let Some(current) = probe {
@@ -1231,9 +1224,9 @@ impl<'a> CheckerState<'a> {
             })
         });
         match (decorated_class, decorator) {
-            (Some(class), _) => node_util::get_containing_class(source, class),
-            (None, Some(decorator)) => node_util::get_containing_class(source, decorator),
-            (None, None) => node_util::get_containing_class(source, node),
+            (Some(class), _) => node_util::get_containing_class(&Published, class),
+            (None, Some(decorator)) => node_util::get_containing_class(&Published, decorator),
+            (None, None) => node_util::get_containing_class(&Published, node),
         }
     }
 
@@ -1257,8 +1250,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn check_grammar_private_identifier_expression(&mut self, priv_id: NodeId) -> CheckResult<()> {
-        let source = self.binder.source_of_node(priv_id);
-        if node_util::get_containing_class(source, priv_id).is_none() {
+        if node_util::get_containing_class(&Published, priv_id).is_none() {
             self.grammar_error_on_node(
                 priv_id,
                 &tsc_diagnostics::gen::Private_identifiers_are_not_allowed_outside_class_bodies,
@@ -1465,9 +1457,8 @@ impl<'a> CheckerState<'a> {
         let Some(constructor) = constructor else {
             return Ok(false);
         };
-        let source = self.binder.source_of_node(node);
         let this_container =
-            node_util::get_this_container(source, node, /*include_arrow_functions*/ true);
+            node_util::get_this_container(&Published, node, /*include_arrow_functions*/ true);
         Ok(this_container == Some(constructor))
     }
 
@@ -1522,7 +1513,6 @@ impl<'a> CheckerState<'a> {
         // on the JSDoc host exactly as tsc's withJSDoc does (29244), so the
         // combined modifier flags (a JSDoc tag scan per ancestor, called for
         // every property access through isDeprecatedSymbol) add nothing.
-        let source = self.binder.source_of_node(declaration);
         // tsgo's reparsed `@overload` declaration (the tag's name here) gets
         // the parser's context flags only (reparser.go finishReparsedNode),
         // never the host's deprecated flag: a function with overloads is
@@ -1535,7 +1525,8 @@ impl<'a> CheckerState<'a> {
         {
             return false;
         }
-        node_util::get_combined_node_flags(source, declaration).intersects(NodeFlags::DEPRECATED)
+        node_util::get_combined_node_flags(&Published, declaration)
+            .intersects(NodeFlags::DEPRECATED)
     }
 
     /// tsc-port: isDeprecatedSymbol @6.0.3
@@ -2162,10 +2153,7 @@ impl<'a> CheckerState<'a> {
                     let ambient_module_only = flags.intersects(SymbolFlags::VALUE_MODULE)
                         && !declarations.is_empty()
                         && declarations.iter().all(|&declaration| {
-                            node_util::is_ambient_module(
-                                self.binder.source_of_node(declaration),
-                                declaration,
-                            )
+                            node_util::is_ambient_module(&Published, declaration)
                         });
                     if !flags.intersects(SymbolFlags::BLOCK_SCOPED)
                         && !ambient_module_only
@@ -2315,9 +2303,9 @@ impl<'a> CheckerState<'a> {
                 }
                 return Ok(self.tables.intrinsics.error);
             };
-            let source = self.binder.source_of_node(node);
             if index_info.is_readonly
-                && (node_util::is_assignment_target(source, node) || self.is_delete_target(node))
+                && (node_util::is_assignment_target(&Published, node)
+                    || self.is_delete_target(node))
             {
                 let type_name = self.type_to_string(apparent_type)?;
                 self.error_at_js(
@@ -2541,7 +2529,7 @@ impl<'a> CheckerState<'a> {
             let is_property_without_initializer = self.kind_of(declaration)
                 == SyntaxKind::PropertyDeclaration
                 && !tsc_binder::node_util::has_syntactic_modifier(
-                    self.binder.source_of_node(declaration),
+                    &Published,
                     declaration,
                     ModifierFlags::ABSTRACT,
                 )
@@ -2562,9 +2550,8 @@ impl<'a> CheckerState<'a> {
             if strict_property_initialization && node_is_access && receiver_is_this {
                 if is_property_without_initializer && !is_static {
                     let flow_container = self.get_control_flow_container(node);
-                    let source = self.binder.source_of_node(declaration);
-                    let is_ambient =
-                        node_util::node_flags(source, declaration).intersects(NodeFlags::AMBIENT);
+                    let is_ambient = node_util::node_flags(&Published, declaration)
+                        .intersects(NodeFlags::AMBIENT);
                     if let Some(flow_container) = flow_container {
                         if self.kind_of(flow_container) == SyntaxKind::Constructor
                             && self.parent_of(flow_container) == self.parent_of(declaration)
@@ -3062,11 +3049,7 @@ impl<'a> CheckerState<'a> {
             && self
                 .parent_of(node)
                 .is_some_and(|parent| self.kind_of(parent) != SyntaxKind::TypeReference)
-            && !node_util::node_flags(
-                self.binder.source_of_node(value_declaration),
-                value_declaration,
-            )
-            .intersects(NodeFlags::AMBIENT)
+            && !node_util::node_flags(&Published, value_declaration).intersects(NodeFlags::AMBIENT)
             && !self.is_block_scoped_name_declared_before_use(value_declaration, right)?
         {
             message = Some(&tsc_diagnostics::gen::Class_0_used_before_its_declaration);
@@ -3720,8 +3703,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let source = self.binder.source_of_node(node);
-        if node_util::node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
+        if node_util::node_flags(&Published, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
             return self.check_element_access_chain(node, check_mode);
         }
         let NodeData::ElementAccessExpression(data) = self.data_of(node) else {
@@ -3988,9 +3970,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         if every_assignable {
-            let source = self.binder.source_of_node(access_node);
             if self.kind_of(access_node) == SyntaxKind::ElementAccessExpression
-                && node_util::is_assignment_target(source, access_node)
+                && node_util::is_assignment_target(&Published, access_node)
                 && self
                     .tables
                     .object_flags_of(object_type)

@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 
 use tsc_binder::node_util;
 use tsc_diagnostics::{Diagnostic, DiagnosticList};
-use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SourceFile, SyntaxKind};
 use tsc_types::{JsString, ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::emit::CheckerSession;
@@ -118,25 +118,25 @@ struct ModuleReferences {
 }
 
 fn root_statements(source: &SourceFile) -> &[NodeId] {
-    match &source.arena.node(source.root).data {
+    match &Published.node(source.root).data {
         NodeData::SourceFile(data) => data
             .statements
-            .map(|statements| source.arena.node_array(statements).nodes)
+            .map(|statements| Published.node_array(statements).nodes)
             .unwrap_or_default(),
         _ => &[],
     }
 }
 
-fn is_string_literal_like(source: &SourceFile, node: NodeId) -> bool {
+fn is_string_literal_like(node: NodeId) -> bool {
     matches!(
-        source.arena.node(node).kind,
+        Published.node(node).kind,
         SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
     )
 }
 
 /// tsgo `IsImportCall`'s callee: `import`, `import.defer` or `import.source`.
 fn is_import_callee(source: &SourceFile, callee: NodeId) -> bool {
-    source.arena.node(callee).kind == SyntaxKind::ImportKeyword
+    Published.node(callee).kind == SyntaxKind::ImportKeyword
         || tsc_syntax::utilities::is_import_phase_meta_property(&source.arena, callee)
 }
 
@@ -148,7 +148,7 @@ fn collect_module_references(source: &SourceFile, javascript: bool) -> ModuleRef
     // ForEachDynamicImportOrRequireCall: the whole file, when the parser saw
     // a dynamic import or import type, or the file is JavaScript (require
     // calls); a node inside JSDoc counts only in a JavaScript file.
-    let root_flags = NodeFlags::from_bits(source.arena.node(source.root).flags);
+    let root_flags = NodeFlags::from_bits(Published.node(source.root).flags);
     if root_flags.contains(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT) || javascript {
         let base = source.arena.node_base();
         for (offset, node) in source.arena.nodes().iter().enumerate() {
@@ -162,7 +162,7 @@ fn collect_module_references(source: &SourceFile, javascript: bool) -> ModuleRef
                     };
                     let arguments = call
                         .arguments
-                        .map(|arguments| source.arena.node_array(arguments).nodes)
+                        .map(|arguments| Published.node_array(arguments).nodes)
                         .unwrap_or_default();
                     let Some(&argument) = arguments.first() else {
                         continue;
@@ -170,35 +170,38 @@ fn collect_module_references(source: &SourceFile, javascript: bool) -> ModuleRef
                     let require_call = javascript
                         && arguments.len() == 1
                         && matches!(
-                            &source.arena.node(callee).data,
+                            &Published.node(callee).data,
                             NodeData::Identifier(identifier) if identifier.escaped_text == "require"
                         );
                     if (require_call || is_import_callee(source, callee))
-                        && is_string_literal_like(source, argument)
+                        && is_string_literal_like(argument)
                     {
                         references.imports.push(argument);
                         // tsgo IsVariableDeclarationInitializedToRequire: the
                         // call initializes the variable declaration above it.
-                        let initializes_variable = node.parent.is_some_and(|parent| match &source
-                            .arena
-                            .node(parent)
-                            .data
-                        {
-                            NodeData::VariableDeclaration(declaration) => {
-                                declaration.initializer.is_some_and(|initializer| {
-                                    match &source.arena.node(initializer).data {
-                                        NodeData::CallExpression(initializer_call) => {
-                                            initializer_call.arguments.is_some_and(|arguments| {
-                                                source.arena.node_array(arguments).nodes.first()
-                                                    == Some(&argument)
-                                            })
-                                        }
-                                        _ => false,
+                        let initializes_variable =
+                            node.parent
+                                .is_some_and(|parent| match &Published.node(parent).data {
+                                    NodeData::VariableDeclaration(declaration) => {
+                                        declaration.initializer.is_some_and(|initializer| {
+                                            match &Published.node(initializer).data {
+                                                NodeData::CallExpression(initializer_call) => {
+                                                    initializer_call.arguments.is_some_and(
+                                                        |arguments| {
+                                                            Published
+                                                                .node_array(arguments)
+                                                                .nodes
+                                                                .first()
+                                                                == Some(&argument)
+                                                        },
+                                                    )
+                                                }
+                                                _ => false,
+                                            }
+                                        })
                                     }
-                                })
-                            }
-                            _ => false,
-                        });
+                                    _ => false,
+                                });
                         if !require_call || initializes_variable {
                             references.symbol_imports.push(argument);
                         }
@@ -208,9 +211,9 @@ fn collect_module_references(source: &SourceFile, javascript: bool) -> ModuleRef
                     let Some(argument) = import_type.argument else {
                         continue;
                     };
-                    if let NodeData::LiteralType(literal_type) = &source.arena.node(argument).data {
+                    if let NodeData::LiteralType(literal_type) = &Published.node(argument).data {
                         if let Some(literal) = literal_type.literal {
-                            if source.arena.node(literal).kind == SyntaxKind::StringLiteral {
+                            if Published.node(literal).kind == SyntaxKind::StringLiteral {
                                 references.imports.push(literal);
                                 references.symbol_imports.push(literal);
                             }
@@ -232,23 +235,21 @@ fn collect_module_reference(
     in_ambient_module: bool,
     references: &mut ModuleReferences,
 ) {
-    let data = &source.arena.node(node).data;
+    let data = &Published.node(node).data;
     let module_name = match data {
         NodeData::ImportDeclaration(import) => Some(import.module_specifier),
         NodeData::ExportDeclaration(export) => Some(export.module_specifier),
-        NodeData::ImportEqualsDeclaration(import) => {
-            Some(import.module_reference.and_then(|reference| {
-                match &source.arena.node(reference).data {
-                    NodeData::ExternalModuleReference(external) => external.expression,
-                    _ => None,
-                }
-            }))
-        }
+        NodeData::ImportEqualsDeclaration(import) => Some(import.module_reference.and_then(
+            |reference| match &Published.node(reference).data {
+                NodeData::ExternalModuleReference(external) => external.expression,
+                _ => None,
+            },
+        )),
         _ => None,
     };
     if let Some(module_name) = module_name {
         if let Some(name) = module_name {
-            if let NodeData::StringLiteral(literal) = &source.arena.node(name).data {
+            if let NodeData::StringLiteral(literal) = &Published.node(name).data {
                 if !literal.text.is_empty()
                     && (!in_ambient_module
                         || !CheckerState::is_external_module_name_relative(literal.text.as_js()))
@@ -263,16 +264,16 @@ fn collect_module_reference(
     let NodeData::ModuleDeclaration(module) = data else {
         return;
     };
-    if !node_util::is_ambient_module(source, node)
+    if !node_util::is_ambient_module(&Published, node)
         || !(in_ambient_module
-            || node_util::has_syntactic_modifier(source, node, ModifierFlags::AMBIENT)
+            || node_util::has_syntactic_modifier(&Published, node, ModifierFlags::AMBIENT)
             || source.is_declaration_file)
     {
         return;
     }
     let name_text = module
         .name
-        .and_then(|name| node_util::get_text_of_identifier_or_literal(source, name))
+        .and_then(|name| node_util::get_text_of_identifier_or_literal(&Published, name))
         .unwrap_or_default();
     if source.external_module_indicator.is_some()
         || (in_ambient_module && !CheckerState::is_external_module_name_relative(name_text.as_js()))
@@ -281,9 +282,9 @@ fn collect_module_reference(
     } else if !in_ambient_module {
         if let Some(statements) = module
             .body
-            .and_then(|body| node_util::statements_of(source, body))
+            .and_then(|body| node_util::statements_of(&Published, body))
         {
-            for &statement in source.arena.node_array(statements).nodes {
+            for &statement in Published.node_array(statements).nodes {
                 collect_module_reference(source, statement, true, references);
             }
         }
@@ -291,11 +292,11 @@ fn collect_module_reference(
 }
 
 /// tsgo `IsModuleWithStringLiteralName`.
-fn is_module_with_string_literal_name(source: &SourceFile, node: NodeId) -> bool {
-    match &source.arena.node(node).data {
+fn is_module_with_string_literal_name(node: NodeId) -> bool {
+    match &Published.node(node).data {
         NodeData::ModuleDeclaration(module) => module
             .name
-            .is_some_and(|name| source.arena.node(name).kind == SyntaxKind::StringLiteral),
+            .is_some_and(|name| Published.node(name).kind == SyntaxKind::StringLiteral),
         _ => false,
     }
 }
@@ -309,12 +310,12 @@ fn affects_global_scope(
     if references
         .module_augmentations
         .iter()
-        .any(|&augmentation| node_util::is_global_scope_augmentation(source, augmentation))
+        .any(|&augmentation| node_util::is_global_scope_augmentation(&Published, augmentation))
     {
         return true;
     }
     let json =
-        NodeFlags::from_bits(source.arena.node(source.root).flags).contains(NodeFlags::JSON_FILE);
+        NodeFlags::from_bits(Published.node(source.root).flags).contains(NodeFlags::JSON_FILE);
     if state
         .binder
         .is_external_or_common_js_module_of_node(source.root)
@@ -324,7 +325,7 @@ fn affects_global_scope(
     }
     root_statements(source)
         .iter()
-        .any(|&statement| !is_module_with_string_literal_name(source, statement))
+        .any(|&statement| !is_module_with_string_literal_name(statement))
 }
 
 /// tsgo `getReferencedFiles` without the path references and type
@@ -352,11 +353,10 @@ fn referenced_files(
         }
     }
     for &augmentation in &references.module_augmentations {
-        let source = state.binder.source(file);
-        let string_name = match &source.arena.node(augmentation).data {
+        let string_name = match &Published.node(augmentation).data {
             NodeData::ModuleDeclaration(module) => module
                 .name
-                .is_some_and(|name| source.arena.node(name).kind == SyntaxKind::StringLiteral),
+                .is_some_and(|name| Published.node(name).kind == SyntaxKind::StringLiteral),
             _ => false,
         };
         if !string_name {

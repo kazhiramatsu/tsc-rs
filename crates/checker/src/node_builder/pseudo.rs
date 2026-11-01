@@ -11,7 +11,7 @@ use tsc_syntax::nodes::{
     FunctionTypeData, GetAccessorData, LiteralTypeData, MethodSignatureData, ParameterData,
     PropertySignatureData, SetAccessorData, TypeLiteralData,
 };
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     ContextFlags, ElementFlags, SymbolFlags, Ternary, TypeData, TypeFacts, TypeFlags, TypeId,
     UnionReduction,
@@ -97,8 +97,8 @@ fn literal_type(
 }
 
 /// tsgo `ast.IsDeclaration`.
-fn is_declaration_node(checker: &CheckerState<'_>, node: NodeId) -> bool {
-    tsc_binder::node_util::is_declaration_node(checker.binder.source_of_node(node), node)
+fn is_declaration_node(node: NodeId) -> bool {
+    tsc_binder::node_util::is_declaration_node(&Published, node)
 }
 
 fn is_accessor(checker: &CheckerState<'_>, node: NodeId) -> bool {
@@ -222,7 +222,7 @@ pub(super) fn pseudo_type_to_node(
                     report_inference_fallback(checker, context, error_node)?;
                 }
             } else if let Some(parent) = parent.filter(|&parent| {
-                checker.is_entity_name_expression(node) && is_declaration_node(checker, parent)
+                checker.is_entity_name_expression(node) && is_declaration_node(parent)
             }) {
                 report_inference_fallback(checker, context, parent)?;
             } else {
@@ -261,7 +261,7 @@ pub(super) fn pseudo_type_to_node(
                         checker, arena, target, context, parent,
                     );
                 }
-                if is_declaration_node(checker, parent) {
+                if is_declaration_node(parent) {
                     return serialize_type_for_declaration_in_context(
                         checker,
                         arena,
@@ -1544,9 +1544,8 @@ fn walk_node_for_expandability(
             }
         }
     }
-    let source = checker.binder.source_of_node(node);
     let mut children = Vec::new();
-    tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+    tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
         children.push(child);
         false
     });

@@ -8,7 +8,7 @@
 //! activated both conditional relation directions.
 
 use tsc_binder::SymbolId;
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, Published, SyntaxKind};
 use tsc_types::{
     AccessFlags, CheckFlags, CheckMode, ElementFlags, EscapedName, IndexFlags, InferenceFlags,
     InferencePriority, IntersectionFlags, IntersectionState, JsStr, MappedTypeModifiers,
@@ -5884,11 +5884,9 @@ impl<'a> CheckerState<'a> {
     /// flags of the value declaration.
     fn get_declaration_node_flags_from_symbol(&self, symbol: SymbolId) -> i32 {
         match self.binder.symbol(symbol).value_declaration {
-            Some(declaration) => tsc_binder::node_util::get_combined_node_flags(
-                self.binder.source_of_node(declaration),
-                declaration,
-            )
-            .bits(),
+            Some(declaration) => {
+                tsc_binder::node_util::get_combined_node_flags(&Published, declaration).bits()
+            }
             None => 0,
         }
     }

@@ -6,7 +6,7 @@
 
 use tsc_binder::node_util;
 use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory};
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckResult, CheckerState};
@@ -76,12 +76,11 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor
                 | SyntaxKind::Constructor => {
-                    let locals =
-                        if node_util::body_of(self.binder.source_of_node(node), node).is_some() {
-                            self.check_unused_locals_and_parameters(node)
-                        } else {
-                            Ok(())
-                        };
+                    let locals = if node_util::body_of(&Published, node).is_some() {
+                        self.check_unused_locals_and_parameters(node)
+                    } else {
+                        Ok(())
+                    };
                     locals.and_then(|()| self.check_unused_type_parameters(node))
                 }
                 SyntaxKind::MethodSignature
@@ -269,7 +268,7 @@ impl<'a> CheckerState<'a> {
                             .read_symbol(symbol, |links| links.is_referenced)
                             .is_empty()
                             || !node_util::has_syntactic_modifier(
-                                self.binder.source_of_node(parameter),
+                                &Published,
                                 parameter,
                                 ModifierFlags::PRIVATE,
                             )
@@ -356,19 +355,17 @@ impl<'a> CheckerState<'a> {
             // first tag, so a list that came from a tag starts there.
             let source = self.binder.source_of_node(node);
             let first = type_parameters[0];
-            let last = source
-                .arena
-                .node(type_parameters[type_parameters.len() - 1]);
+            let last = Published.node(type_parameters[type_parameters.len() - 1]);
             let (list_start, list_end) = match self.type_parameter_declaration_list_of(node) {
                 Some(list) => {
-                    let list = source.arena.node_array(list);
+                    let list = Published.node_array(list);
                     (list.pos, list.end)
                 }
                 // A JavaScript list reparsed from `@template` tags spans
                 // them, from the first tag to the last.
                 None => self
                     .reparsed_type_parameter_range(node)
-                    .unwrap_or((source.arena.node(first).pos, last.end)),
+                    .unwrap_or((Published.node(first).pos, last.end)),
             };
             let start_byte = (list_start as usize).saturating_sub(1);
             let end_byte = tsc_syntax::skip_trivia(source.text(), list_end as usize)
@@ -474,8 +471,7 @@ impl<'a> CheckerState<'a> {
                     SyntaxKind::VariableDeclaration
                     | SyntaxKind::Parameter
                     | SyntaxKind::BindingElement => {
-                        let source = self.binder.source_of_node(declaration);
-                        let root = node_util::get_root_declaration(source, declaration);
+                        let root = node_util::get_root_declaration(&Published, declaration);
                         if let Some(parent) = self.parent_of(root) {
                             if !variable_parents.contains(&parent) {
                                 variable_parents.push(parent);
@@ -507,10 +503,7 @@ impl<'a> CheckerState<'a> {
                     | SyntaxKind::JSDocParameterTag
                     | SyntaxKind::JSDocPropertyTag => {}
                     SyntaxKind::ModuleDeclaration
-                        if node_util::is_ambient_module(
-                            self.binder.source_of_node(declaration),
-                            declaration,
-                        ) => {}
+                        if node_util::is_ambient_module(&Published, declaration) => {}
                     _ => self.error_unused_local(declaration, local),
                 }
             }
@@ -580,7 +573,7 @@ impl<'a> CheckerState<'a> {
             ) {
                 self.report_unused_binding_elements(name)?;
             } else if self.is_unreferenced_variable_declaration(declaration)? {
-                let text = node_util::id_text(self.binder.source_of_node(name), name)
+                let text = node_util::id_text(&Published, name)
                     .map(str::to_owned)
                     .unwrap_or_else(|| self.declaration_name_display(name));
                 self.report_unused_variable(
@@ -660,7 +653,7 @@ impl<'a> CheckerState<'a> {
                             )
                         });
                 in_for_in_or_of
-                    || node_util::get_combined_node_flags(self.binder.source_of_node(node), node)
+                    || node_util::get_combined_node_flags(&Published, node)
                         .intersects(NodeFlags::USING)
             }
             SyntaxKind::BindingElement => {

@@ -6,7 +6,7 @@
 //! node and are not used by the checker itself.
 
 use tsc_binder::node_util;
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{CheckMode, NodeFlags, SymbolFlags, SymbolId, TypeFlags, TypeId};
 
 use crate::state::{CheckResult, CheckerState};
@@ -114,7 +114,7 @@ impl CheckerState<'_> {
             };
         }
 
-        if node_util::is_binding_pattern(self.binder.source_of_node(node), node) {
+        if node_util::is_binding_pattern(&Published, node) {
             let parent = self
                 .parent_of(node)
                 .expect("a binding pattern has a parent");
@@ -395,10 +395,7 @@ impl CheckerState<'_> {
                     if node_util::is_function_like_kind(self.kind_of(function)) {
                         let text = self.identifier_text_of(node).map(str::to_owned);
                         for parameter in self.parameters_of_function(function) {
-                            let name = node_util::name_field_of(
-                                self.binder.source_of_node(parameter),
-                                parameter,
-                            );
+                            let name = node_util::name_field_of(&Published, parameter);
                             if let Some(name) =
                                 name.filter(|&name| self.kind_of(name) == SyntaxKind::Identifier)
                             {
@@ -583,9 +580,8 @@ impl CheckerState<'_> {
             return self.get_symbol_of_node(parent);
         }
         let parent = self.parent_of(name).expect("a name has a parent");
-        let source = self.binder.source_of_node(name);
         if self.kind_of(parent) == SyntaxKind::ExportAssignment
-            && node_util::is_entity_name_expression(source, name)
+            && node_util::is_entity_name_expression(&Published, name)
         {
             // Even an entity name expression that doesn't resolve as an
             // entity name may still typecheck as a property access.
@@ -646,8 +642,7 @@ impl CheckerState<'_> {
                 SymbolFlags::NAMESPACE
             };
             meaning |= SymbolFlags::ALIAS;
-            let source = self.binder.source_of_node(name);
-            if node_util::is_entity_name_expression(source, name) {
+            if node_util::is_entity_name_expression(&Published, name) {
                 if let Some(symbol) =
                     self.resolve_entity_name_ex(name, meaning, true, None, false)?
                 {
@@ -657,8 +652,7 @@ impl CheckerState<'_> {
         }
 
         if self.is_expression_node_like_tsgo(name) {
-            let source = self.binder.source_of_node(name);
-            if node_util::node_is_missing(source, Some(name)) {
+            if node_util::node_is_missing(&Published, Some(name)) {
                 return Ok(None);
             }
             let is_jsdoc = self.is_jsdoc_name_reference_context(name);
@@ -912,14 +906,13 @@ impl CheckerState<'_> {
         let source = self.binder.source(file);
         let mut current = source.root;
         loop {
-            let child =
-                tsc_syntax::for_each_child(&source.arena, source.arena.node(current), |child| {
-                    let node = source.arena.node(child);
-                    node.kind.value() >= SyntaxKind::FirstNode.value()
-                        && node.pos <= position
-                        && (position < node.end
-                            || position == node.end && node.kind == SyntaxKind::EndOfFileToken)
-                });
+            let child = tsc_syntax::for_each_child(&Published, Published.node(current), |child| {
+                let node = Published.node(child);
+                node.kind.value() >= SyntaxKind::FirstNode.value()
+                    && node.pos <= position
+                    && (position < node.end
+                        || position == node.end && node.kind == SyntaxKind::EndOfFileToken)
+            });
             match child {
                 Some(child) if self.kind_of(child) != SyntaxKind::MetaProperty => current = child,
                 _ => return current,
@@ -965,15 +958,14 @@ impl CheckerState<'_> {
 
     /// tsgo `IsDeclaration` (ast/utilities.go:1302-1307).
     fn is_declaration_like_tsgo(&self, node: NodeId) -> bool {
-        node_util::is_symbol_declaration(self.binder.source_of_node(node), node)
+        node_util::is_symbol_declaration(&Published, node)
     }
 
     /// tsgo `IsDeclarationName` (ast/utilities.go:1310-1312): the `name`
     /// slot of a declaration.
     pub(crate) fn is_declaration_name(&self, name: NodeId) -> bool {
-        let source = self.binder.source_of_node(name);
         if self.kind_of(name) == SyntaxKind::SourceFile
-            || node_util::is_binding_pattern(source, name)
+            || node_util::is_binding_pattern(&Published, name)
         {
             return false;
         }
@@ -981,7 +973,7 @@ impl CheckerState<'_> {
             return false;
         };
         self.is_declaration_like_tsgo(parent)
-            && node_util::name_field_of(source, parent) == Some(name)
+            && node_util::name_field_of(&Published, parent) == Some(name)
     }
 
     /// tsgo `IsDeclarationNameOrImportPropertyName` (ast/utilities.go:1315-1322).
@@ -1005,8 +997,7 @@ impl CheckerState<'_> {
 
     /// tsgo `IsLiteralComputedPropertyDeclarationName` (ast/utilities.go:1324-1328).
     fn is_literal_computed_property_declaration_name(&self, node: NodeId) -> bool {
-        let source = self.binder.source_of_node(node);
-        node_util::is_string_or_numeric_literal_like(source, node)
+        node_util::is_string_or_numeric_literal_like(&Published, node)
             && self
                 .parent_of(node)
                 .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ComputedPropertyName)

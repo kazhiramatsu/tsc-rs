@@ -20,7 +20,7 @@
 //!   worker; the fn ports with its caller in 5.8b.
 use tsc_binder::node_util;
 use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage, MessageChain};
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     CheckMode, EscapedName, IterationUse, ModifierFlags, NodeFlags, SymbolFlags, TypeFlags, TypeId,
 };
@@ -163,10 +163,7 @@ impl<'a> CheckerState<'a> {
             // end-of-worker drain; the early return is semantic.
             if property_name.is_some()
                 && self.kind_of(name) == SyntaxKind::Identifier
-                && node_util::is_part_of_parameter_declaration(
-                    self.binder.source_of_node(node),
-                    node,
-                )
+                && node_util::is_part_of_parameter_declaration(&Published, node)
                 && self.containing_function_body_is_missing(node)
             {
                 self.potential_unused_renamed_binding_elements_in_types
@@ -197,10 +194,7 @@ impl<'a> CheckerState<'a> {
                 self.get_type_for_binding_element_parent(parent, parent_check_mode)?;
             let effective_name = property_name.unwrap_or(name);
             if let Some(parent_type) = parent_type {
-                if !node_util::is_binding_pattern(
-                    self.binder.source_of_node(effective_name),
-                    effective_name,
-                ) {
+                if !node_util::is_binding_pattern(&Published, effective_name) {
                     let expr_type = self.get_literal_type_from_property_name(effective_name)?;
                     if let Some(name_text) = self.property_name_from_type_usable(expr_type) {
                         if let Some(property) =
@@ -229,7 +223,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         // Step 6: request a downlevel iterator helper, then check pattern elements.
-        let name_is_pattern = node_util::is_binding_pattern(self.binder.source_of_node(name), name);
+        let name_is_pattern = node_util::is_binding_pattern(&Published, name);
         if name_is_pattern {
             for element in self.binding_pattern_elements(name) {
                 self.check_source_element(Some(element));
@@ -237,7 +231,7 @@ impl<'a> CheckerState<'a> {
         }
         // Step 7: initializer on a signature-only parameter.
         if self.initializer_of_node(node).is_some()
-            && node_util::is_part_of_parameter_declaration(self.binder.source_of_node(node), node)
+            && node_util::is_part_of_parameter_declaration(&Published, node)
             && self.containing_function_body_is_missing(node)
         {
             self.error_at(
@@ -388,10 +382,9 @@ impl<'a> CheckerState<'a> {
                             &diagnostics::Type_0_is_not_assignable_to_type_1,
                         )?;
                     }
-                    let block_scope_kind =
-                        node_util::get_combined_node_flags(self.binder.source_of_node(node), node)
-                            .bits()
-                            & NodeFlags::BLOCK_SCOPED.bits();
+                    let block_scope_kind = node_util::get_combined_node_flags(&Published, node)
+                        .bits()
+                        & NodeFlags::BLOCK_SCOPED.bits();
                     if block_scope_kind == NodeFlags::AWAIT_USING.bits() {
                         let async_disposable =
                             self.get_global_async_disposable_type(/*report_errors*/ true)?;
@@ -661,9 +654,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 57e3c0212046b4cd336bb4f34f4e79e57b807638cda2bb54225f0e6ad2115e89
     /// tsc-span: _tsc.js:83371-83399
     fn check_var_declared_names_not_shadowed(&mut self, node: NodeId) -> CheckResult<()> {
-        let source = self.binder.source_of_node(node);
-        if node_util::get_combined_node_flags(source, node).intersects(NodeFlags::BLOCK_SCOPED)
-            || node_util::is_part_of_parameter_declaration(source, node)
+        if node_util::get_combined_node_flags(&Published, node).intersects(NodeFlags::BLOCK_SCOPED)
+            || node_util::is_part_of_parameter_declaration(&Published, node)
         {
             return Ok(());
         }
@@ -768,8 +760,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         };
         let (array_nodes_empty, array_pos, array_end) = {
-            let source = self.binder.source_of_node(declaration_list);
-            let array = source.arena.node_array(declarations_array);
+            let array = Published.node_array(declarations_array);
             (
                 array.nodes.is_empty(),
                 array.pos as usize,
@@ -877,8 +868,8 @@ impl<'a> CheckerState<'a> {
         if self.allow_block_declarations(parent) {
             return;
         }
-        let source = self.binder.source_of_node(declaration_list);
-        let block_scope_kind = node_util::get_combined_node_flags(source, declaration_list).bits()
+        let block_scope_kind = node_util::get_combined_node_flags(&Published, declaration_list)
+            .bits()
             & NodeFlags::BLOCK_SCOPED.bits();
         if block_scope_kind == 0 {
             return;
@@ -915,10 +906,9 @@ impl<'a> CheckerState<'a> {
         let Some(name) = name else {
             return Ok(false);
         };
-        let source = self.binder.source_of_node(node);
-        let node_flags = node_util::get_combined_node_flags(source, node);
+        let node_flags = node_util::get_combined_node_flags(&Published, node);
         let block_scope_kind = node_flags.bits() & NodeFlags::BLOCK_SCOPED.bits();
-        let name_is_pattern = node_util::is_binding_pattern(source, name);
+        let name_is_pattern = node_util::is_binding_pattern(&Published, name);
         if name_is_pattern {
             if block_scope_kind == NodeFlags::AWAIT_USING.bits() {
                 return Ok(self.grammar_error_on_node(
@@ -952,9 +942,9 @@ impl<'a> CheckerState<'a> {
                 self.check_ambient_initializer(node)?;
             } else if initializer.is_none() {
                 if name_is_pattern
-                    && !self.parent_of(node).is_some_and(|parent| {
-                        node_util::is_binding_pattern(self.binder.source_of_node(parent), parent)
-                    })
+                    && !self
+                        .parent_of(node)
+                        .is_some_and(|parent| node_util::is_binding_pattern(&Published, parent))
                 {
                     return Ok(self.grammar_error_on_node(
                         node,
@@ -1013,7 +1003,7 @@ impl<'a> CheckerState<'a> {
                 .and_then(|parent| self.parent_of(parent))
                 .is_some_and(|grandparent| {
                     node_util::has_syntactic_modifier(
-                        self.binder.source_of_node(grandparent),
+                        &Published,
                         grandparent,
                         ModifierFlags::EXPORT,
                     )
@@ -1047,9 +1037,9 @@ impl<'a> CheckerState<'a> {
         let is_readonly = node_util::get_combined_modifier_flags(source, node)
             .intersects(ModifierFlags::READONLY)
             && !self.parent_of(node).is_some_and(|parent| {
-                node_util::is_parameter_property_declaration(source, node, parent)
+                node_util::is_parameter_property_declaration(&Published, node, parent)
             });
-        let block_scope_kind = node_util::get_combined_node_flags(source, node).bits()
+        let block_scope_kind = node_util::get_combined_node_flags(&Published, node).bits()
             & NodeFlags::BLOCK_SCOPED.bits();
         let is_const_like = self.kind_of(node) == SyntaxKind::VariableDeclaration
             && (block_scope_kind == NodeFlags::CONST.bits()
@@ -1078,8 +1068,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 302c26bbfe874ca754d59bcbdcfd227ccd15fb744ff739a73f84785b21ee57c0
     /// tsc-span: _tsc.js:90038-90040
     fn is_string_or_number_literal_expression(&self, expr: NodeId) -> bool {
-        let source = self.binder.source_of_node(expr);
-        if node_util::is_string_or_numeric_literal_like(source, expr) {
+        if node_util::is_string_or_numeric_literal_like(&Published, expr) {
             return true;
         }
         matches!(self.data_of(expr), NodeData::PrefixUnaryExpression(data)
@@ -1107,17 +1096,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c7fb47c14b4aca9e85ec9377bc7ebfed18e76fb43010736aa990069ff07f347b
     /// tsc-span: _tsc.js:90044-90048
     fn is_simple_literal_enum_reference(&mut self, expr: NodeId) -> CheckResult<bool> {
-        let source = self.binder.source_of_node(expr);
         let shape_matches = match self.data_of(expr) {
             NodeData::PropertyAccessExpression(data) => data
                 .expression
-                .is_some_and(|inner| node_util::is_entity_name_expression(source, inner)),
+                .is_some_and(|inner| node_util::is_entity_name_expression(&Published, inner)),
             NodeData::ElementAccessExpression(data) => {
                 data.argument_expression
                     .is_some_and(|argument| self.is_string_or_number_literal_expression(argument))
-                    && data
-                        .expression
-                        .is_some_and(|inner| node_util::is_entity_name_expression(source, inner))
+                    && data.expression.is_some_and(|inner| {
+                        node_util::is_entity_name_expression(&Published, inner)
+                    })
             }
             _ => false,
         };
@@ -1277,10 +1265,7 @@ impl<'a> CheckerState<'a> {
         }
         if dot_dot_dot.is_some() {
             if let Some(initializer) = initializer {
-                let initializer_pos = {
-                    let source = self.binder.source_of_node(initializer);
-                    source.arena.node(initializer).pos as usize
-                };
+                let initializer_pos = { Published.node(initializer).pos as usize };
                 let start = self.utf16_position(node, initializer_pos.saturating_sub(1));
                 return self.grammar_error_at_pos(
                     node,
@@ -1351,13 +1336,12 @@ impl<'a> CheckerState<'a> {
         if is_type_only {
             return false;
         }
-        let source = self.binder.source_of_node(node);
-        let root = node_util::get_root_declaration(source, node);
+        let root = node_util::get_root_declaration(&Published, node);
         if self.kind_of(root) == SyntaxKind::Parameter {
             let body = self
                 .parent_of(root)
-                .and_then(|function| node_util::body_of(source, function));
-            if node_util::node_is_missing(source, body) {
+                .and_then(|function| node_util::body_of(&Published, function));
+            if node_util::node_is_missing(&Published, body) {
                 return false;
             }
         }
@@ -1368,8 +1352,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 3d4b993da842ea191877ffad47fb0c8045a3d1086066350235a4992e74413283
     /// tsc-span: _tsc.js:55784-55798
     pub(crate) fn get_declaration_container(&self, node: NodeId) -> Option<NodeId> {
-        let source = self.binder.source_of_node(node);
-        let root = node_util::get_root_declaration(source, node);
+        let root = node_util::get_root_declaration(&Published, node);
         let mut current = Some(root);
         while let Some(candidate) = current {
             match self.kind_of(candidate) {
@@ -1730,8 +1713,7 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            let source = self.binder.source_of_node(node);
-            let Some(wrapping) = node_util::walk_up_binding_elements_and_patterns(source, node)
+            let Some(wrapping) = node_util::walk_up_binding_elements_and_patterns(&Published, node)
             else {
                 continue;
             };
@@ -1753,7 +1735,7 @@ impl<'a> CheckerState<'a> {
             if wrapping_annotation.is_none() {
                 let source = self.binder.source_of_node(wrapping);
                 let end_utf16 =
-                    self.utf16_position(wrapping, source.arena.node(wrapping).end as usize);
+                    self.utf16_position(wrapping, Published.node(wrapping).end as usize);
                 diagnostic.related.push(tsc_diagnostics::RelatedInfo {
                     file_name: Some(source.file_name.clone()),
                     start: Some(end_utf16),
@@ -1801,14 +1783,14 @@ impl<'a> CheckerState<'a> {
             return Some(initializer);
         }
         let (Some(name), Some(left), Some(right)) = (
-            node_util::name_field_of(self.binder.source_of_node(node), node),
+            node_util::name_field_of(&Published, node),
             data.left,
             data.right,
         ) else {
             return Some(initializer);
         };
         let source = self.binder.source_of_node(node);
-        if node_util::is_entity_name_expression(source, name)
+        if node_util::is_entity_name_expression(&Published, name)
             && tsc_binder::assignment::is_same_entity_name(source, name, left)
         {
             Some(right)
@@ -1870,8 +1852,7 @@ impl<'a> CheckerState<'a> {
         let Some(function) = self.get_containing_function(node) else {
             return false;
         };
-        let source = self.binder.source_of_node(function);
-        node_util::node_is_missing(source, node_util::body_of(source, function))
+        node_util::node_is_missing(&Published, node_util::body_of(&Published, function))
     }
 
     /// The binding-pattern element list (Object/Array patterns).
@@ -2192,7 +2173,7 @@ impl<'a> CheckerState<'a> {
                 };
                 if let Some(&variable) = declarations.first() {
                     if let Some(name) = self.name_of_node(variable) {
-                        if node_util::is_binding_pattern(self.binder.source_of_node(name), name) {
+                        if node_util::is_binding_pattern(&Published, name) {
                             self.error_at(
                                 Some(name),
                                 &diagnostics::The_left_hand_side_of_a_for_in_statement_cannot_be_a_destructuring_pattern,
@@ -2275,8 +2256,7 @@ impl<'a> CheckerState<'a> {
         if is_for_of {
             if let Some(await_modifier) = await_modifier {
                 if self.node_flags(node) & NodeFlags::AWAIT_CONTEXT.bits() == 0 {
-                    let source = self.binder.source_of_node(node);
-                    if node_util::is_in_top_level_context(source, node) {
+                    if node_util::is_in_top_level_context(&Published, node) {
                         if !self.has_parse_diagnostics(node) {
                             if !self.is_effective_external_module(node) {
                                 self.error_at(
@@ -2668,11 +2648,11 @@ impl<'a> CheckerState<'a> {
         }
         if !self.has_parse_diagnostics(node) {
             let source = self.binder.source_of_node(node);
-            let node_pos = source.arena.node(node).pos as usize;
+            let node_pos = Published.node(node).pos as usize;
             let (token_start, _token_end) =
                 node_util::get_span_of_token_at_position(source, node_pos);
             let statement_pos = statement
-                .map(|statement| source.arena.node(statement).pos as usize)
+                .map(|statement| Published.node(statement).pos as usize)
                 .unwrap_or(token_start);
             let start = self.utf16_position(node, token_start);
             let end = self.utf16_position(node, statement_pos);
@@ -2883,7 +2863,7 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let source = self.binder.source_of_node(node);
-        let node_pos = source.arena.node(node).pos as usize;
+        let node_pos = Published.node(node).pos as usize;
         let (_start, token_end) = node_util::get_span_of_token_at_position(source, node_pos);
         let end = self.utf16_position(node, token_end);
         self.grammar_error_at_pos(node, end, 0, message, args)

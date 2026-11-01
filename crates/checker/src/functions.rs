@@ -7,7 +7,7 @@
 
 use tsc_binder::node_util;
 use tsc_binder::SymbolId;
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     CheckMode, NodeCheckFlags, NodeFlags, ObjectFlags, SignatureFlags, SymbolFlags, TypeFlags,
     TypeId, UnionReduction,
@@ -321,7 +321,7 @@ impl<'a> CheckerState<'a> {
         let function_flags = self.get_function_flags(node);
         let return_type = self.get_return_type_from_annotation(node)?;
         self.check_all_code_paths_in_non_void_function_return_or_throw(node, return_type)?;
-        let body = node_util::body_of(self.binder.source_of_node(node), node);
+        let body = node_util::body_of(&Published, node);
         let Some(body) = body else {
             return Ok(());
         };
@@ -655,8 +655,7 @@ impl<'a> CheckerState<'a> {
         func: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let source = self.binder.source_of_node(func);
-        let Some(body) = node_util::body_of(source, func) else {
+        let Some(body) = node_util::body_of(&Published, func) else {
             return Ok(self.tables.intrinsics.error);
         };
         let function_flags = self.get_function_flags(func);
@@ -871,8 +870,7 @@ impl<'a> CheckerState<'a> {
         let mut yield_types: Vec<TypeId> = Vec::new();
         let mut next_types: Vec<TypeId> = Vec::new();
         let is_async = self.get_function_flags(func) & FUNCTION_FLAGS_ASYNC != 0;
-        let source = self.binder.source_of_node(func);
-        let Some(body) = node_util::body_of(source, func) else {
+        let Some(body) = node_util::body_of(&Published, func) else {
             return Ok((yield_types, next_types));
         };
         let inner_mode =
@@ -996,7 +994,6 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::ModuleDeclaration
                 | SyntaxKind::TypeAliasDeclaration => {}
                 _ => {
-                    let source = self.binder.source_of_node(node);
                     if node_util::is_function_like_kind(self.kind_of(node)) {
                         if let Some(name) = self.name_of_node(node) {
                             if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
@@ -1009,14 +1006,10 @@ impl<'a> CheckerState<'a> {
                         }
                     } else if !self.is_part_of_type_node(node) {
                         let mut children = Vec::new();
-                        tsc_syntax::for_each_child(
-                            &source.arena,
-                            source.arena.node(node),
-                            |child| {
-                                children.push(child);
-                                false
-                            },
-                        );
+                        tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
+                            children.push(child);
+                            false
+                        });
                         // LIFO worklist: reversed push keeps source order.
                         for &child in children.iter().rev() {
                             worklist.push(child);
@@ -1040,8 +1033,7 @@ impl<'a> CheckerState<'a> {
         let mut aggregated_types: Vec<TypeId> = Vec::new();
         let mut has_return_with_no_expression = self.function_has_implicit_return(func)?;
         let mut has_return_of_type_never = false;
-        let source = self.binder.source_of_node(func);
-        let body = node_util::body_of(source, func).expect("callers checked the body");
+        let body = node_util::body_of(&Published, func).expect("callers checked the body");
         let return_statements = self.collect_return_statements(body);
         for return_statement in return_statements {
             let expression = match self.data_of(return_statement) {
@@ -1208,9 +1200,8 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::LabeledStatement
                 | SyntaxKind::TryStatement
                 | SyntaxKind::CatchClause => {
-                    let source = self.binder.source_of_node(node);
                     let mut children = Vec::new();
-                    tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+                    tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
                         children.push(child);
                         false
                     });
@@ -1326,8 +1317,7 @@ impl<'a> CheckerState<'a> {
                 let Some(parent) = self.parent_of(node) else {
                     return Ok(false);
                 };
-                let source = self.binder.source_of_node(parent);
-                let root_declaration = node_util::get_root_declaration(source, parent);
+                let root_declaration = node_util::get_root_declaration(&Published, parent);
                 let root_kind = self.kind_of(root_declaration);
                 let is_catch_clause_variable = root_kind == SyntaxKind::VariableDeclaration
                     && self
@@ -1674,7 +1664,7 @@ impl<'a> CheckerState<'a> {
             has_error = true;
         } else if !NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AWAIT_CONTEXT)
         {
-            if node_util::is_in_top_level_context(self.binder.source_of_node(node), node) {
+            if node_util::is_in_top_level_context(&Published, node) {
                 if !self.has_parse_diagnostics(node) {
                     let span = self.span_of_token_at_node_pos(node);
                     if !self.is_effective_external_module(node) {
@@ -1972,9 +1962,8 @@ impl<'a> CheckerState<'a> {
             // parameter has no function-level grammar or return checks.
             return Ok(());
         };
-        let source = self.binder.source_of_node(node);
         let func_kind = self.kind_of(func);
-        let func_body = node_util::body_of(self.binder.source_of_node(func), func);
+        let func_body = node_util::body_of(&Published, func);
         let (name, dot_dot_dot_token, initializer) = match self.data_of(node) {
             NodeData::Parameter(data) => (data.name, data.dot_dot_dot_token, data.initializer),
             _ => (None, None, None),
@@ -1984,7 +1973,7 @@ impl<'a> CheckerState<'a> {
         let reparsed_rest = self.kind_of(node) == SyntaxKind::JSDocParameterTag
             && self.is_rest_parameter_declaration(node);
         if node_util::has_syntactic_modifier(
-            source,
+            &Published,
             node,
             tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
         ) {
@@ -2016,9 +2005,8 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let name_is_pattern = name.is_some_and(|name| {
-            node_util::is_binding_pattern(self.binder.source_of_node(name), name)
-        });
+        let name_is_pattern =
+            name.is_some_and(|name| node_util::is_binding_pattern(&Published, name));
         if initializer.is_none()
             && self.is_optional_declaration(node)
             && name_is_pattern
@@ -2444,8 +2432,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(());
             }
         }
-        let source = self.binder.source_of_node(func);
-        let body = node_util::body_of(source, func);
+        let body = node_util::body_of(&Published, func);
         if self.kind_of(func) == SyntaxKind::MethodSignature
             || body.is_none()
             || body.is_some_and(|body| self.kind_of(body) != SyntaxKind::Block)
@@ -2568,11 +2555,8 @@ impl<'a> CheckerState<'a> {
                 .copied()
                 .find(|&declaration| {
                     self.kind_of(declaration) == node_kind
-                        && !node_util::node_flags(
-                            self.binder.source_of_node(declaration),
-                            declaration,
-                        )
-                        .intersects(NodeFlags::JAVA_SCRIPT_FILE)
+                        && !node_util::node_flags(&Published, declaration)
+                            .intersects(NodeFlags::JAVA_SCRIPT_FILE)
                 });
             if first_declaration == Some(node) {
                 self.check_function_or_constructor_symbol(local_symbol)?;
@@ -2584,7 +2568,7 @@ impl<'a> CheckerState<'a> {
         let body = if self.kind_of(node) == SyntaxKind::MethodSignature {
             None
         } else {
-            node_util::body_of(self.binder.source_of_node(node), node)
+            node_util::body_of(&Published, node)
         };
         self.check_source_element(body);
         let annotated_return = self.get_return_type_from_annotation(node)?;
@@ -2600,16 +2584,13 @@ impl<'a> CheckerState<'a> {
             .or_else(|| self.reparsed_type_node(node))
             .is_none()
         {
-            let body_missing = body.is_none()
-                || node_util::node_is_missing(self.binder.source_of_node(node), body);
+            let body_missing = body.is_none() || node_util::node_is_missing(&Published, body);
             if body_missing && !self.is_private_within_ambient(node) {
                 let any = self.tables.intrinsics.any;
                 self.report_implicit_any(node, any, None)?;
             }
             if function_flags & FUNCTION_FLAGS_GENERATOR != 0
-                && body.is_some_and(|body| {
-                    !node_util::node_is_missing(self.binder.source_of_node(node), Some(body))
-                })
+                && body.is_some_and(|body| !node_util::node_is_missing(&Published, Some(body)))
             {
                 // FORCING demand: yield aggregation through the
                 // signature's return type.
@@ -2624,8 +2605,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ef8656cf63ef4572437e31c6e94657e5d7347469b8186a82faf2194ccf706b59
     /// tsc-span: _tsc.js:82010-82012
     pub(crate) fn is_private_within_ambient(&self, node: NodeId) -> bool {
-        let source = self.binder.source_of_node(node);
-        (node_util::has_syntactic_modifier(source, node, tsc_types::ModifierFlags::PRIVATE)
+        (node_util::has_syntactic_modifier(&Published, node, tsc_types::ModifierFlags::PRIVATE)
             || self.is_private_identifier_class_element(node))
             && NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT)
     }
@@ -2672,9 +2652,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         self.check_function_or_method_declaration(node)?;
-        let source = self.binder.source_of_node(node);
-        let body = node_util::body_of(source, node);
-        if node_util::has_syntactic_modifier(source, node, tsc_types::ModifierFlags::ABSTRACT)
+        let body = node_util::body_of(&Published, node);
+        if node_util::has_syntactic_modifier(&Published, node, tsc_types::ModifierFlags::ABSTRACT)
             && is_method_declaration
             && body.is_some()
         {
@@ -2694,7 +2673,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(name) = name {
             if self.kind_of(name) == SyntaxKind::PrivateIdentifier
-                && node_util::get_containing_class(source, node).is_none()
+                && node_util::get_containing_class(&Published, node).is_none()
             {
                 self.error_at(
                     Some(node),
@@ -2722,12 +2701,11 @@ impl<'a> CheckerState<'a> {
         }
         self.check_variable_like_declaration(node)?;
         self.set_node_links_for_private_identifier_scope(node);
-        let source = self.binder.source_of_node(node);
         let initializer = match self.data_of(node) {
             NodeData::PropertyDeclaration(data) => data.initializer,
             _ => None,
         };
-        if node_util::has_syntactic_modifier(source, node, tsc_types::ModifierFlags::ABSTRACT)
+        if node_util::has_syntactic_modifier(&Published, node, tsc_types::ModifierFlags::ABSTRACT)
             && self.kind_of(node) == SyntaxKind::PropertyDeclaration
             && initializer.is_some()
         {
@@ -2802,9 +2780,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:81552-81555
     pub(crate) fn check_class_static_block_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_modifiers(node);
-        let source = self.binder.source_of_node(node);
         let mut children = Vec::new();
-        tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+        tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
             children.push(child);
             false
         });
@@ -2849,8 +2826,7 @@ impl<'a> CheckerState<'a> {
         if first_declaration == Some(node) {
             self.check_function_or_constructor_symbol(symbol)?;
         }
-        let source = self.binder.source_of_node(node);
-        if node_util::node_is_missing(source, body) {
+        if node_util::node_is_missing(&Published, body) {
             return Ok(());
         }
         let body = body.expect("nodeIsMissing answered false");
@@ -2947,8 +2923,7 @@ impl<'a> CheckerState<'a> {
                 self.data_of(member),
                 NodeData::PropertyDeclaration(data)
                     if data.initializer.is_some()
-                        && !node_util::has_syntactic_modifier(
-                            source,
+                        && !node_util::has_syntactic_modifier(&Published,
                             member,
                             tsc_types::ModifierFlags::STATIC,
                         )
@@ -2962,10 +2937,9 @@ impl<'a> CheckerState<'a> {
             NodeData::Constructor(data) => data.parameters,
             _ => None,
         };
-        let source = self.binder.source_of_node(node);
         self.nodes_of(parameters).iter().any(|&parameter| {
             node_util::has_syntactic_modifier(
-                source,
+                &Published,
                 parameter,
                 tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
             )
@@ -2981,9 +2955,8 @@ impl<'a> CheckerState<'a> {
         if node_util::is_function_like_kind(self.kind_of(node)) {
             return None;
         }
-        let source = self.binder.source_of_node(node);
         let mut children = Vec::new();
-        tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+        tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
             children.push(child);
             false
         });
@@ -3063,7 +3036,7 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let mut children = Vec::new();
-        tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+        tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
             children.push(child);
             false
         });
@@ -3081,11 +3054,10 @@ impl<'a> CheckerState<'a> {
     /// the getter's TypeChecked NodeCheckFlags bit.
     pub(crate) fn check_accessor_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         let name = self.name_of_node(node);
-        let source = self.binder.source_of_node(node);
         if let Some(name) = name {
             if self.kind_of(name) == SyntaxKind::Identifier
                 && self.identifier_text_of(name) == Some("constructor")
-                && node_util::get_containing_class(source, node)
+                && node_util::get_containing_class(&Published, node)
                     == self.parent_of(node).filter(|&parent| {
                         matches!(
                             self.kind_of(parent),
@@ -3119,7 +3091,7 @@ impl<'a> CheckerState<'a> {
         self.check_decorators(node)?;
         self.check_signature_declaration(node)?;
         let is_get = self.kind_of(node) == SyntaxKind::GetAccessor;
-        let body = node_util::body_of(source, node);
+        let body = node_util::body_of(&Published, node);
         if is_get {
             let flags = NodeFlags::from_bits(self.node_flags(node));
             if !flags.intersects(NodeFlags::AMBIENT)
@@ -3265,14 +3237,14 @@ impl<'a> CheckerState<'a> {
     /// the IsContainer bit.
     pub(crate) fn get_enclosing_container(&self, node: NodeId) -> Option<NodeId> {
         let source = self.binder.source_of_node(node);
-        let mut current = node_util::parent_of(source, node);
+        let mut current = node_util::parent_of(&Published, node);
         while let Some(candidate) = current {
             if tsc_binder::containers::get_container_flags(source, candidate)
                 .intersects(tsc_binder::containers::ContainerFlags::IS_CONTAINER)
             {
                 return Some(candidate);
             }
-            current = node_util::parent_of(source, candidate);
+            current = node_util::parent_of(&Published, candidate);
         }
         None
     }
@@ -3351,10 +3323,9 @@ impl<'a> CheckerState<'a> {
                 let question = self.has_question_token(node);
                 some_have_question_token |= question;
                 all_have_question_token &= question;
-                let source = self.binder.source_of_node(node);
-                let body = node_util::body_of(source, node);
+                let body = node_util::body_of(&Published, node);
                 let body_is_present =
-                    body.is_some_and(|body| !node_util::node_is_missing(source, Some(body)));
+                    body.is_some_and(|body| !node_util::node_is_missing(&Published, Some(body)));
                 if body_is_present && body_declaration.is_some() {
                     if is_constructor {
                         multiple_constructor_implementation = true;
@@ -3369,7 +3340,7 @@ impl<'a> CheckerState<'a> {
                             .arena
                             .node(previous)
                             .end;
-                        let node_pos = source.arena.node(node).pos;
+                        let node_pos = Published.node(node).pos;
                         if previous_end != node_pos {
                             self.report_implementation_expected_error(previous, is_constructor)?;
                         }
@@ -3465,13 +3436,12 @@ impl<'a> CheckerState<'a> {
             }
         }
         if let Some(last) = last_seen_non_ambient {
-            let source = self.binder.source_of_node(last);
             // tsc deliberately tests the raw `body` slot here, not
             // nodeIsPresent(body). A parser-inserted missing body is still a
             // body node and must not produce the 2389/2391 family.
-            if node_util::body_of(source, last).is_none()
+            if node_util::body_of(&Published, last).is_none()
                 && !node_util::has_syntactic_modifier(
-                    source,
+                    &Published,
                     last,
                     tsc_types::ModifierFlags::ABSTRACT,
                 )
@@ -3550,7 +3520,7 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(node);
         let name = self.name_of_node(node);
         if let Some(name) = name {
-            if node_util::node_is_missing(source, Some(name)) {
+            if node_util::node_is_missing(&Published, Some(name)) {
                 return Ok(());
             }
         }
@@ -3558,7 +3528,7 @@ impl<'a> CheckerState<'a> {
         let subsequent_node = parent.and_then(|parent| {
             let mut seen = false;
             let mut found = None;
-            tsc_syntax::for_each_child(&source.arena, source.arena.node(parent), |child| {
+            tsc_syntax::for_each_child(&Published, Published.node(parent), |child| {
                 if seen {
                     found = Some(child);
                     return true;
@@ -3568,9 +3538,9 @@ impl<'a> CheckerState<'a> {
             });
             found
         });
-        let node_end = source.arena.node(node).end;
+        let node_end = Published.node(node).end;
         if let Some(subsequent) = subsequent_node {
-            if source.arena.node(subsequent).pos == node_end
+            if Published.node(subsequent).pos == node_end
                 && self.kind_of(subsequent) == self.kind_of(node)
             {
                 let subsequent_name = self.name_of_node(subsequent);
@@ -3588,11 +3558,11 @@ impl<'a> CheckerState<'a> {
                             let right = self.check_computed_property_name(subsequent_name)?;
                             self.is_type_identical_to(left, right)?
                         };
-                    let both_literal = node_util::is_property_name_literal(source, name)
-                        && node_util::is_property_name_literal(source, subsequent_name)
-                        && node_util::get_escaped_text_of_identifier_or_literal(source, name)
+                    let both_literal = node_util::is_property_name_literal(&Published, name)
+                        && node_util::is_property_name_literal(&Published, subsequent_name)
+                        && node_util::get_escaped_text_of_identifier_or_literal(&Published, name)
                             == node_util::get_escaped_text_of_identifier_or_literal(
-                                source,
+                                &Published,
                                 subsequent_name,
                             );
                     if both_private || both_computed_identical || both_literal {
@@ -3601,12 +3571,12 @@ impl<'a> CheckerState<'a> {
                             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature
                         );
                         let node_static = node_util::has_syntactic_modifier(
-                            source,
+                            &Published,
                             node,
                             tsc_types::ModifierFlags::STATIC,
                         );
                         let subsequent_static = node_util::has_syntactic_modifier(
-                            source,
+                            &Published,
                             subsequent,
                             tsc_types::ModifierFlags::STATIC,
                         );
@@ -3621,9 +3591,9 @@ impl<'a> CheckerState<'a> {
                         return Ok(());
                     }
                 }
-                let subsequent_body = node_util::body_of(source, subsequent);
+                let subsequent_body = node_util::body_of(&Published, subsequent);
                 if subsequent_body
-                    .is_some_and(|body| !node_util::node_is_missing(source, Some(body)))
+                    .is_some_and(|body| !node_util::node_is_missing(&Published, Some(body)))
                 {
                     let display = name
                         .map(|name| node_util::declaration_name_to_string(source, Some(name)))
@@ -3645,7 +3615,7 @@ impl<'a> CheckerState<'a> {
                 &[],
             );
         } else if node_util::has_syntactic_modifier(
-            source,
+            &Published,
             node,
             tsc_types::ModifierFlags::ABSTRACT,
         ) {
@@ -3869,7 +3839,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeAliasDeclaration => Ok(EXPORT_TYPE),
             SyntaxKind::ModuleDeclaration => {
                 let source = self.binder.source_of_node(decl);
-                let instantiated = node_util::is_ambient_module(source, decl) || {
+                let instantiated = node_util::is_ambient_module(&Published, decl) || {
                     let mut visited = rustc_hash::FxHashMap::default();
                     tsc_binder::containers::get_module_instance_state(source, decl, &mut visited)
                         != tsc_binder::containers::ModuleInstanceState::NonInstantiated
@@ -4179,8 +4149,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4ce9ce97b68d631a6ce5a066e0849566b1b7004c16330d9cee00b5531d6fbd65
     /// tsc-span: _tsc.js:89618-89630
     pub(crate) fn check_grammar_for_generator(&mut self, node: NodeId) -> bool {
-        let source = self.binder.source_of_node(node);
-        let Some(asterisk) = node_util::asterisk_token_of(source, node) else {
+        let Some(asterisk) = node_util::asterisk_token_of(&Published, node) else {
             return false;
         };
         debug_assert!(matches!(
@@ -4196,7 +4165,7 @@ impl<'a> CheckerState<'a> {
                 &[],
             );
         }
-        if node_util::body_of(source, node).is_none() {
+        if node_util::body_of(&Published, node).is_none() {
             return self.grammar_error_on_node(
                 asterisk,
                 &diagnostics::An_overload_signature_cannot_be_declared_as_a_generator,
@@ -4247,8 +4216,7 @@ impl<'a> CheckerState<'a> {
         name: NodeId,
         message: &'static tsc_diagnostics::DiagnosticMessage,
     ) -> CheckResult<bool> {
-        let source = self.binder.source_of_node(name);
-        if !node_util::is_dynamic_name(source, name) {
+        if !node_util::is_dynamic_name(&Published, name) {
             return Ok(false);
         }
         // isLateBindableName: AST half (entity-name expression) + type
@@ -4325,7 +4293,7 @@ impl<'a> CheckerState<'a> {
                     return Ok(true);
                 }
                 if body.is_none() {
-                    let end = self.binder.source_of_node(node).arena.node(node).end;
+                    let end = Published.node(node).end;
                     return Ok(self.grammar_error_at_pos(
                         node,
                         end.saturating_sub(1),
@@ -4459,8 +4427,7 @@ impl<'a> CheckerState<'a> {
             )? {
                 return Ok(true);
             }
-            let source = self.binder.source_of_node(node);
-            if node_util::is_auto_accessor_property_declaration(source, node)
+            if node_util::is_auto_accessor_property_declaration(&Published, node)
                 && self.check_grammar_for_invalid_question_mark(
                     question_token,
                     &diagnostics::An_accessor_property_cannot_be_declared_optional,
@@ -4502,18 +4469,17 @@ impl<'a> CheckerState<'a> {
         }
         if self.kind_of(node) == SyntaxKind::PropertyDeclaration {
             if let Some(exclamation_token) = exclamation_token {
-                let source = self.binder.source_of_node(node);
                 let is_class_parent = matches!(
                     parent_kind,
                     Some(SyntaxKind::ClassDeclaration) | Some(SyntaxKind::ClassExpression)
                 );
                 let is_static = node_util::has_syntactic_modifier(
-                    source,
+                    &Published,
                     node,
                     tsc_types::ModifierFlags::STATIC,
                 );
                 let has_abstract = node_util::has_syntactic_modifier(
-                    source,
+                    &Published,
                     node,
                     tsc_types::ModifierFlags::ABSTRACT,
                 );
@@ -4574,7 +4540,7 @@ impl<'a> CheckerState<'a> {
         let ambient = NodeFlags::from_bits(self.node_flags(accessor))
             .intersects(NodeFlags::AMBIENT)
             || node_util::has_syntactic_modifier(
-                self.binder.source_of_node(accessor),
+                &Published,
                 accessor,
                 tsc_types::ModifierFlags::AMBIENT,
             );
@@ -4582,11 +4548,13 @@ impl<'a> CheckerState<'a> {
             parent_kind,
             Some(SyntaxKind::TypeLiteral) | Some(SyntaxKind::InterfaceDeclaration)
         );
-        let source = self.binder.source_of_node(accessor);
-        let has_abstract =
-            node_util::has_syntactic_modifier(source, accessor, tsc_types::ModifierFlags::ABSTRACT);
+        let has_abstract = node_util::has_syntactic_modifier(
+            &Published,
+            accessor,
+            tsc_types::ModifierFlags::ABSTRACT,
+        );
         if !ambient && !in_type_container && body.is_none() && !has_abstract {
-            let end = source.arena.node(accessor).end;
+            let end = Published.node(accessor).end;
             return Ok(self.grammar_error_at_pos(
                 accessor,
                 end.saturating_sub(1),
@@ -4846,7 +4814,7 @@ impl<'a> CheckerState<'a> {
         };
         let source = self.binder.source_of_node(node);
         let range = if let Some(type_parameters) = syntactic {
-            let array = source.arena.node_array(type_parameters);
+            let array = Published.node_array(type_parameters);
             Some((array.pos as usize, array.end as usize))
         } else if self.is_in_js_file(node) {
             // tsgo: the reparsed list spans the hosted `@template` tags.
@@ -4898,7 +4866,7 @@ impl<'a> CheckerState<'a> {
             return false;
         };
         let source = self.binder.source_of_node(node);
-        let array = source.arena.node_array(array_id);
+        let array = Published.node_array(array_id);
         if !array.nodes.is_empty() {
             return false;
         }
@@ -5024,7 +4992,7 @@ impl<'a> CheckerState<'a> {
         if let Some(type_parameters) = data.type_parameters {
             let reserved_type_parameter = {
                 let source = self.binder.source_of_node(node);
-                let array = source.arena.node_array(type_parameters);
+                let array = Published.node_array(type_parameters);
                 let module_extension =
                     source.file_name.ends_with(".mts") || source.file_name.ends_with(".cts");
                 if module_extension && array.nodes.len() == 1 && !array.has_trailing_comma {
@@ -5050,7 +5018,7 @@ impl<'a> CheckerState<'a> {
             return false;
         };
         let source = self.binder.source_of_node(node);
-        let arrow_record = source.arena.node(arrow);
+        let arrow_record = Published.node(arrow);
         let line_of = |byte: u32| -> usize {
             let utf16 = source
                 .positions()
@@ -5084,8 +5052,7 @@ impl<'a> CheckerState<'a> {
         if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2016 {
             return false;
         }
-        let source = self.binder.source_of_node(node);
-        let body = node_util::body_of(source, node);
+        let body = node_util::body_of(&Published, node);
         let Some(body) = body else {
             return false;
         };
@@ -5262,8 +5229,7 @@ impl<'a> CheckerState<'a> {
         let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
             return false;
         };
-        let source = self.binder.source_of_node(declaration);
-        let root = node_util::get_root_declaration(source, declaration);
+        let root = node_util::get_root_declaration(&Published, declaration);
         match self.kind_of(root) {
             SyntaxKind::Parameter => true,
             // A catch clause variable, or a mutable local variable: a `let`
@@ -5334,7 +5300,7 @@ impl<'a> CheckerState<'a> {
     /// createFileDiagnostic sites (span = token at node.pos).
     fn span_of_token_at_node_pos(&self, node: NodeId) -> (u32, u32) {
         let source = self.binder.source_of_node(node);
-        let pos = source.arena.node(node).pos as usize;
+        let pos = Published.node(node).pos as usize;
         let (start, end) = node_util::get_span_of_token_at_position(source, pos);
         let to_utf16 = |byte: usize| -> u32 {
             source
@@ -5484,10 +5450,7 @@ impl<'a> CheckerState<'a> {
             .strict_option_value(self.options.strict_null_checks);
         let is_ambient_parameter = NodeFlags::from_bits(self.node_flags(declaration))
             .intersects(NodeFlags::AMBIENT)
-            && node_util::is_part_of_parameter_declaration(
-                self.binder.source_of_node(declaration),
-                declaration,
-            );
+            && node_util::is_part_of_parameter_declaration(&Published, declaration);
         if strict_null_checks && is_ambient_parameter {
             parent_type = self.get_non_nullable_type(parent_type)?;
         } else if strict_null_checks {
@@ -5647,8 +5610,7 @@ impl<'a> CheckerState<'a> {
         if self.initializer_of(declaration).is_none() {
             return Ok(ty);
         }
-        let source = self.binder.source_of_node(declaration);
-        let walked = node_util::walk_up_binding_elements_and_patterns(source, declaration);
+        let walked = node_util::walk_up_binding_elements_and_patterns(&Published, declaration);
         let walked_annotation = walked
             .map(|walked| self.effective_type_annotation_node(walked))
             .unwrap_or(None);

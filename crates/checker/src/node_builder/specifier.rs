@@ -16,7 +16,7 @@ use tsc_program::{
     change_full_extension, extension_from_path, file_extension_is, package_json_own_entries,
     package_json_property, remove_file_extension, JsonValue as Value,
 };
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget, SymbolFlags, TypeId};
 use tsc_types::{JsStr, JsString};
 
@@ -605,11 +605,11 @@ fn non_augmentation_declaration(state: &CheckerState<'_>, symbol: SymbolId) -> O
         .copied()
         .find(|&declaration| {
             let source = state.binder.source_of_node(declaration);
-            let external_augmentation = node_util::is_ambient_module(source, declaration)
+            let external_augmentation = node_util::is_ambient_module(&Published, declaration)
                 && node_util::is_module_augmentation_external(source, declaration);
             let global_augmentation =
                 matches!(state.data_of(declaration), NodeData::ModuleDeclaration(_))
-                    && node_util::is_global_scope_augmentation(source, declaration);
+                    && node_util::is_global_scope_augmentation(&Published, declaration);
             !external_augmentation && !global_augmentation
         })
 }
@@ -2029,8 +2029,8 @@ pub(crate) fn try_get_module_name_from_ambient_module(
     let declarations = state.binder.symbol(module_symbol).declarations.clone();
     for declaration in &declarations {
         let source = state.binder.source_of_node(*declaration);
-        if !node_util::is_ambient_module(source, *declaration)
-            || node_util::is_global_scope_augmentation(source, *declaration)
+        if !node_util::is_ambient_module(&Published, *declaration)
+            || node_util::is_global_scope_augmentation(&Published, *declaration)
         {
             continue;
         }
@@ -2059,10 +2059,7 @@ pub(crate) fn try_get_module_name_from_ambient_module(
             continue;
         };
         if state.kind_of(module_block) != SyntaxKind::ModuleBlock
-            || !node_util::is_ambient_module(
-                state.binder.source_of_node(ambient_declaration),
-                ambient_declaration,
-            )
+            || !node_util::is_ambient_module(&Published, ambient_declaration)
             || state.kind_of(source_file) != SyntaxKind::SourceFile
         {
             continue;
@@ -4469,7 +4466,7 @@ pub(super) fn module_name_literals(
     let mut dynamic_imports = Vec::<NodeId>::new();
     let mut augmentations = Vec::<NodeId>::new();
     for node in source.arena.node_ids() {
-        let record = source.arena.node(node);
+        let record = Published.node(node);
         // The arena also holds the nodes a reparse discarded (a statement
         // parsed again once the file turned out to have a top-level
         // `await`). They are in no tree and the program collected no module
@@ -4531,7 +4528,7 @@ pub(super) fn module_name_literals(
                 }
             }
             NodeData::CallExpression(data) => {
-                let is_javascript_file = NodeFlags::from_bits(source.arena.node(source.root).flags)
+                let is_javascript_file = NodeFlags::from_bits(Published.node(source.root).flags)
                     .intersects(NodeFlags::JAVA_SCRIPT_FILE);
                 // tsgo collectModuleReferences: an import call (`import(...)`
                 // and `import.defer(...)`) or, in JavaScript, a require call.
@@ -4558,13 +4555,8 @@ pub(super) fn module_name_literals(
             _ => {}
         }
     }
-    let by_position = |left: &NodeId, right: &NodeId| {
-        source
-            .arena
-            .node(*left)
-            .pos
-            .cmp(&source.arena.node(*right).pos)
-    };
+    let by_position =
+        |left: &NodeId, right: &NodeId| Published.node(*left).pos.cmp(&Published.node(*right).pos);
     static_imports.sort_by(by_position);
     dynamic_imports.sort_by(by_position);
     augmentations.sort_by(by_position);
@@ -4597,7 +4589,7 @@ fn static_module_reference_is_collected(
         return false;
     };
     state.parent_of(ambient_module) == Some(source.root)
-        && node_util::is_ambient_module(source, ambient_module)
+        && node_util::is_ambient_module(&Published, ambient_module)
         && !is_external_module_name_relative(text)
 }
 
@@ -4606,7 +4598,7 @@ fn module_declaration_is_collected_augmentation(
     declaration: NodeId,
 ) -> bool {
     let source = state.binder.source_of_node(declaration);
-    if !node_util::is_ambient_module(source, declaration) {
+    if !node_util::is_ambient_module(&Published, declaration) {
         return false;
     }
     let Some(name) = module_declaration_name_text(state, declaration) else {
@@ -4626,7 +4618,7 @@ fn module_declaration_is_collected_augmentation(
             return false;
         };
         return state.parent_of(outer_ambient_module) == Some(source.root)
-            && node_util::is_ambient_module(source, outer_ambient_module)
+            && node_util::is_ambient_module(&Published, outer_ambient_module)
             && !is_external_module_name_relative(&name);
     }
     false

@@ -8,6 +8,7 @@
 //! code unit — surrogate halves pass through unchanged).
 
 use tsc_syntax::NodeId;
+use tsc_syntax::Published;
 use tsc_types::{
     JsStr, JsString, LiteralValue, SymbolFlags, SymbolId, TypeData, TypeFlags, TypeId,
 };
@@ -351,8 +352,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<tsc_types::JsString>> {
         // The receiver formatter accepts only identifier/property-access
         // syntax, and the appended method is the fixed scalar "get"/"set".
-        let source = self.binder.source_of_node(expr);
-        let suggested_method = if tsc_binder::node_util::is_assignment_target(source, expr) {
+        let suggested_method = if tsc_binder::node_util::is_assignment_target(&Published, expr) {
             "set"
         } else {
             "get"

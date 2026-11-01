@@ -21,7 +21,7 @@
 
 use tsc_binder::{node_util, SymbolId, SymbolTable};
 use tsc_diagnostics::gen as diagnostics;
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, Published, SyntaxKind};
 use tsc_types::{
     AccessFlags, CheckFlags, CheckMode, ContextFlags, ElementFlags, ObjectFlags, SymbolFlags,
     TypeData, TypeFlags, TypeId, UnionReduction,
@@ -199,8 +199,7 @@ impl<'a> CheckerState<'a> {
                 NodeData::ArrayLiteralExpression(data) => state.nodes_of(data.elements),
                 _ => Vec::new(),
             };
-            let source = state.binder.source_of_node(node);
-            let in_destructuring_pattern = node_util::is_assignment_target(source, node);
+            let in_destructuring_pattern = node_util::is_assignment_target(&Published, node);
             let in_const_context = state.is_const_context(node)?;
             let contextual_type =
                 state.get_apparent_type_of_contextual_type(node, ContextFlags::NONE)?;
@@ -716,7 +715,6 @@ impl<'a> CheckerState<'a> {
         const PROPERTY_ASSIGNMENT: u8 = 4;
         const METHOD: u8 = 8;
 
-        let source = self.binder.source_of_node(node);
         let members = match self.data_of(node) {
             NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
             _ => Vec::new(),
@@ -730,10 +728,7 @@ impl<'a> CheckerState<'a> {
                         _ => None,
                     };
                     if let Some(expression) = expression {
-                        let inner = node_util::skip_parentheses_pub(
-                            self.binder.source_of_node(expression),
-                            expression,
-                        );
+                        let inner = node_util::skip_parentheses_pub(&Published, expression);
                         if matches!(
                             self.kind_of(inner),
                             SyntaxKind::ArrayLiteralExpression
@@ -785,7 +780,7 @@ impl<'a> CheckerState<'a> {
                 );
             }
 
-            for modifier in self.nodes_of(node_util::modifiers_of(source, member)) {
+            for modifier in self.nodes_of(node_util::modifiers_of(&Published, member)) {
                 let modifier_kind = self.kind_of(modifier);
                 if is_object_literal_modifier(modifier_kind)
                     && (modifier_kind != SyntaxKind::AsyncKeyword
@@ -962,8 +957,7 @@ impl<'a> CheckerState<'a> {
         // tsgo checks the contextual type's deprecated properties after the
         // file (`checkContextualDeprecations`).
         self.check_node_deferred(node);
-        let source = self.binder.source_of_node(node);
-        let in_destructuring_pattern = node_util::is_assignment_target(source, node);
+        let in_destructuring_pattern = node_util::is_assignment_target(&Published, node);
         self.check_grammar_object_literal_expression(node, in_destructuring_pattern)?;
         let strict_null_checks = self.tables.strict_null_checks;
         let mut acc = ObjectLiteralAcc {

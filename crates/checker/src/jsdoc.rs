@@ -4,7 +4,7 @@
 //! consumers must use this module instead of rescanning source comments.
 
 use tsc_binder::{node_util, AssignmentDeclarationKind};
-use tsc_syntax::{HostedCast, JsDocHosted, NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{HostedCast, JsDocHosted, NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::SymbolId;
 
 use crate::state::CheckerState;
@@ -260,23 +260,19 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 45123251ec15122f9da8fa85555784320976613ea79839fdaec4671cfb8e256d
     /// tsc-span: _tsc.js:12534-12538
     pub(crate) fn has_jsdoc_nodes(&self, node: NodeId) -> bool {
-        let source = self.binder.source_of_node(node);
-        source
-            .arena
+        Published
             .node(node)
             .js_doc
-            .is_some_and(|docs| !source.arena.node_array(docs).nodes.is_empty())
+            .is_some_and(|docs| !Published.node_array(docs).nodes.is_empty())
     }
 
     /// tsrs-native: owned arena projection of tsc's direct `node.jsDoc`
     /// array access.
     pub(crate) fn direct_jsdoc_documents(&self, node: NodeId) -> Vec<NodeId> {
-        let source = self.binder.source_of_node(node);
-        source
-            .arena
+        Published
             .node(node)
             .js_doc
-            .map(|docs| source.arena.node_array(docs).nodes.to_vec())
+            .map(|docs| Published.node_array(docs).nodes.to_vec())
             .unwrap_or_default()
     }
 
@@ -372,10 +368,7 @@ impl<'a> CheckerState<'a> {
             return None;
         };
         let expression = statement.expression?;
-        if !node_util::is_assignment_expression_simple(
-            self.binder.source_of_node(expression),
-            expression,
-        ) {
+        if !node_util::is_assignment_expression_simple(&Published, expression) {
             return None;
         }
         Some(tsc_binder::assignment::get_right_most_assigned_expression(

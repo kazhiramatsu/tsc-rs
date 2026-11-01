@@ -32,7 +32,9 @@ use tsc_diagnostics::{
 use tsc_syntax::nodes::{
     ImportTypeData, JSDocFunctionTypeData, JSDocTypeLiteralData, QualifiedNameData,
 };
-use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{
+    for_each_child, NodeArrayId, NodeData, NodeId, NodeLookup, Published, SyntaxKind,
+};
 use tsc_types::{
     CheckFlags, ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, SymbolFlags, TypeData,
     TypeFacts, TypeFlags, TypeId, UnionReduction,
@@ -443,9 +445,8 @@ impl<'a> CheckerState<'a> {
             }
             self.links.or_calculated_flags(current, group);
             visited.push(current);
-            let source = self.binder.source_of_node(current);
             let first = stack.len();
-            for_each_child(&source.arena, source.arena.node(current), |child| {
+            for_each_child(&Published, Published.node(current), |child| {
                 stack.push(child);
                 false
             });
@@ -553,13 +554,12 @@ impl<'a> CheckerState<'a> {
         ) {
             return false;
         }
-        let source = self.binder.source_of_node(node);
         let allowed_modifiers = ModifierFlags::from_bits(
             ModifierFlags::AMBIENT.bits()
                 | ModifierFlags::EXPORT.bits()
                 | ModifierFlags::DEFAULT.bits(),
         );
-        if node_util::has_syntactic_modifier(source, node, allowed_modifiers) {
+        if node_util::has_syntactic_modifier(&Published, node, allowed_modifiers) {
             return false;
         }
         self.grammar_error_on_first_token(
@@ -614,7 +614,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:89010-89325
     /// d2: d2:984775a91d6ec0d2e27b820a9d34a31328ef5845e0fd5dd8a5e751f3040d2ca8
     pub(crate) fn check_grammar_modifiers(&mut self, node: NodeId) -> bool {
-        let source = self.binder.source_of_node(node);
         let node_kind = self.kind_of(node);
         let parent = self.parent_of(node);
         let parent_kind = parent.map(|parent| self.kind_of(parent));
@@ -624,7 +623,7 @@ impl<'a> CheckerState<'a> {
         if let Some(result) = self.report_obvious_modifier_errors(node) {
             return result;
         }
-        let modifiers = self.nodes_of(node_util::modifiers_of(source, node));
+        let modifiers = self.nodes_of(node_util::modifiers_of(&Published, node));
         if node_kind == SyntaxKind::Parameter {
             let is_this = match self.data_of(node) {
                 NodeData::Parameter(data) => data
@@ -710,7 +709,10 @@ impl<'a> CheckerState<'a> {
                     grandparent,
                 ) {
                     let is_method_overload = node_kind == SyntaxKind::MethodDeclaration
-                        && node_util::node_is_missing(source, node_util::body_of(source, node));
+                        && node_util::node_is_missing(
+                            &Published,
+                            node_util::body_of(&Published, node),
+                        );
                     return self.grammar_error_on_first_token(
                         node,
                         if is_method_overload {
@@ -1175,10 +1177,7 @@ impl<'a> CheckerState<'a> {
                     };
                     if let Some(container) = container {
                         if self.kind_of(container) == SyntaxKind::ModuleDeclaration
-                            && !node_util::is_ambient_module(
-                                self.binder.source_of_node(container),
-                                container,
-                            )
+                            && !node_util::is_ambient_module(&Published, container)
                         {
                             return self.grammar_error_on_node(
                                 modifier,
@@ -1307,7 +1306,7 @@ impl<'a> CheckerState<'a> {
                         let parent_is_abstract_class = parent.is_some_and(|parent| {
                             self.kind_of(parent) == SyntaxKind::ClassDeclaration
                                 && node_util::has_syntactic_modifier(
-                                    self.binder.source_of_node(parent),
+                                    &Published,
                                     parent,
                                     ModifierFlags::ABSTRACT,
                                 )
@@ -1547,8 +1546,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:89326-89330
     /// d2: d2:89d6695aecb00ac6fe50a0fd96b200447b88716016cdbe55f33ead8ee910e089
     fn report_obvious_modifier_errors(&mut self, node: NodeId) -> Option<bool> {
-        let source = self.binder.source_of_node(node);
-        let Some(modifiers) = node_util::modifiers_of(source, node) else {
+        let Some(modifiers) = node_util::modifiers_of(&Published, node) else {
             // tsgo `node.Modifiers() == nil`: reparsed JavaScript modifiers
             // count (they only occur where modifiers are legal).
             if self.is_in_js_file(node) && !self.reparsed_modifier_tags(node).is_empty() {
@@ -1655,8 +1653,7 @@ impl<'a> CheckerState<'a> {
         if !can_have_illegal_decorators {
             return None;
         }
-        let source = self.binder.source_of_node(node);
-        self.nodes_of(node_util::modifiers_of(source, node))
+        self.nodes_of(node_util::modifiers_of(&Published, node))
             .into_iter()
             .find(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
             .map(|decorator| {
@@ -1814,10 +1811,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn check_source_element_unreachable(&mut self, node: NodeId) -> CheckResult<bool> {
-        if !tsc_binder::node_util::is_potentially_executable_node(
-            self.binder.source_of_node(node),
-            node,
-        ) {
+        if !tsc_binder::node_util::is_potentially_executable_node(&Published, node) {
             return Ok(false);
         }
         if self.reported_unreachable_nodes.contains(&node) {
@@ -1847,10 +1841,8 @@ impl<'a> CheckerState<'a> {
                 let mut first = offset;
                 for index in (0..offset).rev() {
                     let prev_node = statements[index];
-                    if !tsc_binder::node_util::is_potentially_executable_node(
-                        self.binder.source_of_node(prev_node),
-                        prev_node,
-                    ) || self.reported_unreachable_nodes.contains(&prev_node)
+                    if !tsc_binder::node_util::is_potentially_executable_node(&Published, prev_node)
+                        || self.reported_unreachable_nodes.contains(&prev_node)
                         || !self.is_source_element_unreachable(prev_node)?
                     {
                         break;
@@ -1860,10 +1852,8 @@ impl<'a> CheckerState<'a> {
                 }
                 let mut last = offset;
                 for (index, &next_node) in statements.iter().enumerate().skip(offset + 1) {
-                    if !tsc_binder::node_util::is_potentially_executable_node(
-                        self.binder.source_of_node(next_node),
-                        next_node,
-                    ) || !self.is_source_element_unreachable(next_node)?
+                    if !tsc_binder::node_util::is_potentially_executable_node(&Published, next_node)
+                        || !self.is_source_element_unreachable(next_node)?
                     {
                         break;
                     }
@@ -2147,11 +2137,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 07dcd076e06630aafcaced1128dd4a68bd58b80a8e53ce88a22d1155c44d73ff
     /// tsc-span: _tsc.js:86823-86831
     fn check_jsdoc_comment_links(&mut self, owner: NodeId) {
-        let source = self.binder.source_of_node(owner);
         let mut links = Vec::new();
-        for_each_child(&source.arena, source.arena.node(owner), |child| {
+        for_each_child(&Published, Published.node(owner), |child| {
             if matches!(
-                source.arena.node(child).kind,
+                Published.node(child).kind,
                 SyntaxKind::JSDocLink | SyntaxKind::JSDocLinkCode | SyntaxKind::JSDocLinkPlain
             ) {
                 links.push(child);
@@ -2164,11 +2153,10 @@ impl<'a> CheckerState<'a> {
     }
 
     fn check_source_element_children(&mut self, node: NodeId) {
-        let source = self.binder.source_of_node(node);
         // The children occupy the tail of the shared buffer while this node
         // checks them and are released afterwards.
         let first = self.child_scratch.len();
-        for_each_child(&source.arena, source.arena.node(node), |child| {
+        for_each_child(&Published, Published.node(node), |child| {
             self.child_scratch.push(child);
             false
         });
@@ -2310,9 +2298,7 @@ impl<'a> CheckerState<'a> {
         let NodeData::JSDocFunctionType(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        if data.r#type.is_none()
-            && !node_util::is_jsdoc_construct_signature(self.binder.source_of_node(node), node)
-        {
+        if data.r#type.is_none() && !node_util::is_jsdoc_construct_signature(&Published, node) {
             self.report_implicit_any(node, self.tables.intrinsics.any, None)?;
         }
         Ok(())
@@ -2597,8 +2583,7 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(true);
         }
-        let Some(body) = node_util::body_of(self.binder.source_of_node(declaration), declaration)
-        else {
+        let Some(body) = node_util::body_of(&Published, declaration) else {
             self.links.set_node_contains_arguments_reference(
                 self.speculation_depth,
                 declaration,
@@ -2678,8 +2663,7 @@ impl<'a> CheckerState<'a> {
             if self.is_part_of_type_node(current) {
                 continue;
             }
-            let source = self.binder.source_of_node(current);
-            for_each_child(&source.arena, source.arena.node(current), |child| {
+            for_each_child(&Published, Published.node(current), |child| {
                 stack.push(child);
                 false
             });
@@ -2873,9 +2857,8 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            let source = self.binder.source_of_node(node);
             let first = stack.len();
-            for_each_child(&source.arena, source.arena.node(node), |child| {
+            for_each_child(&Published, Published.node(node), |child| {
                 stack.push(child);
                 false
             });
@@ -2976,9 +2959,8 @@ impl<'a> CheckerState<'a> {
                 _ => None,
             };
             let expression_is_entity = expression.is_some_and(|expression| {
-                let source = self.binder.source_of_node(expression);
-                tsc_binder::node_util::is_entity_name_expression(source, expression)
-                    && !tsc_binder::node_util::is_optional_chain(source, expression)
+                tsc_binder::node_util::is_entity_name_expression(&Published, expression)
+                    && !tsc_binder::node_util::is_optional_chain(&Published, expression)
             });
             if !expression_is_entity {
                 self.error_at(
@@ -3087,8 +3069,8 @@ impl<'a> CheckerState<'a> {
                         return None;
                     }
                     let source = self.binder.source_of_node(node);
-                    let type_name_end = source.arena.node(type_name).end as usize;
-                    if type_name_end == source.arena.node_array(type_arguments).pos as usize {
+                    let type_name_end = Published.node(type_name).end as usize;
+                    if type_name_end == Published.node_array(type_arguments).pos as usize {
                         return None;
                     }
                     let start = tsc_syntax::skip_trivia(source.text(), type_name_end);
@@ -3583,9 +3565,8 @@ impl<'a> CheckerState<'a> {
     /// forEachChild recursion ONLY — the conditional-model boundary
     /// stays on the annotate side, with no self-force here.
     fn check_conditional_type(&mut self, node: NodeId) -> CheckResult<()> {
-        let source = self.binder.source_of_node(node);
         let first = self.child_scratch.len();
-        for_each_child(&source.arena, source.arena.node(node), |child| {
+        for_each_child(&Published, Published.node(node), |child| {
             self.child_scratch.push(child);
             false
         });
@@ -3852,7 +3833,7 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::PropertyDeclaration => {
                     let source = self.binder.source_of_node(parent);
                     let is_static = tsc_binder::node_util::has_syntactic_modifier(
-                        source,
+                        &Published,
                         parent,
                         tsc_types::ModifierFlags::STATIC,
                     );
@@ -3869,9 +3850,8 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 SyntaxKind::PropertySignature => {
-                    let source = self.binder.source_of_node(parent);
                     let is_readonly = tsc_binder::node_util::has_syntactic_modifier(
-                        source,
+                        &Published,
                         parent,
                         tsc_types::ModifierFlags::READONLY,
                     );
@@ -3975,7 +3955,7 @@ impl<'a> CheckerState<'a> {
         }
         let file_index = self.binder.file_index_of_node(node);
         let (pos, end) = {
-            let raw = self.binder.source_of_node(node).arena.node(node);
+            let raw = Published.node(node);
             (raw.pos, raw.end)
         };
         let inside_contained =
@@ -4946,7 +4926,7 @@ impl<'a> CheckerState<'a> {
                     .value_declaration
                     .is_some_and(|declaration| {
                         tsc_binder::node_util::has_syntactic_modifier(
-                            self.binder.source_of_node(declaration),
+                            &Published,
                             declaration,
                             ModifierFlags::STATIC,
                         )
@@ -5500,7 +5480,7 @@ impl<'a> CheckerState<'a> {
                 let source = self.binder.symbol(symbol).declarations.clone();
                 let is_static = source.iter().any(|&declaration| {
                     tsc_binder::node_util::has_syntactic_modifier(
-                        self.binder.source_of_node(declaration),
+                        &Published,
                         declaration,
                         tsc_types::ModifierFlags::STATIC,
                     )
@@ -5944,9 +5924,8 @@ impl<'a> CheckerState<'a> {
     fn default_binding_context(&self, node: NodeId) -> Option<NodeId> {
         let mut current = Some(node);
         while let Some(candidate) = current {
-            let source = self.binder.source_of_node(candidate);
             if self.kind_of(candidate) == SyntaxKind::SourceFile
-                || node_util::is_ambient_module(source, candidate)
+                || node_util::is_ambient_module(&Published, candidate)
             {
                 return Some(candidate);
             }
@@ -8510,7 +8489,7 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         let source = self.binder.source_of_node(parent);
-        if !node_util::is_entity_name_expression(source, receiver) {
+        if !node_util::is_entity_name_expression(&Published, receiver) {
             return Ok(None);
         }
         if tsc_binder::assignment::is_module_exports_access_expression(source, left)
@@ -8538,8 +8517,7 @@ impl<'a> CheckerState<'a> {
         let declarations = self.binder.symbol(symbol).declarations.clone();
         let mut candidates = Vec::new();
         for declaration in declarations {
-            let source = self.binder.source_of_node(declaration);
-            if node_util::is_ambient_module(source, declaration) {
+            if node_util::is_ambient_module(&Published, declaration) {
                 continue;
             }
             let Some(parent) = self.parent_of(declaration) else {
@@ -9033,11 +9011,11 @@ impl<'a> CheckerState<'a> {
         // tsc-span: _tsc.js:13749-13752
         let declaration = data.declarations.iter().copied().find(|&declaration| {
             let source = self.binder.source_of_node(declaration);
-            let external_augmentation = node_util::is_ambient_module(source, declaration)
+            let external_augmentation = node_util::is_ambient_module(&Published, declaration)
                 && node_util::is_module_augmentation_external(source, declaration);
             let global_augmentation =
                 matches!(self.data_of(declaration), NodeData::ModuleDeclaration(_))
-                    && node_util::is_global_scope_augmentation(source, declaration);
+                    && node_util::is_global_scope_augmentation(&Published, declaration);
             !external_augmentation && !global_augmentation
         });
         // getSpecifierForModuleSymbol dereferences this lookup
@@ -9639,7 +9617,7 @@ impl<'a> CheckerState<'a> {
                 if class_parent
                     && property_declaration.is_some_and(|declaration| {
                         tsc_binder::node_util::has_syntactic_modifier(
-                            self.binder.source_of_node(declaration),
+                            &Published,
                             declaration,
                             ModifierFlags::ACCESSOR,
                         )
@@ -10467,9 +10445,8 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let optional = self.is_optional_parameter_display(parameter)?;
-        let source = self.binder.source_of_node(parameter);
         let parameter_property = tsc_binder::node_util::has_syntactic_modifier(
-            source,
+            &Published,
             parameter,
             tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
         );
@@ -10602,11 +10579,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
-        let source = self.binder.source_of_node(declaration);
-        let Some(body) = node_util::body_of(source, declaration) else {
+        let Some(body) = node_util::body_of(&Published, declaration) else {
             return Ok(None);
         };
-        if node_util::node_is_missing(source, Some(body)) {
+        if node_util::node_is_missing(&Published, Some(body)) {
             return Ok(None);
         }
 
@@ -10833,7 +10809,7 @@ impl<'a> CheckerState<'a> {
         let mut parent = self.parent_of(expression);
         while let Some(node) = parent {
             if self.kind_of(node) != SyntaxKind::ParenthesizedExpression {
-                return node_util::is_declaration(self.binder.source_of_node(node), node);
+                return node_util::is_declaration(&Published, node);
             }
             parent = self.parent_of(node);
         }
@@ -10907,19 +10883,18 @@ impl<'a> CheckerState<'a> {
             let mut has_in = false;
             let mut has_out = false;
             for declaration in declarations {
-                let source = self.binder.source_of_node(declaration);
                 has_const |= tsc_binder::node_util::has_syntactic_modifier(
-                    source,
+                    &Published,
                     declaration,
                     tsc_types::ModifierFlags::CONST,
                 );
                 has_in |= tsc_binder::node_util::has_syntactic_modifier(
-                    source,
+                    &Published,
                     declaration,
                     tsc_types::ModifierFlags::IN,
                 );
                 has_out |= tsc_binder::node_util::has_syntactic_modifier(
-                    source,
+                    &Published,
                     declaration,
                     tsc_types::ModifierFlags::OUT,
                 );
@@ -11753,9 +11728,8 @@ impl<'a> CheckerState<'a> {
             }),
             NodeData::ConstructorType(data) => self.with_reused_node_scope(node, |state| {
                 let is_abstract = {
-                    let source = state.binder.source_of_node(node);
                     tsc_binder::node_util::has_syntactic_modifier(
-                        source,
+                        &Published,
                         node,
                         tsc_types::ModifierFlags::ABSTRACT,
                     )
@@ -12252,9 +12226,8 @@ impl<'a> CheckerState<'a> {
         // than resolveEntityName. An inaccessible container symbol
         // marks the surrounding TypeNode recovery boundary.
         if self.is_this_identifier(first) {
-            let source = self.binder.source_of_node(first);
             let container = node_util::get_this_container(
-                source, first, /*include_arrow_functions*/ false,
+                &Published, first, /*include_arrow_functions*/ false,
             );
             return match container {
                 Some(container) => {
@@ -12307,10 +12280,8 @@ impl<'a> CheckerState<'a> {
             .flags
             .intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
             && symbol_data.value_declaration.is_some_and(|declaration| {
-                node_util::is_part_of_parameter_declaration(
-                    self.binder.source_of_node(declaration),
-                    declaration,
-                ) || self.kind_of(declaration) == SyntaxKind::JSDocParameterTag
+                node_util::is_part_of_parameter_declaration(&Published, declaration)
+                    || self.kind_of(declaration) == SyntaxKind::JSDocParameterTag
             })
         {
             return Ok(false);
@@ -12454,9 +12425,8 @@ impl<'a> CheckerState<'a> {
         if self.reused_declaration_is_visible(declaration) {
             return true;
         }
-        let source = self.binder.source_of_node(declaration);
         if let Some(import_syntax) = self.reused_any_import_syntax(declaration) {
-            if !node_util::has_syntactic_modifier(source, import_syntax, ModifierFlags::EXPORT)
+            if !node_util::has_syntactic_modifier(&Published, import_syntax, ModifierFlags::EXPORT)
                 && self
                     .parent_of(import_syntax)
                     .is_some_and(|parent| self.reused_declaration_is_visible(parent))
@@ -12470,7 +12440,11 @@ impl<'a> CheckerState<'a> {
                 .and_then(|parent| self.parent_of(parent));
             if variable_statement.is_some_and(|statement| {
                 self.kind_of(statement) == SyntaxKind::VariableStatement
-                    && !node_util::has_syntactic_modifier(source, statement, ModifierFlags::EXPORT)
+                    && !node_util::has_syntactic_modifier(
+                        &Published,
+                        statement,
+                        ModifierFlags::EXPORT,
+                    )
                     && self
                         .parent_of(statement)
                         .is_some_and(|parent| self.reused_declaration_is_visible(parent))
@@ -12479,7 +12453,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if self.is_late_visibility_painted_statement_display(declaration)
-            && !node_util::has_syntactic_modifier(source, declaration, ModifierFlags::EXPORT)
+            && !node_util::has_syntactic_modifier(&Published, declaration, ModifierFlags::EXPORT)
             && self
                 .parent_of(declaration)
                 .is_some_and(|parent| self.reused_declaration_is_visible(parent))
@@ -12502,7 +12476,7 @@ impl<'a> CheckerState<'a> {
                 && variable_statement.is_some_and(|statement| {
                     self.kind_of(statement) == SyntaxKind::VariableStatement
                         && !node_util::has_syntactic_modifier(
-                            source,
+                            &Published,
                             statement,
                             ModifierFlags::EXPORT,
                         )
@@ -12515,7 +12489,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         if symbol_flags.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE) {
-            let Some(root) = node_util::walk_up_binding_elements_and_patterns(source, declaration)
+            let Some(root) =
+                node_util::walk_up_binding_elements_and_patterns(&Published, declaration)
             else {
                 return false;
             };
@@ -12531,8 +12506,11 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(variable_statement) != SyntaxKind::VariableStatement {
                 return false;
             }
-            if node_util::has_syntactic_modifier(source, variable_statement, ModifierFlags::EXPORT)
-            {
+            if node_util::has_syntactic_modifier(
+                &Published,
+                variable_statement,
+                ModifierFlags::EXPORT,
+            ) {
                 return true;
             }
             return self
@@ -12620,7 +12598,7 @@ impl<'a> CheckerState<'a> {
                         return false;
                     }
                 }
-                if node_util::is_ambient_module(source, declaration)
+                if node_util::is_ambient_module(&Published, declaration)
                     && node_util::is_module_augmentation_external(source, declaration)
                 {
                     return true;
@@ -12692,8 +12670,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 3d4b993da842ea191877ffad47fb0c8045a3d1086066350235a4992e74413283
     /// tsc-span: _tsc.js:55784-55798
     fn reused_declaration_container(&self, declaration: NodeId) -> Option<NodeId> {
-        let source = self.binder.source_of_node(declaration);
-        let root = node_util::get_root_declaration(source, declaration);
+        let root = node_util::get_root_declaration(&Published, declaration);
         let mut current = Some(root);
         while let Some(node) = current {
             match self.kind_of(node) {
@@ -12936,7 +12913,7 @@ impl<'a> CheckerState<'a> {
                 SliceTypeNodeKind::TypeLiteral
             }
             SyntaxKind::JSDocFunctionType => {
-                if node_util::is_jsdoc_construct_signature(self.binder.source_of_node(node), node) {
+                if node_util::is_jsdoc_construct_signature(&Published, node) {
                     SliceTypeNodeKind::ConstructorType
                 } else {
                     SliceTypeNodeKind::FunctionType
@@ -12972,8 +12949,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         data: JSDocFunctionTypeData,
     ) -> CheckResult<JsString> {
-        let construct =
-            node_util::is_jsdoc_construct_signature(self.binder.source_of_node(node), node);
+        let construct = node_util::is_jsdoc_construct_signature(&Published, node);
         let type_parameters =
             self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
         let mut return_from_new = None;
@@ -13194,7 +13170,7 @@ impl<'a> CheckerState<'a> {
                 // tsgo's reuse clones a string literal with its quote and
                 // prints it without ASCII escaping (nodecopy.go:810-821).
                 let source = self.binder.source_of_node(literal);
-                let end = source.arena.node(literal).end as usize;
+                let end = Published.node(literal).end as usize;
                 let quote = if end > 0 && source.text().as_bytes().get(end - 1) == Some(&b'\'') {
                     '\''
                 } else {
@@ -13958,7 +13934,7 @@ impl<'a> CheckerState<'a> {
         if !matches!(self.data_of(name), NodeData::StringLiteral(_)) {
             return false;
         }
-        let end = source.arena.node(name).end as usize;
+        let end = Published.node(name).end as usize;
         end > 0 && source.text().as_bytes().get(end - 1) == Some(&b'\'')
     }
 
@@ -14819,10 +14795,7 @@ impl<'a> CheckerState<'a> {
                         let signature = self.get_signature_from_declaration(parent)?;
                         return self.signature_return_text(signature, fully_qualified);
                     }
-                    if tsc_binder::node_util::is_declaration_node(
-                        self.binder.source_of_node(parent),
-                        parent,
-                    ) {
+                    if tsc_binder::node_util::is_declaration_node(&Published, parent) {
                         return self.declaration_fallback_text(parent, pinned, fully_qualified);
                     }
                 }

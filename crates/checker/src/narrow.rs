@@ -14,7 +14,7 @@
 //! the call arm, optionality, and the const-variable guard inlining.
 
 use tsc_binder::{node_util, SymbolId};
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, Published, SyntaxKind};
 use tsc_types::{CheckMode, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
 
 use crate::flow::FlowQuery;
@@ -41,8 +41,7 @@ impl<'a> CheckerState<'a> {
         expr: NodeId,
         assume_true: bool,
     ) -> CheckResult<TypeId> {
-        let source = self.binder.source_of_node(expr);
-        let optionality = node_util::is_expression_of_optional_chain_root(source, expr) || {
+        let optionality = node_util::is_expression_of_optional_chain_root(&Published, expr) || {
             match self.parent_of(expr) {
                 Some(parent) if self.kind_of(parent) == SyntaxKind::BinaryExpression => {
                     match self.data_of(parent) {
@@ -228,11 +227,10 @@ impl<'a> CheckerState<'a> {
         expr: NodeId,
     ) -> CheckResult<Option<NodeId>> {
         let reference = query.reference;
-        let source = self.binder.source_of_node(reference);
         // A synthetic destructuring reference (6.4b) is an access
         // chain — never the binding-pattern/function shape of arm 1.
         if query.synthetic_props.is_none()
-            && (node_util::is_binding_pattern(source, reference)
+            && (node_util::is_binding_pattern(&Published, reference)
                 || self.is_function_expression_or_arrow_function(reference)
                 || self.is_object_literal_method(reference))
         {
@@ -414,8 +412,7 @@ impl<'a> CheckerState<'a> {
         let Some(prop_name) = self.get_accessed_property_name(access)? else {
             return Ok(ty);
         };
-        let source = self.binder.source_of_node(access);
-        let optional_chain = node_util::is_optional_chain(source, access);
+        let optional_chain = node_util::is_optional_chain(&Published, access);
         let strict_null_checks = self
             .options
             .strict_option_value(self.options.strict_null_checks);
@@ -2459,8 +2456,7 @@ impl<'a> CheckerState<'a> {
         assume_true: bool,
     ) -> CheckResult<TypeId> {
         if self.has_matching_argument(query, call_expression)? {
-            let source = self.binder.source_of_node(call_expression);
-            let is_call_chain = node_util::is_optional_chain(source, call_expression);
+            let is_call_chain = node_util::is_optional_chain(&Published, call_expression);
             let signature = if assume_true || !is_call_chain {
                 self.get_effects_signature(call_expression)?
             } else {
@@ -2775,8 +2771,7 @@ impl<'a> CheckerState<'a> {
                     self.get_type_of_dotted_name(callee)?
                 }
                 Some(callee) if self.kind_of(callee) != SyntaxKind::SuperKeyword => {
-                    let source = self.binder.source_of_node(node);
-                    if node_util::is_optional_chain(source, node) {
+                    if node_util::is_optional_chain(&Published, node) {
                         let checked = self.check_expression(callee, CheckMode::NORMAL)?;
                         let optional = self.get_optional_expression_type(checked, callee)?;
                         Some(self.check_non_null_type(optional, callee)?)
@@ -3089,9 +3084,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 0052ddcf8fe3e397778fc1edb69a5ba3298660e29f1eb9d2d63116370c84dd02
     /// tsc-span: _tsc.js:72464-72482
     fn get_explicit_this_type(&mut self, node: NodeId) -> CheckResult<Option<TypeId>> {
-        let source = self.binder.source_of_node(node);
         let Some(container) =
-            node_util::get_this_container(source, node, /*include_arrow_functions*/ false)
+            node_util::get_this_container(&Published, node, /*include_arrow_functions*/ false)
         else {
             return Ok(None);
         };
@@ -3268,8 +3262,7 @@ impl<'a> CheckerState<'a> {
         if self.get_function_flags(func) != 0 {
             return Ok(None);
         }
-        let source = self.binder.source_of_node(func);
-        let Some(body) = node_util::body_of(source, func) else {
+        let Some(body) = node_util::body_of(&Published, func) else {
             return Ok(None);
         };
         let single_return = if self.kind_of(body) != SyntaxKind::Block {

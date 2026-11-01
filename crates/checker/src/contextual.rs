@@ -25,7 +25,7 @@
 //!   annotations, satisfies tags, and expando/contextual typing.
 
 use tsc_binder::{node_util, SymbolId};
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     CheckFlags, ContextFlags, ModifierFlags, NodeFlags, ObjectFlags, SymbolFlags, TypeData,
     TypeFlags, TypeId, UnionReduction,
@@ -386,8 +386,7 @@ impl<'a> CheckerState<'a> {
         if !self.is_context_sensitive_function_or_object_literal_method(func)? {
             return Ok(None);
         }
-        let source = self.binder.source_of_node(func);
-        let iife = node_util::get_immediately_invoked_function_expression(source, func);
+        let iife = node_util::get_immediately_invoked_function_expression(&Published, func);
         if let Some(iife) = iife {
             let has_arguments = matches!(self.data_of(iife), NodeData::CallExpression(data)
                 if data.arguments.is_some());
@@ -498,7 +497,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::PropertyDeclaration
                 if node_util::has_syntactic_modifier(
-                    self.binder.source_of_node(declaration),
+                    &Published,
                     declaration,
                     ModifierFlags::STATIC,
                 ) =>
@@ -544,8 +543,9 @@ impl<'a> CheckerState<'a> {
         let Some(parent_type) = parent_type else {
             return Ok(None);
         };
-        let source = self.binder.source_of_node(declaration);
-        if node_util::is_binding_pattern(source, name) || self.is_computed_non_literal_name(name) {
+        if node_util::is_binding_pattern(&Published, name)
+            || self.is_computed_non_literal_name(name)
+        {
             return Ok(None);
         }
         let parent_name = match self.data_of(parent) {
@@ -627,8 +627,7 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 if let Some(name) = name {
-                    let source = self.binder.source_of_node(declaration);
-                    if node_util::is_binding_pattern(source, name) {
+                    if node_util::is_binding_pattern(&Published, name) {
                         let elements = match self.data_of(name) {
                             NodeData::ObjectBindingPattern(data) => data.elements,
                             NodeData::ArrayBindingPattern(data) => data.elements,
@@ -909,9 +908,8 @@ impl<'a> CheckerState<'a> {
                 return Ok(Some(return_type));
             }
         }
-        let source = self.binder.source_of_node(function_decl);
         if let Some(iife) =
-            node_util::get_immediately_invoked_function_expression(source, function_decl)
+            node_util::get_immediately_invoked_function_expression(&Published, function_decl)
         {
             return self.get_contextual_type(iife, context_flags);
         }
@@ -1335,8 +1333,7 @@ impl<'a> CheckerState<'a> {
                     .map(tsc_types::EscapedName::from_identifier_escaped_text)
             }
             NodeData::ElementAccessExpression(data) => {
-                let source = self.binder.source_of_node(node);
-                let arg = node_util::skip_parentheses_pub(source, data.argument_expression?);
+                let arg = node_util::skip_parentheses_pub(&Published, data.argument_expression?);
                 match self.data_of(arg) {
                     NodeData::StringLiteral(data) => {
                         Some(tsc_types::EscapedName::escape(data.text.as_js()))
@@ -1388,11 +1385,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if async_eligible
-            && node_util::has_syntactic_modifier(
-                self.binder.source_of_node(node),
-                node,
-                ModifierFlags::ASYNC,
-            )
+            && node_util::has_syntactic_modifier(&Published, node, ModifierFlags::ASYNC)
         {
             flags |= FUNCTION_FLAGS_ASYNC;
         }
@@ -3534,8 +3527,7 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::LabeledStatement
                 | SyntaxKind::TryStatement
                 | SyntaxKind::CatchClause => {
-                    let source = self.binder.source_of_node(node);
-                    tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+                    tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
                         worklist.push(child);
                         false
                     });
@@ -3577,7 +3569,6 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::ModuleDeclaration
                 | SyntaxKind::TypeAliasDeclaration => {}
                 _ => {
-                    let source = self.binder.source_of_node(node);
                     if node_util::is_function_like_kind(self.kind_of(node)) {
                         if let Some(name) = self.name_of_node(node) {
                             if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
@@ -3589,14 +3580,10 @@ impl<'a> CheckerState<'a> {
                             }
                         }
                     } else if !self.is_part_of_type_node(node) {
-                        tsc_syntax::for_each_child(
-                            &source.arena,
-                            source.arena.node(node),
-                            |child| {
-                                worklist.push(child);
-                                false
-                            },
-                        );
+                        tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
+                            worklist.push(child);
+                            false
+                        });
                     }
                 }
             }
@@ -3844,10 +3831,7 @@ impl<'a> CheckerState<'a> {
                     .map(Some);
             }
         }
-        if node_util::is_jsdoc_construct_signature(
-            self.binder.source_of_node(declaration),
-            declaration,
-        ) {
+        if node_util::is_jsdoc_construct_signature(&Published, declaration) {
             let type_node = match self.data_of(declaration) {
                 NodeData::JSDocFunctionType(data) => self
                     .nodes_of(data.parameters)

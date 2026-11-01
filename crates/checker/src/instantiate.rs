@@ -14,7 +14,7 @@
 
 use tsc_binder::SymbolId;
 use tsc_diagnostics::gen as diagnostics;
-use tsc_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{for_each_child, NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     CheckFlags, ElementFlags, InferenceFlags, InferencePriority, IntersectionFlags,
     MappedTypeModifiers, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
@@ -3381,9 +3381,8 @@ impl<'a> CheckerState<'a> {
     /// `@returns` type or whole-function `@type`, and the type of the cast
     /// wrapped around an expression.
     pub(crate) fn children_of(&self, node: NodeId) -> Vec<NodeId> {
-        let source = self.binder.source_of_node(node);
         let mut children = Vec::new();
-        for_each_child(&source.arena, source.arena.node(node), |child| {
+        for_each_child(&Published, Published.node(node), |child| {
             children.push(child);
             false
         });

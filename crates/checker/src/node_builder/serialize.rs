@@ -6,7 +6,7 @@ use tsc_emitter::{
     EmitTrackerNode, EmitTrackerNodeDescription, EmitTrackerSymbol, EmitTrackerSymbolDescription,
     SourceFileId, TransformArena, TransformNode, TransformNodeArray, TransformSourceId,
 };
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, Published, SyntaxKind};
 use tsc_types::{ObjectFlags, SymbolFlags, TypeData, TypeFlags, TypeId};
 
 use crate::pseudochecker::{could_already_refer_to_undefined_type, PseudoChecker, PseudoType};
@@ -300,10 +300,8 @@ fn recover_suppressed_import_target(
         NodeData::ImportSpecifier(data) => data.property_name.or(data.name)?,
         _ => return None,
     };
-    let imported_name = node_util::get_text_of_identifier_or_literal(
-        checker.binder.source_of_node(imported_name_node),
-        imported_name_node,
-    )?;
+    let imported_name =
+        node_util::get_text_of_identifier_or_literal(&Published, imported_name_node)?;
 
     let mut ancestor = import_specifier;
     let module_specifier = loop {
@@ -2253,11 +2251,7 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
         }
         let meaning = self.checker.get_meaning_of_entity_name_reference(parse);
         if self.checker.is_this_identifier(leftmost) {
-            let container = node_util::get_this_container(
-                self.checker.binder.source_of_node(leftmost),
-                leftmost,
-                false,
-            );
+            let container = node_util::get_this_container(&Published, leftmost, false);
             let symbol = match container {
                 Some(container) => Some(
                     self.checker
@@ -2401,10 +2395,8 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
             let data = self.checker.binder.symbol(symbol);
             let parameter_symbol = data.flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
                 && data.value_declaration.is_some_and(|declaration| {
-                    node_util::is_part_of_parameter_declaration(
-                        self.checker.binder.source_of_node(declaration),
-                        declaration,
-                    ) || self.checker.kind_of(declaration) == SyntaxKind::JSDocParameterTag
+                    node_util::is_part_of_parameter_declaration(&Published, declaration)
+                        || self.checker.kind_of(declaration) == SyntaxKind::JSDocParameterTag
                 });
             if !parameter_symbol {
                 let inaccessible = !self

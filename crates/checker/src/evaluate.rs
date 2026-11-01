@@ -16,7 +16,7 @@
 
 use tsc_binder::{node_util, SymbolId};
 use tsc_diagnostics::gen as diagnostics;
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, Published, SyntaxKind};
 use tsc_types::{CheckMode, EscapedName, JsString, ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckResult, CheckerState};
@@ -922,7 +922,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_parameter_property_declaration(&self, node: NodeId) -> bool {
         self.kind_of(node) == SyntaxKind::Parameter
             && node_util::has_syntactic_modifier(
-                self.binder.source_of_node(node),
+                &Published,
                 node,
                 tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
             )
@@ -1071,7 +1071,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsc getContainingClass (14487).
     fn containing_class_of(&self, node: NodeId) -> Option<NodeId> {
-        node_util::get_containing_class(self.binder.source_of_node(node), node)
+        node_util::get_containing_class(&Published, node)
     }
 
     /// The 48024-48040 static-block leg of the 2729 walk: the
@@ -1397,12 +1397,7 @@ impl<'a> CheckerState<'a> {
         if !has_async {
             return asterisk;
         }
-        asterisk
-            || node_util::has_syntactic_modifier(
-                self.binder.source_of_node(node),
-                node,
-                ModifierFlags::ASYNC,
-            )
+        asterisk || node_util::has_syntactic_modifier(&Published, node, ModifierFlags::ASYNC)
     }
 
     /// tsc-port: getEnclosingBlockScopeContainer @6.0.3
@@ -1541,10 +1536,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_computed_non_literal_name(&self, name: NodeId) -> bool {
         match self.data_of(name) {
             NodeData::ComputedPropertyName(data) => !data.expression.is_some_and(|expression| {
-                node_util::is_string_or_numeric_literal_like(
-                    self.binder.source_of_node(expression),
-                    expression,
-                )
+                node_util::is_string_or_numeric_literal_like(&Published, expression)
             }),
             _ => false,
         }
@@ -1554,7 +1546,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 775dd95b7a0f4d64b4b910bb31e7dd9bdcddd1c473bf9b913b2b2adbe4afd0c2
     /// tsc-span: _tsc.js:13863-13882
     pub fn try_get_text_of_property_name(&self, name: NodeId) -> Option<EscapedName> {
-        let source = self.binder.source_of_node(name);
         match self.data_of(name) {
             // emitNode.autoGenerate is not represented in the parsed
             // arena; parsed identifiers/private identifiers therefore
@@ -1589,7 +1580,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             NodeData::JsxNamespacedName(_) => {
-                node_util::get_escaped_text_of_jsx_namespaced_name(source, name)
+                node_util::get_escaped_text_of_jsx_namespaced_name(&Published, name)
             }
             _ => None,
         }
@@ -1627,10 +1618,7 @@ impl<'a> CheckerState<'a> {
         let Some(declaration) = data.value_declaration else {
             return false;
         };
-        let combined = node_util::get_combined_node_flags(
-            self.binder.source_of_node(declaration),
-            declaration,
-        );
+        let combined = node_util::get_combined_node_flags(&Published, declaration);
         combined.intersects(NodeFlags::from_bits(
             NodeFlags::CONST.bits() | NodeFlags::USING.bits(),
         ))

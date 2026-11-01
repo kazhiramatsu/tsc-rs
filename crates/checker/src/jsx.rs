@@ -13,7 +13,7 @@
 //! @jsx pragmas, and react-jsx implicit runtime imports.
 
 use tsc_binder::{SymbolId, SymbolTable};
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     CheckMode, ContextFlags, EscapedName, IntersectionFlags, JsStr, JsString, JsxFlags,
     ObjectFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
@@ -2236,20 +2236,20 @@ impl<'a> CheckerState<'a> {
     fn first_jsx_tag_in_file(&self, file_index: usize) -> Option<NodeId> {
         let source = self.binder.source(file_index);
         let mut stack = Vec::new();
-        tsc_syntax::for_each_child(&source.arena, source.arena.node(source.root), |child| {
+        tsc_syntax::for_each_child(&Published, Published.node(source.root), |child| {
             stack.push(child);
             false
         });
         stack.reverse();
         while let Some(node) = stack.pop() {
-            let record = source.arena.node(node);
+            let record = Published.node(node);
             match &record.data {
                 NodeData::JsxElement(_) | NodeData::JsxSelfClosingElement(_) => return Some(node),
                 NodeData::JsxFragment(data) => return data.opening_fragment,
                 _ => {}
             }
             let first = stack.len();
-            tsc_syntax::for_each_child(&source.arena, record, |child| {
+            tsc_syntax::for_each_child(&Published, record, |child| {
                 stack.push(child);
                 false
             });

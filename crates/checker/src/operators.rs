@@ -14,7 +14,7 @@
 //! through type interning.
 
 use tsc_binder::node_util;
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     CheckMode, IterationUse, LiteralValue, SymbolFlags, SymbolId, TypeData, TypeFacts, TypeFlags,
     TypeId,
@@ -295,10 +295,7 @@ impl<'a> CheckerState<'a> {
             let mut parent = self.parent_of(node);
             while let Some(p) = parent {
                 let is_lifting = self.kind_of(p) == SyntaxKind::ParenthesizedExpression
-                    || node_util::is_logical_or_coalescing_binary_expression(
-                        self.binder.source_of_node(p),
-                        p,
-                    );
+                    || node_util::is_logical_or_coalescing_binary_expression(&Published, p);
                 if !is_lifting {
                     break;
                 }
@@ -1161,7 +1158,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:13017-13019
     pub(crate) fn text_of_node(&self, node: NodeId) -> CheckResult<String> {
         let source = self.binder.source_of_node(node);
-        let raw = source.arena.node(node);
+        let raw = Published.node(node);
         let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
         let end = raw.end as usize;
         let (begin, finish) = if start <= end {
@@ -1214,7 +1211,7 @@ impl<'a> CheckerState<'a> {
     /// left operand's start suppresses 2695.
     fn comma_left_inside_jsx_2657_span(&self, left: NodeId) -> bool {
         let source = self.binder.source_of_node(left);
-        let raw = source.arena.node(left);
+        let raw = Published.node(left);
         let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize) as u32;
         source.parse_diagnostics.iter().any(|diag| {
             let (Some(diag_start), Some(length)) = (diag.start, diag.length) else {
@@ -1228,7 +1225,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c75519b46affe50fc14f09341223c8535a7a0803cd37bc3cf0ff0a28e19890d7
     /// tsc-span: _tsc.js:79754-79800
     fn is_side_effect_free(&self, node: NodeId) -> bool {
-        let node = node_util::skip_parentheses_pub(self.binder.source_of_node(node), node);
+        let node = node_util::skip_parentheses_pub(&Published, node);
         match self.kind_of(node) {
             SyntaxKind::Identifier
             | SyntaxKind::StringLiteral
@@ -1531,8 +1528,8 @@ impl<'a> CheckerState<'a> {
             self.error_at(Some(expr), invalid_reference_message, &[]);
             return false;
         }
-        let source = self.binder.source_of_node(node);
-        if node_util::node_flags(source, node).intersects(tsc_types::NodeFlags::OPTIONAL_CHAIN) {
+        if node_util::node_flags(&Published, node).intersects(tsc_types::NodeFlags::OPTIONAL_CHAIN)
+        {
             self.error_at(Some(expr), invalid_optional_chain_message, &[]);
             return false;
         }
@@ -1663,9 +1660,8 @@ impl<'a> CheckerState<'a> {
         left: NodeId,
         right: NodeId,
     ) -> CheckResult<()> {
-        let left_skipped = node_util::skip_parentheses_pub(self.binder.source_of_node(left), left);
-        let right_skipped =
-            node_util::skip_parentheses_pub(self.binder.source_of_node(right), right);
+        let left_skipped = node_util::skip_parentheses_pub(&Published, left);
+        let right_skipped = node_util::skip_parentheses_pub(&Published, right);
         let is_left_nan = self.is_global_nan(left_skipped)?;
         let is_right_nan = self.is_global_nan(right_skipped)?;
         if !is_left_nan && !is_right_nan {
@@ -1698,8 +1694,7 @@ impl<'a> CheckerState<'a> {
             ""
         };
         let location = if is_left_nan { right } else { left };
-        let expression =
-            node_util::skip_parentheses_pub(self.binder.source_of_node(location), location);
+        let expression = node_util::skip_parentheses_pub(&Published, location);
         let suggestion_target = if self.is_entity_name_expression(expression) {
             self.entity_name_to_string(expression)?
         } else {
@@ -2369,7 +2364,7 @@ impl<'a> CheckerState<'a> {
             }
             if self.options.erasable_syntax_only == Some(true) {
                 let source = self.binder.source_of_node(node);
-                let raw = source.arena.node(node);
+                let raw = Published.node(node);
                 let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
                 let end = match self.data_of(node) {
                     NodeData::TypeAssertionExpression(data) => data
@@ -2590,7 +2585,7 @@ impl<'a> CheckerState<'a> {
     /// would incorrectly treat those as successful literal elaboration.
     fn literal_operand_reported_since(&self, operand: NodeId, before: usize) -> bool {
         let source = self.binder.source_of_node(operand);
-        let node = source.arena.node(operand);
+        let node = Published.node(operand);
         let start_byte = tsc_syntax::skip_trivia(source.text(), node.pos as usize);
         let to_utf16 = |byte: usize| -> u32 {
             source
@@ -2933,7 +2928,7 @@ impl<'a> CheckerState<'a> {
             return;
         };
         let source = self.binder.source_of_node(node);
-        let array = source.arena.node_array(array);
+        let array = Published.node_array(array);
         let start_byte = tsc_syntax::skip_trivia(source.text(), array.pos as usize);
         let to_utf16 = |byte: usize| -> u32 {
             source
@@ -3003,7 +2998,7 @@ impl<'a> CheckerState<'a> {
             return false;
         };
         let source = self.binder.source_of_node(node);
-        let array = source.arena.node_array(array_id);
+        let array = Published.node_array(array_id);
         if !array.nodes.is_empty() {
             return false;
         }
@@ -3095,7 +3090,7 @@ impl<'a> CheckerState<'a> {
     /// MetaProperty keywordToken field directly.
     pub(crate) fn meta_property_is_new(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
-        let raw = source.arena.node(node);
+        let raw = Published.node(node);
         let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
         source.text()[start..].starts_with("new")
     }
@@ -3150,7 +3145,7 @@ impl<'a> CheckerState<'a> {
                     // grammarErrorAtPos(node, node.end, 0, `_0_expected`, "(")
                     let source = self.binder.source_of_node(node);
                     if source.parse_diagnostics.is_empty() {
-                        let raw = source.arena.node(node);
+                        let raw = Published.node(node);
                         let to_utf16 = |byte: usize| -> u32 {
                             source
                                 .positions()
@@ -3191,8 +3186,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b7eaa9a363187065d52804e093029188b18cde68a6e5dee0d7bdefeaea290093
     /// tsc-span: _tsc.js:78086-78098
     pub(crate) fn check_new_target_meta_property(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let source = self.binder.source_of_node(node);
-        let container = node_util::get_this_container(source, node, false).filter(|&c| {
+        let container = node_util::get_this_container(&Published, node, false).filter(|&c| {
             matches!(
                 self.kind_of(c),
                 SyntaxKind::Constructor
@@ -4061,8 +4055,7 @@ impl<'a> CheckerState<'a> {
         cond_type: TypeId,
         body: Option<NodeId>,
     ) -> CheckResult<()> {
-        let source = self.binder.source_of_node(walk);
-        let mut cond_expr2 = node_util::skip_parentheses_pub(source, walk);
+        let mut cond_expr2 = node_util::skip_parentheses_pub(&Published, walk);
         self.truthy_callable_helper(cond_expr2, cond_type, body)?;
         while self.kind_of(cond_expr2) == SyntaxKind::BinaryExpression {
             let Some((left, operator_token, _)) = self.binary_parts(cond_expr2) else {
@@ -4074,7 +4067,7 @@ impl<'a> CheckerState<'a> {
             ) {
                 break;
             }
-            cond_expr2 = node_util::skip_parentheses_pub(self.binder.source_of_node(left), left);
+            cond_expr2 = node_util::skip_parentheses_pub(&Published, left);
             self.truthy_callable_helper(cond_expr2, cond_type, body)?;
         }
         Ok(())
@@ -4090,18 +4083,15 @@ impl<'a> CheckerState<'a> {
         cond_type: TypeId,
         body: Option<NodeId>,
     ) -> CheckResult<()> {
-        let source = self.binder.source_of_node(cond_expr2);
-        let location = if node_util::is_logical_or_coalescing_binary_expression(source, cond_expr2)
-        {
-            match self.binary_parts(cond_expr2) {
-                Some((_, _, right)) => {
-                    node_util::skip_parentheses_pub(self.binder.source_of_node(right), right)
+        let location =
+            if node_util::is_logical_or_coalescing_binary_expression(&Published, cond_expr2) {
+                match self.binary_parts(cond_expr2) {
+                    Some((_, _, right)) => node_util::skip_parentheses_pub(&Published, right),
+                    None => return Ok(()),
                 }
-                None => return Ok(()),
-            }
-        } else {
-            cond_expr2
-        };
+            } else {
+                cond_expr2
+            };
         // isModuleExportsAccessExpression: `module.exports` — a JS
         // shape; TS files never bind `module` this way, and JS files
         // are band-gated. The test reduces to false.
@@ -4234,7 +4224,7 @@ impl<'a> CheckerState<'a> {
 
     /// isTypeAssertion (skipParentheses + kind test) on a receiver.
     fn is_type_assertion_kind(&self, node: NodeId) -> bool {
-        let node = node_util::skip_parentheses_pub(self.binder.source_of_node(node), node);
+        let node = node_util::skip_parentheses_pub(&Published, node);
         matches!(
             self.kind_of(node),
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression
@@ -4387,9 +4377,8 @@ impl<'a> CheckerState<'a> {
 
     /// forEachChild for the walkers: pushes every child of `node`.
     fn push_children(&self, node: NodeId, worklist: &mut Vec<NodeId>) {
-        let source = self.binder.source_of_node(node);
-        let raw = source.arena.node(node);
-        tsc_syntax::for_each_child(&source.arena, raw, |child| {
+        let raw = Published.node(node);
+        tsc_syntax::for_each_child(&Published, raw, |child| {
             worklist.push(child);
             false
         });

@@ -1,3 +1,5 @@
+use tsc_syntax::{NodeLookup, Published};
+
 pub(crate) mod chains;
 mod context;
 mod hover;
@@ -787,11 +789,9 @@ pub(crate) fn late_bound_index_signatures(
                 for &component in components {
                     let source = checker.binder.source_of_node(component);
                     let name = tsc_binder::node_util::get_name_of_declaration(source, component);
-                    let expression = name.and_then(|name| {
-                        match &checker.binder.source_of_node(name).arena.node(name).data {
-                            NodeData::ComputedPropertyName(data) => data.expression,
-                            _ => None,
-                        }
+                    let expression = name.and_then(|name| match &Published.node(name).data {
+                        NodeData::ComputedPropertyName(data) => data.expression,
+                        _ => None,
                     });
                     let serializable = match expression {
                         Some(expression) if checker.is_entity_name_expression(expression) => {
@@ -824,13 +824,12 @@ pub(crate) fn late_bound_index_signatures(
                         let name =
                             tsc_binder::node_util::get_name_of_declaration(source, component)
                                 .expect("serializable component carries a computed name");
-                        let name_expression =
-                            match &checker.binder.source_of_node(name).arena.node(name).data {
-                                NodeData::ComputedPropertyName(data) => data
-                                    .expression
-                                    .expect("computed name carries an expression"),
-                                _ => unreachable!("serializability proved the computed name"),
-                            };
+                        let name_expression = match &Published.node(name).data {
+                            NodeData::ComputedPropertyName(data) => data
+                                .expression
+                                .expect("computed name carries an expression"),
+                            _ => unreachable!("serializability proved the computed name"),
+                        };
                         // trackComputedName (:88676-88690): the RAW caller
                         // tracker, outside any NodeBuilder context.
                         if tracker.can_track_symbol() {
@@ -910,16 +909,16 @@ pub(crate) fn late_bound_index_signatures(
                             );
                         }
                         let has_question = matches!(
-                            &checker.binder.source_of_node(component).arena.node(component).data,
+                            &Published.node(component).data,
                             NodeData::PropertySignature(data) if data.question_token.is_some()
                         ) || matches!(
-                            &checker.binder.source_of_node(component).arena.node(component).data,
+                            &Published.node(component).data,
                             NodeData::PropertyDeclaration(data) if data.question_token.is_some()
                         ) || matches!(
-                            &checker.binder.source_of_node(component).arena.node(component).data,
+                            &Published.node(component).data,
                             NodeData::MethodSignature(data) if data.question_token.is_some()
                         ) || matches!(
-                            &checker.binder.source_of_node(component).arena.node(component).data,
+                            &Published.node(component).data,
                             NodeData::MethodDeclaration(data) if data.question_token.is_some()
                         );
                         let question_token = if has_question {

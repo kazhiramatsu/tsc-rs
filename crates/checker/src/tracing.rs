@@ -6,6 +6,7 @@
 //! follow this port's type creation order rather than tsgo's.
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use tsc_syntax::{NodeLookup, Published};
 
 use tsc_syntax::NodeId;
 use tsc_types::tracing::{
@@ -80,7 +81,7 @@ impl CheckerState<'_> {
     pub(crate) fn trace_node_sample(&self, name: &'static str, node: NodeId) -> Option<Sample> {
         self.trace_sample(Phase::Check, name, || {
             let source = self.binder.source_of_node(node);
-            let record = source.arena.node(node);
+            let record = Published.node(node);
             Args::new()
                 .with("kind", record.kind as u32)
                 .with("pos", record.pos)
@@ -248,7 +249,7 @@ impl CheckerState<'_> {
     fn trace_location(&self, node: NodeId) -> Option<Location> {
         let file = self.binder.try_file_index_of_node(node)?;
         let source = self.binder.source(file);
-        let raw = source.arena.node(node);
+        let raw = Published.node(node);
         let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
         let positions = source.positions();
         let start = positions.line_and_character_byte(u32::try_from(start).ok()?)?;

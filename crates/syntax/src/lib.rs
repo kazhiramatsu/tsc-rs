@@ -43,7 +43,7 @@ pub use incremental::{
 pub use jsdoc_hosted::{HostedCast, HostedTypeParameters, JsDocHosted, JsDocHostedCell};
 pub use kind::SyntaxKind;
 pub use name_table::{NameTable, NameTableCell};
-pub use nodes::{published_node, published_node_array};
+pub use nodes::{published_node, published_node_array, Published};
 pub use nodes::{
     JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData,
 };
@@ -432,6 +432,19 @@ impl SourceFile {
             relocation.node(indicator)?;
         }
         self.arena.apply_identity_relocation(relocation, leases)
+    }
+}
+
+/// A source file's own tree, for the walkers and `node_util`.
+impl NodeLookup for SourceFile {
+    #[inline]
+    fn node(&self, id: NodeId) -> &Node {
+        self.arena.node(id)
+    }
+
+    #[inline]
+    fn node_array(&self, id: NodeArrayId) -> NodeArray<'_> {
+        self.arena.node_array(id)
     }
 }
 
