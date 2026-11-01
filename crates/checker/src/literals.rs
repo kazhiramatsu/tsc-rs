@@ -924,13 +924,13 @@ impl<'a> CheckerState<'a> {
             .expect("fresh anonymous type has resolved members");
         let mut properties: Vec<SymbolId> = exports.values().copied().collect();
         self.order_named_members_if_stable(&mut properties, Some(symbol));
-        *self.members_mut(members_id) = crate::state::ResolvedMembers {
-            members: self.member_table(&exports),
+        *self.members_mut(members_id) = crate::state::ResolvedMembers::new(
+            self.member_table(&exports),
             properties,
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_infos: Vec::new(),
-        };
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
         Some(ty)
     }
 
@@ -1477,13 +1477,13 @@ impl<'a> CheckerState<'a> {
             !crate::annotate::is_reserved_member_name(self.binder.symbol(property).escaped_name)
         });
         self.order_named_members_if_stable(&mut properties, symbol);
-        let members_id = self.alloc_members(crate::state::ResolvedMembers {
+        let members_id = self.alloc_members(crate::state::ResolvedMembers::new(
             members,
             properties,
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
+            Vec::new(),
+            Vec::new(),
             index_infos,
-        });
+        ));
         self.links
             .set_fresh_type_members(id, crate::links::LinkSlot::Resolved(members_id));
         id

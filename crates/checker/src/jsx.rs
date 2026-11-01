@@ -1452,21 +1452,21 @@ impl<'a> CheckerState<'a> {
             .signature_of(signature)
             .declaration
             .and_then(|declaration| self.binder.node_symbol(declaration));
-        let members = self.alloc_members(crate::state::ResolvedMembers {
-            members: Default::default(),
-            properties: Vec::new(),
-            call_signatures: if is_constructor {
+        let members = self.alloc_members(crate::state::ResolvedMembers::new(
+            Default::default(),
+            Vec::new(),
+            if is_constructor {
                 Vec::new()
             } else {
                 vec![signature]
             },
-            construct_signatures: if is_constructor {
+            if is_constructor {
                 vec![signature]
             } else {
                 Vec::new()
             },
-            index_infos: Vec::new(),
-        });
+            Vec::new(),
+        ));
         self.links
             .set_fresh_type_members(id, LinkSlot::Resolved(members));
         // The anonymous type and its members are one semantic object;

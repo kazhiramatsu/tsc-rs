@@ -282,9 +282,9 @@ fn method_members_get_anonymous_types_with_call_signatures() {
                 .resolve_structured_type_members(method_type)
                 .expect("method members resolve");
             let method_members = state.members_of(method_members_id).clone();
-            assert_eq!(method_members.call_signatures.len(), 1);
+            assert_eq!(method_members.call_signatures().len(), 1);
             let signature = state
-                .signature_of(method_members.call_signatures[0])
+                .signature_of(method_members.call_signatures()[0])
                 .clone();
             assert!(signature.from_method);
             assert!(signature.flags.contains(SignatureFlags::HAS_LITERAL_TYPES));
@@ -297,10 +297,10 @@ fn method_members_get_anonymous_types_with_call_signatures() {
                 .resolve_structured_type_members(property_type)
                 .expect("function type members resolve");
             let property_members = state.members_of(property_members_id).clone();
-            assert_eq!(property_members.call_signatures.len(), 1);
+            assert_eq!(property_members.call_signatures().len(), 1);
             assert!(
                 !state
-                    .signature_of(property_members.call_signatures[0])
+                    .signature_of(property_members.call_signatures()[0])
                     .from_method
             );
         },
@@ -318,12 +318,12 @@ fn index_signatures_produce_index_infos() {
                     .resolve_structured_type_members(ty)
                     .expect("index members resolve");
                 let members = state.members_of(members_id).clone();
-                assert_eq!(members.index_infos.len(), 1);
+                assert_eq!(members.index_infos().len(), 1);
                 assert!(state
                     .tables
-                    .flags_of(members.index_infos[0].key_type)
+                    .flags_of(members.index_infos()[0].key_type)
                     .intersects(key));
-                assert_eq!(members.index_infos[0].is_readonly, name == "a");
+                assert_eq!(members.index_infos()[0].is_readonly, name == "a");
             }
         },
     );

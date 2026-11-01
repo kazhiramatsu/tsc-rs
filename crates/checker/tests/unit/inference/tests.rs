@@ -1711,7 +1711,7 @@ fn string_literal_against_keyof_records_reverse_empty_object() {
                 .expect("created resolved");
             let resolved = state.members_of(members);
             assert_eq!(resolved.properties.len(), 1);
-            assert!(resolved.index_infos.is_empty());
+            assert!(resolved.index_infos().is_empty());
             let prop = resolved
                 .members
                 .get(&state.binder, "a")
@@ -1756,7 +1756,7 @@ fn plain_string_against_keyof_builds_index_signature_shape() {
                 .expect("created resolved");
             let resolved = state.members_of(members);
             assert!(resolved.properties.is_empty());
-            let [ref info] = resolved.index_infos[..] else {
+            let [ref info] = resolved.index_infos()[..] else {
                 panic!("exactly one index info");
             };
             assert_eq!(info.key_type, state.tables.intrinsics.string);
@@ -1824,7 +1824,7 @@ fn literal_union_against_keyof_filters_and_escapes_members() {
                 "union order kept, number literal dropped, __ escaped"
             );
             assert!(
-                resolved.index_infos.is_empty(),
+                resolved.index_infos().is_empty(),
                 "no String member in the union"
             );
         },
