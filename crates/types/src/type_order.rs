@@ -394,17 +394,10 @@ pub fn compare_types(
             }
         }
     } else if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-        if let (
-            TypeData::TemplateLiteral {
-                texts: texts1,
-                types: types1,
-            },
-            TypeData::TemplateLiteral {
-                texts: texts2,
-                types: types2,
-            },
-        ) = (&tables.type_of(t1).data, &tables.type_of(t2).data)
+        if let (TypeData::TemplateLiteral(d1), TypeData::TemplateLiteral(d2)) =
+            (&tables.type_of(t1).data, &tables.type_of(t2).data)
         {
+            let (texts1, types1, texts2, types2) = (&d1.texts, &d1.types, &d2.texts, &d2.types);
             let c = slices_compare_string(texts1, texts2);
             if c != Ordering::Equal {
                 return c;
@@ -474,8 +467,8 @@ fn compare_type_names(
             return compare_type_lists(
                 tables,
                 ctx,
-                tables.type_of(t1).alias_type_arguments.as_deref(),
-                tables.type_of(t2).alias_type_arguments.as_deref(),
+                tables.alias_type_arguments(t1),
+                tables.alias_type_arguments(t2),
             );
         }
         return Ordering::Equal;
@@ -616,7 +609,7 @@ fn compare_numbers(a: f64, b: f64) -> Ordering {
 fn is_true_literal(tables: &TypeTables, ty: TypeId) -> bool {
     matches!(
         &tables.type_of(ty).data,
-        TypeData::Intrinsic { name: "true", .. }
+        TypeData::Intrinsic(data) if data.name == "true"
     )
 }
 

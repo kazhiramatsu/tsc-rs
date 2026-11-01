@@ -926,7 +926,7 @@ impl<'a> CheckerState<'a> {
         let new_alias_type_arguments = if alias_symbol.is_some() {
             alias_type_arguments.map(<[TypeId]>::to_vec)
         } else {
-            match self.tables.type_of(ty).alias_type_arguments.clone() {
+            match self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec) {
                 Some(arguments) => Some(self.instantiate_types(&arguments, mapper)?),
                 None => None,
             }
@@ -940,7 +940,10 @@ impl<'a> CheckerState<'a> {
         // 63489-63492: the target's instantiations map is seeded with
         // itself under its own type-parameter list id.
         let target_alias_symbol = self.tables.type_of(target).alias_symbol;
-        let target_alias_arguments = self.tables.type_of(target).alias_type_arguments.clone();
+        let target_alias_arguments = self
+            .tables
+            .alias_type_arguments(target)
+            .map(<[TypeId]>::to_vec);
         let self_key = self.tables.instantiation_key(
             &type_parameters,
             target_alias_symbol,
@@ -1289,7 +1292,8 @@ impl<'a> CheckerState<'a> {
         );
         let source_symbol = source.symbol;
         let source_alias_symbol = source.alias_symbol;
-        let source_alias_type_arguments = source.alias_type_arguments.clone();
+        let source_alias_type_arguments =
+            self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec);
         let source_object_flags = self.tables.object_flags_of(ty);
         let result = if source_object_flags.intersects(ObjectFlags::MAPPED) {
             let type_parameter = self.get_type_parameter_from_mapped_type(ty)?;
@@ -1354,10 +1358,12 @@ impl<'a> CheckerState<'a> {
                 .get_propagating_flags_of_types(arguments, TypeFlags::from_bits(0))
                 .bits();
         }
+        let new_alias_type_arguments = self
+            .tables
+            .intern_alias_arguments(new_alias_type_arguments.as_deref());
         let result_type = self.tables.type_mut(result);
         result_type.alias_symbol = new_alias_symbol;
-        result_type.alias_type_arguments =
-            new_alias_type_arguments.map(|arguments| arguments.into_boxed_slice());
+        result_type.alias_type_arguments = new_alias_type_arguments;
         result_type.object_flags = ObjectFlags::from_bits(object_flags);
         Ok(result)
     }
@@ -1776,7 +1782,7 @@ impl<'a> CheckerState<'a> {
         if data.alias_symbol.is_none() {
             return false;
         }
-        let Some(arguments) = data.alias_type_arguments.clone() else {
+        let Some(arguments) = self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec) else {
             return false;
         };
         arguments
@@ -1909,7 +1915,7 @@ impl<'a> CheckerState<'a> {
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(<[TypeId]>::to_vec)
             } else {
-                match self.tables.type_of(ty).alias_type_arguments.clone() {
+                match self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec) {
                     Some(arguments) => Some(self.instantiate_types(&arguments, mapper)?),
                     None => None,
                 }
@@ -1947,7 +1953,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(ty).data {
-                TypeData::TemplateLiteral { texts, types } => (texts.to_vec(), types.to_vec()),
+                TypeData::TemplateLiteral(data) => (data.texts.to_vec(), data.types.to_vec()),
                 _ => unreachable!("template flag implies template data"),
             };
             let new_types = self.instantiate_types(&types, mapper)?;
@@ -1970,7 +1976,7 @@ impl<'a> CheckerState<'a> {
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(<[TypeId]>::to_vec)
             } else {
-                match self.tables.type_of(ty).alias_type_arguments.clone() {
+                match self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec) {
                     Some(arguments) => Some(self.instantiate_types(&arguments, mapper)?),
                     None => None,
                 }
@@ -3238,7 +3244,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(ty).data {
-                TypeData::TemplateLiteral { texts, types } => (texts.to_vec(), types.to_vec()),
+                TypeData::TemplateLiteral(data) => (data.texts.to_vec(), data.types.to_vec()),
                 _ => unreachable!("template flag implies template data"),
             };
             let (new_texts, new_types) =

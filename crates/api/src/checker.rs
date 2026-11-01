@@ -787,9 +787,7 @@ impl Session {
                     }
                     "getAliasTypeArgumentsOfType" => state
                         .tables
-                        .type_of(ty)
-                        .alias_type_arguments
-                        .as_deref()
+                        .alias_type_arguments(ty)
                         .unwrap_or_default()
                         .to_vec(),
                     "getBaseTypes" => state.get_base_types(ty).map_err(aborted)?,
@@ -1617,15 +1615,16 @@ impl Query<'_, '_> {
         let flags = data.flags;
         let symbol = data.symbol;
         let alias_symbol = data.alias_symbol;
-        let alias_type_arguments = data.alias_type_arguments.clone();
+        let alias_type_arguments = tables
+            .alias_type_arguments(ty)
+            .unwrap_or_default()
+            .iter()
+            .map(|&ty| Self::type_handle(ty))
+            .collect();
         let mut response = TypeResponse {
             id,
             flags: flags.bits() as u32,
-            alias_type_arguments: alias_type_arguments
-                .iter()
-                .flatten()
-                .map(|&ty| Self::type_handle(ty))
-                .collect(),
+            alias_type_arguments,
             ..TypeResponse::default()
         };
         if flags.intersects(TypeFlags::FRESHABLE) {
@@ -1662,10 +1661,9 @@ impl Query<'_, '_> {
                         .iter()
                         .map(|&ty| Self::type_handle(ty))
                         .collect::<Vec<_>>();
-                    response.outer_type_parameters =
-                        handles[..*outer_type_parameter_count].to_vec();
-                    response.local_type_parameters =
-                        handles[*outer_type_parameter_count..].to_vec();
+                    let outer_count = *outer_type_parameter_count as usize;
+                    response.outer_type_parameters = handles[..outer_count].to_vec();
+                    response.local_type_parameters = handles[outer_count..].to_vec();
                     response.type_parameters = handles;
                     response.this_type = Self::type_handle(*this_type);
                 }
@@ -1693,9 +1691,10 @@ impl Query<'_, '_> {
                     response.base_type = Self::type_handle(substitution.base_type);
                     response.subst_constraint = Self::type_handle(substitution.constraint);
                 }
-                TypeData::TemplateLiteral { texts, .. } => {
+                TypeData::TemplateLiteral(template) => {
                     // The types are fetched with their own request.
-                    response.texts = texts
+                    response.texts = template
+                        .texts
                         .iter()
                         .map(|text| text.to_js_string().to_string_lossy().into_owned())
                         .collect();
@@ -1703,8 +1702,8 @@ impl Query<'_, '_> {
                 TypeData::TypeParameter { is_this_type, .. } => {
                     response.is_this_type = *is_this_type;
                 }
-                TypeData::Intrinsic { name, .. } if flags.intersects(TypeFlags::INTRINSIC) => {
-                    response.intrinsic_name = (*name).to_owned();
+                TypeData::Intrinsic(data) if flags.intersects(TypeFlags::INTRINSIC) => {
+                    response.intrinsic_name = data.name.to_owned();
                 }
                 _ => {}
             }
@@ -1994,7 +1993,7 @@ fn literal_value(state: &CheckerState<'_>, ty: TypeId) -> Option<Box<RawValue>> 
             LiteralValue::Number(number) => number_value(*number),
             LiteralValue::BigInt(bigint) => string_value(&bigint.to_base10_string()),
         }),
-        TypeData::Intrinsic { name, .. } => match *name {
+        TypeData::Intrinsic(data) => match data.name {
             "true" => Some(raw("true".to_owned())),
             "false" => Some(raw("false".to_owned())),
             _ => None,

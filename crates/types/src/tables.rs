@@ -17,9 +17,9 @@ use std::cmp::Ordering;
 
 use crate::flags::{AccessFlags, ElementFlags, ObjectFlags, TypeFlags};
 use crate::ty::{
-    ConditionalRootData, ConditionalRootId, ConditionalTypeData, LiteralValue, MappedTypeData,
-    MapperId, PseudoBigInt, ReverseMappedTypeData, SubstitutionTypeData, SymbolId, TemplateText,
-    TupleTargetData, Type, TypeData, TypeId,
+    ConditionalRootData, ConditionalRootId, ConditionalTypeData, IntrinsicData, LiteralValue,
+    MappedTypeData, MapperId, PseudoBigInt, ReverseMappedTypeData, SubstitutionTypeData, SymbolId,
+    TemplateLiteralData, TemplateText, TupleTargetData, Type, TypeData, TypeId,
 };
 use crate::type_order::TypeOrder;
 
@@ -243,8 +243,10 @@ pub struct TypeTables {
     /// JavaScript string never validates the text (property-name lookups
     /// were 5% of a real program's check in from_utf8).
     utf8_string_literal_types: HashMap<Vec<u8>, TypeId>,
-    /// Interned type lists (see [`TypeTables::intern_type_list`]).
-    type_lists: HashMap<Box<[TypeId]>, TypeListId>,
+    /// Interned type lists (see [`TypeTables::intern_type_list`]): the
+    /// lists by id, and their ids by the list's hash.
+    lists: Vec<Box<[TypeId]>>,
+    list_ids: hashbrown::HashTable<TypeListId>,
     /// numberLiteralTypes (46993), keyed by the numeric value with JS
     /// Map SameValueZero semantics (-0 and +0 share a key).
     number_literal_types: HashMap<u64, TypeId>,
@@ -280,6 +282,13 @@ pub struct TypeTables {
     /// 60170-60174 AND getObjectTypeInstantiation 63489-63492 — one map
     /// per target in tsc), flattened to one table keyed (target, id).
     instantiations: HashMap<(TypeId, InstantiationKey), TypeId>,
+}
+
+fn hash_type_list(types: &[TypeId]) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = rustc_hash::FxHasher::default();
+    types.hash(&mut hasher);
+    hasher.finish()
 }
 
 /// Append `value` in decimal without the formatting machinery: cache keys
@@ -336,14 +345,14 @@ impl TypeTables {
             ..TypesMemory::default()
         };
         for ty in &self.types {
-            usage.type_heap_bytes += ty.alias_type_arguments.as_deref().map_or(0, list_bytes);
+            // Alias argument lists are interned, counted with the lists.
             usage.type_heap_bytes += match &ty.data {
                 TypeData::Literal {
                     value: LiteralValue::String(text),
                 } => text.heap_bytes(),
                 TypeData::Literal {
                     value: LiteralValue::BigInt(value),
-                } => value.base10_value.capacity(),
+                } => std::mem::size_of::<PseudoBigInt>() + value.base10_value.capacity(),
                 TypeData::UniqueESSymbol { escaped_name } => escaped_name.heap_bytes(),
                 TypeData::Union { types, .. } | TypeData::Intersection { types } => {
                     list_bytes(types)
@@ -357,10 +366,15 @@ impl TypeTables {
                         + list_bytes(&data.type_parameters)
                         + std::mem::size_of_val(&*data.element_flags)
                 }
-                TypeData::TemplateLiteral { texts, types } => {
-                    texts.iter().map(TemplateText::heap_bytes).sum::<usize>()
-                        + std::mem::size_of_val(&**texts)
-                        + list_bytes(types)
+                TypeData::TemplateLiteral(data) => {
+                    std::mem::size_of::<TemplateLiteralData>()
+                        + data
+                            .texts
+                            .iter()
+                            .map(TemplateText::heap_bytes)
+                            .sum::<usize>()
+                        + std::mem::size_of_val(&*data.texts)
+                        + list_bytes(&data.types)
                 }
                 TypeData::GenericType {
                     type_parameters, ..
@@ -381,11 +395,13 @@ impl TypeTables {
                 .keys()
                 .map(Vec::capacity)
                 .sum::<usize>();
-        usage.type_lists = self.type_lists.len();
-        usage.type_list_map_bytes = map_bytes(&self.type_lists)
+        usage.type_lists = self.lists.len();
+        usage.type_list_map_bytes = self.list_ids.capacity()
+            * (std::mem::size_of::<TypeListId>() + 1)
+            + self.lists.capacity() * std::mem::size_of::<Box<[TypeId]>>()
             + self
-                .type_lists
-                .keys()
+                .lists
+                .iter()
                 .map(|list| list_bytes(list))
                 .sum::<usize>();
         for map in [&self.tuple_types, &self.template_literal_types] {
@@ -454,7 +470,8 @@ impl TypeTables {
             },
             string_literal_types: HashMap::default(),
             utf8_string_literal_types: HashMap::default(),
-            type_lists: HashMap::default(),
+            lists: Vec::new(),
+            list_ids: hashbrown::HashTable::new(),
             number_literal_types: HashMap::default(),
             bigint_literal_types: HashMap::default(),
             enum_literal_types: HashMap::default(),
@@ -557,9 +574,10 @@ impl TypeTables {
         alias_type_arguments: Option<&[TypeId]>,
     ) -> TypeId {
         let id = self.create_type(TypeFlags::CONDITIONAL, TypeData::Conditional(data));
+        let alias_type_arguments = self.intern_alias_arguments(alias_type_arguments);
         let ty = self.type_mut(id);
         ty.alias_symbol = alias_symbol;
-        ty.alias_type_arguments = alias_type_arguments.map(|arguments| arguments.into());
+        ty.alias_type_arguments = alias_type_arguments;
         id
     }
 
@@ -666,7 +684,10 @@ impl TypeTables {
         object_flags: ObjectFlags,
         debug_name: Option<&'static str>,
     ) -> TypeId {
-        let id = self.create_type(flags, TypeData::Intrinsic { name, debug_name });
+        let id = self.create_type(
+            flags,
+            TypeData::Intrinsic(Box::new(IntrinsicData { name, debug_name })),
+        );
         // objectFlags | CouldContainTypeVariablesComputed |
         // IsGenericTypeComputed | IsUnknownLikeUnionComputed |
         // IsNeverIntersectionComputed (50116).
@@ -688,9 +709,10 @@ impl TypeTables {
     ) -> TypeId {
         let none = ObjectFlags::from_bits(0);
         let id = self.create_intrinsic_type(TypeFlags::ANY, "error", none, None);
+        let alias_type_arguments = self.intern_alias_arguments(alias_type_arguments);
         let ty = self.type_mut(id);
         ty.alias_symbol = Some(alias_symbol);
-        ty.alias_type_arguments = alias_type_arguments.map(|arguments| arguments.into());
+        ty.alias_type_arguments = alias_type_arguments;
         id
     }
 
@@ -992,7 +1014,7 @@ impl TypeTables {
         }
         let id = self.create_literal_type(
             TypeFlags::BIG_INT_LITERAL,
-            LiteralValue::BigInt(value),
+            LiteralValue::BigInt(Box::new(value)),
             None,
         );
         self.bigint_literal_types.insert(key, id);
@@ -1082,12 +1104,38 @@ impl TypeTables {
     /// the same id, so a cache that tsc keys by a `getTypeListId` string can
     /// carry this id in a value key instead of formatting the list.
     pub fn intern_type_list(&mut self, types: &[TypeId]) -> TypeListId {
-        if let Some(&id) = self.type_lists.get(types) {
+        let hash = hash_type_list(types);
+        let lists = &self.lists;
+        if let Some(&id) = self
+            .list_ids
+            .find(hash, |&id| &*lists[id.index() as usize] == types)
+        {
             return id;
         }
-        let id = TypeListId::new(self.type_lists.len() as u32);
-        self.type_lists.insert(types.into(), id);
+        let id = TypeListId::new(self.lists.len() as u32);
+        self.lists.push(types.into());
+        let lists = &self.lists;
+        self.list_ids
+            .insert_unique(hash, id, |&id| hash_type_list(&lists[id.index() as usize]));
         id
+    }
+
+    /// The interned list `id`.
+    #[inline]
+    pub fn list(&self, id: TypeListId) -> &[TypeId] {
+        &self.lists[id.index() as usize]
+    }
+
+    /// `type.aliasTypeArguments`.
+    pub fn alias_type_arguments(&self, id: TypeId) -> Option<&[TypeId]> {
+        self.type_of(id)
+            .alias_type_arguments
+            .map(|list| self.list(list))
+    }
+
+    /// Intern `arguments` for a type's alias (none for none).
+    pub fn intern_alias_arguments(&mut self, arguments: Option<&[TypeId]>) -> Option<TypeListId> {
+        arguments.map(|arguments| self.intern_type_list(arguments))
     }
 
     /// tsc-port: getTypeListId @6.0.3
@@ -1821,12 +1869,11 @@ impl TypeTables {
                 origin,
             },
         );
+        let alias_type_arguments = self.intern_alias_arguments(alias_type_arguments);
         let union = self.type_mut(id);
         union.object_flags = object_flags;
         union.alias_symbol = alias_symbol;
-        union.alias_type_arguments = alias_type_arguments
-            .map(<[TypeId]>::to_vec)
-            .map(Vec::into_boxed_slice);
+        union.alias_type_arguments = alias_type_arguments;
         self.union_types.insert(key, id);
         id
     }
@@ -1904,13 +1951,12 @@ impl TypeTables {
                 types: types.into_boxed_slice(),
             },
         );
+        let alias_type_arguments = self.intern_alias_arguments(alias_type_arguments);
         let intersection = self.type_mut(id);
         intersection.object_flags =
             ObjectFlags::from_bits(object_flags.bits() | propagating.bits());
         intersection.alias_symbol = alias_symbol;
-        intersection.alias_type_arguments = alias_type_arguments
-            .map(<[TypeId]>::to_vec)
-            .map(Vec::into_boxed_slice);
+        intersection.alias_type_arguments = alias_type_arguments;
         id
     }
 
@@ -2828,8 +2874,8 @@ impl TypeTables {
         if ty.flags.intersects(TypeFlags::from_bits(
             TypeFlags::BOOLEAN_LITERAL.bits() | TypeFlags::NULLABLE.bits(),
         )) {
-            if let TypeData::Intrinsic { name, .. } = &ty.data {
-                return Some(TemplateText::from_utf8(name));
+            if let TypeData::Intrinsic(data) = &ty.data {
+                return Some(TemplateText::from_utf8(data.name));
             }
         }
         None
@@ -2845,10 +2891,10 @@ impl TypeTables {
     ) -> TypeId {
         self.create_type(
             TypeFlags::TEMPLATE_LITERAL,
-            TypeData::TemplateLiteral {
+            TypeData::TemplateLiteral(Box::new(TemplateLiteralData {
                 texts: texts.into_boxed_slice(),
                 types: types.into_boxed_slice(),
-            },
+            })),
         )
     }
 
@@ -2966,13 +3012,13 @@ impl TypeTables {
                     None => return Ok(false),
                 }
             } else if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-                let TypeData::TemplateLiteral {
-                    texts: inner_texts,
-                    types: inner_types,
-                } = self.type_of(t).data.clone()
-                else {
+                let TypeData::TemplateLiteral(inner) = self.type_of(t).data.clone() else {
                     unreachable!("template flag implies template data");
                 };
+                let TemplateLiteralData {
+                    texts: inner_texts,
+                    types: inner_types,
+                } = *inner;
                 spans.push_text(&inner_texts[0]);
                 let inner_tail: Vec<TemplateText> = inner_texts.to_vec();
                 if !self.add_spans(spans, &inner_tail, &inner_types)? {
@@ -3130,11 +3176,10 @@ impl TypeTables {
                 access_flags: persistent_access_flags,
             },
         );
+        let alias_type_arguments = self.intern_alias_arguments(alias_type_arguments);
         let ty = self.type_mut(id);
         ty.alias_symbol = alias_symbol;
-        ty.alias_type_arguments = alias_type_arguments
-            .map(<[TypeId]>::to_vec)
-            .map(Vec::into_boxed_slice);
+        ty.alias_type_arguments = alias_type_arguments;
         self.indexed_access_types.insert(key, id);
         id
     }
@@ -3197,9 +3242,10 @@ impl TypeTables {
     pub fn is_pattern_literal_type(&self, id: TypeId) -> bool {
         let flags = self.flags_of(id);
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-            let TypeData::TemplateLiteral { types, .. } = &self.type_of(id).data else {
+            let TypeData::TemplateLiteral(data) = &self.type_of(id).data else {
                 unreachable!("template flag implies template data");
             };
+            let types = &data.types;
             return types
                 .iter()
                 .all(|&t| self.is_pattern_literal_placeholder_type(t));

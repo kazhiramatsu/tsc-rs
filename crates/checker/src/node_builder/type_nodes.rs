@@ -18,7 +18,7 @@ use tsc_syntax::nodes::{
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, Published, SyntaxKind};
 use tsc_types::{
     CheckFlags, ElementFlags, IntersectionFlags, LiteralValue, ModifierFlags, NodeFlags,
-    ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
+    ObjectFlags, SignatureFlags, SymbolFlags, TemplateLiteralData, TypeData, TypeFlags, TypeId,
 };
 
 use crate::annotate::is_reserved_member_name;
@@ -1508,9 +1508,13 @@ fn type_to_type_node_worker(
     if flags.intersects(TypeFlags::ANY) {
         if let Some(alias) = ty.alias_symbol {
             let name = chains_symbol_to_entity_name_node(checker, arena, target, context, alias)?;
-            let arguments = match ty.alias_type_arguments.as_deref() {
+            let alias_arguments = checker
+                .tables
+                .alias_type_arguments(r#type)
+                .map(<[TypeId]>::to_vec);
+            let arguments = match alias_arguments {
                 Some(arguments) => {
-                    map_to_type_nodes(checker, arena, target, arguments, context, false)?
+                    map_to_type_nodes(checker, arena, target, &arguments, context, false)?
                 }
                 None => None,
             };
@@ -1720,9 +1724,10 @@ fn type_to_type_node_worker(
         return create_literal_type_node(arena, target, literal).map(Some);
     }
     if flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
-        let TypeData::Intrinsic { name, .. } = ty.data else {
+        let TypeData::Intrinsic(intrinsic) = ty.data else {
             unreachable!("BooleanLiteral flag implies intrinsic payload")
         };
+        let name = intrinsic.name;
         add_approximate_length(context, js_len(name));
         let literal = create_token(
             arena,
@@ -1812,9 +1817,13 @@ fn type_to_type_node_worker(
                 || is_type_symbol_accessible(checker, arena, target, alias, context)?;
             if accessible {
                 if !should_expand_type(checker, r#type, context, true) {
-                    let arguments = match ty.alias_type_arguments.as_deref() {
+                    let alias_arguments = checker
+                        .tables
+                        .alias_type_arguments(r#type)
+                        .map(<[TypeId]>::to_vec);
+                    let arguments = match alias_arguments {
                         Some(arguments) => {
-                            map_to_type_nodes(checker, arena, target, arguments, context, false)?
+                            map_to_type_nodes(checker, arena, target, &arguments, context, false)?
                         }
                         None => None,
                     };
@@ -2073,9 +2082,10 @@ fn type_to_type_node_worker(
             .map(Some);
     }
     if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-        let TypeData::TemplateLiteral { texts, types } = ty.data else {
+        let TypeData::TemplateLiteral(template) = ty.data else {
             unreachable!("TemplateLiteral flag implies template payload")
         };
+        let TemplateLiteralData { texts, types } = *template;
         // tsgo keeps the texts' characters (nodebuilderimpl.go:3576-3586).
         let head = arena
             .factory()
@@ -3746,7 +3756,10 @@ fn type_reference_to_type_node(
             type_parameters,
             outer_type_parameter_count,
             ..
-        } => (type_parameters.to_vec(), outer_type_parameter_count),
+        } => (
+            type_parameters.to_vec(),
+            outer_type_parameter_count as usize,
+        ),
         _ => (Vec::new(), 0),
     };
     let mut argument_start = 0;

@@ -139,8 +139,8 @@ impl CheckerState<'_> {
         let next = recursion_ids.len();
         descriptor.recursion_id = Some(*recursion_ids.entry(identity).or_insert(next));
         if flags.bits() & INTRINSIC_FLAGS != 0 {
-            if let TypeData::Intrinsic { name, .. } = &record.data {
-                descriptor.intrinsic_name = Some((*name).to_owned());
+            if let TypeData::Intrinsic(data) = &record.data {
+                descriptor.intrinsic_name = Some(data.name.to_owned());
             }
         }
         let named = record.alias_symbol.or(record.symbol);
@@ -195,8 +195,8 @@ impl CheckerState<'_> {
             }
             _ => {}
         }
-        if let Some(arguments) = &record.alias_type_arguments {
-            descriptor.alias_type_arguments = trace_ids(arguments);
+        if let Some(arguments) = record.alias_type_arguments {
+            descriptor.alias_type_arguments = trace_ids(self.tables.list(arguments));
         }
         // A reference's target and its resolved arguments (a target is a
         // reference to itself over its type parameters).

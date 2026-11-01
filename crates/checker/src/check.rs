@@ -3232,7 +3232,7 @@ impl<'a> CheckerState<'a> {
             } = &self.tables.type_of(target).data
             {
                 // type.target.localTypeParameters.
-                let locals = type_parameters[*outer_type_parameter_count..].to_vec();
+                let locals = type_parameters[*outer_type_parameter_count as usize..].to_vec();
                 return Ok((!locals.is_empty()).then_some(locals));
             }
         }
@@ -6089,9 +6089,10 @@ impl<'a> CheckerState<'a> {
         // survive.
         if flags.intersects(TypeFlags::ANY) {
             let type_of = self.tables.type_of(ty);
-            if let (Some(alias_symbol), alias_arguments) =
-                (type_of.alias_symbol, type_of.alias_type_arguments.clone())
-            {
+            if let (Some(alias_symbol), alias_arguments) = (
+                type_of.alias_symbol,
+                self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec),
+            ) {
                 let name = if fully_qualified
                     || self
                         .get_check_flags(alias_symbol)
@@ -6285,7 +6286,8 @@ impl<'a> CheckerState<'a> {
             return self.symbol_type_face(symbol, fully_qualified);
         }
         match self.tables.type_of(ty).data.clone() {
-            TypeData::Intrinsic { name, .. } => {
+            TypeData::Intrinsic(intrinsic) => {
+                let name = intrinsic.name;
                 // tsc-port: typeToTypeNodeWorker @6.0.3
                 // tsc-span: _tsc.js:51314-51330
                 //
@@ -6408,9 +6410,10 @@ impl<'a> CheckerState<'a> {
         fully_qualified: bool,
     ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         let type_of = self.tables.type_of(ty);
-        if let (Some(alias_symbol), alias_arguments) =
-            (type_of.alias_symbol, type_of.alias_type_arguments.clone())
-        {
+        if let (Some(alias_symbol), alias_arguments) = (
+            type_of.alias_symbol,
+            self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec),
+        ) {
             return match alias_arguments {
                 Some(arguments) if !arguments.is_empty() => {
                     // Type-argument lists never parenthesize in the
@@ -6604,7 +6607,7 @@ impl<'a> CheckerState<'a> {
         // (22120-22126).
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(ty).data {
-                TypeData::TemplateLiteral { texts, types } => (texts.clone(), types.clone()),
+                TypeData::TemplateLiteral(data) => (data.texts.clone(), data.types.clone()),
                 _ => unreachable!("TEMPLATE_LITERAL flag implies TemplateLiteral data"),
             };
             let mut out = JsString::from("`");
@@ -6928,7 +6931,10 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } => (type_parameters.to_vec(), *outer_type_parameter_count),
+            } => (
+                type_parameters.to_vec(),
+                *outer_type_parameter_count as usize,
+            ),
             _ => {
                 unreachable!("reference targets are GenericType or symbol-less TupleTarget")
             }

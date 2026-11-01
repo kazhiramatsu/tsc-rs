@@ -2362,7 +2362,7 @@ impl<'a> CheckerState<'a> {
         if flags.contains(TypeFlags::BOOLEAN_LITERAL) {
             let is_true = matches!(
                 &self.tables.type_of(literal_type).data,
-                TypeData::Intrinsic { name: "true", .. }
+                TypeData::Intrinsic(data) if data.name == "true"
             );
             let kind = if is_true {
                 SyntaxKind::TrueKeyword

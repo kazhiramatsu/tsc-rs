@@ -575,7 +575,7 @@ impl CheckerState<'_> {
         let record = self.tables.type_of(ty);
         let (object_flags, symbol, alias_symbol) =
             (record.object_flags, record.symbol, record.alias_symbol);
-        let alias_arguments = record.alias_type_arguments.clone();
+        let alias_arguments = record.alias_type_arguments;
         if object_flags.intersects(ObjectFlags::REFERENCE) {
             if let Some(symbol) = symbol {
                 let name = self
@@ -599,7 +599,8 @@ impl CheckerState<'_> {
             if KNOWN_GENERIC_TYPE_NAMES.contains(&name.as_str()) {
                 let global = self.get_global_symbol(&name, SymbolFlags::TYPE, None)?;
                 if global == Some(alias_symbol) {
-                    return Ok(alias_arguments.and_then(|arguments| arguments.first().copied()));
+                    return Ok(alias_arguments
+                        .and_then(|arguments| self.tables.list(arguments).first().copied()));
                 }
             }
         }

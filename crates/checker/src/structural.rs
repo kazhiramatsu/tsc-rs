@@ -521,8 +521,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             TypeFlags::OBJECT.bits() | TypeFlags::CONDITIONAL.bits(),
         )) {
             let source_alias = self.st.tables.type_of(source).alias_symbol;
-            let source_alias_arguments =
-                self.st.tables.type_of(source).alias_type_arguments.clone();
+            let source_alias_arguments = self
+                .st
+                .tables
+                .alias_type_arguments(source)
+                .map(<[TypeId]>::to_vec);
             let target_alias = self.st.tables.type_of(target).alias_symbol;
             if let (Some(alias_symbol), Some(source_arguments)) =
                 (source_alias, source_alias_arguments)
@@ -538,9 +541,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             let target_arguments = self
                                 .st
                                 .tables
-                                .type_of(target)
-                                .alias_type_arguments
-                                .clone()
+                                .alias_type_arguments(target)
+                                .map(<[TypeId]>::to_vec)
                                 .expect("same-alias pairs both carry alias arguments");
                             let params = self
                                 .st
@@ -1612,7 +1614,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
 
     fn template_parts(&self, ty: TypeId) -> (Vec<TemplateText>, Vec<TypeId>) {
         match &self.st.tables.type_of(ty).data {
-            TypeData::TemplateLiteral { texts, types } => (texts.to_vec(), types.to_vec()),
+            TypeData::TemplateLiteral(data) => (data.texts.to_vec(), data.types.to_vec()),
             _ => unreachable!("template flag implies template data"),
         }
     }
@@ -8587,7 +8589,7 @@ impl<'a> CheckerState<'a> {
 
     fn template_parts_of(&self, ty: TypeId) -> (Vec<TemplateText>, Vec<TypeId>) {
         match &self.tables.type_of(ty).data {
-            TypeData::TemplateLiteral { texts, types } => (texts.to_vec(), types.to_vec()),
+            TypeData::TemplateLiteral(data) => (data.texts.to_vec(), data.types.to_vec()),
             _ => unreachable!("template flag implies template data"),
         }
     }
@@ -8602,13 +8604,10 @@ impl<'a> CheckerState<'a> {
         source_texts: &[TemplateText],
         target: TypeId,
     ) -> bool {
-        let TypeData::TemplateLiteral {
-            texts: target_texts,
-            ..
-        } = &self.tables.type_of(target).data
-        else {
+        let TypeData::TemplateLiteral(target_template) = &self.tables.type_of(target).data else {
             unreachable!("template flag implies template data");
         };
+        let target_texts = &target_template.texts;
         let source_start = source_texts[0].units();
         let source_end = source_texts[source_texts.len() - 1].units();
         let target_start = target_texts[0].units();
@@ -9061,8 +9060,8 @@ fn is_valid_type_for_template_literal_placeholder<'a, C: TemplateTypeComparer<'a
         if target_flags.intersects(TypeFlags::from_bits(
             TypeFlags::BOOLEAN_LITERAL.bits() | TypeFlags::NULLABLE.bits(),
         )) {
-            if let TypeData::Intrinsic { name, .. } = &st.tables.type_of(target).data {
-                return Ok(value.eq_utf8(name));
+            if let TypeData::Intrinsic(data) = &st.tables.type_of(target).data {
+                return Ok(value.eq_utf8(data.name));
             }
         }
         if target_flags.intersects(TypeFlags::STRING_MAPPING) {

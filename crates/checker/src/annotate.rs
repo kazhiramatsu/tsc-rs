@@ -1399,11 +1399,14 @@ impl<'a> CheckerState<'a> {
             Some(symbol) => {
                 let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
                 let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
+                let alias_type_arguments = self
+                    .tables
+                    .intern_alias_arguments(alias_type_arguments.as_deref());
                 let ty = self.tables.type_mut(id);
                 ty.object_flags = ObjectFlags::ANONYMOUS;
                 ty.symbol = Some(symbol);
                 ty.alias_symbol = alias_symbol;
-                ty.alias_type_arguments = alias_type_arguments.map(Vec::into_boxed_slice);
+                ty.alias_type_arguments = alias_type_arguments;
                 id
             }
         };
@@ -1926,9 +1929,12 @@ impl<'a> CheckerState<'a> {
         let ty = self.tables.create_deferred_reference_shell(target);
         self.links
             .set_fresh_type_deferred_reference_links(ty, node, mapper);
+        let alias_type_arguments = self
+            .tables
+            .intern_alias_arguments(alias_type_arguments.as_deref());
         let type_object = self.tables.type_mut(ty);
         type_object.alias_symbol = alias_symbol;
-        type_object.alias_type_arguments = alias_type_arguments.map(Vec::into_boxed_slice);
+        type_object.alias_type_arguments = alias_type_arguments;
         Ok(ty)
     }
 
@@ -1974,7 +1980,7 @@ impl<'a> CheckerState<'a> {
                     else {
                         unreachable!("TypeReference-node deferrals target class/interface types");
                     };
-                    let outer_count = *outer_type_parameter_count;
+                    let outer_count = *outer_type_parameter_count as usize;
                     let type_parameters = type_parameters.to_vec();
                     let effective = state
                         .get_effective_type_arguments(node, &type_parameters[outer_count..])?;
@@ -2525,7 +2531,10 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } => (type_parameters.to_vec(), *outer_type_parameter_count),
+            } => (
+                type_parameters.to_vec(),
+                *outer_type_parameter_count as usize,
+            ),
             _ => (Vec::new(), 0),
         };
         let local_type_parameters = &type_parameters[outer_count..];
@@ -2854,9 +2863,12 @@ impl<'a> CheckerState<'a> {
             .create_mapped_type(node.index(), None, None, symbol);
         let alias_symbol = self.get_alias_symbol_for_type_node(node);
         let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
+        let alias_type_arguments = self
+            .tables
+            .intern_alias_arguments(alias_type_arguments.as_deref());
         let type_object = self.tables.type_mut(mapped);
         type_object.alias_symbol = alias_symbol;
-        type_object.alias_type_arguments = alias_type_arguments.map(Vec::into_boxed_slice);
+        type_object.alias_type_arguments = alias_type_arguments;
 
         // tsc publishes this shell before resolving the constraint. Keep the
         // same recursive identity in typed transient state, then commit the
@@ -3372,8 +3384,8 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } if type_parameters.len() > *outer_type_parameter_count => {
-                let locals: Vec<JsString> = type_parameters[*outer_type_parameter_count..]
+            } if type_parameters.len() > *outer_type_parameter_count as usize => {
+                let locals: Vec<JsString> = type_parameters[*outer_type_parameter_count as usize..]
                     .iter()
                     .map(|&parameter| {
                         self.tables
@@ -3857,7 +3869,7 @@ impl<'a> CheckerState<'a> {
                 ObjectFlags::from_bits(kind.bits() | ObjectFlags::REFERENCE.bits());
             generic_type.data = TypeData::GenericType {
                 type_parameters: type_parameters.into_boxed_slice(),
-                outer_type_parameter_count: outer_count,
+                outer_type_parameter_count: outer_count as u32,
                 this_type,
             };
         }
@@ -6180,7 +6192,10 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } => (*outer_type_parameter_count, type_parameters.to_vec()),
+            } => (
+                *outer_type_parameter_count as usize,
+                type_parameters.to_vec(),
+            ),
             _ => return Ok(true),
         };
         if outer_count == 0 {
@@ -6302,8 +6317,8 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } if type_parameters.len() > *outer_type_parameter_count => {
-                Some(type_parameters[*outer_type_parameter_count..].to_vec())
+            } if type_parameters.len() > *outer_type_parameter_count as usize => {
+                Some(type_parameters[*outer_type_parameter_count as usize..].to_vec())
             }
             _ => None,
         };

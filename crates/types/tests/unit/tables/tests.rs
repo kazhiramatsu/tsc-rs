@@ -39,11 +39,11 @@ fn template_constraint_and_numeric_string_shapes() {
         .flags_of(t.intrinsics.template_constraint)
         .intersects(TypeFlags::UNION));
     match &t.type_of(t.intrinsics.numeric_string).data {
-        TypeData::TemplateLiteral { texts, types } => {
-            assert_eq!(texts.len(), 2);
-            assert!(texts.iter().all(|text| text.is_empty()));
-            assert_eq!(types.len(), 1);
-            assert_eq!(types[0], t.intrinsics.number);
+        TypeData::TemplateLiteral(data) => {
+            assert_eq!(data.texts.len(), 2);
+            assert!(data.texts.iter().all(|text| text.is_empty()));
+            assert_eq!(data.types.len(), 1);
+            assert_eq!(data.types[0], t.intrinsics.number);
         }
         other => panic!("numeric_string should be a template literal: {other:?}"),
     }
