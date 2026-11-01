@@ -277,7 +277,19 @@ self/inclusive、`chains.py` が関数名を切らずに呼び出し連鎖を出
 
 **計測**（1 thread、f3 = #847 の byte → g3 = main を取り込んだ最終 byte）：
 
-@@TABLE@@
+| case | 命令数 | peak footprint | peak RSS |
+|---|---:|---:|---:|
+| VS Code | 185.83 → 180.05 G（−3.1%） | 4,179 → 4,159 MB | 4,278 → 4,264 MB |
+| TypeScript compiler noEmit | 12.37 → 12.27 G（−0.8%） | 207 → 206 MB | 221 → 218 MB |
+| Next.js noEmit | 38.31 → 37.75 G（−1.5%） | 882 → 871 MB | 907 → 929 MB |
+| zod | 26.91 → 26.59 G（−1.2%） | 831 → 824 MB | 859 → 852 MB |
+| effect | 22.91 → 22.80 G（−0.5%） | 630 → 631 MB | 644 → 654 MB |
+| hono | 3.74 → 3.68 G（−1.6%） | 129 → 126 MB | 143 → 141 MB |
+| vue | 20.49 → 20.34 G（−0.7%） | 370 → 374 MB | 398 → 394 MB |
+| playwright | 18.34 → 18.10 G（−1.3%） | 480 → 481 MB | 496 → 499 MB |
+
+出力は 8 case で f3 と一致。1〜4 を merge 前の byte で測った g1 も同じ（VS Code 185.15 → 180.06 G）。peak は項目 4 で変わらない
+（forget は確保を増やさず、peak は check の途中）。
 
 
 ## 次の候補（効果の大きい順の見込み）
