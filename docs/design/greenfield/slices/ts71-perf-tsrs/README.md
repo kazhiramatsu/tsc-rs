@@ -249,6 +249,10 @@ main（#846 込み）を取り込んだ byte（f3）では VS Code 186.84 → 18
 48 byte までの残り：fresh/regular の 8 byte を literal と union だけの side table に（56）、`alias_symbol` + `alias_type_arguments`
 の組を `Option<AliasId>` に（48）。どちらも読み手が多いので別の slice。
 
+**記録。** PR [#847](https://github.com/kazhiramatsu/tsc-rs/pull/847) → merge `a3232b54d`（2026-11-02。commit `3288e5202` + `3f9fb51b3`、
+main の取り込み `a2da70d1a`、文書 `05794d4e1`）。hosted run
+[41353036842](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41353036842)（`05794d4e1`）：全 job pass。
+
 ## 次の候補（効果の大きい順の見込み）
 
 1. `resolve_name` の `locals` は file ごとの `FxHashMap<NodeId, SymbolTable>`（`locals_of` が残る routing の最大の呼び出し元）。
