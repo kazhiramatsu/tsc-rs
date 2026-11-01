@@ -249,6 +249,10 @@ main（#846 込み）を取り込んだ byte（f3）では VS Code 186.84 → 18
 48 byte までの残り：fresh/regular の 8 byte を literal と union だけの side table に（56）、`alias_symbol` + `alias_type_arguments`
 の組を `Option<AliasId>` に（48）。どちらも読み手が多いので別の slice。
 
+**記録。** PR [#847](https://github.com/kazhiramatsu/tsc-rs/pull/847) → merge `a3232b54d`（2026-11-02。commit `3288e5202` + `3f9fb51b3`、
+main の取り込み `a2da70d1a`、文書 `05794d4e1`）。hosted run
+[41353036842](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41353036842)（`05794d4e1`）：全 job pass。
+
 ## slice 7：profile の小さな切り口（branch `perf/ts71-profile-cuts`）
 
 #847 の byte で VS Code（1 thread）の samply profile を取り直した（`perf11/s-f3.json.gz`。`flat2.py` が 1 本の profile の
