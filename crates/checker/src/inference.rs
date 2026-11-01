@@ -842,6 +842,7 @@ impl<'a> CheckerState<'a> {
         priority: InferencePriority,
         contravariant: bool,
     ) -> CheckResult<()> {
+        let visited = std::mem::take(&mut self.inference_visited);
         let mut walker = InferTypesWalker {
             st: self,
             inferences: inferences.to_vec(),
@@ -851,12 +852,16 @@ impl<'a> CheckerState<'a> {
             bivariant: false,
             propagation_type: None,
             inference_priority: InferencePriority::MAX_VALUE,
-            visited: HashMap::default(),
+            visited,
             source_stack: Vec::new(),
             target_stack: Vec::new(),
             expanding_flags: ExpandingFlags::NONE,
         };
-        walker.infer_from_types(original_source, original_target)
+        let result = walker.infer_from_types(original_source, original_target);
+        let InferTypesWalker { mut visited, .. } = walker;
+        visited.clear();
+        self.inference_visited = visited;
+        result
     }
 
     /// tsc-port: inferTypeForHomomorphicMappedType @6.0.3
@@ -1818,16 +1823,20 @@ struct InferTypesWalker<'r, 'a> {
     /// + target.id` alone and skipped the second visit — webpack's
     /// `new SyncBailHook(["parserOptions"])` lost the `[ParserOptions]`
     /// candidates its `tap` callback contributes.
-    visited: HashMap<InferenceKey, InferencePriority>,
+    visited: InferenceVisited,
     source_stack: Vec<TypeId>,
     target_stack: Vec<TypeId>,
     expanding_flags: ExpandingFlags,
 }
 
+/// tsgo invokeOnce's visited map (inference.go:11-17): one per inference
+/// walk, keyed by [`InferenceKey`].
+pub(crate) type InferenceVisited = HashMap<InferenceKey, InferencePriority>;
+
 /// tsgo InferenceKey (inference.go:11-17): what one invokeOnce visit is
 /// identified by.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-struct InferenceKey {
+pub(crate) struct InferenceKey {
     source: TypeId,
     target: TypeId,
     priority: InferencePriority,

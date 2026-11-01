@@ -129,6 +129,30 @@ mismatch 0、退行 0。suites：退行 0。hosted run [41331926493](https://git
 残る `source_of_node`（350 か所）は `file_name`・`root`・`text`・`is_declaration_file` と、hosted 表の要る関数、
 `locals_of`（`resolve_name` の scope walk：file ごとの `FxHashMap<NodeId, SymbolTable>`）。
 
+## slice 3：cache key を値に（branch `perf/ts71-cache-keys`）
+
+b1 の profile では hashbrown の get/insert/rehash が 3.3%、`format!` が 0.8%、malloc/free が 2.4%。その一部は tsc が文字列で
+作る intern 用の key（`getTypeListId`・`getAliasId`：union・intersection・indexed access の map）で、lookup ごとに
+String を組み立て、hash していた。
+
+- `UnionKey { list: TypeListId, origin, alias }`・`UnionOfUnionKey`・`IntersectionKey { list, alias | NoConstraintReduction }`・
+  `IndexedAccessKey`、`AliasKey`（tsc の getAliasId：引数は symbol があるときだけ数える）。list は既存の
+  `intern_type_list`（instantiation の key と同じ）。subtype reduction の cache も `TypeListId` で引く。
+- flow cache の key は tsc の文字列のまま `push_decimal` で組む（`format!` を消す）。
+- inference の walk の visited map は checker に持ち回り、walk の後に clear する（tsgo は inferTypes ごとに確保。
+  rehash で育てる分が消える）。
+
+**計測**（1 thread、b2 = #843 の merge → c1）：
+
+| case | 命令数 | peak footprint |
+|---|---:|---:|
+| TypeScript compiler noEmit | 12.93 → 12.54 G（−3.0%） | 217 → 218 MB |
+| Next.js noEmit | 39.94 → 38.15 G（−4.5%） | 916 → 921 MB |
+| VS Code | 188.9 → 185.8 G（−1.6%） | 4,347 → 4,353 MB |
+
+残る文字列 key：tuple（element flag と名前の宣言）、template literal（text）、`cached_types`（conditional・contextual の
+`D{node},{type}` など）、string literal の map（text が key。必要）。
+
 ## 次の候補（効果の大きい順の見込み）
 
 1. `resolve_name` の `locals` は file ごとの `FxHashMap<NodeId, SymbolTable>`（`locals_of` が残る routing の最大の呼び出し元）。

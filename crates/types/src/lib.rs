@@ -23,8 +23,10 @@ pub use identity::{
 };
 pub use options::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 pub use tables::{
-    js_number_to_string, InstantiationKey, IntersectionFlags, Intrinsics, TemplateLiteralTooLarge,
-    TupleTargetFlags, TypeListId, TypeTables, TypesMemory, UnionReduction,
+    js_number_to_string, push_decimal, AliasKey, IndexedAccessKey, InstantiationKey,
+    IntersectionAlias, IntersectionFlags, IntersectionKey, Intrinsics, TemplateLiteralTooLarge,
+    TupleTargetFlags, TypeListId, TypeTables, TypesMemory, UnionKey, UnionOfUnionKey,
+    UnionOriginKey, UnionReduction,
 };
 pub use tsc_diagnostics::{JsStr, JsString};
 pub use ty::{

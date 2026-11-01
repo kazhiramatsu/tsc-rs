@@ -15,7 +15,7 @@
 //! reduction until the constructors move checker-side with M4.
 
 use tsc_diagnostics::gen as diagnostics;
-use tsc_types::{TypeData, TypeFlags, TypeId, UnionReduction};
+use tsc_types::{TypeData, TypeFlags, TypeId, UnionOfUnionKey, UnionReduction};
 
 use crate::relate::RelationKind;
 use crate::state::{CheckResult, CheckerState};
@@ -88,19 +88,9 @@ impl<'a> CheckerState<'a> {
             && (self.tables.flags_of(types[0]).intersects(TypeFlags::UNION)
                 || self.tables.flags_of(types[1]).intersects(TypeFlags::UNION))
         {
-            let infix = match reduction {
-                UnionReduction::None => "N",
-                UnionReduction::Subtype => "S",
-                UnionReduction::Literal => "L",
-            };
-            let index = usize::from(types[0].index() >= types[1].index());
-            let key = format!(
-                "{}{infix}{}{}",
-                types[index].index(),
-                types[1 - index].index(),
-                self.tables.get_alias_id(alias_symbol, alias_type_arguments)
-            );
-            if let Some(id) = self.tables.union_of_union_types_get(&key) {
+            let alias = self.tables.alias_key(alias_symbol, alias_type_arguments);
+            let key = UnionOfUnionKey::of(types, reduction, alias);
+            if let Some(id) = self.tables.union_of_union_types_get(key) {
                 return Ok(id);
             }
             let id = self.get_union_type_ex_worker(
@@ -365,7 +355,7 @@ impl<'a> CheckerState<'a> {
         if types.len() < 2 {
             return Ok(Some(types));
         }
-        let id = self.tables.get_type_list_id(&types);
+        let id = self.tables.intern_type_list(&types);
         perf::bump(PerfCounter::SubtypeReductionLookups);
         if let Some(cached) = self.subtype_reduction_cache.get(&id) {
             perf::bump(PerfCounter::SubtypeReductionHits);
