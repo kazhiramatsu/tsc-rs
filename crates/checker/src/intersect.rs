@@ -6,7 +6,10 @@
 //! intersectUnionsOfPrimitiveTypes, filterType, createIntersectionType,
 //! the intersectionTypes interning map) live in TypeTables.
 
-use tsc_types::{IntersectionFlags, ObjectFlags, TypeData, TypeFlags, TypeId, UnionReduction};
+use tsc_types::{
+    IntersectionAlias, IntersectionFlags, IntersectionKey, ObjectFlags, TypeData, TypeFlags,
+    TypeId, UnionReduction,
+};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -369,16 +372,15 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let key = format!(
-            "{}{}",
-            self.tables.get_type_list_id(&type_set),
-            if flags.intersects(IntersectionFlags::NO_CONSTRAINT_REDUCTION) {
-                "*".to_owned()
+        let key = IntersectionKey {
+            list: self.tables.intern_type_list(&type_set),
+            alias: if flags.intersects(IntersectionFlags::NO_CONSTRAINT_REDUCTION) {
+                IntersectionAlias::NoConstraintReduction
             } else {
-                self.tables.get_alias_id(alias_symbol, alias_type_arguments)
-            }
-        );
-        if let Some(result) = self.tables.intersection_types_get(&key) {
+                IntersectionAlias::Alias(self.tables.alias_key(alias_symbol, alias_type_arguments))
+            },
+        };
+        if let Some(result) = self.tables.intersection_types_get(key) {
             return Ok(result);
         }
         let result = if includes & TypeFlags::UNION.bits() != 0 {

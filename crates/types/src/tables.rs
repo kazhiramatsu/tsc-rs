@@ -98,7 +98,7 @@ impl<'a> TupleTargetFlags<'a> {
 
 /// tsc UnionReduction (checker-scope const enum: None=0, Literal=1,
 /// Subtype=2). Subtype stubs to Literal until stage 4.8.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum UnionReduction {
     None,
     Literal,
@@ -125,6 +125,81 @@ crate::id_type!(
     /// [`TypeTables::intern_type_list`]).
     TypeListId
 );
+
+/// tsc getAliasId (60151-60153) as a value: the alias symbol and, with
+/// one, the interned alias type arguments. Equal values are equal keys.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct AliasKey {
+    pub symbol: Option<SymbolId>,
+    pub arguments: Option<TypeListId>,
+}
+
+/// The origin part of a union's interning key (getUnionTypeFromSortedList
+/// 61615-61620): the origin's members for a union or intersection origin,
+/// the index type's operand for an origin index type.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum UnionOriginKey {
+    None,
+    Union(TypeListId),
+    Intersection(TypeListId),
+    Index(TypeId),
+}
+
+/// unionTypes (46989): the sorted member list (or the origin that stands
+/// for it), the origin and the alias.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct UnionKey {
+    pub list: TypeListId,
+    pub origin: UnionOriginKey,
+    pub alias: AliasKey,
+}
+
+/// unionOfUnionTypes (46990): the two-union fast path's key, the smaller
+/// id first (getUnionType 61469-61475), with the checker's alias.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct UnionOfUnionKey {
+    pub first: TypeId,
+    pub second: TypeId,
+    pub reduction: UnionReduction,
+    pub alias: AliasKey,
+}
+
+impl UnionOfUnionKey {
+    /// The key of `types[0]` and `types[1]`, in id order.
+    pub fn of(types: &[TypeId], reduction: UnionReduction, alias: AliasKey) -> Self {
+        let index = usize::from(types[0].index() >= types[1].index());
+        Self {
+            first: types[index],
+            second: types[1 - index],
+            reduction,
+            alias,
+        }
+    }
+}
+
+/// intersectionTypes (46991): the type set and either the alias or the
+/// no-constraint-reduction marker (getIntersectionType's `*`).
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct IntersectionKey {
+    pub list: TypeListId,
+    pub alias: IntersectionAlias,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum IntersectionAlias {
+    NoConstraintReduction,
+    Alias(AliasKey),
+}
+
+/// indexedAccessTypes (46996): object, index, the persistent access flags
+/// and the alias (getIndexedAccessTypeOrUndefined 62580).
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct IndexedAccessKey {
+    pub object: TypeId,
+    pub index: TypeId,
+    pub access_flags: i32,
+    pub alias: AliasKey,
+}
 
 /// The key of a target's instantiations map (`type.instantiations`):
 /// createTypeReference's `getTypeListId(typeArguments)` and
@@ -180,13 +255,12 @@ pub struct TypeTables {
     /// 63096) — the string interpolation collapses -0/+0 and every
     /// NaN, which EnumLiteralKey reproduces bitwise.
     enum_literal_types: HashMap<(SymbolId, EnumLiteralKey), TypeId>,
-    /// unionTypes (46989), keyed by getTypeListId (+ alias id, M4).
-    union_types: HashMap<String, TypeId>,
-    /// unionOfUnionTypes (46990) — the 2-union getUnionType fast path,
-    /// keyed `{smallerId}{N|S|L}{largerId}` (+ alias id, M4).
-    union_of_union_types: HashMap<String, TypeId>,
+    /// unionTypes (46989), keyed by the member list and alias.
+    union_types: HashMap<UnionKey, TypeId>,
+    /// unionOfUnionTypes (46990) — the 2-union getUnionType fast path.
+    union_of_union_types: HashMap<UnionOfUnionKey, TypeId>,
     /// intersectionTypes (46991).
-    intersection_types: HashMap<String, TypeId>,
+    intersection_types: HashMap<IntersectionKey, TypeId>,
     /// tupleTypes (46988), keyed per getTupleTargetType 61149.
     tuple_types: HashMap<String, TypeId>,
     /// templateLiteralTypes (46997), keyed per getTemplateLiteralType 62083.
@@ -194,10 +268,8 @@ pub struct TypeTables {
     /// stringMappingTypes (46998), keyed `${symbolId},${typeId}`
     /// (getStringMappingTypeForGenericType 62154).
     string_mapping_types: HashMap<(SymbolId, TypeId), TypeId>,
-    /// indexedAccessTypes (46996), keyed
-    /// `${objectId},${indexId},${persistentFlags}${aliasId}`
-    /// (getIndexedAccessTypeOrUndefined 62580).
-    indexed_access_types: HashMap<String, TypeId>,
+    /// indexedAccessTypes (46996).
+    indexed_access_types: HashMap<IndexedAccessKey, TypeId>,
     /// substitutionTypes (47007), keyed `${baseId}>${constraintId}`
     /// (getOrCreateSubstitutionType 60440).
     substitution_types: HashMap<(TypeId, TypeId), TypeId>,
@@ -316,18 +388,15 @@ impl TypeTables {
                 .keys()
                 .map(|list| list_bytes(list))
                 .sum::<usize>();
-        for map in [
-            &self.union_types,
-            &self.union_of_union_types,
-            &self.intersection_types,
-            &self.tuple_types,
-            &self.template_literal_types,
-            &self.indexed_access_types,
-        ] {
+        for map in [&self.tuple_types, &self.template_literal_types] {
             usage.string_keyed_entries += map.len();
             usage.string_keyed_bytes +=
                 map_bytes(map) + map.keys().map(String::capacity).sum::<usize>();
         }
+        usage.other_map_bytes += map_bytes(&self.union_types)
+            + map_bytes(&self.union_of_union_types)
+            + map_bytes(&self.intersection_types)
+            + map_bytes(&self.indexed_access_types);
         usage.instantiations = self.instantiations.len();
         usage.other_map_bytes = map_bytes(&self.number_literal_types)
             + map_bytes(&self.bigint_literal_types)
@@ -1062,6 +1131,23 @@ impl TypeTables {
         );
     }
 
+    /// tsc getAliasId as a value (see [`AliasKey`]): the arguments count
+    /// only with an alias symbol.
+    pub fn alias_key(
+        &mut self,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> AliasKey {
+        crate::perf::bump(crate::perf::PerfCounter::AliasIdCalls);
+        AliasKey {
+            symbol: alias_symbol,
+            arguments: match (alias_symbol, alias_type_arguments) {
+                (Some(_), Some(arguments)) => Some(self.intern_type_list(arguments)),
+                _ => None,
+            },
+        }
+    }
+
     /// tsc-port: getAliasId @6.0.3
     /// tsc-hash: 39a787bbf937e6b559ce913d2244295fd711853991752904a3b4f649be60db54
     /// tsc-span: _tsc.js:60151-60153
@@ -1193,16 +1279,7 @@ impl TypeTables {
             && (self.flags_of(types[0]).intersects(TypeFlags::UNION)
                 || self.flags_of(types[1]).intersects(TypeFlags::UNION))
         {
-            let infix = match reduction {
-                UnionReduction::None => "N",
-                UnionReduction::Subtype => "S",
-                UnionReduction::Literal => "L",
-            };
-            let index = usize::from(types[0].index() >= types[1].index());
-            let mut key = String::with_capacity(24);
-            push_decimal(&mut key, types[index].index());
-            key.push_str(infix);
-            push_decimal(&mut key, types[1 - index].index());
+            let key = UnionOfUnionKey::of(types, reduction, AliasKey::default());
             crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionLookups);
             if let Some(&id) = self.union_of_union_types.get(&key) {
                 crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionHits);
@@ -1217,16 +1294,16 @@ impl TypeTables {
 
     /// unionOfUnionTypes fast-path cache access for the checker-side
     /// Subtype-capable getUnionType twin.
-    pub fn union_of_union_types_get(&self, key: &str) -> Option<TypeId> {
+    pub fn union_of_union_types_get(&self, key: UnionOfUnionKey) -> Option<TypeId> {
         crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionLookups);
-        let hit = self.union_of_union_types.get(key).copied();
+        let hit = self.union_of_union_types.get(&key).copied();
         if hit.is_some() {
             crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionHits);
         }
         hit
     }
 
-    pub fn union_of_union_types_insert(&mut self, key: String, id: TypeId) {
+    pub fn union_of_union_types_insert(&mut self, key: UnionOfUnionKey, id: TypeId) {
         self.union_of_union_types.insert(key, id);
     }
 
@@ -1687,30 +1764,34 @@ impl TypeTables {
         if types.len() == 1 {
             return types[0];
         }
-        let mut key = String::with_capacity(16 + types.len() * 6);
-        match origin {
-            None => self.push_type_list_id(&types, &mut key),
+        // 61615-61620: a union or intersection origin stands for its
+        // members in the key; an origin index type (createOriginIndexType)
+        // is keyed with the members.
+        let (list, origin_key) = match origin {
+            None => (self.intern_type_list(&types), UnionOriginKey::None),
             Some(origin) => match &self.type_of(origin).data {
                 TypeData::Union { types: members, .. } => {
-                    key.push('|');
-                    self.push_type_list_id(members, &mut key);
+                    let members = members.clone();
+                    let list = self.intern_type_list(&members);
+                    (list, UnionOriginKey::Union(list))
                 }
                 TypeData::Intersection { types: members } => {
-                    key.push('&');
-                    self.push_type_list_id(members, &mut key);
+                    let members = members.clone();
+                    let list = self.intern_type_list(&members);
+                    (list, UnionOriginKey::Intersection(list))
                 }
-                // 61619: the `#` form for keyof origins (origin index
-                // types, createOriginIndexType).
                 TypeData::Index { ty, .. } => {
-                    key.push('#');
-                    push_decimal(&mut key, ty.index());
-                    key.push('|');
-                    self.push_type_list_id(&types, &mut key);
+                    let ty = *ty;
+                    (self.intern_type_list(&types), UnionOriginKey::Index(ty))
                 }
                 _ => unreachable!("union origins are unions/intersections/index types"),
             },
-        }
-        self.push_alias_id(alias_symbol, alias_type_arguments, &mut key);
+        };
+        let key = UnionKey {
+            list,
+            origin: origin_key,
+            alias: self.alias_key(alias_symbol, alias_type_arguments),
+        };
         crate::perf::bump(crate::perf::PerfCounter::UnionLookups);
         if let Some(&id) = self.union_types.get(&key) {
             crate::perf::bump(crate::perf::PerfCounter::UnionHits);
@@ -1835,16 +1916,16 @@ impl TypeTables {
 
     /// intersectionTypes map access for the checker-side
     /// getIntersectionType (the map itself is tsc's 46991).
-    pub fn intersection_types_get(&self, key: &str) -> Option<TypeId> {
+    pub fn intersection_types_get(&self, key: IntersectionKey) -> Option<TypeId> {
         crate::perf::bump(crate::perf::PerfCounter::IntersectionLookups);
-        let hit = self.intersection_types.get(key).copied();
+        let hit = self.intersection_types.get(&key).copied();
         if hit.is_some() {
             crate::perf::bump(crate::perf::PerfCounter::IntersectionHits);
         }
         hit
     }
 
-    pub fn intersection_types_insert(&mut self, key: String, id: TypeId) {
+    pub fn intersection_types_insert(&mut self, key: IntersectionKey, id: TypeId) {
         self.intersection_types.insert(key, id);
     }
 
@@ -3032,13 +3113,12 @@ impl TypeTables {
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> TypeId {
-        let key = format!(
-            "{},{},{}{}",
-            object_type.index(),
-            index_type.index(),
-            persistent_access_flags.bits(),
-            self.get_alias_id(alias_symbol, alias_type_arguments)
-        );
+        let key = IndexedAccessKey {
+            object: object_type,
+            index: index_type,
+            access_flags: persistent_access_flags.bits(),
+            alias: self.alias_key(alias_symbol, alias_type_arguments),
+        };
         if let Some(&id) = self.indexed_access_types.get(&key) {
             return id;
         }

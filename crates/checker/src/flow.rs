@@ -1283,26 +1283,40 @@ impl<'a> CheckerState<'a> {
         initial_type: TypeId,
         flow_container: Option<NodeId>,
     ) -> CheckResult<Option<JsString>> {
-        let container_id =
-            flow_container.map_or_else(|| "-1".to_owned(), |c| c.index().to_string());
+        // The key's fields in decimal, as tsc's template strings write them
+        // (a formatter per key was a measurable share of a check).
+        fn push_container(key: &mut String, container: Option<NodeId>) {
+            match container {
+                Some(container) => tsc_types::push_decimal(key, container.index()),
+                None => key.push_str("-1"),
+            }
+        }
         match self.kind_of(node) {
             SyntaxKind::Identifier if !self.is_this_in_type_query(node) => {
                 Ok(self.get_resolved_symbol(node)?.map(|symbol| {
-                    JsString::from(format!(
-                        "{container_id}|{}|{}|{}",
-                        declared_type.index(),
-                        initial_type.index(),
-                        symbol.index()
-                    ))
+                    let mut key = String::with_capacity(32);
+                    push_container(&mut key, flow_container);
+                    key.push('|');
+                    tsc_types::push_decimal(&mut key, declared_type.index());
+                    key.push('|');
+                    tsc_types::push_decimal(&mut key, initial_type.index());
+                    key.push('|');
+                    tsc_types::push_decimal(&mut key, symbol.index());
+                    JsString::from(key)
                 }))
             }
             // The this-in-type-query Identifier falls through to the
             // ThisKeyword arm, exactly as tsc's switch does.
-            SyntaxKind::Identifier | SyntaxKind::ThisKeyword => Ok(Some(JsString::from(format!(
-                "0|{container_id}|{}|{}",
-                declared_type.index(),
-                initial_type.index()
-            )))),
+            SyntaxKind::Identifier | SyntaxKind::ThisKeyword => {
+                let mut key = String::with_capacity(32);
+                key.push_str("0|");
+                push_container(&mut key, flow_container);
+                key.push('|');
+                tsc_types::push_decimal(&mut key, declared_type.index());
+                key.push('|');
+                tsc_types::push_decimal(&mut key, initial_type.index());
+                Ok(Some(JsString::from(key)))
+            }
             SyntaxKind::NonNullExpression => {
                 let NodeData::NonNullExpression(data) = self.data_of(node) else {
                     return Ok(None);

@@ -318,7 +318,12 @@ pub struct CheckerState<'a> {
     /// checker-key §1.5: five per-relation caches + enumRelation.
     pub relations: RelationCaches,
     /// tsc subtypeReductionCache (47000), list-id keyed.
-    pub subtype_reduction_cache: rustc_hash::FxHashMap<String, Vec<tsc_types::TypeId>>,
+    pub subtype_reduction_cache:
+        rustc_hash::FxHashMap<tsc_types::TypeListId, Vec<tsc_types::TypeId>>,
+    /// The visited map of the inference walk not in progress, kept with its
+    /// table so a walk does not grow one from empty (tsgo allocates one per
+    /// inferTypes call).
+    pub(crate) inference_visited: crate::inference::InferenceVisited,
     /// greenfield §4.3: all links writes assert this is zero.
     pub speculation_depth: u32,
     /// Order-sensitivity guard (slice W2c): armed only by the sharded driver;
@@ -1184,8 +1189,8 @@ impl<'a> CheckerState<'a> {
             map_bytes(&self.subtype_reduction_cache)
                 + self
                     .subtype_reduction_cache
-                    .iter()
-                    .map(|(key, list)| key.capacity() + list.capacity() * 4)
+                    .values()
+                    .map(|list| list.capacity() * 4)
                     .sum::<usize>(),
         ));
         rows.push((
@@ -1498,6 +1503,7 @@ impl<'a> CheckerState<'a> {
             members: Vec::new(),
             relations: RelationCaches::default(),
             subtype_reduction_cache: rustc_hash::FxHashMap::default(),
+            inference_visited: Default::default(),
             speculation_depth: 0,
             order_guard: crate::order_guard::OrderGuard::default(),
             checked_source_files: 0,
