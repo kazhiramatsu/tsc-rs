@@ -1722,9 +1722,7 @@ impl<'a> CheckerState<'a> {
             .potential_unused_renamed_binding_elements_in_types
             .clone();
         for node in recorded {
-            let Ok(symbol) = self.get_symbol_of_declaration(node) else {
-                continue;
-            };
+            let Ok(symbol) = self.get_symbol_of_declaration(node);
             if !self
                 .links
                 .read_symbol(symbol, |links| links.is_referenced)

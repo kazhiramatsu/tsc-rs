@@ -470,7 +470,10 @@ impl TransformArena {
             program_source,
             parsed_node_base,
             parsed_node_end,
-            parsed_node_identity_lease: source.node_identity_lease().cloned(),
+            parsed_node_identity_lease: source
+                .arena
+                .identity_leases()
+                .map(|leases| leases.nodes.clone()),
             source: detached,
             has_no_default_lib: None,
             identifier_census: RefCell::default(),

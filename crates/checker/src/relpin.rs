@@ -63,7 +63,7 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
     text.push_str(&format!("declare var __relpin_source: {};\n", query.source));
     text.push_str(&format!("declare var __relpin_target: {};\n", query.target));
 
-    let source_file = tsc_syntax::parse_source_file(
+    let source_file = tsc_syntax::parse_published_source_file(
         "relpin.ts".to_owned(),
         text,
         tsc_syntax::ParseOptions {
@@ -222,8 +222,8 @@ fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
 /// tsrs-native: relpin scratch-program lookup helper; no tsc
 /// counterpart.
 pub(crate) fn find_probe_annotation(source: &SourceFile, name: &str) -> Option<NodeId> {
-    for index in 0..source.arena.len() {
-        let node = source.arena.node(NodeId::new(index as u32));
+    for id in source.arena.node_ids() {
+        let node = source.arena.node(id);
         let NodeData::VariableDeclaration(data) = &node.data else {
             continue;
         };

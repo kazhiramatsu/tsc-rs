@@ -422,9 +422,7 @@ impl<'a> CheckerState<'a> {
                         )
                     });
                     if self.is_parameter_property_declaration(parameter) && !binding_pattern {
-                        let Ok(symbol) = self.get_symbol_of_declaration(parameter) else {
-                            continue;
-                        };
+                        let Ok(symbol) = self.get_symbol_of_declaration(parameter);
                         self.check_duplicate_property_or_accessor(
                             node,
                             symbol,
@@ -437,9 +435,7 @@ impl<'a> CheckerState<'a> {
                 }
                 continue;
             }
-            let Ok(symbol) = self.get_symbol_of_declaration(member) else {
-                continue;
-            };
+            let Ok(symbol) = self.get_symbol_of_declaration(member);
             let is_static = self.has_static_modifier(member);
             let kind = self.kind_of(member);
             let accessor_modifier = kind == SyntaxKind::PropertyDeclaration
@@ -567,9 +563,7 @@ impl<'a> CheckerState<'a> {
                     if !self.is_parameter_property_declaration(parameter) || binding_pattern {
                         continue;
                     }
-                    let Ok(symbol) = self.get_symbol_of_declaration(parameter) else {
-                        continue;
-                    };
+                    let Ok(symbol) = self.get_symbol_of_declaration(parameter);
                     if self.binder.symbol(symbol).escaped_name == name {
                         let display = self.symbol_name_as_written(symbol);
                         self.error_at_js(self.name_of_node(parameter), message, &[display.as_js()]);
@@ -577,9 +571,7 @@ impl<'a> CheckerState<'a> {
                 }
                 continue;
             }
-            let Ok(symbol) = self.get_symbol_of_declaration(member) else {
-                continue;
-            };
+            let Ok(symbol) = self.get_symbol_of_declaration(member);
             if self.binder.symbol(symbol).escaped_name == name
                 && (!check_static || is_static == self.is_static_element(member))
             {

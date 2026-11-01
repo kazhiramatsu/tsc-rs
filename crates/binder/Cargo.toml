@@ -21,6 +21,7 @@ hashbrown = { version = "0.16", default-features = false, features = ["inline-mo
 indexmap = "2"
 rustc-hash.workspace = true
 tsc-diagnostics.workspace = true
+tsc-store.workspace = true
 tsc-syntax.workspace = true
 tsc-types.workspace = true
 

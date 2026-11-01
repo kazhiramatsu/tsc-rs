@@ -4,6 +4,7 @@
 use indexmap::IndexMap;
 use std::sync::Arc;
 
+use tsc_store::StoreVec;
 use tsc_syntax::NodeId;
 use tsc_types::{
     EscapedName, IdentityError, IdentityLease, IdentityRange, IdentitySpace, JsStr, SymbolFlags,
@@ -49,7 +50,7 @@ pub struct Symbol {
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Symbol>() == 56);
+const _: () = assert!(std::mem::size_of::<Symbol>() == 48);
 
 /// The [`Symbol`] fields most symbols leave empty: the member, export and UMD
 /// global-export tables, the JS assignment-declaration members and two
@@ -169,9 +170,19 @@ impl Symbol {
 /// own transient symbols above all files). Single-file paths keep 0.
 #[derive(Clone, Debug, Default)]
 pub struct SymbolArena {
-    symbols: Vec<Symbol>,
+    symbols: StoreVec<Symbol>,
     base: u32,
     lease: Option<IdentityLease>,
+}
+
+impl tsc_store::StoreRecord for Symbol {
+    const REGION: usize = 3;
+}
+
+/// The persistent symbol `id` of a published bind (see `tsc_store`).
+#[inline(always)]
+pub fn published_symbol(id: SymbolId) -> &'static Symbol {
+    tsc_store::get(id.position())
 }
 
 impl PartialEq for SymbolArena {
@@ -271,7 +282,20 @@ impl SymbolArena {
     /// An arena at `base` with room for `capacity` symbols before it grows.
     pub fn with_base_and_capacity(base: u32, capacity: usize) -> Self {
         Self {
-            symbols: Vec::with_capacity(capacity),
+            symbols: StoreVec::with_capacity(capacity),
+            base,
+            lease: None,
+        }
+    }
+
+    /// An arena whose symbols are built in the store at `base`, the start
+    /// of a range of `room` identities the caller leased before binding (see
+    /// [`Self::attach_reserved_identity_lease`]): a bind that keeps to its
+    /// room publishes in place. One that outgrows it continues on the heap
+    /// and relocates.
+    pub fn at_reserved(base: u32, room: u32) -> Self {
+        Self {
+            symbols: StoreVec::claim_room(base + 1, room),
             base,
             lease: None,
         }
@@ -395,23 +419,15 @@ impl SymbolArena {
             }
         }
         self.base = relocation.new.start();
-        self.lease = Some(lease);
+        self.publish(lease);
         Ok(())
     }
 
-    pub(crate) fn attach_identity_lease(
-        &mut self,
-        lease: IdentityLease,
-    ) -> Result<(), IdentityError> {
-        let relocation = self.identity_relocation(&lease)?;
-        if relocation.old != relocation.new {
-            return Err(IdentityError::InvalidLease {
-                space: IdentitySpace::Symbol,
-                detail: "direct-construction symbol lease base differs from the arena base",
-            });
-        }
+    /// Move the symbols to the store at their identities: a Program reads
+    /// them there.
+    fn publish(&mut self, lease: IdentityLease) {
+        self.symbols.publish(lease.range().start() + 1);
         self.lease = Some(lease);
-        Ok(())
     }
 
     /// Attach a lease reserved before binding: it starts at the arena base
@@ -449,7 +465,7 @@ impl SymbolArena {
         if lease.range().len() < count {
             return Ok(false);
         }
-        self.lease = Some(lease);
+        self.publish(lease);
         Ok(true)
     }
 

@@ -3,7 +3,7 @@ use crate::state::CheckerState;
 use std::sync::Arc;
 use tsc_binder::BinderWorker;
 use tsc_diagnostics::{DocumentVersion, TextSnapshot};
-use tsc_syntax::{parse_source_file, ParseOptions};
+use tsc_syntax::{parse_published_source_file, ParseOptions};
 use tsc_types::{CompilerOptions, IdentityDomain};
 
 fn bound_document_for_snapshot(
@@ -33,31 +33,24 @@ fn bound_document_for_snapshot(
 fn routes_parse_order_arenas_without_changing_program_order() {
     // tsc may request the root before its dependency while exposing
     // the dependency first from Program.getSourceFiles().
-    let root = parse_source_file(
-        "/a.ts",
-        r#"import { b } from "./b"; export const a = b;"#,
-        ParseOptions::default(),
-        None,
-    );
-    let dependency = parse_source_file(
-        "/b.ts",
-        "export const b = 1;",
-        ParseOptions {
-            node_id_base: root.arena.node_end() + 5,
-            node_array_id_base: root.arena.array_end() + 3,
-            ..ParseOptions::default()
-        },
-        None,
-    );
+    let domain = tsc_types::IdentityDomain::new();
+    let parse = |name: &str, text: &str| {
+        tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+            name.to_owned(),
+            tsc_diagnostics::TextSnapshot::new(text.to_owned(), Default::default()),
+            ParseOptions::default(),
+            None,
+            &domain,
+        )
+        .expect("test source identities")
+    };
+    let root = parse("/a.ts", r#"import { b } from "./b"; export const a = b;"#);
+    let dependency = parse("/b.ts", "export const b = 1;");
 
-    let mut dependency_binder = Binder::with_bases(&dependency, 1, 9);
-    dependency_binder.bind_source_file();
-    let mut root_binder = Binder::with_bases(
-        &root,
-        dependency_binder.next_symbol_id(),
-        dependency_binder.symbols.next_id().index() + 7,
-    );
-    root_binder.bind_source_file();
+    let dependency_binder =
+        Binder::bind_in_identity_domain(&dependency, &domain).expect("test bind identities");
+    let root_binder =
+        Binder::bind_in_identity_domain(&root, &domain).expect("test bind identities");
 
     let mut program = ProgramBinder::new(vec![&dependency_binder, &root_binder]);
     assert_eq!(
@@ -139,97 +132,32 @@ fn owner_lookup_rejects_ids_outside_every_interval() {
         },
     ];
 
-    assert_eq!(ProgramBinder::owner_file(&owners, 10, "test id"), 1);
-    assert_eq!(ProgramBinder::owner_file(&owners, 17, "test id"), 0);
+    assert_eq!(ProgramBinder::try_owner_file(&owners, 10), Some(1));
+    assert_eq!(ProgramBinder::try_owner_file(&owners, 17), Some(0));
     for id in [9, 12, 14, 18] {
-        assert!(
-            std::panic::catch_unwind(|| ProgramBinder::owner_file(&owners, id, "test id")).is_err(),
-            "id {id} must fail closed"
-        );
+        assert_eq!(ProgramBinder::try_owner_file(&owners, id), None);
     }
 }
 
 #[test]
-fn owner_hint_preserves_sparse_boundaries_under_shared_queries() {
+fn a_program_view_is_shared_between_threads() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<ProgramBinder<'static>>();
-
-    let owners = [
-        ArenaOwner {
-            start: 10,
-            end: 12,
-            file: 1,
-        },
-        ArenaOwner {
-            start: 15,
-            end: 18,
-            file: 0,
-        },
-    ];
-    // An invalid initial hint must fall back to validated interval lookup.
-    let hint = AtomicUsize::new(usize::MAX);
-    assert_eq!(
-        ProgramBinder::try_owner_file_with_hint(&[], 10, &hint),
-        None
-    );
-    let queries = [
-        (10, Some(1)),
-        (17, Some(0)),
-        (9, None),
-        (11, Some(1)),
-        (12, None),
-        (15, Some(0)),
-        (14, None),
-        (18, None),
-        (u32::MAX, None),
-    ];
-    std::thread::scope(|scope| {
-        for offset in 0..2 {
-            let owners = &owners;
-            let hint = &hint;
-            let queries = &queries;
-            scope.spawn(move || {
-                for round in 0..128 {
-                    for step in 0..queries.len() {
-                        let (id, expected) = queries[(round + step + offset) % queries.len()];
-                        assert_eq!(
-                            ProgramBinder::try_owner_file_with_hint(owners, id, hint),
-                            expected,
-                            "id {id} must retain its owner or be rejected"
-                        );
-                    }
-                }
-            });
-        }
-    });
 }
 
 #[test]
-fn try_new_rejects_overlap_and_cross_domain_programs() {
-    let first = parse_source_file("/first.ts", "let a = 1;", Default::default(), None);
-    let second = parse_source_file("/second.ts", "let b = 2;", Default::default(), None);
-    let mut first_binder = Binder::with_bases(&first, 1, 0);
-    first_binder.bind_source_file();
-    let mut second_binder = Binder::with_bases(&second, 1, 0);
-    second_binder.bind_source_file();
+fn try_new_rejects_unpublished_and_cross_domain_programs() {
+    let local = tsc_syntax::parse_source_file("/local.ts", "let a = 1;", Default::default(), None);
+    let local_binder = tsc_binder::bind_source_file(&local);
     assert!(matches!(
-        ProgramBinder::try_new(vec![&first_binder, &second_binder]),
-        Err(ProgramIdentityError::Overlap {
-            space: ProgramIdentitySpace::Node,
-            ..
-        })
+        ProgramBinder::try_new(vec![&local_binder]),
+        Err(ProgramIdentityError::PartialIdentityOwnership { file: 0 })
     ));
 
-    let first_domain = tsc_types::IdentityDomain::reclaiming();
-    let second_domain = tsc_types::IdentityDomain::reclaiming();
-    let mut first = parse_source_file("/first.ts", "let a = 1;", Default::default(), None);
-    first.relocate_into_identity_domain(&first_domain).unwrap();
-    let mut second = parse_source_file("/second.ts", "let b = 2;", Default::default(), None);
-    second
-        .relocate_into_identity_domain(&second_domain)
-        .unwrap();
-    let first_binder = Binder::bind_in_identity_domain(&first, &first_domain).unwrap();
-    let second_binder = Binder::bind_in_identity_domain(&second, &second_domain).unwrap();
+    let first = parse_published_source_file("/first.ts", "let a = 1;", Default::default(), None);
+    let second = parse_published_source_file("/second.ts", "let b = 2;", Default::default(), None);
+    let first_binder = tsc_binder::bind_source_file(&first);
+    let second_binder = tsc_binder::bind_source_file(&second);
     assert!(matches!(
         ProgramBinder::try_new(vec![&first_binder, &second_binder]),
         Err(ProgramIdentityError::IdentityDomainMismatch { file: 1 })
@@ -238,8 +166,8 @@ fn try_new_rejects_overlap_and_cross_domain_programs() {
 
 #[test]
 fn snapshot_reuses_owned_handles_across_fresh_checker_sessions() {
-    let identity_domain = IdentityDomain::reclaiming();
-    let mut source = parse_source_file(
+    let identity_domain = IdentityDomain::new();
+    let mut source = tsc_syntax::parse_source_file(
         "/snapshot.ts",
         "export const answer: number = 42;",
         ParseOptions::default(),
@@ -285,7 +213,7 @@ fn snapshot_reuses_owned_handles_across_fresh_checker_sessions() {
 
 #[test]
 fn program_membership_can_change_without_mutating_a_shared_document() {
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let text = TextSnapshot::new(
         "interface SharedDeclaration { value: string }\n",
         DocumentVersion::new("shared"),
@@ -319,7 +247,7 @@ fn program_membership_can_change_without_mutating_a_shared_document() {
 
 #[test]
 fn ephemeral_store_publishes_only_completed_owned_documents() {
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let snapshot = TextSnapshot::new("export const value = 1;", DocumentVersion::new("1"));
     let source = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
         "/ephemeral.ts".to_owned(),
@@ -399,7 +327,7 @@ fn registry_tells_parse_and_domain_addresses_apart() {
     };
     for address in [
         DocumentAddress::new(&other_parse, &domain),
-        DocumentAddress::new(&ParseOptions::default(), &IdentityDomain::reclaiming()),
+        DocumentAddress::new(&ParseOptions::default(), &IdentityDomain::new()),
     ] {
         assert!(registry
             .get("/registry.ts".into(), text, &address)

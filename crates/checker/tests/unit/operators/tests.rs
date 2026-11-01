@@ -1,5 +1,6 @@
-use tsc_binder::Binder;
-use tsc_syntax::{parse_source_file, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind};
+use tsc_syntax::{
+    parse_published_source_file, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind,
+};
 use tsc_types::CompilerOptions;
 
 use crate::state::test_support::with_program_state;
@@ -57,7 +58,7 @@ fn with_synthetic_recovery_state<R>(
     run: impl FnOnce(&mut CheckerState, &[NodeId]) -> R,
 ) -> R {
     let options = CompilerOptions::default();
-    let mut source = parse_source_file(
+    let mut source = parse_published_source_file(
         "a.ts".to_owned(),
         text.to_owned(),
         ParseOptions::default(),
@@ -68,8 +69,7 @@ fn with_synthetic_recovery_state<R>(
         "synthetic recovery fixture must start from a valid sibling tree"
     );
     let nodes = mutate(&mut source);
-    let mut binder = Binder::with_bases(&source, 1, 0);
-    binder.bind_source_file();
+    let binder = tsc_binder::bind_source_file(&source);
     let mut state = CheckerState::new(&source, &binder, &options);
     state.merge_module_augmentations();
     run(&mut state, &nodes)

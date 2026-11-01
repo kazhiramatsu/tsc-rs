@@ -1,5 +1,5 @@
 use tsc_binder::bind_source_file;
-use tsc_syntax::{parse_source_file, NodeData, ParseOptions, SourceFile, SyntaxKind};
+use tsc_syntax::{parse_published_source_file, NodeData, ParseOptions, SourceFile, SyntaxKind};
 use tsc_types::{CompilerOptions, SymbolFlags};
 
 use crate::links::LinkSlot;
@@ -7,7 +7,7 @@ use crate::state::test_support::with_program_state;
 use crate::state::CheckerState;
 
 fn parse_js(text: &str) -> SourceFile {
-    let source = parse_source_file(
+    let source = parse_published_source_file(
         "commonjs-recovery.js".to_owned(),
         text.to_owned(),
         ParseOptions {

@@ -475,15 +475,11 @@ impl<'a> CheckerState<'a> {
                 tsc_binder::unescape_leading_underscores(property_name).to_owned()
             }
             _ => {
-                let Ok(display) = self.type_to_string(name_type) else {
-                    return Ok(None);
-                };
+                let Ok(display) = self.type_to_string(name_type);
                 display
             }
         };
-        let Ok(target_text) = self.type_to_string(target_type) else {
-            return Ok(None);
-        };
+        let Ok(target_text) = self.type_to_string(target_type);
         Ok(Some(self.related_info_for_node_js(
             target_node,
             &diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,

@@ -17,7 +17,7 @@ use tsc_emitter::{
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{CheckFlags, ModifierFlags, NodeFlags, SymbolFlags};
 
-use crate::state::{CheckAbort, CheckResult, CheckerState, OracleCrashKind};
+use crate::state::{CheckAbort, CheckResult, CheckerState};
 
 /// SymbolFormatFlags word consumed by checker `symbolToString`.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -46,14 +46,7 @@ impl std::ops::BitOr for SymbolFormatFlags {
 }
 
 fn declaration_emit_symbol_builder_abort(error: EmitResolverError) -> CheckAbort {
-    match error {
-        EmitResolverError::CheckerAborted { reason, .. }
-            if reason == OracleCrashKind::OuterJsdocTemplateReferenceDisplay.description() =>
-        {
-            CheckAbort::OracleCrash(OracleCrashKind::OuterJsdocTemplateReferenceDisplay)
-        }
-        error => panic!("symbolToString NodeBuilder failed unexpectedly: {error}"),
-    }
+    panic!("symbolToString NodeBuilder failed unexpectedly: {error}")
 }
 
 /// Narrow bridge to the two already-exact display prerequisites. The impl

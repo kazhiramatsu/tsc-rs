@@ -8660,9 +8660,7 @@ impl<'a> CheckerState<'a> {
         if !round_trip_only {
             return true;
         }
-        let Ok(parsed) = crate::expr::parse_pseudo_big_int(&scan.token_value) else {
-            return false;
-        };
+        let Ok(parsed) = crate::expr::parse_pseudo_big_int(&scan.token_value);
         s == PseudoBigInt {
             negative: scan.negative,
             base10_value: parsed.base10_value,

@@ -150,7 +150,7 @@ impl PartialEq for DocumentAddress {
 /// library sets share their sources, as do files a client created.
 pub fn shared_identity_domain() -> &'static IdentityDomain {
     static DOMAIN: std::sync::OnceLock<IdentityDomain> = std::sync::OnceLock::new();
-    DOMAIN.get_or_init(IdentityDomain::reclaiming)
+    DOMAIN.get_or_init(IdentityDomain::new)
 }
 
 /// The libraries of the process's library bundles (which live as long as
@@ -700,7 +700,6 @@ pub enum ProgramIdentityError {
     PartialIdentityOwnership {
         file: usize,
     },
-    MixedIdentityOwnership,
     IdentityDomainMismatch {
         file: usize,
     },
@@ -735,9 +734,6 @@ impl std::fmt::Display for ProgramIdentityError {
                 formatter,
                 "program file {file} has only a subset of the required identity leases"
             ),
-            Self::MixedIdentityOwnership => formatter.write_str(
-                "a Program cannot mix identity-owned and unmanaged source/bind records",
-            ),
             Self::IdentityDomainMismatch { file } => write!(
                 formatter,
                 "program file {file} belongs to a different identity domain",
@@ -762,48 +758,17 @@ pub struct ProgramBinder<'a> {
     file_facts: Vec<ProgramFileFacts>,
     /// Node-id intervals in parse allocation order (ascending by start).
     node_owners: Vec<ArenaOwner>,
-    /// A hint into immutable intervals, checked on every lookup. Relaxed
-    /// atomics preserve shared-read safety without ordering any other state.
-    node_owner_hint: AtomicUsize,
-    /// Node-array-id intervals in parse allocation order.
-    array_owners: Vec<ArenaOwner>,
-    /// Validated last-owner hint for `array_owners`, same protocol as
-    /// `node_owner_hint`.
-    array_owner_hint: AtomicUsize,
     /// Persistent symbol intervals in identity allocation order.
     symbol_owners: Vec<ArenaOwner>,
-    /// Validated last-owner hint for `symbol_owners`, same protocol as
-    /// `node_owner_hint`.
+    /// A hint into immutable intervals, checked on every lookup. Relaxed
+    /// atomics preserve shared-read safety without ordering any other state.
     symbol_owner_hint: AtomicUsize,
     /// Direct id → file routing for nodes and persistent symbols: one load
     /// instead of a hinted interval search (tsc carries object identity).
     node_files: DenseOwners,
     symbol_files: DenseOwners,
-    /// Each node interval's records (aligned with `node_owners`): the
-    /// interval start and the owning file's arena slice, so a hinted lookup
-    /// reaches the record with one range check and one index.
-    node_routes: Vec<NodeRoute<'a>>,
-    /// Per owner interval of `symbol_owners`, the file's symbol slice; empty
-    /// when a legacy (borrowed-binder) entry is present.
-    symbol_routes: Vec<SymbolRoute<'a>>,
     /// Checker-side symbols (tsc createSymbol 47652 adds Transient).
     transient: SymbolArena,
-}
-
-/// One node interval's records: the interval start and the owning file's
-/// parsed nodes (`nodes.len()` is the interval length).
-#[derive(Clone, Copy, Debug)]
-struct NodeRoute<'a> {
-    start: u32,
-    nodes: &'a [tsc_syntax::Node],
-}
-
-/// One file's persistent symbol slice, indexed by `id - start` (see
-/// [`ProgramBinder::symbol`]); built only when every program entry is an
-/// owned document, whose symbols live for the program lifetime.
-struct SymbolRoute<'a> {
-    start: u32,
-    symbols: &'a [Symbol],
 }
 
 /// Page-table routing over sorted, disjoint owner intervals: `id >>
@@ -907,47 +872,32 @@ fn validate_owner_intervals(
     Ok(())
 }
 
+/// A Program reads its trees and symbols in the stores: every file is
+/// published, under leases of one domain.
 fn validate_identity_domains(entries: &[ProgramEntry<'_>]) -> Result<(), ProgramIdentityError> {
     let mut program_anchor: Option<&tsc_types::IdentityLease> = None;
-    let mut managed_program = None;
     for (file, entry) in entries.iter().enumerate() {
-        let source = entry.source();
         let data = entry.data();
-        let leases = [
-            source.node_identity_lease(),
-            source.array_identity_lease(),
+        let (Some(syntax), Some(symbols), Some(serials)) = (
+            entry.source().arena.identity_leases(),
             data.symbol_identity_lease(),
             data.private_name_serial_lease(),
-        ];
-        let present = leases.iter().filter(|lease| lease.is_some()).count();
-        let managed = match present {
-            0 => false,
-            4 => true,
-            _ => return Err(ProgramIdentityError::PartialIdentityOwnership { file }),
+        ) else {
+            return Err(ProgramIdentityError::PartialIdentityOwnership { file });
         };
-        if let Some(expected) = managed_program {
-            if expected != managed {
-                return Err(ProgramIdentityError::MixedIdentityOwnership);
-            }
-        } else {
-            managed_program = Some(managed);
+        let anchor = &syntax.nodes;
+        if [&syntax.arrays, &syntax.array_items, symbols, serials]
+            .iter()
+            .any(|lease| !anchor.same_domain(lease))
+        {
+            return Err(ProgramIdentityError::IdentityDomainMismatch { file });
         }
-        if managed {
-            let anchor = leases[0].expect("managed source has its node lease");
-            if leases
-                .iter()
-                .flatten()
-                .any(|lease| !anchor.same_domain(lease))
-            {
+        match program_anchor {
+            Some(program_anchor) if !program_anchor.same_domain(anchor) => {
                 return Err(ProgramIdentityError::IdentityDomainMismatch { file });
             }
-            if let Some(program_anchor) = program_anchor {
-                if !program_anchor.same_domain(anchor) {
-                    return Err(ProgramIdentityError::IdentityDomainMismatch { file });
-                }
-            } else {
-                program_anchor = Some(anchor);
-            }
+            Some(_) => {}
+            None => program_anchor = Some(anchor),
         }
     }
     Ok(())
@@ -1084,48 +1034,15 @@ impl<'a> ProgramBinder<'a> {
         let sources = file_entries.iter().map(ProgramEntry::source).collect();
         let node_files = DenseOwners::build(&node_owners);
         let symbol_files = DenseOwners::build(&symbol_owners);
-        let node_routes = node_owners
-            .iter()
-            .map(|owner| NodeRoute {
-                start: owner.start,
-                nodes: file_entries[owner.file].source().arena.nodes(),
-            })
-            .collect::<Vec<_>>();
-        let symbol_routes = if file_entries
-            .iter()
-            .all(|entry| matches!(entry, ProgramEntry::Owned(_)))
-        {
-            symbol_owners
-                .iter()
-                .map(|owner| {
-                    let ProgramEntry::Owned(document) = &file_entries[owner.file] else {
-                        unreachable!("every entry is an owned document here")
-                    };
-                    let document: &'a Arc<BoundDocument> = document;
-                    debug_assert_eq!(owner.start, document.data.symbols.base());
-                    SymbolRoute {
-                        start: owner.start,
-                        symbols: document.data.symbols.symbols(),
-                    }
-                })
-                .collect::<Vec<_>>()
-        } else {
-            Vec::new()
-        };
         Ok(Self {
             file_entries,
             sources,
             file_facts,
             node_owners,
-            node_owner_hint: AtomicUsize::new(0),
-            array_owners,
-            array_owner_hint: AtomicUsize::new(0),
             symbol_owners,
             symbol_owner_hint: AtomicUsize::new(0),
             node_files,
             symbol_files,
-            node_routes,
-            symbol_routes,
             transient: SymbolArena::with_base(TRANSIENT_SYMBOL_BIT),
         })
     }
@@ -1185,52 +1102,23 @@ impl<'a> ProgramBinder<'a> {
             .map(|index| self.node_owners[index].file)
     }
 
-    /// The node interval owning `id`: the last hit first (a checker's
-    /// lookups run inside one file for long stretches), then the page table
-    /// (or the interval search for a sparse domain).
+    /// The node interval owning `id`: the page table (or the interval
+    /// search for a sparse domain). A checker's lookups alternate between
+    /// the file it checks and the files its declarations come from, so a
+    /// last-hit hint missed about as often as it hit.
     #[inline]
     fn node_owner_index(&self, id: u32) -> Option<usize> {
-        let hint = self.node_owner_hint.load(Ordering::Relaxed);
-        if let Some(owner) = self.node_owners.get(hint) {
-            if owner.start <= id && id < owner.end {
-                return Some(hint);
-            }
-        }
-        let index = if self.node_files.is_empty() {
-            Self::try_owner_index(&self.node_owners, id)?
+        if self.node_files.is_empty() {
+            Self::try_owner_index(&self.node_owners, id)
         } else {
-            self.node_files.lookup_index(id)?
-        };
-        self.node_owner_hint.store(index, Ordering::Relaxed);
-        Some(index)
-    }
-
-    /// The parsed record of `node` (tsc's direct object access): routed to
-    /// its file's node slice and indexed there.
-    #[inline]
-    pub fn node_record(&self, node: NodeId) -> &'a tsc_syntax::Node {
-        // The hinted route answers a run of lookups inside one file with one
-        // range check (the slice bound is the interval end) and one index.
-        let hint = self.node_owner_hint.load(Ordering::Relaxed);
-        if let Some(route) = self.node_routes.get(hint) {
-            if let Some(record) = node
-                .index()
-                .checked_sub(route.start)
-                .and_then(|offset| route.nodes.get(offset as usize))
-            {
-                return record;
-            }
+            self.node_files.lookup_index(id)
         }
-        self.node_record_routed(node)
     }
 
-    #[cold]
-    fn node_record_routed(&self, node: NodeId) -> &'a tsc_syntax::Node {
-        let index = self
-            .node_owner_index(node.index())
-            .unwrap_or_else(|| panic!("NodeId {} is outside every program arena", node.index()));
-        let route = &self.node_routes[index];
-        &route.nodes[(node.index() - route.start) as usize]
+    /// The parsed record of `node` (tsc's direct object access).
+    #[inline(always)]
+    pub fn node_record(&self, node: NodeId) -> &'a tsc_syntax::Node {
+        tsc_syntax::published_node(node)
     }
 
     /// tsrs-native: multi-file arena routing for a numeric NodeId; tsc
@@ -1244,45 +1132,10 @@ impl<'a> ProgramBinder<'a> {
         self.file_entries[self.file_index_of_node(node)].data()
     }
 
-    /// Owning file's arena lookup for a node-array id (arrays allocate
-    /// contiguously per file, like nodes).
-    /// tsrs-native: multi-file arena routing for Rust's numeric
-    /// NodeArrayId.
+    /// The array `id` of a Program's tree.
+    #[inline(always)]
     pub fn node_array(&self, id: NodeArrayId) -> NodeArray<'a> {
-        let index =
-            Self::try_owner_file_with_hint(&self.array_owners, id.index(), &self.array_owner_hint)
-                .unwrap_or_else(|| Self::owner_file(&self.array_owners, id.index(), "NodeArrayId"));
-        self.sources[index].arena.node_array(id)
-    }
-
-    #[inline]
-    fn try_owner_file_with_hint(
-        owners: &[ArenaOwner],
-        id: u32,
-        hint: &AtomicUsize,
-    ) -> Option<usize> {
-        if let Some(owner) = owners.get(hint.load(Ordering::Relaxed)) {
-            if owner.start <= id && id < owner.end {
-                return Some(owner.file);
-            }
-        }
-        let index = owners
-            .partition_point(|owner| owner.start <= id)
-            .checked_sub(1)?;
-        let owner = owners[index];
-        if id >= owner.end {
-            return None;
-        }
-        hint.store(index, Ordering::Relaxed);
-        Some(owner.file)
-    }
-
-    /// The fail-closed owner lookup: the hinted lookups above fall back to it
-    /// only after a hint miss and an unsuccessful search, so it re-searches
-    /// and panics with the same message the pre-hint routing used.
-    fn owner_file(owners: &[ArenaOwner], id: u32, kind: &str) -> usize {
-        Self::try_owner_file(owners, id)
-            .unwrap_or_else(|| panic!("{kind} {id} is outside every program arena"))
+        tsc_syntax::published_node_array(id)
     }
 
     fn try_owner_file(owners: &[ArenaOwner], id: u32) -> Option<usize> {
@@ -1338,31 +1191,7 @@ impl<'a> ProgramBinder<'a> {
         if id.index() & TRANSIENT_SYMBOL_BIT != 0 {
             return self.transient.symbol(id);
         }
-        // The hinted route answers a run of lookups inside one file's
-        // symbols with one range check and one index (as `node_record`).
-        let hint = self.symbol_owner_hint.load(Ordering::Relaxed);
-        if let Some(route) = self.symbol_routes.get(hint) {
-            if let Some(record) = id
-                .index()
-                .checked_sub(route.start)
-                .and_then(|offset| route.symbols.get(offset as usize))
-            {
-                return record;
-            }
-        }
-        self.symbol_routed(id)
-    }
-
-    #[cold]
-    fn symbol_routed(&self, id: SymbolId) -> &Symbol {
-        // `owner_of_symbol` stores the owner index as the next hint.
-        match self.owner_of_symbol(id) {
-            Ok(file) => match &self.file_entries[file] {
-                ProgramEntry::Legacy(entry) => entry.binder.symbols.symbol(id),
-                ProgramEntry::Owned(document) => document.data.symbols.symbol(id),
-            },
-            Err(()) => self.transient.symbol(id),
-        }
+        tsc_binder::published_symbol(id)
     }
 
     /// Fallible counterpart to [`Self::symbol`] for externally supplied
@@ -1471,18 +1300,17 @@ impl<'a> ProgramBinder<'a> {
     /// tsc node.symbol (addDeclarationToSymbol).
     /// tsrs-native: binder-table projection for tsc's direct
     /// `node.symbol` property access.
+    #[inline(always)]
     pub fn node_symbol(&self, node: NodeId) -> Option<SymbolId> {
-        self.binder_of_node(node).node_symbol.get(&node).copied()
+        tsc_binder::published_node_symbol(node)
     }
 
     /// The binder's mutable node-flags view (ContainsThis etc.).
     /// tsrs-native: binder-table projection for tsc's direct
     /// `node.flags` property access.
+    #[inline(always)]
     pub fn flags_of(&self, node: NodeId) -> tsc_types::NodeFlags {
-        let file = self.file_index_of_node(node);
-        self.file_entries[file]
-            .data()
-            .flags_of(node, &self.sources[file].arena)
+        tsc_binder::published_node_flags(node)
     }
 
     /// tsc isExternalOrCommonJsModule for the file owning `node`.

@@ -86,7 +86,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let old_snapshot = TextSnapshot::new(old_text, DocumentVersion::new("old"));
     let new_snapshot = TextSnapshot::new(new_text, DocumentVersion::new("new"));
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let options = ParseOptions::default();
     let old_source = create_language_service_source_file_in_identity_domain(
         "large-edit.ts",

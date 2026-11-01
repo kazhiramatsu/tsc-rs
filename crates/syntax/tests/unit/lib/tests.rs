@@ -80,7 +80,7 @@ fn detached_arena_preserves_ids_without_extending_published_leases() {
         ParseOptions::default(),
         None,
     );
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     source.relocate_into_identity_domain(&domain).unwrap();
     assert!(source.arena.has_identity_leases());
 
@@ -112,7 +112,7 @@ fn generated_relocation_matches_a_direct_forced_nonzero_parse() {
 export class Box { #value = 1; method<T>(arg: T) { return [arg, this.#value]; } }
 "#;
     let mut local = parse_source_file("forced.ts", text, ParseOptions::default(), None);
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let node_gap = domain.lease(IdentitySpace::Node, 11).unwrap();
     let array_gap = domain.lease(IdentitySpace::NodeArray, 7).unwrap();
 
@@ -160,7 +160,7 @@ export class Box { #value = 1; method<T>(arg: T) { return [arg, this.#value]; } 
 
 #[test]
 fn source_clones_retain_leases_and_ephemeral_parse_seals_exact_counts() {
-    let reclaiming = IdentityDomain::reclaiming();
+    let reclaiming = IdentityDomain::new();
     let mut source = parse_source_file("clone.ts", "export const x = 1;", Default::default(), None);
     source.relocate_into_identity_domain(&reclaiming).unwrap();
     let retained = source.clone();
@@ -183,7 +183,7 @@ fn source_clones_retain_leases_and_ephemeral_parse_seals_exact_counts() {
         0
     );
 
-    let ephemeral = IdentityDomain::ephemeral();
+    let ephemeral = IdentityDomain::new();
     let snapshot = TextSnapshot::new("let y = 2;", DocumentVersion::new("v1"));
     let source = parse_source_file_from_snapshot_in_identity_domain(
         "ephemeral.ts",
@@ -195,11 +195,11 @@ fn source_clones_retain_leases_and_ephemeral_parse_seals_exact_counts() {
     .unwrap();
     assert!(source.identity_owned_by(&ephemeral));
     assert_eq!(
-        source.node_identity_lease().unwrap().range().len() as usize,
+        source.arena.identity_leases().unwrap().nodes.range().len() as usize,
         source.arena.nodes().len()
     );
     assert_eq!(
-        source.array_identity_lease().unwrap().range().len() as usize,
+        source.arena.identity_leases().unwrap().arrays.range().len() as usize,
         source.arena.node_arrays().len()
     );
 }
@@ -210,7 +210,7 @@ fn incremental_update_reuses_unchanged_list_elements_with_fresh_ids() {
 
     let before = "const first = 1;\nconst middle = 2;\nconst last = 3;\n";
     let old_snapshot = TextSnapshot::new(before, DocumentVersion::new("1"));
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let old = Arc::new(
         parse_source_file_from_snapshot_in_identity_domain(
             "incremental.ts",

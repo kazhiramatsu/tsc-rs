@@ -1,12 +1,15 @@
 use tsc_binder::bind_source_file;
 use tsc_syntax::nodes::ElementAccessExpressionData;
-use tsc_syntax::{parse_source_file, NodeData, ParseOptions, SourceFile, SyntaxKind};
-use tsc_types::{CompilerOptions, NodeFlags, SymbolFlags};
+use tsc_syntax::{
+    parse_published_source_file, parse_source_file, NodeData, NodeId, ParseOptions, SourceFile,
+    SyntaxKind,
+};
+use tsc_types::{CompilerOptions, IdentityDomain, NodeFlags, SymbolFlags};
 
 use crate::state::CheckerState;
 
 fn parse(text: &str) -> SourceFile {
-    let source = parse_source_file(
+    let source = parse_published_source_file(
         "annotation-recovery.ts".to_owned(),
         text.to_owned(),
         ParseOptions {
@@ -87,7 +90,16 @@ fn unexpected_signature_uses_cached_unknown_signature_beside_a_valid_signature()
 
 #[test]
 fn missing_late_bindable_argument_is_error_type_beside_a_valid_element_name() {
-    let mut source = parse("obj[\"live\"];\n");
+    // Parsed locally: the synthetic node goes in before publication.
+    let mut source = parse_source_file(
+        "annotation-recovery.ts".to_owned(),
+        "obj[\"live\"];\n".to_owned(),
+        ParseOptions {
+            script_kind: tsc_syntax::ScriptKind::Ts,
+            ..ParseOptions::default()
+        },
+        None,
+    );
     let valid = source
         .arena
         .node_ids()
@@ -103,6 +115,11 @@ fn missing_late_bindable_argument_is_error_type_beside_a_valid_element_name() {
         0,
         NodeFlags::NONE,
     );
+    source
+        .relocate_into_identity_domain(&IdentityDomain::new())
+        .expect("test source identities");
+    let at = |node: NodeId| NodeId::new(node.index() + source.arena.node_base());
+    let (valid, missing) = (at(valid), at(missing));
     let options = CompilerOptions::default();
     let binder = bind_source_file(&source);
     let mut state = CheckerState::new(&source, &binder, &options);

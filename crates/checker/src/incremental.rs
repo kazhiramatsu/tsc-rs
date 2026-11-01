@@ -408,9 +408,7 @@ fn exports_const_enum(state: &mut CheckerState<'_>, file: usize) -> bool {
         {
             continue;
         }
-        let Ok(aliased) = state.resolve_alias(export) else {
-            continue;
-        };
+        let Ok(aliased) = state.resolve_alias(export);
         if aliased == export {
             continue;
         }

@@ -3652,9 +3652,7 @@ impl<'a> CheckerState<'a> {
                     TypeData::TupleTarget(data) => data.element_flags.to_vec(),
                     _ => return Ok(false),
                 };
-            let Ok(type_arguments) = self.get_type_arguments(ty) else {
-                return Ok(false);
-            };
+            let Ok(type_arguments) = self.get_type_arguments(ty);
             for (i, &element) in type_arguments.iter().enumerate() {
                 if element_flags
                     .get(i)

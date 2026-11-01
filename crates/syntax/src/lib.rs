@@ -25,11 +25,9 @@ pub mod utilities;
 use std::sync::Arc;
 
 use tsc_diagnostics::{DiagnosticList, DocumentVersion, JsString, PositionIndex, TextSnapshot};
-use tsc_types::{
-    IdentityAllocationPolicy, IdentityDomain, IdentityError, IdentityLease, IdentitySpace,
-};
+use tsc_types::{IdentityDomain, IdentityError, IdentitySpace};
 
-pub use arena::{NodeArena, SubtreeCopy, SyntaxMemory};
+pub use arena::{NodeArena, SubtreeCopy, SyntaxLeases, SyntaxMemory};
 pub use chars::{is_identifier_part, is_identifier_start};
 pub use for_each_child::{
     apply_child_slots, child_slots, for_each_child, for_each_child_array, map_child_slots,
@@ -45,6 +43,7 @@ pub use incremental::{
 pub use jsdoc_hosted::{HostedCast, HostedTypeParameters, JsDocHosted, JsDocHostedCell};
 pub use kind::SyntaxKind;
 pub use name_table::{NameTable, NameTableCell};
+pub use nodes::{published_node, published_node_array};
 pub use nodes::{
     JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData,
 };
@@ -370,20 +369,10 @@ impl SourceFile {
             .count()
     }
 
-    pub fn node_identity_lease(&self) -> Option<&IdentityLease> {
-        self.arena.node_identity_lease()
-    }
-
-    pub fn array_identity_lease(&self) -> Option<&IdentityLease> {
-        self.arena.array_identity_lease()
-    }
-
     pub fn identity_owned_by(&self, domain: &IdentityDomain) -> bool {
-        self.node_identity_lease()
-            .is_some_and(|lease| lease.belongs_to(domain))
-            && self
-                .array_identity_lease()
-                .is_some_and(|lease| lease.belongs_to(domain))
+        self.arena
+            .identity_leases()
+            .is_some_and(|leases| leases.nodes.belongs_to(domain))
     }
 
     /// Publish a locally constructed syntax tree into an exact domain range.
@@ -392,87 +381,58 @@ impl SourceFile {
         &mut self,
         domain: &IdentityDomain,
     ) -> Result<(), IdentityError> {
-        let (node_lease, array_lease) = self.lease_identities(domain)?;
-        self.relocate_with_leases(node_lease, array_lease)
+        let leases = self.lease_identities(domain)?;
+        self.relocate_with_leases(leases)
     }
 
-    /// Lease this tree's node and array identity ranges from `domain`
-    /// without touching the tree. Leasing is the only order-dependent step
-    /// of a relocation: a caller leases several trees in program order and
-    /// may then rewrite them on worker threads with
-    /// [`Self::relocate_with_leases`].
-    pub fn lease_identities(
-        &self,
-        domain: &IdentityDomain,
-    ) -> Result<(IdentityLease, IdentityLease), IdentityError> {
-        let (node_count, array_count) = self.identity_counts()?;
+    /// Lease this tree's identity ranges from `domain` without touching the
+    /// tree. Leasing is the only order-dependent step of a relocation: a
+    /// caller leases several trees in program order and may then rewrite
+    /// them on worker threads with [`Self::relocate_with_leases`].
+    pub fn lease_identities(&self, domain: &IdentityDomain) -> Result<SyntaxLeases, IdentityError> {
+        let count = |len: usize, space| {
+            u32::try_from(len).map_err(|_| IdentityError::Exhausted {
+                space,
+                requested: u32::MAX,
+                limit: u32::MAX,
+            })
+        };
         let leases = domain.lease_batch(&[
-            (IdentitySpace::Node, node_count),
-            (IdentitySpace::NodeArray, array_count),
+            (
+                IdentitySpace::Node,
+                count(self.arena.nodes().len(), IdentitySpace::Node)?,
+            ),
+            (
+                IdentitySpace::NodeArray,
+                count(self.arena.node_arrays().len(), IdentitySpace::NodeArray)?,
+            ),
+            (
+                IdentitySpace::NodeArrayItem,
+                count(self.arena.array_item_count(), IdentitySpace::NodeArrayItem)?,
+            ),
         ])?;
-        syntax_leases(leases)
+        let mut leases = leases.into_iter();
+        match (leases.next(), leases.next(), leases.next()) {
+            (Some(nodes), Some(arrays), Some(array_items)) => Ok(SyntaxLeases {
+                nodes,
+                arrays,
+                array_items,
+            }),
+            _ => Err(IdentityError::ReservationMismatch),
+        }
     }
 
-    /// Rewrite every identity of this tree into the leased ranges (the
-    /// second half of [`Self::relocate_into_identity_domain`]).
-    pub fn relocate_with_leases(
-        &mut self,
-        node_lease: IdentityLease,
-        array_lease: IdentityLease,
-    ) -> Result<(), IdentityError> {
-        let relocation = self.arena.identity_relocation(&node_lease, &array_lease)?;
+    /// Rewrite every identity of this tree into the leased ranges and move
+    /// it to the store (the second half of
+    /// [`Self::relocate_into_identity_domain`]).
+    pub fn relocate_with_leases(&mut self, leases: SyntaxLeases) -> Result<(), IdentityError> {
+        let relocation = self.arena.identity_relocation(&leases)?;
         relocation.node(&mut self.root)?;
         if let Some(indicator) = &mut self.external_module_indicator {
             relocation.node(indicator)?;
         }
-        self.arena
-            .apply_identity_relocation(relocation, node_lease, array_lease)
+        self.arena.apply_identity_relocation(relocation, leases)
     }
-
-    fn identity_counts(&self) -> Result<(u32, u32), IdentityError> {
-        let node_count =
-            u32::try_from(self.arena.nodes().len()).map_err(|_| IdentityError::Exhausted {
-                space: IdentitySpace::Node,
-                requested: u32::MAX,
-                limit: u32::MAX,
-            })?;
-        let array_count = u32::try_from(self.arena.node_arrays().len()).map_err(|_| {
-            IdentityError::Exhausted {
-                space: IdentitySpace::NodeArray,
-                requested: u32::MAX,
-                limit: u32::MAX,
-            }
-        })?;
-        Ok((node_count, array_count))
-    }
-
-    fn attach_identity_leases(&mut self, leases: Vec<IdentityLease>) -> Result<(), IdentityError> {
-        let (node_lease, array_lease) = syntax_leases(leases)?;
-        self.arena.attach_identity_leases(node_lease, array_lease)
-    }
-}
-
-fn syntax_leases(
-    leases: Vec<IdentityLease>,
-) -> Result<(IdentityLease, IdentityLease), IdentityError> {
-    let mut node = None;
-    let mut array = None;
-    for lease in leases {
-        match lease.space() {
-            IdentitySpace::Node => node = Some(lease),
-            IdentitySpace::NodeArray => array = Some(lease),
-            space => {
-                return Err(IdentityError::InvalidLease {
-                    space,
-                    detail: "syntax publication received a non-syntax lease",
-                });
-            }
-        }
-    }
-    Ok((
-        node.ok_or(IdentityError::ReservationMismatch)?,
-        array.ok_or(IdentityError::ReservationMismatch)?,
-    ))
 }
 
 pub fn parse_source_file(
@@ -494,9 +454,27 @@ pub fn parse_source_file_from_snapshot(
     parser::parse_source_file_from_snapshot(file_name.into(), snapshot, options, cursor)
 }
 
-/// Parse and publish a source in one identity domain. Ephemeral domains parse
-/// directly at a sealed tail; reclaiming domains relocate the completed local
-/// tree after reserving exact counts.
+/// [`parse_source_file`], published at identities of a domain of its own:
+/// the tree a one-file checker session reads.
+pub fn parse_published_source_file(
+    file_name: impl Into<JsString>,
+    text: impl Into<String>,
+    options: ParseOptions,
+    cursor: Option<&SyntaxCursor>,
+) -> SourceFile {
+    let snapshot = TextSnapshot::new(text.into(), DocumentVersion::default());
+    parse_source_file_from_snapshot_in_identity_domain(
+        file_name,
+        snapshot,
+        options,
+        cursor,
+        &IdentityDomain::new(),
+    )
+    .expect("source identity allocation failed")
+}
+
+/// Parse a source locally and publish the completed tree in one identity
+/// domain, at exact counts.
 pub fn parse_source_file_from_snapshot_in_identity_domain(
     file_name: impl Into<JsString>,
     snapshot: Arc<TextSnapshot>,
@@ -504,32 +482,12 @@ pub fn parse_source_file_from_snapshot_in_identity_domain(
     cursor: Option<&SyntaxCursor>,
     domain: &IdentityDomain,
 ) -> Result<SourceFile, IdentityError> {
-    let file_name = file_name.into();
-    match domain.policy() {
-        IdentityAllocationPolicy::EphemeralBump => {
-            let reservation =
-                domain.reserve_provisional(&[IdentitySpace::Node, IdentitySpace::NodeArray])?;
-            options.node_id_base = reservation.base(IdentitySpace::Node)?;
-            options.node_array_id_base = reservation.base(IdentitySpace::NodeArray)?;
-            let mut source =
-                parser::parse_source_file_from_snapshot(file_name, snapshot, options, cursor);
-            let (node_count, array_count) = source.identity_counts()?;
-            let leases = reservation.seal(&[
-                (IdentitySpace::Node, node_count),
-                (IdentitySpace::NodeArray, array_count),
-            ])?;
-            source.attach_identity_leases(leases)?;
-            Ok(source)
-        }
-        IdentityAllocationPolicy::Reclaiming => {
-            options.node_id_base = 0;
-            options.node_array_id_base = 0;
-            let mut source =
-                parser::parse_source_file_from_snapshot(file_name, snapshot, options, cursor);
-            source.relocate_into_identity_domain(domain)?;
-            Ok(source)
-        }
-    }
+    options.node_id_base = 0;
+    options.node_array_id_base = 0;
+    let mut source =
+        parser::parse_source_file_from_snapshot(file_name.into(), snapshot, options, cursor);
+    source.relocate_into_identity_domain(domain)?;
+    Ok(source)
 }
 
 /// tsc parseJsonText: .json inputs parse as a single JSON value expression.
@@ -561,32 +519,10 @@ pub fn parse_json_text_from_snapshot_in_identity_domain(
     snapshot: Arc<TextSnapshot>,
     domain: &IdentityDomain,
 ) -> Result<SourceFile, IdentityError> {
-    let file_name = file_name.into();
-    match domain.policy() {
-        IdentityAllocationPolicy::EphemeralBump => {
-            let reservation =
-                domain.reserve_provisional(&[IdentitySpace::Node, IdentitySpace::NodeArray])?;
-            let mut source = parser::parse_json_source_text_from_snapshot_with_bases(
-                file_name,
-                snapshot,
-                reservation.base(IdentitySpace::Node)?,
-                reservation.base(IdentitySpace::NodeArray)?,
-            );
-            let (node_count, array_count) = source.identity_counts()?;
-            let leases = reservation.seal(&[
-                (IdentitySpace::Node, node_count),
-                (IdentitySpace::NodeArray, array_count),
-            ])?;
-            source.attach_identity_leases(leases)?;
-            Ok(source)
-        }
-        IdentityAllocationPolicy::Reclaiming => {
-            let mut source =
-                parser::parse_json_source_text_from_snapshot_with_bases(file_name, snapshot, 0, 0);
-            source.relocate_into_identity_domain(domain)?;
-            Ok(source)
-        }
-    }
+    let mut source =
+        parser::parse_json_source_text_from_snapshot_with_bases(file_name.into(), snapshot, 0, 0);
+    source.relocate_into_identity_domain(domain)?;
+    Ok(source)
 }
 
 /// `parse_json_text` with explicit arena bases for a multi-file program.

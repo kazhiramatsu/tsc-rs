@@ -1,37 +1,23 @@
+use tsc_store::SmallList;
 use tsc_syntax::NodeId;
-
-/// Declarations held without a heap allocation.
-const INLINE: usize = 3;
 
 /// A symbol's declaration list. Almost every symbol has one or two, and the
 /// checker copies the list into every property symbol it instantiates
-/// (millions in a large program), so up to three stay inline in the same
-/// 24 bytes a `Vec` takes and only longer lists allocate.
+/// (millions in a large program), so up to two stay inline and only longer
+/// lists allocate.
 #[derive(Clone)]
-pub struct Declarations(Repr);
+pub struct Declarations(SmallList<NodeId>);
 
-#[derive(Clone)]
-enum Repr {
-    Inline { len: u8, nodes: [NodeId; INLINE] },
-    Heap(Vec<NodeId>),
-}
-
-const _: () = assert!(std::mem::size_of::<Declarations>() == std::mem::size_of::<Vec<NodeId>>());
+const _: () = assert!(std::mem::size_of::<Declarations>() == 16);
 
 impl Declarations {
     /// Bytes these declarations own on the heap, for memory accounting.
     pub fn heap_bytes(&self) -> usize {
-        match &self.0 {
-            Repr::Inline { .. } => 0,
-            Repr::Heap(nodes) => nodes.capacity() * std::mem::size_of::<NodeId>(),
-        }
+        self.0.heap_bytes()
     }
 
     pub const fn new() -> Self {
-        Self(Repr::Inline {
-            len: 0,
-            nodes: [NodeId::new(0); INLINE],
-        })
+        Self(SmallList::new())
     }
 
     pub fn clear(&mut self) {
@@ -39,19 +25,7 @@ impl Declarations {
     }
 
     pub fn push(&mut self, node: NodeId) {
-        match &mut self.0 {
-            Repr::Inline { len, nodes } if usize::from(*len) < INLINE => {
-                nodes[usize::from(*len)] = node;
-                *len += 1;
-            }
-            Repr::Inline { nodes, .. } => {
-                let mut heap = Vec::with_capacity(INLINE * 2);
-                heap.extend_from_slice(nodes);
-                heap.push(node);
-                self.0 = Repr::Heap(heap);
-            }
-            Repr::Heap(heap) => heap.push(node),
-        }
+        self.0.push(node);
     }
 }
 
@@ -63,20 +37,16 @@ impl Default for Declarations {
 
 impl std::ops::Deref for Declarations {
     type Target = [NodeId];
+    #[inline]
     fn deref(&self) -> &[NodeId] {
-        match &self.0 {
-            Repr::Inline { len, nodes } => &nodes[..usize::from(*len)],
-            Repr::Heap(heap) => heap,
-        }
+        &self.0
     }
 }
 
 impl std::ops::DerefMut for Declarations {
+    #[inline]
     fn deref_mut(&mut self) -> &mut [NodeId] {
-        match &mut self.0 {
-            Repr::Inline { len, nodes } => &mut nodes[..usize::from(*len)],
-            Repr::Heap(heap) => heap,
-        }
+        &mut self.0
     }
 }
 
@@ -96,11 +66,7 @@ impl std::fmt::Debug for Declarations {
 
 impl From<Vec<NodeId>> for Declarations {
     fn from(nodes: Vec<NodeId>) -> Self {
-        if nodes.len() <= INLINE {
-            nodes.into_iter().collect()
-        } else {
-            Self(Repr::Heap(nodes))
-        }
+        Self(SmallList::from(nodes))
     }
 }
 
@@ -139,48 +105,13 @@ impl PartialEq<Vec<NodeId>> for Declarations {
 }
 
 /// The declarations by value, in order.
-pub enum IntoIter {
-    Inline(std::iter::Take<std::array::IntoIter<NodeId, INLINE>>),
-    Heap(std::vec::IntoIter<NodeId>),
-}
-
-impl Iterator for IntoIter {
-    type Item = NodeId;
-    fn next(&mut self) -> Option<NodeId> {
-        match self {
-            Self::Inline(nodes) => nodes.next(),
-            Self::Heap(nodes) => nodes.next(),
-        }
-    }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            Self::Inline(nodes) => nodes.size_hint(),
-            Self::Heap(nodes) => nodes.size_hint(),
-        }
-    }
-}
-
-impl DoubleEndedIterator for IntoIter {
-    fn next_back(&mut self) -> Option<NodeId> {
-        match self {
-            Self::Inline(nodes) => nodes.next_back(),
-            Self::Heap(nodes) => nodes.next_back(),
-        }
-    }
-}
-
-impl ExactSizeIterator for IntoIter {}
+pub type IntoIter = tsc_store::SmallListIter<NodeId>;
 
 impl IntoIterator for Declarations {
     type Item = NodeId;
     type IntoIter = IntoIter;
     fn into_iter(self) -> IntoIter {
-        match self.0 {
-            Repr::Inline { len, nodes } => {
-                IntoIter::Inline(nodes.into_iter().take(usize::from(len)))
-            }
-            Repr::Heap(nodes) => IntoIter::Heap(nodes.into_iter()),
-        }
+        self.0.into_iter()
     }
 }
 

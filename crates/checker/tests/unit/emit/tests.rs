@@ -1048,7 +1048,7 @@ fn dm_meaning_classification_table_and_emit_declaration_gate_are_exact() {
 
 #[test]
 fn classic_jsx_fragment_retains_only_the_fragment_factory_import() {
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let dependency = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
         "/project/jsx.ts".to_owned(),
         TextSnapshot::new(
@@ -1166,7 +1166,7 @@ fn classic_jsx_fragment_retains_only_the_fragment_factory_import() {
 
 #[test]
 fn null_jsx_fragment_factory_does_not_retain_the_ordinary_factory_import_or_its_pragmas() {
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let dependency = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
         "/project/renderer.ts".to_owned(),
         TextSnapshot::new(
@@ -1313,7 +1313,7 @@ fn emit_import_resolution_filters_only_value_bearing_type_only_origins() {
     ];
 
     for (label, inputs, retains_runtime_import) in cases {
-        let domain = IdentityDomain::reclaiming();
+        let domain = IdentityDomain::new();
         let options = CompilerOptions {
             target: Some(ScriptTarget::ES2015.bits()),
             module: Some(ModuleKind::COMMON_JS.bits()),
@@ -1395,7 +1395,7 @@ fn emit_import_resolution_filters_only_value_bearing_type_only_origins() {
 
 #[test]
 fn emit_resolver_reanchors_decorator_metadata_imports_to_the_class_scope() {
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let options = CompilerOptions {
         target: Some(ScriptTarget::ES2015.bits()),
         module: Some(ModuleKind::COMMON_JS.bits()),
@@ -1496,7 +1496,7 @@ fn import_publication_declaration_references_match_typescript_resolver() {
     for case in cases {
         let label = case["case_id"].as_str().unwrap();
         for _ in 0..2 {
-            let domain = IdentityDomain::reclaiming();
+            let domain = IdentityDomain::new();
             let options = CompilerOptions {
                 target: Some(ScriptTarget::ES2015.bits()),
                 module: Some(ModuleKind::COMMON_JS.bits()),
@@ -1603,7 +1603,7 @@ fn common_js_esmodule_marker_resolver_reads_the_exact_binder_fact() {
         module: Some(ModuleKind::COMMON_JS.bits()),
         ..CompilerOptions::default()
     };
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let mut documents = Vec::new();
     let mut expected = Vec::new();
     for (file, text, forced, common_js, external) in [

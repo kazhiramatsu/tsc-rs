@@ -988,7 +988,7 @@ fn external_module_and_top_level_await_reparse_remain_fresh_equivalent() {
 
 #[test]
 fn language_service_snapshot_versions_are_owned_and_old_versions_drop_promptly() {
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let old_snapshot = TextSnapshot::new(
         "const before = 1;\nconst value = 2;\nconst after = 3;",
         DocumentVersion::new("old"),
@@ -1048,7 +1048,7 @@ fn language_service_snapshot_versions_are_owned_and_old_versions_drop_promptly()
 fn deterministic_unicode_edit_sequence_is_fresh_equivalent_and_reclaims_old_ranges() {
     let initial = "// UTF-16 境界😀\ninterface Box { value: string; next?: Box; }\nconst first = { value: \"α😀\" };\nfunction read(x: Box) { return x.value; }\nconst last = read({ value: \"終\" });\n";
     let mut store = VersionedTextStore::new(initial, DocumentVersion::new("0"));
-    let domain = IdentityDomain::reclaiming();
+    let domain = IdentityDomain::new();
     let mut source = Arc::new(
         crate::parse_source_file_from_snapshot_in_identity_domain(
             "unicode.ts",

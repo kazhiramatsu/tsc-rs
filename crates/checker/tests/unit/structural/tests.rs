@@ -1,5 +1,5 @@
 use tsc_binder::bind_source_file;
-use tsc_syntax::{parse_source_file, ParseOptions, ScriptKind};
+use tsc_syntax::{parse_published_source_file, ParseOptions, ScriptKind};
 use tsc_types::{CheckFlags, CompilerOptions, LiteralValue, TemplateText, TypeData};
 
 use crate::relpin::find_probe_annotation;
@@ -193,7 +193,7 @@ fn empty_template_fragments_keep_empty_cooked_text() {
     // to turn the empty tail of `a${string}` into the token NAME,
     // breaking template reduction and matching.
     let options = CompilerOptions::default();
-    let source = parse_source_file(
+    let source = parse_published_source_file(
         "template-regression.ts".to_owned(),
         "declare var c: `${string}`;\n".to_owned(),
         ParseOptions {

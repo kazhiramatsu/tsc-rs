@@ -16,6 +16,7 @@ path = "src/lib.rs"
 memchr = "2"
 rustc-hash.workspace = true
 tsc-diagnostics.workspace = true
+tsc-store.workspace = true
 tsc-types.workspace = true
 
 [dev-dependencies]

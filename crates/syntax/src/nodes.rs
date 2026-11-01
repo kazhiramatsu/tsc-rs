@@ -57,6 +57,10 @@ pub struct NodeArrayRecord {
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::<NodeArrayRecord>() == 20);
 
+impl tsc_store::StoreRecord for NodeArrayRecord {
+    const REGION: usize = 1;
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum NodePayload {
     Bool(bool),
@@ -91,6 +95,36 @@ pub struct Node {
 // is a memory budget: growing it is a deliberate decision.
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::<Node>() == 56);
+
+impl tsc_store::StoreRecord for Node {
+    const REGION: usize = 0;
+}
+
+/// A node array's element ids; a zeroed [`NodeArrayRecord`] names none.
+impl tsc_store::StoreRecord for NodeId {
+    const REGION: usize = 2;
+}
+
+/// The record of `node` in a published tree (tsc's direct object access).
+///
+/// `node` belongs to a live published tree (see `tsc_store`).
+#[inline(always)]
+pub fn published_node(node: NodeId) -> &'static Node {
+    tsc_store::get(node.position())
+}
+
+/// The array `id` of a published tree (see [`published_node`]).
+#[inline(always)]
+pub fn published_node_array(id: NodeArrayId) -> NodeArray<'static> {
+    let record: &'static NodeArrayRecord = tsc_store::get(id.position());
+    NodeArray {
+        nodes: tsc_store::slice(record.items, record.len),
+        pos: record.pos,
+        end: record.end,
+        has_trailing_comma: record.has_trailing_comma,
+        is_missing_list: record.is_missing_list,
+    }
+}
 
 /// `literal_flags` bits 0-1: tsc's multiLine. tsc keeps it on Block,
 /// ArrayLiteralExpression and ObjectLiteralExpression; the emitter also
