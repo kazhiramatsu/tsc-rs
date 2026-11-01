@@ -18,7 +18,8 @@ pub use escaped_name::EscapedName;
 pub use flags::*;
 pub use identity::{
     IdentityClaim, IdentityDomain, IdentityDomainStats, IdentityError, IdentityLease,
-    IdentityLimits, IdentityRange, IdentitySpace, IdentitySpaceStats, TRANSIENT_SYMBOL_BIT,
+    IdentityLeaseWatch, IdentityLimits, IdentityRange, IdentitySpace, IdentitySpaceStats,
+    TRANSIENT_SYMBOL_BIT,
 };
 pub use options::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 pub use tables::{

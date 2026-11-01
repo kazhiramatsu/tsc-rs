@@ -82,3 +82,19 @@ fn a_lease_is_claimed_once_at_a_time() {
     drop(claim);
     assert!(lease.claim().is_some());
 }
+
+#[test]
+fn a_watch_sees_a_lease_released_by_its_last_holder() {
+    let domain = IdentityDomain::new();
+    let lease = domain.lease(IdentitySpace::Node, 3).unwrap();
+    let watch = lease.watch();
+    assert!(watch.is_held());
+    assert!(watch.watches(&lease));
+    let other = domain.lease(IdentitySpace::Node, 1).unwrap();
+    assert!(!watch.watches(&other));
+    let held = lease.clone();
+    drop(lease);
+    assert!(watch.is_held());
+    drop(held);
+    assert!(!watch.is_held());
+}

@@ -10,7 +10,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock, Weak};
 
 /// Persistent symbols occupy the low half of `SymbolId`. The checker owns the
 /// tagged high half for session-local transient symbols.
@@ -554,6 +554,14 @@ impl IdentityLease {
         Arc::ptr_eq(&self.inner.domain, &other.inner.domain)
     }
 
+    /// A view of the lease that does not hold it: whether it is still held
+    /// by a document, a clone of one or a claim.
+    pub fn watch(&self) -> IdentityLeaseWatch {
+        IdentityLeaseWatch {
+            inner: Arc::downgrade(&self.inner),
+        }
+    }
+
     /// The exclusive use of what the lease's identities name beyond the
     /// records themselves: the tables a bind keeps at a tree's node
     /// positions. One claim is live at a time; `None` while another is.
@@ -597,6 +605,24 @@ impl PartialEq for IdentityLease {
 }
 
 impl Eq for IdentityLease {}
+
+/// An [`IdentityLease::watch`].
+#[derive(Clone)]
+pub struct IdentityLeaseWatch {
+    inner: Weak<IdentityLeaseInner>,
+}
+
+impl IdentityLeaseWatch {
+    /// Whether the watched lease is still held.
+    pub fn is_held(&self) -> bool {
+        self.inner.strong_count() > 0
+    }
+
+    /// Whether `lease` is the watched one.
+    pub fn watches(&self, lease: &IdentityLease) -> bool {
+        std::ptr::eq(self.inner.as_ptr(), Arc::as_ptr(&lease.inner))
+    }
+}
 
 /// A live [`IdentityLease::claim`]; dropping it lets the lease be claimed
 /// again.

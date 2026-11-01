@@ -41,12 +41,19 @@ pub struct NodeArena {
 
 impl PartialEq for NodeArena {
     fn eq(&self, other: &Self) -> bool {
-        // A lease is an ownership capability, not observable AST content.
+        // A lease is an ownership capability, not observable AST content, and
+        // where the item store sits is layout: an array's record compares by
+        // its elements' offset.
         self.nodes == other.nodes
-            && self.arrays == other.arrays
-            && self.array_items == other.array_items
             && self.node_base == other.node_base
             && self.array_base == other.array_base
+            && self.array_items == other.array_items
+            && self.arrays.len() == other.arrays.len()
+            && self.arrays.iter().zip(other.arrays.iter()).all(|(a, b)| {
+                a.items - self.item_base == b.items - other.item_base
+                    && (a.len, a.pos, a.end, a.has_trailing_comma, a.is_missing_list)
+                        == (b.len, b.pos, b.end, b.has_trailing_comma, b.is_missing_list)
+            })
     }
 }
 

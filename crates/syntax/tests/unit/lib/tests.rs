@@ -113,20 +113,24 @@ export class Box { #value = 1; method<T>(arg: T) { return [arg, this.#value]; } 
 "#;
     let mut local = parse_source_file("forced.ts", text, ParseOptions::default(), None);
     let domain = IdentityDomain::new();
+    // Leases ahead of the tree keep its bases away from the start of the
+    // spaces in a fresh process.
     let node_gap = domain.lease(IdentitySpace::Node, 11).unwrap();
     let array_gap = domain.lease(IdentitySpace::NodeArray, 7).unwrap();
 
     local.relocate_into_identity_domain(&domain).unwrap();
-    assert_eq!(local.arena.node_base(), 11);
-    assert_eq!(local.arena.array_base(), 7);
     assert!(local.identity_owned_by(&domain));
+    let leases = local.arena.identity_leases().unwrap();
+    assert_eq!(leases.nodes.range().start(), local.arena.node_base());
+    assert_eq!(leases.arrays.range().start(), local.arena.array_base());
+    let nodes = leases.nodes.watch();
 
     let direct = parse_source_file(
         "forced.ts",
         text,
         ParseOptions {
-            node_id_base: 11,
-            node_array_id_base: 7,
+            node_id_base: local.arena.node_base(),
+            node_array_id_base: local.arena.array_base(),
             ..ParseOptions::default()
         },
         None,
@@ -138,24 +142,11 @@ export class Box { #value = 1; method<T>(arg: T) { return [arg, this.#value]; } 
         .all(|id| local.arena.contains_node(id)));
 
     drop(local);
-    assert_eq!(
-        domain
-            .stats()
-            .unwrap()
-            .space(IdentitySpace::Node)
-            .active_ranges,
-        1
-    );
+    assert!(!nodes.is_held());
+    let gap = node_gap.watch();
     drop(node_gap);
     drop(array_gap);
-    assert_eq!(
-        domain
-            .stats()
-            .unwrap()
-            .space(IdentitySpace::Node)
-            .active_ranges,
-        0
-    );
+    assert!(!gap.is_held());
 }
 
 #[test]
@@ -163,25 +154,12 @@ fn source_clones_retain_leases_and_ephemeral_parse_seals_exact_counts() {
     let reclaiming = IdentityDomain::new();
     let mut source = parse_source_file("clone.ts", "export const x = 1;", Default::default(), None);
     source.relocate_into_identity_domain(&reclaiming).unwrap();
+    let nodes = source.arena.identity_leases().unwrap().nodes.watch();
     let retained = source.clone();
     drop(source);
-    assert_eq!(
-        reclaiming
-            .stats()
-            .unwrap()
-            .space(IdentitySpace::Node)
-            .active_ranges,
-        1
-    );
+    assert!(nodes.is_held(), "a clone retains the lease");
     drop(retained);
-    assert_eq!(
-        reclaiming
-            .stats()
-            .unwrap()
-            .space(IdentitySpace::Node)
-            .active_ranges,
-        0
-    );
+    assert!(!nodes.is_held());
 
     let ephemeral = IdentityDomain::new();
     let snapshot = TextSnapshot::new("let y = 2;", DocumentVersion::new("v1"));
