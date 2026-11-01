@@ -78,11 +78,40 @@ page は無料）。record の種類ごとに region が一つあり、identity�
 保持する）ので、64 KiB 以上の buffer を mmap に、symbol を予約 slot に直接作るようにして（a7）main より下に戻した。
 `mi_collect` を adoption の後に呼ぶ案（a6）は効かなかった。owner の hint の除去（a8）は ±1% で差なし。
 
+## slice 2：routing なしの node 読み（branch `perf/ts71-published-lookup`）
+
+store の後も checker は node を読む前に file を探していた（`node_util` の関数が `&SourceFile` を取り `source.arena` を引くため、
+812 か所が `source_of_node` の page 表を通る。a9 の profile で self 3.3%）。
+
+- `node_util` の木だけを読む関数（141 中 104、さらに `crate::assignment` の 23 と、それに阻まれていた関数）は
+  `tree: &impl NodeLookup` を取る。残りは file の text・root・JSDoc の hosted 表（`crate::hosted::jsdoc_hosted`、
+  `reparsed_overload_host`）が要る：`get_name_of_declaration`・`has_dynamic_name`・`type_node_of`・
+  `get_combined_modifier_flags`・`get_effective_modifier_flags`・`declaration_name_to_string` など。
+- `tsc_syntax::Published` は store を読む lookup（file を探さない）。`SourceFile` も lookup なので binder・emitter・
+  言語 service の呼び出し元はそのまま。
+- `assignment` が file の root で「JS file か」を見ていた 2 か所は、tsc の `isInJSFile` と同じく手元の node の flag を読む
+  （JS file の全 node が `JAVA_SCRIPT_FILE` を持つ）。
+- checker：`node_util::f(self.binder.source_of_node(x), ..)` → `node_util::f(&Published, ..)`、`source.arena.node(..)` →
+  `Published.node(..)`、`for_each_child(&source.arena, ..)` → `for_each_child(&Published, ..)`（script で 574 か所）。
+  それだけのために `source` を束縛していた 193 の `let` と、引数だけになった helper の仮引数 6 つを削除。
+
+**計測**（1 thread、a9 = merge 後の main の binary → b2）：
+
+| case | 命令数 | peak footprint |
+|---|---:|---:|
+| TypeScript compiler noEmit | 13.45 → 12.93 G（−3.9%） | 217 → 217 MB |
+| Next.js noEmit | 41.13 → 39.44 G（−4.1%） | 915 → 923 MB |
+| VS Code | 197.4 → 188.4 G（−4.6%） | 4,347 → 4,347 MB |
+
+第一段（node_util のみ、b1）で −4.2〜−4.6%、第二段（assignment、b2）で −0.3〜−1.0%。出力は 7 case で a9 と byte 一致。
+残る `source_of_node`（350 か所）は `file_name`・`root`・`text`・`is_declaration_file` と、hosted 表の要る関数、
+`locals_of`（`resolve_name` の scope walk：file ごとの `FxHashMap<NodeId, SymbolTable>`）。
+
 ## 次の候補（効果の大きい順の見込み）
 
-1. `node_util` の関数が `&SourceFile` を取るため、checker の 812 か所が `source_of_node`（page 表）を引く。published な木の
-   `NodeLookup` を渡すようにして routing を消す（self 2.6% + 周辺）。
-2. `resolve_name` の `locals` は file ごとの `FxHashMap<NodeId, SymbolTable>`。tsrs は node の field。
+1. `resolve_name` の `locals` は file ごとの `FxHashMap<NodeId, SymbolTable>`（`locals_of` が残る routing の最大の呼び出し元）。
+   tsrs は node の field。program 全体で一つの map にすれば routing は消える（VS Code で約 36 万 entry）。
+2. JSDoc の hosted 表（`get_name_of_declaration` 18 か所など）：JS file の node だけが要るので、node の flag で先に分岐する。
 3. `Node` 56 byte（`NodeData` を inline に持つ）。tsrs の node header は 24 byte。syntax 1,017 MB の大半。
 4. checker の memory：resolved members 464 MB（1.2M × 380 byte）、transient symbol 448 MB、symbol links 254 MB。
 5. 複製して返す API（`get_signatures_of_type`・`get_properties_of_type`、tsrs R18：−1〜−4%）。
