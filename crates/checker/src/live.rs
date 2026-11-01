@@ -173,6 +173,7 @@ impl LiveChecker {
                 library_prefix: LibraryPrefixCompletion::Complete,
                 diagnostic_schedule: DiagnosticSchedule::OnDemand,
                 incremental_facts: false,
+                leak_at_end: false,
                 tracing: None,
                 bind_span: std::sync::Mutex::new(None),
             };

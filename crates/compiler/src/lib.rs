@@ -1754,6 +1754,7 @@ impl ProgramSession {
                 &provider,
                 worker_budget,
                 IncrementalRequest::NONE,
+                false,
                 &mut checked_operation,
             )
         } else {
@@ -2013,6 +2014,7 @@ impl ProgramSession {
             &provider,
             worker_budget,
             IncrementalRequest::NONE,
+            false,
             |snapshot, checker, checked| {
                 if let Some(partial) = checked.partial_checks.first() {
                     operation_result = Some(Err(DriverError::IncompleteCheck {
@@ -2132,6 +2134,7 @@ impl ProgramSession {
             &provider,
             worker_budget,
             IncrementalRequest::NONE,
+            false,
             &mut operation,
         );
         drop(checked);
@@ -2177,7 +2180,7 @@ impl ProgramSession {
             source_api_facts,
             worker_budget,
             checker_budget: _,
-            leak_program: _,
+            leak_program,
             native_harness: _,
             command_build_info,
             command_options_diagnostics: _,
@@ -2434,6 +2437,7 @@ impl ProgramSession {
                     planner: incremental_facts_requested
                         .then_some(&mut planner as &mut IncrementalPlanner<'_>),
                 },
+                leak_program,
                 &mut operation,
             )
         }
@@ -3704,6 +3708,7 @@ impl ProgramSession {
                     planner: incremental_facts_requested
                         .then_some(&mut planner as &mut IncrementalPlanner<'_>),
                 },
+                false,
                 &mut operation,
             )
         } else if declaration_getter {
