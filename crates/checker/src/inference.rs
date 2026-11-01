@@ -766,7 +766,10 @@ impl<'a> CheckerState<'a> {
                 is_enum_number_index_info: false,
                 is_any_base_type_index_info: false,
             };
-            self.members_mut(members_id).index_infos.push(index_info);
+            self.members_mut(members_id)
+                .extras_mut()
+                .index_infos
+                .push(index_info);
         }
         let properties: Vec<_> = self.members_of(members_id).members.symbols().to_vec();
         self.members_mut(members_id).properties = properties;

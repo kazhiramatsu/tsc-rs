@@ -5759,7 +5759,10 @@ fn display_composer_splits_abstract_constructs_from_object_members() {
             );
 
             let mut mixed_members = plain_members;
-            mixed_members.construct_signatures.push(abstract_signature);
+            mixed_members
+                .extras_mut()
+                .construct_signatures
+                .push(abstract_signature);
             let mixed = state
                 .tables
                 .create_type(TypeFlags::OBJECT, TypeData::Object);

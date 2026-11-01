@@ -711,7 +711,7 @@ fn expand_interface_declaration(
         base_type,
     )?;
     // Construct signatures (not abstract ones), then call signatures.
-    for &signature in resolved.construct_signatures.iter() {
+    for &signature in resolved.construct_signatures().iter() {
         if checker
             .signature_of(signature)
             .flags
@@ -729,7 +729,7 @@ fn expand_interface_declaration(
             None,
         )?);
     }
-    for &signature in resolved.call_signatures.iter() {
+    for &signature in resolved.call_signatures().iter() {
         members.push(signature_to_signature_declaration_helper(
             checker,
             arena,

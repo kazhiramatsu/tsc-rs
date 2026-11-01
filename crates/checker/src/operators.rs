@@ -2758,11 +2758,11 @@ impl<'a> CheckerState<'a> {
             let (call_signatures, construct_signatures, members, properties, index_infos) = {
                 let resolved = &self.members[members_id.index() as usize];
                 (
-                    resolved.call_signatures.clone(),
-                    resolved.construct_signatures.clone(),
+                    resolved.call_signatures().to_vec(),
+                    resolved.construct_signatures().to_vec(),
                     resolved.members.clone(),
                     resolved.properties.clone(),
-                    resolved.index_infos.clone(),
+                    resolved.index_infos().to_vec(),
                 )
             };
             let instantiated_call =
@@ -2794,13 +2794,13 @@ impl<'a> CheckerState<'a> {
                 self.tables.type_mut(result).symbol = Some(symbol);
                 let mut properties = properties;
                 self.order_named_members_if_stable(&mut properties, Some(symbol));
-                let members_id = self.alloc_members(crate::state::ResolvedMembers {
+                let members_id = self.alloc_members(crate::state::ResolvedMembers::new(
                     members,
                     properties,
-                    call_signatures: instantiated_call,
-                    construct_signatures: instantiated_construct,
+                    instantiated_call,
+                    instantiated_construct,
                     index_infos,
-                });
+                ));
                 self.links
                     .set_fresh_type_members(result, crate::links::LinkSlot::Resolved(members_id));
                 // tsc stamps result.node = node (77999): the same

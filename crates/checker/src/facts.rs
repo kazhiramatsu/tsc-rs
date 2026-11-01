@@ -270,7 +270,7 @@ impl<'a> CheckerState<'a> {
         }
         let resolved = self.resolve_structured_type_members(ty)?;
         let members = self.members_of(resolved);
-        if !members.call_signatures.is_empty() || !members.construct_signatures.is_empty() {
+        if !members.call_signatures().is_empty() || !members.construct_signatures().is_empty() {
             return Ok(true);
         }
         let has_bind = members

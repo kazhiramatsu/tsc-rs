@@ -3852,9 +3852,9 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::OBJECT) {
             let members = self.resolve_structured_type_members(ty)?;
             let resolved = self.members_of(members);
-            return Ok(resolved.call_signatures.is_empty()
-                && resolved.construct_signatures.is_empty()
-                && resolved.index_infos.is_empty()
+            return Ok(resolved.call_signatures().is_empty()
+                && resolved.construct_signatures().is_empty()
+                && resolved.index_infos().is_empty()
                 && !resolved.properties.is_empty()
                 && resolved.properties.iter().all(|&p| {
                     self.binder
@@ -3947,7 +3947,7 @@ impl<'a> CheckerState<'a> {
         }
         let members = self.resolve_structured_type_members(ty)?;
         let resolved = self.members_of(members);
-        Ok(!resolved.call_signatures.is_empty() || !resolved.construct_signatures.is_empty())
+        Ok(!resolved.call_signatures().is_empty() || !resolved.construct_signatures().is_empty())
     }
 
     /// The value-type of the applicable index info for a property
@@ -4149,9 +4149,9 @@ impl<'a> CheckerState<'a> {
             let members = self.resolve_structured_type_members(ty)?;
             let resolved = self.members_of(members);
             return Ok(resolved.properties.is_empty()
-                && resolved.call_signatures.is_empty()
-                && resolved.construct_signatures.is_empty()
-                && resolved.index_infos.is_empty());
+                && resolved.call_signatures().is_empty()
+                && resolved.construct_signatures().is_empty()
+                && resolved.index_infos().is_empty());
         }
         if flags.intersects(TypeFlags::NON_PRIMITIVE) {
             return Ok(true);
@@ -4245,13 +4245,13 @@ impl<'a> CheckerState<'a> {
         }
         let source_members = self.members_of(resolved);
         self.order_named_members_if_stable(&mut properties, self.tables.type_of(ty).symbol);
-        let members_id = self.alloc_members(crate::state::ResolvedMembers {
-            members: self.member_table(&members),
+        let members_id = self.alloc_members(crate::state::ResolvedMembers::new(
+            self.member_table(&members),
             properties,
-            call_signatures: source_members.call_signatures.clone(),
-            construct_signatures: source_members.construct_signatures.clone(),
-            index_infos: source_members.index_infos.clone(),
-        });
+            source_members.call_signatures().to_vec(),
+            source_members.construct_signatures().to_vec(),
+            source_members.index_infos().to_vec(),
+        ));
         let symbol = self.tables.type_of(ty).symbol;
         let regular = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
         let object_flags =

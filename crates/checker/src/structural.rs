@@ -4770,8 +4770,8 @@ impl<'a> CheckerState<'a> {
             let (has_call, has_construct) = {
                 let resolved = self.members_of(members);
                 (
-                    !resolved.call_signatures.is_empty(),
-                    !resolved.construct_signatures.is_empty(),
+                    !resolved.call_signatures().is_empty(),
+                    !resolved.construct_signatures().is_empty(),
                 )
             };
             let function_type = if reduced == self.any_function_type {
@@ -6835,20 +6835,21 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::OBJECT) {
             let members = self.resolve_structured_type_members(ty)?;
             let resolved = self.members_of(members).clone();
-            if !resolved.construct_signatures.is_empty() || !resolved.call_signatures.is_empty() {
+            if !resolved.construct_signatures().is_empty() || !resolved.call_signatures().is_empty()
+            {
                 let symbol = self.tables.type_of(ty).symbol;
                 let result = self.create_resolved_empty_anonymous_type(symbol);
                 let result_members = self
                     .links
                     .read_ty(result, |links| links.resolved_members.resolved())
                     .expect("freshly created anonymous types carry resolved members");
-                let stripped = crate::state::ResolvedMembers {
-                    members: resolved.members.clone(),
-                    properties: resolved.properties.clone(),
-                    call_signatures: Vec::new(),
-                    construct_signatures: Vec::new(),
-                    index_infos: Vec::new(),
-                };
+                let stripped = crate::state::ResolvedMembers::new(
+                    resolved.members.clone(),
+                    resolved.properties.clone(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                );
                 *self.members_mut(result_members) = stripped;
                 return Ok(result);
             }
@@ -7271,12 +7272,13 @@ impl<'a> CheckerState<'a> {
         let call_signatures = self.get_union_signatures(&call_lists)?;
         let construct_signatures = self.get_union_signatures(&construct_lists)?;
         let index_infos = self.get_union_index_infos(&types)?;
-        let id = self.alloc_members(crate::state::ResolvedMembers {
+        let id = self.alloc_members(crate::state::ResolvedMembers::new(
+            crate::member_table::MemberTable::default(),
+            Vec::new(),
             call_signatures,
             construct_signatures,
             index_infos,
-            ..crate::state::ResolvedMembers::default()
-        });
+        ));
         self.links.set_type_members(
             self.speculation_depth,
             ty,
@@ -7357,12 +7359,13 @@ impl<'a> CheckerState<'a> {
             self.order_guard
                 .note_always(crate::order_guard::OrderReason::INTERSECTION_SIGNATURES);
         }
-        let id = self.alloc_members(crate::state::ResolvedMembers {
+        let id = self.alloc_members(crate::state::ResolvedMembers::new(
+            crate::member_table::MemberTable::default(),
+            Vec::new(),
             call_signatures,
             construct_signatures,
             index_infos,
-            ..crate::state::ResolvedMembers::default()
-        });
+        ));
         self.links.set_type_members(
             self.speculation_depth,
             ty,
@@ -7549,8 +7552,8 @@ impl<'a> CheckerState<'a> {
             let members = self.resolve_structured_type_members(reduced)?;
             let resolved = self.members_of(members);
             match kind {
-                SignatureKind::Call => resolved.call_signatures.clone(),
-                SignatureKind::Construct => resolved.construct_signatures.clone(),
+                SignatureKind::Call => resolved.call_signatures().to_vec(),
+                SignatureKind::Construct => resolved.construct_signatures().to_vec(),
             }
         };
 
@@ -8328,7 +8331,7 @@ impl<'a> CheckerState<'a> {
             return Ok(Vec::new());
         }
         let members = self.resolve_structured_type_members(reduced)?;
-        Ok(self.members_of(members).index_infos.clone())
+        Ok(self.members_of(members).index_infos().to_vec())
     }
 
     /// tsc-port: findApplicableIndexInfo @6.0.3
@@ -8504,18 +8507,18 @@ impl<'a> CheckerState<'a> {
         }
         let members = self.resolve_structured_type_members(ty)?;
         let resolved = self.members_of(members);
-        if allow_members || resolved.properties.is_empty() && resolved.index_infos.is_empty() {
+        if allow_members || resolved.properties.is_empty() && resolved.index_infos().is_empty() {
             if kind == SignatureKind::Call
-                && resolved.call_signatures.len() == 1
-                && resolved.construct_signatures.is_empty()
+                && resolved.call_signatures().len() == 1
+                && resolved.construct_signatures().is_empty()
             {
-                return Ok(Some(resolved.call_signatures[0]));
+                return Ok(Some(resolved.call_signatures()[0]));
             }
             if kind == SignatureKind::Construct
-                && resolved.construct_signatures.len() == 1
-                && resolved.call_signatures.is_empty()
+                && resolved.construct_signatures().len() == 1
+                && resolved.call_signatures().is_empty()
             {
-                return Ok(Some(resolved.construct_signatures[0]));
+                return Ok(Some(resolved.construct_signatures()[0]));
             }
         }
         Ok(None)

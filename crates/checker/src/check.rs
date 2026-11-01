@@ -9233,9 +9233,9 @@ impl<'a> CheckerState<'a> {
         let resolved = self.members_of(members);
         let member_table = resolved.members.clone();
         let properties = resolved.properties.clone();
-        let call_signatures = resolved.call_signatures.clone();
-        let construct_signatures = resolved.construct_signatures.clone();
-        let index_infos = resolved.index_infos.clone();
+        let call_signatures = resolved.call_signatures().to_vec();
+        let construct_signatures = resolved.construct_signatures().to_vec();
+        let index_infos = resolved.index_infos().to_vec();
         if properties.is_empty() && index_infos.is_empty() {
             if call_signatures.is_empty() && construct_signatures.is_empty() {
                 // createTypeNodeFromObjectType's exact member-less
@@ -9305,13 +9305,13 @@ impl<'a> CheckerState<'a> {
                 self.tables.type_mut(remainder).symbol = source_symbol;
                 let mut properties = properties;
                 self.order_named_members_if_stable(&mut properties, source_symbol);
-                let remainder_members = self.alloc_members(crate::state::ResolvedMembers {
-                    members: member_table,
+                let remainder_members = self.alloc_members(crate::state::ResolvedMembers::new(
+                    member_table,
                     properties,
                     call_signatures,
-                    construct_signatures: non_abstract_constructs,
+                    non_abstract_constructs,
                     index_infos,
-                });
+                ));
                 self.links.set_fresh_type_members(
                     remainder,
                     crate::links::LinkSlot::Resolved(remainder_members),

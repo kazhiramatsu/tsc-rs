@@ -3392,8 +3392,8 @@ fn create_type_node_from_object_type(
         .resolve_structured_type_members(r#type)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     let resolved = checker.members_of(members).clone();
-    if resolved.properties.is_empty() && resolved.index_infos.is_empty() {
-        if resolved.call_signatures.is_empty() && resolved.construct_signatures.is_empty() {
+    if resolved.properties.is_empty() && resolved.index_infos().is_empty() {
+        if resolved.call_signatures().is_empty() && resolved.construct_signatures().is_empty() {
             add_approximate_length(context, 2);
             let node = create_node(
                 arena,
@@ -3402,30 +3402,30 @@ fn create_type_node_from_object_type(
             )?;
             return Ok(set_single_line(arena, node));
         }
-        if resolved.call_signatures.len() == 1 && resolved.construct_signatures.is_empty() {
+        if resolved.call_signatures().len() == 1 && resolved.construct_signatures().is_empty() {
             return signature_to_signature_declaration_helper(
                 checker,
                 arena,
                 target,
-                resolved.call_signatures[0],
+                resolved.call_signatures()[0],
                 SyntaxKind::FunctionType,
                 context,
                 None,
             );
         }
-        if resolved.construct_signatures.len() == 1 && resolved.call_signatures.is_empty() {
+        if resolved.construct_signatures().len() == 1 && resolved.call_signatures().is_empty() {
             return signature_to_signature_declaration_helper(
                 checker,
                 arena,
                 target,
-                resolved.construct_signatures[0],
+                resolved.construct_signatures()[0],
                 SyntaxKind::ConstructorType,
                 context,
                 None,
             );
         }
     }
-    let has_abstract = resolved.construct_signatures.iter().any(|signature| {
+    let has_abstract = resolved.construct_signatures().iter().any(|signature| {
         checker
             .signature_of(*signature)
             .flags
@@ -3433,7 +3433,7 @@ fn create_type_node_from_object_type(
     });
     if has_abstract {
         let abstract_signatures: Vec<_> = resolved
-            .construct_signatures
+            .construct_signatures()
             .iter()
             .copied()
             .filter(|signature| {
@@ -3452,7 +3452,7 @@ fn create_type_node_from_object_type(
             );
         }
         let non_abstract_construct_signatures = resolved
-            .construct_signatures
+            .construct_signatures()
             .iter()
             .copied()
             .filter(|signature| !abstract_signatures.contains(signature))
@@ -3470,9 +3470,9 @@ fn create_type_node_from_object_type(
         } else {
             resolved.properties.len()
         };
-        let type_element_count = resolved.call_signatures.len()
+        let type_element_count = resolved.call_signatures().len()
             + non_abstract_construct_signatures.len()
-            + resolved.index_infos.len()
+            + resolved.index_infos().len()
             + property_count;
         if type_element_count != 0 {
             let remainder = checker
@@ -3480,13 +3480,15 @@ fn create_type_node_from_object_type(
                 .create_type(TypeFlags::OBJECT, TypeData::Object);
             checker.tables.type_mut(remainder).object_flags = ObjectFlags::ANONYMOUS;
             checker.tables.type_mut(remainder).symbol = checker.tables.type_of(r#type).symbol;
-            let members = checker.alloc_members(ResolvedMembers {
-                members: resolved.members,
-                properties: resolved.properties,
-                call_signatures: resolved.call_signatures,
-                construct_signatures: non_abstract_construct_signatures,
-                index_infos: resolved.index_infos,
-            });
+            let call_signatures = resolved.call_signatures().to_vec();
+            let index_infos = resolved.index_infos().to_vec();
+            let members = checker.alloc_members(ResolvedMembers::new(
+                resolved.members,
+                resolved.properties,
+                call_signatures,
+                non_abstract_construct_signatures,
+                index_infos,
+            ));
             checker
                 .links
                 .set_fresh_type_members(remainder, LinkSlot::Resolved(members));
@@ -4218,7 +4220,7 @@ fn create_type_nodes_from_resolved_type(
                 None
             };
         let mut elements = Vec::new();
-        for signature in &resolved.call_signatures {
+        for signature in resolved.call_signatures() {
             elements.push(signature_to_signature_declaration_helper(
                 checker,
                 arena,
@@ -4229,7 +4231,7 @@ fn create_type_nodes_from_resolved_type(
                 None,
             )?);
         }
-        for signature in &resolved.construct_signatures {
+        for signature in resolved.construct_signatures() {
             if checker
                 .signature_of(*signature)
                 .flags
@@ -4247,7 +4249,7 @@ fn create_type_nodes_from_resolved_type(
                 None,
             )?);
         }
-        for info in &resolved.index_infos {
+        for info in resolved.index_infos() {
             let type_node = if object_flags.intersects(ObjectFlags::REVERSE_MAPPED)
                 && has_flag(context, ALLOW_ANONYMOUS_IDENTIFIER)
             {

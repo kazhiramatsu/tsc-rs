@@ -22,9 +22,16 @@ use crate::program::ProgramBinder;
 #[derive(Clone, Debug, Default)]
 pub struct MemberTable {
     symbols: Vec<SymbolId>,
-    /// Positions in `symbols`, hashed by the symbol's escaped name.
+    /// Positions in `symbols`, hashed by the symbol's escaped name. A table
+    /// of at most [`LINEAR_MEMBERS`] members keeps no index (the empty
+    /// table, which allocates nothing) and is searched in order: most
+    /// resolved types have a handful of members, and the index cost more
+    /// than the members themselves.
     positions: HashTable<u32>,
 }
+
+/// The most members a table is searched in order for.
+const LINEAR_MEMBERS: usize = 8;
 
 fn hash_name(name: EscapedName) -> u64 {
     let mut hasher = FxHasher::default();
@@ -40,8 +47,29 @@ impl MemberTable {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             symbols: Vec::with_capacity(capacity),
-            positions: HashTable::with_capacity(capacity),
+            positions: if capacity > LINEAR_MEMBERS {
+                HashTable::with_capacity(capacity)
+            } else {
+                HashTable::new()
+            },
         }
+    }
+
+    /// Whether the members are searched in order (see the `positions` field).
+    fn linear(&self) -> bool {
+        self.positions.capacity() == 0
+    }
+
+    /// Index the members by name once there are more than a few.
+    fn index(binder: &ProgramBinder<'_>, symbols: &[SymbolId]) -> HashTable<u32> {
+        let mut positions = HashTable::with_capacity(symbols.len() + 1);
+        for (position, &symbol) in symbols.iter().enumerate() {
+            let name = name_of(binder, symbol);
+            positions.insert_unique(hash_name(name), position as u32, |&position| {
+                hash_name(name_of(binder, symbols[position as usize]))
+            });
+        }
+        positions
     }
 
     /// The members of `table`, whose keys are the members' names.
@@ -84,13 +112,24 @@ impl MemberTable {
     pub fn reserve(&mut self, binder: &ProgramBinder<'_>, additional: usize) {
         self.symbols.reserve(additional);
         let symbols = &self.symbols;
-        self.positions.reserve(additional, |&position| {
-            hash_name(name_of(binder, symbols[position as usize]))
-        });
+        if !self.linear() {
+            self.positions.reserve(additional, |&position| {
+                hash_name(name_of(binder, symbols[position as usize]))
+            });
+        } else if symbols.len() + additional > LINEAR_MEMBERS {
+            self.positions = Self::index(binder, symbols);
+        }
     }
 
     pub fn get(&self, binder: &ProgramBinder<'_>, name: impl NameKey) -> Option<SymbolId> {
         let name = name.name();
+        if self.linear() {
+            return self
+                .symbols
+                .iter()
+                .copied()
+                .find(|&symbol| name_of(binder, symbol) == name);
+        }
         self.positions
             .find(hash_name(name), |&position| {
                 name_of(binder, self.symbols[position as usize]) == name
@@ -102,6 +141,20 @@ impl MemberTable {
     /// is replaced in its position, as in a JavaScript `Map`, and returned.
     pub fn insert(&mut self, binder: &ProgramBinder<'_>, symbol: SymbolId) -> Option<SymbolId> {
         let name = name_of(binder, symbol);
+        if self.linear() {
+            if let Some(position) = self
+                .symbols
+                .iter()
+                .position(|&present| name_of(binder, present) == name)
+            {
+                return Some(std::mem::replace(&mut self.symbols[position], symbol));
+            }
+            if self.symbols.len() < LINEAR_MEMBERS {
+                self.symbols.push(symbol);
+                return None;
+            }
+            self.positions = Self::index(binder, &self.symbols);
+        }
         let symbols = &self.symbols;
         let entry = self.positions.entry(
             hash_name(name),
