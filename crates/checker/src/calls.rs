@@ -10,7 +10,7 @@ use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo,
 };
 use tsc_syntax::nodes::{JsxOpeningElementData, JsxSelfClosingElementData};
-use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     CheckMode, ContextFlags, ElementFlags, InferenceFlags, InferencePriority, ModifierFlags,
     NodeFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
@@ -159,8 +159,7 @@ impl<'a> CheckerState<'a> {
         if !tsc_binder::node_util::can_have_decorators(self.kind_of(node)) {
             return Ok(());
         }
-        let source = self.binder.source_of_node(node);
-        let Some(modifiers) = node_util::modifiers_of(source, node) else {
+        let Some(modifiers) = node_util::modifiers_of(&Published, node) else {
             return Ok(());
         };
         let modifiers = self.nodes_of(Some(modifiers));
@@ -215,10 +214,7 @@ impl<'a> CheckerState<'a> {
                         SyntaxKind::MethodDeclaration
                             | SyntaxKind::GetAccessor
                             | SyntaxKind::SetAccessor
-                    ) || node_util::is_auto_accessor_property_declaration(
-                        self.binder.source_of_node(node),
-                        node,
-                    ));
+                    ) || node_util::is_auto_accessor_property_declaration(&Published, node));
                 if private_named_callable {
                     self.check_external_emit_helpers(
                         first_decorator,
@@ -264,7 +260,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(());
         }
-        let modifiers = node_util::modifiers_of(self.binder.source_of_node(node), node);
+        let modifiers = node_util::modifiers_of(&Published, node);
         let Some(first_decorator) = self
             .nodes_of(modifiers)
             .into_iter()
@@ -563,7 +559,6 @@ impl<'a> CheckerState<'a> {
         parent: Option<NodeId>,
         grandparent: Option<NodeId>,
     ) -> bool {
-        let source = self.binder.source_of_node(node);
         if use_legacy_decorators
             && self
                 .name_of_node(node)
@@ -581,12 +576,19 @@ impl<'a> CheckerState<'a> {
                     matches!(
                         self.kind_of(parent),
                         SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
-                    ) && !node_util::has_syntactic_modifier(source, node, ModifierFlags::ABSTRACT)
-                        && !node_util::has_syntactic_modifier(source, node, ModifierFlags::AMBIENT)
+                    ) && !node_util::has_syntactic_modifier(
+                        &Published,
+                        node,
+                        ModifierFlags::ABSTRACT,
+                    ) && !node_util::has_syntactic_modifier(
+                        &Published,
+                        node,
+                        ModifierFlags::AMBIENT,
+                    )
                 }
             }),
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor | SyntaxKind::MethodDeclaration => {
-                node_util::body_of(source, node).is_some()
+                node_util::body_of(&Published, node).is_some()
                     && parent.is_some_and(|parent| {
                         if use_legacy_decorators {
                             self.kind_of(parent) == SyntaxKind::ClassDeclaration
@@ -603,7 +605,7 @@ impl<'a> CheckerState<'a> {
                     return false;
                 }
                 let Some(parent) = parent else { return false };
-                node_util::body_of(self.binder.source_of_node(parent), parent).is_some()
+                node_util::body_of(&Published, parent).is_some()
                     && matches!(
                         self.kind_of(parent),
                         SyntaxKind::Constructor
@@ -927,8 +929,7 @@ impl<'a> CheckerState<'a> {
             return Ok(Vec::new());
         };
         let (pos, end) = {
-            let source = self.binder.source_of_node(expression);
-            let raw = source.arena.node(expression);
+            let raw = Published.node(expression);
             (raw.pos, raw.end)
         };
         let parameters = self.signature_of(signature).parameters.clone();
@@ -978,11 +979,7 @@ impl<'a> CheckerState<'a> {
         Ok(match self.kind_of(parent) {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => 1,
             SyntaxKind::PropertyDeclaration => {
-                if node_util::has_syntactic_modifier(
-                    self.binder.source_of_node(parent),
-                    parent,
-                    ModifierFlags::ACCESSOR,
-                ) {
+                if node_util::has_syntactic_modifier(&Published, parent, ModifierFlags::ACCESSOR) {
                     3
                 } else {
                     2
@@ -1120,11 +1117,8 @@ impl<'a> CheckerState<'a> {
                 let symbol = self.get_symbol_of_declaration(parent)?;
                 let value_type = self.get_type_of_symbol(symbol)?;
                 let this_type = self.decorator_this_type_of_member(parent, class_node)?;
-                let has_accessor_modifier = node_util::has_syntactic_modifier(
-                    self.binder.source_of_node(parent),
-                    parent,
-                    ModifierFlags::ACCESSOR,
-                );
+                let has_accessor_modifier =
+                    node_util::has_syntactic_modifier(&Published, parent, ModifierFlags::ACCESSOR);
                 let target_type = if has_accessor_modifier {
                     self.create_class_accessor_decorator_target_type(this_type, value_type)?
                 } else {
@@ -1296,7 +1290,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let has_prop_desc = !is_property
                     || node_util::has_syntactic_modifier(
-                        self.binder.source_of_node(parent),
+                        &Published,
                         parent,
                         ModifierFlags::ACCESSOR,
                     );
@@ -1450,11 +1444,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::GetAccessor => self.get_global_class_getter_decorator_context_type()?,
             SyntaxKind::SetAccessor => self.get_global_class_setter_decorator_context_type()?,
             SyntaxKind::PropertyDeclaration => {
-                if node_util::has_syntactic_modifier(
-                    self.binder.source_of_node(node),
-                    node,
-                    ModifierFlags::ACCESSOR,
-                ) {
+                if node_util::has_syntactic_modifier(&Published, node, ModifierFlags::ACCESSOR) {
                     self.get_global_class_accessor_decorator_context_type()?
                 } else {
                     self.get_global_class_field_decorator_context_type()?
@@ -1994,8 +1984,7 @@ impl<'a> CheckerState<'a> {
                 );
                 let strings_array = self.get_global_template_strings_array_type()?;
                 let (pos, end) = {
-                    let source = self.binder.source_of_node(template);
-                    let raw = source.arena.node(template);
+                    let raw = Published.node(template);
                     (raw.pos, raw.end)
                 };
                 let mut args = vec![EffectiveArg::Synthetic {
@@ -2057,8 +2046,7 @@ impl<'a> CheckerState<'a> {
                 // 76296-76298: one synthetic emptyFreshJsxObjectType
                 // argument at the fragment's span.
                 let (pos, end) = {
-                    let source = self.binder.source_of_node(node);
-                    let raw = source.arena.node(node);
+                    let raw = Published.node(node);
                     (raw.pos, raw.end)
                 };
                 return Ok(vec![EffectiveArg::Synthetic {
@@ -2118,8 +2106,7 @@ impl<'a> CheckerState<'a> {
                         unreachable!("tuple type targets a tuple target");
                     };
                     let raw = {
-                        let source = self.binder.source_of_node(arg);
-                        let raw = source.arena.node(arg);
+                        let raw = Published.node(arg);
                         (raw.pos, raw.end)
                     };
                     for (i, &element) in element_types.iter().enumerate() {
@@ -2225,7 +2212,7 @@ impl<'a> CheckerState<'a> {
     /// backslashes escapes it).
     fn template_literal_is_unterminated(&self, literal: NodeId) -> bool {
         let source = self.binder.source_of_node(literal);
-        let raw = source.arena.node(literal);
+        let raw = Published.node(literal);
         let end = raw.end as usize;
         if end < source.text().len() {
             return false;
@@ -2287,8 +2274,7 @@ impl<'a> CheckerState<'a> {
                         NodeData::TemplateSpan(span_data) => span_data.literal,
                         _ => None,
                     };
-                    let source = self.binder.source_of_node(node);
-                    call_is_incomplete = node_util::node_is_missing(source, literal)
+                    call_is_incomplete = node_util::node_is_missing(&Published, literal)
                         || literal.is_some_and(|l| self.template_literal_is_unterminated(l));
                 } else {
                     debug_assert_eq!(
@@ -2317,9 +2303,7 @@ impl<'a> CheckerState<'a> {
                     "parser invariant: JSX opening/self-closing parsers always store an \
                      attributes node (empty or recovery)",
                 );
-                let source = self.binder.source_of_node(node);
-                call_is_incomplete =
-                    source.arena.node(attributes).end == source.arena.node(node).end;
+                call_is_incomplete = Published.node(attributes).end == Published.node(node).end;
                 if call_is_incomplete {
                     return Ok(true);
                 }
@@ -2351,9 +2335,8 @@ impl<'a> CheckerState<'a> {
                 };
                 // callIsIncomplete: the argument list's close paren is
                 // missing (arguments.end == node.end).
-                let source = self.binder.source_of_node(node);
-                let arguments_end = source.arena.node_array(arguments).end;
-                call_is_incomplete = arguments_end == source.arena.node(node).end;
+                let arguments_end = Published.node_array(arguments).end;
+                call_is_incomplete = arguments_end == Published.node(node).end;
                 if let Some(spread_arg_index) = self.get_spread_argument_index(args) {
                     return Ok(spread_arg_index >= self.get_min_argument_count(signature)?
                         && (self.has_effective_rest_parameter(signature)?
@@ -2925,12 +2908,11 @@ impl<'a> CheckerState<'a> {
         if is_instanceof_right {
             return Ok(this_argument_type);
         }
-        let source = self.binder.source_of_node(node);
         let parent = self.parent_of(node);
-        if parent.is_some_and(|parent| node_util::is_optional_chain_root(source, parent)) {
+        if parent.is_some_and(|parent| node_util::is_optional_chain_root(&Published, parent)) {
             return self.get_non_nullable_type(this_argument_type);
         }
-        if parent.is_some_and(|parent| node_util::is_optional_chain(source, parent)) {
+        if parent.is_some_and(|parent| node_util::is_optional_chain(&Published, parent)) {
             return Ok(self.remove_optional_type_marker(this_argument_type));
         }
         Ok(this_argument_type)
@@ -3575,8 +3557,7 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(argument) != SyntaxKind::SpreadElement {
                     return false;
                 }
-                let source = self.binder.source_of_node(argument);
-                let raw = source.arena.node(argument);
+                let raw = Published.node(argument);
                 raw.pos == pos && raw.end == end
             })
         });
@@ -3886,20 +3867,14 @@ impl<'a> CheckerState<'a> {
 
     fn effective_arg_pos(&self, arg: &EffectiveArg) -> u32 {
         match *arg {
-            EffectiveArg::Node(node) => {
-                let source = self.binder.source_of_node(node);
-                source.arena.node(node).pos
-            }
+            EffectiveArg::Node(node) => Published.node(node).pos,
             EffectiveArg::Synthetic { pos, .. } => pos,
         }
     }
 
     fn effective_arg_end(&self, arg: &EffectiveArg) -> u32 {
         match *arg {
-            EffectiveArg::Node(node) => {
-                let source = self.binder.source_of_node(node);
-                source.arena.node(node).end
-            }
+            EffectiveArg::Node(node) => Published.node(node).end,
             EffectiveArg::Synthetic { end, .. } => end,
         }
     }
@@ -4361,7 +4336,7 @@ impl<'a> CheckerState<'a> {
             let _ = source;
             let impl_decl = declarations.iter().copied().find(|&d| {
                 node_util::is_function_like_declaration_kind(state.kind_of(d))
-                    && node_util::body_of(state.binder.source_of_node(d), d).is_some()
+                    && node_util::body_of(&Published, d).is_some()
             });
             let Some(impl_decl) = impl_decl else {
                 return Ok(None);
@@ -5346,8 +5321,7 @@ impl<'a> CheckerState<'a> {
         let arg_count = type_argument_nodes.len();
         let span = match type_arguments_array {
             Some(array) => {
-                let source = self.binder.source_of_node(node);
-                let array = source.arena.node_array(array);
+                let array = Published.node_array(array);
                 self.diag_span_of_byte_range(node, array.pos, array.end)
             }
             None => self.diag_span_of_node(node),
@@ -5690,16 +5664,12 @@ impl<'a> CheckerState<'a> {
         }
         let mut func_type = self.check_expression(expression, CheckMode::NORMAL)?;
         // 76990-76998: call-chain flags.
-        let source = self.binder.source_of_node(node);
-        let call_chain_flags = if node_util::is_optional_chain(source, node) {
+        let call_chain_flags = if node_util::is_optional_chain(&Published, node) {
             let non_optional_type = self.get_optional_expression_type(func_type, expression)?;
             if non_optional_type == func_type {
                 SignatureFlags::NONE
             } else {
-                let flags = if node_util::is_outermost_optional_chain(
-                    self.binder.source_of_node(node),
-                    node,
-                ) {
+                let flags = if node_util::is_outermost_optional_chain(&Published, node) {
                     SignatureFlags::IS_OUTER_CALL_CHAIN
                 } else {
                     SignatureFlags::IS_INNER_CALL_CHAIN
@@ -5765,7 +5735,7 @@ impl<'a> CheckerState<'a> {
                 });
                 if arguments.len() == 1 {
                     let source = self.binder.source_of_node(node);
-                    let callee_end = source.arena.node(expression).end as usize;
+                    let callee_end = Published.node(expression).end as usize;
                     if line_break_precedes_next_token(source.text(), callee_end) {
                         related_information = Some(self.related_info_for_node(
                             expression,
@@ -5917,8 +5887,11 @@ impl<'a> CheckerState<'a> {
                 .symbol
                 .and_then(|symbol| self.get_class_like_declaration_of_symbol(symbol));
             if let Some(value_decl) = value_decl {
-                let source = self.binder.source_of_node(value_decl);
-                if node_util::has_syntactic_modifier(source, value_decl, ModifierFlags::ABSTRACT) {
+                if node_util::has_syntactic_modifier(
+                    &Published,
+                    value_decl,
+                    ModifierFlags::ABSTRACT,
+                ) {
                     self.error_at(
                         Some(node),
                         &diagnostics::Cannot_create_an_instance_of_an_abstract_class,
@@ -6287,8 +6260,7 @@ impl<'a> CheckerState<'a> {
                     // typeArguments range.
                     let array = type_arguments.expect("non-empty nodes imply an array");
                     let (pos, end) = {
-                        let source = self.binder.source_of_node(node);
-                        let array = source.arena.node_array(array);
+                        let array = Published.node_array(array);
                         (array.pos, array.end)
                     };
                     let span = self.diag_span_of_byte_range(node, pos, end);
@@ -6966,10 +6938,7 @@ impl<'a> CheckerState<'a> {
                         .get_jsdoc_root(declaration)
                         .and_then(|root| self.parent_of(root))
                         .is_some_and(|host| self.kind_of(host) == SyntaxKind::Constructor))
-                    || node_util::is_jsdoc_construct_signature(
-                        self.binder.source_of_node(declaration),
-                        declaration,
-                    )
+                    || node_util::is_jsdoc_construct_signature(&Published, declaration)
                     || self.is_js_constructor(declaration);
                 if !is_constructor_like {
                     if self

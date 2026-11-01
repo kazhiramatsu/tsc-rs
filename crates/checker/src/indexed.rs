@@ -6,7 +6,7 @@
 //! access checking.
 
 use tsc_binder::SymbolId;
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     AccessFlags, EscapedName, IndexFlags, IntersectionFlags, JsString, ObjectFlags, SymbolFlags,
     TypeData, TypeFlags, TypeId, UnionReduction,
@@ -1639,7 +1639,7 @@ impl<'a> CheckerState<'a> {
                 let argument_text = match argument {
                     Some(argument) => {
                         let source = self.binder.source_of_node(argument);
-                        let raw = source.arena.node(argument);
+                        let raw = Published.node(argument);
                         let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
                         source.text()[start..raw.end as usize].to_owned()
                     }
@@ -1803,8 +1803,7 @@ impl<'a> CheckerState<'a> {
         if !index_info.is_readonly {
             return Ok(());
         }
-        let source = self.binder.source_of_node(access_expression);
-        if tsc_binder::node_util::is_assignment_target(source, access_expression)
+        if tsc_binder::node_util::is_assignment_target(&Published, access_expression)
             || self.is_delete_target(access_expression)
         {
             let object_display = self.type_to_string(object_type)?;

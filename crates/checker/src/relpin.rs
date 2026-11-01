@@ -6,7 +6,7 @@
 //! relation_pins.rs`) compares the answers with TypeScript's recorded
 //! ones; the checker's unit tests reuse the scratch-program helpers.
 
-use tsc_syntax::{NodeData, NodeId, SourceFile};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SourceFile};
 use tsc_types::{CompilerOptions, TypeId};
 
 use crate::state::CheckerState;
@@ -223,14 +223,14 @@ fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
 /// counterpart.
 pub(crate) fn find_probe_annotation(source: &SourceFile, name: &str) -> Option<NodeId> {
     for id in source.arena.node_ids() {
-        let node = source.arena.node(id);
+        let node = Published.node(id);
         let NodeData::VariableDeclaration(data) = &node.data else {
             continue;
         };
         let Some(declared_name) = data.name else {
             continue;
         };
-        let NodeData::Identifier(identifier) = &source.arena.node(declared_name).data else {
+        let NodeData::Identifier(identifier) = &Published.node(declared_name).data else {
             continue;
         };
         if identifier.text() == name {

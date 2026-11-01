@@ -22,7 +22,9 @@ use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticCategory, DiagnosticMessage, MessageChain,
     RelatedInfo,
 };
-use tsc_syntax::{regex::validate_regular_expression_literal, NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{
+    regex::validate_regular_expression_literal, NodeData, NodeId, NodeLookup, Published, SyntaxKind,
+};
 use tsc_types::{
     CheckMode, ContextFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, PseudoBigInt,
     ScriptTarget, SymbolFlags, TypeData, TypeFlags, TypeId,
@@ -796,7 +798,7 @@ impl<'a> CheckerState<'a> {
         }
         let (literal_text, is_unterminated, target, file_name, token_start_utf16) = {
             let source = self.binder.source_of_node(node);
-            let raw = source.arena.node(node);
+            let raw = Published.node(node);
             let Some(data) = raw.data.as_regular_expression_literal() else {
                 return false;
             };
@@ -906,7 +908,7 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let source = self.binder.source_of_node(node);
-        let pos = source.arena.node(node).pos as usize;
+        let pos = Published.node(node).pos as usize;
         // (start, end) byte offsets — the helper returns the token's
         // end, not a length.
         let (start, end) = node_util::get_span_of_token_at_position(source, pos);
@@ -1087,8 +1089,7 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         };
         ty = self.get_narrowable_type_for_reference(ty, node, check_mode)?;
-        let source = self.binder.source_of_node(declaration);
-        let is_parameter = self.kind_of(node_util::get_root_declaration(source, declaration))
+        let is_parameter = self.kind_of(node_util::get_root_declaration(&Published, declaration))
             == SyntaxKind::Parameter;
         let declaration_container = self.get_control_flow_container(declaration);
         let mut flow_container = self.get_control_flow_container(node);
@@ -1118,11 +1119,10 @@ impl<'a> CheckerState<'a> {
                 break;
             }
             let kind = self.kind_of(container);
-            let source = self.binder.source_of_node(container);
             let is_function_expression_like = kind == SyntaxKind::FunctionExpression
                 || kind == SyntaxKind::ArrowFunction
                 || node_util::is_object_literal_or_class_expression_method_or_accessor(
-                    source, container,
+                    &Published, container,
                 );
             if !is_function_expression_like {
                 break;
@@ -1333,19 +1333,14 @@ impl<'a> CheckerState<'a> {
                     declaration,
                 );
                 if is_class_like && declaration_name != Some(node) {
-                    let source = self.binder.source_of_node(node);
-                    let mut container = node_util::get_this_container(source, node, false);
+                    let mut container = node_util::get_this_container(&Published, node, false);
                     while let Some(current) = container {
                         if self.kind_of(current) == SyntaxKind::SourceFile
                             || self.parent_of(current) == Some(declaration)
                         {
                             break;
                         }
-                        container = node_util::get_this_container(
-                            self.binder.source_of_node(current),
-                            current,
-                            false,
-                        );
+                        container = node_util::get_this_container(&Published, current, false);
                     }
                     if let Some(current) = container {
                         if self.kind_of(current) != SyntaxKind::SourceFile {
@@ -1659,11 +1654,7 @@ impl<'a> CheckerState<'a> {
         self.find_ancestor(self.parent_of(node), |state, n| {
             let kind = state.kind_of(n);
             let is_container = (node_util::is_function_like_kind(kind)
-                && node_util::get_immediately_invoked_function_expression(
-                    state.binder.source_of_node(n),
-                    n,
-                )
-                .is_none())
+                && node_util::get_immediately_invoked_function_expression(&Published, n).is_none())
                 || kind == SyntaxKind::ModuleBlock
                 || kind == SyntaxKind::SourceFile
                 || kind == SyntaxKind::PropertyDeclaration;
@@ -1722,9 +1713,8 @@ impl<'a> CheckerState<'a> {
         let Some(binding_element) = binding_element else {
             return false;
         };
-        let source = self.binder.source_of_node(binding_element);
         let declaration_source = self.binder.source_of_node(declaration);
-        node_util::get_root_declaration(source, binding_element)
+        node_util::get_root_declaration(&Published, binding_element)
             == node_util::get_root_declaration(declaration_source, declaration)
     }
 
@@ -1962,8 +1952,7 @@ impl<'a> CheckerState<'a> {
         let Some(right) = data.right else {
             return false;
         };
-        let source = self.binder.source_of_node(target);
-        let right = node_util::skip_parentheses_pub(source, right);
+        let right = node_util::skip_parentheses_pub(&Published, right);
         let NodeData::BinaryExpression(right_data) = self.data_of(right) else {
             return false;
         };
@@ -2430,16 +2419,14 @@ impl<'a> CheckerState<'a> {
         let Some(initializer) = data.initializer else {
             return;
         };
-        let source = self.binder.source_of_node(this_expression);
-        let this_pos = source.arena.node(this_expression).pos;
+        let this_pos = Published.node(this_expression).pos;
         let initializer_range = {
-            let source = self.binder.source_of_node(initializer);
-            let node = source.arena.node(initializer);
+            let node = Published.node(initializer);
             (node.pos, node.end)
         };
         let contains = initializer_range.0 <= this_pos && this_pos <= initializer_range.1;
         let parent_has_decorators = self.parent_of(container).is_some_and(|class| {
-            node_util::modifiers_of(self.binder.source_of_node(class), class)
+            node_util::modifiers_of(&Published, class)
                 .map(|modifiers| {
                     self.nodes_of(Some(modifiers))
                         .iter()
@@ -2479,10 +2466,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7101b7d0f1e607daa5a4ec5b194f7d3cfe15c24c30ebbdbb41a845dceaae5c7d
     /// tsc-span: _tsc.js:15752-15755
     pub(crate) fn get_class_extends_heritage_element(&self, node: NodeId) -> Option<NodeId> {
-        tsc_binder::node_util::get_class_extends_heritage_element(
-            self.binder.source_of_node(node),
-            node,
-        )
+        tsc_binder::node_util::get_class_extends_heritage_element(&Published, node)
     }
 
     /// tsc-port: checkSuperExpression @6.0.3
@@ -2504,21 +2488,13 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(current) != SyntaxKind::ArrowFunction {
                     break;
                 }
-                if node_util::has_syntactic_modifier(
-                    self.binder.source_of_node(current),
-                    current,
-                    ModifierFlags::ASYNC,
-                ) {
+                if node_util::has_syntactic_modifier(&Published, current, ModifierFlags::ASYNC) {
                     in_async_function = true;
                 }
                 container = self.get_super_container(current, true);
             }
             if let Some(current) = container {
-                if node_util::has_syntactic_modifier(
-                    self.binder.source_of_node(current),
-                    current,
-                    ModifierFlags::ASYNC,
-                ) {
+                if node_util::has_syntactic_modifier(&Published, current, ModifierFlags::ASYNC) {
                     in_async_function = true;
                 }
             }
@@ -2862,8 +2838,7 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.boolean);
         };
         self.check_expression(expression, CheckMode::NORMAL)?;
-        let source = self.binder.source_of_node(expression);
-        let expr = node_util::skip_parentheses_pub(source, expression);
+        let expr = node_util::skip_parentheses_pub(&Published, expression);
         let is_access = matches!(
             self.kind_of(expr),
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
@@ -3109,9 +3084,8 @@ impl<'a> CheckerState<'a> {
                 None => self.check_expression_cached(initializer, check_mode)?,
             },
         };
-        let source = self.binder.source_of_node(declaration);
         let walk_target = if self.kind_of(declaration) == SyntaxKind::BindingElement {
-            node_util::walk_up_binding_elements_and_patterns(source, declaration)
+            node_util::walk_up_binding_elements_and_patterns(&Published, declaration)
         } else {
             Some(declaration)
         };
@@ -3309,8 +3283,7 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        let source = self.binder.source_of_node(declaration);
-        let constant = node_util::get_combined_node_flags(source, declaration).bits()
+        let constant = node_util::get_combined_node_flags(&Published, declaration).bits()
             & tsc_types::NodeFlags::CONSTANT.bits()
             != 0;
         if constant || self.is_declaration_readonly(declaration) {
@@ -3330,7 +3303,7 @@ impl<'a> CheckerState<'a> {
         node_util::get_combined_modifier_flags(source, declaration)
             .intersects(ModifierFlags::READONLY)
             && !self.parent_of(declaration).is_some_and(|parent| {
-                node_util::is_parameter_property_declaration(source, declaration, parent)
+                node_util::is_parameter_property_declaration(&Published, declaration, parent)
             })
     }
 
@@ -3538,8 +3511,7 @@ impl<'a> CheckerState<'a> {
                 let Some(expression) = expression else {
                     return Ok(false);
                 };
-                let source = self.binder.source_of_node(node);
-                let expr = node_util::skip_parentheses_pub(source, expression);
+                let expr = node_util::skip_parentheses_pub(&Published, expression);
                 let symbol = if self.is_entity_name_expression(expr) {
                     // VALUE | ALIAS meaning: an imported enum binding
                     // resolves to its ALIAS symbol here
@@ -3597,11 +3569,7 @@ impl<'a> CheckerState<'a> {
             let symbol = self.tables.type_of(ty).symbol;
             return Ok(symbol.is_some_and(|s| {
                 self.binder.symbol(s).declarations.iter().any(|&d| {
-                    node_util::has_syntactic_modifier(
-                        self.binder.source_of_node(d),
-                        d,
-                        ModifierFlags::CONST,
-                    )
+                    node_util::has_syntactic_modifier(&Published, d, ModifierFlags::CONST)
                 })
             }));
         }
@@ -3900,14 +3868,13 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<TypeId>> {
-        let source = self.binder.source_of_node(node);
         let jsdoc_assertion = self.skip_parentheses_excluding_jsdoc_type_assertions(node);
         if let Some(type_node) = self.jsdoc_type_assertion_type_node(jsdoc_assertion) {
             if !self.is_const_type_reference_node(type_node) {
                 return self.get_type_from_type_node(type_node).map(Some);
             }
         }
-        let expr = node_util::skip_parentheses_pub(source, node);
+        let expr = node_util::skip_parentheses_pub(&Published, node);
         match self.kind_of(expr) {
             SyntaxKind::AwaitExpression => {
                 let operand = match self.data_of(expr) {
@@ -3935,7 +3902,7 @@ impl<'a> CheckerState<'a> {
                     && !self.is_symbol_or_symbol_for_call(expr)?
                     && !self.is_import_call(expr)
                 {
-                    let ty = if node_util::is_optional_chain(source, expr) {
+                    let ty = if node_util::is_optional_chain(&Published, expr) {
                         self.get_return_type_of_single_non_generic_signature_of_call_chain(expr)?
                     } else if let Some(callee) = callee {
                         let func_type = self.check_non_null_expression(callee)?;

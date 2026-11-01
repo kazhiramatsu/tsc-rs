@@ -18,7 +18,7 @@ use tsc_emitter::{
     create_printer, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitSymbolMeaning,
     NewLineKind, PrintRequest, PrinterOptions, StandaloneWriter,
 };
-use tsc_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{for_each_child, NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{JsString, TypeData, TypeId};
 
 use crate::declaration_emit::SymbolFormatFlags;
@@ -76,7 +76,7 @@ fn walk(
         state.emit_display_target(index);
     }
     let root = state.binder.source(file_index).root;
-    let nodes = for_each_ast_node(state, root);
+    let nodes = for_each_ast_node(root);
     let mut results = Vec::new();
     for node in nodes {
         let candidate = state.is_expression_node_like_tsgo(node)
@@ -101,15 +101,14 @@ fn walk(
 /// `forEachASTNode` (:319-344): an iterative pre-order traversal; the
 /// children of a node are pushed in reverse so the first child is visited
 /// first. The reparsed JSDoc nodes tsgo skips are not tree nodes here.
-fn for_each_ast_node(state: &CheckerState<'_>, root: NodeId) -> Vec<NodeId> {
-    let source = state.binder.source_of_node(root);
+fn for_each_ast_node(root: NodeId) -> Vec<NodeId> {
     let mut result = Vec::new();
     let mut work = vec![root];
     let mut children = Vec::new();
     while let Some(node) = work.pop() {
         result.push(node);
         children.clear();
-        for_each_child(&source.arena, source.arena.node(node), |child| {
+        for_each_child(&Published, Published.node(node), |child| {
             children.push(child);
             false
         });
@@ -126,7 +125,7 @@ fn write_type_or_symbol(
     is_symbol_walk: bool,
 ) -> Result<Option<TypeWriterLine>, String> {
     let source = state.binder.source_of_node(node);
-    let raw = source.arena.node(node);
+    let raw = Published.node(node);
     let text = source.text();
     let actual_pos = tsc_syntax::skip_trivia(text, raw.pos as usize);
     let line = source
@@ -135,7 +134,7 @@ fn write_type_or_symbol(
         .unwrap_or(0) as usize;
     // GetSourceTextOfNodeFromSourceFile: the text from the first token to
     // the end; a missing node has none.
-    let source_text = if node_util::node_is_missing(source, Some(node)) {
+    let source_text = if node_util::node_is_missing(&Published, Some(node)) {
         String::new()
     } else {
         text[actual_pos.min(raw.end as usize)..raw.end as usize].to_owned()
@@ -150,7 +149,7 @@ fn write_type_or_symbol(
                 && parent.is_some_and(|parent| {
                     get_meaning_from_declaration(state, parent) & MEANING_VALUE == 0
                         && !(state.kind_of(parent) == SyntaxKind::TypeAliasDeclaration
-                            && node_util::name_field_of(source, parent) == Some(node))
+                            && node_util::name_field_of(&Published, parent) == Some(node))
                 }))
             || state.kind_of(node) == SyntaxKind::OmittedExpression
         {
@@ -180,7 +179,8 @@ fn write_type_or_symbol(
                 Some(SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName)
             )
             && !is_label_name(state, node)
-            && parent.is_none_or(|parent| !node_util::is_global_scope_augmentation(source, parent))
+            && parent
+                .is_none_or(|parent| !node_util::is_global_scope_augmentation(&Published, parent))
             && parent_kind != Some(SyntaxKind::MetaProperty)
             && !is_import_statement_name(state, node)
             && !is_export_statement_name(state, node)
@@ -200,7 +200,7 @@ fn write_type_or_symbol(
             if state.kind_of(node) == SyntaxKind::Identifier
                 && parent.is_some_and(|parent| {
                     state.kind_of(parent) == SyntaxKind::TypeAliasDeclaration
-                        && node_util::name_field_of(source, parent) == Some(node)
+                        && node_util::name_field_of(&Published, parent) == Some(node)
                 })
                 && built_kind == SyntaxKind::Identifier
                 && state.identifier_text_of(node) == Some(printed.as_str())
@@ -378,7 +378,7 @@ fn get_meaning_from_declaration(state: &CheckerState<'_>, node: NodeId) -> u32 {
         | SyntaxKind::TypeLiteral => MEANING_TYPE,
         SyntaxKind::EnumMember | SyntaxKind::ClassDeclaration => MEANING_VALUE | MEANING_TYPE,
         SyntaxKind::ModuleDeclaration => {
-            if node_util::is_ambient_module(source, node)
+            if node_util::is_ambient_module(&Published, node)
                 || tsc_binder::containers::get_module_instance_state(
                     source,
                     node,
@@ -453,7 +453,7 @@ fn is_intrinsic_jsx_tag(state: &CheckerState<'_>, node: NodeId) -> bool {
         return false;
     }
     let source = state.binder.source_of_node(node);
-    let raw = source.arena.node(node);
+    let raw = Published.node(node);
     let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
     let text = &source.text()[start.min(raw.end as usize)..raw.end as usize];
     text.as_bytes()

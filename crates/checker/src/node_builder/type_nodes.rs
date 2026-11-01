@@ -15,7 +15,7 @@ use tsc_syntax::nodes::{
     TemplateLiteralTypeSpanData, TupleTypeData, TypeLiteralData, TypeOperatorData,
     TypeParameterData, TypeQueryData, UnionTypeData,
 };
-use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, Published, SyntaxKind};
 use tsc_types::{
     CheckFlags, ElementFlags, IntersectionFlags, LiteralValue, ModifierFlags, NodeFlags,
     ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
@@ -4189,8 +4189,7 @@ fn create_type_nodes_from_resolved_type(
                             .nodes_of(members)
                             .into_iter()
                             .filter(|&member| {
-                                let source = checker.binder.source_of_node(member);
-                                !node_util::get_syntactic_modifier_flags(source, member)
+                                !node_util::get_syntactic_modifier_flags(&Published, member)
                                     .intersects(ModifierFlags::STATIC)
                                     && checker.name_of_named_declaration(member).is_some_and(
                                         |name| {
@@ -4665,8 +4664,7 @@ pub(super) fn add_property_to_element_list(
                 return Ok(());
             }
             let is_auto_accessor = property_declaration.is_some_and(|declaration| {
-                let source = checker.binder.source_of_node(declaration);
-                node_util::modifiers_of(source, declaration).is_some_and(|modifiers| {
+                node_util::modifiers_of(&Published, declaration).is_some_and(|modifiers| {
                     checker
                         .nodes_of(Some(modifiers))
                         .iter()

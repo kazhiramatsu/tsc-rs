@@ -14,7 +14,8 @@ use tsc_syntax::nodes::{
     SetAccessorData, TypeParameterData, TypePredicateData,
 };
 use tsc_syntax::{
-    try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
+    try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, NodeLookup,
+    Published, SyntaxKind,
 };
 use tsc_types::{
     CheckFlags, ElementFlags, MapperId, ModifierFlags, SignatureFlags, SymbolFlags, TypeData,
@@ -367,8 +368,7 @@ fn clone_modifiers(
     arena: &mut TransformArena,
     declaration: NodeId,
 ) -> BuildResult<Vec<TransformNode>> {
-    let source = checker.binder.source_of_node(declaration);
-    let Some(modifiers) = node_util::modifiers_of(source, declaration) else {
+    let Some(modifiers) = node_util::modifiers_of(&Published, declaration) else {
         return Ok(Vec::new());
     };
     checker
@@ -764,7 +764,7 @@ pub(crate) fn signature_to_signature_declaration_helper(
                 {
                     if let Some(comment_node) = checker.parent_of(overload_tag) {
                         let source = checker.binder.source_of_node(comment_node);
-                        let raw = source.arena.node(comment_node);
+                        let raw = Published.node(comment_node);
                         let start = (raw.pos as usize).min(source.text().len());
                         let end = (raw.end as usize).min(source.text().len());
                         if start <= end {

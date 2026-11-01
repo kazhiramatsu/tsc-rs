@@ -12,7 +12,7 @@ use tsc_emitter::{
     PrintRequest, PrinterOptions, StandaloneWriter, TransformArena, TransformNode,
     TransformSourceId,
 };
-use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, Published, SourceFile, SyntaxKind};
 use tsc_types::{
     CheckMode, IndexFlags, JsString, NodeFlags, ObjectFlags, SymbolFlags, SymbolId, TypeData,
     TypeFlags, TypeId,
@@ -618,7 +618,7 @@ impl CheckerState<'_> {
         let source = self.binder.source_of_node(node);
         let mut enclosing = Some(node);
         while let Some(candidate) = enclosing {
-            if tsc_binder::node_util::is_declaration_node(source, candidate) {
+            if tsc_binder::node_util::is_declaration_node(&Published, candidate) {
                 break;
             }
             enclosing = self.parent_of(candidate);
@@ -1118,10 +1118,7 @@ impl CheckerState<'_> {
                 }
                 let write = self.is_write_access(location);
                 if self.is_expression_node_like_tsgo(location)
-                    && (!node_util::is_assignment_target(
-                        self.binder.source_of_node(location),
-                        location,
-                    ) || write)
+                    && (!node_util::is_assignment_target(&Published, location) || write)
                 {
                     let ty = if write
                         && self.kind_of(location) == SyntaxKind::PropertyAccessExpression
@@ -1192,9 +1189,7 @@ impl CheckerState<'_> {
             self.check_expression_cached(node, CheckMode::NORMAL)?;
         }
         let mut symbol = resolved(self);
-        if symbol.is_none()
-            && node_util::is_entity_name_expression(self.binder.source_of_node(node), node)
-        {
+        if symbol.is_none() && node_util::is_entity_name_expression(&Published, node) {
             symbol = self.resolve_entity_name(node, SymbolFlags::VALUE, true, None)?;
         }
         if let Some(symbol) = symbol {

@@ -34,7 +34,7 @@
 use tsc_binder::flow::{FlowId, FlowPayload};
 use tsc_binder::{node_util, SymbolId};
 use tsc_diagnostics::gen as diagnostics;
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     CheckMode, EscapedName, FlowFlags, JsString, NodeCheckFlags, NodeFlags, SymbolFlags, TypeData,
     TypeFlags, TypeId,
@@ -2432,8 +2432,7 @@ impl<'a> CheckerState<'a> {
     /// (pub(crate): isConstantReference's binding-pattern arm consumes
     /// it since 6.6f.)
     pub(crate) fn is_var_const_like(&self, node: NodeId) -> bool {
-        let source = self.binder.source_of_node(node);
-        let block_scope_kind = node_util::get_combined_node_flags(source, node).bits()
+        let block_scope_kind = node_util::get_combined_node_flags(&Published, node).bits()
             & (NodeFlags::LET.bits() | NodeFlags::CONST.bits() | NodeFlags::USING.bits());
         block_scope_kind == NodeFlags::CONST.bits()
             || block_scope_kind == NodeFlags::USING.bits()
@@ -3868,8 +3867,7 @@ impl<'a> CheckerState<'a> {
         let Some(argument) = self.element_access_argument_of(node) else {
             return Ok(None);
         };
-        let source = self.binder.source_of_node(node);
-        if node_util::is_string_or_numeric_literal_like(source, argument) {
+        if node_util::is_string_or_numeric_literal_like(&Published, argument) {
             let text = match self.data_of(argument) {
                 NodeData::StringLiteral(data) => data.text.clone(),
                 NodeData::NumericLiteral(data) => data.text.clone().into(),
@@ -3878,7 +3876,7 @@ impl<'a> CheckerState<'a> {
             };
             return Ok(Some(EscapedName::escape(text.as_js())));
         }
-        if node_util::is_entity_name_expression(source, argument) {
+        if node_util::is_entity_name_expression(&Published, argument) {
             return self.try_get_name_from_entity_name_expression(argument);
         }
         Ok(None)
@@ -4294,9 +4292,8 @@ impl<'a> CheckerState<'a> {
                 kind if self.is_type_node_kind(kind) => continue,
                 _ => {}
             }
-            let source = self.binder.source_of_node(node);
             let mut children: Vec<NodeId> = Vec::new();
-            tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+            tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
                 children.push(child);
                 false
             });
@@ -4582,8 +4579,7 @@ impl<'a> CheckerState<'a> {
         let Some(parent) = self.parent_of(pattern) else {
             return Ok(None);
         };
-        let source = self.binder.source_of_node(parent);
-        let root_declaration = node_util::get_root_declaration(source, parent);
+        let root_declaration = node_util::get_root_declaration(&Published, parent);
         // tsgo getNarrowedTypeOfSymbol: a reference in the root declaration's
         // own initializer, in the same flow container, is not narrowed; the
         // destructured type would depend on itself.
@@ -4601,7 +4597,7 @@ impl<'a> CheckerState<'a> {
         }
         let root_is_const_variable = self.kind_of(root_declaration)
             == SyntaxKind::VariableDeclaration
-            && node_util::get_combined_node_flags(source, root_declaration)
+            && node_util::get_combined_node_flags(&Published, root_declaration)
                 .intersects(NodeFlags::CONSTANT);
         let root_is_parameter = self.kind_of(root_declaration) == SyntaxKind::Parameter;
         if !root_is_const_variable && !root_is_parameter {

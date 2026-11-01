@@ -7,7 +7,9 @@
 //! matter: the program sorts a file's syntactic diagnostics.
 
 use tsc_diagnostics::{gen, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo};
-use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
+use tsc_syntax::{
+    for_each_child, NodeArrayId, NodeData, NodeId, NodeLookup, Published, SourceFile, SyntaxKind,
+};
 use tsc_types::NodeFlags;
 
 /// The JavaScript-only syntax diagnostics of `source`.
@@ -25,7 +27,7 @@ pub(crate) fn get_js_syntactic_diagnostics(source: &SourceFile) -> Vec<Diagnosti
             checker.check_js_syntax(node);
         }
         children.clear();
-        for_each_child(&source.arena, source.arena.node(node), |child| {
+        for_each_child(&Published, Published.node(node), |child| {
             children.push(child);
             false
         });
@@ -42,18 +44,17 @@ pub(crate) fn get_additional_js_syntactic_diagnostics(source: &SourceFile) -> Ve
     let mut stack = vec![source.root];
     let mut children = Vec::new();
     while let Some(node) = stack.pop() {
-        if let NodeData::Parameter(data) = &source.arena.node(node).data {
+        if let NodeData::Parameter(data) = &Published.node(node).data {
             let decorator = data.modifiers.and_then(|modifiers| {
-                source
-                    .arena
+                Published
                     .node_array(modifiers)
                     .nodes
                     .iter()
                     .copied()
-                    .find(|&modifier| source.arena.node(modifier).kind == SyntaxKind::Decorator)
+                    .find(|&modifier| Published.node(modifier).kind == SyntaxKind::Decorator)
             });
             if let Some(decorator) = decorator {
-                let decorator = source.arena.node(decorator);
+                let decorator = Published.node(decorator);
                 let utf16 = |byte: u32| source.positions().byte_to_utf16(byte).unwrap_or(byte);
                 let (start, end) = (utf16(decorator.pos), utf16(decorator.end));
                 diagnostics.push(Diagnostic::new_js(
@@ -65,7 +66,7 @@ pub(crate) fn get_additional_js_syntactic_diagnostics(source: &SourceFile) -> Ve
             }
         }
         children.clear();
-        for_each_child(&source.arena, source.arena.node(node), |child| {
+        for_each_child(&Published, Published.node(node), |child| {
             children.push(child);
             false
         });
@@ -81,23 +82,19 @@ struct JsSyntaxChecker<'a> {
 
 impl JsSyntaxChecker<'_> {
     fn kind(&self, id: NodeId) -> SyntaxKind {
-        self.source.arena.node(id).kind
+        Published.node(id).kind
     }
 
     fn data(&self, id: NodeId) -> &NodeData {
-        &self.source.arena.node(id).data
+        &Published.node(id).data
     }
 
     fn parent_kind(&self, id: NodeId) -> Option<SyntaxKind> {
-        self.source
-            .arena
-            .node(id)
-            .parent
-            .map(|parent| self.kind(parent))
+        Published.node(id).parent.map(|parent| self.kind(parent))
     }
 
     fn nodes(&self, array: Option<NodeArrayId>) -> &[NodeId] {
-        array.map_or(&[], |array| self.source.arena.node_array(array).nodes)
+        array.map_or(&[], |array| Published.node_array(array).nodes)
     }
 
     /// Whether tsgo's parser runs checkJSSyntax on `node` (the calls in
@@ -153,7 +150,7 @@ impl JsSyntaxChecker<'_> {
                 Some(SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression)
             ),
             SyntaxKind::ExpressionWithTypeArguments => {
-                let Some(clause) = self.source.arena.node(node).parent else {
+                let Some(clause) = Published.node(node).parent else {
                     return false;
                 };
                 matches!(
@@ -194,13 +191,13 @@ impl JsSyntaxChecker<'_> {
     }
 
     fn error_at_node(&mut self, id: NodeId, message: &'static DiagnosticMessage, args: &[&str]) {
-        let node = self.source.arena.node(id);
+        let node = Published.node(id);
         let diagnostic = self.diagnostic_at(node.pos, node.end, message, args);
         self.diagnostics.push(diagnostic);
     }
 
     fn error_at_list(&mut self, list: NodeArrayId, message: &'static DiagnosticMessage) {
-        let array = self.source.arena.node_array(list);
+        let array = Published.node_array(list);
         let diagnostic = self.diagnostic_at(array.pos, array.end, message, &[]);
         self.diagnostics.push(diagnostic);
     }
@@ -418,7 +415,7 @@ impl JsSyntaxChecker<'_> {
             | SyntaxKind::TypeAliasDeclaration
             | SyntaxKind::EnumDeclaration => {
                 if let Some(name) = self.name_of(node) {
-                    let flags = NodeFlags::from_bits(self.source.arena.node(node).flags);
+                    let flags = NodeFlags::from_bits(Published.node(node).flags);
                     let (message, keyword): (&'static DiagnosticMessage, &str) = match kind {
                         SyntaxKind::InterfaceDeclaration => (
                             &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
@@ -592,8 +589,8 @@ impl JsSyntaxChecker<'_> {
                 .position(|&id| is_decorator(self, id))
                 .map(|offset| export_index + offset);
             if let Some(trailing) = trailing {
-                let trailing = self.source.arena.node(modifiers[trailing]);
-                let leading = self.source.arena.node(modifiers[decorator_index]);
+                let trailing = Published.node(modifiers[trailing]);
+                let leading = Published.node(modifiers[decorator_index]);
                 let mut diagnostic = self.diagnostic_at(
                     trailing.pos,
                     trailing.end,

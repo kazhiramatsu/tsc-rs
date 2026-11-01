@@ -9,7 +9,7 @@ use tsc_emitter::{
     EmitNodeBuilderFlags, EmitSymbolExpansionOut, TransformArena, TransformNode,
     TransformNodeArray, TransformSourceId,
 };
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, Published, SyntaxKind};
 use tsc_types::{ModifierFlags, NodeFlags, SymbolFlags, SymbolId, TypeId};
 
 use crate::exports::ConstantValue;
@@ -136,7 +136,7 @@ fn simplify_class_declaration(
         .copied()
         .find(|&declaration| is_class_like(checker, declaration));
     let modifiers = original.map_or(ModifierFlags::NONE, |declaration| {
-        syntactic_modifier_flags(checker, declaration)
+        syntactic_modifier_flags(declaration)
     });
     let modifiers = without(modifiers, ModifierFlags::EXPORT | ModifierFlags::AMBIENT);
     let mut class = class;
@@ -177,7 +177,7 @@ fn simplify_modifiers(
         .copied()
         .find(|&declaration| checker.kind_of(declaration) == kind)
         .map_or(ModifierFlags::NONE, |declaration| {
-            syntactic_modifier_flags(checker, declaration)
+            syntactic_modifier_flags(declaration)
         });
     let modifiers = without(modifiers, ModifierFlags::EXPORT | ModifierFlags::AMBIENT);
     replace_modifiers(arena, declaration, modifiers)
@@ -993,7 +993,7 @@ fn serialize_constructors(
         let mut private_protected = ModifierFlags::NONE;
         for &signature in signatures.iter() {
             if let Some(declaration) = checker.signature_of(signature).declaration {
-                private_protected |= syntactic_modifier_flags(checker, declaration)
+                private_protected |= syntactic_modifier_flags(declaration)
                     & (ModifierFlags::PRIVATE | ModifierFlags::PROTECTED);
             }
         }
@@ -1521,7 +1521,7 @@ fn is_namespace_member(checker: &CheckerState<'_>, property: SymbolId) -> bool {
         .symbol(property)
         .value_declaration
         .is_some_and(|declaration| {
-            syntactic_modifier_flags(checker, declaration).intersects(ModifierFlags::STATIC)
+            syntactic_modifier_flags(declaration).intersects(ModifierFlags::STATIC)
                 && checker
                     .parent_of(declaration)
                     .is_some_and(|parent| is_class_like(checker, parent))
@@ -1537,9 +1537,7 @@ fn is_hash_private(checker: &CheckerState<'_>, symbol: SymbolId) -> bool {
         .binder
         .symbol(symbol)
         .value_declaration
-        .and_then(|declaration| {
-            node_util::name_field_of(checker.binder.source_of_node(declaration), declaration)
-        })
+        .and_then(|declaration| node_util::name_field_of(&Published, declaration))
         .is_some_and(|name| checker.kind_of(name) == SyntaxKind::PrivateIdentifier)
 }
 
@@ -1563,8 +1561,8 @@ fn is_class_like(checker: &CheckerState<'_>, node: NodeId) -> bool {
 }
 
 /// tsgo `node.ModifierFlags()`: the flags of the node's modifier list.
-fn syntactic_modifier_flags(checker: &CheckerState<'_>, node: NodeId) -> ModifierFlags {
-    node_util::get_syntactic_modifier_flags(checker.binder.source_of_node(node), node)
+fn syntactic_modifier_flags(node: NodeId) -> ModifierFlags {
+    node_util::get_syntactic_modifier_flags(&Published, node)
 }
 
 /// tsgo `ModifierFlags()` of a built node: its modifiers' flags.

@@ -14,7 +14,7 @@ use tsc_binder::node_util::{
 };
 use tsc_binder::{NameKey, SymbolId, SymbolTable};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage, JsStr, JsString};
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{EscapedName, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags, TypeFlags};
 
 use crate::state::{CheckResult, CheckerState};
@@ -425,10 +425,7 @@ impl<'a> CheckerState<'a> {
                         if is_source_file
                             || (self.kind_of(loc) == SyntaxKind::ModuleDeclaration
                                 && self.node_flags(loc) & NodeFlags::AMBIENT.bits() != 0
-                                && !node_util::is_global_scope_augmentation(
-                                    self.binder.source_of_node(loc),
-                                    loc,
-                                ))
+                                && !node_util::is_global_scope_augmentation(&Published, loc))
                         {
                             // Default exports are not looked up by
                             // local name...
@@ -791,9 +788,8 @@ impl<'a> CheckerState<'a> {
                     if last_location.is_some()
                         && (last_location == data.initializer
                             || (last_location == data.name
-                                && last_location.is_some_and(|l| {
-                                    node_util::is_binding_pattern(self.binder.source_of_node(l), l)
-                                })))
+                                && last_location
+                                    .is_some_and(|l| node_util::is_binding_pattern(&Published, l))))
                         && associated_declaration_for_containing_initializer.is_none()
                     {
                         associated_declaration_for_containing_initializer = Some(loc);
@@ -806,9 +802,8 @@ impl<'a> CheckerState<'a> {
                     if last_location.is_some()
                         && (last_location == data.initializer
                             || (last_location == data.name
-                                && last_location.is_some_and(|l| {
-                                    node_util::is_binding_pattern(self.binder.source_of_node(l), l)
-                                })))
+                                && last_location
+                                    .is_some_and(|l| node_util::is_binding_pattern(&Published, l))))
                         && is_part_of_parameter_declaration(self.binder.source_of_node(loc), loc)
                         && associated_declaration_for_containing_initializer.is_none()
                     {
@@ -1048,8 +1043,8 @@ impl<'a> CheckerState<'a> {
         let Some(value_declaration) = self.binder.symbol(result).value_declaration else {
             return false;
         };
-        let body_node = source.arena.node(body);
-        let decl_node = source.arena.node(value_declaration);
+        let body_node = Published.node(body);
+        let decl_node = Published.node(value_declaration);
         if !(decl_node.pos >= body_node.pos && decl_node.end <= body_node.end) {
             return false;
         }
@@ -1097,9 +1092,8 @@ impl<'a> CheckerState<'a> {
                     .is_some_and(|n| self.requires_scope_change_worker(n))
             }
             _ => {
-                let source = self.binder.source_of_node(node);
-                if node_util::is_nullish_coalesce(source, node)
-                    || node_util::is_optional_chain(source, node)
+                if node_util::is_nullish_coalesce(&Published, node)
+                    || node_util::is_optional_chain(&Published, node)
                 {
                     return target < ScriptTarget::ES2020;
                 }
@@ -1129,7 +1123,7 @@ impl<'a> CheckerState<'a> {
         let kind = self.kind_of(location);
         let source = self.binder.source_of_node(location);
         if kind != SyntaxKind::ArrowFunction && kind != SyntaxKind::FunctionExpression {
-            return node_util::is_part_of_type_query(source, location)
+            return node_util::is_part_of_type_query(&Published, location)
                 && self.kind_of(location) == SyntaxKind::TypeQuery
                 || (is_function_like_declaration_kind(kind)
                     || (kind == SyntaxKind::PropertyDeclaration
@@ -1139,7 +1133,7 @@ impl<'a> CheckerState<'a> {
         if last_location.is_some() && last_location == self.name_of_node(location) {
             return false;
         }
-        if node_util::asterisk_token_of(source, location).is_some()
+        if node_util::asterisk_token_of(&Published, location).is_some()
             || has_syntactic_modifier(source, location, ModifierFlags::ASYNC)
         {
             return true;
@@ -1261,14 +1255,13 @@ impl<'a> CheckerState<'a> {
         };
         let in_type = match (error_location, data.r#type) {
             (Some(error_node), Some(type_node)) => {
-                let source = self.binder.source_of_node(property);
                 let error_pos = self
                     .binder
                     .source_of_node(error_node)
                     .arena
                     .node(error_node)
                     .pos;
-                let type_range = source.arena.node(type_node);
+                let type_range = Published.node(type_node);
                 type_range.pos <= error_pos && error_pos <= type_range.end
             }
             _ => false,
@@ -1369,13 +1362,11 @@ impl<'a> CheckerState<'a> {
     }
 
     fn class_has_decorator(&self, declaration: NodeId) -> bool {
-        node_util::modifiers_of(self.binder.source_of_node(declaration), declaration).is_some_and(
-            |modifiers| {
-                self.nodes_of(Some(modifiers))
-                    .into_iter()
-                    .any(|modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
-            },
-        )
+        node_util::modifiers_of(&Published, declaration).is_some_and(|modifiers| {
+            self.nodes_of(Some(modifiers))
+                .into_iter()
+                .any(|modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
+        })
     }
 
     /// tsc-port: onFailedToResolveSymbol @6.0.3 (PARTIAL)
@@ -1527,9 +1518,8 @@ impl<'a> CheckerState<'a> {
                     .symbol(candidate)
                     .value_declaration
                     .is_some_and(|declaration| {
-                        let source = self.binder.source_of_node(declaration);
-                        node_util::is_ambient_module(source, declaration)
-                            && node_util::is_global_scope_augmentation(source, declaration)
+                        node_util::is_ambient_module(&Published, declaration)
+                            && node_util::is_global_scope_augmentation(&Published, declaration)
                     });
                 if is_global_scope_augmentation_declaration {
                     suggestion = None;
@@ -1895,7 +1885,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let container = tsc_binder::node_util::get_this_container(
-            self.binder.source_of_node(error_location),
+            &Published,
             error_location,
             /*include_arrow_functions*/ false,
         );
@@ -2105,8 +2095,7 @@ impl<'a> CheckerState<'a> {
                     NodeData::ShorthandPropertyAssignment(data) if data.name == Some(use_site)
                 )
             });
-        !node_util::is_expression_node(self.binder.source_of_node(use_site), use_site)
-            && !shorthand_property_name
+        !node_util::is_expression_node(&Published, use_site) && !shorthand_property_name
     }
 
     /// tsc-port: onSuccessfullyResolvedSymbolCallback @6.0.3
@@ -2211,10 +2200,7 @@ impl<'a> CheckerState<'a> {
                 let candidate_data = self.binder.symbol(candidate);
                 let value_declaration = candidate_data.value_declaration;
                 let candidate_name = candidate_data.escaped_name;
-                let root = node_util::get_root_declaration(
-                    self.binder.source_of_node(associated_declaration),
-                    associated_declaration,
-                );
+                let root = node_util::get_root_declaration(&Published, associated_declaration);
                 let root_parent = self.parent_of(root);
                 let root_local = root_parent
                     .and_then(|parent| self.binder.locals_of(parent))
@@ -2353,8 +2339,7 @@ impl<'a> CheckerState<'a> {
         }
         let declarations = self.binder.symbol(result).declarations.clone();
         let declaration = declarations.into_iter().find(|&declaration| {
-            let source = self.binder.source_of_node(declaration);
-            node_util::is_block_or_catch_scoped(source, declaration)
+            node_util::is_block_or_catch_scoped(&Published, declaration)
                 || matches!(
                     self.kind_of(declaration),
                     SyntaxKind::ClassDeclaration
@@ -2441,7 +2426,7 @@ impl<'a> CheckerState<'a> {
         location: Option<NodeId>,
         dont_resolve_alias: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        if node_util::node_is_missing(self.binder.source_of_node(name), Some(name)) {
+        if node_util::node_is_missing(&Published, Some(name)) {
             return Ok(None);
         }
         // tsgo resolveQualifiedName (TypeScript 7.1) resolves the left
@@ -2495,7 +2480,7 @@ impl<'a> CheckerState<'a> {
                 let Some(namespace) = namespace else {
                     return Ok(None);
                 };
-                if node_util::node_is_missing(self.binder.source_of_node(right), Some(right)) {
+                if node_util::node_is_missing(&Published, Some(right)) {
                     return Ok(None);
                 }
                 if namespace == self.unknown_symbol {
@@ -2866,7 +2851,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed AST projection for tsc's direct
     /// `node.name` property access.
     pub(crate) fn name_of_node(&self, node: NodeId) -> Option<NodeId> {
-        node_util::name_field_of(self.binder.source_of_node(node), node)
+        node_util::name_field_of(&Published, node)
     }
 
     /// tsrs-native: typed Identifier/PrivateIdentifier projection for
@@ -2906,7 +2891,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok((cached != self.unknown_symbol).then_some(cached));
         }
-        let resolved = if node_util::node_is_missing(self.binder.source_of_node(node), Some(node)) {
+        let resolved = if node_util::node_is_missing(&Published, Some(node)) {
             None
         } else {
             let name = self.identifier_name_of(node).unwrap_or_default();
@@ -3002,8 +2987,7 @@ impl<'a> CheckerState<'a> {
         loop {
             match self.data_of(current) {
                 NodeData::PropertyAccessExpression(data) => {
-                    let source = self.binder.source_of_node(current);
-                    if node_util::is_optional_chain(source, current)
+                    if node_util::is_optional_chain(&Published, current)
                         || !matches!(data.name, Some(name) if self.kind_of(name) == SyntaxKind::Identifier)
                     {
                         return None;
@@ -3103,9 +3087,8 @@ impl<'a> CheckerState<'a> {
     }
 
     fn child_nodes_of(&self, node: NodeId) -> Vec<NodeId> {
-        let source = self.binder.source_of_node(node);
         let mut children = Vec::new();
-        tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+        tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
             children.push(child);
             false
         });

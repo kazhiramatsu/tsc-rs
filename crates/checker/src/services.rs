@@ -3,7 +3,7 @@
 //! contextual type's properties and of the index signatures at a location,
 //! and the type argument of a known generic type.
 
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, Published, SyntaxKind};
 use tsc_types::{
     CheckFlags, ContextFlags, LiteralValue, ObjectFlags, SymbolFlags, SymbolId, TypeData,
     TypeFlags, TypeId,
@@ -447,8 +447,7 @@ impl CheckerState<'_> {
     /// array or object literal that is a destructuring assignment's target.
     pub fn is_array_literal_or_object_literal_destructuring_pattern(&self, node: NodeId) -> bool {
         tsc_binder::node_util::is_array_literal_or_object_literal_destructuring_pattern(
-            self.binder.source_of_node(node),
-            node,
+            &Published, node,
         )
     }
 
@@ -695,11 +694,8 @@ impl CheckerState<'_> {
                 continue;
             };
             let name_type = if self.kind_of(name) == SyntaxKind::JsxNamespacedName {
-                let text = tsc_binder::node_util::get_text_of_jsx_namespaced_name(
-                    self.binder.source_of_node(name),
-                    name,
-                )
-                .unwrap_or_default();
+                let text = tsc_binder::node_util::get_text_of_jsx_namespaced_name(&Published, name)
+                    .unwrap_or_default();
                 self.tables.get_string_literal_type(text.as_str())
             } else {
                 self.get_literal_type_from_property_name(name)?

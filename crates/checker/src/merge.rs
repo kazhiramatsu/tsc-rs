@@ -9,7 +9,7 @@
 use tsc_binder::node_util::get_name_of_declaration;
 use tsc_binder::{SymbolId, SymbolTable};
 use tsc_diagnostics::{gen as diagnostics, RelatedInfo};
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{EscapedName, JsStr, JsString, NodeFlags, SymbolFlags, TypeData, TypeFlags};
 
 use crate::links::LinkSlot;
@@ -362,7 +362,7 @@ impl<'a> CheckerState<'a> {
         if let Some(declaration) = self.binder.symbol(symbol).value_declaration {
             let source = self.binder.source_of_node(declaration);
             let is_class_element = matches!(
-                source.arena.node(declaration).kind,
+                Published.node(declaration).kind,
                 SyntaxKind::PropertyDeclaration
                     | SyntaxKind::MethodDeclaration
                     | SyntaxKind::GetAccessor
@@ -370,7 +370,7 @@ impl<'a> CheckerState<'a> {
             );
             if is_class_element {
                 if let Some(name) = get_name_of_declaration(source, declaration) {
-                    if let NodeData::PrivateIdentifier(data) = &source.arena.node(name).data {
+                    if let NodeData::PrivateIdentifier(data) = &Published.node(name).data {
                         return JsString::from(data.text());
                     }
                 }
@@ -396,7 +396,7 @@ impl<'a> CheckerState<'a> {
             // The `this` parameter tsgo's reparser makes of a function's
             // `@this` tag has a synthesized zero-width name
             // (reparser.go:491-516).
-            if source.arena.node(declaration).kind == SyntaxKind::Identifier
+            if Published.node(declaration).kind == SyntaxKind::Identifier
                 && self
                     .parent_of(declaration)
                     .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::JSDocThisTag)
@@ -407,7 +407,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             };
             let is_early_computed = matches!(
-                source.arena.node(name_node).data,
+                Published.node(name_node).data,
                 NodeData::ComputedPropertyName(_)
             ) && !self
                 .links
@@ -937,7 +937,7 @@ impl<'a> CheckerState<'a> {
             }
             let source = self.binder.source(index);
             let root = source.root;
-            let tsc_syntax::NodeData::SourceFile(data) = &source.arena.node(root).data else {
+            let tsc_syntax::NodeData::SourceFile(data) = &Published.node(root).data else {
                 continue;
             };
             let Some(statements) = data.statements else {
@@ -945,7 +945,7 @@ impl<'a> CheckerState<'a> {
             };
             self.collect_module_augmentations(
                 source,
-                source.arena.node_array(statements).nodes,
+                Published.node_array(statements).nodes,
                 /*in_ambient_module*/ false,
                 &mut global_augmentations,
                 &mut module_augmentations,
@@ -1064,10 +1064,10 @@ impl<'a> CheckerState<'a> {
         let is_external_module_file = source.external_module_indicator.is_some();
         for &statement in statements {
             if self.kind_of(statement) != SyntaxKind::ModuleDeclaration
-                || !tsc_binder::node_util::is_ambient_module(source, statement)
+                || !tsc_binder::node_util::is_ambient_module(&Published, statement)
                 || !(in_ambient_module
                     || tsc_binder::node_util::has_syntactic_modifier(
-                        source,
+                        &Published,
                         statement,
                         tsc_types::ModifierFlags::AMBIENT,
                     )
@@ -1081,13 +1081,13 @@ impl<'a> CheckerState<'a> {
             };
             let name_text = name
                 .and_then(|name| {
-                    tsc_binder::node_util::get_text_of_identifier_or_literal(source, name)
+                    tsc_binder::node_util::get_text_of_identifier_or_literal(&Published, name)
                 })
                 .unwrap_or_default();
             if is_external_module_file
                 || (in_ambient_module && !Self::is_external_module_name_relative(&name_text))
             {
-                if tsc_binder::node_util::is_global_scope_augmentation(source, statement) {
+                if tsc_binder::node_util::is_global_scope_augmentation(&Published, statement) {
                     global_augmentations.push(statement);
                 } else {
                     module_augmentations.push(statement);
@@ -1104,12 +1104,12 @@ impl<'a> CheckerState<'a> {
             let Some(body) = body else {
                 continue;
             };
-            let Some(nested) = tsc_binder::node_util::statements_of(source, body) else {
+            let Some(nested) = tsc_binder::node_util::statements_of(&Published, body) else {
                 continue;
             };
             self.collect_module_augmentations(
                 source,
-                source.arena.node_array(nested).nodes,
+                Published.node_array(nested).nodes,
                 /*in_ambient_module*/ true,
                 global_augmentations,
                 module_augmentations,

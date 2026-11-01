@@ -22,7 +22,7 @@ use tsc_diagnostics::{
     gen as diagnostics, DiagnosticCategory, DiagnosticMessage, MessageChain, Repopulate,
 };
 use tsc_emitter::EmitExportContainerMode;
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     compiler_version_satisfies, CheckMode, EscapedName, InternalSymbolName, JsStr, JsString,
     ModifierFlags, ObjectFlags, SymbolFlags, TypeFlags,
@@ -458,7 +458,7 @@ impl<'a> CheckerState<'a> {
         let mut location = reference;
         if start_in_declaration_container {
             if let Some(parent) = self.parent_of(reference) {
-                if node_util::is_declaration(self.binder.source_of_node(parent), parent)
+                if node_util::is_declaration(&Published, parent)
                     && self.name_of_node(parent) == Some(reference)
                 {
                     if let Some(container) = self.get_declaration_container(parent) {
@@ -1006,9 +1006,8 @@ impl<'a> CheckerState<'a> {
             NodeData::ImportEqualsDeclaration(data) => data.module_reference,
             _ => None,
         };
-        Ok(module_reference.is_some_and(|reference| {
-            !node_util::node_is_missing(self.binder.source_of_node(reference), Some(reference))
-        }))
+        Ok(module_reference
+            .is_some_and(|reference| !node_util::node_is_missing(&Published, Some(reference))))
     }
 
     fn emit_alias_declaration_symbol(&self, node: NodeId) -> Option<SymbolId> {
@@ -1361,7 +1360,6 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(());
         }
-        let source = self.binder.source_of_node(location);
         let parent = self.parent_of(location);
         // No semantic question can be answered within a `with` block.
         if self
@@ -1385,7 +1383,7 @@ impl<'a> CheckerState<'a> {
             if !self.unspecified_reference_is_resolved_by_check(location, parent) {
                 return Ok(());
             }
-            let is_expression = node_util::is_expression_node(source, location)
+            let is_expression = node_util::is_expression_node(&Published, location)
                 || parent.is_some_and(|parent| {
                     matches!(
                         self.data_of(parent),
@@ -1465,7 +1463,7 @@ impl<'a> CheckerState<'a> {
         if self.options.emit_decorator_metadata != Some(true) {
             return Ok(());
         }
-        let modifiers = node_util::modifiers_of(self.binder.source_of_node(location), location);
+        let modifiers = node_util::modifiers_of(&Published, location);
         let has_decorator = self
             .nodes_of(modifiers)
             .into_iter()
@@ -1498,14 +1496,13 @@ impl<'a> CheckerState<'a> {
         location: NodeId,
         parent: Option<NodeId>,
     ) -> bool {
-        let source = self.binder.source_of_node(location);
         if let Some(parent) = parent {
             if let NodeData::ShorthandPropertyAssignment(data) = self.data_of(parent) {
                 if data.name == Some(location)
                     && data.object_assignment_initializer.is_some()
                     && !self
                         .parent_of(parent)
-                        .is_some_and(|literal| node_util::is_assignment_target(source, literal))
+                        .is_some_and(|literal| node_util::is_assignment_target(&Published, literal))
                 {
                     return false;
                 }
@@ -1705,11 +1702,8 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(());
         }
-        if node_util::has_syntactic_modifier(
-            self.binder.source_of_node(location),
-            location,
-            tsc_types::ModifierFlags::EXPORT,
-        ) {
+        if node_util::has_syntactic_modifier(&Published, location, tsc_types::ModifierFlags::EXPORT)
+        {
             self.mark_export_as_referenced(location)?;
         }
         Ok(())
@@ -2330,14 +2324,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4727d1486b8e30a5c2a9fd2539e06695f1fb8af52d9d7a5576a37fc4c42cca2f
     /// tsc-span: _tsc.js:48570-48572
     fn is_syntactic_default(&self, node: NodeId) -> bool {
-        let source = self.binder.source_of_node(node);
         match self.kind_of(node) {
             SyntaxKind::ExportAssignment => match self.data_of(node) {
                 NodeData::ExportAssignment(data) => data.is_export_equals != Some(true),
                 _ => false,
             },
             SyntaxKind::ExportSpecifier | SyntaxKind::NamespaceExport => true,
-            _ => node_util::has_syntactic_modifier(source, node, tsc_types::ModifierFlags::DEFAULT),
+            _ => node_util::has_syntactic_modifier(
+                &Published,
+                node,
+                tsc_types::ModifierFlags::DEFAULT,
+            ),
         }
     }
 
@@ -3330,10 +3327,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         let root = if self.kind_of(node) == SyntaxKind::BindingElement {
-            Some(node_util::get_root_declaration(
-                self.binder.source_of_node(node),
-                node,
-            ))
+            Some(node_util::get_root_declaration(&Published, node))
         } else {
             let named = self.parent_of(node);
             let clause = named.and_then(|named| self.parent_of(named));
@@ -3458,7 +3452,7 @@ impl<'a> CheckerState<'a> {
             container = parent;
         }
         self.kind_of(container) == SyntaxKind::ModuleDeclaration
-            && !node_util::is_ambient_module(self.binder.source_of_node(container), container)
+            && !node_util::is_ambient_module(&Published, container)
     }
 
     /// tsgo-port: getTargetOfBinaryExpression @7.1 (checker.go:15232-15236).
@@ -3966,9 +3960,8 @@ impl<'a> CheckerState<'a> {
                     &[],
                 );
             }
-            let source = self.binder.source_of_node(name);
             let name_text =
-                node_util::get_text_of_identifier_or_literal(source, name).unwrap_or_default();
+                node_util::get_text_of_identifier_or_literal(&Published, name).unwrap_or_default();
             if name_text.as_js() == "resolution-mode" {
                 return self.grammar_error_on_node(
                     name,
@@ -5595,9 +5588,9 @@ impl<'a> CheckerState<'a> {
             return None;
         };
         if data.is_type_of
-            || data.qualifier.is_some_and(|qualifier| {
-                !node_util::node_is_missing(self.binder.source_of_node(node), Some(qualifier))
-            })
+            || data
+                .qualifier
+                .is_some_and(|qualifier| !node_util::node_is_missing(&Published, Some(qualifier)))
             || Self::is_external_module_name_relative(module_reference)
             || module_reference.starts_with("/")
             || !matches!(
@@ -8673,8 +8666,7 @@ impl<'a> CheckerState<'a> {
         if let Some(body) = body {
             self.check_source_element(Some(body));
         }
-        let source = self.binder.source_of_node(node);
-        let is_global_augmentation = node_util::is_global_scope_augmentation(source, node);
+        let is_global_augmentation = node_util::is_global_scope_augmentation(&Published, node);
         if body.is_some() && !is_global_augmentation {
             self.register_for_unused_identifiers_check(node);
         }
@@ -8693,7 +8685,7 @@ impl<'a> CheckerState<'a> {
         if let Some(attributes) = attributes {
             self.check_import_attributes_type(attributes)?;
         }
-        let is_ambient_external_module = node_util::is_ambient_module(source, node);
+        let is_ambient_external_module = node_util::is_ambient_module(&Published, node);
         let context_error_message = if is_ambient_external_module {
             &diagnostics::An_ambient_module_declaration_is_only_allowed_at_the_top_level_in_a_file
         } else {
@@ -8781,7 +8773,7 @@ impl<'a> CheckerState<'a> {
                             &diagnostics::A_namespace_declaration_cannot_be_in_a_different_file_from_a_class_or_function_with_which_it_is_merged,
                             &[],
                         );
-                    } else if self.binder.source_of_node(node).arena.node(node).pos
+                    } else if Published.node(node).pos
                         < self
                             .binder
                             .source_of_node(first_non_ambient)
@@ -8855,9 +8847,7 @@ impl<'a> CheckerState<'a> {
                         .intersects(SymbolFlags::TRANSIENT);
                 if check_body {
                     if let Some(body) = body {
-                        if let Some(statements) =
-                            node_util::statements_of(self.binder.source_of_node(node), body)
-                        {
+                        if let Some(statements) = node_util::statements_of(&Published, body) {
                             for statement in self.nodes_of(Some(statements)) {
                                 self.check_module_augmentation_element(
                                     statement,
@@ -8878,8 +8868,7 @@ impl<'a> CheckerState<'a> {
                         &[],
                     );
                 } else {
-                    let source = self.binder.source_of_node(node);
-                    let text = node_util::get_text_of_identifier_or_literal(source, name)
+                    let text = node_util::get_text_of_identifier_or_literal(&Published, name)
                         .unwrap_or_default();
                     if Self::is_external_module_name_relative(&text) {
                         self.error_at_js(
@@ -8935,8 +8924,7 @@ impl<'a> CheckerState<'a> {
             .find(|&declaration| {
                 let kind = self.kind_of(declaration);
                 let bodied_function = kind == SyntaxKind::FunctionDeclaration
-                    && node_util::body_of(self.binder.source_of_node(declaration), declaration)
-                        .is_some();
+                    && node_util::body_of(&Published, declaration).is_some();
                 (kind == SyntaxKind::ClassDeclaration || bodied_function)
                     && !self
                         .binder
@@ -9069,7 +9057,7 @@ impl<'a> CheckerState<'a> {
         let Some(module_name) = module_name else {
             return Ok(false);
         };
-        if node_util::node_is_missing(self.binder.source_of_node(module_name), Some(module_name)) {
+        if node_util::node_is_missing(&Published, Some(module_name)) {
             return Ok(false);
         }
         if self.kind_of(module_name) != SyntaxKind::StringLiteral {
@@ -9083,9 +9071,9 @@ impl<'a> CheckerState<'a> {
         let parent = self.module_element_parent(node);
         let in_ambient_external_module = parent.is_some_and(|parent| {
             self.kind_of(parent) == SyntaxKind::ModuleBlock
-                && self.parent_of(parent).is_some_and(|grand| {
-                    node_util::is_ambient_module(self.binder.source_of_node(grand), grand)
-                })
+                && self
+                    .parent_of(parent)
+                    .is_some_and(|grand| node_util::is_ambient_module(&Published, grand))
         });
         if parent.is_some_and(|parent| self.kind_of(parent) != SyntaxKind::SourceFile)
             && !in_ambient_external_module
@@ -9224,7 +9212,7 @@ impl<'a> CheckerState<'a> {
         }
         self.parent_of(parent).is_some_and(|grand| {
             let source = self.binder.source_of_node(grand);
-            node_util::is_ambient_module(source, grand)
+            node_util::is_ambient_module(&Published, grand)
                 && node_util::is_module_augmentation_external(source, grand)
         })
     }
@@ -10006,8 +9994,7 @@ impl<'a> CheckerState<'a> {
             let (Some(name), Some(value)) = (name, value) else {
                 continue;
             };
-            let source = self.binder.source_of_node(name);
-            let member_name = node_util::get_text_of_identifier_or_literal(source, name)
+            let member_name = node_util::get_text_of_identifier_or_literal(&Published, name)
                 .map(|text| escape_leading_underscores(&text))
                 .unwrap_or_else(|| EscapedName::escape("".into()));
             let member = self
@@ -10052,8 +10039,7 @@ impl<'a> CheckerState<'a> {
         if self.check_grammar_module_element_context(node, context_diagnostic) {
             return self.check_external_module_name_in_global_scope(node);
         }
-        let has_modifiers =
-            node_util::modifiers_of(self.binder.source_of_node(node), node).is_some();
+        let has_modifiers = node_util::modifiers_of(&Published, node).is_some();
         if !self.check_grammar_modifiers(node) && has_modifiers {
             self.grammar_error_on_first_token(
                 node,
@@ -10187,8 +10173,7 @@ impl<'a> CheckerState<'a> {
             let Some(name) = name else {
                 return false;
             };
-            let source = self.binder.source_of_node(name);
-            let name_matches = node_util::get_text_of_identifier_or_literal(source, name)
+            let name_matches = node_util::get_text_of_identifier_or_literal(&Published, name)
                 .is_some_and(|text| text == "type");
             name_matches
                 && value.is_some_and(|value| {
@@ -10466,8 +10451,7 @@ impl<'a> CheckerState<'a> {
         if self.check_grammar_module_element_context(node, context_diagnostic) {
             return self.check_external_module_name_in_global_scope(node);
         }
-        let has_syntactic_modifiers =
-            node_util::modifiers_of(self.binder.source_of_node(node), node).is_some();
+        let has_syntactic_modifiers = node_util::modifiers_of(&Published, node).is_some();
         if !self.check_grammar_modifiers(node) && has_syntactic_modifiers {
             self.grammar_error_on_first_token(
                 node,
@@ -10494,9 +10478,9 @@ impl<'a> CheckerState<'a> {
                 let parent = self.parent_of(node);
                 let in_ambient_external_module = parent.is_some_and(|parent| {
                     self.kind_of(parent) == SyntaxKind::ModuleBlock
-                        && self.parent_of(parent).is_some_and(|grand| {
-                            node_util::is_ambient_module(self.binder.source_of_node(grand), grand)
-                        })
+                        && self
+                            .parent_of(parent)
+                            .is_some_and(|grand| node_util::is_ambient_module(&Published, grand))
                 });
                 let in_ambient_namespace_declaration = !in_ambient_external_module
                     && parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ModuleBlock)
@@ -10710,7 +10694,7 @@ impl<'a> CheckerState<'a> {
             None => return Ok(()),
         };
         if self.kind_of(container) == SyntaxKind::ModuleDeclaration
-            && !node_util::is_ambient_module(self.binder.source_of_node(container), container)
+            && !node_util::is_ambient_module(&Published, container)
         {
             if is_export_equals {
                 self.error_at_js(
@@ -11044,7 +11028,7 @@ impl<'a> CheckerState<'a> {
         !matches!(
             self.kind_of(declaration),
             SyntaxKind::FunctionDeclaration | SyntaxKind::MethodDeclaration
-        ) || node_util::body_of(self.binder.source_of_node(declaration), declaration).is_some()
+        ) || node_util::body_of(&Published, declaration).is_some()
     }
 
     /// Accessor probe for the checkExternalModuleExports count.

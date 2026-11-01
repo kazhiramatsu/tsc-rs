@@ -113,6 +113,23 @@ pub fn published_node(node: NodeId) -> &'static Node {
     tsc_store::get(node.position())
 }
 
+/// The published trees as one lookup: a Program's nodes and arrays by
+/// identity, with no file to find first (see `tsc_store`).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Published;
+
+impl crate::for_each_child::NodeLookup for Published {
+    #[inline(always)]
+    fn node(&self, id: NodeId) -> &Node {
+        published_node(id)
+    }
+
+    #[inline(always)]
+    fn node_array(&self, id: NodeArrayId) -> NodeArray<'_> {
+        published_node_array(id)
+    }
+}
+
 /// The array `id` of a published tree (see [`published_node`]).
 #[inline(always)]
 pub fn published_node_array(id: NodeArrayId) -> NodeArray<'static> {

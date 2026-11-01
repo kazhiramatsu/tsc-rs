@@ -9,7 +9,7 @@
 //! prefixed to the next token. A `None` result asks the enclosing reuse
 //! boundary to serialize the owning type semantically.
 
-use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{JsString, NodeFlags};
 
 use crate::state::{CheckResult, CheckerState};
@@ -71,7 +71,7 @@ impl<'program> CheckerState<'program> {
     /// tsrs-native: byte-to-UTF-16 line-map adapter for printer range probes.
     pub(crate) fn display_clone_start_line(&self, node: NodeId) -> Option<usize> {
         let source = self.binder.source_of_node(node);
-        let record = source.arena.node(node);
+        let record = Published.node(node);
         if record.pos == u32::MAX || record.pos as usize > source.text().len() {
             return None;
         }
@@ -83,7 +83,7 @@ impl<'program> CheckerState<'program> {
     /// tsrs-native: byte-to-UTF-16 line-map adapter for printer range probes.
     pub(crate) fn display_clone_end_line(&self, node: NodeId) -> Option<usize> {
         let source = self.binder.source_of_node(node);
-        let record = source.arena.node(node);
+        let record = Published.node(node);
         if record.end == u32::MAX || record.end as usize > source.text().len() {
             return None;
         }
@@ -1713,13 +1713,13 @@ impl DisplayClonePrinter<'_, '_> {
         let NodeData::NumericLiteral(data) = self.state.data_of(node) else {
             return false;
         };
-        let node = self.state.binder.source_of_node(node).arena.node(node);
+        let node = Published.node(node);
         node.numeric_literal_flags() & 448 == 0 && !data.text.contains(['.', 'e', 'E'])
     }
 
     fn is_optional_chain(&self, node: NodeId) -> bool {
         let node = self.skip_partially_emitted(node);
-        let node = self.state.binder.source_of_node(node).arena.node(node);
+        let node = Published.node(node);
         NodeFlags::from_bits(node.flags).intersects(NodeFlags::OPTIONAL_CHAIN)
     }
 
@@ -1948,7 +1948,7 @@ impl DisplayClonePrinter<'_, '_> {
 
     fn node_raw_range_is_multi_line(&self, node: NodeId) -> bool {
         let source = self.state.binder.source_of_node(node);
-        let record = source.arena.node(node);
+        let record = Published.node(node);
         if record.pos == u32::MAX
             || record.end == u32::MAX
             || record.pos as usize > source.text().len()

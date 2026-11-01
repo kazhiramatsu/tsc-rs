@@ -16,7 +16,7 @@
 //! around the expression it is keyed by.
 
 use tsc_binder::node_util;
-use tsc_syntax::{HostedCast, NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{HostedCast, NodeData, NodeId, Published, SyntaxKind};
 use tsc_types::{ModifierFlags, NodeFlags};
 
 use crate::state::CheckerState;
@@ -537,10 +537,10 @@ impl<'c, 'a> PseudoChecker<'c, 'a> {
 
     /// tsgo-port: typeFromSingleReturnExpression @7.1 (pseudochecker/lookup.go:216-259).
     fn type_from_single_return_expression(&self, function: NodeId) -> PseudoType {
-        let source = self.checker.binder.source_of_node(function);
-        let body = node_util::body_of(source, function);
+        let body = node_util::body_of(&Published, function);
         let mut candidate = None;
-        if let Some(body) = body.filter(|&body| !node_util::node_is_missing(source, Some(body))) {
+        if let Some(body) = body.filter(|&body| !node_util::node_is_missing(&Published, Some(body)))
+        {
             if self.checker.get_function_flags(function)
                 & (crate::functions::FUNCTION_FLAGS_ASYNC
                     | crate::functions::FUNCTION_FLAGS_GENERATOR)
@@ -549,7 +549,7 @@ impl<'c, 'a> PseudoChecker<'c, 'a> {
                 return PseudoType::inferred(function, true);
             }
             if self.checker.kind_of(body) == SyntaxKind::Block {
-                for_each_return_statement_in_order(self.checker, body, &mut |statement| {
+                for_each_return_statement_in_order(body, &mut |statement| {
                     // tsgo bails on nested return statements.
                     if self.checker.parent_of(statement) != Some(body) {
                         candidate = None;
@@ -1251,8 +1251,7 @@ impl<'c, 'a> PseudoChecker<'c, 'a> {
 
     /// tsgo `ast.IsVarConst`.
     fn is_var_const(&self, node: NodeId) -> bool {
-        let source = self.checker.binder.source_of_node(node);
-        node_util::get_combined_node_flags(source, node).bits() & NodeFlags::BLOCK_SCOPED.bits()
+        node_util::get_combined_node_flags(&Published, node).bits() & NodeFlags::BLOCK_SCOPED.bits()
             == NodeFlags::CONST.bits()
     }
 
@@ -1364,15 +1363,10 @@ impl<'c, 'a> PseudoChecker<'c, 'a> {
 /// return statements of a body in source order, stopping when the visitor
 /// answers true.
 fn for_each_return_statement_in_order(
-    checker: &CheckerState<'_>,
     body: NodeId,
     visitor: &mut dyn FnMut(NodeId) -> bool,
 ) -> bool {
-    tsc_binder::node_util::for_each_return_statement(
-        checker.binder.source_of_node(body),
-        body,
-        visitor,
-    )
+    tsc_binder::node_util::for_each_return_statement(&Published, body, visitor)
 }
 
 #[cfg(test)]

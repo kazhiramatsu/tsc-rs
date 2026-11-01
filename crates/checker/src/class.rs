@@ -5,7 +5,7 @@
 
 use tsc_binder::SymbolId;
 use tsc_diagnostics::gen as diagnostics;
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     EscapedName, InternalSymbolName, JsStr, JsString, ModifierFlags, NodeFlags, ObjectFlags,
     ScriptTarget, SymbolFlags, TypeFlags, TypeId,
@@ -61,7 +61,7 @@ impl<'a> CheckerState<'a> {
                 };
                 for member in self.nodes_of(members) {
                     let member_is_static = tsc_binder::node_util::has_syntactic_modifier(
-                        self.binder.source_of_node(member),
+                        &Published,
                         member,
                         ModifierFlags::STATIC,
                     );
@@ -620,7 +620,7 @@ impl<'a> CheckerState<'a> {
         }
         if name.is_none()
             && !tsc_binder::node_util::has_syntactic_modifier(
-                self.binder.source_of_node(node),
+                &Published,
                 node,
                 ModifierFlags::DEFAULT,
             )
@@ -680,7 +680,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:84937-84937
     /// Reference scope: firstOrUndefined(getDecorators(node)) projection.
     pub(crate) fn first_syntactic_decorator(&self, node: NodeId) -> Option<NodeId> {
-        let modifiers = tsc_binder::node_util::modifiers_of(self.binder.source_of_node(node), node);
+        let modifiers = tsc_binder::node_util::modifiers_of(&Published, node);
         self.nodes_of(modifiers)
             .into_iter()
             .find(|modifier| self.kind_of(*modifier) == SyntaxKind::Decorator)
@@ -909,7 +909,7 @@ impl<'a> CheckerState<'a> {
         // modifier — read the modifier alongside (5.8b precedent).
         let node_in_ambient_context = self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0
             || tsc_binder::node_util::has_syntactic_modifier(
-                self.binder.source_of_node(node),
+                &Published,
                 node,
                 ModifierFlags::AMBIENT,
             );
@@ -1000,7 +1000,7 @@ impl<'a> CheckerState<'a> {
                         });
                         if has_abstract_signature
                             && !tsc_binder::node_util::has_syntactic_modifier(
-                                self.binder.source_of_node(node),
+                                &Published,
                                 node,
                                 ModifierFlags::ABSTRACT,
                             )
@@ -1077,9 +1077,8 @@ impl<'a> CheckerState<'a> {
                 continue;
             };
             let expression_is_entity = {
-                let source = self.binder.source_of_node(ref_expression);
-                tsc_binder::node_util::is_entity_name_expression(source, ref_expression)
-                    && !tsc_binder::node_util::is_optional_chain(source, ref_expression)
+                tsc_binder::node_util::is_entity_name_expression(&Published, ref_expression)
+                    && !tsc_binder::node_util::is_optional_chain(&Published, ref_expression)
             };
             if !expression_is_entity {
                 self.error_at(
@@ -1327,7 +1326,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let pos = {
                     let source = self.binder.source_of_node(node);
-                    let byte_pos = source.arena.node_array(types).pos;
+                    let byte_pos = Published.node_array(types).pos;
                     source
                         .positions()
                         .byte_to_utf16((byte_pos as usize) as u32)
@@ -1539,7 +1538,6 @@ impl<'a> CheckerState<'a> {
     ///
     /// The JsxNamespacedName arm is unreachable from property names.
     pub fn property_name_for_property_name_node(&self, name: NodeId) -> Option<EscapedName> {
-        let source = self.binder.source_of_node(name);
         match self.kind_of(name) {
             SyntaxKind::Identifier
             | SyntaxKind::PrivateIdentifier
@@ -1547,19 +1545,20 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::NoSubstitutionTemplateLiteral
             | SyntaxKind::NumericLiteral
             | SyntaxKind::BigIntLiteral => {
-                tsc_binder::node_util::get_escaped_text_of_identifier_or_literal(source, name)
+                tsc_binder::node_util::get_escaped_text_of_identifier_or_literal(&Published, name)
             }
             SyntaxKind::ComputedPropertyName => {
                 let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
                     return None;
                 };
                 let expression = data.expression?;
-                if tsc_binder::node_util::is_string_or_numeric_literal_like(source, expression) {
+                if tsc_binder::node_util::is_string_or_numeric_literal_like(&Published, expression)
+                {
                     return tsc_binder::node_util::get_escaped_text_of_identifier_or_literal(
-                        source, expression,
+                        &Published, expression,
                     );
                 }
-                if tsc_binder::node_util::is_signed_numeric_literal(source, expression) {
+                if tsc_binder::node_util::is_signed_numeric_literal(&Published, expression) {
                     if let NodeData::PrefixUnaryExpression(unary) = self.data_of(expression) {
                         let operand_text =
                             unary
@@ -1641,7 +1640,7 @@ impl<'a> CheckerState<'a> {
         };
         for member in self.nodes_of(members) {
             if tsc_binder::node_util::has_syntactic_modifier(
-                self.binder.source_of_node(member),
+                &Published,
                 member,
                 ModifierFlags::AMBIENT,
             ) {
@@ -1704,10 +1703,12 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         };
         let declared_prop = self.get_late_bound_symbol(declared_prop)?;
-        let source = self.binder.source_of_node(member);
         let member_has_override_modifier = self.has_override_modifier(member);
-        let member_has_abstract_modifier =
-            tsc_binder::node_util::has_syntactic_modifier(source, member, ModifierFlags::ABSTRACT);
+        let member_has_abstract_modifier = tsc_binder::node_util::has_syntactic_modifier(
+            &Published,
+            member,
+            ModifierFlags::ABSTRACT,
+        );
         let member_is_static = self.is_static_element(member);
         self.check_member_for_override_modifier(
             node,
@@ -1813,9 +1814,12 @@ impl<'a> CheckerState<'a> {
         error_node: Option<NodeId>,
     ) -> CheckResult<MemberOverrideStatus> {
         let is_js = self.is_in_js_file(node);
-        let source = self.binder.source_of_node(node);
         let node_in_ambient_context = self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0
-            || tsc_binder::node_util::has_syntactic_modifier(source, node, ModifierFlags::AMBIENT);
+            || tsc_binder::node_util::has_syntactic_modifier(
+                &Published,
+                node,
+                ModifierFlags::AMBIENT,
+            );
         if member_has_override_modifier {
             let value_declaration = self.binder.symbol(member).value_declaration;
             if let Some(value_declaration) = value_declaration {
@@ -1897,7 +1901,7 @@ impl<'a> CheckerState<'a> {
                     {
                         let base_has_abstract = base_declarations.iter().any(|&declaration| {
                             tsc_binder::node_util::has_syntactic_modifier(
-                                self.binder.source_of_node(declaration),
+                                &Published,
                                 declaration,
                                 ModifierFlags::ABSTRACT,
                             )
@@ -2135,7 +2139,7 @@ impl<'a> CheckerState<'a> {
                     });
                 let derived_is_abstract = derived_class_decl.is_some_and(|declaration| {
                     tsc_binder::node_util::has_syntactic_modifier(
-                        self.binder.source_of_node(declaration),
+                        &Published,
                         declaration,
                         ModifierFlags::ABSTRACT,
                     )
@@ -2259,7 +2263,7 @@ impl<'a> CheckerState<'a> {
                             derived_declarations.iter().any(|&declaration| {
                                 self.node_flags(declaration) & NodeFlags::AMBIENT.bits() != 0
                                     || tsc_binder::node_util::has_syntactic_modifier(
-                                        self.binder.source_of_node(declaration),
+                                        &Published,
                                         declaration,
                                         ModifierFlags::AMBIENT,
                                     )
@@ -2536,7 +2540,7 @@ impl<'a> CheckerState<'a> {
             .strict_option_value(self.options.strict_property_initialization);
         let ambient = self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0
             || tsc_binder::node_util::has_syntactic_modifier(
-                self.binder.source_of_node(node),
+                &Published,
                 node,
                 ModifierFlags::AMBIENT,
             );
@@ -2551,7 +2555,7 @@ impl<'a> CheckerState<'a> {
         };
         for member in self.nodes_of(members) {
             if tsc_binder::node_util::has_syntactic_modifier(
-                self.binder.source_of_node(member),
+                &Published,
                 member,
                 ModifierFlags::AMBIENT,
             ) {
@@ -2606,7 +2610,7 @@ impl<'a> CheckerState<'a> {
         match self.data_of(node) {
             NodeData::PropertyDeclaration(data) => {
                 !tsc_binder::node_util::has_syntactic_modifier(
-                    self.binder.source_of_node(node),
+                    &Published,
                     node,
                     ModifierFlags::ABSTRACT,
                 ) && data.exclamation_token.is_none()
