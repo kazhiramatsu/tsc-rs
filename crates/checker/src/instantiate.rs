@@ -2241,11 +2241,19 @@ impl<'a> CheckerState<'a> {
     /// The Reference `type.node` read is constant false (no deferred
     /// references before M8); getTypeArguments is the eager tables
     /// accessor for the same reason.
+    /// A computed answer returns inline; the worker computes it once.
+    #[inline]
     pub fn could_contain_type_variables(&mut self, ty: TypeId) -> bool {
         let object_flags = self.tables.object_flags_of(ty);
         if object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED) {
             return object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES);
         }
+        self.could_contain_type_variables_worker(ty)
+    }
+
+    #[inline(never)]
+    fn could_contain_type_variables_worker(&mut self, ty: TypeId) -> bool {
+        let object_flags = self.tables.object_flags_of(ty);
         let flags = self.tables.flags_of(ty);
         let result = flags.intersects(TypeFlags::INSTANTIABLE)
             || (flags.intersects(TypeFlags::OBJECT)

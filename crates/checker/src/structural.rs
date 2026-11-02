@@ -4475,7 +4475,35 @@ impl<'a> CheckerState<'a> {
     /// Wrapper globals resolve through the lazy 5.0 accessors — in the
     /// noLib world getGlobalType's failure fallback is emptyObjectType
     /// with the file-less one-shot 2318, invisible to fixture files.
+    /// A plain object type is its own apparent type: that case answers
+    /// inline, the worker takes every other.
+    #[inline]
     pub fn get_apparent_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
+        const WORKER_FLAGS: TypeFlags = TypeFlags::from_bits(
+            TypeFlags::INSTANTIABLE.bits()
+                | TypeFlags::INTERSECTION.bits()
+                | TypeFlags::STRING_LIKE.bits()
+                | TypeFlags::NUMBER_LIKE.bits()
+                | TypeFlags::BIG_INT_LIKE.bits()
+                | TypeFlags::BOOLEAN_LIKE.bits()
+                | TypeFlags::ES_SYMBOL_LIKE.bits()
+                | TypeFlags::NON_PRIMITIVE.bits()
+                | TypeFlags::INDEX.bits()
+                | TypeFlags::UNKNOWN.bits(),
+        );
+        if !self.tables.flags_of(ty).intersects(WORKER_FLAGS)
+            && !self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::MAPPED)
+        {
+            return Ok(ty);
+        }
+        self.get_apparent_type_worker(ty)
+    }
+
+    #[inline(never)]
+    fn get_apparent_type_worker(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let t = if self.tables.flags_of(ty).intersects(TypeFlags::INSTANTIABLE) {
             self.get_base_constraint_of_type(ty)?
                 .unwrap_or(self.tables.intrinsics.unknown)
@@ -4969,7 +4997,23 @@ impl<'a> CheckerState<'a> {
     /// tsgo marks the intersection computed before it looks at the
     /// properties, so a query that comes back to the intersection while
     /// they resolve sees it unreduced; tsc 6.0 wrote both flags afterwards.
+    /// The common case — neither a union nor an intersection — answers
+    /// inline; the worker keeps the rest out of every caller (tsrs: an
+    /// early-return entry saves the worker's register saves per call).
+    #[inline]
     pub fn get_reduced_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
+        if !self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::UNION_OR_INTERSECTION)
+        {
+            return Ok(ty);
+        }
+        self.get_reduced_type_worker(ty)
+    }
+
+    #[inline(never)]
+    fn get_reduced_type_worker(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION)
             && self

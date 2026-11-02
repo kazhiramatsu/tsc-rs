@@ -483,14 +483,13 @@ impl<'a> CheckerState<'a> {
             .flags_of(ty)
             .intersects(TypeFlags::UNION_OR_INTERSECTION)
         {
-            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => types.to_vec(),
-                TypeData::Intersection { types } => types.to_vec(),
+            let members: &[TypeId] = match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => types,
                 _ => unreachable!("union/intersection flag implies member data"),
             };
             return members
-                .into_iter()
-                .any(|member| self.maybe_type_of_kind(member, kind));
+                .iter()
+                .any(|&member| self.maybe_type_of_kind(member, kind));
         }
         false
     }

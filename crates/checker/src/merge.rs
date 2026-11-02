@@ -118,6 +118,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: d38909f3d76db468de6e0df4d57914bb34e5d0049669cfa184e092e62378ddf5
     /// tsc-span: _tsc.js:49932-49935
     pub fn get_merged_symbol(&self, symbol: SymbolId) -> SymbolId {
+        // tsgo reads `symbol.MergeId != 0` before its map; the bit answers
+        // the common case without a hash.
+        let index = crate::links::DenseKey::dense_index(symbol);
+        let merged = self
+            .merged_symbol_bits
+            .get(index / 64)
+            .is_some_and(|word| word & (1 << (index % 64)) != 0);
+        if !merged {
+            return symbol;
+        }
         self.merged_symbols.get(&symbol).copied().unwrap_or(symbol)
     }
 
@@ -130,6 +140,11 @@ impl<'a> CheckerState<'a> {
     /// lib-binder symbol) is never mutated (lib-loading L3 invariant:
     /// file binders are read-only after bind).
     fn record_merged_symbol(&mut self, target: SymbolId, source: SymbolId) {
+        let index = crate::links::DenseKey::dense_index(source);
+        if self.merged_symbol_bits.len() <= index / 64 {
+            self.merged_symbol_bits.resize(index / 64 + 1, 0);
+        }
+        self.merged_symbol_bits[index / 64] |= 1 << (index % 64);
         self.merged_symbols.insert(source, target);
         self.merged_symbol_sources
             .entry(target)

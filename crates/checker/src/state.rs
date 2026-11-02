@@ -1187,6 +1187,13 @@ pub struct CheckerState<'a> {
     /// merge-target, per checker. A side map — NOT a symbol field —
     /// so shared (cached) lib binders stay immutable across programs.
     pub(crate) merged_symbols: rustc_hash::FxHashMap<SymbolId, SymbolId>,
+    /// One bit per symbol (by its dense index): whether `merged_symbols`
+    /// has it. tsgo tests `symbol.MergeId != 0` before its map; here the
+    /// map is asked only for the few symbols that were merged.
+    pub(crate) merged_symbol_bits: Vec<u64>,
+    /// The relation checker's work lists, kept between calls instead of
+    /// allocated per `checkTypeRelatedTo` (tsrs recycles them likewise).
+    pub(crate) relation_scratch: crate::engine::RelationScratch,
     /// The reverse index (target → sources) for the stage-3.4c
     /// expando-record consults: the record lives on per-file binder
     /// symbols, and amalgamated-duplicate merging clones them into
@@ -1795,6 +1802,8 @@ impl<'a> CheckerState<'a> {
             resolution_property_names: Vec::new(),
             resolution_start: 0,
             merged_symbols: rustc_hash::FxHashMap::default(),
+            merged_symbol_bits: Vec::new(),
+            relation_scratch: Default::default(),
             merged_symbol_sources: rustc_hash::FxHashMap::default(),
         };
         // undefinedSymbol.declarations = [] (46490); globalThisSymbol

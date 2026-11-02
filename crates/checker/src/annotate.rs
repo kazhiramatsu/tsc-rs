@@ -4044,6 +4044,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 07b72758470ff7a70755a9aebe3dda44c543f90521b873fda21f7e03be3793a1
     /// tsc-span: _tsc.js:58679-58704
     ///
+    /// Resolved members answer inline; the worker resolves them once.
+    #[inline]
     pub fn resolve_structured_type_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
         self.profile_ops[crate::line_profile::OP_MEMBERS] += 1;
         if let Some(members) = self
@@ -4052,6 +4054,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(members);
         }
+        self.resolve_structured_type_members_worker(ty)
+    }
+
+    #[inline(never)]
+    fn resolve_structured_type_members_worker(&mut self, ty: TypeId) -> CheckResult<MembersId> {
         let flags = self.tables.flags_of(ty);
         if !flags.intersects(TypeFlags::OBJECT) {
             if flags.intersects(TypeFlags::UNION) {
@@ -7638,6 +7645,10 @@ impl<'a> CheckerState<'a> {
     /// modules and aliases keep their owning-stage escapes.
     /// Deferred union/intersection properties are forced before every other
     /// synthetic-property flavor, matching tsc's dispatch order.
+    /// A resolved `links.type` answers inline — every kind's getter returns
+    /// it first (tsc `links.type ??= ...`) — and the worker dispatches the
+    /// rest by kind.
+    #[inline]
     pub fn get_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         // CommonJS `require` (tsgo getTypeOfVariableOrParameterOrPropertyWorker,
         // checker.go:16903): the synthetic require symbol is `any`.
@@ -7645,6 +7656,18 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.any);
         }
         perf::bump(PerfCounter::TypeOfSymbolQueries);
+        if let Some(resolved) = self
+            .links
+            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+        {
+            perf::bump(PerfCounter::TypeOfSymbolHits);
+            return Ok(resolved);
+        }
+        self.get_type_of_symbol_worker(symbol)
+    }
+
+    #[inline(never)]
+    fn get_type_of_symbol_worker(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         let check_flags = self.links.read_symbol(symbol, |links| links.check_flags);
         if check_flags.intersects(CheckFlags::DEFERRED_TYPE) {
             return self.get_type_of_symbol_with_deferred_type(symbol);
