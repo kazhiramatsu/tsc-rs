@@ -350,6 +350,11 @@ VS Code 143.6 G 対 75 G = 1.9×）は仕事の量ではなく 1 操作あたり
 page 経由の links）、hash 探索、複製と確保、parser の 2×。tsgo 本体（single thread）とは既に同等以下（check 9.5 s 対 9.8 s）。
 識別子の ±1% は数え方の差（missing node・JSDoc）で、仕事量の指標ではない。
 
+**記録。** PR [#850](https://github.com/kazhiramatsu/tsc-rs/pull/850) → merge `684e19cc1`（2026-11-02。commit `83871ec41`、docs `2063acbaa`、
+main の merge `c9484e989`）。hosted run [41382242447](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41382242447)（`c9484e989`）：
+全 job pass。local（`2063acbaa`）：conformance 12,829 case、mismatch 0、regressions 0、harness errors 0（`--workers 1` で 1,919 s）、
+suites regressions 0、8 case で出力一致、命令数は g3 比 ±0.1%。
+
 ## 次の候補（効果の大きい順の見込み）
 
 0. PGO の学習を CI で再現できる形に（tsrs と同じ：conformance suite を in-process で走らせる `conformance-ts71`、LSP の
