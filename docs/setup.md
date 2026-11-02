@@ -125,6 +125,21 @@ to `main`: the `plan` job selects the jobs from the changed paths, the
 workers, and `gates` requires every selected job to succeed. The workflow's
 runs are listed under the repository's Actions tab.
 
+## Optimized build (PGO)
+
+The binaries the performance comparisons use are built with profile-guided
+optimization, as tsrs's published binary is:
+
+```sh
+rustup component add llvm-tools   # llvm-profdata matching rustc's LLVM
+python3 scripts/pgo_build.py --jobs 1 DIR[:TSCONFIG] ...
+```
+
+The script builds an instrumented compiler, runs it on every project given
+(`--noEmit`, one process at a time), merges the profiles and builds
+`target/pgo/tsc-rs` with them; `target/release` is untouched. Train on a
+few real projects (the comparison corpora, for example).
+
 ## Verification during development
 
 During implementation, run the affected conformance cases
