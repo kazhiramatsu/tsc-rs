@@ -748,13 +748,14 @@ impl<'a> CheckerState<'a> {
         relation: RelationKind,
     ) -> CheckResult<bool> {
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
+        let scratch = std::mem::take(&mut self.relation_scratch);
         let mut checker = RelationChecker {
             st: self,
             relation,
-            maybe_keys: Vec::new(),
-            maybe_keys_set: HashSet::default(),
-            source_stack: Vec::new(),
-            target_stack: Vec::new(),
+            maybe_keys: scratch.maybe_keys,
+            maybe_keys_set: scratch.maybe_keys_set,
+            source_stack: scratch.source_stack,
+            target_stack: scratch.target_stack,
             maybe_count: 0,
             source_depth: 0,
             target_depth: 0,
@@ -770,7 +771,9 @@ impl<'a> CheckerState<'a> {
             /*report_errors*/ false,
             IntersectionState::NONE,
         )?;
-        if let Some(output) = checker.overflow_error_output(source, target)? {
+        let overflow = checker.overflow_error_output(source, target)?;
+        self.relation_scratch = checker.into_scratch();
+        if let Some(output) = overflow {
             // Even a verdict-only probe publishes a fresh overflow at
             // currentNode (64883-64888). Cached probes remain silent.
             let mut diagnostic = self.create_error(
@@ -919,13 +922,14 @@ impl<'a> CheckerState<'a> {
         error_node: Option<tsc_syntax::NodeId>,
     ) -> CheckResult<(bool, Option<RelationErrorOutput>)> {
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
+        let scratch = std::mem::take(&mut self.relation_scratch);
         let mut checker = RelationChecker {
             st: self,
             relation,
-            maybe_keys: Vec::new(),
-            maybe_keys_set: HashSet::default(),
-            source_stack: Vec::new(),
-            target_stack: Vec::new(),
+            maybe_keys: scratch.maybe_keys,
+            maybe_keys_set: scratch.maybe_keys_set,
+            source_stack: scratch.source_stack,
+            target_stack: scratch.target_stack,
             maybe_count: 0,
             source_depth: 0,
             target_depth: 0,
@@ -1037,12 +1041,14 @@ impl<'a> CheckerState<'a> {
                 carry_related(message, &related_info);
             }
         }
+        let error_node = checker.error_state.error_node;
+        self.relation_scratch = checker.into_scratch();
         Ok((
             related,
             message.map(|message| RelationErrorOutput {
                 message,
                 related: related_info,
-                error_node: checker.error_state.error_node,
+                error_node,
                 used_containing_message_chain,
             }),
         ))
@@ -1250,6 +1256,17 @@ fn is_excess_property_message(message: &'static DiagnosticMessage) -> bool {
 /// Maybe results are never cached mid-recursion, commit happens on
 /// unwind of the outermost frame, relationCount bounds complexity,
 /// depth 100 per side hard-cuts recursion.
+/// A relation check's work lists between checks: the outermost
+/// `checkTypeRelatedTo` of a chain takes them and hands them back
+/// emptied, so the lists are allocated once, not per check.
+#[derive(Default)]
+pub(crate) struct RelationScratch {
+    pub(crate) maybe_keys: Vec<RelationKey>,
+    pub(crate) maybe_keys_set: HashSet<RelationKey>,
+    pub(crate) source_stack: Vec<TypeId>,
+    pub(crate) target_stack: Vec<TypeId>,
+}
+
 pub(crate) struct RelationChecker<'r, 'a> {
     pub(crate) st: &'r mut CheckerState<'a>,
     pub(crate) relation: RelationKind,
@@ -1331,6 +1348,27 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsrs-native: frame loan for the RelationFrame worker (the
     /// Rust face of tsc's isRelatedToWorker closure capture, 67070).
     ///
+    /// The work lists, emptied, for the next relation check.
+    fn into_scratch(self) -> RelationScratch {
+        let RelationChecker {
+            mut maybe_keys,
+            mut maybe_keys_set,
+            mut source_stack,
+            mut target_stack,
+            ..
+        } = self;
+        maybe_keys.clear();
+        maybe_keys_set.clear();
+        source_stack.clear();
+        target_stack.clear();
+        RelationScratch {
+            maybe_keys,
+            maybe_keys_set,
+            source_stack,
+            target_stack,
+        }
+    }
+
     /// Detach the frame fields for a state-level call that must
     /// compare under this live frame (see RelationFrame). Pair every
     /// loan with restore_frame BEFORE propagating an Err.
