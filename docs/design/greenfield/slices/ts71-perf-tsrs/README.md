@@ -328,15 +328,48 @@ profile は project を跨いで効く。tsrs（PGO 込み 75 G）との比は V
 `.github/scripts/pgo-train.sh`：conformance suite（in-process）、Go fourslash suite（LSP worker）、公開 project 2 つ（xstate-main、
 webpack）。CI で再現できる同じ形は次の候補 0。
 
+## slice 9：tsgo の統計行で仕事量を比べる（branch `perf/ts71-statistics`）
+
+tsrs の `--extendedDiagnostics` は VS Code で Types 2,361,713 と出し、我々の `TSRS_MEMORY_REPORT` は 2,575,538 型だった（+9%）。
+「同じ診断で余計な型を作っている」のが疑われたので、tsgo と同じ統計行（Identifiers・Symbols・Types・Instantiations）を
+`--diagnostics` / `--extendedDiagnostics` に足し、参照の tsgo（`target/typescript7/bin/tsc-aa814927 --singleThreaded`）と比べた。
+識別子は parser が割り当て時に数え（`NodeArena::identifier_count`、tsc の `identifierCount`）、driver が program の binder symbol を
+一度、checker ごとに transient symbol・型・`instantiationCount` を `CheckWorkCounters` に記録し、compiler が表に出す。
+
+| project（1 thread） | Identifiers tsc-rs / tsgo | Symbols | Types | Instantiations |
+|---|---:|---:|---:|---:|
+| VS Code | 5,945,718 / 5,867,751 | 8,160,599 / 8,205,379 | 2,575,538 / 2,570,757（+0.2%） | 3,387,455 / 3,389,287 |
+| zod | 711,636 / 713,350 | 2,129,557 / 2,149,435 | 716,427 / 713,472（+0.4%） | 2,135,031 / 2,139,310 |
+| effect | 600,838 / 605,222 | 1,268,355 / 1,273,816 | 534,541 / 532,879（+0.3%） | 1,907,749 / 1,908,646 |
+| TypeScript compiler | 434,206 / 435,926 | 258,286 / 258,542 | 108,059 / 107,889（+0.2%） | 168,788 / 168,802 |
+| hono | 135,761 / 134,596 | 264,611 / 264,887 | 148,022 / 147,905（+0.1%） | 416,907 / 417,231 |
+
+**結論：仕事量は tsgo と同じ**（型 ±0.4%、instantiation ±0.2%、symbol −0.5%）。+9% は我々の余計ではなく、tsrs が既定 mode でも
+tsgo より 8% 少ない型で同じ診断を出している（tsrs の R1 tuple target の共有、R12 union の構築など）。残る差（PGO 同士で
+VS Code 143.6 G 対 75 G = 1.9×）は仕事の量ではなく 1 操作あたりの費用：id から record への経路（bounds check 付きの表、
+page 経由の links）、hash 探索、複製と確保、parser の 2×。tsgo 本体（single thread）とは既に同等以下（check 9.5 s 対 9.8 s）。
+識別子の ±1% は数え方の差（missing node・JSDoc）で、仕事量の指標ではない。
+
+**記録。** PR [#850](https://github.com/kazhiramatsu/tsc-rs/pull/850) → merge `684e19cc1`（2026-11-02。commit `83871ec41`、docs `2063acbaa`、
+main の merge `c9484e989`）。hosted run [41382242447](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41382242447)（`c9484e989`）：
+全 job pass。local（`2063acbaa`）：conformance 12,829 case、mismatch 0、regressions 0、harness errors 0（`--workers 1` で 1,919 s）、
+suites regressions 0、8 case で出力一致、命令数は g3 比 ±0.1%。
+
 ## 次の候補（効果の大きい順の見込み）
 
-1. `resolve_name` の `locals` は file ごとの `FxHashMap<NodeId, SymbolTable>`（`locals_of` が残る routing の最大の呼び出し元）。
+0. PGO の学習を CI で再現できる形に（tsrs と同じ：conformance suite を in-process で走らせる `conformance-ts71`、LSP の
+   `suites-ts71`、pin した公開 project 2 つ）。release binary を CI で作るならこの job が要る。
+1. symbol links を symbol record に inline（VS Code で `PagedTable::get` 174M 回。tsrs は inline field）。transient symbol は
+   checker 所有なので checker の arena に、binder symbol は per-program の dense 表に。
+2. `get_merged_symbol` は毎回 hash（VS Code で 48.5M 回）。tsgo は `symbol.MergeId != 0` を先に見る：dense bitset の guard。
+3. 関係判定の作業領域（`RelationChecker` の `maybe_keys` Vec と `HashSet`、`check_type_related_to` ごとに確保：VS Code で
+   6.4M 回の drop）を state に持って `clear()` で使い回す（tsrs R16）。確保は VS Code で 1 億 5,500 万回（学習 profile の count）。
+4. `resolve_name` の `locals` は file ごとの `FxHashMap<NodeId, SymbolTable>`（`locals_of` が残る routing の最大の呼び出し元）。
    tsrs は node の field。program 全体で一つの map にすれば routing は消える（VS Code で約 36 万 entry）。
-2. JSDoc の hosted 表（`get_name_of_declaration` 18 か所など）：JS file の node だけが要るので、node の flag で先に分岐する。
-3. scanner の token value（`scan_identifier_parts` が識別子を `JsString` に複製して keyword 判定で memcmp：memmove 60 +
+5. JSDoc の hosted 表（`get_name_of_declaration` 18 か所など）：JS file の node だけが要るので、node の flag で先に分岐する。
+6. scanner の token value（`scan_identifier_parts` が識別子を `JsString` に複製して keyword 判定で memcmp：memmove 60 +
    self 97 sample）。escape のない識別子は source の slice を指す（tsgo の形）。`token_value` の読み手 61 か所。
-4. parser の relocate（`relocate_with_leases` + `relocate_node_data` 97 sample）：parse 後に store の slot へ複製している。
-5. checker の memory：transient symbol 384 MB、symbol links 254 MB（record を page に直接置けば `get` の load が 4 → 2。
+7. parser の relocate（`relocate_with_leases` + `relocate_node_data` 97 sample）：parse 後に store の slot へ複製している。
+8. checker の memory：transient symbol 384 MB、symbol links 254 MB（record を page に直接置けば `get` の load が 4 → 2。
    node/type links は疎なので不可）、`Type` 64 → 48 byte（上）、Union・Reference の list を `TypeListId` に。
-6. 複製して返す API（`get_signatures_of_type`・`get_properties_of_type`、tsrs R18：−1〜−4%）。
-7. PGO + fat LTO（R7：−13〜14%、build の話）。
+9. 複製して返す API（`get_signatures_of_type`・`get_properties_of_type`、tsrs R18：−1〜−4%）。

@@ -361,12 +361,9 @@ impl SourceFile {
         self.arena.len()
     }
 
+    /// tsc `identifierCount`, counted by the parser.
     pub fn identifier_count(&self) -> usize {
-        self.arena
-            .nodes()
-            .iter()
-            .filter(|node| node.kind == SyntaxKind::Identifier)
-            .count()
+        self.arena.identifier_count()
     }
 
     pub fn identity_owned_by(&self, domain: &IdentityDomain) -> bool {
