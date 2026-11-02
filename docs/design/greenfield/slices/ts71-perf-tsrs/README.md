@@ -296,6 +296,38 @@ main の取り込み `147192bdb`、文書 `e205ca209` + `ed6ae31ee`）。hosted 
 （forget は確保を増やさず、peak は check の途中）。
 
 
+## slice 8：PGO（branch `perf/ts71-pgo`）
+
+利用者の指示（2026-11-02）「PGOもやってください」。tsrs の npm binary は PGO + fat LTO 込み（R7：−13〜14%。VS Code 1 thread で
+PGO なし 86 G、PGO 込み 75 G）なので、比較の土俵を揃える意味もある。`scripts/pgo_build.py`：`-Cprofile-generate` の build
+（`target/pgo/instrumented`）→ 与えた project を `--noEmit` で 1 process ずつ走らせて `.profraw` を集める → toolchain の
+`llvm-tools` の `llvm-profdata merge` → `-Cprofile-use` の build（`target/pgo/tsc-rs`）。通常の `target/release` は触らない。
+学習は bench corpora の 6 project（VS Code stable、zod、Next.js、effect、TypeScript compiler、hono）、1 thread。最初の試みは
+学習 run が profile を書かなかった：CLI は `_exit` で終わるので atexit の profile writer が走らず、集まったのは build script と
+proc macro の profile（`syn` が最上位）だった。`LLVM_PROFILE_FILE` が設定されているときだけ CLI は C runtime の exit を通る。
+
+**計測**（1 thread、g3 = #848 の byte の通常 build → 同じ byte の PGO build）：
+
+| case | 命令数 | | peak footprint | peak RSS |
+|---|---:|---:|---:|---:|
+| VS Code | 181.33 → 143.58 G | −20.8% | 4,159 → 4,160 MB | 4,264 → 4,266 MB |
+| TypeScript compiler noEmit | 12.29 → 9.65 G | −21.5% | 206 → 206 MB | 218 → 219 MB |
+| Next.js noEmit | 38.15 → 31.13 G | −18.4% | 871 → 874 MB | 929 → 924 MB |
+| zod | 26.85 → 22.05 G | −17.9% | 824 → 825 MB | 862 → 862 MB |
+| effect | 22.89 → 18.71 G | −18.3% | 631 → 631 MB | 654 → 654 MB |
+| hono | 3.73 → 3.01 G | −19.3% | 126 → 127 MB | 141 → 142 MB |
+| vue（学習外） | 20.42 → 16.90 G | −17.2% | 375 → 373 MB | 394 → 395 MB |
+| playwright（学習外） | 18.27 → 14.64 G | −19.9% | 481 → 481 MB | 499 → 497 MB |
+
+出力は 8 case で g3 と一致。peak は変わらない（同じ code、配置だけが違う）。学習に入れなかった vue と playwright も同じ幅で速く、
+profile は project を跨いで効く。tsrs（PGO 込み 75 G）との比は VS Code で 1.9×。
+
+**記録。** PR [#849](https://github.com/kazhiramatsu/tsc-rs/pull/849) → merge `5a40ff03d`（2026-11-03。commit `825eae345`）。hosted run
+[41368494860](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41368494860)（`825eae345`）：全 job pass（gates は通常 build）。
+以後の計測は PGO 同士（`scripts/pgo_build.py` で両方を build）か通常 build 同士で行い、混ぜない。tsrs の学習 workload は
+`.github/scripts/pgo-train.sh`：conformance suite（in-process）、Go fourslash suite（LSP worker）、公開 project 2 つ（xstate-main、
+webpack）。CI で再現できる同じ形は次の候補 0。
+
 ## slice 9：tsgo の統計行で仕事量を比べる（branch `perf/ts71-statistics`）
 
 tsrs の `--extendedDiagnostics` は VS Code で Types 2,361,713 と出し、我々の `TSRS_MEMORY_REPORT` は 2,575,538 型だった（+9%）。
@@ -336,4 +368,3 @@ page 経由の links）、hash 探索、複製と確保、parser の 2×。tsgo 
 8. checker の memory：transient symbol 384 MB、symbol links 254 MB（record を page に直接置けば `get` の load が 4 → 2。
    node/type links は疎なので不可）、`Type` 64 → 48 byte（上）、Union・Reference の list を `TypeListId` に。
 9. 複製して返す API（`get_signatures_of_type`・`get_properties_of_type`、tsrs R18：−1〜−4%）。
-10. PGO + fat LTO（R7：−13〜14%、build の話）。
