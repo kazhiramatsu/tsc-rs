@@ -24,15 +24,19 @@ pub enum IdentitySpace {
     Symbol = 2,
     PrivateNameSerial = 3,
     NodeArrayItem = 4,
+    /// A checker's types, built in the type store at the leased positions
+    /// (a type's identity stays the index in its checker's list).
+    Type = 5,
 }
 
 impl IdentitySpace {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Node,
         Self::NodeArray,
         Self::Symbol,
         Self::PrivateNameSerial,
         Self::NodeArrayItem,
+        Self::Type,
     ];
 
     const fn index(self) -> usize {
@@ -55,6 +59,7 @@ impl fmt::Display for IdentitySpace {
             Self::Symbol => "persistent-symbol",
             Self::PrivateNameSerial => "private-name-serial",
             Self::NodeArrayItem => "node-array-item",
+            Self::Type => "type",
         })
     }
 }
@@ -66,6 +71,7 @@ pub struct IdentityLimits {
     pub persistent_symbol_end: u32,
     pub private_name_serial_end: u32,
     pub node_array_item_end: u32,
+    pub type_end: u32,
 }
 
 impl IdentityLimits {
@@ -76,6 +82,7 @@ impl IdentityLimits {
             IdentitySpace::Symbol => self.persistent_symbol_end,
             IdentitySpace::PrivateNameSerial => self.private_name_serial_end,
             IdentitySpace::NodeArrayItem => self.node_array_item_end,
+            IdentitySpace::Type => self.type_end,
         }
     }
 }
@@ -90,6 +97,7 @@ impl Default for IdentityLimits {
             persistent_symbol_end: TRANSIENT_SYMBOL_BIT,
             private_name_serial_end: u32::MAX,
             node_array_item_end: u32::MAX,
+            type_end: u32::MAX,
         }
     }
 }
@@ -341,7 +349,7 @@ impl RangeAllocator {
 
 #[derive(Debug)]
 struct DomainState {
-    allocators: [RangeAllocator; 5],
+    allocators: [RangeAllocator; IdentitySpace::ALL.len()],
     next_lease_id: u64,
 }
 
@@ -653,7 +661,7 @@ impl fmt::Debug for IdentityClaim {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IdentityDomainStats {
-    pub spaces: [IdentitySpaceStats; 5],
+    pub spaces: [IdentitySpaceStats; IdentitySpace::ALL.len()],
 }
 
 impl IdentityDomainStats {

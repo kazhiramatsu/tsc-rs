@@ -64,7 +64,7 @@ fn template_values_bridge_without_losing_surrogates() {
 
 #[test]
 fn scanner_values_and_template_units_share_literal_type_identity() {
-    let mut tables = crate::TypeTables::new(false, false);
+    let mut tables = crate::TypeTables::new(false, false, &crate::IdentityDomain::new());
     let mut ids = Vec::new();
     for units in [
         &[0xD800][..],

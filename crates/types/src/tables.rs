@@ -16,6 +16,8 @@ use rustc_hash::FxHashMap as HashMap;
 use std::cmp::Ordering;
 
 use crate::flags::{AccessFlags, ElementFlags, ObjectFlags, TypeFlags};
+use crate::identity::{IdentityDomain, IdentityLease, IdentitySpace};
+use tsc_store::StoreVec;
 use crate::ty::{
     ConditionalRootData, ConditionalRootId, ConditionalTypeData, IntrinsicData, LiteralValue,
     MappedTypeData, MapperId, PseudoBigInt, ReverseMappedTypeData, SubstitutionTypeData, SymbolId,
@@ -228,7 +230,13 @@ impl InstantiationKey {
 }
 
 pub struct TypeTables {
-    types: Vec<Type>,
+    /// The checker's types, in the type store (see [`TypeTables::new`]); a
+    /// type's identity is its index here.
+    types: StoreVec<Type>,
+    /// The lease of the list's store positions, held while the list uses
+    /// them.
+    #[expect(dead_code, reason = "held for the store positions' lifetime")]
+    lease: Option<IdentityLease>,
     pub strict_null_checks: bool,
     pub exact_optional_property_types: bool,
     pub intrinsics: Intrinsics,
@@ -344,7 +352,7 @@ impl TypeTables {
             type_bytes: self.types.capacity() * std::mem::size_of::<Type>(),
             ..TypesMemory::default()
         };
-        for ty in &self.types {
+        for ty in self.types.iter() {
             // Alias argument lists are interned, counted with the lists.
             usage.type_heap_bytes += match &ty.data {
                 TypeData::Literal {
@@ -424,9 +432,29 @@ impl TypeTables {
         usage
     }
 
-    pub fn new(strict_null_checks: bool, exact_optional_property_types: bool) -> Self {
+    /// The room of a checker's type list in the type store. Untouched
+    /// positions cost address space only; a list that outgrows its room
+    /// continues on the heap, its indices unchanged.
+    const TYPE_ROOM: u32 = 1 << 26;
+
+    /// Tables whose types are built in the type store, at positions leased
+    /// from `domain` (on the heap when the domain has no room left: the same
+    /// list, read the same way).
+    pub fn new(
+        strict_null_checks: bool,
+        exact_optional_property_types: bool,
+        domain: &IdentityDomain,
+    ) -> Self {
+        let (types, lease) = match domain.lease(IdentitySpace::Type, Self::TYPE_ROOM) {
+            Ok(lease) => (
+                StoreVec::claim_room(lease.range().start(), Self::TYPE_ROOM),
+                Some(lease),
+            ),
+            Err(_) => (StoreVec::new(), None),
+        };
         let mut tables = Self {
-            types: Vec::new(),
+            types,
+            lease,
             strict_null_checks,
             exact_optional_property_types,
             intrinsics: Intrinsics {
@@ -636,8 +664,11 @@ impl TypeTables {
         })
     }
 
+    /// The record of `id`: one load from the type store (a type's identity
+    /// is its index in this checker's list, which never moves).
+    #[inline(always)]
     pub fn type_of(&self, id: TypeId) -> &Type {
-        &self.types[id.index() as usize]
+        self.types.record(id.index())
     }
 
     pub fn type_mut(&mut self, id: TypeId) -> &mut Type {

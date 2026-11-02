@@ -1,7 +1,11 @@
 use super::*;
 
 fn tables() -> TypeTables {
-    TypeTables::new(/*strict_null_checks*/ true, /*eopt*/ false)
+    TypeTables::new(
+        /*strict_null_checks*/ true,
+        /*eopt*/ false,
+        &IdentityDomain::new(),
+    )
 }
 
 #[test]
@@ -17,7 +21,7 @@ fn intrinsics_are_allocated_in_tsc_order() {
     // exactOptionalPropertyTypes off aliases undefinedOrMissing.
     assert_eq!(t.intrinsics.undefined_or_missing, t.intrinsics.undefined);
 
-    let loose = TypeTables::new(false, false);
+    let loose = TypeTables::new(false, false, &IdentityDomain::new());
     assert_ne!(
         loose.intrinsics.undefined_widening,
         loose.intrinsics.undefined
@@ -212,7 +216,7 @@ fn union_any_unknown_absorption() {
 
 #[test]
 fn union_folds_nullable_members_without_strict_null_checks() {
-    let mut loose = TypeTables::new(false, false);
+    let mut loose = TypeTables::new(false, false, &IdentityDomain::new());
     let number = loose.intrinsics.number;
     let null = loose.intrinsics.null;
     // number | null collapses to number at construction (61347-61349).
@@ -254,7 +258,7 @@ fn union_folds_nullable_members_without_strict_null_checks() {
 #[test]
 fn union_dedups_missing_against_undefined() {
     // exactOptionalPropertyTypes tables: undefinedOrMissing = missing.
-    let mut t = TypeTables::new(true, true);
+    let mut t = TypeTables::new(true, true, &IdentityDomain::new());
     let missing = t.intrinsics.missing;
     let undefined = t.intrinsics.undefined;
     assert_ne!(missing, undefined);
@@ -624,7 +628,7 @@ fn optionality_follows_strict_null_checks() {
     assert!(types.contains(&t.intrinsics.undefined));
     assert_eq!(t.add_optionality(None, number, true, false), number);
 
-    let mut loose = TypeTables::new(false, false);
+    let mut loose = TypeTables::new(false, false, &IdentityDomain::new());
     let number = loose.intrinsics.number;
     assert_eq!(loose.add_optionality(None, number, true, true), number);
 }

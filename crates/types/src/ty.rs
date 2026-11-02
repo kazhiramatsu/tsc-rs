@@ -322,8 +322,17 @@ pub struct TemplateLiteralData {
 /// IndexedAccess arrived with the keyof follow-up; Mapped and
 /// ReverseMapped are live from phase 9.5; Conditional/Substitution
 /// follow in phase 9.6.
+///
+/// The tag is a byte and the first variant carries nothing, so an all-zero
+/// record is a valid (empty object) type: the type store's contract
+/// (`tsc_store::StoreRecord`).
 #[derive(Clone, Debug, PartialEq)]
+#[repr(u8)]
 pub enum TypeData {
+    /// Anonymous object types AND class/interface declared types —
+    /// distinguished by object_flags (Anonymous vs Class/Interface).
+    /// Members resolve lazily in the checker (resolveStructuredTypeMembers).
+    Object,
     /// any/unknown/string/... incl. error/silentNever/wildcard/missing
     /// variants (createIntrinsicType 50111).
     Intrinsic(Box<IntrinsicData>),
@@ -353,10 +362,6 @@ pub enum TypeData {
     Intersection {
         types: Box<[TypeId]>,
     },
-    /// Anonymous object types AND class/interface declared types —
-    /// distinguished by object_flags (Anonymous vs Class/Interface).
-    /// Members resolve lazily in the checker (resolveStructuredTypeMembers).
-    Object,
     /// Evolving (auto) array types (createEvolvingArrayType 70073,
     /// object_flags EvolvingArray): the element-type accumulator for
     /// `push`/`unshift`/index writes on an autoArrayType variable
@@ -466,6 +471,12 @@ pub struct Type {
 
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::<Type>() == 64);
+
+/// A checker's types live in the type store at leased positions (see
+/// `TypeTables::new`); an all-zero record is an empty object type.
+impl tsc_store::StoreRecord for Type {
+    const REGION: usize = 7;
+}
 
 impl Type {
     pub fn new(flags: TypeFlags, data: TypeData) -> Self {
