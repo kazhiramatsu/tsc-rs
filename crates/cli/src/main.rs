@@ -135,6 +135,11 @@ fn main() {
         let _ = stderr.write_all(output.stderr().as_bytes());
         let _ = stderr.flush();
     }
+    // An instrumented build (`scripts/pgo_build.py`) writes its profile from
+    // the C runtime's exit chain, which `LLVM_PROFILE_FILE` asks for.
+    if std::env::var_os("LLVM_PROFILE_FILE").is_some() {
+        std::process::exit(output.exit_code());
+    }
     // Leave without the C runtime's exit chain: the CLI keeps its arenas
     // until the end on purpose, and mimalloc's exit hook would otherwise walk
     // and unmap every segment it still holds (milliseconds for a large
