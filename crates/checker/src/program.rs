@@ -1074,6 +1074,25 @@ impl<'a> ProgramBinder<'a> {
     }
 
     /// tsrs-native: Rust ProgramBinder indexed file accessor.
+    /// tsgo `Program.SymbolCount`: every file's binder symbols.
+    pub fn binder_symbol_count(&self) -> usize {
+        (0..self.file_count())
+            .map(|index| self.file(index).symbols.len())
+            .sum()
+    }
+
+    /// The symbols this checker created.
+    pub fn transient_symbol_count(&self) -> usize {
+        self.transient.len()
+    }
+
+    /// tsgo `Program.IdentifierCount`: every file's identifier nodes.
+    pub fn identifier_count(&self) -> usize {
+        (0..self.file_count())
+            .map(|index| self.source(index).identifier_count())
+            .sum()
+    }
+
     pub fn file(&self, index: usize) -> &BindData {
         self.file_entries[index].data()
     }
