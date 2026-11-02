@@ -3879,6 +3879,10 @@ impl ProgramSession {
             checker_threads: checker_work.checker_threads(),
             checker_serial_replay: checker_work.checker_serial_replay(),
             checker_replay_reasons: checker_work.checker_replay_reasons(),
+            identifiers: checker_work.identifiers(),
+            symbols: checker_work.symbols(),
+            types: checker_work.types(),
+            instantiations: checker_work.instantiations(),
         };
 
         let preparation = self.prepared.diagnostics();
@@ -4116,9 +4120,31 @@ pub struct NoEmitWorkCounters {
     checker_threads: u64,
     checker_serial_replay: u64,
     checker_replay_reasons: u64,
+    identifiers: u64,
+    symbols: u64,
+    types: u64,
+    instantiations: u64,
 }
 
 impl NoEmitWorkCounters {
+    /// tsgo's `Identifiers`, `Symbols`, `Types` and `Instantiations`
+    /// statistics.
+    pub const fn identifiers(self) -> u64 {
+        self.identifiers
+    }
+
+    pub const fn symbols(self) -> u64 {
+        self.symbols
+    }
+
+    pub const fn types(self) -> u64 {
+        self.types
+    }
+
+    pub const fn instantiations(self) -> u64 {
+        self.instantiations
+    }
+
     /// Documents the checker session parsed itself.
     pub const fn parsed_documents(self) -> u64 {
         self.parsed_documents
@@ -4805,6 +4831,10 @@ fn check_work_counters(checked: &CheckResult) -> NoEmitWorkCounters {
         checker_threads: checked.work_counters.checker_threads(),
         checker_serial_replay: checked.work_counters.checker_serial_replay(),
         checker_replay_reasons: checked.work_counters.checker_replay_reasons(),
+        identifiers: checked.work_counters.identifiers(),
+        symbols: checked.work_counters.symbols(),
+        types: checked.work_counters.types(),
+        instantiations: checked.work_counters.instantiations(),
     }
 }
 

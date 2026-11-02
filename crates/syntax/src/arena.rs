@@ -37,6 +37,8 @@ pub struct NodeArena {
     array_base: u32,
     item_base: u32,
     leases: Option<SyntaxLeases>,
+    /// tsc `identifierCount`: the identifier nodes allocated so far.
+    identifier_count: u32,
 }
 
 impl PartialEq for NodeArena {
@@ -403,6 +405,11 @@ impl NodeArena {
             }
         }
     }
+    /// tsc `identifierCount`: the identifier nodes of this tree.
+    pub fn identifier_count(&self) -> usize {
+        self.identifier_count as usize
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -887,6 +894,7 @@ impl NodeArena {
                 .checked_add(offset)
                 .expect("node identity space exhausted"),
         );
+        self.identifier_count += u32::from(kind == SyntaxKind::Identifier);
         self.nodes.push(Node {
             kind,
             literal_flags: 0,

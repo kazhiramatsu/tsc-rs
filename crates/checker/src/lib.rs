@@ -801,6 +801,14 @@ pub struct CheckWorkCounters {
     checker_threads: u64,
     checker_serial_replay: u64,
     checker_replay_reasons: u64,
+    /// tsgo's `Identifiers`, `Symbols`, `Types` and `Instantiations`
+    /// statistics: the program's identifier nodes and binder symbols (once),
+    /// plus the checkers' symbols, types and `instantiationCount`s, summed
+    /// over the checkers that ran.
+    identifiers: u64,
+    symbols: u64,
+    types: u64,
+    instantiations: u64,
 }
 
 /// Parse work performed while materializing an owned library prefix.
@@ -878,6 +886,35 @@ impl CheckWorkCounters {
         self.checker_replay_reasons
     }
 
+    pub const fn identifiers(self) -> u64 {
+        self.identifiers
+    }
+
+    pub const fn symbols(self) -> u64 {
+        self.symbols
+    }
+
+    pub const fn types(self) -> u64 {
+        self.types
+    }
+
+    pub const fn instantiations(self) -> u64 {
+        self.instantiations
+    }
+
+    /// The program's counts, once per run.
+    fn record_program_counts(&mut self, binder: &program::ProgramBinder<'_>) {
+        self.identifiers += binder.identifier_count() as u64;
+        self.symbols += binder.binder_symbol_count() as u64;
+    }
+
+    /// Add one checker's counts after it has checked everything it will.
+    fn record_checker_counts(&mut self, state: &state::CheckerState<'_>) {
+        self.symbols += state.binder.transient_symbol_count() as u64;
+        self.types += state.tables.len() as u64;
+        self.instantiations += state.total_instantiation_count;
+    }
+
     fn record_serial_replay(&mut self, reasons: u32) {
         self.checker_serial_replay = 1;
         self.checker_replay_reasons = u64::from(reasons);
@@ -910,6 +947,10 @@ impl CheckWorkCounters {
             checker_threads: 0,
             checker_serial_replay: 0,
             checker_replay_reasons: 0,
+            identifiers: 0,
+            symbols: 0,
+            types: 0,
+            instantiations: 0,
         }
     }
 }
@@ -4669,6 +4710,12 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         }
         // W2e: the merge itself decides whether a display-class mark reached
         // a published row; only then is the sharded result discarded.
+        if let Some(state) = states.first() {
+            work_counters.record_program_counts(&state.binder);
+        }
+        for state in &states {
+            work_counters.record_checker_counts(state);
+        }
         let execution = match merge_shard_outputs(
             &snapshot,
             lib_count,
@@ -4824,7 +4871,7 @@ fn check_snapshot_serially(
     collect_global_diagnostics: bool,
     complete_library_prefix: bool,
     check_sources: bool,
-    work_counters: CheckWorkCounters,
+    mut work_counters: CheckWorkCounters,
     sharded_emit: Option<&mut ShardedEmit<'_>>,
     leak_state: bool,
     incremental_facts: bool,
@@ -4995,6 +5042,8 @@ fn check_snapshot_serially(
     }
     drop(checker_rows_by_file);
     tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
+    work_counters.record_program_counts(&state.binder);
+    work_counters.record_checker_counts(&state);
     let partial_checks = state.partial_check_records.clone();
     let authoritative_failure = state.take_authoritative_module_failure();
     state.line_profile.flush();
@@ -5468,6 +5517,8 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
             program_semantic_diagnostics = Some(diagnostics);
         }
+        work_counters.record_program_counts(&state.binder);
+        work_counters.record_checker_counts(&state);
         partial_checks = state.partial_check_records.clone();
         authoritative_failure = state.take_authoritative_module_failure();
         if authoritative_run.is_some_and(|run| run.incremental_facts) {

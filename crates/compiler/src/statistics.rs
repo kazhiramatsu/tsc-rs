@@ -24,6 +24,14 @@ pub(crate) struct Statistics {
     pub(crate) projects: Option<ProjectCounts>,
     pub(crate) files: usize,
     pub(crate) lines: usize,
+    /// tsgo's `Identifiers`, `Symbols`, `Types` and `Instantiations` rows:
+    /// the identifier nodes of the program's files, the binder's and
+    /// checkers' symbols, the checkers' types and instantiations, from the
+    /// check's work counters.
+    pub(crate) identifiers: usize,
+    pub(crate) symbols: usize,
+    pub(crate) types: usize,
+    pub(crate) instantiations: usize,
     pub(crate) config_time: Duration,
     pub(crate) parse_time: Duration,
     pub(crate) check_time: Duration,
@@ -51,6 +59,10 @@ impl Statistics {
         self.projects.get_or_insert_with(ProjectCounts::default);
         self.files += other.files;
         self.lines += other.lines;
+        self.identifiers += other.identifiers;
+        self.symbols += other.symbols;
+        self.types += other.types;
+        self.instantiations += other.instantiations;
         self.config_time += other.config_time;
         self.parse_time += other.parse_time;
         self.check_time += other.check_time;
@@ -77,6 +89,18 @@ impl Statistics {
         };
         table.add(&format!("{prefix}Files"), self.files.to_string());
         table.add(&format!("{prefix}Lines"), self.lines.to_string());
+        if self.types != 0 {
+            table.add(
+                &format!("{prefix}Identifiers"),
+                self.identifiers.to_string(),
+            );
+            table.add(&format!("{prefix}Symbols"), self.symbols.to_string());
+            table.add(&format!("{prefix}Types"), self.types.to_string());
+            table.add(
+                &format!("{prefix}Instantiations"),
+                self.instantiations.to_string(),
+            );
+        }
         if !self.config_time.is_zero() {
             table.add_duration(&format!("{prefix}Config time"), self.config_time);
         }

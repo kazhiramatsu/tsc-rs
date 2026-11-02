@@ -1117,6 +1117,8 @@ pub(crate) fn with_build_route<R>(
 pub(crate) struct BuildProjectRun {
     pub(crate) stdout: String,
     pub(crate) exit_code: i32,
+    /// The check's work, for the statistics rows.
+    pub(crate) work_counters: NoEmitWorkCounters,
     /// The diagnostics reported (tsgo `taskResult`'s errors).
     pub(crate) diagnostics: Vec<Diagnostic>,
     /// The files written, as absolute normalized paths (the build info
@@ -1481,6 +1483,10 @@ fn report_statistics(
     let Some(mut statistics) = statistics else {
         return;
     };
+    statistics.identifiers = run.work_counters.identifiers() as usize;
+    statistics.symbols = run.work_counters.symbols() as usize;
+    statistics.types = run.work_counters.types() as usize;
+    statistics.instantiations = run.work_counters.instantiations() as usize;
     statistics.check_time = elapsed_since(route.system, check_clock);
     statistics.total_time = route.system.since_start();
     run.stdout.push_str(&statistics.report(route.testing));
@@ -1774,6 +1780,7 @@ fn execute_prepared(
     Ok(BuildProjectRun {
         exit_code: output.exit_code,
         stdout: output.stdout,
+        work_counters,
         diagnostics,
         emitted_files,
         has_changed_dts_file: false,
@@ -1973,6 +1980,7 @@ fn execute_emitting_prepared(
     Ok(BuildProjectRun {
         exit_code: output.exit_code,
         stdout: output.stdout,
+        work_counters,
         diagnostics: diagnostics.to_vec(),
         emitted_files,
         has_changed_dts_file: build_emit.has_changed_dts_file,
