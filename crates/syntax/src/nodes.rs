@@ -107,6 +107,12 @@ pub enum NodePayload {
 /// attachment and a JSDoc comment, and words 1-2 hold the first two slots.
 const HAS_TAIL: u16 = 1 << 15;
 
+/// Word 2 of a record of a kind whose payload has no fields (EmptyStatement,
+/// JSDocAllType, ...): the payload is that kind's, not `Token` (the parser
+/// and the factory build some of them as tokens, and readers tell them
+/// apart by `NodeData::kind`).
+const EMPTY_PAYLOAD: u32 = 1;
+
 /// A node record: tsc's Node header and three payload words, which
 /// [`Node::data`] decodes into the kind's payload. A payload of up to three
 /// slots, or one whose slots past the third are empty, has no tail, and the
@@ -377,9 +383,12 @@ impl Node {
         tails: &mut tsc_store::tails::Tails,
         in_place: bool,
     ) {
+        // A record decodes by its kind: only a kind without slots may hold a
+        // `Token` payload (see `EMPTY_PAYLOAD`).
         debug_assert!(
             data.kind()
-                .map_or(!has_payload(self.kind), |kind| kind == self.kind),
+                .map_or(payload_shape(self.kind) == (0, false), |kind| kind
+                    == self.kind),
             "a {:?} record with a {:?} payload",
             self.kind,
             data.kind()
@@ -396,6 +405,9 @@ impl Node {
             words[..inline].copy_from_slice(&slots[..inline]);
             if count < 3 {
                 words[count] = js_doc;
+            }
+            if count == 0 && data.kind().is_some() {
+                words[2] = EMPTY_PAYLOAD;
             }
             // A tail the record had stays unused in its tree's chunks.
             self.words = words;
@@ -4647,208 +4659,6 @@ pub(crate) const fn payload_shape(kind: SyntaxKind) -> (usize, bool) {
     }
 }
 
-/// Whether `kind` has a payload variant: its records decode to it, never to `Token`.
-pub(crate) const fn has_payload(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::ArrayBindingPattern
-            | SyntaxKind::ArrayLiteralExpression
-            | SyntaxKind::ArrayType
-            | SyntaxKind::ArrowFunction
-            | SyntaxKind::AsExpression
-            | SyntaxKind::AwaitExpression
-            | SyntaxKind::BigIntLiteral
-            | SyntaxKind::BinaryExpression
-            | SyntaxKind::BindingElement
-            | SyntaxKind::Block
-            | SyntaxKind::BreakStatement
-            | SyntaxKind::CallExpression
-            | SyntaxKind::CallSignature
-            | SyntaxKind::CaseBlock
-            | SyntaxKind::CaseClause
-            | SyntaxKind::CatchClause
-            | SyntaxKind::ClassDeclaration
-            | SyntaxKind::ClassExpression
-            | SyntaxKind::ClassStaticBlockDeclaration
-            | SyntaxKind::CommaListExpression
-            | SyntaxKind::ComputedPropertyName
-            | SyntaxKind::ConditionalExpression
-            | SyntaxKind::ConditionalType
-            | SyntaxKind::ConstructSignature
-            | SyntaxKind::Constructor
-            | SyntaxKind::ConstructorType
-            | SyntaxKind::ContinueStatement
-            | SyntaxKind::DebuggerStatement
-            | SyntaxKind::Decorator
-            | SyntaxKind::DefaultClause
-            | SyntaxKind::DeleteExpression
-            | SyntaxKind::DoStatement
-            | SyntaxKind::ElementAccessExpression
-            | SyntaxKind::EmptyStatement
-            | SyntaxKind::EnumDeclaration
-            | SyntaxKind::EnumMember
-            | SyntaxKind::ExportAssignment
-            | SyntaxKind::ExportDeclaration
-            | SyntaxKind::ExportSpecifier
-            | SyntaxKind::ExpressionStatement
-            | SyntaxKind::ExpressionWithTypeArguments
-            | SyntaxKind::ExternalModuleReference
-            | SyntaxKind::ForInStatement
-            | SyntaxKind::ForOfStatement
-            | SyntaxKind::ForStatement
-            | SyntaxKind::FunctionDeclaration
-            | SyntaxKind::FunctionExpression
-            | SyntaxKind::FunctionType
-            | SyntaxKind::GetAccessor
-            | SyntaxKind::HeritageClause
-            | SyntaxKind::Identifier
-            | SyntaxKind::IfStatement
-            | SyntaxKind::ImportAttribute
-            | SyntaxKind::ImportAttributes
-            | SyntaxKind::ImportClause
-            | SyntaxKind::ImportDeclaration
-            | SyntaxKind::ImportEqualsDeclaration
-            | SyntaxKind::ImportSpecifier
-            | SyntaxKind::ImportType
-            | SyntaxKind::ImportTypeAssertionContainer
-            | SyntaxKind::IndexSignature
-            | SyntaxKind::IndexedAccessType
-            | SyntaxKind::InferType
-            | SyntaxKind::InterfaceDeclaration
-            | SyntaxKind::IntersectionType
-            | SyntaxKind::JSDoc
-            | SyntaxKind::JSDocAllType
-            | SyntaxKind::JSDocAugmentsTag
-            | SyntaxKind::JSDocAuthorTag
-            | SyntaxKind::JSDocCallbackTag
-            | SyntaxKind::JSDocClassTag
-            | SyntaxKind::JSDocDeprecatedTag
-            | SyntaxKind::JSDocEnumTag
-            | SyntaxKind::JSDocFunctionType
-            | SyntaxKind::JSDocImplementsTag
-            | SyntaxKind::JSDocImportTag
-            | SyntaxKind::JSDocLink
-            | SyntaxKind::JSDocLinkCode
-            | SyntaxKind::JSDocLinkPlain
-            | SyntaxKind::JSDocMemberName
-            | SyntaxKind::JSDocNameReference
-            | SyntaxKind::JSDocNamepathType
-            | SyntaxKind::JSDocNonNullableType
-            | SyntaxKind::JSDocNullableType
-            | SyntaxKind::JSDocOptionalType
-            | SyntaxKind::JSDocOverloadTag
-            | SyntaxKind::JSDocOverrideTag
-            | SyntaxKind::JSDocParameterTag
-            | SyntaxKind::JSDocPrivateTag
-            | SyntaxKind::JSDocPropertyTag
-            | SyntaxKind::JSDocProtectedTag
-            | SyntaxKind::JSDocPublicTag
-            | SyntaxKind::JSDocReadonlyTag
-            | SyntaxKind::JSDocReturnTag
-            | SyntaxKind::JSDocSatisfiesTag
-            | SyntaxKind::JSDocSeeTag
-            | SyntaxKind::JSDocSignature
-            | SyntaxKind::JSDocTag
-            | SyntaxKind::JSDocTemplateTag
-            | SyntaxKind::JSDocText
-            | SyntaxKind::JSDocThisTag
-            | SyntaxKind::JSDocThrowsTag
-            | SyntaxKind::JSDocTypeExpression
-            | SyntaxKind::JSDocTypeLiteral
-            | SyntaxKind::JSDocTypeTag
-            | SyntaxKind::JSDocTypedefTag
-            | SyntaxKind::JSDocUnknownType
-            | SyntaxKind::JSDocVariadicType
-            | SyntaxKind::JsxAttribute
-            | SyntaxKind::JsxAttributes
-            | SyntaxKind::JsxClosingElement
-            | SyntaxKind::JsxElement
-            | SyntaxKind::JsxExpression
-            | SyntaxKind::JsxFragment
-            | SyntaxKind::JsxNamespacedName
-            | SyntaxKind::JsxOpeningElement
-            | SyntaxKind::JsxSelfClosingElement
-            | SyntaxKind::JsxSpreadAttribute
-            | SyntaxKind::JsxText
-            | SyntaxKind::LabeledStatement
-            | SyntaxKind::LiteralType
-            | SyntaxKind::MappedType
-            | SyntaxKind::MetaProperty
-            | SyntaxKind::MethodDeclaration
-            | SyntaxKind::MethodSignature
-            | SyntaxKind::MissingDeclaration
-            | SyntaxKind::ModuleBlock
-            | SyntaxKind::ModuleDeclaration
-            | SyntaxKind::NamedExports
-            | SyntaxKind::NamedImports
-            | SyntaxKind::NamedTupleMember
-            | SyntaxKind::NamespaceExport
-            | SyntaxKind::NamespaceExportDeclaration
-            | SyntaxKind::NamespaceImport
-            | SyntaxKind::NewExpression
-            | SyntaxKind::NoSubstitutionTemplateLiteral
-            | SyntaxKind::NonNullExpression
-            | SyntaxKind::NotEmittedStatement
-            | SyntaxKind::NumericLiteral
-            | SyntaxKind::ObjectBindingPattern
-            | SyntaxKind::ObjectLiteralExpression
-            | SyntaxKind::OmittedExpression
-            | SyntaxKind::OptionalType
-            | SyntaxKind::Parameter
-            | SyntaxKind::ParenthesizedExpression
-            | SyntaxKind::ParenthesizedType
-            | SyntaxKind::PartiallyEmittedExpression
-            | SyntaxKind::PostfixUnaryExpression
-            | SyntaxKind::PrefixUnaryExpression
-            | SyntaxKind::PrivateIdentifier
-            | SyntaxKind::PropertyAccessExpression
-            | SyntaxKind::PropertyAssignment
-            | SyntaxKind::PropertyDeclaration
-            | SyntaxKind::PropertySignature
-            | SyntaxKind::QualifiedName
-            | SyntaxKind::RegularExpressionLiteral
-            | SyntaxKind::RestType
-            | SyntaxKind::ReturnStatement
-            | SyntaxKind::SatisfiesExpression
-            | SyntaxKind::SetAccessor
-            | SyntaxKind::ShorthandPropertyAssignment
-            | SyntaxKind::SourceFile
-            | SyntaxKind::SpreadAssignment
-            | SyntaxKind::SpreadElement
-            | SyntaxKind::StringLiteral
-            | SyntaxKind::SwitchStatement
-            | SyntaxKind::SyntaxList
-            | SyntaxKind::TaggedTemplateExpression
-            | SyntaxKind::TemplateExpression
-            | SyntaxKind::TemplateHead
-            | SyntaxKind::TemplateLiteralType
-            | SyntaxKind::TemplateLiteralTypeSpan
-            | SyntaxKind::TemplateMiddle
-            | SyntaxKind::TemplateSpan
-            | SyntaxKind::TemplateTail
-            | SyntaxKind::ThrowStatement
-            | SyntaxKind::TryStatement
-            | SyntaxKind::TupleType
-            | SyntaxKind::TypeAliasDeclaration
-            | SyntaxKind::TypeAssertionExpression
-            | SyntaxKind::TypeLiteral
-            | SyntaxKind::TypeOfExpression
-            | SyntaxKind::TypeOperator
-            | SyntaxKind::TypeParameter
-            | SyntaxKind::TypePredicate
-            | SyntaxKind::TypeQuery
-            | SyntaxKind::TypeReference
-            | SyntaxKind::UnionType
-            | SyntaxKind::VariableDeclaration
-            | SyntaxKind::VariableDeclarationList
-            | SyntaxKind::VariableStatement
-            | SyntaxKind::VoidExpression
-            | SyntaxKind::WhileStatement
-            | SyntaxKind::WithStatement
-            | SyntaxKind::YieldExpression
-    )
-}
-
 /// The slot words and the comment words of a payload.
 fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
     let mut s = [0u32; MAX_SLOTS];
@@ -5045,15 +4855,15 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
         NodeData::ExportAssignment(data) => {
             s[0] = data.modifiers.map_or(0, NodeArrayId::position);
             s[1] = data.expression.map_or(0, NodeId::position);
-            s[2] = (data
+            s[2] = data
                 .is_export_equals
-                .map_or(0, |value| u32::from(value) + 1));
+                .map_or(0, |value| u32::from(value) + 1);
             [0; 4]
         }
         NodeData::ExportDeclaration(data) => {
             s[0] = data.export_clause.map_or(0, NodeId::position);
             s[1] = data.module_specifier.map_or(0, NodeId::position);
-            s[2] = (u32::from(data.is_type_only));
+            s[2] = u32::from(data.is_type_only);
             s[3] = data.modifiers.map_or(0, NodeArrayId::position);
             s[4] = data.attributes.map_or(0, NodeId::position);
             [0; 4]
@@ -5061,7 +4871,7 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
         NodeData::ExportSpecifier(data) => {
             s[0] = data.name.map_or(0, NodeId::position);
             s[1] = data.property_name.map_or(0, NodeId::position);
-            s[2] = (u32::from(data.is_type_only));
+            s[2] = u32::from(data.is_type_only);
             [0; 4]
         }
         NodeData::ExpressionStatement(data) => {
@@ -5135,7 +4945,7 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
         }
         NodeData::HeritageClause(data) => {
             s[0] = data.types.map_or(0, NodeArrayId::position);
-            s[1] = ((data.token as u32) << 16);
+            s[1] = (data.token as u32) << 16;
             [0; 4]
         }
         NodeData::Identifier(data) => {
@@ -5155,15 +4965,15 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
         }
         NodeData::ImportAttributes(data) => {
             s[0] = data.elements.map_or(0, NodeArrayId::position);
-            s[1] = ((data.token as u32) << 16)
-                | (data.multi_line.map_or(0, |value| u32::from(value) + 1));
+            s[1] =
+                (data.token as u32) << 16 | data.multi_line.map_or(0, |value| u32::from(value) + 1);
             [0; 4]
         }
         NodeData::ImportClause(data) => {
             s[0] = data.name.map_or(0, NodeId::position);
             s[1] = data.named_bindings.map_or(0, NodeId::position);
-            s[2] = (u32::from(data.is_type_only))
-                | (data.phase_modifier.map_or(0, |kind| kind as u32 + 1) << 16);
+            s[2] = u32::from(data.is_type_only)
+                | data.phase_modifier.map_or(0, |kind| kind as u32 + 1) << 16;
             [0; 4]
         }
         NodeData::ImportDeclaration(data) => {
@@ -5177,19 +4987,19 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
             s[0] = data.name.map_or(0, NodeId::position);
             s[1] = data.modifiers.map_or(0, NodeArrayId::position);
             s[2] = data.module_reference.map_or(0, NodeId::position);
-            s[3] = (u32::from(data.is_type_only));
+            s[3] = u32::from(data.is_type_only);
             [0; 4]
         }
         NodeData::ImportSpecifier(data) => {
             s[0] = data.name.map_or(0, NodeId::position);
             s[1] = data.property_name.map_or(0, NodeId::position);
-            s[2] = (u32::from(data.is_type_only));
+            s[2] = u32::from(data.is_type_only);
             [0; 4]
         }
         NodeData::ImportType(data) => {
             s[0] = data.argument.map_or(0, NodeId::position);
             s[1] = data.qualifier.map_or(0, NodeId::position);
-            s[2] = (u32::from(data.is_type_of));
+            s[2] = u32::from(data.is_type_of);
             s[3] = data.type_arguments.map_or(0, NodeArrayId::position);
             s[4] = data.attributes.map_or(0, NodeId::position);
             [0; 4]
@@ -5309,12 +5119,12 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
         }
         NodeData::JSDocNonNullableType(data) => {
             s[0] = data.r#type.map_or(0, NodeId::position);
-            s[1] = (u32::from(data.postfix));
+            s[1] = u32::from(data.postfix);
             [0; 4]
         }
         NodeData::JSDocNullableType(data) => {
             s[0] = data.r#type.map_or(0, NodeId::position);
-            s[1] = (u32::from(data.postfix));
+            s[1] = u32::from(data.postfix);
             [0; 4]
         }
         NodeData::JSDocOptionalType(data) => {
@@ -5333,7 +5143,7 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
         NodeData::JSDocParameterTag(data) => {
             s[0] = data.tag_name.map_or(0, NodeId::position);
             s[1] = data.name.map_or(0, NodeId::position);
-            s[2] = (u32::from(data.is_name_first)) | (u32::from(data.is_bracketed) << 1);
+            s[2] = u32::from(data.is_name_first) | u32::from(data.is_bracketed) << 1;
             s[3] = data.type_expression.map_or(0, NodeId::position);
             JSDocComment::words(data.comment.as_ref())
         }
@@ -5345,7 +5155,7 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
             s[0] = data.tag_name.map_or(0, NodeId::position);
             s[1] = data.name.map_or(0, NodeId::position);
             s[2] = data.type_expression.map_or(0, NodeId::position);
-            s[3] = (u32::from(data.is_name_first)) | (u32::from(data.is_bracketed) << 1);
+            s[3] = u32::from(data.is_name_first) | u32::from(data.is_bracketed) << 1;
             JSDocComment::words(data.comment.as_ref())
         }
         NodeData::JSDocProtectedTag(data) => {
@@ -5411,7 +5221,7 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
         }
         NodeData::JSDocTypeLiteral(data) => {
             s[0] = data.js_doc_property_tags.map_or(0, NodeArrayId::position);
-            s[1] = (u32::from(data.is_array_type));
+            s[1] = u32::from(data.is_array_type);
             [0; 4]
         }
         NodeData::JSDocTypeTag(data) => {
@@ -5484,7 +5294,7 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
         }
         NodeData::JsxText(data) => {
             s[0] = data.text.position();
-            s[1] = (u32::from(data.contains_only_trivia_white_spaces));
+            s[1] = u32::from(data.contains_only_trivia_white_spaces);
             [0; 4]
         }
         NodeData::LabeledStatement(data) => {
@@ -5507,7 +5317,7 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
         }
         NodeData::MetaProperty(data) => {
             s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = ((data.keyword_token as u32) << 16);
+            s[1] = (data.keyword_token as u32) << 16;
             [0; 4]
         }
         NodeData::MethodDeclaration(data) => {
@@ -5631,12 +5441,12 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
         }
         NodeData::PostfixUnaryExpression(data) => {
             s[0] = data.operand.map_or(0, NodeId::position);
-            s[1] = ((data.operator as u32) << 16);
+            s[1] = (data.operator as u32) << 16;
             [0; 4]
         }
         NodeData::PrefixUnaryExpression(data) => {
             s[0] = data.operand.map_or(0, NodeId::position);
-            s[1] = ((data.operator as u32) << 16);
+            s[1] = (data.operator as u32) << 16;
             [0; 4]
         }
         NodeData::PrivateIdentifier(data) => {
@@ -5817,7 +5627,7 @@ fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
         }
         NodeData::TypeOperator(data) => {
             s[0] = data.r#type.map_or(0, NodeId::position);
-            s[1] = ((data.operator as u32) << 16);
+            s[1] = (data.operator as u32) << 16;
             [0; 4]
         }
         NodeData::TypeParameter(data) => {
@@ -6098,7 +5908,13 @@ impl Node {
                     label: NodeId::from_position(s[0]),
                 })
             }
-            SyntaxKind::DebuggerStatement => NodeData::DebuggerStatement(DebuggerStatementData {}),
+            SyntaxKind::DebuggerStatement => {
+                if self.words[2] == EMPTY_PAYLOAD {
+                    NodeData::DebuggerStatement(DebuggerStatementData {})
+                } else {
+                    NodeData::Token
+                }
+            }
             SyntaxKind::Decorator => {
                 let s = self.slots::<1>();
                 NodeData::Decorator(DecoratorData {
@@ -6132,7 +5948,13 @@ impl Node {
                     argument_expression: NodeId::from_position(s[2]),
                 })
             }
-            SyntaxKind::EmptyStatement => NodeData::EmptyStatement(EmptyStatementData {}),
+            SyntaxKind::EmptyStatement => {
+                if self.words[2] == EMPTY_PAYLOAD {
+                    NodeData::EmptyStatement(EmptyStatementData {})
+                } else {
+                    NodeData::Token
+                }
+            }
             SyntaxKind::EnumDeclaration => {
                 let s = self.slots::<3>();
                 NodeData::EnumDeclaration(EnumDeclarationData {
@@ -6406,7 +6228,13 @@ impl Node {
                     comment: JSDocComment::from_words(self.comment_words(1)),
                 })
             }
-            SyntaxKind::JSDocAllType => NodeData::JSDocAllType(JSDocAllTypeData {}),
+            SyntaxKind::JSDocAllType => {
+                if self.words[2] == EMPTY_PAYLOAD {
+                    NodeData::JSDocAllType(JSDocAllTypeData {})
+                } else {
+                    NodeData::Token
+                }
+            }
             SyntaxKind::JSDocAugmentsTag => {
                 let s = self.slots::<2>();
                 NodeData::JSDocAugmentsTag(JSDocAugmentsTagData {
@@ -6707,7 +6535,13 @@ impl Node {
                     type_expression: NodeId::from_position(s[3]),
                 })
             }
-            SyntaxKind::JSDocUnknownType => NodeData::JSDocUnknownType(JSDocUnknownTypeData {}),
+            SyntaxKind::JSDocUnknownType => {
+                if self.words[2] == EMPTY_PAYLOAD {
+                    NodeData::JSDocUnknownType(JSDocUnknownTypeData {})
+                } else {
+                    NodeData::Token
+                }
+            }
             SyntaxKind::JSDocVariadicType => {
                 let s = self.slots::<1>();
                 NodeData::JSDocVariadicType(JSDocVariadicTypeData {
@@ -6933,7 +6767,11 @@ impl Node {
                 })
             }
             SyntaxKind::NotEmittedStatement => {
-                NodeData::NotEmittedStatement(NotEmittedStatementData {})
+                if self.words[2] == EMPTY_PAYLOAD {
+                    NodeData::NotEmittedStatement(NotEmittedStatementData {})
+                } else {
+                    NodeData::Token
+                }
             }
             SyntaxKind::NumericLiteral => {
                 let s = self.slots::<1>();
@@ -6953,7 +6791,13 @@ impl Node {
                     properties: NodeArrayId::from_position(s[0]),
                 })
             }
-            SyntaxKind::OmittedExpression => NodeData::OmittedExpression(OmittedExpressionData {}),
+            SyntaxKind::OmittedExpression => {
+                if self.words[2] == EMPTY_PAYLOAD {
+                    NodeData::OmittedExpression(OmittedExpressionData {})
+                } else {
+                    NodeData::Token
+                }
+            }
             SyntaxKind::OptionalType => {
                 let s = self.slots::<1>();
                 NodeData::OptionalType(OptionalTypeData {
@@ -7136,7 +6980,13 @@ impl Node {
                     case_block: NodeId::from_position(s[1]),
                 })
             }
-            SyntaxKind::SyntaxList => NodeData::SyntaxList(SyntaxListData {}),
+            SyntaxKind::SyntaxList => {
+                if self.words[2] == EMPTY_PAYLOAD {
+                    NodeData::SyntaxList(SyntaxListData {})
+                } else {
+                    NodeData::Token
+                }
+            }
             SyntaxKind::TaggedTemplateExpression => {
                 let s = self.slots::<4>();
                 NodeData::TaggedTemplateExpression(TaggedTemplateExpressionData {

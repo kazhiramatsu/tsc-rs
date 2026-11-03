@@ -988,7 +988,7 @@ impl<'a> BinderWorker<'a> {
         if !self.is_in_js_file() {
             return;
         }
-        let Some(js_doc) = self.source.arena.node(node).js_doc else {
+        let Some(js_doc) = self.source.arena.node(node).js_doc() else {
             return;
         };
         let mut names = Vec::new();
@@ -2231,7 +2231,7 @@ impl<'a> BinderWorker<'a> {
 
     #[inline(never)]
     fn bind_jsdoc_of_js_node(&mut self, host: NodeId) {
-        let Some(js_doc) = self.source.arena.node(host).js_doc else {
+        let Some(js_doc) = self.source.arena.node(host).js_doc() else {
             return;
         };
         let docs = self.source.arena.node_array(js_doc).nodes.to_vec();
@@ -2351,7 +2351,7 @@ impl<'a> BinderWorker<'a> {
 
     #[inline(never)]
     fn bind_reparsed_jsdoc_namespaces_of_js_node(&mut self, host: NodeId) {
-        let Some(js_doc) = self.source.arena.node(host).js_doc else {
+        let Some(js_doc) = self.source.arena.node(host).js_doc() else {
             return;
         };
         let in_statement_list = parent_of(self.source, host).is_some_and(|parent| {

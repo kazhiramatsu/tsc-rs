@@ -189,7 +189,7 @@ impl ConstEnumInliningVisitor<'_, '_> {
             let slots = if matches!(record.data(), NodeData::MissingDeclaration(_)) {
                 ChildSlots::new()
             } else {
-                child_slots(record.data(), &*self)
+                child_slots(&record.data(), &*self)
             };
             (record.kind, slots)
         };

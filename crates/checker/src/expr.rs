@@ -3443,7 +3443,7 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         if let NodeData::PropertyAssignment(assignment) = parent_data {
-            if self.is_inline_import_attributes(node, parent, assignment) {
+            if self.is_inline_import_attributes(node, parent, &assignment) {
                 return Ok(true);
             }
         }

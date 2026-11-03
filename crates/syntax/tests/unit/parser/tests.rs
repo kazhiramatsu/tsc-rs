@@ -279,17 +279,17 @@ fn parse_ts(text: &str) -> SourceFile {
 fn only_import_clause(
     source: &SourceFile,
 ) -> (
-    &crate::nodes::ImportDeclarationData,
-    &crate::nodes::ImportClauseData,
+    crate::nodes::ImportDeclarationData,
+    crate::nodes::ImportClauseData,
 ) {
     let [declaration] = nodes_of_kind(source, SyntaxKind::ImportDeclaration)[..] else {
         panic!("one import declaration");
     };
-    let NodeData::ImportDeclaration(declaration) = &source.arena.node(declaration).data() else {
+    let NodeData::ImportDeclaration(declaration) = source.arena.node(declaration).data() else {
         unreachable!()
     };
     let clause = declaration.import_clause.expect("an import clause");
-    let NodeData::ImportClause(clause) = &source.arena.node(clause).data() else {
+    let NodeData::ImportClause(clause) = source.arena.node(clause).data() else {
         unreachable!()
     };
     (declaration, clause)
@@ -2426,7 +2426,7 @@ fn expected_optional_context_and_speculation_restore_parser_state() {
 
 #[test]
 fn delimited_list_tracks_trailing_comma() {
-    let mut parser = Parser::new("a.ts".into(), "a,)", LanguageVariant::Standard, false);
+    let mut parser = Parser::new("a.ts".into(), "this,)", LanguageVariant::Standard, false);
     parser.next_token();
 
     let list = parser.parse_delimited_list(
@@ -2470,7 +2470,7 @@ fn delimited_list_trailing_comma_is_the_list_extending_past_its_last_element() {
 
 #[test]
 fn delimited_list_reports_missing_commas_and_keeps_progressing() {
-    let mut parser = Parser::new("a.ts".into(), "a b)", LanguageVariant::Standard, false);
+    let mut parser = Parser::new("a.ts".into(), "this this)", LanguageVariant::Standard, false);
     parser.next_token();
 
     let list = parser.parse_delimited_list(
@@ -3843,7 +3843,7 @@ fn jsdoc_typedef_properties_and_satisfies_are_arena_nodes() {
     let doc_array = source
         .arena
         .node(statement)
-        .js_doc
+        .js_doc()
         .expect("statement JSDoc");
     let doc = source.arena.node_array(doc_array).nodes[0];
     assert_eq!(source.arena.node(doc).parent, Some(statement));
@@ -3887,12 +3887,12 @@ fn jsdoc_typedef_properties_and_satisfies_are_arena_nodes() {
         .node_ids()
         .find(|&node| {
             source.arena.node(node).kind == SyntaxKind::ParenthesizedExpression
-                && source.arena.node(node).js_doc.is_some()
+                && source.arena.node(node).js_doc().is_some()
         })
         .expect("inline JSDoc host");
     let inline_doc = source
         .arena
-        .node_array(source.arena.node(paren).js_doc.expect("inline docs"))
+        .node_array(source.arena.node(paren).js_doc().expect("inline docs"))
         .nodes[0];
     let NodeData::JSDoc(inline) = &source.arena.node(inline_doc).data() else {
         panic!("inline JSDoc");
@@ -3941,7 +3941,7 @@ fn no_jsdoc_source_allocates_no_jsdoc_nodes_or_attachments() {
     );
 
     assert!(source.arena.nodes().iter().all(|node| {
-        node.js_doc.is_none() && !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
+        node.js_doc().is_none() && !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
     }));
 }
 
@@ -3978,7 +3978,7 @@ fn jsdoc_parsing_modes_match_tsc_script_kind_rules() {
             .nodes()
             .iter()
             .find(|node| node.kind == SyntaxKind::FunctionDeclaration)
-            .is_some_and(|node| node.js_doc.is_some())
+            .is_some_and(|node| node.js_doc().is_some())
     }
 
     let ordinary = "/** @param {number} x */\nfunction f(x) {}";
@@ -4148,7 +4148,7 @@ fn jsdoc_fenced_code_blocks_and_at_signs_follow_tsgo() {
     let function = nodes_of_kind(&source, SyntaxKind::FunctionDeclaration)[0];
     let doc = source
         .arena
-        .node_array(source.arena.node(function).js_doc.expect("JSDoc"))
+        .node_array(source.arena.node(function).js_doc().expect("JSDoc"))
         .nodes[0];
     let NodeData::JSDoc(data) = &source.arena.node(doc).data() else {
         panic!("JSDoc");

@@ -580,6 +580,6 @@ pub(super) fn positions_are_on_same_line(file: &SourceFile, first: usize, second
 fn has_jsdoc_nodes(file: &SourceFile, node: NodeId) -> bool {
     file.arena
         .node(node)
-        .js_doc
+        .js_doc()
         .is_some_and(|list| !file.arena.node_array(list).nodes.is_empty())
 }

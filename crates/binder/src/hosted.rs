@@ -175,7 +175,7 @@ fn compute(source: &SourceFile) -> JsDocHosted {
             .arena
             .nodes()
             .iter()
-            .any(|node| node.js_doc.is_some())
+            .any(|node| node.js_doc().is_some())
     {
         return hosted;
     }
@@ -196,7 +196,7 @@ fn compute(source: &SourceFile) -> JsDocHosted {
             if is_object_literal {
                 object_literals -= 1;
             }
-            if source.arena.node(node).js_doc.is_some() {
+            if source.arena.node(node).js_doc().is_some() {
                 reparser.reparse_tags(node, object_literals > 0);
             }
             continue;
@@ -235,7 +235,7 @@ impl Reparser<'_, '_> {
 
     /// reparseTags: the hosted tags come from the last JSDoc comment only.
     fn reparse_tags(&mut self, host: NodeId, in_object_literal: bool) {
-        let Some(js_doc) = self.source.arena.node(host).js_doc else {
+        let Some(js_doc) = self.source.arena.node(host).js_doc() else {
             return;
         };
         let Some(&last) = self.source.arena.node_array(js_doc).nodes.last() else {

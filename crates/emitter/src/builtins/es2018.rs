@@ -498,12 +498,12 @@ impl<'context> Es2018Visitor<'context> {
                 Some(self.visit_catch_clause_with_object_rest(original, data)?)
             }
             NodeData::FunctionDeclaration(data) => {
-                Some(self.visit_function_declaration(original, *data)?)
+                Some(self.visit_function_declaration(original, data)?)
             }
             NodeData::FunctionExpression(data) => {
-                Some(self.visit_function_expression(original, *data)?)
+                Some(self.visit_function_expression(original, data)?)
             }
-            NodeData::ArrowFunction(data) => Some(self.visit_arrow_function(original, *data)?),
+            NodeData::ArrowFunction(data) => Some(self.visit_arrow_function(original, data)?),
             NodeData::ClassDeclaration(data) if self.super_capture_is_active() => {
                 Some(self.visit_super_capture_boundary(original, NodeData::ClassDeclaration(data))?)
             }
@@ -511,11 +511,11 @@ impl<'context> Es2018Visitor<'context> {
                 Some(self.visit_super_capture_boundary(original, NodeData::ClassExpression(data))?)
             }
             NodeData::MethodDeclaration(data) => {
-                Some(self.visit_method_declaration(original, *data)?)
+                Some(self.visit_method_declaration(original, data)?)
             }
-            NodeData::GetAccessor(data) => Some(self.visit_get_accessor(original, *data)?),
-            NodeData::SetAccessor(data) => Some(self.visit_set_accessor(original, *data)?),
-            NodeData::Constructor(data) => Some(self.visit_constructor(original, *data)?),
+            NodeData::GetAccessor(data) => Some(self.visit_get_accessor(original, data)?),
+            NodeData::SetAccessor(data) => Some(self.visit_set_accessor(original, data)?),
+            NodeData::Constructor(data) => Some(self.visit_constructor(original, data)?),
             // `transformES2018` deliberately uses the propagated subtree bit,
             // not a scan for a direct `SpreadAssignment`. A prior transform
             // can synthesize an object literal around a value that still owns
@@ -745,9 +745,9 @@ impl<'context> Es2018Visitor<'context> {
 
     fn node_is_direct_super_use(&self, node: TransformNode) -> Result<bool, TransformError> {
         match self.context.arena().node(node)?.data() {
-            NodeData::PropertyAccessExpression(data) => self.property_access_targets_super(data),
-            NodeData::ElementAccessExpression(data) => self.element_access_targets_super(data),
-            NodeData::CallExpression(data) => self.call_expression_targets_super(data),
+            NodeData::PropertyAccessExpression(data) => self.property_access_targets_super(&data),
+            NodeData::ElementAccessExpression(data) => self.element_access_targets_super(&data),
+            NodeData::CallExpression(data) => self.call_expression_targets_super(&data),
             _ => Ok(false),
         }
     }
@@ -791,10 +791,10 @@ impl<'context> Es2018Visitor<'context> {
         };
         match self.context.arena().node(expression)?.data() {
             NodeData::PropertyAccessExpression(property) => {
-                self.property_access_targets_super(property)
+                self.property_access_targets_super(&property)
             }
             NodeData::ElementAccessExpression(element) => {
-                self.element_access_targets_super(element)
+                self.element_access_targets_super(&element)
             }
             _ => Ok(false),
         }
@@ -2649,7 +2649,7 @@ impl<'context> Es2018Visitor<'context> {
             )?;
             if follows_object_rest {
                 deferred_helpers.object_rest |= self.pattern_contains_object_rest(name)?;
-                visited.push(self.visit_parameter_after_object_rest(parameter, *data, name, mode)?);
+                visited.push(self.visit_parameter_after_object_rest(parameter, data, name, mode)?);
             } else if self.pattern_contains_object_rest(name)? {
                 follows_object_rest = true;
                 deferred_helpers.object_rest = true;
@@ -5099,7 +5099,7 @@ impl<'context> Es2018Visitor<'context> {
         mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
         try_visit_transform_children(&mut data, self)?;
-        if self.context.arena().node(original)?.data() == &data {
+        if self.context.arena().node(original)?.data() == data {
             return Ok(original.node());
         }
         let flags = flags_after_update(self.context.arena(), original, &data)?;
@@ -5115,7 +5115,7 @@ impl<'context> Es2018Visitor<'context> {
         original: TransformNode,
         data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        if self.context.arena().node(original)?.data() == &data {
+        if self.context.arena().node(original)?.data() == data {
             return Ok(original.node());
         }
         let flags = flags_after_update(self.context.arena(), original, &data)?;

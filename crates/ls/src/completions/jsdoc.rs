@@ -761,7 +761,7 @@ impl<'a> TemplateFile<'a> {
         self.source
             .arena
             .node(node)
-            .js_doc
+            .js_doc()
             .and_then(|docs| self.source.arena.node_array(docs).nodes.last().copied())
     }
 

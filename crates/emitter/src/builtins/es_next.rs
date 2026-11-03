@@ -378,7 +378,7 @@ impl<'context> EsNextVisitor<'context> {
                 NodeData::Block(data) => Some(data.statements),
                 _ => None,
             };
-            (record.kind, Self::function_body(record.data()), statements)
+            (record.kind, Self::function_body(&record.data()), statements)
         };
         if !is_scope_root && Self::establishes_name_generation_scope(kind) {
             nested_scopes.push(node);
@@ -464,7 +464,7 @@ impl<'context> EsNextVisitor<'context> {
         };
         let record = self.context.arena().node(node)?;
         if !matches!(record.data(), NodeData::MissingDeclaration(_)) {
-            let mut slots = child_slots(record.data(), &collector);
+            let mut slots = child_slots(&record.data(), &collector);
             map_child_slots(&mut slots, &mut collector)?;
         }
         Ok(collector

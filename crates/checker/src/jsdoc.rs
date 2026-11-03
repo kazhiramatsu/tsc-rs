@@ -261,7 +261,7 @@ impl<'a> CheckerState<'a> {
             .source_of_node(node)
             .arena
             .node(node)
-            .js_doc
+            .js_doc()
             .is_some()
             || self.jsdoc_tag_cache.borrow().contains_key(&node)
     }
@@ -272,7 +272,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn has_jsdoc_nodes(&self, node: NodeId) -> bool {
         Published
             .node(node)
-            .js_doc
+            .js_doc()
             .is_some_and(|docs| !Published.node_array(docs).nodes.is_empty())
     }
 
@@ -281,7 +281,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn direct_jsdoc_documents(&self, node: NodeId) -> Vec<NodeId> {
         Published
             .node(node)
-            .js_doc
+            .js_doc()
             .map(|docs| Published.node_array(docs).nodes.to_vec())
             .unwrap_or_default()
     }

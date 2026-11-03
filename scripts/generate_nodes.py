@@ -384,6 +384,12 @@ pub enum NodePayload {
 /// attachment and a JSDoc comment, and words 1-2 hold the first two slots.
 const HAS_TAIL: u16 = 1 << 15;
 
+/// Word 2 of a record of a kind whose payload has no fields (EmptyStatement,
+/// JSDocAllType, ...): the payload is that kind's, not `Token` (the parser
+/// and the factory build some of them as tokens, and readers tell them
+/// apart by `NodeData::kind`).
+const EMPTY_PAYLOAD: u32 = 1;
+
 /// A node record: tsc's Node header and three payload words, which
 /// [`Node::data`] decodes into the kind's payload. A payload of up to three
 /// slots, or one whose slots past the third are empty, has no tail, and the
@@ -654,8 +660,10 @@ impl Node {
         tails: &mut tsc_store::tails::Tails,
         in_place: bool,
     ) {
+        // A record decodes by its kind: only a kind without slots may hold a
+        // `Token` payload (see `EMPTY_PAYLOAD`).
         debug_assert!(
-            data.kind().map_or(!has_payload(self.kind), |kind| kind == self.kind),
+            data.kind().map_or(payload_shape(self.kind) == (0, false), |kind| kind == self.kind),
             "a {:?} record with a {:?} payload",
             self.kind,
             data.kind()
@@ -672,6 +680,9 @@ impl Node {
             words[..inline].copy_from_slice(&slots[..inline]);
             if count < 3 {
                 words[count] = js_doc;
+            }
+            if count == 0 && data.kind().is_some() {
+                words[2] = EMPTY_PAYLOAD;
             }
             // A tail the record had stays unused in its tree's chunks.
             self.words = words;
@@ -856,13 +867,13 @@ def encode_slot(kind, slot):
             value = f"data.{field.rust_name}"
             shift = f" << {bits[field.rust_name]}" if bits[field.rust_name] else ""
             if field.ty == "Bool" and field.rust_optional:
-                parts.append(f"({value}.map_or(0, |value| u32::from(value) + 1){shift})")
+                parts.append(f"{value}.map_or(0, |value| u32::from(value) + 1){shift}")
             elif field.ty == "Bool":
-                parts.append(f"(u32::from({value}){shift})")
+                parts.append(f"u32::from({value}){shift}")
             elif field.rust_optional:
-                parts.append(f"({value}.map_or(0, |kind| kind as u32 + 1) << 16)")
+                parts.append(f"{value}.map_or(0, |kind| kind as u32 + 1) << 16")
             else:
-                parts.append(f"(({value} as u32) << 16)")
+                parts.append(f"({value} as u32) << 16")
         return " | ".join(parts)
     return ENCODE_WORD[(slot.walk_type(), slot.rust_optional)].format(f"data.{slot.rust_name}")
 
@@ -915,10 +926,6 @@ def render_payload_codec(kinds):
         out.append(f"{arms} => ({count}, {'true' if comment else 'false'}),")
     out += ["_ => (0, false),", "}", "}", ""]
 
-    out.append("/// Whether `kind` has a payload variant: its records decode to it, never to `Token`.")
-    out.append("pub(crate) const fn has_payload(kind: SyntaxKind) -> bool {")
-    out.append("matches!(kind, " + " | ".join(f"SyntaxKind::{kind.name}" for kind in kinds) + ")")
-    out += ["}", ""]
     out.append("/// The slot words and the comment words of a payload.")
     out.append("fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {")
     out.append("let mut s = [0u32; MAX_SLOTS];")
@@ -951,6 +958,13 @@ def render_payload_codec(kinds):
         slots = kind.slots()
         scalars_index = slots.index(SCALARS) if SCALARS in slots else None
         out.append(f"SyntaxKind::{kind.name} => {{")
+        if not kind.fields:
+            out.append(
+                f"if self.words[2] == EMPTY_PAYLOAD {{ NodeData::{kind.name}({kind.data_name} {{}}) }} "
+                "else { NodeData::Token }"
+            )
+            out.append("}")
+            continue
         if slots:
             out.append(f"let s = self.slots::<{len(slots)}>();")
         out.append(f"NodeData::{kind.name}({kind.data_name} {{")

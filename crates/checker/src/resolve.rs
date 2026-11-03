@@ -3068,7 +3068,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed AST projection for tsc's direct declaration
     /// `type` property access.
     pub fn type_annotation_of(&self, node: NodeId) -> Option<NodeId> {
-        tsc_binder::node_util::type_annotation_of_data(self.data_of(node))
+        tsc_binder::node_util::type_annotation_of_data(&self.data_of(node))
     }
 
     fn parameters_of(&self, node: NodeId) -> crate::annotate::NodeIds<'a> {

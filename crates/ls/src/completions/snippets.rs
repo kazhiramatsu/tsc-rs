@@ -620,7 +620,7 @@ fn transform_modifier_flags(tracker: &mut Tracker<'_>, node: TransformNode) -> M
     let Ok(record) = arena.node(node) else {
         return ModifierFlags::NONE;
     };
-    let Some(list) = node_util::modifiers_of_data(record.data()) else {
+    let Some(list) = node_util::modifiers_of_data(&record.data()) else {
         return ModifierFlags::NONE;
     };
     let Ok(array) = arena.node_array(tsc_emitter::TransformNodeArray::new(node.source(), list))

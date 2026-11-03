@@ -1305,7 +1305,7 @@ impl<'a> CheckerState<'a> {
                 let host = self.parent_of(js_doc).filter(|&host| {
                     Published
                         .node(host)
-                        .js_doc
+                        .js_doc()
                         .and_then(|docs| Published.node_array(docs).nodes.last().copied())
                         == Some(js_doc)
                 });

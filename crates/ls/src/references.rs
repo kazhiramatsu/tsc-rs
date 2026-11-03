@@ -64,7 +64,7 @@ fn for_each_reparsed_import_tag(file: &SourceFile, node: NodeId, found: &mut dyn
             for_each_reparsed_import_tag(file, child, found);
         }
     }
-    for tag in jsdoc_tags(file, record.js_doc) {
+    for tag in jsdoc_tags(file, record.js_doc()) {
         if file.arena.node(tag).kind == SyntaxKind::JSDocImportTag {
             found(tag);
         }
@@ -95,7 +95,7 @@ fn end_of_file_tags(file: &SourceFile) -> Vec<NodeId> {
         return Vec::new();
     };
     data.end_of_file_token
-        .map(|token| jsdoc_tags(file, file.arena.node(token).js_doc))
+        .map(|token| jsdoc_tags(file, file.arena.node(token).js_doc()))
         .unwrap_or_default()
 }
 
@@ -309,7 +309,7 @@ fn node_at_position(file: &SourceFile, position: u32, include_js_doc: bool) -> N
         let node = file.arena.node(current);
         let mut child = None;
         if include_js_doc {
-            if let Some(js_doc) = node.js_doc {
+            if let Some(js_doc) = node.js_doc() {
                 child = file
                     .arena
                     .node_array(js_doc)

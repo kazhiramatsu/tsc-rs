@@ -117,7 +117,7 @@ pub fn jsdoc_statement_host(tree: &impl NodeLookup, host: NodeId) -> NodeId {
 pub fn get_jsdoc_host(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
     let js_doc = get_jsdoc_root(tree, node)?;
     let host = parent_of(tree, js_doc)?;
-    let docs = tree.node(host).js_doc?;
+    let docs = tree.node(host).js_doc()?;
     (tree.node_array(docs).nodes.last().copied() == Some(js_doc)).then_some(host)
 }
 
@@ -342,7 +342,7 @@ fn visit_owned_jsdoc_tags(
         _ => None,
     };
     if initializer
-        .and_then(|initializer| tree.node(initializer).js_doc)
+        .and_then(|initializer| tree.node(initializer).js_doc())
         .is_some_and(|docs| visit_owned_jsdoc_tags_from_attachment(tree, host, docs, &mut visitor))
     {
         return;
@@ -350,7 +350,7 @@ fn visit_owned_jsdoc_tags(
 
     let mut location = Some(host);
     while let Some(node) = location {
-        if tree.node(node).js_doc.is_some_and(|docs| {
+        if tree.node(node).js_doc().is_some_and(|docs| {
             visit_owned_jsdoc_tags_from_attachment(tree, host, docs, &mut visitor)
         }) {
             return;
@@ -506,7 +506,7 @@ pub fn is_jsdoc_type_assertion(source: &SourceFile, node: NodeId) -> bool {
 /// tsrs-native: typed AST projection for tsc's direct declaration `type`
 /// property access.
 pub fn type_annotation_of(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    type_annotation_of_data(tree.node(node).data())
+    type_annotation_of_data(&tree.node(node).data())
 }
 
 /// [`type_annotation_of`] of a node's data.
@@ -628,7 +628,7 @@ pub fn is_modifier_kind(kind: SyntaxKind) -> bool {
 /// that can carry one (canHaveModifiers proxy — exactly the generated
 /// Data structs with a modifiers field).
 pub fn modifiers_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeArrayId> {
-    modifiers_of_data(tree.node(id).data())
+    modifiers_of_data(&tree.node(id).data())
 }
 
 /// [`modifiers_of`] of a node's data.

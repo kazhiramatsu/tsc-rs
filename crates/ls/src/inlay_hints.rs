@@ -879,7 +879,7 @@ impl InlayHints<'_, '_, '_, '_> {
             NodeData::PrivateIdentifier(data) => {
                 data.escaped_text.unescape().to_string_lossy().into_owned()
             }
-            data => literal_node_text(data, tsc_syntax::published_text_js),
+            data => literal_node_text(&data, tsc_syntax::published_text_js),
         }
     }
 }
@@ -961,7 +961,7 @@ impl LabelParts<'_, '_, '_, '_, '_, '_> {
             return;
         }
         if is_literal_expression_kind(kind) {
-            let text = self.hints.literal_text(record.data(), |id| {
+            let text = self.hints.literal_text(&record.data(), |id| {
                 self.arena.text_js(node.source(), id).unwrap_or_default()
             });
             self.parts.push(label_part(&text));

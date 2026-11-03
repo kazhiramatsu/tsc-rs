@@ -94,7 +94,7 @@ fn detached_arena_preserves_ids_without_extending_published_leases() {
     assert_eq!(detached.array_end(), original_array_end);
 
     let synthetic = detached.alloc_token(
-        SyntaxKind::Identifier,
+        SyntaxKind::ThisKeyword,
         usize::MAX,
         usize::MAX,
         tsc_types::NodeFlags::SYNTHESIZED,

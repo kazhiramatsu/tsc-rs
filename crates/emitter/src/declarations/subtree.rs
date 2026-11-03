@@ -1046,7 +1046,7 @@ impl DeclarationTransformer<'_> {
             };
             try_visit_transform_children(&mut data, &mut visitor)?;
         }
-        if cx.arena().node(input)?.data() == &data {
+        if cx.arena().node(input)?.data() == data {
             return Ok(input);
         }
         let kind = cx.arena().node(input)?.kind;
@@ -1120,8 +1120,8 @@ pub(crate) fn preserve_js_doc(
     updated: TransformNode,
     original: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    let original_js_doc = cx.arena().node(original)?.js_doc;
-    let updated_js_doc = cx.arena().node(updated)?.js_doc;
+    let original_js_doc = cx.arena().node(original)?.js_doc();
+    let updated_js_doc = cx.arena().node(updated)?.js_doc();
     if original_js_doc.is_some() && updated_js_doc != original_js_doc {
         cx.factory()?.set_js_doc_from_original(updated, original)?;
     }

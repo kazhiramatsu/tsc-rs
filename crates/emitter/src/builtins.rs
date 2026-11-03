@@ -471,7 +471,7 @@ impl Transformer for TypeScriptTransformer<'_> {
             NodeData::ShorthandPropertyAssignment(data)
                 if self.active_namespace_emit_depth != 0 =>
             {
-                self.substitute_namespace_shorthand(context, node, *data)
+                self.substitute_namespace_shorthand(context, node, data)
             }
             _ => Ok(node),
         }
@@ -5142,7 +5142,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let NodeData::BinaryExpression(data) = self.context.arena().node(node)?.data() else {
             return Ok(node);
         };
-        let exports = self.exports_for_assignment(data)?;
+        let exports = self.exports_for_assignment(&data)?;
         let mut expression = node;
         for export in exports {
             self.mark_no_substitution(expression)?;
@@ -5457,7 +5457,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         concise_body: false,
                     }
                 };
-                let function = self.visit_function_declaration(statement, *data, owner)?;
+                let function = self.visit_function_declaration(statement, data, owner)?;
                 self.nodes.insert(statement.node(), function.node());
                 Ok(vec![function])
             }
@@ -7394,7 +7394,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     self.visit_parenthesized_expression(original, data)?
                 }
                 NodeData::ShorthandPropertyAssignment(data) => {
-                    self.visit_shorthand_property_assignment(original, *data)?
+                    self.visit_shorthand_property_assignment(original, data)?
                 }
                 NodeData::PropertyAssignment(data) => {
                     self.visit_property_assignment(original, data)?
@@ -7425,22 +7425,22 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     })?,
                 NodeData::FunctionDeclaration(data) => self.visit_function_declaration(
                     original,
-                    *data,
+                    data,
                     CommonJsFunctionLexicalOwner::Function {
                         kind: SyntaxKind::FunctionDeclaration,
                         concise_body: false,
                     },
                 )?,
                 NodeData::FunctionExpression(data) => {
-                    self.visit_function_expression(original, *data)?
+                    self.visit_function_expression(original, data)?
                 }
-                NodeData::ArrowFunction(data) => self.visit_arrow_function(original, *data)?,
+                NodeData::ArrowFunction(data) => self.visit_arrow_function(original, data)?,
                 NodeData::MethodDeclaration(data) => {
-                    self.visit_method_declaration(original, *data)?
+                    self.visit_method_declaration(original, data)?
                 }
-                NodeData::GetAccessor(data) => self.visit_get_accessor(original, *data)?,
-                NodeData::SetAccessor(data) => self.visit_set_accessor(original, *data)?,
-                NodeData::Constructor(data) => self.visit_constructor(original, *data)?,
+                NodeData::GetAccessor(data) => self.visit_get_accessor(original, data)?,
+                NodeData::SetAccessor(data) => self.visit_set_accessor(original, data)?,
+                NodeData::Constructor(data) => self.visit_constructor(original, data)?,
                 NodeData::ClassStaticBlockDeclaration(data) => {
                     self.visit_class_static_block(original, data)?
                 }
@@ -11815,7 +11815,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         if self.legacy_decorators
                             && self.has_modifier(data.modifiers, SyntaxKind::Decorator)?
                         {
-                            Some(self.update_ambient_property_declaration(original, *data)?)
+                            Some(self.update_ambient_property_declaration(original, data)?)
                         } else {
                             None
                         }
@@ -11838,7 +11838,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         data.type_parameters = None;
                         data.r#type = None;
                         data.modifiers = None;
-                        Some(self.update_constructor_declaration(original, *data)?)
+                        Some(self.update_constructor_declaration(original, data)?)
                     }
                 }
                 NodeData::MethodDeclaration(mut data) => {
@@ -11866,7 +11866,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         }
                         data.type_parameters = None;
                         data.r#type = None;
-                        Some(self.update_get_accessor_declaration(original, *data)?)
+                        Some(self.update_get_accessor_declaration(original, data)?)
                     }
                 }
                 NodeData::SetAccessor(mut data) => {
@@ -11883,7 +11883,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         }
                         data.type_parameters = None;
                         data.r#type = None;
-                        Some(self.update_set_accessor_declaration(original, *data)?)
+                        Some(self.update_set_accessor_declaration(original, data)?)
                     }
                 }
                 NodeData::CallExpression(mut data) => {
@@ -15857,7 +15857,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 continue;
             };
             let is_this_parameter = index == 0
-                && parameter_emit_role(self.context.arena(), self.source, data)?
+                && parameter_emit_role(self.context.arena(), self.source, &data)?
                     == ParameterEmitRole::ExplicitThis;
             if !is_this_parameter
                 && !self.name_is_private(data.name)?
@@ -16463,7 +16463,7 @@ pub(crate) fn update_children_lazily<V: LazyChildVisitor>(
         if matches!(record.data(), NodeData::MissingDeclaration(_)) {
             ChildSlots::new()
         } else {
-            child_slots(record.data(), visitor)
+            child_slots(&record.data(), visitor)
         }
     };
     if map_child_slots(&mut slots, visitor)? {
@@ -16490,13 +16490,13 @@ pub(crate) fn update_children_lazily<V: LazyChildVisitor>(
             // Embedded-statement kinds take the full path (`update_node`
             // normalizes their bodies), and so does a private-name
             // expression whose stored flags lack the bit the update adds.
-            if !normalizes_embedded_statements(record.data())
+            if !normalizes_embedded_statements(&record.data())
                 && arena.transform_flags_complete(original)
             {
                 let private = crate::factory::private_identifier_expression_flags(
                     arena,
                     original.source(),
-                    record.data(),
+                    &record.data(),
                 )?;
                 let stored = arena.transform_flags(original);
                 if stored.contains(private) {
@@ -17181,12 +17181,12 @@ fn complete_class_transform_flags(
 /// shapes explicitly keeps the flag gate aligned with the factory API rather
 /// than guessing from a fully populated recovery tree.
 #[derive(Clone, Copy, Debug)]
-enum FactoryTransformChildren<'a> {
+enum FactoryTransformChildren {
     All,
     None,
-    Constructor(&'a tsc_syntax::nodes::ConstructorData),
-    GetAccessor(&'a tsc_syntax::nodes::GetAccessorData),
-    SetAccessor(&'a tsc_syntax::nodes::SetAccessorData),
+    Constructor(tsc_syntax::nodes::ConstructorData),
+    GetAccessor(tsc_syntax::nodes::GetAccessorData),
+    SetAccessor(tsc_syntax::nodes::SetAccessorData),
 }
 
 /// Runtime ownership of a parsed parameter declaration.
@@ -17233,8 +17233,8 @@ fn parameter_emit_role(
     })
 }
 
-impl<'a> FactoryTransformChildren<'a> {
-    fn of(node: &'a Node) -> Self {
+impl FactoryTransformChildren {
+    fn of(node: &Node) -> Self {
         if !propagates_transform_child_flags(node.kind) {
             return Self::None;
         }
@@ -17907,7 +17907,7 @@ fn local_contextual_target_flags(
             )
         }
         NodeData::Parameter(data) => Ok(
-            if parameter_emit_role(arena, source, data)? == ParameterEmitRole::ExplicitThis {
+            if parameter_emit_role(arena, source, &data)? == ParameterEmitRole::ExplicitThis {
                 // createParameterDeclaration marks an explicit `this`
                 // parameter as TypeScript syntax even without an annotation.
                 // The bit must reach the containing parameter list so
@@ -17989,7 +17989,7 @@ fn local_contextual_target_flags(
                     }
                 }
             }
-            flags |= private_identifier_expression_flags(arena, source, node.data())?;
+            flags |= private_identifier_expression_flags(arena, source, &node.data())?;
             Ok(flags)
         }
         NodeData::ObjectBindingPattern(data) => {
@@ -18020,11 +18020,11 @@ fn local_contextual_target_flags(
         }
         NodeData::PropertyAccessExpression(data) => {
             Ok(super_access_target_flags(arena, source, data.expression)?
-                | private_identifier_expression_flags(arena, source, node.data())?)
+                | private_identifier_expression_flags(arena, source, &node.data())?)
         }
         NodeData::ElementAccessExpression(data) => {
             Ok(super_access_target_flags(arena, source, data.expression)?
-                | private_identifier_expression_flags(arena, source, node.data())?)
+                | private_identifier_expression_flags(arena, source, &node.data())?)
         }
         // The factory's per-function facet conditional
         // (`createFunctionExpression`/`createFunctionDeclaration`/

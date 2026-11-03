@@ -916,7 +916,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 self.record_named_evaluation_of_identifier(data.name, data.initializer, true)?;
                 Some(self.update_generic(original, NodeData::VariableDeclaration(data))?)
             }
-            NodeData::Parameter(data) => Some(self.visit_parameter_declaration(original, *data)?),
+            NodeData::Parameter(data) => Some(self.visit_parameter_declaration(original, data)?),
             NodeData::BindingElement(data) => {
                 self.record_named_evaluation_of_identifier(
                     data.name,
@@ -1815,7 +1815,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     });
                     plans.push(PropertyPlan {
                         original: *member,
-                        data: *member_data,
+                        data: member_data,
                         name,
                         is_static,
                         is_private,
@@ -6049,10 +6049,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             name_kind,
             SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
         ) {
-            self.add_default_value_assignment_for_binding_pattern(parameter, *data, name)
+            self.add_default_value_assignment_for_binding_pattern(parameter, data, name)
         } else if let Some(initializer) = data.initializer.map(|initializer| self.node(initializer))
         {
-            self.add_default_value_assignment_for_initializer(parameter, *data, name, initializer)
+            self.add_default_value_assignment_for_initializer(parameter, data, name, initializer)
         } else {
             Ok(parameter)
         }

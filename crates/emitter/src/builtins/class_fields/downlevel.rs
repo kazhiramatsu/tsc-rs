@@ -1376,7 +1376,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     value_use,
                 )?)
             }
-            NodeData::Parameter(data) => Some(self.visit_parameter(original, *data)?),
+            NodeData::Parameter(data) => Some(self.visit_parameter(original, data)?),
             NodeData::FunctionDeclaration(data) => Some(self.visit_function_scope(
                 original,
                 NodeData::FunctionDeclaration(data),
@@ -6207,7 +6207,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         });
                     };
                     let function =
-                        self.create_private_method_function(member, *data, method_name)?;
+                        self.create_private_method_function(member, data, method_name)?;
                     operations
                         .pending
                         .append_private_definition(PrivateDefinition {
@@ -6250,10 +6250,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         .contains(&member.node())
                     {
                         self.with_static_auto_accessor_bindings(|visitor| {
-                            visitor.create_private_getter_function(member, *data, function_name)
+                            visitor.create_private_getter_function(member, data, function_name)
                         })?
                     } else {
-                        self.create_private_getter_function(member, *data, function_name)?
+                        self.create_private_getter_function(member, data, function_name)?
                     };
                     operations
                         .pending
@@ -6297,10 +6297,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         .contains(&member.node())
                     {
                         self.with_static_auto_accessor_bindings(|visitor| {
-                            visitor.create_private_setter_function(member, *data, function_name)
+                            visitor.create_private_setter_function(member, data, function_name)
                         })?
                     } else {
-                        self.create_private_setter_function(member, *data, function_name)?
+                        self.create_private_setter_function(member, data, function_name)?
                     };
                     operations
                         .pending

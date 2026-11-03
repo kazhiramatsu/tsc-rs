@@ -153,3 +153,16 @@ fn the_tail_bit_is_not_a_literal_flag() {
     assert_eq!(node.literal_flags(), u16::MAX >> 1);
     assert_eq!(node.data(), data);
 }
+
+#[test]
+fn an_empty_payload_kind_built_as_a_token_reads_back_a_token() {
+    let mut tails = tsc_store::tails::Tails::new();
+    let mut node = Node::new(SyntaxKind::JSDocAllType, 0, 1, 0);
+    node.encode(&NodeData::Token, array(3), &mut tails, false);
+    assert_eq!(node.data(), NodeData::Token);
+    assert_eq!(node.js_doc(), array(3));
+    let empty = NodeData::missing(SyntaxKind::JSDocAllType);
+    node.encode(&empty, None, &mut tails, false);
+    assert_eq!(node.data(), empty);
+    assert_eq!(node.js_doc(), None);
+}

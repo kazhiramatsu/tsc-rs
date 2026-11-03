@@ -212,7 +212,7 @@ impl Request<'_, '_> {
             ) {
                 self.hoisted_jsdoc_hosts(child, hosts);
             }
-            if self.state.binder.node_record(child).js_doc.is_some() {
+            if self.state.binder.node_record(child).js_doc().is_some() {
                 hosts.push(child);
             }
         }
@@ -275,7 +275,7 @@ impl Request<'_, '_> {
             hosts.push(node);
             let mut seen = std::collections::HashSet::new();
             for host in hosts {
-                let Some(js_doc) = self.state.binder.node_record(host).js_doc else {
+                let Some(js_doc) = self.state.binder.node_record(host).js_doc() else {
                     continue;
                 };
                 for comment in self.state.binder.node_array(js_doc).nodes.to_vec() {
@@ -285,7 +285,7 @@ impl Request<'_, '_> {
                 }
             }
         }
-        if let Some(js_doc) = record.js_doc {
+        if let Some(js_doc) = record.js_doc() {
             let comments = self.state.binder.node_array(js_doc).nodes.to_vec();
             for &comment in &comments {
                 let NodeData::JSDoc(data) = self.state.binder.node_record(comment).data() else {

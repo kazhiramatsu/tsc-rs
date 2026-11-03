@@ -416,18 +416,18 @@ impl<'context> TargetVisitor<'context> {
                 Some(self.visit_catch_clause(original, data)?)
             }
             NodeData::FunctionDeclaration(data) => {
-                Some(self.visit_function_declaration(original, *data)?)
+                Some(self.visit_function_declaration(original, data)?)
             }
             NodeData::FunctionExpression(data) => {
-                Some(self.visit_function_expression(original, *data)?)
+                Some(self.visit_function_expression(original, data)?)
             }
-            NodeData::ArrowFunction(data) => Some(self.visit_arrow_function(original, *data)?),
+            NodeData::ArrowFunction(data) => Some(self.visit_arrow_function(original, data)?),
             NodeData::MethodDeclaration(data) => {
-                Some(self.visit_method_declaration(original, *data)?)
+                Some(self.visit_method_declaration(original, data)?)
             }
-            NodeData::GetAccessor(data) => Some(self.visit_get_accessor(original, *data)?),
-            NodeData::SetAccessor(data) => Some(self.visit_set_accessor(original, *data)?),
-            NodeData::Constructor(data) => Some(self.visit_constructor(original, *data)?),
+            NodeData::GetAccessor(data) => Some(self.visit_get_accessor(original, data)?),
+            NodeData::SetAccessor(data) => Some(self.visit_set_accessor(original, data)?),
+            NodeData::Constructor(data) => Some(self.visit_constructor(original, data)?),
             NodeData::Token => Some(id),
             data => Some(self.update_generic(original, data)?),
         };

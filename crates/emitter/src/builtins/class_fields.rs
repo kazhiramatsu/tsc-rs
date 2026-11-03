@@ -2012,7 +2012,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             data.exclamation_token = None;
             data.r#type = None;
             data.initializer = None;
-            return self.update_property(original, *data).map(Some);
+            return self.update_property(original, data).map(Some);
         }
         if !private
             && !self.use_define_for_class_fields
@@ -2069,7 +2069,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         data.exclamation_token = None;
         data.r#type = None;
         data.initializer = self.visit_optional_node(data.initializer)?;
-        self.update_property(original, *data).map(Some)
+        self.update_property(original, data).map(Some)
     }
 
     fn retained_property_initializer(
@@ -2712,7 +2712,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                         if self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
                             && self.should_transform_retained_auto_accessors()
                         {
-                            output.extend(self.transform_retained_auto_accessor(member, *data)?);
+                            output.extend(self.transform_retained_auto_accessor(member, data)?);
                         } else if let Some(member) = self.transform_retained_field(member)? {
                             output.push(member);
                         }

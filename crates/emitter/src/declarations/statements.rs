@@ -2318,7 +2318,7 @@ fn function_data(
     node: TransformNode,
 ) -> Result<FunctionDeclarationData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::FunctionDeclaration(data) => Ok((**data).clone()),
+        NodeData::FunctionDeclaration(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::FunctionDeclaration,
             actual: context.arena().node(node)?.kind,

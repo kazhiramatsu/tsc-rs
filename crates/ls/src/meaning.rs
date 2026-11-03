@@ -1049,7 +1049,7 @@ impl Request<'_, '_> {
                 children.push(child);
                 false
             });
-            if let Some(js_doc) = record.js_doc {
+            if let Some(js_doc) = record.js_doc() {
                 children.extend(arena.node_array(js_doc).nodes.iter().copied());
             }
             stack.extend(children.into_iter().rev());

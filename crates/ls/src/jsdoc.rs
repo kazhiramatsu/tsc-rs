@@ -39,15 +39,15 @@ pub(crate) fn tag_name(state: &CheckerState<'_>, tag: NodeId) -> Option<NodeId> 
 }
 
 /// A JSDoc comment's or tag's comment.
-fn comment_of<'a>(state: &CheckerState<'a>, owner: NodeId) -> Option<&'a JSDocComment> {
+fn comment_of(state: &CheckerState<'_>, owner: NodeId) -> Option<JSDocComment> {
     let node = state.binder.node_record(owner);
     if let NodeData::JSDoc(js_doc) = node.data() {
-        return js_doc.comment.as_ref();
+        return js_doc.comment;
     }
     let mut comment = None;
     for_each_property(node, |property| {
         if let Property::Comment(value) = property {
-            comment = value.as_ref();
+            comment = value;
         }
     });
     comment
@@ -56,16 +56,16 @@ fn comment_of<'a>(state: &CheckerState<'a>, owner: NodeId) -> Option<&'a JSDocCo
 /// The parts of a comment (tsgo `Comments()`).
 fn comment_parts<'a>(
     state: &CheckerState<'a>,
-    comment: Option<&'a JSDocComment>,
+    comment: Option<JSDocComment>,
 ) -> Vec<CommentPart<'a>> {
     match comment {
         None => Vec::new(),
         Some(JSDocComment::Text { text, .. }) => {
-            vec![CommentPart::Text(tsc_syntax::published_text_utf8(*text))]
+            vec![CommentPart::Text(tsc_syntax::published_text_utf8(text))]
         }
         Some(JSDocComment::Nodes(list)) => state
             .binder
-            .node_array(*list)
+            .node_array(list)
             .nodes
             .iter()
             .filter_map(|&part| {
@@ -102,7 +102,7 @@ fn comment_parts<'a>(
 /// tsgo `scanner.GetTextOfJSDocComment`: a comment's parts as text, a link
 /// as its source text (`GetTextOfNode`, so `{@link Page | page}` keeps the
 /// space before its `|`), trailing whitespace trimmed.
-fn text_of_comment(state: &CheckerState<'_>, comment: Option<&JSDocComment>) -> String {
+fn text_of_comment(state: &CheckerState<'_>, comment: Option<JSDocComment>) -> String {
     let mut text = String::new();
     for part in comment_parts(state, comment) {
         match part {
@@ -398,7 +398,7 @@ impl Request<'_, '_> {
         let value = self.state.binder.symbol(symbol).value_declaration?;
         let source = self.state.binder.source_of_node(value);
         let record = self.state.binder.node_record(value);
-        let Some(js_doc) = record.js_doc else {
+        let Some(js_doc) = record.js_doc() else {
             return Some(value);
         };
         for &comment in self.state.binder.node_array(js_doc).nodes {
@@ -1032,7 +1032,7 @@ impl Request<'_, '_> {
         if record.kind == SyntaxKind::TypeParameter {
             return None;
         }
-        let list = record.js_doc?;
+        let list = record.js_doc()?;
         self.state.binder.node_array(list).nodes.last().copied()
     }
 
@@ -1173,7 +1173,7 @@ fn declaration_js_doc_tags(state: &CheckerState<'_>, node: NodeId) -> Vec<NodeId
         let last = state
             .binder
             .node_record(node)
-            .js_doc
+            .js_doc()
             .and_then(|list| state.binder.node_array(list).nodes.last().copied());
         if let Some(last) = last {
             if let NodeData::JSDoc(js_doc) = state.binder.node_record(last).data() {

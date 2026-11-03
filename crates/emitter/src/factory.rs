@@ -5321,16 +5321,25 @@ impl<'arena> NodeFactory<'arena> {
     /// tsc-hash: d223dcea6ccf14e9212d40d5b8df188197023622ea3e5d624ffb974a25db19d6
     /// tsc-span: _tsc.js:24436-24466
     pub fn clone_node(&mut self, original: TransformNode) -> Result<TransformNode, TransformError> {
-        // Copy the scalar facts by value and the payload exactly once; the
-        // previous whole-record clone duplicated the payload a second time.
-        let (kind, node_flags, literal_flags, js_doc, data) = {
+        let data = self.arena.node(original)?.data();
+        self.clone_node_with_data(original, data)
+    }
+
+    /// [`Self::clone_node`] with another payload: the original's scalar
+    /// facts, JSDoc, transform flags, original link and literal properties,
+    /// and `data` written once (an update's new node).
+    fn clone_node_with_data(
+        &mut self,
+        original: TransformNode,
+        data: NodeData,
+    ) -> Result<TransformNode, TransformError> {
+        let (kind, node_flags, literal_flags, js_doc) = {
             let record = self.arena.node(original)?;
             (
                 record.kind,
                 record.flags,
                 record.literal_flags(),
                 record.js_doc(),
-                record.data(),
             )
         };
         let transform_flags = self.arena.transform_flags(original);
@@ -5527,7 +5536,7 @@ impl<'arena> NodeFactory<'arena> {
             });
         }
         transform_flags |= private_identifier_expression_flags(self.arena, original.source, &data)?;
-        let same_data = self.arena.node(original)?.data() == &data;
+        let same_data = self.arena.node(original)?.data() == data;
         if same_data && self.arena.transform_flags(original) == transform_flags {
             return Ok(original);
         }
@@ -5554,14 +5563,13 @@ impl<'arena> NodeFactory<'arena> {
                 data.clone(),
             )
         });
-        let updated = self.clone_node(original)?;
+        let updated = self.clone_node_with_data(original, data)?;
         let updated_record = self
             .arena
             .source_mut(updated.source)?
             .source
             .arena
             .node_mut(updated.node);
-        updated_record.set_data(data);
         updated_record.pos = pos;
         updated_record.end = end;
         self.arena.set_transform_flags(updated, transform_flags);
@@ -5586,9 +5594,9 @@ impl<'arena> NodeFactory<'arena> {
         let data = {
             let record = self.arena.node(original)?;
             let normalizes_embedded_statements =
-                crate::builtins::normalizes_embedded_statements(record.data());
+                crate::builtins::normalizes_embedded_statements(&record.data());
             let flags = transform_flags
-                | private_identifier_expression_flags(self.arena, original.source, record.data())?;
+                | private_identifier_expression_flags(self.arena, original.source, &record.data())?;
             if !normalizes_embedded_statements && self.arena.transform_flags(original) == flags {
                 return Ok(original);
             }
@@ -7822,7 +7830,7 @@ fn subtree_is_its_own_copy(
             .is_none_or(|metadata| {
                 metadata.leading_comments.is_empty() && metadata.trailing_comments.is_empty()
             })
-        && record.js_doc.is_none_or(|array| {
+        && record.js_doc().is_none_or(|array| {
             list_has_no_position(array)
                 && syntax
                     .node_array(array)
@@ -7919,7 +7927,7 @@ impl<'a> CrossSourceReuseClone<'a> {
             }
         }
         let js_doc = record
-            .js_doc
+            .js_doc()
             .map(|array| self.clone_array(array))
             .transpose()?;
         // tsgo's deep clone keeps each original's flags.

@@ -2534,8 +2534,8 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                         .and_then(|m| m.generated_binding_id())
                         .is_some()
             };
-            let left_generated = generated(left, left_data);
-            let right_generated = generated(right, right_data);
+            let left_generated = generated(left, &left_data);
+            let right_generated = generated(right, &right_data);
             if left_generated || right_generated {
                 // Upstream temporary escapedText is synthetic. Our provisional
                 // printable spelling must not equate it with a source name.

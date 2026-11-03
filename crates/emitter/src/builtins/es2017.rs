@@ -354,30 +354,30 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             }
             NodeData::FunctionDeclaration(data) => {
                 Some(self.with_non_top_level_context(|visitor| {
-                    visitor.visit_function_declaration(original, *data)
+                    visitor.visit_function_declaration(original, data)
                 })?)
             }
             NodeData::FunctionExpression(data) => {
                 Some(self.with_non_top_level_context(|visitor| {
-                    visitor.visit_function_expression(original, *data)
+                    visitor.visit_function_expression(original, data)
                 })?)
             }
             NodeData::ArrowFunction(data) => Some(self.with_non_top_level_context(|visitor| {
-                visitor.visit_arrow_function(original, *data)
+                visitor.visit_arrow_function(original, data)
             })?),
             NodeData::MethodDeclaration(data) => {
                 Some(self.with_non_top_level_context(|visitor| {
-                    visitor.visit_method_declaration(original, *data)
+                    visitor.visit_method_declaration(original, data)
                 })?)
             }
             NodeData::GetAccessor(data) => Some(self.with_non_top_level_context(|visitor| {
-                visitor.visit_get_accessor(original, *data)
+                visitor.visit_get_accessor(original, data)
             })?),
             NodeData::SetAccessor(data) => Some(self.with_non_top_level_context(|visitor| {
-                visitor.visit_set_accessor(original, *data)
+                visitor.visit_set_accessor(original, data)
             })?),
             NodeData::Constructor(data) => Some(self.with_non_top_level_context(|visitor| {
-                visitor.visit_constructor(original, *data)
+                visitor.visit_constructor(original, data)
             })?),
             NodeData::ClassDeclaration(data) => {
                 Some(self.with_non_top_level_context(|visitor| {
@@ -458,10 +458,10 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         };
         match self.context.arena().node(expression)?.data() {
             NodeData::PropertyAccessExpression(property) => {
-                self.property_access_targets_super(property)
+                self.property_access_targets_super(&property)
             }
             NodeData::ElementAccessExpression(element) => {
-                self.element_access_targets_super(element)
+                self.element_access_targets_super(&element)
             }
             _ => Ok(false),
         }
@@ -469,9 +469,9 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
 
     fn node_is_direct_super_use(&self, node: TransformNode) -> Result<bool, TransformError> {
         match self.context.arena().node(node)?.data() {
-            NodeData::PropertyAccessExpression(data) => self.property_access_targets_super(data),
-            NodeData::ElementAccessExpression(data) => self.element_access_targets_super(data),
-            NodeData::CallExpression(data) => self.call_expression_targets_super(data),
+            NodeData::PropertyAccessExpression(data) => self.property_access_targets_super(&data),
+            NodeData::ElementAccessExpression(data) => self.element_access_targets_super(&data),
+            NodeData::CallExpression(data) => self.call_expression_targets_super(&data),
             _ => Ok(false),
         }
     }
@@ -2471,7 +2471,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         original: TransformNode,
         data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        if self.context.arena().node(original)?.data() == &data {
+        if self.context.arena().node(original)?.data() == data {
             return Ok(original.node());
         }
         let flags = flags_after_update(self.context.arena(), original, &data)?;

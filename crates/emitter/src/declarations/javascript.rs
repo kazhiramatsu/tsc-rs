@@ -414,7 +414,7 @@ fn collect_reparsed_tags(source: &SourceFile, node: NodeId, tags: &mut Vec<Repar
 }
 
 fn push_reparsed_tags(source: &SourceFile, host: NodeId, tags: &mut Vec<ReparsedTag>) {
-    let Some(comments) = source.arena.node(host).js_doc else {
+    let Some(comments) = source.arena.node(host).js_doc() else {
         return;
     };
     for &comment in source.arena.node_array(comments).nodes {
@@ -442,7 +442,7 @@ fn push_reparsed_tags(source: &SourceFile, host: NodeId, tags: &mut Vec<Reparsed
 /// the order of their comments (reparser.go:58-72, 138-142).
 fn overload_tags(source: &SourceFile, host: NodeId) -> Vec<ReparsedTag> {
     let mut tags = Vec::new();
-    let Some(comments) = source.arena.node(host).js_doc else {
+    let Some(comments) = source.arena.node(host).js_doc() else {
         return tags;
     };
     for &comment in source.arena.node_array(comments).nodes {

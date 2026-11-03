@@ -251,7 +251,7 @@ impl<'a> Outlining<'a> {
         {
             return false;
         }
-        let Some(js_doc) = self.source.arena.node(statement).js_doc else {
+        let Some(js_doc) = self.source.arena.node(statement).js_doc() else {
             return false;
         };
         self.source

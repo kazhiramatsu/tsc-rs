@@ -1723,8 +1723,8 @@ impl<'context> JsxVisitor<'context> {
     ) -> Result<TransformNode, TransformError> {
         let mut flags =
             self.context.arena().transform_flags(original) & !TransformFlags::CONTAINS_JSX;
-        let mut probe = self.context.arena().node(original)?.clone();
-        probe.set_data(data.clone());
+        let mut tails = tsc_syntax::Tails::new();
+        let probe = self.context.arena().node(original)?.with_data(&data, &mut tails);
         let mut children = Vec::new();
         let syntax = self.context.arena().source(self.source)?.syntax();
         for_each_child(&syntax.arena, &probe, |child| {

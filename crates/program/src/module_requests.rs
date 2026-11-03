@@ -808,7 +808,7 @@ fn plan_module_requests_worker(
         // the first child is visited first (no per-node vector).
         let first_child = stack.len();
         if javascript_file {
-            if let Some(js_doc) = node.js_doc {
+            if let Some(js_doc) = node.js_doc() {
                 let comments = parsed.arena.node_array(js_doc).nodes.iter().copied();
                 if node.kind == SyntaxKind::EndOfFileToken {
                     // tsgo GetNodeAtPosition never enters the end-of-file
