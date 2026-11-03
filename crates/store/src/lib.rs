@@ -794,8 +794,25 @@ impl<T: Copy> Drop for SmallList<T> {
 }
 
 impl<T: Copy> Clone for SmallList<T> {
+    /// An inline list is copied as its words (no allocation: instantiating
+    /// a symbol clones its one or two declarations); a heap list gets a
+    /// buffer of its own.
+    #[inline]
     fn clone(&self) -> Self {
-        Self::from(self.to_vec())
+        if self.capacity == 0 {
+            Self {
+                records: SmallRecords {
+                    // SAFETY: a list without room keeps its records in the
+                    // inline field; `MaybeUninit` records accept any bytes,
+                    // including those of an empty list's null pointer.
+                    inline: unsafe { self.records.inline },
+                },
+                len: self.len,
+                capacity: 0,
+            }
+        } else {
+            Self::from(self.to_vec())
+        }
     }
 }
 

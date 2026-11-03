@@ -308,7 +308,7 @@ impl<'a> CheckerState<'a> {
                             filtered.push(prop);
                         }
                     }
-                    props = filtered;
+                    props = filtered.into();
                 }
             }
         }

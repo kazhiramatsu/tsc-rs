@@ -1522,9 +1522,9 @@ impl<'a> CheckerState<'a> {
             for constituent in constituents {
                 lists.push(self.get_uninstantiated_jsx_signatures_of_type(constituent, caller)?);
             }
-            signatures = self.get_union_signatures(&lists)?;
+            signatures = self.get_union_signatures(&lists)?.into();
         }
-        Ok(signatures)
+        Ok(signatures.to_vec())
     }
 
     /// tsc-port: getJSXFragmentType @6.0.3
@@ -1861,7 +1861,7 @@ impl<'a> CheckerState<'a> {
                         self.is_in_js_file(context),
                     )?
                     .expect("Some input yields Some");
-                let mapper = self.create_type_mapper(type_params, Some(inferred_args));
+                let mapper = self.create_type_mapper(&type_params[..], Some(&inferred_args[..]));
                 self.instantiate_type(intrinsic_class_attribs, Some(mapper))?
             } else {
                 intrinsic_class_attribs

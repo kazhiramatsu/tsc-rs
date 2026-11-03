@@ -801,7 +801,10 @@ impl Session {
             "getPropertiesOfType" | "getApparentPropertiesOfType" => {
                 let symbols = if method == "getPropertiesOfType" {
                     let ty = query.resolve_type(params.type_id)?;
-                    query.state.get_properties_of_type(ty)
+                    query
+                        .state
+                        .get_properties_of_type(ty)
+                        .map(|list| list.to_vec())
                 } else {
                     let ty = query.resolve_type(object_type_handle(params)?)?;
                     query.state.get_apparent_properties(ty)

@@ -2092,7 +2092,7 @@ fn type_to_type_node_worker(
             )
             .map_err(factory_error)?;
         let head = set_no_ascii_escaping(arena, head);
-        let types = checker.tables.list(types).to_vec();
+        let types = checker.tables.list_copy(types);
         let mut spans = Vec::with_capacity(types.len());
         for (index, span_type) in types.iter().copied().enumerate() {
             let Some(span_type) =
@@ -2602,8 +2602,8 @@ fn create_mapped_type_node_from_type(
                         .get_modifiers_type_from_mapped_type(mapped_target)
                         .map_err(|abort| checker_abort_error(checker, context, abort))?;
                 let mapper = checker.make_array_type_mapper(
-                    vec![target_parameter, target_modifiers],
-                    Some(vec![parameter, parameter_for_modifiers]),
+                    &[target_parameter, target_modifiers],
+                    Some(&[parameter, parameter_for_modifiers]),
                 );
                 template_type = checker
                     .instantiate_type(target_template, Some(mapper))
@@ -3480,7 +3480,7 @@ fn create_type_node_from_object_type(
             let index_infos = resolved.index_infos().to_vec();
             let members = checker.alloc_members(ResolvedMembers::new(
                 resolved.members,
-                resolved.properties,
+                resolved.properties.to_vec(),
                 call_signatures,
                 non_abstract_construct_signatures,
                 index_infos,

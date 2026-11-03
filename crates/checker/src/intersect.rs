@@ -87,7 +87,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
-            let types = self.tables.list(types).to_vec();
+            let types = self.tables.list_copy(types);
             return self.add_types_to_intersection(type_set, includes, &types);
         }
         if self.is_empty_anonymous_object_type(ty)? {

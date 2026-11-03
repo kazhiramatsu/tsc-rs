@@ -1966,7 +1966,7 @@ impl<'a> CheckerState<'a> {
 
     /// The clauses of a switch statement's case block.
     /// tsrs-native: NodeData accessor.
-    fn switch_clauses(&self, switch_statement: NodeId) -> Vec<NodeId> {
+    fn switch_clauses(&self, switch_statement: NodeId) -> crate::annotate::NodeIds<'a> {
         let case_block = match self.data_of(switch_statement) {
             NodeData::SwitchStatement(data) => data.case_block,
             _ => None,
@@ -1975,10 +1975,7 @@ impl<'a> CheckerState<'a> {
             NodeData::CaseBlock(data) => data.clauses,
             _ => None,
         });
-        match clauses {
-            Some(clauses) => self.binder.node_array(clauses).nodes.to_vec(),
-            None => Vec::new(),
-        }
+        self.nodes_of(clauses)
     }
 
     /// tsc-port: eachTypeContainedIn @6.0.3
@@ -2495,9 +2492,7 @@ impl<'a> CheckerState<'a> {
                         NodeData::CallExpression(data) => data.arguments,
                         _ => None,
                     };
-                    let arguments: Vec<NodeId> = arguments
-                        .map(|arguments| self.binder.node_array(arguments).nodes.to_vec())
-                        .unwrap_or_default();
+                    let arguments = self.nodes_of(arguments);
                     if let Some(callee_receiver) = callee_receiver {
                         let candidate = self.get_reference_candidate(callee_receiver);
                         if self.query_reference_receiver_matches(query, candidate)?
@@ -2658,9 +2653,7 @@ impl<'a> CheckerState<'a> {
             NodeData::CallExpression(data) => (data.expression, data.arguments),
             _ => (None, None),
         };
-        let arguments: Vec<NodeId> = arguments
-            .map(|arguments| self.binder.node_array(arguments).nodes.to_vec())
-            .unwrap_or_default();
+        let arguments = self.nodes_of(arguments);
         for argument in arguments {
             if self.is_matching_query_reference(query, argument)?
                 || self.contains_matching_query_reference(query, argument)?

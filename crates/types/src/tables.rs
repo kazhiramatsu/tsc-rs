@@ -260,6 +260,9 @@ pub struct TypeTables {
     /// ids by the list's hash.
     list_items: Vec<TypeId>,
     list_ids: hashbrown::HashTable<TypeListId>,
+    /// A list buffer reused by the builders that extend an interned list
+    /// (no allocation per call).
+    scratch_list: Vec<TypeId>,
     /// The interned empty list.
     empty_list: TypeListId,
     /// What the type records refer to by id: string literal texts, bigint
@@ -306,6 +309,125 @@ pub struct TypeTables {
     /// 60170-60174 AND getObjectTypeInstantiation 63489-63492 — one map
     /// per target in tsc), flattened to one table keyed (target, id).
     instantiations: HashMap<(TypeId, InstantiationKey), TypeId>,
+}
+
+/// A position in an interned list that does not borrow the tables, so a
+/// loop that mutates the checker reads the list's items one at a time
+/// (interned lists never change: the items read are the ones a copy would
+/// have held).
+#[derive(Clone, Copy, Debug)]
+pub struct ListCursor {
+    next: u32,
+    end: u32,
+}
+
+impl ListCursor {
+    /// The next item, if any.
+    #[inline]
+    pub fn next(&mut self, tables: &TypeTables) -> Option<TypeId> {
+        (self.next < self.end).then(|| {
+            let item = tables.list_items[self.next as usize];
+            self.next += 1;
+            item
+        })
+    }
+
+    /// The items left.
+    #[inline]
+    pub fn len(&self) -> usize {
+        (self.end - self.next) as usize
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.next == self.end
+    }
+}
+
+/// How many types a [`TypeListCopy`] holds without a heap buffer.
+const COPY_INLINE: usize = 8;
+
+/// A copy of a type list for a loop that mutates the checker while it reads
+/// the list: up to eight types are held inline (no allocation; most unions,
+/// intersections and type argument lists are that short), longer lists in a
+/// heap buffer. It reads as a slice, and iterating it by value yields the
+/// types, as iterating a copied `Vec` did.
+#[derive(Clone, Debug)]
+pub enum TypeListCopy {
+    Inline(u8, [TypeId; COPY_INLINE]),
+    Heap(Vec<TypeId>),
+}
+
+impl TypeListCopy {
+    #[inline]
+    pub fn new(types: &[TypeId]) -> Self {
+        if types.len() <= COPY_INLINE {
+            let mut inline = [TypeId::new(0); COPY_INLINE];
+            inline[..types.len()].copy_from_slice(types);
+            Self::Inline(types.len() as u8, inline)
+        } else {
+            Self::Heap(types.to_vec())
+        }
+    }
+}
+
+impl std::ops::Deref for TypeListCopy {
+    type Target = [TypeId];
+
+    #[inline]
+    fn deref(&self) -> &[TypeId] {
+        match self {
+            Self::Inline(len, items) => &items[..*len as usize],
+            Self::Heap(items) => items,
+        }
+    }
+}
+
+/// The types of a [`TypeListCopy`] by value, in order.
+pub struct TypeListCopyIter {
+    list: TypeListCopy,
+    next: usize,
+}
+
+impl Iterator for TypeListCopyIter {
+    type Item = TypeId;
+
+    #[inline]
+    fn next(&mut self) -> Option<TypeId> {
+        let item = self.list.get(self.next).copied();
+        self.next += usize::from(item.is_some());
+        item
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let left = self.list.len() - self.next;
+        (left, Some(left))
+    }
+}
+
+impl ExactSizeIterator for TypeListCopyIter {}
+
+impl IntoIterator for TypeListCopy {
+    type Item = TypeId;
+    type IntoIter = TypeListCopyIter;
+
+    #[inline]
+    fn into_iter(self) -> TypeListCopyIter {
+        TypeListCopyIter {
+            list: self,
+            next: 0,
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a TypeListCopy {
+    type Item = &'a TypeId;
+    type IntoIter = std::slice::Iter<'a, TypeId>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
 }
 
 /// The interned list at `id` in `items` (see `TypeTables::list_items`).
@@ -527,6 +649,7 @@ impl TypeTables {
             string_literal_types: HashMap::default(),
             utf8_string_literal_types: HashMap::default(),
             list_items: Vec::new(),
+            scratch_list: Vec::new(),
             list_ids: hashbrown::HashTable::new(),
             empty_list: TypeListId::new(0),
             literal_texts: Vec::new(),
@@ -1392,6 +1515,40 @@ impl TypeTables {
     #[inline]
     pub fn list(&self, id: TypeListId) -> &[TypeId] {
         list_at(&self.list_items, id)
+    }
+
+    /// A copy of the interned list `id` (see [`TypeListCopy`]).
+    #[inline]
+    pub fn list_copy(&self, id: TypeListId) -> TypeListCopy {
+        TypeListCopy::new(self.list(id))
+    }
+
+    /// A cursor over the interned list `id` (see [`ListCursor`]).
+    #[inline]
+    pub fn cursor(&self, id: TypeListId) -> ListCursor {
+        let at = id.index();
+        ListCursor {
+            next: at + 1,
+            end: at + 1 + self.list_items[at as usize].index(),
+        }
+    }
+
+    /// createTypeReference over the interned `arguments` followed by
+    /// `last` (getTypeWithThisArgument's this slot), built in a reused
+    /// buffer.
+    pub fn create_type_reference_with_last(
+        &mut self,
+        target: TypeId,
+        arguments: TypeListId,
+        last: TypeId,
+    ) -> TypeId {
+        let mut buffer = std::mem::take(&mut self.scratch_list);
+        buffer.clear();
+        buffer.extend_from_slice(self.list(arguments));
+        buffer.push(last);
+        let id = self.create_type_reference(target, &buffer);
+        self.scratch_list = buffer;
+        id
     }
 
     /// `type.aliasTypeArguments`.
@@ -2369,10 +2526,11 @@ impl TypeTables {
                 unreachable!("union flag implies union data");
             };
             let types = self.list(types);
-            let filtered: Vec<TypeId> = types.iter().copied().filter(|&t| f(self, t)).collect();
-            if filtered.len() == types.len() {
+            // Most filters keep every member: answer that without a copy.
+            if types.iter().all(|&t| f(self, t)) {
                 return ty;
             }
+            let filtered: Vec<TypeId> = types.iter().copied().filter(|&t| f(self, t)).collect();
             let types_len = types.len();
             let mut new_origin = None;
             if let Some(origin) = origin {

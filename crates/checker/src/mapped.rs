@@ -282,7 +282,7 @@ impl<'a> CheckerState<'a> {
         index: TypeId,
     ) -> CheckResult<TypeId> {
         let type_parameter = self.get_type_parameter_from_mapped_type(object_type)?;
-        let mapper = self.create_type_mapper(vec![type_parameter], Some(vec![index]));
+        let mapper = self.create_type_mapper(&[type_parameter], Some(&[index]));
         let mapped = self.mapped_type_data(object_type);
         let template_mapper = self.combine_type_mappers(mapped.mapper, mapper);
         let target = mapped.target.unwrap_or(object_type);

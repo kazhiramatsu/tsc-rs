@@ -232,7 +232,7 @@ pub(crate) fn expanded_parameters(
     }
     if !skip_union_expanding {
         if let TypeData::Union { types, .. } = &checker.tables.type_of(rest_type).data {
-            let types = checker.tables.list(*types).to_vec();
+            let types = checker.tables.list_copy(*types);
             if types.iter().all(|&ty| checker.tables.is_tuple_type(ty)) {
                 return types
                     .into_iter()

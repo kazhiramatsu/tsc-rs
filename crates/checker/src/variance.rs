@@ -27,7 +27,8 @@ pub(crate) const ARRAY_VARIANCES: &[VarianceFlags] = &[VarianceFlags::COVARIANT]
 #[derive(Clone, Debug)]
 pub(crate) enum VariancesResult {
     Empty,
-    Known(Box<[VarianceFlags]>),
+    /// The stored list, shared (a reference count, not a copy).
+    Known(crate::state::SharedList<VarianceFlags>),
 }
 
 /// tsgo VarianceStackEntry (checker/checker.go): a generic type whose
@@ -50,17 +51,17 @@ impl<'a> CheckerState<'a> {
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::TUPLE)
         {
-            return Ok(VariancesResult::Known(ARRAY_VARIANCES.into()));
+            return Ok(VariancesResult::Known(self.array_variances.clone()));
         }
         let symbol = self
             .tables
             .type_of(ty)
             .symbol
             .expect("generic reference targets carry their symbol");
-        let type_parameters = match &self.tables.type_of(ty).data {
+        let type_parameters = match self.tables.type_of(ty).data {
             TypeData::GenericType {
                 type_parameters, ..
-            } => self.tables.list(*type_parameters).to_vec(),
+            } => self.tables.list_copy(type_parameters),
             _ => unreachable!(
                 "getVariances runs on same-target reference pairs, whose non-tuple \
                  targets are GenericTypes"
@@ -178,7 +179,7 @@ impl<'a> CheckerState<'a> {
                     self.links.set_symbol_variances(
                         self.speculation_depth,
                         symbol,
-                        LinkSlot::Resolved(Box::default()),
+                        LinkSlot::Resolved(crate::state::SharedList::new()),
                     );
                 }
             }

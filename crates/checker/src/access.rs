@@ -1349,17 +1349,14 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         let mut property_on_type: Option<SymbolId> = None;
         let properties = self.get_properties_of_type(left_type)?;
-        let right_text = self
-            .identifier_text_of(right)
-            .map(str::to_owned)
-            .unwrap_or_default();
+        let right_text: &'a str = self.identifier_text_of(right).unwrap_or_default();
         for symbol in properties {
             let Some(decl) = self.binder.symbol(symbol).value_declaration else {
                 continue;
             };
             let name_matches = self.name_of_node(decl).is_some_and(|name| {
                 self.kind_of(name) == SyntaxKind::PrivateIdentifier
-                    && self.identifier_text_of(name) == Some(right_text.as_str())
+                    && self.identifier_text_of(name) == Some(right_text)
             });
             if name_matches {
                 property_on_type = Some(symbol);
@@ -2001,10 +1998,7 @@ impl<'a> CheckerState<'a> {
             || apparent_type == self.tables.intrinsics.silent_never;
         let right_is_private = self.kind_of(right) == SyntaxKind::PrivateIdentifier;
         let right_name = self.identifier_name_of(right).unwrap_or_default();
-        let right_text = self
-            .identifier_text_of(right)
-            .map(str::to_owned)
-            .unwrap_or_default();
+        let right_text: &'a str = self.identifier_text_of(right).unwrap_or_default();
         let mut prop: Option<SymbolId>;
         if right_is_private {
             // Private access transforms request the get/set helpers. In TS
@@ -2148,7 +2142,7 @@ impl<'a> CheckerState<'a> {
             if prop.is_none()
                 && self.tables.type_of(apparent_type).symbol == Some(self.global_this_symbol)
             {
-                if let Some(candidate) = self.effective_global_this_export(right_text.as_str())? {
+                if let Some(candidate) = self.effective_global_this_export(right_text)? {
                     let flags = self.binder.symbol(candidate).flags;
                     let declarations = &self.binder.symbol(candidate).declarations;
                     let ambient_module_only = flags.intersects(SymbolFlags::VALUE_MODULE)
@@ -2219,7 +2213,7 @@ impl<'a> CheckerState<'a> {
                     || !self.is_generic_object_type_state(left_type)?
                     || self.is_this_type_parameter(left_type));
             let index_info = if use_index_info {
-                self.get_applicable_index_info_for_name_info(apparent_type, &right_text)?
+                self.get_applicable_index_info_for_name_info(apparent_type, right_text)?
             } else {
                 None
             };
@@ -2234,7 +2228,7 @@ impl<'a> CheckerState<'a> {
                 }
                 let left_symbol = self.tables.type_of(left_type).symbol;
                 if left_symbol == Some(self.global_this_symbol) {
-                    let exported = self.effective_global_this_export(right_text.as_str())?;
+                    let exported = self.effective_global_this_export(right_text)?;
                     if let Some(exported) = exported {
                         if self
                             .binder
@@ -3587,7 +3581,7 @@ impl<'a> CheckerState<'a> {
             Some(then_function) => {
                 self.get_signatures_of_type(then_function, crate::structural::SignatureKind::Call)?
             }
-            None => Vec::new(),
+            None => Default::default(),
         };
         if then_signatures.is_empty() {
             if let Some(error_node) = error_node {

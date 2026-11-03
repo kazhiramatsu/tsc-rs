@@ -51,7 +51,7 @@ fn union_instantiation_maps_parameters_and_keeps_identity() {
             let u = declared_type_parameter(state, "U");
             assert!(state.could_contain_type_variables(union));
             let string = state.tables.intrinsics.string;
-            let mapper = state.create_type_mapper(vec![t], Some(vec![string]));
+            let mapper = state.create_type_mapper(&[t], Some(&[string]));
             let mapped = state
                 .instantiate_type(union, Some(mapper))
                 .expect("instantiation in slice");
@@ -62,7 +62,7 @@ fn union_instantiation_maps_parameters_and_keeps_identity() {
             assert_eq!(mapped, expected, "T|number [T:=string] is string|number");
             // A mapper over an unreferenced parameter maps nothing:
             // tsc returns the SAME type object.
-            let unrelated = state.create_type_mapper(vec![u], Some(vec![string]));
+            let unrelated = state.create_type_mapper(&[u], Some(&[string]));
             let unchanged = state
                 .instantiate_type(union, Some(unrelated))
                 .expect("instantiation in slice");
@@ -93,7 +93,7 @@ fn template_literal_over_type_parameter_interns_and_instantiates() {
             );
             let t = declared_type_parameter(state, "T");
             let x = state.tables.get_string_literal_type("x");
-            let mapper = state.create_type_mapper(vec![t], Some(vec![x]));
+            let mapper = state.create_type_mapper(&[t], Some(&[x]));
             let mapped = state
                 .instantiate_type(template, Some(mapper))
                 .expect("instantiation in slice");
@@ -116,7 +116,7 @@ fn tuple_reference_instantiation_reuses_the_interned_reference() {
             let tuple = state.get_type_from_type_node(annotation).expect("tuple");
             let t = declared_type_parameter(state, "T");
             let number = state.tables.intrinsics.number;
-            let mapper = state.create_type_mapper(vec![t], Some(vec![number]));
+            let mapper = state.create_type_mapper(&[t], Some(&[number]));
             let mapped = state
                 .instantiate_type(tuple, Some(mapper))
                 .expect("instantiation in slice");
@@ -142,7 +142,7 @@ fn anonymous_type_instantiation_creates_a_cached_shell() {
             let t = declared_type_parameter(state, "T");
             let u = declared_type_parameter(state, "U");
             let string = state.tables.intrinsics.string;
-            let mapper = state.create_type_mapper(vec![t], Some(vec![string]));
+            let mapper = state.create_type_mapper(&[t], Some(&[string]));
             let shell = state
                 .instantiate_type(anonymous, Some(mapper))
                 .expect("instantiation in slice");
@@ -153,7 +153,7 @@ fn anonymous_type_instantiation_creates_a_cached_shell() {
                 .intersects(ObjectFlags::INSTANTIATED));
             assert_eq!(state.links.ty(shell).instantiated_target, Some(anonymous));
             // Same type arguments -> the interned instantiation.
-            let mapper2 = state.create_type_mapper(vec![t], Some(vec![string]));
+            let mapper2 = state.create_type_mapper(&[t], Some(&[string]));
             let again = state
                 .instantiate_type(anonymous, Some(mapper2))
                 .expect("instantiation in slice");
@@ -163,7 +163,7 @@ fn anonymous_type_instantiation_creates_a_cached_shell() {
             // answers true for U as well (63527-63529): a U-only
             // mapper still mints a (distinct) instantiation, exactly
             // like tsc.
-            let unrelated = state.create_type_mapper(vec![u], Some(vec![string]));
+            let unrelated = state.create_type_mapper(&[u], Some(&[string]));
             let u_shell = state
                 .instantiate_type(anonymous, Some(unrelated))
                 .expect("instantiation in slice");
@@ -205,13 +205,13 @@ fn unreferenced_outer_parameters_are_filtered_without_a_block() {
             let string = state.tables.intrinsics.string;
             // No Block intervenes: containsReference filters U out,
             // so a U-only mapper hits the seeded self entry.
-            let unrelated = state.create_type_mapper(vec![u], Some(vec![string]));
+            let unrelated = state.create_type_mapper(&[u], Some(&[string]));
             let unchanged = state
                 .instantiate_type(anonymous, Some(unrelated))
                 .expect("instantiation in slice");
             assert_eq!(unchanged, anonymous);
             // T stays: a T mapper mints the shell.
-            let mapper = state.create_type_mapper(vec![t], Some(vec![string]));
+            let mapper = state.create_type_mapper(&[t], Some(&[string]));
             let shell = state
                 .instantiate_type(anonymous, Some(mapper))
                 .expect("instantiation in slice");
@@ -328,7 +328,7 @@ fn string_mapping_applies_to_literals_unions_and_generics() {
                 .expect("generic mapping");
             assert_eq!(again, generic, "stringMappingTypes interning");
             let foo = state.tables.get_string_literal_type("foo");
-            let mapper = state.create_type_mapper(vec![t], Some(vec![foo]));
+            let mapper = state.create_type_mapper(&[t], Some(&[foo]));
             let instantiated = state
                 .instantiate_type(generic, Some(mapper))
                 .expect("instantiation in slice");
@@ -455,7 +455,7 @@ fn cloned_type_parameters_instantiate_their_target_constraint() {
             generic.type_parameters = Some(vec![t]);
             let generic = state.alloc_signature(generic);
             // A non-erasing instantiation clones the parameters.
-            let identity = state.create_type_mapper(vec![t], Some(vec![t]));
+            let identity = state.create_type_mapper(&[t], Some(&[t]));
             let cloned_signature = state
                 .instantiate_signature(generic, identity, /*erase*/ false)
                 .expect("instantiation in slice");
