@@ -66,7 +66,12 @@ impl<'a> CheckerState<'a> {
         }
         match self.kind_of(expr) {
             SyntaxKind::Identifier => {
-                if !self.is_matching_query_reference(query, expr)? && self.inline_level < 5 {
+                let matching = self.is_matching_query_reference(query, expr)?;
+                if !matching && self.inline_level >= 5 {
+                    // The inlining limit depends on the enclosing walk.
+                    self.flow_memo.taint(0);
+                }
+                if !matching && self.inline_level < 5 {
                     if let Some(symbol) = self.get_resolved_symbol(expr)? {
                         if self.is_constant_variable(symbol) {
                             let declaration = self.binder.symbol(symbol).value_declaration;
@@ -95,7 +100,7 @@ impl<'a> CheckerState<'a> {
                                         {
                                             false
                                         } else {
-                                            self.is_constant_reference(query.reference)?
+                                            self.is_constant_reference_of_walk(query)?
                                         };
                                         if constant_reference {
                                             // The const-variable guard INLINING
