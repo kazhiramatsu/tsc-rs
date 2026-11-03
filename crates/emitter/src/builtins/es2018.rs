@@ -4312,9 +4312,13 @@ impl<'context> Es2018Visitor<'context> {
     fn property_name_text(&self, name: TransformNode) -> Result<JsStr<'_>, TransformError> {
         match self.context.arena().node(name)?.data() {
             NodeData::Identifier(data) => Ok(data.text().into()),
-            NodeData::StringLiteral(data) => Ok(data.text.as_js()),
-            NodeData::NumericLiteral(data) => Ok((&data.text).into()),
-            NodeData::BigIntLiteral(data) => Ok((&data.text).into()),
+            NodeData::StringLiteral(data) => {
+                Ok(self.context.arena().text_js(name.source(), data.text)?)
+            }
+            NodeData::NumericLiteral(data) => {
+                self.context.arena().text_js(name.source(), data.text)
+            }
+            NodeData::BigIntLiteral(data) => self.context.arena().text_js(name.source(), data.text),
             _ => Err(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(name)?.kind,
                 field: "literal property name",
@@ -4365,12 +4369,14 @@ impl<'context> Es2018Visitor<'context> {
         &mut self,
         text: impl Into<JsStr<'t>>,
     ) -> Result<TransformNode, TransformError> {
-        let text = text.into();
+        let text: JsStr<'_> = text.into();
+        let text = self
+            .context
+            .factory()?
+            .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
-                text: text.to_owned(),
-            })),
+            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData { text })),
             TransformFlags::NONE,
         )
     }
@@ -4995,11 +5001,10 @@ impl<'context> Es2018Visitor<'context> {
     }
 
     fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
+        let text = self.context.factory()?.push_text(self.source, b"0")?;
         let zero = self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
-                text: "0".to_owned(),
-            })),
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
             TransformFlags::NONE,
         )?;
         let flags = self.context.arena().propagate_child_flags(zero)?;

@@ -2086,19 +2086,25 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 Some(AccessorPropertyNameIdentity::Static(data.escaped_text))
             }
             NodeData::StringLiteral(data) => Some(AccessorPropertyNameIdentity::Static(
-                tsc_types::EscapedName::escape((&data.text).into()),
+                tsc_types::EscapedName::escape(
+                    self.context.arena().text_js(name.source(), data.text)?,
+                ),
             )),
             NodeData::NumericLiteral(data) => Some(AccessorPropertyNameIdentity::Static(
-                tsc_types::EscapedName::escape((&data.text).into()),
+                tsc_types::EscapedName::escape(
+                    self.context.arena().text_js(name.source(), data.text)?,
+                ),
             )),
             NodeData::BigIntLiteral(data) => Some(AccessorPropertyNameIdentity::Static(
-                tsc_types::EscapedName::escape((&data.text).into()),
+                tsc_types::EscapedName::escape(
+                    self.context.arena().text_js(name.source(), data.text)?,
+                ),
             )),
-            NodeData::NoSubstitutionTemplateLiteral(data) => {
-                Some(AccessorPropertyNameIdentity::Static(
-                    tsc_types::EscapedName::escape((&data.text).into()),
-                ))
-            }
+            NodeData::NoSubstitutionTemplateLiteral(data) => Some(
+                AccessorPropertyNameIdentity::Static(tsc_types::EscapedName::escape(
+                    self.context.arena().text_js(name.source(), data.text)?,
+                )),
+            ),
             NodeData::ComputedPropertyName(data) => {
                 let Some(expression) = data
                     .expression
@@ -2117,15 +2123,27 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         expression: TransformNode,
     ) -> Result<AccessorPropertyNameIdentity, TransformError> {
         Ok(match self.context.arena().node(expression)?.data() {
-            NodeData::StringLiteral(data) => AccessorPropertyNameIdentity::Static(
-                tsc_types::EscapedName::escape((&data.text).into()),
-            ),
-            NodeData::NumericLiteral(data) => AccessorPropertyNameIdentity::Static(
-                tsc_types::EscapedName::escape((&data.text).into()),
-            ),
-            NodeData::NoSubstitutionTemplateLiteral(data) => AccessorPropertyNameIdentity::Static(
-                tsc_types::EscapedName::escape((&data.text).into()),
-            ),
+            NodeData::StringLiteral(data) => {
+                AccessorPropertyNameIdentity::Static(tsc_types::EscapedName::escape(
+                    self.context
+                        .arena()
+                        .text_js(expression.source(), data.text)?,
+                ))
+            }
+            NodeData::NumericLiteral(data) => {
+                AccessorPropertyNameIdentity::Static(tsc_types::EscapedName::escape(
+                    self.context
+                        .arena()
+                        .text_js(expression.source(), data.text)?,
+                ))
+            }
+            NodeData::NoSubstitutionTemplateLiteral(data) => {
+                AccessorPropertyNameIdentity::Static(tsc_types::EscapedName::escape(
+                    self.context
+                        .arena()
+                        .text_js(expression.source(), data.text)?,
+                ))
+            }
             NodeData::PrefixUnaryExpression(data)
                 if matches!(
                     data.operator,
@@ -2138,14 +2156,19 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 else {
                     return Ok(AccessorPropertyNameIdentity::Dynamic);
                 };
+                let operand_node = operand;
                 let NodeData::NumericLiteral(operand) = self.context.arena().node(operand)?.data()
                 else {
                     return Ok(AccessorPropertyNameIdentity::Dynamic);
                 };
+                let operand_text = self
+                    .context
+                    .arena()
+                    .text_utf8(operand_node.source(), operand.text)?;
                 let text = if data.operator == SyntaxKind::MinusToken {
-                    format!("-{}", operand.text)
+                    format!("-{operand_text}")
                 } else {
-                    operand.text.clone()
+                    operand_text.to_owned()
                 };
                 AccessorPropertyNameIdentity::Static(tsc_types::EscapedName::escape((&text).into()))
             }
@@ -2533,8 +2556,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                         let Some(operand) = operand else {
                             return Ok(false);
                         };
-                        if !matches!(arena.node(self.node(operand))?.data(),
-                            NodeData::NumericLiteral(data) if data.text == "0")
+                        let operand = self.node(operand);
+                        if !matches!(arena.node(operand)?.data(),
+                            NodeData::NumericLiteral(data) if arena.text(operand.source(), data.text)? == b"0")
                         {
                             return Ok(false);
                         }
@@ -3797,22 +3821,26 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         &mut self,
         text: impl Into<tsc_diagnostics::JsStr<'a>>,
     ) -> Result<TransformNode, TransformError> {
-        let text = text.into();
+        let text: tsc_diagnostics::JsStr<'_> = text.into();
+        let text = self
+            .context
+            .factory()?
+            .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
-                text: text.to_owned(),
-            })),
+            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData { text })),
             TransformFlags::NONE,
         )
     }
 
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        let text = self
+            .context
+            .factory()?
+            .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
-                text: text.to_owned(),
-            })),
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
             TransformFlags::NONE,
         )
     }

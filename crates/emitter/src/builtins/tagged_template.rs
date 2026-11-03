@@ -281,10 +281,10 @@ fn template_fragment_texts(
 ) -> Result<(JsString, JsString), TransformError> {
     let record = host.arena_node(node)?;
     let (text, raw_text) = match record.data() {
-        NodeData::NoSubstitutionTemplateLiteral(data) => (&data.text, &data.raw_text),
-        NodeData::TemplateHead(data) => (&data.text, &data.raw_text),
-        NodeData::TemplateMiddle(data) => (&data.text, &data.raw_text),
-        NodeData::TemplateTail(data) => (&data.text, &data.raw_text),
+        NodeData::NoSubstitutionTemplateLiteral(data) => (data.text, data.raw_text),
+        NodeData::TemplateHead(data) => (data.text, data.raw_text),
+        NodeData::TemplateMiddle(data) => (data.text, data.raw_text),
+        NodeData::TemplateTail(data) => (data.text, data.raw_text),
         _ => {
             return Err(TransformError::RequiredChildRemoved {
                 parent: record.kind,
@@ -299,12 +299,18 @@ fn template_fragment_texts(
         .and_then(|properties| properties.raw_template_text())
     {
         Some(raw) => JsString::from_code_units(raw.code_units()),
-        None => match raw_text.as_deref() {
-            Some(raw) => JsString::from(raw),
+        None => match raw_text {
+            Some(raw) => JsString::from(host.context().arena().text_utf8(node.source(), raw)?),
             None => raw_from_source_range(host, node, record)?,
         },
     };
-    Ok((text.clone(), raw))
+    Ok((
+        host.context()
+            .arena()
+            .text_js(node.source(), text)?
+            .to_owned(),
+        raw,
+    ))
 }
 
 /// getRawLiteral's fallback for a fragment whose `rawText` is undefined:

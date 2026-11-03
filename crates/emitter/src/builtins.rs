@@ -10347,7 +10347,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     }
 
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
-        let text = self.context.factory()?.push_text(self.source, text.as_bytes())?;
+        let text = self
+            .context
+            .factory()?
+            .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
             NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
@@ -13874,11 +13877,19 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             NodeData::Identifier(data) => self.create_string_literal(data.text()),
             // getExpressionForPropertyName copies the owned JavaScript text.
             NodeData::StringLiteral(data) => {
-                let text = self.context.arena().text_js(original.source(), data.text)?.to_owned();
+                let text = self
+                    .context
+                    .arena()
+                    .text_js(original.source(), data.text)?
+                    .to_owned();
                 self.create_string_literal(text.as_js())
             }
             NodeData::NumericLiteral(data) => {
-                let text = self.context.arena().text_utf8(original.source(), data.text)?.to_owned();
+                let text = self
+                    .context
+                    .arena()
+                    .text_utf8(original.source(), data.text)?
+                    .to_owned();
                 self.create_numeric_literal(&text)
             }
             NodeData::BigIntLiteral(_) => self.context.factory()?.clone_node(original),
@@ -14214,7 +14225,10 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     }
 
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
-        let text = self.context.factory()?.push_text(self.source, text.as_bytes())?;
+        let text = self
+            .context
+            .factory()?
+            .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
             NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),

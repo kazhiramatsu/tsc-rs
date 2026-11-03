@@ -56,9 +56,17 @@ fn node_text(
 ) -> Result<Option<String>, TransformError> {
     Ok(match cx.arena().node(node)?.data() {
         NodeData::Identifier(data) => Some(data.text().to_owned()),
-        NodeData::StringLiteral(data) => data.text.as_str().map(str::to_owned),
-        NodeData::NoSubstitutionTemplateLiteral(data) => data.text.as_str().map(str::to_owned),
-        NodeData::NumericLiteral(data) => Some(data.text.clone()),
+        NodeData::StringLiteral(data) => cx
+            .arena()
+            .text_str(node.source(), data.text)?
+            .map(str::to_owned),
+        NodeData::NoSubstitutionTemplateLiteral(data) => cx
+            .arena()
+            .text_str(node.source(), data.text)?
+            .map(str::to_owned),
+        NodeData::NumericLiteral(data) => {
+            Some(cx.arena().text_utf8(node.source(), data.text)?.to_owned())
+        }
         _ => None,
     })
 }

@@ -373,7 +373,14 @@ impl<'context> JsxVisitor<'context> {
                 Some(self.visit_jsx_fragment(original, data, false)?.node())
             }
             NodeData::JsxExpression(data) => self.visit_jsx_expression(original, data)?,
-            NodeData::JsxText(data) => self.visit_jsx_text(&data.text)?.map(TransformNode::node),
+            NodeData::JsxText(data) => {
+                let text = self
+                    .context
+                    .arena()
+                    .text_utf8(original.source(), data.text)?
+                    .to_owned();
+                self.visit_jsx_text(&text)?.map(TransformNode::node)
+            }
             NodeData::Token => Some(id),
             mut data => {
                 try_visit_transform_children(&mut data, self)?;
@@ -738,7 +745,13 @@ impl<'context> JsxVisitor<'context> {
         let original = self.node(initializer);
         match self.context.arena().node(original)?.data().clone() {
             NodeData::StringLiteral(data) => {
-                let units = decode_entities(&data.text);
+                let units = decode_entities(
+                    &self
+                        .context
+                        .arena()
+                        .text_js(original.source(), data.text)?
+                        .to_owned(),
+                );
                 let single_quote = self.original_string_is_single_quoted(original)?;
                 let literal = self.create_string_literal(units, single_quote)?;
                 self.set_original_and_range(literal, original)
@@ -811,9 +824,14 @@ impl<'context> JsxVisitor<'context> {
             let Some(name) = property.name else {
                 continue;
             };
-            match self.context.arena().node(self.node(name))?.data() {
+            let name = self.node(name);
+            match self.context.arena().node(name)?.data() {
                 NodeData::Identifier(data) if data.text() == "__proto__" => return Ok(true),
-                NodeData::StringLiteral(data) if data.text == "__proto__" => return Ok(true),
+                NodeData::StringLiteral(data)
+                    if self.context.arena().text(name.source(), data.text)? == b"__proto__" =>
+                {
+                    return Ok(true)
+                }
                 _ => {}
             }
         }
@@ -830,7 +848,14 @@ impl<'context> JsxVisitor<'context> {
             let child = self.node(id);
             let record = self.context.arena().node(child)?.clone();
             let result = match record.data().clone() {
-                NodeData::JsxText(data) => self.visit_jsx_text(&data.text)?,
+                NodeData::JsxText(data) => {
+                    let text = self
+                        .context
+                        .arena()
+                        .text_utf8(child.source(), data.text)?
+                        .to_owned();
+                    self.visit_jsx_text(&text)?
+                }
                 NodeData::JsxExpression(data) => self
                     .visit_jsx_expression(child, data)?
                     .map(|id| self.node(id)),
@@ -1151,11 +1176,13 @@ impl<'context> JsxVisitor<'context> {
     }
 
     fn create_numeric_literal(&mut self, value: u32) -> Result<TransformNode, TransformError> {
+        let text = self
+            .context
+            .factory()?
+            .push_text(self.source, value.to_string().as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
-                text: value.to_string(),
-            })),
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
             TransformFlags::NONE,
         )
     }

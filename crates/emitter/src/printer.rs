@@ -4043,7 +4043,7 @@ impl Printer {
                                     false,
                                     no_ascii_escaping,
                                 )
-                                    .code_units(),
+                                .code_units(),
                             );
                             return Ok(());
                         }

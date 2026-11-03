@@ -1309,15 +1309,45 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(match self.context.arena().node(name)?.data() {
             NodeData::Identifier(data) => Some(data.text().to_owned().into()),
             NodeData::PrivateIdentifier(data) => Some(data.text().to_owned().into()),
-            NodeData::StringLiteral(data) => Some(data.text.clone()),
-            NodeData::NumericLiteral(data) => Some(data.text.clone().into()),
-            NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.clone()),
+            NodeData::StringLiteral(data) => Some(
+                self.context
+                    .arena()
+                    .text_js(name.source(), data.text)?
+                    .to_owned(),
+            ),
+            NodeData::NumericLiteral(data) => Some(
+                self.context
+                    .arena()
+                    .text_js(name.source(), data.text)?
+                    .to_owned(),
+            ),
+            NodeData::NoSubstitutionTemplateLiteral(data) => Some(
+                self.context
+                    .arena()
+                    .text_js(name.source(), data.text)?
+                    .to_owned(),
+            ),
             NodeData::ComputedPropertyName(data) => match data.expression {
                 Some(expression) => {
                     match self.context.arena().node(self.node(expression))?.data() {
-                        NodeData::StringLiteral(data) => Some(data.text.clone()),
-                        NodeData::NumericLiteral(data) => Some(data.text.clone().into()),
-                        NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.clone()),
+                        NodeData::StringLiteral(data) => Some(
+                            self.context
+                                .arena()
+                                .text_js(self.node(expression).source(), data.text)?
+                                .to_owned(),
+                        ),
+                        NodeData::NumericLiteral(data) => Some(
+                            self.context
+                                .arena()
+                                .text_js(self.node(expression).source(), data.text)?
+                                .to_owned(),
+                        ),
+                        NodeData::NoSubstitutionTemplateLiteral(data) => Some(
+                            self.context
+                                .arena()
+                                .text_js(self.node(expression).source(), data.text)?
+                                .to_owned(),
+                        ),
                         _ => None,
                     }
                 }
@@ -3950,9 +3980,21 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let text = match self.context.arena().node(literal)?.data() {
             NodeData::Identifier(data) => data.text().to_owned().into(),
             NodeData::PrivateIdentifier(data) => data.text().to_owned().into(),
-            NodeData::StringLiteral(data) => data.text.clone(),
-            NodeData::NumericLiteral(data) => data.text.clone().into(),
-            NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
+            NodeData::StringLiteral(data) => self
+                .context
+                .arena()
+                .text_js(literal.source(), data.text)?
+                .to_owned(),
+            NodeData::NumericLiteral(data) => self
+                .context
+                .arena()
+                .text_js(literal.source(), data.text)?
+                .to_owned(),
+            NodeData::NoSubstitutionTemplateLiteral(data) => self
+                .context
+                .arena()
+                .text_js(literal.source(), data.text)?
+                .to_owned(),
             _ => {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::ComputedPropertyName,
@@ -5005,22 +5047,26 @@ impl<'context> StandardDecoratorVisitor<'context> {
         &mut self,
         text: impl Into<JsStr<'a>>,
     ) -> Result<TransformNode, TransformError> {
-        let text = text.into();
+        let text: JsStr<'_> = text.into();
+        let text = self
+            .context
+            .factory()?
+            .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
-                text: text.to_owned(),
-            })),
+            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData { text })),
             TransformFlags::NONE,
         )
     }
 
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        let text = self
+            .context
+            .factory()?
+            .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
-                text: text.to_owned(),
-            })),
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
             TransformFlags::NONE,
         )
     }
@@ -6308,9 +6354,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             NodeData::PrivateIdentifier(data) if !self.is_generated_binding_name(name)? => {
                 data.text().strip_prefix('#')
             }
-            NodeData::StringLiteral(data) => data
-                .text
-                .as_str()
+            NodeData::StringLiteral(data) => self
+                .context
+                .arena()
+                .text_str(name.source(), data.text)?
                 .filter(|text| tsc_syntax::is_identifier_text(text)),
             _ => None,
         };
@@ -6332,8 +6379,22 @@ impl<'context> StandardDecoratorVisitor<'context> {
         match self.context.arena().node(self.node(name))?.data() {
             NodeData::Identifier(data) => Ok((data.text().to_owned().into(), None, None)),
             NodeData::PrivateIdentifier(data) => Ok((data.text().to_owned().into(), None, None)),
-            NodeData::StringLiteral(data) => Ok((data.text.clone(), None, Some(name))),
-            NodeData::NumericLiteral(data) => Ok((data.text.clone().into(), None, Some(name))),
+            NodeData::StringLiteral(data) => Ok((
+                self.context
+                    .arena()
+                    .text_js(self.node(name).source(), data.text)?
+                    .to_owned(),
+                None,
+                Some(name),
+            )),
+            NodeData::NumericLiteral(data) => Ok((
+                self.context
+                    .arena()
+                    .text_js(self.node(name).source(), data.text)?
+                    .to_owned(),
+                None,
+                Some(name),
+            )),
             NodeData::ComputedPropertyName(data) => {
                 let expression = data
                     .expression
@@ -6384,8 +6445,18 @@ impl<'context> StandardDecoratorVisitor<'context> {
         };
         Ok(match self.context.arena().node(assigned_name)?.data() {
             NodeData::Identifier(data) => Some(data.text().to_owned().into()),
-            NodeData::StringLiteral(data) => Some(data.text.clone()),
-            NodeData::NumericLiteral(data) => Some(data.text.clone().into()),
+            NodeData::StringLiteral(data) => Some(
+                self.context
+                    .arena()
+                    .text_js(assigned_name.source(), data.text)?
+                    .to_owned(),
+            ),
+            NodeData::NumericLiteral(data) => Some(
+                self.context
+                    .arena()
+                    .text_js(assigned_name.source(), data.text)?
+                    .to_owned(),
+            ),
             _ => None,
         })
     }

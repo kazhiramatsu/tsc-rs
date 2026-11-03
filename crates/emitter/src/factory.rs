@@ -675,6 +675,16 @@ impl TransformArena {
         Ok(self.source(source)?.source.arena.text_js(id))
     }
 
+    /// Literal text `id` of `source`'s tree as a `str`, unless its bytes are
+    /// not UTF-8 (a string literal's value with a lone surrogate).
+    pub fn text_str(
+        &self,
+        source: TransformSourceId,
+        id: TextId,
+    ) -> Result<Option<&str>, TransformError> {
+        Ok(self.source(source)?.source.arena.text_str(id))
+    }
+
     /// Literal text `id` of `source`'s tree, UTF-8 by construction (every
     /// text field but a string literal's or template's value).
     pub fn text_utf8(&self, source: TransformSourceId, id: TextId) -> Result<&str, TransformError> {
@@ -1966,7 +1976,11 @@ impl<'arena> NodeFactory<'arena> {
                 None => None,
             },
         };
-        if self.arena.text_js(original.source, current_text)?.to_utf16() == text
+        if self
+            .arena
+            .text_js(original.source, current_text)?
+            .to_utf16()
+            == text
             && current_raw.as_deref() == raw
             && i32::from(record.template_flags()) & mask == requested_flags
         {

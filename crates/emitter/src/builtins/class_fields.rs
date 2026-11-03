@@ -444,11 +444,10 @@ impl ClassFieldsTransformer<'_> {
         }
         if data.class_was_decorated && self.legacy_decorators {
             let mut factory = context.substitution_factory()?;
+            let text = factory.push_text(node.source(), b"0")?;
             let zero = factory.create_node(
                 node.source(),
-                NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
-                    text: "0".to_owned(),
-                })),
+                NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
                 TransformFlags::NONE,
             )?;
             let void_zero = factory.create_node(
@@ -3543,7 +3542,12 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 field: "string literal prologue payload",
             });
         };
-        Ok(Some(data.text.clone()))
+        Ok(Some(
+            self.context
+                .arena()
+                .text_js(self.node(expression).source(), data.text)?
+                .to_owned(),
+        ))
     }
 
     fn find_prologue_span_end<F>(
@@ -3818,10 +3822,9 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
     }
 
     fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
+        let text = self.context.factory()?.push_text(self.source, b"0")?;
         let zero = self.create_class_field_node(
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
-                text: "0".to_owned(),
-            })),
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
             TransformFlags::NONE,
         )?;
         self.create_class_field_node(

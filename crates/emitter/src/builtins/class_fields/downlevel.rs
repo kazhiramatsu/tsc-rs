@@ -3065,9 +3065,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         // IdentifierText admits Unicode scalar identifier characters only.
         // A lone surrogate cannot name this generated identifier, while the
         // separate runtime literal-name owner retains it unchanged.
-        Ok(data
-            .text
-            .as_str()
+        Ok(arena
+            .text_str(assigned_name.source(), data.text)?
             .filter(|text| tsc_syntax::is_identifier_text(text))
             .map(str::to_owned))
     }
@@ -3208,20 +3207,24 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     }
 
     fn literal_assigned_name(&self, name: NodeId) -> Option<AssignedClassName> {
-        match self.context.arena().node(self.node(name)).ok()?.data() {
+        let node = self.node(name);
+        let literal = |text| {
+            self.context
+                .arena()
+                .text_js(node.source(), text)
+                .ok()
+                .map(|text| AssignedClassName::Literal(text.to_owned()))
+        };
+        match self.context.arena().node(node).ok()?.data() {
             NodeData::Identifier(data) => {
                 Some(AssignedClassName::Literal(data.text().to_owned().into()))
             }
             NodeData::PrivateIdentifier(data) => {
                 Some(AssignedClassName::Literal(data.text().to_owned().into()))
             }
-            NodeData::StringLiteral(data) => Some(AssignedClassName::Literal(data.text.clone())),
-            NodeData::NoSubstitutionTemplateLiteral(data) => {
-                Some(AssignedClassName::Literal(data.text.clone()))
-            }
-            NodeData::NumericLiteral(data) => {
-                Some(AssignedClassName::Literal(data.text.clone().into()))
-            }
+            NodeData::StringLiteral(data) => literal(data.text),
+            NodeData::NoSubstitutionTemplateLiteral(data) => literal(data.text),
+            NodeData::NumericLiteral(data) => literal(data.text),
             NodeData::ComputedPropertyName(data) => data
                 .expression
                 .and_then(|name| self.literal_assigned_name(name)),
@@ -3233,12 +3236,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let Some(name) = name else {
             return false;
         };
-        let Ok(name) = self.context.arena().node(self.node(name)) else {
+        let node = self.node(name);
+        let Ok(name) = self.context.arena().node(node) else {
             return false;
         };
         match name.data() {
             NodeData::Identifier(data) => data.text() == "__proto__",
-            NodeData::StringLiteral(data) => data.text == "__proto__",
+            NodeData::StringLiteral(data) => self
+                .context
+                .arena()
+                .text(node.source(), data.text)
+                .is_ok_and(|text| text == b"__proto__"),
             _ => false,
         }
     }
@@ -3250,7 +3258,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .metadata(class)
             .and_then(|metadata| metadata.assigned_name)?;
         match self.context.arena().node(assigned_name).ok()?.data() {
-            NodeData::StringLiteral(data) => Some(AssignedClassName::Literal(data.text.clone())),
+            NodeData::StringLiteral(data) => Some(AssignedClassName::Literal(
+                self.context
+                    .arena()
+                    .text_js(assigned_name.source(), data.text)
+                    .ok()?
+                    .to_owned(),
+            )),
             NodeData::Identifier(_) => Some(AssignedClassName::Evaluated(assigned_name)),
             _ => None,
         }
@@ -7461,13 +7475,27 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .ok()?
             .data()
         {
-            NodeData::StringLiteral(data) => Some(AssignedClassName::Literal(data.text.clone())),
-            NodeData::NoSubstitutionTemplateLiteral(data) => {
-                Some(AssignedClassName::Literal(data.text.clone()))
-            }
-            NodeData::NumericLiteral(data) => {
-                Some(AssignedClassName::Literal(data.text.clone().into()))
-            }
+            NodeData::StringLiteral(data) => Some(AssignedClassName::Literal(
+                self.context
+                    .arena()
+                    .text_js(self.node(expression).source(), data.text)
+                    .ok()?
+                    .to_owned(),
+            )),
+            NodeData::NoSubstitutionTemplateLiteral(data) => Some(AssignedClassName::Literal(
+                self.context
+                    .arena()
+                    .text_js(self.node(expression).source(), data.text)
+                    .ok()?
+                    .to_owned(),
+            )),
+            NodeData::NumericLiteral(data) => Some(AssignedClassName::Literal(
+                self.context
+                    .arena()
+                    .text_js(self.node(expression).source(), data.text)
+                    .ok()?
+                    .to_owned(),
+            )),
             _ => None,
         }
     }
@@ -9628,12 +9656,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         text: impl Into<JsStr<'t>>,
     ) -> Result<TransformNode, TransformError> {
-        let text = text.into();
+        let text: JsStr<'_> = text.into();
+        let text = self
+            .context
+            .factory()?
+            .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
-                text: text.to_owned(),
-            })),
+            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData { text })),
             TransformFlags::NONE,
         )
     }
@@ -9672,11 +9702,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     }
 
     fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
+        let text = self.context.factory()?.push_text(self.source, b"0")?;
         let zero = self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
-                text: "0".to_owned(),
-            })),
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
             TransformFlags::NONE,
         )?;
         self.context.factory()?.create_node(

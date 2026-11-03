@@ -63,8 +63,10 @@ impl ImportCallRewrites {
                 continue;
             }
             let literal = match arena.node(*first)?.data() {
-                NodeData::StringLiteral(data) => Some(data.text.as_js()),
-                NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.as_js()),
+                NodeData::StringLiteral(data) => Some(arena.text_js(first.source(), data.text)?),
+                NodeData::NoSubstitutionTemplateLiteral(data) => {
+                    Some(arena.text_js(first.source(), data.text)?)
+                }
                 _ => None,
             };
             if literal.is_none_or(|text| rewrite_relative_module_specifier(text).is_some()) {
@@ -150,10 +152,14 @@ pub(super) fn rewrite_literal(
     let NodeData::StringLiteral(literal) = context.arena().node(node)?.data().clone() else {
         return Ok(node);
     };
-    let Some(mut text) = rewrite_relative_module_specifier(&literal.text) else {
+    let literal_text = context
+        .arena()
+        .text_js(node.source(), literal.text)?
+        .to_owned();
+    let Some(mut text) = rewrite_relative_module_specifier(literal_text.as_js()) else {
         return Ok(node);
     };
-    if preserve_jsx && literal.text.ends_with(".tsx") {
+    if preserve_jsx && literal_text.as_js().ends_with(".tsx") {
         text.push('x');
     }
     // `setOriginalNode(setTextRange(factory.createStringLiteral(updatedText,
