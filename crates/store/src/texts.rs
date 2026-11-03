@@ -5,7 +5,9 @@
 //! the length and a slice, and an unpublished one from its tree's words.
 //!
 //! The bytes are canonical WTF-8 (UTF-8 for every text but a string literal's
-//! value with a lone surrogate); this module stores and returns them as bytes.
+//! value with a lone surrogate). The length word's top bit says the bytes are
+//! not UTF-8: it is computed when the text is stored, so a reader gets a `str`
+//! without validating it again.
 
 use crate::{get, slice, StoreRecord, StoreVec};
 
@@ -25,6 +27,9 @@ impl StoreRecord for TextWord {
     const REGION: usize = TEXT_WORD_REGION;
 }
 
+/// The length word's flag: the bytes are not UTF-8.
+const NOT_UTF8: u32 = 1 << 31;
+
 /// The words a text of `len` bytes takes: its length word and its bytes.
 pub const fn text_words(len: usize) -> usize {
     1 + len.div_ceil(4)
@@ -33,10 +38,18 @@ pub const fn text_words(len: usize) -> usize {
 /// Append `bytes` to `words` as one text; returns the index of its length
 /// word.
 pub fn push_text(words: &mut StoreVec<TextWord>, bytes: &[u8]) -> usize {
-    let len = u32::try_from(bytes.len()).expect("a literal text longer than 4 GiB");
+    let len = u32::try_from(bytes.len())
+        .ok()
+        .filter(|len| len & NOT_UTF8 == 0)
+        .expect("a literal text longer than 2 GiB");
+    let flag = if std::str::from_utf8(bytes).is_ok() {
+        0
+    } else {
+        NOT_UTF8
+    };
     let index = words.len();
     words.reserve(text_words(bytes.len()));
-    words.push(TextWord(len));
+    words.push(TextWord(len | flag));
     let (chunks, rest) = bytes.as_chunks::<4>();
     for chunk in chunks {
         words.push(TextWord(u32::from_le_bytes(*chunk)));
@@ -49,14 +62,31 @@ pub fn push_text(words: &mut StoreVec<TextWord>, bytes: &[u8]) -> usize {
     index
 }
 
-/// The bytes of the text whose length word is `words[index]`.
-pub fn text_in(words: &[TextWord], index: usize) -> &[u8] {
-    let len = words[index].0 as usize;
-    let body = &words[index + 1..index + 1 + len.div_ceil(4)];
+/// The bytes of a text body: `len` of the `body` words' bytes.
+fn body_bytes(body: &[TextWord], len: usize) -> &[u8] {
+    assert!(len <= body.len() * 4);
     // SAFETY: `TextWord` is a transparent `u32`, so `body` is `4 * body.len()`
     // initialized bytes with no stricter alignment for `u8`, and `len` is at
     // most that many (the words were written by `push_text`, little-endian).
     unsafe { std::slice::from_raw_parts(body.as_ptr().cast::<u8>(), len) }
+}
+
+/// The bytes as a `str` when the length word says they are UTF-8.
+fn utf8(word: TextWord, bytes: &[u8]) -> Option<&str> {
+    // SAFETY: `push_text` set the flag clear only for bytes that are UTF-8.
+    (word.0 & NOT_UTF8 == 0).then(|| unsafe { std::str::from_utf8_unchecked(bytes) })
+}
+
+/// The bytes of the text whose length word is `words[index]`.
+pub fn text_in(words: &[TextWord], index: usize) -> &[u8] {
+    let len = (words[index].0 & !NOT_UTF8) as usize;
+    body_bytes(&words[index + 1..index + 1 + len.div_ceil(4)], len)
+}
+
+/// The text whose length word is `words[index]` as a `str`, unless its bytes
+/// are not UTF-8.
+pub fn text_str_in(words: &[TextWord], index: usize) -> Option<&str> {
+    utf8(words[index], text_in(words, index))
 }
 
 /// The bytes of the published text whose length word is at `position`.
@@ -64,8 +94,16 @@ pub fn text_in(words: &[TextWord], index: usize) -> &[u8] {
 /// `position` names a text of a live published tree (see `crate::get`).
 #[inline]
 pub fn published_text(position: u32) -> &'static [u8] {
-    let len = get::<TextWord>(position).0;
-    let body = slice::<TextWord>(position + 1, len.div_ceil(4));
-    // SAFETY: as in `text_in`.
-    unsafe { std::slice::from_raw_parts(body.as_ptr().cast::<u8>(), len as usize) }
+    let len = get::<TextWord>(position).0 & !NOT_UTF8;
+    body_bytes(
+        slice::<TextWord>(position + 1, len.div_ceil(4)),
+        len as usize,
+    )
+}
+
+/// The published text at `position` as a `str`, unless its bytes are not
+/// UTF-8 (see [`published_text`]).
+#[inline]
+pub fn published_text_str(position: u32) -> Option<&'static str> {
+    utf8(*get::<TextWord>(position), published_text(position))
 }
