@@ -661,6 +661,35 @@ impl TransformArena {
         Ok(source.source.arena.node(node.node))
     }
 
+    /// The bytes of literal text `id` of `source`'s tree.
+    pub fn text(&self, source: TransformSourceId, id: TextId) -> Result<&[u8], TransformError> {
+        Ok(self.source(source)?.source.arena.text(id))
+    }
+
+    /// Literal text `id` of `source`'s tree as a JavaScript string view.
+    pub fn text_js(
+        &self,
+        source: TransformSourceId,
+        id: TextId,
+    ) -> Result<JsStr<'_>, TransformError> {
+        Ok(self.source(source)?.source.arena.text_js(id))
+    }
+
+    /// Literal text `id` of `source`'s tree, UTF-8 by construction (every
+    /// text field but a string literal's or template's value).
+    pub fn text_utf8(&self, source: TransformSourceId, id: TextId) -> Result<&str, TransformError> {
+        Ok(self.source(source)?.source.arena.text_utf8(id))
+    }
+
+    /// Store `bytes` as a literal text of `source`'s tree.
+    pub(crate) fn push_text(
+        &mut self,
+        source: TransformSourceId,
+        bytes: &[u8],
+    ) -> Result<TextId, TransformError> {
+        Ok(self.source_mut(source)?.source.arena.push_text(bytes))
+    }
+
     /// Whether this identity belongs to the immutable parse tree originally
     /// mounted into the emit session, rather than to a node appended by a
     /// transformer or emit-time substitution.
@@ -836,14 +865,14 @@ impl TransformArena {
     /// original-node links affect printing, never the cooked value's owner.
     pub fn literal_value(&self, node: TransformNode) -> Result<Option<JsStr<'_>>, TransformError> {
         let text = match self.node(node)?.data() {
-            NodeData::StringLiteral(data) => &data.text,
-            NodeData::NoSubstitutionTemplateLiteral(data) => &data.text,
-            NodeData::TemplateHead(data) => &data.text,
-            NodeData::TemplateMiddle(data) => &data.text,
-            NodeData::TemplateTail(data) => &data.text,
+            NodeData::StringLiteral(data) => data.text,
+            NodeData::NoSubstitutionTemplateLiteral(data) => data.text,
+            NodeData::TemplateHead(data) => data.text,
+            NodeData::TemplateMiddle(data) => data.text,
+            NodeData::TemplateTail(data) => data.text,
             _ => return Ok(None),
         };
-        Ok(Some(text.as_js()))
+        Ok(Some(self.text_js(node.source, text)?))
     }
 
     /// Update the cooked value on its node, preserving independent spelling,
@@ -854,6 +883,8 @@ impl TransformArena {
         value: impl Into<JsString>,
     ) -> Result<(), TransformError> {
         self.node(node)?;
+        let value: JsString = value.into();
+        let value = self.push_text(node.source, value.as_js().as_bytes())?;
         let record = self
             .source_mut(node.source)?
             .source
@@ -867,7 +898,7 @@ impl TransformArena {
             NodeData::TemplateTail(data) => &mut data.text,
             _ => return Err(TransformError::FactoryTokenKindExpected(record.kind)),
         };
-        *text = value.into();
+        *text = value;
         Ok(())
     }
 
@@ -900,19 +931,25 @@ impl TransformArena {
         previous: &NodeData,
         current: &NodeData,
     ) {
-        fn raw_projection(data: &NodeData) -> Option<Option<&str>> {
+        fn raw_projection(data: &NodeData) -> Option<Option<TextId>> {
             match data {
-                NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.raw_text.as_deref()),
-                NodeData::TemplateHead(data) => Some(data.raw_text.as_deref()),
-                NodeData::TemplateMiddle(data) => Some(data.raw_text.as_deref()),
-                NodeData::TemplateTail(data) => Some(data.raw_text.as_deref()),
+                NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.raw_text),
+                NodeData::TemplateHead(data) => Some(data.raw_text),
+                NodeData::TemplateMiddle(data) => Some(data.raw_text),
+                NodeData::TemplateTail(data) => Some(data.raw_text),
                 _ => None,
             }
         }
+        // Both payloads are this node's, so their texts are in its source.
+        let text = |id: TextId| {
+            self.source(node.source)
+                .map(|source| source.source.arena.text(id).to_vec())
+                .unwrap_or_default()
+        };
         if let (NodeData::StringLiteral(previous), NodeData::StringLiteral(current)) =
             (previous, current)
         {
-            if previous.text != current.text {
+            if text(previous.text) != text(current.text) {
                 if let Some(properties) = self.literal_properties.get_mut(&node) {
                     properties.string_literal_text_source = None;
                 }
@@ -924,6 +961,8 @@ impl TransformArena {
         else {
             return;
         };
+        let previous_raw = previous_raw.map(text);
+        let current_raw = current_raw.map(text);
         if previous_raw == current_raw {
             return;
         }
@@ -932,7 +971,9 @@ impl TransformArena {
                 .literal_properties
                 .entry(node)
                 .or_default()
-                .set_raw_template_text(JavaScriptString::from_rust_str(raw)),
+                .set_raw_template_text(JavaScriptString::from_rust_str(
+                    std::str::from_utf8(&raw).expect("a UTF-8 raw template text"),
+                )),
             None => {
                 if let Some(properties) = self.literal_properties.get_mut(&node) {
                     properties.clear_raw_template_text();
@@ -1737,6 +1778,7 @@ impl<'arena> NodeFactory<'arena> {
         } else {
             TransformFlags::NONE
         };
+        let text = self.arena.push_text(source, text.as_bytes())?;
         self.create_node(
             source,
             NodeData::NumericLiteral(Box::new(NumericLiteralData { text })),
@@ -1752,9 +1794,11 @@ impl<'arena> NodeFactory<'arena> {
         source: TransformSourceId,
         text: impl Into<String>,
     ) -> Result<TransformNode, TransformError> {
+        let text: String = text.into();
+        let text = self.arena.push_text(source, text.as_bytes())?;
         self.create_node(
             source,
-            NodeData::BigIntLiteral(Box::new(BigIntLiteralData { text: text.into() })),
+            NodeData::BigIntLiteral(Box::new(BigIntLiteralData { text })),
             TransformFlags::CONTAINS_ES_2020,
         )
     }
@@ -1768,9 +1812,11 @@ impl<'arena> NodeFactory<'arena> {
         text: impl Into<JsString>,
         single_quote: bool,
     ) -> Result<TransformNode, TransformError> {
+        let text: JsString = text.into();
+        let text = self.arena.push_text(source, text.as_js().as_bytes())?;
         let literal = self.create_node(
             source,
-            NodeData::StringLiteral(Box::new(StringLiteralData { text: text.into() })),
+            NodeData::StringLiteral(Box::new(StringLiteralData { text })),
             TransformFlags::NONE,
         )?;
         self.arena
@@ -1804,7 +1850,11 @@ impl<'arena> NodeFactory<'arena> {
         raw: Option<&[u16]>,
     ) -> Result<TransformNode, TransformError> {
         let text = JsString::from_code_units(units);
-        let raw_text = raw.map(String::from_utf16_lossy);
+        let text = self.arena.push_text(source, text.as_js().as_bytes())?;
+        let raw_text = match raw.map(String::from_utf16_lossy) {
+            Some(raw_text) => Some(self.arena.push_text(source, raw_text.as_bytes())?),
+            None => None,
+        };
         let data = match kind {
             SyntaxKind::NoSubstitutionTemplateLiteral => NodeData::NoSubstitutionTemplateLiteral(
                 Box::new(NoSubstitutionTemplateLiteralData { text, raw_text }),
@@ -1882,10 +1932,10 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         let record = self.arena.node(original)?.clone();
         let (current_text, current_projection) = match record.data() {
-            NodeData::NoSubstitutionTemplateLiteral(data) => (&data.text, &data.raw_text),
-            NodeData::TemplateHead(data) => (&data.text, &data.raw_text),
-            NodeData::TemplateMiddle(data) => (&data.text, &data.raw_text),
-            NodeData::TemplateTail(data) => (&data.text, &data.raw_text),
+            NodeData::NoSubstitutionTemplateLiteral(data) => (data.text, data.raw_text),
+            NodeData::TemplateHead(data) => (data.text, data.raw_text),
+            NodeData::TemplateMiddle(data) => (data.text, data.raw_text),
+            NodeData::TemplateTail(data) => (data.text, data.raw_text),
             _ => return Err(TransformError::FactoryTokenKindExpected(record.kind)),
         };
         let mask = TokenFlags::TEMPLATE_LITERAL_LIKE_FLAGS.bits();
@@ -1896,11 +1946,17 @@ impl<'arena> NodeFactory<'arena> {
             .and_then(LiteralNodeProperties::raw_template_text)
         {
             Some(owned) => Some(owned.code_units().to_vec()),
-            None => current_projection
-                .as_deref()
-                .map(|projection| projection.encode_utf16().collect()),
+            None => match current_projection {
+                Some(projection) => Some(
+                    self.arena
+                        .text_utf8(original.source, projection)?
+                        .encode_utf16()
+                        .collect(),
+                ),
+                None => None,
+            },
         };
-        if current_text.to_utf16() == text
+        if self.arena.text_js(original.source, current_text)?.to_utf16() == text
             && current_raw.as_deref() == raw
             && i32::from(record.template_flags()) & mask == requested_flags
         {
@@ -1934,11 +1990,12 @@ impl<'arena> NodeFactory<'arena> {
         } else {
             TransformFlags::NONE
         };
+        let text = self
+            .arena
+            .push_text(source, JsString::from_code_units(text).as_js().as_bytes())?;
         let literal = self.create_node(
             source,
-            NodeData::StringLiteral(Box::new(StringLiteralData {
-                text: JsString::from_code_units(text),
-            })),
+            NodeData::StringLiteral(Box::new(StringLiteralData { text })),
             flags,
         )?;
         self.arena
@@ -1984,7 +2041,7 @@ impl<'arena> NodeFactory<'arena> {
             .arena
             .literal_properties(original)
             .and_then(LiteralNodeProperties::string_literal_single_quote);
-        if data.text.to_utf16() == text
+        if self.arena.text_js(original.source, data.text)?.to_utf16() == text
             && current_quote == single_quote
             && record.has_extended_unicode_escape() == has_extended_unicode_escape
         {
@@ -2008,12 +2065,15 @@ impl<'arena> NodeFactory<'arena> {
         text: impl Into<JsString>,
         raw_text: Option<String>,
     ) -> Result<TransformNode, TransformError> {
+        let text: JsString = text.into();
+        let text = self.arena.push_text(source, text.as_js().as_bytes())?;
+        let raw_text = match raw_text {
+            Some(raw_text) => Some(self.arena.push_text(source, raw_text.as_bytes())?),
+            None => None,
+        };
         self.create_node(
             source,
-            NodeData::TemplateHead(Box::new(TemplateHeadData {
-                text: text.into(),
-                raw_text,
-            })),
+            NodeData::TemplateHead(Box::new(TemplateHeadData { text, raw_text })),
             TransformFlags::CONTAINS_ES_2015,
         )
     }
