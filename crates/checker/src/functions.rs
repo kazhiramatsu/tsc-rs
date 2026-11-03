@@ -151,25 +151,6 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<()> {
-        let diagnostics_start = self.diagnostics.len();
-        let visible_global_diagnostics_start = self.visible_global_diagnostics.len();
-        let result = self.contextually_check_function_expression_or_object_literal_method_worker(
-            node, check_mode,
-        );
-        if result.is_ok() {
-            self.record_completed_contextual_diagnostics_since(
-                diagnostics_start,
-                visible_global_diagnostics_start,
-            );
-        }
-        result
-    }
-
-    fn contextually_check_function_expression_or_object_literal_method_worker(
-        &mut self,
-        node: NodeId,
-        check_mode: CheckMode,
-    ) -> CheckResult<()> {
         if self
             .links
             .read_node(node, |links| links.check_flags)
