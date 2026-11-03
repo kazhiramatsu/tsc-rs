@@ -1036,7 +1036,10 @@ impl DeclarationTransformer<'_> {
             };
             try_visit_transform_children(&mut data, &mut visitor)?;
         }
-        if cx.arena().node(input)?.data() == data {
+        if cx
+            .arena()
+            .same_payload(input.source(), &cx.arena().node(input)?.data(), &data)
+        {
             return Ok(input);
         }
         let kind = cx.arena().node(input)?.kind;

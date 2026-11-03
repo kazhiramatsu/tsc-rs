@@ -5093,7 +5093,8 @@ impl<'context> Es2018Visitor<'context> {
         mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
         try_visit_transform_children(&mut data, self)?;
-        if self.context.arena().node(original)?.data() == data {
+        let arena = self.context.arena();
+        if arena.same_payload(original.source(), &arena.node(original)?.data(), &data) {
             return Ok(original.node());
         }
         let flags = flags_after_update(self.context.arena(), original, &data)?;
@@ -5109,7 +5110,8 @@ impl<'context> Es2018Visitor<'context> {
         original: TransformNode,
         data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        if self.context.arena().node(original)?.data() == data {
+        let arena = self.context.arena();
+        if arena.same_payload(original.source(), &arena.node(original)?.data(), &data) {
             return Ok(original.node());
         }
         let flags = flags_after_update(self.context.arena(), original, &data)?;

@@ -2563,7 +2563,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                         }
                     }
                 }
-                (NodeData::StringLiteral(a), NodeData::StringLiteral(b)) if a.text == b.text => {}
+                (NodeData::StringLiteral(a), NodeData::StringLiteral(b))
+                    if arena.text(left.source(), a.text)?
+                        == arena.text(right.source(), b.text)? => {}
                 (NodeData::TypeOfExpression(a), NodeData::TypeOfExpression(b)) => {
                     children.push((a.expression, b.expression));
                 }

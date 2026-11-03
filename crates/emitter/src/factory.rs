@@ -666,6 +666,31 @@ impl TransformArena {
         Ok(self.source(source)?.source.arena.text(id))
     }
 
+    /// Whether payload `left` of `source`'s tree equals `right`, which is
+    /// meant for the same tree: ids compare by identity, literal texts by
+    /// content (an updated payload may hold an equal text stored again).
+    pub fn same_payload(
+        &self,
+        source: TransformSourceId,
+        left: &NodeData,
+        right: &NodeData,
+    ) -> bool {
+        left == right
+            || tsc_syntax::node_data_structurally_equal(
+                left,
+                right,
+                |a, b| a == b,
+                |a, b| a == b,
+                |a, b| {
+                    a == b
+                        || matches!(
+                            (self.text(source, a), self.text(source, b)),
+                            (Ok(a), Ok(b)) if a == b
+                        )
+                },
+            )
+    }
+
     /// Literal text `id` of `source`'s tree as a JavaScript string view.
     pub fn text_js(
         &self,
@@ -5535,7 +5560,9 @@ impl<'arena> NodeFactory<'arena> {
             });
         }
         transform_flags |= private_identifier_expression_flags(self.arena, original.source, &data)?;
-        let same_data = self.arena.node(original)?.data() == data;
+        let same_data =
+            self.arena
+                .same_payload(original.source, &self.arena.node(original)?.data(), &data);
         if same_data && self.arena.transform_flags(original) == transform_flags {
             return Ok(original);
         }
