@@ -156,19 +156,19 @@ impl OutputSink for SharedFsOutputSink<'_> {
             .collect();
         let next = std::sync::atomic::AtomicUsize::new(0);
         let sink = &*self;
-        let run = || loop {
-            let Some(&index) = order.get(next.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
-            else {
-                break;
-            };
-            let artifact = slots[index]
-                .lock()
-                .expect("write slot")
-                .0
-                .take()
-                .expect("each artifact is written once");
-            let result = sink.write_one(artifact);
-            slots[index].lock().expect("write slot").1 = Some(result);
+        let run = || {
+            while let Some(&index) =
+                order.get(next.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+            {
+                let artifact = slots[index]
+                    .lock()
+                    .expect("write slot")
+                    .0
+                    .take()
+                    .expect("each artifact is written once");
+                let result = sink.write_one(artifact);
+                slots[index].lock().expect("write slot").1 = Some(result);
+            }
         };
         std::thread::scope(|scope| {
             for _ in 1..workers {

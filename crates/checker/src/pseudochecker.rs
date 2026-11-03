@@ -852,12 +852,12 @@ impl<'c, 'a> PseudoChecker<'c, 'a> {
             }
             match self.checker.data_of(name) {
                 NodeData::PrivateIdentifier(_) => error_nodes.push(member),
-                NodeData::ComputedPropertyName(computed) => {
+                NodeData::ComputedPropertyName(computed)
                     if !computed.expression.is_some_and(|expression| {
                         self.is_primitive_literal_value(expression, false)
-                    }) {
-                        error_nodes.push(name);
-                    }
+                    }) =>
+                {
+                    error_nodes.push(name);
                 }
                 _ => {}
             }
