@@ -1374,11 +1374,8 @@ impl<'a> CheckerState<'a> {
     }
 
     fn class_has_decorator(&self, declaration: NodeId) -> bool {
-        node_util::modifiers_of(&Published, declaration).is_some_and(|modifiers| {
-            self.nodes_of(Some(modifiers))
-                .into_iter()
-                .any(|modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
-        })
+        self.modifier_flags_of(node_util::modifiers_of(&Published, declaration))
+            .intersects(ModifierFlags::DECORATOR)
     }
 
     /// tsc-port: onFailedToResolveSymbol @6.0.3 (PARTIAL)
