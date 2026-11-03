@@ -1,6 +1,23 @@
 use super::*;
 
 #[test]
+fn ascii_identifier_answers_and_mixed_continuations() {
+    let starts = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_";
+    for byte in 0..=127u8 {
+        let expected_start = starts.contains(&byte);
+        let expected_part = expected_start || b"0123456789".contains(&byte);
+        assert_eq!(chars::is_identifier_start(char::from(byte)), expected_start);
+        assert_eq!(chars::is_identifier_part(char::from(byte)), expected_part);
+    }
+    let mut scanner = Scanner::new("ascii_0é𐐀\\u0061! ascii0\\u0030", LanguageVariant::Standard);
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert_eq!(scanner.token_value(), "ascii_0é𐐀a");
+    assert_eq!(scanner.scan(), SyntaxKind::ExclamationToken);
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert_eq!(scanner.token_value(), "ascii00");
+}
+
+#[test]
 fn copied_states_restore_nested_cooked_values_in_any_order() {
     fn assert_copy<T: Copy>() {}
     assert_copy::<ScannerState>();

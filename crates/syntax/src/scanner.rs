@@ -363,7 +363,15 @@ impl<'text> Scanner<'text> {
                 b'\n' => {
                     self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
                     self.pos += 1;
-                    if !self.skip_trivia {
+                    if self.skip_trivia {
+                        // Once a line break is recorded, consume indentation and
+                        // further ASCII line breaks together (tsgo scanASCIIWhile).
+                        let rest = &self.text.as_bytes()[self.pos..self.end];
+                        self.pos += rest
+                            .iter()
+                            .position(|&b| b != b' ' && !(b'\t'..=b'\r').contains(&b))
+                            .unwrap_or(rest.len());
+                    } else {
                         if byte == b'\r' && self.text.as_bytes().get(self.pos) == Some(&b'\n') {
                             self.pos += 1;
                         }
@@ -1319,9 +1327,31 @@ impl<'text> Scanner<'text> {
         });
     }
 
+    #[inline]
     fn scan_identifier(&mut self) -> SyntaxKind {
-        self.value_clear();
-        self.pos += 1;
+        let start = self.pos;
+        let rest = &self.text.as_bytes()[start + 1..self.end];
+        self.pos = start
+            + 1
+            + rest
+                .iter()
+                .position(|&byte| !IDENTIFIER_PART[byte as usize])
+                .unwrap_or(rest.len());
+        self.value_source(start, self.pos);
+        if self
+            .byte_at(self.pos)
+            .is_some_and(|byte| byte == b'\\' || byte >= 0x80)
+        {
+            return self.scan_identifier_with_unicode_or_escape();
+        }
+        self.token =
+            keywords::keyword_kind(&self.text[start..self.pos]).unwrap_or(SyntaxKind::Identifier);
+        self.token
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn scan_identifier_with_unicode_or_escape(&mut self) -> SyntaxKind {
         self.scan_identifier_parts();
         self.finish_identifier_token()
     }
