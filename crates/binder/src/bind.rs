@@ -2223,11 +2223,17 @@ impl<'a> BinderWorker<'a> {
     ///
     /// Parser finalization already owns the parent-only TS-file face.
     /// JS files bind attached documentation through its dedicated edge;
-    /// ordinary for_each_child never sees this array.
+    /// ordinary for_each_child never sees this array. Inline, so a node of
+    /// a TS file pays one branch, not a call.
+    #[inline]
     fn bind_jsdoc(&mut self, host: NodeId) {
-        if !self.is_in_js_file() {
-            return;
+        if self.is_in_js_file() {
+            self.bind_jsdoc_of_js_node(host);
         }
+    }
+
+    #[inline(never)]
+    fn bind_jsdoc_of_js_node(&mut self, host: NodeId) {
         let Some(js_doc) = self.source.arena.node(host).js_doc else {
             return;
         };
@@ -2337,11 +2343,17 @@ impl<'a> BinderWorker<'a> {
     /// tsgo places the namespace declarations it reparses from a statement's
     /// dotted `@typedef` / `@callback` tags before the statement
     /// (parser.go:612-631) and binds them there, unlike the top-level type
-    /// aliases it binds after the file (binder.go:1607-1616).
+    /// aliases it binds after the file (binder.go:1607-1616). Inline, so a
+    /// node of a TS file pays one branch, not a call.
+    #[inline]
     fn bind_reparsed_jsdoc_namespaces(&mut self, host: NodeId) {
-        if !self.is_in_js_file() {
-            return;
+        if self.is_in_js_file() {
+            self.bind_reparsed_jsdoc_namespaces_of_js_node(host);
         }
+    }
+
+    #[inline(never)]
+    fn bind_reparsed_jsdoc_namespaces_of_js_node(&mut self, host: NodeId) {
         let Some(js_doc) = self.source.arena.node(host).js_doc else {
             return;
         };

@@ -48,6 +48,9 @@ pub enum TableRef {
 /// `SymbolTable`. Construct identity maps with `Default` or `collect`.
 pub struct BinderWorker<'a> {
     pub source: &'a SourceFile,
+    /// tsc isInJSFile of the file: the root's parse-time JavaScriptFile flag,
+    /// read once (the walk asks for every node).
+    pub(crate) in_js_file: bool,
     /// tsc file.commonJsModuleIndicator.
     pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
@@ -358,6 +361,8 @@ impl<'a> BinderWorker<'a> {
         let node_count = source.arena.nodes().len();
         Self {
             source,
+            in_js_file: crate::node_util::node_flags(source, source.root)
+                .intersects(NodeFlags::JAVA_SCRIPT_FILE),
             common_js_module_indicator: None,
             symbols,
             node_symbol: NodeSymbolMap::for_tree(&source.arena),
