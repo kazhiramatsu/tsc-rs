@@ -228,6 +228,24 @@ mod tests {
         for &(word, kind) in expected {
             assert_eq!(keyword_kind(word).map(|k| k as u16), Some(kind), "{word}");
             assert_eq!(keyword_kind(&word.to_uppercase()), None);
+            let mut mutation = word.as_bytes().to_vec();
+            for position in 0..mutation.len() {
+                let original = mutation[position];
+                for byte in 0..=127u8 {
+                    mutation[position] = byte;
+                    let expected_kind = expected.iter().find_map(|&(name, kind)| {
+                        (name.as_bytes() == mutation.as_slice()).then_some(kind)
+                    });
+                    let text = std::str::from_utf8(&mutation).expect("ASCII mutation");
+                    assert_eq!(
+                        keyword_kind(text).map(|kind| kind as u16),
+                        expected_kind,
+                        "{text:?}"
+                    );
+                }
+                mutation[position] = original;
+            }
+
             for suffix in ["_", "0", "\0", "é"] {
                 assert_eq!(keyword_kind(&format!("{word}{suffix}")), None);
                 assert_eq!(keyword_kind(&format!("{suffix}{word}")), None);

@@ -1,6 +1,29 @@
 use super::*;
 
 #[test]
+fn punctuation_trivia_and_eof_clear_a_previous_cooked_value() {
+    for skip in [false, true] {
+        let mut scanner = Scanner::new(
+            "'long cooked \\uD800' \t; // comment\n",
+            LanguageVariant::Standard,
+        );
+        scanner.set_skip_trivia(skip);
+        assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+        assert!(scanner.token_value_source().is_none());
+        loop {
+            let full_start = scanner.pos();
+            let kind = scanner.scan();
+            assert_eq!(scanner.token_value(), "");
+            assert_eq!(scanner.token_value_source(), Some(""));
+            assert_eq!(scanner.full_start_pos(), full_start);
+            if kind == SyntaxKind::EndOfFileToken {
+                break;
+            }
+        }
+    }
+}
+
+#[test]
 fn bulk_bodies_keep_unicode_directive_lines_and_bounded_lookahead() {
     let text = "/* ASCII 😀\u{2028} * @ts-ignore */x";
     let mut scanner = Scanner::new(text, LanguageVariant::Standard);

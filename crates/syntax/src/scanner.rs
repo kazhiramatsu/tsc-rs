@@ -388,12 +388,11 @@ impl<'text> Scanner<'text> {
                 }
 
                 b'!' => {
-                    if (self.lookahead_byte(1) == Some(b'=')
-                        && self.lookahead_byte(2) == Some(b'='))
+                    if self.lookahead_byte(1) == Some(b'=') && self.lookahead_byte(2) == Some(b'=')
                     {
                         return self.finish_token(SyntaxKind::ExclamationEqualsEqualsToken, 3);
                     }
-                    if (self.lookahead_byte(1) == Some(b'=')) {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::ExclamationEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::ExclamationToken, 1);
@@ -401,21 +400,20 @@ impl<'text> Scanner<'text> {
                 b'"' | b'\'' => return self.scan_string_literal(),
                 b'`' => return self.scan_template_token(),
                 b'%' => {
-                    if (self.lookahead_byte(1) == Some(b'=')) {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::PercentEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::PercentToken, 1);
                 }
                 b'&' => {
-                    if (self.lookahead_byte(1) == Some(b'&')
-                        && self.lookahead_byte(2) == Some(b'='))
+                    if self.lookahead_byte(1) == Some(b'&') && self.lookahead_byte(2) == Some(b'=')
                     {
                         return self.finish_token(SyntaxKind::AmpersandAmpersandEqualsToken, 3);
                     }
-                    if (self.lookahead_byte(1) == Some(b'&')) {
+                    if self.lookahead_byte(1) == Some(b'&') {
                         return self.finish_token(SyntaxKind::AmpersandAmpersandToken, 2);
                     }
-                    if (self.lookahead_byte(1) == Some(b'=')) {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::AmpersandEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::AmpersandToken, 1);
@@ -423,15 +421,14 @@ impl<'text> Scanner<'text> {
                 b'(' => return self.finish_token(SyntaxKind::OpenParenToken, 1),
                 b')' => return self.finish_token(SyntaxKind::CloseParenToken, 1),
                 b'*' => {
-                    if (self.lookahead_byte(1) == Some(b'*')
-                        && self.lookahead_byte(2) == Some(b'='))
+                    if self.lookahead_byte(1) == Some(b'*') && self.lookahead_byte(2) == Some(b'=')
                     {
                         return self.finish_token(SyntaxKind::AsteriskAsteriskEqualsToken, 3);
                     }
-                    if (self.lookahead_byte(1) == Some(b'*')) {
+                    if self.lookahead_byte(1) == Some(b'*') {
                         return self.finish_token(SyntaxKind::AsteriskAsteriskToken, 2);
                     }
-                    if (self.lookahead_byte(1) == Some(b'=')) {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::AsteriskEqualsToken, 2);
                     }
                     self.pos += 1;
@@ -449,20 +446,20 @@ impl<'text> Scanner<'text> {
                     return self.token;
                 }
                 b'+' => {
-                    if (self.lookahead_byte(1) == Some(b'+')) {
+                    if self.lookahead_byte(1) == Some(b'+') {
                         return self.finish_token(SyntaxKind::PlusPlusToken, 2);
                     }
-                    if (self.lookahead_byte(1) == Some(b'=')) {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::PlusEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::PlusToken, 1);
                 }
                 b',' => return self.finish_token(SyntaxKind::CommaToken, 1),
                 b'-' => {
-                    if (self.lookahead_byte(1) == Some(b'-')) {
+                    if self.lookahead_byte(1) == Some(b'-') {
                         return self.finish_token(SyntaxKind::MinusMinusToken, 2);
                     }
-                    if (self.lookahead_byte(1) == Some(b'=')) {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::MinusEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::MinusToken, 1);
@@ -471,8 +468,7 @@ impl<'text> Scanner<'text> {
                     if self.byte_at(self.pos + 1).is_some_and(is_ascii_digit) {
                         return self.scan_number_literal();
                     }
-                    if (self.lookahead_byte(1) == Some(b'.')
-                        && self.lookahead_byte(2) == Some(b'.'))
+                    if self.lookahead_byte(1) == Some(b'.') && self.lookahead_byte(2) == Some(b'.')
                     {
                         return self.finish_token(SyntaxKind::DotDotDotToken, 3);
                     }
@@ -503,7 +499,7 @@ impl<'text> Scanner<'text> {
                         }
                         _ => {}
                     }
-                    if (self.lookahead_byte(1) == Some(b'=')) {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::SlashEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::SlashToken, 1);
@@ -518,19 +514,18 @@ impl<'text> Scanner<'text> {
                         }
                         continue;
                     }
-                    if (self.lookahead_byte(1) == Some(b'<')
-                        && self.lookahead_byte(2) == Some(b'='))
+                    if self.lookahead_byte(1) == Some(b'<') && self.lookahead_byte(2) == Some(b'=')
                     {
                         return self.finish_token(SyntaxKind::LessThanLessThanEqualsToken, 3);
                     }
-                    if (self.lookahead_byte(1) == Some(b'<')) {
+                    if self.lookahead_byte(1) == Some(b'<') {
                         return self.finish_token(SyntaxKind::LessThanLessThanToken, 2);
                     }
-                    if (self.lookahead_byte(1) == Some(b'=')) {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::LessThanEqualsToken, 2);
                     }
                     if self.language_variant == LanguageVariant::Jsx
-                        && (self.lookahead_byte(1) == Some(b'/'))
+                        && self.lookahead_byte(1) == Some(b'/')
                         && !(self.lookahead_byte(1) == Some(b'/')
                             && self.lookahead_byte(2) == Some(b'*'))
                     {
@@ -545,15 +540,14 @@ impl<'text> Scanner<'text> {
                         }
                         continue;
                     }
-                    if (self.lookahead_byte(1) == Some(b'=')
-                        && self.lookahead_byte(2) == Some(b'='))
+                    if self.lookahead_byte(1) == Some(b'=') && self.lookahead_byte(2) == Some(b'=')
                     {
                         return self.finish_token(SyntaxKind::EqualsEqualsEqualsToken, 3);
                     }
-                    if (self.lookahead_byte(1) == Some(b'=')) {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::EqualsEqualsToken, 2);
                     }
-                    if (self.lookahead_byte(1) == Some(b'>')) {
+                    if self.lookahead_byte(1) == Some(b'>') {
                         return self.finish_token(SyntaxKind::EqualsGreaterThanToken, 2);
                     }
                     return self.finish_token(SyntaxKind::EqualsToken, 1);
@@ -568,17 +562,16 @@ impl<'text> Scanner<'text> {
                     return self.finish_token(SyntaxKind::GreaterThanToken, 1);
                 }
                 b'?' => {
-                    if (self.lookahead_byte(1) == Some(b'.'))
+                    if self.lookahead_byte(1) == Some(b'.')
                         && !self.byte_at(self.pos + 2).is_some_and(is_ascii_digit)
                     {
                         return self.finish_token(SyntaxKind::QuestionDotToken, 2);
                     }
-                    if (self.lookahead_byte(1) == Some(b'?')
-                        && self.lookahead_byte(2) == Some(b'='))
+                    if self.lookahead_byte(1) == Some(b'?') && self.lookahead_byte(2) == Some(b'=')
                     {
                         return self.finish_token(SyntaxKind::QuestionQuestionEqualsToken, 3);
                     }
-                    if (self.lookahead_byte(1) == Some(b'?')) {
+                    if self.lookahead_byte(1) == Some(b'?') {
                         return self.finish_token(SyntaxKind::QuestionQuestionToken, 2);
                     }
                     return self.finish_token(SyntaxKind::QuestionToken, 1);
@@ -586,7 +579,7 @@ impl<'text> Scanner<'text> {
                 b'[' => return self.finish_token(SyntaxKind::OpenBracketToken, 1),
                 b']' => return self.finish_token(SyntaxKind::CloseBracketToken, 1),
                 b'^' => {
-                    if (self.lookahead_byte(1) == Some(b'=')) {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::CaretEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::CaretToken, 1);
@@ -599,15 +592,14 @@ impl<'text> Scanner<'text> {
                         }
                         continue;
                     }
-                    if (self.lookahead_byte(1) == Some(b'|')
-                        && self.lookahead_byte(2) == Some(b'='))
+                    if self.lookahead_byte(1) == Some(b'|') && self.lookahead_byte(2) == Some(b'=')
                     {
                         return self.finish_token(SyntaxKind::BarBarEqualsToken, 3);
                     }
-                    if (self.lookahead_byte(1) == Some(b'|')) {
+                    if self.lookahead_byte(1) == Some(b'|') {
                         return self.finish_token(SyntaxKind::BarBarToken, 2);
                     }
-                    if (self.lookahead_byte(1) == Some(b'=')) {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::BarEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::BarToken, 1);
@@ -625,7 +617,7 @@ impl<'text> Scanner<'text> {
                 }
                 b'#' => {
                     // A shebang is skipped even when trivia is not.
-                    if self.pos == 0 && (self.lookahead_byte(1) == Some(b'!')) {
+                    if self.pos == 0 && self.lookahead_byte(1) == Some(b'!') {
                         self.scan_shebang_trivia();
                         continue;
                     }
