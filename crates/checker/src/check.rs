@@ -14752,19 +14752,18 @@ impl<'a> CheckerState<'a> {
             PseudoType::Inferred(_) => {
                 return self.type_to_string_ex(checker_type, fully_qualified)
             }
-            PseudoType::Direct(existing) => {
+            PseudoType::Direct(existing)
                 // canReuseExistingJSTypeNode: an intended JSDoc type and a
                 // reference with the wrong number of type arguments print
                 // the type instead.
-                if self
+                if (self
                     .get_intended_type_from_jsdoc_type_reference(*existing)?
                     .is_some()
                     || !self
-                        .reference_annotation_argument_count_compatible(*existing, checker_type)?
-                {
+                        .reference_annotation_argument_count_compatible(*existing, checker_type)?)
+                => {
                     return self.type_to_string_ex(checker_type, fully_qualified);
                 }
-            }
             _ => {}
         }
         Ok(self

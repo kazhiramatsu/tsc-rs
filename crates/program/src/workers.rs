@@ -150,18 +150,17 @@ impl WorkerBudget {
             .map(|job| Mutex::new((Some(job), None)))
             .collect();
         let next = AtomicUsize::new(0);
-        let run = || loop {
-            let Some(&index) = order.get(next.fetch_add(1, Ordering::Relaxed)) else {
-                break;
-            };
-            let job = slots[index]
-                .lock()
-                .expect("worker slot")
-                .0
-                .take()
-                .expect("each job is taken once");
-            let result = work(job);
-            slots[index].lock().expect("worker slot").1 = Some(result);
+        let run = || {
+            while let Some(&index) = order.get(next.fetch_add(1, Ordering::Relaxed)) {
+                let job = slots[index]
+                    .lock()
+                    .expect("worker slot")
+                    .0
+                    .take()
+                    .expect("each job is taken once");
+                let result = work(job);
+                slots[index].lock().expect("worker slot").1 = Some(result);
+            }
         };
         std::thread::scope(|scope| {
             for _ in 1..workers {

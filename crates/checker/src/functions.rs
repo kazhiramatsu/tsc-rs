@@ -4080,14 +4080,14 @@ impl<'a> CheckerState<'a> {
                         return true;
                     }
                 }
-                SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => {
+                SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern
                     if self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
                         name,
                         predicate_variable_node,
                         predicate_variable_name,
-                    ) {
-                        return true;
-                    }
+                    ) =>
+                {
+                    return true;
                 }
                 _ => {}
             }

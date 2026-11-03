@@ -88,7 +88,7 @@ pub fn decode_host_text(mut bytes: Vec<u8>) -> Result<String, HostTextDecodeErro
 }
 
 fn decode_utf16(bytes: &[u8], encoding: HostTextEncoding) -> Result<String, HostTextDecodeError> {
-    let code_units = bytes.chunks_exact(2).map(|pair| {
+    let code_units = bytes.as_chunks::<2>().0.iter().map(|pair| {
         let pair = [pair[0], pair[1]];
         match encoding {
             HostTextEncoding::Utf16Le => u16::from_le_bytes(pair),
