@@ -3203,7 +3203,11 @@ pub(crate) fn get_module_specifier_override(
     literal: TransformNode,
 ) -> BuildResult<Option<tsc_types::JsString>> {
     let original_name = match arena.node(literal).map_err(factory_error)?.data() {
-        NodeData::StringLiteral(data) => crate::annotate::published_text_js(data.text).to_owned(),
+        // The literal may be a copy in another tree: its text is that tree's.
+        NodeData::StringLiteral(data) => arena
+            .text_js(literal.source(), data.text)
+            .map_err(factory_error)?
+            .to_owned(),
         _ => return Ok(None),
     };
     let literal_file_differs = match arena
