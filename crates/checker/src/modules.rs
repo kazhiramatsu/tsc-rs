@@ -95,7 +95,7 @@ pub(crate) struct UnresolvedProgramModule {
 }
 
 /// tsgo `core.UnprefixedNodeCoreModules`: the Node core modules importable
-/// without the `node:` prefix.
+/// without the `node:` prefix, in byte order (looked up by binary search).
 pub const UNPREFIXED_NODE_CORE_MODULES: &[&str] = &[
     "assert",
     "assert/strict",
@@ -160,22 +160,32 @@ pub const UNPREFIXED_NODE_CORE_MODULES: &[&str] = &[
 /// tsc-span: _tsc.js:19947-20016
 pub fn is_node_core_module<'n>(name: impl Into<JsStr<'n>>) -> bool {
     // The names are ASCII, so the text's bytes compare as the names do;
-    // a specifier is not interned just to be looked up.
+    // a specifier is not interned just to be looked up. Both lists are in
+    // byte order, so each lookup is a binary search.
     let name = name.into().as_bytes();
-    const EXCLUSIVELY_PREFIXED: &[&str] = &[
-        "node:quic",
-        "node:sea",
-        "node:sqlite",
-        "node:test",
-        "node:test/reporters",
-    ];
-    let listed = |names: &[&str], name: &[u8]| names.iter().any(|known| known.as_bytes() == name);
-    if listed(UNPREFIXED_NODE_CORE_MODULES, name) || listed(EXCLUSIVELY_PREFIXED, name) {
+    let listed = |names: &[&str], name: &[u8]| {
+        names
+            .binary_search_by(|known| known.as_bytes().cmp(name))
+            .is_ok()
+    };
+    if listed(UNPREFIXED_NODE_CORE_MODULES, name)
+        || listed(EXCLUSIVELY_PREFIXED_NODE_CORE_MODULES, name)
+    {
         return true;
     }
     name.strip_prefix(b"node:")
         .is_some_and(|unprefixed| listed(UNPREFIXED_NODE_CORE_MODULES, unprefixed))
 }
+
+/// The Node core modules importable only with the `node:` prefix, in byte
+/// order.
+const EXCLUSIVELY_PREFIXED_NODE_CORE_MODULES: &[&str] = &[
+    "node:quic",
+    "node:sea",
+    "node:sqlite",
+    "node:test",
+    "node:test/reporters",
+];
 
 impl ProgramModuleResolution {
     fn missed() -> Self {

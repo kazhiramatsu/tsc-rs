@@ -19,6 +19,18 @@ use tsc_types::{EscapedName, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags
 
 use crate::state::{CheckResult, CheckerState};
 
+/// The message a failed name lookup reports.
+#[derive(Clone, Copy)]
+enum NameNotFoundMessage {
+    /// The caller's message.
+    Message(&'static DiagnosticMessage),
+    /// tsgo getCannotFindNameDiagnosticForName of this name. tsgo chooses it
+    /// before the lookup; it reads only the name, its parent and the
+    /// options, so choosing it when the lookup fails reports the same
+    /// message without a string match per resolved identifier.
+    ForName(NodeId),
+}
+
 /// Own only what lookup needs before mutably borrowing the checker to resolve
 /// aliases. Normal lookups copy one candidate; spelling keeps the original
 /// table snapshot so alias resolution cannot change its candidate order.
@@ -201,7 +213,7 @@ impl<'a> CheckerState<'a> {
             location,
             name.name(),
             meaning,
-            name_not_found_message,
+            name_not_found_message.map(NameNotFoundMessage::Message),
             is_use,
             exclude_globals,
             /*suggestion*/ false,
@@ -274,7 +286,7 @@ impl<'a> CheckerState<'a> {
         location: Option<NodeId>,
         name: EscapedName,
         meaning: SymbolFlags,
-        name_not_found_message: Option<&'static DiagnosticMessage>,
+        name_not_found_message: Option<NameNotFoundMessage>,
         is_use: bool,
         exclude_globals: bool,
         suggestion: bool,
@@ -909,7 +921,15 @@ impl<'a> CheckerState<'a> {
                 }
             }
             match result {
-                None => self.on_failed_to_resolve_symbol(original_location, name, meaning, message),
+                None => {
+                    let message = match message {
+                        NameNotFoundMessage::Message(message) => message,
+                        NameNotFoundMessage::ForName(node) => {
+                            self.cannot_find_name_diagnostic_for_name(node)
+                        }
+                    };
+                    self.on_failed_to_resolve_symbol(original_location, name, meaning, message)
+                }
                 Some(found) => {
                     self.on_successfully_resolved_symbol(
                         original_location,
@@ -2437,21 +2457,23 @@ impl<'a> CheckerState<'a> {
                 };
                 let synthesized = self.node_flags(name) & NodeFlags::SYNTHESIZED.bits() != 0;
                 let message = if meaning == namespace_meaning || synthesized {
-                    &diagnostics::Cannot_find_namespace_0
+                    NameNotFoundMessage::Message(&diagnostics::Cannot_find_namespace_0)
                 } else {
-                    self.cannot_find_name_diagnostic_for_name(name)
+                    NameNotFoundMessage::ForName(name)
                 };
                 // tsgo resolveEntityName (TypeScript 7.1) has no second lookup
                 // of a JavaScript JSDoc type name from its host function (tsc
                 // 6.0 resolveEntityNameFromAssignmentDeclaration): a name the
                 // reparsed annotation cannot see is unresolved.
-                let symbol = self.resolve_name(
+                let symbol = self.resolve_name_full(
                     location.or(Some(name)),
                     text,
                     meaning,
                     (!ignore_errors).then_some(message),
-                    true,
-                    false,
+                    /*is_use*/ true,
+                    /*exclude_globals*/ false,
+                    /*suggestion*/ false,
+                    /*from_token*/ false,
                 )?;
                 let Some(symbol) = symbol else {
                     return Ok(None);
@@ -2892,15 +2914,16 @@ impl<'a> CheckerState<'a> {
             None
         } else {
             let name = self.identifier_name_of(node).unwrap_or_default();
-            let message = self.cannot_find_name_diagnostic_for_name(node);
             let is_use = !self.is_write_only_access(node);
-            self.resolve_name(
+            self.resolve_name_full(
                 Some(node),
                 name,
                 SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE,
-                Some(message),
+                Some(NameNotFoundMessage::ForName(node)),
                 is_use,
                 /*exclude_globals*/ false,
+                /*suggestion*/ false,
+                /*from_token*/ false,
             )?
         };
         let cached = resolved.unwrap_or(self.unknown_symbol);
