@@ -1354,7 +1354,7 @@ impl<'a> CheckerState<'a> {
             types.type_heap_bytes,
         ));
         rows.push((
-            "string literal maps (2 keys)",
+            "string literal table",
             types.string_literals,
             types.string_literal_map_bytes,
         ));
