@@ -1253,3 +1253,44 @@ fn context_recovery_admission_matches_fresh_parses_across_reparse_and_heritage_e
         compare_incremental(before, before.find(needle).unwrap(), needle.len(), inserted);
     }
 }
+
+#[test]
+fn module_declaration_attributes_take_part_in_the_structural_comparison() {
+    use crate::nodes::ModuleDeclarationData;
+    use crate::relocate::node_data_structurally_equal;
+    let module = |attributes: Option<NodeId>| {
+        NodeData::ModuleDeclaration(ModuleDeclarationData {
+            name: Some(NodeId::new(1)),
+            attributes,
+            modifiers: None,
+            body: None,
+        })
+    };
+    // 2517f726b added the field by hand without its comparison, so `with
+    // { type: "css" }` against no attributes compared equal.
+    assert!(!node_data_structurally_equal(
+        &module(Some(NodeId::new(2))),
+        &module(None),
+        |_, _| true,
+        |_, _| true,
+        |_, _| true,
+    ));
+    let mut compared = Vec::new();
+    assert!(node_data_structurally_equal(
+        &module(Some(NodeId::new(2))),
+        &module(Some(NodeId::new(3))),
+        |left, right| {
+            compared.push((left, right));
+            true
+        },
+        |_, _| true,
+        |_, _| true,
+    ));
+    assert_eq!(
+        compared,
+        [
+            (NodeId::new(1), NodeId::new(1)),
+            (NodeId::new(2), NodeId::new(3))
+        ]
+    );
+}

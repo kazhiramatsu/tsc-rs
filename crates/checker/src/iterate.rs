@@ -496,15 +496,9 @@ impl<'a> CheckerState<'a> {
             return Ok(input_type);
         }
         let target = error_node.map(IterationErrorTarget::Node);
-        let capture = error_node
-            .is_some()
-            .then(|| self.begin_tsc_eager_iteration_diagnostic_capture());
         let result = self.get_iterated_type_or_element_type_at_target(
             use_, input_type, sent_type, target, /*check_assignability*/ true,
         );
-        if let Some(capture) = capture {
-            self.end_tsc_eager_iteration_diagnostic_capture(capture);
-        }
         Ok(result?.unwrap_or(self.tables.intrinsics.any))
     }
 
@@ -525,7 +519,6 @@ impl<'a> CheckerState<'a> {
         if self.is_type_any(input_type) {
             return Ok(input_type);
         }
-        let capture = self.begin_tsc_eager_iteration_diagnostic_capture();
         let result = self.get_iterated_type_or_element_type_at_target(
             use_,
             input_type,
@@ -533,7 +526,6 @@ impl<'a> CheckerState<'a> {
             Some(IterationErrorTarget::Span(span)),
             /*check_assignability*/ true,
         );
-        self.end_tsc_eager_iteration_diagnostic_capture(capture);
         Ok(result?.unwrap_or(self.tables.intrinsics.any))
     }
 
@@ -549,20 +541,13 @@ impl<'a> CheckerState<'a> {
         check_assignability: bool,
     ) -> CheckResult<Option<TypeId>> {
         let target = error_node.map(IterationErrorTarget::Node);
-        let capture = error_node
-            .is_some()
-            .then(|| self.begin_tsc_eager_iteration_diagnostic_capture());
-        let result = self.get_iterated_type_or_element_type_at_target(
+        self.get_iterated_type_or_element_type_at_target(
             use_,
             input_type,
             sent_type,
             target,
             check_assignability,
-        );
-        if let Some(capture) = capture {
-            self.end_tsc_eager_iteration_diagnostic_capture(capture);
-        }
-        result
+        )
     }
 
     fn get_iterated_type_or_element_type_at_target(
@@ -814,14 +799,7 @@ impl<'a> CheckerState<'a> {
         error_node: Option<NodeId>,
     ) -> CheckResult<Option<IterationTypes>> {
         let target = error_node.map(IterationErrorTarget::Node);
-        let capture = error_node
-            .is_some()
-            .then(|| self.begin_tsc_eager_iteration_diagnostic_capture());
-        let result = self.get_iteration_types_of_iterable_at_target(ty, use_, target);
-        if let Some(capture) = capture {
-            self.end_tsc_eager_iteration_diagnostic_capture(capture);
-        }
-        result
+        self.get_iteration_types_of_iterable_at_target(ty, use_, target)
     }
 
     fn get_iteration_types_of_iterable_at_target(
@@ -1299,15 +1277,7 @@ impl<'a> CheckerState<'a> {
         container: &mut Option<IterationErrorContainer>,
     ) -> CheckResult<Option<IterationTypes>> {
         let error_target = error_node.map(IterationErrorTarget::Node);
-        let capture = error_node
-            .is_some()
-            .then(|| self.begin_tsc_eager_iteration_diagnostic_capture());
-        let result =
-            self.get_iteration_types_of_iterator_worker(ty, resolver, error_target, container);
-        if let Some(capture) = capture {
-            self.end_tsc_eager_iteration_diagnostic_capture(capture);
-        }
-        result
+        self.get_iteration_types_of_iterator_worker(ty, resolver, error_target, container)
     }
 
     /// tsc-port: getIterationTypesOfIteratorWorker @6.0.3
@@ -1723,45 +1693,36 @@ impl<'a> CheckerState<'a> {
         function_flags: u32,
         error_node: Option<NodeId>,
     ) -> CheckResult<bool> {
-        let capture = error_node
-            .is_some()
-            .then(|| self.begin_tsc_eager_iteration_diagnostic_capture());
-        let result = (|| {
-            let is_async = function_flags & crate::functions::FUNCTION_FLAGS_ASYNC != 0;
-            let yield_type = self
-                .get_iteration_type_of_generator_function_return_type(
-                    IterationTypeKind::YIELD,
-                    return_type,
-                    is_async,
-                )?
-                .unwrap_or(self.tables.intrinsics.any);
-            let generator_return_type = self
-                .get_iteration_type_of_generator_function_return_type(
-                    IterationTypeKind::RETURN,
-                    return_type,
-                    is_async,
-                )?
-                .unwrap_or(yield_type);
-            let next_type = self
-                .get_iteration_type_of_generator_function_return_type(
-                    IterationTypeKind::NEXT,
-                    return_type,
-                    is_async,
-                )?
-                .unwrap_or(self.tables.intrinsics.unknown);
-            let generator_instantiation =
-                self.create_generator_type(yield_type, generator_return_type, next_type, is_async)?;
-            self.check_type_assignable_to(
-                generator_instantiation,
+        let is_async = function_flags & crate::functions::FUNCTION_FLAGS_ASYNC != 0;
+        let yield_type = self
+            .get_iteration_type_of_generator_function_return_type(
+                IterationTypeKind::YIELD,
                 return_type,
-                error_node,
-                &diagnostics::Type_0_is_not_assignable_to_type_1,
-            )
-        })();
-        if let Some(capture) = capture {
-            self.end_tsc_eager_iteration_diagnostic_capture(capture);
-        }
-        result
+                is_async,
+            )?
+            .unwrap_or(self.tables.intrinsics.any);
+        let generator_return_type = self
+            .get_iteration_type_of_generator_function_return_type(
+                IterationTypeKind::RETURN,
+                return_type,
+                is_async,
+            )?
+            .unwrap_or(yield_type);
+        let next_type = self
+            .get_iteration_type_of_generator_function_return_type(
+                IterationTypeKind::NEXT,
+                return_type,
+                is_async,
+            )?
+            .unwrap_or(self.tables.intrinsics.unknown);
+        let generator_instantiation =
+            self.create_generator_type(yield_type, generator_return_type, next_type, is_async)?;
+        self.check_type_assignable_to(
+            generator_instantiation,
+            return_type,
+            error_node,
+            &diagnostics::Type_0_is_not_assignable_to_type_1,
+        )
     }
 
     // ---- generator return-type readers ----

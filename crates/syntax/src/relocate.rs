@@ -4331,6 +4331,7 @@ where
         }
         (NodeData::ModuleDeclaration(left), NodeData::ModuleDeclaration(right)) => {
             optional_node_equal(left.name, right.name, &mut node)
+                && optional_node_equal(left.attributes, right.attributes, &mut node)
                 && optional_array_equal(left.modifiers, right.modifiers, &mut array)
                 && optional_node_equal(left.body, right.body, &mut node)
         }

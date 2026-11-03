@@ -6678,10 +6678,6 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         }
         let getter = self.declaration_of_kind(symbol, SyntaxKind::GetAccessor);
-        let diagnostic_marks = (
-            self.diagnostics.len(),
-            self.visible_global_diagnostics.len(),
-        );
         let setter = self.declaration_of_kind(symbol, SyntaxKind::SetAccessor);
         // 56753: tryCast(..., isAutoAccessorPropertyDeclaration).
         // tsgo getTypeOfAccessors (TypeScript 7.1) finds the auto-accessor
@@ -6850,7 +6846,6 @@ impl<'a> CheckerState<'a> {
                 LinkSlot::Resolved(resolved),
             );
         }
-        self.record_completed_contextual_diagnostics_since(diagnostic_marks.0, diagnostic_marks.1);
         Ok(self
             .links
             .read_symbol(symbol, |links| links.type_of_symbol.resolved())

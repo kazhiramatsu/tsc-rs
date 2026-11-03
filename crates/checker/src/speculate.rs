@@ -26,30 +26,14 @@
 //!   tsc resets it at the three check entry points (86551/86921/80965)
 //!   and never mid-resolution. `flow_analysis_disabled` is a one-way
 //!   latch even in tsc — left alone.
-//! - C (permanent-truth caches, links, interners): rollback-capable
-//!   candidate trials never publish cold Links/Signature cache entries.
-//!   Pure caches bypass their write; protocols that need a temporary
-//!   re-entrancy sentinel or stable identity (call resolvedSignature,
-//!   type-node resolution, and structured members) journal and restore
-//!   the entry slot at either boundary. A completed candidate, selected
-//!   OR rejected, keeps its declaration SignatureIds, completed signature
-//!   return types, completed accessor types, and contextual-function state (`ContextChecked` plus
-//!   contextual parameter symbol types). tsc shares those once-results
-//!   across both relation passes; the typed `Reject` outcome preserves
-//!   them while still rolling back trial-only state. Nested retention
-//!   promotes the original snapshots to the parent transaction. Fresh
-//!   semantic object initialization is not a cache publication.
-//!   Structurally keyed type interners remain monotone and
-//!   candidate-independent, as in tsc.
-//! - D (diagnostics sinks): truncated to the checkpoint marks on
-//!   rollback (push-dedupe is order-safe under truncation), kept on
-//!   commit. Explicit journals preserve completed diagnostics from
-//!   reporting-mode iteration walks and contextual-function once-checks:
-//!   tsc runs both eagerly while trying an overload and has no transaction
-//!   to remove them when the candidate fails. The contextual journal is
-//!   retained only for a completed `Reject`, alongside its category-C
-//!   once-state; a true rollback or abort drops it. `deferred_nodes`
-//!   deliberately survives rollback
+//! - C (permanent-truth caches, links, interners): completed results
+//!   persist at either boundary. Call resolvedSignature slots still
+//!   journal their entry state for cleanup of unresolved sentinels;
+//!   type-only alias declarations still restore their entry values.
+//!   Fresh semantic objects and structurally keyed type interners remain
+//!   monotone and candidate-independent, as in tsc.
+//! - D (diagnostics sinks): diagnostics and partial-check records persist
+//!   at either boundary. `deferred_nodes` deliberately survives rollback
 //!   — tsc checkNodeDeferred (86899-86908) registers unconditionally,
 //!   and deferred nodes registered under a failed candidate are still
 //!   checked (verified against 6.0.3 source; the inventory's VERIFY
@@ -88,21 +72,6 @@ pub enum SpeculationOutcome<T> {
     Rollback(T),
 }
 
-/// One balanced reporting-mode iteration capture. Every entry carries
-/// sink marks: a nested entry may complete inside an enclosing
-/// iteration walk before a nested overload transaction rolls back, so
-/// its rows must reach the journal at that inner completion boundary.
-/// Only the outermost entry carries journal marks; when it completes,
-/// provisional nested clones are discarded and the surviving sink
-/// suffix is captured again with final related information.
-#[must_use = "an iteration diagnostic capture must be ended"]
-pub(crate) struct TscEagerIterationCapture {
-    active: bool,
-    depth: usize,
-    sink_marks: Option<(usize, usize)>,
-    journal_marks: Option<(usize, usize)>,
-}
-
 /// Everything `begin_speculation` captures. Vec-backed state stores its
 /// length (truncate-to-mark restoration: entries above the mark are the
 /// trial's own, entries below it were only mutated in ways that persist
@@ -116,7 +85,6 @@ pub struct SpeculationCheckpoint {
     depth: u32,
     resolved: bool,
     speculative_links: SpeculativeLinksMarks,
-    speculative_signature_returns: usize,
 
     // ---- A: transient stacks ----
     resolution_targets: usize,
@@ -138,7 +106,6 @@ pub struct SpeculationCheckpoint {
     flow_loop_stack: usize,
     flow_loop_start: u32,
     shared_flow: usize,
-    tsc_eager_iteration_capture_depth: usize,
     /// Snapshot map (inventory: "snapshot map or forbid across
     /// speculation") — entries are strictly scoped to an in-progress
     /// ReduceLabel arm, so this is empty except when a trial opens
@@ -157,24 +124,6 @@ pub struct SpeculationCheckpoint {
     is_inference_partially_blocked: bool,
 
     // ---- D: diagnostics sinks ----
-    diagnostics: usize,
-    visible_global_diagnostics: usize,
-    /// Marks into the completed-diagnostic journals. Entries above a
-    /// nested checkpoint are promoted to its parent on either commit
-    /// or rollback; only the outermost resolution clears the journals.
-    tsc_eager_diagnostics: usize,
-    tsc_eager_visible_global_diagnostics: usize,
-    /// Unlike the tsc-eager iteration journals above, entries above these
-    /// marks survive only a commit or a completed-candidate `Reject`.
-    completed_contextual_diagnostics: usize,
-    completed_contextual_visible_global_diagnostics: usize,
-    partial_check_records: usize,
-    /// Per-file range-vector lengths; files absent here were inserted
-    /// by the trial and are removed wholesale on rollback. A
-    /// speculative containment permanently marks a range (affects the
-    /// 2578 @ts-expect-error exemption) — the inventory's must-roll-back
-    /// item.
-    partially_checked_ranges: Vec<(usize, usize)>,
     elaborated_satisfies_expressions: HashSet<NodeId>,
     potential_weak_map_set_collisions: usize,
     potential_reflect_collisions: usize,
@@ -195,135 +144,6 @@ impl Drop for SpeculationCheckpoint {
 }
 
 impl CheckerState<'_> {
-    /// tsrs-native: begin an owned journal interval for tsc's eager
-    /// reporting-mode iteration diagnostics.
-    pub(crate) fn begin_tsc_eager_iteration_diagnostic_capture(
-        &mut self,
-    ) -> TscEagerIterationCapture {
-        if self.speculation_depth == 0 {
-            return TscEagerIterationCapture {
-                active: false,
-                depth: 0,
-                sink_marks: None,
-                journal_marks: None,
-            };
-        }
-        let is_outermost = self.tsc_eager_iteration_capture_depth == 0;
-        self.tsc_eager_iteration_capture_depth += 1;
-        TscEagerIterationCapture {
-            active: true,
-            depth: self.tsc_eager_iteration_capture_depth,
-            sink_marks: Some((
-                self.diagnostics.len(),
-                self.visible_global_diagnostics.len(),
-            )),
-            journal_marks: is_outermost.then_some((
-                self.tsc_eager_diagnostics.len(),
-                self.tsc_eager_visible_global_diagnostics.len(),
-            )),
-        }
-    }
-
-    /// tsrs-native: close and reconcile an owned eager-diagnostic journal.
-    pub(crate) fn end_tsc_eager_iteration_diagnostic_capture(
-        &mut self,
-        capture: TscEagerIterationCapture,
-    ) {
-        if !capture.active {
-            return;
-        }
-        assert_eq!(
-            self.tsc_eager_iteration_capture_depth, capture.depth,
-            "iteration diagnostic captures must resolve LIFO"
-        );
-        self.tsc_eager_iteration_capture_depth -= 1;
-        let (diagnostics_start, visible_global_diagnostics_start) = capture
-            .sink_marks
-            .expect("active iteration captures carry sink marks");
-        if let Some((diagnostics_journal_start, visible_global_diagnostics_journal_start)) =
-            capture.journal_marks
-        {
-            self.tsc_eager_diagnostics
-                .truncate(diagnostics_journal_start);
-            self.tsc_eager_visible_global_diagnostics
-                .truncate(visible_global_diagnostics_journal_start);
-        }
-        self.record_tsc_eager_iteration_diagnostics_since(
-            diagnostics_start,
-            visible_global_diagnostics_start,
-        );
-    }
-
-    /// Record completed diagnostics emitted by one reporting-mode
-    /// iteration entry. Capturing at every completed entry prevents a
-    /// nested rejected-candidate rollback from erasing its reporting
-    /// rows. When the outermost entry completes, it first truncates the
-    /// provisional rows recorded since its journal marks and then
-    /// records its current sink suffix, including any related
-    /// information attached by the enclosing walk.
-    ///
-    /// Rows outside a nested reporting interval are never selected, so
-    /// ordinary failed-candidate diagnostics still roll back.
-    /// tsrs-native: copy completed sink rows into the speculation journal.
-    pub(crate) fn record_tsc_eager_iteration_diagnostics_since(
-        &mut self,
-        diagnostics_start: usize,
-        visible_global_diagnostics_start: usize,
-    ) {
-        if self.speculation_depth == 0 {
-            return;
-        }
-        for diagnostic in &self.diagnostics[diagnostics_start..] {
-            if !self.tsc_eager_diagnostics.contains(diagnostic) {
-                self.tsc_eager_diagnostics.push(diagnostic.clone());
-            }
-        }
-        for diagnostic in &self.visible_global_diagnostics[visible_global_diagnostics_start..] {
-            if !self
-                .tsc_eager_visible_global_diagnostics
-                .contains(diagnostic)
-            {
-                self.tsc_eager_visible_global_diagnostics
-                    .push(diagnostic.clone());
-            }
-        }
-    }
-
-    /// tsrs-native: journals completed contextual-check sink suffixes across
-    /// Rust's speculation transaction; tsc has no candidate transaction.
-    ///
-    /// Keep the diagnostic half of a completed contextual function check or
-    /// accessor inference beside its retained once-state (`ContextChecked`,
-    /// contextual parameter types, or accessor type). tsc has no candidate transaction: once the
-    /// check completes, both effects remain observable even when that
-    /// overload candidate is rejected. The transaction therefore journals
-    /// only this completed sink suffix rather than preserving unrelated
-    /// trial diagnostics.
-    pub(crate) fn record_completed_contextual_diagnostics_since(
-        &mut self,
-        diagnostics_start: usize,
-        visible_global_diagnostics_start: usize,
-    ) {
-        if self.speculation_depth == 0 {
-            return;
-        }
-        for diagnostic in &self.diagnostics[diagnostics_start..] {
-            if !self.completed_contextual_diagnostics.contains(diagnostic) {
-                self.completed_contextual_diagnostics
-                    .push(diagnostic.clone());
-            }
-        }
-        for diagnostic in &self.visible_global_diagnostics[visible_global_diagnostics_start..] {
-            if !self
-                .completed_contextual_visible_global_diagnostics
-                .contains(diagnostic)
-            {
-                self.completed_contextual_visible_global_diagnostics
-                    .push(diagnostic.clone());
-            }
-        }
-    }
-
     /// tsrs-native: the 7.0t transaction open — no tsc counterpart
     /// (module doc: tsc keeps trials clean via checkMode bypasses).
     ///
@@ -341,23 +161,11 @@ impl CheckerState<'_> {
         // expressions, which resolve calls and open candidate trials
         // (VS Code `src` witness: `switch (f(x))` reached from an implicit-
         // return query while its function's return type is inferred).
-        if self.speculation_depth == 0 {
-            debug_assert!(
-                self.tsc_eager_diagnostics.is_empty()
-                    && self.tsc_eager_visible_global_diagnostics.is_empty()
-                    && self.completed_contextual_diagnostics.is_empty()
-                    && self
-                        .completed_contextual_visible_global_diagnostics
-                        .is_empty(),
-                "outermost speculation must start with empty completed-diagnostic journals"
-            );
-        }
         self.speculation_depth += 1;
         SpeculationCheckpoint {
             depth: self.speculation_depth,
             resolved: false,
             speculative_links: self.links.speculative_marks(),
-            speculative_signature_returns: self.speculative_signature_return_mark(),
             resolution_targets: self.resolution_targets.len(),
             resolution_results: self.resolution_results.len(),
             resolution_property_names: self.resolution_property_names.len(),
@@ -377,7 +185,6 @@ impl CheckerState<'_> {
             flow_loop_stack: self.flow_loop_stack.len(),
             flow_loop_start: self.flow_loop_start,
             shared_flow: self.shared_flow.len(),
-            tsc_eager_iteration_capture_depth: self.tsc_eager_iteration_capture_depth,
             reduce_label_overrides: self.reduce_label_overrides.clone(),
             exhaustive_switch_computing: self.exhaustive_switch_computing.clone(),
             instantiation_depth: self.instantiation_stack.len() as u32,
@@ -385,20 +192,6 @@ impl CheckerState<'_> {
             variance_stack: self.variance_stack.len(),
             variance_type_parameter: self.variance_type_parameter,
             is_inference_partially_blocked: self.is_inference_partially_blocked,
-            diagnostics: self.diagnostics.len(),
-            visible_global_diagnostics: self.visible_global_diagnostics.len(),
-            tsc_eager_diagnostics: self.tsc_eager_diagnostics.len(),
-            tsc_eager_visible_global_diagnostics: self.tsc_eager_visible_global_diagnostics.len(),
-            completed_contextual_diagnostics: self.completed_contextual_diagnostics.len(),
-            completed_contextual_visible_global_diagnostics: self
-                .completed_contextual_visible_global_diagnostics
-                .len(),
-            partial_check_records: self.partial_check_records.len(),
-            partially_checked_ranges: self
-                .partially_checked_ranges
-                .iter()
-                .map(|(&file, ranges)| (file, ranges.len()))
-                .collect(),
             elaborated_satisfies_expressions: self.elaborated_satisfies_expressions.clone(),
             potential_weak_map_set_collisions: self.potential_weak_map_set_collisions.len(),
             potential_reflect_collisions: self.potential_reflect_collisions.len(),
@@ -420,24 +213,10 @@ impl CheckerState<'_> {
             self.speculation_depth, checkpoint.depth,
             "speculation transactions must resolve LIFO"
         );
-        debug_assert_eq!(
-            self.tsc_eager_iteration_capture_depth, checkpoint.tsc_eager_iteration_capture_depth,
-            "a speculation transaction committed with an unbalanced reporting iteration capture"
-        );
         self.links
             .commit_speculative_writes(checkpoint.speculative_links, checkpoint.depth - 1);
-        self.commit_speculative_signature_returns(
-            checkpoint.speculative_signature_returns,
-            checkpoint.depth - 1,
-        );
         checkpoint.resolved = true;
         self.speculation_depth -= 1;
-        if self.speculation_depth == 0 {
-            self.tsc_eager_diagnostics.clear();
-            self.tsc_eager_visible_global_diagnostics.clear();
-            self.completed_contextual_diagnostics.clear();
-            self.completed_contextual_visible_global_diagnostics.clear();
-        }
         #[cfg(test)]
         {
             self.speculation_commit_count += 1;
@@ -493,10 +272,6 @@ impl CheckerState<'_> {
                     checkpoint.flow_loop_start as usize,
                 ),
                 (self.shared_flow.len(), checkpoint.shared_flow),
-                (
-                    self.tsc_eager_iteration_capture_depth,
-                    checkpoint.tsc_eager_iteration_capture_depth,
-                ),
                 (
                     self.instantiation_stack.len(),
                     checkpoint.instantiation_depth as usize,
@@ -566,21 +341,12 @@ impl CheckerState<'_> {
             self.speculation_depth, checkpoint.depth,
             "speculation transactions must resolve LIFO"
         );
-        debug_assert_eq!(
-            self.tsc_eager_iteration_capture_depth, checkpoint.tsc_eager_iteration_capture_depth,
-            "a speculation transaction rolled back with an unbalanced reporting iteration capture"
-        );
         if retain_completed_semantics {
             self.links
                 .commit_speculative_writes(checkpoint.speculative_links, checkpoint.depth - 1);
-            self.commit_speculative_signature_returns(
-                checkpoint.speculative_signature_returns,
-                checkpoint.depth - 1,
-            );
         } else {
             self.links
                 .restore_speculative_writes(checkpoint.speculative_links);
-            self.restore_speculative_signature_returns(checkpoint.speculative_signature_returns);
         }
         checkpoint.resolved = true;
         self.speculation_depth -= 1;
@@ -622,7 +388,6 @@ impl CheckerState<'_> {
         self.flow_loop_stack.truncate(checkpoint.flow_loop_stack);
         self.flow_loop_start = checkpoint.flow_loop_start;
         self.shared_flow.truncate(checkpoint.shared_flow);
-        self.tsc_eager_iteration_capture_depth = checkpoint.tsc_eager_iteration_capture_depth;
         self.reduce_label_overrides = std::mem::take(&mut checkpoint.reduce_label_overrides);
         self.exhaustive_switch_computing =
             std::mem::take(&mut checkpoint.exhaustive_switch_computing);
@@ -635,38 +400,8 @@ impl CheckerState<'_> {
         self.variance_type_parameter = checkpoint.variance_type_parameter;
         self.is_inference_partially_blocked = checkpoint.is_inference_partially_blocked;
 
-        // D: diagnostics sinks. tsc keeps every diagnostic a candidate
-        // reports (its collection deduplicates, and the candidate's node
-        // results persist), so the sinks are left as they are; the
-        // completed-contextual journals only track nesting.
-        let _ = (
-            checkpoint.diagnostics,
-            checkpoint.visible_global_diagnostics,
-            checkpoint.tsc_eager_diagnostics,
-            checkpoint.tsc_eager_visible_global_diagnostics,
-        );
-        if !retain_completed_semantics {
-            self.completed_contextual_diagnostics
-                .truncate(checkpoint.completed_contextual_diagnostics);
-            self.completed_contextual_visible_global_diagnostics
-                .truncate(checkpoint.completed_contextual_visible_global_diagnostics);
-        }
-        // Nested resolution promotes its completed iteration rows to
-        // the parent by leaving both journals intact. The outermost
-        // boundary has replayed their final copies and can release the
-        // temporary storage.
-        if self.speculation_depth == 0 {
-            self.tsc_eager_diagnostics.clear();
-            self.tsc_eager_visible_global_diagnostics.clear();
-            self.completed_contextual_diagnostics.clear();
-            self.completed_contextual_visible_global_diagnostics.clear();
-        }
-        // Partial-check records persist with the node results they
-        // describe: the fail-closed evidence follows the persisted checks.
-        let _ = (
-            checkpoint.partial_check_records,
-            &checkpoint.partially_checked_ranges,
-        );
+        // D: diagnostic sinks and partial-check records persist with the
+        // completed node results they describe.
         self.elaborated_satisfies_expressions =
             std::mem::take(&mut checkpoint.elaborated_satisfies_expressions);
         self.potential_weak_map_set_collisions
