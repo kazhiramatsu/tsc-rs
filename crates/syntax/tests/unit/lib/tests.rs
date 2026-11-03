@@ -277,8 +277,19 @@ fn keyword_kind_finds_every_keyword_and_nothing_else() {
         assert_eq!(keyword_kind(text), Some(kind), "{text}");
     }
     for text in [
-        "", "a", "x", "_", "$", "Abstract", "constructors", "awaits", "infer_", "intrinsics",
-        "yieldd", "zzzzzzzzzzzz", "ńew",
+        "",
+        "a",
+        "x",
+        "_",
+        "$",
+        "Abstract",
+        "constructors",
+        "awaits",
+        "infer_",
+        "intrinsics",
+        "yieldd",
+        "zzzzzzzzzzzz",
+        "ńew",
     ] {
         assert_eq!(keyword_kind(text), None, "{text:?}");
     }

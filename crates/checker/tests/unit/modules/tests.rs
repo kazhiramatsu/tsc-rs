@@ -3838,22 +3838,38 @@ fn node_core_module_lists_are_sorted_and_found() {
     use super::{
         is_node_core_module, EXCLUSIVELY_PREFIXED_NODE_CORE_MODULES, UNPREFIXED_NODE_CORE_MODULES,
     };
-    for list in [UNPREFIXED_NODE_CORE_MODULES, EXCLUSIVELY_PREFIXED_NODE_CORE_MODULES] {
+    for list in [
+        UNPREFIXED_NODE_CORE_MODULES,
+        EXCLUSIVELY_PREFIXED_NODE_CORE_MODULES,
+    ] {
         assert!(
-            list.windows(2).all(|pair| pair[0].as_bytes() < pair[1].as_bytes()),
+            list.windows(2)
+                .all(|pair| pair[0].as_bytes() < pair[1].as_bytes()),
             "{list:?}"
         );
     }
     for name in UNPREFIXED_NODE_CORE_MODULES {
         assert!(is_node_core_module(*name), "{name}");
-        assert!(is_node_core_module(format!("node:{name}").as_str()), "node:{name}");
+        assert!(
+            is_node_core_module(format!("node:{name}").as_str()),
+            "node:{name}"
+        );
     }
     for name in EXCLUSIVELY_PREFIXED_NODE_CORE_MODULES {
         assert!(is_node_core_module(*name), "{name}");
         let unprefixed = name.strip_prefix("node:").expect("prefixed");
         assert!(!is_node_core_module(unprefixed), "{unprefixed}");
     }
-    for name in ["", "./fs", "fs/", "node:", "node:node:fs", "Fs", "zlib2", "a"] {
+    for name in [
+        "",
+        "./fs",
+        "fs/",
+        "node:",
+        "node:node:fs",
+        "Fs",
+        "zlib2",
+        "a",
+    ] {
         assert!(!is_node_core_module(name), "{name:?}");
     }
 }
