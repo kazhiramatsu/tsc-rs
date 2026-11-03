@@ -1675,14 +1675,14 @@ impl<'context> Es2018Visitor<'context> {
                 field: "statement",
             },
         )?;
-        let body_location =
-            if let Some(block) = self.context.arena().node(visited_body)?.as_block() {
-                statements.extend(self.array_nodes(block.statements)?);
-                Some(block.statements)
-            } else {
-                statements.push(visited_body);
-                None
-            };
+        let body_location = if let Some(block) = self.context.arena().node(visited_body)?.as_block()
+        {
+            statements.extend(self.array_nodes(block.statements)?);
+            Some(block.statements)
+        } else {
+            statements.push(visited_body);
+            None
+        };
         let body = self.create_block(statements, true)?;
         if let Some(statements_location) = body_location {
             self.context.factory()?.set_text_range(body, visited_body)?;
@@ -2575,20 +2575,20 @@ impl<'context> Es2018Visitor<'context> {
                     field: "name",
                 },
             )?;
-            let binding =
-                if let Some(identifier) = self.context.arena().node(name)?.as_identifier() {
-                    let provisional = self
-                        .generated_bindings
-                        .allocate_local_numbered(identifier.text());
-                    TargetBinding::allocate_numbered_reserved_in_nested_scopes(
-                        self.context,
-                        identifier.text().to_owned(),
-                        provisional,
-                    )?
-                } else {
-                    let provisional = self.generated_bindings.allocate_local_temp();
-                    TargetBinding::allocate_reserved_in_nested_scopes(self.context, provisional)?
-                };
+            let binding = if let Some(identifier) = self.context.arena().node(name)?.as_identifier()
+            {
+                let provisional = self
+                    .generated_bindings
+                    .allocate_local_numbered(identifier.text());
+                TargetBinding::allocate_numbered_reserved_in_nested_scopes(
+                    self.context,
+                    identifier.text().to_owned(),
+                    provisional,
+                )?
+            } else {
+                let provisional = self.generated_bindings.allocate_local_temp();
+                TargetBinding::allocate_reserved_in_nested_scopes(self.context, provisional)?
+            };
             let name = self.create_generated_identifier(&binding)?;
             let flags = self.context.arena().propagate_child_flags(name)?;
             forwarded.push(self.context.factory()?.create_node(
@@ -3404,7 +3404,12 @@ impl<'context> Es2018Visitor<'context> {
         &self,
         expression: TransformNode,
     ) -> Result<(TransformNode, Option<TransformNode>), TransformError> {
-        let Some(data) = self.context.arena().node(expression)?.as_binary_expression() else {
+        let Some(data) = self
+            .context
+            .arena()
+            .node(expression)?
+            .as_binary_expression()
+        else {
             return Ok((expression, None));
         };
         if self.operator_kind(data.operator_token)? != Some(SyntaxKind::EqualsToken) {

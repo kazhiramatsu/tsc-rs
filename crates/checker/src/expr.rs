@@ -731,9 +731,7 @@ impl<'a> CheckerState<'a> {
     /// The type of a JavaScript `/** @type {T} */ (expr)` assertion: tsgo's
     /// reparser makes the operand `expr as T` (reparser.go:382-391).
     pub(crate) fn jsdoc_type_assertion_type_node(&self, host: NodeId) -> Option<NodeId> {
-        let Some(data) = self.record_of(host).as_parenthesized_expression() else {
-            return None;
-        };
+        let data = self.record_of(host).as_parenthesized_expression()?;
         self.reparsed_cast(data.expression?)
             .filter(|cast| cast.is_assertion)
             .map(|cast| cast.type_node)
@@ -2327,9 +2325,7 @@ impl<'a> CheckerState<'a> {
             _ => return None,
         };
         let first = self.nodes_of(parameters).first().copied()?;
-        let Some(data) = self.record_of(first).as_parameter() else {
-            return None;
-        };
+        let data = self.record_of(first).as_parameter()?;
         let name = data.name?;
         self.is_this_identifier(name).then_some(first)
     }

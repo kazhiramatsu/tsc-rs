@@ -3504,9 +3504,7 @@ impl<'a> CheckerState<'a> {
         } else {
             let constraint = self.get_constraint_type_from_mapped_type(ty)?;
             let constraint_node = type_parameter.and_then(|parameter| {
-                let Some(data) = self.record_of(parameter).as_type_parameter() else {
-                    return None;
-                };
+                let data = self.record_of(parameter).as_type_parameter()?;
                 data.constraint
             });
             self.check_type_assignable_to(
@@ -9031,9 +9029,8 @@ impl<'a> CheckerState<'a> {
             let source = self.binder.source_of_node(declaration);
             let external_augmentation = node_util::is_ambient_module(&Published, declaration)
                 && node_util::is_module_augmentation_external(source, declaration);
-            let global_augmentation =
-                self.kind_of(declaration) == SyntaxKind::ModuleDeclaration
-                    && node_util::is_global_scope_augmentation(&Published, declaration);
+            let global_augmentation = self.kind_of(declaration) == SyntaxKind::ModuleDeclaration
+                && node_util::is_global_scope_augmentation(&Published, declaration);
             !external_augmentation && !global_augmentation
         });
         // getSpecifierForModuleSymbol dereferences this lookup
@@ -12006,7 +12003,8 @@ impl<'a> CheckerState<'a> {
                 };
                 let mut text = crate::concat_js(&[&"`", &(head_text)]);
                 for span in self.nodes_of(data.template_spans) {
-                    let Some(span_data) = self.record_of(span).as_template_literal_type_span() else {
+                    let Some(span_data) = self.record_of(span).as_template_literal_type_span()
+                    else {
                         unreachable!(
                             "TemplateLiteralType template_spans contain TemplateLiteralTypeSpan"
                         );
@@ -13959,7 +13957,7 @@ impl<'a> CheckerState<'a> {
         let Some(name) = tsc_binder::node_util::get_name_of_declaration(source, declaration) else {
             return false;
         };
-        if !self.kind_of(name) == SyntaxKind::StringLiteral {
+        if self.kind_of(name) != SyntaxKind::StringLiteral {
             return false;
         }
         let end = Published.node(name).end as usize;

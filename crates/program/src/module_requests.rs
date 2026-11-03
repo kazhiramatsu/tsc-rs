@@ -1372,9 +1372,7 @@ fn collect_nested_module_requests(
 }
 
 fn module_body_statements(parsed: &SourceFile, body: Option<NodeId>) -> Option<&[NodeId]> {
-    let Some(block) = parsed.arena.node(body?).as_module_block() else {
-        return None;
-    };
+    let block = parsed.arena.node(body?).as_module_block()?;
     Some(
         block
             .statements
@@ -1514,15 +1512,11 @@ fn collect_unpreprocessed_module_requests(
 /// grammar check parses the attributes the same way, so the modes the
 /// resolver prepares are the modes the checker asks for.
 fn resolution_mode_override(parsed: &SourceFile, attributes: NodeId) -> Option<ResolutionMode> {
-    let Some(attributes) = parsed.arena.node(attributes).as_import_attributes() else {
-        return None;
-    };
+    let attributes = parsed.arena.node(attributes).as_import_attributes()?;
     let elements = attributes.elements?;
     let elements = &parsed.arena.node_array(elements).nodes;
     let attribute = elements.iter().find_map(|&element| {
-        let Some(attribute) = parsed.arena.node(element).as_import_attribute() else {
-            return None;
-        };
+        let attribute = parsed.arena.node(element).as_import_attribute()?;
         (string_literal_like_text(parsed, attribute.name?)? == "resolution-mode")
             .then_some(attribute)
     })?;

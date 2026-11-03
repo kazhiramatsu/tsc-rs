@@ -827,7 +827,8 @@ impl<'a> CheckerState<'a> {
                             unreachable!("kind implies payload");
                         };
                         if let Some(type_parameter) = data.type_parameter {
-                            let Some(tp) = self.record_of(type_parameter).as_type_parameter() else {
+                            let Some(tp) = self.record_of(type_parameter).as_type_parameter()
+                            else {
                                 unreachable!("TypeParameter kind implies payload");
                             };
                             if let Some(tp_name) = tp.name {
@@ -1988,7 +1989,7 @@ impl<'a> CheckerState<'a> {
         }
         let grandparent = parent.and_then(|parent| self.parent_of(parent));
         if let Some(grandparent) = grandparent {
-            if let Some(_) = self.record_of(grandparent).as_heritage_clause() {
+            if self.record_of(grandparent).as_heritage_clause().is_some() {
                 let heritage_is_extends = self.heritage_clause_is_extends(grandparent);
                 let container = self.parent_of(grandparent);
                 let container_kind = container.map(|container| self.kind_of(container));
@@ -2966,16 +2967,14 @@ impl<'a> CheckerState<'a> {
             root = parent;
         }
         let element = self.parent_of(root)?;
-        let Some(element_data) = self.record_of(element).as_expression_with_type_arguments() else {
-            return None;
-        };
+        let element_data = self
+            .record_of(element)
+            .as_expression_with_type_arguments()?;
         if element_data.expression != Some(root) {
             return None;
         }
         let clause = self.parent_of(element)?;
-        let Some(clause_data) = self.record_of(clause).as_heritage_clause() else {
-            return None;
-        };
+        let clause_data = self.record_of(clause).as_heritage_clause()?;
         let owner = self.parent_of(clause)?;
         let is_type_heritage = match self.kind_of(owner) {
             SyntaxKind::InterfaceDeclaration => clause_data.token == SyntaxKind::ExtendsKeyword,

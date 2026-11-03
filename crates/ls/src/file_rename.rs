@@ -362,17 +362,16 @@ fn try_update_config_string<'t>(
 /// tsgo `getTsConfigObjectLiteralExpression`: the object of the config's
 /// first statement.
 fn config_object_literal(config_file: &SourceFile) -> Option<NodeId> {
-    let Some(data) = config_file.arena.node(config_file.root).as_source_file() else {
-        return None;
-    };
+    let data = config_file.arena.node(config_file.root).as_source_file()?;
     let &statement = config_file
         .arena
         .node_array(data.statements?)
         .nodes
         .first()?;
-    let Some(statement) = config_file.arena.node(statement).as_expression_statement() else {
-        return None;
-    };
+    let statement = config_file
+        .arena
+        .node(statement)
+        .as_expression_statement()?;
     let expression = statement.expression?;
     (config_file.arena.node(expression).kind == SyntaxKind::ObjectLiteralExpression)
         .then_some(expression)
@@ -381,7 +380,11 @@ fn config_object_literal(config_file: &SourceFile) -> Option<NodeId> {
 /// tsgo `forEachObjectProperty`: the object's property assignments with a
 /// name text, and their initializers.
 fn object_properties(config_file: &SourceFile, object: NodeId) -> Vec<(String, NodeId)> {
-    let Some(data) = config_file.arena.node(object).as_object_literal_expression() else {
+    let Some(data) = config_file
+        .arena
+        .node(object)
+        .as_object_literal_expression()
+    else {
         return Vec::new();
     };
     data.properties

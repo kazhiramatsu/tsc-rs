@@ -847,9 +847,7 @@ fn sorted_specifier_list<'a>(
 ) -> TransformNodeArray {
     let original_range = first_named_bindings.and_then(|bindings| {
         let arena = tracker.syntax(source);
-        let Some(named_imports) = arena.node(bindings).as_named_imports() else {
-            return None;
-        };
+        let named_imports = arena.node(bindings).as_named_imports()?;
         let record = arena.node_array(named_imports.elements?);
         record
             .has_trailing_comma
@@ -900,9 +898,7 @@ fn module_specifier(arena: &NodeArena, declaration: NodeId) -> Option<NodeId> {
 
 /// An import declaration's clause.
 fn import_clause(arena: &NodeArena, declaration: NodeId) -> Option<(NodeId, ImportClauseData)> {
-    let Some(data) = arena.node(declaration).as_import_declaration() else {
-        return None;
-    };
+    let data = arena.node(declaration).as_import_declaration()?;
     let clause = data.import_clause?;
     match arena.node(clause).data() {
         NodeData::ImportClause(data) => Some((clause, data)),
@@ -1048,9 +1044,7 @@ fn get_import_attributes_key(arena: &NodeArena, attributes: Option<NodeId>) -> S
         .unwrap_or_default()
         .iter()
         .filter_map(|&attribute| {
-            let Some(attribute) = arena.node(attribute).as_import_attribute() else {
-                return None;
-            };
+            let attribute = arena.node(attribute).as_import_attribute()?;
             let name = attribute
                 .name
                 .map_or_else(String::new, |name| node_name_text(arena, name));

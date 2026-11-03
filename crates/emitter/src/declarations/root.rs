@@ -1,7 +1,7 @@
 use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_program::SourceFileId;
-use tsc_syntax::{FileReference, NodeData, SourceFile, TypeReferenceDirective};
+use tsc_syntax::{FileReference, SourceFile, TypeReferenceDirective};
 
 use crate::{
     source_map::paths::get_relative_path_to_directory_or_url, EmitHost, TransformArena,

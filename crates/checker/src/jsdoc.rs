@@ -113,14 +113,12 @@ impl<'a> CheckerState<'a> {
         &self,
         element: NodeId,
     ) -> Option<tsc_syntax::NodeArrayId> {
-        let Some(data) = self.record_of(element).as_expression_with_type_arguments() else {
-            return None;
-        };
+        let data = self
+            .record_of(element)
+            .as_expression_with_type_arguments()?;
         data.type_arguments.or_else(|| {
             let tag = self.hosted_jsdoc(element).augments_tag_of(element)?;
-            let Some(tag) = self.record_of(tag).as_js_doc_augments_tag() else {
-                return None;
-            };
+            let tag = self.record_of(tag).as_js_doc_augments_tag()?;
             match self.data_of(tag.class?) {
                 NodeData::ExpressionWithTypeArguments(class) => class.type_arguments,
                 _ => None,
@@ -341,13 +339,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 318a699709d8ba4125a2ebf93d36a24e35aaa5401c283d507581e58631d93052
     /// tsc-span: _tsc.js:15327-15329
     pub(crate) fn single_variable_of_variable_statement(&self, node: NodeId) -> Option<NodeId> {
-        let Some(statement) = self.record_of(node).as_variable_statement() else {
-            return None;
-        };
+        let statement = self.record_of(node).as_variable_statement()?;
         let list = statement.declaration_list?;
-        let Some(list) = self.record_of(list).as_variable_declaration_list() else {
-            return None;
-        };
+        let list = self.record_of(list).as_variable_declaration_list()?;
         self.nodes_of(list.declarations).first().copied()
     }
 
@@ -366,17 +360,13 @@ impl<'a> CheckerState<'a> {
     }
 
     fn nested_module_declaration(&self, node: NodeId) -> Option<NodeId> {
-        let Some(data) = self.record_of(node).as_module_declaration() else {
-            return None;
-        };
+        let data = self.record_of(node).as_module_declaration()?;
         data.body
             .filter(|&body| self.kind_of(body) == SyntaxKind::ModuleDeclaration)
     }
 
     fn source_of_assignment(&self, node: NodeId) -> Option<NodeId> {
-        let Some(statement) = self.record_of(node).as_expression_statement() else {
-            return None;
-        };
+        let statement = self.record_of(node).as_expression_statement()?;
         let expression = statement.expression?;
         if !node_util::is_assignment_expression_simple(&Published, expression) {
             return None;
@@ -387,9 +377,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn source_of_defaulted_assignment(&self, node: NodeId) -> Option<NodeId> {
-        let Some(statement) = self.record_of(node).as_expression_statement() else {
-            return None;
-        };
+        let statement = self.record_of(node).as_expression_statement()?;
         let expression = statement.expression?;
         let source = self.binder.source_of_node(expression);
         if tsc_binder::get_assignment_declaration_kind(source, expression)
@@ -397,13 +385,9 @@ impl<'a> CheckerState<'a> {
         {
             return None;
         }
-        let Some(assignment) = self.record_of(expression).as_binary_expression() else {
-            return None;
-        };
+        let assignment = self.record_of(expression).as_binary_expression()?;
         let right = assignment.right?;
-        let Some(defaulted) = self.record_of(right).as_binary_expression() else {
-            return None;
-        };
+        let defaulted = self.record_of(right).as_binary_expression()?;
         let is_defaulting_operator = defaulted.operator_token.is_some_and(|operator| {
             matches!(
                 self.kind_of(operator),
@@ -540,14 +524,10 @@ impl<'a> CheckerState<'a> {
         &self,
         node: NodeId,
     ) -> Option<NodeId> {
-        let Some(data) = self.record_of(node).as_type_parameter() else {
-            return None;
-        };
+        let data = self.record_of(node).as_type_parameter()?;
         data.constraint.or_else(|| {
             let parent = self.parent_of(node)?;
-            let Some(template) = self.record_of(parent).as_js_doc_template_tag() else {
-                return None;
-            };
+            let template = self.record_of(parent).as_js_doc_template_tag()?;
             (self.nodes_of(template.type_parameters).first().copied() == Some(node))
                 .then_some(template.constraint)
                 .flatten()
@@ -700,9 +680,7 @@ impl<'a> CheckerState<'a> {
     /// `typeExpression && typeExpression.type` reads.
     pub(crate) fn jsdoc_type_expression_type(&self, expression: Option<NodeId>) -> Option<NodeId> {
         let expression = expression?;
-        let Some(data) = self.record_of(expression).as_js_doc_type_expression() else {
-            return None;
-        };
+        let data = self.record_of(expression).as_js_doc_type_expression()?;
         data.r#type
     }
 

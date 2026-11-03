@@ -1427,9 +1427,7 @@ fn should_use_uri_style_node_core_modules(source: &SourceFile) -> Option<bool> {
         .imports
         .into_iter()
         .find_map(|import| {
-            let Some(literal) = source.arena.node(import).as_string_literal() else {
-                return None;
-            };
+            let literal = source.arena.node(import).as_string_literal()?;
             let text = source.arena.text_js(literal.text).to_string_lossy();
             match text.strip_prefix("node:") {
                 Some(name) => unprefixed.contains(&name).then_some(true),

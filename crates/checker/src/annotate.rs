@@ -4048,7 +4048,10 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             }
             for base_node in self.interface_base_type_nodes(declaration) {
-                let Some(data) = self.record_of(base_node).as_expression_with_type_arguments() else {
+                let Some(data) = self
+                    .record_of(base_node)
+                    .as_expression_with_type_arguments()
+                else {
                     continue;
                 };
                 let Some(expression) = data.expression else {
@@ -5885,7 +5888,10 @@ impl<'a> CheckerState<'a> {
         ) {
             return Ok(self.tables.intrinsics.error);
         }
-        let Some(data) = self.record_of(base_type_node).as_expression_with_type_arguments() else {
+        let Some(data) = self
+            .record_of(base_type_node)
+            .as_expression_with_type_arguments()
+        else {
             unreachable!("heritage clause types are ExpressionWithTypeArguments");
         };
         let expression = data.expression.expect(
@@ -8979,9 +8985,7 @@ impl<'a> CheckerState<'a> {
 
     fn jsdoc_property_like_type_node(&self, expression: Option<NodeId>) -> Option<NodeId> {
         let expression = expression?;
-        let Some(data) = self.record_of(expression).as_js_doc_type_expression() else {
-            return None;
-        };
+        let data = self.record_of(expression).as_js_doc_type_expression()?;
         data.r#type
     }
 

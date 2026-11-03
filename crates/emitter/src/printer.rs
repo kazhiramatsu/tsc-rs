@@ -3118,25 +3118,17 @@ impl Printer {
     ) -> Option<TransformNode> {
         let arena = transformation.arena();
         let source = statement.source();
-        let Some(data) = arena.node(statement).ok()?.as_expression_statement() else {
-            return None;
-        };
+        let data = arena.node(statement).ok()?.as_expression_statement()?;
         let call = arena.node_ref(source, data.expression?)?;
-        let Some(data) = arena.node(call).ok()?.as_call_expression() else {
-            return None;
-        };
+        let data = arena.node(call).ok()?.as_call_expression()?;
         let access = arena.node_ref(source, data.expression?)?;
         let arguments = arena
             .node_array(arena.node_array_ref(source, data.arguments?)?)
             .ok()?;
         let function = arena.node_ref(source, *arguments.nodes.last()?)?;
-        let Some(function) = arena.node(function).ok()?.as_function_expression() else {
-            return None;
-        };
+        let function = arena.node(function).ok()?.as_function_expression()?;
         let body = arena.node_ref(source, function.body?)?;
-        let Some(data) = arena.node(access).ok()?.as_property_access_expression() else {
-            return None;
-        };
+        let data = arena.node(access).ok()?.as_property_access_expression()?;
         let expression = arena.node(arena.node_ref(source, data.expression?)?).ok()?;
         let name = arena.node(arena.node_ref(source, data.name?)?).ok()?;
         (matches!(expression.data(), NodeData::Identifier(data) if data.text() == "System")

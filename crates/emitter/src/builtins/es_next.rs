@@ -463,7 +463,7 @@ impl<'context> EsNextVisitor<'context> {
             children: Vec::new(),
         };
         let record = self.context.arena().node(node)?;
-        if !record.kind == SyntaxKind::MissingDeclaration {
+        if record.kind != SyntaxKind::MissingDeclaration {
             let mut slots = child_slots(&record.data(), &collector);
             map_child_slots(&mut slots, &mut collector)?;
         }
@@ -1524,9 +1524,7 @@ impl<'context> EsNextVisitor<'context> {
     fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let Some(identifier) = self.context.arena().node(name).ok()?.as_identifier() else {
-            return None;
-        };
+        let identifier = self.context.arena().node(name).ok()?.as_identifier()?;
         Some(TargetBinding::from_existing(
             id,
             identifier.text().to_owned(),

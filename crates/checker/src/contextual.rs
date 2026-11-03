@@ -2048,7 +2048,8 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                     SyntaxKind::ShorthandPropertyAssignment => {
-                        let Some(data) = self.record_of(p).as_shorthand_property_assignment() else {
+                        let Some(data) = self.record_of(p).as_shorthand_property_assignment()
+                        else {
                             unreachable!("kind/data agree");
                         };
                         let Some(name) = data.name else { continue };
@@ -2886,9 +2887,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsc getNameFromImportAttribute (19376-19378).
     fn get_name_from_import_attribute(&self, node: NodeId) -> Option<tsc_types::EscapedName> {
-        let Some(data) = self.record_of(node).as_import_attribute() else {
-            return None;
-        };
+        let data = self.record_of(node).as_import_attribute()?;
         let name = data.name?;
         match self.data_of(name) {
             NodeData::Identifier(data) => Some(data.escaped_text),
@@ -3578,7 +3577,8 @@ impl<'a> CheckerState<'a> {
                     if node_util::is_function_like_kind(self.kind_of(node)) {
                         if let Some(name) = self.name_of_node(node) {
                             if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
-                                if let Some(data) = self.record_of(name).as_computed_property_name() {
+                                if let Some(data) = self.record_of(name).as_computed_property_name()
+                                {
                                     if let Some(expression) = data.expression {
                                         worklist.push(expression);
                                     }

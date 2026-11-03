@@ -869,9 +869,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let Some(identifier) = self.context.arena().node(name).ok()?.as_identifier() else {
-            return None;
-        };
+        let identifier = self.context.arena().node(name).ok()?.as_identifier()?;
         Some(TargetBinding::from_existing(
             id,
             identifier.text().to_owned(),

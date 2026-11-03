@@ -1331,9 +1331,7 @@ fn find_this_property_assignments(
 /// (GetNonAssignedNameOfDeclaration, ast/utilities.go:1467-1477): the
 /// access's identifier name or literal argument, else the access itself.
 fn this_property_assignment_name(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    let Some(data) = source.arena.node(node).as_binary_expression() else {
-        return None;
-    };
+    let data = source.arena.node(node).as_binary_expression()?;
     let left = data.left?;
     let name = match source.arena.node(left).data() {
         NodeData::PropertyAccessExpression(access) => access

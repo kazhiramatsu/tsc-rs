@@ -6,7 +6,7 @@
 //! relation_pins.rs`) compares the answers with TypeScript's recorded
 //! ones; the checker's unit tests reuse the scratch-program helpers.
 
-use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SourceFile};
+use tsc_syntax::{NodeId, NodeLookup, Published, SourceFile};
 use tsc_types::{CompilerOptions, TypeId};
 
 use crate::state::CheckerState;

@@ -1546,9 +1546,7 @@ impl<'a> CheckerState<'a> {
                 tsc_binder::node_util::get_escaped_text_of_identifier_or_literal(&Published, name)
             }
             SyntaxKind::ComputedPropertyName => {
-                let Some(data) = self.record_of(name).as_computed_property_name() else {
-                    return None;
-                };
+                let data = self.record_of(name).as_computed_property_name()?;
                 let expression = data.expression?;
                 if tsc_binder::node_util::is_string_or_numeric_literal_like(&Published, expression)
                 {

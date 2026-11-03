@@ -384,7 +384,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a4a009d67ec8efa73e0542bd8df80114b6fd459181e410f12afba35cec6b4056
     /// tsc-span: _tsc.js:87858-87866
     pub(crate) fn emit_is_arguments_local_binding(&mut self, node: NodeId) -> CheckResult<bool> {
-        if !self.kind_of(node) == SyntaxKind::Identifier {
+        if self.kind_of(node) != SyntaxKind::Identifier {
             return Ok(false);
         }
         let Some(parent) = self.parent_of(node) else {
@@ -5598,9 +5598,7 @@ impl<'a> CheckerState<'a> {
         module_reference: impl Into<JsStr<'n>>,
     ) -> Option<SymbolId> {
         let module_reference = module_reference.into();
-        let Some(data) = self.record_of(node).as_import_type() else {
-            return None;
-        };
+        let data = self.record_of(node).as_import_type()?;
         if data.is_type_of
             || data
                 .qualifier
@@ -9201,9 +9199,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             NodeData::ImportType(data) => data.argument.and_then(|argument| {
-                let Some(literal) = self.record_of(argument).as_literal_type() else {
-                    return None;
-                };
+                let literal = self.record_of(argument).as_literal_type()?;
                 literal
                     .literal
                     .filter(|&literal| self.kind_of(literal) == SyntaxKind::StringLiteral)
@@ -9941,9 +9937,7 @@ impl<'a> CheckerState<'a> {
         };
         let elements = self.nodes_of(elements);
         let attribute_name_text = |attribute: NodeId| -> Option<(NodeId, Option<&str>)> {
-            let Some(data) = self.record_of(attribute).as_import_attribute() else {
-                return None;
-            };
+            let data = self.record_of(attribute).as_import_attribute()?;
             let name = data.name?;
             // An identifier cannot spell the hyphenated key.
             let text = match self.data_of(name) {

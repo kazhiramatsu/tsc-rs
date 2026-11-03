@@ -301,17 +301,11 @@ fn module_specifier_expression(arena: &NodeArena, declaration: NodeId) -> Option
         NodeData::ImportDeclaration(data) => data.module_specifier,
         NodeData::VariableStatement(data) => {
             let list = data.declaration_list?;
-            let Some(list) = arena.node(list).as_variable_declaration_list() else {
-                return None;
-            };
+            let list = arena.node(list).as_variable_declaration_list()?;
             let first = *arena.node_array(list.declarations?).nodes.first()?;
-            let Some(declaration) = arena.node(first).as_variable_declaration() else {
-                return None;
-            };
+            let declaration = arena.node(first).as_variable_declaration()?;
             let initializer = declaration.initializer?;
-            let Some(call) = arena.node(initializer).as_call_expression() else {
-                return None;
-            };
+            let call = arena.node(initializer).as_call_expression()?;
             arena.node_array(call.arguments?).nodes.first().copied()
         }
         _ => None,

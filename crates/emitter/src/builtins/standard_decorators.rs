@@ -5508,9 +5508,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let Some(identifier) = self.context.arena().node(name).ok()?.as_identifier() else {
-            return None;
-        };
+        let identifier = self.context.arena().node(name).ok()?.as_identifier()?;
         Some(TargetBinding::from_existing(
             id,
             identifier.text().to_owned(),
@@ -7037,7 +7035,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         };
         let name = self.node(name);
         let record = self.context.arena().node(name)?;
-        if !record.kind == SyntaxKind::PrivateIdentifier
+        if record.kind != SyntaxKind::PrivateIdentifier
             || record.parent.is_none()
             || record.pos == u32::MAX
             || record.end == u32::MAX

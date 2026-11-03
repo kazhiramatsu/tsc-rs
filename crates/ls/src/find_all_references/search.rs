@@ -3338,9 +3338,11 @@ fn try_get_class_by_extending_identifier(
         return None;
     }
     let clause = request.state.binder.node_record(element).parent?;
-    let Some(data) = request.state.binder.node_record(clause).as_heritage_clause() else {
-        return None;
-    };
+    let data = request
+        .state
+        .binder
+        .node_record(clause)
+        .as_heritage_clause()?;
     let class = request.state.binder.node_record(clause).parent?;
     (is_class_like(request.node_kind(class)) && data.token != SyntaxKind::ImplementsKeyword)
         .then_some(class)

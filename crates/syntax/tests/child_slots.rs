@@ -248,3 +248,108 @@ fn child_slots_agree_with_each_child_visit_on_jsx() {
         20,
     );
 }
+
+/// Each shared field's slot read (`Node::<field>_field`) agrees with the
+/// decoded payload's field as the observable field view reports it (an
+/// absent field, or a kind without it, reads `None`).
+fn assert_field_reads_agree_with_the_payload(name: &str, text: &str) {
+    use tsc_syntax::{for_each_observable_field, Node, ObservableField};
+    type Read = fn(&Node) -> Option<u32>;
+    let reads: [(&str, Read); 29] = [
+        ("name", |n| n.name_field().map(NodeId::position)),
+        ("type", |n| n.type_field().map(NodeId::position)),
+        ("expression", |n| n.expression_field().map(NodeId::position)),
+        ("modifiers", |n| {
+            n.modifiers_field().map(NodeArrayId::position)
+        }),
+        ("tagName", |n| n.tag_name_field().map(NodeId::position)),
+        ("typeParameters", |n| {
+            n.type_parameters_field().map(NodeArrayId::position)
+        }),
+        ("parameters", |n| {
+            n.parameters_field().map(NodeArrayId::position)
+        }),
+        ("typeExpression", |n| {
+            n.type_expression_field().map(NodeId::position)
+        }),
+        ("initializer", |n| {
+            n.initializer_field().map(NodeId::position)
+        }),
+        ("questionToken", |n| {
+            n.question_token_field().map(NodeId::position)
+        }),
+        ("typeArguments", |n| {
+            n.type_arguments_field().map(NodeArrayId::position)
+        }),
+        ("body", |n| n.body_field().map(NodeId::position)),
+        ("elements", |n| {
+            n.elements_field().map(NodeArrayId::position)
+        }),
+        ("statement", |n| n.statement_field().map(NodeId::position)),
+        ("attributes", |n| n.attributes_field().map(NodeId::position)),
+        ("members", |n| n.members_field().map(NodeArrayId::position)),
+        ("statements", |n| {
+            n.statements_field().map(NodeArrayId::position)
+        }),
+        ("questionDotToken", |n| {
+            n.question_dot_token_field().map(NodeId::position)
+        }),
+        ("exclamationToken", |n| {
+            n.exclamation_token_field().map(NodeId::position)
+        }),
+        ("dotDotDotToken", |n| {
+            n.dot_dot_dot_token_field().map(NodeId::position)
+        }),
+        ("asteriskToken", |n| {
+            n.asterisk_token_field().map(NodeId::position)
+        }),
+        ("types", |n| n.types_field().map(NodeArrayId::position)),
+        ("right", |n| n.right_field().map(NodeId::position)),
+        ("propertyName", |n| {
+            n.property_name_field().map(NodeId::position)
+        }),
+        ("moduleSpecifier", |n| {
+            n.module_specifier_field().map(NodeId::position)
+        }),
+        ("literal", |n| n.literal_field().map(NodeId::position)),
+        ("left", |n| n.left_field().map(NodeId::position)),
+        ("label", |n| n.label_field().map(NodeId::position)),
+        ("heritageClauses", |n| {
+            n.heritage_clauses_field().map(NodeArrayId::position)
+        }),
+    ];
+    let source = parse(name, text);
+    let arena = &source.arena;
+    let mut compared = 0;
+    for node in arena.nodes() {
+        let mut observed = std::collections::HashMap::new();
+        for_each_observable_field(arena, node, |field, value| match value {
+            ObservableField::Node(id) => {
+                observed.insert(field, id.position());
+            }
+            ObservableField::NodeArray(id) => {
+                observed.insert(field, id.position());
+            }
+            _ => {}
+        });
+        for (field, read) in &reads {
+            assert_eq!(
+                read(node),
+                observed.get(field).copied(),
+                "{name}: {:?}.{field}",
+                node.kind
+            );
+            compared += usize::from(observed.contains_key(field));
+        }
+    }
+    assert!(
+        compared > 100,
+        "{name}: only {compared} present fields compared"
+    );
+}
+
+#[test]
+fn field_reads_agree_with_the_payload() {
+    assert_field_reads_agree_with_the_payload("slots.ts", TYPESCRIPT);
+    assert_field_reads_agree_with_the_payload("slots.js", JAVASCRIPT);
+}

@@ -244,7 +244,7 @@ impl<'a> Tree<'a> {
         }
         // A property access in such a reference's expression.
         let mut current = id;
-        while let Some(_) = self.node(current).as_property_access_expression() {
+        while self.node(current).as_property_access_expression().is_some() {
             let Some(parent) = self.node(current).parent else {
                 break;
             };
@@ -312,9 +312,7 @@ impl<'a> Tree<'a> {
     /// with: tsgo keeps the white space after the last link as a part (its
     /// text trimmed away), unless a tag follows and drops it first.
     pub fn trailing_comment_text(&self, owner: NodeId) -> Option<(u32, u32)> {
-        let Some(js_doc) = self.node(owner).as_js_doc() else {
-            return None;
-        };
+        let js_doc = self.node(owner).as_js_doc()?;
         let Some(JSDocComment::Nodes(list)) = &js_doc.comment else {
             return None;
         };

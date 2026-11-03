@@ -740,7 +740,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration_list: NodeId,
     ) -> CheckResult<bool> {
-        let Some(data) = self.record_of(declaration_list).as_variable_declaration_list() else {
+        let Some(data) = self
+            .record_of(declaration_list)
+            .as_variable_declaration_list()
+        else {
             unreachable!("kind/data agree");
         };
         let declarations = data.declarations;

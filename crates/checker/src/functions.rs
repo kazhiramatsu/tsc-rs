@@ -997,7 +997,8 @@ impl<'a> CheckerState<'a> {
                     if node_util::is_function_like_kind(self.kind_of(node)) {
                         if let Some(name) = self.name_of_node(node) {
                             if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
-                                if let Some(data) = self.record_of(name).as_computed_property_name() {
+                                if let Some(data) = self.record_of(name).as_computed_property_name()
+                                {
                                     if let Some(expression) = data.expression {
                                         worklist.push(expression);
                                     }
@@ -5115,23 +5116,17 @@ impl<'a> CheckerState<'a> {
     /// findUseStrictPrologue (89439-89445): leading ExpressionStatement
     /// string-literal prologue scan.
     fn find_use_strict_prologue(&self, body: NodeId) -> Option<NodeId> {
-        let Some(data) = self.record_of(body).as_block() else {
-            return None;
-        };
+        let data = self.record_of(body).as_block()?;
         for statement in self.nodes_of(data.statements) {
             if self.kind_of(statement) != SyntaxKind::ExpressionStatement {
                 return None;
             }
-            let Some(statement_data) = self.record_of(statement).as_expression_statement() else {
-                return None;
-            };
+            let statement_data = self.record_of(statement).as_expression_statement()?;
             let expression = statement_data.expression?;
             if self.kind_of(expression) != SyntaxKind::StringLiteral {
                 return None;
             }
-            let Some(literal) = self.record_of(expression).as_string_literal() else {
-                return None;
-            };
+            let literal = self.record_of(expression).as_string_literal()?;
             if self.text_js(literal.text) == "use strict" {
                 return Some(statement);
             }

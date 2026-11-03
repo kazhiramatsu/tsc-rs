@@ -60,9 +60,7 @@ impl<'a> CheckerState<'a> {
                 {
                     data.constraint.or_else(|| {
                         let parent = self.parent_of(declaration)?;
-                        let Some(template) = self.record_of(parent).as_js_doc_template_tag() else {
-                            return None;
-                        };
+                        let template = self.record_of(parent).as_js_doc_template_tag()?;
                         // tsgo's reparser gives the tag's first type parameter
                         // the type inside the constraint's braces
                         // (gatherTypeParameters clones `constraint.Type()`):
@@ -259,7 +257,8 @@ impl<'a> CheckerState<'a> {
                 let Some(conditional_node) = self.parent_of(grand_parent) else {
                     continue;
                 };
-                let Some(conditional) = self.record_of(conditional_node).as_conditional_type() else {
+                let Some(conditional) = self.record_of(conditional_node).as_conditional_type()
+                else {
                     continue;
                 };
                 if mapped_type != Some(infer_node) || conditional.extends_type != Some(grand_parent)

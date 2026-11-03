@@ -186,7 +186,7 @@ impl CheckerState<'_> {
     /// The name of a `name is T` predicate that is the whole type of a
     /// JavaScript `@returns` tag: it starts where the predicate starts.
     fn opens_hosted_return_type_predicate(&self, node: NodeId) -> bool {
-        if !self.kind_of(node) == SyntaxKind::Identifier || !self.is_in_js_file(node) {
+        if self.kind_of(node) != SyntaxKind::Identifier || !self.is_in_js_file(node) {
             return false;
         }
         let Some(predicate) = self
@@ -216,9 +216,7 @@ impl CheckerState<'_> {
     /// string literal, which leaves the JSDoc name without a clone or symbol
     /// (`Some(None)`).
     pub fn jsdoc_reparsed_name(&self, node: NodeId) -> Option<Option<NodeId>> {
-        let Some(identifier) = self.record_of(node).as_identifier() else {
-            return None;
-        };
+        let identifier = self.record_of(node).as_identifier()?;
         let parent = self.parent_of(node)?;
         if self
             .node_flags_of(node)
@@ -1052,9 +1050,7 @@ impl CheckerState<'_> {
             return None;
         }
         let clause = self.parent_of(node)?;
-        let Some(data) = self.record_of(clause).as_heritage_clause() else {
-            return None;
-        };
+        let data = self.record_of(clause).as_heritage_clause()?;
         let token = data.token;
         let class = self.parent_of(clause)?;
         if !matches!(
@@ -1255,9 +1251,7 @@ impl CheckerState<'_> {
     }
 
     fn literal_import_type_literal(&self, node: NodeId) -> Option<NodeId> {
-        let Some(data) = self.record_of(node).as_import_type() else {
-            return None;
-        };
+        let data = self.record_of(node).as_import_type()?;
         let argument = data.argument?;
         match self.data_of(argument) {
             NodeData::LiteralType(literal) => literal.literal.filter(|&literal| {
@@ -1271,9 +1265,7 @@ impl CheckerState<'_> {
     }
 
     fn call_argument(&self, call: NodeId, index: usize) -> Option<NodeId> {
-        let Some(data) = self.record_of(call).as_call_expression() else {
-            return None;
-        };
+        let data = self.record_of(call).as_call_expression()?;
         let arguments = data.arguments?;
         self.binder
             .source_of_node(call)

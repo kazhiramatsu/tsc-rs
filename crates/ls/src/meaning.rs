@@ -589,9 +589,11 @@ impl Request<'_, '_> {
         import: NodeId,
         for_rename: bool,
     ) -> Option<Touching> {
-        let Some(data) = self.state.binder.node_record(import).as_import_declaration() else {
-            return None;
-        };
+        let data = self
+            .state
+            .binder
+            .node_record(import)
+            .as_import_declaration()?;
         if let Some(clause) = data.import_clause {
             if let Some(clause) = self.state.binder.node_record(clause).as_import_clause() {
                 if let Some(name) = clause.name {
@@ -633,9 +635,11 @@ impl Request<'_, '_> {
         export: NodeId,
         for_rename: bool,
     ) -> Option<Touching> {
-        let Some(data) = self.state.binder.node_record(export).as_export_declaration() else {
-            return None;
-        };
+        let data = self
+            .state
+            .binder
+            .node_record(export)
+            .as_export_declaration()?;
         if let Some(clause) = data.export_clause {
             match self.state.binder.node_record(clause).data() {
                 NodeData::NamedExports(named) => {

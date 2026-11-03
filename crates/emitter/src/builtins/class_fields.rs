@@ -177,7 +177,7 @@ impl Transformer for ClassFieldsTransformer<'_> {
         }
         if self.class_aliases.is_empty()
             || hint != EmitHint::Expression
-            || !context.arena().node(node)?.kind == SyntaxKind::Identifier
+            || context.arena().node(node)?.kind != SyntaxKind::Identifier
         {
             return Ok(node);
         }
@@ -1533,7 +1533,12 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         expression: TransformNode,
         exclude_compound: bool,
     ) -> Result<Option<TransformNode>, TransformError> {
-        let Some(data) = self.context.arena().node(expression)?.as_binary_expression() else {
+        let Some(data) = self
+            .context
+            .arena()
+            .node(expression)?
+            .as_binary_expression()
+        else {
             return Ok(None);
         };
         let Some(operator) = data.operator_token else {
@@ -1616,9 +1621,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
     fn binding_of_generated_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let Some(identifier) = self.context.arena().node(name).ok()?.as_identifier() else {
-            return None;
-        };
+        let identifier = self.context.arena().node(name).ok()?.as_identifier()?;
         Some(TargetBinding::from_existing(
             id,
             identifier.text().to_owned(),
@@ -2868,7 +2871,12 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         let Some(expression) = self.retained_static_block_expression(node)? else {
             return Ok(false);
         };
-        let Some(data) = self.context.arena().node(expression)?.as_binary_expression() else {
+        let Some(data) = self
+            .context
+            .arena()
+            .node(expression)?
+            .as_binary_expression()
+        else {
             return Ok(false);
         };
         let (Some(operator), Some(left), Some(right)) =

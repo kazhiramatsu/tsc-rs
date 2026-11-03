@@ -9247,7 +9247,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &self,
         expression: TransformNode,
     ) -> Result<(TransformNode, Option<TransformNode>), TransformError> {
-        let Some(data) = self.context.arena().node(expression)?.as_binary_expression() else {
+        let Some(data) = self
+            .context
+            .arena()
+            .node(expression)?
+            .as_binary_expression()
+        else {
             return Ok((expression, None));
         };
         let operator = data
@@ -10307,9 +10312,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     ) -> Option<target_bindings::TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let Some(identifier) = self.context.arena().node(name).ok()?.as_identifier() else {
-            return None;
-        };
+        let identifier = self.context.arena().node(name).ok()?.as_identifier()?;
         Some(target_bindings::TargetBinding::from_existing(
             id,
             identifier.text().to_owned(),

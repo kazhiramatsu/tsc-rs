@@ -3244,9 +3244,7 @@ impl<'a> CheckerState<'a> {
                 .parent_of(node)
                 .and_then(|parent| self.get_entity_name_for_extending_interface(parent)),
             SyntaxKind::ExpressionWithTypeArguments => {
-                let Some(data) = self.record_of(node).as_expression_with_type_arguments() else {
-                    return None;
-                };
+                let data = self.record_of(node).as_expression_with_type_arguments()?;
                 let expression = data.expression?;
                 self.is_entity_name_expression(expression)
                     .then_some(expression)

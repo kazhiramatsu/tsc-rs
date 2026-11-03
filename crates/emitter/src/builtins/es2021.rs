@@ -2660,7 +2660,12 @@ impl<'context> TargetVisitor<'context> {
         if !self.is_custom_prologue(statement) {
             return Ok(false);
         }
-        let Some(data) = self.context.arena().node(statement)?.as_variable_statement() else {
+        let Some(data) = self
+            .context
+            .arena()
+            .node(statement)?
+            .as_variable_statement()
+        else {
             return Ok(false);
         };
         let Some(list) = data

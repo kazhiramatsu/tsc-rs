@@ -7039,7 +7039,11 @@ impl<'arena> NodeFactory<'arena> {
         expression: TransformNode,
         type_arguments: Option<TransformNodeArray>,
     ) -> Result<TransformNode, TransformError> {
-        let Some(data) = self.arena.node(original)?.as_expression_with_type_arguments() else {
+        let Some(data) = self
+            .arena
+            .node(original)?
+            .as_expression_with_type_arguments()
+        else {
             return Err(TransformError::FactoryKindMismatch {
                 expected: SyntaxKind::ExpressionWithTypeArguments,
                 actual: self.arena.node(original)?.kind,

@@ -1770,8 +1770,8 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             return Ok(MetadataAccessorGroup {
                 first_accessor: accessor,
                 second_accessor: None,
-                get_accessor: record.kind == SyntaxKind::GetAccessor.then_some(accessor),
-                set_accessor: record.kind == SyntaxKind::SetAccessor.then_some(accessor),
+                get_accessor: (record.kind == SyntaxKind::GetAccessor).then_some(accessor),
+                set_accessor: (record.kind == SyntaxKind::SetAccessor).then_some(accessor),
             });
         }
 
@@ -1779,8 +1779,8 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             return Ok(MetadataAccessorGroup {
                 first_accessor: accessor,
                 second_accessor: None,
-                get_accessor: record.kind == SyntaxKind::GetAccessor.then_some(accessor),
-                set_accessor: record.kind == SyntaxKind::SetAccessor.then_some(accessor),
+                get_accessor: (record.kind == SyntaxKind::GetAccessor).then_some(accessor),
+                set_accessor: (record.kind == SyntaxKind::SetAccessor).then_some(accessor),
             });
         };
         let members = match self.context.arena().node(self.node(parent))?.data() {
@@ -1863,8 +1863,8 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             return Ok(RuntimeAccessorGroup {
                 first_accessor: accessor,
                 second_accessor: None,
-                get_accessor: record.kind == SyntaxKind::GetAccessor.then_some(accessor),
-                set_accessor: record.kind == SyntaxKind::SetAccessor.then_some(accessor),
+                get_accessor: (record.kind == SyntaxKind::GetAccessor).then_some(accessor),
+                set_accessor: (record.kind == SyntaxKind::SetAccessor).then_some(accessor),
             });
         }
 
