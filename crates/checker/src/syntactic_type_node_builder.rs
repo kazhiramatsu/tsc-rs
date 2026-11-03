@@ -1170,7 +1170,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             (
                 record.pos != u32::MAX || record.end != u32::MAX,
                 record.has_trailing_comma,
-                record.nodes.to_vec(),
+                crate::copy_census::copy_census!("nodes.syntactic_type_node_builder.visit_nodes_without_copying_positions.to_vec.L1173", Nodes, record.nodes.to_vec()),
             )
         };
         if !positioned && !has_trailing_comma {
@@ -1702,12 +1702,15 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         source: TransformSourceId,
         original: TransformNodeArray,
     ) -> Result<Option<TransformNodeArray>, EmitResolverError> {
-        let original_nodes = self
-            .arena
-            .node_array(original)
-            .map_err(|error| self.factory_error(error))?
-            .nodes
-            .to_vec();
+        let original_nodes = crate::copy_census::copy_census!(
+            "nodes.syntactic_type_node_builder.visit_node_array.to_vec.L1710",
+            Nodes,
+            self.arena
+                .node_array(original)
+                .map_err(|error| self.factory_error(error))?
+                .nodes
+                .to_vec()
+        );
         let original_first = original_nodes
             .first()
             .and_then(|&first| self.arena.node_ref(source, first));

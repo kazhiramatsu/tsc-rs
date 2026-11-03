@@ -138,9 +138,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         && self.flags(target).intersects(TypeFlags::UNION)))
             {
                 let source_types = if self.flags(source).intersects(TypeFlags::INTERSECTION) {
-                    self.union_members(source)
+                    crate::copy_census::copy_census!(
+                        "types.structural.structured_type_related_to.union_members.L141",
+                        Types,
+                        self.union_members(source)
+                    )
                 } else {
-                    tsc_types::TypeListCopy::new(&[source])
+                    crate::copy_census::copy_census!(
+                        "types.structural.structured_type_related_to.call_new.L143",
+                        Types,
+                        tsc_types::TypeListCopy::new(&[source])
+                    )
                 };
                 let constraint = self.st.get_effective_constraint_of_intersection(
                     &source_types,
@@ -204,7 +212,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .get_apparent_type(source)
                     .map(|apparent| self.flags(apparent).intersects(TypeFlags::STRUCTURED_TYPE))
                     .unwrap_or(false)
-                && !self.union_members(source).iter().any(|&t| {
+                && !crate::copy_census::copy_census!("types.structural.structured_type_related_to.union_members.L207", Types, self.union_members(source)).iter().any(|&t| {
                     t == target
                         || self
                             .st
@@ -518,11 +526,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             TypeFlags::OBJECT.bits() | TypeFlags::CONDITIONAL.bits(),
         )) {
             let source_alias = self.st.tables.alias_symbol(source);
-            let source_alias_arguments = self
-                .st
-                .tables
-                .alias_type_arguments(source)
-                .map(<[TypeId]>::to_vec);
+            let source_alias_arguments = self.st.tables.alias_type_arguments(source).map(|items| {
+                crate::copy_census::copy_census!(
+                    "types.structural.structured_type_related_to_worker.path_to_vec.L525",
+                    Types,
+                    <[TypeId]>::to_vec(items)
+                )
+            });
             let target_alias = self.st.tables.alias_symbol(target);
             if let (Some(alias_symbol), Some(source_arguments)) =
                 (source_alias, source_alias_arguments)
@@ -539,15 +549,18 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 .st
                                 .tables
                                 .alias_type_arguments(target)
-                                .map(<[TypeId]>::to_vec)
+                                .map(|items| crate::copy_census::copy_census!("types.structural.structured_type_related_to_worker.path_to_vec.L542", Types, <[TypeId]>::to_vec(items)))
                                 .expect("same-alias pairs both carry alias arguments");
-                            let params = self
-                                .st
-                                .links
-                                .symbol_cold()
-                                .type_parameters
-                                .get(alias_symbol)
-                                .clone();
+                            let params = crate::copy_census::copy_census!(
+                                "types.structural.structured_type_related_to_worker.clone.L550",
+                                Types,
+                                self.st
+                                    .links
+                                    .symbol_cold()
+                                    .type_parameters
+                                    .get(alias_symbol)
+                                    .clone()
+                            );
                             let min_arguments =
                                 self.st.get_min_type_argument_count(params.as_deref());
                             let source_types = self
@@ -920,7 +933,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data else {
                 unreachable!("Conditional target flag implies data");
             };
-            let target_root = self.st.tables.conditional_root(target_data.root).clone();
+            let target_root = crate::copy_census::copy_census!(
+                "sidecars.structural.structured_type_related_to_worker.clone.L923",
+                Sidecars,
+                self.st.tables.conditional_root(target_data.root).clone()
+            );
             let same_conditional_root = match &self.st.tables.type_of(source).data {
                 TypeData::Conditional(source_data) => source_data.root == target_data.root,
                 _ => false,
@@ -1231,7 +1248,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data else {
                     unreachable!("Conditional target flag implies data");
                 };
-                let source_root = self.st.tables.conditional_root(source_data.root).clone();
+                let source_root = crate::copy_census::copy_census!(
+                    "sidecars.structural.structured_type_related_to_worker.clone.L1234",
+                    Sidecars,
+                    self.st.tables.conditional_root(source_data.root).clone()
+                );
                 let mut source_extends = source_data.extends_type;
                 let mut mapper = None;
                 if !source_root.infer_type_parameters.is_empty() {
@@ -1613,8 +1634,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             TypeData::TemplateLiteral(data) => {
                 let data = self.st.tables.template_literal(*data);
                 (
-                    data.texts.to_vec(),
-                    self.st.tables.list(data.types).to_vec(),
+                    crate::copy_census::copy_census!(
+                        "sidecars.structural.template_parts.to_vec.L1616",
+                        Sidecars,
+                        data.texts.to_vec()
+                    ),
+                    crate::copy_census::copy_census!(
+                        "types.structural.template_parts.to_vec.L1617",
+                        Types,
+                        self.st.tables.list(data.types).to_vec()
+                    ),
                 )
             }
             _ => unreachable!("template flag implies template data"),
@@ -1863,7 +1892,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .flags(source_property_type)
                     .intersects(TypeFlags::UNION)
                 {
-                    self.union_members(source_property_type).to_vec()
+                    crate::copy_census::copy_census!("types.structural.type_related_to_discriminated_type.to_vec.L1866", Types, crate::copy_census::copy_census!("types.structural.type_related_to_discriminated_type.union_members.L1866", Types, self.union_members(source_property_type)).to_vec())
                 } else {
                     vec![source_property_type]
                 },
@@ -1872,7 +1901,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         let discriminant_combinations = cartesian_product(&source_discriminant_types);
         let mut matching_types: Vec<TypeId> = Vec::new();
-        let target_types = self.union_members(target);
+        let target_types = crate::copy_census::copy_census!(
+            "types.structural.type_related_to_discriminated_type.union_members.L1875",
+            Types,
+            self.union_members(target)
+        );
         for combination in &discriminant_combinations {
             let mut has_match = false;
             'outer: for &ty in &target_types {
@@ -1988,7 +2021,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
         discriminators: &[SymbolId],
     ) -> CheckResult<TypeId> {
-        let types = self.union_members(target);
+        let types = crate::copy_census::copy_census!(
+            "types.structural.discriminate_type_by_discriminable_items.union_members.L1991",
+            Types,
+            self.union_members(target)
+        );
         let mut include: Vec<Ternary> = Vec::with_capacity(types.len());
         for &t in &types {
             let excluded = self.flags(t).intersects(TypeFlags::PRIMITIVE) || {
@@ -2060,7 +2097,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
     ) -> CheckResult<bool> {
         if self.flags(source).intersects(TypeFlags::UNION) {
-            for t in self.union_members(source) {
+            for t in crate::copy_census::copy_census!(
+                "types.structural.some_type_related_for_discrimination.union_members.L2063",
+                Types,
+                self.union_members(source)
+            ) {
                 let related = self.is_related_to(
                     t,
                     target,
@@ -2605,7 +2646,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         if self.st.is_object_literal_type(target) {
             let source_props = self.st.get_properties_of_type(source)?;
-            for source_prop in self.exclude_properties(source_props.to_vec(), excluded_properties) {
+            for source_prop in self.exclude_properties(
+                crate::copy_census::copy_census!(
+                    "properties.structural.properties_related_to.to_vec.L2608",
+                    Properties,
+                    source_props.to_vec()
+                ),
+                excluded_properties,
+            ) {
                 let name = self.st.binder.symbol(source_prop).escaped_name;
                 if self.st.get_property_of_object_type(target, name)?.is_none() {
                     if report_errors {
@@ -2623,7 +2671,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let properties = self.st.get_properties_of_type(target)?;
         let numeric_names_only =
             self.st.tables.is_tuple_type(source) && self.st.tables.is_tuple_type(target);
-        for target_prop in self.exclude_properties(properties.to_vec(), excluded_properties) {
+        for target_prop in self.exclude_properties(
+            crate::copy_census::copy_census!(
+                "properties.structural.properties_related_to.to_vec.L2626",
+                Properties,
+                properties.to_vec()
+            ),
+            excluded_properties,
+        ) {
             let name = self.st.binder.symbol(target_prop).escaped_name;
             let target_symbol_flags = self.st.symbol_flags(target_prop);
             if !target_symbol_flags.intersects(SymbolFlags::PROTOTYPE)
@@ -2931,9 +2986,23 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::FALSE);
         }
         let source_props = self.st.get_properties_of_object_type_owned(source)?;
-        let source_properties = self.exclude_properties(source_props.to_vec(), excluded_properties);
+        let source_properties = self.exclude_properties(
+            crate::copy_census::copy_census!(
+                "properties.structural.properties_identical_to.to_vec.L2934",
+                Properties,
+                source_props.to_vec()
+            ),
+            excluded_properties,
+        );
         let target_props = self.st.get_properties_of_object_type_owned(target)?;
-        let target_properties = self.exclude_properties(target_props.to_vec(), excluded_properties);
+        let target_properties = self.exclude_properties(
+            crate::copy_census::copy_census!(
+                "properties.structural.properties_identical_to.to_vec.L2936",
+                Properties,
+                target_props.to_vec()
+            ),
+            excluded_properties,
+        );
         if source_properties.len() != target_properties.len() {
             return Ok(Ternary::FALSE);
         }
@@ -3395,18 +3464,18 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         // 67581-67595: pairwise type-parameter identity — constraints
         // and defaults compare through the source→target mapper.
-        let source_type_parameters = self
-            .st
-            .signature_of(source)
-            .type_parameters
-            .clone()
-            .unwrap_or_default();
-        let target_type_parameters = self
-            .st
-            .signature_of(target)
-            .type_parameters
-            .clone()
-            .unwrap_or_default();
+        let source_type_parameters = crate::copy_census::copy_census!(
+            "signatures.structural.compare_signatures_identical_ex.clone.L3402",
+            Signatures,
+            self.st.signature_of(source).type_parameters.clone()
+        )
+        .unwrap_or_default();
+        let target_type_parameters = crate::copy_census::copy_census!(
+            "signatures.structural.compare_signatures_identical_ex.clone.L3408",
+            Signatures,
+            self.st.signature_of(target).type_parameters.clone()
+        )
+        .unwrap_or_default();
         if source_type_parameters.len() != target_type_parameters.len() {
             return Ok(Ternary::FALSE);
         }
@@ -4476,7 +4545,11 @@ fn cartesian_product(arrays: &[Vec<TypeId>]) -> Vec<Vec<TypeId>> {
         let mut next = Vec::with_capacity(result.len() * array.len());
         for prefix in &result {
             for &item in array {
-                let mut combination = prefix.clone();
+                let mut combination = crate::copy_census::copy_census!(
+                    "types.structural.cartesian_product.clone.L4479",
+                    Types,
+                    prefix.clone()
+                );
                 combination.push(item);
                 next.push(combination);
             }
@@ -4623,7 +4696,11 @@ impl<'a> CheckerState<'a> {
     pub fn get_properties_of_object_type_owned(&mut self, ty: TypeId) -> CheckResult<SymbolIds> {
         if self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             let members = self.resolve_structured_type_members(ty)?;
-            return Ok(self.members_of(members).properties.clone());
+            return Ok(crate::copy_census::copy_census!(
+                "properties.structural.get_properties_of_object_type_owned.clone.L4626",
+                Properties,
+                self.members_of(members).properties.clone()
+            ));
         }
         Ok(SymbolIds::new())
     }
@@ -4713,7 +4790,11 @@ impl<'a> CheckerState<'a> {
             .get(ty)
             .resolved()
         {
-            return Ok(cached.clone());
+            return Ok(crate::copy_census::copy_census!(
+                "properties.structural.get_properties_of_union_or_intersection_type.clone.L4716",
+                Properties,
+                cached.clone()
+            ));
         }
         let is_union = self.tables.flags_of(ty).intersects(TypeFlags::UNION);
         let members = match self.tables.type_of(ty).data {
@@ -4742,7 +4823,14 @@ impl<'a> CheckerState<'a> {
         // tsgo keeps the order the properties were found in (checker.go:
         // 19201-19225).
         let result = SymbolIds::from(result);
-        self.links.set_type_resolved_properties(ty, result.clone());
+        self.links.set_type_resolved_properties(
+            ty,
+            crate::copy_census::copy_census!(
+                "properties.structural.get_properties_of_union_or_intersection_type.clone.L4745",
+                Properties,
+                result.clone()
+            ),
+        );
         Ok(result)
     }
 
@@ -5066,7 +5154,11 @@ impl<'a> CheckerState<'a> {
                 let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                     unreachable!("intersection flag implies intersection data");
                 };
-                let types = self.tables.list_copy(types);
+                let types = crate::copy_census::copy_census!(
+                    "types.structural.get_reduced_type_worker.list_copy.L5069",
+                    Types,
+                    self.tables.list_copy(types)
+                );
                 if !self.is_mapping_of_same_object_type(&types)?
                     && self.some_property_reduces_to_never(ty, &types)?
                 {
@@ -5181,7 +5273,11 @@ impl<'a> CheckerState<'a> {
         let TypeData::Union { types, .. } = self.tables.type_of(union).data else {
             unreachable!("union flag implies union data");
         };
-        let types = self.tables.list_copy(types);
+        let types = crate::copy_census::copy_census!(
+            "types.structural.get_reduced_union_type.list_copy.L5184",
+            Types,
+            self.tables.list_copy(types)
+        );
         let mut reduced_types = Vec::with_capacity(types.len());
         let mut changed = false;
         for &t in types.iter() {
@@ -5347,7 +5443,11 @@ impl<'a> CheckerState<'a> {
             .intersects(TypeFlags::UNION);
         let members = match &self.tables.type_of(containing_type).data {
             TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                self.tables.list(*types).to_vec()
+                crate::copy_census::copy_census!(
+                    "types.structural.create_union_or_intersection_property.to_vec.L5350",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                )
             }
             _ => unreachable!("union/intersection flag implies member data"),
         };
@@ -5661,7 +5761,13 @@ impl<'a> CheckerState<'a> {
             let write_type = self.get_write_type_of_symbol(prop)?;
             if write_types.is_some() || write_type != ty {
                 write_types
-                    .get_or_insert_with(|| prop_types.clone())
+                    .get_or_insert_with(|| {
+                        crate::copy_census::copy_census!(
+                            "types.structural.create_union_or_intersection_property.clone.L5664",
+                            Types,
+                            prop_types.clone()
+                        )
+                    })
                     .push(write_type);
             }
             if first_type != Some(ty) {
@@ -5807,7 +5913,13 @@ impl<'a> CheckerState<'a> {
                 return false;
             }
             match &mut common {
-                None => common = Some(declarations.to_vec()),
+                None => {
+                    common = Some(crate::copy_census::copy_census!(
+                        "declarations.structural.common_declarations_of_symbols.to_vec.L5810",
+                        Declarations,
+                        declarations.to_vec()
+                    ))
+                }
                 Some(common) => {
                     common.retain(|declaration| declarations.contains(declaration));
                     if common.is_empty() {
@@ -5890,7 +6002,11 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(SymbolFlags::ENUM_MEMBER) {
             return Ok(true);
         }
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.structural.is_readonly_symbol.clone.L5893",
+            Declarations,
+            self.binder.symbol(symbol).declarations.clone()
+        );
         for declaration in declarations {
             if self.is_readonly_assignment_declaration(declaration)? {
                 return Ok(true);
@@ -6177,7 +6293,11 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
-            let types = self.tables.list_copy(types);
+            let types = crate::copy_census::copy_census!(
+                "types.structural.is_object_type_with_inferable_index.list_copy.L6180",
+                Types,
+                self.tables.list_copy(types)
+            );
             for t in types.iter() {
                 if !self.is_object_type_with_inferable_index(*t)? {
                     return Ok(false);
@@ -6368,13 +6488,13 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = self.tables.type_of(target).symbol else {
             return 0;
         };
-        self.links
-            .symbol_cold()
-            .type_parameters
-            .get(symbol)
-            .clone()
-            .as_deref()
-            .map_or(0, <[TypeId]>::len)
+        crate::copy_census::copy_census!(
+            "types.structural.get_type_reference_arity.clone.L6375",
+            Types,
+            self.links.symbol_cold().type_parameters.get(symbol).clone()
+        )
+        .as_deref()
+        .map_or(0, <[TypeId]>::len)
     }
 
     // ---- protected-member override checks (5.3e) ----
@@ -6400,7 +6520,11 @@ impl<'a> CheckerState<'a> {
             let name = self.binder.symbol(prop).escaped_name;
             let types = match &self.tables.type_of(containing).data {
                 TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                    self.tables.list(*types).to_vec()
+                    crate::copy_census::copy_census!(
+                        "types.structural.for_each_property_leaf.to_vec.L6403",
+                        Types,
+                        self.tables.list(*types).to_vec()
+                    )
                 }
                 _ => unreachable!("containing types are unions or intersections"),
             };
@@ -6499,8 +6623,16 @@ impl<'a> CheckerState<'a> {
             flags: tsc_types::SignatureFlags::from_bits(
                 source.flags.bits() & tsc_types::SignatureFlags::PROPAGATING_FLAGS.bits(),
             ),
-            type_parameters: source.type_parameters.clone(),
-            parameters: source.parameters.clone(),
+            type_parameters: crate::copy_census::copy_census!(
+                "signatures.structural.clone_signature.clone.L6502",
+                Signatures,
+                source.type_parameters.clone()
+            ),
+            parameters: crate::copy_census::copy_census!(
+                "signatures.structural.clone_signature.clone.L6503",
+                Signatures,
+                source.parameters.clone()
+            ),
             this_parameter: source.this_parameter,
             min_argument_count: source.min_argument_count,
             resolved_return_type: crate::links::LinkSlot::Vacant,
@@ -6511,7 +6643,11 @@ impl<'a> CheckerState<'a> {
             canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: source.composite_kind,
-            composite_signatures: source.composite_signatures.clone(),
+            composite_signatures: crate::copy_census::copy_census!(
+                "signatures.structural.clone_signature.clone.L6514",
+                Signatures,
+                source.composite_signatures.clone()
+            ),
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: source.isolated_signature_kind,
             isolated_signature_type: None,
@@ -6563,7 +6699,11 @@ impl<'a> CheckerState<'a> {
         }
         self.links
             .set_symbol_target(self.speculation_depth, symbol, source);
-        let declarations = self.binder.symbol(source).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.structural.create_symbol_with_type.clone.L6566",
+            Declarations,
+            self.binder.symbol(source).declarations.clone()
+        );
         let parent = self.binder.symbol(source).parent;
         let value_declaration = self.binder.symbol(source).value_declaration;
         {
@@ -6757,7 +6897,11 @@ impl<'a> CheckerState<'a> {
             // list pairwise across the union members.
             let master_index = index_with_length_over_one.unwrap_or(0) as usize;
             let master_list = &signature_lists[master_index];
-            let mut results: Option<Vec<SignatureId>> = Some(master_list.clone());
+            let mut results: Option<Vec<SignatureId>> = Some(crate::copy_census::copy_census!(
+                "signatures.structural.get_union_signatures.clone.L6760",
+                Signatures,
+                master_list.clone()
+            ));
             for list in signature_lists {
                 if std::ptr::eq(list.as_slice(), master_list.as_slice()) {
                     continue;
@@ -6813,16 +6957,18 @@ impl<'a> CheckerState<'a> {
         source: SignatureId,
         target: SignatureId,
     ) -> CheckResult<bool> {
-        let source_params = self
-            .signature_of(source)
-            .type_parameters
-            .clone()
-            .unwrap_or_default();
-        let target_params = self
-            .signature_of(target)
-            .type_parameters
-            .clone()
-            .unwrap_or_default();
+        let source_params = crate::copy_census::copy_census!(
+            "signatures.structural.compare_type_parameters_identical.clone.L6819",
+            Signatures,
+            self.signature_of(source).type_parameters.clone()
+        )
+        .unwrap_or_default();
+        let target_params = crate::copy_census::copy_census!(
+            "signatures.structural.compare_type_parameters_identical.clone.L6824",
+            Signatures,
+            self.signature_of(target).type_parameters.clone()
+        )
+        .unwrap_or_default();
         if source_params.len() != target_params.len() {
             return Ok(false);
         }
@@ -6927,8 +7073,21 @@ impl<'a> CheckerState<'a> {
                     .read_ty(result, |links| links.resolved_members.resolved())
                     .expect("freshly created anonymous types carry resolved members");
                 let stripped = crate::state::ResolvedMembers::new(
-                    resolved.members.clone(),
-                    resolved.properties.clone().to_vec(),
+                    crate::copy_census::copy_census!(
+                        "properties.structural.get_type_without_signatures.clone.L6930",
+                        Properties,
+                        resolved.members.clone()
+                    ),
+                    crate::copy_census::copy_census!(
+                        "properties.structural.get_type_without_signatures.to_vec.L6931",
+                        Properties,
+                        crate::copy_census::copy_census!(
+                            "properties.structural.get_type_without_signatures.clone.L6931",
+                            Properties,
+                            resolved.properties.clone()
+                        )
+                        .to_vec()
+                    ),
                     Vec::new(),
                     Vec::new(),
                     Vec::new(),
@@ -6938,7 +7097,11 @@ impl<'a> CheckerState<'a> {
             }
         } else if flags.intersects(TypeFlags::INTERSECTION) {
             let constituents = match &self.tables.type_of(ty).data {
-                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                    "types.structural.get_type_without_signatures.to_vec.L6941",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
             let mut mapped = Vec::with_capacity(constituents.len());
@@ -7167,10 +7330,18 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<SignatureId> {
         let left_data = self.signature_of(left).without_caches();
         let right_data = self.signature_of(right).without_caches();
-        let type_params = left_data
-            .type_parameters
-            .clone()
-            .or_else(|| right_data.type_parameters.clone());
+        let type_params = crate::copy_census::copy_census!(
+            "signatures.structural.combine_signatures_of_union_members.clone.L7172",
+            Signatures,
+            left_data.type_parameters.clone()
+        )
+        .or_else(|| {
+            crate::copy_census::copy_census!(
+                "signatures.structural.combine_signatures_of_union_members.clone.L7173",
+                Signatures,
+                right_data.type_parameters.clone()
+            )
+        });
         let param_mapper = match (&left_data.type_parameters, &right_data.type_parameters) {
             (Some(left_params), Some(right_params)) => {
                 Some(self.create_type_mapper(right_params, Some(left_params)))
@@ -7203,7 +7374,11 @@ impl<'a> CheckerState<'a> {
             .max(right_data.min_argument_count);
         let mut composite_signatures = match (
             left_data.composite_kind,
-            left_data.composite_signatures.clone(),
+            crate::copy_census::copy_census!(
+                "signatures.structural.combine_signatures_of_union_members.clone.L7206",
+                Signatures,
+                left_data.composite_signatures.clone()
+            ),
         ) {
             (Some(kind), Some(signatures)) if !kind.intersects(TypeFlags::INTERSECTION) => {
                 signatures.into_vec()
@@ -7333,22 +7508,30 @@ impl<'a> CheckerState<'a> {
         let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
             unreachable!("union flag implies union data");
         };
-        let types = self.tables.list_copy(types);
+        let types = crate::copy_census::copy_census!(
+            "types.structural.resolve_union_type_members.list_copy.L7336",
+            Types,
+            self.tables.list_copy(types)
+        );
         let mut call_lists = Vec::with_capacity(types.len());
         let mut construct_lists = Vec::with_capacity(types.len());
         for &t in types.iter() {
             if self.is_global_function_type(t)? {
                 call_lists.push(vec![self.unknown_signature]);
             } else {
-                call_lists.push(
+                call_lists.push(crate::copy_census::copy_census!(
+                    "signatures.structural.resolve_union_type_members.to_vec.L7345",
+                    Signatures,
                     self.get_signatures_of_type(t, SignatureKind::Call)?
-                        .to_vec(),
-                );
+                        .to_vec()
+                ));
             }
-            construct_lists.push(
+            construct_lists.push(crate::copy_census::copy_census!(
+                "signatures.structural.resolve_union_type_members.to_vec.L7350",
+                Signatures,
                 self.get_signatures_of_type(t, SignatureKind::Construct)?
-                    .to_vec(),
-            );
+                    .to_vec()
+            ));
         }
         // W2c: the synthesized signature lists follow member order (observed
         // from the lists already computed; no allocation, lazy iterator).
@@ -7407,7 +7590,11 @@ impl<'a> CheckerState<'a> {
         let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
             unreachable!("intersection flag implies intersection data");
         };
-        let types = self.tables.list_copy(types);
+        let types = crate::copy_census::copy_census!(
+            "types.structural.resolve_intersection_type_members.list_copy.L7410",
+            Types,
+            self.tables.list_copy(types)
+        );
         let mixin_flags = self.find_mixins(&types)?;
         let mixin_count = mixin_flags.iter().filter(|&&b| b).count();
         let mut call_signatures: Vec<SignatureId> = Vec::new();
@@ -7668,13 +7855,21 @@ impl<'a> CheckerState<'a> {
             .get(ty)
             .resolved()
         {
-            return Ok(cached.clone());
+            return Ok(crate::copy_census::copy_census!(
+                "signatures.structural.get_signatures_of_type.clone.L7671",
+                Signatures,
+                cached.clone()
+            ));
         }
 
         let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
             unreachable!("union flag implies union data");
         };
-        let constituents = self.tables.list_copy(types);
+        let constituents = crate::copy_census::copy_census!(
+            "types.structural.get_signatures_of_type.list_copy.L7677",
+            Types,
+            self.tables.list_copy(types)
+        );
         let global_array = self.global_array_type()?;
         let global_readonly_array = self.global_readonly_array_type()?;
         let array_symbol = self.tables.type_of(global_array).symbol;
@@ -7764,8 +7959,14 @@ impl<'a> CheckerState<'a> {
         } else {
             result
         };
-        self.links
-            .set_type_array_fallback_signatures(ty, fallback.clone());
+        self.links.set_type_array_fallback_signatures(
+            ty,
+            crate::copy_census::copy_census!(
+                "signatures.structural.get_signatures_of_type.clone.L7768",
+                Signatures,
+                fallback.clone()
+            ),
+        );
         Ok(fallback)
     }
 
@@ -8171,7 +8372,11 @@ impl<'a> CheckerState<'a> {
         let has_rest = data
             .flags
             .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER);
-        let parameters = data.parameters.clone();
+        let parameters = crate::copy_census::copy_census!(
+            "signatures.structural.get_nameable_declaration_at_position.clone.L8174",
+            Signatures,
+            data.parameters.clone()
+        );
         let param_count = parameters.len() - usize::from(has_rest);
         if pos < param_count {
             let declaration = self.binder.symbol(parameters[pos]).value_declaration;
@@ -8249,7 +8454,11 @@ impl<'a> CheckerState<'a> {
         let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
             unreachable!("tuple type targets a tuple target");
         };
-        let data = self.tables.tuple_target(data).clone();
+        let data = crate::copy_census::copy_census!(
+            "sidecars.structural.get_effective_rest_type.clone.L8252",
+            Sidecars,
+            self.tables.tuple_target(data).clone()
+        );
         if data.combined_flags.intersects(ElementFlags::VARIABLE) {
             return Ok(Some(self.slice_tuple_type(
                 rest_type,
@@ -8273,7 +8482,11 @@ impl<'a> CheckerState<'a> {
         let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
             unreachable!("tuple type targets a tuple target");
         };
-        let data = self.tables.tuple_target(data).clone();
+        let data = crate::copy_census::copy_census!(
+            "sidecars.structural.slice_tuple_type.clone.L8276",
+            Sidecars,
+            self.tables.tuple_target(data).clone()
+        );
         // 61290 slices with JS Array.prototype.slice semantics: an end
         // before the start yields the empty slice (reachable from
         // inferFromObjectTypes' middle-arm bounds when the source
@@ -8306,7 +8519,13 @@ impl<'a> CheckerState<'a> {
         let labels = data
             .labeled_element_declarations
             .as_ref()
-            .map(|declarations| declarations[index..end_index].to_vec());
+            .map(|declarations| {
+                crate::copy_census::copy_census!(
+                    "sidecars.structural.slice_tuple_type.to_vec.L8309",
+                    Sidecars,
+                    declarations[index..end_index].to_vec()
+                )
+            });
         self.create_tuple_type_forced(
             &arguments[index..end_index],
             Some(&data.element_flags[index..end_index]),
@@ -8451,7 +8670,11 @@ impl<'a> CheckerState<'a> {
             return Ok(Vec::new());
         }
         let members = self.resolve_structured_type_members(reduced)?;
-        Ok(self.members_of(members).index_infos().to_vec())
+        Ok(crate::copy_census::copy_census!(
+            "index_infos.structural.get_index_infos_of_type.to_vec.L8454",
+            IndexInfos,
+            self.members_of(members).index_infos().to_vec()
+        ))
     }
 
     /// tsc-port: findApplicableIndexInfo @6.0.3
@@ -8707,7 +8930,18 @@ impl<'a> CheckerState<'a> {
         match &self.tables.type_of(ty).data {
             TypeData::TemplateLiteral(data) => {
                 let data = self.tables.template_literal(*data);
-                (data.texts.to_vec(), self.tables.list(data.types).to_vec())
+                (
+                    crate::copy_census::copy_census!(
+                        "sidecars.structural.template_parts_of.to_vec.L8710",
+                        Sidecars,
+                        data.texts.to_vec()
+                    ),
+                    crate::copy_census::copy_census!(
+                        "types.structural.template_parts_of.to_vec.L8710",
+                        Types,
+                        self.tables.list(data.types).to_vec()
+                    ),
+                )
             }
             _ => unreachable!("template flag implies template data"),
         }
@@ -8965,7 +9199,7 @@ impl<'a> CheckerState<'a> {
                     let mut texts = vec![TemplateText::from_utf16(&source_units[seg][pos..])];
                     texts.extend(source_texts[seg + 1..s].iter().cloned());
                     texts.push(TemplateText::from_utf16(&get_source_units(s)[..p]));
-                    let types = source_types[seg..s].to_vec();
+                    let types = crate::copy_census::copy_census!("types.structural.infer_from_literal_parts_to_template_literal.to_vec.L8968", Types, source_types[seg..s].to_vec());
                     self.get_template_literal_type_from_texts(&texts, &types)?
                 };
                 matches.push(match_type);
@@ -9191,7 +9425,11 @@ fn is_valid_type_for_template_literal_placeholder<'a, C: TemplateTypeComparer<'a
         let TypeData::Intersection { types } = st.tables.type_of(target).data else {
             unreachable!("intersection flag implies intersection data");
         };
-        let types = st.tables.list(types).to_vec();
+        let types = crate::copy_census::copy_census!(
+            "types.structural.is_valid_type_for_template_literal_placeholder.to_vec.L9194",
+            Types,
+            st.tables.list(types).to_vec()
+        );
         let empty_type_literal = st.empty_type_literal_type;
         for t in types.iter() {
             if *t == empty_type_literal {

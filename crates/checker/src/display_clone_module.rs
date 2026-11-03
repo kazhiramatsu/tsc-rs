@@ -670,11 +670,22 @@ impl DisplayCloneModulePrinter<'_, '_> {
             return (Vec::new(), false);
         };
         let nodes = self.state.binder.node_array(nodes);
-        (nodes.nodes.to_vec(), nodes.has_trailing_comma)
+        (
+            crate::copy_census::copy_census!(
+                "nodes.display_clone_module.node_array.to_vec.L673",
+                Nodes,
+                nodes.nodes.to_vec()
+            ),
+            nodes.has_trailing_comma,
+        )
     }
 
     fn nodes(&self, nodes: Option<NodeArrayId>) -> Vec<NodeId> {
-        self.state.nodes_of(nodes).to_vec()
+        crate::copy_census::copy_census!(
+            "nodes.display_clone_module.nodes.to_vec.L677",
+            Nodes,
+            self.state.nodes_of(nodes).to_vec()
+        )
     }
 
     fn with_increased_indent<T>(

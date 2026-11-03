@@ -394,14 +394,18 @@ pub(crate) fn recover_suppressed_import_call_return_type(
         let TypeData::TupleTarget(tuple) = checker.tables.type_of(target).data else {
             return Some(return_type);
         };
-        let tuple = checker.tables.tuple_target(tuple).clone();
+        let tuple = crate::copy_census::copy_census!(
+            "sidecars.node_builder.serialize.recover_suppressed_import_call_return_type.clone.L397",
+            Sidecars,
+            checker.tables.tuple_target(tuple).clone()
+        );
         let signature_declaration = checker.signature_of(signature).declaration?;
         let annotation = match checker.data_of(signature_declaration) {
             NodeData::FunctionDeclaration(data) => data.r#type?,
             _ => return Some(return_type),
         };
         let elements = match checker.data_of(annotation) {
-            NodeData::TupleType(data) => checker.nodes_of(data.elements).to_vec(),
+            NodeData::TupleType(data) => crate::copy_census::copy_census!("nodes.node_builder.serialize.recover_suppressed_import_call_return_type.to_vec.L404", Nodes, checker.nodes_of(data.elements).to_vec()),
             _ => return Some(return_type),
         };
         let mut arguments = checker.get_type_arguments(return_type).ok()?;
@@ -1866,7 +1870,11 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
             }
             parent = self.checker.binder.symbol(candidate).parent;
         }
-        for declaration in self.checker.binder.symbol(symbol).declarations.clone() {
+        for declaration in crate::copy_census::copy_census!(
+            "declarations.node_builder.serialize.accessibility_error_module_symbol.clone.L1869",
+            Declarations,
+            self.checker.binder.symbol(symbol).declarations.clone()
+        ) {
             if let Some(candidate) = self
                 .checker
                 .get_external_module_container(declaration)
@@ -2823,7 +2831,11 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                 .checker
                 .get_signature_from_declaration(node)
                 .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-            let signature = self.checker.signature_of(signature).clone();
+            let signature = crate::copy_census::copy_census!(
+                "signatures.node_builder.serialize.enter_new_scope.clone.L2826",
+                Signatures,
+                self.checker.signature_of(signature).clone()
+            );
             let _restore = super::enter_new_scope(
                 context,
                 Some(node),

@@ -2766,7 +2766,11 @@ pub(crate) fn chains_get_property_name_node_for_symbol(
     if let Some(name) = cloned_hash_private_name(checker, arena, symbol)? {
         return Ok(name);
     }
-    let declarations = checker.binder.symbol(symbol).declarations.clone();
+    let declarations = crate::copy_census::copy_census!(
+        "declarations.node_builder.chains.chains_get_property_name_node_for_symbol.clone.L2769",
+        Declarations,
+        checker.binder.symbol(symbol).declarations.clone()
+    );
     let name_type = checker.links.symbol(symbol).name_type;
     let name_type_flags = name_type.map(|name_type| checker.tables.flags_of(name_type));
     let string_named = !declarations.is_empty()

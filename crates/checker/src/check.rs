@@ -3131,7 +3131,11 @@ impl<'a> CheckerState<'a> {
         else {
             return;
         };
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.check.check_deprecated_type_reference_or_import.clone.L3134",
+            Declarations,
+            self.binder.symbol(symbol).declarations.clone()
+        );
         if declarations.iter().copied().any(|declaration| {
             self.is_type_declaration_for_deprecated_reference(declaration)
                 && self.is_deprecated_declaration(declaration)
@@ -3211,9 +3215,11 @@ impl<'a> CheckerState<'a> {
             .flags
             .intersects(tsc_types::SymbolFlags::TYPE_ALIAS)
         {
-            if let Some(type_parameters) =
+            if let Some(type_parameters) = crate::copy_census::copy_census!(
+                "types.check.get_type_parameters_for_type_reference_or_import.clone.L3215",
+                Types,
                 self.links.symbol_cold().type_parameters.get(symbol).clone()
-            {
+            ) {
                 return Ok(Some(type_parameters));
             }
         }
@@ -3230,9 +3236,12 @@ impl<'a> CheckerState<'a> {
             } = &self.tables.type_of(target).data
             {
                 // type.target.localTypeParameters.
-                let locals = self.tables.list(*type_parameters)
-                    [*outer_type_parameter_count as usize..]
-                    .to_vec();
+                let locals = crate::copy_census::copy_census!(
+                    "types.check.get_type_parameters_for_type_reference_or_import.to_vec.L3235",
+                    Types,
+                    self.tables.list(*type_parameters)[*outer_type_parameter_count as usize..]
+                        .to_vec()
+                );
                 return Ok((!locals.is_empty()).then_some(locals));
             }
         }
@@ -4183,7 +4192,11 @@ impl<'a> CheckerState<'a> {
         let Some(property) = self.get_property_of_type_full(contextual_type, text)? else {
             return Ok(());
         };
-        let declarations = self.binder.symbol(property).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.check.check_deprecated_property.clone.L4186",
+            Declarations,
+            self.binder.symbol(property).declarations.clone()
+        );
         if !declarations.is_empty() && self.is_deprecated_symbol(property) {
             let entity = tsc_binder::unescape_leading_underscores(text).to_owned();
             self.add_deprecated_suggestion(name, &declarations, &entity);
@@ -4298,7 +4311,11 @@ impl<'a> CheckerState<'a> {
             return Ok(target);
         }
         let types = match &self.tables.type_of(target).data {
-            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                "types.check.nullable_stripped_report_target.to_vec.L4301",
+                Types,
+                self.tables.list(*types).to_vec()
+            ),
             _ => return Ok(target),
         };
         let nullable =
@@ -4479,7 +4496,11 @@ impl<'a> CheckerState<'a> {
                 .intersects(TypeFlags::INTERSECTION)
         {
             let constituents = match &self.tables.type_of(target).data {
-                tsc_types::TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                tsc_types::TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                    "types.check.check_type_assignable_to_worker.to_vec.L4482",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => Vec::new(),
             };
             for constituent in constituents {
@@ -4696,7 +4717,11 @@ impl<'a> CheckerState<'a> {
         // is the best match. Other union shapes keep the generic head.
         let target = if self.tables.flags_of(target).intersects(TypeFlags::UNION) {
             let members = match &self.tables.type_of(target).data {
-                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                tsc_types::TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.check.report_no_common_properties_head.to_vec.L4699",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => Vec::new(),
             };
             let non_nullable: Vec<TypeId> = members
@@ -5405,7 +5430,11 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
             let types = match &self.tables.type_of(ty).data {
                 TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                    self.tables.list(*types).to_vec()
+                    crate::copy_census::copy_census!(
+                        "types.check.type_could_have_top_level_singleton_types.to_vec.L5408",
+                        Types,
+                        self.tables.list(*types).to_vec()
+                    )
                 }
                 _ => unreachable!("union/intersection flag implies composite data"),
             };
@@ -5473,16 +5502,22 @@ impl<'a> CheckerState<'a> {
             return Ok(symbol);
         }
         if self.links.symbol_cold().late_symbol.get(symbol).is_none()
-            && data
-                .declarations
-                .clone()
-                .iter()
-                .any(|&declaration| self.has_late_bindable_ast_name(declaration))
+            && crate::copy_census::copy_census!(
+                "declarations.check.get_late_bound_symbol.clone.L5478",
+                Declarations,
+                data.declarations.clone()
+            )
+            .iter()
+            .any(|&declaration| self.has_late_bindable_ast_name(declaration))
         {
             let parent = data.parent;
             if let Some(parent) = parent {
                 let parent = self.get_merged_symbol(parent);
-                let source = self.binder.symbol(symbol).declarations.clone();
+                let source = crate::copy_census::copy_census!(
+                    "declarations.check.get_late_bound_symbol.clone.L5485",
+                    Declarations,
+                    self.binder.symbol(symbol).declarations.clone()
+                );
                 let is_static = source.iter().any(|&declaration| {
                     tsc_binder::node_util::has_syntactic_modifier(
                         &Published,
@@ -5799,7 +5834,11 @@ impl<'a> CheckerState<'a> {
             name,
             anonymous: false,
         };
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.check.entity_symbol_name_as_written.clone.L5802",
+            Declarations,
+            self.binder.symbol(symbol).declarations.clone()
+        );
         if self.binder.symbol(symbol).escaped_name == tsc_types::InternalSymbolName::DEFAULT
             && !use_alias_defined_outside_current_scope
             && (!in_initial_entity_name
@@ -6096,7 +6135,13 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::ANY) {
             if let (Some(alias_symbol), alias_arguments) = (
                 self.tables.alias_symbol(ty),
-                self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec),
+                self.tables.alias_type_arguments(ty).map(|items| {
+                    crate::copy_census::copy_census!(
+                        "types.check.type_to_string_node.path_to_vec.L6099",
+                        Types,
+                        <[TypeId]>::to_vec(items)
+                    )
+                }),
             ) {
                 let name = if fully_qualified
                     || self
@@ -6417,7 +6462,13 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         if let (Some(alias_symbol), alias_arguments) = (
             self.tables.alias_symbol(ty),
-            self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec),
+            self.tables.alias_type_arguments(ty).map(|items| {
+                crate::copy_census::copy_census!(
+                    "types.check.type_to_string_structured.path_to_vec.L6420",
+                    Types,
+                    <[TypeId]>::to_vec(items)
+                )
+            }),
         ) {
             return match alias_arguments {
                 Some(arguments) if !arguments.is_empty() => {
@@ -6478,10 +6529,22 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
             let (mut types, origin) = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, origin, .. } => {
-                    (self.tables.list(*types).to_vec(), *origin)
-                }
-                TypeData::Intersection { types } => (self.tables.list(*types).to_vec(), None),
+                TypeData::Union { types, origin, .. } => (
+                    crate::copy_census::copy_census!(
+                        "types.check.type_to_string_structured.to_vec.L6482",
+                        Types,
+                        self.tables.list(*types).to_vec()
+                    ),
+                    *origin,
+                ),
+                TypeData::Intersection { types } => (
+                    crate::copy_census::copy_census!(
+                        "types.check.type_to_string_structured.to_vec.L6484",
+                        Types,
+                        self.tables.list(*types).to_vec()
+                    ),
+                    None,
+                ),
                 _ => unreachable!("union/intersection flag implies composite data"),
             };
             let mut is_union = flags.intersects(TypeFlags::UNION);
@@ -6501,8 +6564,16 @@ impl<'a> CheckerState<'a> {
                 if origin_flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
                     is_union = origin_flags.intersects(TypeFlags::UNION);
                     types = match &self.tables.type_of(origin).data {
-                        TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
-                        TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                        TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                            "types.check.type_to_string_structured.to_vec.L6504",
+                            Types,
+                            self.tables.list(*types).to_vec()
+                        ),
+                        TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                            "types.check.type_to_string_structured.to_vec.L6505",
+                            Types,
+                            self.tables.list(*types).to_vec()
+                        ),
                         _ => unreachable!("union/intersection flag implies composite data"),
                     };
                 } else if origin_flags.intersects(TypeFlags::INDEX) {
@@ -6616,13 +6687,27 @@ impl<'a> CheckerState<'a> {
             let (texts, types) = match &self.tables.type_of(ty).data {
                 TypeData::TemplateLiteral(data) => {
                     let data = self.tables.template_literal(*data);
-                    (data.texts.clone(), data.types)
+                    (
+                        crate::copy_census::copy_census!(
+                            "sidecars.check.type_to_string_structured.clone.L6619",
+                            Sidecars,
+                            data.texts.clone()
+                        ),
+                        data.types,
+                    )
                 }
                 _ => unreachable!("TEMPLATE_LITERAL flag implies TemplateLiteral data"),
             };
             let mut out = JsString::from("`");
             out.push_js((&template_text_utf16_raw(texts[0].units())).into());
-            for (i, &span_type) in self.tables.list(types).to_vec().iter().enumerate() {
+            for (i, &span_type) in crate::copy_census::copy_census!(
+                "types.check.type_to_string_structured.to_vec.L6625",
+                Types,
+                self.tables.list(types).to_vec()
+            )
+            .iter()
+            .enumerate()
+            {
                 out.push_js(("${").into());
                 let (text, _) = self.type_to_string_node(span_type, fully_qualified)?;
                 out.push_js((&text).into());
@@ -6713,11 +6798,14 @@ impl<'a> CheckerState<'a> {
             // extends branch sees this conditional root's infer
             // parameters as declarations. Nested conditional renders
             // replace this vector and restore the outer context.
-            let infer_type_parameters = self
-                .tables
-                .conditional_root(data.root)
-                .infer_type_parameters
-                .to_vec();
+            let infer_type_parameters = crate::copy_census::copy_census!(
+                "types.check.type_to_string_structured.to_vec.L6720",
+                Types,
+                self.tables
+                    .conditional_root(data.root)
+                    .infer_type_parameters
+                    .to_vec()
+            );
             let saved_infer_type_parameters = std::mem::replace(
                 &mut self.display_infer_type_parameters,
                 infer_type_parameters,
@@ -6784,8 +6872,16 @@ impl<'a> CheckerState<'a> {
         // dispatch order.
         if let TypeData::TupleTarget(data) = self.tables.type_of(target).data {
             let data = self.tables.tuple_target(data);
-            let element_flags = data.element_flags.clone();
-            let labels = data.labeled_element_declarations.clone();
+            let element_flags = crate::copy_census::copy_census!(
+                "sidecars.check.type_reference_to_string_node.clone.L6787",
+                Sidecars,
+                data.element_flags.clone()
+            );
+            let labels = crate::copy_census::copy_census!(
+                "sidecars.check.type_reference_to_string_node.clone.L6788",
+                Sidecars,
+                data.labeled_element_declarations.clone()
+            );
             let readonly = data.readonly;
             // getTypeReferenceArity: length(target.typeParameters).
             let arity = self.tables.list(data.type_parameters).len();
@@ -6943,7 +7039,11 @@ impl<'a> CheckerState<'a> {
                 outer_type_parameter_count,
                 ..
             } => (
-                self.tables.list(*type_parameters).to_vec(),
+                crate::copy_census::copy_census!(
+                    "types.check.type_reference_to_string_node.to_vec.L6946",
+                    Types,
+                    self.tables.list(*type_parameters).to_vec()
+                ),
                 *outer_type_parameter_count as usize,
             ),
             _ => {
@@ -7364,7 +7464,11 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let symbol_flags = self.binder.symbol(symbol).flags;
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.check.should_write_type_of_function_symbol_display.clone.L7367",
+            Declarations,
+            self.binder.symbol(symbol).declarations.clone()
+        );
         let is_static_method_symbol = if symbol_flags.intersects(SymbolFlags::METHOD) {
             let mut admitted = false;
             for declaration in &declarations {
@@ -8529,7 +8633,11 @@ impl<'a> CheckerState<'a> {
                 meaning,
             );
         }
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.check.containers_of_symbol.clone.L8532",
+            Declarations,
+            self.binder.symbol(symbol).declarations.clone()
+        );
         let mut candidates = Vec::new();
         for declaration in declarations {
             if node_util::is_ambient_module(&Published, declaration) {
@@ -8621,7 +8729,11 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Vec<SymbolId>> {
         let mut additional = Vec::new();
         if let Some(parent_container) = parent_container {
-            let declarations = self.binder.symbol(container).declarations.clone();
+            let declarations = crate::copy_census::copy_census!(
+                "declarations.check.with_alternative_containers.clone.L8624",
+                Declarations,
+                self.binder.symbol(container).declarations.clone()
+            );
             for declaration in declarations {
                 if let Some(file_symbol) =
                     self.file_symbol_if_export_equals_container(declaration, parent_container)?
@@ -8982,7 +9094,11 @@ impl<'a> CheckerState<'a> {
         // (an ambient module with import attributes has a unique internal
         // symbol name); the augmentation `declare module "react"` of a file's
         // export target does not name it.
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.check.specifier_for_module_symbol_display.clone.L8985",
+            Declarations,
+            self.binder.symbol(symbol).declarations.clone()
+        );
         let mut has_file = declarations
             .iter()
             .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
@@ -9239,11 +9355,31 @@ impl<'a> CheckerState<'a> {
         }
         let members = self.resolve_structured_type_members(ty)?;
         let resolved = self.members_of(members);
-        let member_table = resolved.members.clone();
-        let properties = resolved.properties.clone();
-        let call_signatures = resolved.call_signatures().to_vec();
-        let construct_signatures = resolved.construct_signatures().to_vec();
-        let index_infos = resolved.index_infos().to_vec();
+        let member_table = crate::copy_census::copy_census!(
+            "properties.check.type_node_from_object_type.clone.L9242",
+            Properties,
+            resolved.members.clone()
+        );
+        let properties = crate::copy_census::copy_census!(
+            "properties.check.type_node_from_object_type.clone.L9243",
+            Properties,
+            resolved.properties.clone()
+        );
+        let call_signatures = crate::copy_census::copy_census!(
+            "signatures.check.type_node_from_object_type.to_vec.L9244",
+            Signatures,
+            resolved.call_signatures().to_vec()
+        );
+        let construct_signatures = crate::copy_census::copy_census!(
+            "signatures.check.type_node_from_object_type.to_vec.L9245",
+            Signatures,
+            resolved.construct_signatures().to_vec()
+        );
+        let index_infos = crate::copy_census::copy_census!(
+            "index_infos.check.type_node_from_object_type.to_vec.L9246",
+            IndexInfos,
+            resolved.index_infos().to_vec()
+        );
         if properties.is_empty() && index_infos.is_empty() {
             if call_signatures.is_empty() && construct_signatures.is_empty() {
                 // createTypeNodeFromObjectType's exact member-less
@@ -9311,7 +9447,11 @@ impl<'a> CheckerState<'a> {
                 let remainder = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
                 self.tables.type_mut(remainder).object_flags = ObjectFlags::ANONYMOUS;
                 self.tables.type_mut(remainder).symbol = source_symbol;
-                let mut properties = properties.to_vec();
+                let mut properties = crate::copy_census::copy_census!(
+                    "properties.check.type_node_from_object_type.to_vec.L9314",
+                    Properties,
+                    properties.to_vec()
+                );
                 self.order_named_members_if_stable(&mut properties, source_symbol);
                 let remainder_members = self.alloc_members(crate::state::ResolvedMembers::new(
                     member_table,
@@ -9592,7 +9732,11 @@ impl<'a> CheckerState<'a> {
                     // signature face per present accessor declaration,
                     // instantiated under the symbol links mapper.
                     let symbol_mapper = self.links.read_symbol(property, |links| links.mapper);
-                    let declarations = self.binder.symbol(property).declarations.clone();
+                    let declarations = crate::copy_census::copy_census!(
+                        "declarations.check.property_signature.clone.L9595",
+                        Declarations,
+                        self.binder.symbol(property).declarations.clone()
+                    );
                     let getter = declarations
                         .iter()
                         .copied()
@@ -9849,8 +9993,16 @@ impl<'a> CheckerState<'a> {
         self.display_add_approximate_length(3);
         let expanded = self.expanded_parameter_faces(signature)?;
         let sig = self.signature_of(signature);
-        let type_parameters = sig.type_parameters.clone();
-        let declared_parameters = sig.parameters.clone();
+        let type_parameters = crate::copy_census::copy_census!(
+            "signatures.check.signature_to_string_worker.clone.L9852",
+            Signatures,
+            sig.type_parameters.clone()
+        );
+        let declared_parameters = crate::copy_census::copy_census!(
+            "signatures.check.signature_to_string_worker.clone.L9853",
+            Signatures,
+            sig.parameters.clone()
+        );
         let this_parameter = sig.this_parameter;
         let declaration = sig.declaration;
         let is_abstract = sig.flags.intersects(tsc_types::SignatureFlags::ABSTRACT);
@@ -10014,7 +10166,11 @@ impl<'a> CheckerState<'a> {
         }
         let rest_index = sig.parameters.len() - 1;
         let rest_symbol = sig.parameters[rest_index];
-        let prefix: Vec<SymbolId> = sig.parameters[..rest_index].to_vec();
+        let prefix: Vec<SymbolId> = crate::copy_census::copy_census!(
+            "signatures.check.expanded_parameter_faces.to_vec.L10017",
+            Signatures,
+            sig.parameters[..rest_index].to_vec()
+        );
         let rest_type = self.get_type_of_symbol(rest_symbol)?;
         if !self
             .tables
@@ -10027,7 +10183,11 @@ impl<'a> CheckerState<'a> {
         let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
             return Ok(None);
         };
-        let data = self.tables.tuple_target(data).clone();
+        let data = crate::copy_census::copy_census!(
+            "sidecars.check.expanded_parameter_faces.clone.L10030",
+            Sidecars,
+            self.tables.tuple_target(data).clone()
+        );
         let element_types = self.get_type_arguments(rest_type)?;
         let count = element_types.len().min(data.element_flags.len());
         // getUniqAssociatedNamesFromTupleType (57937-57959): the
@@ -10746,7 +10906,11 @@ impl<'a> CheckerState<'a> {
                 }
             }
             NodeData::ObjectLiteralExpression(data) => {
-                let properties = self.nodes_of(data.properties).to_vec();
+                let properties = crate::copy_census::copy_census!(
+                    "nodes.check.syntactic_expression_inference_text.to_vec.L10749",
+                    Nodes,
+                    self.nodes_of(data.properties).to_vec()
+                );
                 let mut can_get_type = true;
                 for property in properties {
                     if self.node_flags(property) & tsc_types::NodeFlags::THIS_NODE_HAS_ERROR.bits()
@@ -10894,7 +11058,11 @@ impl<'a> CheckerState<'a> {
             .expect("TypeParameter types carry their declaration symbol");
         let mut modifiers = JsString::new();
         {
-            let declarations = self.binder.symbol(symbol).declarations.clone();
+            let declarations = crate::copy_census::copy_census!(
+                "declarations.check.type_parameter_to_declaration_display.clone.L10897",
+                Declarations,
+                self.binder.symbol(symbol).declarations.clone()
+            );
             let mut has_const = false;
             let mut has_in = false;
             let mut has_out = false;
@@ -11071,7 +11239,11 @@ impl<'a> CheckerState<'a> {
         let type_parameters = match self.tables.type_of(target).data {
             TypeData::GenericType {
                 type_parameters, ..
-            } => Some(self.tables.list(type_parameters).to_vec()),
+            } => Some(crate::copy_census::copy_census!(
+                "types.check.reference_annotation_argument_count_compatible.to_vec.L11074",
+                Types,
+                self.tables.list(type_parameters).to_vec()
+            )),
             _ => None,
         };
         Ok(argument_count >= self.get_min_type_argument_count(type_parameters.as_deref()))
@@ -11422,8 +11594,11 @@ impl<'a> CheckerState<'a> {
                 .serialize_reused_type_name(expr_name, SymbolFlags::VALUE, &[])?
                 .map(|(text, kind)| SliceTypeNodeFace::new(text, kind)));
         }
-        let rendered =
-            self.type_argument_nodes_text(self.nodes_of(data.type_arguments).to_vec())?;
+        let rendered = self.type_argument_nodes_text(crate::copy_census::copy_census!(
+            "nodes.check.try_visit_type_query_face.to_vec.L11426",
+            Nodes,
+            self.nodes_of(data.type_arguments).to_vec()
+        ))?;
         let name = self.entity_name_text(expr_name)?;
         let text = if rendered.is_empty() {
             crate::concat_js(&[&"typeof ", &(name)])
@@ -11456,8 +11631,11 @@ impl<'a> CheckerState<'a> {
         let meaning = self.type_reference_entity_meaning(type_name);
         let introduces_error = self.reused_entity_name_introduces_error(type_name, meaning)?;
         // tsc visits typeArguments before branching on introducesError.
-        let rendered =
-            self.type_argument_nodes_text(self.nodes_of(data.type_arguments).to_vec())?;
+        let rendered = self.type_argument_nodes_text(crate::copy_census::copy_census!(
+            "nodes.check.try_visit_type_reference_face.to_vec.L11460",
+            Nodes,
+            self.nodes_of(data.type_arguments).to_vec()
+        ))?;
         if introduces_error {
             return Ok(self
                 .serialize_reused_type_name(type_name, SymbolFlags::TYPE, &rendered)?
@@ -11727,11 +11905,18 @@ impl<'a> CheckerState<'a> {
                 }
             }
             NodeData::FunctionType(data) => self.with_reused_node_scope(node, |state| {
-                let type_parameters = state.type_parameter_nodes_text_display(
-                    state.nodes_of(data.type_parameters).to_vec(),
-                )?;
+                let type_parameters =
+                    state.type_parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_annotation_text_raw.to_vec.L11731",
+                        Nodes,
+                        state.nodes_of(data.type_parameters).to_vec()
+                    ))?;
                 let parameters =
-                    state.parameter_nodes_text_display(state.nodes_of(data.parameters).to_vec())?;
+                    state.parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_annotation_text_raw.to_vec.L11734",
+                        Nodes,
+                        state.nodes_of(data.parameters).to_vec()
+                    ))?;
                 let ret = match data.r#type {
                     Some(ret) => state.type_annotation_text_display(ret)?,
                     None => "any".into(),
@@ -11753,11 +11938,18 @@ impl<'a> CheckerState<'a> {
                     )
                 };
                 let modifier = if is_abstract { "abstract " } else { "" };
-                let type_parameters = state.type_parameter_nodes_text_display(
-                    state.nodes_of(data.type_parameters).to_vec(),
-                )?;
+                let type_parameters =
+                    state.type_parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_annotation_text_raw.to_vec.L11757",
+                        Nodes,
+                        state.nodes_of(data.type_parameters).to_vec()
+                    ))?;
                 let parameters =
-                    state.parameter_nodes_text_display(state.nodes_of(data.parameters).to_vec())?;
+                    state.parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_annotation_text_raw.to_vec.L11760",
+                        Nodes,
+                        state.nodes_of(data.parameters).to_vec()
+                    ))?;
                 let ret = match data.r#type {
                     Some(ret) => state.type_annotation_text_display(ret)?,
                     None => "any".into(),
@@ -11979,7 +12171,12 @@ impl<'a> CheckerState<'a> {
                 let type_arguments = if arguments.is_empty() {
                     JsString::new()
                 } else {
-                    let rendered = self.type_argument_nodes_text(arguments.to_vec())?;
+                    let rendered =
+                        self.type_argument_nodes_text(crate::copy_census::copy_census!(
+                            "nodes.check.type_annotation_text_raw.to_vec.L11982",
+                            Nodes,
+                            arguments.to_vec()
+                        ))?;
                     crate::concat_js(&[&"<", &(crate::join_js_texts(&rendered, ", ")), &">"])
                 };
                 let type_of = if data.is_type_of { "typeof " } else { "" };
@@ -12969,7 +13166,11 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<JsString> {
         let construct = node_util::is_jsdoc_construct_signature(&Published, node);
         let type_parameters =
-            self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters).to_vec())?;
+            self.type_parameter_nodes_text_display(crate::copy_census::copy_census!(
+                "nodes.check.jsdoc_function_type_text.to_vec.L12972",
+                Nodes,
+                self.nodes_of(data.type_parameters).to_vec()
+            ))?;
         let mut return_from_new = None;
         let mut parameters = Vec::new();
         for (index, parameter) in self.nodes_of(data.parameters).into_iter().enumerate() {
@@ -13429,11 +13630,18 @@ impl<'a> CheckerState<'a> {
                 } else {
                     ""
                 };
-                let type_parameters = self.type_parameter_nodes_text_display(
-                    self.nodes_of(data.type_parameters).to_vec(),
-                )?;
+                let type_parameters =
+                    self.type_parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_literal_member_text_worker.to_vec.L13433",
+                        Nodes,
+                        self.nodes_of(data.type_parameters).to_vec()
+                    ))?;
                 let parameters =
-                    self.parameter_nodes_text_display(self.nodes_of(data.parameters).to_vec())?;
+                    self.parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_literal_member_text_worker.to_vec.L13436",
+                        Nodes,
+                        self.nodes_of(data.parameters).to_vec()
+                    ))?;
                 let mut text = crate::concat_js(&[
                     &(modifiers),
                     &(name),
@@ -13452,11 +13660,18 @@ impl<'a> CheckerState<'a> {
                 Ok(Some(text))
             }
             NodeData::CallSignature(data) => {
-                let type_parameters = self.type_parameter_nodes_text_display(
-                    self.nodes_of(data.type_parameters).to_vec(),
-                )?;
+                let type_parameters =
+                    self.type_parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_literal_member_text_worker.to_vec.L13456",
+                        Nodes,
+                        self.nodes_of(data.type_parameters).to_vec()
+                    ))?;
                 let parameters =
-                    self.parameter_nodes_text_display(self.nodes_of(data.parameters).to_vec())?;
+                    self.parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_literal_member_text_worker.to_vec.L13459",
+                        Nodes,
+                        self.nodes_of(data.parameters).to_vec()
+                    ))?;
                 let mut text = crate::concat_js(&[&(type_parameters), &"(", &(parameters), &")"]);
                 if let Some(annotation) = data.r#type {
                     text.push_js((": ").into());
@@ -13467,11 +13682,18 @@ impl<'a> CheckerState<'a> {
                 Ok(Some(text))
             }
             NodeData::ConstructSignature(data) => {
-                let type_parameters = self.type_parameter_nodes_text_display(
-                    self.nodes_of(data.type_parameters).to_vec(),
-                )?;
+                let type_parameters =
+                    self.type_parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_literal_member_text_worker.to_vec.L13471",
+                        Nodes,
+                        self.nodes_of(data.type_parameters).to_vec()
+                    ))?;
                 let parameters =
-                    self.parameter_nodes_text_display(self.nodes_of(data.parameters).to_vec())?;
+                    self.parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_literal_member_text_worker.to_vec.L13474",
+                        Nodes,
+                        self.nodes_of(data.parameters).to_vec()
+                    ))?;
                 let mut text =
                     crate::concat_js(&[&"new ", &(type_parameters), &"(", &(parameters), &")"]);
                 if let Some(annotation) = data.r#type {
@@ -13485,7 +13707,11 @@ impl<'a> CheckerState<'a> {
             NodeData::IndexSignature(data) => {
                 let modifiers = self.modifier_nodes_text(data.modifiers);
                 let parameters =
-                    self.parameter_nodes_text_display(self.nodes_of(data.parameters).to_vec())?;
+                    self.parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_literal_member_text_worker.to_vec.L13488",
+                        Nodes,
+                        self.nodes_of(data.parameters).to_vec()
+                    ))?;
                 let mut text = crate::concat_js(&[&(modifiers), &"[", &(parameters), &"]"]);
                 if let Some(annotation) = data.r#type {
                     text.push_js((": ").into());
@@ -13499,11 +13725,18 @@ impl<'a> CheckerState<'a> {
                 let modifiers = self.modifier_nodes_text(data.modifiers);
                 let name =
                     self.member_name_node_text(data.name.expect("GetAccessor carries its name"))?;
-                let type_parameters = self.type_parameter_nodes_text_display(
-                    self.nodes_of(data.type_parameters).to_vec(),
-                )?;
+                let type_parameters =
+                    self.type_parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_literal_member_text_worker.to_vec.L13503",
+                        Nodes,
+                        self.nodes_of(data.type_parameters).to_vec()
+                    ))?;
                 let parameters =
-                    self.parameter_nodes_text_display(self.nodes_of(data.parameters).to_vec())?;
+                    self.parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_literal_member_text_worker.to_vec.L13506",
+                        Nodes,
+                        self.nodes_of(data.parameters).to_vec()
+                    ))?;
                 let mut text = crate::concat_js(&[
                     &(modifiers),
                     &"get ",
@@ -13533,11 +13766,18 @@ impl<'a> CheckerState<'a> {
                 let modifiers = self.modifier_nodes_text(data.modifiers);
                 let name =
                     self.member_name_node_text(data.name.expect("SetAccessor carries its name"))?;
-                let type_parameters = self.type_parameter_nodes_text_display(
-                    self.nodes_of(data.type_parameters).to_vec(),
-                )?;
+                let type_parameters =
+                    self.type_parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_literal_member_text_worker.to_vec.L13537",
+                        Nodes,
+                        self.nodes_of(data.type_parameters).to_vec()
+                    ))?;
                 let parameters =
-                    self.parameter_nodes_text_display(self.nodes_of(data.parameters).to_vec())?;
+                    self.parameter_nodes_text_display(crate::copy_census::copy_census!(
+                        "nodes.check.type_literal_member_text_worker.to_vec.L13540",
+                        Nodes,
+                        self.nodes_of(data.parameters).to_vec()
+                    ))?;
                 let annotation = match data.r#type {
                     Some(annotation) => self.type_annotation_text_display(annotation)?,
                     None => "any".into(),
@@ -13804,7 +14044,11 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let declarations = self.binder.symbol(property).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.check.property_name_display.clone.L13807",
+            Declarations,
+            self.binder.symbol(property).declarations.clone()
+        );
         let name_type = self.links.symbol(property).name_type;
         let name_type_flags = name_type.map(|name_type| self.tables.flags_of(name_type));
         let string_named = !declarations.is_empty()
@@ -13990,7 +14234,11 @@ impl<'a> CheckerState<'a> {
                 };
                 if self.tables.flags_of(base).intersects(TypeFlags::UNION) {
                     let base_types = match &self.tables.type_of(base).data {
-                        TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                        TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                            "types.check.format_union_types.to_vec.L13993",
+                            Types,
+                            self.tables.list(*types).to_vec()
+                        ),
                         _ => Vec::new(),
                     };
                     let count = base_types.len();
@@ -14627,7 +14875,14 @@ impl<'a> CheckerState<'a> {
         }
         let (value_declaration, declarations) = {
             let data = self.binder.symbol(property);
-            (data.value_declaration, data.declarations.clone())
+            (
+                data.value_declaration,
+                crate::copy_census::copy_census!(
+                    "declarations.check.pseudo_declaration_text.clone.L14630",
+                    Declarations,
+                    data.declarations.clone()
+                ),
+            )
         };
         let Some(declaration) = value_declaration.or_else(|| declarations.first().copied()) else {
             return Ok(None);

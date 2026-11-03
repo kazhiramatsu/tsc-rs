@@ -572,7 +572,11 @@ impl CheckerState<'_> {
                 continue;
             }
             let merged = self.get_merged_symbol(exported);
-            let declarations = self.binder.symbol(merged).declarations.clone();
+            let declarations = crate::copy_census::copy_census!(
+                "declarations.declaration_emit.emit_is_import_required_by_augmentation.clone.L575",
+                Declarations,
+                self.binder.symbol(merged).declarations.clone()
+            );
             if declarations
                 .into_iter()
                 .any(|declaration| self.binder.source_of_node(declaration).root == import_target)
@@ -650,7 +654,13 @@ impl CheckerState<'_> {
             .symbol(file_symbol)
             .exports()
             .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
-            .map(|&symbol| self.binder.symbol(symbol).declarations.to_vec())
+            .map(|&symbol| {
+                crate::copy_census::copy_census!(
+                    "declarations.declaration_emit.emit_get_export_equals_declarations.to_vec.L653",
+                    Declarations,
+                    self.binder.symbol(symbol).declarations.to_vec()
+                )
+            })
             .unwrap_or_default()
     }
 
@@ -1004,7 +1014,11 @@ impl CheckerState<'_> {
         should_compute_aliases_to_make_visible: bool,
     ) -> CheckResult<Option<EmitSymbolAccessibilityResult>> {
         let symbol_flags = self.binder.symbol(symbol).flags;
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.declaration_emit.has_visible_declarations_with_aliases.clone.L1007",
+            Declarations,
+            self.binder.symbol(symbol).declarations.clone()
+        );
         let mut aliases_to_make_visible = Vec::new();
         for declaration in declarations {
             if self.kind_of(declaration) == SyntaxKind::Identifier {
@@ -1540,7 +1554,11 @@ impl CheckerState<'_> {
             return Ok(result);
         }
 
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.declaration_emit.is_symbol_accessible_worker.clone.L1543",
+            Declarations,
+            self.binder.symbol(symbol).declarations.clone()
+        );
         let mut symbol_external_module = None;
         for declaration in declarations {
             if let Some(container) = self.get_external_module_container(declaration)? {
@@ -1939,7 +1957,11 @@ impl CheckerState<'_> {
         let mut visited = HashSet::default();
         visited.insert(export_symbol);
         let mut result = None;
-        let declarations = self.binder.symbol(export_symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.declaration_emit.collect_linked_aliases.clone.L1942",
+            Declarations,
+            self.binder.symbol(export_symbol).declarations.clone()
+        );
         self.build_visible_node_list(&declarations, set_visibility, &mut visited, &mut result)?;
         Ok(result)
     }
@@ -1990,7 +2012,11 @@ impl CheckerState<'_> {
             )?;
             if let Some(import_symbol) = import_symbol {
                 if visited.insert(import_symbol) {
-                    let declarations = self.binder.symbol(import_symbol).declarations.clone();
+                    let declarations = crate::copy_census::copy_census!(
+                        "declarations.declaration_emit.build_visible_node_list.clone.L1993",
+                        Declarations,
+                        self.binder.symbol(import_symbol).declarations.clone()
+                    );
                     self.build_visible_node_list(&declarations, set_visibility, visited, result)?;
                 }
             }

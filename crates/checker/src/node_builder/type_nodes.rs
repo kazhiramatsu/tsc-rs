@@ -1346,7 +1346,7 @@ fn is_symbol_accessible_with_error_names(
             parent = checker.binder.symbol(candidate).parent;
         }
         if module_symbol.is_none() {
-            for declaration in checker.binder.symbol(symbol).declarations.clone() {
+            for declaration in crate::copy_census::copy_census!("declarations.node_builder.type_nodes.is_symbol_accessible_with_error_names.clone.L1349", Declarations, checker.binder.symbol(symbol).declarations.clone()) {
                 if let Some(candidate) = checker
                     .get_external_module_container(declaration)
                     .map_err(|abort| checker_abort_error(checker, context, abort))?
@@ -1508,10 +1508,13 @@ fn type_to_type_node_worker(
     if flags.intersects(TypeFlags::ANY) {
         if let Some(alias) = checker.tables.alias_symbol(r#type) {
             let name = chains_symbol_to_entity_name_node(checker, arena, target, context, alias)?;
-            let alias_arguments = checker
-                .tables
-                .alias_type_arguments(r#type)
-                .map(<[TypeId]>::to_vec);
+            let alias_arguments = checker.tables.alias_type_arguments(r#type).map(|items| {
+                crate::copy_census::copy_census!(
+                    "types.node_builder.type_nodes.type_to_type_node_worker.path_to_vec.L1514",
+                    Types,
+                    <[TypeId]>::to_vec(items)
+                )
+            });
             let arguments = match alias_arguments {
                 Some(arguments) => {
                     map_to_type_nodes(checker, arena, target, &arguments, context, false)?
@@ -1813,7 +1816,7 @@ fn type_to_type_node_worker(
                     let alias_arguments = checker
                         .tables
                         .alias_type_arguments(r#type)
-                        .map(<[TypeId]>::to_vec);
+                        .map(|items| crate::copy_census::copy_census!("types.node_builder.type_nodes.type_to_type_node_worker.path_to_vec.L1816", Types, <[TypeId]>::to_vec(items)));
                     let arguments = match alias_arguments {
                         Some(arguments) => {
                             map_to_type_nodes(checker, arena, target, &arguments, context, false)?
@@ -2027,7 +2030,11 @@ fn type_to_type_node_worker(
     if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
         let mut types = match ty.data {
             TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                checker.tables.list(types).to_vec()
+                crate::copy_census::copy_census!(
+                    "types.node_builder.type_nodes.type_to_type_node_worker.to_vec.L2030",
+                    Types,
+                    checker.tables.list(types).to_vec()
+                )
             }
             _ => unreachable!("union/intersection flags imply list payload"),
         };
@@ -2080,8 +2087,11 @@ fn type_to_type_node_worker(
         let TypeData::TemplateLiteral(template) = ty.data else {
             unreachable!("TemplateLiteral flag implies template payload")
         };
-        let TemplateLiteralData { texts, types } =
-            checker.tables.template_literal(template).clone();
+        let TemplateLiteralData { texts, types } = crate::copy_census::copy_census!(
+            "sidecars.node_builder.type_nodes.type_to_type_node_worker.clone.L2084",
+            Sidecars,
+            checker.tables.template_literal(template).clone()
+        );
         // tsgo keeps the texts' characters (nodebuilderimpl.go:3576-3586).
         let head = arena
             .factory()
@@ -2093,7 +2103,11 @@ fn type_to_type_node_worker(
             )
             .map_err(factory_error)?;
         let head = set_no_ascii_escaping(arena, head);
-        let types = checker.tables.list_copy(types);
+        let types = crate::copy_census::copy_census!(
+            "types.node_builder.type_nodes.type_to_type_node_worker.list_copy.L2096",
+            Types,
+            checker.tables.list_copy(types)
+        );
         let mut spans = Vec::with_capacity(types.len());
         for (index, span_type) in types.iter().copied().enumerate() {
             let Some(span_type) =
@@ -2300,7 +2314,11 @@ fn conditional_type_to_type_node(
     let TypeData::Conditional(data) = checker.tables.type_of(r#type).data else {
         unreachable!("conditional worker receives a conditional type")
     };
-    let root = checker.tables.conditional_root(data.root).clone();
+    let root = crate::copy_census::copy_census!(
+        "sidecars.node_builder.type_nodes.conditional_type_to_type_node.clone.L2303",
+        Sidecars,
+        checker.tables.conditional_root(data.root).clone()
+    );
     let Some(check_type) =
         type_to_type_node_helper(checker, arena, target, data.check_type, context)?
     else {
@@ -2325,7 +2343,11 @@ fn conditional_type_to_type_node(
         let mapper = checker.prepend_type_mapping(root.check_type, new_parameter, data.mapper);
         let old_infer = context
             .infer_type_parameters
-            .replace(root.infer_type_parameters.to_vec());
+            .replace(crate::copy_census::copy_census!(
+                "types.node_builder.type_nodes.conditional_type_to_type_node.to_vec.L2328",
+                Types,
+                root.infer_type_parameters.to_vec()
+            ));
         let extends = (|| {
             let instantiated_extends = checker
                 .instantiate_type(root.extends_type, Some(mapper))
@@ -2423,7 +2445,11 @@ fn conditional_type_to_type_node(
 
     let old_infer = context
         .infer_type_parameters
-        .replace(root.infer_type_parameters.to_vec());
+        .replace(crate::copy_census::copy_census!(
+            "types.node_builder.type_nodes.conditional_type_to_type_node.to_vec.L2426",
+            Types,
+            root.infer_type_parameters.to_vec()
+        ));
     let extends = type_to_type_node_helper(checker, arena, target, data.extends_type, context);
     context.infer_type_parameters = old_infer;
     let Some(extends) = extends? else {
@@ -3045,7 +3071,7 @@ fn should_write_type_of_function_symbol(
         (
             data.flags,
             data.parent,
-            data.declarations.clone(),
+            crate::copy_census::copy_census!("declarations.node_builder.type_nodes.should_write_type_of_function_symbol.clone.L3048", Declarations, data.declarations.clone()),
             data.value_declaration,
         )
     };
@@ -3238,7 +3264,12 @@ fn visit_and_transform_type(
                 identity,
                 context.flags.0,
                 context.internal_flags.0,
-                context.infer_type_parameters.clone().unwrap_or_default(),
+                crate::copy_census::copy_census!(
+                    "types.node_builder.type_nodes.visit_and_transform_type.clone.L3241",
+                    Types,
+                    context.infer_type_parameters.clone()
+                )
+                .unwrap_or_default(),
             )
         });
     if let Some(key) = &cache_key {
@@ -3477,11 +3508,15 @@ fn create_type_node_from_object_type(
                 .create_type(TypeFlags::OBJECT, TypeData::Object);
             checker.tables.type_mut(remainder).object_flags = ObjectFlags::ANONYMOUS;
             checker.tables.type_mut(remainder).symbol = checker.tables.type_of(r#type).symbol;
-            let call_signatures = resolved.call_signatures().to_vec();
-            let index_infos = resolved.index_infos().to_vec();
+            let call_signatures = crate::copy_census::copy_census!(
+                "signatures.node_builder.type_nodes.create_type_node_from_object_type.to_vec.L3480",
+                Signatures,
+                resolved.call_signatures().to_vec()
+            );
+            let index_infos = crate::copy_census::copy_census!("index_infos.node_builder.type_nodes.create_type_node_from_object_type.to_vec.L3481", IndexInfos, resolved.index_infos().to_vec());
             let members = checker.alloc_members(ResolvedMembers::new(
                 resolved.members,
-                resolved.properties.to_vec(),
+                crate::copy_census::copy_census!("properties.node_builder.type_nodes.create_type_node_from_object_type.to_vec.L3484", Properties, resolved.properties.to_vec()),
                 call_signatures,
                 non_abstract_construct_signatures,
                 index_infos,
@@ -3615,8 +3650,20 @@ fn type_reference_to_type_node(
         let TypeData::TupleTarget(tuple) = checker.tables.type_of(target_type).data else {
             unreachable!("tuple reference targets have tuple payload")
         };
-        let tuple = checker.tables.tuple_target(tuple).clone();
-        for (index, argument) in arguments.clone().iter().copied().enumerate() {
+        let tuple = crate::copy_census::copy_census!(
+            "sidecars.node_builder.type_nodes.type_reference_to_type_node.clone.L3618",
+            Sidecars,
+            checker.tables.tuple_target(tuple).clone()
+        );
+        for (index, argument) in crate::copy_census::copy_census!(
+            "types.node_builder.type_nodes.type_reference_to_type_node.clone.L3619",
+            Types,
+            arguments.clone()
+        )
+        .iter()
+        .copied()
+        .enumerate()
+        {
             let optional = tuple
                 .element_flags
                 .get(index)
@@ -3755,7 +3802,11 @@ fn type_reference_to_type_node(
             outer_type_parameter_count,
             ..
         } => (
-            checker.tables.list(type_parameters).to_vec(),
+            crate::copy_census::copy_census!(
+                "types.node_builder.type_nodes.type_reference_to_type_node.to_vec.L3758",
+                Types,
+                checker.tables.list(type_parameters).to_vec()
+            ),
             outer_type_parameter_count as usize,
         ),
         _ => (Vec::new(), 0),

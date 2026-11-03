@@ -757,7 +757,11 @@ impl<'a> CheckerState<'a> {
             .as_ref()
             .map_or(0, Vec::len);
         if type_parameter_count != arity {
-            let declarations = self.binder.symbol(symbol).declarations.clone();
+            let declarations = crate::copy_census::copy_census!(
+                "declarations.globals.get_global_type_alias_symbol.clone.L760",
+                Declarations,
+                self.binder.symbol(symbol).declarations.clone()
+            );
             let decl = declarations
                 .into_iter()
                 .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration);
@@ -1245,7 +1249,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:60847-60849
     pub(crate) fn get_global_builtin_iterator_types(&mut self) -> CheckResult<Vec<TypeId>> {
         if let Some(cached) = &self.global_type_memos.builtin_iterator_types {
-            return Ok(cached.clone());
+            return Ok(crate::copy_census::copy_census!(
+                "types.globals.get_global_builtin_iterator_types.clone.L1248",
+                Types,
+                cached.clone()
+            ));
         }
         let resolved = self.get_global_builtin_types(
             &[
@@ -1256,7 +1264,11 @@ impl<'a> CheckerState<'a> {
             ],
             1,
         )?;
-        self.global_type_memos.builtin_iterator_types = Some(resolved.clone());
+        self.global_type_memos.builtin_iterator_types = Some(crate::copy_census::copy_census!(
+            "types.globals.get_global_builtin_iterator_types.clone.L1259",
+            Types,
+            resolved.clone()
+        ));
         Ok(resolved)
     }
 
@@ -1265,10 +1277,19 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:60801-60803
     pub(crate) fn get_global_builtin_async_iterator_types(&mut self) -> CheckResult<Vec<TypeId>> {
         if let Some(cached) = &self.global_type_memos.builtin_async_iterator_types {
-            return Ok(cached.clone());
+            return Ok(crate::copy_census::copy_census!(
+                "types.globals.get_global_builtin_async_iterator_types.clone.L1268",
+                Types,
+                cached.clone()
+            ));
         }
         let resolved = self.get_global_builtin_types(&["ReadableStreamAsyncIterator"], 1)?;
-        self.global_type_memos.builtin_async_iterator_types = Some(resolved.clone());
+        self.global_type_memos.builtin_async_iterator_types =
+            Some(crate::copy_census::copy_census!(
+                "types.globals.get_global_builtin_async_iterator_types.clone.L1271",
+                Types,
+                resolved.clone()
+            ));
         Ok(resolved)
     }
 

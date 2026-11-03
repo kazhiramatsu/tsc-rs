@@ -172,7 +172,11 @@ impl<'a> CheckerState<'a> {
         let original = self.binder.symbol(symbol);
         let flags = original.flags;
         let escaped_name = original.escaped_name;
-        let declarations = original.declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.merge.clone_symbol.clone.L175",
+            Declarations,
+            original.declarations.clone()
+        );
         let parent = original.parent;
         let value_declaration = original.value_declaration;
         let const_enum_only_module = original.extras().const_enum_only_module;
@@ -324,7 +328,11 @@ impl<'a> CheckerState<'a> {
             {
                 let source_symbol = self.binder.symbol(source);
                 let source_value_declaration = source_symbol.value_declaration;
-                let source_declarations = source_symbol.declarations.clone();
+                let source_declarations = crate::copy_census::copy_census!(
+                    "declarations.merge.merge_symbol.clone.L327",
+                    Declarations,
+                    source_symbol.declarations.clone()
+                );
                 let target_symbol = self.binder.symbol_mut(target);
                 target_symbol.flags |= source_flags;
                 target_symbol.declarations.extend(source_declarations);
@@ -615,8 +623,16 @@ impl<'a> CheckerState<'a> {
         source: SymbolId,
     ) {
         let symbol_name = symbol_name.name();
-        let declarations = self.binder.symbol(target).declarations.clone();
-        let related = self.binder.symbol(source).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.merge.add_duplicate_declaration_errors_for_symbols.clone.L618",
+            Declarations,
+            self.binder.symbol(target).declarations.clone()
+        );
+        let related = crate::copy_census::copy_census!(
+            "declarations.merge.add_duplicate_declaration_errors_for_symbols.clone.L619",
+            Declarations,
+            self.binder.symbol(source).declarations.clone()
+        );
         for node in declarations {
             self.add_duplicate_declaration_error(node, message, symbol_name, &related);
         }
@@ -801,7 +817,7 @@ impl<'a> CheckerState<'a> {
         let name = self.binder.symbol(self.undefined_symbol).escaped_name;
         match self.globals.get(name).copied() {
             Some(target_symbol) => {
-                let declarations = self.binder.symbol(target_symbol).declarations.clone();
+                let declarations = crate::copy_census::copy_census!("declarations.merge.add_undefined_to_globals_or_error_on_redeclaration.clone.L804", Declarations, self.binder.symbol(target_symbol).declarations.clone());
                 for declaration in declarations {
                     if !is_type_declaration(self, declaration) {
                         let diagnostic = self.diagnostic_for_node_js(
@@ -857,8 +873,11 @@ impl<'a> CheckerState<'a> {
                     if let Some(&(_, file_global_this)) =
                         locals.iter().find(|(name, _)| name.as_js() == "globalThis")
                     {
-                        let declarations =
-                            self.binder.symbol(file_global_this).declarations.clone();
+                        let declarations = crate::copy_census::copy_census!(
+                            "declarations.merge.initialize_program_globals.clone.L861",
+                            Declarations,
+                            self.binder.symbol(file_global_this).declarations.clone()
+                        );
                         for declaration in declarations {
                             let diagnostic = self.diagnostic_for_node(
                                 declaration,

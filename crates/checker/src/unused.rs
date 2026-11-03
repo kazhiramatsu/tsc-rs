@@ -463,7 +463,11 @@ impl<'a> CheckerState<'a> {
             if used {
                 continue;
             }
-            let declarations = symbol.declarations.clone();
+            let declarations = crate::copy_census::copy_census!(
+                "declarations.unused.check_unused_locals_and_parameters.clone.L466",
+                Declarations,
+                symbol.declarations.clone()
+            );
             for declaration in declarations {
                 match self.kind_of(declaration) {
                     SyntaxKind::VariableDeclaration
@@ -807,8 +811,16 @@ impl<'a> CheckerState<'a> {
 
     fn unused_binding_pattern_elements(&self, binding_pattern: NodeId) -> Vec<NodeId> {
         match self.data_of(binding_pattern) {
-            NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements).to_vec(),
-            NodeData::ArrayBindingPattern(data) => self.nodes_of(data.elements).to_vec(),
+            NodeData::ObjectBindingPattern(data) => crate::copy_census::copy_census!(
+                "nodes.unused.unused_binding_pattern_elements.to_vec.L810",
+                Nodes,
+                self.nodes_of(data.elements).to_vec()
+            ),
+            NodeData::ArrayBindingPattern(data) => crate::copy_census::copy_census!(
+                "nodes.unused.unused_binding_pattern_elements.to_vec.L811",
+                Nodes,
+                self.nodes_of(data.elements).to_vec()
+            ),
             _ => Vec::new(),
         }
     }

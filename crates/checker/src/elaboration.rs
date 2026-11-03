@@ -243,12 +243,13 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
             if let TypeData::Intersection { types } = &self.tables.type_of(ty).data {
-                return self
-                    .tables
-                    .list(*types)
-                    .to_vec()
-                    .iter()
-                    .any(|&ty| self.is_or_has_generic_conditional(ty));
+                return crate::copy_census::copy_census!(
+                    "types.elaboration.is_or_has_generic_conditional.to_vec.L249",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                )
+                .iter()
+                .any(|&ty| self.is_or_has_generic_conditional(ty));
             }
         }
         false
@@ -521,7 +522,11 @@ impl<'a> CheckerState<'a> {
         children_target: TypeId,
     ) -> CheckResult<(TypeId, TypeId)> {
         let parts = match &self.tables.type_of(children_target).data {
-            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                "types.elaboration.partition_jsx_children_target.to_vec.L524",
+                Types,
+                self.tables.list(*types).to_vec()
+            ),
             _ => vec![children_target],
         };
         let iterable = self.get_global_iterable_type(/*report_errors*/ false)?;
@@ -708,7 +713,11 @@ impl<'a> CheckerState<'a> {
         // Iterable targets need their yielded type in addition to the
         // ordinary numeric indexed access supplied by arrays/tuples.
         let target_parts = match &self.tables.type_of(array_like_target).data {
-            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                "types.elaboration.elaborate_multiple_jsx_children.to_vec.L711",
+                Types,
+                self.tables.list(*types).to_vec()
+            ),
             _ => vec![array_like_target],
         };
         let mut tuple_or_array_parts = Vec::new();

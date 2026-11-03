@@ -308,11 +308,19 @@ impl CheckerState<'_> {
     pub fn get_types_of_type(&self, ty: TypeId) -> Vec<TypeId> {
         match &self.tables.type_of(ty).data {
             TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                self.tables.list(*types).to_vec()
+                crate::copy_census::copy_census!(
+                    "types.exports.get_types_of_type.to_vec.L311",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                )
             }
             TypeData::TemplateLiteral(data) => {
                 let data = self.tables.template_literal(*data);
-                self.tables.list(data.types).to_vec()
+                crate::copy_census::copy_census!(
+                    "types.exports.get_types_of_type.to_vec.L315",
+                    Types,
+                    self.tables.list(data.types).to_vec()
+                )
             }
             _ => panic!("Unhandled case in Type.Types"),
         }
@@ -341,15 +349,22 @@ impl CheckerState<'_> {
                 outer_type_parameter_count,
                 this_type,
             } => InterfaceTypeParts {
-                type_parameters: self.tables.list(*type_parameters).to_vec(),
+                type_parameters: crate::copy_census::copy_census!(
+                    "types.exports.get_interface_type_parts.to_vec.L344",
+                    Types,
+                    self.tables.list(*type_parameters).to_vec()
+                ),
                 outer_type_parameter_count: *outer_type_parameter_count as usize,
                 this_type: Some(*this_type),
             },
             TypeData::TupleTarget(target) => InterfaceTypeParts {
-                type_parameters: self
-                    .tables
-                    .list(self.tables.tuple_target(*target).type_parameters)
-                    .to_vec(),
+                type_parameters: crate::copy_census::copy_census!(
+                    "types.exports.get_interface_type_parts.to_vec.L352",
+                    Types,
+                    self.tables
+                        .list(self.tables.tuple_target(*target).type_parameters)
+                        .to_vec()
+                ),
                 outer_type_parameter_count: 0,
                 this_type: Some(self.tables.tuple_target(*target).this_type),
             },

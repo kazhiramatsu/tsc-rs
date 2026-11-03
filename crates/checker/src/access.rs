@@ -750,8 +750,16 @@ impl<'a> CheckerState<'a> {
                 .expect("Synthetic check flag implies containing type");
             let name = self.binder.symbol(prop).escaped_name;
             let constituents: Vec<TypeId> = match &self.tables.type_of(containing).data {
-                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
-                tsc_types::TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                tsc_types::TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.access.for_each_property_bool.to_vec.L753",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
+                tsc_types::TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                    "types.access.for_each_property_bool.to_vec.L754",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("synthetic containing type is a union or intersection"),
             };
             for constituent in constituents {
@@ -1931,7 +1939,11 @@ impl<'a> CheckerState<'a> {
             if target == target_symbol {
                 break;
             }
-            let declarations = self.binder.symbol(target).declarations.clone();
+            let declarations = crate::copy_census::copy_census!(
+                "declarations.access.resolve_alias_with_deprecation_check.clone.L1934",
+                Declarations,
+                self.binder.symbol(target).declarations.clone()
+            );
             if declarations.is_empty() {
                 break;
             }
@@ -2164,7 +2176,7 @@ impl<'a> CheckerState<'a> {
             if self.is_deprecated_symbol(target_prop_symbol)
                 && self.is_uncalled_function_reference(node, target_prop_symbol)?
             {
-                let declarations = self.binder.symbol(target_prop_symbol).declarations.clone();
+                let declarations = crate::copy_census::copy_census!("declarations.access.check_property_access_expression_or_qualified_name.clone.L2167", Declarations, self.binder.symbol(target_prop_symbol).declarations.clone());
                 if !declarations.is_empty() {
                     let deprecated_entity =
                         tsc_syntax::unescape_leading_underscores(right_text).to_owned();
@@ -2427,7 +2439,11 @@ impl<'a> CheckerState<'a> {
         if let Some(ty) = cold.write_type.get(symbol).resolved() {
             return Ok(Some(ty));
         }
-        let Some(constituents) = cold.deferral_write_constituents.get(symbol).clone() else {
+        let Some(constituents) = crate::copy_census::copy_census!(
+            "types.access.get_write_type_of_symbol_with_deferred_type.clone.L2430",
+            Types,
+            cold.deferral_write_constituents.get(symbol).clone()
+        ) else {
             return Ok(None);
         };
         let parent = cold
@@ -3284,7 +3300,11 @@ impl<'a> CheckerState<'a> {
             && !flags.intersects(TypeFlags::PRIMITIVE)
         {
             let constituents: Vec<TypeId> = match &self.tables.type_of(containing_type).data {
-                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                tsc_types::TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.access.report_nonexistent_property.to_vec.L3287",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union flag implies union data"),
             };
             for subtype in constituents {
@@ -3488,7 +3508,11 @@ impl<'a> CheckerState<'a> {
         // everyContainedType(t => symbol name matches the DOM shape).
         let constituents: Vec<TypeId> = match &self.tables.type_of(containing_type).data {
             tsc_types::TypeData::Union { types, .. }
-            | tsc_types::TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+            | tsc_types::TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                "types.access.container_seems_to_be_empty_dom_element.to_vec.L3491",
+                Types,
+                self.tables.list(*types).to_vec()
+            ),
             _ => vec![containing_type],
         };
         let dom_shape = |name: JsStr<'_>| {
@@ -3651,7 +3675,11 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         if self.tables.flags_of(source).intersects(TypeFlags::UNION) {
             let constituents: Vec<TypeId> = match &self.tables.type_of(source).data {
-                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                tsc_types::TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.access.all_types_assignable_to_kind.to_vec.L3654",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union flag implies union data"),
             };
             for constituent in constituents {
@@ -4047,7 +4075,11 @@ impl<'a> CheckerState<'a> {
                 }
             }
             tsc_types::TypeData::Intersection { types } => {
-                for constituent in self.tables.list(types).to_vec() {
+                for constituent in crate::copy_census::copy_census!(
+                    "types.access.type_may_receive_unresolved_augmentation_property.to_vec.L4050",
+                    Types,
+                    self.tables.list(types).to_vec()
+                ) {
                     let mut branch_seen = seen.clone();
                     if self.type_may_receive_unresolved_augmentation_property(
                         constituent,
@@ -4059,7 +4091,11 @@ impl<'a> CheckerState<'a> {
                 }
             }
             tsc_types::TypeData::Union { types, .. } => {
-                for constituent in self.tables.list(types).to_vec() {
+                for constituent in crate::copy_census::copy_census!(
+                    "types.access.type_may_receive_unresolved_augmentation_property.to_vec.L4062",
+                    Types,
+                    self.tables.list(types).to_vec()
+                ) {
                     if !self.type_already_has_property_or_index(constituent, property_name)? {
                         let mut branch_seen = seen.clone();
                         if !self.type_may_receive_unresolved_augmentation_property(

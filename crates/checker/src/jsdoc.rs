@@ -171,7 +171,11 @@ impl<'a> CheckerState<'a> {
             NodeData::VariableStatement(data) => {
                 match data.declaration_list.map(|list| self.data_of(list)) {
                     Some(NodeData::VariableDeclarationList(list)) => {
-                        self.nodes_of(list.declarations).to_vec()
+                        crate::copy_census::copy_census!(
+                            "nodes.jsdoc.reparsed_type_owner.to_vec.L174",
+                            Nodes,
+                            self.nodes_of(list.declarations).to_vec()
+                        )
                     }
                     _ => Default::default(),
                 }
@@ -223,7 +227,11 @@ impl<'a> CheckerState<'a> {
             if let Some(&last) = self.direct_jsdoc_documents(location).last() {
                 if let NodeData::JSDoc(data) = self.data_of(last) {
                     if data.tags.is_some() {
-                        return self.nodes_of(data.tags).to_vec();
+                        return crate::copy_census::copy_census!(
+                            "nodes.jsdoc.all_jsdoc_tags_tsgo.to_vec.L226",
+                            Nodes,
+                            self.nodes_of(data.tags).to_vec()
+                        );
                     }
                 }
             }
@@ -282,7 +290,13 @@ impl<'a> CheckerState<'a> {
         Published
             .node(node)
             .js_doc
-            .map(|docs| Published.node_array(docs).nodes.to_vec())
+            .map(|docs| {
+                crate::copy_census::copy_census!(
+                    "nodes.jsdoc.direct_jsdoc_documents.to_vec.L285",
+                    Nodes,
+                    Published.node_array(docs).nodes.to_vec()
+                )
+            })
             .unwrap_or_default()
     }
 
@@ -564,7 +578,11 @@ impl<'a> CheckerState<'a> {
         if !self.can_have_jsdoc(host) {
             return Vec::new();
         }
-        if let Some(cached) = self.jsdoc_tag_cache.borrow().get(&host).cloned() {
+        if let Some(cached) = crate::copy_census::copy_census!(
+            "nodes.jsdoc.get_jsdoc_tags.cloned.L567",
+            Nodes,
+            self.jsdoc_tag_cache.borrow().get(&host).cloned()
+        ) {
             return cached;
         }
         let mut result = Vec::new();
@@ -605,9 +623,14 @@ impl<'a> CheckerState<'a> {
             }
             current = self.next_jsdoc_comment_location(node);
         }
-        self.jsdoc_tag_cache
-            .borrow_mut()
-            .insert(host, result.clone());
+        self.jsdoc_tag_cache.borrow_mut().insert(
+            host,
+            crate::copy_census::copy_census!(
+                "nodes.jsdoc.get_jsdoc_tags.clone.L610",
+                Nodes,
+                result.clone()
+            ),
+        );
         result
     }
 

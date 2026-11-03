@@ -1292,7 +1292,11 @@ impl DisplayClonePrinter<'_, '_> {
         let Some(nodes) = nodes else {
             return Ok(JsString::new());
         };
-        let nodes = self.state.binder.node_array(nodes).nodes.to_vec();
+        let nodes = crate::copy_census::copy_census!(
+            "nodes.display_clone.type_arguments.to_vec.L1295",
+            Nodes,
+            self.state.binder.node_array(nodes).nodes.to_vec()
+        );
         let rendered = self.with_line_start(false, |printer| {
             printer.state.type_argument_nodes_text(nodes)
         })?;
@@ -1770,7 +1774,14 @@ impl DisplayClonePrinter<'_, '_> {
             return (Vec::new(), false);
         };
         let nodes = self.state.binder.node_array(nodes);
-        (nodes.nodes.to_vec(), nodes.has_trailing_comma)
+        (
+            crate::copy_census::copy_census!(
+                "nodes.display_clone.node_array.to_vec.L1773",
+                Nodes,
+                nodes.nodes.to_vec()
+            ),
+            nodes.has_trailing_comma,
+        )
     }
 
     fn with_increased_indent<T>(

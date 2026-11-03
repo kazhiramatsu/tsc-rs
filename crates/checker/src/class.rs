@@ -339,7 +339,11 @@ impl<'a> CheckerState<'a> {
         let Some(index_symbol) = index_symbol else {
             return Ok(());
         };
-        let declarations = self.binder.symbol(index_symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.class.check_type_for_duplicate_index_signatures.clone.L342",
+            Declarations,
+            self.binder.symbol(index_symbol).declarations.clone()
+        );
         // entry identity is the TYPE id (getTypeId keying); insertion
         // order preserved for the per-entry declaration lists.
         let mut map: indexmap::IndexMap<TypeId, (TypeId, Vec<NodeId>)> = indexmap::IndexMap::new();
@@ -937,8 +941,11 @@ impl<'a> CheckerState<'a> {
                     for constructor in
                         self.get_constructors_for_type_arguments(static_base_type, base_type_node)?
                     {
-                        let constructor_type_parameters =
-                            self.signature_of(constructor).type_parameters.clone();
+                        let constructor_type_parameters = crate::copy_census::copy_census!(
+                            "signatures.class.check_class_like_declaration.clone.L941",
+                            Signatures,
+                            self.signature_of(constructor).type_parameters.clone()
+                        );
                         if !self.check_type_argument_constraints(
                             base_type_node,
                             constructor_type_parameters.as_deref().unwrap_or(&[]),
@@ -1161,7 +1168,11 @@ impl<'a> CheckerState<'a> {
                     NodeData::HeritageClause(data)
                         if data.token == SyntaxKind::ImplementsKeyword =>
                     {
-                        Some(self.nodes_of(data.types).to_vec())
+                        Some(crate::copy_census::copy_census!(
+                            "nodes.class.get_effective_implements_type_nodes.to_vec.L1164",
+                            Nodes,
+                            self.nodes_of(data.types).to_vec()
+                        ))
                     }
                     _ => None,
                 });
@@ -1368,9 +1379,13 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } => tsc_types::TypeTables::list(&self.tables, *type_parameters)
-                [*outer_type_parameter_count as usize..]
-                .to_vec(),
+            } => crate::copy_census::copy_census!(
+                "types.class.check_type_parameter_lists_identical.to_vec.L1373",
+                Types,
+                tsc_types::TypeTables::list(&self.tables, *type_parameters)
+                    [*outer_type_parameter_count as usize..]
+                    .to_vec()
+            ),
             _ => Vec::new(),
         };
         if !self.are_type_parameters_identical(&declarations, &local_type_parameters)? {
@@ -1892,7 +1907,11 @@ impl<'a> CheckerState<'a> {
                         return Ok(MemberOverrideStatus::HasInvalidOverride);
                     }
                 } else if let (Some(_), Some(base_prop)) = (prop, base_prop) {
-                    let base_declarations = self.binder.symbol(base_prop).declarations.clone();
+                    let base_declarations = crate::copy_census::copy_census!(
+                        "declarations.class.check_member_for_override_modifier.clone.L1895",
+                        Declarations,
+                        self.binder.symbol(base_prop).declarations.clone()
+                    );
                     if !base_declarations.is_empty()
                         && self.options.no_implicit_override == Some(true)
                         && !node_in_ambient_context
@@ -2194,7 +2213,11 @@ impl<'a> CheckerState<'a> {
                     SymbolFlags::from_bits(derived_flags.bits() & property_or_accessor.bits());
                 if !base_property_flags.is_empty() && !derived_property_flags.is_empty() {
                     let base_check_flags = self.links.read_symbol(base, |links| links.check_flags);
-                    let base_declarations = self.binder.symbol(base).declarations.clone();
+                    let base_declarations = crate::copy_census::copy_census!(
+                        "declarations.class.check_kinds_of_property_member_overrides.clone.L2197",
+                        Declarations,
+                        self.binder.symbol(base).declarations.clone()
+                    );
                     let abstract_or_interface_everywhere =
                         if base_check_flags.intersects(tsc_types::CheckFlags::SYNTHETIC) {
                             base_declarations.iter().any(|&declaration| {
@@ -2251,7 +2274,7 @@ impl<'a> CheckerState<'a> {
                             ],
                         );
                     } else if self.options.use_define_for_class_fields_effective() {
-                        let derived_declarations = self.binder.symbol(derived).declarations.clone();
+                        let derived_declarations = crate::copy_census::copy_census!("declarations.class.check_kinds_of_property_member_overrides.clone.L2254", Declarations, self.binder.symbol(derived).declarations.clone());
                         let uninitialized =
                             derived_declarations.iter().copied().find(|&declaration| {
                                 matches!(self.data_of(declaration),
@@ -2462,7 +2485,11 @@ impl<'a> CheckerState<'a> {
         }
         let mut seen: rustc_hash::FxHashMap<EscapedName, SeenEntry> = Default::default();
         let declared_members = self.resolve_declared_members(ty)?;
-        for prop in self.members_of(declared_members).properties.clone() {
+        for prop in crate::copy_census::copy_census!(
+            "properties.class.check_inherited_properties_are_identical.clone.L2465",
+            Properties,
+            self.members_of(declared_members).properties.clone()
+        ) {
             let escaped_name = self.binder.symbol(prop).escaped_name;
             seen.insert(
                 escaped_name,

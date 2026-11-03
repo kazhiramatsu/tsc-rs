@@ -212,7 +212,11 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.facts.get_type_facts_worker.to_vec.L215",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union flag implies union data"),
             };
             let mut facts = TypeFacts::NONE;
@@ -237,7 +241,11 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeFacts> {
         let ignore_objects = self.maybe_type_of_kind(ty, TypeFlags::PRIMITIVE);
         let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-            TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+            TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                "types.facts.get_intersection_type_facts.to_vec.L240",
+                Types,
+                self.tables.list(*types).to_vec()
+            ),
             _ => unreachable!("intersection flag implies intersection data"),
         };
         let mut ored = TypeFacts::NONE;
@@ -505,7 +513,11 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.facts.filter_type_with.to_vec.L508",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union flag implies union data"),
             };
             let mut keep = rustc_hash::FxHashSet::default();

@@ -2397,11 +2397,14 @@ impl<'a> CheckerState<'a> {
                 /*dont_resolve_alias*/ true,
             )?;
             if let Some(default_export_symbol) = default_export_symbol {
-                let declarations = self
-                    .binder
-                    .symbol(default_export_symbol)
-                    .declarations
-                    .clone();
+                let declarations = crate::copy_census::copy_census!(
+                    "declarations.modules.can_have_synthetic_default.clone.L2404",
+                    Declarations,
+                    self.binder
+                        .symbol(default_export_symbol)
+                        .declarations
+                        .clone()
+                );
                 if declarations
                     .iter()
                     .any(|&declaration| self.is_syntactic_default(declaration))
@@ -2529,8 +2532,14 @@ impl<'a> CheckerState<'a> {
                 return Ok(Some(target));
             }
             let alias_symbol = self.binder.symbol(alias);
-            let (name, declarations) =
-                (alias_symbol.escaped_name, alias_symbol.declarations.clone());
+            let (name, declarations) = (
+                alias_symbol.escaped_name,
+                crate::copy_census::copy_census!(
+                    "declarations.modules.get_target_of_import_clause.clone.L2533",
+                    Declarations,
+                    alias_symbol.declarations.clone()
+                ),
+            );
             let symbol = self
                 .binder
                 .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, name);
@@ -2735,7 +2744,11 @@ impl<'a> CheckerState<'a> {
             .copied();
         let mut related = Vec::new();
         if let Some(export_star) = export_star {
-            let declarations = self.binder.symbol(export_star).declarations.clone();
+            let declarations = crate::copy_census::copy_census!(
+                "declarations.modules.report_non_default_export.clone.L2738",
+                Declarations,
+                self.binder.symbol(export_star).declarations.clone()
+            );
             for declaration in declarations {
                 let specifier = match self.data_of(declaration) {
                     NodeData::ExportDeclaration(data) => data.module_specifier,
@@ -2828,8 +2841,16 @@ impl<'a> CheckerState<'a> {
         }
         let flags = value.flags | self.binder.symbol(type_symbol).flags;
         let escaped_name = value.escaped_name;
-        let mut declarations = value.declarations.clone();
-        for declaration in self.binder.symbol(type_symbol).declarations.clone() {
+        let mut declarations = crate::copy_census::copy_census!(
+            "declarations.modules.combine_value_and_type_symbols.clone.L2831",
+            Declarations,
+            value.declarations.clone()
+        );
+        for declaration in crate::copy_census::copy_census!(
+            "declarations.modules.combine_value_and_type_symbols.clone.L2832",
+            Declarations,
+            self.binder.symbol(type_symbol).declarations.clone()
+        ) {
             if !declarations.contains(&declaration) {
                 declarations.push(declaration);
             }
@@ -3221,13 +3242,13 @@ impl<'a> CheckerState<'a> {
             }
         }
         let mut related = Vec::new();
-        for (index, declaration) in self
-            .binder
-            .symbol(local_symbol)
-            .declarations
-            .clone()
-            .into_iter()
-            .enumerate()
+        for (index, declaration) in crate::copy_census::copy_census!(
+            "declarations.modules.report_non_exported_member.clone.L3228",
+            Declarations,
+            self.binder.symbol(local_symbol).declarations.clone()
+        )
+        .into_iter()
+        .enumerate()
         {
             let message = if index == 0 {
                 &diagnostics::_0_is_declared_here
@@ -8165,7 +8186,11 @@ impl<'a> CheckerState<'a> {
             // tsgo: the wrapper's symbol carries the module's declarations
             // (`anonymousSymbol.SetDeclarations(originalSymbol.Declarations())`),
             // which a type definition of the imported module's value reaches.
-            let declarations = self.binder.symbol(original_symbol).declarations.clone();
+            let declarations = crate::copy_census::copy_census!(
+                "declarations.modules.get_type_with_synthetic_default_import_type.clone.L8168",
+                Declarations,
+                self.binder.symbol(original_symbol).declarations.clone()
+            );
             self.binder.symbol_mut(anonymous_symbol).declarations = declarations;
             let default_containing_object = self.create_default_property_wrapper_for_module(
                 symbol,
@@ -8211,7 +8236,11 @@ impl<'a> CheckerState<'a> {
         let original = self.binder.symbol(symbol);
         let flags = original.flags;
         let escaped_name = original.escaped_name;
-        let declarations = original.declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.modules.clone_type_as_module_type.clone.L8214",
+            Declarations,
+            original.declarations.clone()
+        );
         let parent = original.parent;
         let value_declaration = original.value_declaration;
         let const_enum_only_module = original.extras().const_enum_only_module;
@@ -8233,8 +8262,16 @@ impl<'a> CheckerState<'a> {
             .set_symbol_originating_import(self.speculation_depth, result, reference_parent);
         let members_id = self.resolve_structured_type_members(module_type)?;
         let resolved = self.members_of(members_id);
-        let member_table = resolved.members.clone();
-        let index_infos = resolved.index_infos().to_vec();
+        let member_table = crate::copy_census::copy_census!(
+            "properties.modules.clone_type_as_module_type.clone.L8236",
+            Properties,
+            resolved.members.clone()
+        );
+        let index_infos = crate::copy_census::copy_census!(
+            "index_infos.modules.clone_type_as_module_type.to_vec.L8237",
+            IndexInfos,
+            resolved.index_infos().to_vec()
+        );
         let properties = self.get_named_members(&member_table, Some(result))?;
         let anonymous = self.make_resolved_anonymous_type(
             Some(result),
@@ -8415,7 +8452,11 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         visited.push(symbol);
-        let mut symbols = (**self.binder.symbol(symbol).exports()).clone();
+        let mut symbols = crate::copy_census::copy_census!(
+            "properties.modules.visit_module_exports.clone.L8418",
+            Properties,
+            (**self.binder.symbol(symbol).exports()).clone()
+        );
         let export_stars = symbols.get(InternalSymbolName::EXPORT_STAR).copied();
         if let Some(export_stars) = export_stars {
             let mut nested_symbols = SymbolTable::default();
@@ -8423,7 +8464,11 @@ impl<'a> CheckerState<'a> {
             // IndexMap so the 2308 emission order matches tsc's Map
             // iteration.
             let mut lookup_table: ExportLookupTable = ExportLookupTable::new();
-            for node in self.binder.symbol(export_stars).declarations.clone() {
+            for node in crate::copy_census::copy_census!(
+                "declarations.modules.visit_module_exports.clone.L8426",
+                Declarations,
+                self.binder.symbol(export_stars).declarations.clone()
+            ) {
                 let specifier = match self.data_of(node) {
                     NodeData::ExportDeclaration(data) => data.module_specifier,
                     _ => None,
@@ -9661,7 +9706,11 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) == SyntaxKind::ImportSpecifier {
             let target_symbol = self.resolve_alias_with_deprecation_check(symbol, node)?;
             if self.is_deprecated_symbol(target_symbol) {
-                let declarations = self.binder.symbol(target_symbol).declarations.clone();
+                let declarations = crate::copy_census::copy_census!(
+                    "declarations.modules.check_alias_symbol.clone.L9664",
+                    Declarations,
+                    self.binder.symbol(target_symbol).declarations.clone()
+                );
                 if !declarations.is_empty() {
                     let name = self.binder.symbol(target_symbol).escaped_name;
                     self.add_deprecated_suggestion(node, &declarations, name);
@@ -10950,7 +10999,11 @@ impl<'a> CheckerState<'a> {
             if flags.intersects(SymbolFlags::NAMESPACE | SymbolFlags::ENUM) {
                 continue;
             }
-            let declarations = self.binder.symbol(export_symbol).declarations.clone();
+            let declarations = crate::copy_census::copy_census!(
+                "declarations.modules.check_external_module_exports.clone.L10953",
+                Declarations,
+                self.binder.symbol(export_symbol).declarations.clone()
+            );
             let exported_declarations_count = declarations
                 .iter()
                 .filter(|&&declaration| {

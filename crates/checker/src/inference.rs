@@ -515,8 +515,11 @@ impl<'a> CheckerState<'a> {
         context: InferenceContextId,
         index: usize,
     ) -> MapperId {
-        let forward_inferences: Vec<InferenceInfoId> =
-            self.inference_context(context).inferences[index..].to_vec();
+        let forward_inferences: Vec<InferenceInfoId> = crate::copy_census::copy_census!(
+            "scratch.inference.create_backreference_mapper.to_vec.L519",
+            Scratch,
+            self.inference_context(context).inferences[index..].to_vec()
+        );
         let sources: Vec<TypeId> = forward_inferences
             .iter()
             .map(|&info| self.inference_info(info).type_parameter)
@@ -600,7 +603,13 @@ impl<'a> CheckerState<'a> {
             .tables
             .alias_type_arguments(ty)
             .filter(|arguments| !arguments.is_empty())
-            .map(<[TypeId]>::to_vec);
+            .map(|items| {
+                crate::copy_census::copy_census!(
+                    "types.inference.get_type_depth.path_to_vec.L603",
+                    Types,
+                    <[TypeId]>::to_vec(items)
+                )
+            });
         if let Some(arguments) = alias_type_arguments {
             return Ok(self.get_type_list_depth(&arguments, max_depth - 1)? + 1);
         }
@@ -621,7 +630,11 @@ impl<'a> CheckerState<'a> {
         {
             let members = match &self.tables.type_of(ty).data {
                 TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                    self.tables.list(*types).to_vec()
+                    crate::copy_census::copy_census!(
+                        "types.inference.get_type_depth.to_vec.L624",
+                        Types,
+                        self.tables.list(*types).to_vec()
+                    )
                 }
                 _ => unreachable!("UnionOrIntersection flag implies member data"),
             };
@@ -655,7 +668,11 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let members = match &self.tables.type_of(ty).data {
                 TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                    self.tables.list(*types).to_vec()
+                    crate::copy_census::copy_census!(
+                        "types.inference.is_type_parameter_at_top_level.to_vec.L658",
+                        Types,
+                        self.tables.list(*types).to_vec()
+                    )
                 }
                 _ => unreachable!("UnionOrIntersection flag implies member data"),
             };
@@ -724,7 +741,11 @@ impl<'a> CheckerState<'a> {
         // the callback once.
         let source_members = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.inference.create_empty_object_type_from_string_literal.to_vec.L727",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("Union flag implies member data"),
             }
         } else {
@@ -748,7 +769,7 @@ impl<'a> CheckerState<'a> {
                 LinkSlot::Resolved(self.tables.intrinsics.any),
             );
             if let Some(symbol) = self.tables.type_of(t).symbol {
-                let declarations = self.binder.symbol(symbol).declarations.clone();
+                let declarations = crate::copy_census::copy_census!("declarations.inference.create_empty_object_type_from_string_literal.clone.L751", Declarations, self.binder.symbol(symbol).declarations.clone());
                 let value_declaration = self.binder.symbol(symbol).value_declaration;
                 let prop = self.binder.symbol_mut(literal_prop);
                 prop.declarations = declarations;
@@ -773,7 +794,11 @@ impl<'a> CheckerState<'a> {
                 .index_infos
                 .push(index_info);
         }
-        let properties: Vec<_> = self.members_of(members_id).members.symbols().to_vec();
+        let properties: Vec<_> = crate::copy_census::copy_census!(
+            "properties.inference.create_empty_object_type_from_string_literal.to_vec.L776",
+            Properties,
+            self.members_of(members_id).members.symbols().to_vec()
+        );
         self.members_mut(members_id).properties = properties.into();
         id
     }
@@ -986,7 +1011,11 @@ impl<'a> CheckerState<'a> {
             let TypeData::TupleTarget(data) = self.tables.type_of(tuple_target).data else {
                 unreachable!("tuple source has a tuple target");
             };
-            let data = self.tables.tuple_target(data).clone();
+            let data = crate::copy_census::copy_census!(
+                "sidecars.inference.create_reverse_mapped_type.clone.L989",
+                Sidecars,
+                self.tables.tuple_target(data).clone()
+            );
             let element_flags = if self
                 .get_mapped_type_modifiers(target)
                 .intersects(tsc_types::MappedTypeModifiers::INCLUDE_OPTIONAL)
@@ -1002,7 +1031,11 @@ impl<'a> CheckerState<'a> {
                     })
                     .collect::<Vec<_>>()
             } else {
-                data.element_flags.to_vec()
+                crate::copy_census::copy_census!(
+                    "sidecars.inference.create_reverse_mapped_type.to_vec.L1005",
+                    Sidecars,
+                    data.element_flags.to_vec()
+                )
             };
             return self
                 .create_tuple_type_forced(
@@ -1699,7 +1732,11 @@ impl<'a> CheckerState<'a> {
                     .intersects(TypeFlags::UNION)
                 {
                     match &self.tables.type_of(target_rest_type).data {
-                        TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                        TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                            "types.inference.apply_to_parameter_types_with_inferences.to_vec.L1702",
+                            Types,
+                            self.tables.list(*types).to_vec()
+                        ),
                         _ => vec![target_rest_type],
                     }
                 } else {
@@ -1956,27 +1993,35 @@ impl InferTypesWalker<'_, '_> {
         }
         if let Some(alias) = self.st.tables.alias_symbol(source) {
             if Some(alias) == self.st.tables.alias_symbol(target) {
-                if let Some(source_args) = self
-                    .st
-                    .tables
-                    .alias_type_arguments(source)
-                    .map(<[TypeId]>::to_vec)
+                if let Some(source_args) =
+                    self.st.tables.alias_type_arguments(source).map(|items| {
+                        crate::copy_census::copy_census!(
+                            "types.inference.infer_from_types.path_to_vec.L1963",
+                            Types,
+                            <[TypeId]>::to_vec(items)
+                        )
+                    })
                 {
                     // 68658-68663: infer between the (filled) alias
                     // argument lists under the alias' measured
                     // variances.
-                    let target_args = self
-                        .st
-                        .tables
-                        .alias_type_arguments(target)
-                        .map(<[TypeId]>::to_vec);
-                    let params = self
-                        .st
-                        .links
-                        .symbol_cold()
-                        .type_parameters
-                        .get(alias)
-                        .clone();
+                    let target_args = self.st.tables.alias_type_arguments(target).map(|items| {
+                        crate::copy_census::copy_census!(
+                            "types.inference.infer_from_types.path_to_vec.L1972",
+                            Types,
+                            <[TypeId]>::to_vec(items)
+                        )
+                    });
+                    let params = crate::copy_census::copy_census!(
+                        "types.inference.infer_from_types.clone.L1979",
+                        Types,
+                        self.st
+                            .links
+                            .symbol_cold()
+                            .type_parameters
+                            .get(alias)
+                            .clone()
+                    );
                     let min_params = self.st.get_min_type_argument_count(params.as_deref());
                     let in_js = self
                         .st
@@ -2029,7 +2074,11 @@ impl InferTypesWalker<'_, '_> {
         {
             // 68667-68671: identical union/intersection — infer each
             // member into itself.
-            for t in self.types_of(source) {
+            for t in crate::copy_census::copy_census!(
+                "types.inference.infer_from_types.types_of.L2032",
+                Types,
+                self.types_of(source)
+            ) {
                 self.infer_from_types(t, t)?;
             }
             return Ok(());
@@ -2039,13 +2088,34 @@ impl InferTypesWalker<'_, '_> {
             // a fully-stripped source infers the remainder as a naked
             // type variable.
             let initial_sources = if self.st.tables.flags_of(source).intersects(TypeFlags::UNION) {
-                self.types_of(source)
+                crate::copy_census::copy_census!(
+                    "types.inference.infer_from_types.types_of.L2042",
+                    Types,
+                    self.types_of(source)
+                )
             } else {
-                tsc_types::TypeListCopy::new(&[source])
+                crate::copy_census::copy_census!(
+                    "types.inference.infer_from_types.call_new.L2044",
+                    Types,
+                    tsc_types::TypeListCopy::new(&[source])
+                )
             };
             let (temp_sources, temp_targets) = self.infer_from_matching_types(
-                initial_sources.to_vec(),
-                self.types_of(target).to_vec(),
+                crate::copy_census::copy_census!(
+                    "types.inference.infer_from_types.to_vec.L2047",
+                    Types,
+                    initial_sources.to_vec()
+                ),
+                crate::copy_census::copy_census!(
+                    "types.inference.infer_from_types.to_vec.L2048",
+                    Types,
+                    crate::copy_census::copy_census!(
+                        "types.inference.infer_from_types.types_of.L2048",
+                        Types,
+                        self.types_of(target)
+                    )
+                    .to_vec()
+                ),
                 TypeMatcher::OrBaseIdenticalTo,
                 false,
             )?;
@@ -2075,7 +2145,11 @@ impl InferTypesWalker<'_, '_> {
             .intersects(TypeFlags::INTERSECTION)
             && {
                 let mut every_non_generic_object = true;
-                for member in self.types_of(target) {
+                for member in crate::copy_census::copy_census!(
+                    "types.inference.infer_from_types.types_of.L2078",
+                    Types,
+                    self.types_of(target)
+                ) {
                     // 62918 isNonGenericObjectType
                     let non_generic_object = self
                         .st
@@ -2100,13 +2174,34 @@ impl InferTypesWalker<'_, '_> {
                     .flags_of(source)
                     .intersects(TypeFlags::INTERSECTION)
                 {
-                    self.types_of(source)
+                    crate::copy_census::copy_census!(
+                        "types.inference.infer_from_types.types_of.L2103",
+                        Types,
+                        self.types_of(source)
+                    )
                 } else {
-                    tsc_types::TypeListCopy::new(&[source])
+                    crate::copy_census::copy_census!(
+                        "types.inference.infer_from_types.call_new.L2105",
+                        Types,
+                        tsc_types::TypeListCopy::new(&[source])
+                    )
                 };
                 let (sources, targets) = self.infer_from_matching_types(
-                    initial_sources.to_vec(),
-                    self.types_of(target).to_vec(),
+                    crate::copy_census::copy_census!(
+                        "types.inference.infer_from_types.to_vec.L2108",
+                        Types,
+                        initial_sources.to_vec()
+                    ),
+                    crate::copy_census::copy_census!(
+                        "types.inference.infer_from_types.to_vec.L2109",
+                        Types,
+                        crate::copy_census::copy_census!(
+                            "types.inference.infer_from_types.types_of.L2109",
+                            Types,
+                            self.types_of(target)
+                        )
+                        .to_vec()
+                    ),
                     TypeMatcher::IdenticalTo,
                     false,
                 )?;
@@ -2373,11 +2468,19 @@ impl InferTypesWalker<'_, '_> {
             // is live in infer_to_conditional_type.
             self.invoke_once(source, target, InferAction::ToConditionalType)?;
         } else if target_flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
-            let member_types = self.types_of(target);
+            let member_types = crate::copy_census::copy_census!(
+                "types.inference.infer_from_types.types_of.L2376",
+                Types,
+                self.types_of(target)
+            );
             self.infer_to_multiple_types(source, &member_types, target_flags)?;
         } else if source_flags.intersects(TypeFlags::UNION) {
             // 68791-68795: distribute a union source over the target.
-            for source_type in self.types_of(source) {
+            for source_type in crate::copy_census::copy_census!(
+                "types.inference.infer_from_types.types_of.L2380",
+                Types,
+                self.types_of(source)
+            ) {
                 self.infer_from_types(source_type, target)?;
             }
         } else if target_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
@@ -2715,7 +2818,7 @@ impl InferTypesWalker<'_, '_> {
                 .flags_of(ty)
                 .intersects(TypeFlags::INTERSECTION)
             {
-                self.types_of(ty)
+                crate::copy_census::copy_census!("types.inference.get_single_type_variable_from_intersection_types.types_of.L2718", Types, self.types_of(ty))
                     .into_iter()
                     .find(|&member| self.get_inference_info_for_type(member).is_some())
             } else {
@@ -2746,9 +2849,17 @@ impl InferTypesWalker<'_, '_> {
             // type variable.
             let mut naked_type_variable: Option<TypeId> = None;
             let sources = if self.st.tables.flags_of(source).intersects(TypeFlags::UNION) {
-                self.types_of(source)
+                crate::copy_census::copy_census!(
+                    "types.inference.infer_to_multiple_types.types_of.L2749",
+                    Types,
+                    self.types_of(source)
+                )
             } else {
-                tsc_types::TypeListCopy::new(&[source])
+                crate::copy_census::copy_census!(
+                    "types.inference.infer_to_multiple_types.call_new.L2751",
+                    Types,
+                    tsc_types::TypeListCopy::new(&[source])
+                )
             };
             let mut matched = vec![false; sources.len()];
             let mut inference_circularity = false;
@@ -2909,12 +3020,22 @@ impl InferTypesWalker<'_, '_> {
         let TypeData::TemplateLiteral(template) = self.st.tables.type_of(target).data else {
             unreachable!("TemplateLiteral flag implies data");
         };
-        let TemplateLiteralData { texts, types } =
-            self.st.tables.template_literal(template).clone();
+        let TemplateLiteralData { texts, types } = crate::copy_census::copy_census!(
+            "sidecars.inference.infer_to_template_literal_type.clone.L2913",
+            Sidecars,
+            self.st.tables.template_literal(template).clone()
+        );
         if matches.is_none() && !texts.iter().all(|s| s.is_empty()) {
             return Ok(());
         }
-        for (i, &target2) in self.st.tables.list(types).to_vec().iter().enumerate() {
+        for (i, &target2) in crate::copy_census::copy_census!(
+            "types.inference.infer_to_template_literal_type.to_vec.L2917",
+            Types,
+            self.st.tables.list(types).to_vec()
+        )
+        .iter()
+        .enumerate()
+        {
             let source2 = match &matches {
                 Some(matches) => matches[i],
                 None => self.st.tables.intrinsics.never,
@@ -2952,9 +3073,17 @@ impl InferTypesWalker<'_, '_> {
                             .flags_of(constraint)
                             .intersects(TypeFlags::UNION)
                         {
-                            self.types_of(constraint)
+                            crate::copy_census::copy_census!(
+                                "types.inference.infer_to_template_literal_type.types_of.L2955",
+                                Types,
+                                self.types_of(constraint)
+                            )
                         } else {
-                            tsc_types::TypeListCopy::new(&[constraint])
+                            crate::copy_census::copy_census!(
+                                "types.inference.infer_to_template_literal_type.call_new.L2957",
+                                Types,
+                                tsc_types::TypeListCopy::new(&[constraint])
+                            )
                         };
                         let mut all_type_flags = TypeFlags::from_bits(0);
                         for &t in &constraint_types {
@@ -3207,7 +3336,11 @@ impl InferTypesWalker<'_, '_> {
         let constraint_flags = self.st.tables.flags_of(constraint_type);
         if constraint_flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let mut result = false;
-            for constraint in self.types_of(constraint_type) {
+            for constraint in crate::copy_census::copy_census!(
+                "types.inference.infer_to_mapped_type.types_of.L3210",
+                Types,
+                self.types_of(constraint_type)
+            ) {
                 result = self.infer_to_mapped_type(source, target, constraint)? || result;
             }
             return Ok(result);
@@ -3361,8 +3494,16 @@ impl InferTypesWalker<'_, '_> {
         let TypeData::TupleTarget(target_data) = self.st.tables.type_of(target_target).data else {
             unreachable!("tuple type targets a tuple target");
         };
-        let target_data = self.st.tables.tuple_target(target_data).clone();
-        let element_flags = target_data.element_flags.clone();
+        let target_data = crate::copy_census::copy_census!(
+            "sidecars.inference.infer_to_tuple_target.clone.L3364",
+            Sidecars,
+            self.st.tables.tuple_target(target_data).clone()
+        );
+        let element_flags = crate::copy_census::copy_census!(
+            "sidecars.inference.infer_to_tuple_target.clone.L3365",
+            Sidecars,
+            target_data.element_flags.clone()
+        );
         if source_is_tuple && self.st.is_tuple_type_structure_matching(source, target) {
             // 69094-69098: same shape — element-wise.
             for i in 0..target_arity {
@@ -3383,11 +3524,15 @@ impl InferTypesWalker<'_, '_> {
                     &self.st.tables.tuple_target(source_data).element_flags,
                     ElementFlags::FIXED,
                 ),
-                self.st
-                    .tables
-                    .tuple_target(source_data)
-                    .element_flags
-                    .to_vec(),
+                crate::copy_census::copy_census!(
+                    "sidecars.inference.infer_to_tuple_target.to_vec.L3390",
+                    Sidecars,
+                    self.st
+                        .tables
+                        .tuple_target(source_data)
+                        .element_flags
+                        .to_vec()
+                ),
             )
         } else {
             (0, 0, Vec::new())
@@ -3510,10 +3655,20 @@ impl InferTypesWalker<'_, '_> {
                             .tuple_target(source_data)
                             .labeled_element_declarations
                             .as_ref()
-                            .map(|declarations| declarations[start_index..end_index].to_vec());
-                        let trailing_flags = self.st.tables.tuple_target(source_data).element_flags
-                            [start_index..end_index]
-                            .to_vec();
+                            .map(|declarations| {
+                                crate::copy_census::copy_census!(
+                                    "sidecars.inference.infer_to_tuple_target.to_vec.L3513",
+                                    Sidecars,
+                                    declarations[start_index..end_index].to_vec()
+                                )
+                            });
+                        let trailing_flags = crate::copy_census::copy_census!(
+                            "sidecars.inference.infer_to_tuple_target.to_vec.L3516",
+                            Sidecars,
+                            self.st.tables.tuple_target(source_data).element_flags
+                                [start_index..end_index]
+                                .to_vec()
+                        );
                         let trailing_slice = self.st.create_tuple_type_forced(
                             &source_arguments[start_index..end_index],
                             Some(&trailing_flags),
@@ -3610,14 +3765,13 @@ impl InferTypesWalker<'_, '_> {
             };
             // tsgo inferFromProperties: a property declared by a node whose
             // inference is blocked infers nothing.
-            let skipped = self
-                .st
-                .binder
-                .symbol(source_prop)
-                .declarations
-                .clone()
-                .into_iter()
-                .any(|declaration| self.st.has_skip_direct_inference_flag(declaration));
+            let skipped = crate::copy_census::copy_census!(
+                "declarations.inference.infer_from_properties.clone.L3618",
+                Declarations,
+                self.st.binder.symbol(source_prop).declarations.clone()
+            )
+            .into_iter()
+            .any(|declaration| self.st.has_skip_direct_inference_flag(declaration));
             if skipped {
                 continue;
             }
@@ -3753,9 +3907,17 @@ impl InferTypesWalker<'_, '_> {
                     .flags_of(target_rest_type)
                     .intersects(TypeFlags::UNION)
                 {
-                    self.types_of(target_rest_type)
+                    crate::copy_census::copy_census!(
+                        "types.inference.apply_to_parameter_types.types_of.L3756",
+                        Types,
+                        self.types_of(target_rest_type)
+                    )
                 } else {
-                    tsc_types::TypeListCopy::new(&[target_rest_type])
+                    crate::copy_census::copy_census!(
+                        "types.inference.apply_to_parameter_types.call_new.L3758",
+                        Types,
+                        tsc_types::TypeListCopy::new(&[target_rest_type])
+                    )
                 };
                 for member in members {
                     if self.st.is_mutable_array_like_type(member)? {

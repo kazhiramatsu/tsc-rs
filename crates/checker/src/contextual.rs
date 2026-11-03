@@ -213,7 +213,11 @@ impl<'a> CheckerState<'a> {
             &mut |state, t| {
                 if state.tables.flags_of(t).intersects(TypeFlags::INTERSECTION) {
                     let types = match &state.tables.type_of(t).data {
-                        TypeData::Intersection { types } => state.tables.list(*types).to_vec(),
+                        TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                            "types.contextual.get_this_type_from_contextual_type.to_vec.L216",
+                            Types,
+                            state.tables.list(*types).to_vec()
+                        ),
                         _ => unreachable!("intersection flag implies payload"),
                     };
                     for member in types {
@@ -1001,7 +1005,11 @@ impl<'a> CheckerState<'a> {
         let has_rest = data
             .flags
             .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER);
-        let parameters = data.parameters.clone();
+        let parameters = crate::copy_census::copy_census!(
+            "signatures.contextual.get_contextual_type_for_argument_at_index.clone.L1004",
+            Signatures,
+            data.parameters.clone()
+        );
         if has_rest && !parameters.is_empty() && arg_index >= parameters.len() - 1 {
             let rest_index = parameters.len() - 1;
             let rest_type = self.get_type_of_symbol(parameters[rest_index])?;
@@ -1423,7 +1431,11 @@ impl<'a> CheckerState<'a> {
             &mut |state, t| {
                 if state.tables.flags_of(t).intersects(TypeFlags::INTERSECTION) {
                     let constituents = match &state.tables.type_of(t).data {
-                        TypeData::Intersection { types } => state.tables.list(*types).to_vec(),
+                        TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                            "types.contextual.get_type_of_property_of_contextual_type.to_vec.L1426",
+                            Types,
+                            state.tables.list(*types).to_vec()
+                        ),
                         _ => unreachable!("intersection flag implies payload"),
                     };
                     let mut types: Vec<TypeId> = Vec::new();
@@ -1537,7 +1549,11 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(constraint).data else {
                 unreachable!("intersection flag implies payload");
             };
-            let types = self.tables.list_copy(types);
+            let types = crate::copy_census::copy_census!(
+                "types.contextual.is_excluded_mapped_property_name.list_copy.L1540",
+                Types,
+                self.tables.list_copy(types)
+            );
             for member in types.iter().copied() {
                 if self.is_excluded_mapped_property_name(member, property_name_type)? {
                     return Ok(true);
@@ -1823,7 +1839,7 @@ impl<'a> CheckerState<'a> {
                         match &state.tables.type_of(target).data {
                             TypeData::TupleTarget(data) => (
                                 state.tables.tuple_target(*data).fixed_length,
-                                state.tables.tuple_target(*data).element_flags.to_vec(),
+                                crate::copy_census::copy_census!("sidecars.contextual.get_contextual_type_for_element_expression.to_vec.L1826", Sidecars, state.tables.tuple_target(*data).element_flags.to_vec()),
                                 state
                                     .tables
                                     .tuple_target(*data)
@@ -2217,7 +2233,11 @@ impl<'a> CheckerState<'a> {
         discriminators: &[(ContextualDiscriminator, tsc_types::EscapedName)],
     ) -> CheckResult<TypeId> {
         let types = match &self.tables.type_of(target).data {
-            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                "types.contextual.discriminate_type_by_discriminable_items_contextual.to_vec.L2220",
+                Types,
+                self.tables.list(*types).to_vec()
+            ),
             _ => unreachable!("discrimination over a union"),
         };
         // include: 0 = False, -1 = True, 3 = Maybe (tsc Ternary words).
@@ -2462,7 +2482,11 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.contextual.instantiate_instantiable_types.to_vec.L2465",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union flag implies union data"),
             };
             let mut mapped = Vec::with_capacity(members.len());
@@ -2473,7 +2497,11 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Intersection { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Intersection { types, .. } => crate::copy_census::copy_census!(
+                    "types.contextual.instantiate_instantiable_types.to_vec.L2476",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
             let mut mapped = Vec::with_capacity(members.len());
@@ -3087,9 +3115,26 @@ impl<'a> CheckerState<'a> {
         left: SignatureId,
         right: SignatureId,
     ) -> CheckResult<SignatureId> {
-        let left_tps = self.signature_of(left).type_parameters.clone();
-        let right_tps = self.signature_of(right).type_parameters.clone();
-        let type_params = left_tps.clone().or(right_tps.clone());
+        let left_tps = crate::copy_census::copy_census!(
+            "signatures.contextual.combine_signatures_of_intersection_members.clone.L3090",
+            Signatures,
+            self.signature_of(left).type_parameters.clone()
+        );
+        let right_tps = crate::copy_census::copy_census!(
+            "signatures.contextual.combine_signatures_of_intersection_members.clone.L3091",
+            Signatures,
+            self.signature_of(right).type_parameters.clone()
+        );
+        let type_params = crate::copy_census::copy_census!(
+            "signatures.contextual.combine_signatures_of_intersection_members.clone.L3092",
+            Signatures,
+            left_tps.clone()
+        )
+        .or(crate::copy_census::copy_census!(
+            "signatures.contextual.combine_signatures_of_intersection_members.clone.L3092.C137143",
+            Signatures,
+            right_tps.clone()
+        ));
         let param_mapper = match (left_tps.as_ref(), right_tps.as_ref()) {
             (Some(left_tps), Some(right_tps)) => {
                 Some(self.create_type_mapper(right_tps, Some(left_tps)))
@@ -3122,11 +3167,21 @@ impl<'a> CheckerState<'a> {
             .min_argument_count
             .max(self.signature_of(right).min_argument_count);
         let left_composite_kind = self.signature_of(left).composite_kind;
-        let left_composite_signatures = self.signature_of(left).composite_signatures.clone();
+        let left_composite_signatures = crate::copy_census::copy_census!(
+            "signatures.contextual.combine_signatures_of_intersection_members.clone.L3125",
+            Signatures,
+            self.signature_of(left).composite_signatures.clone()
+        );
         let left_mapper = self.signature_of(left).mapper;
         let composite_signatures = {
             let mut list = match (left_composite_kind, &left_composite_signatures) {
-                (Some(TypeFlags::INTERSECTION), Some(signatures)) => signatures.to_vec(),
+                (Some(TypeFlags::INTERSECTION), Some(signatures)) => {
+                    crate::copy_census::copy_census!(
+                    "signatures.contextual.combine_signatures_of_intersection_members.to_vec.L3129",
+                    Signatures,
+                    signatures.to_vec()
+                )
+                }
                 _ => vec![left],
             };
             list.push(right);
@@ -3253,7 +3308,11 @@ impl<'a> CheckerState<'a> {
             return self.get_contextual_call_signature(ty, node);
         }
         let types = match &self.tables.type_of(ty).data {
-            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                "types.contextual.get_contextual_signature.to_vec.L3256",
+                Types,
+                self.tables.list(*types).to_vec()
+            ),
             _ => unreachable!("union flag implies payload"),
         };
         let mut signature_list: Vec<SignatureId> = Vec::new();
@@ -3656,7 +3715,11 @@ impl<'a> CheckerState<'a> {
             NodeData::JSDocSignature(data) => data.parameters,
             _ => None,
         };
-        self.nodes_of(parameters).to_vec()
+        crate::copy_census::copy_census!(
+            "nodes.contextual.parameters_of_function.to_vec.L3659",
+            Nodes,
+            self.nodes_of(parameters).to_vec()
+        )
     }
 
     /// The declaration's syntactic `typeParameters` property.

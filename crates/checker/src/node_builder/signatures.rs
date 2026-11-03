@@ -212,7 +212,11 @@ pub(crate) fn expanded_parameters(
     signature_id: SignatureId,
     skip_union_expanding: bool,
 ) -> CheckResult<Vec<Vec<SymbolId>>> {
-    let signature = checker.signature_of(signature_id).clone();
+    let signature = crate::copy_census::copy_census!(
+        "signatures.node_builder.signatures.expanded_parameters.clone.L215",
+        Signatures,
+        checker.signature_of(signature_id).clone()
+    );
     if !signature
         .flags
         .intersects(SignatureFlags::HAS_REST_PARAMETER)
@@ -232,7 +236,11 @@ pub(crate) fn expanded_parameters(
     }
     if !skip_union_expanding {
         if let TypeData::Union { types, .. } = &checker.tables.type_of(rest_type).data {
-            let types = checker.tables.list_copy(*types);
+            let types = crate::copy_census::copy_census!(
+                "types.node_builder.signatures.expanded_parameters.list_copy.L235",
+                Types,
+                checker.tables.list_copy(*types)
+            );
             if types.iter().all(|&ty| checker.tables.is_tuple_type(ty)) {
                 return types
                     .into_iter()
@@ -254,14 +262,14 @@ fn expand_signature_parameters_with_tuple_members(
     signature_id: SignatureId,
     rest_type: TypeId,
 ) -> CheckResult<Vec<SymbolId>> {
-    let signature = checker.signature_of(signature_id).clone();
+    let signature = crate::copy_census::copy_census!("signatures.node_builder.signatures.expand_signature_parameters_with_tuple_members.clone.L257", Signatures, checker.signature_of(signature_id).clone());
     let rest_index = signature.parameters.len() - 1;
     let rest_symbol = signature.parameters[rest_index];
     let target = checker.tables.reference_target(rest_type);
     let TypeData::TupleTarget(tuple) = checker.tables.type_of(target).data else {
         return Ok(signature.parameters);
     };
-    let tuple = checker.tables.tuple_target(tuple).clone();
+    let tuple = crate::copy_census::copy_census!("signatures.node_builder.signatures.expand_signature_parameters_with_tuple_members.clone.L264", Signatures, checker.tables.tuple_target(tuple).clone());
     let element_types = checker.get_type_arguments(rest_type)?;
     let count = element_types.len().min(tuple.element_flags.len());
     // tsgo 7.1 `getUniqAssociatedNamesFromTupleType`: every element's label
@@ -304,7 +312,7 @@ fn expand_signature_parameters_with_tuple_members(
         // Upstream keys this write by the rewritten name.
         counters.insert(name, counter + 1);
     }
-    let mut expanded = signature.parameters[..rest_index].to_vec();
+    let mut expanded = crate::copy_census::copy_census!("signatures.node_builder.signatures.expand_signature_parameters_with_tuple_members.to_vec.L307", Signatures, signature.parameters[..rest_index].to_vec());
     expanded.reserve(count);
     for (index, element_type) in element_types.into_iter().take(count).enumerate() {
         let name = tsc_types::EscapedName::escape(names[index].as_str().into());
@@ -393,7 +401,11 @@ pub(crate) fn signature_to_signature_declaration_helper(
     context: &mut NodeBuilderContext<'_>,
     options: Option<SignatureDeclarationOptions>,
 ) -> BuildResult<TransformNode> {
-    let signature = checker.signature_of(signature_id).clone();
+    let signature = crate::copy_census::copy_census!(
+        "signatures.node_builder.signatures.signature_to_signature_declaration_helper.clone.L396",
+        Signatures,
+        checker.signature_of(signature_id).clone()
+    );
     let (expanded_parameters, scope) =
         enter_signature_scope(checker, arena, target, context, signature_id)?;
     let result = (|| -> BuildResult<TransformNode> {
@@ -405,10 +417,10 @@ pub(crate) fn signature_to_signature_declaration_helper(
                 .target
                 .zip(signature.mapper)
                 .and_then(|(target_signature_id, mapper)| {
-                    checker
+                    crate::copy_census::copy_census!("signatures.node_builder.signatures.signature_to_signature_declaration_helper.clone.L411", Signatures, checker
                         .signature_of(target_signature_id)
                         .type_parameters
-                        .clone()
+                        .clone())
                         .filter(|parameters| !parameters.is_empty())
                         .map(|parameters| (parameters, mapper))
                 })
@@ -916,7 +928,11 @@ pub(super) fn enter_signature_scope(
     context: &mut NodeBuilderContext<'_>,
     signature_id: SignatureId,
 ) -> BuildResult<(Vec<SymbolId>, ScopeRestore)> {
-    let signature = checker.signature_of(signature_id).clone();
+    let signature = crate::copy_census::copy_census!(
+        "signatures.node_builder.signatures.enter_signature_scope.clone.L919",
+        Signatures,
+        checker.signature_of(signature_id).clone()
+    );
     let expanded_parameters = expanded_parameters(checker, signature_id, true)
         .map_err(|abort| checker_abort_error(checker, context, abort))?
         .swap_remove(0);
@@ -1121,7 +1137,11 @@ fn try_get_this_parameter_declaration(
     signature: SignatureId,
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<Option<TransformNode>> {
-    let signature = checker.signature_of(signature).clone();
+    let signature = crate::copy_census::copy_census!(
+        "signatures.node_builder.signatures.try_get_this_parameter_declaration.clone.L1124",
+        Signatures,
+        checker.signature_of(signature).clone()
+    );
     if let Some(this_parameter) = signature.this_parameter {
         return symbol_to_parameter_declaration(
             checker,
@@ -1722,12 +1742,15 @@ impl NodeDataChildVisitor for BindingNameVisitor<'_, '_, '_> {
 
     fn visit_nodes(&mut self, id: NodeArrayId) -> BuildResult<Option<NodeArrayId>> {
         let original = TransformNodeArray::new(self.source, id);
-        let ids = self
-            .arena
-            .node_array(original)
-            .map_err(factory_error)?
-            .nodes
-            .to_vec();
+        let ids = crate::copy_census::copy_census!(
+            "nodes.node_builder.signatures.visit_nodes.to_vec.L1730",
+            Nodes,
+            self.arena
+                .node_array(original)
+                .map_err(factory_error)?
+                .nodes
+                .to_vec()
+        );
         let mut nodes = Vec::with_capacity(ids.len());
         for id in ids {
             nodes.push(self.visit(TransformNode::new(self.source, id))?);

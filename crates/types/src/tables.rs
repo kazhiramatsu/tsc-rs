@@ -2103,7 +2103,11 @@ impl TypeTables {
             if Some(ty) != last_type {
                 includes = if self.flags_of(ty).intersects(TypeFlags::UNION) {
                     let named = self.is_named_union_type(ty);
-                    let members = self.members_of(ty).to_vec();
+                    let members = crate::perf::copy_list_census!(
+                        "types.tables.add_types_to_union_in_place.to_vec.L2106",
+                        Types,
+                        self.members_of(ty).to_vec()
+                    );
                     self.add_types_to_union_in_place(
                         order,
                         type_set,
@@ -2935,15 +2939,25 @@ impl TypeTables {
             // Patched right below, after the target id exists —
             // tsc allocates thisType after the object (61194).
             this_type: TypeId::new(u32::MAX - 1),
-            element_flags: element_flags.to_vec().into_boxed_slice(),
+            element_flags: crate::perf::copy_list_census!(
+                "sidecars.tables.create_tuple_target_type.flags.L2938",
+                Sidecars,
+                element_flags.to_vec()
+            )
+            .into_boxed_slice(),
             min_length,
             length_type,
             fixed_length,
             has_rest_element,
             combined_flags,
             readonly,
-            labeled_element_declarations: named_member_declarations
-                .map(|declarations| declarations.to_vec().into_boxed_slice()),
+            labeled_element_declarations: named_member_declarations.map(|declarations| {
+                crate::perf::copy_list_census!(
+                    "sidecars.tables.create_tuple_target_type.labels.L2946",
+                    Sidecars,
+                    declarations.to_vec().into_boxed_slice()
+                )
+            }),
         });
         let target = self.create_type(TypeFlags::OBJECT, TypeData::TupleTarget(payload));
         self.type_mut(target).object_flags =
@@ -3219,7 +3233,11 @@ impl TypeTables {
                 // test-only twin (L-TWIN).
                 unreachable!("variadic-in-rest-window collapse lives in the checker twin (L-TWIN)");
             }
-            let window: Vec<TypeId> = expanded_types[first..=last].to_vec();
+            let window: Vec<TypeId> = crate::perf::copy_list_census!(
+                "types.tables.normalize_tuple_type.window.L3222",
+                Types,
+                expanded_types[first..=last].to_vec()
+            );
             expanded_types[first] = self.get_union_type(order, &window, UnionReduction::Literal);
             expanded_types.drain(first + 1..=last);
             expanded_flags.drain(first + 1..=last);
@@ -3416,8 +3434,16 @@ impl TypeTables {
                     unreachable!("template flag implies template data");
                 };
                 let inner = self.template_literal(inner);
-                let inner_texts: Vec<TemplateText> = inner.texts.to_vec();
-                let inner_types: Vec<TypeId> = self.list(inner.types).to_vec();
+                let inner_texts: Vec<TemplateText> = crate::perf::copy_list_census!(
+                    "sidecars.tables.add_spans.texts.L3419",
+                    Sidecars,
+                    inner.texts.to_vec()
+                );
+                let inner_types: Vec<TypeId> = crate::perf::copy_list_census!(
+                    "types.tables.add_spans.types.L3420",
+                    Types,
+                    self.list(inner.types).to_vec()
+                );
                 spans.push_text(&inner_texts[0]);
                 if !self.add_spans(spans, &inner_texts, &inner_types)? {
                     return Ok(false);

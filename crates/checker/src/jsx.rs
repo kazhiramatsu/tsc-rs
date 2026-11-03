@@ -339,7 +339,7 @@ impl<'a> CheckerState<'a> {
                     let attribute_symbol = self
                         .binder
                         .create_symbol(SymbolFlags::PROPERTY | member_flags, escaped_name);
-                    let declarations = self.binder.symbol(member).declarations.clone();
+                    let declarations = crate::copy_census::copy_census!("declarations.jsx.create_jsx_attributes_type_from_attributes_property.clone.L342", Declarations, self.binder.symbol(member).declarations.clone());
                     let parent = self.binder.symbol(member).parent;
                     let value_declaration = self.binder.symbol(member).value_declaration;
                     {
@@ -384,7 +384,7 @@ impl<'a> CheckerState<'a> {
                             {
                                 if self.is_deprecated_symbol(property) {
                                     let declarations =
-                                        self.binder.symbol(property).declarations.clone();
+                                        crate::copy_census::copy_census!("declarations.jsx.create_jsx_attributes_type_from_attributes_property.clone.L387", Declarations, self.binder.symbol(property).declarations.clone());
                                     if !declarations.is_empty() {
                                         let deprecated_entity = self
                                             .identifier_text_of(attribute_name)
@@ -485,7 +485,7 @@ impl<'a> CheckerState<'a> {
                             /*readonly*/ false,
                         )?;
                         if let Some(all) = &all_attributes_table {
-                            let all = all.clone();
+                            let all = crate::copy_census::copy_census!("properties.jsx.create_jsx_attributes_type_from_attributes_property.clone.L488", Properties, all.clone());
                             self.check_spread_prop_overrides(expr_type, &all, attribute_decl)?;
                         }
                     } else {
@@ -678,7 +678,11 @@ impl<'a> CheckerState<'a> {
         };
         let constituents: Vec<TypeId> = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.jsx.contextual_children_type_is_tuple_like.to_vec.L681",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => vec![ty],
             }
         } else {
@@ -1108,7 +1112,11 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let target_types = match &self.tables.type_of(target).data {
-            TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+            TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                "types.jsx.jsx_intersection_contains_intrinsic_attributes.to_vec.L1111",
+                Types,
+                self.tables.list(*types).to_vec()
+            ),
             _ => return Ok(false),
         };
         let intrinsic_attributes = self.get_jsx_type(JSX_INTRINSIC_ATTRIBUTES, location)?;
@@ -1517,7 +1525,11 @@ impl<'a> CheckerState<'a> {
                 .intersects(TypeFlags::UNION)
         {
             let constituents: Vec<TypeId> = match &self.tables.type_of(apparent_elem_type).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.jsx.get_uninstantiated_jsx_signatures_of_type.to_vec.L1520",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => Vec::new(),
             };
             let mut lists: Vec<Vec<SignatureId>> = Vec::with_capacity(constituents.len());
@@ -1526,7 +1538,11 @@ impl<'a> CheckerState<'a> {
             }
             signatures = self.get_union_signatures(&lists)?.into();
         }
-        Ok(signatures.to_vec())
+        Ok(crate::copy_census::copy_census!(
+            "signatures.jsx.get_uninstantiated_jsx_signatures_of_type.to_vec.L1529",
+            Signatures,
+            signatures.to_vec()
+        ))
     }
 
     /// tsc-port: getJSXFragmentType @6.0.3
@@ -1680,7 +1696,11 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         forced_lookup_location: &EscapedName,
     ) -> CheckResult<Option<TypeId>> {
-        if let Some(composites) = self.signature_of(signature).composite_signatures.clone() {
+        if let Some(composites) = crate::copy_census::copy_census!(
+            "signatures.jsx.get_jsx_props_type_for_signature_from_member.clone.L1683",
+            Signatures,
+            self.signature_of(signature).composite_signatures.clone()
+        ) {
             let mut results: Vec<TypeId> = Vec::with_capacity(composites.len());
             for composite in composites {
                 let instance = self.get_return_type_of_signature(composite)?;
@@ -1897,12 +1917,15 @@ impl<'a> CheckerState<'a> {
             .symbol_flags(managed_sym)
             .intersects(SymbolFlags::TYPE_ALIAS)
         {
-            let params = self
-                .links
-                .symbol_cold()
-                .type_parameters
-                .get(managed_sym)
-                .clone();
+            let params = crate::copy_census::copy_census!(
+                "types.jsx.instantiate_alias_or_interface_with_defaults.clone.L1905",
+                Types,
+                self.links
+                    .symbol_cold()
+                    .type_parameters
+                    .get(managed_sym)
+                    .clone()
+            );
             if params.as_ref().map_or(0, Vec::len) >= type_arguments.len() {
                 let args = self
                     .fill_missing_type_arguments(
@@ -1963,7 +1986,11 @@ impl<'a> CheckerState<'a> {
         match &self.tables.type_of(ty).data {
             TypeData::GenericType {
                 type_parameters, ..
-            } => Some(self.tables.list(*type_parameters).to_vec()),
+            } => Some(crate::copy_census::copy_census!(
+                "types.jsx.interface_type_parameters.to_vec.L1966",
+                Types,
+                self.tables.list(*type_parameters).to_vec()
+            )),
             _ => None,
         }
     }

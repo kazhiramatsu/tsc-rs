@@ -164,7 +164,11 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = self.tables.type_of(type_parameter).symbol else {
             return Ok(None);
         };
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.constraints.get_inferred_type_parameter_constraint.clone.L167",
+            Declarations,
+            self.binder.symbol(symbol).declarations.clone()
+        );
         let mut inferences = Vec::new();
         for declaration in declarations {
             let Some(infer_node) = self.parent_of(declaration) else {
@@ -700,8 +704,16 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let types: Vec<TypeId> = match &self.tables.type_of(t).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
-                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.constraints.compute_base_constraint.to_vec.L703",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
+                TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                    "types.constraints.compute_base_constraint.to_vec.L704",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union/intersection flag implies member data"),
             };
             let mut base_types: Vec<TypeId> = Vec::new();
@@ -757,7 +769,18 @@ impl<'a> CheckerState<'a> {
             let (texts, types) = match &self.tables.type_of(t).data {
                 TypeData::TemplateLiteral(data) => {
                     let data = self.tables.template_literal(*data);
-                    (data.texts.to_vec(), self.tables.list(data.types).to_vec())
+                    (
+                        crate::copy_census::copy_census!(
+                            "sidecars.constraints.compute_base_constraint.to_vec.L760",
+                            Sidecars,
+                            data.texts.to_vec()
+                        ),
+                        crate::copy_census::copy_census!(
+                            "types.constraints.compute_base_constraint.to_vec.L760",
+                            Types,
+                            self.tables.list(data.types).to_vec()
+                        ),
+                    )
                 }
                 _ => unreachable!("template flag implies template data"),
             };
@@ -852,7 +875,11 @@ impl<'a> CheckerState<'a> {
             let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
                 unreachable!("generic tuple targets a tuple target");
             };
-            let data = self.tables.tuple_target(data).clone();
+            let data = crate::copy_census::copy_census!(
+                "sidecars.constraints.compute_base_constraint.clone.L855",
+                Sidecars,
+                self.tables.tuple_target(data).clone()
+            );
             // getElementTypes (61313-61316): arguments sliced to arity.
             let mut elements = self.get_type_arguments(t)?;
             elements.truncate(self.tables.list(data.type_parameters).len());
@@ -933,7 +960,11 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn union_members_or_self(&self, ty: TypeId) -> Vec<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.constraints.union_members_or_self.to_vec.L936",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union flag implies union data"),
             }
         } else {

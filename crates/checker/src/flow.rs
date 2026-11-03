@@ -1144,7 +1144,11 @@ impl<'a> CheckerState<'a> {
                 && entry.key == key
                 && !entry.types.is_empty()
             {
-                let types = entry.types.clone();
+                let types = crate::copy_census::copy_census!(
+                    "types.flow.get_type_at_flow_loop_label.clone.L1147",
+                    Types,
+                    entry.types.clone()
+                );
                 let union = self.get_union_or_evolving_array_type(
                     query,
                     &types,
@@ -1171,7 +1175,11 @@ impl<'a> CheckerState<'a> {
                     file: query.file,
                     flow,
                     key: key.clone(),
-                    types: antecedent_types.clone(),
+                    types: crate::copy_census::copy_census!(
+                        "types.flow.get_type_at_flow_loop_label.clone.L1174",
+                        Types,
+                        antecedent_types.clone()
+                    ),
                 });
                 let save_flow_type_cache = self.flow_type_cache.take();
                 let walked = self.get_type_at_flow_node(query, antecedent);
@@ -2143,7 +2151,11 @@ impl<'a> CheckerState<'a> {
     fn every_type_is_tuple_like(&mut self, ty: TypeId) -> CheckResult<bool> {
         let members: Vec<TypeId> = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.flow.every_type_is_tuple_like.to_vec.L2146",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union flag implies union data"),
             }
         } else {
@@ -2282,7 +2294,11 @@ impl<'a> CheckerState<'a> {
             return self.is_type_assignable_to(source, target);
         }
         let members: Vec<TypeId> = match &self.tables.type_of(source).data {
-            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                "types.flow.type_maybe_assignable_to.to_vec.L2285",
+                Types,
+                self.tables.list(*types).to_vec()
+            ),
             _ => unreachable!("union flag implies union data"),
         };
         for member in members {
@@ -2526,7 +2542,11 @@ impl<'a> CheckerState<'a> {
             .intersects(TypeFlags::UNION)
         {
             let members: Vec<TypeId> = match &self.tables.type_of(element_type).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.flow.create_final_array_type.to_vec.L2529",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union flag implies union data"),
             };
             self.get_union_type_ex(&members, tsc_types::UnionReduction::Subtype)?
@@ -2947,7 +2967,11 @@ impl<'a> CheckerState<'a> {
     fn every_type_is_nullable(&mut self, ty: TypeId) -> CheckResult<bool> {
         let members: Vec<TypeId> = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.flow.every_type_is_nullable.to_vec.L2950",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union flag implies union data"),
             }
         } else {

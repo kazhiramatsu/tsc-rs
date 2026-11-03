@@ -196,7 +196,11 @@ impl<'a> CheckerState<'a> {
         self.push_cached_contextual_type(node)?;
         let scan = (|state: &mut Self| -> CheckResult<ArrayLiteralScan> {
             let elements: Vec<NodeId> = match state.data_of(node) {
-                NodeData::ArrayLiteralExpression(data) => state.nodes_of(data.elements).to_vec(),
+                NodeData::ArrayLiteralExpression(data) => crate::copy_census::copy_census!(
+                    "nodes.literals.check_array_literal.to_vec.L199",
+                    Nodes,
+                    state.nodes_of(data.elements).to_vec()
+                ),
                 _ => Vec::new(),
             };
             let in_destructuring_pattern = node_util::is_assignment_target(&Published, node);
@@ -1027,7 +1031,11 @@ impl<'a> CheckerState<'a> {
         acc: &mut ObjectLiteralAcc,
     ) -> CheckResult<()> {
         let properties: Vec<NodeId> = match self.data_of(node) {
-            NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties).to_vec(),
+            NodeData::ObjectLiteralExpression(data) => crate::copy_census::copy_census!(
+                "nodes.literals.check_object_literal_members.to_vec.L1030",
+                Nodes,
+                self.nodes_of(data.properties).to_vec()
+            ),
             _ => Vec::new(),
         };
         acc.contextual_type =
@@ -1227,7 +1235,11 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 }
-                let declarations = self.binder.symbol(member_sym).declarations.clone();
+                let declarations = crate::copy_census::copy_census!(
+                    "declarations.literals.check_object_literal_members.clone.L1230",
+                    Declarations,
+                    self.binder.symbol(member_sym).declarations.clone()
+                );
                 let parent = self.binder.symbol(member_sym).parent;
                 let value_declaration = self.binder.symbol(member_sym).value_declaration;
                 {
@@ -1507,8 +1519,16 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(t).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
-                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.literals.is_valid_spread_type.to_vec.L1510",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
+                TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                    "types.literals.is_valid_spread_type.to_vec.L1511",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => return Ok(false),
             };
             for member in members {
@@ -1594,7 +1614,11 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         }
         let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                "types.literals.try_merge_union_of_object_type_and_empty_object.to_vec.L1597",
+                Types,
+                self.tables.list(*types).to_vec()
+            ),
             _ => unreachable!("union flag implies union data"),
         };
         let mut all_empty_or_spread = true;
@@ -1671,7 +1695,11 @@ impl<'a> CheckerState<'a> {
                 };
                 self.links
                     .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
-                let declarations = self.binder.symbol(prop).declarations.clone();
+                let declarations = crate::copy_census::copy_census!(
+                    "declarations.literals.get_anonymous_partial_type.clone.L1674",
+                    Declarations,
+                    self.binder.symbol(prop).declarations.clone()
+                );
                 self.binder.symbol_mut(result).declarations = declarations;
                 let name_type = self.links.symbol(prop).name_type;
                 self.links
@@ -1730,7 +1758,11 @@ impl<'a> CheckerState<'a> {
             let mapped = self.map_type(
                 types[union_index],
                 &mut |state, t| {
-                    let mut replaced = types.to_vec();
+                    let mut replaced = crate::copy_census::copy_census!(
+                        "types.literals.get_template_literal_type_from_texts.to_vec.L1733",
+                        Types,
+                        types.to_vec()
+                    );
                     replaced[union_index] = t;
                     state
                         .get_template_literal_type_from_texts(texts, &replaced)
@@ -1844,7 +1876,11 @@ impl<'a> CheckerState<'a> {
                 .intersects(TypeFlags::INTERSECTION)
             {
                 let types: Vec<TypeId> = match &self.tables.type_of(left).data {
-                    TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                    TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                        "types.literals.get_spread_type.to_vec.L1847",
+                        Types,
+                        self.tables.list(*types).to_vec()
+                    ),
                     _ => unreachable!("intersection flag implies intersection data"),
                 };
                 // W2c: the LAST constituent (by stored order) is folded.
@@ -1858,7 +1894,11 @@ impl<'a> CheckerState<'a> {
                 {
                     let folded =
                         self.get_spread_type(last_left, right, symbol, object_flags, readonly)?;
-                    let mut constituents = types[..types.len() - 1].to_vec();
+                    let mut constituents = crate::copy_census::copy_census!(
+                        "types.literals.get_spread_type.to_vec.L1861",
+                        Types,
+                        types[..types.len() - 1].to_vec()
+                    );
                     constituents.push(folded);
                     return self
                         .get_intersection_type(&constituents, tsc_types::IntersectionFlags::NONE);
@@ -1899,8 +1939,16 @@ impl<'a> CheckerState<'a> {
                     .flags
                     .intersects(SymbolFlags::OPTIONAL)
                 {
-                    let left_declarations = self.binder.symbol(left_prop).declarations.clone();
-                    let right_declarations = self.binder.symbol(right_prop).declarations.clone();
+                    let left_declarations = crate::copy_census::copy_census!(
+                        "declarations.literals.get_spread_type.clone.L1902",
+                        Declarations,
+                        self.binder.symbol(left_prop).declarations.clone()
+                    );
+                    let right_declarations = crate::copy_census::copy_census!(
+                        "declarations.literals.get_spread_type.clone.L1903",
+                        Declarations,
+                        self.binder.symbol(right_prop).declarations.clone()
+                    );
                     let flags = SymbolFlags::PROPERTY
                         | (self.binder.symbol(left_prop).flags & SymbolFlags::OPTIONAL);
                     let result = self.binder.create_symbol(flags, name);
@@ -2030,7 +2078,11 @@ impl<'a> CheckerState<'a> {
         };
         self.links
             .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
-        let declarations = self.binder.symbol(prop).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.literals.get_spread_symbol.clone.L2033",
+            Declarations,
+            self.binder.symbol(prop).declarations.clone()
+        );
         self.binder.symbol_mut(result).declarations = declarations;
         let name_type = self.links.symbol(prop).name_type;
         self.links

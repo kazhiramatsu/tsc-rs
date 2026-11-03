@@ -365,7 +365,11 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         if self.signature_of(context).type_parameters.is_some() {
             if self.signature_of(signature).type_parameters.is_none() {
-                let context_type_parameters = self.signature_of(context).type_parameters.clone();
+                let context_type_parameters = crate::copy_census::copy_census!(
+                    "signatures.functions.assign_contextual_parameter_types.clone.L368",
+                    Signatures,
+                    self.signature_of(context).type_parameters.clone()
+                );
                 self.signatures[signature.index() as usize].type_parameters =
                     context_type_parameters;
             } else {
@@ -470,7 +474,11 @@ impl<'a> CheckerState<'a> {
         context_signature: crate::state::SignatureId,
         inference_context: crate::inference::InferenceContextId,
     ) -> CheckResult<()> {
-        let parameters = self.signature_of(signature).parameters.clone();
+        let parameters = crate::copy_census::copy_census!(
+            "signatures.functions.infer_from_annotated_parameters_and_return.clone.L473",
+            Signatures,
+            self.signature_of(signature).parameters.clone()
+        );
         let has_rest = self
             .signature_of(signature)
             .flags
@@ -524,7 +532,11 @@ impl<'a> CheckerState<'a> {
         if let Some(this_parameter) = self.signature_of(signature).this_parameter {
             self.assign_parameter_type(this_parameter, None)?;
         }
-        let parameters = self.signature_of(signature).parameters.clone();
+        let parameters = crate::copy_census::copy_census!(
+            "signatures.functions.assign_non_contextual_parameter_types.clone.L527",
+            Signatures,
+            self.signature_of(signature).parameters.clone()
+        );
         for parameter in parameters {
             self.assign_parameter_type(parameter, None)?;
         }
@@ -3276,7 +3288,11 @@ impl<'a> CheckerState<'a> {
         let mut body_declaration: Option<NodeId> = None;
         let mut last_seen_non_ambient: Option<NodeId> = None;
         let mut previous_declaration: Option<NodeId> = None;
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.functions.check_function_or_constructor_symbol.clone.L3279",
+            Declarations,
+            self.binder.symbol(symbol).declarations.clone()
+        );
         let is_constructor = self
             .binder
             .symbol(symbol)
@@ -3677,7 +3693,11 @@ impl<'a> CheckerState<'a> {
             groups.entry(file).or_default().push(overload);
         }
         for file in file_order {
-            let overloads_in_file = groups[&file].clone();
+            let overloads_in_file = crate::copy_census::copy_census!(
+                "declarations.functions.check_flag_agreement_between_overloads.clone.L3680",
+                Declarations,
+                groups[&file].clone()
+            );
             let canonical_for_file =
                 self.get_canonical_overload(&overloads_in_file, implementation);
             let canonical_flags_for_file =
@@ -3775,7 +3795,11 @@ impl<'a> CheckerState<'a> {
         let mut exported_spaces = 0u32;
         let mut non_exported_spaces = 0u32;
         let mut default_exported_spaces = 0u32;
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.functions.check_exports_on_merged_declarations.clone.L3778",
+            Declarations,
+            self.binder.symbol(symbol).declarations.clone()
+        );
         let export_default = tsc_types::ModifierFlags::from_bits(
             tsc_types::ModifierFlags::EXPORT.bits() | tsc_types::ModifierFlags::DEFAULT.bits(),
         );
@@ -3890,7 +3914,11 @@ impl<'a> CheckerState<'a> {
     fn declaration_spaces_of_alias_target(&mut self, d: NodeId) -> CheckResult<u32> {
         let symbol = self.get_symbol_of_declaration(d)?;
         let target = self.resolve_alias(symbol)?;
-        let declarations = self.binder.symbol(target).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.functions.declaration_spaces_of_alias_target.clone.L3893",
+            Declarations,
+            self.binder.symbol(target).declarations.clone()
+        );
         let mut result = 0u32;
         for declaration in declarations {
             result |= self.get_declaration_spaces(declaration)?;

@@ -91,7 +91,11 @@ impl<'a> CheckerState<'a> {
                 unreachable!("intersection flag implies intersection payload");
             };
             let types = self.tables.list(types);
-            let types = types.to_vec();
+            let types = crate::copy_census::copy_census!(
+                "types.mapped.get_combined_mapped_type_optionality.to_vec.L94",
+                Types,
+                types.to_vec()
+            );
             let Some((&first, rest)) = types.split_first() else {
                 return Ok(0);
             };
@@ -377,7 +381,11 @@ impl<'a> CheckerState<'a> {
             let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
                 unreachable!("Conditional flag implies conditional data");
             };
-            let root = self.tables.conditional_root(data.root).clone();
+            let root = crate::copy_census::copy_census!(
+                "sidecars.mapped.get_lower_bound_of_key_type.clone.L380",
+                Sidecars,
+                self.tables.conditional_root(data.root).clone()
+            );
             if root.is_distributive {
                 let constraint = self.get_lower_bound_of_key_type(data.check_type)?;
                 if constraint != data.check_type {
@@ -403,7 +411,11 @@ impl<'a> CheckerState<'a> {
                 unreachable!("Intersection flag implies Intersection payload");
             };
             let types = self.tables.list(types);
-            let types = types.to_vec();
+            let types = crate::copy_census::copy_census!(
+                "types.mapped.get_lower_bound_of_key_type.to_vec.L406",
+                Types,
+                types.to_vec()
+            );
             if types.len() == 2
                 && self
                     .tables
@@ -653,8 +665,11 @@ impl<'a> CheckerState<'a> {
                     modifiers_prop,
                 );
                 if should_link_prop_declarations {
-                    self.binder.symbol_mut(property).declarations =
-                        self.binder.symbol(modifiers_prop).declarations.clone();
+                    self.binder.symbol_mut(property).declarations = crate::copy_census::copy_census!(
+                        "declarations.mapped.add_mapped_member_for_key_type.clone.L657",
+                        Declarations,
+                        self.binder.symbol(modifiers_prop).declarations.clone()
+                    );
                 }
             }
             members.insert(prop_name, property);
@@ -878,7 +893,11 @@ impl<'a> CheckerState<'a> {
             unreachable!("intersection flag implies intersection payload");
         };
         let types = self.tables.list(types);
-        let types = types.to_vec();
+        let types = crate::copy_census::copy_census!(
+            "types.mapped.is_array_or_tuple_or_intersection.to_vec.L881",
+            Types,
+            types.to_vec()
+        );
         for member in types {
             if !self.is_array_type(member)? && !self.tables.is_tuple_type(member) {
                 return Ok(false);

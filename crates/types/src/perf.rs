@@ -13,6 +13,29 @@
 //! per-checker or per-epoch attribution: a repeated publication counted here
 //! is a candidate for review, not proof of duplicate work.
 
+#[cfg(feature = "perf-counters")]
+pub mod list_copies;
+
+macro_rules! copy_list_census {
+    ($site:literal, $group:ident, $value:expr) => {{
+        #[cfg(feature = "perf-counters")]
+        {
+            let value = $value;
+            static SITE: $crate::perf::list_copies::Site = $crate::perf::list_copies::Site::new(
+                $crate::perf::list_copies::Group::$group,
+                $crate::census_names!($site),
+            );
+            SITE.slice(&value);
+            value
+        }
+        #[cfg(not(feature = "perf-counters"))]
+        {
+            $value
+        }
+    }};
+}
+pub(crate) use copy_list_census;
+
 /// One named counter. The order of variants is the report order.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(usize)]
@@ -354,7 +377,7 @@ mod sites {
             .as_ref()
             .map(|sites| sites.iter().map(|(l, n)| (l.to_string(), *n)).collect())
             .unwrap_or_default();
-        rows.sort_by(|a, b| b.1.cmp(&a.1));
+        rows.sort_by_key(|row| std::cmp::Reverse(row.1));
         rows
     }
 }
@@ -410,7 +433,9 @@ pub fn add(counter: PerfCounter, amount: u64) {
 pub fn snapshot() -> Vec<(&'static str, Option<u64>)> {
     #[cfg(feature = "perf-counters")]
     {
-        enabled::snapshot()
+        let mut rows = enabled::snapshot();
+        rows.extend(list_copies::snapshot());
+        rows
     }
     #[cfg(not(feature = "perf-counters"))]
     {
@@ -436,7 +461,7 @@ mod tests {
         add(PerfCounter::TypeListIdBytes, 7);
         let rows = snapshot();
         if enabled() {
-            assert_eq!(rows.len(), COUNT);
+            assert!(rows.len() >= COUNT);
             let value = |wanted: &str| {
                 rows.iter()
                     .find(|(name, _)| *name == wanted)

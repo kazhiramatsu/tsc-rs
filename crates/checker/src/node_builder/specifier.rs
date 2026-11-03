@@ -336,7 +336,11 @@ pub(crate) fn get_specifier_for_module_symbol(
     let mut source_file_declaration =
         state.get_declaration_of_kind(module_symbol, SyntaxKind::SourceFile);
     if source_file_declaration.is_none() {
-        let declarations = state.binder.symbol(module_symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.node_builder.specifier.get_specifier_for_module_symbol.clone.L339",
+            Declarations,
+            state.binder.symbol(module_symbol).declarations.clone()
+        );
         for declaration in declarations {
             let Some(equivalent_file_symbol) =
                 get_file_symbol_if_file_symbol_export_equals_container(
@@ -2026,7 +2030,11 @@ pub(crate) fn try_get_module_name_from_ambient_module(
     state: &mut CheckerState<'_>,
     module_symbol: SymbolId,
 ) -> CheckResult<Option<(JsString, SymbolId)>> {
-    let declarations = state.binder.symbol(module_symbol).declarations.clone();
+    let declarations = crate::copy_census::copy_census!(
+        "declarations.node_builder.specifier.try_get_module_name_from_ambient_module.clone.L2029",
+        Declarations,
+        state.binder.symbol(module_symbol).declarations.clone()
+    );
     for declaration in &declarations {
         let source = state.binder.source_of_node(*declaration);
         if !node_util::is_ambient_module(&Published, *declaration)

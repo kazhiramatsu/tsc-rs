@@ -92,6 +92,7 @@ pub mod class;
 pub mod conditional;
 pub mod constraints;
 pub mod contextual;
+mod copy_census;
 mod declaration_emit;
 mod diagnostic_sink;
 mod display_clone;

@@ -360,7 +360,11 @@ impl<'a> CheckerState<'a> {
         perf::bump(PerfCounter::SubtypeReductionLookups);
         if let Some(cached) = self.subtype_reduction_cache.get(&id) {
             perf::bump(PerfCounter::SubtypeReductionHits);
-            return Ok(Some(cached.clone()));
+            return Ok(Some(crate::copy_census::copy_census!(
+                "types.unions.remove_subtypes.clone.L363",
+                Types,
+                cached.clone()
+            )));
         }
         let mut has_empty_object = false;
         if has_object_types {
@@ -515,7 +519,14 @@ impl<'a> CheckerState<'a> {
             }
         }
         // The reduction is a pure cache (tsc's subtypeReductionCache).
-        self.subtype_reduction_cache.insert(id, types.clone());
+        self.subtype_reduction_cache.insert(
+            id,
+            crate::copy_census::copy_census!(
+                "types.unions.remove_subtypes.clone.L518",
+                Types,
+                types.clone()
+            ),
+        );
         Ok(Some(types))
     }
 
@@ -543,7 +554,11 @@ impl<'a> CheckerState<'a> {
                 })
                 .collect()
         } else {
-            types.to_vec()
+            crate::copy_census::copy_census!(
+                "types.unions.get_common_supertype.to_vec.L546",
+                Types,
+                types.to_vec()
+            )
         };
         let supertype_or_union = if self.literal_types_with_same_base_type(&primary_types)? {
             self.get_union_type_ex(&primary_types, UnionReduction::Literal)?

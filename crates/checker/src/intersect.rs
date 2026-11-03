@@ -87,7 +87,11 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
-            let types = self.tables.list_copy(types);
+            let types = crate::copy_census::copy_census!(
+                "types.intersect.add_type_to_intersection.list_copy.L90",
+                Types,
+                self.tables.list_copy(types)
+            );
             return self.add_types_to_intersection(type_set, includes, &types);
         }
         if self.is_empty_anonymous_object_type(ty)? {
@@ -421,7 +425,11 @@ impl<'a> CheckerState<'a> {
             .intersect_unions_of_primitive_types(ctx.order(), type_set)
         {
             return self.get_intersection_type_ex(
-                &type_set.clone(),
+                &crate::copy_census::copy_census!(
+                    "types.intersect.distribute_intersection_over_unions.clone.L424",
+                    Types,
+                    type_set.clone()
+                ),
                 flags,
                 alias_symbol,
                 alias_type_arguments,
@@ -533,7 +541,11 @@ impl<'a> CheckerState<'a> {
         let count = self.cross_product_union_size(types);
         let mut intersections = Vec::new();
         for i in 0..count {
-            let mut constituents = types.to_vec();
+            let mut constituents = crate::copy_census::copy_census!(
+                "types.intersect.get_cross_product_intersections.to_vec.L536",
+                Types,
+                types.to_vec()
+            );
             let mut n = i;
             for j in (0..types.len()).rev() {
                 if self.tables.flags_of(types[j]).intersects(TypeFlags::UNION) {

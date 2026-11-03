@@ -154,8 +154,16 @@ impl Signature {
         Signature {
             declaration: self.declaration,
             flags: self.flags,
-            type_parameters: self.type_parameters.clone(),
-            parameters: self.parameters.clone(),
+            type_parameters: crate::copy_census::copy_census!(
+                "signatures.state.without_caches.clone.L157",
+                Signatures,
+                self.type_parameters.clone()
+            ),
+            parameters: crate::copy_census::copy_census!(
+                "signatures.state.without_caches.clone.L158",
+                Signatures,
+                self.parameters.clone()
+            ),
             this_parameter: self.this_parameter,
             min_argument_count: self.min_argument_count,
             resolved_return_type: LinkSlot::Vacant,
@@ -166,7 +174,11 @@ impl Signature {
             canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: self.composite_kind,
-            composite_signatures: self.composite_signatures.clone(),
+            composite_signatures: crate::copy_census::copy_census!(
+                "signatures.state.without_caches.clone.L169",
+                Signatures,
+                self.composite_signatures.clone()
+            ),
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: self.isolated_signature_kind,
             isolated_signature_type: None,
@@ -175,7 +187,8 @@ impl Signature {
 }
 
 /// tsc IndexInfo (createIndexInfo 59989).
-#[derive(Clone, Debug)]
+#[derive(Debug)]
+#[cfg_attr(not(feature = "perf-counters"), derive(Clone))]
 pub struct IndexInfo {
     pub key_type: TypeId,
     pub value_type: TypeId,
@@ -200,6 +213,27 @@ pub struct IndexInfo {
     /// unchanged string-to-any shape. Declaration synthesis excludes only
     /// the singleton, while semantic indexing still uses it.
     pub is_any_base_type_index_info: bool,
+}
+
+// Count nested component lists once at the actual deep-clone boundary.
+// The outer IndexInfo array's record bytes are counted at its source site.
+#[cfg(feature = "perf-counters")]
+impl Clone for IndexInfo {
+    fn clone(&self) -> Self {
+        Self {
+            key_type: self.key_type,
+            value_type: self.value_type,
+            is_readonly: self.is_readonly,
+            declaration: self.declaration,
+            components: crate::copy_census::copy_census!(
+                "index_infos.state.IndexInfo.clone.components",
+                IndexInfos,
+                self.components.clone()
+            ),
+            is_enum_number_index_info: self.is_enum_number_index_info,
+            is_any_base_type_index_info: self.is_any_base_type_index_info,
+        }
+    }
 }
 
 /// tsc-port: createWideningContext @6.0.3
@@ -322,7 +356,8 @@ impl<'a, T: Copy> IntoIterator for &'a SharedList<T> {
 
 /// tsc resolved structured-type members (setStructuredTypeMembers
 /// 50198): members table + named properties + signatures + index infos.
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
+#[cfg_attr(not(feature = "perf-counters"), derive(Clone))]
 pub struct ResolvedMembers {
     /// The declared members (copied from the declaring symbol's own table
     /// when they are exactly those), the instantiated ones, or the declared
@@ -337,11 +372,54 @@ pub struct ResolvedMembers {
 
 /// The call and construct signatures and the index infos of a resolved
 /// type, allocated when the type has any.
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
+#[cfg_attr(not(feature = "perf-counters"), derive(Clone))]
 pub struct MembersExtras {
     pub call_signatures: SignatureIds,
     pub construct_signatures: SignatureIds,
     pub index_infos: Vec<IndexInfo>,
+}
+
+#[cfg(feature = "perf-counters")]
+impl Clone for ResolvedMembers {
+    fn clone(&self) -> Self {
+        Self {
+            members: crate::copy_census::copy_census!(
+                "properties.state.ResolvedMembers.clone.members",
+                Properties,
+                self.members.clone()
+            ),
+            properties: crate::copy_census::copy_census!(
+                "properties.state.ResolvedMembers.clone.properties",
+                Properties,
+                self.properties.clone()
+            ),
+            extras: self.extras.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "perf-counters")]
+impl Clone for MembersExtras {
+    fn clone(&self) -> Self {
+        Self {
+            call_signatures: crate::copy_census::copy_census!(
+                "signatures.state.MembersExtras.clone.call_signatures",
+                Signatures,
+                self.call_signatures.clone()
+            ),
+            construct_signatures: crate::copy_census::copy_census!(
+                "signatures.state.MembersExtras.clone.construct_signatures",
+                Signatures,
+                self.construct_signatures.clone()
+            ),
+            index_infos: crate::copy_census::copy_census!(
+                "index_infos.state.MembersExtras.clone.index_infos",
+                IndexInfos,
+                self.index_infos.clone()
+            ),
+        }
+    }
 }
 
 impl ResolvedMembers {
@@ -385,7 +463,13 @@ impl ResolvedMembers {
     pub fn call_signature_list(&self) -> SignatureIds {
         self.extras
             .as_ref()
-            .map_or_else(SignatureIds::new, |extras| extras.call_signatures.clone())
+            .map_or_else(SignatureIds::new, |extras| {
+                crate::copy_census::copy_census!(
+                    "signatures.state.call_signature_list.clone.L388",
+                    Signatures,
+                    extras.call_signatures.clone()
+                )
+            })
     }
 
     /// The construct signatures, shared (a reference count, not a copy).
@@ -393,7 +477,11 @@ impl ResolvedMembers {
         self.extras
             .as_ref()
             .map_or_else(SignatureIds::new, |extras| {
-                extras.construct_signatures.clone()
+                crate::copy_census::copy_census!(
+                    "signatures.state.construct_signature_list.clone.L396",
+                    Signatures,
+                    extras.construct_signatures.clone()
+                )
             })
     }
 

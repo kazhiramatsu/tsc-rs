@@ -203,7 +203,11 @@ impl<'a> CheckerState<'a> {
     /// lazy fill only ever walks a parent that exists.
     fn get_siblings_of_context(&mut self, context: WideningContextId) -> CheckResult<Vec<TypeId>> {
         if let Some(siblings) = &self.widening_contexts[context].siblings {
-            return Ok(siblings.clone());
+            return Ok(crate::copy_census::copy_census!(
+                "types.widen.get_siblings_of_context.clone.L206",
+                Types,
+                siblings.clone()
+            ));
         }
         let parent = self.widening_contexts[context]
             .parent
@@ -222,7 +226,11 @@ impl<'a> CheckerState<'a> {
             let prop_type = self.get_type_of_symbol(prop)?;
             self.for_each_type_members(prop_type, &mut siblings);
         }
-        self.widening_contexts[context].siblings = Some(siblings.clone());
+        self.widening_contexts[context].siblings = Some(crate::copy_census::copy_census!(
+            "types.widen.get_siblings_of_context.clone.L225",
+            Types,
+            siblings.clone()
+        ));
         Ok(siblings)
     }
 
@@ -251,7 +259,11 @@ impl<'a> CheckerState<'a> {
         context: WideningContextId,
     ) -> CheckResult<Vec<SymbolId>> {
         if let Some(resolved) = &self.widening_contexts[context].resolved_properties {
-            return Ok(resolved.clone());
+            return Ok(crate::copy_census::copy_census!(
+                "properties.widen.get_properties_of_context.clone.L254",
+                Properties,
+                resolved.clone()
+            ));
         }
         let mut names: Vec<SymbolId> = Vec::new();
         let mut index_of: rustc_hash::FxHashMap<tsc_types::EscapedName, usize> =
@@ -276,7 +288,12 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        self.widening_contexts[context].resolved_properties = Some(names.clone());
+        self.widening_contexts[context].resolved_properties =
+            Some(crate::copy_census::copy_census!(
+                "properties.widen.get_properties_of_context.clone.L279",
+                Properties,
+                names.clone()
+            ));
         Ok(names)
     }
 
@@ -416,7 +433,11 @@ impl<'a> CheckerState<'a> {
             result = Some(self.get_widened_type_of_object_literal(ty, context)?);
         } else if flags.intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                tsc_types::TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.widen.get_widened_type_with_context.to_vec.L419",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union flag implies union data"),
             };
             let union_context = match context {
@@ -424,7 +445,11 @@ impl<'a> CheckerState<'a> {
                 None => self.create_widening_context(
                     /*parent*/ None,
                     /*property_name*/ None,
-                    Some(members.clone()),
+                    Some(crate::copy_census::copy_census!(
+                        "types.widen.get_widened_type_with_context.clone.L427",
+                        Types,
+                        members.clone()
+                    )),
                 ),
             };
             let mut widened = Vec::with_capacity(members.len());
@@ -455,7 +480,11 @@ impl<'a> CheckerState<'a> {
             result = Some(self.get_union_type_ex(&widened, reduction)?);
         } else if flags.intersects(TypeFlags::INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsc_types::TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                tsc_types::TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                    "types.widen.get_widened_type_with_context.to_vec.L458",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
             let mut widened = Vec::with_capacity(members.len());
@@ -502,7 +531,11 @@ impl<'a> CheckerState<'a> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                tsc_types::TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.widen.report_widening_errors_in_type.to_vec.L505",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union flag implies union data"),
             };
             let mut any_empty_object = false;
@@ -544,7 +577,11 @@ impl<'a> CheckerState<'a> {
                         .type_of(ty)
                         .symbol
                         .and_then(|symbol| self.binder.symbol(symbol).value_declaration);
-                    let declarations = self.binder.symbol(p).declarations.clone();
+                    let declarations = crate::copy_census::copy_census!(
+                        "declarations.widen.report_widening_errors_in_type.clone.L547",
+                        Declarations,
+                        self.binder.symbol(p).declarations.clone()
+                    );
                     let value_declaration = declarations.into_iter().find(|&d| {
                         self.binder
                             .node_symbol(d)
@@ -838,7 +875,11 @@ impl<'a> CheckerState<'a> {
             NodeData::FunctionType(data) => data.parameters,
             _ => None,
         };
-        self.nodes_of(parameters).to_vec()
+        crate::copy_census::copy_census!(
+            "nodes.widen.parameter_nodes_of_signature_like.to_vec.L841",
+            Nodes,
+            self.nodes_of(parameters).to_vec()
+        )
     }
 
     /// tsc-port: shouldReportErrorsFromWideningWithContextualSignature @6.0.3

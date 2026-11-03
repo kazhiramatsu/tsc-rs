@@ -65,9 +65,26 @@ impl PseudoBigInt {
 /// payload lossless lets template matching, ordinary string literal
 /// types, and synthesized type display preserve inputs such as
 /// `\uD800` without identifying them with U+FFFD.
-#[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
+#[derive(Debug, Default, Eq, Hash, PartialEq)]
+#[cfg_attr(not(feature = "perf-counters"), derive(Clone))]
 pub struct TemplateText {
     units: Box<[u16]>,
+}
+
+// Deep UTF-16 payload copies are separate from the TemplateText list's
+// inline box headers. Keep the ordinary derived implementation unchanged.
+#[cfg(feature = "perf-counters")]
+impl Clone for TemplateText {
+    fn clone(&self) -> Self {
+        crate::census_slice!(
+            "sidecars.ty.TemplateText.clone.units",
+            Sidecars,
+            &self.units
+        );
+        Self {
+            units: self.units.clone(),
+        }
+    }
 }
 
 impl TemplateText {

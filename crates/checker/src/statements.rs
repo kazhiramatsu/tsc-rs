@@ -465,7 +465,11 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            let declarations = self.binder.symbol(symbol).declarations.clone();
+            let declarations = crate::copy_census::copy_census!(
+                "declarations.statements.check_variable_like_declaration.clone.L468",
+                Declarations,
+                self.binder.symbol(symbol).declarations.clone()
+            );
             if declarations.len() > 1
                 && declarations.iter().any(|&d| {
                     d != node
@@ -1695,9 +1699,9 @@ impl<'a> CheckerState<'a> {
     /// The isReferenced gate (risk §14.16) reads the resolver-written
     /// SymbolLinks bit (resolve.rs 19767-twin).
     pub(crate) fn check_potential_unchecked_renamed_binding_elements_in_types(&mut self) {
-        let recorded = self
+        let recorded = crate::copy_census::copy_census!("nodes.statements.check_potential_unchecked_renamed_binding_elements_in_types.clone.L1700", Nodes, self
             .potential_unused_renamed_binding_elements_in_types
-            .clone();
+            .clone());
         for node in recorded {
             let Ok(symbol) = self.get_symbol_of_declaration(node);
             if !self
@@ -1851,8 +1855,16 @@ impl<'a> CheckerState<'a> {
     /// The binding-pattern element list (Object/Array patterns).
     fn binding_pattern_elements(&self, pattern: NodeId) -> Vec<NodeId> {
         match self.data_of(pattern) {
-            NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements).to_vec(),
-            NodeData::ArrayBindingPattern(data) => self.nodes_of(data.elements).to_vec(),
+            NodeData::ObjectBindingPattern(data) => crate::copy_census::copy_census!(
+                "nodes.statements.binding_pattern_elements.to_vec.L1854",
+                Nodes,
+                self.nodes_of(data.elements).to_vec()
+            ),
+            NodeData::ArrayBindingPattern(data) => crate::copy_census::copy_census!(
+                "nodes.statements.binding_pattern_elements.to_vec.L1855",
+                Nodes,
+                self.nodes_of(data.elements).to_vec()
+            ),
             _ => Vec::new(),
         }
     }

@@ -285,7 +285,11 @@ impl<'a> CheckerState<'a> {
         constraint_marker: &mut &'static str,
     ) -> CheckResult<String> {
         let mut result = self.tables.reference_target(ty).index().to_string();
-        let arguments = self.tables.type_arguments(ty).to_vec();
+        let arguments = crate::copy_census::copy_census!(
+            "types.relate.get_type_reference_id.to_vec.L288",
+            Types,
+            self.tables.type_arguments(ty).to_vec()
+        );
         for t in arguments {
             if self
                 .tables

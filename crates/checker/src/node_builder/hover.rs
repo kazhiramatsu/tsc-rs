@@ -427,7 +427,11 @@ fn expand_class_declaration(
             context,
             class_type,
             &base_types,
-            all_properties.to_vec(),
+            crate::copy_census::copy_census!(
+                "properties.node_builder.hover.expand_class_declaration.to_vec.L430",
+                Properties,
+                all_properties.to_vec()
+            ),
         )?;
         let public_properties = symbol_properties
             .iter()
@@ -750,7 +754,11 @@ fn expand_interface_declaration(
         context,
         interface_type,
         &base_types,
-        resolved.properties.to_vec(),
+        crate::copy_census::copy_census!(
+            "properties.node_builder.hover.expand_interface_declaration.to_vec.L753",
+            Properties,
+            resolved.properties.to_vec()
+        ),
     )?;
     let mut property_members = members
         .into_iter()
@@ -850,7 +858,11 @@ fn heritage_clause_elements(
         .copied()
         .find_map(|clause| match checker.data_of(clause) {
             NodeData::HeritageClause(data) if data.token == token => {
-                Some(checker.nodes_of(data.types).to_vec())
+                Some(crate::copy_census::copy_census!(
+                    "nodes.node_builder.hover.heritage_clause_elements.to_vec.L853",
+                    Nodes,
+                    checker.nodes_of(data.types).to_vec()
+                ))
             }
             _ => None,
         })
@@ -1579,12 +1591,15 @@ fn transform_modifier_flags(
         return Ok(ModifierFlags::NONE);
     };
     let mut flags = ModifierFlags::NONE;
-    for modifier in arena
-        .node_array(TransformNodeArray::new(node.source(), modifiers))
-        .map_err(factory_error)?
-        .nodes
-        .to_vec()
-    {
+    for modifier in crate::copy_census::copy_census!(
+        "nodes.node_builder.hover.transform_modifier_flags.to_vec.L1586",
+        Nodes,
+        arena
+            .node_array(TransformNodeArray::new(node.source(), modifiers))
+            .map_err(factory_error)?
+            .nodes
+            .to_vec()
+    ) {
         let kind = arena
             .node_ref(node.source(), modifier)
             .map(|modifier| arena.node(modifier).map(|record| record.kind))

@@ -396,7 +396,11 @@ impl CheckerState<'_> {
                     NodeData::ObjectLiteralExpression(data) => data.properties,
                     _ => None,
                 };
-                let properties = self.nodes_of(properties_array).to_vec();
+                let properties = crate::copy_census::copy_census!(
+                    "nodes.services.get_type_of_assignment_pattern.to_vec.L399",
+                    Nodes,
+                    self.nodes_of(properties_array).to_vec()
+                );
                 let Some(property_index) =
                     properties.iter().position(|&property| property == parent)
                 else {
@@ -424,7 +428,11 @@ impl CheckerState<'_> {
                     Some(parent),
                 )?;
                 let elements = match self.data_of(node) {
-                    NodeData::ArrayLiteralExpression(data) => self.nodes_of(data.elements).to_vec(),
+                    NodeData::ArrayLiteralExpression(data) => crate::copy_census::copy_census!(
+                        "nodes.services.get_type_of_assignment_pattern.to_vec.L427",
+                        Nodes,
+                        self.nodes_of(data.elements).to_vec()
+                    ),
                     _ => Vec::new(),
                 };
                 let Some(element_index) = elements.iter().position(|&element| element == expr)
@@ -633,7 +641,11 @@ impl CheckerState<'_> {
         }
         let types = self.get_types_of_type(contextual_type);
         let parent = self.parent_of(node);
-        let mut filtered = types.clone();
+        let mut filtered = crate::copy_census::copy_census!(
+            "types.services.get_property_symbols_from_contextual_type.clone.L636",
+            Types,
+            types.clone()
+        );
         if let Some(parent) = parent.filter(|&parent| {
             matches!(
                 self.kind_of(parent),
@@ -1028,7 +1040,11 @@ impl CheckerState<'_> {
         location: NodeId,
     ) -> CheckResult<Vec<SymbolId>> {
         let intrinsics = self.get_jsx_type(crate::jsx::JSX_INTRINSIC_ELEMENTS, location)?;
-        Ok(self.get_properties_of_type(intrinsics)?.to_vec())
+        Ok(crate::copy_census::copy_census!(
+            "properties.services.get_jsx_intrinsic_tag_names_at.to_vec.L1031",
+            Properties,
+            self.get_properties_of_type(intrinsics)?.to_vec()
+        ))
     }
 
     /// tsgo `GetContextualTypeForJsxAttribute` (services.go:865-867).
@@ -1068,7 +1084,11 @@ impl CheckerState<'_> {
             _ => None,
         };
         let elements = match elements {
-            Some(elements) => self.binder.node_array(elements).nodes.to_vec(),
+            Some(elements) => crate::copy_census::copy_census!(
+                "nodes.services.get_contextual_type_for_array_literal_at_position.to_vec.L1071",
+                Nodes,
+                self.binder.node_array(elements).nodes.to_vec()
+            ),
             None => Vec::new(),
         };
         let mut first_spread_index = None;
@@ -1277,7 +1297,11 @@ impl CheckerState<'_> {
             return Ok(Vec::new());
         };
         let ty = self.get_type_of_expression(target)?;
-        Ok(self.get_signatures_of_type(ty, kind)?.to_vec())
+        Ok(crate::copy_census::copy_census!(
+            "signatures.services.uninstantiated_signatures.to_vec.L1280",
+            Signatures,
+            self.get_signatures_of_type(ty, kind)?.to_vec()
+        ))
     }
 
     /// tsgo `GetAccessibleSymbolChain` (symbolaccessibility.go:444-458).

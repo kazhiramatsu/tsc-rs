@@ -498,7 +498,11 @@ impl JsSyntaxChecker<'_> {
                         &gen::Type_parameter_declarations_can_only_be_used_in_TypeScript_files,
                     );
                 }
-                let modifiers = self.nodes(self.modifiers_of(node)).to_vec();
+                let modifiers = crate::copy_census::copy_census!(
+                    "nodes.js_grammar.check_js_syntax.to_vec.L501",
+                    Nodes,
+                    self.nodes(self.modifiers_of(node)).to_vec()
+                );
                 for modifier in modifiers {
                     let modifier_kind = self.kind(modifier);
                     if is_modifier_kind(modifier_kind) && !is_javascript_modifier(modifier_kind) {
@@ -545,7 +549,11 @@ impl JsSyntaxChecker<'_> {
 
     /// tsgo checkJSDecoratorSyntax (parser.go:6715-6767).
     fn check_js_decorator_syntax(&mut self, node: NodeId) {
-        let modifiers = self.nodes(self.modifiers_of(node)).to_vec();
+        let modifiers = crate::copy_census::copy_census!(
+            "nodes.js_grammar.check_js_decorator_syntax.to_vec.L548",
+            Nodes,
+            self.nodes(self.modifiers_of(node)).to_vec()
+        );
         if modifiers.is_empty() {
             return;
         }

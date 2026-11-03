@@ -51,7 +51,11 @@ impl<'a> CheckerState<'a> {
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::TUPLE)
         {
-            return Ok(VariancesResult::Known(self.array_variances.clone()));
+            return Ok(VariancesResult::Known(crate::copy_census::copy_census!(
+                "sidecars.variance.get_variances.clone.L54",
+                Sidecars,
+                self.array_variances.clone()
+            )));
         }
         let symbol = self
             .tables
@@ -61,7 +65,11 @@ impl<'a> CheckerState<'a> {
         let type_parameters = match self.tables.type_of(ty).data {
             TypeData::GenericType {
                 type_parameters, ..
-            } => self.tables.list_copy(type_parameters),
+            } => crate::copy_census::copy_census!(
+                "types.variance.get_variances.list_copy.L64",
+                Types,
+                self.tables.list_copy(type_parameters)
+            ),
             _ => unreachable!(
                 "getVariances runs on same-target reference pairs, whose non-tuple \
                  targets are GenericTypes"
@@ -74,13 +82,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 376698f797bba63d51c9d84c710fbee8b53cad042ac55a78544c2f400f258850
     /// tsc-span: _tsc.js:67309-67311
     pub(crate) fn get_alias_variances(&mut self, symbol: SymbolId) -> CheckResult<VariancesResult> {
-        let type_parameters = self
-            .links
-            .symbol_cold()
-            .type_parameters
-            .get(symbol)
-            .clone()
-            .unwrap_or_default();
+        let type_parameters = crate::copy_census::copy_census!(
+            "types.variance.get_alias_variances.clone.L82",
+            Types,
+            self.links.symbol_cold().type_parameters.get(symbol).clone()
+        )
+        .unwrap_or_default();
         self.get_variances_worker(symbol, &type_parameters)
     }
 
@@ -194,7 +201,13 @@ impl<'a> CheckerState<'a> {
     fn stored_variances(&self, symbol: SymbolId) -> Option<VariancesResult> {
         match self.links.symbol_cold().variances.get(symbol) {
             LinkSlot::Resolved(list) if list.is_empty() => Some(VariancesResult::Empty),
-            LinkSlot::Resolved(list) => Some(VariancesResult::Known(list.clone())),
+            LinkSlot::Resolved(list) => {
+                Some(VariancesResult::Known(crate::copy_census::copy_census!(
+                    "sidecars.variance.stored_variances.clone.L197",
+                    Sidecars,
+                    list.clone()
+                )))
+            }
             LinkSlot::Resolving => unreachable!("variances have no in-progress sentinel"),
             LinkSlot::Vacant => None,
         }
@@ -349,13 +362,12 @@ impl<'a> CheckerState<'a> {
             .flags
             .intersects(tsc_types::SymbolFlags::TYPE_ALIAS)
         {
-            let type_parameters = self
-                .links
-                .symbol_cold()
-                .type_parameters
-                .get(symbol)
-                .clone()
-                .unwrap_or_default();
+            let type_parameters = crate::copy_census::copy_census!(
+                "types.variance.create_marker_type.clone.L357",
+                Types,
+                self.links.symbol_cold().type_parameters.get(symbol).clone()
+            )
+            .unwrap_or_default();
             let arguments = self.instantiate_types(&type_parameters, mapper)?;
             self.get_type_alias_instantiation(
                 symbol,
@@ -367,7 +379,11 @@ impl<'a> CheckerState<'a> {
             let type_parameters = match &self.tables.type_of(ty).data {
                 TypeData::GenericType {
                     type_parameters, ..
-                } => self.tables.list(*type_parameters).to_vec(),
+                } => crate::copy_census::copy_census!(
+                    "types.variance.create_marker_type.to_vec.L370",
+                    Types,
+                    self.tables.list(*type_parameters).to_vec()
+                ),
                 _ => unreachable!(
                     "variance measurement runs over generic class/interface declared types"
                 ),

@@ -1248,7 +1248,7 @@ pub(crate) fn pseudo_parameters_equivalent_to_parameters_core(
     report_errors: bool,
     non_parameter_error_location: NodeId,
 ) -> CheckResult<bool> {
-    let signature = checker.signature_of(target_signature).clone();
+    let signature = crate::copy_census::copy_census!("signatures.node_builder.pseudo.pseudo_parameters_equivalent_to_parameters_core.clone.L1251", Signatures, checker.signature_of(target_signature).clone());
     let mut parameters = parameters;
     if let Some(this_parameter) = signature.this_parameter {
         let Some(first) = parameters.first() else {

@@ -199,7 +199,11 @@ fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
                 // declaration parents already match the literal node.
                 let flags = original.flags;
                 let escaped_name = original.escaped_name;
-                let declarations = original.declarations.clone();
+                let declarations = crate::copy_census::copy_census!(
+                    "declarations.relpin.mark_fresh_probe_source.clone.L202",
+                    Declarations,
+                    original.declarations.clone()
+                );
                 let parent = original.parent;
                 let members = original.members().clone();
                 let clone = state.binder.create_symbol(flags, escaped_name);

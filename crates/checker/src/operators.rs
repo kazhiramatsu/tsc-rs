@@ -2123,7 +2123,11 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
         let elements: Vec<NodeId> = match self.data_of(node) {
-            NodeData::ArrayLiteralExpression(data) => self.nodes_of(data.elements).to_vec(),
+            NodeData::ArrayLiteralExpression(data) => crate::copy_census::copy_census!(
+                "nodes.operators.check_array_literal_assignment.to_vec.L2126",
+                Nodes,
+                self.nodes_of(data.elements).to_vec()
+            ),
             _ => unreachable!("kind/data agree"),
         };
         let undefined_type = self.tables.intrinsics.undefined;
@@ -2757,11 +2761,31 @@ impl<'a> CheckerState<'a> {
             let (call_signatures, construct_signatures, members, properties, index_infos) = {
                 let resolved = &self.members[members_id.index() as usize];
                 (
-                    resolved.call_signatures().to_vec(),
-                    resolved.construct_signatures().to_vec(),
-                    resolved.members.clone(),
-                    resolved.properties.clone(),
-                    resolved.index_infos().to_vec(),
+                    crate::copy_census::copy_census!(
+                        "signatures.operators.get_instantiated_type_part.to_vec.L2760",
+                        Signatures,
+                        resolved.call_signatures().to_vec()
+                    ),
+                    crate::copy_census::copy_census!(
+                        "signatures.operators.get_instantiated_type_part.to_vec.L2761",
+                        Signatures,
+                        resolved.construct_signatures().to_vec()
+                    ),
+                    crate::copy_census::copy_census!(
+                        "properties.operators.get_instantiated_type_part.clone.L2762",
+                        Properties,
+                        resolved.members.clone()
+                    ),
+                    crate::copy_census::copy_census!(
+                        "properties.operators.get_instantiated_type_part.clone.L2763",
+                        Properties,
+                        resolved.properties.clone()
+                    ),
+                    crate::copy_census::copy_census!(
+                        "index_infos.operators.get_instantiated_type_part.to_vec.L2764",
+                        IndexInfos,
+                        resolved.index_infos().to_vec()
+                    ),
                 )
             };
             let instantiated_call =
@@ -2784,14 +2808,22 @@ impl<'a> CheckerState<'a> {
                 // gives the symbol the declarations of the source type's
                 // symbol; the type order reads the first of them.
                 if let Some(source_symbol) = self.tables.type_of(ty).symbol {
-                    let declarations = self.binder.symbol(source_symbol).declarations.clone();
+                    let declarations = crate::copy_census::copy_census!(
+                        "declarations.operators.get_instantiated_type_part.clone.L2787",
+                        Declarations,
+                        self.binder.symbol(source_symbol).declarations.clone()
+                    );
                     self.binder.symbol_mut(symbol).declarations = declarations;
                 }
                 let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
                 self.tables.type_mut(result).object_flags = tsc_types::ObjectFlags::ANONYMOUS
                     | tsc_types::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE;
                 self.tables.type_mut(result).symbol = Some(symbol);
-                let mut properties = properties.to_vec();
+                let mut properties = crate::copy_census::copy_census!(
+                    "properties.operators.get_instantiated_type_part.to_vec.L2794",
+                    Properties,
+                    properties.to_vec()
+                );
                 self.order_named_members_if_stable(&mut properties, Some(symbol));
                 let members_id = self.alloc_members(crate::state::ResolvedMembers::new(
                     members,
@@ -2851,7 +2883,11 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
             let parts = match &self.tables.type_of(ty).data {
-                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                    "types.operators.get_instantiated_type_part.to_vec.L2854",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("intersection flag implies payload"),
             };
             let mut mapped = Vec::with_capacity(parts.len());

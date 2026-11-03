@@ -1800,7 +1800,11 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let constituents = match &self.tables.type_of(ty).data {
-            tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            tsc_types::TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                "types.resolve.maybe_mapped_type_for_value_error.to_vec.L1803",
+                Types,
+                self.tables.list(*types).to_vec()
+            ),
             _ => unreachable!("union flag implies union data"),
         };
         for constituent in constituents {
@@ -2149,7 +2153,11 @@ impl<'a> CheckerState<'a> {
             && meaning.contains(SymbolFlags::VALUE)
         {
             let merged = self.get_merged_symbol(result);
-            let declarations = self.binder.symbol(merged).declarations.clone();
+            let declarations = crate::copy_census::copy_census!(
+                "declarations.resolve.on_successfully_resolved_symbol.clone.L2152",
+                Declarations,
+                self.binder.symbol(merged).declarations.clone()
+            );
             let name = self.binder.symbol(merged).escaped_name;
             let is_umd_global = !declarations.is_empty()
                 && declarations.iter().all(|&declaration| {
@@ -2344,7 +2352,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(());
         }
-        let declarations = self.binder.symbol(result).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.resolve.check_resolved_block_scoped_variable.clone.L2347",
+            Declarations,
+            self.binder.symbol(result).declarations.clone()
+        );
         let declaration = declarations.into_iter().find(|&declaration| {
             node_util::is_block_or_catch_scoped(&Published, declaration)
                 || matches!(

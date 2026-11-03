@@ -32,7 +32,11 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(tsc_types::TypeFlags::UNION_OR_INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
                 TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                    self.tables.list(*types).to_vec()
+                    crate::copy_census::copy_census!(
+                        "types.conditional.is_no_infer_target_type.to_vec.L35",
+                        Types,
+                        self.tables.list(*types).to_vec()
+                    )
                 }
                 _ => unreachable!("union/intersection flag implies member data"),
             };
@@ -137,7 +141,11 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.tables.intrinsics.error);
             }
 
-            let root_data = self.tables.conditional_root(root).clone();
+            let root_data = crate::copy_census::copy_census!(
+                "sidecars.conditional.get_conditional_type.clone.L140",
+                Sidecars,
+                self.tables.conditional_root(root).clone()
+            );
             let actual_check_type = self.get_actual_type_variable(root_data.check_type)?;
             let check_type = self.instantiate_type(actual_check_type, mapper)?;
             let extends_type = self.instantiate_type(root_data.extends_type, mapper)?;
@@ -263,7 +271,11 @@ impl<'a> CheckerState<'a> {
                     let false_type = self.get_type_from_type_node(false_node)?;
                     if let TypeData::Conditional(false_data) = self.tables.type_of(false_type).data
                     {
-                        let new_root = self.tables.conditional_root(false_data.root).clone();
+                        let new_root = crate::copy_census::copy_census!(
+                            "sidecars.conditional.get_conditional_type.clone.L266",
+                            Sidecars,
+                            self.tables.conditional_root(false_data.root).clone()
+                        );
                         if self.parent_of(NodeId::new(new_root.node))
                             == Some(NodeId::new(root_data.node))
                             && (!new_root.is_distributive
@@ -329,12 +341,22 @@ impl<'a> CheckerState<'a> {
 
             let result_alias_symbol = alias_symbol.or(root_data.alias_symbol);
             let result_alias_arguments = if alias_symbol.is_some() {
-                alias_type_arguments.map(<[TypeId]>::to_vec)
+                alias_type_arguments.map(|items| {
+                    crate::copy_census::copy_census!(
+                        "types.conditional.get_conditional_type.path_to_vec.L332",
+                        Types,
+                        <[TypeId]>::to_vec(items)
+                    )
+                })
             } else {
                 match root_data.alias_type_arguments.as_deref() {
                     Some(arguments) => match mapper {
                         Some(mapper) => Some(self.instantiate_types(arguments, mapper)?),
-                        None => Some(arguments.to_vec()),
+                        None => Some(crate::copy_census::copy_census!(
+                            "types.conditional.get_conditional_type.to_vec.L337",
+                            Types,
+                            arguments.to_vec()
+                        )),
                     },
                     None => None,
                 }
@@ -372,7 +394,11 @@ impl<'a> CheckerState<'a> {
         let TypeData::Conditional(data) = self.tables.type_of(new_type).data else {
             return Ok(None);
         };
-        let new_root = self.tables.conditional_root(data.root).clone();
+        let new_root = crate::copy_census::copy_census!(
+            "sidecars.conditional.conditional_tail_recurse.clone.L375",
+            Sidecars,
+            self.tables.conditional_root(data.root).clone()
+        );
         let Some(outer_parameters) = new_root.outer_type_parameters.as_deref() else {
             return Ok(None);
         };
@@ -407,7 +433,11 @@ impl<'a> CheckerState<'a> {
         &mut self,
         root: ConditionalRootId,
     ) -> CheckResult<bool> {
-        let root = self.tables.conditional_root(root).clone();
+        let root = crate::copy_census::copy_census!(
+            "sidecars.conditional.is_distribution_dependent.clone.L410",
+            Sidecars,
+            self.tables.conditional_root(root).clone()
+        );
         if !root.is_distributive {
             return Ok(false);
         }
@@ -440,7 +470,11 @@ impl<'a> CheckerState<'a> {
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
-        let root = self.tables.conditional_root(data.root).clone();
+        let root = crate::copy_census::copy_census!(
+            "sidecars.conditional.get_conditional_type_instantiation.clone.L443",
+            Sidecars,
+            self.tables.conditional_root(data.root).clone()
+        );
         let Some(outer_parameters) = root.outer_type_parameters.as_deref() else {
             return Ok(ty);
         };
@@ -571,7 +605,11 @@ impl<'a> CheckerState<'a> {
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
-        let root = self.tables.conditional_root(data.root).clone();
+        let root = crate::copy_census::copy_census!(
+            "sidecars.conditional.get_constraint_of_distributive_conditional_type.clone.L574",
+            Sidecars,
+            self.tables.conditional_root(data.root).clone()
+        );
         let already_restrictive = self
             .links
             .type_cold()
@@ -721,7 +759,11 @@ impl<'a> CheckerState<'a> {
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
-        let root = self.tables.conditional_root(data.root).clone();
+        let root = crate::copy_census::copy_census!(
+            "sidecars.conditional.get_true_type_from_conditional_type.clone.L724",
+            Sidecars,
+            self.tables.conditional_root(data.root).clone()
+        );
         let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root.node)) else {
             unreachable!("conditional root points at a ConditionalType node");
         };
@@ -754,7 +796,11 @@ impl<'a> CheckerState<'a> {
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
-        let root = self.tables.conditional_root(data.root).clone();
+        let root = crate::copy_census::copy_census!(
+            "sidecars.conditional.get_false_type_from_conditional_type.clone.L757",
+            Sidecars,
+            self.tables.conditional_root(data.root).clone()
+        );
         let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root.node)) else {
             unreachable!("conditional root points at a ConditionalType node");
         };
@@ -788,7 +834,11 @@ impl<'a> CheckerState<'a> {
             unreachable!("Conditional flag implies conditional data");
         };
         let resolved = if let Some(mapper) = data.combined_mapper {
-            let root = self.tables.conditional_root(data.root).clone();
+            let root = crate::copy_census::copy_census!(
+                "sidecars.conditional.get_inferred_true_type_from_conditional_type.clone.L791",
+                Sidecars,
+                self.tables.conditional_root(data.root).clone()
+            );
             let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root.node)) else {
                 unreachable!("conditional root points at a ConditionalType node");
             };

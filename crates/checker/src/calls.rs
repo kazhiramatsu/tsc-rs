@@ -337,7 +337,11 @@ impl<'a> CheckerState<'a> {
             NodeData::SetAccessor(data) => data.parameters,
             _ => None,
         };
-        self.nodes_of(parameters).to_vec()
+        crate::copy_census::copy_census!(
+            "nodes.calls.function_like_parameters.to_vec.L340",
+            Nodes,
+            self.nodes_of(parameters).to_vec()
+        )
     }
 
     /// tsc-port: getParameterTypeNodeForDecoratorCheck @6.0.3
@@ -932,7 +936,11 @@ impl<'a> CheckerState<'a> {
             let raw = Published.node(expression);
             (raw.pos, raw.end)
         };
-        let parameters = self.signature_of(signature).parameters.clone();
+        let parameters = crate::copy_census::copy_census!(
+            "signatures.calls.get_effective_decorator_arguments.clone.L935",
+            Signatures,
+            self.signature_of(signature).parameters.clone()
+        );
         let mut args = Vec::with_capacity(parameters.len());
         for param in parameters {
             let ty = self.get_type_of_symbol(param)?;
@@ -2406,8 +2414,16 @@ impl<'a> CheckerState<'a> {
             let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
                 unreachable!("tuple type targets a tuple target");
             };
-            let data = self.tables.tuple_target(data).clone();
-            let names = data.labeled_element_declarations.clone();
+            let data = crate::copy_census::copy_census!(
+                "sidecars.calls.get_mutable_array_or_tuple_type.clone.L2409",
+                Sidecars,
+                self.tables.tuple_target(data).clone()
+            );
+            let names = crate::copy_census::copy_census!(
+                "sidecars.calls.get_mutable_array_or_tuple_type.clone.L2410",
+                Sidecars,
+                data.labeled_element_declarations.clone()
+            );
             return self.create_tuple_type_forced(
                 &element_types,
                 Some(&data.element_flags),
@@ -2621,11 +2637,12 @@ impl<'a> CheckerState<'a> {
             // decorator head) arrives with decorator resolution (5.8).
             unreachable!("head producers (decorators) skip type-argument collection");
         }
-        let type_parameters = self
-            .signature_of(signature)
-            .type_parameters
-            .clone()
-            .expect("checkTypeArguments callers guarantee a generic signature");
+        let type_parameters = crate::copy_census::copy_census!(
+            "signatures.calls.check_type_arguments.clone.L2627",
+            Signatures,
+            self.signature_of(signature).type_parameters.clone()
+        )
+        .expect("checkTypeArguments callers guarantee a generic signature");
         let mut mapped: Vec<TypeId> = Vec::with_capacity(type_argument_nodes.len());
         for &node in type_argument_nodes {
             mapped.push(self.get_type_from_type_node(node)?);
@@ -2995,11 +3012,12 @@ impl<'a> CheckerState<'a> {
         if node_kind != SyntaxKind::Decorator && node_kind != SyntaxKind::BinaryExpression {
             // 75943: skipBindingPatterns = every type parameter carries
             // a default (helper-every semantics: vacuous true).
-            let type_parameters = self
-                .signature_of(signature)
-                .type_parameters
-                .clone()
-                .unwrap_or_default();
+            let type_parameters = crate::copy_census::copy_census!(
+                "signatures.calls.infer_type_arguments.clone.L3001",
+                Signatures,
+                self.signature_of(signature).type_parameters.clone()
+            )
+            .unwrap_or_default();
             let mut skip_binding_patterns = true;
             for &tp in &type_parameters {
                 if self.get_default_from_type_parameter(tp)?.is_none() {
@@ -3034,11 +3052,14 @@ impl<'a> CheckerState<'a> {
                             .filter(|&sig| self.signature_of(sig).type_parameters.is_some());
                         let inference_source_type = match generic_contextual_signature {
                             Some(contextual_signature) => {
-                                let contextual_type_parameters = self
-                                    .signature_of(contextual_signature)
-                                    .type_parameters
-                                    .clone()
-                                    .expect("filtered on Some above");
+                                let contextual_type_parameters = crate::copy_census::copy_census!(
+                                    "signatures.calls.infer_type_arguments.clone.L3040",
+                                    Signatures,
+                                    self.signature_of(contextual_signature)
+                                        .type_parameters
+                                        .clone()
+                                )
+                                .expect("filtered on Some above");
                                 let instantiation = self
                                     .get_signature_instantiation_without_filling_in_type_arguments(
                                         contextual_signature,
@@ -3568,7 +3589,11 @@ impl<'a> CheckerState<'a> {
             return Ok(target);
         }
         let target_types = match &self.tables.type_of(target).data {
-            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                "types.calls.spread_argument_relation_report_target.to_vec.L3571",
+                Types,
+                self.tables.list(*types).to_vec()
+            ),
             _ => return Ok(target),
         };
         if self
@@ -3976,7 +4001,11 @@ impl<'a> CheckerState<'a> {
                 NodeData::JsxSelfClosingElement(data) => data.type_arguments,
                 _ => None,
             };
-            type_argument_nodes = self.nodes_of(type_arguments_array).to_vec();
+            type_argument_nodes = crate::copy_census::copy_census!(
+                "nodes.calls.resolve_call.to_vec.L3979",
+                Nodes,
+                self.nodes_of(type_arguments_array).to_vec()
+            );
             for &argument in &type_argument_nodes {
                 self.check_source_element(Some(argument));
             }
@@ -4323,7 +4352,11 @@ impl<'a> CheckerState<'a> {
                     let Some(symbol) = state.node_symbol(declaration) else {
                         return Ok(None);
                     };
-                    state.binder.symbol(symbol).declarations.to_vec()
+                    crate::copy_census::copy_census!(
+                        "declarations.calls.implementation_success_elaboration.to_vec.L4326",
+                        Declarations,
+                        state.binder.symbol(symbol).declarations.to_vec()
+                    )
                 }
             };
             if declarations.len() <= 1 {
@@ -4561,11 +4594,12 @@ impl<'a> CheckerState<'a> {
                 };
                 type_argument_types = checked;
             } else {
-                let type_parameters = self
-                    .signature_of(candidate)
-                    .type_parameters
-                    .clone()
-                    .expect("checked Some above");
+                let type_parameters = crate::copy_census::copy_census!(
+                    "signatures.calls.try_overload_candidate.clone.L4567",
+                    Signatures,
+                    self.signature_of(candidate).type_parameters.clone()
+                )
+                .expect("checked Some above");
                 let mut flags = if self.is_in_js_file(node) {
                     InferenceFlags::ANY_DEFAULT
                 } else {
@@ -4747,7 +4781,11 @@ impl<'a> CheckerState<'a> {
         let args_count = self.apparent_argument_count.unwrap_or(ctx.args.len());
         let best_index = self.get_longest_candidate_index(&ctx.candidates, args_count)?;
         let candidate = ctx.candidates[best_index];
-        let Some(type_parameters) = self.signature_of(candidate).type_parameters.clone() else {
+        let Some(type_parameters) = crate::copy_census::copy_census!(
+            "signatures.calls.pick_longest_candidate_signature.clone.L4750",
+            Signatures,
+            self.signature_of(candidate).type_parameters.clone()
+        ) else {
             return Ok(candidate);
         };
         let instantiated = if !ctx.type_argument_nodes.is_empty() {
@@ -5327,7 +5365,11 @@ impl<'a> CheckerState<'a> {
         };
         if signatures.len() == 1 {
             let signature = signatures[0];
-            let type_parameters = self.signature_of(signature).type_parameters.clone();
+            let type_parameters = crate::copy_census::copy_census!(
+                "signatures.calls.get_type_argument_arity_error.clone.L5330",
+                Signatures,
+                self.signature_of(signature).type_parameters.clone()
+            );
             let min = self.get_min_type_argument_count(type_parameters.as_deref());
             let max = type_parameters.as_deref().map_or(0, <[TypeId]>::len);
             let range = if min < max {
@@ -5346,7 +5388,11 @@ impl<'a> CheckerState<'a> {
         let mut below_arg_count: Option<usize> = None;
         let mut above_arg_count: Option<usize> = None;
         for &signature in signatures {
-            let type_parameters = self.signature_of(signature).type_parameters.clone();
+            let type_parameters = crate::copy_census::copy_census!(
+                "signatures.calls.get_type_argument_arity_error.clone.L5349",
+                Signatures,
+                self.signature_of(signature).type_parameters.clone()
+            );
             let min = self.get_min_type_argument_count(type_parameters.as_deref());
             let max = type_parameters.as_deref().map_or(0, <[TypeId]>::len);
             if min > arg_count {
@@ -5443,7 +5489,11 @@ impl<'a> CheckerState<'a> {
         };
 
         let union_types = match &self.tables.type_of(apparent_type).data {
-            TypeData::Union { types, .. } => Some(self.tables.list(*types).to_vec()),
+            TypeData::Union { types, .. } => Some(crate::copy_census::copy_census!(
+                "types.calls.invocation_error_details.to_vec.L5446",
+                Types,
+                self.tables.list(*types).to_vec()
+            )),
             _ => None,
         };
         let error_info = if let Some(types) = union_types {
@@ -5956,7 +6006,11 @@ impl<'a> CheckerState<'a> {
     fn some_signature_has_flags(&self, signature: SignatureId, flags: SignatureFlags) -> bool {
         let data = self.signature_of(signature);
         if data.composite_kind == Some(TypeFlags::UNION) {
-            if let Some(composite) = data.composite_signatures.clone() {
+            if let Some(composite) = crate::copy_census::copy_census!(
+                "signatures.calls.some_signature_has_flags.clone.L5959",
+                Signatures,
+                data.composite_signatures.clone()
+            ) {
                 return composite
                     .iter()
                     .any(|&member| self.some_signature_has_flags(member, flags));
@@ -5985,7 +6039,11 @@ impl<'a> CheckerState<'a> {
             .intersects(TypeFlags::INTERSECTION)
         {
             let types = match &self.tables.type_of(first_base).data {
-                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                TypeData::Intersection { types } => crate::copy_census::copy_census!(
+                    "types.calls.type_has_protected_accessible_base.to_vec.L5988",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("intersection flag implies payload"),
             };
             let mixin_flags = self.find_mixins(&types)?;

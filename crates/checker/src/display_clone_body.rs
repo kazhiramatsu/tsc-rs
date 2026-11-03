@@ -1707,7 +1707,11 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             return Ok(Some(JsString::new()));
         };
         let node_array = self.state.binder.node_array(nodes);
-        let parameters = node_array.nodes.to_vec();
+        let parameters = crate::copy_census::copy_census!(
+            "nodes.display_clone_body.type_parameter_nodes_text.to_vec.L1710",
+            Nodes,
+            node_array.nodes.to_vec()
+        );
         let has_trailing_comma = node_array.has_trailing_comma;
         if parameters.is_empty() {
             return Ok(Some(JsString::new()));
@@ -2060,7 +2064,11 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn nodes(&self, nodes: Option<NodeArrayId>) -> Vec<NodeId> {
-        self.state.nodes_of(nodes).to_vec()
+        crate::copy_census::copy_census!(
+            "nodes.display_clone_body.nodes.to_vec.L2063",
+            Nodes,
+            self.state.nodes_of(nodes).to_vec()
+        )
     }
 
     fn node_array(&self, nodes: Option<NodeArrayId>) -> (Vec<NodeId>, bool) {
@@ -2068,7 +2076,14 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             return (Vec::new(), false);
         };
         let nodes = self.state.binder.node_array(nodes);
-        (nodes.nodes.to_vec(), nodes.has_trailing_comma)
+        (
+            crate::copy_census::copy_census!(
+                "nodes.display_clone_body.node_array.to_vec.L2071",
+                Nodes,
+                nodes.nodes.to_vec()
+            ),
+            nodes.has_trailing_comma,
+        )
     }
 
     fn with_increased_indent<T>(

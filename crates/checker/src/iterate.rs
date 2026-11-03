@@ -635,7 +635,11 @@ impl<'a> CheckerState<'a> {
                 .intersects(TypeFlags::UNION)
             {
                 let array_types: Vec<TypeId> = match &self.tables.type_of(input_type).data {
-                    tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                    tsc_types::TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                        "types.iterate.get_iterated_type_or_element_type_at_target.to_vec.L638",
+                        Types,
+                        self.tables.list(*types).to_vec()
+                    ),
                     _ => unreachable!("union flag implies union data"),
                 };
                 let filtered_types: Vec<TypeId> = array_types
@@ -937,7 +941,11 @@ impl<'a> CheckerState<'a> {
         let allow_async_iterables = use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG);
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             let constituents: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                tsc_types::TypeData::Union { types, .. } => crate::copy_census::copy_census!(
+                    "types.iterate.get_iteration_types_of_iterable_worker.to_vec.L940",
+                    Types,
+                    self.tables.list(*types).to_vec()
+                ),
                 _ => unreachable!("union flag implies union data"),
             };
             let mut all_iteration_types = Vec::with_capacity(constituents.len());
@@ -1575,7 +1583,11 @@ impl<'a> CheckerState<'a> {
                                 match &self.tables.type_of(global_type).data {
                                     tsc_types::TypeData::GenericType {
                                         type_parameters, ..
-                                    } => self.tables.list(*type_parameters).to_vec(),
+                                    } => crate::copy_census::copy_census!(
+                                        "types.iterate.get_iteration_types_of_method.to_vec.L1578",
+                                        Types,
+                                        self.tables.list(*type_parameters).to_vec()
+                                    ),
                                     _ => Vec::new(),
                                 };
                             if type_parameters.len() >= 3 {

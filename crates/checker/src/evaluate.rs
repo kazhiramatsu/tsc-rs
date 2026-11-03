@@ -1690,7 +1690,11 @@ impl<'a> CheckerState<'a> {
         if first_declaration != Some(node) {
             return Ok(());
         }
-        let declarations = self.binder.symbol(enum_symbol).declarations.clone();
+        let declarations = crate::copy_census::copy_census!(
+            "declarations.evaluate.check_enum_declaration_worker.clone.L1693",
+            Declarations,
+            self.binder.symbol(enum_symbol).declarations.clone()
+        );
         if declarations.len() > 1 {
             let enum_is_const = self.is_enum_const(node);
             for &declaration in &declarations {
