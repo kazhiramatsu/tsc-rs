@@ -179,6 +179,8 @@ struct TokenValue {
 /// A source value stores its two offsets directly. A cooked value stores an
 /// index into the scanner's immutable snapshot pool; the second word is zero.
 /// Snapshots remain reusable in any restore order, including nested lookahead.
+/// A state is restored only into the scanner that saved it (the parser's
+/// lookahead, tsgo Mark/Rewind): the index means nothing to another scanner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ScannerState {
     end: usize,
@@ -1207,15 +1209,22 @@ impl<'text> Scanner<'text> {
 
     fn skip_to_line_end(&mut self) {
         if self.pos < self.end && self.text.is_char_boundary(self.end) {
-            let rest = &self.text.as_bytes()[self.pos..self.end];
-            let end = memchr::memchr2(b'\r', b'\n', rest).unwrap_or(rest.len());
-            let line = &rest[..end];
-            let end = memchr::memchr_iter(0xe2, line)
-                .find(|&index| {
-                    matches!(line.get(index..index + 3), Some([0xe2, 0x80, 0xa8 | 0xa9]))
-                })
-                .unwrap_or(end);
-            self.pos += end;
+            // One pass: the first of `\r`, `\n`, U+2028 and U+2029 ends the
+            // line; any other character with an E2 lead byte is stepped over,
+            // so a run of separator-ended comments stays linear in the text.
+            let bytes = self.text.as_bytes();
+            let mut pos = self.pos;
+            while let Some(index) = memchr::memchr3(b'\r', b'\n', 0xe2, &bytes[pos..self.end]) {
+                pos += index;
+                if bytes[pos] != 0xe2
+                    || matches!(bytes.get(pos..pos + 3), Some([0xe2, 0x80, 0xa8 | 0xa9]))
+                {
+                    self.pos = pos;
+                    return;
+                }
+                pos += 1;
+            }
+            self.pos = self.end;
             return;
         }
         // A scanRange can end inside a scalar. Keep the original bounded
@@ -1944,8 +1953,6 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
-    #[cold]
-    #[inline(never)]
     pub(crate) fn re_scan_greater_token(&mut self) -> SyntaxKind {
         if self.token == SyntaxKind::GreaterThanToken {
             if self.byte_at(self.pos) == Some(b'>') {
@@ -3641,7 +3648,6 @@ enum CommentDirectiveRegEx {
 /// appendIfCommentDirective's `text.trimStart()`). The regexes have no
 /// word boundary after the directive name — `@ts-ignored` matches as
 /// `@ts-ignore`, faithfully.
-#[cold]
 #[inline(never)]
 fn get_directive_from_comment(
     text: &str,
