@@ -422,15 +422,18 @@ impl<'a> BinderWorker<'a> {
             .get(index, self.source.arena.nodes()[index].flags)
     }
 
-    /// Set the `HAS_LOCALS` bit of every scope with locals: the tables are
-    /// final once the file is bound, and a name lookup tests the bit before
-    /// it looks for a table.
-    pub(crate) fn mark_scopes_with_locals(&mut self) {
-        let base = self.source.arena.node_base();
-        for &scope in self.locals.keys() {
-            self.node_flags_mut
-                .mark_has_locals((scope.index() - base) as usize);
-        }
+    /// Keep `node`'s `HAS_LOCALS` bit equal to whether it has a locals table:
+    /// every site that creates or drops a table calls this, and a name lookup
+    /// tests the bit before it looks for a table.
+    pub(crate) fn set_has_locals(&mut self, node: NodeId, has_locals: bool) {
+        let index = (node.index() - self.source.arena.node_base()) as usize;
+        self.node_flags_mut.set_has_locals(index, has_locals);
+    }
+
+    /// `node`'s locals table, created (with its bit) on first use.
+    pub(crate) fn locals_entry(&mut self, node: NodeId) -> &mut SymbolTable {
+        self.set_has_locals(node, true);
+        self.locals.entry(node).or_default()
     }
 
     pub fn set_flags_of(&mut self, node: NodeId, flags: NodeFlags) {
@@ -662,7 +665,7 @@ impl<'a> BinderWorker<'a> {
 
     fn table(&mut self, table: TableRef) -> &SymbolTable {
         match table {
-            TableRef::Locals(node) => self.locals.entry(node).or_default(),
+            TableRef::Locals(node) => self.locals_entry(node),
             TableRef::Members(symbol) => self.symbols.symbol(symbol).members(),
             TableRef::Exports(symbol) => self.symbols.symbol(symbol).exports(),
             TableRef::GlobalExports(symbol) => &self.symbols.symbol(symbol).extras().global_exports,
@@ -671,7 +674,7 @@ impl<'a> BinderWorker<'a> {
 
     fn table_mut(&mut self, table: TableRef) -> &mut SymbolTable {
         match table {
-            TableRef::Locals(node) => self.locals.entry(node).or_default(),
+            TableRef::Locals(node) => self.locals_entry(node),
             TableRef::Members(symbol) => {
                 Arc::make_mut(self.symbols.symbol_mut(symbol).members_mut())
             }
@@ -1714,9 +1717,13 @@ impl BinderNodeFlags {
         self.0[index] = PackedNodeFlags(pack_binder_node_flags(flags.bits()) | has_locals);
     }
 
-    /// Mark the node at `index` as a scope with locals.
-    fn mark_has_locals(&mut self, index: usize) {
-        self.0[index].0 |= HAS_LOCALS;
+    /// Set or clear the `HAS_LOCALS` bit of the node at `index`.
+    fn set_has_locals(&mut self, index: usize, has_locals: bool) {
+        if has_locals {
+            self.0[index].0 |= HAS_LOCALS;
+        } else {
+            self.0[index].0 &= !HAS_LOCALS;
+        }
     }
 }
 

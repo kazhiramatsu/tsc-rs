@@ -48,7 +48,6 @@ impl<'a> BinderWorker<'a> {
         self.bind_common_js_file_tail();
         self.bind_deferred_expando_assignments();
         self.bind_jsdoc_imports();
-        self.mark_scopes_with_locals();
     }
 
     /// tsc-port: bind @6.0.3
@@ -1126,7 +1125,7 @@ impl<'a> BinderWorker<'a> {
                 Some(container) => {
                     // Deliberately no addToContainerChain: tsc creates this
                     // locals table directly for JSDoc/infer type parameters.
-                    self.locals.entry(container).or_default();
+                    self.locals_entry(container);
                     let symbol = self.declare_symbol(
                         TableRef::Locals(container),
                         None,
@@ -1166,7 +1165,7 @@ impl<'a> BinderWorker<'a> {
                 Some(container) => {
                     // tsc: container.locals ??= createSymbolTable() —
                     // WITHOUT addToContainerChain.
-                    self.locals.entry(container).or_default();
+                    self.locals_entry(container);
                     self.declare_symbol(
                         TableRef::Locals(container),
                         None,

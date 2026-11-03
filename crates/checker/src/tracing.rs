@@ -81,9 +81,7 @@ impl CheckerState<'_> {
     /// expression's) pays one branch, not a call.
     #[inline]
     pub(crate) fn trace_node_sample(&self, name: &'static str, node: NodeId) -> Option<Sample> {
-        if self.tracer.is_none() {
-            return None;
-        }
+        self.tracer.as_ref()?;
         self.trace_node_sample_with_tracer(name, node)
     }
 

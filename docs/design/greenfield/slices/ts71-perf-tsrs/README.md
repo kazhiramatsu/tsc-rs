@@ -601,8 +601,8 @@ handover §6.5 と戦略 v2 の B-1、M0 の「profile の小さな切り口 3�
 3. **flow の arena を bind の終わりに詰める**（`shrink_to_fit`）。
 4. **type links を dense に**：`TypeLinks` 36 → 24 B（type parameter の target・mapper・default は使う型が少ないので sparse 表へ）、
    checker の型 id は 0 から密なので 1 本の `Vec`（`DenseLinks`、型 table と同じ量を予約）。
-5. **`resolve_name` の locals**：binder の node flag byte の bit 6 を `HAS_LOCALS` にし（file の bind の終わりに `locals` の key
-   から立てる）、`locals_of` は bit を見てから file の表を引く。locals を持たない scope（大半）は routing も hash も無し。
+5. **`resolve_name` の locals**：binder の node flag byte の bit 6 を `HAS_LOCALS` にし（binder が locals の表を作る箇所で
+   立て、消す箇所で消す。hash 表は走査しない）、`locals_of` は bit を見てから file の表を引く。locals を持たない scope（大半）は routing も hash も無し。
 6. `PagedTable` の far path（dense な範囲の外の page）を `#[cold] #[inline(never)]` に。
 7. 小物：`set_node_resolved_symbol` の使っていない計算と `instantiation_root`、`DenseOwners::lookup_file` は owner の file を直接。
 

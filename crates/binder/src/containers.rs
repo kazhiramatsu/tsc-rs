@@ -208,6 +208,7 @@ impl<'a> BinderWorker<'a> {
     pub fn ensure_locals(&mut self, node: NodeId) {
         if let std::collections::hash_map::Entry::Vacant(entry) = self.locals.entry(node) {
             entry.insert(SymbolTable::default());
+            self.set_has_locals(node, true);
             self.add_to_container_chain(node);
         }
     }
@@ -235,6 +236,7 @@ impl<'a> BinderWorker<'a> {
             self.block_scope_container = Some(node);
             if container_flags.intersects(ContainerFlags::HAS_LOCALS) {
                 self.locals.insert(node, SymbolTable::default());
+                self.set_has_locals(node, true);
                 self.add_to_container_chain(node);
             }
         } else if container_flags.intersects(ContainerFlags::IS_BLOCK_SCOPED_CONTAINER) {
@@ -243,6 +245,7 @@ impl<'a> BinderWorker<'a> {
                 // Cleared here, created lazily on the first block-scoped
                 // declaration (ensure_locals).
                 self.locals.remove(&node);
+                self.set_has_locals(node, false);
             }
         }
 
