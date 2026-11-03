@@ -21,11 +21,17 @@ short user guide.
 - Pin new behavior with unit tests against `tsgo`'s output, and run the
   affected conformance cases
   (`target/release/conformance-ts71 --case <suite>/<path>.ts --no-report --dump <dir>`).
-- When a change reaches the compiler's paths, run once at the final bytes
-  `scripts/conformance_ts71.py --workers 2 --check` and
-  `scripts/suites_ts71.py --check` (rebuild both release binaries first):
-  0 regressions. After a checker change, also run the parallel control
-  (`--checkers 4`, then `scripts/conformance_ts71_compare.py`). Change
+- Local checks at a slice's final bytes (owner's decision 2026-11-03): the
+  focused tests of the crates the slice changed (`cargo test -p <crate>`),
+  the release build, the eight-project output identity and one-thread
+  measurements (`target/claude-tools/perf11/diffout.py`, `serial.py`), and
+  for a front-end change the fingerprint oracle
+  (`scripts/syntax_fingerprint.py --compare` against the recorded
+  baseline). The workspace tests, the one-checker conformance run and the
+  suites are the hosted `ci`'s job (same scripts, same ratchets); do not
+  repeat them locally. After a checker change, run locally
+  `scripts/conformance_ts71.py --workers 1 --checkers 4 --check` and
+  compare its mismatches with the known ones recorded in the packet. Change
   `ratchets/ts71/` only with `--update` at the final bytes.
 - Keep the machine's load low: one heavy job at a time, `nice -n 20`,
   `cargo -j 2`, one or two workers. No per-slice performance measurement
