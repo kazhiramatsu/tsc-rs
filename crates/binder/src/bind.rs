@@ -48,6 +48,7 @@ impl<'a> BinderWorker<'a> {
         self.bind_common_js_file_tail();
         self.bind_deferred_expando_assignments();
         self.bind_jsdoc_imports();
+        self.mark_scopes_with_locals();
     }
 
     /// tsc-port: bind @6.0.3

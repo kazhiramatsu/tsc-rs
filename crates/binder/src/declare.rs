@@ -422,6 +422,17 @@ impl<'a> BinderWorker<'a> {
             .get(index, self.source.arena.nodes()[index].flags)
     }
 
+    /// Set the `HAS_LOCALS` bit of every scope with locals: the tables are
+    /// final once the file is bound, and a name lookup tests the bit before
+    /// it looks for a table.
+    pub(crate) fn mark_scopes_with_locals(&mut self) {
+        let base = self.source.arena.node_base();
+        for &scope in self.locals.keys() {
+            self.node_flags_mut
+                .mark_has_locals((scope.index() - base) as usize);
+        }
+    }
+
     pub fn set_flags_of(&mut self, node: NodeId, flags: NodeFlags) {
         let index = (node.index() - self.source.arena.node_base()) as usize;
         debug_assert_eq!(
@@ -1518,7 +1529,7 @@ impl BinderWorker<'_> {
     /// worker-local.
     pub fn into_bind_data(self) -> BindData {
         let Self {
-            source,
+            source: _,
             in_js_file: _,
             common_js_module_indicator,
             symbols,
@@ -1570,12 +1581,6 @@ impl BinderWorker<'_> {
         } = self;
         let mut flow = flow;
         flow.shrink_to_fit();
-        // The scopes with locals, final now: a lookup reads the byte.
-        let mut node_flags_mut = node_flags_mut;
-        let base = source.arena.node_base();
-        for &scope in locals.keys() {
-            node_flags_mut.mark_has_locals((scope.index() - base) as usize);
-        }
         BindData {
             common_js_module_indicator,
             symbols,
