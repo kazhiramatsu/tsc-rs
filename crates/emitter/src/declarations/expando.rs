@@ -196,10 +196,10 @@ impl DeclarationTransformer<'_> {
                     return Ok(());
                 }
             }
-            NodeData::FunctionDeclaration(_) => {
-                if super::javascript::hosted_full_signature(cx, declaration)?.is_some() {
-                    return Ok(());
-                }
+            NodeData::FunctionDeclaration(_)
+                if super::javascript::hosted_full_signature(cx, declaration)?.is_some() =>
+            {
+                return Ok(());
             }
             _ => {}
         }

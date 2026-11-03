@@ -12311,12 +12311,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         else {
             return Ok(false);
         };
-        loop {
-            let NodeData::ParenthesizedExpression(data) =
-                self.context.arena().node(expression)?.data.clone()
-            else {
-                break;
-            };
+        while let NodeData::ParenthesizedExpression(data) =
+            self.context.arena().node(expression)?.data.clone()
+        {
             let Some(inner) = data
                 .expression
                 .and_then(|inner| self.context.arena().node_ref(self.source, inner))

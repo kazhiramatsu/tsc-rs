@@ -148,34 +148,11 @@ fn validate_options(
         return unsupported("newLine");
     }
 
-    for (active, name) in [
-        (
+    {
+        let (active, name) = (
             operation == EmitOperation::Files && options.no_emit == Some(true),
             "noEmit",
-        ),
-        // `noCheck` has no ordinary-emit refusal left: `skipTypeChecking`
-        // already reads the option for every file, and the emit resolver
-        // resolves lazily (tsc emits the program unchecked;
-        // EF7-NOCHECK-ROUTE).
-        // `isolatedModules` and `verbatimModuleSyntax` have no ordinary-emit
-        // refusal left: the TypeScript transform already keeps const enum
-        // declarations (`should_preserve_const_enums`), skips const-value
-        // folding (`tryGetConstEnumValue`, _tsc.js substituteConstantValue)
-        // and reads `verbatim_module_syntax` for alias elision on every
-        // route, and the checker owns both options' diagnostics
-        // (H2.8a-A-RES-EMITTER-FINAL EF3 / EF7-VERBATIM-GATE).
-        // `incremental`, `composite` and `tsBuildInfoFile` select the build
-        // info, which only the incremental program writes
-        // (execute/incremental/program.go:243-273); `compiler.Program.Emit`
-        // writes the JavaScript and declarations alone. The command, which
-        // would compile an incremental program, refuses them itself
-        // (`ProgramSession::emit_for_cli`).
-        // assumeChangesOnlyAffectDirectDependencies changes the builder's
-        // affected-file traversal only. It is inert in this fresh Program.
-        // `emitDecoratorMetadata` without `experimentalDecorators` is inert
-        // for emit (only the legacy decorator transform reads it) and the
-        // program reports TS5052; tsc emits normally (EF7-METADATA-INERT).
-    ] {
+        );
         if active {
             return unsupported(name);
         }

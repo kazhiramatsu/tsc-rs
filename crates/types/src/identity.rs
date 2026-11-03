@@ -333,10 +333,7 @@ impl RangeAllocator {
     }
 
     fn trim_free_tail(&mut self) {
-        loop {
-            let Some((&start, &end)) = self.free.iter().next_back() else {
-                break;
-            };
+        while let Some((&start, &end)) = self.free.iter().next_back() {
             if end != self.bump {
                 break;
             }
