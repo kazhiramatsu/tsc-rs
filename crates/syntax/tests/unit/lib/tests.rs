@@ -264,3 +264,22 @@ fn incremental_update_rejects_an_inexact_change_range() {
     .unwrap_err();
     assert_eq!(error, IncrementalParseError::SuffixMismatch);
 }
+
+/// tsgo textToKeyword: every keyword kind is found from its text, and only
+/// a keyword's exact text finds one.
+#[test]
+fn keyword_kind_finds_every_keyword_and_nothing_else() {
+    let first = SyntaxKind::FirstKeyword as u16;
+    let last = SyntaxKind::LastKeyword as u16;
+    for value in first..=last {
+        let kind = SyntaxKind::from_u16(value).expect("a keyword kind");
+        let text = tokens::token_to_string(kind).expect("a keyword's text");
+        assert_eq!(keyword_kind(text), Some(kind), "{text}");
+    }
+    for text in [
+        "", "a", "x", "_", "$", "Abstract", "constructors", "awaits", "infer_", "intrinsics",
+        "yieldd", "zzzzzzzzzzzz", "ńew",
+    ] {
+        assert_eq!(keyword_kind(text), None, "{text:?}");
+    }
+}
