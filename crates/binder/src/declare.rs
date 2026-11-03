@@ -1278,6 +1278,7 @@ impl BinderWorker<'_> {
     ) -> Result<(), IdentityError> {
         let Self {
             source: _,
+            in_js_file: _,
             common_js_module_indicator: _,
             symbols,
             node_symbol,
@@ -1518,6 +1519,7 @@ impl BinderWorker<'_> {
     pub fn into_bind_data(self) -> BindData {
         let Self {
             source,
+            in_js_file: _,
             common_js_module_indicator,
             symbols,
             node_symbol,
