@@ -972,7 +972,7 @@ impl<'a> CheckerState<'a> {
                                             TypeData::Literal {
                                                 value: tsc_types::LiteralData::String(value),
                                                 ..
-                                            } if state.tables.literal_text(*value).eq_utf8("undefined")
+                                            } if state.tables.literal_text(*value) == "undefined"
                                         );
                                     !is_undefined_literal
                                 },
@@ -3864,7 +3864,7 @@ impl<'a> CheckerState<'a> {
             // tsc: escapeLeadingUnderscores("" + type.value).
             if let Some(value) = self.tables.literal_value(ty) {
                 let text = match value {
-                    tsc_types::LiteralValue::String(text) => text.to_js_string(),
+                    tsc_types::LiteralValue::String(text) => text.to_owned(),
                     tsc_types::LiteralValue::Number(number) => {
                         JsString::from(tsc_types::tables::js_number_to_string(number))
                     }
@@ -4038,7 +4038,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(value) = self.tables.literal_value(ty) {
             return Ok(match value {
-                tsc_types::LiteralValue::String(text) => Some(text.to_js_string()),
+                tsc_types::LiteralValue::String(text) => Some(text.to_owned()),
                 tsc_types::LiteralValue::Number(number) => {
                     Some(tsc_types::tables::js_number_to_string(number).into())
                 }

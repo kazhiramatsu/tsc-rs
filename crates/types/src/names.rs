@@ -12,47 +12,20 @@
 
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use hashbrown::hash_table::{Entry, HashTable};
 use rustc_hash::FxHasher;
-use tsc_diagnostics::{JsStr, JsString};
+use tsc_diagnostics::JsStr;
 
-/// Names per chunk of the id → text table.
-const CHUNK: usize = 1 << 12;
-/// Chunks of the id → text table: 16,777,216 names in all.
-const CHUNKS: usize = 1 << 12;
 /// Lookup shards; a name's shard is chosen by its hash.
 const SHARDS: usize = 64;
 
-type Chunk = Box<[OnceLock<Name>]>;
-
-/// An interned name: its text and, when the text has no unpaired
-/// surrogate, the same bytes as a `str` (checked once, when interned, so
-/// readers of a name's scalar text do no UTF-8 validation).
-#[derive(Clone, Copy)]
-struct Name {
-    text: &'static JsString,
-    scalar: Option<&'static str>,
-}
-
-struct Interner {
-    /// id → text, filled once per id before the id is handed out.
-    chunks: [OnceLock<Chunk>; CHUNKS],
-    /// text → id, sharded by hash. A shard's table is created on first use.
-    shards: [OnceLock<Mutex<HashTable<u32>>>; SHARDS],
-    next: AtomicU32,
-    /// Bytes of interned text, for the memory report.
-    bytes: AtomicUsize,
-}
-
-static NAMES: Interner = Interner {
-    chunks: [const { OnceLock::new() }; CHUNKS],
-    shards: [const { OnceLock::new() }; SHARDS],
-    next: AtomicU32::new(0),
-    bytes: AtomicUsize::new(0),
-};
+/// text → id, sharded by hash. A shard's table is created on first use. The
+/// texts themselves live in the store (`tsc_store::names`): a name's record
+/// sits at a fixed address computed from its id.
+static SHARDS_BY_HASH: [OnceLock<Mutex<HashTable<u32>>>; SHARDS] =
+    [const { OnceLock::new() }; SHARDS];
 
 fn hash_bytes(bytes: &[u8]) -> u64 {
     let mut hasher = FxHasher::default();
@@ -63,28 +36,21 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
 /// The text of an interned name.
 #[inline]
 #[cfg_attr(feature = "perf-counters", track_caller)]
-pub(crate) fn text(id: u32) -> &'static JsString {
-    name(id).text
+pub(crate) fn text(id: u32) -> JsStr<'static> {
+    crate::perf::bump(crate::perf::PerfCounter::NamesTextReads);
+    crate::perf::name_site(std::panic::Location::caller());
+    JsStr::from_canonical_bytes(tsc_store::names::text(id))
 }
 
 /// The text of an interned name as a `str`, unless it has an unpaired
-/// surrogate.
+/// surrogate (checked once, when interned, so readers of a name's scalar
+/// text do no UTF-8 validation).
 #[inline]
 #[cfg_attr(feature = "perf-counters", track_caller)]
 pub(crate) fn scalar_text(id: u32) -> Option<&'static str> {
-    name(id).scalar
-}
-
-#[inline]
-#[cfg_attr(feature = "perf-counters", track_caller)]
-fn name(id: u32) -> Name {
     crate::perf::bump(crate::perf::PerfCounter::NamesTextReads);
     crate::perf::name_site(std::panic::Location::caller());
-    let id = id as usize;
-    *NAMES.chunks[id / CHUNK]
-        .get()
-        .and_then(|chunk| chunk[id % CHUNK].get())
-        .expect("a name id is handed out only after its text is written")
+    tsc_store::names::scalar_text(id)
 }
 
 /// Slots of a thread's cache of recent interns.
@@ -116,7 +82,7 @@ impl Recent {
             && if bytes.len() <= RECENT_INLINE {
                 &self.text[..self.len as usize] == bytes
             } else {
-                self::text(self.id).as_bytes() == bytes
+                tsc_store::names::text(self.id) == bytes
             }
     }
 
@@ -160,44 +126,30 @@ pub(crate) fn intern(text: JsStr<'_>) -> u32 {
 /// The id of `text` in the shared table, interning it on first sight.
 fn intern_shared(text: JsStr<'_>, hash: u64) -> u32 {
     let bytes = text.as_bytes();
-    let shard = NAMES.shards[(hash >> 58) as usize % SHARDS].get_or_init(Default::default);
+    // The shard comes from middle bits of the hash: the shard's table takes
+    // its bucket from the low bits and its 7-bit tag from the top bits, and
+    // a shard chosen by top bits would leave its tags almost all alike.
+    let shard = SHARDS_BY_HASH[(hash >> 32) as usize % SHARDS].get_or_init(Default::default);
     let mut table = shard.lock().expect("name shard poisoned");
     match table.entry(
         hash,
-        |&id| self::text(id).as_bytes() == bytes,
-        |&id| hash_bytes(self::text(id).as_bytes()),
+        |&id| tsc_store::names::text(id) == bytes,
+        |&id| hash_bytes(tsc_store::names::text(id)),
     ) {
         Entry::Occupied(entry) => *entry.get(),
         Entry::Vacant(entry) => {
             crate::perf::bump(crate::perf::PerfCounter::NamesInternInserts);
-            let id = NAMES.next.fetch_add(1, Ordering::Relaxed);
-            let slot = id as usize;
-            assert!(
-                slot < CHUNK * CHUNKS,
-                "the name table holds {} names",
-                CHUNK * CHUNKS
-            );
-            let chunk = NAMES.chunks[slot / CHUNK]
-                .get_or_init(|| (0..CHUNK).map(|_| OnceLock::new()).collect());
-            let stored: &'static JsString = Box::leak(Box::new(text.to_owned()));
-            let name = Name {
-                text: stored,
-                scalar: stored.as_str(),
-            };
-            if chunk[slot % CHUNK].set(name).is_err() {
-                unreachable!("a fresh name id has no text yet");
-            }
-            NAMES.bytes.fetch_add(bytes.len(), Ordering::Relaxed);
+            // The text and record are written before the id is in the
+            // shard, where other threads find it under the lock.
+            let id = tsc_store::names::push(bytes);
             entry.insert(id);
             id
         }
     }
 }
 
-/// Interned names and their text bytes, for the memory report.
+/// Interned names and the bytes they take (records and text), for the
+/// memory report.
 pub fn interned_names() -> (usize, usize) {
-    (
-        NAMES.next.load(Ordering::Relaxed) as usize,
-        NAMES.bytes.load(Ordering::Relaxed),
-    )
+    tsc_store::names::usage()
 }
