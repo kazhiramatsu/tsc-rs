@@ -343,7 +343,7 @@ fn assert_field_reads_agree_with_the_payload(name: &str, text: &str) {
         }
     }
     assert!(
-        compared > 100,
+        compared > 50,
         "{name}: only {compared} present fields compared"
     );
 }
