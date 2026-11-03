@@ -115,6 +115,8 @@ impl<'a> CheckerState<'a> {
         origin: Option<TypeId>,
     ) -> CheckResult<TypeId> {
         let mut type_set: Vec<TypeId> = Vec::new();
+        #[cfg(feature = "perf-counters")]
+        perf::union_collection(perf::UnionCollectionSite::Checker, types.len());
         let includes = {
             let ctx = crate::type_order::order_ctx!(self);
             self.tables

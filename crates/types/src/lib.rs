@@ -2,6 +2,7 @@
 
 pub mod escaped_name;
 pub mod flags;
+pub mod goslices;
 mod id;
 pub mod identity;
 pub mod names;
