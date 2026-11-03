@@ -1,6 +1,143 @@
 use super::*;
 
 #[test]
+fn punctuation_trivia_and_eof_clear_a_previous_cooked_value() {
+    for skip in [false, true] {
+        let mut scanner = Scanner::new(
+            "'long cooked \\uD800' \t; // comment\n",
+            LanguageVariant::Standard,
+        );
+        scanner.set_skip_trivia(skip);
+        assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+        assert!(scanner.token_value_source().is_none());
+        loop {
+            let full_start = scanner.pos();
+            let kind = scanner.scan();
+            assert_eq!(scanner.token_value(), "");
+            assert_eq!(scanner.token_value_source(), Some(""));
+            assert_eq!(scanner.full_start_pos(), full_start);
+            if kind == SyntaxKind::EndOfFileToken {
+                break;
+            }
+        }
+    }
+}
+
+#[test]
+fn bulk_bodies_keep_unicode_directive_lines_and_bounded_lookahead() {
+    let text = "/* ASCII 😀\u{2028} * @ts-ignore */x";
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert!(scanner.has_preceding_line_break());
+    let directives = scanner.take_comment_directives();
+    assert_eq!(directives.len(), 1);
+    assert_eq!(directives[0].pos as usize, text.find(" * @").unwrap());
+
+    let mut scanner = Scanner::new("/* body */x", LanguageVariant::Standard);
+    scanner.reset_range(0, "/* body *".len());
+    assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
+    assert_eq!(scanner.pos(), "/* body */".len());
+    assert!(scanner.errors().is_empty());
+
+    let mut scanner = Scanner::new("'é'", LanguageVariant::Standard);
+    scanner.reset_range(0, 2);
+    assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+    assert_eq!(scanner.token_value(), "");
+    assert_eq!(scanner.pos(), 1);
+    assert!(scanner.is_unterminated());
+}
+
+#[test]
+fn ascii_identifier_answers_and_mixed_continuations() {
+    let starts = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_";
+    for byte in 0..=127u8 {
+        let expected_start = starts.contains(&byte);
+        let expected_part = expected_start || b"0123456789".contains(&byte);
+        assert_eq!(chars::is_identifier_start(char::from(byte)), expected_start);
+        assert_eq!(chars::is_identifier_part(char::from(byte)), expected_part);
+    }
+    let mut scanner = Scanner::new("ascii_0é𐐀\\u0061! ascii0\\u0030", LanguageVariant::Standard);
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert_eq!(scanner.token_value(), "ascii_0é𐐀a");
+    assert_eq!(scanner.scan(), SyntaxKind::ExclamationToken);
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert_eq!(scanner.token_value(), "ascii00");
+}
+
+#[test]
+fn copied_states_restore_nested_cooked_values_in_any_order() {
+    fn assert_copy<T: Copy>() {}
+    assert_copy::<ScannerState>();
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<ByteTokenIter<'static>>();
+    assert_send_sync::<TokenScanner<'static>>();
+    let text = r#"'long cooked value \uD800' 'second \uD800\uDC00' plain"#;
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+    let first = scanner.save();
+    let first_units: Vec<_> = scanner.token_value().code_units().collect();
+    assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+    let second = scanner.save();
+    let second_units: Vec<_> = scanner.token_value().code_units().collect();
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    let source = scanner.save();
+    for _ in 0..3 {
+        scanner.restore(first);
+        assert_eq!(
+            scanner.token_value().code_units().collect::<Vec<_>>(),
+            first_units
+        );
+        assert_eq!(scanner.save(), first);
+        scanner.restore(source);
+        assert_eq!(scanner.token_value_source(), Some("plain"));
+        scanner.restore(second);
+        assert_eq!(
+            scanner.token_value().code_units().collect::<Vec<_>>(),
+            second_units
+        );
+        assert_eq!(scanner.save(), second);
+    }
+    scanner.restore(first);
+    scanner.reset_range(0, 1);
+    scanner.scan();
+    scanner.restore(second);
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert_eq!(scanner.token_value_source(), Some("plain"));
+}
+
+#[test]
+fn body_runs_preserve_unicode_line_ends_directives_and_wtf8_seams() {
+    let text = "/* ASCII body 😀\r\n * @ts-ignore */'a😀\\uD800\\\n\\uDC00z'";
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+    assert!(scanner.has_preceding_line_break());
+    assert_eq!(
+        scanner.token_value().code_units().collect::<Vec<_>>(),
+        "a😀𐀀z".encode_utf16().collect::<Vec<_>>()
+    );
+    let directive = scanner.take_comment_directives();
+    assert_eq!(directive.len(), 1);
+    assert_eq!(directive[0].kind, CommentDirectiveKind::Ignore);
+    assert_eq!(directive[0].pos as usize, text.find(" * @").unwrap());
+    assert_eq!(directive[0].end as usize, text.find("'a").unwrap());
+
+    let text = "`ASCII 😀\r\nnext\u{2028}line${x}tail\\uD800\\uDC00`";
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    assert_eq!(scanner.scan(), SyntaxKind::TemplateHead);
+    assert_eq!(scanner.token_value(), "ASCII 😀\nnext\u{2028}line");
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert_eq!(scanner.scan(), SyntaxKind::CloseBraceToken);
+    assert_eq!(
+        scanner.re_scan_template_token(false),
+        SyntaxKind::TemplateTail
+    );
+    assert_eq!(
+        scanner.token_value().code_units().collect::<Vec<_>>(),
+        "tail𐀀".encode_utf16().collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn identifier_tables_are_esnext_for_bmp_and_supplementary_code_points() {
     // tsgo has only the ESNext tables (stringutil/identifier.go): U+08A1
     // and U+10400 start and continue identifiers. Above the BMP, Rust

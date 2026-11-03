@@ -587,6 +587,7 @@ pub fn parse_json_text_from_snapshot_with_bases(
 
 /// tsc stringToToken for keyword lookup (identifierToKeywordKind path):
 /// Some only for keyword kinds.
+#[inline]
 pub fn keyword_kind(text: &str) -> Option<SyntaxKind> {
     keywords::keyword_kind(text)
 }
