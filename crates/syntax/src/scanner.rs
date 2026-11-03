@@ -1197,6 +1197,20 @@ impl<'text> Scanner<'text> {
     }
 
     fn skip_to_line_end(&mut self) {
+        if self.pos < self.end && self.text.is_char_boundary(self.end) {
+            let rest = &self.text.as_bytes()[self.pos..self.end];
+            let end = memchr::memchr2(b'\r', b'\n', rest).unwrap_or(rest.len());
+            let line = &rest[..end];
+            let end = memchr::memchr_iter(0xe2, line)
+                .find(|&index| {
+                    matches!(line.get(index..index + 3), Some([0xe2, 0x80, 0xa8 | 0xa9]))
+                })
+                .unwrap_or(end);
+            self.pos += end;
+            return;
+        }
+        // A scanRange can end inside a scalar. Keep the original bounded
+        // decoder's recovery for that unusual range rather than skipping it.
         loop {
             self.skip_ascii_body(&LINE_BODY_STOPS);
             let Some(ch) = self.current_char() else { break };
@@ -1226,24 +1240,51 @@ impl<'text> Scanner<'text> {
         self.pos += 2;
 
         let mut comment_closed = false;
-        while self.pos < self.end {
-            self.skip_ascii_body(&COMMENT_BODY_STOPS);
-            if self.pos >= self.end {
-                break;
-            }
-            if self.text.as_bytes()[self.pos] == b'*' && self.starts_with("*/") {
-                self.pos += 2;
-                comment_closed = true;
-                break;
-            }
-
-            let ch = self
-                .current_char()
-                .expect("position before end has a UTF-8 scalar");
-            self.pos += ch.len_utf8();
-            if is_line_break(ch) {
-                last_line_start = self.pos;
+        if self.pos < self.end && self.text.is_char_boundary(self.end) {
+            let body_start = self.pos;
+            let bytes = self.text.as_bytes();
+            // The star is bounded; its slash lookahead may be past scanRange.
+            let closing = memchr::memchr_iter(b'*', &bytes[body_start..self.end])
+                .find(|&index| bytes.get(body_start + index + 1) == Some(&b'/'));
+            let body_end = closing.map_or(self.end, |index| body_start + index);
+            self.pos = if closing.is_some() {
+                body_end + 2
+            } else {
+                self.end
+            };
+            comment_closed = closing.is_some();
+            if let Some(index) = memchr::memrchr2(b'\r', b'\n', &bytes[body_start..body_end]) {
+                last_line_start = body_start + index + 1;
                 self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+            }
+            let unicode_start = last_line_start.max(body_start);
+            let rest = &bytes[unicode_start..body_end];
+            for index in memchr::memchr_iter(0xe2, rest) {
+                if matches!(rest.get(index..index + 3), Some([0xe2, 0x80, 0xa8 | 0xa9])) {
+                    last_line_start = unicode_start + index + 3;
+                    self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+                }
+            }
+        } else {
+            while self.pos < self.end {
+                self.skip_ascii_body(&COMMENT_BODY_STOPS);
+                if self.pos >= self.end {
+                    break;
+                }
+                if self.text.as_bytes()[self.pos] == b'*' && self.starts_with("*/") {
+                    self.pos += 2;
+                    comment_closed = true;
+                    break;
+                }
+
+                let ch = self
+                    .current_char()
+                    .expect("position before end has a UTF-8 scalar");
+                self.pos += ch.len_utf8();
+                if is_line_break(ch) {
+                    last_line_start = self.pos;
+                    self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+                }
             }
         }
 
@@ -1572,7 +1613,14 @@ impl<'text> Scanner<'text> {
             &DOUBLE_STRING_STOPS
         };
         loop {
-            self.skip_ascii_body(stops);
+            if self.pos < self.end && self.text.is_char_boundary(self.end) {
+                let rest = &self.text.as_bytes()[self.pos..self.end];
+                let end = memchr::memchr3(quote, b'\\', b'\n', rest).unwrap_or(rest.len());
+                let end = memchr::memchr(b'\r', &rest[..end]).unwrap_or(end);
+                self.pos += end;
+            } else {
+                self.skip_ascii_body(stops);
+            }
             let Some(byte) = self.byte_at(self.pos) else {
                 self.value_close_segment(segment_start);
                 self.token_flags.insert(TokenFlags::UNTERMINATED);

@@ -1,6 +1,30 @@
 use super::*;
 
 #[test]
+fn bulk_bodies_keep_unicode_directive_lines_and_bounded_lookahead() {
+    let text = "/* ASCII 😀\u{2028} * @ts-ignore */x";
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert!(scanner.has_preceding_line_break());
+    let directives = scanner.take_comment_directives();
+    assert_eq!(directives.len(), 1);
+    assert_eq!(directives[0].pos as usize, text.find(" * @").unwrap());
+
+    let mut scanner = Scanner::new("/* body */x", LanguageVariant::Standard);
+    scanner.reset_range(0, "/* body *".len());
+    assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
+    assert_eq!(scanner.pos(), "/* body */".len());
+    assert!(scanner.errors().is_empty());
+
+    let mut scanner = Scanner::new("'é'", LanguageVariant::Standard);
+    scanner.reset_range(0, 2);
+    assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+    assert_eq!(scanner.token_value(), "");
+    assert_eq!(scanner.pos(), 1);
+    assert!(scanner.is_unterminated());
+}
+
+#[test]
 fn ascii_identifier_answers_and_mixed_continuations() {
     let starts = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_";
     for byte in 0..=127u8 {
