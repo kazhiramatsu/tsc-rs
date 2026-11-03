@@ -263,7 +263,8 @@ impl CheckerState<'_> {
                 {
                     let reparsed = match self.kind_of(owner) {
                         SyntaxKind::JSDocCallbackTag => true,
-                        SyntaxKind::JSDocOverloadTag => tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published,
+                        SyntaxKind::JSDocOverloadTag => tsc_binder::hosted::reparsed_overload_host(
+                            &tsc_syntax::Published,
                             owner,
                         )
                         .is_some(),
@@ -1032,7 +1033,8 @@ impl CheckerState<'_> {
         self.kind_of(name) == SyntaxKind::Identifier
             && self.parent_of(name).is_some_and(|parent| {
                 self.is_type_declaration(parent)
-                    && node_util::get_name_of_declaration(&tsc_syntax::Published, parent) == Some(name)
+                    && node_util::get_name_of_declaration(&tsc_syntax::Published, parent)
+                        == Some(name)
             })
     }
 

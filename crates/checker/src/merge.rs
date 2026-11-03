@@ -113,6 +113,19 @@ pub fn get_excluded_symbol_flags(flags: SymbolFlags) -> SymbolFlags {
     result
 }
 
+/// A symbol's bit in the merged-symbol bitset. Binder symbols and transient
+/// symbols are each dense from zero, so they interleave (a transient id's
+/// own value would address bit 2^31).
+#[inline]
+fn merged_symbol_bit(symbol: SymbolId) -> usize {
+    let raw = symbol.index();
+    if raw & tsc_types::TRANSIENT_SYMBOL_BIT != 0 {
+        ((raw & !tsc_types::TRANSIENT_SYMBOL_BIT) as usize) * 2 + 1
+    } else {
+        (raw as usize) * 2
+    }
+}
+
 impl<'a> CheckerState<'a> {
     /// tsc-port: getMergedSymbol @6.0.3
     /// tsc-hash: d38909f3d76db468de6e0df4d57914bb34e5d0049669cfa184e092e62378ddf5
@@ -120,7 +133,7 @@ impl<'a> CheckerState<'a> {
     pub fn get_merged_symbol(&self, symbol: SymbolId) -> SymbolId {
         // tsgo reads `symbol.MergeId != 0` before its map; the bit answers
         // the common case without a hash.
-        let index = crate::links::DenseKey::dense_index(symbol);
+        let index = merged_symbol_bit(symbol);
         let merged = self
             .merged_symbol_bits
             .get(index / 64)
@@ -140,7 +153,7 @@ impl<'a> CheckerState<'a> {
     /// lib-binder symbol) is never mutated (lib-loading L3 invariant:
     /// file binders are read-only after bind).
     fn record_merged_symbol(&mut self, target: SymbolId, source: SymbolId) {
-        let index = crate::links::DenseKey::dense_index(source);
+        let index = merged_symbol_bit(source);
         if self.merged_symbol_bits.len() <= index / 64 {
             self.merged_symbol_bits.resize(index / 64 + 1, 0);
         }
@@ -624,8 +637,7 @@ impl<'a> CheckerState<'a> {
         related_nodes: &[NodeId],
     ) {
         let symbol_name = symbol_name.into();
-        let error_node =
-            get_name_of_declaration(&tsc_syntax::Published, node).unwrap_or(node);
+        let error_node = get_name_of_declaration(&tsc_syntax::Published, node).unwrap_or(node);
         // A row in a file whose check is skipped (skipLibCheck on a
         // declaration file, skipDefaultLibCheck, noCheck, unchecked
         // JavaScript) is never published: tsgo builds it in every checker
@@ -641,9 +653,8 @@ impl<'a> CheckerState<'a> {
         }
         let index = self.lookup_or_issue_error_js(Some(error_node), message, &[symbol_name]);
         for &related_node in related_nodes {
-            let adjusted =
-                get_name_of_declaration(&tsc_syntax::Published, related_node)
-                    .unwrap_or(related_node);
+            let adjusted = get_name_of_declaration(&tsc_syntax::Published, related_node)
+                .unwrap_or(related_node);
             if adjusted == error_node {
                 continue;
             }

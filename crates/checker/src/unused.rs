@@ -232,8 +232,9 @@ impl<'a> CheckerState<'a> {
                     let Some(name) = self.name_of_node(member) else {
                         continue;
                     };
-                    let private = self.combined_modifier_flags(member)
-                    .intersects(ModifierFlags::PRIVATE)
+                    let private = self
+                        .combined_modifier_flags(member)
+                        .intersects(ModifierFlags::PRIVATE)
                         || self.kind_of(name) == SyntaxKind::PrivateIdentifier;
                     if self
                         .links
@@ -726,7 +727,7 @@ impl<'a> CheckerState<'a> {
     /// d2: d2:435cd87c2bcdcc3eb69b3135503cdb119fce2de337927782eb67ee038afe8576
     fn error_unused_local(&mut self, declaration: NodeId, symbol: tsc_types::SymbolId) {
         let node = node_util::get_name_of_declaration(&tsc_syntax::Published, declaration)
-        .unwrap_or(declaration);
+            .unwrap_or(declaration);
         let display =
             tsc_binder::unescape_leading_underscores(self.binder.symbol(symbol).escaped_name)
                 .to_owned();

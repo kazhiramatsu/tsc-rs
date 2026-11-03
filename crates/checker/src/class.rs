@@ -69,7 +69,8 @@ impl<'a> CheckerState<'a> {
                     // hasLateBindableName — the late-bindable refinement
                     // rides the 5.8c class callers (this arm is dead for
                     // 5.8a's TypeLiteral callers).
-                    let has_bindable_name = !tsc_binder::node_util::has_dynamic_name(&tsc_syntax::Published, member);
+                    let has_bindable_name =
+                        !tsc_binder::node_util::has_dynamic_name(&tsc_syntax::Published, member);
                     if (is_static_index == member_is_static) && !has_bindable_name {
                         let member_symbol = self.get_symbol_of_declaration(member)?;
                         let name_expression = self.name_of_node(member).and_then(|name| match self
@@ -436,8 +437,9 @@ impl<'a> CheckerState<'a> {
             let is_static = self.has_static_modifier(member);
             let kind = self.kind_of(member);
             let accessor_modifier = kind == SyntaxKind::PropertyDeclaration
-                && self.effective_modifier_flags(member)
-                .intersects(tsc_types::ModifierFlags::ACCESSOR);
+                && self
+                    .effective_modifier_flags(member)
+                    .intersects(tsc_types::ModifierFlags::ACCESSOR);
             let member_kind = if kind == SyntaxKind::PropertySignature
                 || (kind == SyntaxKind::PropertyDeclaration && !accessor_modifier)
             {

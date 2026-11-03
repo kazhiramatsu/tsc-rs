@@ -1245,7 +1245,8 @@ impl<'c, 'a> PseudoChecker<'c, 'a> {
 
     /// tsgo `ast.HasModifier` (the reparsed JSDoc modifiers included).
     fn has_modifier(&self, node: NodeId, flags: ModifierFlags) -> bool {
-        self.checker.effective_modifier_flags(node)
+        self.checker
+            .effective_modifier_flags(node)
             .intersects(flags)
     }
 

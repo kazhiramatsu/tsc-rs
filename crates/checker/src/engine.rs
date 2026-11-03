@@ -2785,7 +2785,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     self.st.data_of(prop_declaration),
                     tsc_syntax::NodeData::JsxAttribute(_)
                 ) {
-                    if let Some(name) = tsc_binder::node_util::get_name_of_declaration(&tsc_syntax::Published,
+                    if let Some(name) = tsc_binder::node_util::get_name_of_declaration(
+                        &tsc_syntax::Published,
                         prop_declaration,
                     ) {
                         report_node = name;
@@ -2859,7 +2860,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 self.st.binder.source_of_node(error_node) as *const _,
             );
             if inside && same_file {
-                let name = tsc_binder::node_util::get_name_of_declaration(&tsc_syntax::Published,
+                let name = tsc_binder::node_util::get_name_of_declaration(
+                    &tsc_syntax::Published,
                     prop_declaration,
                 );
                 if let Some(name) = name {

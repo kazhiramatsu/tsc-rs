@@ -3368,9 +3368,8 @@ impl<'a> CheckerState<'a> {
                     .all_jsdoc_tags(node, SyntaxKind::JSDocOverloadTag)
                     .into_iter()
                     .any(|tag| {
-                        tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published,
-                            tag,
-                        ) == Some(node)
+                        tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published, tag)
+                            == Some(node)
                     });
             }
         }

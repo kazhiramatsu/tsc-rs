@@ -20,7 +20,8 @@ impl<'a> CheckerState<'a> {
         // the empty one, with no route to its file.
         static EMPTY: std::sync::LazyLock<JsDocHosted> =
             std::sync::LazyLock::new(JsDocHosted::default);
-        if !node_util::node_flags(&Published, node).intersects(tsc_types::NodeFlags::JAVA_SCRIPT_FILE)
+        if !node_util::node_flags(&Published, node)
+            .intersects(tsc_types::NodeFlags::JAVA_SCRIPT_FILE)
         {
             return &EMPTY;
         }
@@ -150,8 +151,7 @@ impl<'a> CheckerState<'a> {
     /// (reparser.go:138-142).
     pub(crate) fn is_reparsed_overload_tag(&self, tag: NodeId) -> bool {
         self.kind_of(tag) == SyntaxKind::JSDocOverloadTag
-            && tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published, tag)
-                .is_some()
+            && tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published, tag).is_some()
     }
 
     /// The declaration whose reparsed `Type()` is `type_node`, the type of

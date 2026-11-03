@@ -321,8 +321,7 @@ impl<'a> CheckerState<'a> {
                         } else if is_function_like_kind(self.kind_of(loc))
                             && (after_token
                                 || last_location.is_some()
-                                    && last_location
-                                        != body_of(&tsc_syntax::Published, loc))
+                                    && last_location != body_of(&tsc_syntax::Published, loc))
                         {
                             // Type parameters of a function are in scope
                             // only in the return type and parameter list
@@ -1081,10 +1080,7 @@ impl<'a> CheckerState<'a> {
                 .name_of_node(node)
                 .is_some_and(|n| self.requires_scope_change_worker(n)),
             SyntaxKind::PropertyDeclaration => {
-                if has_syntactic_modifier(&tsc_syntax::Published,
-                    node,
-                    ModifierFlags::STATIC,
-                ) {
+                if has_syntactic_modifier(&tsc_syntax::Published, node, ModifierFlags::STATIC) {
                     return !self.options.emit_standard_class_fields();
                 }
                 self.name_of_node(node)
@@ -1206,10 +1202,7 @@ impl<'a> CheckerState<'a> {
     pub fn local_symbol_for_export_default(&self, symbol: SymbolId) -> Option<SymbolId> {
         let data = self.binder.symbol(symbol);
         let first = *data.declarations.first()?;
-        if !has_syntactic_modifier(&tsc_syntax::Published,
-            first,
-            ModifierFlags::DEFAULT,
-        ) {
+        if !has_syntactic_modifier(&tsc_syntax::Published, first, ModifierFlags::DEFAULT) {
             return None;
         }
         data.declarations.iter().find_map(|&declaration| {
@@ -2068,10 +2061,7 @@ impl<'a> CheckerState<'a> {
         }
         if self.kind_of(computed_ancestor) == SyntaxKind::ComputedPropertyName {
             if let Some(member) = self.parent_of(computed_ancestor) {
-                if has_syntactic_modifier(&tsc_syntax::Published,
-                    member,
-                    ModifierFlags::ABSTRACT,
-                ) {
+                if has_syntactic_modifier(&tsc_syntax::Published, member, ModifierFlags::ABSTRACT) {
                     return true;
                 }
                 if self.parent_of(member).is_some_and(|container| {
@@ -2910,10 +2900,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn is_static_node(&self, node: NodeId) -> bool {
-        has_syntactic_modifier(&tsc_syntax::Published,
-            node,
-            ModifierFlags::STATIC,
-        )
+        has_syntactic_modifier(&tsc_syntax::Published, node, ModifierFlags::STATIC)
     }
 
     /// tsc findConstructorDeclaration: the constructor WITH a body.

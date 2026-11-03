@@ -5130,8 +5130,9 @@ impl<'a> CheckerState<'a> {
                 self.text_of_node(decl_name)?.into()
             };
             for declaration in declarations {
-                let error_node = node_util::get_name_of_declaration(&tsc_syntax::Published, declaration)
-                .unwrap_or(declaration);
+                let error_node =
+                    node_util::get_name_of_declaration(&tsc_syntax::Published, declaration)
+                        .unwrap_or(declaration);
                 self.error_at_js(
                     Some(error_node),
                     &diagnostics::Duplicate_identifier_0,
@@ -7603,8 +7604,9 @@ impl<'a> CheckerState<'a> {
                 }
                 let string_number_symbol = self.tables.intrinsics.string_number_symbol;
                 if self.is_type_assignable_to(key_type, string_number_symbol)? {
-                    let readonly = self.combined_modifier_flags(declaration)
-                    .intersects(ModifierFlags::READONLY);
+                    let readonly = self
+                        .combined_modifier_flags(declaration)
+                        .intersects(ModifierFlags::READONLY);
                     let number = self.tables.intrinsics.number;
                     let es_symbol = self.tables.intrinsics.es_symbol;
                     if self.is_type_assignable_to(key_type, number)? {
@@ -9006,9 +9008,8 @@ impl<'a> CheckerState<'a> {
                 else {
                     continue;
                 };
-                let kind = tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published,
-                    expression,
-                );
+                let kind =
+                    tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published, expression);
                 let kept = kind != tsc_binder::AssignmentDeclarationKind::ExportsProperty
                     || index != 0
                     || declaration_count == 1
@@ -9076,9 +9077,8 @@ impl<'a> CheckerState<'a> {
                 return Ok(none);
             };
             let left = data.left;
-            let kind = tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published,
-                declaration,
-            );
+            let kind =
+                tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published, declaration);
             let literal_or_property = left.is_some_and(|left| match self.data_of(left) {
                 NodeData::ElementAccessExpression(access) => {
                     access.argument_expression.is_some_and(|argument| {
@@ -9849,9 +9849,8 @@ impl<'a> CheckerState<'a> {
                     .all_jsdoc_tags(declaration, SyntaxKind::JSDocOverloadTag)
                     .into_iter()
                     .filter(|&tag| {
-                        tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published,
-                            tag,
-                        ) == Some(declaration)
+                        tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published, tag)
+                            == Some(declaration)
                     })
                     .collect();
                 if !overloads.is_empty() {

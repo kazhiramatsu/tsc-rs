@@ -465,7 +465,10 @@ fn cloned_type_parameters_instantiate_their_target_constraint() {
                 .clone()
                 .expect("fresh type parameters")[0];
             assert_ne!(fresh, t);
-            assert_eq!(state.links.ty(fresh).type_parameter_target, Some(t));
+            assert_eq!(
+                *state.links.type_cold().type_parameter_target.get(fresh),
+                Some(t)
+            );
             let constraint = state
                 .get_constraint_from_type_parameter(fresh)
                 .expect("constraint in slice");

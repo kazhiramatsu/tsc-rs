@@ -1236,7 +1236,11 @@ impl LinksTables {
             ("links: node (NodeLinks)", node.0, node.1),
             ("links: node sparse fields", node_cold.0, node_cold.1),
             ("links: persistent symbol", persistent.0, persistent.1),
-            ("links: transient symbol (SymbolLinks)", transient.0, transient.1),
+            (
+                "links: transient symbol (SymbolLinks)",
+                transient.0,
+                transient.1,
+            ),
             ("links: symbol sparse fields", symbol_cold.0, symbol_cold.1),
             ("links: type (TypeLinks)", ty.0, ty.1),
             ("links: type sparse fields", type_cold.0, type_cold.1),
@@ -1660,7 +1664,9 @@ impl LinksTables {
     #[inline]
     fn transient_symbol_mut(&mut self, id: SymbolId) -> &mut SymbolLinks {
         let Some(index) = transient_index(id) else {
-            panic!("check flags, target, mapper and name type belong to transient symbols, not {id:?}")
+            panic!(
+                "check flags, target, mapper and name type belong to transient symbols, not {id:?}"
+            )
         };
         if index >= self.transient_symbols.len() {
             self.transient_symbols
@@ -3077,11 +3083,7 @@ impl LinksTables {
                 .iter()
                 .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
         {
-            let previous = self
-                .symbol
-                .get(id)
-                .map(|links| links.declared_type.get())
-                .unwrap_or_default();
+            let previous = self.symbol(id).declared_type.get();
             self.speculative_symbol_declared_type_writes
                 .push((speculation_depth, id, previous));
         }
@@ -4603,7 +4605,10 @@ impl LinksTables {
         target: TypeId,
     ) {
         let _ = speculation_depth;
-        let previous = self.type_cold.type_parameter_target.replace(id, Some(target));
+        let previous = self
+            .type_cold
+            .type_parameter_target
+            .replace(id, Some(target));
         assert!(
             previous.is_none(),
             "type parameter target written twice for {id:?}"
@@ -4631,7 +4636,10 @@ impl LinksTables {
         mapper: MapperId,
     ) {
         let _ = speculation_depth;
-        let previous = self.type_cold.type_parameter_mapper.replace(id, Some(mapper));
+        let previous = self
+            .type_cold
+            .type_parameter_mapper
+            .replace(id, Some(mapper));
         assert!(
             previous.is_none(),
             "type parameter mapper written twice for {id:?}"
