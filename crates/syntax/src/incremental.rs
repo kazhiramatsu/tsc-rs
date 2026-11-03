@@ -236,6 +236,7 @@ fn syntax_graphs_equal(left: &SourceFile, right: &SourceFile) -> bool {
                     pending_arrays.push((left, right));
                     true
                 },
+                |left_text, right_text| left.arena.text(left_text) == right.arena.text(right_text),
             ) {
                 return false;
             }

@@ -347,7 +347,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             Some(JSDocComment::Nodes(self.alloc_array(parts, pos, end)))
         } else if !text.is_empty() {
             Some(JSDocComment::Text {
-                text,
+                text: self.parser.arena.push_text(text.as_bytes()),
                 pos: pos as u32,
                 end: end as u32,
                 text_end: text_end as u32,
@@ -495,6 +495,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                             Self::remove_leading_newlines(&mut comments);
                         }
                         let text = comments.join("");
+                        let text = self.parser.arena.push_text(text.as_bytes());
                         parts.push(self.finish(
                             NodeData::JSDocText(Box::new(JSDocTextData { text })),
                             link_end.unwrap_or(start),
@@ -535,10 +536,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         }
         let trimmed_comments = comments.join("");
         if !parts.is_empty() && !trimmed_comments.is_empty() {
+            let text = self.parser.arena.push_text(trimmed_comments.as_bytes());
             parts.push(self.finish(
-                NodeData::JSDocText(Box::new(JSDocTextData {
-                    text: trimmed_comments.clone(),
-                })),
+                NodeData::JSDocText(Box::new(JSDocTextData { text })),
                 link_end.unwrap_or(start),
                 comments_pos.unwrap_or(scan_end),
             ));
@@ -647,10 +647,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     let comment_end = self.node_pos();
                     let link_start = self.token_end().saturating_sub(1);
                     if let Some(link) = self.try_parse_jsdoc_link(link_start) {
+                        let text = self.parser.arena.push_text(comments.join("").as_bytes());
                         parts.push(self.finish(
-                            NodeData::JSDocText(Box::new(JSDocTextData {
-                                text: comments.join(""),
-                            })),
+                            NodeData::JSDocText(Box::new(JSDocTextData { text })),
                             link_end.unwrap_or(comments_pos),
                             comment_end,
                         ));
@@ -706,10 +705,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let joined_comments = comments.join("");
         let trimmed = Self::trim_end(&joined_comments).to_owned();
         if !parts.is_empty() && !trimmed.is_empty() {
+            let text = self.parser.arena.push_text(trimmed.as_bytes());
             parts.push(self.finish(
-                NodeData::JSDocText(Box::new(JSDocTextData {
-                    text: trimmed.clone(),
-                })),
+                NodeData::JSDocText(Box::new(JSDocTextData { text })),
                 link_end.unwrap_or(comments_pos),
                 self.node_pos(),
             ));
@@ -768,6 +766,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             self.next_token_jsdoc();
         }
         let end = self.token_end();
+        let text = self.parser.arena.push_text(text.as_bytes());
         let data = match link_type.as_str() {
             "link" => NodeData::JSDocLink(Box::new(JSDocLinkData { name, text })),
             "linkcode" => NodeData::JSDocLinkCode(Box::new(JSDocLinkCodeData { name, text })),

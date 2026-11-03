@@ -34,6 +34,8 @@ struct CanonicalTree {
     nodes: Vec<CanonicalNode>,
     arrays: Vec<CanonicalArray>,
     external_module_indicator: Option<NodeId>,
+    /// The literal texts by canonical identity: first appearance in the walk.
+    texts: Vec<Vec<u8>>,
 }
 
 fn canonical_tree(source: &SourceFile) -> CanonicalTree {
@@ -83,6 +85,8 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
         }
     }
 
+    let mut text_map = std::collections::HashMap::new();
+    let mut texts: Vec<Vec<u8>> = Vec::new();
     let canonical_nodes = nodes
         .iter()
         .map(|id| {
@@ -92,6 +96,15 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
                 &mut data,
                 |id| *node_map.get(&id).expect("canonical node reference"),
                 |id| *array_map.get(&id).expect("canonical array reference"),
+                |id| {
+                    if id == crate::TextId::EMPTY {
+                        return id;
+                    }
+                    *text_map.entry(id).or_insert_with(|| {
+                        texts.push(source.arena.text(id).to_vec());
+                        crate::TextId::new(texts.len() as u32 - 1)
+                    })
+                },
             );
             CanonicalNode {
                 kind: node.kind,
@@ -139,6 +152,7 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
     CanonicalTree {
         nodes: canonical_nodes,
         arrays: canonical_arrays,
+        texts,
         external_module_indicator: source.external_module_indicator.map(|id| {
             *node_map
                 .get(&id)

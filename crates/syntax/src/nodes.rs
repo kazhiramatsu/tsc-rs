@@ -10,7 +10,7 @@ pub enum JSDocComment {
     /// as a list of one JSDocText: `pos..end` is that list's range and
     /// `pos..text_end` the JSDocText's.
     Text {
-        text: String,
+        text: TextId,
         pos: u32,
         end: u32,
         text_end: u32,
@@ -383,7 +383,7 @@ pub struct AwaitExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BigIntLiteralData {
-    pub text: String,
+    pub text: TextId,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -859,19 +859,19 @@ pub struct JSDocImportTagData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocLinkData {
     pub name: Option<NodeId>,
-    pub text: String,
+    pub text: TextId,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocLinkCodeData {
     pub name: Option<NodeId>,
-    pub text: String,
+    pub text: TextId,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocLinkPlainData {
     pub name: Option<NodeId>,
-    pub text: String,
+    pub text: TextId,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1008,7 +1008,7 @@ pub struct JSDocTemplateTagData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocTextData {
-    pub text: String,
+    pub text: TextId,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1123,7 +1123,7 @@ pub struct JsxSpreadAttributeData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JsxTextData {
-    pub text: String,
+    pub text: TextId,
     pub contains_only_trivia_white_spaces: bool,
 }
 
@@ -1241,8 +1241,8 @@ pub struct NewExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct NoSubstitutionTemplateLiteralData {
-    pub text: tsc_types::JsString,
-    pub raw_text: Option<String>,
+    pub text: TextId,
+    pub raw_text: Option<TextId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1255,7 +1255,7 @@ pub struct NotEmittedStatementData {}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct NumericLiteralData {
-    pub text: String,
+    pub text: TextId,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1361,7 +1361,7 @@ pub struct QualifiedNameData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RegularExpressionLiteralData {
-    pub text: String,
+    pub text: TextId,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1418,7 +1418,7 @@ pub struct SpreadElementData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct StringLiteralData {
-    pub text: tsc_types::JsString,
+    pub text: TextId,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1446,8 +1446,8 @@ pub struct TemplateExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TemplateHeadData {
-    pub text: tsc_types::JsString,
-    pub raw_text: Option<String>,
+    pub text: TextId,
+    pub raw_text: Option<TextId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1464,8 +1464,8 @@ pub struct TemplateLiteralTypeSpanData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TemplateMiddleData {
-    pub text: tsc_types::JsString,
-    pub raw_text: Option<String>,
+    pub text: TextId,
+    pub raw_text: Option<TextId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1476,8 +1476,8 @@ pub struct TemplateSpanData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TemplateTailData {
-    pub text: tsc_types::JsString,
-    pub raw_text: Option<String>,
+    pub text: TextId,
+    pub raw_text: Option<TextId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -2031,7 +2031,7 @@ impl NodeData {
                 Self::AwaitExpression(AwaitExpressionData { expression: None })
             }
             SyntaxKind::BigIntLiteral => Self::BigIntLiteral(Box::new(BigIntLiteralData {
-                text: String::new(),
+                text: TextId::EMPTY,
             })),
             SyntaxKind::BinaryExpression => Self::BinaryExpression(BinaryExpressionData {
                 left: None,
@@ -2385,15 +2385,15 @@ impl NodeData {
             })),
             SyntaxKind::JSDocLink => Self::JSDocLink(Box::new(JSDocLinkData {
                 name: None,
-                text: String::new(),
+                text: TextId::EMPTY,
             })),
             SyntaxKind::JSDocLinkCode => Self::JSDocLinkCode(Box::new(JSDocLinkCodeData {
                 name: None,
-                text: String::new(),
+                text: TextId::EMPTY,
             })),
             SyntaxKind::JSDocLinkPlain => Self::JSDocLinkPlain(Box::new(JSDocLinkPlainData {
                 name: None,
-                text: String::new(),
+                text: TextId::EMPTY,
             })),
             SyntaxKind::JSDocMemberName => Self::JSDocMemberName(JSDocMemberNameData {
                 left: None,
@@ -2506,7 +2506,7 @@ impl NodeData {
                 }))
             }
             SyntaxKind::JSDocText => Self::JSDocText(Box::new(JSDocTextData {
-                text: String::new(),
+                text: TextId::EMPTY,
             })),
             SyntaxKind::JSDocThisTag => Self::JSDocThisTag(Box::new(JSDocThisTagData {
                 tag_name: None,
@@ -2585,7 +2585,7 @@ impl NodeData {
                 Self::JsxSpreadAttribute(JsxSpreadAttributeData { expression: None })
             }
             SyntaxKind::JsxText => Self::JsxText(Box::new(JsxTextData {
-                text: String::new(),
+                text: TextId::EMPTY,
                 contains_only_trivia_white_spaces: false,
             })),
             SyntaxKind::LabeledStatement => Self::LabeledStatement(LabeledStatementData {
@@ -2664,7 +2664,7 @@ impl NodeData {
             }),
             SyntaxKind::NoSubstitutionTemplateLiteral => {
                 Self::NoSubstitutionTemplateLiteral(Box::new(NoSubstitutionTemplateLiteralData {
-                    text: tsc_types::JsString::new(),
+                    text: TextId::EMPTY,
                     raw_text: None,
                 }))
             }
@@ -2675,7 +2675,7 @@ impl NodeData {
                 Self::NotEmittedStatement(Box::new(NotEmittedStatementData {}))
             }
             SyntaxKind::NumericLiteral => Self::NumericLiteral(Box::new(NumericLiteralData {
-                text: String::new(),
+                text: TextId::EMPTY,
             })),
             SyntaxKind::ObjectBindingPattern => {
                 Self::ObjectBindingPattern(ObjectBindingPatternData { elements: None })
@@ -2756,7 +2756,7 @@ impl NodeData {
             }),
             SyntaxKind::RegularExpressionLiteral => {
                 Self::RegularExpressionLiteral(Box::new(RegularExpressionLiteralData {
-                    text: String::new(),
+                    text: TextId::EMPTY,
                 }))
             }
             SyntaxKind::RestType => Self::RestType(RestTypeData { r#type: None }),
@@ -2796,7 +2796,7 @@ impl NodeData {
                 Self::SpreadElement(SpreadElementData { expression: None })
             }
             SyntaxKind::StringLiteral => Self::StringLiteral(Box::new(StringLiteralData {
-                text: tsc_types::JsString::new(),
+                text: TextId::EMPTY,
             })),
             SyntaxKind::SwitchStatement => Self::SwitchStatement(SwitchStatementData {
                 expression: None,
@@ -2816,7 +2816,7 @@ impl NodeData {
                 template_spans: None,
             }),
             SyntaxKind::TemplateHead => Self::TemplateHead(Box::new(TemplateHeadData {
-                text: tsc_types::JsString::new(),
+                text: TextId::EMPTY,
                 raw_text: None,
             })),
             SyntaxKind::TemplateLiteralType => Self::TemplateLiteralType(TemplateLiteralTypeData {
@@ -2830,7 +2830,7 @@ impl NodeData {
                 })
             }
             SyntaxKind::TemplateMiddle => Self::TemplateMiddle(Box::new(TemplateMiddleData {
-                text: tsc_types::JsString::new(),
+                text: TextId::EMPTY,
                 raw_text: None,
             })),
             SyntaxKind::TemplateSpan => Self::TemplateSpan(TemplateSpanData {
@@ -2838,7 +2838,7 @@ impl NodeData {
                 literal: None,
             }),
             SyntaxKind::TemplateTail => Self::TemplateTail(Box::new(TemplateTailData {
-                text: tsc_types::JsString::new(),
+                text: TextId::EMPTY,
                 raw_text: None,
             })),
             SyntaxKind::ThrowStatement => {

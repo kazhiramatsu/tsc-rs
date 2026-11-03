@@ -61,10 +61,13 @@ fn numeric_literals_retain_the_scanner_flags_used_by_the_printer() {
             .iter()
             .map(|&literal| {
                 let node = source.arena.node(literal);
-                let NodeData::NumericLiteral(data) = &node.data() else {
+                let NodeData::NumericLiteral(data) = node.data() else {
                     unreachable!()
                 };
-                (data.text.as_str(), node.numeric_literal_flags())
+                (
+                    source.arena.text_str(data.text).unwrap(),
+                    node.numeric_literal_flags(),
+                )
             })
             .collect::<Vec<_>>(),
         [("16", 64), ("100", 16), ("1", 0)]
@@ -138,7 +141,7 @@ fn regex_flags_and_names_take_esnext_identifier_parts_like_tsgo() {
     let NodeData::RegularExpressionLiteral(data) = &source.arena.node(regex).data() else {
         unreachable!()
     };
-    assert_eq!(data.text, "/a/\u{08a1}");
+    assert_eq!(source.arena.text_str(data.text), Some("/a/\u{08a1}"));
     assert_eq!(source.arena.node(regex).end, "/a/\u{08a1}".len() as u32);
     assert!(nodes_of_kind(&source, SyntaxKind::Identifier)
         .into_iter()
@@ -222,7 +225,7 @@ fn heritage_clause_stores_its_token() {
     );
     let tokens: Vec<SyntaxKind> = nodes_of_kind(&source, SyntaxKind::HeritageClause)
         .into_iter()
-        .map(|id| match &source.arena.node(id).data() {
+        .map(|id| match source.arena.node(id).data() {
             NodeData::HeritageClause(data) => data.token,
             _ => unreachable!(),
         })
@@ -249,7 +252,7 @@ fn import_clause_stores_phase_modifier_and_derives_is_type_only() {
     );
     let clauses: Vec<(Option<SyntaxKind>, bool)> = nodes_of_kind(&source, SyntaxKind::ImportClause)
         .into_iter()
-        .map(|id| match &source.arena.node(id).data() {
+        .map(|id| match source.arena.node(id).data() {
             NodeData::ImportClause(data) => (data.phase_modifier, data.is_type_only),
             _ => unreachable!(),
         })
@@ -293,7 +296,7 @@ fn only_import_clause(
 }
 
 fn identifier_text(source: &SourceFile, id: NodeId) -> String {
-    match &source.arena.node(id).data() {
+    match source.arena.node(id).data() {
         NodeData::Identifier(data) => data.escaped_text.to_string(),
         _ => panic!("an identifier"),
     }
@@ -487,13 +490,23 @@ fn template_literals_store_raw_text() {
     let fragments = |kind: SyntaxKind| -> Vec<(JsString, Option<String>)> {
         nodes_of_kind(&source, kind)
             .into_iter()
-            .map(|id| match &source.arena.node(id).data() {
-                NodeData::NoSubstitutionTemplateLiteral(data) => {
-                    (data.text.clone(), data.raw_text.clone())
-                }
-                NodeData::TemplateHead(data) => (data.text.clone(), data.raw_text.clone()),
-                NodeData::TemplateMiddle(data) => (data.text.clone(), data.raw_text.clone()),
-                NodeData::TemplateTail(data) => (data.text.clone(), data.raw_text.clone()),
+            .map(|id| match source.arena.node(id).data() {
+                NodeData::NoSubstitutionTemplateLiteral(data) => (
+                    owned_text(&source, data.text),
+                    data.raw_text.map(|raw| owned_str(&source, raw)),
+                ),
+                NodeData::TemplateHead(data) => (
+                    owned_text(&source, data.text),
+                    data.raw_text.map(|raw| owned_str(&source, raw)),
+                ),
+                NodeData::TemplateMiddle(data) => (
+                    owned_text(&source, data.text),
+                    data.raw_text.map(|raw| owned_str(&source, raw)),
+                ),
+                NodeData::TemplateTail(data) => (
+                    owned_text(&source, data.text),
+                    data.raw_text.map(|raw| owned_str(&source, raw)),
+                ),
                 _ => unreachable!(),
             })
             .collect()
@@ -532,10 +545,11 @@ fn unterminated_template_raw_text_keeps_tail() {
     let raws: Vec<(JsString, Option<String>)> =
         nodes_of_kind(&source, SyntaxKind::NoSubstitutionTemplateLiteral)
             .into_iter()
-            .map(|id| match &source.arena.node(id).data() {
-                NodeData::NoSubstitutionTemplateLiteral(data) => {
-                    (data.text.clone(), data.raw_text.clone())
-                }
+            .map(|id| match source.arena.node(id).data() {
+                NodeData::NoSubstitutionTemplateLiteral(data) => (
+                    owned_text(&source, data.text),
+                    data.raw_text.map(|raw| owned_str(&source, raw)),
+                ),
                 _ => unreachable!(),
             })
             .collect();
@@ -554,7 +568,7 @@ fn meta_property_stores_its_keyword_token() {
     );
     let tokens: Vec<SyntaxKind> = nodes_of_kind(&source, SyntaxKind::MetaProperty)
         .into_iter()
-        .map(|id| match &source.arena.node(id).data() {
+        .map(|id| match source.arena.node(id).data() {
             NodeData::MetaProperty(data) => data.keyword_token,
             _ => unreachable!(),
         })
@@ -577,7 +591,7 @@ fn import_type_stores_is_type_of() {
     );
     let flags: Vec<bool> = nodes_of_kind(&source, SyntaxKind::ImportType)
         .into_iter()
-        .map(|id| match &source.arena.node(id).data() {
+        .map(|id| match source.arena.node(id).data() {
             NodeData::ImportType(data) => data.is_type_of,
             _ => unreachable!(),
         })
@@ -601,8 +615,11 @@ fn jsx_text_stores_contains_only_trivia_white_spaces() {
     );
     let flags: Vec<(String, bool)> = nodes_of_kind(&source, SyntaxKind::JsxText)
         .into_iter()
-        .map(|id| match &source.arena.node(id).data() {
-            NodeData::JsxText(data) => (data.text.clone(), data.contains_only_trivia_white_spaces),
+        .map(|id| match source.arena.node(id).data() {
+            NodeData::JsxText(data) => (
+                owned_str(&source, data.text),
+                data.contains_only_trivia_white_spaces,
+            ),
             _ => unreachable!(),
         })
         .collect();
@@ -4092,7 +4109,7 @@ fn jsdoc_type_syntax_follows_tsgo() {
     assert!(function_name.is_some());
     let nullable = nodes_of_kind(&source, SyntaxKind::JSDocNullableType);
     let non_nullable = nodes_of_kind(&source, SyntaxKind::JSDocNonNullableType);
-    let operand = |id: NodeId| match &source.arena.node(id).data() {
+    let operand = |id: NodeId| match source.arena.node(id).data() {
         NodeData::JSDocNullableType(data) => data.r#type,
         NodeData::JSDocNonNullableType(data) => data.r#type,
         _ => None,
@@ -4286,4 +4303,19 @@ fn a_conflict_marker_in_jsx_text_ends_the_children_like_tsgo() {
         rows,
         [(1005, Some(15), Some(13)), (1185, Some(16), Some(7))]
     );
+}
+
+/// A literal text of `source`, owned (string literal and template values may
+/// hold lone surrogates).
+fn owned_text(source: &SourceFile, id: crate::TextId) -> JsString {
+    tsc_types::JsStr::from_canonical_bytes(source.arena.text(id)).to_owned()
+}
+
+/// A UTF-8 literal text of `source`, owned.
+fn owned_str(source: &SourceFile, id: crate::TextId) -> String {
+    source
+        .arena
+        .text_str(id)
+        .expect("a UTF-8 literal text")
+        .to_owned()
 }

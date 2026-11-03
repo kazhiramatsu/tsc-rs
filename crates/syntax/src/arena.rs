@@ -257,9 +257,10 @@ impl SubtreeCopier {
 
         for (old_id, new_id) in &self.node_lineage {
             let old_node = old.node(*old_id);
-            let node = destination.node_mut(*new_id);
+            // The copy's texts move into this tree's text store.
+            let mut data = destination.node(*new_id).data().clone();
             remap_node_data_ids(
-                node.data_mut(),
+                &mut data,
                 |id| {
                     let index = (id.index() - self.old_node_base) as usize;
                     debug_assert_eq!(self.node_marks[index], self.generation);
@@ -270,7 +271,16 @@ impl SubtreeCopier {
                     debug_assert_eq!(self.array_marks[index], self.generation);
                     self.array_map[index]
                 },
+                |id| {
+                    if id == TextId::EMPTY {
+                        id
+                    } else {
+                        destination.push_text(old.text(id))
+                    }
+                },
             );
+            let node = destination.node_mut(*new_id);
+            node.set_data(data);
             node.parent = None;
             node.js_doc = old_node.js_doc.map(|id| {
                 let index = self.array_index(id);
@@ -397,34 +407,24 @@ impl NodeArena {
             + self.array_transform_flags.capacity() * std::mem::size_of::<i32>();
         usage.array_items += self.array_items.len();
         usage.array_item_bytes += self.array_items.capacity() * std::mem::size_of::<NodeId>();
+        // Literal texts live in the tree's text store, counted as one row.
+        usage.string_bytes += self.texts.capacity() * std::mem::size_of::<TextWord>();
         for node in &self.nodes {
             *usage.kinds.entry(node.kind).or_default() += 1;
-            let mut string = |bytes: usize| {
-                usage.string_nodes += 1;
-                usage.string_bytes += bytes;
-            };
-            match &node.data() {
+            match node.data() {
                 // Identifier names are interned: the name table reports their text.
                 NodeData::Identifier(_) => usage.identifiers += 1,
-                NodeData::PrivateIdentifier(_) => string(0),
-                NodeData::StringLiteral(data) => string(data.text.heap_bytes()),
-                NodeData::NumericLiteral(data) => string(data.text.capacity()),
-                NodeData::BigIntLiteral(data) => string(data.text.capacity()),
-                NodeData::RegularExpressionLiteral(data) => string(data.text.capacity()),
-                NodeData::JsxText(data) => string(data.text.capacity()),
-                NodeData::JSDocText(data) => string(data.text.capacity()),
-                NodeData::NoSubstitutionTemplateLiteral(data) => string(
-                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
-                ),
-                NodeData::TemplateHead(data) => string(
-                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
-                ),
-                NodeData::TemplateMiddle(data) => string(
-                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
-                ),
-                NodeData::TemplateTail(data) => string(
-                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
-                ),
+                NodeData::PrivateIdentifier(_)
+                | NodeData::StringLiteral(_)
+                | NodeData::NumericLiteral(_)
+                | NodeData::BigIntLiteral(_)
+                | NodeData::RegularExpressionLiteral(_)
+                | NodeData::JsxText(_)
+                | NodeData::JSDocText(_)
+                | NodeData::NoSubstitutionTemplateLiteral(_)
+                | NodeData::TemplateHead(_)
+                | NodeData::TemplateMiddle(_)
+                | NodeData::TemplateTail(_) => usage.string_nodes += 1,
                 _ => {}
             }
         }

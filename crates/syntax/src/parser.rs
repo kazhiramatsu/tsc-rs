@@ -2715,8 +2715,8 @@ impl<'text> Parser<'text> {
         {
             return self.try_parse(|parser| {
                 let literal = parser.parse_string_literal();
-                match &parser.arena.node(literal).data() {
-                    NodeData::StringLiteral(data) => data.text == "constructor",
+                match parser.arena.node(literal).data() {
+                    NodeData::StringLiteral(data) => parser.arena.text(data.text) == b"constructor",
                     _ => false,
                 }
             });
@@ -5679,7 +5679,9 @@ impl<'text> Parser<'text> {
     /// tsc parseJsxText.
     fn parse_jsx_text(&mut self) -> NodeId {
         let pos = self.node_pos();
-        let text = self.scanner.token_value_str().to_owned();
+        let text = self
+            .arena
+            .push_text(self.scanner.token_value_str().as_bytes());
         let contains_only_trivia_white_spaces = self.token() == SyntaxKind::JsxTextAllWhiteSpaces;
         self.scan_jsx_text();
         self.finish_node_data(
@@ -7457,8 +7459,9 @@ impl<'text> Parser<'text> {
         // directly: the empty cooked text of `${x}`-style fragments is
         // legitimate (current_token_text's missing-token fallback would
         // turn it into the token NAME).
-        let text = self.scanner.token_value().to_owned();
-        let raw_text = Some(self.template_literal_raw_text(kind));
+        let text = self.arena.push_text(self.scanner.token_value().as_bytes());
+        let raw_text = self.template_literal_raw_text(kind);
+        let raw_text = Some(self.arena.push_text(raw_text.as_bytes()));
         let data = match kind {
             SyntaxKind::TemplateHead => {
                 NodeData::TemplateHead(Box::new(TemplateHeadData { text, raw_text }))
@@ -7485,7 +7488,7 @@ impl<'text> Parser<'text> {
         // Like parse_template_fragment: the empty cooked text of `""`
         // is legitimate — current_token_text's missing-token fallback
         // would turn it into the token NAME.
-        let text = self.scanner.token_value().to_owned();
+        let text = self.arena.push_text(self.scanner.token_value().as_bytes());
         let has_extended_unicode_escape = self.scanner.has_extended_unicode_escape();
         let id = self.arena.alloc_node(
             NodeData::StringLiteral(Box::new(StringLiteralData { text })),
@@ -7504,6 +7507,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let end = self.scanner.pos();
         let text = self.current_token_text();
+        let text = self.arena.push_text(text.as_bytes());
         let numeric_literal_flags = self.scanner.numeric_literal_flags();
         let id = self.arena.alloc_node(
             NodeData::NumericLiteral(Box::new(NumericLiteralData { text })),
@@ -7522,6 +7526,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let end = self.scanner.pos();
         let text = self.current_token_text();
+        let text = self.arena.push_text(text.as_bytes());
         let id = self.arena.alloc_node(
             NodeData::BigIntLiteral(Box::new(BigIntLiteralData { text })),
             pos,
@@ -7536,6 +7541,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let end = self.scanner.pos();
         let text = self.current_token_text();
+        let text = self.arena.push_text(text.as_bytes());
         let is_unterminated = self.scanner.is_unterminated().then_some(true);
         let id = self.arena.alloc_node(
             NodeData::RegularExpressionLiteral(Box::new(RegularExpressionLiteralData { text })),
@@ -7552,8 +7558,9 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let end = self.scanner.pos();
         // Empty cooked text (``) is legitimate — see parse_template_fragment.
-        let text = self.scanner.token_value().to_owned();
+        let text = self.arena.push_text(self.scanner.token_value().as_bytes());
         let raw_text = self.template_literal_raw_text(SyntaxKind::NoSubstitutionTemplateLiteral);
+        let raw_text = self.arena.push_text(raw_text.as_bytes());
         let id = self.arena.alloc_node(
             NodeData::NoSubstitutionTemplateLiteral(Box::new(NoSubstitutionTemplateLiteralData {
                 text,
