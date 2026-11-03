@@ -2009,19 +2009,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn or_node_check_flags(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         bits: tsc_types::NodeCheckFlags,
     ) {
-        if speculation_depth != 0
-            && !bits.intersects(
-                tsc_types::NodeCheckFlags::IN_CHECK_IDENTIFIER
-                    | tsc_types::NodeCheckFlags::ASSIGNMENTS_MARKED
-                    | tsc_types::NodeCheckFlags::CONTEXT_CHECKED,
-            )
-        {
-            return;
-        }
         let links = self.node.slot(id);
         links.check_flags =
             tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
