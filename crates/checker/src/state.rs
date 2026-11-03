@@ -536,10 +536,6 @@ pub struct CheckerState<'a> {
     /// always empty) map.
     pub(crate) signature_instantiations:
         rustc_hash::FxHashMap<(SignatureId, tsc_types::TypeListId), SignatureId>,
-    /// Trial-local resolvedReturnType protocol writes. The resolution
-    /// stack observes slot completion while a candidate runs, but the
-    /// signature memo returns to its entry value at the boundary.
-    pub(crate) speculative_signature_return_writes: Vec<(u32, SignatureId, LinkSlot<TypeId>)>,
     pub members: Vec<ResolvedMembers>,
     /// checker-key §1.5: five per-relation caches + enumRelation.
     pub relations: RelationCaches,
@@ -1069,32 +1065,6 @@ pub struct CheckerState<'a> {
     /// getSemanticDiagnostics. Lazy initialization diagnostics not
     /// registered here remain program-global.
     pub visible_global_diagnostics: DiagnosticList,
-    /// Completed diagnostics emitted by reporting-mode iteration walks
-    /// while an overload candidate transaction is active. tsc has no
-    /// such transaction, so these eager side effects survive a
-    /// rejected candidate; speculate.rs replays the journal after
-    /// rolling every other diagnostic back.
-    pub(crate) tsc_eager_diagnostics: DiagnosticList,
-    /// The visible-global counterpart of `tsc_eager_diagnostics`.
-    /// Some reporting iteration paths force global getters whose
-    /// file-less rows must remain observable after candidate rollback.
-    pub(crate) tsc_eager_visible_global_diagnostics: DiagnosticList,
-    /// Diagnostics produced while a contextual function's once-state is
-    /// completed inside an overload-candidate transaction. A rejected,
-    /// fully checked candidate keeps `ContextChecked` and contextual
-    /// parameter types, so the diagnostics produced by that same semantic
-    /// operation must cross the candidate boundary with them. Aborted or
-    /// explicitly rolled-back checks discard these journals.
-    pub(crate) completed_contextual_diagnostics: DiagnosticList,
-    /// The visible-global counterpart of
-    /// `completed_contextual_diagnostics`.
-    pub(crate) completed_contextual_visible_global_diagnostics: DiagnosticList,
-    /// Nesting depth of reporting-mode iteration entries. Nested
-    /// entries provisionally journal their completed sink suffix
-    /// before an inner overload transaction can roll it back; the
-    /// outermost entry replaces those provisional rows with its final
-    /// sink suffix after related information has been attached.
-    pub(crate) tsc_eager_iteration_capture_depth: usize,
     /// Syntax ranges whose check stopped at a typed abort containment
     /// boundary or an unimplemented flow-sensitive diagnostic. Only
     /// directives targeting one of these (pos, end) ranges are exempt
@@ -1745,7 +1715,6 @@ impl<'a> CheckerState<'a> {
             links: LinksTables::with_capacity_hint(program_nodes, program_symbols),
             signatures: Vec::new(),
             signature_instantiations: rustc_hash::FxHashMap::default(),
-            speculative_signature_return_writes: Vec::new(),
             members: Vec::new(),
             relations: RelationCaches::default(),
             subtype_reduction_cache: rustc_hash::FxHashMap::default(),
@@ -1884,11 +1853,6 @@ impl<'a> CheckerState<'a> {
             resolved_type_predicates: rustc_hash::FxHashMap::default(),
             diagnostics: DiagnosticSink::default(),
             visible_global_diagnostics: Vec::new(),
-            tsc_eager_diagnostics: Vec::new(),
-            tsc_eager_visible_global_diagnostics: Vec::new(),
-            completed_contextual_diagnostics: Vec::new(),
-            completed_contextual_visible_global_diagnostics: Vec::new(),
-            tsc_eager_iteration_capture_depth: 0,
             partially_checked_ranges: rustc_hash::FxHashMap::default(),
             contained_call_resolutions: rustc_hash::FxHashSet::default(),
             partial_check_records: Vec::new(),
@@ -2243,54 +2207,13 @@ impl<'a> CheckerState<'a> {
     /// as an asserted helper — first write
     /// wins — a re-entrant fill keeps the INNER frame's value and the
     /// caller must consume the returned slot value, not its own
-    /// computation. Sealing follows the links write discipline (no
-    /// permanent writes during speculation, greenfield §4.3; the raw
-    /// Signature field sat outside that net — m4-review A4).
+    /// computation.
     pub fn seal_signature_return_type(&mut self, id: SignatureId, resolved: TypeId) -> TypeId {
         if let Some(existing) = self.signature_of(id).resolved_return_type.resolved() {
             return existing;
         }
-        if self.speculation_depth != 0
-            && !self
-                .speculative_signature_return_writes
-                .iter()
-                .any(|(depth, signature, _)| *depth == self.speculation_depth && *signature == id)
-        {
-            let previous = self.signature_of(id).resolved_return_type.clone();
-            self.speculative_signature_return_writes
-                .push((self.speculation_depth, id, previous));
-        }
         self.signatures[id.index() as usize].resolved_return_type = LinkSlot::Resolved(resolved);
         resolved
-    }
-
-    /// tsrs-native: capture the signature-return journal position at a
-    /// speculation boundary.
-    pub(crate) fn speculative_signature_return_mark(&self) -> usize {
-        self.speculative_signature_return_writes.len()
-    }
-
-    /// tsrs-native: keep completed signature-return seals on a
-    /// successful trial.
-    /// When the commit is nested, promote the first-write snapshot to
-    /// the parent transaction so a later outer rollback can still
-    /// restore its entry state.
-    pub(crate) fn commit_speculative_signature_returns(&mut self, mark: usize, _parent_depth: u32) {
-        self.restore_speculative_signature_returns(mark);
-    }
-
-    /// tsrs-native: restore candidate-local signature return slots.
-    pub(crate) fn restore_speculative_signature_returns(&mut self, mark: usize) {
-        while self.speculative_signature_return_writes.len() > mark {
-            let (_, signature, previous) = self
-                .speculative_signature_return_writes
-                .pop()
-                .expect("length checked");
-            let slot = &mut self.signatures[signature.index() as usize].resolved_return_type;
-            if slot.is_resolving() {
-                *slot = previous;
-            }
-        }
     }
 
     /// tsrs-native: fresh signature initialization inside a candidate

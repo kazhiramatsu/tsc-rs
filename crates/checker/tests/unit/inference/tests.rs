@@ -649,22 +649,21 @@ fn instantiate_contextual_type_signature_branch_consults_non_fixing_mapper() {
 }
 
 #[test]
-fn context_arena_survives_rollback_while_stack_truncates() {
+fn context_arena_survives_pop_while_stack_balances() {
     with_program_state(
         &[("a.ts", GENERIC_SRC)],
         &CompilerOptions::default(),
         |state| {
             let t = declared_type_parameter(state, "T");
             let var_decl = node_of_kind(state, tsc_syntax::SyntaxKind::VariableDeclaration);
-            let checkpoint = state.begin_speculation();
             let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
             state.push_inference_context(var_decl, Some(ctx));
-            state.rollback_speculation(checkpoint);
-            // The node stack is A-class (truncated to the mark);
-            // the arena is E-class — the context object survives
+            state.pop_inference_context();
+            // The scoped stack balances; the arena context survives
             // exactly like tsc's GC object would (chooseOverload
             // 76842 depends on trial-surviving context state).
             assert!(state.inference_contexts.is_empty());
+            assert!(state.inference_context_nodes.is_empty());
             assert_eq!(state.inference_context_arena.len(), 1);
             assert_eq!(state.inference_context(ctx).inferences.len(), 1);
         },

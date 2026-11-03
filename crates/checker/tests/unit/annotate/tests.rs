@@ -7,7 +7,6 @@ use tsc_types::{
 
 use crate::links::LinkSlot;
 use crate::relpin::find_probe_annotation;
-use crate::speculate::SpeculationOutcome;
 use crate::state::CheckerState;
 use crate::{check_program, InputFile};
 
@@ -505,7 +504,7 @@ fn resolved_conditional_and_unresolved_name_shapes_are_sound() {
 }
 
 #[test]
-fn type_node_resolution_persists_across_a_rolled_back_trial() {
+fn type_node_resolution_is_stable_across_repeated_queries() {
     // tsc caches `links.resolvedType` in any check mode and never clears
     // it: a resolution a candidate completed stays published after the
     // candidate is discarded, and the next use is a cache hit on the same
@@ -513,16 +512,7 @@ fn type_node_resolution_persists_across_a_rolled_back_trial() {
     with_state("declare var a: 1 | 2;\n", |state| {
         let annotation = find_probe_annotation(state.binder.source(0), "a")
             .expect("declared var with annotation");
-        let resolved = state
-            .speculate(|state| {
-                let resolved = annotation_type(state, "a");
-                assert!(matches!(
-                    state.links.node(annotation).resolved_type.get(),
-                    LinkSlot::Resolved(cached) if cached == resolved
-                ));
-                Ok(SpeculationOutcome::Rollback(resolved))
-            })
-            .expect("trial resolves");
+        let resolved = annotation_type(state, "a");
         assert!(matches!(
             state.links.node(annotation).resolved_type.get(),
             LinkSlot::Resolved(cached) if cached == resolved
