@@ -2,18 +2,53 @@
 // (`cargo xtask codegen scanner`, since removed); tsgo has only the ESNext
 // ones (stringutil/identifier.go).
 
+const ASCII_IDENTIFIER_START: [bool; 128] = {
+    let mut table = [false; 128];
+    let mut byte = 0;
+    while byte < table.len() {
+        table[byte] = matches!(byte as u8, b'a'..=b'z' | b'A'..=b'Z' | b'$' | b'_');
+        byte += 1;
+    }
+    table
+};
+const ASCII_IDENTIFIER_PART: [bool; 128] = {
+    let mut table = ASCII_IDENTIFIER_START;
+    let mut byte = b'0';
+    while byte <= b'9' {
+        table[byte as usize] = true;
+        byte += 1;
+    }
+    table
+};
+
+#[inline]
 pub fn is_identifier_start(ch: char) -> bool {
-    ch.is_ascii_alphabetic()
-        || ch == '$'
-        || ch == '_'
-        || (ch as u32 > 0x7f && lookup_in_unicode_map(ch as u32, UNICODE_ES_NEXT_IDENTIFIER_START))
+    if ch.is_ascii() {
+        ASCII_IDENTIFIER_START[ch as usize]
+    } else {
+        is_unicode_identifier_start(ch)
+    }
 }
 
+#[inline]
 pub fn is_identifier_part(ch: char) -> bool {
-    ch.is_ascii_alphanumeric()
-        || ch == '$'
-        || ch == '_'
-        || (ch as u32 > 0x7f && lookup_in_unicode_map(ch as u32, UNICODE_ES_NEXT_IDENTIFIER_PART))
+    if ch.is_ascii() {
+        ASCII_IDENTIFIER_PART[ch as usize]
+    } else {
+        is_unicode_identifier_part(ch)
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn is_unicode_identifier_start(ch: char) -> bool {
+    lookup_in_unicode_map(ch as u32, UNICODE_ES_NEXT_IDENTIFIER_START)
+}
+
+#[cold]
+#[inline(never)]
+fn is_unicode_identifier_part(ch: char) -> bool {
+    lookup_in_unicode_map(ch as u32, UNICODE_ES_NEXT_IDENTIFIER_PART)
 }
 
 fn lookup_in_unicode_map(code: u32, map: &[(u32, u32)]) -> bool {
