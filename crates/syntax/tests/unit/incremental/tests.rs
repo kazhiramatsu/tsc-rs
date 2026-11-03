@@ -1273,6 +1273,7 @@ fn module_declaration_attributes_take_part_in_the_structural_comparison() {
         &module(None),
         |_, _| true,
         |_, _| true,
+        |_, _| true,
     ));
     let mut compared = Vec::new();
     assert!(node_data_structurally_equal(
@@ -1282,6 +1283,7 @@ fn module_declaration_attributes_take_part_in_the_structural_comparison() {
             compared.push((left, right));
             true
         },
+        |_, _| true,
         |_, _| true,
     ));
     assert_eq!(
