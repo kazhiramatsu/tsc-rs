@@ -1224,9 +1224,11 @@ impl LinksTables {
     pub(crate) fn memory_usage(&self) -> [(&'static str, usize, usize); 7] {
         let node = self.node.memory_usage();
         let persistent = self.persistent_symbols.memory_usage();
+        // The transient and type tables are reserved up front; the untouched
+        // tail is address space, so they count by length.
         let transient = (
             self.transient_symbols.len(),
-            self.transient_symbols.capacity() * std::mem::size_of::<SymbolLinks>(),
+            self.transient_symbols.len() * std::mem::size_of::<SymbolLinks>(),
         );
         let ty = self.ty.memory_usage();
         let node_cold = self.node_cold.memory_usage();
@@ -1338,11 +1340,13 @@ impl<T: Default> DenseLinks<T> {
         self.records.reserve(additional);
     }
 
-    /// Records and the bytes the vector owns (memory accounting).
+    /// Records and their bytes (memory accounting). The vector is reserved
+    /// up front and its untouched tail is address space, so it counts by
+    /// length.
     fn memory_usage(&self) -> (usize, usize) {
         (
             self.records.len(),
-            self.records.capacity() * std::mem::size_of::<T>(),
+            self.records.len() * std::mem::size_of::<T>(),
         )
     }
 }
