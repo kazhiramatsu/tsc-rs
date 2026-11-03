@@ -27,16 +27,20 @@ pub enum IdentitySpace {
     /// A checker's types, built in the type store at the leased positions
     /// (a type's identity stays the index in its checker's list).
     Type = 5,
+    /// The words of a tree's literal texts (each a length word and the
+    /// text's bytes), a text's identity being its first word.
+    NodeText = 6,
 }
 
 impl IdentitySpace {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Node,
         Self::NodeArray,
         Self::Symbol,
         Self::PrivateNameSerial,
         Self::NodeArrayItem,
         Self::Type,
+        Self::NodeText,
     ];
 
     const fn index(self) -> usize {
@@ -60,6 +64,7 @@ impl fmt::Display for IdentitySpace {
             Self::PrivateNameSerial => "private-name-serial",
             Self::NodeArrayItem => "node-array-item",
             Self::Type => "type",
+            Self::NodeText => "node-text",
         })
     }
 }
@@ -72,6 +77,7 @@ pub struct IdentityLimits {
     pub private_name_serial_end: u32,
     pub node_array_item_end: u32,
     pub type_end: u32,
+    pub node_text_end: u32,
 }
 
 impl IdentityLimits {
@@ -83,6 +89,7 @@ impl IdentityLimits {
             IdentitySpace::PrivateNameSerial => self.private_name_serial_end,
             IdentitySpace::NodeArrayItem => self.node_array_item_end,
             IdentitySpace::Type => self.type_end,
+            IdentitySpace::NodeText => self.node_text_end,
         }
     }
 }
@@ -98,6 +105,7 @@ impl Default for IdentityLimits {
             private_name_serial_end: u32::MAX,
             node_array_item_end: u32::MAX,
             type_end: u32::MAX,
+            node_text_end: u32::MAX,
         }
     }
 }
