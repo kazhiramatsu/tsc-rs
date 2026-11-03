@@ -1553,7 +1553,7 @@ impl<'a> CheckerState<'a> {
             }
             return Some(false);
         };
-        let modifiers = self.binder.node_array(modifiers).nodes.to_vec();
+        let modifiers = self.binder.node_array(modifiers).nodes;
         let first_modifier_except = |allowed: Option<SyntaxKind>| {
             modifiers
                 .iter()
@@ -1833,9 +1833,7 @@ impl<'a> CheckerState<'a> {
                 NodeData::DefaultClause(data) => data.statements,
                 _ => None,
             };
-            let statements: Vec<NodeId> = statements
-                .map(|statements| self.binder.node_array(statements).nodes.to_vec())
-                .unwrap_or_default();
+            let statements = self.nodes_of(statements);
             if let Some(offset) = statements.iter().position(|&statement| statement == node) {
                 let mut first = offset;
                 for index in (0..offset).rev() {
@@ -2101,7 +2099,7 @@ impl<'a> CheckerState<'a> {
             self.check_jsdoc_comment_links(document);
             let tags = match self.data_of(document) {
                 NodeData::JSDoc(data) => self.nodes_of(data.tags),
-                _ => Vec::new(),
+                _ => Default::default(),
             };
             for tag in tags {
                 self.check_jsdoc_comment_links(tag);
@@ -3276,8 +3274,7 @@ impl<'a> CheckerState<'a> {
             }
             if type_arguments.is_none() {
                 let filled = self.get_effective_type_arguments(node, type_parameters)?;
-                mapper =
-                    Some(self.create_type_mapper(type_parameters.to_vec(), Some(filled.clone())));
+                mapper = Some(self.create_type_mapper(type_parameters, Some(&filled)));
                 type_arguments = Some(filled);
             }
             let arguments = type_arguments.as_ref().expect("filled above");
@@ -4158,7 +4155,7 @@ impl<'a> CheckerState<'a> {
         let properties = match self.data_of(node) {
             NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
             NodeData::JsxAttributes(data) => self.nodes_of(data.properties),
-            _ => Vec::new(),
+            _ => Default::default(),
         };
         for property in properties {
             let Some(name) = self.name_of_node(property) else {
@@ -9320,7 +9317,7 @@ impl<'a> CheckerState<'a> {
                 let remainder = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
                 self.tables.type_mut(remainder).object_flags = ObjectFlags::ANONYMOUS;
                 self.tables.type_mut(remainder).symbol = source_symbol;
-                let mut properties = properties;
+                let mut properties = properties.to_vec();
                 self.order_named_members_if_stable(&mut properties, source_symbol);
                 let remainder_members = self.alloc_members(crate::state::ResolvedMembers::new(
                     member_table,
@@ -10435,7 +10432,7 @@ impl<'a> CheckerState<'a> {
                 let parameters = match self.data_of(parent) {
                     NodeData::FunctionExpression(data) => self.nodes_of(data.parameters),
                     NodeData::ArrowFunction(data) => self.nodes_of(data.parameters),
-                    _ => Vec::new(),
+                    _ => Default::default(),
                 };
                 let index = parameters.iter().position(|&p| p == node);
                 return Ok(annotation.is_none()
@@ -11431,7 +11428,8 @@ impl<'a> CheckerState<'a> {
                 .serialize_reused_type_name(expr_name, SymbolFlags::VALUE, &[])?
                 .map(|(text, kind)| SliceTypeNodeFace::new(text, kind)));
         }
-        let rendered = self.type_argument_nodes_text(self.nodes_of(data.type_arguments))?;
+        let rendered =
+            self.type_argument_nodes_text(self.nodes_of(data.type_arguments).to_vec())?;
         let name = self.entity_name_text(expr_name)?;
         let text = if rendered.is_empty() {
             crate::concat_js(&[&"typeof ", &(name)])
@@ -11464,7 +11462,8 @@ impl<'a> CheckerState<'a> {
         let meaning = self.type_reference_entity_meaning(type_name);
         let introduces_error = self.reused_entity_name_introduces_error(type_name, meaning)?;
         // tsc visits typeArguments before branching on introducesError.
-        let rendered = self.type_argument_nodes_text(self.nodes_of(data.type_arguments))?;
+        let rendered =
+            self.type_argument_nodes_text(self.nodes_of(data.type_arguments).to_vec())?;
         if introduces_error {
             return Ok(self
                 .serialize_reused_type_name(type_name, SymbolFlags::TYPE, &rendered)?
@@ -11734,10 +11733,11 @@ impl<'a> CheckerState<'a> {
                 }
             }
             NodeData::FunctionType(data) => self.with_reused_node_scope(node, |state| {
-                let type_parameters = state
-                    .type_parameter_nodes_text_display(state.nodes_of(data.type_parameters))?;
+                let type_parameters = state.type_parameter_nodes_text_display(
+                    state.nodes_of(data.type_parameters).to_vec(),
+                )?;
                 let parameters =
-                    state.parameter_nodes_text_display(state.nodes_of(data.parameters))?;
+                    state.parameter_nodes_text_display(state.nodes_of(data.parameters).to_vec())?;
                 let ret = match data.r#type {
                     Some(ret) => state.type_annotation_text_display(ret)?,
                     None => "any".into(),
@@ -11759,10 +11759,11 @@ impl<'a> CheckerState<'a> {
                     )
                 };
                 let modifier = if is_abstract { "abstract " } else { "" };
-                let type_parameters = state
-                    .type_parameter_nodes_text_display(state.nodes_of(data.type_parameters))?;
+                let type_parameters = state.type_parameter_nodes_text_display(
+                    state.nodes_of(data.type_parameters).to_vec(),
+                )?;
                 let parameters =
-                    state.parameter_nodes_text_display(state.nodes_of(data.parameters))?;
+                    state.parameter_nodes_text_display(state.nodes_of(data.parameters).to_vec())?;
                 let ret = match data.r#type {
                     Some(ret) => state.type_annotation_text_display(ret)?,
                     None => "any".into(),
@@ -11984,7 +11985,7 @@ impl<'a> CheckerState<'a> {
                 let type_arguments = if arguments.is_empty() {
                     JsString::new()
                 } else {
-                    let rendered = self.type_argument_nodes_text(arguments)?;
+                    let rendered = self.type_argument_nodes_text(arguments.to_vec())?;
                     crate::concat_js(&[&"<", &(crate::join_js_texts(&rendered, ", ")), &">"])
                 };
                 let type_of = if data.is_type_of { "typeof " } else { "" };
@@ -12974,7 +12975,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<JsString> {
         let construct = node_util::is_jsdoc_construct_signature(&Published, node);
         let type_parameters =
-            self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
+            self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters).to_vec())?;
         let mut return_from_new = None;
         let mut parameters = Vec::new();
         for (index, parameter) in self.nodes_of(data.parameters).into_iter().enumerate() {
@@ -13434,10 +13435,11 @@ impl<'a> CheckerState<'a> {
                 } else {
                     ""
                 };
-                let type_parameters =
-                    self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
+                let type_parameters = self.type_parameter_nodes_text_display(
+                    self.nodes_of(data.type_parameters).to_vec(),
+                )?;
                 let parameters =
-                    self.parameter_nodes_text_display(self.nodes_of(data.parameters))?;
+                    self.parameter_nodes_text_display(self.nodes_of(data.parameters).to_vec())?;
                 let mut text = crate::concat_js(&[
                     &(modifiers),
                     &(name),
@@ -13456,10 +13458,11 @@ impl<'a> CheckerState<'a> {
                 Ok(Some(text))
             }
             NodeData::CallSignature(data) => {
-                let type_parameters =
-                    self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
+                let type_parameters = self.type_parameter_nodes_text_display(
+                    self.nodes_of(data.type_parameters).to_vec(),
+                )?;
                 let parameters =
-                    self.parameter_nodes_text_display(self.nodes_of(data.parameters))?;
+                    self.parameter_nodes_text_display(self.nodes_of(data.parameters).to_vec())?;
                 let mut text = crate::concat_js(&[&(type_parameters), &"(", &(parameters), &")"]);
                 if let Some(annotation) = data.r#type {
                     text.push_js((": ").into());
@@ -13470,10 +13473,11 @@ impl<'a> CheckerState<'a> {
                 Ok(Some(text))
             }
             NodeData::ConstructSignature(data) => {
-                let type_parameters =
-                    self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
+                let type_parameters = self.type_parameter_nodes_text_display(
+                    self.nodes_of(data.type_parameters).to_vec(),
+                )?;
                 let parameters =
-                    self.parameter_nodes_text_display(self.nodes_of(data.parameters))?;
+                    self.parameter_nodes_text_display(self.nodes_of(data.parameters).to_vec())?;
                 let mut text =
                     crate::concat_js(&[&"new ", &(type_parameters), &"(", &(parameters), &")"]);
                 if let Some(annotation) = data.r#type {
@@ -13487,7 +13491,7 @@ impl<'a> CheckerState<'a> {
             NodeData::IndexSignature(data) => {
                 let modifiers = self.modifier_nodes_text(data.modifiers);
                 let parameters =
-                    self.parameter_nodes_text_display(self.nodes_of(data.parameters))?;
+                    self.parameter_nodes_text_display(self.nodes_of(data.parameters).to_vec())?;
                 let mut text = crate::concat_js(&[&(modifiers), &"[", &(parameters), &"]"]);
                 if let Some(annotation) = data.r#type {
                     text.push_js((": ").into());
@@ -13501,10 +13505,11 @@ impl<'a> CheckerState<'a> {
                 let modifiers = self.modifier_nodes_text(data.modifiers);
                 let name =
                     self.member_name_node_text(data.name.expect("GetAccessor carries its name"))?;
-                let type_parameters =
-                    self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
+                let type_parameters = self.type_parameter_nodes_text_display(
+                    self.nodes_of(data.type_parameters).to_vec(),
+                )?;
                 let parameters =
-                    self.parameter_nodes_text_display(self.nodes_of(data.parameters))?;
+                    self.parameter_nodes_text_display(self.nodes_of(data.parameters).to_vec())?;
                 let mut text = crate::concat_js(&[
                     &(modifiers),
                     &"get ",
@@ -13534,10 +13539,11 @@ impl<'a> CheckerState<'a> {
                 let modifiers = self.modifier_nodes_text(data.modifiers);
                 let name =
                     self.member_name_node_text(data.name.expect("SetAccessor carries its name"))?;
-                let type_parameters =
-                    self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
+                let type_parameters = self.type_parameter_nodes_text_display(
+                    self.nodes_of(data.type_parameters).to_vec(),
+                )?;
                 let parameters =
-                    self.parameter_nodes_text_display(self.nodes_of(data.parameters))?;
+                    self.parameter_nodes_text_display(self.nodes_of(data.parameters).to_vec())?;
                 let annotation = match data.r#type {
                     Some(annotation) => self.type_annotation_text_display(annotation)?,
                     None => "any".into(),
@@ -13684,15 +13690,15 @@ impl<'a> CheckerState<'a> {
                 let (elements, has_trailing_comma) = match data.elements {
                     Some(elements) => {
                         let elements = self.binder.node_array(elements);
-                        (elements.nodes.to_vec(), elements.has_trailing_comma)
+                        (elements.nodes, elements.has_trailing_comma)
                     }
-                    None => (Vec::new(), false),
+                    None => (&[][..], false),
                 };
                 if elements.is_empty() {
                     return Ok("{}".into());
                 }
                 let mut rendered = Vec::with_capacity(elements.len());
-                for element in elements {
+                for &element in elements {
                     rendered.push(self.binding_element_text(element, preserve_initializers)?);
                 }
                 let mut contents = crate::join_js_texts(&rendered, ", ");
@@ -13705,12 +13711,12 @@ impl<'a> CheckerState<'a> {
                 let (elements, has_trailing_comma) = match data.elements {
                     Some(elements) => {
                         let elements = self.binder.node_array(elements);
-                        (elements.nodes.to_vec(), elements.has_trailing_comma)
+                        (elements.nodes, elements.has_trailing_comma)
                     }
-                    None => (Vec::new(), false),
+                    None => (&[][..], false),
                 };
                 let mut rendered = Vec::with_capacity(elements.len());
-                for element in elements {
+                for &element in elements {
                     rendered.push(self.binding_element_text(element, preserve_initializers)?);
                 }
                 let mut contents = crate::join_js_texts(&rendered, ", ");

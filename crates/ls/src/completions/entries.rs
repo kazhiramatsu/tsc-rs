@@ -1602,7 +1602,7 @@ impl CaseClauseTracker {
     pub(crate) fn has_value(&self, literal: LiteralValue<'_>) -> bool {
         match literal {
             LiteralValue::String(text) => self.strings.contains(text.to_string_lossy().as_ref()),
-            LiteralValue::Number(value) => self.numbers.iter().any(|&existing| existing == value),
+            LiteralValue::Number(value) => self.numbers.contains(&value),
             LiteralValue::BigInt(value) => self.big_ints.contains(&value.to_base10_string()),
         }
     }

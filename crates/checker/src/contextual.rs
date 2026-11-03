@@ -1537,7 +1537,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(constraint).data else {
                 unreachable!("intersection flag implies payload");
             };
-            let types = self.tables.list(types).to_vec();
+            let types = self.tables.list_copy(types);
             for member in types.iter().copied() {
                 if self.is_excluded_mapped_property_name(member, property_name_type)? {
                     return Ok(true);
@@ -3092,7 +3092,7 @@ impl<'a> CheckerState<'a> {
         let type_params = left_tps.clone().or(right_tps.clone());
         let param_mapper = match (left_tps.as_ref(), right_tps.as_ref()) {
             (Some(left_tps), Some(right_tps)) => {
-                Some(self.create_type_mapper(right_tps.clone(), Some(left_tps.clone())))
+                Some(self.create_type_mapper(right_tps, Some(left_tps)))
             }
             _ => None,
         };
@@ -3656,7 +3656,7 @@ impl<'a> CheckerState<'a> {
             NodeData::JSDocSignature(data) => data.parameters,
             _ => None,
         };
-        self.nodes_of(parameters)
+        self.nodes_of(parameters).to_vec()
     }
 
     /// The declaration's syntactic `typeParameters` property.

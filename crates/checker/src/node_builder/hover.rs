@@ -422,8 +422,13 @@ fn expand_class_declaration(
         let all_properties = checker
             .get_properties_of_type(class_type)
             .map_err(|abort| checker_abort_error(checker, context, abort))?;
-        let symbol_properties =
-            filter_inherited_properties(checker, context, class_type, &base_types, all_properties)?;
+        let symbol_properties = filter_inherited_properties(
+            checker,
+            context,
+            class_type,
+            &base_types,
+            all_properties.to_vec(),
+        )?;
         let public_properties = symbol_properties
             .iter()
             .copied()

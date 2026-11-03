@@ -43,7 +43,7 @@ impl EmitSymbolTracker for RecordingTracker {
 fn root_statements(checker: &CheckerState<'_>) -> Vec<NodeId> {
     let root = checker.binder.source(0).root;
     match checker.data_of(root) {
-        NodeData::SourceFile(data) => checker.nodes_of(data.statements),
+        NodeData::SourceFile(data) => checker.nodes_of(data.statements).to_vec(),
         _ => Vec::new(),
     }
 }

@@ -381,8 +381,7 @@ impl<'a> CheckerState<'a> {
         for &parameter in outer_parameters {
             type_arguments.push(self.get_mapped_type(parameter, type_parameter_mapper)?);
         }
-        let new_root_mapper =
-            self.create_type_mapper(outer_parameters.to_vec(), Some(type_arguments));
+        let new_root_mapper = self.create_type_mapper(outer_parameters, Some(&type_arguments[..]));
         let new_check_type = if new_root.is_distributive {
             Some(self.get_mapped_type(new_root.check_type, new_root_mapper)?)
         } else {
@@ -449,18 +448,21 @@ impl<'a> CheckerState<'a> {
         for &parameter in outer_parameters {
             type_arguments.push(self.get_mapped_type(parameter, mapper)?);
         }
-        let mut key = if for_constraint {
-            "C".to_owned()
-        } else {
-            String::new()
-        };
-        key.push_str(&self.tables.get_type_list_id(&type_arguments));
-        key.push_str(&self.tables.get_alias_id(alias_symbol, alias_type_arguments));
-        if let Some(cached) = self.links.conditional_instantiation(data.root, &key) {
+        // tsc's "C" prefix, getTypeListId and getAliasId as one value.
+        let key = self.tables.instantiation_key(
+            &type_arguments,
+            alias_symbol,
+            alias_type_arguments,
+            false,
+        );
+        if let Some(cached) = self
+            .links
+            .conditional_instantiation(data.root, for_constraint, key)
+        {
             return Ok(cached);
         }
 
-        let new_mapper = self.create_type_mapper(outer_parameters.to_vec(), Some(type_arguments));
+        let new_mapper = self.create_type_mapper(outer_parameters, Some(&type_arguments[..]));
         let distribution_type = if root.is_distributive {
             let mapped = self.get_mapped_type(root.check_type, new_mapper)?;
             Some(self.get_reduced_type(mapped)?)
@@ -499,8 +501,13 @@ impl<'a> CheckerState<'a> {
                 alias_type_arguments,
             )?
         };
-        self.links
-            .set_conditional_instantiation(self.speculation_depth, data.root, key, result);
+        self.links.set_conditional_instantiation(
+            self.speculation_depth,
+            data.root,
+            for_constraint,
+            key,
+            result,
+        );
         Ok(result)
     }
 

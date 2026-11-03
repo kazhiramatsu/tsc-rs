@@ -950,8 +950,7 @@ impl<'a> CheckerState<'a> {
                         let Some(elements) = data.elements else {
                             return Ok(false);
                         };
-                        let elements = self.binder.node_array(elements).nodes.to_vec();
-                        for element in elements {
+                        for element in self.nodes_of(Some(elements)) {
                             if self.emit_is_value_alias_declaration(element)? {
                                 return Ok(true);
                             }
@@ -9931,7 +9930,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ImportAttributes(data) => data.elements,
             _ => return ResolutionModeOverrideParse::Missing,
         };
-        let elements: Vec<NodeId> = self.nodes_of(elements);
+        let elements = self.nodes_of(elements);
         let attribute_name_text = |attribute: NodeId| -> Option<(NodeId, Option<&str>)> {
             let NodeData::ImportAttribute(data) = self.data_of(attribute) else {
                 return None;

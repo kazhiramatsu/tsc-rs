@@ -41,7 +41,7 @@ impl<'a> CheckerState<'a> {
             .iter()
             .flat_map(|&tag| match self.data_of(tag) {
                 NodeData::JSDocTemplateTag(data) => self.nodes_of(data.type_parameters),
-                _ => Vec::new(),
+                _ => Default::default(),
             })
             .collect()
     }
@@ -159,13 +159,14 @@ impl<'a> CheckerState<'a> {
         }
         let host = self.parent_of(self.parent_of(tag)?)?;
         let candidates = match self.data_of(host) {
-            NodeData::VariableStatement(data) => match data
-                .declaration_list
-                .map(|list| self.data_of(list))
-            {
-                Some(NodeData::VariableDeclarationList(list)) => self.nodes_of(list.declarations),
-                _ => Vec::new(),
-            },
+            NodeData::VariableStatement(data) => {
+                match data.declaration_list.map(|list| self.data_of(list)) {
+                    Some(NodeData::VariableDeclarationList(list)) => {
+                        self.nodes_of(list.declarations).to_vec()
+                    }
+                    _ => Default::default(),
+                }
+            }
             _ => vec![host],
         };
         candidates
@@ -213,7 +214,7 @@ impl<'a> CheckerState<'a> {
             if let Some(&last) = self.direct_jsdoc_documents(location).last() {
                 if let NodeData::JSDoc(data) = self.data_of(last) {
                     if data.tags.is_some() {
-                        return self.nodes_of(data.tags);
+                        return self.nodes_of(data.tags).to_vec();
                     }
                 }
             }

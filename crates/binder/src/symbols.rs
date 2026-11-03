@@ -270,7 +270,7 @@ impl SymbolArena {
         }
         (
             self.symbols.len(),
-            self.symbols.capacity() * std::mem::size_of::<Symbol>(),
+            self.symbols.len() * std::mem::size_of::<Symbol>(),
             owned,
         )
     }

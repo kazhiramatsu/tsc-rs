@@ -838,7 +838,7 @@ impl<'a> CheckerState<'a> {
             NodeData::FunctionType(data) => data.parameters,
             _ => None,
         };
-        self.nodes_of(parameters)
+        self.nodes_of(parameters).to_vec()
     }
 
     /// tsc-port: shouldReportErrorsFromWideningWithContextualSignature @6.0.3
