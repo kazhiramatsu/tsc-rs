@@ -1287,9 +1287,21 @@ impl<'a> ProgramBinder<'a> {
         // Most nodes have no locals: one byte answers without a route to
         // the file and a probe of its table.
         if !tsc_binder::published_has_locals(scope) {
+            self.debug_assert_no_locals(scope);
             return None;
         }
         self.binder_of_node(scope).locals.get(&scope)
+    }
+
+    /// The binder sets `HAS_LOCALS` wherever it creates a locals table; a
+    /// table without the bit would be invisible to name resolution.
+    #[inline]
+    fn debug_assert_no_locals(&self, scope: NodeId) {
+        debug_assert!(
+            self.try_file_index_of_node(scope)
+                .is_none_or(|file| !self.file_entries[file].data().locals.contains_key(&scope)),
+            "{scope:?} has a locals table without its HAS_LOCALS bit"
+        );
     }
 
     /// [`Self::locals_of`] held for the program lifetime instead of the
@@ -1300,6 +1312,7 @@ impl<'a> ProgramBinder<'a> {
     /// so its table is copied.
     pub(crate) fn locals_of_scope(&self, scope: NodeId) -> Option<ScopeTable<'a>> {
         if !tsc_binder::published_has_locals(scope) {
+            self.debug_assert_no_locals(scope);
             return None;
         }
         match &self.file_entries[self.file_index_of_node(scope)] {

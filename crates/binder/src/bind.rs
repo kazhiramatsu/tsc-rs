@@ -1146,10 +1146,7 @@ impl<'a> BinderWorker<'a> {
                     {
                         if document != container {
                             let name = self.symbols.symbol(symbol).escaped_name;
-                            self.locals
-                                .entry(document)
-                                .or_default()
-                                .insert(name, symbol);
+                            self.locals_entry(document).insert(name, symbol);
                         }
                     }
                 }
