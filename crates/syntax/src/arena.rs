@@ -191,7 +191,7 @@ impl SubtreeCopier {
                 let node = old.node(id);
                 self.old_nodes.push(id);
                 collect_node_data_ids(
-                    &node.data,
+                    &node.data(),
                     &mut self.pending_nodes,
                     &mut self.pending_arrays,
                 );
@@ -219,7 +219,7 @@ impl SubtreeCopier {
             let old_node = old.node(*old_id);
             let id = destination.push_node(
                 old_node.kind,
-                old_node.data.clone(),
+                old_node.data().clone(),
                 shifted_position(old_node.pos, position_delta) as usize,
                 shifted_position(old_node.end, position_delta) as usize,
                 NodeFlags::from_bits(old_node.flags),
@@ -249,7 +249,7 @@ impl SubtreeCopier {
             let old_node = old.node(*old_id);
             let node = destination.node_mut(*new_id);
             remap_node_data_ids(
-                &mut node.data,
+                node.data_mut(),
                 |id| {
                     let index = (id.index() - self.old_node_base) as usize;
                     debug_assert_eq!(self.node_marks[index], self.generation);
@@ -379,7 +379,7 @@ impl NodeArena {
                 usage.string_nodes += 1;
                 usage.string_bytes += bytes;
             };
-            match &node.data {
+            match &node.data() {
                 // Identifier names are interned: the name table reports their text.
                 NodeData::Identifier(_) => usage.identifiers += 1,
                 NodeData::PrivateIdentifier(_) => string(0),
@@ -776,7 +776,7 @@ impl NodeArena {
             if let Some(js_doc) = &mut node.js_doc {
                 relocation.node_array(js_doc)?;
             }
-            relocate_node_data(&mut node.data, &relocation)?;
+            relocate_node_data(node.data_mut(), &relocation)?;
         }
         for node in &mut self.array_items {
             relocation.node(node)?;
@@ -895,16 +895,8 @@ impl NodeArena {
                 .expect("node identity space exhausted"),
         );
         self.identifier_count += u32::from(kind == SyntaxKind::Identifier);
-        self.nodes.push(Node {
-            kind,
-            literal_flags: 0,
-            flags: flags.bits(),
-            pos: pos as u32,
-            end: end as u32,
-            parent: None,
-            js_doc: None,
-            data,
-        });
+        self.nodes
+            .push(Node::new(kind, data, pos as u32, end as u32, flags.bits()));
         id
     }
 

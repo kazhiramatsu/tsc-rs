@@ -102,7 +102,7 @@ impl ParseRecovery {
             .iter()
             .filter_map(|(&id, &parent)| {
                 let list = source.arena.node(id);
-                let NodeData::VariableDeclarationList(data) = &list.data else {
+                let NodeData::VariableDeclarationList(data) = &list.data() else {
                     return None;
                 };
                 if NodeFlags::from_bits(list.flags).contains(NodeFlags::USING) {
@@ -110,7 +110,7 @@ impl ParseRecovery {
                 }
                 let statement = parent?;
                 let record = source.arena.node(statement);
-                let NodeData::VariableStatement(statement_data) = &record.data else {
+                let NodeData::VariableStatement(statement_data) = &record.data() else {
                     return None;
                 };
                 if NodeFlags::from_bits(record.flags).contains(NodeFlags::AMBIENT)
@@ -161,7 +161,7 @@ impl ParseRecovery {
         let first = source.arena.node(*first_id);
         let second = source.arena.node(*second_id);
         let (NodeData::VariableDeclaration(first_data), NodeData::VariableDeclaration(second_data)) =
-            (&first.data, &second.data)
+            (&first.data(), &second.data())
         else {
             return None;
         };
@@ -183,7 +183,7 @@ impl ParseRecovery {
             return None;
         }
         let pattern = source.arena.node(second_data.name?);
-        let NodeData::ObjectBindingPattern(pattern_data) = &pattern.data else {
+        let NodeData::ObjectBindingPattern(pattern_data) = &pattern.data() else {
             return None;
         };
         if pattern.pos != second.pos {
@@ -194,7 +194,7 @@ impl ParseRecovery {
             return None;
         };
         let element = source.arena.node(*element_id);
-        let NodeData::BindingElement(binding) = &element.data else {
+        let NodeData::BindingElement(binding) = &element.data() else {
             return None;
         };
         if binding.dot_dot_dot_token.is_some() || binding.initializer.is_some() {
@@ -343,7 +343,7 @@ impl ParseRecovery {
                     let mut heads = Vec::new();
                     for id in parents.keys() {
                         let node = source.arena.node(*id);
-                        let NodeData::Decorator(data) = &node.data else {
+                        let NodeData::Decorator(data) = &node.data() else {
                             continue;
                         };
                         if node.pos > start_byte || node.end < end_byte {
@@ -351,7 +351,7 @@ impl ParseRecovery {
                         }
                         let mut head = data.expression?;
                         loop {
-                            let child = match &source.arena.node(head).data {
+                            let child = match &source.arena.node(head).data() {
                                 NodeData::CallExpression(data) => data.expression,
                                 NodeData::PropertyAccessExpression(data) => data.expression,
                                 NodeData::ElementAccessExpression(data) => data.expression,
@@ -411,7 +411,7 @@ impl ParseRecovery {
                 continue;
             };
             let binary = source.arena.node(parent);
-            let NodeData::BinaryExpression(data) = &binary.data else {
+            let NodeData::BinaryExpression(data) = &binary.data() else {
                 continue;
             };
             if data.right != Some(id)
@@ -426,7 +426,7 @@ impl ParseRecovery {
                 continue;
             };
             let container = source.arena.node(container);
-            let NodeData::ParenthesizedExpression(data) = &container.data else {
+            let NodeData::ParenthesizedExpression(data) = &container.data() else {
                 continue;
             };
             if data.expression != Some(parent) || container.end <= binary.end {
@@ -466,7 +466,7 @@ impl ParseRecovery {
                 .keys()
                 .filter(|id| {
                     let node = source.arena.node(**id);
-                    let NodeData::TypeAssertionExpression(data) = &node.data else {
+                    let NodeData::TypeAssertionExpression(data) = &node.data() else {
                         return false;
                     };
                     node.end == boundary
@@ -532,7 +532,7 @@ impl ParseRecovery {
     fn supports_reparse_runs(&self, source: &SourceFile) -> bool {
         let mut ranges = BTreeSet::new();
         let mut covered = BTreeSet::new();
-        let Some(statements) = Self::statement_array(&source.arena.node(source.root).data) else {
+        let Some(statements) = Self::statement_array(&source.arena.node(source.root).data()) else {
             return false;
         };
         let statements = &source.arena.node_array(statements).nodes;
@@ -609,7 +609,7 @@ impl ParseRecovery {
         if source.is_declaration_file {
             return claimed;
         }
-        let Some(statements) = Self::statement_array(&source.arena.node(source.root).data) else {
+        let Some(statements) = Self::statement_array(&source.arena.node(source.root).data()) else {
             return claimed;
         };
         let statements = &source.arena.node_array(statements).nodes;
@@ -648,7 +648,7 @@ impl ParseRecovery {
             for pair in statements.windows(2) {
                 let statement_id = pair[0];
                 let statement = source.arena.node(statement_id);
-                let NodeData::VariableStatement(data) = &statement.data else {
+                let NodeData::VariableStatement(data) = &statement.data() else {
                     continue;
                 };
                 if data.modifiers.is_some()
@@ -661,7 +661,7 @@ impl ParseRecovery {
                     continue;
                 };
                 let list = source.arena.node(list_id);
-                let NodeData::VariableDeclarationList(data) = &list.data else {
+                let NodeData::VariableDeclarationList(data) = &list.data() else {
                     continue;
                 };
                 let declaration_kind = list.flags & NodeFlags::BLOCK_SCOPED.bits();
@@ -685,7 +685,7 @@ impl ParseRecovery {
                     continue;
                 }
                 let next = source.arena.node(pair[1]);
-                let NodeData::ExpressionStatement(data) = &next.data else {
+                let NodeData::ExpressionStatement(data) = &next.data() else {
                     continue;
                 };
                 let Some(expression) = data.expression else {
@@ -763,7 +763,7 @@ impl ParseRecovery {
             };
             let mut owners = Vec::new();
             for &id in parents.keys() {
-                let members = match &source.arena.node(id).data {
+                let members = match &source.arena.node(id).data() {
                     NodeData::ClassDeclaration(data) => data.members,
                     NodeData::ClassExpression(data) => data.members,
                     _ => None,
@@ -790,7 +790,7 @@ impl ParseRecovery {
                 let Some(preceding) = preceding else {
                     continue;
                 };
-                let body = match &preceding.data {
+                let body = match &preceding.data() {
                     NodeData::MethodDeclaration(data) => data.body,
                     NodeData::Constructor(data) => data.body,
                     NodeData::GetAccessor(data) => data.body,
@@ -846,7 +846,7 @@ impl ParseRecovery {
     ) -> Option<BTreeSet<usize>> {
         let mut owners: BTreeMap<usize, Vec<NodeId>> = BTreeMap::new();
         for &id in parents.keys() {
-            let NodeData::HeritageClause(data) = &source.arena.node(id).data else {
+            let NodeData::HeritageClause(data) = &source.arena.node(id).data() else {
                 continue;
             };
             let Some(array) = data.types else {

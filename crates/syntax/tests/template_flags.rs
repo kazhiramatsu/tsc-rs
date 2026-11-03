@@ -3,7 +3,7 @@ use tsc_syntax::{for_each_child, NodeData, NodeId, ParseOptions, SourceFile};
 
 fn fragments(source: &SourceFile, id: NodeId, output: &mut Vec<Value>) {
     let node = source.arena.node(id);
-    let literal = match &node.data {
+    let literal = match &node.data() {
         NodeData::NoSubstitutionTemplateLiteral(data) => Some((&data.text, &data.raw_text)),
         NodeData::TemplateHead(data) => Some((&data.text, &data.raw_text)),
         NodeData::TemplateMiddle(data) => Some((&data.text, &data.raw_text)),

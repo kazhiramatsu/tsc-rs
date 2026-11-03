@@ -1594,10 +1594,10 @@ impl<'text> Parser<'text> {
                 | SyntaxKind::PropertyDeclaration
                 | SyntaxKind::SemicolonClassElement => true,
                 SyntaxKind::MethodDeclaration => {
-                    node.data.as_method_declaration().is_some_and(|data| {
+                    node.data().as_method_declaration().is_some_and(|data| {
                         !data.name.is_some_and(|name| {
                             matches!(
-                                &source.arena.node(name).data,
+                                &source.arena.node(name).data(),
                                 NodeData::Identifier(data) if data.escaped_text == "constructor"
                             )
                         })
@@ -1607,7 +1607,7 @@ impl<'text> Parser<'text> {
             },
             ParsingContext::SwitchClauses => {
                 matches!(
-                    node.data,
+                    node.data(),
                     NodeData::CaseClause(_) | NodeData::DefaultClause(_)
                 )
             }
@@ -1655,11 +1655,11 @@ impl<'text> Parser<'text> {
                     | SyntaxKind::CallSignature
             ),
             ParsingContext::VariableDeclarations => matches!(
-                &node.data,
+                &node.data(),
                 NodeData::VariableDeclaration(data) if data.initializer.is_none()
             ),
             ParsingContext::JSDocParameters | ParsingContext::Parameters => matches!(
-                &node.data,
+                &node.data(),
                 NodeData::Parameter(data) if data.initializer.is_none()
             ),
             _ => false,
@@ -2653,7 +2653,7 @@ impl<'text> Parser<'text> {
         );
         let node = self.arena.node_mut(missing);
         node.pos = pos as u32;
-        if let NodeData::MissingDeclaration(data) = &mut node.data {
+        if let NodeData::MissingDeclaration(data) = node.data_mut() {
             data.modifiers = modifiers;
         }
         missing
@@ -2715,7 +2715,7 @@ impl<'text> Parser<'text> {
         {
             return self.try_parse(|parser| {
                 let literal = parser.parse_string_literal();
-                match &parser.arena.node(literal).data {
+                match &parser.arena.node(literal).data() {
                     NodeData::StringLiteral(data) => data.text == "constructor",
                     _ => false,
                 }
@@ -3291,7 +3291,7 @@ impl<'text> Parser<'text> {
     }
 
     fn identifier_text_is(&self, id: Option<NodeId>, text: &str) -> bool {
-        id.is_some_and(|id| match &self.arena.node(id).data {
+        id.is_some_and(|id| match &self.arena.node(id).data() {
             NodeData::Identifier(data) => data.escaped_text == text,
             _ => false,
         })
@@ -5059,7 +5059,7 @@ impl<'text> Parser<'text> {
         // belongs to that type, not to an arrow body.
         let mut unwrapped_type = r#type;
         while let Some(current) = unwrapped_type {
-            match &self.arena.node(current).data {
+            match &self.arena.node(current).data() {
                 NodeData::ParenthesizedType(data) => unwrapped_type = data.r#type,
                 _ => break,
             }
@@ -5226,7 +5226,7 @@ impl<'text> Parser<'text> {
                 // tsgo parseBinaryExpressionRest (parser.go:4686-4703): in
                 // `a ## b as T $$ c`, stop when `$$` would bind before `##`
                 // once the assertion is erased (TypeScript issue 63527).
-                let last_precedence = match &self.arena.node(last_operand).data {
+                let last_precedence = match &self.arena.node(last_operand).data() {
                     NodeData::BinaryExpression(data) => data
                         .operator_token
                         .map_or(OPERATOR_PRECEDENCE_HIGHEST, |operator| {
@@ -5513,7 +5513,7 @@ impl<'text> Parser<'text> {
                 let last_child = self.arena.node_array(children).nodes.last().copied();
                 let rebalance = last_child.and_then(|last| {
                     let (last_opening, last_children, last_closing) = {
-                        let data = self.arena.node(last).data.as_jsx_element()?;
+                        let data = self.arena.node(last).data().as_jsx_element()?;
                         (data.opening_element?, data.children?, data.closing_element?)
                     };
                     let last_open_tag = self.jsx_opening_element_tag_name(last_opening);
@@ -6051,7 +6051,7 @@ impl<'text> Parser<'text> {
     }
 
     fn jsx_opening_element_tag_name(&self, node: NodeId) -> Option<NodeId> {
-        match &self.arena.node(node).data {
+        match &self.arena.node(node).data() {
             NodeData::JsxOpeningElement(data) => data.tag_name,
             NodeData::JsxSelfClosingElement(data) => data.tag_name,
             _ => None,
@@ -6061,14 +6061,14 @@ impl<'text> Parser<'text> {
     fn jsx_closing_element_tag_name(&self, node: NodeId) -> Option<NodeId> {
         self.arena
             .node(node)
-            .data
+            .data()
             .as_jsx_closing_element()
             .and_then(|data| data.tag_name)
     }
 
     /// (openingElement.tagName, closingElement.tagName) when `node` is a JsxElement.
     fn jsx_element_tag_names(&self, node: NodeId) -> Option<(Option<NodeId>, Option<NodeId>)> {
-        let data = self.arena.node(node).data.as_jsx_element()?;
+        let data = self.arena.node(node).data().as_jsx_element()?;
         let open_tag = data
             .opening_element
             .and_then(|open| self.jsx_opening_element_tag_name(open));
@@ -6301,7 +6301,7 @@ impl<'text> Parser<'text> {
         );
         let node = self.arena.node_mut(missing);
         node.pos = pos as u32;
-        if let NodeData::MissingDeclaration(data) = &mut node.data {
+        if let NodeData::MissingDeclaration(data) = node.data_mut() {
             data.modifiers = modifiers;
         }
         missing
@@ -6459,7 +6459,7 @@ impl<'text> Parser<'text> {
             return true;
         }
         if self.arena.node(node).kind == SyntaxKind::NonNullExpression {
-            let inner_expression = |parser: &Self, id: NodeId| match &parser.arena.node(id).data {
+            let inner_expression = |parser: &Self, id: NodeId| match &parser.arena.node(id).data() {
                 NodeData::NonNullExpression(data) => data.expression,
                 _ => None,
             };
@@ -6516,7 +6516,7 @@ impl<'text> Parser<'text> {
             );
         }
         if self.arena.node(expression).kind == SyntaxKind::ExpressionWithTypeArguments {
-            let type_arguments = match &self.arena.node(expression).data {
+            let type_arguments = match &self.arena.node(expression).data() {
                 NodeData::ExpressionWithTypeArguments(data) => data.type_arguments,
                 _ => None,
             };
@@ -6793,7 +6793,7 @@ impl<'text> Parser<'text> {
     ) -> Option<(NodeId, crate::NodeArrayId)> {
         self.arena
             .node(expression)
-            .data
+            .data()
             .as_expression_with_type_arguments()
             .and_then(|data| Some((data.expression?, data.type_arguments?)))
     }
@@ -7372,7 +7372,7 @@ impl<'text> Parser<'text> {
             let literal = self
                 .arena
                 .node(span)
-                .data
+                .data()
                 .as_template_span()
                 .and_then(|data| data.literal)
                 .map(|literal| self.arena.node(literal).kind);
@@ -7630,7 +7630,7 @@ impl<'text> Parser<'text> {
         let mut spans = Vec::new();
         loop {
             let span = self.parse_template_type_span();
-            let literal_kind = match &self.arena.node(span).data {
+            let literal_kind = match &self.arena.node(span).data() {
                 NodeData::TemplateLiteralTypeSpan(data) => {
                     data.literal.map(|literal| self.arena.node(literal).kind)
                 }
@@ -7710,7 +7710,7 @@ impl<'text> Parser<'text> {
 
     fn type_has_arrow_function_blocking_parse_error(&self, id: NodeId) -> bool {
         let node = self.arena.node(id);
-        match &node.data {
+        match &node.data() {
             NodeData::TypeReference(data) => data
                 .type_name
                 .is_none_or(|type_name| !self.node_is_present(type_name)),
@@ -8236,7 +8236,7 @@ impl<'text> Parser<'text> {
         let r#type = self.parse_type();
         // Postfix `T?` (JSDocNullableType whose pos matches its inner type)
         // becomes an optional tuple element with the same range and flags.
-        let rewrap = match &self.arena.node(r#type).data {
+        let rewrap = match &self.arena.node(r#type).data() {
             NodeData::JSDocNullableType(data) => data
                 .r#type
                 .filter(|inner| self.arena.node(r#type).pos == self.arena.node(*inner).pos),
@@ -9006,7 +9006,7 @@ impl<'text> Parser<'text> {
     /// tsc parseErrorForMissingSemicolonAfter.
     fn parse_error_for_missing_semicolon_after(&mut self, node: NodeId) {
         if self.arena.node(node).kind == SyntaxKind::TaggedTemplateExpression {
-            let template = match &self.arena.node(node).data {
+            let template = match &self.arena.node(node).data() {
                 NodeData::TaggedTemplateExpression(data) => data.template,
                 _ => None,
             };
@@ -9025,7 +9025,7 @@ impl<'text> Parser<'text> {
             }
             return;
         }
-        let expression_text = match &self.arena.node(node).data {
+        let expression_text = match &self.arena.node(node).data() {
             NodeData::Identifier(data) => Some(data.text().to_owned()),
             _ => None,
         };
@@ -9483,7 +9483,7 @@ impl<'text> Parser<'text> {
     /// tsc-span: _tsc.js:28304-28306
     fn is_an_external_module_indicator_node(&self, id: NodeId) -> bool {
         let node = self.arena.node(id);
-        match &node.data {
+        match &node.data() {
             NodeData::ImportEqualsDeclaration(data) => {
                 self.statement_modifiers(id).is_some_and(|modifiers| {
                     self.arena
@@ -9543,7 +9543,7 @@ impl<'text> Parser<'text> {
     }
 
     fn statement_modifiers(&self, id: NodeId) -> Option<crate::NodeArrayId> {
-        match &self.arena.node(id).data {
+        match &self.arena.node(id).data() {
             NodeData::FunctionDeclaration(data) => data.modifiers,
             NodeData::ClassDeclaration(data) => data.modifiers,
             NodeData::VariableStatement(data) => data.modifiers,
@@ -9565,11 +9565,11 @@ impl<'text> Parser<'text> {
         while let Some(id) = stack.pop() {
             let node = self.arena.node(id);
             if node.kind == SyntaxKind::MetaProperty {
-                let is_import_meta = match &node.data {
+                let is_import_meta = match &node.data() {
                     NodeData::MetaProperty(data) => {
                         data.keyword_token == SyntaxKind::ImportKeyword
                             && data.name.is_some_and(|name| {
-                                matches!(&self.arena.node(name).data, NodeData::Identifier(data) if data.escaped_text == "meta")
+                                matches!(&self.arena.node(name).data(), NodeData::Identifier(data) if data.escaped_text == "meta")
                             })
                     }
                     _ => false,
@@ -9666,7 +9666,7 @@ impl<'text> Parser<'text> {
                     }
                 };
             }
-            match &node.data {
+            match &node.data() {
                 NodeData::Identifier(data) => {
                     if data.escaped_text == "await" {
                         return true;
@@ -9779,7 +9779,7 @@ impl<'text> Parser<'text> {
                 }
                 NodeData::Parameter(data) => {
                     if data.name.is_some_and(|name| {
-                        matches!(&self.arena.node(name).data,
+                        matches!(&self.arena.node(name).data(),
                         NodeData::Identifier(identifier) if identifier.escaped_text == "this")
                     }) {
                         continue;
@@ -10393,7 +10393,7 @@ pub fn parse_entity_name_components(text: tsc_diagnostics::JsStr<'_>) -> Option<
         return None;
     }
     fn collect(arena: &NodeArena, node: NodeId, parts: &mut Vec<String>) -> Option<()> {
-        match &arena.node(node).data {
+        match &arena.node(node).data() {
             NodeData::Identifier(data) => parts.push(data.text().to_owned()),
             NodeData::QualifiedName(data) => {
                 collect(arena, data.left?, parts)?;
@@ -10790,7 +10790,7 @@ impl Parser<'_> {
                 return;
             }
             SyntaxKind::PrefixUnaryExpression => {
-                if let NodeData::PrefixUnaryExpression(data) = &self.arena.node(value).data {
+                if let NodeData::PrefixUnaryExpression(data) = &self.arena.node(value).data() {
                     if data.operator == SyntaxKind::MinusToken
                         && data.operand.is_some_and(|operand| {
                             self.arena.node(operand).kind == SyntaxKind::NumericLiteral
@@ -10805,7 +10805,7 @@ impl Parser<'_> {
                 return;
             }
             SyntaxKind::ArrayLiteralExpression => {
-                let elements = match &self.arena.node(value).data {
+                let elements = match &self.arena.node(value).data() {
                     NodeData::ArrayLiteralExpression(data) => data.elements,
                     _ => None,
                 };
@@ -10827,7 +10827,7 @@ impl Parser<'_> {
 
     /// tsgo validateJsonObjectLiteral (parser/parser.go:268-279).
     fn validate_json_object_literal(&mut self, node: NodeId) {
-        let properties = match &self.arena.node(node).data {
+        let properties = match &self.arena.node(node).data() {
             NodeData::ObjectLiteralExpression(data) => data.properties,
             _ => None,
         };
@@ -10836,7 +10836,7 @@ impl Parser<'_> {
         };
         let elements = self.arena.node_array(properties).nodes.to_vec();
         for element in elements {
-            let NodeData::PropertyAssignment(data) = &self.arena.node(element).data else {
+            let NodeData::PropertyAssignment(data) = &self.arena.node(element).data() else {
                 self.json_error_at_node(element, &gen::Property_assignment_expected);
                 continue;
             };

@@ -89,7 +89,11 @@ pub struct Node {
     pub js_doc: Option<NodeArrayId>,
     /// tsc Node.transformFlags lives beside the records in `NodeArena`,
     /// written only on an emit session's copy of a tree.
-    pub data: NodeData,
+    ///
+    /// The payload, read through [`Node::data`] and replaced through
+    /// [`Node::set_data`]: the record's layout is the generator's, so no
+    /// reader names the field.
+    data: NodeData,
 }
 
 // A large Program holds tens of millions of node records, so their size
@@ -174,6 +178,39 @@ fn tri_state_bits(value: Option<bool>) -> u16 {
 }
 
 impl Node {
+    /// A fresh record: `kind` and `data` at `pos..end` with `flags`, no
+    /// parent, no JSDoc and no literal facts yet.
+    pub(crate) fn new(kind: SyntaxKind, data: NodeData, pos: u32, end: u32, flags: i32) -> Self {
+        Node {
+            kind,
+            literal_flags: 0,
+            flags,
+            pos,
+            end,
+            parent: None,
+            js_doc: None,
+            data,
+        }
+    }
+
+    /// The node's payload.
+    #[inline(always)]
+    pub fn data(&self) -> &NodeData {
+        &self.data
+    }
+
+    /// The node's payload for editing in place.
+    #[inline(always)]
+    pub fn data_mut(&mut self) -> &mut NodeData {
+        &mut self.data
+    }
+
+    /// Replace the node's payload.
+    #[inline]
+    pub fn set_data(&mut self, data: NodeData) {
+        self.data = data;
+    }
+
     /// This record's scalar facts with another payload: a probe for the
     /// emitter's flag classifier that clones no payload of its own.
     pub fn with_data(&self, data: NodeData) -> Node {

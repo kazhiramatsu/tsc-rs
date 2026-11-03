@@ -1328,7 +1328,7 @@ fn context_recovery_covers_decorator_wrappers_and_trivia_but_not_overlapping_tai
 fn context_recovery_refuses_truncated_runs_and_unowned_heritage_reports() {
     let mut parsed = source("export {}; await (1,); @await class C {}");
     assert!(parsed.has_supported_emit_recovery());
-    let NodeData::SourceFile(data) = &parsed.arena.node(parsed.root).data else {
+    let NodeData::SourceFile(data) = &parsed.arena.node(parsed.root).data() else {
         unreachable!()
     };
     let statements = &parsed.arena.node_array(data.statements.unwrap()).nodes;
@@ -1501,7 +1501,7 @@ fn retained_report_expression_may_own_only_its_semicolon_and_trivia() {
         );
     }
     let mut parsed = source("@dec using 1;");
-    let NodeData::SourceFile(data) = &parsed.arena.node(parsed.root).data else {
+    let NodeData::SourceFile(data) = &parsed.arena.node(parsed.root).data() else {
         unreachable!()
     };
     let statements = parsed
@@ -1569,11 +1569,11 @@ fn class_member_missing_body_arrow_requires_its_own_gap() {
         let parsed = source(text);
         assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
         assert!(!parsed.has_only_statement_gap_emit_recovery(), "{text}");
-        let NodeData::SourceFile(file) = &parsed.arena.node(parsed.root).data else {
+        let NodeData::SourceFile(file) = &parsed.arena.node(parsed.root).data() else {
             unreachable!()
         };
         let class = parsed.arena.node_array(file.statements.unwrap()).nodes[0];
-        let NodeData::ClassDeclaration(class) = &parsed.arena.node(class).data else {
+        let NodeData::ClassDeclaration(class) = &parsed.arena.node(class).data() else {
             unreachable!()
         };
         let members = parsed.arena.node_array(class.members.unwrap());
@@ -1906,11 +1906,11 @@ fn empty_variable_list_recovery_requires_an_adjacent_numeric_statement() {
 fn empty_variable_list_recovery_keeps_flags_and_skip_ownership_exact() {
     let parsed = source("const = 5;");
     assert!(parsed.has_supported_emit_recovery());
-    let NodeData::SourceFile(data) = &parsed.arena.node(parsed.root).data else {
+    let NodeData::SourceFile(data) = &parsed.arena.node(parsed.root).data() else {
         panic!("source file");
     };
     let statement = parsed.arena.node_array(data.statements.unwrap()).nodes[0];
-    let NodeData::VariableStatement(data) = &parsed.arena.node(statement).data else {
+    let NodeData::VariableStatement(data) = &parsed.arena.node(statement).data() else {
         panic!("variable statement");
     };
     let list = data.declaration_list.unwrap();

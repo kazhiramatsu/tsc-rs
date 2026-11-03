@@ -6,7 +6,7 @@ use crate::{NodeArena, NodeData, NodeId, SyntaxKind};
 /// tsgo `ast.IsImportCall`: `import(...)`, `import.defer(...)` or
 /// `import.source(...)`.
 pub fn is_import_call(arena: &NodeArena, node: NodeId) -> bool {
-    let NodeData::CallExpression(call) = &arena.node(node).data else {
+    let NodeData::CallExpression(call) = &arena.node(node).data() else {
         return false;
     };
     call.expression.is_some_and(|callee| {
@@ -31,18 +31,18 @@ pub fn is_import_source_meta_property(arena: &NodeArena, node: NodeId) -> bool {
 }
 
 fn is_import_meta_property(arena: &NodeArena, node: NodeId, name: &str) -> bool {
-    matches!(&arena.node(node).data, NodeData::MetaProperty(meta)
+    matches!(&arena.node(node).data(), NodeData::MetaProperty(meta)
         if meta.keyword_token == SyntaxKind::ImportKeyword
-            && meta.name.is_some_and(|id| matches!(&arena.node(id).data,
+            && meta.name.is_some_and(|id| matches!(&arena.node(id).data(),
                 NodeData::Identifier(identifier) if identifier.escaped_text == name)))
 }
 
 /// tsgo `ast.IsSourcePhaseImport`: an import declaration with the `source`
 /// phase, or an `import.source(...)` call.
 pub fn is_source_phase_import(arena: &NodeArena, node: NodeId) -> bool {
-    if let NodeData::ImportDeclaration(declaration) = &arena.node(node).data {
+    if let NodeData::ImportDeclaration(declaration) = &arena.node(node).data() {
         return declaration.import_clause.is_some_and(|clause| {
-            matches!(&arena.node(clause).data, NodeData::ImportClause(clause)
+            matches!(&arena.node(clause).data(), NodeData::ImportClause(clause)
                 if clause.phase_modifier == Some(SyntaxKind::SourceKeyword))
         });
     }
@@ -51,7 +51,7 @@ pub fn is_source_phase_import(arena: &NodeArena, node: NodeId) -> bool {
 
 /// tsgo `ast.IsSourcePhaseImportCall`.
 pub fn is_source_phase_import_call(arena: &NodeArena, node: NodeId) -> bool {
-    matches!(&arena.node(node).data, NodeData::CallExpression(call)
+    matches!(&arena.node(node).data(), NodeData::CallExpression(call)
         if call.expression.is_some_and(|callee| is_import_source_meta_property(arena, callee)))
 }
 
@@ -74,7 +74,7 @@ pub fn tag_names_are_equivalent(
     if lhs_node.kind == SyntaxKind::ThisKeyword {
         return true;
     }
-    match (&lhs_node.data, &rhs_node.data) {
+    match (&lhs_node.data(), &rhs_node.data()) {
         (NodeData::Identifier(lhs), NodeData::Identifier(rhs)) => {
             lhs.escaped_text == rhs.escaped_text
         }
@@ -96,7 +96,7 @@ fn identifier_escaped_text(
     arena: &NodeArena,
     id: Option<NodeId>,
 ) -> Option<tsc_types::EscapedName> {
-    match &arena.node(id?).data {
+    match &arena.node(id?).data() {
         NodeData::Identifier(data) => Some(data.escaped_text),
         _ => None,
     }

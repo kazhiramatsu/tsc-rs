@@ -24,7 +24,7 @@ pub fn kind_of(tree: &impl NodeLookup, id: NodeId) -> SyntaxKind {
 /// tsc-hash: 8f800e8468ab175a7b37510bd6af5a2527bfb269a775e24c299a6b547cb60982
 /// tsc-span: _tsc.js:15299-15303
 pub fn is_jsdoc_construct_signature(tree: &impl NodeLookup, node: NodeId) -> bool {
-    let NodeData::JSDocFunctionType(data) = &tree.node(node).data else {
+    let NodeData::JSDocFunctionType(data) = &tree.node(node).data() else {
         return false;
     };
     let Some(parameter) = data
@@ -33,12 +33,12 @@ pub fn is_jsdoc_construct_signature(tree: &impl NodeLookup, node: NodeId) -> boo
     else {
         return false;
     };
-    let NodeData::Parameter(data) = &tree.node(parameter).data else {
+    let NodeData::Parameter(data) = &tree.node(parameter).data() else {
         return false;
     };
     data.name.is_some_and(|name| {
         matches!(
-            &tree.node(name).data,
+            &tree.node(name).data(),
             NodeData::Identifier(data) if data.escaped_text == "new"
         )
     })
@@ -52,7 +52,7 @@ pub fn is_jsdoc_type_alias(tree: &impl NodeLookup, node: NodeId) -> bool {
 }
 
 pub fn jsdoc_full_name(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    match &tree.node(node).data {
+    match &tree.node(node).data() {
         NodeData::JSDocTypedefTag(data) => data.full_name,
         NodeData::JSDocCallbackTag(data) => data.full_name,
         _ => None,
@@ -60,7 +60,7 @@ pub fn jsdoc_full_name(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
 }
 
 pub fn jsdoc_type_expression(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    match &tree.node(node).data {
+    match &tree.node(node).data() {
         NodeData::JSDocCallbackTag(data) => data.type_expression,
         NodeData::JSDocOverloadTag(data) => data.type_expression,
         NodeData::JSDocParameterTag(data) => data.type_expression,
@@ -122,11 +122,11 @@ pub fn get_jsdoc_host(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
 }
 
 pub fn get_source_of_assignment(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    let NodeData::ExpressionStatement(statement) = &tree.node(node).data else {
+    let NodeData::ExpressionStatement(statement) = &tree.node(node).data() else {
         return None;
     };
     let expression = statement.expression?;
-    let NodeData::BinaryExpression(binary) = &tree.node(expression).data else {
+    let NodeData::BinaryExpression(binary) = &tree.node(expression).data() else {
         return None;
     };
     binary
@@ -136,11 +136,11 @@ pub fn get_source_of_assignment(tree: &impl NodeLookup, node: NodeId) -> Option<
 }
 
 pub fn get_source_of_defaulted_assignment(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    let NodeData::ExpressionStatement(statement) = &tree.node(node).data else {
+    let NodeData::ExpressionStatement(statement) = &tree.node(node).data() else {
         return None;
     };
     let expression = statement.expression?;
-    let NodeData::BinaryExpression(binary) = &tree.node(expression).data else {
+    let NodeData::BinaryExpression(binary) = &tree.node(expression).data() else {
         return None;
     };
     if crate::assignment::get_assignment_declaration_kind(tree, expression)
@@ -149,7 +149,7 @@ pub fn get_source_of_defaulted_assignment(tree: &impl NodeLookup, node: NodeId) 
         return None;
     }
     let right = binary.right?;
-    let NodeData::BinaryExpression(defaulted) = &tree.node(right).data else {
+    let NodeData::BinaryExpression(defaulted) = &tree.node(right).data() else {
         return None;
     };
     let operator = defaulted.operator_token.map(|token| kind_of(tree, token));
@@ -165,11 +165,11 @@ pub fn get_single_variable_of_variable_statement(
     tree: &impl NodeLookup,
     node: NodeId,
 ) -> Option<NodeId> {
-    let NodeData::VariableStatement(statement) = &tree.node(node).data else {
+    let NodeData::VariableStatement(statement) = &tree.node(node).data() else {
         return None;
     };
     let list = statement.declaration_list?;
-    let NodeData::VariableDeclarationList(list) = &tree.node(list).data else {
+    let NodeData::VariableDeclarationList(list) = &tree.node(list).data() else {
         return None;
     };
     list.declarations
@@ -180,10 +180,10 @@ pub fn get_single_initializer_of_variable_statement_or_property_declaration(
     tree: &impl NodeLookup,
     node: NodeId,
 ) -> Option<NodeId> {
-    match &tree.node(node).data {
+    match &tree.node(node).data() {
         NodeData::VariableStatement(_) => {
             let declaration = get_single_variable_of_variable_statement(tree, node)?;
-            match &tree.node(declaration).data {
+            match &tree.node(declaration).data() {
                 NodeData::VariableDeclaration(data) => data.initializer,
                 _ => None,
             }
@@ -195,7 +195,7 @@ pub fn get_single_initializer_of_variable_statement_or_property_declaration(
 }
 
 pub fn get_nested_module_declaration(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    let NodeData::ModuleDeclaration(data) = &tree.node(node).data else {
+    let NodeData::ModuleDeclaration(data) = &tree.node(node).data() else {
         return None;
     };
     data.body
@@ -222,7 +222,7 @@ pub fn get_effective_jsdoc_host(tree: &impl NodeLookup, node: NodeId) -> Option<
 /// tsc-span: _tsc.js:15502-15508
 pub fn get_host_signature_from_jsdoc(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
     let host = get_effective_jsdoc_host(tree, node)?;
-    if let NodeData::PropertySignature(data) = &tree.node(host).data {
+    if let NodeData::PropertySignature(data) = &tree.node(host).data() {
         if let Some(r#type) = data.r#type {
             if is_function_like_kind(kind_of(tree, r#type))
                 || kind_of(tree, r#type) == SyntaxKind::JSDocSignature
@@ -237,7 +237,7 @@ pub fn get_host_signature_from_jsdoc(tree: &impl NodeLookup, node: NodeId) -> Op
 }
 
 fn jsdoc_tags(tree: &impl NodeLookup, doc: NodeId) -> &[NodeId] {
-    let NodeData::JSDoc(data) = &tree.node(doc).data else {
+    let NodeData::JSDoc(data) = &tree.node(doc).data() else {
         return &[];
     };
     data.tags
@@ -286,7 +286,7 @@ fn visit_owned_jsdoc_tags_from_attachment(
 }
 
 fn is_assignment_expression_node(tree: &impl NodeLookup, node: NodeId) -> bool {
-    let NodeData::BinaryExpression(data) = &tree.node(node).data else {
+    let NodeData::BinaryExpression(data) = &tree.node(node).data() else {
         return false;
     };
     data.operator_token
@@ -332,7 +332,7 @@ fn visit_owned_jsdoc_tags(
     host: NodeId,
     mut visitor: impl FnMut(NodeId) -> bool,
 ) {
-    let initializer = match &tree.node(host).data {
+    let initializer = match &tree.node(host).data() {
         NodeData::BindingElement(data) => data.initializer,
         NodeData::Parameter(data) => data.initializer,
         NodeData::PropertyAssignment(data) => data.initializer,
@@ -374,7 +374,7 @@ pub fn get_jsdoc_type_tag(tree: &impl NodeLookup, host: NodeId) -> Option<NodeId
     first.filter(|&tag| {
         jsdoc_type_expression(tree, tag).is_some_and(|expression| {
             matches!(
-                &tree.node(expression).data,
+                &tree.node(expression).data(),
                 NodeData::JSDocTypeExpression(data) if data.r#type.is_some()
             )
         })
@@ -382,7 +382,7 @@ pub fn get_jsdoc_type_tag(tree: &impl NodeLookup, host: NodeId) -> Option<NodeId
 }
 
 fn jsdoc_type_expression_type(tree: &impl NodeLookup, expression: NodeId) -> Option<NodeId> {
-    match &tree.node(expression).data {
+    match &tree.node(expression).data() {
         NodeData::JSDocTypeExpression(data) => data.r#type,
         _ => None,
     }
@@ -424,12 +424,12 @@ pub fn get_jsdoc_return_type(tree: &impl NodeLookup, host: NodeId) -> Option<Nod
     let tag = get_jsdoc_type_tag(tree, host)?;
     let r#type = jsdoc_type_expression(tree, tag)
         .and_then(|expression| jsdoc_type_expression_type(tree, expression))?;
-    match &tree.node(r#type).data {
+    match &tree.node(r#type).data() {
         NodeData::TypeLiteral(data) => data
             .members
             .and_then(|members| {
                 tree.node_array(members).nodes.iter().find_map(|&member| {
-                    match &tree.node(member).data {
+                    match &tree.node(member).data() {
                         NodeData::CallSignature(data) => Some(data.r#type),
                         _ => None,
                     }
@@ -447,7 +447,7 @@ pub fn get_jsdoc_return_type(tree: &impl NodeLookup, host: NodeId) -> Option<Nod
 /// tsc-hash: c4ae77082ed964a051e20d75c5bc3a2241efe281cb9beccbb1491403bb38c5c4
 /// tsc-span: _tsc.js:11591-11606
 pub fn get_jsdoc_parameter_tags(tree: &impl NodeLookup, parameter: NodeId) -> Vec<NodeId> {
-    let NodeData::Parameter(data) = &tree.node(parameter).data else {
+    let NodeData::Parameter(data) = &tree.node(parameter).data() else {
         return Vec::new();
     };
     let (Some(name), Some(parent)) = (data.name, parent_of(tree, parameter)) else {
@@ -460,15 +460,15 @@ pub fn get_jsdoc_parameter_tags(tree: &impl NodeLookup, parameter: NodeId) -> Ve
         }
         false
     });
-    if let NodeData::Identifier(name) = &tree.node(name).data {
+    if let NodeData::Identifier(name) = &tree.node(name).data() {
         return tags
             .into_iter()
             .filter(|&tag| {
-                let NodeData::JSDocParameterTag(data) = &tree.node(tag).data else {
+                let NodeData::JSDocParameterTag(data) = &tree.node(tag).data() else {
                     return false;
                 };
                 data.name.is_some_and(|tag_name| {
-                    matches!(&tree.node(tag_name).data,
+                    matches!(&tree.node(tag_name).data(),
                         NodeData::Identifier(tag_name) if tag_name.escaped_text == name.escaped_text)
                 })
             })
@@ -493,7 +493,7 @@ pub fn get_jsdoc_parameter_tags(tree: &impl NodeLookup, parameter: NodeId) -> Ve
 /// A JavaScript `/** @type {T} */ (expr)`: tsgo's reparser makes the
 /// parenthesized expression's operand `expr as T` (reparser.go:382-391).
 pub fn is_jsdoc_type_assertion(source: &SourceFile, node: NodeId) -> bool {
-    let NodeData::ParenthesizedExpression(data) = &source.arena.node(node).data else {
+    let NodeData::ParenthesizedExpression(data) = &source.arena.node(node).data() else {
         return false;
     };
     data.expression.is_some_and(|expression| {
@@ -506,7 +506,7 @@ pub fn is_jsdoc_type_assertion(source: &SourceFile, node: NodeId) -> bool {
 /// tsrs-native: typed AST projection for tsc's direct declaration `type`
 /// property access.
 pub fn type_annotation_of(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    type_annotation_of_data(&tree.node(node).data)
+    type_annotation_of_data(&tree.node(node).data())
 }
 
 /// [`type_annotation_of`] of a node's data.
@@ -628,7 +628,7 @@ pub fn is_modifier_kind(kind: SyntaxKind) -> bool {
 /// that can carry one (canHaveModifiers proxy — exactly the generated
 /// Data structs with a modifiers field).
 pub fn modifiers_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeArrayId> {
-    modifiers_of_data(&tree.node(id).data)
+    modifiers_of_data(&tree.node(id).data())
 }
 
 /// [`modifiers_of`] of a node's data.
@@ -848,7 +848,7 @@ pub fn get_combined_syntactic_modifier_flags(tree: &impl NodeLookup, id: NodeId)
 /// tsc `declaration.name` dynamic access: the name field of any kind
 /// that has one (the getNonAssignedNameOfDeclaration default arm).
 pub fn name_field_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
-    match &tree.node(id).data {
+    match &tree.node(id).data() {
         NodeData::BindingElement(data) => data.name,
         NodeData::ClassDeclaration(data) => data.name,
         NodeData::ClassExpression(data) => data.name,
@@ -1047,7 +1047,7 @@ pub fn get_non_assigned_name_of_declaration(tree: &impl NodeLookup, id: NodeId) 
         }
         SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag => {
             let name = name_field_of(tree, id)?;
-            match &tree.node(name).data {
+            match &tree.node(name).data() {
                 NodeData::QualifiedName(data) => data.right,
                 _ => Some(name),
             }
@@ -1059,7 +1059,7 @@ pub fn get_non_assigned_name_of_declaration(tree: &impl NodeLookup, id: NodeId) 
         // The `this` parameter tsgo reparses from a JSDoc signature's `@this`
         // is named by an identifier over the tag (reparser.go:168-176).
         SyntaxKind::JSDocThisTag => Some(id),
-        SyntaxKind::ExportAssignment => match &tree.node(id).data {
+        SyntaxKind::ExportAssignment => match &tree.node(id).data() {
             NodeData::ExportAssignment(data) => data
                 .expression
                 .filter(|&expression| kind_of(tree, expression) == SyntaxKind::Identifier),
@@ -1084,7 +1084,7 @@ pub fn get_non_assigned_name_of_declaration(tree: &impl NodeLookup, id: NodeId) 
 /// property name or literal element argument, a variable's identifier).
 pub fn get_assigned_name(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
     let parent = parent_of(tree, id)?;
-    match &tree.node(parent).data {
+    match &tree.node(parent).data() {
         NodeData::PropertyAssignment(data) => data.name,
         NodeData::BindingElement(data) => data.name,
         NodeData::BinaryExpression(data) => {
@@ -1095,7 +1095,7 @@ pub fn get_assigned_name(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
                 }
                 // tsgo 7.1 `GetAssignedName`: a property access's name, or an
                 // element access's literal argument (none for another).
-                match &tree.node(left).data {
+                match &tree.node(left).data() {
                     NodeData::PropertyAccessExpression(access) => return access.name,
                     NodeData::ElementAccessExpression(access) => {
                         let argument = skip_parentheses(tree, access.argument_expression?);
@@ -1137,7 +1137,7 @@ pub fn node_is_missing(tree: &impl NodeLookup, id: Option<NodeId>) -> bool {
 
 /// tsc moduleExportNameIsDefault (_tsc.js 13032).
 pub fn module_export_name_is_default(tree: &impl NodeLookup, name: NodeId) -> bool {
-    match &tree.node(name).data {
+    match &tree.node(name).data() {
         NodeData::StringLiteral(data) => data.text == "default",
         NodeData::Identifier(data) => data.escaped_text == "default",
         _ => false,
@@ -1146,7 +1146,7 @@ pub fn module_export_name_is_default(tree: &impl NodeLookup, name: NodeId) -> bo
 
 /// tsc isAmbientModule (_tsc.js 13713).
 pub fn is_ambient_module(tree: &impl NodeLookup, id: NodeId) -> bool {
-    match &tree.node(id).data {
+    match &tree.node(id).data() {
         NodeData::ModuleDeclaration(data) => match data.name {
             Some(name) => {
                 kind_of(tree, name) == SyntaxKind::StringLiteral
@@ -1166,7 +1166,7 @@ pub fn is_global_scope_augmentation(tree: &impl NodeLookup, id: NodeId) -> bool 
 /// tsc skipParentheses with OuterExpressionKinds.Parentheses: only
 /// ParenthesizedExpression unwraps (JSDocTypeAssertion is JS-only).
 fn skip_parentheses(tree: &impl NodeLookup, mut id: NodeId) -> NodeId {
-    while let NodeData::ParenthesizedExpression(data) = &tree.node(id).data {
+    while let NodeData::ParenthesizedExpression(data) = &tree.node(id).data() {
         match data.expression {
             Some(expression) => id = expression,
             None => break,
@@ -1187,7 +1187,7 @@ pub fn is_string_or_numeric_literal_like(tree: &impl NodeLookup, id: NodeId) -> 
 
 /// tsc isSignedNumericLiteral (_tsc.js 15847).
 pub fn is_signed_numeric_literal(tree: &impl NodeLookup, id: NodeId) -> bool {
-    match &tree.node(id).data {
+    match &tree.node(id).data() {
         NodeData::PrefixUnaryExpression(data) => {
             matches!(
                 data.operator,
@@ -1214,7 +1214,7 @@ pub fn has_dynamic_name(tree: &impl NodeLookup, declaration: NodeId) -> bool {
 /// tsc-hash: 7014a94f7e8ee40358469f32712ba44f9dadcab04d99dc7e54a8965ea989c1cb
 /// tsc-span: _tsc.js:15854-15861
 pub fn is_dynamic_name(tree: &impl NodeLookup, name: NodeId) -> bool {
-    let expr = match &tree.node(name).data {
+    let expr = match &tree.node(name).data() {
         NodeData::ComputedPropertyName(data) => data.expression,
         NodeData::ElementAccessExpression(data) => data
             .argument_expression
@@ -1238,7 +1238,7 @@ pub fn is_property_name_literal(tree: &impl NodeLookup, id: NodeId) -> bool {
 
 /// The `text` payload of literal-like name nodes.
 pub fn literal_text_of(tree: &impl NodeLookup, id: NodeId) -> Option<JsStr<'_>> {
-    match &tree.node(id).data {
+    match &tree.node(id).data() {
         NodeData::StringLiteral(data) => Some(data.text.as_js()),
         NodeData::NumericLiteral(data) => Some(JsStr::from_str(&data.text)),
         NodeData::BigIntLiteral(data) => Some(JsStr::from_str(&data.text)),
@@ -1251,7 +1251,7 @@ pub fn literal_text_of(tree: &impl NodeLookup, id: NodeId) -> Option<JsStr<'_>> 
 
 /// tsc idText: unescapeLeadingUnderscores(node.escapedText).
 pub fn id_text(tree: &impl NodeLookup, id: NodeId) -> Option<&str> {
-    match &tree.node(id).data {
+    match &tree.node(id).data() {
         NodeData::Identifier(data) => Some(data.text()),
         NodeData::PrivateIdentifier(data) => Some(data.text()),
         _ => None,
@@ -1263,7 +1263,7 @@ pub fn get_text_of_identifier_or_literal(tree: &impl NodeLookup, id: NodeId) -> 
     if let Some(text) = id_text(tree, id) {
         return Some(text.into());
     }
-    if let NodeData::JsxNamespacedName(_) = &tree.node(id).data {
+    if let NodeData::JsxNamespacedName(_) = &tree.node(id).data() {
         return get_text_of_jsx_namespaced_name(tree, id).map(Into::into);
     }
     literal_text_of(tree, id).map(JsStr::to_owned)
@@ -1274,7 +1274,7 @@ pub fn get_escaped_text_of_identifier_or_literal(
     tree: &impl NodeLookup,
     id: NodeId,
 ) -> Option<EscapedName> {
-    match &tree.node(id).data {
+    match &tree.node(id).data() {
         NodeData::Identifier(data) => Some(data.escaped_text),
         NodeData::PrivateIdentifier(data) => Some(data.escaped_text),
         NodeData::JsxNamespacedName(_) => get_escaped_text_of_jsx_namespaced_name(tree, id),
@@ -1288,12 +1288,12 @@ pub fn get_escaped_text_of_jsx_namespaced_name(
     tree: &impl NodeLookup,
     id: NodeId,
 ) -> Option<EscapedName> {
-    let NodeData::JsxNamespacedName(data) = &tree.node(id).data else {
+    let NodeData::JsxNamespacedName(data) = &tree.node(id).data() else {
         return None;
     };
     let namespace = data.namespace?;
     let name = data.name?;
-    let NodeData::Identifier(namespace_data) = &tree.node(namespace).data else {
+    let NodeData::Identifier(namespace_data) = &tree.node(namespace).data() else {
         return None;
     };
     Some(EscapedName::from_identifier_escaped_text(&format!(
@@ -1305,7 +1305,7 @@ pub fn get_escaped_text_of_jsx_namespaced_name(
 
 /// tsgo `JsxNamespacedName.Text()`: `namespace:name`.
 pub fn get_text_of_jsx_namespaced_name(tree: &impl NodeLookup, id: NodeId) -> Option<String> {
-    let NodeData::JsxNamespacedName(data) = &tree.node(id).data else {
+    let NodeData::JsxNamespacedName(data) = &tree.node(id).data() else {
         return None;
     };
     Some(format!(
@@ -1317,7 +1317,7 @@ pub fn get_text_of_jsx_namespaced_name(tree: &impl NodeLookup, id: NodeId) -> Op
 
 /// The heritage clauses of a class or interface declaration.
 fn heritage_clauses_of(tree: &impl NodeLookup, node: NodeId) -> &[NodeId] {
-    let clauses = match &tree.node(node).data {
+    let clauses = match &tree.node(node).data() {
         NodeData::ClassDeclaration(data) => data.heritage_clauses,
         NodeData::ClassExpression(data) => data.heritage_clauses,
         NodeData::InterfaceDeclaration(data) => data.heritage_clauses,
@@ -1332,7 +1332,7 @@ fn heritage_clauses_of(tree: &impl NodeLookup, node: NodeId) -> &[NodeId] {
 fn heritage_clause_types(tree: &impl NodeLookup, node: NodeId, token: SyntaxKind) -> &[NodeId] {
     heritage_clauses_of(tree, node)
         .iter()
-        .find_map(|&clause| match &tree.node(clause).data {
+        .find_map(|&clause| match &tree.node(clause).data() {
             NodeData::HeritageClause(data) if data.token == token => Some(
                 data.types
                     .map(|types| tree.node_array(types).nodes)
@@ -1417,7 +1417,7 @@ pub fn get_all_super_type_nodes(source: &SourceFile, node: NodeId) -> Vec<NodeId
                     crate::hosted::jsdoc_hosted(source)
                         .implements_tags_of(node)
                         .iter()
-                        .filter_map(|&tag| match &source.arena.node(tag).data {
+                        .filter_map(|&tag| match &source.arena.node(tag).data() {
                             NodeData::JSDocImplementsTag(data) => data.class,
                             _ => None,
                         }),
@@ -1431,10 +1431,10 @@ pub fn get_all_super_type_nodes(source: &SourceFile, node: NodeId) -> Vec<NodeId
 
 /// tsgo `ast.IsThisParameter`: a parameter named `this`.
 pub fn is_this_parameter(tree: &impl NodeLookup, parameter: NodeId) -> bool {
-    let NodeData::Parameter(data) = &tree.node(parameter).data else {
+    let NodeData::Parameter(data) = &tree.node(parameter).data() else {
         return false;
     };
-    data.name.is_some_and(|name| match &tree.node(name).data {
+    data.name.is_some_and(|name| match &tree.node(name).data() {
         NodeData::Identifier(identifier) => identifier.text() == "this",
         _ => tree.node(name).kind == SyntaxKind::ThisKeyword,
     })
@@ -1446,7 +1446,7 @@ pub fn get_set_accessor_value_parameter(
     tree: &impl NodeLookup,
     accessor: NodeId,
 ) -> Option<NodeId> {
-    let NodeData::SetAccessor(data) = &tree.node(accessor).data else {
+    let NodeData::SetAccessor(data) = &tree.node(accessor).data() else {
         return None;
     };
     let parameters = data
@@ -1620,7 +1620,7 @@ pub fn get_span_of_token_at_position(source: &SourceFile, pos: usize) -> (usize,
 pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize) {
     let node = source.arena.node(id);
     let mut error_node = Some(id);
-    match &node.data {
+    match &node.data() {
         NodeData::SourceFile(_) => {
             let pos = tsc_syntax::skip_trivia(source.text(), 0);
             if pos == source.text().len() {
@@ -1666,7 +1666,7 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
                 .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::JSDocOverloadTag) =>
         {
             if let Some(NodeData::JSDocOverloadTag(tag)) =
-                parent_of(source, id).map(|parent| &source.arena.node(parent).data)
+                parent_of(source, id).map(|parent| source.arena.node(parent).data())
             {
                 error_node = tag.tag_name.or(error_node);
             }
@@ -1678,7 +1678,7 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
             if parent_of(source, id)
                 .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::JSDocTypeLiteral) =>
         {
-            let name = name_field_of(source, id).map(|name| match &source.arena.node(name).data {
+            let name = name_field_of(source, id).map(|name| match &source.arena.node(name).data() {
                 NodeData::QualifiedName(data) => data.right.unwrap_or(name),
                 _ => name,
             });
@@ -1851,7 +1851,7 @@ pub fn get_immediately_invoked_function_expression(
         prev = parent;
         parent = parent_of(tree, parent)?;
     }
-    match &tree.node(parent).data {
+    match &tree.node(parent).data() {
         NodeData::CallExpression(data) if data.expression == Some(prev) => Some(parent),
         _ => None,
     }
@@ -1860,7 +1860,7 @@ pub fn get_immediately_invoked_function_expression(
 /// tsc `node.body` dynamic access for the container kinds bindContainer
 /// inspects.
 pub fn body_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
-    match &tree.node(id).data {
+    match &tree.node(id).data() {
         NodeData::FunctionDeclaration(data) => data.body,
         NodeData::FunctionExpression(data) => data.body,
         NodeData::ArrowFunction(data) => data.body,
@@ -1890,7 +1890,7 @@ pub fn is_array_literal_or_object_literal_destructuring_pattern(
     let Some(parent) = parent_of(tree, node) else {
         return false;
     };
-    match &tree.node(parent).data {
+    match &tree.node(parent).data() {
         NodeData::BinaryExpression(binary)
             if binary.left == Some(node)
                 && binary
@@ -1911,7 +1911,7 @@ pub fn is_array_literal_or_object_literal_destructuring_pattern(
 /// identifier's, a string, numeric or bigint literal's, a computed name's
 /// literal's, or a JSX namespaced name's `ns:name`.
 pub fn try_get_text_of_property_name(tree: &impl NodeLookup, name: NodeId) -> Option<String> {
-    match &tree.node(name).data {
+    match &tree.node(name).data() {
         NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => {
             id_text(tree, name).map(str::to_owned)
         }
@@ -1973,7 +1973,7 @@ pub fn get_container_node_at_or_above(
 
 /// tsgo `Node.Initializer()`.
 pub fn initializer_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
-    match &tree.node(id).data {
+    match &tree.node(id).data() {
         NodeData::VariableDeclaration(data) => data.initializer,
         NodeData::Parameter(data) => data.initializer,
         NodeData::BindingElement(data) => data.initializer,
@@ -1991,7 +1991,7 @@ pub fn initializer_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
 
 /// tsgo `Node.Members()` of a class, interface or type literal.
 pub fn members_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeArrayId> {
-    match &tree.node(id).data {
+    match &tree.node(id).data() {
         NodeData::ClassDeclaration(data) => data.members,
         NodeData::ClassExpression(data) => data.members,
         NodeData::InterfaceDeclaration(data) => data.members,
@@ -2002,7 +2002,7 @@ pub fn members_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeArrayId> {
 
 /// tsc `node.asteriskToken` access (bindContainer's IIFE test).
 pub fn asterisk_token_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
-    match &tree.node(id).data {
+    match &tree.node(id).data() {
         NodeData::FunctionDeclaration(data) => data.asterisk_token,
         NodeData::FunctionExpression(data) => data.asterisk_token,
         NodeData::MethodDeclaration(data) => data.asterisk_token,
@@ -2013,7 +2013,7 @@ pub fn asterisk_token_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
 
 /// tsc `.statements` of SourceFile/Block/ModuleBlock.
 pub fn statements_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeArrayId> {
-    match &tree.node(id).data {
+    match &tree.node(id).data() {
         NodeData::SourceFile(data) => data.statements,
         NodeData::Block(data) => data.statements,
         NodeData::ModuleBlock(data) => data.statements,
@@ -2033,9 +2033,9 @@ pub fn node_has_name(tree: &impl NodeLookup, statement: NodeId, name: NodeId) ->
             return true;
         }
     }
-    if let NodeData::VariableStatement(data) = &tree.node(statement).data {
+    if let NodeData::VariableStatement(data) = &tree.node(statement).data() {
         if let Some(list) = data.declaration_list {
-            if let NodeData::VariableDeclarationList(list) = &tree.node(list).data {
+            if let NodeData::VariableDeclarationList(list) = &tree.node(list).data() {
                 if let Some(declarations) = list.declarations {
                     return tree
                         .node_array(declarations)
@@ -2262,7 +2262,7 @@ pub fn is_entity_name_expression(tree: &impl NodeLookup, node: NodeId) -> bool {
 
 /// tsc isPropertyAccessEntityNameExpression (17150).
 pub fn is_property_access_entity_name_expression(tree: &impl NodeLookup, node: NodeId) -> bool {
-    match &tree.node(node).data {
+    match &tree.node(node).data() {
         NodeData::PropertyAccessExpression(data) => {
             data.name
                 .is_some_and(|name| kind_of(tree, name) == SyntaxKind::Identifier)
@@ -2292,7 +2292,7 @@ pub fn is_part_of_type_query(tree: &impl NodeLookup, mut node: NodeId) -> bool {
 /// rest lands in stage 3.5). Consulted by bindWorker's access-
 /// expression flowNode stamping.
 pub fn is_narrowable_reference(source: &SourceFile, expr: NodeId) -> bool {
-    match &source.arena.node(expr).data {
+    match &source.arena.node(expr).data() {
         NodeData::PropertyAccessExpression(data) => data
             .expression
             .is_some_and(|expression| is_narrowable_reference(source, expression)),
@@ -2429,7 +2429,7 @@ pub fn is_identifier_name(tree: &impl NodeLookup, node: NodeId) -> bool {
     let Some(parent) = parent_of(tree, node) else {
         return false;
     };
-    match &tree.node(parent).data {
+    match &tree.node(parent).data() {
         NodeData::PropertyDeclaration(data) => data.name == Some(node),
         NodeData::PropertySignature(data) => data.name == Some(node),
         NodeData::MethodDeclaration(data) => data.name == Some(node),
@@ -2518,7 +2518,7 @@ pub fn is_expression_node(tree: &impl NodeLookup, node: NodeId) -> bool {
             let Some(parent) = parent_of(tree, node) else {
                 return false;
             };
-            match &tree.node(parent).data {
+            match &tree.node(parent).data() {
                 NodeData::BinaryExpression(data) => {
                     data.left == Some(node)
                         && data
@@ -2561,7 +2561,7 @@ fn is_jsx_tag_name(tree: &impl NodeLookup, node: NodeId) -> bool {
     let Some(parent) = parent_of(tree, node) else {
         return false;
     };
-    match &tree.node(parent).data {
+    match &tree.node(parent).data() {
         NodeData::JsxOpeningElement(data) => data.tag_name == Some(node),
         NodeData::JsxSelfClosingElement(data) => data.tag_name == Some(node),
         NodeData::JsxClosingElement(data) => data.tag_name == Some(node),
@@ -2624,7 +2624,7 @@ fn is_expression_with_type_arguments_in_class_extends_clause(
     ) {
         return false;
     }
-    let NodeData::HeritageClause(data) = &tree.node(clause).data else {
+    let NodeData::HeritageClause(data) = &tree.node(clause).data() else {
         return false;
     };
     data.token != SyntaxKind::ImplementsKeyword
@@ -2635,7 +2635,7 @@ pub fn is_in_expression_context(tree: &impl NodeLookup, node: NodeId) -> bool {
     let Some(parent) = parent_of(tree, node) else {
         return false;
     };
-    match &tree.node(parent).data {
+    match &tree.node(parent).data() {
         NodeData::VariableDeclaration(data) => data.initializer == Some(node),
         NodeData::Parameter(data) => data.initializer == Some(node),
         NodeData::PropertyDeclaration(data) => data.initializer == Some(node),
@@ -2713,7 +2713,7 @@ pub fn is_narrowing_expression(source: &SourceFile, expr: NodeId) -> bool {
     if kind_of(source, expr) == SyntaxKind::ThisKeyword {
         return true;
     }
-    match &source.arena.node(expr).data {
+    match &source.arena.node(expr).data() {
         NodeData::Identifier(_) => true,
         NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
             contains_narrowable_reference(source, expr)
@@ -2757,7 +2757,7 @@ pub fn contains_narrowable_reference(source: &SourceFile, expr: NodeId) -> bool 
 
 /// tsc hasNarrowableArgument (43024).
 fn has_narrowable_argument(source: &SourceFile, expr: NodeId) -> bool {
-    let NodeData::CallExpression(data) = &source.arena.node(expr).data else {
+    let NodeData::CallExpression(data) = &source.arena.node(expr).data() else {
         return false;
     };
     if let Some(arguments) = data.arguments {
@@ -2784,7 +2784,7 @@ fn has_narrowable_argument(source: &SourceFile, expr: NodeId) -> bool {
 /// NoSubstitutionTemplateLiteral).
 fn is_narrowing_typeof_operands(source: &SourceFile, expr1: NodeId, expr2: NodeId) -> bool {
     matches!(
-        &source.arena.node(expr1).data,
+        &source.arena.node(expr1).data(),
         NodeData::TypeOfExpression(data)
             if data.expression.is_some_and(|e| is_narrowable_operand(source, e))
     ) && matches!(
@@ -2795,7 +2795,7 @@ fn is_narrowing_typeof_operands(source: &SourceFile, expr1: NodeId, expr2: NodeI
 
 /// tsc isNarrowingBinaryExpression (43040).
 fn is_narrowing_binary_expression(source: &SourceFile, expr: NodeId) -> bool {
-    let NodeData::BinaryExpression(data) = &source.arena.node(expr).data else {
+    let NodeData::BinaryExpression(data) = &source.arena.node(expr).data() else {
         return false;
     };
     let operator = data
@@ -2831,7 +2831,7 @@ fn is_narrowing_binary_expression(source: &SourceFile, expr: NodeId) -> bool {
 
 /// tsc isNarrowableOperand (43066).
 pub fn is_narrowable_operand(source: &SourceFile, expr: NodeId) -> bool {
-    match &source.arena.node(expr).data {
+    match &source.arena.node(expr).data() {
         NodeData::ParenthesizedExpression(data) => data
             .expression
             .is_some_and(|expression| is_narrowable_operand(source, expression)),
@@ -2864,7 +2864,7 @@ pub fn is_boolean_literal(tree: &impl NodeLookup, node: NodeId) -> bool {
 
 /// The `.expression` of expression-carrying kinds used in the flow walk.
 pub fn expression_of(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    match &tree.node(node).data {
+    match &tree.node(node).data() {
         NodeData::PropertyAccessExpression(data) => data.expression,
         NodeData::ElementAccessExpression(data) => data.expression,
         NodeData::CallExpression(data) => data.expression,
@@ -2880,7 +2880,7 @@ pub fn expression_of(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
 }
 
 pub fn skip_parentheses_pub(tree: &impl NodeLookup, mut id: NodeId) -> NodeId {
-    while let NodeData::ParenthesizedExpression(data) = &tree.node(id).data {
+    while let NodeData::ParenthesizedExpression(data) = &tree.node(id).data() {
         match data.expression {
             Some(expression) => id = expression,
             None => break,
@@ -2898,7 +2898,7 @@ pub fn skip_parentheses_excluding_jsdoc_type_assertions(
     mut id: NodeId,
     exclude_jsdoc_type_assertions: bool,
 ) -> NodeId {
-    while let NodeData::ParenthesizedExpression(data) = &source.arena.node(id).data {
+    while let NodeData::ParenthesizedExpression(data) = &source.arena.node(id).data() {
         if exclude_jsdoc_type_assertions && is_jsdoc_type_assertion(source, id) {
             break;
         }
@@ -2930,7 +2930,7 @@ pub fn is_optional_chain_root(tree: &impl NodeLookup, node: NodeId) -> bool {
     if !is_optional_chain(tree, node) || kind_of(tree, node) == SyntaxKind::NonNullExpression {
         return false;
     }
-    match &tree.node(node).data {
+    match &tree.node(node).data() {
         NodeData::PropertyAccessExpression(data) => data.question_dot_token.is_some(),
         NodeData::ElementAccessExpression(data) => data.question_dot_token.is_some(),
         NodeData::CallExpression(data) => data.question_dot_token.is_some(),
@@ -2958,7 +2958,7 @@ pub fn is_outermost_optional_chain(tree: &impl NodeLookup, node: NodeId) -> bool
 /// tsc isNullishCoalesce (11845).
 pub fn is_nullish_coalesce(tree: &impl NodeLookup, node: NodeId) -> bool {
     matches!(
-        &tree.node(node).data,
+        &tree.node(node).data(),
         NodeData::BinaryExpression(data)
             if data.operator_token.is_some_and(|token| {
                 kind_of(tree, token) == SyntaxKind::QuestionQuestionToken
@@ -2981,7 +2981,7 @@ pub fn is_logical_or_coalescing_binary_operator(token: SyntaxKind) -> bool {
 /// tsc isLogicalOrCoalescingBinaryExpression (17087).
 pub fn is_logical_or_coalescing_binary_expression(tree: &impl NodeLookup, expr: NodeId) -> bool {
     matches!(
-        &tree.node(expr).data,
+        &tree.node(expr).data(),
         NodeData::BinaryExpression(data)
             if data.operator_token.is_some_and(|token| {
                 is_logical_or_coalescing_binary_operator(kind_of(tree, token))
@@ -3005,7 +3005,7 @@ pub fn is_logical_or_coalescing_assignment_expression(
     expr: NodeId,
 ) -> bool {
     matches!(
-        &tree.node(expr).data,
+        &tree.node(expr).data(),
         NodeData::BinaryExpression(data)
             if data.operator_token.is_some_and(|token| {
                 is_logical_or_coalescing_assignment_operator(kind_of(tree, token))
@@ -3016,7 +3016,7 @@ pub fn is_logical_or_coalescing_assignment_expression(
 /// tsc isAssignmentExpression(node, excludeCompoundAssignment=true).
 pub fn is_assignment_expression_simple(tree: &impl NodeLookup, node: NodeId) -> bool {
     matches!(
-        &tree.node(node).data,
+        &tree.node(node).data(),
         NodeData::BinaryExpression(data)
             if data.operator_token.is_some_and(|token| {
                 kind_of(tree, token) == SyntaxKind::EqualsToken
@@ -3031,7 +3031,7 @@ pub fn is_destructuring_assignment(tree: &impl NodeLookup, node: NodeId) -> bool
     if !is_assignment_expression_simple(tree, node) {
         return false;
     }
-    let NodeData::BinaryExpression(data) = &tree.node(node).data else {
+    let NodeData::BinaryExpression(data) = &tree.node(node).data() else {
         return false;
     };
     data.left.is_some_and(|left| {
@@ -3052,7 +3052,7 @@ pub fn is_assignment_target(tree: &impl NodeLookup, node: NodeId) -> bool {
         None => return false,
     };
     loop {
-        match &tree.node(parent).data {
+        match &tree.node(parent).data() {
             NodeData::BinaryExpression(data) => {
                 let operator = data
                     .operator_token
@@ -3115,7 +3115,7 @@ pub fn is_assignment_target(tree: &impl NodeLookup, node: NodeId) -> bool {
 
 /// tsc isDottedName (17147).
 pub fn is_dotted_name(tree: &impl NodeLookup, node: NodeId) -> bool {
-    match &tree.node(node).data {
+    match &tree.node(node).data() {
         NodeData::PropertyAccessExpression(data) => data
             .expression
             .is_some_and(|expression| is_dotted_name(tree, expression)),
@@ -3135,7 +3135,7 @@ pub fn is_dotted_name(tree: &impl NodeLookup, node: NodeId) -> bool {
 /// tsc isPushOrUnshiftIdentifier (15983).
 pub fn is_push_or_unshift_identifier(tree: &impl NodeLookup, node: NodeId) -> bool {
     matches!(
-        &tree.node(node).data,
+        &tree.node(node).data(),
         NodeData::Identifier(data)
             if data.escaped_text == "push" || data.escaped_text == "unshift"
     )
@@ -3175,14 +3175,14 @@ pub fn is_potentially_executable_node(tree: &impl NodeLookup, node: NodeId) -> b
     if kind as u16 >= SyntaxKind::FirstStatement as u16
         && kind as u16 <= SyntaxKind::LastStatement as u16
     {
-        if let NodeData::VariableStatement(data) = &tree.node(node).data {
+        if let NodeData::VariableStatement(data) = &tree.node(node).data() {
             let Some(list) = data.declaration_list else {
                 return true;
             };
             if get_combined_node_flags(tree, list).intersects(NodeFlags::BLOCK_SCOPED) {
                 return true;
             }
-            let NodeData::VariableDeclarationList(list_data) = &tree.node(list).data else {
+            let NodeData::VariableDeclarationList(list_data) = &tree.node(list).data() else {
                 return true;
             };
             let Some(declarations) = list_data.declarations else {
@@ -3194,7 +3194,7 @@ pub fn is_potentially_executable_node(tree: &impl NodeLookup, node: NodeId) -> b
                 .iter()
                 .any(|&declaration| {
                     matches!(
-                        &tree.node(declaration).data,
+                        &tree.node(declaration).data(),
                         NodeData::VariableDeclaration(data) if data.initializer.is_some()
                     )
                 });

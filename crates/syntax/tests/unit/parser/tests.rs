@@ -61,7 +61,7 @@ fn numeric_literals_retain_the_scanner_flags_used_by_the_printer() {
             .iter()
             .map(|&literal| {
                 let node = source.arena.node(literal);
-                let NodeData::NumericLiteral(data) = &node.data else {
+                let NodeData::NumericLiteral(data) = &node.data() else {
                     unreachable!()
                 };
                 (data.text.as_str(), node.numeric_literal_flags())
@@ -101,7 +101,7 @@ fn literal_and_block_nodes_retain_the_printer_multiline_bit() {
 #[test]
 fn throw_line_break_recovery_ends_at_the_keyword_boundary() {
     let source = parse_ts("throw\na;");
-    let NodeData::SourceFile(root) = &source.arena.node(source.root).data else {
+    let NodeData::SourceFile(root) = &source.arena.node(source.root).data() else {
         unreachable!()
     };
     let statements = source
@@ -110,13 +110,13 @@ fn throw_line_break_recovery_ends_at_the_keyword_boundary() {
     assert_eq!(statements.nodes.len(), 2);
 
     let throw_statement = source.arena.node(statements.nodes[0]);
-    let NodeData::ThrowStatement(throw_data) = &throw_statement.data else {
+    let NodeData::ThrowStatement(throw_data) = &throw_statement.data() else {
         unreachable!()
     };
     let expression = source
         .arena
         .node(throw_data.expression.expect("throw recovery expression"));
-    let NodeData::Identifier(identifier) = &expression.data else {
+    let NodeData::Identifier(identifier) = &expression.data() else {
         unreachable!()
     };
     assert!(identifier.text().is_empty());
@@ -135,7 +135,7 @@ fn regex_flags_and_names_take_esnext_identifier_parts_like_tsgo() {
     // reports the flag later, in the checker (TS1499), and nothing at parse.
     let source = parse_ts("/a/\u{08a1}; foo.\u{08a1};");
     let regex = nodes_of_kind(&source, SyntaxKind::RegularExpressionLiteral)[0];
-    let NodeData::RegularExpressionLiteral(data) = &source.arena.node(regex).data else {
+    let NodeData::RegularExpressionLiteral(data) = &source.arena.node(regex).data() else {
         unreachable!()
     };
     assert_eq!(data.text, "/a/\u{08a1}");
@@ -145,7 +145,7 @@ fn regex_flags_and_names_take_esnext_identifier_parts_like_tsgo() {
         .any(|node| source
             .arena
             .node(node)
-            .data
+            .data()
             .as_identifier()
             .is_some_and(|data| data.text() == "\u{08a1}")));
     assert!(is_identifier_text("\u{08a1}"));
@@ -161,13 +161,13 @@ fn regex_literal_stores_only_true_unterminated_state() {
     assert!(terminated
         .arena
         .node(terminated_regex)
-        .data
+        .data()
         .as_regular_expression_literal()
         .is_some());
     assert!(unterminated
         .arena
         .node(unterminated_regex)
-        .data
+        .data()
         .as_regular_expression_literal()
         .is_some());
 
@@ -222,7 +222,7 @@ fn heritage_clause_stores_its_token() {
     );
     let tokens: Vec<SyntaxKind> = nodes_of_kind(&source, SyntaxKind::HeritageClause)
         .into_iter()
-        .map(|id| match &source.arena.node(id).data {
+        .map(|id| match &source.arena.node(id).data() {
             NodeData::HeritageClause(data) => data.token,
             _ => unreachable!(),
         })
@@ -249,7 +249,7 @@ fn import_clause_stores_phase_modifier_and_derives_is_type_only() {
     );
     let clauses: Vec<(Option<SyntaxKind>, bool)> = nodes_of_kind(&source, SyntaxKind::ImportClause)
         .into_iter()
-        .map(|id| match &source.arena.node(id).data {
+        .map(|id| match &source.arena.node(id).data() {
             NodeData::ImportClause(data) => (data.phase_modifier, data.is_type_only),
             _ => unreachable!(),
         })
@@ -282,18 +282,18 @@ fn only_import_clause(
     let [declaration] = nodes_of_kind(source, SyntaxKind::ImportDeclaration)[..] else {
         panic!("one import declaration");
     };
-    let NodeData::ImportDeclaration(declaration) = &source.arena.node(declaration).data else {
+    let NodeData::ImportDeclaration(declaration) = &source.arena.node(declaration).data() else {
         unreachable!()
     };
     let clause = declaration.import_clause.expect("an import clause");
-    let NodeData::ImportClause(clause) = &source.arena.node(clause).data else {
+    let NodeData::ImportClause(clause) = &source.arena.node(clause).data() else {
         unreachable!()
     };
     (declaration, clause)
 }
 
 fn identifier_text(source: &SourceFile, id: NodeId) -> String {
-    match &source.arena.node(id).data {
+    match &source.arena.node(id).data() {
         NodeData::Identifier(data) => data.escaped_text.to_string(),
         _ => panic!("an identifier"),
     }
@@ -364,7 +364,7 @@ fn source_is_an_import_equals_binding_before_equals() {
     let [declaration] = nodes_of_kind(&source, SyntaxKind::ImportEqualsDeclaration)[..] else {
         panic!("one import-equals declaration");
     };
-    let NodeData::ImportEqualsDeclaration(declaration) = &source.arena.node(declaration).data
+    let NodeData::ImportEqualsDeclaration(declaration) = &source.arena.node(declaration).data()
     else {
         unreachable!()
     };
@@ -448,10 +448,10 @@ fn dynamic_phase_imports_follow_tsgo() {
             crate::utilities::is_import_call(&source.arena, call),
             "{text}"
         );
-        let NodeData::CallExpression(call) = &source.arena.node(call).data else {
+        let NodeData::CallExpression(call) = &source.arena.node(call).data() else {
             unreachable!()
         };
-        let NodeData::MetaProperty(meta) = &source.arena.node(call.expression.unwrap()).data else {
+        let NodeData::MetaProperty(meta) = &source.arena.node(call.expression.unwrap()).data() else {
             panic!("a meta-property callee");
         };
         assert_eq!(meta.keyword_token, SyntaxKind::ImportKeyword);
@@ -486,7 +486,7 @@ fn template_literals_store_raw_text() {
     let fragments = |kind: SyntaxKind| -> Vec<(JsString, Option<String>)> {
         nodes_of_kind(&source, kind)
             .into_iter()
-            .map(|id| match &source.arena.node(id).data {
+            .map(|id| match &source.arena.node(id).data() {
                 NodeData::NoSubstitutionTemplateLiteral(data) => {
                     (data.text.clone(), data.raw_text.clone())
                 }
@@ -531,7 +531,7 @@ fn unterminated_template_raw_text_keeps_tail() {
     let raws: Vec<(JsString, Option<String>)> =
         nodes_of_kind(&source, SyntaxKind::NoSubstitutionTemplateLiteral)
             .into_iter()
-            .map(|id| match &source.arena.node(id).data {
+            .map(|id| match &source.arena.node(id).data() {
                 NodeData::NoSubstitutionTemplateLiteral(data) => {
                     (data.text.clone(), data.raw_text.clone())
                 }
@@ -553,7 +553,7 @@ fn meta_property_stores_its_keyword_token() {
     );
     let tokens: Vec<SyntaxKind> = nodes_of_kind(&source, SyntaxKind::MetaProperty)
         .into_iter()
-        .map(|id| match &source.arena.node(id).data {
+        .map(|id| match &source.arena.node(id).data() {
             NodeData::MetaProperty(data) => data.keyword_token,
             _ => unreachable!(),
         })
@@ -576,7 +576,7 @@ fn import_type_stores_is_type_of() {
     );
     let flags: Vec<bool> = nodes_of_kind(&source, SyntaxKind::ImportType)
         .into_iter()
-        .map(|id| match &source.arena.node(id).data {
+        .map(|id| match &source.arena.node(id).data() {
             NodeData::ImportType(data) => data.is_type_of,
             _ => unreachable!(),
         })
@@ -600,7 +600,7 @@ fn jsx_text_stores_contains_only_trivia_white_spaces() {
     );
     let flags: Vec<(String, bool)> = nodes_of_kind(&source, SyntaxKind::JsxText)
         .into_iter()
-        .map(|id| match &source.arena.node(id).data {
+        .map(|id| match &source.arena.node(id).data() {
             NodeData::JsxText(data) => (data.text.clone(), data.contains_only_trivia_white_spaces),
             _ => unreachable!(),
         })
@@ -806,7 +806,7 @@ fn first_initializer(source: &SourceFile) -> NodeId {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -815,13 +815,13 @@ fn first_initializer(source: &SourceFile) -> NodeId {
     let statement = source
         .arena
         .node(statements.nodes[0])
-        .data
+        .data()
         .as_variable_statement()
         .expect("variable statement");
     let list = source
         .arena
         .node(statement.declaration_list.expect("declaration list"))
-        .data
+        .data()
         .as_variable_declaration_list()
         .expect("declaration list data")
         .declarations
@@ -829,7 +829,7 @@ fn first_initializer(source: &SourceFile) -> NodeId {
     let declaration = source
         .arena
         .node(source.arena.node_array(list).nodes[0])
-        .data
+        .data()
         .as_variable_declaration()
         .expect("variable declaration");
     declaration.initializer.expect("initializer")
@@ -855,19 +855,19 @@ fn jsx_element_attributes_and_children_oracle_pins() {
     let element = source
         .arena
         .node(first_initializer(&source))
-        .data
+        .data()
         .as_jsx_element()
         .expect("jsx element");
     let opening = source
         .arena
         .node(element.opening_element.expect("opening"))
-        .data
+        .data()
         .as_jsx_opening_element()
         .expect("opening element");
     let attributes = source
         .arena
         .node(opening.attributes.expect("attributes"))
-        .data
+        .data()
         .as_jsx_attributes()
         .expect("attributes data")
         .properties
@@ -909,7 +909,7 @@ fn jsx_fragment_oracle_pins() {
     let fragment = source
         .arena
         .node(first_initializer(&source))
-        .data
+        .data()
         .as_jsx_fragment()
         .expect("jsx fragment");
     assert_eq!(
@@ -955,7 +955,7 @@ fn jsx_tag_and_attribute_name_shapes() {
     let element = source
         .arena
         .node(first_initializer(&source))
-        .data
+        .data()
         .as_jsx_self_closing_element()
         .expect("self-closing element");
     assert_eq!(
@@ -965,7 +965,7 @@ fn jsx_tag_and_attribute_name_shapes() {
     let attributes = source
         .arena
         .node(element.attributes.expect("attributes"))
-        .data
+        .data()
         .as_jsx_attributes()
         .expect("attributes data")
         .properties
@@ -974,7 +974,7 @@ fn jsx_tag_and_attribute_name_shapes() {
     let namespaced = source
         .arena
         .node(attribute_nodes[0])
-        .data
+        .data()
         .as_jsx_attribute()
         .expect("first attribute");
     assert_eq!(
@@ -984,13 +984,13 @@ fn jsx_tag_and_attribute_name_shapes() {
     let dashed = source
         .arena
         .node(attribute_nodes[1])
-        .data
+        .data()
         .as_jsx_attribute()
         .expect("second attribute");
     let dashed_name = source
         .arena
         .node(dashed.name.expect("name"))
-        .data
+        .data()
         .as_identifier()
         .expect("identifier name");
     assert_eq!(dashed_name.escaped_text, "this-prop");
@@ -1030,14 +1030,14 @@ fn jsx_rebalances_closing_tag_owned_by_outer_element() {
     let outer = source
         .arena
         .node(first_initializer(&source))
-        .data
+        .data()
         .as_jsx_element()
         .expect("outer element");
     let children = source.arena.node_array(outer.children.expect("children"));
     let inner = source
         .arena
         .node(*children.nodes.last().expect("inner child"))
-        .data
+        .data()
         .as_jsx_element()
         .expect("inner element");
     let synthetic_closing = source
@@ -1074,7 +1074,7 @@ fn for_of_expression_initializer_stays_an_expression() {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -1083,7 +1083,7 @@ fn for_of_expression_initializer_stays_an_expression() {
     let for_of = source
         .arena
         .node(statements.nodes[1])
-        .data
+        .data()
         .as_for_of_statement()
         .expect("for-of statement");
     assert_eq!(
@@ -1113,7 +1113,7 @@ fn using_with_bracket_is_an_expression_statement() {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -1122,13 +1122,13 @@ fn using_with_bracket_is_an_expression_statement() {
     let function = source
         .arena
         .node(statements.nodes[1])
-        .data
+        .data()
         .as_function_declaration()
         .expect("function declaration");
     let body = source
         .arena
         .node(function.body.expect("body"))
-        .data
+        .data()
         .as_block()
         .expect("function body");
     let body_statements = source
@@ -1236,7 +1236,7 @@ fn parse_json_text_oracle_pins() {
         let root = source
             .arena
             .node(source.root)
-            .data
+            .data()
             .as_source_file()
             .expect("source file root");
         let statements = source
@@ -1248,7 +1248,7 @@ fn parse_json_text_oracle_pins() {
                 let statement = source
                     .arena
                     .node(statements.nodes[0])
-                    .data
+                    .data()
                     .as_expression_statement()
                     .expect("expression statement");
                 assert_eq!(
@@ -1338,7 +1338,7 @@ fn parse_source_file_builds_statement_tree() {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -1347,7 +1347,7 @@ fn parse_source_file_builds_statement_tree() {
     assert_eq!(statements.nodes.len(), 3);
 
     let variable_statement = source.arena.node(statements.nodes[0]);
-    let NodeData::VariableStatement(variable_statement_data) = &variable_statement.data else {
+    let NodeData::VariableStatement(variable_statement_data) = &variable_statement.data() else {
         panic!("expected variable statement");
     };
     let declaration_list = variable_statement_data
@@ -1359,7 +1359,7 @@ fn parse_source_file_builds_statement_tree() {
     let declaration_list_data = source
         .arena
         .node(declaration_list)
-        .data
+        .data()
         .as_variable_declaration_list()
         .expect("variable declaration list");
     let declarations = source
@@ -1369,7 +1369,7 @@ fn parse_source_file_builds_statement_tree() {
     let declaration = source
         .arena
         .node(declarations.nodes[0])
-        .data
+        .data()
         .as_variable_declaration()
         .expect("variable declaration");
     assert_eq!(
@@ -1385,7 +1385,7 @@ fn parse_source_file_builds_statement_tree() {
     );
 
     let const_statement = source.arena.node(statements.nodes[1]);
-    let NodeData::VariableStatement(const_statement_data) = &const_statement.data else {
+    let NodeData::VariableStatement(const_statement_data) = &const_statement.data() else {
         panic!("expected const variable statement");
     };
     let const_declaration_list = const_statement_data
@@ -1399,13 +1399,13 @@ fn parse_source_file_builds_statement_tree() {
     let if_statement = source
         .arena
         .node(statements.nodes[2])
-        .data
+        .data()
         .as_if_statement()
         .expect("if statement");
     let then_block = source
         .arena
         .node(if_statement.then_statement.expect("then statement"))
-        .data
+        .data()
         .as_block()
         .expect("then block");
     let block_statements = source
@@ -1435,7 +1435,7 @@ fn parse_import_and_ambient_function_declarations() {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -1455,7 +1455,7 @@ fn parse_import_and_ambient_function_declarations() {
             SyntaxKind::FunctionDeclaration,
         ]
     );
-    let NodeData::FunctionDeclaration(ambient) = &source.arena.node(statements.nodes[2]).data
+    let NodeData::FunctionDeclaration(ambient) = &source.arena.node(statements.nodes[2]).data()
     else {
         panic!("expected function declaration");
     };
@@ -1476,7 +1476,7 @@ fn parse_primary_expression_shapes() {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -1488,7 +1488,7 @@ fn parse_primary_expression_shapes() {
         let variable_statement = source
             .arena
             .node(statement)
-            .data
+            .data()
             .as_variable_statement()
             .expect("variable statement");
         let declaration_list = source
@@ -1498,7 +1498,7 @@ fn parse_primary_expression_shapes() {
                     .declaration_list
                     .expect("declaration list"),
             )
-            .data
+            .data()
             .as_variable_declaration_list()
             .expect("declaration list data");
         let declarations = source
@@ -1507,7 +1507,7 @@ fn parse_primary_expression_shapes() {
         source
             .arena
             .node(declarations.nodes[0])
-            .data
+            .data()
             .as_variable_declaration()
             .expect("declaration")
             .initializer
@@ -1518,7 +1518,7 @@ fn parse_primary_expression_shapes() {
     let arr_data = source
         .arena
         .node(arr)
-        .data
+        .data()
         .as_array_literal_expression()
         .expect("array literal");
     let arr_elements = source
@@ -1541,7 +1541,7 @@ fn parse_primary_expression_shapes() {
     let obj_data = source
         .arena
         .node(obj)
-        .data
+        .data()
         .as_object_literal_expression()
         .expect("object literal");
     let properties = source
@@ -1563,7 +1563,7 @@ fn parse_primary_expression_shapes() {
     let computed_property = source
         .arena
         .node(properties.nodes[3])
-        .data
+        .data()
         .as_property_assignment()
         .expect("computed property assignment")
         .name
@@ -1576,7 +1576,7 @@ fn parse_primary_expression_shapes() {
     let new_target = source
         .arena
         .node(statements.nodes[2])
-        .data
+        .data()
         .as_expression_statement()
         .expect("new.target statement")
         .expression
@@ -1586,7 +1586,7 @@ fn parse_primary_expression_shapes() {
     let regex = source
         .arena
         .node(statements.nodes[3])
-        .data
+        .data()
         .as_expression_statement()
         .expect("regex statement")
         .expression
@@ -1617,7 +1617,7 @@ fn parse_member_and_call_expression_shapes() {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -1628,13 +1628,13 @@ fn parse_member_and_call_expression_shapes() {
     let call_statement = source
         .arena
         .node(statements.nodes[0])
-        .data
+        .data()
         .as_expression_statement()
         .expect("call statement");
     let call = source
         .arena
         .node(call_statement.expression.expect("call expression"))
-        .data
+        .data()
         .as_call_expression()
         .expect("call expression");
     assert_eq!(
@@ -1653,13 +1653,13 @@ fn parse_member_and_call_expression_shapes() {
     let optional_call_statement = source
         .arena
         .node(statements.nodes[1])
-        .data
+        .data()
         .as_expression_statement()
         .expect("optional call statement");
     let optional_call = source
         .arena
         .node(optional_call_statement.expression.expect("optional call"))
-        .data
+        .data()
         .as_call_expression()
         .expect("optional call expression");
     assert!(optional_call.question_dot_token.is_some());
@@ -1674,13 +1674,13 @@ fn parse_member_and_call_expression_shapes() {
     let tagged_statement = source
         .arena
         .node(statements.nodes[2])
-        .data
+        .data()
         .as_expression_statement()
         .expect("tagged template statement");
     let tagged = source
         .arena
         .node(tagged_statement.expression.expect("tagged template"))
-        .data
+        .data()
         .as_tagged_template_expression()
         .expect("tagged template expression");
     assert!(tagged.type_arguments.is_some());
@@ -1692,13 +1692,13 @@ fn parse_member_and_call_expression_shapes() {
     let new_statement = source
         .arena
         .node(statements.nodes[3])
-        .data
+        .data()
         .as_expression_statement()
         .expect("new expression statement");
     let new_expression = source
         .arena
         .node(new_statement.expression.expect("new expression"))
-        .data
+        .data()
         .as_new_expression()
         .expect("new expression");
     assert!(new_expression.type_arguments.is_some());
@@ -1714,13 +1714,13 @@ fn parse_member_and_call_expression_shapes() {
     let non_null_statement = source
         .arena
         .node(statements.nodes[4])
-        .data
+        .data()
         .as_expression_statement()
         .expect("non-null statement");
     let property_access = source
         .arena
         .node(non_null_statement.expression.expect("property access"))
-        .data
+        .data()
         .as_property_access_expression()
         .expect("property access expression");
     assert_eq!(
@@ -1745,7 +1745,7 @@ fn parse_unary_update_await_and_yield_shapes() {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -1757,7 +1757,7 @@ fn parse_unary_update_await_and_yield_shapes() {
         source
             .arena
             .node(statements.nodes[index])
-            .data
+            .data()
             .as_expression_statement()
             .expect("expression statement")
             .expression
@@ -1793,7 +1793,7 @@ fn parse_unary_update_await_and_yield_shapes() {
         let variable_statement = source
             .arena
             .node(statements.nodes[index])
-            .data
+            .data()
             .as_variable_statement()
             .expect("variable statement");
         let declaration_list = source
@@ -1803,7 +1803,7 @@ fn parse_unary_update_await_and_yield_shapes() {
                     .declaration_list
                     .expect("declaration list"),
             )
-            .data
+            .data()
             .as_variable_declaration_list()
             .expect("declaration list data");
         let declarations = source
@@ -1812,7 +1812,7 @@ fn parse_unary_update_await_and_yield_shapes() {
         source
             .arena
             .node(declarations.nodes[0])
-            .data
+            .data()
             .as_variable_declaration()
             .expect("declaration")
             .initializer
@@ -1822,13 +1822,13 @@ fn parse_unary_update_await_and_yield_shapes() {
     let generator = source
         .arena
         .node(variable_initializer(6))
-        .data
+        .data()
         .as_function_expression()
         .expect("generator function expression");
     let generator_body = source
         .arena
         .node(generator.body.expect("generator body"))
-        .data
+        .data()
         .as_block()
         .expect("generator body block");
     let generator_statements = source
@@ -1839,7 +1839,7 @@ fn parse_unary_update_await_and_yield_shapes() {
         let expression = source
             .arena
             .node(*statement)
-            .data
+            .data()
             .as_expression_statement()
             .expect("yield expression statement")
             .expression
@@ -1853,13 +1853,13 @@ fn parse_unary_update_await_and_yield_shapes() {
     let async_function = source
         .arena
         .node(variable_initializer(7))
-        .data
+        .data()
         .as_function_expression()
         .expect("async function expression");
     let async_body = source
         .arena
         .node(async_function.body.expect("async body"))
-        .data
+        .data()
         .as_block()
         .expect("async body block");
     let async_statements = source
@@ -1868,7 +1868,7 @@ fn parse_unary_update_await_and_yield_shapes() {
     let await_expression = source
         .arena
         .node(async_statements.nodes[0])
-        .data
+        .data()
         .as_expression_statement()
         .expect("await expression statement")
         .expression
@@ -1883,7 +1883,7 @@ fn expression_statements(source: &SourceFile) -> Vec<NodeId> {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -1896,7 +1896,7 @@ fn expression_statements(source: &SourceFile) -> Vec<NodeId> {
             source
                 .arena
                 .node(statement)
-                .data
+                .data()
                 .as_expression_statement()
                 .expect("expression statement")
                 .expression
@@ -1909,7 +1909,7 @@ fn binary_parts(source: &SourceFile, id: NodeId) -> (NodeId, SyntaxKind, NodeId)
     let binary = source
         .arena
         .node(id)
-        .data
+        .data()
         .as_binary_expression()
         .expect("binary expression");
     (
@@ -2081,7 +2081,7 @@ fn assignment_to_non_lhs_leaves_equals_for_outer_context() {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -2090,7 +2090,7 @@ fn assignment_to_non_lhs_leaves_equals_for_outer_context() {
     let first = source
         .arena
         .node(statements.nodes[0])
-        .data
+        .data()
         .as_expression_statement()
         .expect("expression statement")
         .expression
@@ -2113,7 +2113,7 @@ fn parse_conditional_expression_shapes() {
     let conditional = source
         .arena
         .node(expressions[0])
-        .data
+        .data()
         .as_conditional_expression()
         .expect("conditional expression");
     let when_false = conditional.when_false.expect("when false");
@@ -2137,7 +2137,7 @@ fn conditional_missing_colon_recovers_with_missing_when_false() {
     let conditional = source
         .arena
         .node(expressions[0])
-        .data
+        .data()
         .as_conditional_expression()
         .expect("conditional expression");
     let colon = conditional.colon_token.expect("colon token");
@@ -2171,7 +2171,7 @@ fn parse_arrow_function_shapes() {
     let simple = source
         .arena
         .node(expressions[0])
-        .data
+        .data()
         .as_arrow_function()
         .expect("simple arrow");
     let simple_parameters = source
@@ -2183,7 +2183,7 @@ fn parse_arrow_function_shapes() {
     let two_parameters = source
         .arena
         .node(expressions[1])
-        .data
+        .data()
         .as_arrow_function()
         .expect("two-parameter arrow");
     assert_eq!(
@@ -2198,7 +2198,7 @@ fn parse_arrow_function_shapes() {
     let rest = source
         .arena
         .node(expressions[3])
-        .data
+        .data()
         .as_arrow_function()
         .expect("rest arrow");
     let rest_parameters = source
@@ -2207,7 +2207,7 @@ fn parse_arrow_function_shapes() {
     let rest_parameter = source
         .arena
         .node(rest_parameters.nodes[0])
-        .data
+        .data()
         .as_parameter()
         .expect("rest parameter");
     assert!(rest_parameter.dot_dot_dot_token.is_some());
@@ -2215,7 +2215,7 @@ fn parse_arrow_function_shapes() {
     let block_body = source
         .arena
         .node(expressions[4])
-        .data
+        .data()
         .as_arrow_function()
         .expect("block-body arrow");
     assert_eq!(
@@ -2241,7 +2241,7 @@ fn parse_async_arrow_and_line_break_asi() {
         let arrow = source
             .arena
             .node(expression)
-            .data
+            .data()
             .as_arrow_function()
             .expect("async arrow");
         assert!(arrow.modifiers.is_some());
@@ -2290,7 +2290,7 @@ fn conditional_when_true_rejects_arrow_return_type() {
     let conditional = source
         .arena
         .node(expressions[0])
-        .data
+        .data()
         .as_conditional_expression()
         .expect("conditional expression");
     assert_eq!(
@@ -2323,13 +2323,13 @@ fn function_expression_parses_real_parameters() {
     let parenthesized = source
         .arena
         .node(expressions[0])
-        .data
+        .data()
         .as_parenthesized_expression()
         .expect("parenthesized expression");
     let function = source
         .arena
         .node(parenthesized.expression.expect("function expression"))
-        .data
+        .data()
         .as_function_expression()
         .expect("function expression");
     let parameters = source
@@ -2339,7 +2339,7 @@ fn function_expression_parses_real_parameters() {
     let default_parameter = source
         .arena
         .node(parameters.nodes[2])
-        .data
+        .data()
         .as_parameter()
         .expect("defaulted parameter");
     assert!(default_parameter.initializer.is_some());
@@ -2440,7 +2440,7 @@ fn delimited_list_trailing_comma_is_the_list_extending_past_its_last_element() {
             .node_ids()
             .find(|id| parsed.arena.node(*id).kind == SyntaxKind::ObjectLiteralExpression)
             .expect("object literal");
-        let NodeData::ObjectLiteralExpression(data) = &parsed.arena.node(literal).data else {
+        let NodeData::ObjectLiteralExpression(data) = &parsed.arena.node(literal).data() else {
             unreachable!("object literal data")
         };
         let properties = parsed
@@ -2512,7 +2512,7 @@ fn variable_types(source: &SourceFile) -> Vec<NodeId> {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -2522,13 +2522,13 @@ fn variable_types(source: &SourceFile) -> Vec<NodeId> {
         .nodes
         .iter()
         .map(|&statement| {
-            let NodeData::VariableStatement(data) = &source.arena.node(statement).data else {
+            let NodeData::VariableStatement(data) = &source.arena.node(statement).data() else {
                 panic!("expected variable statement");
             };
             let list = source
                 .arena
                 .node(data.declaration_list.expect("declaration list"))
-                .data
+                .data()
                 .as_variable_declaration_list()
                 .expect("variable declaration list");
             let declarations = source
@@ -2537,7 +2537,7 @@ fn variable_types(source: &SourceFile) -> Vec<NodeId> {
             source
                 .arena
                 .node(declarations.nodes[0])
-                .data
+                .data()
                 .as_variable_declaration()
                 .expect("variable declaration")
                 .r#type
@@ -2559,16 +2559,16 @@ fn parse_type_reference_and_postfix_shapes() {
     let types = variable_types(&source);
     assert_eq!(source.arena.node(types[0]).kind, SyntaxKind::StringKeyword);
 
-    let NodeData::TypeReference(array_ref) = &source.arena.node(types[1]).data else {
+    let NodeData::TypeReference(array_ref) = &source.arena.node(types[1]).data() else {
         panic!("expected type reference");
     };
     assert!(array_ref.type_arguments.is_some());
 
-    let NodeData::ArrayType(array) = &source.arena.node(types[2]).data else {
+    let NodeData::ArrayType(array) = &source.arena.node(types[2]).data() else {
         panic!("expected array type");
     };
     let NodeData::TypeReference(qualified) =
-        &source.arena.node(array.element_type.expect("element")).data
+        &source.arena.node(array.element_type.expect("element")).data()
     else {
         panic!("expected type reference element");
     };
@@ -2606,7 +2606,7 @@ fn parse_union_intersection_and_type_operators() {
 
     assert!(source.parse_diagnostics.is_empty());
     let types = variable_types(&source);
-    let NodeData::UnionType(union) = &source.arena.node(types[0]).data else {
+    let NodeData::UnionType(union) = &source.arena.node(types[0]).data() else {
         panic!("expected union type");
     };
     let members = source.arena.node_array(union.types.expect("types"));
@@ -2616,7 +2616,7 @@ fn parse_union_intersection_and_type_operators() {
         SyntaxKind::IntersectionType
     );
     assert_eq!(source.arena.node(types[1]).kind, SyntaxKind::TypeOperator);
-    let NodeData::TypeOperator(readonly_array) = &source.arena.node(types[2]).data else {
+    let NodeData::TypeOperator(readonly_array) = &source.arena.node(types[2]).data() else {
         panic!("expected type operator");
     };
     assert_eq!(
@@ -2640,7 +2640,7 @@ fn parse_object_type_member_shapes() {
 
     assert!(source.parse_diagnostics.is_empty());
     let types = variable_types(&source);
-    let NodeData::TypeLiteral(literal) = &source.arena.node(types[0]).data else {
+    let NodeData::TypeLiteral(literal) = &source.arena.node(types[0]).data() else {
         panic!("expected type literal");
     };
     let members = source.arena.node_array(literal.members.expect("members"));
@@ -2662,7 +2662,7 @@ fn parse_object_type_member_shapes() {
             SyntaxKind::SetAccessor,
         ]
     );
-    let NodeData::PropertySignature(readonly_property) = &source.arena.node(members.nodes[1]).data
+    let NodeData::PropertySignature(readonly_property) = &source.arena.node(members.nodes[1]).data()
     else {
         panic!("expected property signature");
     };
@@ -2681,7 +2681,7 @@ fn parse_tuple_function_and_constructor_types() {
 
     assert!(source.parse_diagnostics.is_empty());
     let types = variable_types(&source);
-    let NodeData::TupleType(tuple) = &source.arena.node(types[0]).data else {
+    let NodeData::TupleType(tuple) = &source.arena.node(types[0]).data() else {
         panic!("expected tuple type");
     };
     let elements = source.arena.node_array(tuple.elements.expect("elements"));
@@ -2704,7 +2704,7 @@ fn parse_tuple_function_and_constructor_types() {
         source.arena.node(types[2]).kind,
         SyntaxKind::ConstructorType
     );
-    let NodeData::ConstructorType(abstract_ctor) = &source.arena.node(types[3]).data else {
+    let NodeData::ConstructorType(abstract_ctor) = &source.arena.node(types[3]).data() else {
         panic!("expected constructor type");
     };
     assert!(abstract_ctor.modifiers.is_some());
@@ -2725,26 +2725,26 @@ fn parse_conditional_infer_typeof_and_import_types() {
         source.arena.node(types[0]).kind,
         SyntaxKind::ConditionalType
     );
-    let NodeData::ConditionalType(conditional) = &source.arena.node(types[1]).data else {
+    let NodeData::ConditionalType(conditional) = &source.arena.node(types[1]).data() else {
         panic!("expected conditional type");
     };
     let NodeData::InferType(infer) = &source
         .arena
         .node(conditional.extends_type.expect("extends type"))
-        .data
+        .data()
     else {
         panic!("expected infer type");
     };
     let NodeData::TypeParameter(infer_parameter) = &source
         .arena
         .node(infer.type_parameter.expect("type parameter"))
-        .data
+        .data()
     else {
         panic!("expected type parameter");
     };
     assert!(infer_parameter.constraint.is_some());
 
-    let NodeData::TypeQuery(query) = &source.arena.node(types[2]).data else {
+    let NodeData::TypeQuery(query) = &source.arena.node(types[2]).data() else {
         panic!("expected type query");
     };
     assert_eq!(
@@ -2752,7 +2752,7 @@ fn parse_conditional_infer_typeof_and_import_types() {
         SyntaxKind::QualifiedName
     );
 
-    let NodeData::ImportType(import_type) = &source.arena.node(types[3]).data else {
+    let NodeData::ImportType(import_type) = &source.arena.node(types[3]).data() else {
         panic!("expected import type");
     };
     assert!(import_type.qualifier.is_some());
@@ -2771,7 +2771,7 @@ fn parse_mapped_and_template_literal_types() {
 
     assert!(source.parse_diagnostics.is_empty());
     let types = variable_types(&source);
-    let NodeData::MappedType(mapped) = &source.arena.node(types[0]).data else {
+    let NodeData::MappedType(mapped) = &source.arena.node(types[0]).data() else {
         panic!("expected mapped type");
     };
     assert!(mapped.readonly_token.is_some());
@@ -2782,7 +2782,7 @@ fn parse_mapped_and_template_literal_types() {
         SyntaxKind::IndexedAccessType
     );
 
-    let NodeData::TemplateLiteralType(template) = &source.arena.node(types[1]).data else {
+    let NodeData::TemplateLiteralType(template) = &source.arena.node(types[1]).data() else {
         panic!("expected template literal type");
     };
     let spans = source
@@ -2808,7 +2808,7 @@ fn parse_type_predicates_in_return_types() {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -2816,13 +2816,13 @@ fn parse_type_predicates_in_return_types() {
         .node_array(root.statements.expect("statements"));
 
     let function_return_type = |statement: NodeId| {
-        let NodeData::VariableStatement(data) = &source.arena.node(statement).data else {
+        let NodeData::VariableStatement(data) = &source.arena.node(statement).data() else {
             panic!("expected variable statement");
         };
         let list = source
             .arena
             .node(data.declaration_list.expect("list"))
-            .data
+            .data()
             .as_variable_declaration_list()
             .expect("declaration list");
         let declarations = source
@@ -2831,13 +2831,13 @@ fn parse_type_predicates_in_return_types() {
         let declaration = source
             .arena
             .node(declarations.nodes[0])
-            .data
+            .data()
             .as_variable_declaration()
             .expect("variable declaration");
         let NodeData::FunctionExpression(function) = &source
             .arena
             .node(declaration.initializer.expect("initializer"))
-            .data
+            .data()
         else {
             panic!("expected function expression");
         };
@@ -2845,25 +2845,25 @@ fn parse_type_predicates_in_return_types() {
     };
 
     let predicate = function_return_type(statements.nodes[0]);
-    let NodeData::TypePredicate(data) = &source.arena.node(predicate).data else {
+    let NodeData::TypePredicate(data) = &source.arena.node(predicate).data() else {
         panic!("expected type predicate");
     };
     assert!(data.asserts_modifier.is_none());
 
     let asserts_predicate = function_return_type(statements.nodes[1]);
-    let NodeData::TypePredicate(asserts_data) = &source.arena.node(asserts_predicate).data else {
+    let NodeData::TypePredicate(asserts_data) = &source.arena.node(asserts_predicate).data() else {
         panic!("expected asserts predicate");
     };
     assert!(asserts_data.asserts_modifier.is_some());
 
-    let NodeData::VariableStatement(h_statement) = &source.arena.node(statements.nodes[2]).data
+    let NodeData::VariableStatement(h_statement) = &source.arena.node(statements.nodes[2]).data()
     else {
         panic!("expected variable statement");
     };
     let h_list = source
         .arena
         .node(h_statement.declaration_list.expect("list"))
-        .data
+        .data()
         .as_variable_declaration_list()
         .expect("declaration list");
     let h_declarations = source
@@ -2872,20 +2872,20 @@ fn parse_type_predicates_in_return_types() {
     let h_type = source
         .arena
         .node(h_declarations.nodes[0])
-        .data
+        .data()
         .as_variable_declaration()
         .expect("variable declaration")
         .r#type
         .expect("type annotation");
-    let NodeData::TypeLiteral(literal) = &source.arena.node(h_type).data else {
+    let NodeData::TypeLiteral(literal) = &source.arena.node(h_type).data() else {
         panic!("expected type literal");
     };
     let members = source.arena.node_array(literal.members.expect("members"));
-    let NodeData::MethodSignature(method) = &source.arena.node(members.nodes[0]).data else {
+    let NodeData::MethodSignature(method) = &source.arena.node(members.nodes[0]).data() else {
         panic!("expected method signature");
     };
     let NodeData::TypePredicate(this_predicate) =
-        &source.arena.node(method.r#type.expect("return type")).data
+        &source.arena.node(method.r#type.expect("return type")).data()
     else {
         panic!("expected this predicate");
     };
@@ -2911,7 +2911,7 @@ fn parse_generic_arrow_type_assertion_and_object_accessors() {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     let statements = source
@@ -2919,13 +2919,13 @@ fn parse_generic_arrow_type_assertion_and_object_accessors() {
         .node_array(root.statements.expect("statements"));
 
     let initializer = |statement: NodeId| {
-        let NodeData::VariableStatement(data) = &source.arena.node(statement).data else {
+        let NodeData::VariableStatement(data) = &source.arena.node(statement).data() else {
             panic!("expected variable statement");
         };
         let list = source
             .arena
             .node(data.declaration_list.expect("list"))
-            .data
+            .data()
             .as_variable_declaration_list()
             .expect("declaration list");
         let declarations = source
@@ -2934,14 +2934,14 @@ fn parse_generic_arrow_type_assertion_and_object_accessors() {
         source
             .arena
             .node(declarations.nodes[0])
-            .data
+            .data()
             .as_variable_declaration()
             .expect("variable declaration")
             .initializer
             .expect("initializer")
     };
 
-    let NodeData::ArrowFunction(arrow) = &source.arena.node(initializer(statements.nodes[0])).data
+    let NodeData::ArrowFunction(arrow) = &source.arena.node(initializer(statements.nodes[0])).data()
     else {
         panic!("expected arrow function");
     };
@@ -2949,21 +2949,21 @@ fn parse_generic_arrow_type_assertion_and_object_accessors() {
     assert!(arrow.r#type.is_some());
 
     let NodeData::TypeAssertionExpression(assertion) =
-        &source.arena.node(initializer(statements.nodes[1])).data
+        &source.arena.node(initializer(statements.nodes[1])).data()
     else {
         panic!("expected type assertion");
     };
     let NodeData::TypeReference(assertion_type) = &source
         .arena
         .node(assertion.r#type.expect("assertion type"))
-        .data
+        .data()
     else {
         panic!("expected type reference");
     };
     assert!(assertion_type.type_arguments.is_some());
 
     let NodeData::ObjectLiteralExpression(object) =
-        &source.arena.node(initializer(statements.nodes[2])).data
+        &source.arena.node(initializer(statements.nodes[2])).data()
     else {
         panic!("expected object literal");
     };
@@ -2983,7 +2983,7 @@ fn parse_generic_arrow_type_assertion_and_object_accessors() {
             SyntaxKind::MethodDeclaration,
         ]
     );
-    let NodeData::MethodDeclaration(method) = &source.arena.node(properties.nodes[2]).data else {
+    let NodeData::MethodDeclaration(method) = &source.arena.node(properties.nodes[2]).data() else {
         panic!("expected method declaration");
     };
     assert!(method.modifiers.is_some());
@@ -3013,7 +3013,7 @@ fn union_function_type_error_and_type_expected_recovery() {
     );
 
     let types = variable_types(&source);
-    let NodeData::UnionType(union) = &source.arena.node(types[0]).data else {
+    let NodeData::UnionType(union) = &source.arena.node(types[0]).data() else {
         panic!("expected union type");
     };
     let members = source.arena.node_array(union.types.expect("types"));
@@ -3027,7 +3027,7 @@ fn statement_kinds(source: &SourceFile) -> Vec<SyntaxKind> {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     source
@@ -3043,7 +3043,7 @@ fn statement_nodes(source: &SourceFile) -> Vec<NodeId> {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file root");
     source
@@ -3068,7 +3068,7 @@ fn parse_class_declaration_shapes() {
         source.parse_diagnostics
     );
     let statements = statement_nodes(&source);
-    let NodeData::ClassDeclaration(class) = &source.arena.node(statements[0]).data else {
+    let NodeData::ClassDeclaration(class) = &source.arena.node(statements[0]).data() else {
         panic!("expected class declaration");
     };
     assert!(class.modifiers.is_some());
@@ -3139,7 +3139,7 @@ fn parse_interface_type_alias_and_enum() {
         ]
     );
     let statements = statement_nodes(&source);
-    let NodeData::TypeAliasDeclaration(intrinsic_alias) = &source.arena.node(statements[2]).data
+    let NodeData::TypeAliasDeclaration(intrinsic_alias) = &source.arena.node(statements[2]).data()
     else {
         panic!("expected type alias");
     };
@@ -3150,7 +3150,7 @@ fn parse_interface_type_alias_and_enum() {
             .kind,
         SyntaxKind::IntrinsicKeyword
     );
-    let NodeData::EnumDeclaration(enum_declaration) = &source.arena.node(statements[3]).data else {
+    let NodeData::EnumDeclaration(enum_declaration) = &source.arena.node(statements[3]).data() else {
         panic!("expected enum declaration");
     };
     assert!(enum_declaration.modifiers.is_some());
@@ -3189,7 +3189,7 @@ fn parse_namespace_and_ambient_modules() {
         ]
     );
     // namespace a.b desugars into a nested module declaration.
-    let NodeData::ModuleDeclaration(outer) = &source.arena.node(statements[0]).data else {
+    let NodeData::ModuleDeclaration(outer) = &source.arena.node(statements[0]).data() else {
         panic!("expected module declaration");
     };
     let body = outer.body.expect("body");
@@ -3197,7 +3197,7 @@ fn parse_namespace_and_ambient_modules() {
     assert!(
         NodeFlags::from_bits(source.arena.node(body).flags).contains(NodeFlags::NESTED_NAMESPACE)
     );
-    let NodeData::ModuleDeclaration(global) = &source.arena.node(statements[2]).data else {
+    let NodeData::ModuleDeclaration(global) = &source.arena.node(statements[2]).data() else {
         panic!("expected global augmentation");
     };
     assert!(NodeFlags::from_bits(source.arena.node(statements[2]).flags)
@@ -3226,11 +3226,11 @@ fn an_ambient_module_declaration_parses_its_import_attributes_type_like_tsgo() {
     let statements = statement_nodes(&source);
     for (&statement, has_body) in statements.iter().zip([true, false]) {
         let node = source.arena.node(statement);
-        let NodeData::ModuleDeclaration(module) = &node.data else {
+        let NodeData::ModuleDeclaration(module) = &node.data() else {
             panic!("expected module declaration");
         };
         let attributes = module.attributes.expect("import attributes type");
-        let NodeData::TypeLiteral(literal) = &source.arena.node(attributes).data else {
+        let NodeData::TypeLiteral(literal) = &source.arena.node(attributes).data() else {
             panic!("expected a type literal");
         };
         let members = literal.members.expect("members");
@@ -3282,13 +3282,13 @@ fn parse_import_and_export_forms() {
         ]
     );
     let statements = statement_nodes(&source);
-    let NodeData::ImportDeclaration(first) = &source.arena.node(statements[0]).data else {
+    let NodeData::ImportDeclaration(first) = &source.arena.node(statements[0]).data() else {
         panic!("expected import declaration");
     };
     let NodeData::ImportClause(clause) = &source
         .arena
         .node(first.import_clause.expect("import clause"))
-        .data
+        .data()
     else {
         panic!("expected import clause");
     };
@@ -3296,7 +3296,7 @@ fn parse_import_and_export_forms() {
     let NodeData::NamedImports(named) = &source
         .arena
         .node(clause.named_bindings.expect("named bindings"))
-        .data
+        .data()
     else {
         panic!("expected named imports");
     };
@@ -3308,7 +3308,7 @@ fn parse_import_and_export_forms() {
             .len(),
         2
     );
-    let NodeData::ImportEqualsDeclaration(equals) = &source.arena.node(statements[3]).data else {
+    let NodeData::ImportEqualsDeclaration(equals) = &source.arena.node(statements[3]).data() else {
         panic!("expected import equals");
     };
     assert_eq!(
@@ -3318,7 +3318,7 @@ fn parse_import_and_export_forms() {
             .kind,
         SyntaxKind::ExternalModuleReference
     );
-    let NodeData::ImportDeclaration(side_effect) = &source.arena.node(statements[9]).data else {
+    let NodeData::ImportDeclaration(side_effect) = &source.arena.node(statements[9]).data() else {
         panic!("expected side-effect import");
     };
     assert!(side_effect.import_clause.is_none());
@@ -3368,11 +3368,11 @@ fn legacy_module_call_import_equals_recovers_as_internal_reference() {
             SyntaxKind::VariableStatement,
         ]
     );
-    let NodeData::ImportEqualsDeclaration(import) = &source.arena.node(statements[0]).data else {
+    let NodeData::ImportEqualsDeclaration(import) = &source.arena.node(statements[0]).data() else {
         unreachable!()
     };
     let reference = import.module_reference.expect("module reference");
-    let NodeData::Identifier(identifier) = &source.arena.node(reference).data else {
+    let NodeData::Identifier(identifier) = &source.arena.node(reference).data() else {
         panic!("expected recovered identifier module reference")
     };
     assert_eq!(identifier.escaped_text, "module");
@@ -3808,7 +3808,7 @@ fn jsdoc_typedef_properties_and_satisfies_are_arena_nodes() {
     let root = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("source file");
     let statement = source
@@ -3823,7 +3823,7 @@ fn jsdoc_typedef_properties_and_satisfies_are_arena_nodes() {
     let doc = source.arena.node_array(doc_array).nodes[0];
     assert_eq!(source.arena.node(doc).parent, Some(statement));
     assert!(NodeFlags::from_bits(source.arena.node(doc).flags).contains(NodeFlags::JS_DOC));
-    let NodeData::JSDoc(data) = &source.arena.node(doc).data else {
+    let NodeData::JSDoc(data) = &source.arena.node(doc).data() else {
         panic!("JSDoc root");
     };
     let tags = &source
@@ -3832,12 +3832,12 @@ fn jsdoc_typedef_properties_and_satisfies_are_arena_nodes() {
         .nodes;
     assert_eq!(tags.len(), 1);
     let typedef = tags[0];
-    let NodeData::JSDocTypedefTag(data) = &source.arena.node(typedef).data else {
+    let NodeData::JSDocTypedefTag(data) = &source.arena.node(typedef).data() else {
         panic!("typedef tag");
     };
     assert_eq!(source.arena.node(typedef).parent, Some(doc));
     let type_literal = data.type_expression.expect("typedef type literal");
-    let NodeData::JSDocTypeLiteral(data) = &source.arena.node(type_literal).data else {
+    let NodeData::JSDocTypeLiteral(data) = &source.arena.node(type_literal).data() else {
         panic!("JSDoc type literal");
     };
     let properties = &source
@@ -3869,14 +3869,14 @@ fn jsdoc_typedef_properties_and_satisfies_are_arena_nodes() {
         .arena
         .node_array(source.arena.node(paren).js_doc.expect("inline docs"))
         .nodes[0];
-    let NodeData::JSDoc(inline) = &source.arena.node(inline_doc).data else {
+    let NodeData::JSDoc(inline) = &source.arena.node(inline_doc).data() else {
         panic!("inline JSDoc");
     };
     let satisfies = source
         .arena
         .node_array(inline.tags.expect("inline tag"))
         .nodes[0];
-    let NodeData::JSDocSatisfiesTag(satisfies_data) = &source.arena.node(satisfies).data else {
+    let NodeData::JSDocSatisfiesTag(satisfies_data) = &source.arena.node(satisfies).data() else {
         panic!("satisfies tag");
     };
     let type_expression = satisfies_data
@@ -3884,7 +3884,7 @@ fn jsdoc_typedef_properties_and_satisfies_are_arena_nodes() {
         .expect("satisfies type expression");
     let tag_name = satisfies_data.tag_name.expect("tag name");
     let NodeData::JSDocTypeExpression(type_expression_data) =
-        &source.arena.node(type_expression).data
+        &source.arena.node(type_expression).data()
     else {
         panic!("JSDoc type expression");
     };
@@ -4073,7 +4073,7 @@ fn jsdoc_type_syntax_follows_tsgo() {
     }
     let function_name = nodes_of_kind(&source, SyntaxKind::TypeReference)
         .into_iter()
-        .filter_map(|reference| match &source.arena.node(reference).data {
+        .filter_map(|reference| match &source.arena.node(reference).data() {
             NodeData::TypeReference(data) => data.type_name,
             _ => None,
         })
@@ -4084,7 +4084,7 @@ fn jsdoc_type_syntax_follows_tsgo() {
     assert!(function_name.is_some());
     let nullable = nodes_of_kind(&source, SyntaxKind::JSDocNullableType);
     let non_nullable = nodes_of_kind(&source, SyntaxKind::JSDocNonNullableType);
-    let operand = |id: NodeId| match &source.arena.node(id).data {
+    let operand = |id: NodeId| match &source.arena.node(id).data() {
         NodeData::JSDocNullableType(data) => data.r#type,
         NodeData::JSDocNonNullableType(data) => data.r#type,
         _ => None,
@@ -4125,13 +4125,13 @@ fn jsdoc_fenced_code_blocks_and_at_signs_follow_tsgo() {
         .arena
         .node_array(source.arena.node(function).js_doc.expect("JSDoc"))
         .nodes[0];
-    let NodeData::JSDoc(data) = &source.arena.node(doc).data else {
+    let NodeData::JSDoc(data) = &source.arena.node(doc).data() else {
         panic!("JSDoc");
     };
     let tags = source.arena.node_array(data.tags.expect("tags")).nodes;
     let summary = tags
         .iter()
-        .map(|&tag| match &source.arena.node(tag).data {
+        .map(|&tag| match &source.arena.node(tag).data() {
             NodeData::JSDocSeeTag(see) => (SyntaxKind::JSDocSeeTag, see.name.is_some()),
             NodeData::JSDocParameterTag(param) => {
                 (SyntaxKind::JSDocParameterTag, param.name.is_some())

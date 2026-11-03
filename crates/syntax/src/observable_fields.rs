@@ -16,7 +16,7 @@ pub fn for_each_observable_field<'a, F>(node: &'a Node, mut cb: F)
 where
     F: FnMut(&'static str, ObservableField<'a>),
 {
-    match &node.data {
+    match node.data() {
         NodeData::Token => {}
         NodeData::ArrayBindingPattern(data) => {
             if let Some(value) = data.elements {

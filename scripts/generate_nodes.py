@@ -348,7 +348,11 @@ pub struct Node {
     pub js_doc: Option<NodeArrayId>,
     /// tsc Node.transformFlags lives beside the records in `NodeArena`,
     /// written only on an emit session's copy of a tree.
-    pub data: NodeData,
+    ///
+    /// The payload, read through [`Node::data`] and replaced through
+    /// [`Node::set_data`]: the record's layout is the generator's, so no
+    /// reader names the field.
+    data: NodeData,
 }
 
 // A large Program holds tens of millions of node records, so their size
@@ -433,6 +437,39 @@ fn tri_state_bits(value: Option<bool>) -> u16 {
 }
 
 impl Node {
+    /// A fresh record: `kind` and `data` at `pos..end` with `flags`, no
+    /// parent, no JSDoc and no literal facts yet.
+    pub(crate) fn new(kind: SyntaxKind, data: NodeData, pos: u32, end: u32, flags: i32) -> Self {
+        Node {
+            kind,
+            literal_flags: 0,
+            flags,
+            pos,
+            end,
+            parent: None,
+            js_doc: None,
+            data,
+        }
+    }
+
+    /// The node's payload.
+    #[inline(always)]
+    pub fn data(&self) -> &NodeData {
+        &self.data
+    }
+
+    /// The node's payload for editing in place.
+    #[inline(always)]
+    pub fn data_mut(&mut self) -> &mut NodeData {
+        &mut self.data
+    }
+
+    /// Replace the node's payload.
+    #[inline]
+    pub fn set_data(&mut self, data: NodeData) {
+        self.data = data;
+    }
+
     /// This record's scalar facts with another payload: a probe for the
     /// emitter's flag classifier that clones no payload of its own.
     pub fn with_data(&self, data: NodeData) -> Node {
@@ -848,7 +885,7 @@ def render_children(kind, out, line, node_kind):
 def render_for_each_child_rs(kinds):
     out = [HEADER, "", FOR_EACH_CHILD_PRELUDE]
     out.append("pub fn for_each_child<L, F>(lookup: &L, node: &Node, mut cb: F) -> Option<NodeId>")
-    out += ["where", "L: NodeLookup,", "F: FnMut(NodeId) -> bool,", "{", "match &node.data {"]
+    out += ["where", "L: NodeLookup,", "F: FnMut(NodeId) -> bool,", "{", "match node.data() {"]
     out.append("NodeData::Token => None,")
     for kind in kinds:
         if not kind.children:
@@ -860,7 +897,7 @@ def render_for_each_child_rs(kinds):
     out += ["}", "}", ""]
 
     out.append("pub fn for_each_child_array<F>(node: &Node, mut cb: F) -> Option<NodeArrayId>")
-    out += ["where", "F: FnMut(NodeArrayId) -> bool,", "{", "match &node.data {"]
+    out += ["where", "F: FnMut(NodeArrayId) -> bool,", "{", "match node.data() {"]
     out.append("NodeData::Token => None,")
     for kind in kinds:
         arrays = [
@@ -1159,7 +1196,7 @@ def render_observable_field(field):
 def render_observable_fields_rs(kinds):
     out = [HEADER, "", OBSERVABLE_PRELUDE]
     out.append("pub fn for_each_observable_field<'a, F>(node: &'a Node, mut cb: F)")
-    out += ["where", "F: FnMut(&'static str, ObservableField<'a>),", "{", "match &node.data {"]
+    out += ["where", "F: FnMut(&'static str, ObservableField<'a>),", "{", "match node.data() {"]
     out.append("NodeData::Token => {}")
     for kind in kinds:
         fields = sorted(

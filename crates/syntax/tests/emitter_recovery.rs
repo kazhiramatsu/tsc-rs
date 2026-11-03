@@ -134,7 +134,7 @@ fn await_reparse_respects_factory_child_and_name_boundaries() {
                 "message": d.message.text.to_string_lossy()})
             })
             .collect();
-        let tsc_syntax::NodeData::SourceFile(data) = &source.arena.node(source.root).data else {
+        let tsc_syntax::NodeData::SourceFile(data) = &source.arena.node(source.root).data() else {
             unreachable!()
         };
         let statements: Vec<_> = source.arena.node_array(data.statements.unwrap()).nodes.iter().map(|id| {

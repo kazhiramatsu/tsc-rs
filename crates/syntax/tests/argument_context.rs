@@ -38,7 +38,7 @@ fn decorator_call_arguments_are_outside_the_decorator_context() {
     assert!(matches!(
         file.arena
             .node(file.arena.node(access).parent.unwrap())
-            .data,
+            .data(),
         NodeData::CallExpression(_)
     ));
 }
@@ -52,7 +52,7 @@ fn arguments_in_a_for_initializer_allow_in() {
         file.parse_diagnostics
     );
     let binary = find(&file, SyntaxKind::BinaryExpression);
-    let NodeData::BinaryExpression(data) = &file.arena.node(binary).data else {
+    let NodeData::BinaryExpression(data) = &file.arena.node(binary).data() else {
         unreachable!()
     };
     assert_eq!(

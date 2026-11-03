@@ -51,7 +51,7 @@ pub fn template_tag_host(source: &SourceFile, tag: NodeId) -> Option<NodeId> {
 /// in a table of the comment, which a name in any of its overloads reaches.
 pub fn overload_template_comment(source: &SourceFile, tag: NodeId) -> Option<NodeId> {
     let document = source.arena.node(tag).parent?;
-    let NodeData::JSDoc(data) = &source.arena.node(document).data else {
+    let NodeData::JSDoc(data) = &source.arena.node(document).data() else {
         return None;
     };
     let tags = data
@@ -60,7 +60,7 @@ pub fn overload_template_comment(source: &SourceFile, tag: NodeId) -> Option<Nod
     tags.iter()
         .any(|&candidate| {
             matches!(
-                &source.arena.node(candidate).data,
+                &source.arena.node(candidate).data(),
                 NodeData::JSDocOverloadTag(_)
             ) && reparsed_overload_host(source, candidate).is_some()
         })
@@ -73,13 +73,13 @@ pub fn overload_template_comment(source: &SourceFile, tag: NodeId) -> Option<Nod
 /// last tag's end (the next tag's `@`, or the comment's close).
 pub fn typedef_type_parameter_range(source: &SourceFile, tag: NodeId) -> Option<(u32, u32)> {
     let js_doc = source.arena.node(tag).parent?;
-    let NodeData::JSDoc(document) = &source.arena.node(js_doc).data else {
+    let NodeData::JSDoc(document) = &source.arena.node(js_doc).data() else {
         return None;
     };
     let mut range: Option<(u32, u32)> = None;
     for &candidate in source.arena.node_array(document.tags?).nodes {
         let node = source.arena.node(candidate);
-        if matches!(node.data, NodeData::JSDocTemplateTag(_)) {
+        if matches!(node.data(), NodeData::JSDocTemplateTag(_)) {
             range = Some((range.map_or(node.pos, |(pos, _)| pos), node.end));
         }
     }
@@ -123,7 +123,7 @@ pub fn reparsed_overload_host(tree: &impl NodeLookup, tag: NodeId) -> Option<Nod
 /// reparser.go getFunctionLikeHost (657-676): the function a hosted tag on
 /// `host` annotates.
 pub fn function_like_host(source: &SourceFile, host: NodeId) -> Option<NodeId> {
-    let data = |node: NodeId| &source.arena.node(node).data;
+    let data = |node: NodeId| source.arena.node(node).data();
     let expression = |node: NodeId| match data(node) {
         NodeData::ExpressionStatement(data) => data.expression,
         NodeData::ReturnStatement(data) => data.expression,
@@ -226,7 +226,7 @@ impl Reparser<'_, '_> {
     }
 
     fn data(&self, node: NodeId) -> &NodeData {
-        &self.source.arena.node(node).data
+        &self.source.arena.node(node).data()
     }
 
     fn nodes(&self, array: Option<tsc_syntax::NodeArrayId>) -> &[NodeId] {

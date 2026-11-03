@@ -41,7 +41,7 @@ pub fn get_assignment_declaration_kind(
     expr: NodeId,
 ) -> AssignmentDeclarationKind {
     let in_js = node_flags(tree, expr).intersects(NodeFlags::JAVA_SCRIPT_FILE);
-    match &tree.node(expr).data {
+    match &tree.node(expr).data() {
         NodeData::BinaryExpression(data) => {
             let (Some(left), Some(operator)) = (data.left, data.operator_token) else {
                 return AssignmentDeclarationKind::None;
@@ -70,7 +70,7 @@ pub fn get_assignment_declaration_kind(
                     return AssignmentDeclarationKind::ThisProperty;
                 }
             }
-            let is_property = match &tree.node(left).data {
+            let is_property = match &tree.node(left).data() {
                 NodeData::PropertyAccessExpression(access) => {
                     access
                         .name
@@ -110,7 +110,7 @@ pub fn get_assignment_declaration_kind(
 /// an identifier or a dotted identifier chain; with `allow_js`, also
 /// `this` and string/numeric literal element accesses.
 pub fn is_entity_name_expression_ex(tree: &impl NodeLookup, node: NodeId, allow_js: bool) -> bool {
-    match &tree.node(node).data {
+    match &tree.node(node).data() {
         NodeData::Identifier(_) => true,
         NodeData::PropertyAccessExpression(data) => {
             data.name
@@ -145,7 +145,7 @@ pub fn get_assignment_declaration_name(
     ) {
         let parent = parent_of(tree, declaration)?;
         if matches!(
-            &tree.node(parent).data,
+            &tree.node(parent).data(),
             NodeData::BinaryExpression(data) if data.left == Some(declaration)
         ) && get_assignment_declaration_kind(tree, parent) != AssignmentDeclarationKind::None
         {
@@ -157,14 +157,14 @@ pub fn get_assignment_declaration_name(
         AssignmentDeclarationKind::ExportsProperty
         | AssignmentDeclarationKind::ThisProperty
         | AssignmentDeclarationKind::Property => {
-            let NodeData::BinaryExpression(data) = &tree.node(declaration).data else {
+            let NodeData::BinaryExpression(data) = &tree.node(declaration).data() else {
                 return None;
             };
             get_element_or_property_access_argument_expression_or_name(tree, data.left?)
         }
         AssignmentDeclarationKind::ObjectDefinePropertyValue
         | AssignmentDeclarationKind::ObjectDefinePropertyExports => {
-            let NodeData::CallExpression(data) = &tree.node(declaration).data else {
+            let NodeData::CallExpression(data) = &tree.node(declaration).data() else {
                 return None;
             };
             let arguments = data.arguments?;
@@ -198,7 +198,7 @@ pub fn get_assignment_declaration_property_access_kind(
             next_to_last = expression;
         }
         let id = access_expression_of(tree, next_to_last).unwrap_or(next_to_last);
-        let id_escaped = match &tree.node(id).data {
+        let id_escaped = match &tree.node(id).data() {
             NodeData::Identifier(data) => Some(data.escaped_text.identifier_text()),
             _ => None,
         };
@@ -221,7 +221,7 @@ pub fn get_assignment_declaration_property_access_kind(
 }
 
 pub fn is_bindable_object_define_property_call(tree: &impl NodeLookup, expr: NodeId) -> bool {
-    let NodeData::CallExpression(data) = &tree.node(expr).data else {
+    let NodeData::CallExpression(data) = &tree.node(expr).data() else {
         return false;
     };
     let Some(arguments) = data.arguments else {
@@ -234,7 +234,7 @@ pub fn is_bindable_object_define_property_call(tree: &impl NodeLookup, expr: Nod
     let Some(expression) = data.expression else {
         return false;
     };
-    let NodeData::PropertyAccessExpression(access) = &tree.node(expression).data else {
+    let NodeData::PropertyAccessExpression(access) = &tree.node(expression).data() else {
         return false;
     };
     access
@@ -249,7 +249,7 @@ pub fn is_bindable_object_define_property_call(tree: &impl NodeLookup, expr: Nod
 
 /// The `.expression` of an access expression.
 pub fn access_expression_of(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    match &tree.node(node).data {
+    match &tree.node(node).data() {
         NodeData::PropertyAccessExpression(data) => data.expression,
         NodeData::ElementAccessExpression(data) => data.expression,
         _ => None,
@@ -258,7 +258,7 @@ pub fn access_expression_of(tree: &impl NodeLookup, node: NodeId) -> Option<Node
 
 pub fn is_exports_identifier(tree: &impl NodeLookup, node: NodeId) -> bool {
     matches!(
-        &tree.node(node).data,
+        &tree.node(node).data(),
         NodeData::Identifier(data) if data.escaped_text == "exports"
     )
 }
@@ -269,7 +269,7 @@ pub fn is_module_exports_access_expression(tree: &impl NodeLookup, node: NodeId)
     is_access
         && access_expression_of(tree, node).is_some_and(|expression| {
             matches!(
-                &tree.node(expression).data,
+                &tree.node(expression).data(),
                 NodeData::Identifier(data) if data.escaped_text == "module"
             )
         })
@@ -278,7 +278,7 @@ pub fn is_module_exports_access_expression(tree: &impl NodeLookup, node: NodeId)
 
 pub fn is_literal_like_element_access(tree: &impl NodeLookup, node: NodeId) -> bool {
     matches!(
-        &tree.node(node).data,
+        &tree.node(node).data(),
         NodeData::ElementAccessExpression(data)
             if data.argument_expression.is_some_and(|argument| {
                 is_string_or_numeric_literal_like(tree, argument)
@@ -291,7 +291,7 @@ pub fn is_bindable_static_access_expression(
     node: NodeId,
     exclude_this_keyword: bool,
 ) -> bool {
-    if let NodeData::PropertyAccessExpression(data) = &tree.node(node).data {
+    if let NodeData::PropertyAccessExpression(data) = &tree.node(node).data() {
         let this_ok = !exclude_this_keyword
             && data
                 .expression
@@ -335,7 +335,7 @@ pub fn get_element_or_property_access_argument_expression_or_name(
     tree: &impl NodeLookup,
     node: NodeId,
 ) -> Option<NodeId> {
-    match &tree.node(node).data {
+    match &tree.node(node).data() {
         NodeData::PropertyAccessExpression(data) => data.name,
         NodeData::ElementAccessExpression(data) => {
             let argument = skip_parentheses_pub(tree, data.argument_expression?);
@@ -354,7 +354,7 @@ pub fn get_element_or_property_access_name(
     node: NodeId,
 ) -> Option<EscapedName> {
     let name = get_element_or_property_access_argument_expression_or_name(tree, node)?;
-    match &tree.node(name).data {
+    match &tree.node(name).data() {
         NodeData::Identifier(data) => Some(data.escaped_text),
         _ if is_string_or_numeric_literal_like(tree, name) => {
             literal_text_of(tree, name).map(escape_leading_underscores)
@@ -367,7 +367,7 @@ pub fn get_element_or_property_access_name(
 /// compound assignments (`??=`, `+=`, …) are followed too.
 pub fn get_right_most_assigned_expression(tree: &impl NodeLookup, mut node: NodeId) -> NodeId {
     loop {
-        let NodeData::BinaryExpression(data) = &tree.node(node).data else {
+        let NodeData::BinaryExpression(data) = &tree.node(node).data() else {
             return node;
         };
         let is_assignment = data
@@ -388,11 +388,11 @@ pub fn get_right_most_assigned_expression(tree: &impl NodeLookup, mut node: Node
 
 pub fn get_initializer_of_binary_expression(tree: &impl NodeLookup, mut expr: NodeId) -> NodeId {
     loop {
-        let NodeData::BinaryExpression(data) = &tree.node(expr).data else {
+        let NodeData::BinaryExpression(data) = &tree.node(expr).data() else {
             return expr;
         };
         match data.right {
-            Some(right) if matches!(&tree.node(right).data, NodeData::BinaryExpression(_)) => {
+            Some(right) if matches!(&tree.node(right).data(), NodeData::BinaryExpression(_)) => {
                 expr = right;
             }
             Some(right) => return right,
@@ -410,7 +410,7 @@ pub fn is_prototype_access(tree: &impl NodeLookup, node: NodeId) -> bool {
 /// tsc-hash: eca11ccf0f981170a15e543924cf9f73ada6af69a51a889bd5845460204a2db9
 /// tsc-span: _tsc.js:14967-14976
 pub fn get_declared_expando_initializer(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    let initializer = match &tree.node(node).data {
+    let initializer = match &tree.node(node).data() {
         NodeData::VariableDeclaration(data) => data.initializer,
         NodeData::Parameter(data) => data.initializer,
         NodeData::BindingElement(data) => data.initializer,
@@ -420,7 +420,7 @@ pub fn get_declared_expando_initializer(tree: &impl NodeLookup, node: NodeId) ->
         _ => None,
     }?;
     let effective = if node_flags(tree, initializer).intersects(NodeFlags::JAVA_SCRIPT_FILE) {
-        match &tree.node(initializer).data {
+        match &tree.node(initializer).data() {
             NodeData::BinaryExpression(data)
                 if data.operator_token.is_some_and(|token| {
                     matches!(
@@ -453,7 +453,7 @@ pub fn get_declared_expando_initializer(tree: &impl NodeLookup, node: NodeId) ->
 /// initializer.
 pub fn get_assigned_expando_initializer(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
     if let Some(parent) = parent_of(tree, node) {
-        if let NodeData::BinaryExpression(data) = &tree.node(parent).data {
+        if let NodeData::BinaryExpression(data) = &tree.node(parent).data() {
             let is_equals = data
                 .operator_token
                 .is_some_and(|token| kind_of(tree, token) == SyntaxKind::EqualsToken);
@@ -477,13 +477,13 @@ pub fn get_assigned_expando_initializer(tree: &impl NodeLookup, node: NodeId) ->
     if !is_bindable_object_define_property_call(tree, node) {
         return None;
     }
-    let NodeData::CallExpression(data) = &tree.node(node).data else {
+    let NodeData::CallExpression(data) = &tree.node(node).data() else {
         return None;
     };
     let arguments = data.arguments?;
     let arguments = &tree.node_array(arguments).nodes;
     let descriptor = *arguments.get(2)?;
-    let NodeData::ObjectLiteralExpression(data) = &tree.node(descriptor).data else {
+    let NodeData::ObjectLiteralExpression(data) = &tree.node(descriptor).data() else {
         return None;
     };
     let properties = data.properties?;
@@ -491,7 +491,7 @@ pub fn get_assigned_expando_initializer(tree: &impl NodeLookup, node: NodeId) ->
         .node_array(properties)
         .nodes
         .iter()
-        .find_map(|&property| match &tree.node(property).data {
+        .find_map(|&property| match &tree.node(property).data() {
             NodeData::PropertyAssignment(data)
                 if data
                     .name
@@ -511,7 +511,7 @@ pub fn get_expando_initializer(
     initializer: NodeId,
     is_prototype_assignment: bool,
 ) -> Option<NodeId> {
-    match &tree.node(initializer).data {
+    match &tree.node(initializer).data() {
         NodeData::CallExpression(data) => {
             let expression = skip_parentheses_pub(tree, data.expression?);
             matches!(
@@ -541,7 +541,7 @@ fn get_defaulted_expando_initializer(
     initializer: NodeId,
     is_prototype_assignment: bool,
 ) -> Option<NodeId> {
-    let NodeData::BinaryExpression(data) = &tree.node(initializer).data else {
+    let NodeData::BinaryExpression(data) = &tree.node(initializer).data() else {
         return None;
     };
     let is_defaulting = data.operator_token.is_some_and(|token| {

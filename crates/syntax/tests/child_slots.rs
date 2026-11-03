@@ -166,14 +166,14 @@ fn assert_slots_agree_with_each_child(name: &str, text: &str, min_kinds: usize) 
             arena,
             visits: Vec::new(),
         };
-        let mut data = node.data.clone();
+        let mut data = node.data().clone();
         try_visit_each_child(&mut data, &mut recorder).unwrap();
         assert_eq!(
-            data, node.data,
+            &data, node.data(),
             "{name}: identity visit changed {:?}",
             node.kind
         );
-        let slots = child_slots(&node.data, &recorder);
+        let slots = child_slots(&node.data(), &recorder);
         assert_eq!(
             slot_visits(slots.as_slice()),
             recorder.visits,
@@ -184,10 +184,10 @@ fn assert_slots_agree_with_each_child(name: &str, text: &str, min_kinds: usize) 
         // An identity mapping reports no change and keeps the payload.
         let mut identity = slots;
         assert!(!map_child_slots(&mut identity, &mut recorder).unwrap());
-        let mut applied = node.data.clone();
+        let mut applied = node.data().clone();
         apply_child_slots(&mut applied, &identity, &mut recorder).unwrap();
         assert_eq!(
-            applied, node.data,
+            &applied, node.data(),
             "{name}: identity slots changed {:?}",
             node.kind
         );
@@ -195,9 +195,9 @@ fn assert_slots_agree_with_each_child(name: &str, text: &str, min_kinds: usize) 
         // A mapping and a removal agree with the child visit's payload or error.
         for remove in [false, true] {
             let mut mapper = Mapper { arena, remove };
-            let mut through_visit = node.data.clone();
+            let mut through_visit = node.data().clone();
             let visit_result = try_visit_each_child(&mut through_visit, &mut mapper);
-            let mut mapped = child_slots(&node.data, &mapper);
+            let mut mapped = child_slots(&node.data(), &mapper);
             let changed = map_child_slots(&mut mapped, &mut mapper).unwrap();
             assert_eq!(
                 changed,
@@ -205,7 +205,7 @@ fn assert_slots_agree_with_each_child(name: &str, text: &str, min_kinds: usize) 
                 "{name}: change report of {:?} (remove = {remove})",
                 node.kind
             );
-            let mut through_slots = node.data.clone();
+            let mut through_slots = node.data().clone();
             let slot_result = apply_child_slots(&mut through_slots, &mapped, &mut mapper);
             assert_eq!(
                 visit_result, slot_result,

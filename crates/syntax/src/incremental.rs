@@ -133,7 +133,7 @@ fn reachable_identity_graph(source: &SourceFile) -> ReachableIdentityGraph {
             }
             nodes[index] = true;
             let node = source.arena.node(id);
-            collect_node_data_ids(&node.data, &mut pending_nodes, &mut pending_arrays);
+            collect_node_data_ids(&node.data(), &mut pending_nodes, &mut pending_arrays);
             if let Some(js_doc) = node.js_doc {
                 pending_arrays.push(js_doc);
             }
@@ -226,8 +226,8 @@ fn syntax_graphs_equal(left: &SourceFile, right: &SourceFile) -> bool {
                 _ => return false,
             }
             if !node_data_structurally_equal(
-                &left_node.data,
-                &right_node.data,
+                &left_node.data(),
+                &right_node.data(),
                 |left, right| {
                     pending_nodes.push((left, right));
                     true
@@ -452,7 +452,7 @@ impl SyntaxCursor {
             let node = source.arena.node(node_id);
             let mut direct_nodes = Vec::new();
             let mut arrays = Vec::new();
-            collect_node_data_ids(&node.data, &mut direct_nodes, &mut arrays);
+            collect_node_data_ids(&node.data(), &mut direct_nodes, &mut arrays);
             if let Some(js_doc) = node.js_doc {
                 arrays.push(js_doc);
             }
@@ -846,7 +846,7 @@ fn has_statements(source: &SourceFile) -> bool {
     let NodeData::SourceFile(SourceFileData {
         statements: Some(statements),
         ..
-    }) = &source.arena.node(source.root).data
+    }) = &source.arena.node(source.root).data()
     else {
         return false;
     };

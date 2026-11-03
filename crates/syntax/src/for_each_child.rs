@@ -14,7 +14,7 @@ where
     L: NodeLookup,
     F: FnMut(NodeId) -> bool,
 {
-    match &node.data {
+    match node.data() {
         NodeData::Token => None,
         NodeData::ArrayBindingPattern(data) => {
             if let Some(result) = visit_optional_nodes(lookup, data.elements, &mut cb) {
@@ -1955,7 +1955,7 @@ pub fn for_each_child_array<F>(node: &Node, mut cb: F) -> Option<NodeArrayId>
 where
     F: FnMut(NodeArrayId) -> bool,
 {
-    match &node.data {
+    match node.data() {
         NodeData::Token => None,
         NodeData::ArrayBindingPattern(data) => {
             if let Some(id) = data.elements {

@@ -3,7 +3,7 @@ use tsc_syntax::{for_each_child, NodeData, NodeId, ParseOptions, SourceFile};
 
 fn literal_values(source: &SourceFile, id: NodeId, values: &mut Vec<Value>) {
     let node = source.arena.node(id);
-    let literal = match &node.data {
+    let literal = match &node.data() {
         NodeData::StringLiteral(data) => Some((&data.text, None)),
         NodeData::NoSubstitutionTemplateLiteral(data) => {
             Some((&data.text, data.raw_text.as_deref()))
