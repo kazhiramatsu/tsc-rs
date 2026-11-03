@@ -512,7 +512,7 @@ pub struct TypesMemory {
     /// Type lists, texts and payloads the type records own on the heap.
     pub type_heap_bytes: usize,
     pub string_literals: usize,
-    /// Both string-literal interning maps (UTF-16 and UTF-8 keys).
+    /// The string literal types' table (the texts are in `type_heap_bytes`).
     pub string_literal_map_bytes: usize,
     pub type_lists: usize,
     pub type_list_map_bytes: usize,
@@ -599,7 +599,7 @@ impl TypeTables {
             + map_bytes(&self.intersection_types)
             + map_bytes(&self.indexed_access_types);
         usage.instantiations = self.instantiations.len();
-        usage.other_map_bytes = map_bytes(&self.number_literal_types)
+        usage.other_map_bytes += map_bytes(&self.number_literal_types)
             + map_bytes(&self.bigint_literal_types)
             + map_bytes(&self.enum_literal_types)
             + map_bytes(&self.string_mapping_types)
