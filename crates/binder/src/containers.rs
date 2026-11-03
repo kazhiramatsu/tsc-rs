@@ -185,10 +185,11 @@ impl<'a> BinderWorker<'a> {
 
     /// tsc isInJSFile: the JavaScriptFile node flag. Every node in a
     /// JS file carries it (parser context flags); the root carries
-    /// sourceFlags, so the file-level question reads the root.
+    /// sourceFlags, so the file-level question reads the root (once, when
+    /// the binder is made: the binder never changes the flag).
+    #[inline]
     pub(crate) fn is_in_js_file(&self) -> bool {
-        self.flags_of(self.source.root)
-            .intersects(NodeFlags::JAVA_SCRIPT_FILE)
+        self.in_js_file
     }
 
     /// tsc-port: addToContainerChain @6.0.3
