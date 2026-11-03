@@ -1628,6 +1628,14 @@ fn reuse_name(
 ) -> BuildResult<TransformNode> {
     let reused = reuse_node_or_clone(checker, arena, target, context, name)?;
     let record = arena.node(reused).map_err(factory_error)?;
+    // The reused name may be a copy in another tree: its texts are that
+    // tree's.
+    let text_js = |id| {
+        arena
+            .text_js(reused.source(), id)
+            .map(tsc_types::JsStr::to_owned)
+            .map_err(factory_error)
+    };
     // ast.TryGetTextOfPropertyName on the reused name.
     let (text, is_identifier, is_string_literal) = match record.data() {
         NodeData::Identifier(data) => (
@@ -1635,16 +1643,8 @@ fn reuse_name(
             true,
             false,
         ),
-        NodeData::StringLiteral(data) => (
-            crate::annotate::published_text_js(data.text).to_owned(),
-            false,
-            true,
-        ),
-        NodeData::NumericLiteral(data) => (
-            tsc_types::JsString::from(crate::annotate::published_text_utf8(data.text)),
-            false,
-            false,
-        ),
+        NodeData::StringLiteral(data) => (text_js(data.text)?, false, true),
+        NodeData::NumericLiteral(data) => (text_js(data.text)?, false, false),
         NodeData::ComputedPropertyName(data) => {
             let expression = data
                 .expression
@@ -1652,21 +1652,11 @@ fn reuse_name(
                 .transpose()
                 .map_err(factory_error)?;
             match expression.map(|expression| expression.data()) {
-                Some(NodeData::StringLiteral(data)) => (
-                    crate::annotate::published_text_js(data.text).to_owned(),
-                    false,
-                    false,
-                ),
-                Some(NodeData::NoSubstitutionTemplateLiteral(data)) => (
-                    crate::annotate::published_text_js(data.text).to_owned(),
-                    false,
-                    false,
-                ),
-                Some(NodeData::NumericLiteral(data)) => (
-                    tsc_types::JsString::from(crate::annotate::published_text_utf8(data.text)),
-                    false,
-                    false,
-                ),
+                Some(NodeData::StringLiteral(data)) => (text_js(data.text)?, false, false),
+                Some(NodeData::NoSubstitutionTemplateLiteral(data)) => {
+                    (text_js(data.text)?, false, false)
+                }
+                Some(NodeData::NumericLiteral(data)) => (text_js(data.text)?, false, false),
                 _ => return Ok(reused),
             }
         }
