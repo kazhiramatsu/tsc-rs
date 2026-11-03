@@ -1137,8 +1137,8 @@ pub fn node_is_missing(tree: &impl NodeLookup, id: Option<NodeId>) -> bool {
 
 /// tsc moduleExportNameIsDefault (_tsc.js 13032).
 pub fn module_export_name_is_default(tree: &impl NodeLookup, name: NodeId) -> bool {
-    match &tree.node(name).data() {
-        NodeData::StringLiteral(data) => data.text == "default",
+    match tree.node(name).data() {
+        NodeData::StringLiteral(data) => tree.text(data.text) == b"default",
         NodeData::Identifier(data) => data.escaped_text == "default",
         _ => false,
     }
@@ -1238,11 +1238,11 @@ pub fn is_property_name_literal(tree: &impl NodeLookup, id: NodeId) -> bool {
 
 /// The `text` payload of literal-like name nodes.
 pub fn literal_text_of(tree: &impl NodeLookup, id: NodeId) -> Option<JsStr<'_>> {
-    match &tree.node(id).data() {
-        NodeData::StringLiteral(data) => Some(data.text.as_js()),
-        NodeData::NumericLiteral(data) => Some(JsStr::from_str(&data.text)),
-        NodeData::BigIntLiteral(data) => Some(JsStr::from_str(&data.text)),
-        NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.as_js()),
+    match tree.node(id).data() {
+        NodeData::StringLiteral(data) => Some(tree.text_js(data.text)),
+        NodeData::NumericLiteral(data) => Some(tree.text_js(data.text)),
+        NodeData::BigIntLiteral(data) => Some(tree.text_js(data.text)),
+        NodeData::NoSubstitutionTemplateLiteral(data) => Some(tree.text_js(data.text)),
         NodeData::Identifier(data) => Some(JsStr::from_str(data.text())),
         NodeData::PrivateIdentifier(data) => Some(JsStr::from_str(data.text())),
         _ => None,
@@ -1916,12 +1916,14 @@ pub fn try_get_text_of_property_name(tree: &impl NodeLookup, name: NodeId) -> Op
         NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => {
             id_text(tree, name).map(str::to_owned)
         }
-        NodeData::StringLiteral(data) => Some(data.text.to_string_lossy().into_owned()),
-        NodeData::NoSubstitutionTemplateLiteral(data) => {
-            Some(data.text.to_string_lossy().into_owned())
+        NodeData::StringLiteral(data) => {
+            Some(tree.text_js(data.text).to_string_lossy().into_owned())
         }
-        NodeData::NumericLiteral(data) => Some(data.text.clone()),
-        NodeData::BigIntLiteral(data) => Some(data.text.to_string()),
+        NodeData::NoSubstitutionTemplateLiteral(data) => {
+            Some(tree.text_js(data.text).to_string_lossy().into_owned())
+        }
+        NodeData::NumericLiteral(data) => Some(tree.text_utf8(data.text).to_owned()),
+        NodeData::BigIntLiteral(data) => Some(tree.text_utf8(data.text).to_owned()),
         NodeData::ComputedPropertyName(data) => data
             .expression
             .filter(|&expression| is_string_or_numeric_literal_like(tree, expression))

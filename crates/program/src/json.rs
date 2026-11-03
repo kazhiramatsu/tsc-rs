@@ -506,12 +506,17 @@ fn convert_jsonc_value_worker(
                             return None;
                         }
                         values.push(RecoverableJsonValue::Defined(Value::String(
-                            node.data().as_string_literal()?.text.to_owned(),
+                            source
+                                .arena
+                                .text_js(node.data().as_string_literal()?.text)
+                                .to_owned(),
                         )));
                     }
                     SyntaxKind::NumericLiteral => {
                         values.push(RecoverableJsonValue::Defined(Value::Number(json_number(
-                            &node.data().as_numeric_literal()?.text,
+                            source
+                                .arena
+                                .text_utf8(node.data().as_numeric_literal()?.text),
                         )?)));
                     }
                     SyntaxKind::TrueKeyword => {
@@ -531,7 +536,7 @@ fn convert_jsonc_value_worker(
                             .map(|operand| source.arena.node(operand))
                             .filter(|operand| operand.kind == SyntaxKind::NumericLiteral)
                             .and_then(|operand| operand.data().as_numeric_literal())
-                            .and_then(|literal| json_number(&literal.text))
+                            .and_then(|literal| json_number(source.arena.text_utf8(literal.text)))
                             .and_then(|number| negate_json_number(&number));
                         match negated {
                             Some(number) => {
@@ -995,7 +1000,7 @@ fn jsonc_property_name(
         {
             node.data()
                 .as_string_literal()
-                .map(|literal| literal.text.clone())
+                .map(|literal| source.arena.text_js(literal.text).to_owned())
         }
         SyntaxKind::Identifier if allow_recovery => node
             .data()
@@ -1004,7 +1009,7 @@ fn jsonc_property_name(
         SyntaxKind::NumericLiteral if allow_recovery => node
             .data()
             .as_numeric_literal()
-            .map(|literal| literal.text.clone().into()),
+            .map(|literal| source.arena.text_utf8(literal.text).into()),
         // tsgo TryGetTextOfPropertyName: `["name"]` and `[1]` name their
         // literal (a name with any other expression has no text).
         SyntaxKind::ComputedPropertyName if allow_recovery => node

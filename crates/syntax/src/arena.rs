@@ -520,6 +520,17 @@ impl NodeArena {
         tsc_store::texts::text_str_in(&self.texts, (id.index() - self.text_base) as usize)
     }
 
+    /// This tree's literal text `id` as a JavaScript string view.
+    pub fn text_js(&self, id: TextId) -> tsc_types::JsStr<'_> {
+        tsc_types::JsStr::from_canonical_bytes(self.text(id))
+    }
+
+    /// This tree's literal text `id`, UTF-8 by construction (every text field
+    /// but a string literal's or template's value).
+    pub fn text_utf8(&self, id: TextId) -> &str {
+        self.text_str(id).expect("a UTF-8 literal text")
+    }
+
     /// The words of the tree's text store.
     pub fn text_word_count(&self) -> usize {
         self.texts.len()

@@ -673,6 +673,20 @@ pub trait NodeLookup {
     fn text(&self, id: TextId) -> &[u8];
     /// Literal text `id` as a `str`, unless its bytes are not UTF-8.
     fn text_str(&self, id: TextId) -> Option<&str>;
+
+    /// Literal text `id` as a JavaScript string view (a string literal's value
+    /// may hold lone surrogates).
+    #[inline]
+    fn text_js(&self, id: TextId) -> tsc_types::JsStr<'_> {
+        tsc_types::JsStr::from_canonical_bytes(self.text(id))
+    }
+
+    /// A literal text that is UTF-8 by construction: every text field but a
+    /// string literal's or template's value.
+    #[inline]
+    fn text_utf8(&self, id: TextId) -> &str {
+        self.text_str(id).expect("a UTF-8 literal text")
+    }
 }
 '''
 

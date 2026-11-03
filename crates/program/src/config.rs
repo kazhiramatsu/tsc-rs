@@ -4697,7 +4697,7 @@ fn config_property_name(source: &SourceFile, name: NodeId) -> Option<JsString> {
         SyntaxKind::StringLiteral => node
             .data()
             .as_string_literal()
-            .map(|literal| literal.text.clone()),
+            .map(|literal| source.arena.text_js(literal.text).to_owned()),
         SyntaxKind::Identifier => node
             .data()
             .as_identifier()
@@ -4705,7 +4705,7 @@ fn config_property_name(source: &SourceFile, name: NodeId) -> Option<JsString> {
         SyntaxKind::NumericLiteral => node
             .data()
             .as_numeric_literal()
-            .map(|literal| literal.text.clone().into()),
+            .map(|literal| source.arena.text_utf8(literal.text).into()),
         SyntaxKind::ComputedPropertyName => node
             .data()
             .as_computed_property_name()
@@ -5891,7 +5891,7 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
             };
             config_file = config_file.with_root_option_array_location(
                 property.name.clone(),
-                literal.text.clone(),
+                parsed.arena.text_js(literal.text).to_owned(),
                 ProgramConfigSpan::new(span.start, span.length),
             );
         }
@@ -5942,7 +5942,7 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
             ) {
                 config_file = config_file.with_compiler_option_string_location(
                     property.name.clone(),
-                    literal.text.clone(),
+                    parsed.arena.text_js(literal.text).to_owned(),
                     ProgramConfigSpan::new(span.start, span.length),
                 );
             }
@@ -5956,7 +5956,7 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
                         continue;
                     };
                     config_file = config_file.with_automatic_type_directive_location(
-                        literal.text.clone(),
+                        parsed.arena.text_js(literal.text).to_owned(),
                         ProgramConfigSpan::new(span.start, span.length),
                     );
                 }

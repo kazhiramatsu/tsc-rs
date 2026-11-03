@@ -29,7 +29,7 @@ fn assigned_expression_names_include_static_property_and_element_accesses() {
     ));
     assert!(matches!(
         &source.arena.node(class_name).data(),
-        NodeData::StringLiteral(data) if data.text == "key"
+        NodeData::StringLiteral(data) if source.arena.text(data.text) == b"key"
     ));
 }
 
