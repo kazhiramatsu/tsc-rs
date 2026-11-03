@@ -37,11 +37,11 @@ impl Transformer for FlagTransformer {
         let statement = arena
             .node_ref(source, arena.node_array(statements)?.nodes[0])
             .unwrap();
-        if let NodeData::FunctionDeclaration(mut function) = arena.node(statement)?.data().clone() {
+        if let NodeData::FunctionDeclaration(mut function) = arena.node(statement)?.data() {
             let mut statement = statement;
             let mut body = arena.node_ref(source, function.body.unwrap()).unwrap();
             if let Some((keep_start, keep_end)) = self.body_range {
-                let NodeData::Block(mut block) = arena.node(body)?.data().clone() else {
+                let NodeData::Block(mut block) = arena.node(body)?.data() else {
                     unreachable!()
                 };
                 let original = arena

@@ -149,7 +149,7 @@ pub(super) fn rewrite_literal(
     node: TransformNode,
     preserve_jsx: bool,
 ) -> Result<TransformNode, TransformError> {
-    let NodeData::StringLiteral(literal) = context.arena().node(node)?.data().clone() else {
+    let NodeData::StringLiteral(literal) = context.arena().node(node)?.data() else {
         return Ok(node);
     };
     let literal_text = context

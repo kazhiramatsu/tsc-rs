@@ -355,7 +355,7 @@ impl CheckerState<'_> {
             return Ok(None);
         };
         let error = self.tables.intrinsics.error;
-        match self.data_of(parent).clone() {
+        match self.data_of(parent) {
             // If this is from "for of"
             //     for ( { a } of elems) {
             //     }

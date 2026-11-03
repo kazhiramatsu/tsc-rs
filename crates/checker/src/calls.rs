@@ -269,7 +269,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         };
         self.check_external_emit_helpers(first_decorator, crate::modules::EMIT_HELPER_METADATA)?;
-        match self.data_of(node).clone() {
+        match self.data_of(node) {
             NodeData::ClassDeclaration(data) => {
                 let constructor = self.nodes_of(data.members).into_iter().find(|&member| {
                     matches!(
@@ -6086,7 +6086,7 @@ impl<'a> CheckerState<'a> {
         };
         let mut reported = false;
         for attribute in self.nodes_of(properties) {
-            let NodeData::JsxAttribute(data) = self.data_of(attribute).clone() else {
+            let NodeData::JsxAttribute(data) = self.data_of(attribute) else {
                 continue;
             };
             let Some(name_node) = data.name else {

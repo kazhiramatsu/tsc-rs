@@ -472,7 +472,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         }
         let original = self.node(id);
         let record = self.context.arena().node(original)?.clone();
-        let transformed = match record.data().clone() {
+        let transformed = match record.data() {
             NodeData::Decorator(_) => None,
             NodeData::Token => Some(original.node()),
             NodeData::Identifier(data) => {
@@ -587,7 +587,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         }
         let current = self.node(id);
         let record = self.context.arena().node(current)?.clone();
-        let NodeData::ClassDeclaration(mut data) = record.data().clone() else {
+        let NodeData::ClassDeclaration(mut data) = record.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: record.kind,
                 field: "class declaration",
@@ -1455,7 +1455,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         else {
             return Ok(());
         };
-        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data().clone()
+        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data()
         else {
             return Ok(());
         };
@@ -2391,7 +2391,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             return self.create_identifier("Object");
         };
         let literal = self.node(literal);
-        match self.context.arena().node(literal)?.data().clone() {
+        match self.context.arena().node(literal)?.data() {
             NodeData::StringLiteral(_) | NodeData::NoSubstitutionTemplateLiteral(_) => {
                 self.create_identifier("String")
             }
@@ -2719,7 +2719,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         name: TransformNode,
         serialization_context: MetadataSerializationContext,
     ) -> Result<(TransformNode, TransformNode), TransformError> {
-        match self.context.arena().node(name)?.data().clone() {
+        match self.context.arena().node(name)?.data() {
             NodeData::Identifier(_) => {
                 let left = self.entity_identifier_expression(name, serialization_context)?;
                 let type_of = self.create_typeof(left)?;
@@ -2793,7 +2793,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         node: TransformNode,
         serialization_context: MetadataSerializationContext,
     ) -> Result<TransformNode, TransformError> {
-        match self.context.arena().node(node)?.data().clone() {
+        match self.context.arena().node(node)?.data() {
             NodeData::Identifier(_) => {
                 self.entity_identifier_expression(node, serialization_context)
             }
@@ -3285,7 +3285,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             }
         }
         let name = self.node(name);
-        match self.context.arena().node(name)?.data().clone() {
+        match self.context.arena().node(name)?.data() {
             NodeData::Identifier(data) => self.create_string_literal(data.text()),
             NodeData::StringLiteral(_)
             | NodeData::NumericLiteral(_)
@@ -3391,7 +3391,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         else {
             return Ok(name);
         };
-        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data().clone()
+        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data()
         else {
             return Ok(Some(name.node()));
         };
@@ -3600,7 +3600,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         if bindings.is_empty() {
             return Ok(root);
         }
-        let NodeData::SourceFile(mut data) = self.context.arena().node(root)?.data().clone() else {
+        let NodeData::SourceFile(mut data) = self.context.arena().node(root)?.data() else {
             return Err(TransformError::RootKindExpected {
                 actual: self.context.arena().node(root)?.kind,
             });
@@ -3828,7 +3828,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData { text })),
+            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData { text }),
             TransformFlags::NONE,
         )
     }
@@ -3840,7 +3840,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
+            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData { text }),
             TransformFlags::NONE,
         )
     }
@@ -4292,7 +4292,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         block: TransformNode,
         bindings: LegacyLexicalBindingFrame,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Block(mut data) = self.context.arena().node(block)?.data().clone() else {
+        let NodeData::Block(mut data) = self.context.arena().node(block)?.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(block)?.kind,
                 field: "function body block",

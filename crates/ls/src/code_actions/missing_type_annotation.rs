@@ -1936,7 +1936,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
         self.file.arena.node(node).kind
     }
 
-    fn data(&self, node: NodeId) -> &'a NodeData {
+    fn data(&self, node: NodeId) -> NodeData {
         self.file.arena.node(node).data()
     }
 

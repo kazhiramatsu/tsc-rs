@@ -176,7 +176,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn function_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::FunctionExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::FunctionExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         self.function_like(
@@ -191,7 +191,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn function_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::FunctionDeclaration(data) = self.state.data_of(node).clone() else {
+        let NodeData::FunctionDeclaration(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         self.function_like(
@@ -258,7 +258,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn arrow_function(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ArrowFunction(data) = self.state.data_of(node).clone() else {
+        let NodeData::ArrowFunction(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(mut text) = self.modifiers(data.modifiers)? else {
@@ -300,7 +300,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn class_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ClassExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::ClassExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         self.class_like(
@@ -313,7 +313,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn class_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ClassDeclaration(data) = self.state.data_of(node).clone() else {
+        let NodeData::ClassDeclaration(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         self.class_like(
@@ -398,7 +398,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn block(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::Block(data) = self.state.data_of(node).clone() else {
+        let NodeData::Block(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let statements = self.nodes(data.statements);
@@ -444,7 +444,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn function_body_block(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::Block(data) = self.state.data_of(node).clone() else {
+        let NodeData::Block(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let statements = self.nodes(data.statements);
@@ -512,7 +512,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         ) {
             return self.state.display_clone_module_statement_text(node);
         }
-        match self.state.data_of(node).clone() {
+        match self.state.data_of(node) {
             NodeData::Block(_) => self.block(node),
             NodeData::EmptyStatement(_) => Ok(Some(JsString::from(";"))),
             NodeData::VariableStatement(data) => {
@@ -598,7 +598,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn interface_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::InterfaceDeclaration(data) = self.state.data_of(node).clone() else {
+        let NodeData::InterfaceDeclaration(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(mut text) = self.modifiers(data.modifiers)? else {
@@ -665,7 +665,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn type_member(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        match self.state.data_of(node).clone() {
+        match self.state.data_of(node) {
             NodeData::PropertySignature(data) => {
                 let Some(mut text) = self.modifiers(data.modifiers)? else {
                     return Ok(None);
@@ -838,7 +838,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn type_alias_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::TypeAliasDeclaration(data) = self.state.data_of(node).clone() else {
+        let NodeData::TypeAliasDeclaration(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(mut text) = self.modifiers(data.modifiers)? else {
@@ -864,7 +864,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn enum_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::EnumDeclaration(data) = self.state.data_of(node).clone() else {
+        let NodeData::EnumDeclaration(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(mut text) = self.modifiers(data.modifiers)? else {
@@ -919,7 +919,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn enum_member(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::EnumMember(data) = self.state.data_of(node).clone() else {
+        let NodeData::EnumMember(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(name) = data.name else {
@@ -1189,7 +1189,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn case_block(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::CaseBlock(data) = self.state.data_of(node).clone() else {
+        let NodeData::CaseBlock(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let clauses = self.nodes(data.clauses);
@@ -1223,7 +1223,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn case_or_default_clause(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let (head, statements) = match self.state.data_of(node).clone() {
+        let (head, statements) = match self.state.data_of(node) {
             NodeData::CaseClause(data) => {
                 let Some(expression) = data.expression else {
                     return Ok(None);
@@ -1274,7 +1274,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn catch_clause(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::CatchClause(data) = self.state.data_of(node).clone() else {
+        let NodeData::CatchClause(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let mut text = JsString::from("catch");
@@ -1298,7 +1298,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn variable_declaration_list(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::VariableDeclarationList(data) = self.state.data_of(node).clone() else {
+        let NodeData::VariableDeclarationList(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let flags = self.state.node_flags(node)
@@ -1333,7 +1333,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn variable_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::VariableDeclaration(data) = self.state.data_of(node).clone() else {
+        let NodeData::VariableDeclaration(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(name) = data.name else {
@@ -1363,7 +1363,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn heritage_clause(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::HeritageClause(data) = self.state.data_of(node).clone() else {
+        let NodeData::HeritageClause(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(keyword) = tsc_syntax::tokens::token_to_string(data.token) else {
@@ -1389,7 +1389,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn class_or_object_member(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        match self.state.data_of(node).clone() {
+        match self.state.data_of(node) {
             NodeData::PropertyDeclaration(data) => {
                 let Some(mut text) = self.decorated_modifiers(data.modifiers)? else {
                     return Ok(None);
@@ -1621,7 +1621,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 }
                 let mut first = true;
                 while index < modifiers.len() {
-                    let NodeData::Decorator(data) = self.state.data_of(modifiers[index]).clone()
+                    let NodeData::Decorator(data) = self.state.data_of(modifiers[index])
                     else {
                         break;
                     };
@@ -1715,7 +1715,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
 
         let mut rendered = Vec::with_capacity(parameters.len());
         for parameter in parameters {
-            let NodeData::TypeParameter(data) = self.state.data_of(parameter).clone() else {
+            let NodeData::TypeParameter(data) = self.state.data_of(parameter) else {
                 return Ok(None);
             };
             let mut text = JsString::new();
@@ -1758,7 +1758,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     fn parameter_nodes_text(&mut self, nodes: Vec<NodeId>) -> CheckResult<Option<JsString>> {
         let mut rendered = Vec::with_capacity(nodes.len());
         for node in nodes {
-            let NodeData::Parameter(data) = self.state.data_of(node).clone() else {
+            let NodeData::Parameter(data) = self.state.data_of(node) else {
                 return Ok(None);
             };
             let retain_modifiers = data.r#type.is_some() || data.initializer.is_some();
@@ -1821,7 +1821,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
 
     fn binding_pattern(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let (elements, has_trailing_comma, open, close, padded) =
-            match self.state.data_of(node).clone() {
+            match self.state.data_of(node) {
                 NodeData::ObjectBindingPattern(data) => {
                     let (elements, trailing) = self.node_array(data.elements);
                     (elements, trailing, '{', '}', true)
@@ -1857,7 +1857,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn binding_element(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let data = match self.state.data_of(node).clone() {
+        let data = match self.state.data_of(node) {
             NodeData::OmittedExpression(_) => return Ok(Some(JsString::new())),
             NodeData::BindingElement(data) => data,
             _ => return Ok(None),
@@ -1894,7 +1894,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn binding_property_name(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ComputedPropertyName(data) = self.state.data_of(node).clone() else {
+        let NodeData::ComputedPropertyName(data) = self.state.data_of(node) else {
             return Ok(Some(self.member_name_text(node)?));
         };
         let Some(expression) = data.expression else {

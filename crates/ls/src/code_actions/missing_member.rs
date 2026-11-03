@@ -542,7 +542,7 @@ impl MissingMemberFixer<'_, '_, '_> {
             Some(name) => self.create_property_name(name, quote_preference)?,
         };
         let data =
-            NodeData::MethodDeclaration(Box::new(tsc_syntax::nodes::MethodDeclarationData {
+            NodeData::MethodDeclaration(tsc_syntax::nodes::MethodDeclarationData {
                 name: Some(method_name.node()),
                 type_parameters,
                 parameters,
@@ -552,7 +552,7 @@ impl MissingMemberFixer<'_, '_, '_> {
                 exclamation_token: None,
                 body: body.map(|body| body.node()),
                 modifiers: modifiers.map(|modifiers| modifiers.array()),
-            }));
+            });
         self.tracker
             .arena()
             .factory()

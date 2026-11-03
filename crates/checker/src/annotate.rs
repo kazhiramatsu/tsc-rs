@@ -67,7 +67,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: typed arena projection for tsc's direct node
     /// payload access.
-    pub(crate) fn data_of(&self, node: NodeId) -> &'a NodeData {
+    pub(crate) fn data_of(&self, node: NodeId) -> NodeData {
         self.binder.node_record(node).data()
     }
 
@@ -7568,7 +7568,7 @@ impl<'a> CheckerState<'a> {
                 if parameters.len() != 1 {
                     continue;
                 }
-                let NodeData::Parameter(parameter) = self.data_of(parameters[0]).clone() else {
+                let NodeData::Parameter(parameter) = self.data_of(parameters[0]) else {
                     continue;
                 };
                 let Some(parameter_type) = parameter.r#type else {

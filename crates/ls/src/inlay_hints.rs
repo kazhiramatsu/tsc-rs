@@ -90,7 +90,7 @@ impl InlayHints<'_, '_, '_, '_> {
         self.request.state.binder.node_record(node).kind
     }
 
-    fn data(&self, node: NodeId) -> &NodeData {
+    fn data(&self, node: NodeId) -> NodeData {
         self.request.state.binder.node_record(node).data()
     }
 
@@ -971,7 +971,7 @@ impl LabelParts<'_, '_, '_, '_, '_, '_> {
             self.push("this");
             return;
         }
-        let data = record.data().clone();
+        let data = record.data();
         match data {
             NodeData::Identifier(identifier) => {
                 let text = identifier

@@ -112,7 +112,7 @@ class Kind:
         self.data_name = raw["dataName"]
         self.fields = [Field(self.name, field, layout) for field in raw["fields"]]
         self.children = [(child["name"], child["array"]) for child in raw["children"]]
-        self.boxed = self.name in layout.boxed
+        self.hot = layout.hot_slots.get(self.name)
         self.visit_order = layout.visit_order.get(self.name)
         self.header_observables = [
             entry for entry in layout.header_observables if entry["kind"] == self.name
@@ -127,18 +127,50 @@ class Kind:
     def child_fields(self):
         return [(self.field(name), array) for name, array in self.children]
 
+    def scalar_fields(self):
+        return [field for field in self.fields if field.ty in ("Bool", "SyntaxKind")]
+
+    def comment_field(self):
+        comments = [field for field in self.fields if field.ty == "JSDocComment"]
+        if len(comments) > 1:
+            raise SystemExit(f"{self.name}: more than one JSDoc comment field")
+        return comments[0] if comments else None
+
+    def slots(self):
+        """The payload's word slots in record order: a single-word field, or
+        SCALARS (the word of the booleans and the SyntaxKind). The first three
+        are the record's when no tail is needed; a kind of more slots lists
+        its three hot ones first (layout hotSlots), the rest in schema order."""
+        singles = [field for field in self.fields if field.ty in ("Node", "NodeArray", "String")]
+        default = singles + ([SCALARS] if self.scalar_fields() else [])
+        if len(default) <= 3:
+            if self.hot:
+                raise SystemExit(f"nodes.layout.json: {self.name} has three slots or fewer: no hotSlots")
+            return default
+        if not self.hot or len(self.hot) != 3:
+            raise SystemExit(f"nodes.layout.json: {self.name} needs its three hotSlots")
+        hot = [SCALARS if name == SCALARS else self.field(name) for name in self.hot]
+        if any(slot not in default for slot in hot) or len(set(map(id, hot))) != 3:
+            raise SystemExit(f"nodes.layout.json: {self.name}'s hotSlots name no three of its slots")
+        return hot + [slot for slot in default if slot not in hot]
+
+
+# The slot of a kind's booleans and SyntaxKind (see `Kind.slots`).
+SCALARS = "@scalars"
+
 
 class Layout:
     def __init__(self, raw, kinds):
         names = {kind["kindName"] for kind in kinds}
         self.record = raw["record"]
-        self.boxed = set()
-        for group in raw["boxed"]:
-            require_reason(group, "boxed group")
-            for kind in group["kinds"]:
-                if kind not in names or kind in self.boxed:
-                    raise SystemExit(f"nodes.layout.json: boxed kind {kind} is unknown or repeated")
-                self.boxed.add(kind)
+        require_reason(self.record, "record")
+        hot = raw["hotSlots"]
+        require_reason(hot, "hotSlots")
+        self.hot_slots = {}
+        for kind, slots in hot["kinds"].items():
+            if kind not in names:
+                raise SystemExit(f"nodes.layout.json: hotSlots kind {kind} is unknown")
+            self.hot_slots[kind] = slots
         fields = {
             f"{kind['kindName']}.{field['name']}": field for kind in kinds for field in kind["fields"]
         }
@@ -200,42 +232,22 @@ def load():
     names = [kind.name for kind in kinds]
     if names != sorted(names):
         raise SystemExit("nodes.schema.json: kinds must be sorted by name")
-    check_inline_payloads(kinds, layout)
+    for kind in kinds:
+        check_slots(kind)
     return kinds, layout
 
 
-# Today's sizes (bytes, alignment) of a payload field's Rust type.
-def field_size(field):
-    if field.ty in ("Node", "NodeArray"):
-        return 4, 4
-    if field.ty == "Bool":
-        return 1, 1
-    if field.ty == "SyntaxKind":
-        return 2, 2
-    if field.ty == "String":
-        return (4, 4) if field.string_type == "EscapedName" else (24, 8)
-    if field.ty == "JSDocComment":
-        return 40, 8
-    raise SystemExit(f"unknown field type {field.ty}")
-
-
-def payload_size(kind):
-    sizes = [field_size(field) for field in kind.fields]
-    align = max((alignment for _, alignment in sizes), default=1)
-    size = sum(bytes for bytes, _ in sizes)
-    return (size + align - 1) // align * align, align
-
-
-def check_inline_payloads(kinds, layout):
-    """An unboxed payload must fit NodeData's inline payload (4-byte aligned)."""
-    limit = layout.record["inlinePayloadBytes"]
-    for kind in kinds:
-        size, align = payload_size(kind)
-        if not kind.boxed and (size > limit or align > 4):
-            raise SystemExit(
-                f"nodes.layout.json: {kind.name}'s payload ({size} B, align {align}) "
-                f"does not fit {limit} B inline: box it"
-            )
+def check_slots(kind):
+    """Each scalar fits its word: a bit per boolean below bit 16, the one
+    SyntaxKind in bits 16-31; a name is a required field (index 0 is a name)."""
+    scalars = kind.scalar_fields()
+    if sum(field.ty == "SyntaxKind" for field in scalars) > 1:
+        raise SystemExit(f"{kind.name}: more than one SyntaxKind field")
+    if sum(2 if field.rust_optional else 1 for field in scalars if field.ty == "Bool") > 16:
+        raise SystemExit(f"{kind.name}: its booleans take more than sixteen bits")
+    for field in kind.fields:
+        if field.ty == "String" and not field.is_text() and field.rust_optional:
+            raise SystemExit(f"{kind.name}.{field.ts_name}: an optional name has no word")
 
 
 def snake_case(name):
@@ -272,7 +284,7 @@ VISIT_ORDER_CONDITIONS = {
 NODES_PRELUDE = r'''pub use crate::ids::{NodeArrayId, NodeId, TextId};
 use crate::SyntaxKind;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum JSDocComment {
     /// tsc's string comment (one without links). TypeScript 7.1 keeps it
     /// as a list of one JSDocText: `pos..end` is that list's range and
@@ -291,6 +303,35 @@ impl JSDocComment {
         match self {
             Self::Nodes(nodes) => Some(*nodes),
             Self::Text { .. } => None,
+        }
+    }
+
+    /// The comment's four tail words: a text's id and range, an array's id
+    /// after a zero word, or zeros for none.
+    const fn words(comment: Option<&Self>) -> [u32; 4] {
+        match comment {
+            Some(Self::Text {
+                text,
+                pos,
+                end,
+                text_end,
+            }) => [text.position(), *pos, *end, *text_end],
+            Some(Self::Nodes(nodes)) => [0, nodes.position(), 0, 0],
+            None => [0; 4],
+        }
+    }
+
+    /// The comment [`words`](Self::words) wrote.
+    const fn from_words(words: [u32; 4]) -> Option<Self> {
+        match (TextId::from_position(words[0]), NodeArrayId::from_position(words[1])) {
+            (Some(text), _) => Some(Self::Text {
+                text,
+                pos: words[1],
+                end: words[2],
+                text_end: words[3],
+            }),
+            (None, Some(nodes)) => Some(Self::Nodes(nodes)),
+            (None, None) => None,
         }
     }
 }
@@ -338,7 +379,18 @@ pub enum NodePayload {
     Kind(SyntaxKind),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+/// `literal_flags` bit 15: the record's word 0 names a tail (see
+/// `tsc_store::tails`) holding the payload's slots past the second, the JSDoc
+/// attachment and a JSDoc comment, and words 1-2 hold the first two slots.
+const HAS_TAIL: u16 = 1 << 15;
+
+/// A node record: tsc's Node header and three payload words, which
+/// [`Node::data`] decodes into the kind's payload. A payload of up to three
+/// slots, or one whose slots past the third are empty, has no tail, and the
+/// JSDoc attachment then takes the first unused word (if any); otherwise the
+/// tail holds them. Tails belong to the tree's arena: only `NodeArena`
+/// writes a payload (`alloc_node`, `set_data`, `set_js_doc`).
+#[derive(Clone, Copy)]
 pub struct Node {
     pub kind: SyntaxKind,
     /// The node's parser-owned scalar facts, read through the accessors
@@ -347,21 +399,17 @@ pub struct Node {
     /// RegularExpressionLiteral isUnterminated in bits 2-3, encoded the
     /// same way; on a NumericLiteral tsc's numericLiteralFlags and on the
     /// template literal kinds templateFlags in the remaining bits (their
-    /// TokenFlags masks lie within bits 3-14).
-    pub literal_flags: u16,
+    /// TokenFlags masks lie within bits 3-14); bit 15 is `HAS_TAIL`.
+    literal_flags: u16,
     pub flags: i32,
     pub pos: u32,
     pub end: u32,
     pub parent: Option<NodeId>,
-    /// tsc's internal Node.jsDoc attachment; not an ordinary forEachChild edge.
-    pub js_doc: Option<NodeArrayId>,
     /// tsc Node.transformFlags lives beside the records in `NodeArena`,
     /// written only on an emit session's copy of a tree.
     ///
-    /// The payload, read through [`Node::data`] and replaced through
-    /// [`Node::set_data`]: the record's layout is the generator's, so no
-    /// reader names the field.
-    data: NodeData,
+    /// The payload's words (see [`Node::data`]).
+    words: [u32; 3],
 }
 
 // A large Program holds tens of millions of node records, so their size
@@ -371,6 +419,36 @@ const _: () = assert!(std::mem::size_of::<Node>() == @NODE_BYTES@);
 
 impl tsc_store::StoreRecord for Node {
     const REGION: usize = 0;
+}
+
+impl std::fmt::Debug for Node {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Node")
+            .field("kind", &self.kind)
+            .field("literal_flags", &self.literal_flags())
+            .field("flags", &self.flags)
+            .field("pos", &self.pos)
+            .field("end", &self.end)
+            .field("parent", &self.parent)
+            .field("js_doc", &self.js_doc())
+            .field("data", &self.data())
+            .finish()
+    }
+}
+
+/// Records compare by what they hold, not by where their tails are.
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+            && self.literal_flags() == other.literal_flags()
+            && self.flags == other.flags
+            && self.pos == other.pos
+            && self.end == other.end
+            && self.parent == other.parent
+            && self.js_doc() == other.js_doc()
+            && self.data() == other.data()
+    }
 }
 
 /// A node array's element ids; a zeroed [`NodeArrayRecord`] names none.
@@ -469,7 +547,7 @@ const LITERAL_STATE_SHIFT: u32 = 2;
 /// `literal_flags` bits carrying NumericLiteral.numericLiteralFlags or a
 /// template literal's templateFlags: tsc's masks never touch bits 0-2, and
 /// those kinds carry no literal state.
-const TOKEN_FLAG_BITS: u16 = !MULTI_LINE_BITS;
+const TOKEN_FLAG_BITS: u16 = !(MULTI_LINE_BITS | HAS_TAIL);
 
 fn tri_state(bits: u16) -> Option<bool> {
     match bits {
@@ -488,9 +566,9 @@ fn tri_state_bits(value: Option<bool>) -> u16 {
 }
 
 impl Node {
-    /// A fresh record: `kind` and `data` at `pos..end` with `flags`, no
-    /// parent, no JSDoc and no literal facts yet.
-    pub(crate) fn new(kind: SyntaxKind, data: NodeData, pos: u32, end: u32, flags: i32) -> Self {
+    /// A fresh record: `kind` at `pos..end` with `flags`, an empty payload,
+    /// no parent, no JSDoc and no literal facts yet (see `NodeArena`).
+    pub(crate) fn new(kind: SyntaxKind, pos: u32, end: u32, flags: i32) -> Self {
         Node {
             kind,
             literal_flags: 0,
@@ -498,41 +576,146 @@ impl Node {
             pos,
             end,
             parent: None,
-            js_doc: None,
-            data,
+            words: [0; 3],
         }
     }
 
-    /// The node's payload.
-    #[inline(always)]
-    pub fn data(&self) -> &NodeData {
-        &self.data
-    }
-
-    /// The node's payload for editing in place.
-    #[inline(always)]
-    pub fn data_mut(&mut self) -> &mut NodeData {
-        &mut self.data
-    }
-
-    /// Replace the node's payload.
+    /// The node's parser-owned scalar facts (see the field), without the
+    /// record's own bit.
     #[inline]
-    pub fn set_data(&mut self, data: NodeData) {
-        self.data = data;
+    pub fn literal_flags(&self) -> u16 {
+        self.literal_flags & !HAS_TAIL
     }
 
-    /// This record's scalar facts with another payload: a probe for the
-    /// emitter's flag classifier that clones no payload of its own.
-    pub fn with_data(&self, data: NodeData) -> Node {
-        Node {
-            kind: self.kind,
-            literal_flags: self.literal_flags,
-            flags: self.flags,
-            pos: self.pos,
-            end: self.end,
-            parent: self.parent,
-            js_doc: self.js_doc,
-            data,
+    /// Replace the scalar facts [`literal_flags`](Self::literal_flags) reads.
+    #[inline]
+    pub fn set_literal_flags(&mut self, flags: u16) {
+        self.literal_flags = (flags & !HAS_TAIL) | (self.literal_flags & HAS_TAIL);
+    }
+
+    /// The node's `n` payload slots (`n` the kind's slot count).
+    #[inline(always)]
+    fn slots<const N: usize>(&self) -> [u32; N] {
+        let mut out = [0u32; N];
+        if self.literal_flags & HAS_TAIL == 0 {
+            let inline = N.min(3);
+            out[..inline].copy_from_slice(&self.words[..inline]);
+        } else {
+            if N > 0 {
+                out[0] = self.words[1];
+            }
+            if N > 1 {
+                out[1] = self.words[2];
+            }
+            if N > 2 {
+                out[2..].copy_from_slice(tsc_store::tails::tail(self.words[0], N as u32 - 2));
+            }
+        }
+        out
+    }
+
+    /// The JSDoc comment words of a kind of `slots` slots with a comment.
+    #[inline]
+    fn comment_words(&self, slots: usize) -> [u32; 4] {
+        if self.literal_flags & HAS_TAIL == 0 {
+            return [0; 4];
+        }
+        let at = slots.saturating_sub(2) + 1;
+        let tail = tsc_store::tails::tail(self.words[0], at as u32 + 4);
+        [tail[at], tail[at + 1], tail[at + 2], tail[at + 3]]
+    }
+
+    /// tsc's internal Node.jsDoc attachment; not an ordinary forEachChild
+    /// edge.
+    #[inline]
+    pub fn js_doc(&self) -> Option<NodeArrayId> {
+        let (slots, _) = payload_shape(self.kind);
+        let word = if self.literal_flags & HAS_TAIL == 0 {
+            if slots < 3 {
+                self.words[slots]
+            } else {
+                0
+            }
+        } else {
+            let at = slots.saturating_sub(2);
+            tsc_store::tails::tail(self.words[0], at as u32 + 1)[at]
+        };
+        NodeArrayId::from_position(word)
+    }
+
+    /// Write `data` and `js_doc` into the record; a tail goes to `tails`, the
+    /// record's tree's. `in_place` rewrites the tail the record has, which
+    /// only a tree's exclusive owner may do (a payload change otherwise takes
+    /// a new tail, so a copy of the record keeps reading its own payload).
+    pub(crate) fn encode(
+        &mut self,
+        data: &NodeData,
+        js_doc: Option<NodeArrayId>,
+        tails: &mut tsc_store::tails::Tails,
+        in_place: bool,
+    ) {
+        debug_assert!(
+            data.kind().map_or(!has_payload(self.kind), |kind| kind == self.kind),
+            "a {:?} record with a {:?} payload",
+            self.kind,
+            data.kind()
+        );
+        let (slots, comment) = encode_slots(data);
+        let (count, has_comment) = payload_shape(self.kind);
+        let js_doc = js_doc.map_or(0, NodeArrayId::position);
+        let spills = slots[count.min(3)..count].iter().any(|&word| word != 0)
+            || comment != [0; 4]
+            || (count >= 3 && js_doc != 0);
+        if !spills {
+            let mut words = [0u32; 3];
+            let inline = count.min(3);
+            words[..inline].copy_from_slice(&slots[..inline]);
+            if count < 3 {
+                words[count] = js_doc;
+            }
+            // A tail the record had stays unused in its tree's chunks.
+            self.words = words;
+            self.literal_flags &= !HAS_TAIL;
+            return;
+        }
+        let at = count.saturating_sub(2);
+        let mut tail = [0u32; MAX_TAIL_WORDS];
+        if count > 2 {
+            tail[..at].copy_from_slice(&slots[2..count]);
+        }
+        tail[at] = js_doc;
+        let len = if has_comment {
+            tail[at + 1..at + 5].copy_from_slice(&comment);
+            at + 5
+        } else {
+            at + 1
+        };
+        let position = if in_place && self.literal_flags & HAS_TAIL != 0 {
+            tails.rewrite(self.words[0], &tail[..len]);
+            self.words[0]
+        } else {
+            tails.push(&tail[..len])
+        };
+        self.words = [position, slots[0], slots[1]];
+        self.literal_flags |= HAS_TAIL;
+    }
+
+    /// This record with another payload, its tail (if any) in `tails`: a
+    /// probe for the emitter's flag classifier, read while `tails` lives.
+    pub fn with_data(&self, data: &NodeData, tails: &mut tsc_store::tails::Tails) -> Node {
+        let mut probe = *self;
+        probe.literal_flags &= !HAS_TAIL;
+        probe.encode(data, self.js_doc(), tails, false);
+        probe
+    }
+
+    /// Give the record a copy of its tail in `tails` (a tree's copy owns
+    /// its tails).
+    pub(crate) fn copy_tail(&mut self, tails: &mut tsc_store::tails::Tails) {
+        if self.literal_flags & HAS_TAIL != 0 {
+            let (slots, has_comment) = payload_shape(self.kind);
+            let len = slots.saturating_sub(2) + 1 + if has_comment { 4 } else { 0 };
+            self.words[0] = tails.push(tsc_store::tails::tail(self.words[0], len as u32));
         }
     }
 
@@ -585,7 +768,7 @@ impl Node {
 
     fn set_token_flags(&mut self, flags: u16) {
         debug_assert_eq!(flags & !TOKEN_FLAG_BITS, 0);
-        self.literal_flags = (self.literal_flags & MULTI_LINE_BITS) | flags;
+        self.literal_flags = (self.literal_flags & (MULTI_LINE_BITS | HAS_TAIL)) | flags;
     }
 
     /// tsc StringLiteral.hasExtendedUnicodeEscape; None on every other kind.
@@ -628,23 +811,176 @@ impl Node {
 '''
 
 
+# A slot field's word, by (type, Rust optional), over its value expression.
+ENCODE_WORD = {
+    ("Node", True): "{0}.map_or(0, NodeId::position)",
+    ("Node", False): "{0}.position()",
+    ("NodeArray", True): "{0}.map_or(0, NodeArrayId::position)",
+    ("NodeArray", False): "{0}.position()",
+    ("Text", True): "{0}.map_or(0, TextId::position)",
+    ("Text", False): "{0}.position()",
+    ("String", False): "{0}.index()",
+}
+# A slot field's value, by (type, Rust optional), over its word expression.
+DECODE_WORD = {
+    ("Node", True): "NodeId::from_position({0})",
+    ("Node", False): "NodeId::from_position({0}).unwrap_or_default()",
+    ("NodeArray", True): "NodeArrayId::from_position({0})",
+    ("NodeArray", False): "NodeArrayId::from_position({0}).unwrap_or_default()",
+    ("Text", True): "TextId::from_position({0})",
+    ("Text", False): "TextId::from_position({0}).unwrap_or(TextId::EMPTY)",
+    ("String", False): "tsc_types::EscapedName::from_index({0})",
+}
+
+
+def scalar_bits(kind):
+    """Each scalar field's place in the scalar word: from bit 0 a bit per
+    boolean (two for an optional one: 0 none, 1 false, 2 true), the
+    SyntaxKind (plus one when optional) in bits 16-31."""
+    bits = {}
+    bit = 0
+    for field in kind.scalar_fields():
+        if field.ty == "Bool":
+            bits[field.rust_name] = bit
+            bit += 2 if field.rust_optional else 1
+        else:
+            bits[field.rust_name] = 16
+    return bits
+
+
+def encode_slot(kind, slot):
+    if slot is SCALARS:
+        bits = scalar_bits(kind)
+        parts = []
+        for field in kind.scalar_fields():
+            value = f"data.{field.rust_name}"
+            shift = f" << {bits[field.rust_name]}" if bits[field.rust_name] else ""
+            if field.ty == "Bool" and field.rust_optional:
+                parts.append(f"({value}.map_or(0, |value| u32::from(value) + 1){shift})")
+            elif field.ty == "Bool":
+                parts.append(f"(u32::from({value}){shift})")
+            elif field.rust_optional:
+                parts.append(f"({value}.map_or(0, |kind| kind as u32 + 1) << 16)")
+            else:
+                parts.append(f"(({value} as u32) << 16)")
+        return " | ".join(parts)
+    return ENCODE_WORD[(slot.walk_type(), slot.rust_optional)].format(f"data.{slot.rust_name}")
+
+
+def decode_field(kind, field, slot_index, scalars_index):
+    if field.ty in ("Bool", "SyntaxKind"):
+        word = f"s[{scalars_index}]"
+        bit = scalar_bits(kind)[field.rust_name]
+        shifted = f"({word} >> {bit})" if bit else word
+        if field.ty == "Bool" and field.rust_optional:
+            return f"match {shifted} & 3 {{ 0 => None, value => Some(value == 2) }}"
+        if field.ty == "Bool":
+            return f"{shifted} & 1 != 0"
+        if field.rust_optional:
+            return f"match {word} >> 16 {{ 0 => None, value => SyntaxKind::from_u16((value - 1) as u16) }}"
+        return f"SyntaxKind::from_u16(({word} >> 16) as u16).unwrap_or(SyntaxKind::{kind.name})"
+    if field.ty == "JSDocComment":
+        count = len(kind.slots())
+        value = f"JSDocComment::from_words(self.comment_words({count}))"
+        if field.rust_optional:
+            return value
+        return f"{value}.unwrap_or({field.missing_value(kind.name)})"
+    return DECODE_WORD[(field.walk_type(), field.rust_optional)].format(f"s[{slot_index}]")
+
+
+def render_payload_codec(kinds):
+    """`payload_shape`, `encode_slots` and `Node::data`: a kind's slots in
+    record order (`Kind.slots`), its JSDoc comment in the tail."""
+    out = []
+    max_slots = max(len(kind.slots()) for kind in kinds)
+    max_tail = max(
+        max(len(kind.slots()) - 2, 0) + 1 + (4 if kind.comment_field() else 0) for kind in kinds
+    )
+    out.append(f"/// The most payload slots a kind has.")
+    out.append(f"const MAX_SLOTS: usize = {max_slots};")
+    out.append(f"/// The longest tail: the slots past the second, the JSDoc attachment and a comment.")
+    out.append(f"const MAX_TAIL_WORDS: usize = {max_tail};")
+    out.append("")
+    out.append("/// A kind's payload slots and whether it has a JSDoc comment (see `Node`).")
+    out.append("#[inline]")
+    out.append("pub(crate) const fn payload_shape(kind: SyntaxKind) -> (usize, bool) {")
+    out.append("match kind {")
+    shapes = {}
+    for kind in kinds:
+        shapes.setdefault((len(kind.slots()), kind.comment_field() is not None), []).append(kind.name)
+    for (count, comment), names in sorted(shapes.items()):
+        if (count, comment) == (0, False):
+            continue
+        arms = " | ".join(f"SyntaxKind::{name}" for name in names)
+        out.append(f"{arms} => ({count}, {'true' if comment else 'false'}),")
+    out += ["_ => (0, false),", "}", "}", ""]
+
+    out.append("/// Whether `kind` has a payload variant: its records decode to it, never to `Token`.")
+    out.append("pub(crate) const fn has_payload(kind: SyntaxKind) -> bool {")
+    out.append("matches!(kind, " + " | ".join(f"SyntaxKind::{kind.name}" for kind in kinds) + ")")
+    out += ["}", ""]
+    out.append("/// The slot words and the comment words of a payload.")
+    out.append("fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {")
+    out.append("let mut s = [0u32; MAX_SLOTS];")
+    out.append("let comment = match data {")
+    out.append("NodeData::Token => [0; 4],")
+    for kind in kinds:
+        slots = kind.slots()
+        comment = kind.comment_field()
+        if not slots and not comment:
+            out.append(f"NodeData::{kind.name}(_) => [0; 4],")
+            continue
+        out.append(f"NodeData::{kind.name}(data) => {{")
+        for index, slot in enumerate(slots):
+            out.append(f"s[{index}] = {encode_slot(kind, slot)};")
+        if comment is None:
+            out.append("[0; 4]")
+        elif comment.rust_optional:
+            out.append(f"JSDocComment::words(data.{comment.rust_name}.as_ref())")
+        else:
+            out.append(f"JSDocComment::words(Some(&data.{comment.rust_name}))")
+        out.append("}")
+    out += ["};", "(s, comment)", "}", ""]
+
+    out.append("impl Node {")
+    out.append("/// The node's payload, decoded from its words (and its tail).")
+    out.append("#[inline]")
+    out.append("pub fn data(&self) -> NodeData {")
+    out.append("match self.kind {")
+    for kind in kinds:
+        slots = kind.slots()
+        scalars_index = slots.index(SCALARS) if SCALARS in slots else None
+        out.append(f"SyntaxKind::{kind.name} => {{")
+        if slots:
+            out.append(f"let s = self.slots::<{len(slots)}>();")
+        out.append(f"NodeData::{kind.name}({kind.data_name} {{")
+        for field in kind.fields:
+            slot_index = next(
+                (index for index, slot in enumerate(slots) if slot is field), None
+            )
+            out.append(f"{field.rust_name}: {decode_field(kind, field, slot_index, scalars_index)},")
+        out.append("})")
+        out.append("}")
+    out += ["_ => NodeData::Token,", "}", "}", "}", ""]
+    return out
+
+
 def render_nodes_rs(kinds, layout):
     out = [HEADER, ""]
     out.append(NODES_PRELUDE.replace("@NODE_BYTES@", str(layout.record["nodeBytes"])))
     for kind in kinds:
-        out.append("#[derive(Clone, Debug, PartialEq)]")
+        out.append("#[derive(Clone, Copy, Debug, PartialEq)]")
         out.append(f"pub struct {kind.data_name} {{")
         for field in kind.fields:
             out += [f"/// {line}" for line in field.docs]
             out.append(f"pub {field.rust_name}: {field.rust_type()},")
         out.append("}")
         out.append("")
-    out.append("#[derive(Clone, Debug, PartialEq)]")
+    out.append("#[derive(Clone, Copy, Debug, PartialEq)]")
     out.append("pub enum NodeData {")
     out.append("Token,")
     for kind in kinds:
-        payload = f"Box<{kind.data_name}>" if kind.boxed else kind.data_name
-        out.append(f"{kind.name}({payload}),")
+        out.append(f"{kind.name}({kind.data_name}),")
     out.append("}")
     out.append("")
     out.append("impl NodeData {")
@@ -657,17 +993,17 @@ def render_nodes_rs(kinds, layout):
     out.append("pub fn missing(kind: SyntaxKind) -> Self {")
     out.append("match kind {")
     for kind in kinds:
-        open_, close = ("Box::new(", ")") if kind.boxed else ("", "")
-        out.append(f"SyntaxKind::{kind.name} => Self::{kind.name}({open_}{kind.data_name} {{")
+        out.append(f"SyntaxKind::{kind.name} => Self::{kind.name}({kind.data_name} {{")
         for field in kind.fields:
             out.append(f"{field.rust_name}: {field.missing_value(kind.name)},")
-        out.append(f"}}{close}),")
+        out.append("}),")
     out += ["_ => Self::Token,", "}", "}"]
     for kind in kinds:
         out.append("")
-        out.append(f"pub fn as_{snake_case(kind.name)}(&self) -> Option<&{kind.data_name}> {{")
-        out += ["match self {", f"Self::{kind.name}(data) => Some(data),", "_ => None,", "}", "}"]
+        out.append(f"pub fn as_{snake_case(kind.name)}(&self) -> Option<{kind.data_name}> {{")
+        out += ["match self {", f"Self::{kind.name}(data) => Some(*data),", "_ => None,", "}", "}"]
     out += ["}", ""]
+    out += render_payload_codec(kinds)
     out += ["#[cfg(test)]", '#[path = "../tests/unit/nodes/tests.rs"]', "mod tests;"]
     return "\n".join(out) + "\n"
 

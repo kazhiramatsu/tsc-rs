@@ -49,7 +49,7 @@ impl UnfinalizedGeneratedNameTransformer {
         let text = context.factory()?.push_text(source, b"0")?;
         let zero = context.factory()?.create_node(
             source,
-            NodeData::NumericLiteral(Box::new(syntax_nodes::NumericLiteralData { text })),
+            NodeData::NumericLiteral(syntax_nodes::NumericLiteralData { text }),
             TransformFlags::NONE,
         )?;
         context.factory()?.create_node(

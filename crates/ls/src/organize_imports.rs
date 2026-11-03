@@ -1368,7 +1368,7 @@ fn coalesce_exports_worker<'a>(
                     specifier_comparer.1,
                 )
             });
-            let NodeData::ExportDeclaration(export_decl) = arena.node(sub_group[0]).data().clone()
+            let NodeData::ExportDeclaration(export_decl) = arena.node(sub_group[0]).data()
             else {
                 continue;
             };

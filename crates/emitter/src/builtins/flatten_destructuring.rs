@@ -95,7 +95,7 @@ fn convert_to_array_assignment_element(
     element: TransformNode,
     role: AssignmentTargetRole,
 ) -> Result<TransformNode, TransformError> {
-    if let NodeData::BindingElement(data) = context.arena().node(element)?.data().clone() {
+    if let NodeData::BindingElement(data) = context.arena().node(element)?.data() {
         let name = data
             .name
             .and_then(|name| context.arena().node_ref(source, name))
@@ -146,7 +146,7 @@ fn convert_to_object_assignment_element(
     element: TransformNode,
     role: AssignmentTargetRole,
 ) -> Result<TransformNode, TransformError> {
-    if let NodeData::BindingElement(data) = context.arena().node(element)?.data().clone() {
+    if let NodeData::BindingElement(data) = context.arena().node(element)?.data() {
         let name = data
             .name
             .and_then(|name| context.arena().node_ref(source, name))
@@ -222,7 +222,7 @@ fn convert_to_object_assignment_element(
         };
         let shorthand = context.factory()?.create_node(
             source,
-            NodeData::ShorthandPropertyAssignment(Box::new(
+            NodeData::ShorthandPropertyAssignment(
                 tsc_syntax::nodes::ShorthandPropertyAssignmentData {
                     name: Some(name.node()),
                     equals_token: None,
@@ -231,7 +231,7 @@ fn convert_to_object_assignment_element(
                     question_token: None,
                     exclamation_token: None,
                 },
-            )),
+            ),
             flags,
         )?;
         return with_original_and_range(context, shorthand, element);
@@ -274,7 +274,7 @@ fn convert_to_object_assignment_pattern(
 ) -> Result<TransformNode, TransformError> {
     match context.arena().node(node)?.kind {
         SyntaxKind::ObjectBindingPattern => {
-            let NodeData::ObjectBindingPattern(data) = context.arena().node(node)?.data().clone()
+            let NodeData::ObjectBindingPattern(data) = context.arena().node(node)?.data()
             else {
                 unreachable!("kind checked above");
             };
@@ -301,7 +301,7 @@ fn convert_to_array_assignment_pattern(
 ) -> Result<TransformNode, TransformError> {
     match context.arena().node(node)?.kind {
         SyntaxKind::ArrayBindingPattern => {
-            let NodeData::ArrayBindingPattern(data) = context.arena().node(node)?.data().clone()
+            let NodeData::ArrayBindingPattern(data) = context.arena().node(node)?.data()
             else {
                 unreachable!("kind checked above");
             };

@@ -3921,7 +3921,7 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         for member in self.nodes_of(members) {
-            let NodeData::PropertySignature(signature) = self.data_of(member).clone() else {
+            let NodeData::PropertySignature(signature) = self.data_of(member) else {
                 return self.grammar_error_on_node(
                     member,
                     &diagnostics::An_import_attributes_type_may_only_contain_property_signatures,

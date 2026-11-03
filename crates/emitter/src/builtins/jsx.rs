@@ -361,7 +361,7 @@ impl<'context> JsxVisitor<'context> {
             }
         }
         let record = self.context.arena().node(original)?.clone();
-        let transformed = match record.data().clone() {
+        let transformed = match record.data() {
             NodeData::JsxElement(data) => {
                 Some(self.visit_jsx_element(original, data, false)?.node())
             }
@@ -405,7 +405,7 @@ impl<'context> JsxVisitor<'context> {
                 field: "opening_element",
             })?;
         let NodeData::JsxOpeningElement(opening_data) =
-            self.context.arena().node(opening)?.data().clone()
+            self.context.arena().node(opening)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::JsxElement,
@@ -517,7 +517,7 @@ impl<'context> JsxVisitor<'context> {
 
     fn transform_tag_name(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
         let node = self.node(id);
-        match self.context.arena().node(node)?.data().clone() {
+        match self.context.arena().node(node)?.data() {
             NodeData::Identifier(data) if tsc_syntax::is_intrinsic_jsx_name(data.text()) => {
                 self.create_string_literal(data.text().encode_utf16().collect(), false)
             }
@@ -557,7 +557,7 @@ impl<'context> JsxVisitor<'context> {
                 continue;
             }
             let attribute = self.node(id);
-            match self.context.arena().node(attribute)?.data().clone() {
+            match self.context.arena().node(attribute)?.data() {
                 NodeData::JsxAttribute(data) => {
                     properties.push(self.transform_attribute(data)?);
                 }
@@ -581,7 +581,7 @@ impl<'context> JsxVisitor<'context> {
         };
         let attributes_node = self.node(attributes);
         let NodeData::JsxAttributes(data) =
-            self.context.arena().node(attributes_node)?.data().clone()
+            self.context.arena().node(attributes_node)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::JsxOpeningElement,
@@ -667,7 +667,7 @@ impl<'context> JsxVisitor<'context> {
 
     fn transform_key_attribute(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
         let attribute = self.node(id);
-        let NodeData::JsxAttribute(data) = self.context.arena().node(attribute)?.data().clone()
+        let NodeData::JsxAttribute(data) = self.context.arena().node(attribute)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::JsxOpeningElement,
@@ -686,7 +686,7 @@ impl<'context> JsxVisitor<'context> {
             field: "name",
         })?;
         let name_node = self.node(name_id);
-        let name = match self.context.arena().node(name_node)?.data().clone() {
+        let name = match self.context.arena().node(name_node)?.data() {
             NodeData::Identifier(data) if is_identifier_attribute_name(data.text()) => {
                 // getAttributeName returns the ORIGINAL identifier for
                 // identifier-safe attribute names, so the printed property
@@ -743,7 +743,7 @@ impl<'context> JsxVisitor<'context> {
             return self.create_token(SyntaxKind::TrueKeyword);
         };
         let original = self.node(initializer);
-        match self.context.arena().node(original)?.data().clone() {
+        match self.context.arena().node(original)?.data() {
             NodeData::StringLiteral(data) => {
                 let units = decode_entities(
                     &self
@@ -784,7 +784,7 @@ impl<'context> JsxVisitor<'context> {
             })?;
         let expression_node = self.node(expression);
         if let NodeData::ObjectLiteralExpression(object) =
-            self.context.arena().node(expression_node)?.data().clone()
+            self.context.arena().node(expression_node)?.data()
         {
             if !self.object_literal_has_proto(&object)? {
                 return self
@@ -817,7 +817,7 @@ impl<'context> JsxVisitor<'context> {
     ) -> Result<bool, TransformError> {
         for id in self.array_nodes(data.properties)? {
             let NodeData::PropertyAssignment(property) =
-                self.context.arena().node(self.node(id))?.data().clone()
+                self.context.arena().node(self.node(id))?.data()
             else {
                 continue;
             };
@@ -847,7 +847,7 @@ impl<'context> JsxVisitor<'context> {
         for id in ids {
             let child = self.node(id);
             let record = self.context.arena().node(child)?.clone();
-            let result = match record.data().clone() {
+            let result = match record.data() {
                 NodeData::JsxText(data) => {
                     let text = self
                         .context
@@ -1147,7 +1147,7 @@ impl<'context> JsxVisitor<'context> {
     fn current_file_name_expression(&mut self) -> Result<TransformNode, TransformError> {
         if let Some(declaration) = self.filename_declaration {
             let NodeData::VariableDeclaration(data) =
-                self.context.arena().node(declaration)?.data().clone()
+                self.context.arena().node(declaration)?.data()
             else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::VariableDeclaration,
@@ -1182,7 +1182,7 @@ impl<'context> JsxVisitor<'context> {
             .push_text(self.source, value.to_string().as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
+            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData { text }),
             TransformFlags::NONE,
         )
     }
@@ -1387,7 +1387,7 @@ impl<'context> JsxVisitor<'context> {
         if self.filename_declaration.is_none() && self.implicit_imports.is_empty() {
             return Ok(root);
         }
-        let (mut data, original_statements) = match self.context.arena().node(root)?.data().clone()
+        let (mut data, original_statements) = match self.context.arena().node(root)?.data()
         {
             NodeData::SourceFile(data) => {
                 let statements = data.statements;

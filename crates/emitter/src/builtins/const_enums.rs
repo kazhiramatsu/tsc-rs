@@ -210,7 +210,7 @@ impl ConstEnumInliningVisitor<'_, '_> {
         let (mut data, flags) = {
             let arena = self.context.arena();
             (
-                arena.node(node)?.data().clone(),
+                arena.node(node)?.data(),
                 arena.transform_flags(node),
             )
         };
@@ -313,9 +313,9 @@ fn constant_substitute(
                 )?;
                 factory.create_node(
                     source,
-                    NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
+                    NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
                         text,
-                    })),
+                    }),
                     TransformFlags::NONE,
                 )?
             }
@@ -361,9 +361,9 @@ fn constant_substitute(
                         .push_text(source, tsc_types::js_number_to_string(magnitude).as_bytes())?;
                     let literal = factory.create_node(
                         source,
-                        NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
+                        NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
                             text,
-                        })),
+                        }),
                         TransformFlags::NONE,
                     )?;
                     if value < 0.0 {

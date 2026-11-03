@@ -524,7 +524,7 @@ impl<'context> EsNextVisitor<'context> {
             return Ok(Some(id));
         }
         let record = self.context.arena().node(original)?.clone();
-        let transformed = match record.data().clone() {
+        let transformed = match record.data() {
             NodeData::SourceFile(data) => Some(self.visit_source_file(original, data)?),
             NodeData::Block(data) => Some(self.visit_block(original, data)?),
             NodeData::ForStatement(data) => Some(self.visit_for_statement(original, data)?),
@@ -835,7 +835,7 @@ impl<'context> EsNextVisitor<'context> {
         let using_statement = self.create_variable_statement_from_list(using_list)?;
         let body = if let Some(statement) = data.statement {
             let statement = self.node(statement);
-            match self.context.arena().node(statement)?.data().clone() {
+            match self.context.arena().node(statement)?.data() {
                 NodeData::Block(mut block) => {
                     let mut statements = vec![using_statement];
                     statements.extend(self.array_nodes(block.statements)?);
@@ -875,7 +875,7 @@ impl<'context> EsNextVisitor<'context> {
         &mut self,
         block: TransformNode,
     ) -> Result<NodeId, TransformError> {
-        let NodeData::Block(data) = self.context.arena().node(block)?.data().clone() else {
+        let NodeData::Block(data) = self.context.arena().node(block)?.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(block)?.kind,
                 field: "synthetic disposal block",
@@ -896,7 +896,7 @@ impl<'context> EsNextVisitor<'context> {
                 .unwrap_or_default());
         };
         let NodeData::VariableStatement(statement_data) =
-            self.context.arena().node(statement)?.data().clone()
+            self.context.arena().node(statement)?.data()
         else {
             unreachable!("a using statement is a variable statement")
         };
@@ -908,7 +908,7 @@ impl<'context> EsNextVisitor<'context> {
                 field: "declaration_list",
             })?;
         let NodeData::VariableDeclarationList(list_data) =
-            self.context.arena().node(list)?.data().clone()
+            self.context.arena().node(list)?.data()
         else {
             unreachable!("using statement list remains a declaration list")
         };
@@ -930,7 +930,7 @@ impl<'context> EsNextVisitor<'context> {
         let mut lowered = Vec::with_capacity(declarations.len());
         for declaration in declarations {
             let NodeData::VariableDeclaration(mut data) =
-                self.context.arena().node(declaration)?.data().clone()
+                self.context.arena().node(declaration)?.data()
             else {
                 unreachable!("checked variable declaration")
             };
@@ -979,7 +979,7 @@ impl<'context> EsNextVisitor<'context> {
         &mut self,
         original: TransformNode,
     ) -> Result<Option<TransformNode>, TransformError> {
-        let mut data = self.context.arena().node(original)?.data().clone();
+        let mut data = self.context.arena().node(original)?.data();
         try_visit_transform_children(&mut data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &data)?;
         Ok(Some(
@@ -1092,7 +1092,7 @@ impl<'context> EsNextVisitor<'context> {
         plan: &mut TopLevelPlan,
     ) -> Result<(), TransformError> {
         let record = self.context.arena().node(statement)?.clone();
-        match record.data().clone() {
+        match record.data() {
             NodeData::ImportDeclaration(_)
             | NodeData::ImportEqualsDeclaration(_)
             | NodeData::ExportDeclaration(_)
@@ -1132,7 +1132,7 @@ impl<'context> EsNextVisitor<'context> {
         let mut assignments = Vec::new();
         for declaration in self.array_nodes(declarations.flatten())? {
             let NodeData::VariableDeclaration(data) =
-                self.context.arena().node(declaration)?.data().clone()
+                self.context.arena().node(declaration)?.data()
             else {
                 continue;
             };
@@ -1339,7 +1339,7 @@ impl<'context> EsNextVisitor<'context> {
         exported: bool,
         plan: &mut TopLevelPlan,
     ) -> Result<(), TransformError> {
-        match self.context.arena().node(name)?.data().clone() {
+        match self.context.arena().node(name)?.data() {
             NodeData::Identifier(_) => self.hoist_binding_identifier(
                 &HoistedBindingName::Parsed {
                     name,
@@ -1353,7 +1353,7 @@ impl<'context> EsNextVisitor<'context> {
             NodeData::ObjectBindingPattern(data) => {
                 for element in self.array_nodes(data.elements)? {
                     if let NodeData::BindingElement(data) =
-                        self.context.arena().node(element)?.data().clone()
+                        self.context.arena().node(element)?.data()
                     {
                         if let Some(name) = data.name {
                             self.hoist_binding_pattern(
@@ -1370,7 +1370,7 @@ impl<'context> EsNextVisitor<'context> {
             NodeData::ArrayBindingPattern(data) => {
                 for element in self.array_nodes(data.elements)? {
                     if let NodeData::BindingElement(data) =
-                        self.context.arena().node(element)?.data().clone()
+                        self.context.arena().node(element)?.data()
                     {
                         if let Some(name) = data.name {
                             self.hoist_binding_pattern(
@@ -1612,7 +1612,7 @@ impl<'context> EsNextVisitor<'context> {
         expression: TransformNode,
         assigned_name_text: &str,
     ) -> Result<NamedEvaluationOutcome, TransformError> {
-        match self.context.arena().node(expression)?.data().clone() {
+        match self.context.arena().node(expression)?.data() {
             NodeData::ParenthesizedExpression(mut data) => {
                 let inner = data
                     .expression
@@ -1924,7 +1924,7 @@ impl<'context> EsNextVisitor<'context> {
             .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData { text })),
+            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData { text }),
             TransformFlags::NONE,
         )
     }
@@ -1953,7 +1953,7 @@ impl<'context> EsNextVisitor<'context> {
         let text = self.context.factory()?.push_text(self.source, b"0")?;
         let zero = self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
+            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData { text }),
             TransformFlags::NONE,
         )?;
         self.context.factory()?.create_node(

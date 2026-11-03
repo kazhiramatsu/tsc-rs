@@ -307,7 +307,7 @@ impl DeclarationTransformer<'_> {
                         // missing template type is written as `any`.
                         let visited = self.visit_each_child(cx, input)?;
                         let NodeData::MappedType(mut data) =
-                            cx.arena().node(visited)?.data().clone()
+                            cx.arena().node(visited)?.data()
                         else {
                             return Err(Self::contract("mapped-type kind/data mismatch"));
                         };
@@ -338,7 +338,7 @@ impl DeclarationTransformer<'_> {
                     }
                     SyntaxKind::ConstructSignature => {
                         let NodeData::ConstructSignature(data) =
-                            cx.arena().node(input)?.data().clone()
+                            cx.arena().node(input)?.data()
                         else {
                             return Err(Self::contract("construct-signature kind/data mismatch"));
                         };
@@ -374,7 +374,7 @@ impl DeclarationTransformer<'_> {
                     }
                     SyntaxKind::MethodDeclaration => {
                         let NodeData::MethodDeclaration(data) =
-                            cx.arena().node(input)?.data().clone()
+                            cx.arena().node(input)?.data()
                         else {
                             return Err(Self::contract("method kind/data mismatch"));
                         };
@@ -493,7 +493,7 @@ impl DeclarationTransformer<'_> {
                             Ok(VisitResult::None)
                         } else {
                             let NodeData::MethodSignature(data) =
-                                cx.arena().node(input)?.data().clone()
+                                cx.arena().node(input)?.data()
                             else {
                                 return Err(Self::contract("method-signature kind/data mismatch"));
                             };
@@ -518,7 +518,7 @@ impl DeclarationTransformer<'_> {
                         }
                     }
                     SyntaxKind::CallSignature => {
-                        let NodeData::CallSignature(data) = cx.arena().node(input)?.data().clone()
+                        let NodeData::CallSignature(data) = cx.arena().node(input)?.data()
                         else {
                             return Err(Self::contract("call-signature kind/data mismatch"));
                         };
@@ -541,7 +541,7 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::IndexSignature => {
-                        let NodeData::IndexSignature(data) = cx.arena().node(input)?.data().clone()
+                        let NodeData::IndexSignature(data) = cx.arena().node(input)?.data()
                         else {
                             return Err(Self::contract("index-signature kind/data mismatch"));
                         };
@@ -617,7 +617,7 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::TypeParameter => {
-                        let NodeData::TypeParameter(data) = cx.arena().node(input)?.data().clone()
+                        let NodeData::TypeParameter(data) = cx.arena().node(input)?.data()
                         else {
                             return Err(Self::contract("type-parameter kind/data mismatch"));
                         };
@@ -640,7 +640,7 @@ impl DeclarationTransformer<'_> {
                     }
                     SyntaxKind::ConditionalType => {
                         let NodeData::ConditionalType(data) =
-                            cx.arena().node(input)?.data().clone()
+                            cx.arena().node(input)?.data()
                         else {
                             return Err(Self::contract("conditional-type kind/data mismatch"));
                         };
@@ -695,7 +695,7 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::ImportType => {
-                        let NodeData::ImportType(data) = cx.arena().node(input)?.data().clone()
+                        let NodeData::ImportType(data) = cx.arena().node(input)?.data()
                         else {
                             return Err(Self::contract("import-type kind/data mismatch"));
                         };
@@ -1037,7 +1037,7 @@ impl DeclarationTransformer<'_> {
         cx: &mut TransformationContext,
         input: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let mut data = cx.arena().node(input)?.data().clone();
+        let mut data = cx.arena().node(input)?.data();
         {
             let mut visitor = DeclarationChildVisitor {
                 transformer: self,
@@ -1406,7 +1406,7 @@ fn update_signature(
     r#type: Option<TransformNode>,
     modifiers: Option<TransformNodeArray>,
 ) -> Result<TransformNode, TransformError> {
-    match cx.arena().node(original)?.data().clone() {
+    match cx.arena().node(original)?.data() {
         NodeData::ConstructSignature(_) => {
             cx.factory()?
                 .update_construct_signature(original, type_parameters, parameters, r#type)
@@ -1472,7 +1472,7 @@ fn update_property(
     r#type: Option<TransformNode>,
     initializer: Option<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
-    let data = cx.arena().node(original)?.data().clone();
+    let data = cx.arena().node(original)?.data();
     match data {
         NodeData::PropertyDeclaration(data) => {
             let name = data
@@ -1546,7 +1546,7 @@ fn update_variable(
     r#type: Option<TransformNode>,
     initializer: Option<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
-    let NodeData::VariableDeclaration(data) = cx.arena().node(original)?.data().clone() else {
+    let NodeData::VariableDeclaration(data) = cx.arena().node(original)?.data() else {
         return Err(DeclarationTransformer::contract(
             "variable update kind mismatch",
         ));
@@ -1565,7 +1565,7 @@ fn update_literal_type(
     literal: TransformNode,
 ) -> Result<TransformNode, TransformError> {
     // Dispatch through the typed literal-type update face.
-    let NodeData::LiteralType(mut data) = cx.arena().node(original)?.data().clone() else {
+    let NodeData::LiteralType(mut data) = cx.arena().node(original)?.data() else {
         return Err(DeclarationTransformer::contract(
             "literal-type update kind mismatch",
         ));

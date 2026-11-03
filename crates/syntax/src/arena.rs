@@ -2,6 +2,7 @@ use crate::for_each_child::{for_each_child, NodeLookup};
 use crate::nodes::{Node, NodeArray, NodeArrayId, NodeArrayRecord, NodeData, NodeId, TextId};
 use crate::relocate::{collect_node_data_ids, relocate_node_data, remap_node_data_ids};
 use crate::SyntaxKind;
+use tsc_store::tails::Tails;
 use tsc_store::texts::TextWord;
 use tsc_store::StoreVec;
 use tsc_types::{IdentityError, IdentityLease, IdentityRange, IdentitySpace, NodeFlags};
@@ -15,9 +16,12 @@ pub struct SyntaxLeases {
     pub texts: IdentityLease,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct NodeArena {
     nodes: StoreVec<Node>,
+    /// The tails of the records' larger payloads (see `Node`), owned by this
+    /// tree: a copy of the tree copies them.
+    tails: Tails,
     arrays: StoreVec<NodeArrayRecord>,
     /// The elements of every array in allocation order: each record's
     /// `items..items + len` positions of this store, counted from
@@ -45,6 +49,32 @@ pub struct NodeArena {
     leases: Option<SyntaxLeases>,
     /// tsc `identifierCount`: the identifier nodes allocated so far.
     identifier_count: u32,
+}
+
+impl Clone for NodeArena {
+    /// A private copy, whose records name tails of its own.
+    fn clone(&self) -> Self {
+        let mut tails = Tails::new();
+        let mut nodes = self.nodes.clone();
+        for node in nodes.iter_mut() {
+            node.copy_tail(&mut tails);
+        }
+        Self {
+            nodes,
+            tails,
+            arrays: self.arrays.clone(),
+            array_items: self.array_items.clone(),
+            texts: self.texts.clone(),
+            transform_flags: self.transform_flags.clone(),
+            array_transform_flags: self.array_transform_flags.clone(),
+            node_base: self.node_base,
+            array_base: self.array_base,
+            item_base: self.item_base,
+            text_base: self.text_base,
+            leases: self.leases.clone(),
+            identifier_count: self.identifier_count,
+        }
+    }
 }
 
 impl PartialEq for NodeArena {
@@ -201,11 +231,11 @@ impl SubtreeCopier {
                 let node = old.node(id);
                 self.old_nodes.push(id);
                 collect_node_data_ids(
-                    node.data(),
+                    &node.data(),
                     &mut self.pending_nodes,
                     &mut self.pending_arrays,
                 );
-                if let Some(js_doc) = node.js_doc {
+                if let Some(js_doc) = node.js_doc() {
                     self.pending_arrays.push(js_doc);
                 }
                 continue;
@@ -225,16 +255,19 @@ impl SubtreeCopier {
             self.pending_nodes.extend(array.nodes.iter().copied());
         }
 
+        // The records first, so that the payloads can name the copies; each
+        // payload is written once, remapped (a record's tail is its own).
         for old_id in &self.old_nodes {
             let old_node = old.node(*old_id);
-            let id = destination.push_node(
+            let id = destination.push_record(
                 old_node.kind,
-                old_node.data().clone(),
                 shifted_position(old_node.pos, position_delta) as usize,
                 shifted_position(old_node.end, position_delta) as usize,
                 NodeFlags::from_bits(old_node.flags),
             );
-            destination.node_mut(id).literal_flags = old_node.literal_flags;
+            destination
+                .node_mut(id)
+                .set_literal_flags(old_node.literal_flags());
             let index = self.node_index(*old_id);
             self.node_map[index] = id;
             self.node_lineage.push((*old_id, id));
@@ -258,7 +291,7 @@ impl SubtreeCopier {
         for (old_id, new_id) in &self.node_lineage {
             let old_node = old.node(*old_id);
             // The copy's texts move into this tree's text store.
-            let mut data = destination.node(*new_id).data().clone();
+            let mut data = old_node.data();
             remap_node_data_ids(
                 &mut data,
                 |id| {
@@ -279,14 +312,12 @@ impl SubtreeCopier {
                     }
                 },
             );
-            let node = destination.node_mut(*new_id);
-            node.set_data(data);
-            node.parent = None;
-            node.js_doc = old_node.js_doc.map(|id| {
+            let js_doc = old_node.js_doc().map(|id| {
                 let index = self.array_index(id);
                 debug_assert_eq!(self.array_marks[index], self.generation);
                 self.array_map[index]
             });
+            destination.write_payload(*new_id, &data, js_doc, false);
         }
 
         for old_id in &self.old_arrays {
@@ -401,6 +432,7 @@ impl NodeArena {
     pub fn add_memory_usage(&self, usage: &mut SyntaxMemory) {
         usage.nodes += self.nodes.len();
         usage.node_bytes += self.nodes.capacity() * std::mem::size_of::<Node>()
+            + self.tails.chunk_words() * std::mem::size_of::<u32>()
             + self.transform_flags.capacity() * std::mem::size_of::<i32>();
         usage.arrays += self.arrays.len();
         usage.array_bytes += self.arrays.capacity() * std::mem::size_of::<NodeArrayRecord>()
@@ -707,8 +739,39 @@ impl NodeArena {
         self.transform_flags.clear();
     }
 
+    /// Attach the parser's JSDoc list to `host` (the tree's builder owns it
+    /// alone, so a tail is rewritten in place).
     pub fn set_js_doc(&mut self, host: NodeId, js_doc: NodeArrayId) {
-        self.node_mut(host).js_doc = Some(js_doc);
+        let index = self.node_index(host);
+        let data = self.nodes[index].data();
+        self.nodes[index].encode(&data, Some(js_doc), &mut self.tails, true);
+    }
+
+    /// Replace `id`'s JSDoc attachment (a payload change takes a new tail:
+    /// see `Node::encode`).
+    pub fn replace_js_doc(&mut self, id: NodeId, js_doc: Option<NodeArrayId>) {
+        let index = self.node_index(id);
+        let data = self.nodes[index].data();
+        self.nodes[index].encode(&data, js_doc, &mut self.tails, false);
+    }
+
+    /// Replace `id`'s payload, keeping its JSDoc attachment.
+    pub fn set_data(&mut self, id: NodeId, data: NodeData) {
+        let index = self.node_index(id);
+        let js_doc = self.nodes[index].js_doc();
+        self.nodes[index].encode(&data, js_doc, &mut self.tails, false);
+    }
+
+    /// Write `id`'s payload and JSDoc attachment together.
+    pub(crate) fn write_payload(
+        &mut self,
+        id: NodeId,
+        data: &NodeData,
+        js_doc: Option<NodeArrayId>,
+        in_place: bool,
+    ) {
+        let index = self.node_index(id);
+        self.nodes[index].encode(data, js_doc, &mut self.tails, in_place);
     }
 
     pub fn nodes(&self) -> &[Node] {
@@ -851,14 +914,18 @@ impl NodeArena {
         relocation: SyntaxIdentityRelocation,
         leases: SyntaxLeases,
     ) -> Result<(), IdentityError> {
-        for node in &mut self.nodes {
+        for node in self.nodes.iter_mut() {
             if let Some(parent) = &mut node.parent {
                 relocation.node(parent)?;
             }
-            if let Some(js_doc) = &mut node.js_doc {
+            let mut js_doc = node.js_doc();
+            if let Some(js_doc) = &mut js_doc {
                 relocation.node_array(js_doc)?;
             }
-            relocate_node_data(node.data_mut(), &relocation)?;
+            let mut data = node.data();
+            relocate_node_data(&mut data, &relocation)?;
+            // The tree is not shared yet: its tails are rewritten in place.
+            node.encode(&data, js_doc, &mut self.tails, true);
         }
         for node in &mut self.array_items {
             relocation.node(node)?;
@@ -979,8 +1046,24 @@ impl NodeArena {
                 .expect("node identity space exhausted"),
         );
         self.identifier_count += u32::from(kind == SyntaxKind::Identifier);
+        let mut node = Node::new(kind, pos as u32, end as u32, flags.bits());
+        node.encode(&data, None, &mut self.tails, false);
+        self.nodes.push(node);
+        id
+    }
+
+    /// A record of `kind` with an empty payload, written later
+    /// ([`write_payload`](Self::write_payload)).
+    fn push_record(&mut self, kind: SyntaxKind, pos: usize, end: usize, flags: NodeFlags) -> NodeId {
+        let offset = u32::try_from(self.nodes.len()).expect("node arena length exceeds u32");
+        let id = NodeId::new(
+            self.node_base
+                .checked_add(offset)
+                .expect("node identity space exhausted"),
+        );
+        self.identifier_count += u32::from(kind == SyntaxKind::Identifier);
         self.nodes
-            .push(Node::new(kind, data, pos as u32, end as u32, flags.bits()));
+            .push(Node::new(kind, pos as u32, end as u32, flags.bits()));
         id
     }
 
@@ -1073,7 +1156,7 @@ impl NodeArena {
             false
         });
         let public_children = children.len();
-        if let Some(js_doc) = self.node(id).js_doc {
+        if let Some(js_doc) = self.node(id).js_doc() {
             children.extend(self.node_array(js_doc).nodes.iter().copied());
         }
         public_children

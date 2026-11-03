@@ -85,7 +85,7 @@ impl JsSyntaxChecker<'_> {
         Published.node(id).kind
     }
 
-    fn data(&self, id: NodeId) -> &NodeData {
+    fn data(&self, id: NodeId) -> NodeData {
         Published.node(id).data()
     }
 

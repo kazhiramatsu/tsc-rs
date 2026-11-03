@@ -500,7 +500,7 @@ fn replace_with_statement(
     statement: TransformNode,
 ) {
     let root = arena.root(source).unwrap();
-    let NodeData::SourceFile(mut data) = arena.node(root).unwrap().data().clone() else {
+    let NodeData::SourceFile(mut data) = arena.node(root).unwrap().data() else {
         panic!("source file root");
     };
     data.statements = Some(

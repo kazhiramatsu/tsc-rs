@@ -497,7 +497,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                         let text = comments.join("");
                         let text = self.parser.arena.push_text(text.as_bytes());
                         parts.push(self.finish(
-                            NodeData::JSDocText(Box::new(JSDocTextData { text })),
+                            NodeData::JSDocText(JSDocTextData { text }),
                             link_end.unwrap_or(start),
                             comment_end,
                         ));
@@ -538,7 +538,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         if !parts.is_empty() && !trimmed_comments.is_empty() {
             let text = self.parser.arena.push_text(trimmed_comments.as_bytes());
             parts.push(self.finish(
-                NodeData::JSDocText(Box::new(JSDocTextData { text })),
+                NodeData::JSDocText(JSDocTextData { text }),
                 link_end.unwrap_or(start),
                 comments_pos.unwrap_or(scan_end),
             ));
@@ -561,7 +561,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             ))
         };
         self.finish(
-            NodeData::JSDoc(Box::new(JSDocData { tags, comment })),
+            NodeData::JSDoc(JSDocData { tags, comment }),
             start,
             end,
         )
@@ -649,7 +649,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     if let Some(link) = self.try_parse_jsdoc_link(link_start) {
                         let text = self.parser.arena.push_text(comments.join("").as_bytes());
                         parts.push(self.finish(
-                            NodeData::JSDocText(Box::new(JSDocTextData { text })),
+                            NodeData::JSDocText(JSDocTextData { text }),
                             link_end.unwrap_or(comments_pos),
                             comment_end,
                         ));
@@ -707,7 +707,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         if !parts.is_empty() && !trimmed.is_empty() {
             let text = self.parser.arena.push_text(trimmed.as_bytes());
             parts.push(self.finish(
-                NodeData::JSDocText(Box::new(JSDocTextData { text })),
+                NodeData::JSDocText(JSDocTextData { text }),
                 link_end.unwrap_or(comments_pos),
                 self.node_pos(),
             ));
@@ -768,9 +768,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let end = self.token_end();
         let text = self.parser.arena.push_text(text.as_bytes());
         let data = match link_type.as_str() {
-            "link" => NodeData::JSDocLink(Box::new(JSDocLinkData { name, text })),
-            "linkcode" => NodeData::JSDocLinkCode(Box::new(JSDocLinkCodeData { name, text })),
-            _ => NodeData::JSDocLinkPlain(Box::new(JSDocLinkPlainData { name, text })),
+            "link" => NodeData::JSDocLink(JSDocLinkData { name, text }),
+            "linkcode" => NodeData::JSDocLinkCode(JSDocLinkCodeData { name, text }),
+            _ => NodeData::JSDocLinkPlain(JSDocLinkPlainData { name, text }),
         };
         Some(self.finish(data, start, end))
     }
@@ -919,10 +919,10 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 let comment =
                     self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
                 self.finish_current(
-                    NodeData::JSDocTag(Box::new(JSDocTagData {
+                    NodeData::JSDocTag(JSDocTagData {
                         tag_name: Some(tag_name),
                         comment,
-                    })),
+                    }),
                     start,
                 )
             }
@@ -939,30 +939,30 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     ) -> NodeId {
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
         let data = match kind {
-            0 => NodeData::JSDocPublicTag(Box::new(JSDocPublicTagData {
+            0 => NodeData::JSDocPublicTag(JSDocPublicTagData {
                 tag_name: Some(tag_name),
                 comment,
-            })),
-            1 => NodeData::JSDocPrivateTag(Box::new(JSDocPrivateTagData {
+            }),
+            1 => NodeData::JSDocPrivateTag(JSDocPrivateTagData {
                 tag_name: Some(tag_name),
                 comment,
-            })),
-            2 => NodeData::JSDocProtectedTag(Box::new(JSDocProtectedTagData {
+            }),
+            2 => NodeData::JSDocProtectedTag(JSDocProtectedTagData {
                 tag_name: Some(tag_name),
                 comment,
-            })),
-            3 => NodeData::JSDocReadonlyTag(Box::new(JSDocReadonlyTagData {
+            }),
+            3 => NodeData::JSDocReadonlyTag(JSDocReadonlyTagData {
                 tag_name: Some(tag_name),
                 comment,
-            })),
-            4 => NodeData::JSDocOverrideTag(Box::new(JSDocOverrideTagData {
+            }),
+            4 => NodeData::JSDocOverrideTag(JSDocOverrideTagData {
                 tag_name: Some(tag_name),
                 comment,
-            })),
-            _ => NodeData::JSDocDeprecatedTag(Box::new(JSDocDeprecatedTagData {
+            }),
+            _ => NodeData::JSDocDeprecatedTag(JSDocDeprecatedTagData {
                 tag_name: Some(tag_name),
                 comment,
-            })),
+            }),
         };
         self.finish_current(data, start)
     }
@@ -1087,23 +1087,23 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             is_name_first = true;
         }
         let data = if target == TARGET_PROPERTY {
-            NodeData::JSDocPropertyTag(Box::new(JSDocPropertyTagData {
+            NodeData::JSDocPropertyTag(JSDocPropertyTagData {
                 tag_name: Some(tag_name),
                 comment,
                 name: Some(name),
                 type_expression,
                 is_name_first,
                 is_bracketed,
-            }))
+            })
         } else {
-            NodeData::JSDocParameterTag(Box::new(JSDocParameterTagData {
+            NodeData::JSDocParameterTag(JSDocParameterTagData {
                 tag_name: Some(tag_name),
                 comment,
                 name: Some(name),
                 type_expression,
                 is_name_first,
                 is_bracketed,
-            }))
+            })
         };
         self.finish_current(data, start)
     }
@@ -1346,11 +1346,11 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let type_expression = self.try_parse_type_expression();
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), indent, indent_text);
         self.finish_current(
-            NodeData::JSDocReturnTag(Box::new(JSDocReturnTagData {
+            NodeData::JSDocReturnTag(JSDocReturnTagData {
                 tag_name: Some(tag_name),
                 comment,
                 type_expression,
-            })),
+            }),
             start,
         )
     }
@@ -1379,11 +1379,11 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             self.parse_trailing_tag_comments(start, self.node_pos(), indent, indent_text)
         });
         self.finish_current(
-            NodeData::JSDocTypeTag(Box::new(JSDocTypeTagData {
+            NodeData::JSDocTypeTag(JSDocTypeTagData {
                 tag_name: Some(tag_name),
                 comment,
                 type_expression,
-            })),
+            }),
             start,
         )
     }
@@ -1399,11 +1399,11 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         self.skip_whitespace();
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
         self.finish_current(
-            NodeData::JSDocThisTag(Box::new(JSDocThisTagData {
+            NodeData::JSDocThisTag(JSDocThisTagData {
                 tag_name: Some(tag_name),
                 comment,
                 type_expression,
-            })),
+            }),
             start,
         )
     }
@@ -1418,11 +1418,11 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let type_expression = Some(self.parse_jsdoc_type_expression(false));
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
         self.finish_current(
-            NodeData::JSDocSatisfiesTag(Box::new(JSDocSatisfiesTagData {
+            NodeData::JSDocSatisfiesTag(JSDocSatisfiesTagData {
                 tag_name: Some(tag_name),
                 comment,
                 type_expression,
-            })),
+            }),
             start,
         )
     }
@@ -1437,11 +1437,11 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let type_expression = self.try_parse_type_expression();
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
         self.finish_current(
-            NodeData::JSDocThrowsTag(Box::new(JSDocThrowsTagData {
+            NodeData::JSDocThrowsTag(JSDocThrowsTagData {
                 tag_name: Some(tag_name),
                 comment,
                 type_expression,
-            })),
+            }),
             start,
         )
     }
@@ -1465,11 +1465,11 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let name = has_name_reference.then(|| self.parse_jsdoc_name_reference());
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
         self.finish_current(
-            NodeData::JSDocSeeTag(Box::new(JSDocSeeTagData {
+            NodeData::JSDocSeeTag(JSDocSeeTagData {
                 tag_name: Some(tag_name),
                 comment,
                 name,
-            })),
+            }),
             start,
         )
     }
@@ -1530,11 +1530,11 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let class = self.parse_expression_with_type_arguments_for_augments();
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
         self.finish_current(
-            NodeData::JSDocAugmentsTag(Box::new(JSDocAugmentsTagData {
+            NodeData::JSDocAugmentsTag(JSDocAugmentsTagData {
                 tag_name: Some(tag_name),
                 comment,
                 class: Some(class),
-            })),
+            }),
             start,
         )
     }
@@ -1549,11 +1549,11 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let class = self.parse_expression_with_type_arguments_for_augments();
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
         self.finish_current(
-            NodeData::JSDocImplementsTag(Box::new(JSDocImplementsTagData {
+            NodeData::JSDocImplementsTag(JSDocImplementsTagData {
                 tag_name: Some(tag_name),
                 comment,
                 class: Some(class),
-            })),
+            }),
             start,
         )
     }
@@ -1722,13 +1722,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             comment = self.parse_trailing_tag_comments(start, end, indent, indent_text);
         }
         self.finish(
-            NodeData::JSDocTypedefTag(Box::new(JSDocTypedefTagData {
+            NodeData::JSDocTypedefTag(JSDocTypedefTagData {
                 tag_name: Some(tag_name),
                 comment,
                 name,
                 full_name,
                 type_expression,
-            })),
+            }),
             start,
             end,
         )
@@ -1816,13 +1816,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             self.parser.arena.node(type_expression).end as usize
         };
         self.finish(
-            NodeData::JSDocCallbackTag(Box::new(JSDocCallbackTagData {
+            NodeData::JSDocCallbackTag(JSDocCallbackTagData {
                 tag_name: Some(tag_name),
                 comment,
                 name,
                 full_name,
                 type_expression: Some(type_expression),
-            })),
+            }),
             start,
             end,
         )
@@ -1847,11 +1847,11 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             self.parser.arena.node(type_expression).end as usize
         };
         self.finish(
-            NodeData::JSDocOverloadTag(Box::new(JSDocOverloadTagData {
+            NodeData::JSDocOverloadTag(JSDocOverloadTagData {
                 tag_name: Some(tag_name),
                 comment,
                 type_expression: Some(type_expression),
-            })),
+            }),
             start,
             end,
         )
@@ -1921,12 +1921,12 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let type_parameters = self.alloc_array(type_parameters, parameters_pos, self.node_pos());
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), indent, indent_text);
         self.finish_current(
-            NodeData::JSDocTemplateTag(Box::new(JSDocTemplateTagData {
+            NodeData::JSDocTemplateTag(JSDocTemplateTagData {
                 tag_name: Some(tag_name),
                 comment,
                 constraint,
                 type_parameters: Some(type_parameters),
-            })),
+            }),
             start,
         )
     }
@@ -1954,13 +1954,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let attributes = self.parser.try_parse_import_attributes();
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
         self.finish_current(
-            NodeData::JSDocImportTag(Box::new(JSDocImportTagData {
+            NodeData::JSDocImportTag(JSDocImportTagData {
                 tag_name: Some(tag_name),
                 comment,
                 import_clause,
                 module_specifier: Some(module_specifier),
                 attributes,
-            })),
+            }),
             start,
         )
     }

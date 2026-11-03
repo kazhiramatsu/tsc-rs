@@ -579,7 +579,7 @@ fn syntactic_jsdoc_type_literal_keeps_written_property_types() {
                     .node_ref(result.source(), members[index])
                     .expect("property signature");
                 let NodeData::PropertySignature(data) =
-                    arena.node(member).expect("property signature record").data().clone()
+                    arena.node(member).expect("property signature record").data()
                 else {
                     panic!("expected property signature")
                 };

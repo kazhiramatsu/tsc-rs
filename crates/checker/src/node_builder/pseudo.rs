@@ -540,7 +540,7 @@ fn reuse_type_parameters(
         if let Some(constraint) = template_tag_constraint(checker, type_parameter) {
             let constraint = reuse_type_node(checker, arena, target, context, constraint)?;
             if let NodeData::TypeParameter(mut data) =
-                arena.node(reused).map_err(factory_error)?.data().clone()
+                arena.node(reused).map_err(factory_error)?.data()
             {
                 data.constraint = Some(constraint.node());
                 reused = update_factory_node(arena, reused, NodeData::TypeParameter(data))?;
@@ -711,14 +711,14 @@ fn pseudo_object_element_to_node(
                     create_node(
                         arena,
                         target,
-                        NodeData::MethodSignature(Box::new(MethodSignatureData {
+                        NodeData::MethodSignature(MethodSignatureData {
                             name: Some(name.node()),
                             modifiers,
                             question_token: None,
                             type_parameters,
                             parameters: Some(parameters),
                             r#type: Some(return_type.node()),
-                        })),
+                        }),
                     )?
                 }
             }
@@ -745,14 +745,14 @@ fn pseudo_object_element_to_node(
                 create_node(
                     arena,
                     target,
-                    NodeData::SetAccessor(Box::new(SetAccessorData {
+                    NodeData::SetAccessor(SetAccessorData {
                         name: Some(name.node()),
                         type_parameters: None,
                         parameters: Some(parameters),
                         r#type: None,
                         body: None,
                         modifiers: None,
-                    })),
+                    }),
                 )?
             }
             PseudoObjectElementKind::GetAccessor { r#type, .. } => {
@@ -762,14 +762,14 @@ fn pseudo_object_element_to_node(
                 create_node(
                     arena,
                     target,
-                    NodeData::GetAccessor(Box::new(GetAccessorData {
+                    NodeData::GetAccessor(GetAccessorData {
                         name: Some(name.node()),
                         type_parameters: None,
                         parameters: Some(parameters),
                         r#type: Some(r#type.node()),
                         body: None,
                         modifiers: None,
-                    })),
+                    }),
                 )?
             }
         };
@@ -831,14 +831,14 @@ fn pseudo_parameter_to_node(
     let node = create_node(
         arena,
         target,
-        NodeData::Parameter(Box::new(ParameterData {
+        NodeData::Parameter(ParameterData {
             name: Some(name.node()),
             modifiers: None,
             dot_dot_dot_token: dot_dot_dot_token.map(TransformNode::node),
             question_token: question_token.map(TransformNode::node),
             r#type: Some(r#type.node()),
             initializer: None,
-        })),
+        }),
     )?;
     if checker.kind_of(parameter.parameter) == SyntaxKind::Parameter {
         return set_comment_range_2(checker, arena, node, parameter.parameter, context);

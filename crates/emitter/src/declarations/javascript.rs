@@ -280,7 +280,7 @@ impl DeclarationTransformer<'_> {
                 let visited = match constraint {
                     Some(constraint) if index == 0 => {
                         let NodeData::TypeParameter(data) =
-                            cx.arena().node(parameter)?.data().clone()
+                            cx.arena().node(parameter)?.data()
                         else {
                             continue;
                         };
@@ -758,7 +758,7 @@ impl DeclarationTransformer<'_> {
         type_expression: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let source = type_expression.source();
-        match cx.arena().node(type_expression)?.data().clone() {
+        match cx.arena().node(type_expression)?.data() {
             NodeData::JSDocTypeExpression(data) => {
                 let r#type = data
                     .r#type

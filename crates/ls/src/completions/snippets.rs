@@ -539,7 +539,7 @@ fn create_object_literal_method(
     name: TransformNode,
     is_snippet: bool,
 ) -> Result<Option<(TransformNode, tsc_emitter::TransformNodeArray)>, TransformError> {
-    let NodeData::FunctionType(function) = tracker.arena().node(type_node)?.data().clone() else {
+    let NodeData::FunctionType(function) = tracker.arena().node(type_node)?.data() else {
         return Ok(None);
     };
     let type_parameters = function
@@ -550,7 +550,7 @@ fn create_object_literal_method(
         let ids = tracker.arena().node_array(list)?.nodes.to_vec();
         for id in ids {
             let parameter = TransformNode::new(type_node.source(), id);
-            let NodeData::Parameter(data) = tracker.arena().node(parameter)?.data().clone() else {
+            let NodeData::Parameter(data) = tracker.arena().node(parameter)?.data() else {
                 continue;
             };
             let child =
@@ -919,7 +919,7 @@ fn type_node_to_expression(
 ) -> Result<Option<TransformNode>, TransformError> {
     let source = type_node.source();
     let child = |id: Option<NodeId>| id.map(|id| TransformNode::new(source, id));
-    match tracker.arena().node(type_node)?.data().clone() {
+    match tracker.arena().node(type_node)?.data() {
         NodeData::TypeReference(reference) => match child(reference.type_name) {
             Some(name) => entity_name_to_expression(tracker, target, name).map(Some),
             None => Ok(None),
@@ -944,7 +944,7 @@ fn type_node_to_expression(
             let Some(literal) = child(literal.literal) else {
                 return Ok(None);
             };
-            match tracker.arena().node(literal)?.data().clone() {
+            match tracker.arena().node(literal)?.data() {
                 NodeData::StringLiteral(text) => {
                     let text = tracker
                         .arena()
@@ -1002,7 +1002,7 @@ fn entity_name_to_expression(
     target: tsc_emitter::TransformSourceId,
     name: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    let NodeData::QualifiedName(qualified) = tracker.arena().node(name)?.data().clone() else {
+    let NodeData::QualifiedName(qualified) = tracker.arena().node(name)?.data() else {
         return Ok(name);
     };
     let source = name.source();

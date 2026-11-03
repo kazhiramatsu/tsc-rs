@@ -91,7 +91,7 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
         .iter()
         .map(|id| {
             let node = source.arena.node(*id);
-            let mut data = node.data().clone();
+            let mut data = node.data();
             remap_node_data_ids(
                 &mut data,
                 |id| *node_map.get(&id).expect("canonical node reference"),

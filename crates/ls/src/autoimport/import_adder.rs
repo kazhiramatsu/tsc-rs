@@ -520,7 +520,7 @@ impl AutoImportableReference<'_, '_> {
                 // it can't refer to reserved internal symbol names and such
             }
         }
-        let mut data = self.arena.node(node)?.data().clone();
+        let mut data = self.arena.node(node)?.data();
         let original = data.clone();
         tsc_syntax::try_visit_each_child(&mut data, self)?;
         if data == original {
@@ -576,7 +576,7 @@ impl AutoImportableReference<'_, '_> {
         name: TransformNode,
         new_identifier: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::QualifiedName(data) = self.arena.node(name)?.data().clone() else {
+        let NodeData::QualifiedName(data) = self.arena.node(name)?.data() else {
             return Ok(new_identifier);
         };
         let left = match data.left {

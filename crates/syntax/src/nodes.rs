@@ -4,7 +4,7 @@
 pub use crate::ids::{NodeArrayId, NodeId, TextId};
 use crate::SyntaxKind;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum JSDocComment {
     /// tsc's string comment (one without links). TypeScript 7.1 keeps it
     /// as a list of one JSDocText: `pos..end` is that list's range and
@@ -23,6 +23,38 @@ impl JSDocComment {
         match self {
             Self::Nodes(nodes) => Some(*nodes),
             Self::Text { .. } => None,
+        }
+    }
+
+    /// The comment's four tail words: a text's id and range, an array's id
+    /// after a zero word, or zeros for none.
+    const fn words(comment: Option<&Self>) -> [u32; 4] {
+        match comment {
+            Some(Self::Text {
+                text,
+                pos,
+                end,
+                text_end,
+            }) => [text.position(), *pos, *end, *text_end],
+            Some(Self::Nodes(nodes)) => [0, nodes.position(), 0, 0],
+            None => [0; 4],
+        }
+    }
+
+    /// The comment [`words`](Self::words) wrote.
+    const fn from_words(words: [u32; 4]) -> Option<Self> {
+        match (
+            TextId::from_position(words[0]),
+            NodeArrayId::from_position(words[1]),
+        ) {
+            (Some(text), _) => Some(Self::Text {
+                text,
+                pos: words[1],
+                end: words[2],
+                text_end: words[3],
+            }),
+            (None, Some(nodes)) => Some(Self::Nodes(nodes)),
+            (None, None) => None,
         }
     }
 }
@@ -70,7 +102,18 @@ pub enum NodePayload {
     Kind(SyntaxKind),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+/// `literal_flags` bit 15: the record's word 0 names a tail (see
+/// `tsc_store::tails`) holding the payload's slots past the second, the JSDoc
+/// attachment and a JSDoc comment, and words 1-2 hold the first two slots.
+const HAS_TAIL: u16 = 1 << 15;
+
+/// A node record: tsc's Node header and three payload words, which
+/// [`Node::data`] decodes into the kind's payload. A payload of up to three
+/// slots, or one whose slots past the third are empty, has no tail, and the
+/// JSDoc attachment then takes the first unused word (if any); otherwise the
+/// tail holds them. Tails belong to the tree's arena: only `NodeArena`
+/// writes a payload (`alloc_node`, `set_data`, `set_js_doc`).
+#[derive(Clone, Copy)]
 pub struct Node {
     pub kind: SyntaxKind,
     /// The node's parser-owned scalar facts, read through the accessors
@@ -79,30 +122,56 @@ pub struct Node {
     /// RegularExpressionLiteral isUnterminated in bits 2-3, encoded the
     /// same way; on a NumericLiteral tsc's numericLiteralFlags and on the
     /// template literal kinds templateFlags in the remaining bits (their
-    /// TokenFlags masks lie within bits 3-14).
-    pub literal_flags: u16,
+    /// TokenFlags masks lie within bits 3-14); bit 15 is `HAS_TAIL`.
+    literal_flags: u16,
     pub flags: i32,
     pub pos: u32,
     pub end: u32,
     pub parent: Option<NodeId>,
-    /// tsc's internal Node.jsDoc attachment; not an ordinary forEachChild edge.
-    pub js_doc: Option<NodeArrayId>,
     /// tsc Node.transformFlags lives beside the records in `NodeArena`,
     /// written only on an emit session's copy of a tree.
     ///
-    /// The payload, read through [`Node::data`] and replaced through
-    /// [`Node::set_data`]: the record's layout is the generator's, so no
-    /// reader names the field.
-    data: NodeData,
+    /// The payload's words (see [`Node::data`]).
+    words: [u32; 3],
 }
 
 // A large Program holds tens of millions of node records, so their size
 // is a memory budget: growing it is a deliberate decision.
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Node>() == 48);
+const _: () = assert!(std::mem::size_of::<Node>() == 32);
 
 impl tsc_store::StoreRecord for Node {
     const REGION: usize = 0;
+}
+
+impl std::fmt::Debug for Node {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Node")
+            .field("kind", &self.kind)
+            .field("literal_flags", &self.literal_flags())
+            .field("flags", &self.flags)
+            .field("pos", &self.pos)
+            .field("end", &self.end)
+            .field("parent", &self.parent)
+            .field("js_doc", &self.js_doc())
+            .field("data", &self.data())
+            .finish()
+    }
+}
+
+/// Records compare by what they hold, not by where their tails are.
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+            && self.literal_flags() == other.literal_flags()
+            && self.flags == other.flags
+            && self.pos == other.pos
+            && self.end == other.end
+            && self.parent == other.parent
+            && self.js_doc() == other.js_doc()
+            && self.data() == other.data()
+    }
 }
 
 /// A node array's element ids; a zeroed [`NodeArrayRecord`] names none.
@@ -201,7 +270,7 @@ const LITERAL_STATE_SHIFT: u32 = 2;
 /// `literal_flags` bits carrying NumericLiteral.numericLiteralFlags or a
 /// template literal's templateFlags: tsc's masks never touch bits 0-2, and
 /// those kinds carry no literal state.
-const TOKEN_FLAG_BITS: u16 = !MULTI_LINE_BITS;
+const TOKEN_FLAG_BITS: u16 = !(MULTI_LINE_BITS | HAS_TAIL);
 
 fn tri_state(bits: u16) -> Option<bool> {
     match bits {
@@ -220,9 +289,9 @@ fn tri_state_bits(value: Option<bool>) -> u16 {
 }
 
 impl Node {
-    /// A fresh record: `kind` and `data` at `pos..end` with `flags`, no
-    /// parent, no JSDoc and no literal facts yet.
-    pub(crate) fn new(kind: SyntaxKind, data: NodeData, pos: u32, end: u32, flags: i32) -> Self {
+    /// A fresh record: `kind` at `pos..end` with `flags`, an empty payload,
+    /// no parent, no JSDoc and no literal facts yet (see `NodeArena`).
+    pub(crate) fn new(kind: SyntaxKind, pos: u32, end: u32, flags: i32) -> Self {
         Node {
             kind,
             literal_flags: 0,
@@ -230,41 +299,147 @@ impl Node {
             pos,
             end,
             parent: None,
-            js_doc: None,
-            data,
+            words: [0; 3],
         }
     }
 
-    /// The node's payload.
-    #[inline(always)]
-    pub fn data(&self) -> &NodeData {
-        &self.data
-    }
-
-    /// The node's payload for editing in place.
-    #[inline(always)]
-    pub fn data_mut(&mut self) -> &mut NodeData {
-        &mut self.data
-    }
-
-    /// Replace the node's payload.
+    /// The node's parser-owned scalar facts (see the field), without the
+    /// record's own bit.
     #[inline]
-    pub fn set_data(&mut self, data: NodeData) {
-        self.data = data;
+    pub fn literal_flags(&self) -> u16 {
+        self.literal_flags & !HAS_TAIL
     }
 
-    /// This record's scalar facts with another payload: a probe for the
-    /// emitter's flag classifier that clones no payload of its own.
-    pub fn with_data(&self, data: NodeData) -> Node {
-        Node {
-            kind: self.kind,
-            literal_flags: self.literal_flags,
-            flags: self.flags,
-            pos: self.pos,
-            end: self.end,
-            parent: self.parent,
-            js_doc: self.js_doc,
-            data,
+    /// Replace the scalar facts [`literal_flags`](Self::literal_flags) reads.
+    #[inline]
+    pub fn set_literal_flags(&mut self, flags: u16) {
+        self.literal_flags = (flags & !HAS_TAIL) | (self.literal_flags & HAS_TAIL);
+    }
+
+    /// The node's `n` payload slots (`n` the kind's slot count).
+    #[inline(always)]
+    fn slots<const N: usize>(&self) -> [u32; N] {
+        let mut out = [0u32; N];
+        if self.literal_flags & HAS_TAIL == 0 {
+            let inline = N.min(3);
+            out[..inline].copy_from_slice(&self.words[..inline]);
+        } else {
+            if N > 0 {
+                out[0] = self.words[1];
+            }
+            if N > 1 {
+                out[1] = self.words[2];
+            }
+            if N > 2 {
+                out[2..].copy_from_slice(tsc_store::tails::tail(self.words[0], N as u32 - 2));
+            }
+        }
+        out
+    }
+
+    /// The JSDoc comment words of a kind of `slots` slots with a comment.
+    #[inline]
+    fn comment_words(&self, slots: usize) -> [u32; 4] {
+        if self.literal_flags & HAS_TAIL == 0 {
+            return [0; 4];
+        }
+        let at = slots.saturating_sub(2) + 1;
+        let tail = tsc_store::tails::tail(self.words[0], at as u32 + 4);
+        [tail[at], tail[at + 1], tail[at + 2], tail[at + 3]]
+    }
+
+    /// tsc's internal Node.jsDoc attachment; not an ordinary forEachChild
+    /// edge.
+    #[inline]
+    pub fn js_doc(&self) -> Option<NodeArrayId> {
+        let (slots, _) = payload_shape(self.kind);
+        let word = if self.literal_flags & HAS_TAIL == 0 {
+            if slots < 3 {
+                self.words[slots]
+            } else {
+                0
+            }
+        } else {
+            let at = slots.saturating_sub(2);
+            tsc_store::tails::tail(self.words[0], at as u32 + 1)[at]
+        };
+        NodeArrayId::from_position(word)
+    }
+
+    /// Write `data` and `js_doc` into the record; a tail goes to `tails`, the
+    /// record's tree's. `in_place` rewrites the tail the record has, which
+    /// only a tree's exclusive owner may do (a payload change otherwise takes
+    /// a new tail, so a copy of the record keeps reading its own payload).
+    pub(crate) fn encode(
+        &mut self,
+        data: &NodeData,
+        js_doc: Option<NodeArrayId>,
+        tails: &mut tsc_store::tails::Tails,
+        in_place: bool,
+    ) {
+        debug_assert!(
+            data.kind()
+                .map_or(!has_payload(self.kind), |kind| kind == self.kind),
+            "a {:?} record with a {:?} payload",
+            self.kind,
+            data.kind()
+        );
+        let (slots, comment) = encode_slots(data);
+        let (count, has_comment) = payload_shape(self.kind);
+        let js_doc = js_doc.map_or(0, NodeArrayId::position);
+        let spills = slots[count.min(3)..count].iter().any(|&word| word != 0)
+            || comment != [0; 4]
+            || (count >= 3 && js_doc != 0);
+        if !spills {
+            let mut words = [0u32; 3];
+            let inline = count.min(3);
+            words[..inline].copy_from_slice(&slots[..inline]);
+            if count < 3 {
+                words[count] = js_doc;
+            }
+            // A tail the record had stays unused in its tree's chunks.
+            self.words = words;
+            self.literal_flags &= !HAS_TAIL;
+            return;
+        }
+        let at = count.saturating_sub(2);
+        let mut tail = [0u32; MAX_TAIL_WORDS];
+        if count > 2 {
+            tail[..at].copy_from_slice(&slots[2..count]);
+        }
+        tail[at] = js_doc;
+        let len = if has_comment {
+            tail[at + 1..at + 5].copy_from_slice(&comment);
+            at + 5
+        } else {
+            at + 1
+        };
+        let position = if in_place && self.literal_flags & HAS_TAIL != 0 {
+            tails.rewrite(self.words[0], &tail[..len]);
+            self.words[0]
+        } else {
+            tails.push(&tail[..len])
+        };
+        self.words = [position, slots[0], slots[1]];
+        self.literal_flags |= HAS_TAIL;
+    }
+
+    /// This record with another payload, its tail (if any) in `tails`: a
+    /// probe for the emitter's flag classifier, read while `tails` lives.
+    pub fn with_data(&self, data: &NodeData, tails: &mut tsc_store::tails::Tails) -> Node {
+        let mut probe = *self;
+        probe.literal_flags &= !HAS_TAIL;
+        probe.encode(data, self.js_doc(), tails, false);
+        probe
+    }
+
+    /// Give the record a copy of its tail in `tails` (a tree's copy owns
+    /// its tails).
+    pub(crate) fn copy_tail(&mut self, tails: &mut tsc_store::tails::Tails) {
+        if self.literal_flags & HAS_TAIL != 0 {
+            let (slots, has_comment) = payload_shape(self.kind);
+            let len = slots.saturating_sub(2) + 1 + if has_comment { 4 } else { 0 };
+            self.words[0] = tails.push(tsc_store::tails::tail(self.words[0], len as u32));
         }
     }
 
@@ -317,7 +492,7 @@ impl Node {
 
     fn set_token_flags(&mut self, flags: u16) {
         debug_assert_eq!(flags & !TOKEN_FLAG_BITS, 0);
-        self.literal_flags = (self.literal_flags & MULTI_LINE_BITS) | flags;
+        self.literal_flags = (self.literal_flags & (MULTI_LINE_BITS | HAS_TAIL)) | flags;
     }
 
     /// tsc StringLiteral.hasExtendedUnicodeEscape; None on every other kind.
@@ -358,22 +533,22 @@ impl Node {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ArrayBindingPatternData {
     pub elements: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ArrayLiteralExpressionData {
     pub elements: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ArrayTypeData {
     pub element_type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ArrowFunctionData {
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
@@ -383,30 +558,30 @@ pub struct ArrowFunctionData {
     pub equals_greater_than_token: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AsExpressionData {
     pub expression: Option<NodeId>,
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AwaitExpressionData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BigIntLiteralData {
     pub text: TextId,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BinaryExpressionData {
     pub left: Option<NodeId>,
     pub operator_token: Option<NodeId>,
     pub right: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BindingElementData {
     pub name: Option<NodeId>,
     pub property_name: Option<NodeId>,
@@ -414,17 +589,17 @@ pub struct BindingElementData {
     pub initializer: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BlockData {
     pub statements: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BreakStatementData {
     pub label: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CallExpressionData {
     pub expression: Option<NodeId>,
     pub question_dot_token: Option<NodeId>,
@@ -432,31 +607,31 @@ pub struct CallExpressionData {
     pub arguments: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CallSignatureData {
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CaseBlockData {
     pub clauses: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CaseClauseData {
     pub expression: Option<NodeId>,
     pub statements: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CatchClauseData {
     pub variable_declaration: Option<NodeId>,
     pub block: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ClassDeclarationData {
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
@@ -465,7 +640,7 @@ pub struct ClassDeclarationData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ClassExpressionData {
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
@@ -474,23 +649,23 @@ pub struct ClassExpressionData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ClassStaticBlockDeclarationData {
     pub body: Option<NodeId>,
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CommaListExpressionData {
     pub elements: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ComputedPropertyNameData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ConditionalExpressionData {
     pub condition: Option<NodeId>,
     pub question_token: Option<NodeId>,
@@ -499,7 +674,7 @@ pub struct ConditionalExpressionData {
     pub when_false: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ConditionalTypeData {
     pub check_type: Option<NodeId>,
     pub extends_type: Option<NodeId>,
@@ -507,14 +682,14 @@ pub struct ConditionalTypeData {
     pub false_type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ConstructSignatureData {
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ConstructorData {
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
@@ -524,7 +699,7 @@ pub struct ConstructorData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ConstructorTypeData {
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
@@ -532,66 +707,66 @@ pub struct ConstructorTypeData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ContinueStatementData {
     pub label: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DebuggerStatementData {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DecoratorData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DefaultClauseData {
     pub statements: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DeleteExpressionData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DoStatementData {
     pub statement: Option<NodeId>,
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ElementAccessExpressionData {
     pub expression: Option<NodeId>,
     pub question_dot_token: Option<NodeId>,
     pub argument_expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EmptyStatementData {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EnumDeclarationData {
     pub name: Option<NodeId>,
     pub modifiers: Option<NodeArrayId>,
     pub members: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EnumMemberData {
     pub name: Option<NodeId>,
     pub initializer: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ExportAssignmentData {
     pub modifiers: Option<NodeArrayId>,
     pub is_export_equals: Option<bool>,
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ExportDeclarationData {
     pub modifiers: Option<NodeArrayId>,
     pub is_type_only: bool,
@@ -600,37 +775,37 @@ pub struct ExportDeclarationData {
     pub attributes: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ExportSpecifierData {
     pub name: Option<NodeId>,
     pub is_type_only: bool,
     pub property_name: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ExpressionStatementData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ExpressionWithTypeArgumentsData {
     pub type_arguments: Option<NodeArrayId>,
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ExternalModuleReferenceData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ForInStatementData {
     pub statement: Option<NodeId>,
     pub initializer: Option<NodeId>,
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ForOfStatementData {
     pub statement: Option<NodeId>,
     pub await_modifier: Option<NodeId>,
@@ -638,7 +813,7 @@ pub struct ForOfStatementData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ForStatementData {
     pub statement: Option<NodeId>,
     pub initializer: Option<NodeId>,
@@ -646,7 +821,7 @@ pub struct ForStatementData {
     pub incrementor: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FunctionDeclarationData {
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
@@ -657,7 +832,7 @@ pub struct FunctionDeclarationData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FunctionExpressionData {
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
@@ -668,7 +843,7 @@ pub struct FunctionExpressionData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FunctionTypeData {
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
@@ -676,7 +851,7 @@ pub struct FunctionTypeData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GetAccessorData {
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
@@ -686,38 +861,38 @@ pub struct GetAccessorData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct HeritageClauseData {
     pub token: SyntaxKind,
     pub types: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IdentifierData {
     pub escaped_text: tsc_types::EscapedName,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IfStatementData {
     pub expression: Option<NodeId>,
     pub then_statement: Option<NodeId>,
     pub else_statement: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ImportAttributeData {
     pub name: Option<NodeId>,
     pub value: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ImportAttributesData {
     pub token: SyntaxKind,
     pub elements: Option<NodeArrayId>,
     pub multi_line: Option<bool>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ImportClauseData {
     pub name: Option<NodeId>,
     pub is_type_only: bool,
@@ -725,7 +900,7 @@ pub struct ImportClauseData {
     pub named_bindings: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ImportDeclarationData {
     pub modifiers: Option<NodeArrayId>,
     pub import_clause: Option<NodeId>,
@@ -733,7 +908,7 @@ pub struct ImportDeclarationData {
     pub attributes: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ImportEqualsDeclarationData {
     pub name: Option<NodeId>,
     pub modifiers: Option<NodeArrayId>,
@@ -741,14 +916,14 @@ pub struct ImportEqualsDeclarationData {
     pub module_reference: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ImportSpecifierData {
     pub name: Option<NodeId>,
     pub property_name: Option<NodeId>,
     pub is_type_only: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ImportTypeData {
     pub type_arguments: Option<NodeArrayId>,
     pub is_type_of: bool,
@@ -757,12 +932,12 @@ pub struct ImportTypeData {
     pub qualifier: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ImportTypeAssertionContainerData {
     pub assert_clause: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IndexSignatureData {
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
@@ -770,18 +945,18 @@ pub struct IndexSignatureData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IndexedAccessTypeData {
     pub object_type: Option<NodeId>,
     pub index_type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct InferTypeData {
     pub type_parameter: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct InterfaceDeclarationData {
     pub name: Option<NodeId>,
     pub modifiers: Option<NodeArrayId>,
@@ -790,34 +965,34 @@ pub struct InterfaceDeclarationData {
     pub members: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IntersectionTypeData {
     pub types: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocData {
     pub tags: Option<NodeArrayId>,
     pub comment: Option<JSDocComment>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocAllTypeData {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocAugmentsTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
     pub class: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocAuthorTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocCallbackTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
@@ -826,26 +1001,26 @@ pub struct JSDocCallbackTagData {
     pub type_expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocClassTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocDeprecatedTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocEnumTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocFunctionTypeData {
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
@@ -853,14 +1028,14 @@ pub struct JSDocFunctionTypeData {
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocImplementsTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
     pub class: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocImportTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
@@ -869,71 +1044,71 @@ pub struct JSDocImportTagData {
     pub attributes: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocLinkData {
     pub name: Option<NodeId>,
     pub text: TextId,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocLinkCodeData {
     pub name: Option<NodeId>,
     pub text: TextId,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocLinkPlainData {
     pub name: Option<NodeId>,
     pub text: TextId,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocMemberNameData {
     pub left: Option<NodeId>,
     pub right: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocNameReferenceData {
     pub name: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocNamepathTypeData {
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocNonNullableTypeData {
     pub r#type: Option<NodeId>,
     pub postfix: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocNullableTypeData {
     pub r#type: Option<NodeId>,
     pub postfix: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocOptionalTypeData {
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocOverloadTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocOverrideTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocParameterTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
@@ -943,13 +1118,13 @@ pub struct JSDocParameterTagData {
     pub is_bracketed: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocPrivateTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocPropertyTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
@@ -959,59 +1134,59 @@ pub struct JSDocPropertyTagData {
     pub is_bracketed: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocProtectedTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocPublicTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocReadonlyTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocReturnTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocSatisfiesTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocSeeTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
     pub name: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocSignatureData {
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocTemplateTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
@@ -1019,44 +1194,44 @@ pub struct JSDocTemplateTagData {
     pub type_parameters: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocTextData {
     pub text: TextId,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocThisTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocThrowsTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocTypeExpressionData {
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocTypeLiteralData {
     pub js_doc_property_tags: Option<NodeArrayId>,
     pub is_array_type: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocTypeTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocTypedefTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<JSDocComment>,
@@ -1065,93 +1240,93 @@ pub struct JSDocTypedefTagData {
     pub type_expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocUnknownTypeData {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JSDocVariadicTypeData {
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JsxAttributeData {
     pub name: Option<NodeId>,
     pub initializer: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JsxAttributesData {
     pub properties: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JsxClosingElementData {
     pub tag_name: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JsxElementData {
     pub opening_element: Option<NodeId>,
     pub children: Option<NodeArrayId>,
     pub closing_element: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JsxExpressionData {
     pub dot_dot_dot_token: Option<NodeId>,
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JsxFragmentData {
     pub opening_fragment: Option<NodeId>,
     pub children: Option<NodeArrayId>,
     pub closing_fragment: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JsxNamespacedNameData {
     pub name: Option<NodeId>,
     pub namespace: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JsxOpeningElementData {
     pub tag_name: Option<NodeId>,
     pub type_arguments: Option<NodeArrayId>,
     pub attributes: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JsxSelfClosingElementData {
     pub tag_name: Option<NodeId>,
     pub type_arguments: Option<NodeArrayId>,
     pub attributes: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JsxSpreadAttributeData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JsxTextData {
     pub text: TextId,
     pub contains_only_trivia_white_spaces: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LabeledStatementData {
     pub label: Option<NodeId>,
     pub statement: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LiteralTypeData {
     pub literal: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MappedTypeData {
     pub readonly_token: Option<NodeId>,
     pub type_parameter: Option<NodeId>,
@@ -1161,13 +1336,13 @@ pub struct MappedTypeData {
     pub members: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MetaPropertyData {
     pub keyword_token: SyntaxKind,
     pub name: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MethodDeclarationData {
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
@@ -1180,7 +1355,7 @@ pub struct MethodDeclarationData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MethodSignatureData {
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
@@ -1190,17 +1365,17 @@ pub struct MethodSignatureData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MissingDeclarationData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ModuleBlockData {
     pub statements: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ModuleDeclarationData {
     pub name: Option<NodeId>,
     /// TypeScript 7.1's import attributes type of an ambient module
@@ -1210,17 +1385,17 @@ pub struct ModuleDeclarationData {
     pub body: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NamedExportsData {
     pub elements: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NamedImportsData {
     pub elements: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NamedTupleMemberData {
     pub dot_dot_dot_token: Option<NodeId>,
     pub name: Option<NodeId>,
@@ -1228,23 +1403,23 @@ pub struct NamedTupleMemberData {
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NamespaceExportData {
     pub name: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NamespaceExportDeclarationData {
     pub name: Option<NodeId>,
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NamespaceImportData {
     pub name: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NewExpressionData {
     pub expression: Option<NodeId>,
     pub type_arguments: Option<NodeArrayId>,
@@ -1252,44 +1427,44 @@ pub struct NewExpressionData {
     pub question_dot_token: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NoSubstitutionTemplateLiteralData {
     pub text: TextId,
     pub raw_text: Option<TextId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NonNullExpressionData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NotEmittedStatementData {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NumericLiteralData {
     pub text: TextId,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ObjectBindingPatternData {
     pub elements: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ObjectLiteralExpressionData {
     pub properties: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct OmittedExpressionData {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct OptionalTypeData {
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ParameterData {
     pub name: Option<NodeId>,
     pub modifiers: Option<NodeArrayId>,
@@ -1299,46 +1474,46 @@ pub struct ParameterData {
     pub initializer: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ParenthesizedExpressionData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ParenthesizedTypeData {
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PartiallyEmittedExpressionData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PostfixUnaryExpressionData {
     pub operand: Option<NodeId>,
     pub operator: SyntaxKind,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PrefixUnaryExpressionData {
     pub operator: SyntaxKind,
     pub operand: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PrivateIdentifierData {
     pub escaped_text: tsc_types::EscapedName,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PropertyAccessExpressionData {
     pub name: Option<NodeId>,
     pub expression: Option<NodeId>,
     pub question_dot_token: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PropertyAssignmentData {
     pub name: Option<NodeId>,
     pub initializer: Option<NodeId>,
@@ -1347,7 +1522,7 @@ pub struct PropertyAssignmentData {
     pub exclamation_token: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PropertyDeclarationData {
     pub name: Option<NodeId>,
     pub modifiers: Option<NodeArrayId>,
@@ -1357,7 +1532,7 @@ pub struct PropertyDeclarationData {
     pub initializer: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PropertySignatureData {
     pub name: Option<NodeId>,
     pub question_token: Option<NodeId>,
@@ -1366,34 +1541,34 @@ pub struct PropertySignatureData {
     pub initializer: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct QualifiedNameData {
     pub left: Option<NodeId>,
     pub right: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RegularExpressionLiteralData {
     pub text: TextId,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RestTypeData {
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ReturnStatementData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SatisfiesExpressionData {
     pub expression: Option<NodeId>,
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SetAccessorData {
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
@@ -1403,7 +1578,7 @@ pub struct SetAccessorData {
     pub modifiers: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ShorthandPropertyAssignmentData {
     pub name: Option<NodeId>,
     pub equals_token: Option<NodeId>,
@@ -1413,37 +1588,37 @@ pub struct ShorthandPropertyAssignmentData {
     pub exclamation_token: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SourceFileData {
     pub statements: Option<NodeArrayId>,
     pub end_of_file_token: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SpreadAssignmentData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SpreadElementData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct StringLiteralData {
     pub text: TextId,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SwitchStatementData {
     pub expression: Option<NodeId>,
     pub case_block: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SyntaxListData {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TaggedTemplateExpressionData {
     pub tag: Option<NodeId>,
     pub type_arguments: Option<NodeArrayId>,
@@ -1451,66 +1626,66 @@ pub struct TaggedTemplateExpressionData {
     pub question_dot_token: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TemplateExpressionData {
     pub head: Option<NodeId>,
     pub template_spans: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TemplateHeadData {
     pub text: TextId,
     pub raw_text: Option<TextId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TemplateLiteralTypeData {
     pub head: Option<NodeId>,
     pub template_spans: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TemplateLiteralTypeSpanData {
     pub r#type: Option<NodeId>,
     pub literal: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TemplateMiddleData {
     pub text: TextId,
     pub raw_text: Option<TextId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TemplateSpanData {
     pub expression: Option<NodeId>,
     pub literal: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TemplateTailData {
     pub text: TextId,
     pub raw_text: Option<TextId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ThrowStatementData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TryStatementData {
     pub try_block: Option<NodeId>,
     pub catch_clause: Option<NodeId>,
     pub finally_block: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TupleTypeData {
     pub elements: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TypeAliasDeclarationData {
     pub name: Option<NodeId>,
     pub modifiers: Option<NodeArrayId>,
@@ -1518,29 +1693,29 @@ pub struct TypeAliasDeclarationData {
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TypeAssertionExpressionData {
     pub r#type: Option<NodeId>,
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TypeLiteralData {
     pub members: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TypeOfExpressionData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TypeOperatorData {
     pub operator: SyntaxKind,
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TypeParameterData {
     pub name: Option<NodeId>,
     pub modifiers: Option<NodeArrayId>,
@@ -1549,31 +1724,31 @@ pub struct TypeParameterData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TypePredicateData {
     pub asserts_modifier: Option<NodeId>,
     pub parameter_name: Option<NodeId>,
     pub r#type: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TypeQueryData {
     pub type_arguments: Option<NodeArrayId>,
     pub expr_name: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TypeReferenceData {
     pub type_arguments: Option<NodeArrayId>,
     pub type_name: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UnionTypeData {
     pub types: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct VariableDeclarationData {
     pub name: Option<NodeId>,
     pub exclamation_token: Option<NodeId>,
@@ -1581,50 +1756,50 @@ pub struct VariableDeclarationData {
     pub initializer: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct VariableDeclarationListData {
     pub declarations: Option<NodeArrayId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct VariableStatementData {
     pub modifiers: Option<NodeArrayId>,
     pub declaration_list: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct VoidExpressionData {
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WhileStatementData {
     pub statement: Option<NodeId>,
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WithStatementData {
     pub expression: Option<NodeId>,
     pub statement: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct YieldExpressionData {
     pub asterisk_token: Option<NodeId>,
     pub expression: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum NodeData {
     Token,
     ArrayBindingPattern(ArrayBindingPatternData),
     ArrayLiteralExpression(ArrayLiteralExpressionData),
     ArrayType(ArrayTypeData),
-    ArrowFunction(Box<ArrowFunctionData>),
+    ArrowFunction(ArrowFunctionData),
     AsExpression(AsExpressionData),
     AwaitExpression(AwaitExpressionData),
-    BigIntLiteral(Box<BigIntLiteralData>),
+    BigIntLiteral(BigIntLiteralData),
     BinaryExpression(BinaryExpressionData),
     BindingElement(BindingElementData),
     Block(BlockData),
@@ -1642,7 +1817,7 @@ pub enum NodeData {
     ConditionalExpression(ConditionalExpressionData),
     ConditionalType(ConditionalTypeData),
     ConstructSignature(ConstructSignatureData),
-    Constructor(Box<ConstructorData>),
+    Constructor(ConstructorData),
     ConstructorType(ConstructorTypeData),
     ContinueStatement(ContinueStatementData),
     DebuggerStatement(DebuggerStatementData),
@@ -1663,10 +1838,10 @@ pub enum NodeData {
     ForInStatement(ForInStatementData),
     ForOfStatement(ForOfStatementData),
     ForStatement(ForStatementData),
-    FunctionDeclaration(Box<FunctionDeclarationData>),
-    FunctionExpression(Box<FunctionExpressionData>),
+    FunctionDeclaration(FunctionDeclarationData),
+    FunctionExpression(FunctionExpressionData),
     FunctionType(FunctionTypeData),
-    GetAccessor(Box<GetAccessorData>),
+    GetAccessor(GetAccessorData),
     HeritageClause(HeritageClauseData),
     Identifier(IdentifierData),
     IfStatement(IfStatementData),
@@ -1683,47 +1858,47 @@ pub enum NodeData {
     InferType(InferTypeData),
     InterfaceDeclaration(InterfaceDeclarationData),
     IntersectionType(IntersectionTypeData),
-    JSDoc(Box<JSDocData>),
+    JSDoc(JSDocData),
     JSDocAllType(JSDocAllTypeData),
-    JSDocAugmentsTag(Box<JSDocAugmentsTagData>),
-    JSDocAuthorTag(Box<JSDocAuthorTagData>),
-    JSDocCallbackTag(Box<JSDocCallbackTagData>),
-    JSDocClassTag(Box<JSDocClassTagData>),
-    JSDocDeprecatedTag(Box<JSDocDeprecatedTagData>),
-    JSDocEnumTag(Box<JSDocEnumTagData>),
+    JSDocAugmentsTag(JSDocAugmentsTagData),
+    JSDocAuthorTag(JSDocAuthorTagData),
+    JSDocCallbackTag(JSDocCallbackTagData),
+    JSDocClassTag(JSDocClassTagData),
+    JSDocDeprecatedTag(JSDocDeprecatedTagData),
+    JSDocEnumTag(JSDocEnumTagData),
     JSDocFunctionType(JSDocFunctionTypeData),
-    JSDocImplementsTag(Box<JSDocImplementsTagData>),
-    JSDocImportTag(Box<JSDocImportTagData>),
-    JSDocLink(Box<JSDocLinkData>),
-    JSDocLinkCode(Box<JSDocLinkCodeData>),
-    JSDocLinkPlain(Box<JSDocLinkPlainData>),
+    JSDocImplementsTag(JSDocImplementsTagData),
+    JSDocImportTag(JSDocImportTagData),
+    JSDocLink(JSDocLinkData),
+    JSDocLinkCode(JSDocLinkCodeData),
+    JSDocLinkPlain(JSDocLinkPlainData),
     JSDocMemberName(JSDocMemberNameData),
     JSDocNameReference(JSDocNameReferenceData),
     JSDocNamepathType(JSDocNamepathTypeData),
     JSDocNonNullableType(JSDocNonNullableTypeData),
     JSDocNullableType(JSDocNullableTypeData),
     JSDocOptionalType(JSDocOptionalTypeData),
-    JSDocOverloadTag(Box<JSDocOverloadTagData>),
-    JSDocOverrideTag(Box<JSDocOverrideTagData>),
-    JSDocParameterTag(Box<JSDocParameterTagData>),
-    JSDocPrivateTag(Box<JSDocPrivateTagData>),
-    JSDocPropertyTag(Box<JSDocPropertyTagData>),
-    JSDocProtectedTag(Box<JSDocProtectedTagData>),
-    JSDocPublicTag(Box<JSDocPublicTagData>),
-    JSDocReadonlyTag(Box<JSDocReadonlyTagData>),
-    JSDocReturnTag(Box<JSDocReturnTagData>),
-    JSDocSatisfiesTag(Box<JSDocSatisfiesTagData>),
-    JSDocSeeTag(Box<JSDocSeeTagData>),
+    JSDocOverloadTag(JSDocOverloadTagData),
+    JSDocOverrideTag(JSDocOverrideTagData),
+    JSDocParameterTag(JSDocParameterTagData),
+    JSDocPrivateTag(JSDocPrivateTagData),
+    JSDocPropertyTag(JSDocPropertyTagData),
+    JSDocProtectedTag(JSDocProtectedTagData),
+    JSDocPublicTag(JSDocPublicTagData),
+    JSDocReadonlyTag(JSDocReadonlyTagData),
+    JSDocReturnTag(JSDocReturnTagData),
+    JSDocSatisfiesTag(JSDocSatisfiesTagData),
+    JSDocSeeTag(JSDocSeeTagData),
     JSDocSignature(JSDocSignatureData),
-    JSDocTag(Box<JSDocTagData>),
-    JSDocTemplateTag(Box<JSDocTemplateTagData>),
-    JSDocText(Box<JSDocTextData>),
-    JSDocThisTag(Box<JSDocThisTagData>),
-    JSDocThrowsTag(Box<JSDocThrowsTagData>),
+    JSDocTag(JSDocTagData),
+    JSDocTemplateTag(JSDocTemplateTagData),
+    JSDocText(JSDocTextData),
+    JSDocThisTag(JSDocThisTagData),
+    JSDocThrowsTag(JSDocThrowsTagData),
     JSDocTypeExpression(JSDocTypeExpressionData),
     JSDocTypeLiteral(JSDocTypeLiteralData),
-    JSDocTypeTag(Box<JSDocTypeTagData>),
-    JSDocTypedefTag(Box<JSDocTypedefTagData>),
+    JSDocTypeTag(JSDocTypeTagData),
+    JSDocTypedefTag(JSDocTypedefTagData),
     JSDocUnknownType(JSDocUnknownTypeData),
     JSDocVariadicType(JSDocVariadicTypeData),
     JsxAttribute(JsxAttributeData),
@@ -1736,13 +1911,13 @@ pub enum NodeData {
     JsxOpeningElement(JsxOpeningElementData),
     JsxSelfClosingElement(JsxSelfClosingElementData),
     JsxSpreadAttribute(JsxSpreadAttributeData),
-    JsxText(Box<JsxTextData>),
+    JsxText(JsxTextData),
     LabeledStatement(LabeledStatementData),
     LiteralType(LiteralTypeData),
-    MappedType(Box<MappedTypeData>),
+    MappedType(MappedTypeData),
     MetaProperty(MetaPropertyData),
-    MethodDeclaration(Box<MethodDeclarationData>),
-    MethodSignature(Box<MethodSignatureData>),
+    MethodDeclaration(MethodDeclarationData),
+    MethodSignature(MethodSignatureData),
     MissingDeclaration(MissingDeclarationData),
     ModuleBlock(ModuleBlockData),
     ModuleDeclaration(ModuleDeclarationData),
@@ -1753,15 +1928,15 @@ pub enum NodeData {
     NamespaceExportDeclaration(NamespaceExportDeclarationData),
     NamespaceImport(NamespaceImportData),
     NewExpression(NewExpressionData),
-    NoSubstitutionTemplateLiteral(Box<NoSubstitutionTemplateLiteralData>),
+    NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData),
     NonNullExpression(NonNullExpressionData),
-    NotEmittedStatement(Box<NotEmittedStatementData>),
-    NumericLiteral(Box<NumericLiteralData>),
+    NotEmittedStatement(NotEmittedStatementData),
+    NumericLiteral(NumericLiteralData),
     ObjectBindingPattern(ObjectBindingPatternData),
     ObjectLiteralExpression(ObjectLiteralExpressionData),
     OmittedExpression(OmittedExpressionData),
     OptionalType(OptionalTypeData),
-    Parameter(Box<ParameterData>),
+    Parameter(ParameterData),
     ParenthesizedExpression(ParenthesizedExpressionData),
     ParenthesizedType(ParenthesizedTypeData),
     PartiallyEmittedExpression(PartiallyEmittedExpressionData),
@@ -1770,29 +1945,29 @@ pub enum NodeData {
     PrivateIdentifier(PrivateIdentifierData),
     PropertyAccessExpression(PropertyAccessExpressionData),
     PropertyAssignment(PropertyAssignmentData),
-    PropertyDeclaration(Box<PropertyDeclarationData>),
+    PropertyDeclaration(PropertyDeclarationData),
     PropertySignature(PropertySignatureData),
     QualifiedName(QualifiedNameData),
-    RegularExpressionLiteral(Box<RegularExpressionLiteralData>),
+    RegularExpressionLiteral(RegularExpressionLiteralData),
     RestType(RestTypeData),
     ReturnStatement(ReturnStatementData),
     SatisfiesExpression(SatisfiesExpressionData),
-    SetAccessor(Box<SetAccessorData>),
-    ShorthandPropertyAssignment(Box<ShorthandPropertyAssignmentData>),
+    SetAccessor(SetAccessorData),
+    ShorthandPropertyAssignment(ShorthandPropertyAssignmentData),
     SourceFile(SourceFileData),
     SpreadAssignment(SpreadAssignmentData),
     SpreadElement(SpreadElementData),
-    StringLiteral(Box<StringLiteralData>),
+    StringLiteral(StringLiteralData),
     SwitchStatement(SwitchStatementData),
     SyntaxList(SyntaxListData),
     TaggedTemplateExpression(TaggedTemplateExpressionData),
     TemplateExpression(TemplateExpressionData),
-    TemplateHead(Box<TemplateHeadData>),
+    TemplateHead(TemplateHeadData),
     TemplateLiteralType(TemplateLiteralTypeData),
     TemplateLiteralTypeSpan(TemplateLiteralTypeSpanData),
-    TemplateMiddle(Box<TemplateMiddleData>),
+    TemplateMiddle(TemplateMiddleData),
     TemplateSpan(TemplateSpanData),
-    TemplateTail(Box<TemplateTailData>),
+    TemplateTail(TemplateTailData),
     ThrowStatement(ThrowStatementData),
     TryStatement(TryStatementData),
     TupleType(TupleTypeData),
@@ -2028,14 +2203,14 @@ impl NodeData {
                 Self::ArrayLiteralExpression(ArrayLiteralExpressionData { elements: None })
             }
             SyntaxKind::ArrayType => Self::ArrayType(ArrayTypeData { element_type: None }),
-            SyntaxKind::ArrowFunction => Self::ArrowFunction(Box::new(ArrowFunctionData {
+            SyntaxKind::ArrowFunction => Self::ArrowFunction(ArrowFunctionData {
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 body: None,
                 modifiers: None,
                 equals_greater_than_token: None,
-            })),
+            }),
             SyntaxKind::AsExpression => Self::AsExpression(AsExpressionData {
                 expression: None,
                 r#type: None,
@@ -2043,9 +2218,9 @@ impl NodeData {
             SyntaxKind::AwaitExpression => {
                 Self::AwaitExpression(AwaitExpressionData { expression: None })
             }
-            SyntaxKind::BigIntLiteral => Self::BigIntLiteral(Box::new(BigIntLiteralData {
+            SyntaxKind::BigIntLiteral => Self::BigIntLiteral(BigIntLiteralData {
                 text: TextId::EMPTY,
-            })),
+            }),
             SyntaxKind::BinaryExpression => Self::BinaryExpression(BinaryExpressionData {
                 left: None,
                 operator_token: None,
@@ -2125,14 +2300,14 @@ impl NodeData {
                 parameters: None,
                 r#type: None,
             }),
-            SyntaxKind::Constructor => Self::Constructor(Box::new(ConstructorData {
+            SyntaxKind::Constructor => Self::Constructor(ConstructorData {
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 body: None,
                 modifiers: None,
-            })),
+            }),
             SyntaxKind::ConstructorType => Self::ConstructorType(ConstructorTypeData {
                 type_parameters: None,
                 parameters: None,
@@ -2217,42 +2392,38 @@ impl NodeData {
                 condition: None,
                 incrementor: None,
             }),
-            SyntaxKind::FunctionDeclaration => {
-                Self::FunctionDeclaration(Box::new(FunctionDeclarationData {
-                    name: None,
-                    type_parameters: None,
-                    parameters: None,
-                    r#type: None,
-                    asterisk_token: None,
-                    body: None,
-                    modifiers: None,
-                }))
-            }
-            SyntaxKind::FunctionExpression => {
-                Self::FunctionExpression(Box::new(FunctionExpressionData {
-                    name: None,
-                    type_parameters: None,
-                    parameters: None,
-                    r#type: None,
-                    asterisk_token: None,
-                    body: None,
-                    modifiers: None,
-                }))
-            }
+            SyntaxKind::FunctionDeclaration => Self::FunctionDeclaration(FunctionDeclarationData {
+                name: None,
+                type_parameters: None,
+                parameters: None,
+                r#type: None,
+                asterisk_token: None,
+                body: None,
+                modifiers: None,
+            }),
+            SyntaxKind::FunctionExpression => Self::FunctionExpression(FunctionExpressionData {
+                name: None,
+                type_parameters: None,
+                parameters: None,
+                r#type: None,
+                asterisk_token: None,
+                body: None,
+                modifiers: None,
+            }),
             SyntaxKind::FunctionType => Self::FunctionType(FunctionTypeData {
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 modifiers: None,
             }),
-            SyntaxKind::GetAccessor => Self::GetAccessor(Box::new(GetAccessorData {
+            SyntaxKind::GetAccessor => Self::GetAccessor(GetAccessorData {
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 body: None,
                 modifiers: None,
-            })),
+            }),
             SyntaxKind::HeritageClause => Self::HeritageClause(HeritageClauseData {
                 token: SyntaxKind::HeritageClause,
                 types: None,
@@ -2336,78 +2507,70 @@ impl NodeData {
             SyntaxKind::IntersectionType => {
                 Self::IntersectionType(IntersectionTypeData { types: None })
             }
-            SyntaxKind::JSDoc => Self::JSDoc(Box::new(JSDocData {
+            SyntaxKind::JSDoc => Self::JSDoc(JSDocData {
                 tags: None,
                 comment: None,
-            })),
+            }),
             SyntaxKind::JSDocAllType => Self::JSDocAllType(JSDocAllTypeData {}),
-            SyntaxKind::JSDocAugmentsTag => {
-                Self::JSDocAugmentsTag(Box::new(JSDocAugmentsTagData {
-                    tag_name: None,
-                    comment: None,
-                    class: None,
-                }))
-            }
-            SyntaxKind::JSDocAuthorTag => Self::JSDocAuthorTag(Box::new(JSDocAuthorTagData {
+            SyntaxKind::JSDocAugmentsTag => Self::JSDocAugmentsTag(JSDocAugmentsTagData {
                 tag_name: None,
                 comment: None,
-            })),
-            SyntaxKind::JSDocCallbackTag => {
-                Self::JSDocCallbackTag(Box::new(JSDocCallbackTagData {
-                    tag_name: None,
-                    comment: None,
-                    name: None,
-                    full_name: None,
-                    type_expression: None,
-                }))
-            }
-            SyntaxKind::JSDocClassTag => Self::JSDocClassTag(Box::new(JSDocClassTagData {
+                class: None,
+            }),
+            SyntaxKind::JSDocAuthorTag => Self::JSDocAuthorTag(JSDocAuthorTagData {
                 tag_name: None,
                 comment: None,
-            })),
-            SyntaxKind::JSDocDeprecatedTag => {
-                Self::JSDocDeprecatedTag(Box::new(JSDocDeprecatedTagData {
-                    tag_name: None,
-                    comment: None,
-                }))
-            }
-            SyntaxKind::JSDocEnumTag => Self::JSDocEnumTag(Box::new(JSDocEnumTagData {
+            }),
+            SyntaxKind::JSDocCallbackTag => Self::JSDocCallbackTag(JSDocCallbackTagData {
+                tag_name: None,
+                comment: None,
+                name: None,
+                full_name: None,
+                type_expression: None,
+            }),
+            SyntaxKind::JSDocClassTag => Self::JSDocClassTag(JSDocClassTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocDeprecatedTag => Self::JSDocDeprecatedTag(JSDocDeprecatedTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocEnumTag => Self::JSDocEnumTag(JSDocEnumTagData {
                 tag_name: None,
                 comment: None,
                 type_expression: None,
-            })),
+            }),
             SyntaxKind::JSDocFunctionType => Self::JSDocFunctionType(JSDocFunctionTypeData {
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
             }),
-            SyntaxKind::JSDocImplementsTag => {
-                Self::JSDocImplementsTag(Box::new(JSDocImplementsTagData {
-                    tag_name: None,
-                    comment: None,
-                    class: None,
-                }))
-            }
-            SyntaxKind::JSDocImportTag => Self::JSDocImportTag(Box::new(JSDocImportTagData {
+            SyntaxKind::JSDocImplementsTag => Self::JSDocImplementsTag(JSDocImplementsTagData {
+                tag_name: None,
+                comment: None,
+                class: None,
+            }),
+            SyntaxKind::JSDocImportTag => Self::JSDocImportTag(JSDocImportTagData {
                 tag_name: None,
                 comment: None,
                 import_clause: None,
                 module_specifier: None,
                 attributes: None,
-            })),
-            SyntaxKind::JSDocLink => Self::JSDocLink(Box::new(JSDocLinkData {
+            }),
+            SyntaxKind::JSDocLink => Self::JSDocLink(JSDocLinkData {
                 name: None,
                 text: TextId::EMPTY,
-            })),
-            SyntaxKind::JSDocLinkCode => Self::JSDocLinkCode(Box::new(JSDocLinkCodeData {
+            }),
+            SyntaxKind::JSDocLinkCode => Self::JSDocLinkCode(JSDocLinkCodeData {
                 name: None,
                 text: TextId::EMPTY,
-            })),
-            SyntaxKind::JSDocLinkPlain => Self::JSDocLinkPlain(Box::new(JSDocLinkPlainData {
+            }),
+            SyntaxKind::JSDocLinkPlain => Self::JSDocLinkPlain(JSDocLinkPlainData {
                 name: None,
                 text: TextId::EMPTY,
-            })),
+            }),
             SyntaxKind::JSDocMemberName => Self::JSDocMemberName(JSDocMemberNameData {
                 left: None,
                 right: None,
@@ -2431,106 +2594,90 @@ impl NodeData {
             SyntaxKind::JSDocOptionalType => {
                 Self::JSDocOptionalType(JSDocOptionalTypeData { r#type: None })
             }
-            SyntaxKind::JSDocOverloadTag => {
-                Self::JSDocOverloadTag(Box::new(JSDocOverloadTagData {
-                    tag_name: None,
-                    comment: None,
-                    type_expression: None,
-                }))
-            }
-            SyntaxKind::JSDocOverrideTag => {
-                Self::JSDocOverrideTag(Box::new(JSDocOverrideTagData {
-                    tag_name: None,
-                    comment: None,
-                }))
-            }
-            SyntaxKind::JSDocParameterTag => {
-                Self::JSDocParameterTag(Box::new(JSDocParameterTagData {
-                    tag_name: None,
-                    comment: None,
-                    name: None,
-                    type_expression: None,
-                    is_name_first: false,
-                    is_bracketed: false,
-                }))
-            }
-            SyntaxKind::JSDocPrivateTag => Self::JSDocPrivateTag(Box::new(JSDocPrivateTagData {
-                tag_name: None,
-                comment: None,
-            })),
-            SyntaxKind::JSDocPropertyTag => {
-                Self::JSDocPropertyTag(Box::new(JSDocPropertyTagData {
-                    tag_name: None,
-                    comment: None,
-                    name: None,
-                    type_expression: None,
-                    is_name_first: false,
-                    is_bracketed: false,
-                }))
-            }
-            SyntaxKind::JSDocProtectedTag => {
-                Self::JSDocProtectedTag(Box::new(JSDocProtectedTagData {
-                    tag_name: None,
-                    comment: None,
-                }))
-            }
-            SyntaxKind::JSDocPublicTag => Self::JSDocPublicTag(Box::new(JSDocPublicTagData {
-                tag_name: None,
-                comment: None,
-            })),
-            SyntaxKind::JSDocReadonlyTag => {
-                Self::JSDocReadonlyTag(Box::new(JSDocReadonlyTagData {
-                    tag_name: None,
-                    comment: None,
-                }))
-            }
-            SyntaxKind::JSDocReturnTag => Self::JSDocReturnTag(Box::new(JSDocReturnTagData {
+            SyntaxKind::JSDocOverloadTag => Self::JSDocOverloadTag(JSDocOverloadTagData {
                 tag_name: None,
                 comment: None,
                 type_expression: None,
-            })),
-            SyntaxKind::JSDocSatisfiesTag => {
-                Self::JSDocSatisfiesTag(Box::new(JSDocSatisfiesTagData {
-                    tag_name: None,
-                    comment: None,
-                    type_expression: None,
-                }))
-            }
-            SyntaxKind::JSDocSeeTag => Self::JSDocSeeTag(Box::new(JSDocSeeTagData {
+            }),
+            SyntaxKind::JSDocOverrideTag => Self::JSDocOverrideTag(JSDocOverrideTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocParameterTag => Self::JSDocParameterTag(JSDocParameterTagData {
                 tag_name: None,
                 comment: None,
                 name: None,
-            })),
+                type_expression: None,
+                is_name_first: false,
+                is_bracketed: false,
+            }),
+            SyntaxKind::JSDocPrivateTag => Self::JSDocPrivateTag(JSDocPrivateTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocPropertyTag => Self::JSDocPropertyTag(JSDocPropertyTagData {
+                tag_name: None,
+                comment: None,
+                name: None,
+                type_expression: None,
+                is_name_first: false,
+                is_bracketed: false,
+            }),
+            SyntaxKind::JSDocProtectedTag => Self::JSDocProtectedTag(JSDocProtectedTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocPublicTag => Self::JSDocPublicTag(JSDocPublicTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocReadonlyTag => Self::JSDocReadonlyTag(JSDocReadonlyTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocReturnTag => Self::JSDocReturnTag(JSDocReturnTagData {
+                tag_name: None,
+                comment: None,
+                type_expression: None,
+            }),
+            SyntaxKind::JSDocSatisfiesTag => Self::JSDocSatisfiesTag(JSDocSatisfiesTagData {
+                tag_name: None,
+                comment: None,
+                type_expression: None,
+            }),
+            SyntaxKind::JSDocSeeTag => Self::JSDocSeeTag(JSDocSeeTagData {
+                tag_name: None,
+                comment: None,
+                name: None,
+            }),
             SyntaxKind::JSDocSignature => Self::JSDocSignature(JSDocSignatureData {
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
             }),
-            SyntaxKind::JSDocTag => Self::JSDocTag(Box::new(JSDocTagData {
+            SyntaxKind::JSDocTag => Self::JSDocTag(JSDocTagData {
                 tag_name: None,
                 comment: None,
-            })),
-            SyntaxKind::JSDocTemplateTag => {
-                Self::JSDocTemplateTag(Box::new(JSDocTemplateTagData {
-                    tag_name: None,
-                    comment: None,
-                    constraint: None,
-                    type_parameters: None,
-                }))
-            }
-            SyntaxKind::JSDocText => Self::JSDocText(Box::new(JSDocTextData {
+            }),
+            SyntaxKind::JSDocTemplateTag => Self::JSDocTemplateTag(JSDocTemplateTagData {
+                tag_name: None,
+                comment: None,
+                constraint: None,
+                type_parameters: None,
+            }),
+            SyntaxKind::JSDocText => Self::JSDocText(JSDocTextData {
                 text: TextId::EMPTY,
-            })),
-            SyntaxKind::JSDocThisTag => Self::JSDocThisTag(Box::new(JSDocThisTagData {
+            }),
+            SyntaxKind::JSDocThisTag => Self::JSDocThisTag(JSDocThisTagData {
                 tag_name: None,
                 comment: None,
                 type_expression: None,
-            })),
-            SyntaxKind::JSDocThrowsTag => Self::JSDocThrowsTag(Box::new(JSDocThrowsTagData {
+            }),
+            SyntaxKind::JSDocThrowsTag => Self::JSDocThrowsTag(JSDocThrowsTagData {
                 tag_name: None,
                 comment: None,
                 type_expression: None,
-            })),
+            }),
             SyntaxKind::JSDocTypeExpression => {
                 Self::JSDocTypeExpression(JSDocTypeExpressionData { r#type: None })
             }
@@ -2538,18 +2685,18 @@ impl NodeData {
                 js_doc_property_tags: None,
                 is_array_type: false,
             }),
-            SyntaxKind::JSDocTypeTag => Self::JSDocTypeTag(Box::new(JSDocTypeTagData {
+            SyntaxKind::JSDocTypeTag => Self::JSDocTypeTag(JSDocTypeTagData {
                 tag_name: None,
                 comment: None,
                 type_expression: None,
-            })),
-            SyntaxKind::JSDocTypedefTag => Self::JSDocTypedefTag(Box::new(JSDocTypedefTagData {
+            }),
+            SyntaxKind::JSDocTypedefTag => Self::JSDocTypedefTag(JSDocTypedefTagData {
                 tag_name: None,
                 comment: None,
                 name: None,
                 full_name: None,
                 type_expression: None,
-            })),
+            }),
             SyntaxKind::JSDocUnknownType => Self::JSDocUnknownType(JSDocUnknownTypeData {}),
             SyntaxKind::JSDocVariadicType => {
                 Self::JSDocVariadicType(JSDocVariadicTypeData { r#type: None })
@@ -2597,48 +2744,46 @@ impl NodeData {
             SyntaxKind::JsxSpreadAttribute => {
                 Self::JsxSpreadAttribute(JsxSpreadAttributeData { expression: None })
             }
-            SyntaxKind::JsxText => Self::JsxText(Box::new(JsxTextData {
+            SyntaxKind::JsxText => Self::JsxText(JsxTextData {
                 text: TextId::EMPTY,
                 contains_only_trivia_white_spaces: false,
-            })),
+            }),
             SyntaxKind::LabeledStatement => Self::LabeledStatement(LabeledStatementData {
                 label: None,
                 statement: None,
             }),
             SyntaxKind::LiteralType => Self::LiteralType(LiteralTypeData { literal: None }),
-            SyntaxKind::MappedType => Self::MappedType(Box::new(MappedTypeData {
+            SyntaxKind::MappedType => Self::MappedType(MappedTypeData {
                 readonly_token: None,
                 type_parameter: None,
                 name_type: None,
                 question_token: None,
                 r#type: None,
                 members: None,
-            })),
+            }),
             SyntaxKind::MetaProperty => Self::MetaProperty(MetaPropertyData {
                 keyword_token: SyntaxKind::MetaProperty,
                 name: None,
             }),
-            SyntaxKind::MethodDeclaration => {
-                Self::MethodDeclaration(Box::new(MethodDeclarationData {
-                    name: None,
-                    type_parameters: None,
-                    parameters: None,
-                    r#type: None,
-                    asterisk_token: None,
-                    question_token: None,
-                    exclamation_token: None,
-                    body: None,
-                    modifiers: None,
-                }))
-            }
-            SyntaxKind::MethodSignature => Self::MethodSignature(Box::new(MethodSignatureData {
+            SyntaxKind::MethodDeclaration => Self::MethodDeclaration(MethodDeclarationData {
+                name: None,
+                type_parameters: None,
+                parameters: None,
+                r#type: None,
+                asterisk_token: None,
+                question_token: None,
+                exclamation_token: None,
+                body: None,
+                modifiers: None,
+            }),
+            SyntaxKind::MethodSignature => Self::MethodSignature(MethodSignatureData {
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 question_token: None,
                 modifiers: None,
-            })),
+            }),
             SyntaxKind::MissingDeclaration => {
                 Self::MissingDeclaration(MissingDeclarationData { modifiers: None })
             }
@@ -2676,20 +2821,20 @@ impl NodeData {
                 question_dot_token: None,
             }),
             SyntaxKind::NoSubstitutionTemplateLiteral => {
-                Self::NoSubstitutionTemplateLiteral(Box::new(NoSubstitutionTemplateLiteralData {
+                Self::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
                     text: TextId::EMPTY,
                     raw_text: None,
-                }))
+                })
             }
             SyntaxKind::NonNullExpression => {
                 Self::NonNullExpression(NonNullExpressionData { expression: None })
             }
             SyntaxKind::NotEmittedStatement => {
-                Self::NotEmittedStatement(Box::new(NotEmittedStatementData {}))
+                Self::NotEmittedStatement(NotEmittedStatementData {})
             }
-            SyntaxKind::NumericLiteral => Self::NumericLiteral(Box::new(NumericLiteralData {
+            SyntaxKind::NumericLiteral => Self::NumericLiteral(NumericLiteralData {
                 text: TextId::EMPTY,
-            })),
+            }),
             SyntaxKind::ObjectBindingPattern => {
                 Self::ObjectBindingPattern(ObjectBindingPatternData { elements: None })
             }
@@ -2698,14 +2843,14 @@ impl NodeData {
             }
             SyntaxKind::OmittedExpression => Self::OmittedExpression(OmittedExpressionData {}),
             SyntaxKind::OptionalType => Self::OptionalType(OptionalTypeData { r#type: None }),
-            SyntaxKind::Parameter => Self::Parameter(Box::new(ParameterData {
+            SyntaxKind::Parameter => Self::Parameter(ParameterData {
                 name: None,
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            })),
+            }),
             SyntaxKind::ParenthesizedExpression => {
                 Self::ParenthesizedExpression(ParenthesizedExpressionData { expression: None })
             }
@@ -2746,16 +2891,14 @@ impl NodeData {
                 question_token: None,
                 exclamation_token: None,
             }),
-            SyntaxKind::PropertyDeclaration => {
-                Self::PropertyDeclaration(Box::new(PropertyDeclarationData {
-                    name: None,
-                    modifiers: None,
-                    question_token: None,
-                    exclamation_token: None,
-                    r#type: None,
-                    initializer: None,
-                }))
-            }
+            SyntaxKind::PropertyDeclaration => Self::PropertyDeclaration(PropertyDeclarationData {
+                name: None,
+                modifiers: None,
+                question_token: None,
+                exclamation_token: None,
+                r#type: None,
+                initializer: None,
+            }),
             SyntaxKind::PropertySignature => Self::PropertySignature(PropertySignatureData {
                 name: None,
                 question_token: None,
@@ -2768,9 +2911,9 @@ impl NodeData {
                 right: None,
             }),
             SyntaxKind::RegularExpressionLiteral => {
-                Self::RegularExpressionLiteral(Box::new(RegularExpressionLiteralData {
+                Self::RegularExpressionLiteral(RegularExpressionLiteralData {
                     text: TextId::EMPTY,
-                }))
+                })
             }
             SyntaxKind::RestType => Self::RestType(RestTypeData { r#type: None }),
             SyntaxKind::ReturnStatement => {
@@ -2780,23 +2923,23 @@ impl NodeData {
                 expression: None,
                 r#type: None,
             }),
-            SyntaxKind::SetAccessor => Self::SetAccessor(Box::new(SetAccessorData {
+            SyntaxKind::SetAccessor => Self::SetAccessor(SetAccessorData {
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 body: None,
                 modifiers: None,
-            })),
+            }),
             SyntaxKind::ShorthandPropertyAssignment => {
-                Self::ShorthandPropertyAssignment(Box::new(ShorthandPropertyAssignmentData {
+                Self::ShorthandPropertyAssignment(ShorthandPropertyAssignmentData {
                     name: None,
                     equals_token: None,
                     object_assignment_initializer: None,
                     modifiers: None,
                     question_token: None,
                     exclamation_token: None,
-                }))
+                })
             }
             SyntaxKind::SourceFile => Self::SourceFile(SourceFileData {
                 statements: None,
@@ -2808,9 +2951,9 @@ impl NodeData {
             SyntaxKind::SpreadElement => {
                 Self::SpreadElement(SpreadElementData { expression: None })
             }
-            SyntaxKind::StringLiteral => Self::StringLiteral(Box::new(StringLiteralData {
+            SyntaxKind::StringLiteral => Self::StringLiteral(StringLiteralData {
                 text: TextId::EMPTY,
-            })),
+            }),
             SyntaxKind::SwitchStatement => Self::SwitchStatement(SwitchStatementData {
                 expression: None,
                 case_block: None,
@@ -2828,10 +2971,10 @@ impl NodeData {
                 head: None,
                 template_spans: None,
             }),
-            SyntaxKind::TemplateHead => Self::TemplateHead(Box::new(TemplateHeadData {
+            SyntaxKind::TemplateHead => Self::TemplateHead(TemplateHeadData {
                 text: TextId::EMPTY,
                 raw_text: None,
-            })),
+            }),
             SyntaxKind::TemplateLiteralType => Self::TemplateLiteralType(TemplateLiteralTypeData {
                 head: None,
                 template_spans: None,
@@ -2842,18 +2985,18 @@ impl NodeData {
                     literal: None,
                 })
             }
-            SyntaxKind::TemplateMiddle => Self::TemplateMiddle(Box::new(TemplateMiddleData {
+            SyntaxKind::TemplateMiddle => Self::TemplateMiddle(TemplateMiddleData {
                 text: TextId::EMPTY,
                 raw_text: None,
-            })),
+            }),
             SyntaxKind::TemplateSpan => Self::TemplateSpan(TemplateSpanData {
                 expression: None,
                 literal: None,
             }),
-            SyntaxKind::TemplateTail => Self::TemplateTail(Box::new(TemplateTailData {
+            SyntaxKind::TemplateTail => Self::TemplateTail(TemplateTailData {
                 text: TextId::EMPTY,
                 raw_text: None,
-            })),
+            }),
             SyntaxKind::ThrowStatement => {
                 Self::ThrowStatement(ThrowStatementData { expression: None })
             }
@@ -2938,1370 +3081,4264 @@ impl NodeData {
         }
     }
 
-    pub fn as_array_binding_pattern(&self) -> Option<&ArrayBindingPatternData> {
+    pub fn as_array_binding_pattern(&self) -> Option<ArrayBindingPatternData> {
         match self {
-            Self::ArrayBindingPattern(data) => Some(data),
+            Self::ArrayBindingPattern(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_array_literal_expression(&self) -> Option<&ArrayLiteralExpressionData> {
+    pub fn as_array_literal_expression(&self) -> Option<ArrayLiteralExpressionData> {
         match self {
-            Self::ArrayLiteralExpression(data) => Some(data),
+            Self::ArrayLiteralExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_array_type(&self) -> Option<&ArrayTypeData> {
+    pub fn as_array_type(&self) -> Option<ArrayTypeData> {
         match self {
-            Self::ArrayType(data) => Some(data),
+            Self::ArrayType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_arrow_function(&self) -> Option<&ArrowFunctionData> {
+    pub fn as_arrow_function(&self) -> Option<ArrowFunctionData> {
         match self {
-            Self::ArrowFunction(data) => Some(data),
+            Self::ArrowFunction(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_as_expression(&self) -> Option<&AsExpressionData> {
+    pub fn as_as_expression(&self) -> Option<AsExpressionData> {
         match self {
-            Self::AsExpression(data) => Some(data),
+            Self::AsExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_await_expression(&self) -> Option<&AwaitExpressionData> {
+    pub fn as_await_expression(&self) -> Option<AwaitExpressionData> {
         match self {
-            Self::AwaitExpression(data) => Some(data),
+            Self::AwaitExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_big_int_literal(&self) -> Option<&BigIntLiteralData> {
+    pub fn as_big_int_literal(&self) -> Option<BigIntLiteralData> {
         match self {
-            Self::BigIntLiteral(data) => Some(data),
+            Self::BigIntLiteral(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_binary_expression(&self) -> Option<&BinaryExpressionData> {
+    pub fn as_binary_expression(&self) -> Option<BinaryExpressionData> {
         match self {
-            Self::BinaryExpression(data) => Some(data),
+            Self::BinaryExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_binding_element(&self) -> Option<&BindingElementData> {
+    pub fn as_binding_element(&self) -> Option<BindingElementData> {
         match self {
-            Self::BindingElement(data) => Some(data),
+            Self::BindingElement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_block(&self) -> Option<&BlockData> {
+    pub fn as_block(&self) -> Option<BlockData> {
         match self {
-            Self::Block(data) => Some(data),
+            Self::Block(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_break_statement(&self) -> Option<&BreakStatementData> {
+    pub fn as_break_statement(&self) -> Option<BreakStatementData> {
         match self {
-            Self::BreakStatement(data) => Some(data),
+            Self::BreakStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_call_expression(&self) -> Option<&CallExpressionData> {
+    pub fn as_call_expression(&self) -> Option<CallExpressionData> {
         match self {
-            Self::CallExpression(data) => Some(data),
+            Self::CallExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_call_signature(&self) -> Option<&CallSignatureData> {
+    pub fn as_call_signature(&self) -> Option<CallSignatureData> {
         match self {
-            Self::CallSignature(data) => Some(data),
+            Self::CallSignature(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_case_block(&self) -> Option<&CaseBlockData> {
+    pub fn as_case_block(&self) -> Option<CaseBlockData> {
         match self {
-            Self::CaseBlock(data) => Some(data),
+            Self::CaseBlock(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_case_clause(&self) -> Option<&CaseClauseData> {
+    pub fn as_case_clause(&self) -> Option<CaseClauseData> {
         match self {
-            Self::CaseClause(data) => Some(data),
+            Self::CaseClause(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_catch_clause(&self) -> Option<&CatchClauseData> {
+    pub fn as_catch_clause(&self) -> Option<CatchClauseData> {
         match self {
-            Self::CatchClause(data) => Some(data),
+            Self::CatchClause(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_class_declaration(&self) -> Option<&ClassDeclarationData> {
+    pub fn as_class_declaration(&self) -> Option<ClassDeclarationData> {
         match self {
-            Self::ClassDeclaration(data) => Some(data),
+            Self::ClassDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_class_expression(&self) -> Option<&ClassExpressionData> {
+    pub fn as_class_expression(&self) -> Option<ClassExpressionData> {
         match self {
-            Self::ClassExpression(data) => Some(data),
+            Self::ClassExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_class_static_block_declaration(&self) -> Option<&ClassStaticBlockDeclarationData> {
+    pub fn as_class_static_block_declaration(&self) -> Option<ClassStaticBlockDeclarationData> {
         match self {
-            Self::ClassStaticBlockDeclaration(data) => Some(data),
+            Self::ClassStaticBlockDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_comma_list_expression(&self) -> Option<&CommaListExpressionData> {
+    pub fn as_comma_list_expression(&self) -> Option<CommaListExpressionData> {
         match self {
-            Self::CommaListExpression(data) => Some(data),
+            Self::CommaListExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_computed_property_name(&self) -> Option<&ComputedPropertyNameData> {
+    pub fn as_computed_property_name(&self) -> Option<ComputedPropertyNameData> {
         match self {
-            Self::ComputedPropertyName(data) => Some(data),
+            Self::ComputedPropertyName(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_conditional_expression(&self) -> Option<&ConditionalExpressionData> {
+    pub fn as_conditional_expression(&self) -> Option<ConditionalExpressionData> {
         match self {
-            Self::ConditionalExpression(data) => Some(data),
+            Self::ConditionalExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_conditional_type(&self) -> Option<&ConditionalTypeData> {
+    pub fn as_conditional_type(&self) -> Option<ConditionalTypeData> {
         match self {
-            Self::ConditionalType(data) => Some(data),
+            Self::ConditionalType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_construct_signature(&self) -> Option<&ConstructSignatureData> {
+    pub fn as_construct_signature(&self) -> Option<ConstructSignatureData> {
         match self {
-            Self::ConstructSignature(data) => Some(data),
+            Self::ConstructSignature(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_constructor(&self) -> Option<&ConstructorData> {
+    pub fn as_constructor(&self) -> Option<ConstructorData> {
         match self {
-            Self::Constructor(data) => Some(data),
+            Self::Constructor(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_constructor_type(&self) -> Option<&ConstructorTypeData> {
+    pub fn as_constructor_type(&self) -> Option<ConstructorTypeData> {
         match self {
-            Self::ConstructorType(data) => Some(data),
+            Self::ConstructorType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_continue_statement(&self) -> Option<&ContinueStatementData> {
+    pub fn as_continue_statement(&self) -> Option<ContinueStatementData> {
         match self {
-            Self::ContinueStatement(data) => Some(data),
+            Self::ContinueStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_debugger_statement(&self) -> Option<&DebuggerStatementData> {
+    pub fn as_debugger_statement(&self) -> Option<DebuggerStatementData> {
         match self {
-            Self::DebuggerStatement(data) => Some(data),
+            Self::DebuggerStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_decorator(&self) -> Option<&DecoratorData> {
+    pub fn as_decorator(&self) -> Option<DecoratorData> {
         match self {
-            Self::Decorator(data) => Some(data),
+            Self::Decorator(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_default_clause(&self) -> Option<&DefaultClauseData> {
+    pub fn as_default_clause(&self) -> Option<DefaultClauseData> {
         match self {
-            Self::DefaultClause(data) => Some(data),
+            Self::DefaultClause(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_delete_expression(&self) -> Option<&DeleteExpressionData> {
+    pub fn as_delete_expression(&self) -> Option<DeleteExpressionData> {
         match self {
-            Self::DeleteExpression(data) => Some(data),
+            Self::DeleteExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_do_statement(&self) -> Option<&DoStatementData> {
+    pub fn as_do_statement(&self) -> Option<DoStatementData> {
         match self {
-            Self::DoStatement(data) => Some(data),
+            Self::DoStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_element_access_expression(&self) -> Option<&ElementAccessExpressionData> {
+    pub fn as_element_access_expression(&self) -> Option<ElementAccessExpressionData> {
         match self {
-            Self::ElementAccessExpression(data) => Some(data),
+            Self::ElementAccessExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_empty_statement(&self) -> Option<&EmptyStatementData> {
+    pub fn as_empty_statement(&self) -> Option<EmptyStatementData> {
         match self {
-            Self::EmptyStatement(data) => Some(data),
+            Self::EmptyStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_enum_declaration(&self) -> Option<&EnumDeclarationData> {
+    pub fn as_enum_declaration(&self) -> Option<EnumDeclarationData> {
         match self {
-            Self::EnumDeclaration(data) => Some(data),
+            Self::EnumDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_enum_member(&self) -> Option<&EnumMemberData> {
+    pub fn as_enum_member(&self) -> Option<EnumMemberData> {
         match self {
-            Self::EnumMember(data) => Some(data),
+            Self::EnumMember(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_export_assignment(&self) -> Option<&ExportAssignmentData> {
+    pub fn as_export_assignment(&self) -> Option<ExportAssignmentData> {
         match self {
-            Self::ExportAssignment(data) => Some(data),
+            Self::ExportAssignment(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_export_declaration(&self) -> Option<&ExportDeclarationData> {
+    pub fn as_export_declaration(&self) -> Option<ExportDeclarationData> {
         match self {
-            Self::ExportDeclaration(data) => Some(data),
+            Self::ExportDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_export_specifier(&self) -> Option<&ExportSpecifierData> {
+    pub fn as_export_specifier(&self) -> Option<ExportSpecifierData> {
         match self {
-            Self::ExportSpecifier(data) => Some(data),
+            Self::ExportSpecifier(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_expression_statement(&self) -> Option<&ExpressionStatementData> {
+    pub fn as_expression_statement(&self) -> Option<ExpressionStatementData> {
         match self {
-            Self::ExpressionStatement(data) => Some(data),
+            Self::ExpressionStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_expression_with_type_arguments(&self) -> Option<&ExpressionWithTypeArgumentsData> {
+    pub fn as_expression_with_type_arguments(&self) -> Option<ExpressionWithTypeArgumentsData> {
         match self {
-            Self::ExpressionWithTypeArguments(data) => Some(data),
+            Self::ExpressionWithTypeArguments(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_external_module_reference(&self) -> Option<&ExternalModuleReferenceData> {
+    pub fn as_external_module_reference(&self) -> Option<ExternalModuleReferenceData> {
         match self {
-            Self::ExternalModuleReference(data) => Some(data),
+            Self::ExternalModuleReference(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_for_in_statement(&self) -> Option<&ForInStatementData> {
+    pub fn as_for_in_statement(&self) -> Option<ForInStatementData> {
         match self {
-            Self::ForInStatement(data) => Some(data),
+            Self::ForInStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_for_of_statement(&self) -> Option<&ForOfStatementData> {
+    pub fn as_for_of_statement(&self) -> Option<ForOfStatementData> {
         match self {
-            Self::ForOfStatement(data) => Some(data),
+            Self::ForOfStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_for_statement(&self) -> Option<&ForStatementData> {
+    pub fn as_for_statement(&self) -> Option<ForStatementData> {
         match self {
-            Self::ForStatement(data) => Some(data),
+            Self::ForStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_function_declaration(&self) -> Option<&FunctionDeclarationData> {
+    pub fn as_function_declaration(&self) -> Option<FunctionDeclarationData> {
         match self {
-            Self::FunctionDeclaration(data) => Some(data),
+            Self::FunctionDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_function_expression(&self) -> Option<&FunctionExpressionData> {
+    pub fn as_function_expression(&self) -> Option<FunctionExpressionData> {
         match self {
-            Self::FunctionExpression(data) => Some(data),
+            Self::FunctionExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_function_type(&self) -> Option<&FunctionTypeData> {
+    pub fn as_function_type(&self) -> Option<FunctionTypeData> {
         match self {
-            Self::FunctionType(data) => Some(data),
+            Self::FunctionType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_get_accessor(&self) -> Option<&GetAccessorData> {
+    pub fn as_get_accessor(&self) -> Option<GetAccessorData> {
         match self {
-            Self::GetAccessor(data) => Some(data),
+            Self::GetAccessor(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_heritage_clause(&self) -> Option<&HeritageClauseData> {
+    pub fn as_heritage_clause(&self) -> Option<HeritageClauseData> {
         match self {
-            Self::HeritageClause(data) => Some(data),
+            Self::HeritageClause(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_identifier(&self) -> Option<&IdentifierData> {
+    pub fn as_identifier(&self) -> Option<IdentifierData> {
         match self {
-            Self::Identifier(data) => Some(data),
+            Self::Identifier(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_if_statement(&self) -> Option<&IfStatementData> {
+    pub fn as_if_statement(&self) -> Option<IfStatementData> {
         match self {
-            Self::IfStatement(data) => Some(data),
+            Self::IfStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_import_attribute(&self) -> Option<&ImportAttributeData> {
+    pub fn as_import_attribute(&self) -> Option<ImportAttributeData> {
         match self {
-            Self::ImportAttribute(data) => Some(data),
+            Self::ImportAttribute(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_import_attributes(&self) -> Option<&ImportAttributesData> {
+    pub fn as_import_attributes(&self) -> Option<ImportAttributesData> {
         match self {
-            Self::ImportAttributes(data) => Some(data),
+            Self::ImportAttributes(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_import_clause(&self) -> Option<&ImportClauseData> {
+    pub fn as_import_clause(&self) -> Option<ImportClauseData> {
         match self {
-            Self::ImportClause(data) => Some(data),
+            Self::ImportClause(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_import_declaration(&self) -> Option<&ImportDeclarationData> {
+    pub fn as_import_declaration(&self) -> Option<ImportDeclarationData> {
         match self {
-            Self::ImportDeclaration(data) => Some(data),
+            Self::ImportDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_import_equals_declaration(&self) -> Option<&ImportEqualsDeclarationData> {
+    pub fn as_import_equals_declaration(&self) -> Option<ImportEqualsDeclarationData> {
         match self {
-            Self::ImportEqualsDeclaration(data) => Some(data),
+            Self::ImportEqualsDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_import_specifier(&self) -> Option<&ImportSpecifierData> {
+    pub fn as_import_specifier(&self) -> Option<ImportSpecifierData> {
         match self {
-            Self::ImportSpecifier(data) => Some(data),
+            Self::ImportSpecifier(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_import_type(&self) -> Option<&ImportTypeData> {
+    pub fn as_import_type(&self) -> Option<ImportTypeData> {
         match self {
-            Self::ImportType(data) => Some(data),
+            Self::ImportType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_import_type_assertion_container(&self) -> Option<&ImportTypeAssertionContainerData> {
+    pub fn as_import_type_assertion_container(&self) -> Option<ImportTypeAssertionContainerData> {
         match self {
-            Self::ImportTypeAssertionContainer(data) => Some(data),
+            Self::ImportTypeAssertionContainer(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_index_signature(&self) -> Option<&IndexSignatureData> {
+    pub fn as_index_signature(&self) -> Option<IndexSignatureData> {
         match self {
-            Self::IndexSignature(data) => Some(data),
+            Self::IndexSignature(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_indexed_access_type(&self) -> Option<&IndexedAccessTypeData> {
+    pub fn as_indexed_access_type(&self) -> Option<IndexedAccessTypeData> {
         match self {
-            Self::IndexedAccessType(data) => Some(data),
+            Self::IndexedAccessType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_infer_type(&self) -> Option<&InferTypeData> {
+    pub fn as_infer_type(&self) -> Option<InferTypeData> {
         match self {
-            Self::InferType(data) => Some(data),
+            Self::InferType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_interface_declaration(&self) -> Option<&InterfaceDeclarationData> {
+    pub fn as_interface_declaration(&self) -> Option<InterfaceDeclarationData> {
         match self {
-            Self::InterfaceDeclaration(data) => Some(data),
+            Self::InterfaceDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_intersection_type(&self) -> Option<&IntersectionTypeData> {
+    pub fn as_intersection_type(&self) -> Option<IntersectionTypeData> {
         match self {
-            Self::IntersectionType(data) => Some(data),
+            Self::IntersectionType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc(&self) -> Option<&JSDocData> {
+    pub fn as_js_doc(&self) -> Option<JSDocData> {
         match self {
-            Self::JSDoc(data) => Some(data),
+            Self::JSDoc(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_all_type(&self) -> Option<&JSDocAllTypeData> {
+    pub fn as_js_doc_all_type(&self) -> Option<JSDocAllTypeData> {
         match self {
-            Self::JSDocAllType(data) => Some(data),
+            Self::JSDocAllType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_augments_tag(&self) -> Option<&JSDocAugmentsTagData> {
+    pub fn as_js_doc_augments_tag(&self) -> Option<JSDocAugmentsTagData> {
         match self {
-            Self::JSDocAugmentsTag(data) => Some(data),
+            Self::JSDocAugmentsTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_author_tag(&self) -> Option<&JSDocAuthorTagData> {
+    pub fn as_js_doc_author_tag(&self) -> Option<JSDocAuthorTagData> {
         match self {
-            Self::JSDocAuthorTag(data) => Some(data),
+            Self::JSDocAuthorTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_callback_tag(&self) -> Option<&JSDocCallbackTagData> {
+    pub fn as_js_doc_callback_tag(&self) -> Option<JSDocCallbackTagData> {
         match self {
-            Self::JSDocCallbackTag(data) => Some(data),
+            Self::JSDocCallbackTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_class_tag(&self) -> Option<&JSDocClassTagData> {
+    pub fn as_js_doc_class_tag(&self) -> Option<JSDocClassTagData> {
         match self {
-            Self::JSDocClassTag(data) => Some(data),
+            Self::JSDocClassTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_deprecated_tag(&self) -> Option<&JSDocDeprecatedTagData> {
+    pub fn as_js_doc_deprecated_tag(&self) -> Option<JSDocDeprecatedTagData> {
         match self {
-            Self::JSDocDeprecatedTag(data) => Some(data),
+            Self::JSDocDeprecatedTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_enum_tag(&self) -> Option<&JSDocEnumTagData> {
+    pub fn as_js_doc_enum_tag(&self) -> Option<JSDocEnumTagData> {
         match self {
-            Self::JSDocEnumTag(data) => Some(data),
+            Self::JSDocEnumTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_function_type(&self) -> Option<&JSDocFunctionTypeData> {
+    pub fn as_js_doc_function_type(&self) -> Option<JSDocFunctionTypeData> {
         match self {
-            Self::JSDocFunctionType(data) => Some(data),
+            Self::JSDocFunctionType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_implements_tag(&self) -> Option<&JSDocImplementsTagData> {
+    pub fn as_js_doc_implements_tag(&self) -> Option<JSDocImplementsTagData> {
         match self {
-            Self::JSDocImplementsTag(data) => Some(data),
+            Self::JSDocImplementsTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_import_tag(&self) -> Option<&JSDocImportTagData> {
+    pub fn as_js_doc_import_tag(&self) -> Option<JSDocImportTagData> {
         match self {
-            Self::JSDocImportTag(data) => Some(data),
+            Self::JSDocImportTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_link(&self) -> Option<&JSDocLinkData> {
+    pub fn as_js_doc_link(&self) -> Option<JSDocLinkData> {
         match self {
-            Self::JSDocLink(data) => Some(data),
+            Self::JSDocLink(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_link_code(&self) -> Option<&JSDocLinkCodeData> {
+    pub fn as_js_doc_link_code(&self) -> Option<JSDocLinkCodeData> {
         match self {
-            Self::JSDocLinkCode(data) => Some(data),
+            Self::JSDocLinkCode(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_link_plain(&self) -> Option<&JSDocLinkPlainData> {
+    pub fn as_js_doc_link_plain(&self) -> Option<JSDocLinkPlainData> {
         match self {
-            Self::JSDocLinkPlain(data) => Some(data),
+            Self::JSDocLinkPlain(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_member_name(&self) -> Option<&JSDocMemberNameData> {
+    pub fn as_js_doc_member_name(&self) -> Option<JSDocMemberNameData> {
         match self {
-            Self::JSDocMemberName(data) => Some(data),
+            Self::JSDocMemberName(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_name_reference(&self) -> Option<&JSDocNameReferenceData> {
+    pub fn as_js_doc_name_reference(&self) -> Option<JSDocNameReferenceData> {
         match self {
-            Self::JSDocNameReference(data) => Some(data),
+            Self::JSDocNameReference(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_namepath_type(&self) -> Option<&JSDocNamepathTypeData> {
+    pub fn as_js_doc_namepath_type(&self) -> Option<JSDocNamepathTypeData> {
         match self {
-            Self::JSDocNamepathType(data) => Some(data),
+            Self::JSDocNamepathType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_non_nullable_type(&self) -> Option<&JSDocNonNullableTypeData> {
+    pub fn as_js_doc_non_nullable_type(&self) -> Option<JSDocNonNullableTypeData> {
         match self {
-            Self::JSDocNonNullableType(data) => Some(data),
+            Self::JSDocNonNullableType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_nullable_type(&self) -> Option<&JSDocNullableTypeData> {
+    pub fn as_js_doc_nullable_type(&self) -> Option<JSDocNullableTypeData> {
         match self {
-            Self::JSDocNullableType(data) => Some(data),
+            Self::JSDocNullableType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_optional_type(&self) -> Option<&JSDocOptionalTypeData> {
+    pub fn as_js_doc_optional_type(&self) -> Option<JSDocOptionalTypeData> {
         match self {
-            Self::JSDocOptionalType(data) => Some(data),
+            Self::JSDocOptionalType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_overload_tag(&self) -> Option<&JSDocOverloadTagData> {
+    pub fn as_js_doc_overload_tag(&self) -> Option<JSDocOverloadTagData> {
         match self {
-            Self::JSDocOverloadTag(data) => Some(data),
+            Self::JSDocOverloadTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_override_tag(&self) -> Option<&JSDocOverrideTagData> {
+    pub fn as_js_doc_override_tag(&self) -> Option<JSDocOverrideTagData> {
         match self {
-            Self::JSDocOverrideTag(data) => Some(data),
+            Self::JSDocOverrideTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_parameter_tag(&self) -> Option<&JSDocParameterTagData> {
+    pub fn as_js_doc_parameter_tag(&self) -> Option<JSDocParameterTagData> {
         match self {
-            Self::JSDocParameterTag(data) => Some(data),
+            Self::JSDocParameterTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_private_tag(&self) -> Option<&JSDocPrivateTagData> {
+    pub fn as_js_doc_private_tag(&self) -> Option<JSDocPrivateTagData> {
         match self {
-            Self::JSDocPrivateTag(data) => Some(data),
+            Self::JSDocPrivateTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_property_tag(&self) -> Option<&JSDocPropertyTagData> {
+    pub fn as_js_doc_property_tag(&self) -> Option<JSDocPropertyTagData> {
         match self {
-            Self::JSDocPropertyTag(data) => Some(data),
+            Self::JSDocPropertyTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_protected_tag(&self) -> Option<&JSDocProtectedTagData> {
+    pub fn as_js_doc_protected_tag(&self) -> Option<JSDocProtectedTagData> {
         match self {
-            Self::JSDocProtectedTag(data) => Some(data),
+            Self::JSDocProtectedTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_public_tag(&self) -> Option<&JSDocPublicTagData> {
+    pub fn as_js_doc_public_tag(&self) -> Option<JSDocPublicTagData> {
         match self {
-            Self::JSDocPublicTag(data) => Some(data),
+            Self::JSDocPublicTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_readonly_tag(&self) -> Option<&JSDocReadonlyTagData> {
+    pub fn as_js_doc_readonly_tag(&self) -> Option<JSDocReadonlyTagData> {
         match self {
-            Self::JSDocReadonlyTag(data) => Some(data),
+            Self::JSDocReadonlyTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_return_tag(&self) -> Option<&JSDocReturnTagData> {
+    pub fn as_js_doc_return_tag(&self) -> Option<JSDocReturnTagData> {
         match self {
-            Self::JSDocReturnTag(data) => Some(data),
+            Self::JSDocReturnTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_satisfies_tag(&self) -> Option<&JSDocSatisfiesTagData> {
+    pub fn as_js_doc_satisfies_tag(&self) -> Option<JSDocSatisfiesTagData> {
         match self {
-            Self::JSDocSatisfiesTag(data) => Some(data),
+            Self::JSDocSatisfiesTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_see_tag(&self) -> Option<&JSDocSeeTagData> {
+    pub fn as_js_doc_see_tag(&self) -> Option<JSDocSeeTagData> {
         match self {
-            Self::JSDocSeeTag(data) => Some(data),
+            Self::JSDocSeeTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_signature(&self) -> Option<&JSDocSignatureData> {
+    pub fn as_js_doc_signature(&self) -> Option<JSDocSignatureData> {
         match self {
-            Self::JSDocSignature(data) => Some(data),
+            Self::JSDocSignature(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_tag(&self) -> Option<&JSDocTagData> {
+    pub fn as_js_doc_tag(&self) -> Option<JSDocTagData> {
         match self {
-            Self::JSDocTag(data) => Some(data),
+            Self::JSDocTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_template_tag(&self) -> Option<&JSDocTemplateTagData> {
+    pub fn as_js_doc_template_tag(&self) -> Option<JSDocTemplateTagData> {
         match self {
-            Self::JSDocTemplateTag(data) => Some(data),
+            Self::JSDocTemplateTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_text(&self) -> Option<&JSDocTextData> {
+    pub fn as_js_doc_text(&self) -> Option<JSDocTextData> {
         match self {
-            Self::JSDocText(data) => Some(data),
+            Self::JSDocText(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_this_tag(&self) -> Option<&JSDocThisTagData> {
+    pub fn as_js_doc_this_tag(&self) -> Option<JSDocThisTagData> {
         match self {
-            Self::JSDocThisTag(data) => Some(data),
+            Self::JSDocThisTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_throws_tag(&self) -> Option<&JSDocThrowsTagData> {
+    pub fn as_js_doc_throws_tag(&self) -> Option<JSDocThrowsTagData> {
         match self {
-            Self::JSDocThrowsTag(data) => Some(data),
+            Self::JSDocThrowsTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_type_expression(&self) -> Option<&JSDocTypeExpressionData> {
+    pub fn as_js_doc_type_expression(&self) -> Option<JSDocTypeExpressionData> {
         match self {
-            Self::JSDocTypeExpression(data) => Some(data),
+            Self::JSDocTypeExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_type_literal(&self) -> Option<&JSDocTypeLiteralData> {
+    pub fn as_js_doc_type_literal(&self) -> Option<JSDocTypeLiteralData> {
         match self {
-            Self::JSDocTypeLiteral(data) => Some(data),
+            Self::JSDocTypeLiteral(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_type_tag(&self) -> Option<&JSDocTypeTagData> {
+    pub fn as_js_doc_type_tag(&self) -> Option<JSDocTypeTagData> {
         match self {
-            Self::JSDocTypeTag(data) => Some(data),
+            Self::JSDocTypeTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_typedef_tag(&self) -> Option<&JSDocTypedefTagData> {
+    pub fn as_js_doc_typedef_tag(&self) -> Option<JSDocTypedefTagData> {
         match self {
-            Self::JSDocTypedefTag(data) => Some(data),
+            Self::JSDocTypedefTag(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_unknown_type(&self) -> Option<&JSDocUnknownTypeData> {
+    pub fn as_js_doc_unknown_type(&self) -> Option<JSDocUnknownTypeData> {
         match self {
-            Self::JSDocUnknownType(data) => Some(data),
+            Self::JSDocUnknownType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_js_doc_variadic_type(&self) -> Option<&JSDocVariadicTypeData> {
+    pub fn as_js_doc_variadic_type(&self) -> Option<JSDocVariadicTypeData> {
         match self {
-            Self::JSDocVariadicType(data) => Some(data),
+            Self::JSDocVariadicType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_jsx_attribute(&self) -> Option<&JsxAttributeData> {
+    pub fn as_jsx_attribute(&self) -> Option<JsxAttributeData> {
         match self {
-            Self::JsxAttribute(data) => Some(data),
+            Self::JsxAttribute(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_jsx_attributes(&self) -> Option<&JsxAttributesData> {
+    pub fn as_jsx_attributes(&self) -> Option<JsxAttributesData> {
         match self {
-            Self::JsxAttributes(data) => Some(data),
+            Self::JsxAttributes(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_jsx_closing_element(&self) -> Option<&JsxClosingElementData> {
+    pub fn as_jsx_closing_element(&self) -> Option<JsxClosingElementData> {
         match self {
-            Self::JsxClosingElement(data) => Some(data),
+            Self::JsxClosingElement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_jsx_element(&self) -> Option<&JsxElementData> {
+    pub fn as_jsx_element(&self) -> Option<JsxElementData> {
         match self {
-            Self::JsxElement(data) => Some(data),
+            Self::JsxElement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_jsx_expression(&self) -> Option<&JsxExpressionData> {
+    pub fn as_jsx_expression(&self) -> Option<JsxExpressionData> {
         match self {
-            Self::JsxExpression(data) => Some(data),
+            Self::JsxExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_jsx_fragment(&self) -> Option<&JsxFragmentData> {
+    pub fn as_jsx_fragment(&self) -> Option<JsxFragmentData> {
         match self {
-            Self::JsxFragment(data) => Some(data),
+            Self::JsxFragment(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_jsx_namespaced_name(&self) -> Option<&JsxNamespacedNameData> {
+    pub fn as_jsx_namespaced_name(&self) -> Option<JsxNamespacedNameData> {
         match self {
-            Self::JsxNamespacedName(data) => Some(data),
+            Self::JsxNamespacedName(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_jsx_opening_element(&self) -> Option<&JsxOpeningElementData> {
+    pub fn as_jsx_opening_element(&self) -> Option<JsxOpeningElementData> {
         match self {
-            Self::JsxOpeningElement(data) => Some(data),
+            Self::JsxOpeningElement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_jsx_self_closing_element(&self) -> Option<&JsxSelfClosingElementData> {
+    pub fn as_jsx_self_closing_element(&self) -> Option<JsxSelfClosingElementData> {
         match self {
-            Self::JsxSelfClosingElement(data) => Some(data),
+            Self::JsxSelfClosingElement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_jsx_spread_attribute(&self) -> Option<&JsxSpreadAttributeData> {
+    pub fn as_jsx_spread_attribute(&self) -> Option<JsxSpreadAttributeData> {
         match self {
-            Self::JsxSpreadAttribute(data) => Some(data),
+            Self::JsxSpreadAttribute(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_jsx_text(&self) -> Option<&JsxTextData> {
+    pub fn as_jsx_text(&self) -> Option<JsxTextData> {
         match self {
-            Self::JsxText(data) => Some(data),
+            Self::JsxText(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_labeled_statement(&self) -> Option<&LabeledStatementData> {
+    pub fn as_labeled_statement(&self) -> Option<LabeledStatementData> {
         match self {
-            Self::LabeledStatement(data) => Some(data),
+            Self::LabeledStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_literal_type(&self) -> Option<&LiteralTypeData> {
+    pub fn as_literal_type(&self) -> Option<LiteralTypeData> {
         match self {
-            Self::LiteralType(data) => Some(data),
+            Self::LiteralType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_mapped_type(&self) -> Option<&MappedTypeData> {
+    pub fn as_mapped_type(&self) -> Option<MappedTypeData> {
         match self {
-            Self::MappedType(data) => Some(data),
+            Self::MappedType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_meta_property(&self) -> Option<&MetaPropertyData> {
+    pub fn as_meta_property(&self) -> Option<MetaPropertyData> {
         match self {
-            Self::MetaProperty(data) => Some(data),
+            Self::MetaProperty(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_method_declaration(&self) -> Option<&MethodDeclarationData> {
+    pub fn as_method_declaration(&self) -> Option<MethodDeclarationData> {
         match self {
-            Self::MethodDeclaration(data) => Some(data),
+            Self::MethodDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_method_signature(&self) -> Option<&MethodSignatureData> {
+    pub fn as_method_signature(&self) -> Option<MethodSignatureData> {
         match self {
-            Self::MethodSignature(data) => Some(data),
+            Self::MethodSignature(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_missing_declaration(&self) -> Option<&MissingDeclarationData> {
+    pub fn as_missing_declaration(&self) -> Option<MissingDeclarationData> {
         match self {
-            Self::MissingDeclaration(data) => Some(data),
+            Self::MissingDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_module_block(&self) -> Option<&ModuleBlockData> {
+    pub fn as_module_block(&self) -> Option<ModuleBlockData> {
         match self {
-            Self::ModuleBlock(data) => Some(data),
+            Self::ModuleBlock(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_module_declaration(&self) -> Option<&ModuleDeclarationData> {
+    pub fn as_module_declaration(&self) -> Option<ModuleDeclarationData> {
         match self {
-            Self::ModuleDeclaration(data) => Some(data),
+            Self::ModuleDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_named_exports(&self) -> Option<&NamedExportsData> {
+    pub fn as_named_exports(&self) -> Option<NamedExportsData> {
         match self {
-            Self::NamedExports(data) => Some(data),
+            Self::NamedExports(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_named_imports(&self) -> Option<&NamedImportsData> {
+    pub fn as_named_imports(&self) -> Option<NamedImportsData> {
         match self {
-            Self::NamedImports(data) => Some(data),
+            Self::NamedImports(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_named_tuple_member(&self) -> Option<&NamedTupleMemberData> {
+    pub fn as_named_tuple_member(&self) -> Option<NamedTupleMemberData> {
         match self {
-            Self::NamedTupleMember(data) => Some(data),
+            Self::NamedTupleMember(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_namespace_export(&self) -> Option<&NamespaceExportData> {
+    pub fn as_namespace_export(&self) -> Option<NamespaceExportData> {
         match self {
-            Self::NamespaceExport(data) => Some(data),
+            Self::NamespaceExport(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_namespace_export_declaration(&self) -> Option<&NamespaceExportDeclarationData> {
+    pub fn as_namespace_export_declaration(&self) -> Option<NamespaceExportDeclarationData> {
         match self {
-            Self::NamespaceExportDeclaration(data) => Some(data),
+            Self::NamespaceExportDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_namespace_import(&self) -> Option<&NamespaceImportData> {
+    pub fn as_namespace_import(&self) -> Option<NamespaceImportData> {
         match self {
-            Self::NamespaceImport(data) => Some(data),
+            Self::NamespaceImport(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_new_expression(&self) -> Option<&NewExpressionData> {
+    pub fn as_new_expression(&self) -> Option<NewExpressionData> {
         match self {
-            Self::NewExpression(data) => Some(data),
+            Self::NewExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_no_substitution_template_literal(
-        &self,
-    ) -> Option<&NoSubstitutionTemplateLiteralData> {
+    pub fn as_no_substitution_template_literal(&self) -> Option<NoSubstitutionTemplateLiteralData> {
         match self {
-            Self::NoSubstitutionTemplateLiteral(data) => Some(data),
+            Self::NoSubstitutionTemplateLiteral(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_non_null_expression(&self) -> Option<&NonNullExpressionData> {
+    pub fn as_non_null_expression(&self) -> Option<NonNullExpressionData> {
         match self {
-            Self::NonNullExpression(data) => Some(data),
+            Self::NonNullExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_not_emitted_statement(&self) -> Option<&NotEmittedStatementData> {
+    pub fn as_not_emitted_statement(&self) -> Option<NotEmittedStatementData> {
         match self {
-            Self::NotEmittedStatement(data) => Some(data),
+            Self::NotEmittedStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_numeric_literal(&self) -> Option<&NumericLiteralData> {
+    pub fn as_numeric_literal(&self) -> Option<NumericLiteralData> {
         match self {
-            Self::NumericLiteral(data) => Some(data),
+            Self::NumericLiteral(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_object_binding_pattern(&self) -> Option<&ObjectBindingPatternData> {
+    pub fn as_object_binding_pattern(&self) -> Option<ObjectBindingPatternData> {
         match self {
-            Self::ObjectBindingPattern(data) => Some(data),
+            Self::ObjectBindingPattern(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_object_literal_expression(&self) -> Option<&ObjectLiteralExpressionData> {
+    pub fn as_object_literal_expression(&self) -> Option<ObjectLiteralExpressionData> {
         match self {
-            Self::ObjectLiteralExpression(data) => Some(data),
+            Self::ObjectLiteralExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_omitted_expression(&self) -> Option<&OmittedExpressionData> {
+    pub fn as_omitted_expression(&self) -> Option<OmittedExpressionData> {
         match self {
-            Self::OmittedExpression(data) => Some(data),
+            Self::OmittedExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_optional_type(&self) -> Option<&OptionalTypeData> {
+    pub fn as_optional_type(&self) -> Option<OptionalTypeData> {
         match self {
-            Self::OptionalType(data) => Some(data),
+            Self::OptionalType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_parameter(&self) -> Option<&ParameterData> {
+    pub fn as_parameter(&self) -> Option<ParameterData> {
         match self {
-            Self::Parameter(data) => Some(data),
+            Self::Parameter(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_parenthesized_expression(&self) -> Option<&ParenthesizedExpressionData> {
+    pub fn as_parenthesized_expression(&self) -> Option<ParenthesizedExpressionData> {
         match self {
-            Self::ParenthesizedExpression(data) => Some(data),
+            Self::ParenthesizedExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_parenthesized_type(&self) -> Option<&ParenthesizedTypeData> {
+    pub fn as_parenthesized_type(&self) -> Option<ParenthesizedTypeData> {
         match self {
-            Self::ParenthesizedType(data) => Some(data),
+            Self::ParenthesizedType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_partially_emitted_expression(&self) -> Option<&PartiallyEmittedExpressionData> {
+    pub fn as_partially_emitted_expression(&self) -> Option<PartiallyEmittedExpressionData> {
         match self {
-            Self::PartiallyEmittedExpression(data) => Some(data),
+            Self::PartiallyEmittedExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_postfix_unary_expression(&self) -> Option<&PostfixUnaryExpressionData> {
+    pub fn as_postfix_unary_expression(&self) -> Option<PostfixUnaryExpressionData> {
         match self {
-            Self::PostfixUnaryExpression(data) => Some(data),
+            Self::PostfixUnaryExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_prefix_unary_expression(&self) -> Option<&PrefixUnaryExpressionData> {
+    pub fn as_prefix_unary_expression(&self) -> Option<PrefixUnaryExpressionData> {
         match self {
-            Self::PrefixUnaryExpression(data) => Some(data),
+            Self::PrefixUnaryExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_private_identifier(&self) -> Option<&PrivateIdentifierData> {
+    pub fn as_private_identifier(&self) -> Option<PrivateIdentifierData> {
         match self {
-            Self::PrivateIdentifier(data) => Some(data),
+            Self::PrivateIdentifier(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_property_access_expression(&self) -> Option<&PropertyAccessExpressionData> {
+    pub fn as_property_access_expression(&self) -> Option<PropertyAccessExpressionData> {
         match self {
-            Self::PropertyAccessExpression(data) => Some(data),
+            Self::PropertyAccessExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_property_assignment(&self) -> Option<&PropertyAssignmentData> {
+    pub fn as_property_assignment(&self) -> Option<PropertyAssignmentData> {
         match self {
-            Self::PropertyAssignment(data) => Some(data),
+            Self::PropertyAssignment(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_property_declaration(&self) -> Option<&PropertyDeclarationData> {
+    pub fn as_property_declaration(&self) -> Option<PropertyDeclarationData> {
         match self {
-            Self::PropertyDeclaration(data) => Some(data),
+            Self::PropertyDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_property_signature(&self) -> Option<&PropertySignatureData> {
+    pub fn as_property_signature(&self) -> Option<PropertySignatureData> {
         match self {
-            Self::PropertySignature(data) => Some(data),
+            Self::PropertySignature(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_qualified_name(&self) -> Option<&QualifiedNameData> {
+    pub fn as_qualified_name(&self) -> Option<QualifiedNameData> {
         match self {
-            Self::QualifiedName(data) => Some(data),
+            Self::QualifiedName(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_regular_expression_literal(&self) -> Option<&RegularExpressionLiteralData> {
+    pub fn as_regular_expression_literal(&self) -> Option<RegularExpressionLiteralData> {
         match self {
-            Self::RegularExpressionLiteral(data) => Some(data),
+            Self::RegularExpressionLiteral(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_rest_type(&self) -> Option<&RestTypeData> {
+    pub fn as_rest_type(&self) -> Option<RestTypeData> {
         match self {
-            Self::RestType(data) => Some(data),
+            Self::RestType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_return_statement(&self) -> Option<&ReturnStatementData> {
+    pub fn as_return_statement(&self) -> Option<ReturnStatementData> {
         match self {
-            Self::ReturnStatement(data) => Some(data),
+            Self::ReturnStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_satisfies_expression(&self) -> Option<&SatisfiesExpressionData> {
+    pub fn as_satisfies_expression(&self) -> Option<SatisfiesExpressionData> {
         match self {
-            Self::SatisfiesExpression(data) => Some(data),
+            Self::SatisfiesExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_set_accessor(&self) -> Option<&SetAccessorData> {
+    pub fn as_set_accessor(&self) -> Option<SetAccessorData> {
         match self {
-            Self::SetAccessor(data) => Some(data),
+            Self::SetAccessor(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_shorthand_property_assignment(&self) -> Option<&ShorthandPropertyAssignmentData> {
+    pub fn as_shorthand_property_assignment(&self) -> Option<ShorthandPropertyAssignmentData> {
         match self {
-            Self::ShorthandPropertyAssignment(data) => Some(data),
+            Self::ShorthandPropertyAssignment(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_source_file(&self) -> Option<&SourceFileData> {
+    pub fn as_source_file(&self) -> Option<SourceFileData> {
         match self {
-            Self::SourceFile(data) => Some(data),
+            Self::SourceFile(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_spread_assignment(&self) -> Option<&SpreadAssignmentData> {
+    pub fn as_spread_assignment(&self) -> Option<SpreadAssignmentData> {
         match self {
-            Self::SpreadAssignment(data) => Some(data),
+            Self::SpreadAssignment(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_spread_element(&self) -> Option<&SpreadElementData> {
+    pub fn as_spread_element(&self) -> Option<SpreadElementData> {
         match self {
-            Self::SpreadElement(data) => Some(data),
+            Self::SpreadElement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<&StringLiteralData> {
+    pub fn as_string_literal(&self) -> Option<StringLiteralData> {
         match self {
-            Self::StringLiteral(data) => Some(data),
+            Self::StringLiteral(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_switch_statement(&self) -> Option<&SwitchStatementData> {
+    pub fn as_switch_statement(&self) -> Option<SwitchStatementData> {
         match self {
-            Self::SwitchStatement(data) => Some(data),
+            Self::SwitchStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_syntax_list(&self) -> Option<&SyntaxListData> {
+    pub fn as_syntax_list(&self) -> Option<SyntaxListData> {
         match self {
-            Self::SyntaxList(data) => Some(data),
+            Self::SyntaxList(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_tagged_template_expression(&self) -> Option<&TaggedTemplateExpressionData> {
+    pub fn as_tagged_template_expression(&self) -> Option<TaggedTemplateExpressionData> {
         match self {
-            Self::TaggedTemplateExpression(data) => Some(data),
+            Self::TaggedTemplateExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_template_expression(&self) -> Option<&TemplateExpressionData> {
+    pub fn as_template_expression(&self) -> Option<TemplateExpressionData> {
         match self {
-            Self::TemplateExpression(data) => Some(data),
+            Self::TemplateExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_template_head(&self) -> Option<&TemplateHeadData> {
+    pub fn as_template_head(&self) -> Option<TemplateHeadData> {
         match self {
-            Self::TemplateHead(data) => Some(data),
+            Self::TemplateHead(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_template_literal_type(&self) -> Option<&TemplateLiteralTypeData> {
+    pub fn as_template_literal_type(&self) -> Option<TemplateLiteralTypeData> {
         match self {
-            Self::TemplateLiteralType(data) => Some(data),
+            Self::TemplateLiteralType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_template_literal_type_span(&self) -> Option<&TemplateLiteralTypeSpanData> {
+    pub fn as_template_literal_type_span(&self) -> Option<TemplateLiteralTypeSpanData> {
         match self {
-            Self::TemplateLiteralTypeSpan(data) => Some(data),
+            Self::TemplateLiteralTypeSpan(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_template_middle(&self) -> Option<&TemplateMiddleData> {
+    pub fn as_template_middle(&self) -> Option<TemplateMiddleData> {
         match self {
-            Self::TemplateMiddle(data) => Some(data),
+            Self::TemplateMiddle(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_template_span(&self) -> Option<&TemplateSpanData> {
+    pub fn as_template_span(&self) -> Option<TemplateSpanData> {
         match self {
-            Self::TemplateSpan(data) => Some(data),
+            Self::TemplateSpan(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_template_tail(&self) -> Option<&TemplateTailData> {
+    pub fn as_template_tail(&self) -> Option<TemplateTailData> {
         match self {
-            Self::TemplateTail(data) => Some(data),
+            Self::TemplateTail(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_throw_statement(&self) -> Option<&ThrowStatementData> {
+    pub fn as_throw_statement(&self) -> Option<ThrowStatementData> {
         match self {
-            Self::ThrowStatement(data) => Some(data),
+            Self::ThrowStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_try_statement(&self) -> Option<&TryStatementData> {
+    pub fn as_try_statement(&self) -> Option<TryStatementData> {
         match self {
-            Self::TryStatement(data) => Some(data),
+            Self::TryStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_tuple_type(&self) -> Option<&TupleTypeData> {
+    pub fn as_tuple_type(&self) -> Option<TupleTypeData> {
         match self {
-            Self::TupleType(data) => Some(data),
+            Self::TupleType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_type_alias_declaration(&self) -> Option<&TypeAliasDeclarationData> {
+    pub fn as_type_alias_declaration(&self) -> Option<TypeAliasDeclarationData> {
         match self {
-            Self::TypeAliasDeclaration(data) => Some(data),
+            Self::TypeAliasDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_type_assertion_expression(&self) -> Option<&TypeAssertionExpressionData> {
+    pub fn as_type_assertion_expression(&self) -> Option<TypeAssertionExpressionData> {
         match self {
-            Self::TypeAssertionExpression(data) => Some(data),
+            Self::TypeAssertionExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_type_literal(&self) -> Option<&TypeLiteralData> {
+    pub fn as_type_literal(&self) -> Option<TypeLiteralData> {
         match self {
-            Self::TypeLiteral(data) => Some(data),
+            Self::TypeLiteral(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_type_of_expression(&self) -> Option<&TypeOfExpressionData> {
+    pub fn as_type_of_expression(&self) -> Option<TypeOfExpressionData> {
         match self {
-            Self::TypeOfExpression(data) => Some(data),
+            Self::TypeOfExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_type_operator(&self) -> Option<&TypeOperatorData> {
+    pub fn as_type_operator(&self) -> Option<TypeOperatorData> {
         match self {
-            Self::TypeOperator(data) => Some(data),
+            Self::TypeOperator(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_type_parameter(&self) -> Option<&TypeParameterData> {
+    pub fn as_type_parameter(&self) -> Option<TypeParameterData> {
         match self {
-            Self::TypeParameter(data) => Some(data),
+            Self::TypeParameter(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_type_predicate(&self) -> Option<&TypePredicateData> {
+    pub fn as_type_predicate(&self) -> Option<TypePredicateData> {
         match self {
-            Self::TypePredicate(data) => Some(data),
+            Self::TypePredicate(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_type_query(&self) -> Option<&TypeQueryData> {
+    pub fn as_type_query(&self) -> Option<TypeQueryData> {
         match self {
-            Self::TypeQuery(data) => Some(data),
+            Self::TypeQuery(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_type_reference(&self) -> Option<&TypeReferenceData> {
+    pub fn as_type_reference(&self) -> Option<TypeReferenceData> {
         match self {
-            Self::TypeReference(data) => Some(data),
+            Self::TypeReference(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_union_type(&self) -> Option<&UnionTypeData> {
+    pub fn as_union_type(&self) -> Option<UnionTypeData> {
         match self {
-            Self::UnionType(data) => Some(data),
+            Self::UnionType(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_variable_declaration(&self) -> Option<&VariableDeclarationData> {
+    pub fn as_variable_declaration(&self) -> Option<VariableDeclarationData> {
         match self {
-            Self::VariableDeclaration(data) => Some(data),
+            Self::VariableDeclaration(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_variable_declaration_list(&self) -> Option<&VariableDeclarationListData> {
+    pub fn as_variable_declaration_list(&self) -> Option<VariableDeclarationListData> {
         match self {
-            Self::VariableDeclarationList(data) => Some(data),
+            Self::VariableDeclarationList(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_variable_statement(&self) -> Option<&VariableStatementData> {
+    pub fn as_variable_statement(&self) -> Option<VariableStatementData> {
         match self {
-            Self::VariableStatement(data) => Some(data),
+            Self::VariableStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_void_expression(&self) -> Option<&VoidExpressionData> {
+    pub fn as_void_expression(&self) -> Option<VoidExpressionData> {
         match self {
-            Self::VoidExpression(data) => Some(data),
+            Self::VoidExpression(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_while_statement(&self) -> Option<&WhileStatementData> {
+    pub fn as_while_statement(&self) -> Option<WhileStatementData> {
         match self {
-            Self::WhileStatement(data) => Some(data),
+            Self::WhileStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_with_statement(&self) -> Option<&WithStatementData> {
+    pub fn as_with_statement(&self) -> Option<WithStatementData> {
         match self {
-            Self::WithStatement(data) => Some(data),
+            Self::WithStatement(data) => Some(*data),
             _ => None,
         }
     }
 
-    pub fn as_yield_expression(&self) -> Option<&YieldExpressionData> {
+    pub fn as_yield_expression(&self) -> Option<YieldExpressionData> {
         match self {
-            Self::YieldExpression(data) => Some(data),
+            Self::YieldExpression(data) => Some(*data),
             _ => None,
+        }
+    }
+}
+
+/// The most payload slots a kind has.
+const MAX_SLOTS: usize = 9;
+/// The longest tail: the slots past the second, the JSDoc attachment and a comment.
+const MAX_TAIL_WORDS: usize = 8;
+
+/// A kind's payload slots and whether it has a JSDoc comment (see `Node`).
+#[inline]
+pub(crate) const fn payload_shape(kind: SyntaxKind) -> (usize, bool) {
+    match kind {
+        SyntaxKind::ArrayBindingPattern
+        | SyntaxKind::ArrayLiteralExpression
+        | SyntaxKind::ArrayType
+        | SyntaxKind::AwaitExpression
+        | SyntaxKind::BigIntLiteral
+        | SyntaxKind::Block
+        | SyntaxKind::BreakStatement
+        | SyntaxKind::CaseBlock
+        | SyntaxKind::CommaListExpression
+        | SyntaxKind::ComputedPropertyName
+        | SyntaxKind::ContinueStatement
+        | SyntaxKind::Decorator
+        | SyntaxKind::DefaultClause
+        | SyntaxKind::DeleteExpression
+        | SyntaxKind::ExpressionStatement
+        | SyntaxKind::ExternalModuleReference
+        | SyntaxKind::Identifier
+        | SyntaxKind::ImportTypeAssertionContainer
+        | SyntaxKind::InferType
+        | SyntaxKind::IntersectionType
+        | SyntaxKind::JSDocNameReference
+        | SyntaxKind::JSDocNamepathType
+        | SyntaxKind::JSDocOptionalType
+        | SyntaxKind::JSDocText
+        | SyntaxKind::JSDocTypeExpression
+        | SyntaxKind::JSDocVariadicType
+        | SyntaxKind::JsxAttributes
+        | SyntaxKind::JsxClosingElement
+        | SyntaxKind::JsxSpreadAttribute
+        | SyntaxKind::LiteralType
+        | SyntaxKind::MissingDeclaration
+        | SyntaxKind::ModuleBlock
+        | SyntaxKind::NamedExports
+        | SyntaxKind::NamedImports
+        | SyntaxKind::NamespaceExport
+        | SyntaxKind::NamespaceImport
+        | SyntaxKind::NonNullExpression
+        | SyntaxKind::NumericLiteral
+        | SyntaxKind::ObjectBindingPattern
+        | SyntaxKind::ObjectLiteralExpression
+        | SyntaxKind::OptionalType
+        | SyntaxKind::ParenthesizedExpression
+        | SyntaxKind::ParenthesizedType
+        | SyntaxKind::PartiallyEmittedExpression
+        | SyntaxKind::PrivateIdentifier
+        | SyntaxKind::RegularExpressionLiteral
+        | SyntaxKind::RestType
+        | SyntaxKind::ReturnStatement
+        | SyntaxKind::SpreadAssignment
+        | SyntaxKind::SpreadElement
+        | SyntaxKind::StringLiteral
+        | SyntaxKind::ThrowStatement
+        | SyntaxKind::TupleType
+        | SyntaxKind::TypeLiteral
+        | SyntaxKind::TypeOfExpression
+        | SyntaxKind::UnionType
+        | SyntaxKind::VariableDeclarationList
+        | SyntaxKind::VoidExpression => (1, false),
+        SyntaxKind::JSDoc
+        | SyntaxKind::JSDocAuthorTag
+        | SyntaxKind::JSDocClassTag
+        | SyntaxKind::JSDocDeprecatedTag
+        | SyntaxKind::JSDocOverrideTag
+        | SyntaxKind::JSDocPrivateTag
+        | SyntaxKind::JSDocProtectedTag
+        | SyntaxKind::JSDocPublicTag
+        | SyntaxKind::JSDocReadonlyTag
+        | SyntaxKind::JSDocTag => (1, true),
+        SyntaxKind::AsExpression
+        | SyntaxKind::CaseClause
+        | SyntaxKind::CatchClause
+        | SyntaxKind::ClassStaticBlockDeclaration
+        | SyntaxKind::DoStatement
+        | SyntaxKind::EnumMember
+        | SyntaxKind::ExpressionWithTypeArguments
+        | SyntaxKind::HeritageClause
+        | SyntaxKind::ImportAttribute
+        | SyntaxKind::ImportAttributes
+        | SyntaxKind::IndexedAccessType
+        | SyntaxKind::JSDocLink
+        | SyntaxKind::JSDocLinkCode
+        | SyntaxKind::JSDocLinkPlain
+        | SyntaxKind::JSDocMemberName
+        | SyntaxKind::JSDocNonNullableType
+        | SyntaxKind::JSDocNullableType
+        | SyntaxKind::JSDocTypeLiteral
+        | SyntaxKind::JsxAttribute
+        | SyntaxKind::JsxExpression
+        | SyntaxKind::JsxNamespacedName
+        | SyntaxKind::JsxText
+        | SyntaxKind::LabeledStatement
+        | SyntaxKind::MetaProperty
+        | SyntaxKind::NamespaceExportDeclaration
+        | SyntaxKind::NoSubstitutionTemplateLiteral
+        | SyntaxKind::PostfixUnaryExpression
+        | SyntaxKind::PrefixUnaryExpression
+        | SyntaxKind::QualifiedName
+        | SyntaxKind::SatisfiesExpression
+        | SyntaxKind::SourceFile
+        | SyntaxKind::SwitchStatement
+        | SyntaxKind::TemplateExpression
+        | SyntaxKind::TemplateHead
+        | SyntaxKind::TemplateLiteralType
+        | SyntaxKind::TemplateLiteralTypeSpan
+        | SyntaxKind::TemplateMiddle
+        | SyntaxKind::TemplateSpan
+        | SyntaxKind::TemplateTail
+        | SyntaxKind::TypeAssertionExpression
+        | SyntaxKind::TypeOperator
+        | SyntaxKind::TypeQuery
+        | SyntaxKind::TypeReference
+        | SyntaxKind::VariableStatement
+        | SyntaxKind::WhileStatement
+        | SyntaxKind::WithStatement
+        | SyntaxKind::YieldExpression => (2, false),
+        SyntaxKind::JSDocAugmentsTag
+        | SyntaxKind::JSDocEnumTag
+        | SyntaxKind::JSDocImplementsTag
+        | SyntaxKind::JSDocOverloadTag
+        | SyntaxKind::JSDocReturnTag
+        | SyntaxKind::JSDocSatisfiesTag
+        | SyntaxKind::JSDocSeeTag
+        | SyntaxKind::JSDocThisTag
+        | SyntaxKind::JSDocThrowsTag
+        | SyntaxKind::JSDocTypeTag => (2, true),
+        SyntaxKind::BinaryExpression
+        | SyntaxKind::CallSignature
+        | SyntaxKind::ConstructSignature
+        | SyntaxKind::ElementAccessExpression
+        | SyntaxKind::EnumDeclaration
+        | SyntaxKind::ExportAssignment
+        | SyntaxKind::ExportSpecifier
+        | SyntaxKind::ForInStatement
+        | SyntaxKind::IfStatement
+        | SyntaxKind::ImportClause
+        | SyntaxKind::ImportSpecifier
+        | SyntaxKind::JSDocSignature
+        | SyntaxKind::JsxElement
+        | SyntaxKind::JsxFragment
+        | SyntaxKind::JsxOpeningElement
+        | SyntaxKind::JsxSelfClosingElement
+        | SyntaxKind::PropertyAccessExpression
+        | SyntaxKind::TryStatement
+        | SyntaxKind::TypePredicate => (3, false),
+        SyntaxKind::JSDocTemplateTag => (3, true),
+        SyntaxKind::BindingElement
+        | SyntaxKind::CallExpression
+        | SyntaxKind::ConditionalType
+        | SyntaxKind::ConstructorType
+        | SyntaxKind::ForOfStatement
+        | SyntaxKind::ForStatement
+        | SyntaxKind::FunctionType
+        | SyntaxKind::ImportDeclaration
+        | SyntaxKind::ImportEqualsDeclaration
+        | SyntaxKind::IndexSignature
+        | SyntaxKind::JSDocFunctionType
+        | SyntaxKind::ModuleDeclaration
+        | SyntaxKind::NamedTupleMember
+        | SyntaxKind::NewExpression
+        | SyntaxKind::TaggedTemplateExpression
+        | SyntaxKind::TypeAliasDeclaration
+        | SyntaxKind::VariableDeclaration => (4, false),
+        SyntaxKind::JSDocCallbackTag
+        | SyntaxKind::JSDocImportTag
+        | SyntaxKind::JSDocParameterTag
+        | SyntaxKind::JSDocPropertyTag
+        | SyntaxKind::JSDocTypedefTag => (4, true),
+        SyntaxKind::ClassDeclaration
+        | SyntaxKind::ClassExpression
+        | SyntaxKind::ConditionalExpression
+        | SyntaxKind::ExportDeclaration
+        | SyntaxKind::ImportType
+        | SyntaxKind::InterfaceDeclaration
+        | SyntaxKind::PropertyAssignment
+        | SyntaxKind::PropertySignature
+        | SyntaxKind::TypeParameter => (5, false),
+        SyntaxKind::ArrowFunction
+        | SyntaxKind::Constructor
+        | SyntaxKind::GetAccessor
+        | SyntaxKind::MappedType
+        | SyntaxKind::MethodSignature
+        | SyntaxKind::Parameter
+        | SyntaxKind::PropertyDeclaration
+        | SyntaxKind::SetAccessor
+        | SyntaxKind::ShorthandPropertyAssignment => (6, false),
+        SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression => (7, false),
+        SyntaxKind::MethodDeclaration => (9, false),
+        _ => (0, false),
+    }
+}
+
+/// Whether `kind` has a payload variant: its records decode to it, never to `Token`.
+pub(crate) const fn has_payload(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::ArrayBindingPattern
+            | SyntaxKind::ArrayLiteralExpression
+            | SyntaxKind::ArrayType
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::AsExpression
+            | SyntaxKind::AwaitExpression
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::BinaryExpression
+            | SyntaxKind::BindingElement
+            | SyntaxKind::Block
+            | SyntaxKind::BreakStatement
+            | SyntaxKind::CallExpression
+            | SyntaxKind::CallSignature
+            | SyntaxKind::CaseBlock
+            | SyntaxKind::CaseClause
+            | SyntaxKind::CatchClause
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::ClassStaticBlockDeclaration
+            | SyntaxKind::CommaListExpression
+            | SyntaxKind::ComputedPropertyName
+            | SyntaxKind::ConditionalExpression
+            | SyntaxKind::ConditionalType
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::Constructor
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::ContinueStatement
+            | SyntaxKind::DebuggerStatement
+            | SyntaxKind::Decorator
+            | SyntaxKind::DefaultClause
+            | SyntaxKind::DeleteExpression
+            | SyntaxKind::DoStatement
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::EmptyStatement
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::EnumMember
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::ExportDeclaration
+            | SyntaxKind::ExportSpecifier
+            | SyntaxKind::ExpressionStatement
+            | SyntaxKind::ExpressionWithTypeArguments
+            | SyntaxKind::ExternalModuleReference
+            | SyntaxKind::ForInStatement
+            | SyntaxKind::ForOfStatement
+            | SyntaxKind::ForStatement
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::FunctionType
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::HeritageClause
+            | SyntaxKind::Identifier
+            | SyntaxKind::IfStatement
+            | SyntaxKind::ImportAttribute
+            | SyntaxKind::ImportAttributes
+            | SyntaxKind::ImportClause
+            | SyntaxKind::ImportDeclaration
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::ImportSpecifier
+            | SyntaxKind::ImportType
+            | SyntaxKind::ImportTypeAssertionContainer
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::IndexedAccessType
+            | SyntaxKind::InferType
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::IntersectionType
+            | SyntaxKind::JSDoc
+            | SyntaxKind::JSDocAllType
+            | SyntaxKind::JSDocAugmentsTag
+            | SyntaxKind::JSDocAuthorTag
+            | SyntaxKind::JSDocCallbackTag
+            | SyntaxKind::JSDocClassTag
+            | SyntaxKind::JSDocDeprecatedTag
+            | SyntaxKind::JSDocEnumTag
+            | SyntaxKind::JSDocFunctionType
+            | SyntaxKind::JSDocImplementsTag
+            | SyntaxKind::JSDocImportTag
+            | SyntaxKind::JSDocLink
+            | SyntaxKind::JSDocLinkCode
+            | SyntaxKind::JSDocLinkPlain
+            | SyntaxKind::JSDocMemberName
+            | SyntaxKind::JSDocNameReference
+            | SyntaxKind::JSDocNamepathType
+            | SyntaxKind::JSDocNonNullableType
+            | SyntaxKind::JSDocNullableType
+            | SyntaxKind::JSDocOptionalType
+            | SyntaxKind::JSDocOverloadTag
+            | SyntaxKind::JSDocOverrideTag
+            | SyntaxKind::JSDocParameterTag
+            | SyntaxKind::JSDocPrivateTag
+            | SyntaxKind::JSDocPropertyTag
+            | SyntaxKind::JSDocProtectedTag
+            | SyntaxKind::JSDocPublicTag
+            | SyntaxKind::JSDocReadonlyTag
+            | SyntaxKind::JSDocReturnTag
+            | SyntaxKind::JSDocSatisfiesTag
+            | SyntaxKind::JSDocSeeTag
+            | SyntaxKind::JSDocSignature
+            | SyntaxKind::JSDocTag
+            | SyntaxKind::JSDocTemplateTag
+            | SyntaxKind::JSDocText
+            | SyntaxKind::JSDocThisTag
+            | SyntaxKind::JSDocThrowsTag
+            | SyntaxKind::JSDocTypeExpression
+            | SyntaxKind::JSDocTypeLiteral
+            | SyntaxKind::JSDocTypeTag
+            | SyntaxKind::JSDocTypedefTag
+            | SyntaxKind::JSDocUnknownType
+            | SyntaxKind::JSDocVariadicType
+            | SyntaxKind::JsxAttribute
+            | SyntaxKind::JsxAttributes
+            | SyntaxKind::JsxClosingElement
+            | SyntaxKind::JsxElement
+            | SyntaxKind::JsxExpression
+            | SyntaxKind::JsxFragment
+            | SyntaxKind::JsxNamespacedName
+            | SyntaxKind::JsxOpeningElement
+            | SyntaxKind::JsxSelfClosingElement
+            | SyntaxKind::JsxSpreadAttribute
+            | SyntaxKind::JsxText
+            | SyntaxKind::LabeledStatement
+            | SyntaxKind::LiteralType
+            | SyntaxKind::MappedType
+            | SyntaxKind::MetaProperty
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::MissingDeclaration
+            | SyntaxKind::ModuleBlock
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::NamedExports
+            | SyntaxKind::NamedImports
+            | SyntaxKind::NamedTupleMember
+            | SyntaxKind::NamespaceExport
+            | SyntaxKind::NamespaceExportDeclaration
+            | SyntaxKind::NamespaceImport
+            | SyntaxKind::NewExpression
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::NonNullExpression
+            | SyntaxKind::NotEmittedStatement
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::ObjectBindingPattern
+            | SyntaxKind::ObjectLiteralExpression
+            | SyntaxKind::OmittedExpression
+            | SyntaxKind::OptionalType
+            | SyntaxKind::Parameter
+            | SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::ParenthesizedType
+            | SyntaxKind::PartiallyEmittedExpression
+            | SyntaxKind::PostfixUnaryExpression
+            | SyntaxKind::PrefixUnaryExpression
+            | SyntaxKind::PrivateIdentifier
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::QualifiedName
+            | SyntaxKind::RegularExpressionLiteral
+            | SyntaxKind::RestType
+            | SyntaxKind::ReturnStatement
+            | SyntaxKind::SatisfiesExpression
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::SourceFile
+            | SyntaxKind::SpreadAssignment
+            | SyntaxKind::SpreadElement
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::SwitchStatement
+            | SyntaxKind::SyntaxList
+            | SyntaxKind::TaggedTemplateExpression
+            | SyntaxKind::TemplateExpression
+            | SyntaxKind::TemplateHead
+            | SyntaxKind::TemplateLiteralType
+            | SyntaxKind::TemplateLiteralTypeSpan
+            | SyntaxKind::TemplateMiddle
+            | SyntaxKind::TemplateSpan
+            | SyntaxKind::TemplateTail
+            | SyntaxKind::ThrowStatement
+            | SyntaxKind::TryStatement
+            | SyntaxKind::TupleType
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::TypeAssertionExpression
+            | SyntaxKind::TypeLiteral
+            | SyntaxKind::TypeOfExpression
+            | SyntaxKind::TypeOperator
+            | SyntaxKind::TypeParameter
+            | SyntaxKind::TypePredicate
+            | SyntaxKind::TypeQuery
+            | SyntaxKind::TypeReference
+            | SyntaxKind::UnionType
+            | SyntaxKind::VariableDeclaration
+            | SyntaxKind::VariableDeclarationList
+            | SyntaxKind::VariableStatement
+            | SyntaxKind::VoidExpression
+            | SyntaxKind::WhileStatement
+            | SyntaxKind::WithStatement
+            | SyntaxKind::YieldExpression
+    )
+}
+
+/// The slot words and the comment words of a payload.
+fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
+    let mut s = [0u32; MAX_SLOTS];
+    let comment = match data {
+        NodeData::Token => [0; 4],
+        NodeData::ArrayBindingPattern(data) => {
+            s[0] = data.elements.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::ArrayLiteralExpression(data) => {
+            s[0] = data.elements.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::ArrayType(data) => {
+            s[0] = data.element_type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ArrowFunction(data) => {
+            s[0] = data.parameters.map_or(0, NodeArrayId::position);
+            s[1] = data.body.map_or(0, NodeId::position);
+            s[2] = data.equals_greater_than_token.map_or(0, NodeId::position);
+            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[4] = data.r#type.map_or(0, NodeId::position);
+            s[5] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::AsExpression(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            s[1] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::AwaitExpression(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::BigIntLiteral(data) => {
+            s[0] = data.text.position();
+            [0; 4]
+        }
+        NodeData::BinaryExpression(data) => {
+            s[0] = data.left.map_or(0, NodeId::position);
+            s[1] = data.operator_token.map_or(0, NodeId::position);
+            s[2] = data.right.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::BindingElement(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.property_name.map_or(0, NodeId::position);
+            s[2] = data.dot_dot_dot_token.map_or(0, NodeId::position);
+            s[3] = data.initializer.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::Block(data) => {
+            s[0] = data.statements.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::BreakStatement(data) => {
+            s[0] = data.label.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::CallExpression(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            s[1] = data.type_arguments.map_or(0, NodeArrayId::position);
+            s[2] = data.arguments.map_or(0, NodeArrayId::position);
+            s[3] = data.question_dot_token.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::CallSignature(data) => {
+            s[0] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[1] = data.parameters.map_or(0, NodeArrayId::position);
+            s[2] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::CaseBlock(data) => {
+            s[0] = data.clauses.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::CaseClause(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            s[1] = data.statements.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::CatchClause(data) => {
+            s[0] = data.variable_declaration.map_or(0, NodeId::position);
+            s[1] = data.block.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ClassDeclaration(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.heritage_clauses.map_or(0, NodeArrayId::position);
+            s[2] = data.members.map_or(0, NodeArrayId::position);
+            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[4] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::ClassExpression(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.heritage_clauses.map_or(0, NodeArrayId::position);
+            s[2] = data.members.map_or(0, NodeArrayId::position);
+            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[4] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::ClassStaticBlockDeclaration(data) => {
+            s[0] = data.body.map_or(0, NodeId::position);
+            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::CommaListExpression(data) => {
+            s[0] = data.elements.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::ComputedPropertyName(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ConditionalExpression(data) => {
+            s[0] = data.condition.map_or(0, NodeId::position);
+            s[1] = data.question_token.map_or(0, NodeId::position);
+            s[2] = data.when_true.map_or(0, NodeId::position);
+            s[3] = data.colon_token.map_or(0, NodeId::position);
+            s[4] = data.when_false.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ConditionalType(data) => {
+            s[0] = data.check_type.map_or(0, NodeId::position);
+            s[1] = data.extends_type.map_or(0, NodeId::position);
+            s[2] = data.true_type.map_or(0, NodeId::position);
+            s[3] = data.false_type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ConstructSignature(data) => {
+            s[0] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[1] = data.parameters.map_or(0, NodeArrayId::position);
+            s[2] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::Constructor(data) => {
+            s[0] = data.parameters.map_or(0, NodeArrayId::position);
+            s[1] = data.body.map_or(0, NodeId::position);
+            s[2] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[3] = data.name.map_or(0, NodeId::position);
+            s[4] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[5] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ConstructorType(data) => {
+            s[0] = data.parameters.map_or(0, NodeArrayId::position);
+            s[1] = data.r#type.map_or(0, NodeId::position);
+            s[2] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::ContinueStatement(data) => {
+            s[0] = data.label.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::DebuggerStatement(_) => [0; 4],
+        NodeData::Decorator(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::DefaultClause(data) => {
+            s[0] = data.statements.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::DeleteExpression(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::DoStatement(data) => {
+            s[0] = data.statement.map_or(0, NodeId::position);
+            s[1] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ElementAccessExpression(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            s[1] = data.question_dot_token.map_or(0, NodeId::position);
+            s[2] = data.argument_expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::EmptyStatement(_) => [0; 4],
+        NodeData::EnumDeclaration(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[2] = data.members.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::EnumMember(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.initializer.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ExportAssignment(data) => {
+            s[0] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[1] = data.expression.map_or(0, NodeId::position);
+            s[2] = (data
+                .is_export_equals
+                .map_or(0, |value| u32::from(value) + 1));
+            [0; 4]
+        }
+        NodeData::ExportDeclaration(data) => {
+            s[0] = data.export_clause.map_or(0, NodeId::position);
+            s[1] = data.module_specifier.map_or(0, NodeId::position);
+            s[2] = (u32::from(data.is_type_only));
+            s[3] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[4] = data.attributes.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ExportSpecifier(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.property_name.map_or(0, NodeId::position);
+            s[2] = (u32::from(data.is_type_only));
+            [0; 4]
+        }
+        NodeData::ExpressionStatement(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ExpressionWithTypeArguments(data) => {
+            s[0] = data.type_arguments.map_or(0, NodeArrayId::position);
+            s[1] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ExternalModuleReference(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ForInStatement(data) => {
+            s[0] = data.statement.map_or(0, NodeId::position);
+            s[1] = data.initializer.map_or(0, NodeId::position);
+            s[2] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ForOfStatement(data) => {
+            s[0] = data.statement.map_or(0, NodeId::position);
+            s[1] = data.initializer.map_or(0, NodeId::position);
+            s[2] = data.expression.map_or(0, NodeId::position);
+            s[3] = data.await_modifier.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ForStatement(data) => {
+            s[0] = data.statement.map_or(0, NodeId::position);
+            s[1] = data.condition.map_or(0, NodeId::position);
+            s[2] = data.incrementor.map_or(0, NodeId::position);
+            s[3] = data.initializer.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::FunctionDeclaration(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.parameters.map_or(0, NodeArrayId::position);
+            s[2] = data.r#type.map_or(0, NodeId::position);
+            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[4] = data.asterisk_token.map_or(0, NodeId::position);
+            s[5] = data.body.map_or(0, NodeId::position);
+            s[6] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::FunctionExpression(data) => {
+            s[0] = data.parameters.map_or(0, NodeArrayId::position);
+            s[1] = data.body.map_or(0, NodeId::position);
+            s[2] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[3] = data.name.map_or(0, NodeId::position);
+            s[4] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[5] = data.r#type.map_or(0, NodeId::position);
+            s[6] = data.asterisk_token.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::FunctionType(data) => {
+            s[0] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[1] = data.parameters.map_or(0, NodeArrayId::position);
+            s[2] = data.r#type.map_or(0, NodeId::position);
+            s[3] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::GetAccessor(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.parameters.map_or(0, NodeArrayId::position);
+            s[2] = data.body.map_or(0, NodeId::position);
+            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[4] = data.r#type.map_or(0, NodeId::position);
+            s[5] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::HeritageClause(data) => {
+            s[0] = data.types.map_or(0, NodeArrayId::position);
+            s[1] = ((data.token as u32) << 16);
+            [0; 4]
+        }
+        NodeData::Identifier(data) => {
+            s[0] = data.escaped_text.index();
+            [0; 4]
+        }
+        NodeData::IfStatement(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            s[1] = data.then_statement.map_or(0, NodeId::position);
+            s[2] = data.else_statement.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ImportAttribute(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.value.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ImportAttributes(data) => {
+            s[0] = data.elements.map_or(0, NodeArrayId::position);
+            s[1] = ((data.token as u32) << 16)
+                | (data.multi_line.map_or(0, |value| u32::from(value) + 1));
+            [0; 4]
+        }
+        NodeData::ImportClause(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.named_bindings.map_or(0, NodeId::position);
+            s[2] = (u32::from(data.is_type_only))
+                | (data.phase_modifier.map_or(0, |kind| kind as u32 + 1) << 16);
+            [0; 4]
+        }
+        NodeData::ImportDeclaration(data) => {
+            s[0] = data.import_clause.map_or(0, NodeId::position);
+            s[1] = data.module_specifier.map_or(0, NodeId::position);
+            s[2] = data.attributes.map_or(0, NodeId::position);
+            s[3] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::ImportEqualsDeclaration(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[2] = data.module_reference.map_or(0, NodeId::position);
+            s[3] = (u32::from(data.is_type_only));
+            [0; 4]
+        }
+        NodeData::ImportSpecifier(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.property_name.map_or(0, NodeId::position);
+            s[2] = (u32::from(data.is_type_only));
+            [0; 4]
+        }
+        NodeData::ImportType(data) => {
+            s[0] = data.argument.map_or(0, NodeId::position);
+            s[1] = data.qualifier.map_or(0, NodeId::position);
+            s[2] = (u32::from(data.is_type_of));
+            s[3] = data.type_arguments.map_or(0, NodeArrayId::position);
+            s[4] = data.attributes.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ImportTypeAssertionContainer(data) => {
+            s[0] = data.assert_clause.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::IndexSignature(data) => {
+            s[0] = data.parameters.map_or(0, NodeArrayId::position);
+            s[1] = data.r#type.map_or(0, NodeId::position);
+            s[2] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::IndexedAccessType(data) => {
+            s[0] = data.object_type.map_or(0, NodeId::position);
+            s[1] = data.index_type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::InferType(data) => {
+            s[0] = data.type_parameter.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::InterfaceDeclaration(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[2] = data.members.map_or(0, NodeArrayId::position);
+            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[4] = data.heritage_clauses.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::IntersectionType(data) => {
+            s[0] = data.types.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::JSDoc(data) => {
+            s[0] = data.tags.map_or(0, NodeArrayId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocAllType(_) => [0; 4],
+        NodeData::JSDocAugmentsTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.class.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocAuthorTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocCallbackTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.name.map_or(0, NodeId::position);
+            s[2] = data.type_expression.map_or(0, NodeId::position);
+            s[3] = data.full_name.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocClassTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocDeprecatedTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocEnumTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.type_expression.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocFunctionType(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[2] = data.parameters.map_or(0, NodeArrayId::position);
+            s[3] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JSDocImplementsTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.class.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocImportTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.import_clause.map_or(0, NodeId::position);
+            s[2] = data.module_specifier.map_or(0, NodeId::position);
+            s[3] = data.attributes.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocLink(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.text.position();
+            [0; 4]
+        }
+        NodeData::JSDocLinkCode(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.text.position();
+            [0; 4]
+        }
+        NodeData::JSDocLinkPlain(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.text.position();
+            [0; 4]
+        }
+        NodeData::JSDocMemberName(data) => {
+            s[0] = data.left.map_or(0, NodeId::position);
+            s[1] = data.right.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JSDocNameReference(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JSDocNamepathType(data) => {
+            s[0] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JSDocNonNullableType(data) => {
+            s[0] = data.r#type.map_or(0, NodeId::position);
+            s[1] = (u32::from(data.postfix));
+            [0; 4]
+        }
+        NodeData::JSDocNullableType(data) => {
+            s[0] = data.r#type.map_or(0, NodeId::position);
+            s[1] = (u32::from(data.postfix));
+            [0; 4]
+        }
+        NodeData::JSDocOptionalType(data) => {
+            s[0] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JSDocOverloadTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.type_expression.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocOverrideTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocParameterTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.name.map_or(0, NodeId::position);
+            s[2] = (u32::from(data.is_name_first)) | (u32::from(data.is_bracketed) << 1);
+            s[3] = data.type_expression.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocPrivateTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocPropertyTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.name.map_or(0, NodeId::position);
+            s[2] = data.type_expression.map_or(0, NodeId::position);
+            s[3] = (u32::from(data.is_name_first)) | (u32::from(data.is_bracketed) << 1);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocProtectedTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocPublicTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocReadonlyTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocReturnTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.type_expression.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocSatisfiesTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.type_expression.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocSeeTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.name.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocSignature(data) => {
+            s[0] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[1] = data.parameters.map_or(0, NodeArrayId::position);
+            s[2] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JSDocTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocTemplateTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.constraint.map_or(0, NodeId::position);
+            s[2] = data.type_parameters.map_or(0, NodeArrayId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocText(data) => {
+            s[0] = data.text.position();
+            [0; 4]
+        }
+        NodeData::JSDocThisTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.type_expression.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocThrowsTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.type_expression.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocTypeExpression(data) => {
+            s[0] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JSDocTypeLiteral(data) => {
+            s[0] = data.js_doc_property_tags.map_or(0, NodeArrayId::position);
+            s[1] = (u32::from(data.is_array_type));
+            [0; 4]
+        }
+        NodeData::JSDocTypeTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.type_expression.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocTypedefTag(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.name.map_or(0, NodeId::position);
+            s[2] = data.full_name.map_or(0, NodeId::position);
+            s[3] = data.type_expression.map_or(0, NodeId::position);
+            JSDocComment::words(data.comment.as_ref())
+        }
+        NodeData::JSDocUnknownType(_) => [0; 4],
+        NodeData::JSDocVariadicType(data) => {
+            s[0] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JsxAttribute(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.initializer.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JsxAttributes(data) => {
+            s[0] = data.properties.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::JsxClosingElement(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JsxElement(data) => {
+            s[0] = data.opening_element.map_or(0, NodeId::position);
+            s[1] = data.children.map_or(0, NodeArrayId::position);
+            s[2] = data.closing_element.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JsxExpression(data) => {
+            s[0] = data.dot_dot_dot_token.map_or(0, NodeId::position);
+            s[1] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JsxFragment(data) => {
+            s[0] = data.opening_fragment.map_or(0, NodeId::position);
+            s[1] = data.children.map_or(0, NodeArrayId::position);
+            s[2] = data.closing_fragment.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JsxNamespacedName(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.namespace.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JsxOpeningElement(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.type_arguments.map_or(0, NodeArrayId::position);
+            s[2] = data.attributes.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JsxSelfClosingElement(data) => {
+            s[0] = data.tag_name.map_or(0, NodeId::position);
+            s[1] = data.type_arguments.map_or(0, NodeArrayId::position);
+            s[2] = data.attributes.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JsxSpreadAttribute(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::JsxText(data) => {
+            s[0] = data.text.position();
+            s[1] = (u32::from(data.contains_only_trivia_white_spaces));
+            [0; 4]
+        }
+        NodeData::LabeledStatement(data) => {
+            s[0] = data.label.map_or(0, NodeId::position);
+            s[1] = data.statement.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::LiteralType(data) => {
+            s[0] = data.literal.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::MappedType(data) => {
+            s[0] = data.type_parameter.map_or(0, NodeId::position);
+            s[1] = data.r#type.map_or(0, NodeId::position);
+            s[2] = data.members.map_or(0, NodeArrayId::position);
+            s[3] = data.readonly_token.map_or(0, NodeId::position);
+            s[4] = data.name_type.map_or(0, NodeId::position);
+            s[5] = data.question_token.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::MetaProperty(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = ((data.keyword_token as u32) << 16);
+            [0; 4]
+        }
+        NodeData::MethodDeclaration(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.parameters.map_or(0, NodeArrayId::position);
+            s[2] = data.body.map_or(0, NodeId::position);
+            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[4] = data.r#type.map_or(0, NodeId::position);
+            s[5] = data.asterisk_token.map_or(0, NodeId::position);
+            s[6] = data.question_token.map_or(0, NodeId::position);
+            s[7] = data.exclamation_token.map_or(0, NodeId::position);
+            s[8] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::MethodSignature(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.parameters.map_or(0, NodeArrayId::position);
+            s[2] = data.r#type.map_or(0, NodeId::position);
+            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[4] = data.question_token.map_or(0, NodeId::position);
+            s[5] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::MissingDeclaration(data) => {
+            s[0] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::ModuleBlock(data) => {
+            s[0] = data.statements.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::ModuleDeclaration(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[2] = data.body.map_or(0, NodeId::position);
+            s[3] = data.attributes.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::NamedExports(data) => {
+            s[0] = data.elements.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::NamedImports(data) => {
+            s[0] = data.elements.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::NamedTupleMember(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.question_token.map_or(0, NodeId::position);
+            s[2] = data.r#type.map_or(0, NodeId::position);
+            s[3] = data.dot_dot_dot_token.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::NamespaceExport(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::NamespaceExportDeclaration(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::NamespaceImport(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::NewExpression(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            s[1] = data.type_arguments.map_or(0, NodeArrayId::position);
+            s[2] = data.arguments.map_or(0, NodeArrayId::position);
+            s[3] = data.question_dot_token.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::NoSubstitutionTemplateLiteral(data) => {
+            s[0] = data.text.position();
+            s[1] = data.raw_text.map_or(0, TextId::position);
+            [0; 4]
+        }
+        NodeData::NonNullExpression(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::NotEmittedStatement(_) => [0; 4],
+        NodeData::NumericLiteral(data) => {
+            s[0] = data.text.position();
+            [0; 4]
+        }
+        NodeData::ObjectBindingPattern(data) => {
+            s[0] = data.elements.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::ObjectLiteralExpression(data) => {
+            s[0] = data.properties.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::OmittedExpression(_) => [0; 4],
+        NodeData::OptionalType(data) => {
+            s[0] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::Parameter(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[2] = data.r#type.map_or(0, NodeId::position);
+            s[3] = data.dot_dot_dot_token.map_or(0, NodeId::position);
+            s[4] = data.question_token.map_or(0, NodeId::position);
+            s[5] = data.initializer.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ParenthesizedExpression(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ParenthesizedType(data) => {
+            s[0] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::PartiallyEmittedExpression(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::PostfixUnaryExpression(data) => {
+            s[0] = data.operand.map_or(0, NodeId::position);
+            s[1] = ((data.operator as u32) << 16);
+            [0; 4]
+        }
+        NodeData::PrefixUnaryExpression(data) => {
+            s[0] = data.operand.map_or(0, NodeId::position);
+            s[1] = ((data.operator as u32) << 16);
+            [0; 4]
+        }
+        NodeData::PrivateIdentifier(data) => {
+            s[0] = data.escaped_text.index();
+            [0; 4]
+        }
+        NodeData::PropertyAccessExpression(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.expression.map_or(0, NodeId::position);
+            s[2] = data.question_dot_token.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::PropertyAssignment(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.initializer.map_or(0, NodeId::position);
+            s[2] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[3] = data.question_token.map_or(0, NodeId::position);
+            s[4] = data.exclamation_token.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::PropertyDeclaration(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[2] = data.initializer.map_or(0, NodeId::position);
+            s[3] = data.question_token.map_or(0, NodeId::position);
+            s[4] = data.exclamation_token.map_or(0, NodeId::position);
+            s[5] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::PropertySignature(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.question_token.map_or(0, NodeId::position);
+            s[2] = data.r#type.map_or(0, NodeId::position);
+            s[3] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[4] = data.initializer.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::QualifiedName(data) => {
+            s[0] = data.left.map_or(0, NodeId::position);
+            s[1] = data.right.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::RegularExpressionLiteral(data) => {
+            s[0] = data.text.position();
+            [0; 4]
+        }
+        NodeData::RestType(data) => {
+            s[0] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::ReturnStatement(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::SatisfiesExpression(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            s[1] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::SetAccessor(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.parameters.map_or(0, NodeArrayId::position);
+            s[2] = data.body.map_or(0, NodeId::position);
+            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
+            s[4] = data.r#type.map_or(0, NodeId::position);
+            s[5] = data.modifiers.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::ShorthandPropertyAssignment(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.equals_token.map_or(0, NodeId::position);
+            s[2] = data
+                .object_assignment_initializer
+                .map_or(0, NodeId::position);
+            s[3] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[4] = data.question_token.map_or(0, NodeId::position);
+            s[5] = data.exclamation_token.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::SourceFile(data) => {
+            s[0] = data.statements.map_or(0, NodeArrayId::position);
+            s[1] = data.end_of_file_token.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::SpreadAssignment(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::SpreadElement(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::StringLiteral(data) => {
+            s[0] = data.text.position();
+            [0; 4]
+        }
+        NodeData::SwitchStatement(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            s[1] = data.case_block.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::SyntaxList(_) => [0; 4],
+        NodeData::TaggedTemplateExpression(data) => {
+            s[0] = data.tag.map_or(0, NodeId::position);
+            s[1] = data.type_arguments.map_or(0, NodeArrayId::position);
+            s[2] = data.template.map_or(0, NodeId::position);
+            s[3] = data.question_dot_token.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::TemplateExpression(data) => {
+            s[0] = data.head.map_or(0, NodeId::position);
+            s[1] = data.template_spans.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::TemplateHead(data) => {
+            s[0] = data.text.position();
+            s[1] = data.raw_text.map_or(0, TextId::position);
+            [0; 4]
+        }
+        NodeData::TemplateLiteralType(data) => {
+            s[0] = data.head.map_or(0, NodeId::position);
+            s[1] = data.template_spans.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::TemplateLiteralTypeSpan(data) => {
+            s[0] = data.r#type.map_or(0, NodeId::position);
+            s[1] = data.literal.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::TemplateMiddle(data) => {
+            s[0] = data.text.position();
+            s[1] = data.raw_text.map_or(0, TextId::position);
+            [0; 4]
+        }
+        NodeData::TemplateSpan(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            s[1] = data.literal.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::TemplateTail(data) => {
+            s[0] = data.text.position();
+            s[1] = data.raw_text.map_or(0, TextId::position);
+            [0; 4]
+        }
+        NodeData::ThrowStatement(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::TryStatement(data) => {
+            s[0] = data.try_block.map_or(0, NodeId::position);
+            s[1] = data.catch_clause.map_or(0, NodeId::position);
+            s[2] = data.finally_block.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::TupleType(data) => {
+            s[0] = data.elements.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::TypeAliasDeclaration(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[2] = data.r#type.map_or(0, NodeId::position);
+            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::TypeAssertionExpression(data) => {
+            s[0] = data.r#type.map_or(0, NodeId::position);
+            s[1] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::TypeLiteral(data) => {
+            s[0] = data.members.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::TypeOfExpression(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::TypeOperator(data) => {
+            s[0] = data.r#type.map_or(0, NodeId::position);
+            s[1] = ((data.operator as u32) << 16);
+            [0; 4]
+        }
+        NodeData::TypeParameter(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.constraint.map_or(0, NodeId::position);
+            s[2] = data.r#default.map_or(0, NodeId::position);
+            s[3] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[4] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::TypePredicate(data) => {
+            s[0] = data.asserts_modifier.map_or(0, NodeId::position);
+            s[1] = data.parameter_name.map_or(0, NodeId::position);
+            s[2] = data.r#type.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::TypeQuery(data) => {
+            s[0] = data.type_arguments.map_or(0, NodeArrayId::position);
+            s[1] = data.expr_name.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::TypeReference(data) => {
+            s[0] = data.type_arguments.map_or(0, NodeArrayId::position);
+            s[1] = data.type_name.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::UnionType(data) => {
+            s[0] = data.types.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::VariableDeclaration(data) => {
+            s[0] = data.name.map_or(0, NodeId::position);
+            s[1] = data.r#type.map_or(0, NodeId::position);
+            s[2] = data.initializer.map_or(0, NodeId::position);
+            s[3] = data.exclamation_token.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::VariableDeclarationList(data) => {
+            s[0] = data.declarations.map_or(0, NodeArrayId::position);
+            [0; 4]
+        }
+        NodeData::VariableStatement(data) => {
+            s[0] = data.modifiers.map_or(0, NodeArrayId::position);
+            s[1] = data.declaration_list.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::VoidExpression(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::WhileStatement(data) => {
+            s[0] = data.statement.map_or(0, NodeId::position);
+            s[1] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::WithStatement(data) => {
+            s[0] = data.expression.map_or(0, NodeId::position);
+            s[1] = data.statement.map_or(0, NodeId::position);
+            [0; 4]
+        }
+        NodeData::YieldExpression(data) => {
+            s[0] = data.asterisk_token.map_or(0, NodeId::position);
+            s[1] = data.expression.map_or(0, NodeId::position);
+            [0; 4]
+        }
+    };
+    (s, comment)
+}
+
+impl Node {
+    /// The node's payload, decoded from its words (and its tail).
+    #[inline]
+    pub fn data(&self) -> NodeData {
+        match self.kind {
+            SyntaxKind::ArrayBindingPattern => {
+                let s = self.slots::<1>();
+                NodeData::ArrayBindingPattern(ArrayBindingPatternData {
+                    elements: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::ArrayLiteralExpression => {
+                let s = self.slots::<1>();
+                NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
+                    elements: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::ArrayType => {
+                let s = self.slots::<1>();
+                NodeData::ArrayType(ArrayTypeData {
+                    element_type: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::ArrowFunction => {
+                let s = self.slots::<6>();
+                NodeData::ArrowFunction(ArrowFunctionData {
+                    type_parameters: NodeArrayId::from_position(s[3]),
+                    parameters: NodeArrayId::from_position(s[0]),
+                    r#type: NodeId::from_position(s[4]),
+                    body: NodeId::from_position(s[1]),
+                    modifiers: NodeArrayId::from_position(s[5]),
+                    equals_greater_than_token: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::AsExpression => {
+                let s = self.slots::<2>();
+                NodeData::AsExpression(AsExpressionData {
+                    expression: NodeId::from_position(s[0]),
+                    r#type: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::AwaitExpression => {
+                let s = self.slots::<1>();
+                NodeData::AwaitExpression(AwaitExpressionData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::BigIntLiteral => {
+                let s = self.slots::<1>();
+                NodeData::BigIntLiteral(BigIntLiteralData {
+                    text: TextId::from_position(s[0]).unwrap_or(TextId::EMPTY),
+                })
+            }
+            SyntaxKind::BinaryExpression => {
+                let s = self.slots::<3>();
+                NodeData::BinaryExpression(BinaryExpressionData {
+                    left: NodeId::from_position(s[0]),
+                    operator_token: NodeId::from_position(s[1]),
+                    right: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::BindingElement => {
+                let s = self.slots::<4>();
+                NodeData::BindingElement(BindingElementData {
+                    name: NodeId::from_position(s[0]),
+                    property_name: NodeId::from_position(s[1]),
+                    dot_dot_dot_token: NodeId::from_position(s[2]),
+                    initializer: NodeId::from_position(s[3]),
+                })
+            }
+            SyntaxKind::Block => {
+                let s = self.slots::<1>();
+                NodeData::Block(BlockData {
+                    statements: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::BreakStatement => {
+                let s = self.slots::<1>();
+                NodeData::BreakStatement(BreakStatementData {
+                    label: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::CallExpression => {
+                let s = self.slots::<4>();
+                NodeData::CallExpression(CallExpressionData {
+                    expression: NodeId::from_position(s[0]),
+                    question_dot_token: NodeId::from_position(s[3]),
+                    type_arguments: NodeArrayId::from_position(s[1]),
+                    arguments: NodeArrayId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::CallSignature => {
+                let s = self.slots::<3>();
+                NodeData::CallSignature(CallSignatureData {
+                    type_parameters: NodeArrayId::from_position(s[0]),
+                    parameters: NodeArrayId::from_position(s[1]),
+                    r#type: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::CaseBlock => {
+                let s = self.slots::<1>();
+                NodeData::CaseBlock(CaseBlockData {
+                    clauses: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::CaseClause => {
+                let s = self.slots::<2>();
+                NodeData::CaseClause(CaseClauseData {
+                    expression: NodeId::from_position(s[0]),
+                    statements: NodeArrayId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::CatchClause => {
+                let s = self.slots::<2>();
+                NodeData::CatchClause(CatchClauseData {
+                    variable_declaration: NodeId::from_position(s[0]),
+                    block: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::ClassDeclaration => {
+                let s = self.slots::<5>();
+                NodeData::ClassDeclaration(ClassDeclarationData {
+                    name: NodeId::from_position(s[0]),
+                    type_parameters: NodeArrayId::from_position(s[3]),
+                    heritage_clauses: NodeArrayId::from_position(s[1]),
+                    members: NodeArrayId::from_position(s[2]),
+                    modifiers: NodeArrayId::from_position(s[4]),
+                })
+            }
+            SyntaxKind::ClassExpression => {
+                let s = self.slots::<5>();
+                NodeData::ClassExpression(ClassExpressionData {
+                    name: NodeId::from_position(s[0]),
+                    type_parameters: NodeArrayId::from_position(s[3]),
+                    heritage_clauses: NodeArrayId::from_position(s[1]),
+                    members: NodeArrayId::from_position(s[2]),
+                    modifiers: NodeArrayId::from_position(s[4]),
+                })
+            }
+            SyntaxKind::ClassStaticBlockDeclaration => {
+                let s = self.slots::<2>();
+                NodeData::ClassStaticBlockDeclaration(ClassStaticBlockDeclarationData {
+                    body: NodeId::from_position(s[0]),
+                    modifiers: NodeArrayId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::CommaListExpression => {
+                let s = self.slots::<1>();
+                NodeData::CommaListExpression(CommaListExpressionData {
+                    elements: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::ComputedPropertyName => {
+                let s = self.slots::<1>();
+                NodeData::ComputedPropertyName(ComputedPropertyNameData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::ConditionalExpression => {
+                let s = self.slots::<5>();
+                NodeData::ConditionalExpression(ConditionalExpressionData {
+                    condition: NodeId::from_position(s[0]),
+                    question_token: NodeId::from_position(s[1]),
+                    when_true: NodeId::from_position(s[2]),
+                    colon_token: NodeId::from_position(s[3]),
+                    when_false: NodeId::from_position(s[4]),
+                })
+            }
+            SyntaxKind::ConditionalType => {
+                let s = self.slots::<4>();
+                NodeData::ConditionalType(ConditionalTypeData {
+                    check_type: NodeId::from_position(s[0]),
+                    extends_type: NodeId::from_position(s[1]),
+                    true_type: NodeId::from_position(s[2]),
+                    false_type: NodeId::from_position(s[3]),
+                })
+            }
+            SyntaxKind::ConstructSignature => {
+                let s = self.slots::<3>();
+                NodeData::ConstructSignature(ConstructSignatureData {
+                    type_parameters: NodeArrayId::from_position(s[0]),
+                    parameters: NodeArrayId::from_position(s[1]),
+                    r#type: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::Constructor => {
+                let s = self.slots::<6>();
+                NodeData::Constructor(ConstructorData {
+                    name: NodeId::from_position(s[3]),
+                    type_parameters: NodeArrayId::from_position(s[4]),
+                    parameters: NodeArrayId::from_position(s[0]),
+                    r#type: NodeId::from_position(s[5]),
+                    body: NodeId::from_position(s[1]),
+                    modifiers: NodeArrayId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::ConstructorType => {
+                let s = self.slots::<4>();
+                NodeData::ConstructorType(ConstructorTypeData {
+                    type_parameters: NodeArrayId::from_position(s[3]),
+                    parameters: NodeArrayId::from_position(s[0]),
+                    r#type: NodeId::from_position(s[1]),
+                    modifiers: NodeArrayId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::ContinueStatement => {
+                let s = self.slots::<1>();
+                NodeData::ContinueStatement(ContinueStatementData {
+                    label: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::DebuggerStatement => NodeData::DebuggerStatement(DebuggerStatementData {}),
+            SyntaxKind::Decorator => {
+                let s = self.slots::<1>();
+                NodeData::Decorator(DecoratorData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::DefaultClause => {
+                let s = self.slots::<1>();
+                NodeData::DefaultClause(DefaultClauseData {
+                    statements: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::DeleteExpression => {
+                let s = self.slots::<1>();
+                NodeData::DeleteExpression(DeleteExpressionData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::DoStatement => {
+                let s = self.slots::<2>();
+                NodeData::DoStatement(DoStatementData {
+                    statement: NodeId::from_position(s[0]),
+                    expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::ElementAccessExpression => {
+                let s = self.slots::<3>();
+                NodeData::ElementAccessExpression(ElementAccessExpressionData {
+                    expression: NodeId::from_position(s[0]),
+                    question_dot_token: NodeId::from_position(s[1]),
+                    argument_expression: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::EmptyStatement => NodeData::EmptyStatement(EmptyStatementData {}),
+            SyntaxKind::EnumDeclaration => {
+                let s = self.slots::<3>();
+                NodeData::EnumDeclaration(EnumDeclarationData {
+                    name: NodeId::from_position(s[0]),
+                    modifiers: NodeArrayId::from_position(s[1]),
+                    members: NodeArrayId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::EnumMember => {
+                let s = self.slots::<2>();
+                NodeData::EnumMember(EnumMemberData {
+                    name: NodeId::from_position(s[0]),
+                    initializer: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::ExportAssignment => {
+                let s = self.slots::<3>();
+                NodeData::ExportAssignment(ExportAssignmentData {
+                    modifiers: NodeArrayId::from_position(s[0]),
+                    is_export_equals: match s[2] & 3 {
+                        0 => None,
+                        value => Some(value == 2),
+                    },
+                    expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::ExportDeclaration => {
+                let s = self.slots::<5>();
+                NodeData::ExportDeclaration(ExportDeclarationData {
+                    modifiers: NodeArrayId::from_position(s[3]),
+                    is_type_only: s[2] & 1 != 0,
+                    export_clause: NodeId::from_position(s[0]),
+                    module_specifier: NodeId::from_position(s[1]),
+                    attributes: NodeId::from_position(s[4]),
+                })
+            }
+            SyntaxKind::ExportSpecifier => {
+                let s = self.slots::<3>();
+                NodeData::ExportSpecifier(ExportSpecifierData {
+                    name: NodeId::from_position(s[0]),
+                    is_type_only: s[2] & 1 != 0,
+                    property_name: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::ExpressionStatement => {
+                let s = self.slots::<1>();
+                NodeData::ExpressionStatement(ExpressionStatementData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::ExpressionWithTypeArguments => {
+                let s = self.slots::<2>();
+                NodeData::ExpressionWithTypeArguments(ExpressionWithTypeArgumentsData {
+                    type_arguments: NodeArrayId::from_position(s[0]),
+                    expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::ExternalModuleReference => {
+                let s = self.slots::<1>();
+                NodeData::ExternalModuleReference(ExternalModuleReferenceData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::ForInStatement => {
+                let s = self.slots::<3>();
+                NodeData::ForInStatement(ForInStatementData {
+                    statement: NodeId::from_position(s[0]),
+                    initializer: NodeId::from_position(s[1]),
+                    expression: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::ForOfStatement => {
+                let s = self.slots::<4>();
+                NodeData::ForOfStatement(ForOfStatementData {
+                    statement: NodeId::from_position(s[0]),
+                    await_modifier: NodeId::from_position(s[3]),
+                    initializer: NodeId::from_position(s[1]),
+                    expression: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::ForStatement => {
+                let s = self.slots::<4>();
+                NodeData::ForStatement(ForStatementData {
+                    statement: NodeId::from_position(s[0]),
+                    initializer: NodeId::from_position(s[3]),
+                    condition: NodeId::from_position(s[1]),
+                    incrementor: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::FunctionDeclaration => {
+                let s = self.slots::<7>();
+                NodeData::FunctionDeclaration(FunctionDeclarationData {
+                    name: NodeId::from_position(s[0]),
+                    type_parameters: NodeArrayId::from_position(s[3]),
+                    parameters: NodeArrayId::from_position(s[1]),
+                    r#type: NodeId::from_position(s[2]),
+                    asterisk_token: NodeId::from_position(s[4]),
+                    body: NodeId::from_position(s[5]),
+                    modifiers: NodeArrayId::from_position(s[6]),
+                })
+            }
+            SyntaxKind::FunctionExpression => {
+                let s = self.slots::<7>();
+                NodeData::FunctionExpression(FunctionExpressionData {
+                    name: NodeId::from_position(s[3]),
+                    type_parameters: NodeArrayId::from_position(s[4]),
+                    parameters: NodeArrayId::from_position(s[0]),
+                    r#type: NodeId::from_position(s[5]),
+                    asterisk_token: NodeId::from_position(s[6]),
+                    body: NodeId::from_position(s[1]),
+                    modifiers: NodeArrayId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::FunctionType => {
+                let s = self.slots::<4>();
+                NodeData::FunctionType(FunctionTypeData {
+                    type_parameters: NodeArrayId::from_position(s[0]),
+                    parameters: NodeArrayId::from_position(s[1]),
+                    r#type: NodeId::from_position(s[2]),
+                    modifiers: NodeArrayId::from_position(s[3]),
+                })
+            }
+            SyntaxKind::GetAccessor => {
+                let s = self.slots::<6>();
+                NodeData::GetAccessor(GetAccessorData {
+                    name: NodeId::from_position(s[0]),
+                    type_parameters: NodeArrayId::from_position(s[3]),
+                    parameters: NodeArrayId::from_position(s[1]),
+                    r#type: NodeId::from_position(s[4]),
+                    body: NodeId::from_position(s[2]),
+                    modifiers: NodeArrayId::from_position(s[5]),
+                })
+            }
+            SyntaxKind::HeritageClause => {
+                let s = self.slots::<2>();
+                NodeData::HeritageClause(HeritageClauseData {
+                    token: SyntaxKind::from_u16((s[1] >> 16) as u16)
+                        .unwrap_or(SyntaxKind::HeritageClause),
+                    types: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::Identifier => {
+                let s = self.slots::<1>();
+                NodeData::Identifier(IdentifierData {
+                    escaped_text: tsc_types::EscapedName::from_index(s[0]),
+                })
+            }
+            SyntaxKind::IfStatement => {
+                let s = self.slots::<3>();
+                NodeData::IfStatement(IfStatementData {
+                    expression: NodeId::from_position(s[0]),
+                    then_statement: NodeId::from_position(s[1]),
+                    else_statement: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::ImportAttribute => {
+                let s = self.slots::<2>();
+                NodeData::ImportAttribute(ImportAttributeData {
+                    name: NodeId::from_position(s[0]),
+                    value: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::ImportAttributes => {
+                let s = self.slots::<2>();
+                NodeData::ImportAttributes(ImportAttributesData {
+                    token: SyntaxKind::from_u16((s[1] >> 16) as u16)
+                        .unwrap_or(SyntaxKind::ImportAttributes),
+                    elements: NodeArrayId::from_position(s[0]),
+                    multi_line: match s[1] & 3 {
+                        0 => None,
+                        value => Some(value == 2),
+                    },
+                })
+            }
+            SyntaxKind::ImportClause => {
+                let s = self.slots::<3>();
+                NodeData::ImportClause(ImportClauseData {
+                    name: NodeId::from_position(s[0]),
+                    is_type_only: s[2] & 1 != 0,
+                    phase_modifier: match s[2] >> 16 {
+                        0 => None,
+                        value => SyntaxKind::from_u16((value - 1) as u16),
+                    },
+                    named_bindings: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::ImportDeclaration => {
+                let s = self.slots::<4>();
+                NodeData::ImportDeclaration(ImportDeclarationData {
+                    modifiers: NodeArrayId::from_position(s[3]),
+                    import_clause: NodeId::from_position(s[0]),
+                    module_specifier: NodeId::from_position(s[1]),
+                    attributes: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::ImportEqualsDeclaration => {
+                let s = self.slots::<4>();
+                NodeData::ImportEqualsDeclaration(ImportEqualsDeclarationData {
+                    name: NodeId::from_position(s[0]),
+                    modifiers: NodeArrayId::from_position(s[1]),
+                    is_type_only: s[3] & 1 != 0,
+                    module_reference: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::ImportSpecifier => {
+                let s = self.slots::<3>();
+                NodeData::ImportSpecifier(ImportSpecifierData {
+                    name: NodeId::from_position(s[0]),
+                    property_name: NodeId::from_position(s[1]),
+                    is_type_only: s[2] & 1 != 0,
+                })
+            }
+            SyntaxKind::ImportType => {
+                let s = self.slots::<5>();
+                NodeData::ImportType(ImportTypeData {
+                    type_arguments: NodeArrayId::from_position(s[3]),
+                    is_type_of: s[2] & 1 != 0,
+                    argument: NodeId::from_position(s[0]),
+                    attributes: NodeId::from_position(s[4]),
+                    qualifier: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::ImportTypeAssertionContainer => {
+                let s = self.slots::<1>();
+                NodeData::ImportTypeAssertionContainer(ImportTypeAssertionContainerData {
+                    assert_clause: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::IndexSignature => {
+                let s = self.slots::<4>();
+                NodeData::IndexSignature(IndexSignatureData {
+                    type_parameters: NodeArrayId::from_position(s[3]),
+                    parameters: NodeArrayId::from_position(s[0]),
+                    r#type: NodeId::from_position(s[1]),
+                    modifiers: NodeArrayId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::IndexedAccessType => {
+                let s = self.slots::<2>();
+                NodeData::IndexedAccessType(IndexedAccessTypeData {
+                    object_type: NodeId::from_position(s[0]),
+                    index_type: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::InferType => {
+                let s = self.slots::<1>();
+                NodeData::InferType(InferTypeData {
+                    type_parameter: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::InterfaceDeclaration => {
+                let s = self.slots::<5>();
+                NodeData::InterfaceDeclaration(InterfaceDeclarationData {
+                    name: NodeId::from_position(s[0]),
+                    modifiers: NodeArrayId::from_position(s[1]),
+                    type_parameters: NodeArrayId::from_position(s[3]),
+                    heritage_clauses: NodeArrayId::from_position(s[4]),
+                    members: NodeArrayId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::IntersectionType => {
+                let s = self.slots::<1>();
+                NodeData::IntersectionType(IntersectionTypeData {
+                    types: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::JSDoc => {
+                let s = self.slots::<1>();
+                NodeData::JSDoc(JSDocData {
+                    tags: NodeArrayId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(1)),
+                })
+            }
+            SyntaxKind::JSDocAllType => NodeData::JSDocAllType(JSDocAllTypeData {}),
+            SyntaxKind::JSDocAugmentsTag => {
+                let s = self.slots::<2>();
+                NodeData::JSDocAugmentsTag(JSDocAugmentsTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(2)),
+                    class: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JSDocAuthorTag => {
+                let s = self.slots::<1>();
+                NodeData::JSDocAuthorTag(JSDocAuthorTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(1)),
+                })
+            }
+            SyntaxKind::JSDocCallbackTag => {
+                let s = self.slots::<4>();
+                NodeData::JSDocCallbackTag(JSDocCallbackTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(4)),
+                    name: NodeId::from_position(s[1]),
+                    full_name: NodeId::from_position(s[3]),
+                    type_expression: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::JSDocClassTag => {
+                let s = self.slots::<1>();
+                NodeData::JSDocClassTag(JSDocClassTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(1)),
+                })
+            }
+            SyntaxKind::JSDocDeprecatedTag => {
+                let s = self.slots::<1>();
+                NodeData::JSDocDeprecatedTag(JSDocDeprecatedTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(1)),
+                })
+            }
+            SyntaxKind::JSDocEnumTag => {
+                let s = self.slots::<2>();
+                NodeData::JSDocEnumTag(JSDocEnumTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(2)),
+                    type_expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JSDocFunctionType => {
+                let s = self.slots::<4>();
+                NodeData::JSDocFunctionType(JSDocFunctionTypeData {
+                    name: NodeId::from_position(s[0]),
+                    type_parameters: NodeArrayId::from_position(s[1]),
+                    parameters: NodeArrayId::from_position(s[2]),
+                    r#type: NodeId::from_position(s[3]),
+                })
+            }
+            SyntaxKind::JSDocImplementsTag => {
+                let s = self.slots::<2>();
+                NodeData::JSDocImplementsTag(JSDocImplementsTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(2)),
+                    class: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JSDocImportTag => {
+                let s = self.slots::<4>();
+                NodeData::JSDocImportTag(JSDocImportTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(4)),
+                    import_clause: NodeId::from_position(s[1]),
+                    module_specifier: NodeId::from_position(s[2]),
+                    attributes: NodeId::from_position(s[3]),
+                })
+            }
+            SyntaxKind::JSDocLink => {
+                let s = self.slots::<2>();
+                NodeData::JSDocLink(JSDocLinkData {
+                    name: NodeId::from_position(s[0]),
+                    text: TextId::from_position(s[1]).unwrap_or(TextId::EMPTY),
+                })
+            }
+            SyntaxKind::JSDocLinkCode => {
+                let s = self.slots::<2>();
+                NodeData::JSDocLinkCode(JSDocLinkCodeData {
+                    name: NodeId::from_position(s[0]),
+                    text: TextId::from_position(s[1]).unwrap_or(TextId::EMPTY),
+                })
+            }
+            SyntaxKind::JSDocLinkPlain => {
+                let s = self.slots::<2>();
+                NodeData::JSDocLinkPlain(JSDocLinkPlainData {
+                    name: NodeId::from_position(s[0]),
+                    text: TextId::from_position(s[1]).unwrap_or(TextId::EMPTY),
+                })
+            }
+            SyntaxKind::JSDocMemberName => {
+                let s = self.slots::<2>();
+                NodeData::JSDocMemberName(JSDocMemberNameData {
+                    left: NodeId::from_position(s[0]),
+                    right: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JSDocNameReference => {
+                let s = self.slots::<1>();
+                NodeData::JSDocNameReference(JSDocNameReferenceData {
+                    name: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::JSDocNamepathType => {
+                let s = self.slots::<1>();
+                NodeData::JSDocNamepathType(JSDocNamepathTypeData {
+                    r#type: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::JSDocNonNullableType => {
+                let s = self.slots::<2>();
+                NodeData::JSDocNonNullableType(JSDocNonNullableTypeData {
+                    r#type: NodeId::from_position(s[0]),
+                    postfix: s[1] & 1 != 0,
+                })
+            }
+            SyntaxKind::JSDocNullableType => {
+                let s = self.slots::<2>();
+                NodeData::JSDocNullableType(JSDocNullableTypeData {
+                    r#type: NodeId::from_position(s[0]),
+                    postfix: s[1] & 1 != 0,
+                })
+            }
+            SyntaxKind::JSDocOptionalType => {
+                let s = self.slots::<1>();
+                NodeData::JSDocOptionalType(JSDocOptionalTypeData {
+                    r#type: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::JSDocOverloadTag => {
+                let s = self.slots::<2>();
+                NodeData::JSDocOverloadTag(JSDocOverloadTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(2)),
+                    type_expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JSDocOverrideTag => {
+                let s = self.slots::<1>();
+                NodeData::JSDocOverrideTag(JSDocOverrideTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(1)),
+                })
+            }
+            SyntaxKind::JSDocParameterTag => {
+                let s = self.slots::<4>();
+                NodeData::JSDocParameterTag(JSDocParameterTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(4)),
+                    name: NodeId::from_position(s[1]),
+                    type_expression: NodeId::from_position(s[3]),
+                    is_name_first: s[2] & 1 != 0,
+                    is_bracketed: (s[2] >> 1) & 1 != 0,
+                })
+            }
+            SyntaxKind::JSDocPrivateTag => {
+                let s = self.slots::<1>();
+                NodeData::JSDocPrivateTag(JSDocPrivateTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(1)),
+                })
+            }
+            SyntaxKind::JSDocPropertyTag => {
+                let s = self.slots::<4>();
+                NodeData::JSDocPropertyTag(JSDocPropertyTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(4)),
+                    name: NodeId::from_position(s[1]),
+                    type_expression: NodeId::from_position(s[2]),
+                    is_name_first: s[3] & 1 != 0,
+                    is_bracketed: (s[3] >> 1) & 1 != 0,
+                })
+            }
+            SyntaxKind::JSDocProtectedTag => {
+                let s = self.slots::<1>();
+                NodeData::JSDocProtectedTag(JSDocProtectedTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(1)),
+                })
+            }
+            SyntaxKind::JSDocPublicTag => {
+                let s = self.slots::<1>();
+                NodeData::JSDocPublicTag(JSDocPublicTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(1)),
+                })
+            }
+            SyntaxKind::JSDocReadonlyTag => {
+                let s = self.slots::<1>();
+                NodeData::JSDocReadonlyTag(JSDocReadonlyTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(1)),
+                })
+            }
+            SyntaxKind::JSDocReturnTag => {
+                let s = self.slots::<2>();
+                NodeData::JSDocReturnTag(JSDocReturnTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(2)),
+                    type_expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JSDocSatisfiesTag => {
+                let s = self.slots::<2>();
+                NodeData::JSDocSatisfiesTag(JSDocSatisfiesTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(2)),
+                    type_expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JSDocSeeTag => {
+                let s = self.slots::<2>();
+                NodeData::JSDocSeeTag(JSDocSeeTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(2)),
+                    name: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JSDocSignature => {
+                let s = self.slots::<3>();
+                NodeData::JSDocSignature(JSDocSignatureData {
+                    type_parameters: NodeArrayId::from_position(s[0]),
+                    parameters: NodeArrayId::from_position(s[1]),
+                    r#type: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::JSDocTag => {
+                let s = self.slots::<1>();
+                NodeData::JSDocTag(JSDocTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(1)),
+                })
+            }
+            SyntaxKind::JSDocTemplateTag => {
+                let s = self.slots::<3>();
+                NodeData::JSDocTemplateTag(JSDocTemplateTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(3)),
+                    constraint: NodeId::from_position(s[1]),
+                    type_parameters: NodeArrayId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::JSDocText => {
+                let s = self.slots::<1>();
+                NodeData::JSDocText(JSDocTextData {
+                    text: TextId::from_position(s[0]).unwrap_or(TextId::EMPTY),
+                })
+            }
+            SyntaxKind::JSDocThisTag => {
+                let s = self.slots::<2>();
+                NodeData::JSDocThisTag(JSDocThisTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(2)),
+                    type_expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JSDocThrowsTag => {
+                let s = self.slots::<2>();
+                NodeData::JSDocThrowsTag(JSDocThrowsTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(2)),
+                    type_expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JSDocTypeExpression => {
+                let s = self.slots::<1>();
+                NodeData::JSDocTypeExpression(JSDocTypeExpressionData {
+                    r#type: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::JSDocTypeLiteral => {
+                let s = self.slots::<2>();
+                NodeData::JSDocTypeLiteral(JSDocTypeLiteralData {
+                    js_doc_property_tags: NodeArrayId::from_position(s[0]),
+                    is_array_type: s[1] & 1 != 0,
+                })
+            }
+            SyntaxKind::JSDocTypeTag => {
+                let s = self.slots::<2>();
+                NodeData::JSDocTypeTag(JSDocTypeTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(2)),
+                    type_expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JSDocTypedefTag => {
+                let s = self.slots::<4>();
+                NodeData::JSDocTypedefTag(JSDocTypedefTagData {
+                    tag_name: NodeId::from_position(s[0]),
+                    comment: JSDocComment::from_words(self.comment_words(4)),
+                    name: NodeId::from_position(s[1]),
+                    full_name: NodeId::from_position(s[2]),
+                    type_expression: NodeId::from_position(s[3]),
+                })
+            }
+            SyntaxKind::JSDocUnknownType => NodeData::JSDocUnknownType(JSDocUnknownTypeData {}),
+            SyntaxKind::JSDocVariadicType => {
+                let s = self.slots::<1>();
+                NodeData::JSDocVariadicType(JSDocVariadicTypeData {
+                    r#type: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::JsxAttribute => {
+                let s = self.slots::<2>();
+                NodeData::JsxAttribute(JsxAttributeData {
+                    name: NodeId::from_position(s[0]),
+                    initializer: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JsxAttributes => {
+                let s = self.slots::<1>();
+                NodeData::JsxAttributes(JsxAttributesData {
+                    properties: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::JsxClosingElement => {
+                let s = self.slots::<1>();
+                NodeData::JsxClosingElement(JsxClosingElementData {
+                    tag_name: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::JsxElement => {
+                let s = self.slots::<3>();
+                NodeData::JsxElement(JsxElementData {
+                    opening_element: NodeId::from_position(s[0]),
+                    children: NodeArrayId::from_position(s[1]),
+                    closing_element: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::JsxExpression => {
+                let s = self.slots::<2>();
+                NodeData::JsxExpression(JsxExpressionData {
+                    dot_dot_dot_token: NodeId::from_position(s[0]),
+                    expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JsxFragment => {
+                let s = self.slots::<3>();
+                NodeData::JsxFragment(JsxFragmentData {
+                    opening_fragment: NodeId::from_position(s[0]),
+                    children: NodeArrayId::from_position(s[1]),
+                    closing_fragment: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::JsxNamespacedName => {
+                let s = self.slots::<2>();
+                NodeData::JsxNamespacedName(JsxNamespacedNameData {
+                    name: NodeId::from_position(s[0]),
+                    namespace: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::JsxOpeningElement => {
+                let s = self.slots::<3>();
+                NodeData::JsxOpeningElement(JsxOpeningElementData {
+                    tag_name: NodeId::from_position(s[0]),
+                    type_arguments: NodeArrayId::from_position(s[1]),
+                    attributes: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::JsxSelfClosingElement => {
+                let s = self.slots::<3>();
+                NodeData::JsxSelfClosingElement(JsxSelfClosingElementData {
+                    tag_name: NodeId::from_position(s[0]),
+                    type_arguments: NodeArrayId::from_position(s[1]),
+                    attributes: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::JsxSpreadAttribute => {
+                let s = self.slots::<1>();
+                NodeData::JsxSpreadAttribute(JsxSpreadAttributeData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::JsxText => {
+                let s = self.slots::<2>();
+                NodeData::JsxText(JsxTextData {
+                    text: TextId::from_position(s[0]).unwrap_or(TextId::EMPTY),
+                    contains_only_trivia_white_spaces: s[1] & 1 != 0,
+                })
+            }
+            SyntaxKind::LabeledStatement => {
+                let s = self.slots::<2>();
+                NodeData::LabeledStatement(LabeledStatementData {
+                    label: NodeId::from_position(s[0]),
+                    statement: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::LiteralType => {
+                let s = self.slots::<1>();
+                NodeData::LiteralType(LiteralTypeData {
+                    literal: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::MappedType => {
+                let s = self.slots::<6>();
+                NodeData::MappedType(MappedTypeData {
+                    readonly_token: NodeId::from_position(s[3]),
+                    type_parameter: NodeId::from_position(s[0]),
+                    name_type: NodeId::from_position(s[4]),
+                    question_token: NodeId::from_position(s[5]),
+                    r#type: NodeId::from_position(s[1]),
+                    members: NodeArrayId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::MetaProperty => {
+                let s = self.slots::<2>();
+                NodeData::MetaProperty(MetaPropertyData {
+                    keyword_token: SyntaxKind::from_u16((s[1] >> 16) as u16)
+                        .unwrap_or(SyntaxKind::MetaProperty),
+                    name: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::MethodDeclaration => {
+                let s = self.slots::<9>();
+                NodeData::MethodDeclaration(MethodDeclarationData {
+                    name: NodeId::from_position(s[0]),
+                    type_parameters: NodeArrayId::from_position(s[3]),
+                    parameters: NodeArrayId::from_position(s[1]),
+                    r#type: NodeId::from_position(s[4]),
+                    asterisk_token: NodeId::from_position(s[5]),
+                    question_token: NodeId::from_position(s[6]),
+                    exclamation_token: NodeId::from_position(s[7]),
+                    body: NodeId::from_position(s[2]),
+                    modifiers: NodeArrayId::from_position(s[8]),
+                })
+            }
+            SyntaxKind::MethodSignature => {
+                let s = self.slots::<6>();
+                NodeData::MethodSignature(MethodSignatureData {
+                    name: NodeId::from_position(s[0]),
+                    type_parameters: NodeArrayId::from_position(s[3]),
+                    parameters: NodeArrayId::from_position(s[1]),
+                    r#type: NodeId::from_position(s[2]),
+                    question_token: NodeId::from_position(s[4]),
+                    modifiers: NodeArrayId::from_position(s[5]),
+                })
+            }
+            SyntaxKind::MissingDeclaration => {
+                let s = self.slots::<1>();
+                NodeData::MissingDeclaration(MissingDeclarationData {
+                    modifiers: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::ModuleBlock => {
+                let s = self.slots::<1>();
+                NodeData::ModuleBlock(ModuleBlockData {
+                    statements: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::ModuleDeclaration => {
+                let s = self.slots::<4>();
+                NodeData::ModuleDeclaration(ModuleDeclarationData {
+                    name: NodeId::from_position(s[0]),
+                    attributes: NodeId::from_position(s[3]),
+                    modifiers: NodeArrayId::from_position(s[1]),
+                    body: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::NamedExports => {
+                let s = self.slots::<1>();
+                NodeData::NamedExports(NamedExportsData {
+                    elements: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::NamedImports => {
+                let s = self.slots::<1>();
+                NodeData::NamedImports(NamedImportsData {
+                    elements: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::NamedTupleMember => {
+                let s = self.slots::<4>();
+                NodeData::NamedTupleMember(NamedTupleMemberData {
+                    dot_dot_dot_token: NodeId::from_position(s[3]),
+                    name: NodeId::from_position(s[0]),
+                    question_token: NodeId::from_position(s[1]),
+                    r#type: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::NamespaceExport => {
+                let s = self.slots::<1>();
+                NodeData::NamespaceExport(NamespaceExportData {
+                    name: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::NamespaceExportDeclaration => {
+                let s = self.slots::<2>();
+                NodeData::NamespaceExportDeclaration(NamespaceExportDeclarationData {
+                    name: NodeId::from_position(s[0]),
+                    modifiers: NodeArrayId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::NamespaceImport => {
+                let s = self.slots::<1>();
+                NodeData::NamespaceImport(NamespaceImportData {
+                    name: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::NewExpression => {
+                let s = self.slots::<4>();
+                NodeData::NewExpression(NewExpressionData {
+                    expression: NodeId::from_position(s[0]),
+                    type_arguments: NodeArrayId::from_position(s[1]),
+                    arguments: NodeArrayId::from_position(s[2]),
+                    question_dot_token: NodeId::from_position(s[3]),
+                })
+            }
+            SyntaxKind::NoSubstitutionTemplateLiteral => {
+                let s = self.slots::<2>();
+                NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
+                    text: TextId::from_position(s[0]).unwrap_or(TextId::EMPTY),
+                    raw_text: TextId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::NonNullExpression => {
+                let s = self.slots::<1>();
+                NodeData::NonNullExpression(NonNullExpressionData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::NotEmittedStatement => {
+                NodeData::NotEmittedStatement(NotEmittedStatementData {})
+            }
+            SyntaxKind::NumericLiteral => {
+                let s = self.slots::<1>();
+                NodeData::NumericLiteral(NumericLiteralData {
+                    text: TextId::from_position(s[0]).unwrap_or(TextId::EMPTY),
+                })
+            }
+            SyntaxKind::ObjectBindingPattern => {
+                let s = self.slots::<1>();
+                NodeData::ObjectBindingPattern(ObjectBindingPatternData {
+                    elements: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::ObjectLiteralExpression => {
+                let s = self.slots::<1>();
+                NodeData::ObjectLiteralExpression(ObjectLiteralExpressionData {
+                    properties: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::OmittedExpression => NodeData::OmittedExpression(OmittedExpressionData {}),
+            SyntaxKind::OptionalType => {
+                let s = self.slots::<1>();
+                NodeData::OptionalType(OptionalTypeData {
+                    r#type: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::Parameter => {
+                let s = self.slots::<6>();
+                NodeData::Parameter(ParameterData {
+                    name: NodeId::from_position(s[0]),
+                    modifiers: NodeArrayId::from_position(s[1]),
+                    dot_dot_dot_token: NodeId::from_position(s[3]),
+                    question_token: NodeId::from_position(s[4]),
+                    r#type: NodeId::from_position(s[2]),
+                    initializer: NodeId::from_position(s[5]),
+                })
+            }
+            SyntaxKind::ParenthesizedExpression => {
+                let s = self.slots::<1>();
+                NodeData::ParenthesizedExpression(ParenthesizedExpressionData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::ParenthesizedType => {
+                let s = self.slots::<1>();
+                NodeData::ParenthesizedType(ParenthesizedTypeData {
+                    r#type: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::PartiallyEmittedExpression => {
+                let s = self.slots::<1>();
+                NodeData::PartiallyEmittedExpression(PartiallyEmittedExpressionData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::PostfixUnaryExpression => {
+                let s = self.slots::<2>();
+                NodeData::PostfixUnaryExpression(PostfixUnaryExpressionData {
+                    operand: NodeId::from_position(s[0]),
+                    operator: SyntaxKind::from_u16((s[1] >> 16) as u16)
+                        .unwrap_or(SyntaxKind::PostfixUnaryExpression),
+                })
+            }
+            SyntaxKind::PrefixUnaryExpression => {
+                let s = self.slots::<2>();
+                NodeData::PrefixUnaryExpression(PrefixUnaryExpressionData {
+                    operator: SyntaxKind::from_u16((s[1] >> 16) as u16)
+                        .unwrap_or(SyntaxKind::PrefixUnaryExpression),
+                    operand: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::PrivateIdentifier => {
+                let s = self.slots::<1>();
+                NodeData::PrivateIdentifier(PrivateIdentifierData {
+                    escaped_text: tsc_types::EscapedName::from_index(s[0]),
+                })
+            }
+            SyntaxKind::PropertyAccessExpression => {
+                let s = self.slots::<3>();
+                NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
+                    name: NodeId::from_position(s[0]),
+                    expression: NodeId::from_position(s[1]),
+                    question_dot_token: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::PropertyAssignment => {
+                let s = self.slots::<5>();
+                NodeData::PropertyAssignment(PropertyAssignmentData {
+                    name: NodeId::from_position(s[0]),
+                    initializer: NodeId::from_position(s[1]),
+                    modifiers: NodeArrayId::from_position(s[2]),
+                    question_token: NodeId::from_position(s[3]),
+                    exclamation_token: NodeId::from_position(s[4]),
+                })
+            }
+            SyntaxKind::PropertyDeclaration => {
+                let s = self.slots::<6>();
+                NodeData::PropertyDeclaration(PropertyDeclarationData {
+                    name: NodeId::from_position(s[0]),
+                    modifiers: NodeArrayId::from_position(s[1]),
+                    question_token: NodeId::from_position(s[3]),
+                    exclamation_token: NodeId::from_position(s[4]),
+                    r#type: NodeId::from_position(s[5]),
+                    initializer: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::PropertySignature => {
+                let s = self.slots::<5>();
+                NodeData::PropertySignature(PropertySignatureData {
+                    name: NodeId::from_position(s[0]),
+                    question_token: NodeId::from_position(s[1]),
+                    modifiers: NodeArrayId::from_position(s[3]),
+                    r#type: NodeId::from_position(s[2]),
+                    initializer: NodeId::from_position(s[4]),
+                })
+            }
+            SyntaxKind::QualifiedName => {
+                let s = self.slots::<2>();
+                NodeData::QualifiedName(QualifiedNameData {
+                    left: NodeId::from_position(s[0]),
+                    right: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::RegularExpressionLiteral => {
+                let s = self.slots::<1>();
+                NodeData::RegularExpressionLiteral(RegularExpressionLiteralData {
+                    text: TextId::from_position(s[0]).unwrap_or(TextId::EMPTY),
+                })
+            }
+            SyntaxKind::RestType => {
+                let s = self.slots::<1>();
+                NodeData::RestType(RestTypeData {
+                    r#type: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::ReturnStatement => {
+                let s = self.slots::<1>();
+                NodeData::ReturnStatement(ReturnStatementData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::SatisfiesExpression => {
+                let s = self.slots::<2>();
+                NodeData::SatisfiesExpression(SatisfiesExpressionData {
+                    expression: NodeId::from_position(s[0]),
+                    r#type: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::SetAccessor => {
+                let s = self.slots::<6>();
+                NodeData::SetAccessor(SetAccessorData {
+                    name: NodeId::from_position(s[0]),
+                    type_parameters: NodeArrayId::from_position(s[3]),
+                    parameters: NodeArrayId::from_position(s[1]),
+                    r#type: NodeId::from_position(s[4]),
+                    body: NodeId::from_position(s[2]),
+                    modifiers: NodeArrayId::from_position(s[5]),
+                })
+            }
+            SyntaxKind::ShorthandPropertyAssignment => {
+                let s = self.slots::<6>();
+                NodeData::ShorthandPropertyAssignment(ShorthandPropertyAssignmentData {
+                    name: NodeId::from_position(s[0]),
+                    equals_token: NodeId::from_position(s[1]),
+                    object_assignment_initializer: NodeId::from_position(s[2]),
+                    modifiers: NodeArrayId::from_position(s[3]),
+                    question_token: NodeId::from_position(s[4]),
+                    exclamation_token: NodeId::from_position(s[5]),
+                })
+            }
+            SyntaxKind::SourceFile => {
+                let s = self.slots::<2>();
+                NodeData::SourceFile(SourceFileData {
+                    statements: NodeArrayId::from_position(s[0]),
+                    end_of_file_token: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::SpreadAssignment => {
+                let s = self.slots::<1>();
+                NodeData::SpreadAssignment(SpreadAssignmentData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::SpreadElement => {
+                let s = self.slots::<1>();
+                NodeData::SpreadElement(SpreadElementData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::StringLiteral => {
+                let s = self.slots::<1>();
+                NodeData::StringLiteral(StringLiteralData {
+                    text: TextId::from_position(s[0]).unwrap_or(TextId::EMPTY),
+                })
+            }
+            SyntaxKind::SwitchStatement => {
+                let s = self.slots::<2>();
+                NodeData::SwitchStatement(SwitchStatementData {
+                    expression: NodeId::from_position(s[0]),
+                    case_block: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::SyntaxList => NodeData::SyntaxList(SyntaxListData {}),
+            SyntaxKind::TaggedTemplateExpression => {
+                let s = self.slots::<4>();
+                NodeData::TaggedTemplateExpression(TaggedTemplateExpressionData {
+                    tag: NodeId::from_position(s[0]),
+                    type_arguments: NodeArrayId::from_position(s[1]),
+                    template: NodeId::from_position(s[2]),
+                    question_dot_token: NodeId::from_position(s[3]),
+                })
+            }
+            SyntaxKind::TemplateExpression => {
+                let s = self.slots::<2>();
+                NodeData::TemplateExpression(TemplateExpressionData {
+                    head: NodeId::from_position(s[0]),
+                    template_spans: NodeArrayId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::TemplateHead => {
+                let s = self.slots::<2>();
+                NodeData::TemplateHead(TemplateHeadData {
+                    text: TextId::from_position(s[0]).unwrap_or(TextId::EMPTY),
+                    raw_text: TextId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::TemplateLiteralType => {
+                let s = self.slots::<2>();
+                NodeData::TemplateLiteralType(TemplateLiteralTypeData {
+                    head: NodeId::from_position(s[0]),
+                    template_spans: NodeArrayId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::TemplateLiteralTypeSpan => {
+                let s = self.slots::<2>();
+                NodeData::TemplateLiteralTypeSpan(TemplateLiteralTypeSpanData {
+                    r#type: NodeId::from_position(s[0]),
+                    literal: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::TemplateMiddle => {
+                let s = self.slots::<2>();
+                NodeData::TemplateMiddle(TemplateMiddleData {
+                    text: TextId::from_position(s[0]).unwrap_or(TextId::EMPTY),
+                    raw_text: TextId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::TemplateSpan => {
+                let s = self.slots::<2>();
+                NodeData::TemplateSpan(TemplateSpanData {
+                    expression: NodeId::from_position(s[0]),
+                    literal: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::TemplateTail => {
+                let s = self.slots::<2>();
+                NodeData::TemplateTail(TemplateTailData {
+                    text: TextId::from_position(s[0]).unwrap_or(TextId::EMPTY),
+                    raw_text: TextId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::ThrowStatement => {
+                let s = self.slots::<1>();
+                NodeData::ThrowStatement(ThrowStatementData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::TryStatement => {
+                let s = self.slots::<3>();
+                NodeData::TryStatement(TryStatementData {
+                    try_block: NodeId::from_position(s[0]),
+                    catch_clause: NodeId::from_position(s[1]),
+                    finally_block: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::TupleType => {
+                let s = self.slots::<1>();
+                NodeData::TupleType(TupleTypeData {
+                    elements: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::TypeAliasDeclaration => {
+                let s = self.slots::<4>();
+                NodeData::TypeAliasDeclaration(TypeAliasDeclarationData {
+                    name: NodeId::from_position(s[0]),
+                    modifiers: NodeArrayId::from_position(s[1]),
+                    type_parameters: NodeArrayId::from_position(s[3]),
+                    r#type: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::TypeAssertionExpression => {
+                let s = self.slots::<2>();
+                NodeData::TypeAssertionExpression(TypeAssertionExpressionData {
+                    r#type: NodeId::from_position(s[0]),
+                    expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::TypeLiteral => {
+                let s = self.slots::<1>();
+                NodeData::TypeLiteral(TypeLiteralData {
+                    members: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::TypeOfExpression => {
+                let s = self.slots::<1>();
+                NodeData::TypeOfExpression(TypeOfExpressionData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::TypeOperator => {
+                let s = self.slots::<2>();
+                NodeData::TypeOperator(TypeOperatorData {
+                    operator: SyntaxKind::from_u16((s[1] >> 16) as u16)
+                        .unwrap_or(SyntaxKind::TypeOperator),
+                    r#type: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::TypeParameter => {
+                let s = self.slots::<5>();
+                NodeData::TypeParameter(TypeParameterData {
+                    name: NodeId::from_position(s[0]),
+                    modifiers: NodeArrayId::from_position(s[3]),
+                    constraint: NodeId::from_position(s[1]),
+                    r#default: NodeId::from_position(s[2]),
+                    expression: NodeId::from_position(s[4]),
+                })
+            }
+            SyntaxKind::TypePredicate => {
+                let s = self.slots::<3>();
+                NodeData::TypePredicate(TypePredicateData {
+                    asserts_modifier: NodeId::from_position(s[0]),
+                    parameter_name: NodeId::from_position(s[1]),
+                    r#type: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::TypeQuery => {
+                let s = self.slots::<2>();
+                NodeData::TypeQuery(TypeQueryData {
+                    type_arguments: NodeArrayId::from_position(s[0]),
+                    expr_name: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::TypeReference => {
+                let s = self.slots::<2>();
+                NodeData::TypeReference(TypeReferenceData {
+                    type_arguments: NodeArrayId::from_position(s[0]),
+                    type_name: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::UnionType => {
+                let s = self.slots::<1>();
+                NodeData::UnionType(UnionTypeData {
+                    types: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::VariableDeclaration => {
+                let s = self.slots::<4>();
+                NodeData::VariableDeclaration(VariableDeclarationData {
+                    name: NodeId::from_position(s[0]),
+                    exclamation_token: NodeId::from_position(s[3]),
+                    r#type: NodeId::from_position(s[1]),
+                    initializer: NodeId::from_position(s[2]),
+                })
+            }
+            SyntaxKind::VariableDeclarationList => {
+                let s = self.slots::<1>();
+                NodeData::VariableDeclarationList(VariableDeclarationListData {
+                    declarations: NodeArrayId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::VariableStatement => {
+                let s = self.slots::<2>();
+                NodeData::VariableStatement(VariableStatementData {
+                    modifiers: NodeArrayId::from_position(s[0]),
+                    declaration_list: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::VoidExpression => {
+                let s = self.slots::<1>();
+                NodeData::VoidExpression(VoidExpressionData {
+                    expression: NodeId::from_position(s[0]),
+                })
+            }
+            SyntaxKind::WhileStatement => {
+                let s = self.slots::<2>();
+                NodeData::WhileStatement(WhileStatementData {
+                    statement: NodeId::from_position(s[0]),
+                    expression: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::WithStatement => {
+                let s = self.slots::<2>();
+                NodeData::WithStatement(WithStatementData {
+                    expression: NodeId::from_position(s[0]),
+                    statement: NodeId::from_position(s[1]),
+                })
+            }
+            SyntaxKind::YieldExpression => {
+                let s = self.slots::<2>();
+                NodeData::YieldExpression(YieldExpressionData {
+                    asterisk_token: NodeId::from_position(s[0]),
+                    expression: NodeId::from_position(s[1]),
+                })
+            }
+            _ => NodeData::Token,
         }
     }
 }

@@ -1485,7 +1485,7 @@ fn transform_heritage_clauses_with_base(
         for type_node in candidates {
             if data.token == SyntaxKind::ExtendsKeyword {
                 let NodeData::ExpressionWithTypeArguments(type_data) =
-                    context.arena().node(type_node)?.data().clone()
+                    context.arena().node(type_node)?.data()
                 else {
                     return Err(DeclarationTransformer::contract(
                         "heritage clause contains a non-expression type",

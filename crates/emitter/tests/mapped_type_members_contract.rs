@@ -51,7 +51,7 @@ fn mapped_type_members_matches_typescript() {
                     panic!("type alias")
                 };
                 let original = arena.node_ref(source, data.r#type.unwrap()).unwrap();
-                let NodeData::MappedType(mut data) = arena.node(original).unwrap().data().clone()
+                let NodeData::MappedType(mut data) = arena.node(original).unwrap().data()
                 else {
                     panic!("mapped type")
                 };

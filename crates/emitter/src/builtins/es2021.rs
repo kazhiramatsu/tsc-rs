@@ -382,7 +382,7 @@ impl<'context> TargetVisitor<'context> {
             return Ok(transformed);
         }
         let record = self.context.arena().node(original)?.clone();
-        let transformed = match record.data().clone() {
+        let transformed = match record.data() {
             NodeData::BinaryExpression(data) => Some(self.visit_binary_expression(original, data)?),
             NodeData::CallExpression(data) if self.pass == TargetPass::Es2020 => Some(
                 self.visit_non_optional_call_expression(original, data, false)?
@@ -477,7 +477,7 @@ impl<'context> TargetVisitor<'context> {
         let right = self.skip_parentheses(right)?;
         let mut assignment_target = left;
 
-        match self.context.arena().node(left)?.data().clone() {
+        match self.context.arena().node(left)?.data() {
             NodeData::PropertyAccessExpression(access) => {
                 let receiver = access
                     .expression
@@ -551,7 +551,7 @@ impl<'context> TargetVisitor<'context> {
     ) -> Result<NodeId, TransformError> {
         let left = self.visit_required(data.left, SyntaxKind::BinaryExpression, "left")?;
         let right = self.visit_required(data.right, SyntaxKind::BinaryExpression, "right")?;
-        let (target, value) = match self.context.arena().node(left)?.data().clone() {
+        let (target, value) = match self.context.arena().node(left)?.data() {
             NodeData::ElementAccessExpression(access) => {
                 let receiver = access
                     .expression
@@ -755,7 +755,7 @@ impl<'context> TargetVisitor<'context> {
         is_delete: bool,
     ) -> Result<VisitedExpression, TransformError> {
         let record = self.context.arena().node(original)?.clone();
-        match record.data().clone() {
+        match record.data() {
             NodeData::ParenthesizedExpression(data) => self
                 .visit_non_optional_parenthesized_expression(
                     original,
@@ -1236,7 +1236,7 @@ impl<'context> TargetVisitor<'context> {
             data.body,
             false,
         )?;
-        self.update_without_visit(original, NodeData::FunctionDeclaration(Box::new(data)))
+        self.update_without_visit(original, NodeData::FunctionDeclaration(data))
     }
 
     fn visit_function_expression(
@@ -1255,7 +1255,7 @@ impl<'context> TargetVisitor<'context> {
             data.body,
             false,
         )?;
-        self.update_without_visit(original, NodeData::FunctionExpression(Box::new(data)))
+        self.update_without_visit(original, NodeData::FunctionExpression(data))
     }
 
     fn visit_arrow_function(
@@ -1270,7 +1270,7 @@ impl<'context> TargetVisitor<'context> {
             self.visit_optional_node(data.equals_greater_than_token)?;
         (data.parameters, data.body) =
             self.visit_function_scope(SyntaxKind::ArrowFunction, data.parameters, data.body, true)?;
-        self.update_without_visit(original, NodeData::ArrowFunction(Box::new(data)))
+        self.update_without_visit(original, NodeData::ArrowFunction(data))
     }
 
     fn visit_method_declaration(
@@ -1291,7 +1291,7 @@ impl<'context> TargetVisitor<'context> {
             data.body,
             false,
         )?;
-        self.update_without_visit(original, NodeData::MethodDeclaration(Box::new(data)))
+        self.update_without_visit(original, NodeData::MethodDeclaration(data))
     }
 
     fn visit_get_accessor(
@@ -1305,7 +1305,7 @@ impl<'context> TargetVisitor<'context> {
         data.r#type = self.visit_optional_node(data.r#type)?;
         (data.parameters, data.body) =
             self.visit_function_scope(SyntaxKind::GetAccessor, data.parameters, data.body, false)?;
-        self.update_without_visit(original, NodeData::GetAccessor(Box::new(data)))
+        self.update_without_visit(original, NodeData::GetAccessor(data))
     }
 
     fn visit_set_accessor(
@@ -1319,7 +1319,7 @@ impl<'context> TargetVisitor<'context> {
         data.r#type = self.visit_optional_node(data.r#type)?;
         (data.parameters, data.body) =
             self.visit_function_scope(SyntaxKind::SetAccessor, data.parameters, data.body, false)?;
-        self.update_without_visit(original, NodeData::SetAccessor(Box::new(data)))
+        self.update_without_visit(original, NodeData::SetAccessor(data))
     }
 
     fn visit_constructor(
@@ -1333,7 +1333,7 @@ impl<'context> TargetVisitor<'context> {
         data.r#type = self.visit_optional_node(data.r#type)?;
         (data.parameters, data.body) =
             self.visit_function_scope(SyntaxKind::Constructor, data.parameters, data.body, false)?;
-        self.update_without_visit(original, NodeData::Constructor(Box::new(data)))
+        self.update_without_visit(original, NodeData::Constructor(data))
     }
 
     fn visit_function_scope(
@@ -1633,7 +1633,7 @@ impl<'context> TargetVisitor<'context> {
         parameter: TransformNode,
         binding_alias: Option<&TargetBinding>,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data().clone()
+        let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Parameter,
@@ -1750,7 +1750,7 @@ impl<'context> TargetVisitor<'context> {
         if lexical_environment.is_empty() {
             return Ok(root);
         }
-        let NodeData::SourceFile(mut data) = self.context.arena().node(root)?.data().clone() else {
+        let NodeData::SourceFile(mut data) = self.context.arena().node(root)?.data() else {
             return Err(TransformError::RootKindExpected {
                 actual: self.context.arena().node(root)?.kind,
             });
@@ -1783,7 +1783,7 @@ impl<'context> TargetVisitor<'context> {
                     field: "body for lexical declarations",
                 })?;
         let body = if self.context.arena().node(body)?.kind == SyntaxKind::Block {
-            let NodeData::Block(mut data) = self.context.arena().node(body)?.data().clone() else {
+            let NodeData::Block(mut data) = self.context.arena().node(body)?.data() else {
                 unreachable!("block kind has block data")
             };
             data.statements = self.merge_statement_array(data.statements, lexical_environment)?;
@@ -1835,7 +1835,7 @@ impl<'context> TargetVisitor<'context> {
             )?;
             self.context.factory()?.set_text_range(block, body)?;
             self.context.factory()?.set_multi_line(block, false)?;
-            let NodeData::Block(mut data) = self.context.arena().node(block)?.data().clone() else {
+            let NodeData::Block(mut data) = self.context.arena().node(block)?.data() else {
                 unreachable!("created block has block data")
             };
             data.statements = self.merge_statement_array(data.statements, lexical_environment)?;
@@ -2427,7 +2427,7 @@ impl<'context> TargetVisitor<'context> {
         let text = self.context.factory()?.push_text(self.source, b"0")?;
         let zero = self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
+            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData { text }),
             TransformFlags::NONE,
         )?;
         let flags = self.child_flags(&[zero])?;

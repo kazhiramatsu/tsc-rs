@@ -31,7 +31,7 @@ fn comma_list_printer_matches_typescript() {
                 let source = arena.add_source(&parsed, None);
                 let root = arena.root(source).unwrap();
                 let NodeData::SourceFile(mut source_data) =
-                    arena.node(root).unwrap().data().clone()
+                    arena.node(root).unwrap().data()
                 else {
                     panic!("source file")
                 };
@@ -44,7 +44,7 @@ fn comma_list_printer_matches_typescript() {
                     .nodes[0];
                 let statement = arena.node_ref(source, statement_id).unwrap();
                 let NodeData::ExpressionStatement(mut statement_data) =
-                    arena.node(statement).unwrap().data().clone()
+                    arena.node(statement).unwrap().data()
                 else {
                     panic!("expression statement")
                 };
@@ -52,7 +52,7 @@ fn comma_list_printer_matches_typescript() {
                     .node_ref(source, statement_data.expression.unwrap())
                     .unwrap();
                 let NodeData::CallExpression(mut call_data) =
-                    arena.node(call).unwrap().data().clone()
+                    arena.node(call).unwrap().data()
                 else {
                     panic!("call")
                 };
@@ -69,7 +69,7 @@ fn comma_list_printer_matches_typescript() {
                         assert!(matches!(record.data(), NodeData::Identifier(_)));
                         let created = arena
                             .factory()
-                            .create_node(source, record.data().clone(), TransformFlags::NONE)
+                            .create_node(source, record.data(), TransformFlags::NONE)
                             .unwrap();
                         if case["comment_range"].as_bool() == Some(true) {
                             let range =

@@ -144,7 +144,7 @@ fn simplify_class_declaration(
         .is_some_and(|declaration| checker.kind_of(declaration) == SyntaxKind::ClassExpression)
     {
         let NodeData::ClassDeclaration(mut data) =
-            arena.node(class).map_err(factory_error)?.data().clone()
+            arena.node(class).map_err(factory_error)?.data()
         else {
             unreachable!("a class expansion is a class declaration");
         };

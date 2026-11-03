@@ -62,7 +62,7 @@ impl DeclarationTransformer<'_> {
         if self.kind(cx, element)? == SyntaxKind::OmittedExpression {
             return Ok(element);
         }
-        let NodeData::BindingElement(data) = cx.arena().node(element)?.data().clone() else {
+        let NodeData::BindingElement(data) = cx.arena().node(element)?.data() else {
             return Err(Self::contract(
                 "visitBindingElement received a non-binding element",
             ));
@@ -120,7 +120,7 @@ impl DeclarationTransformer<'_> {
                 )?)
             };
         let result = (|| {
-            let NodeData::Parameter(data) = cx.arena().node(parameter)?.data().clone() else {
+            let NodeData::Parameter(data) = cx.arena().node(parameter)?.data() else {
                 return Err(Self::contract("ensureParameter received a non-parameter"));
             };
             let name = data
@@ -916,7 +916,7 @@ fn update_binding_pattern(
             .factory()?
             .create_node_array(original.source(), elements)?,
     };
-    let data = match cx.arena().node(original)?.data().clone() {
+    let data = match cx.arena().node(original)?.data() {
         NodeData::ArrayBindingPattern(mut data) => {
             data.elements = Some(elements.array());
             NodeData::ArrayBindingPattern(data)

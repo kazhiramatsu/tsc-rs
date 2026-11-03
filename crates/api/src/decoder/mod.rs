@@ -343,25 +343,25 @@ impl<'a> Decoder<'a> {
             SyntaxKind::PrivateIdentifier => NodeData::PrivateIdentifier(PrivateIdentifierData {
                 escaped_text: EscapedName::escape(js_string(text).as_js()),
             }),
-            SyntaxKind::JsxText => NodeData::JsxText(Box::new(JsxTextData {
+            SyntaxKind::JsxText => NodeData::JsxText(JsxTextData {
                 text: self.push_string(text),
                 contains_only_trivia_white_spaces: common & 1 != 0,
-            })),
-            SyntaxKind::JSDocText => NodeData::JSDocText(Box::new(JSDocTextData {
+            }),
+            SyntaxKind::JSDocText => NodeData::JSDocText(JSDocTextData {
                 text: self.push_string(text),
-            })),
-            SyntaxKind::JSDocLink => NodeData::JSDocLink(Box::new(JSDocLinkData {
+            }),
+            SyntaxKind::JSDocLink => NodeData::JSDocLink(JSDocLinkData {
                 name: None,
                 text: self.push_string(text),
-            })),
-            SyntaxKind::JSDocLinkPlain => NodeData::JSDocLinkPlain(Box::new(JSDocLinkPlainData {
+            }),
+            SyntaxKind::JSDocLinkPlain => NodeData::JSDocLinkPlain(JSDocLinkPlainData {
                 name: None,
                 text: self.push_string(text),
-            })),
-            SyntaxKind::JSDocLinkCode => NodeData::JSDocLinkCode(Box::new(JSDocLinkCodeData {
+            }),
+            SyntaxKind::JSDocLinkCode => NodeData::JSDocLinkCode(JSDocLinkCodeData {
                 name: None,
                 text: self.push_string(text),
-            })),
+            }),
             _ => return Err(format!("unknown string node kind {}", kind_name(kind))),
         })
     }
@@ -382,9 +382,9 @@ impl<'a> Decoder<'a> {
         match syntax_kind {
             SyntaxKind::StringLiteral => {
                 let token_flags = self.extended(data, 1);
-                let node_data = NodeData::StringLiteral(Box::new(StringLiteralData {
+                let node_data = NodeData::StringLiteral(StringLiteralData {
                     text: self.push_js_string(text),
-                }));
+                });
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena
                     .node_mut(node)
@@ -398,9 +398,9 @@ impl<'a> Decoder<'a> {
             }
             SyntaxKind::NumericLiteral => {
                 let token_flags = self.extended(data, 1);
-                let node_data = NodeData::NumericLiteral(Box::new(NumericLiteralData {
+                let node_data = NodeData::NumericLiteral(NumericLiteralData {
                     text: self.push_string(text),
-                }));
+                });
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena.node_mut(node).set_numeric_literal_flags(
                     (token_flags & TokenFlags::NUMERIC_LITERAL_FLAGS.bits() as u32) as u16,
@@ -408,17 +408,17 @@ impl<'a> Decoder<'a> {
                 Ok(node)
             }
             SyntaxKind::BigIntLiteral => {
-                let node_data = NodeData::BigIntLiteral(Box::new(BigIntLiteralData {
+                let node_data = NodeData::BigIntLiteral(BigIntLiteralData {
                     text: self.push_string(text),
-                }));
+                });
                 Ok(self.arena.alloc_node(node_data, pos, end, flags))
             }
             SyntaxKind::RegularExpressionLiteral => {
                 let token_flags = self.extended(data, 1);
                 let node_data =
-                    NodeData::RegularExpressionLiteral(Box::new(RegularExpressionLiteralData {
+                    NodeData::RegularExpressionLiteral(RegularExpressionLiteralData {
                         text: self.push_string(text),
-                    }));
+                    });
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena
                     .node_mut(node)
@@ -431,9 +431,9 @@ impl<'a> Decoder<'a> {
                 // writes the raw text only for an empty literal.
                 let raw_text = text.is_empty().then_some(TextId::EMPTY);
                 let text = self.push_js_string(text);
-                let node_data = NodeData::NoSubstitutionTemplateLiteral(Box::new(
+                let node_data = NodeData::NoSubstitutionTemplateLiteral(
                     NoSubstitutionTemplateLiteralData { text, raw_text },
-                ));
+                );
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena
                     .node_mut(node)
@@ -449,12 +449,12 @@ impl<'a> Decoder<'a> {
                 let text = self.push_js_string(text);
                 let node_data = match syntax_kind {
                     SyntaxKind::TemplateHead => {
-                        NodeData::TemplateHead(Box::new(TemplateHeadData { text, raw_text }))
+                        NodeData::TemplateHead(TemplateHeadData { text, raw_text })
                     }
                     SyntaxKind::TemplateMiddle => {
-                        NodeData::TemplateMiddle(Box::new(TemplateMiddleData { text, raw_text }))
+                        NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
                     }
-                    _ => NodeData::TemplateTail(Box::new(TemplateTailData { text, raw_text })),
+                    _ => NodeData::TemplateTail(TemplateTailData { text, raw_text }),
                 };
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena
@@ -704,10 +704,11 @@ impl<'a> Decoder<'a> {
     /// tsgo gives the declaration of a dotted namespace name's later part
     /// an implicit `export` modifier; tsc flags it NestedNamespace instead.
     fn nested_namespace(&mut self, body: NodeId) {
-        let node = self.arena.node_mut(body);
-        if let NodeData::ModuleDeclaration(declaration) = node.data_mut() {
+        if let NodeData::ModuleDeclaration(mut declaration) = self.arena.node(body).data() {
             declaration.modifiers = None;
-            node.flags |= NodeFlags::NESTED_NAMESPACE.bits();
+            self.arena
+                .set_data(body, NodeData::ModuleDeclaration(declaration));
+            self.arena.node_mut(body).flags |= NodeFlags::NESTED_NAMESPACE.bits();
         }
     }
 }

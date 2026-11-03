@@ -19,6 +19,7 @@
 //! - [`get`] and [`slice`], the identity-indexed reads.
 //! - [`names`], the storage of the process-wide name table.
 //! - [`texts`], the literal texts of a tree, stored as words.
+//! - [`tails`], the cold words of large node payloads, at fixed positions.
 //!
 //! [`SmallList`] is the list a stored record can hold.
 //!
@@ -45,6 +46,7 @@ use std::ptr::NonNull;
 use std::sync::Once;
 
 pub mod names;
+pub mod tails;
 pub mod texts;
 
 /// Where the reservation starts: clear of every placement seen on macOS and
@@ -58,8 +60,9 @@ const REGION_BYTES: usize = 1 << 38;
 
 /// The regions the reservation holds. A record type names its region with
 /// [`StoreRecord::REGION`]; regions 8 and 9 hold the name table
-/// ([`names`]), region 12 the trees' literal texts ([`texts`]).
-const REGIONS: usize = 13;
+/// ([`names`]), region 12 the trees' literal texts ([`texts`]), region 13 the
+/// node records' tails ([`tails`]).
+const REGIONS: usize = 14;
 
 /// The size of the pages the kernel hands out, which covers both 4 KiB and
 /// 16 KiB systems: only whole multiples of it are returned to the kernel.

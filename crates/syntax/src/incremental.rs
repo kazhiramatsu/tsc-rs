@@ -133,8 +133,8 @@ fn reachable_identity_graph(source: &SourceFile) -> ReachableIdentityGraph {
             }
             nodes[index] = true;
             let node = source.arena.node(id);
-            collect_node_data_ids(node.data(), &mut pending_nodes, &mut pending_arrays);
-            if let Some(js_doc) = node.js_doc {
+            collect_node_data_ids(&node.data(), &mut pending_nodes, &mut pending_arrays);
+            if let Some(js_doc) = node.js_doc() {
                 pending_arrays.push(js_doc);
             }
             continue;
@@ -209,7 +209,7 @@ fn syntax_graphs_equal(left: &SourceFile, right: &SourceFile) -> bool {
             let right_node = right.arena.node(right_id);
             if left_node.kind != right_node.kind
                 || left_node.flags != right_node.flags
-                || left_node.literal_flags != right_node.literal_flags
+                || left_node.literal_flags() != right_node.literal_flags()
                 || left_node.pos != right_node.pos
                 || left_node.end != right_node.end
             {
@@ -220,14 +220,14 @@ fn syntax_graphs_equal(left: &SourceFile, right: &SourceFile) -> bool {
                 (None, None) => {}
                 _ => return false,
             }
-            match (left_node.js_doc, right_node.js_doc) {
+            match (left_node.js_doc(), right_node.js_doc()) {
                 (Some(left), Some(right)) => pending_arrays.push((left, right)),
                 (None, None) => {}
                 _ => return false,
             }
             if !node_data_structurally_equal(
-                left_node.data(),
-                right_node.data(),
+                &left_node.data(),
+                &right_node.data(),
                 |left, right| {
                     pending_nodes.push((left, right));
                     true
@@ -453,8 +453,8 @@ impl SyntaxCursor {
             let node = source.arena.node(node_id);
             let mut direct_nodes = Vec::new();
             let mut arrays = Vec::new();
-            collect_node_data_ids(node.data(), &mut direct_nodes, &mut arrays);
-            if let Some(js_doc) = node.js_doc {
+            collect_node_data_ids(&node.data(), &mut direct_nodes, &mut arrays);
+            if let Some(js_doc) = node.js_doc() {
                 arrays.push(js_doc);
             }
             for array in arrays {

@@ -203,7 +203,7 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
         self.check_grammar_jsx_expression(node);
-        let NodeData::JsxExpression(data) = self.data_of(node).clone() else {
+        let NodeData::JsxExpression(data) = self.data_of(node) else {
             return Ok(self.tables.intrinsics.error);
         };
         let Some(expression) = data.expression else {
@@ -2364,7 +2364,7 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(attr) == SyntaxKind::JsxSpreadAttribute {
                 continue;
             }
-            let NodeData::JsxAttribute(data) = self.data_of(attr).clone() else {
+            let NodeData::JsxAttribute(data) = self.data_of(attr) else {
                 continue;
             };
             let Some(name) = data.name else { continue };

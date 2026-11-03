@@ -152,7 +152,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.tables.intrinsics.wildcard);
             }
 
-            let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root_data.node)).clone()
+            let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root_data.node))
             else {
                 unreachable!("conditional root points at a ConditionalType node");
             };
@@ -411,7 +411,7 @@ impl<'a> CheckerState<'a> {
         if !root.is_distributive {
             return Ok(false);
         }
-        let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root.node)).clone() else {
+        let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root.node)) else {
             unreachable!("conditional root points at a ConditionalType node");
         };
         let true_node = node

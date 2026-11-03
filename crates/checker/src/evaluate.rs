@@ -395,7 +395,7 @@ impl<'a> CheckerState<'a> {
         location: Option<NodeId>,
     ) -> CheckResult<EvaluatorResult> {
         let expr = self.skip_parentheses(expr);
-        match self.data_of(expr).clone() {
+        match self.data_of(expr) {
             NodeData::PrefixUnaryExpression(data) => {
                 let operand = data
                     .operand
@@ -649,7 +649,7 @@ impl<'a> CheckerState<'a> {
         if self.is_constant_variable(symbol) {
             let declaration = self.binder.symbol(symbol).value_declaration;
             if let Some(declaration) = declaration {
-                if let NodeData::VariableDeclaration(data) = self.data_of(declaration).clone() {
+                if let NodeData::VariableDeclaration(data) = self.data_of(declaration) {
                     if let (None, Some(initializer)) = (data.r#type, data.initializer) {
                         let gate = match location {
                             None => true,

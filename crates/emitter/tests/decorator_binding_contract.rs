@@ -307,7 +307,7 @@ impl Transformer for StatementInjector {
     ) -> Result<TransformRoot, TransformError> {
         let TransformRoot::SourceFile(source) = root;
         let file = context.arena().root(source)?;
-        let NodeData::SourceFile(data) = context.arena().node(file)?.data().clone() else {
+        let NodeData::SourceFile(data) = context.arena().node(file)?.data() else {
             panic!("source file root");
         };
         let mut statements = self.statements.clone();

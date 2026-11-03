@@ -3395,7 +3395,7 @@ impl Printer {
 
         let unterminated = record.is_unterminated() == Some(true);
         let decoded_parse_node = Self::is_decoded_parse_node(&record);
-        match record.data().clone() {
+        match record.data() {
             // Both statement and expression hints use this worker after the
             // ordinary comment/map phases. Upstream emits no token for this
             // recovery node, while preserving those surrounding observations.
@@ -13360,7 +13360,7 @@ impl Printer {
             .arena()
             .node_ref(parent.source(), type_parameter)
             .ok_or(PrinterError::UnknownStatement(type_parameter.index()))?;
-        let NodeData::TypeParameter(data) = transformation.arena().node(parameter)?.data().clone()
+        let NodeData::TypeParameter(data) = transformation.arena().node(parameter)?.data()
         else {
             return Err(PrinterError::UnsupportedTransformedSyntax {
                 node: parameter,
@@ -13591,7 +13591,7 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let NodeData::ImportAttributes(data) =
-            transformation.arena().node(attributes_node)?.data().clone()
+            transformation.arena().node(attributes_node)?.data()
         else {
             return Err(PrinterError::UnsupportedTransformedSyntax {
                 node: attributes_node,

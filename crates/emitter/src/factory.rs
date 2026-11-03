@@ -750,18 +750,16 @@ impl TransformArena {
         node: TransformNode,
         text: &str,
     ) -> Result<(), TransformError> {
-        let record = self
-            .source_mut(node.source)?
-            .source
-            .arena
-            .node_mut(node.node);
-        let NodeData::Identifier(data) = record.data_mut() else {
+        let arena = &mut self.source_mut(node.source)?.source.arena;
+        let record = arena.node(node.node);
+        let NodeData::Identifier(mut data) = record.data() else {
             return Err(TransformError::FactoryKindMismatch {
                 expected: SyntaxKind::Identifier,
                 actual: record.kind,
             });
         };
         data.escaped_text = tsc_types::EscapedName::escape(text.into());
+        arena.set_data(node.node, NodeData::Identifier(data));
         Ok(())
     }
 
@@ -895,20 +893,20 @@ impl TransformArena {
         self.node(node)?;
         let value: JsString = value.into();
         let value = self.push_text(node.source, value.as_js().as_bytes())?;
-        let record = self
-            .source_mut(node.source)?
-            .source
-            .arena
-            .node_mut(node.node);
-        let text = match record.data_mut() {
+        let arena = &mut self.source_mut(node.source)?.source.arena;
+        let record = arena.node(node.node);
+        let kind = record.kind;
+        let mut data = record.data();
+        let text = match &mut data {
             NodeData::StringLiteral(data) => &mut data.text,
             NodeData::NoSubstitutionTemplateLiteral(data) => &mut data.text,
             NodeData::TemplateHead(data) => &mut data.text,
             NodeData::TemplateMiddle(data) => &mut data.text,
             NodeData::TemplateTail(data) => &mut data.text,
-            _ => return Err(TransformError::FactoryTokenKindExpected(record.kind)),
+            _ => return Err(TransformError::FactoryTokenKindExpected(kind)),
         };
         *text = value;
+        arena.set_data(node.node, data);
         Ok(())
     }
 
@@ -1801,7 +1799,7 @@ impl<'arena> NodeFactory<'arena> {
         let text = self.arena.push_text(source, text.as_bytes())?;
         self.create_node(
             source,
-            NodeData::NumericLiteral(Box::new(NumericLiteralData { text })),
+            NodeData::NumericLiteral(NumericLiteralData { text }),
             flags,
         )
     }
@@ -1818,7 +1816,7 @@ impl<'arena> NodeFactory<'arena> {
         let text = self.arena.push_text(source, text.as_bytes())?;
         self.create_node(
             source,
-            NodeData::BigIntLiteral(Box::new(BigIntLiteralData { text })),
+            NodeData::BigIntLiteral(BigIntLiteralData { text }),
             TransformFlags::CONTAINS_ES_2020,
         )
     }
@@ -1836,7 +1834,7 @@ impl<'arena> NodeFactory<'arena> {
         let text = self.arena.push_text(source, text.as_js().as_bytes())?;
         let literal = self.create_node(
             source,
-            NodeData::StringLiteral(Box::new(StringLiteralData { text })),
+            NodeData::StringLiteral(StringLiteralData { text }),
             TransformFlags::NONE,
         )?;
         self.arena
@@ -1877,16 +1875,16 @@ impl<'arena> NodeFactory<'arena> {
         };
         let data = match kind {
             SyntaxKind::NoSubstitutionTemplateLiteral => NodeData::NoSubstitutionTemplateLiteral(
-                Box::new(NoSubstitutionTemplateLiteralData { text, raw_text }),
+                NoSubstitutionTemplateLiteralData { text, raw_text },
             ),
             SyntaxKind::TemplateHead => {
-                NodeData::TemplateHead(Box::new(TemplateHeadData { text, raw_text }))
+                NodeData::TemplateHead(TemplateHeadData { text, raw_text })
             }
             SyntaxKind::TemplateMiddle => {
-                NodeData::TemplateMiddle(Box::new(TemplateMiddleData { text, raw_text }))
+                NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
             }
             SyntaxKind::TemplateTail => {
-                NodeData::TemplateTail(Box::new(TemplateTailData { text, raw_text }))
+                NodeData::TemplateTail(TemplateTailData { text, raw_text })
             }
             _ => return Err(TransformError::FactoryTokenKindExpected(kind)),
         };
@@ -2019,7 +2017,7 @@ impl<'arena> NodeFactory<'arena> {
             .push_text(source, JsString::from_code_units(text).as_js().as_bytes())?;
         let literal = self.create_node(
             source,
-            NodeData::StringLiteral(Box::new(StringLiteralData { text })),
+            NodeData::StringLiteral(StringLiteralData { text }),
             flags,
         )?;
         self.arena
@@ -2097,7 +2095,7 @@ impl<'arena> NodeFactory<'arena> {
         };
         self.create_node(
             source,
-            NodeData::TemplateHead(Box::new(TemplateHeadData { text, raw_text })),
+            NodeData::TemplateHead(TemplateHeadData { text, raw_text }),
             TransformFlags::CONTAINS_ES_2015,
         )
     }
@@ -2924,14 +2922,14 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         self.create_node(
             source,
-            NodeData::MappedType(Box::new(MappedTypeData {
+            NodeData::MappedType(MappedTypeData {
                 readonly_token: self.optional_node_id(source, readonly_token)?,
                 type_parameter: Some(self.node_id(source, type_parameter)?),
                 name_type: self.optional_node_id(source, name_type)?,
                 question_token: self.optional_node_id(source, question_token)?,
                 r#type: self.optional_node_id(source, r#type)?,
                 members: self.optional_array_id(source, members)?,
-            })),
+            }),
             TransformFlags::CONTAINS_TYPE_SCRIPT,
         )
     }
@@ -3093,14 +3091,14 @@ impl<'arena> NodeFactory<'arena> {
         }
         self.create_node(
             source,
-            NodeData::Parameter(Box::new(ParameterData {
+            NodeData::Parameter(ParameterData {
                 name: Some(self.node_id(source, name)?),
                 modifiers: self.optional_array_id(source, modifiers)?,
                 dot_dot_dot_token: self.optional_node_id(source, dot_dot_dot_token)?,
                 question_token: self.optional_node_id(source, question_token)?,
                 r#type: self.optional_node_id(source, r#type)?,
                 initializer: self.optional_node_id(source, initializer)?,
-            })),
+            }),
             flags,
         )
     }
@@ -3211,14 +3209,14 @@ impl<'arena> NodeFactory<'arena> {
         }
         self.create_node(
             source,
-            NodeData::PropertyDeclaration(Box::new(PropertyDeclarationData {
+            NodeData::PropertyDeclaration(PropertyDeclarationData {
                 name: Some(self.node_id(source, name)?),
                 modifiers: self.optional_array_id(source, modifiers)?,
                 question_token: self.optional_node_id(source, question_token)?,
                 exclamation_token: self.optional_node_id(source, exclamation_token)?,
                 r#type: self.optional_node_id(source, r#type)?,
                 initializer: self.optional_node_id(source, initializer)?,
-            })),
+            }),
             flags,
         )
     }
@@ -3239,14 +3237,14 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         self.create_node(
             source,
-            NodeData::MethodSignature(Box::new(MethodSignatureData {
+            NodeData::MethodSignature(MethodSignatureData {
                 name: Some(self.node_id(source, name)?),
                 type_parameters: self.optional_array_id(source, type_parameters)?,
                 parameters: Some(self.array_id(source, parameters)?),
                 r#type: self.optional_node_id(source, r#type)?,
                 question_token: self.optional_node_id(source, question_token)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
-            })),
+            }),
             TransformFlags::CONTAINS_TYPE_SCRIPT,
         )
     }
@@ -3334,7 +3332,7 @@ impl<'arena> NodeFactory<'arena> {
         };
         self.create_node(
             source,
-            NodeData::MethodDeclaration(Box::new(MethodDeclarationData {
+            NodeData::MethodDeclaration(MethodDeclarationData {
                 name: Some(self.node_id(source, name)?),
                 type_parameters: self.optional_array_id(source, type_parameters)?,
                 parameters: Some(self.array_id(source, parameters)?),
@@ -3344,7 +3342,7 @@ impl<'arena> NodeFactory<'arena> {
                 exclamation_token: None,
                 body: self.optional_node_id(source, body)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
-            })),
+            }),
             flags,
         )
     }
@@ -3370,14 +3368,14 @@ impl<'arena> NodeFactory<'arena> {
         };
         self.create_node(
             source,
-            NodeData::Constructor(Box::new(ConstructorData {
+            NodeData::Constructor(ConstructorData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(self.array_id(source, parameters)?),
                 r#type: None,
                 body: self.optional_node_id(source, body)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
-            })),
+            }),
             flags,
         )
     }
@@ -3411,14 +3409,14 @@ impl<'arena> NodeFactory<'arena> {
         };
         self.create_node(
             source,
-            NodeData::GetAccessor(Box::new(GetAccessorData {
+            NodeData::GetAccessor(GetAccessorData {
                 name: Some(self.node_id(source, name)?),
                 type_parameters: None,
                 parameters: Some(self.array_id(source, parameters)?),
                 r#type: self.optional_node_id(source, r#type)?,
                 body: self.optional_node_id(source, body)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
-            })),
+            }),
             flags,
         )
     }
@@ -3445,14 +3443,14 @@ impl<'arena> NodeFactory<'arena> {
         };
         self.create_node(
             source,
-            NodeData::SetAccessor(Box::new(SetAccessorData {
+            NodeData::SetAccessor(SetAccessorData {
                 name: Some(self.node_id(source, name)?),
                 type_parameters: None,
                 parameters: Some(self.array_id(source, parameters)?),
                 r#type: None,
                 body: self.optional_node_id(source, body)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
-            })),
+            }),
             flags,
         )
     }
@@ -3556,7 +3554,7 @@ impl<'arena> NodeFactory<'arena> {
         };
         self.create_node(
             source,
-            NodeData::FunctionDeclaration(Box::new(FunctionDeclarationData {
+            NodeData::FunctionDeclaration(FunctionDeclarationData {
                 name: self.optional_node_id(source, name)?,
                 type_parameters: self.optional_array_id(source, type_parameters)?,
                 parameters: Some(self.array_id(source, parameters)?),
@@ -3564,7 +3562,7 @@ impl<'arena> NodeFactory<'arena> {
                 asterisk_token: self.optional_node_id(source, asterisk_token)?,
                 body: self.optional_node_id(source, body)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
-            })),
+            }),
             flags,
         )
     }
@@ -3598,7 +3596,7 @@ impl<'arena> NodeFactory<'arena> {
         )?;
         self.create_node(
             source,
-            NodeData::FunctionExpression(Box::new(FunctionExpressionData {
+            NodeData::FunctionExpression(FunctionExpressionData {
                 name: self.optional_node_id(source, name)?,
                 type_parameters: self.optional_array_id(source, type_parameters)?,
                 parameters: Some(self.array_id(source, parameters)?),
@@ -3606,7 +3604,7 @@ impl<'arena> NodeFactory<'arena> {
                 asterisk_token: self.optional_node_id(source, asterisk_token)?,
                 body: Some(self.node_id(source, body)?),
                 modifiers: self.optional_array_id(source, modifiers)?,
-            })),
+            }),
             flags,
         )
     }
@@ -3678,7 +3676,7 @@ impl<'arena> NodeFactory<'arena> {
         }
         self.create_node(
             source,
-            NodeData::ArrowFunction(Box::new(ArrowFunctionData {
+            NodeData::ArrowFunction(ArrowFunctionData {
                 type_parameters: self.optional_array_id(source, type_parameters)?,
                 parameters: Some(self.array_id(source, parameters)?),
                 r#type: self.optional_node_id(source, r#type)?,
@@ -3686,7 +3684,7 @@ impl<'arena> NodeFactory<'arena> {
                 modifiers: self.optional_array_id(source, modifiers)?,
                 equals_greater_than_token: self
                     .optional_node_id(source, equals_greater_than_token)?,
-            })),
+            }),
             flags,
         )
     }
@@ -4832,7 +4830,7 @@ impl<'arena> NodeFactory<'arena> {
             id.map(|id| TransformNodeArray::new(source, id))
                 .ok_or(TransformError::RequiredChildRemoved { parent, field })
         };
-        let updated = match record.data().clone() {
+        let updated = match record.data() {
             NodeData::TypeParameter(data) => self.create_type_parameter_declaration(
                 source,
                 modifiers,
@@ -5173,7 +5171,7 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         let node = self.create_node(
             original.source,
-            NodeData::NotEmittedStatement(Box::new(tsc_syntax::nodes::NotEmittedStatementData {})),
+            NodeData::NotEmittedStatement(tsc_syntax::nodes::NotEmittedStatementData {}),
             TransformFlags::NONE,
         )?;
         self.arena.set_original_node(node, Some(original))?;
@@ -5330,9 +5328,9 @@ impl<'arena> NodeFactory<'arena> {
             (
                 record.kind,
                 record.flags,
-                record.literal_flags,
-                record.js_doc,
-                record.data().clone(),
+                record.literal_flags(),
+                record.js_doc(),
+                record.data(),
             )
         };
         let transform_flags = self.arena.transform_flags(original);
@@ -5355,14 +5353,12 @@ impl<'arena> NodeFactory<'arena> {
             node: id,
         };
         {
-            let copied = self
-                .arena
-                .source_mut(original.source)?
-                .source
-                .arena
-                .node_mut(id);
-            copied.literal_flags = literal_flags;
-            copied.js_doc = js_doc;
+            let arena = &mut self.arena.source_mut(original.source)?.source.arena;
+            if let Some(js_doc) = js_doc {
+                arena.set_js_doc(id, js_doc);
+            }
+            let copied = arena.node_mut(id);
+            copied.set_literal_flags(literal_flags);
             copied.parent = None;
         }
         self.arena.set_transform_flags(clone, transform_flags);
@@ -5418,13 +5414,12 @@ impl<'arena> NodeFactory<'arena> {
                 actual: updated.source,
             });
         }
-        let js_doc = self.arena.node(original)?.js_doc;
+        let js_doc = self.arena.node(original)?.js_doc();
         self.arena
             .source_mut(updated.source)?
             .source
             .arena
-            .node_mut(updated.node)
-            .js_doc = js_doc;
+            .replace_js_doc(updated.node, js_doc);
         Ok(updated)
     }
 
@@ -5554,7 +5549,7 @@ impl<'arena> NodeFactory<'arena> {
             (
                 self.arena
                     .node(original)
-                    .map(|record| record.data().clone())
+                    .map(|record| record.data())
                     .expect("validated literal original"),
                 data.clone(),
             )
@@ -5597,7 +5592,7 @@ impl<'arena> NodeFactory<'arena> {
             if !normalizes_embedded_statements && self.arena.transform_flags(original) == flags {
                 return Ok(original);
             }
-            record.data().clone()
+            record.data()
         };
         self.update_node(original, data, transform_flags)
     }
@@ -5636,14 +5631,14 @@ impl<'arena> NodeFactory<'arena> {
 
         self.update_node(
             original,
-            NodeData::Constructor(Box::new(tsc_syntax::nodes::ConstructorData {
+            NodeData::Constructor(tsc_syntax::nodes::ConstructorData {
                 modifiers,
                 name: original_data.name,
                 type_parameters,
                 parameters,
                 r#type,
                 body,
-            })),
+            }),
             transform_flags,
         )
     }
@@ -5682,14 +5677,14 @@ impl<'arena> NodeFactory<'arena> {
 
         self.update_node(
             original,
-            NodeData::GetAccessor(Box::new(tsc_syntax::nodes::GetAccessorData {
+            NodeData::GetAccessor(tsc_syntax::nodes::GetAccessorData {
                 modifiers,
                 name,
                 type_parameters,
                 parameters,
                 r#type,
                 body,
-            })),
+            }),
             transform_flags,
         )
     }
@@ -5733,14 +5728,14 @@ impl<'arena> NodeFactory<'arena> {
 
         self.update_node(
             original,
-            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
                 modifiers,
                 name,
                 type_parameters,
                 parameters,
                 r#type,
                 body,
-            })),
+            }),
             transform_flags,
         )
     }
@@ -5962,7 +5957,7 @@ impl<'arena> NodeFactory<'arena> {
         expression: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let emitted = self.skip_partially_emitted_expressions(expression)?;
-        if let NodeData::CallExpression(mut call) = self.arena.node(emitted)?.data().clone() {
+        if let NodeData::CallExpression(mut call) = self.arena.node(emitted)?.data() {
             if let Some(callee) = call
                 .expression
                 .and_then(|id| self.arena.node_ref(emitted.source, id))
@@ -5981,7 +5976,7 @@ impl<'arena> NodeFactory<'arena> {
                     let mut cursor = expression;
                     while cursor != emitted {
                         let NodeData::PartiallyEmittedExpression(data) =
-                            self.arena.node(cursor)?.data().clone()
+                            self.arena.node(cursor)?.data()
                         else {
                             unreachable!(
                                 "skipPartiallyEmittedExpressions only removes partial nodes"
@@ -6959,15 +6954,10 @@ impl<'arena> NodeFactory<'arena> {
         let modifiers = data.modifiers;
         let updated =
             self.create_function_type_node(original.source, type_parameters, parameters, r#type)?;
-        if let NodeData::FunctionType(updated_data) = &mut self
-            .arena
-            .source_mut(updated.source)?
-            .source
-            .arena
-            .node_mut(updated.node)
-            .data_mut()
-        {
+        let arena = &mut self.arena.source_mut(updated.source)?.source.arena;
+        if let NodeData::FunctionType(mut updated_data) = arena.node(updated.node).data() {
             updated_data.modifiers = modifiers;
+            arena.set_data(updated.node, NodeData::FunctionType(updated_data));
         }
         self.finish_update(updated, original)
     }
@@ -7138,15 +7128,10 @@ impl<'arena> NodeFactory<'arena> {
             question_token,
             r#type,
         )?;
-        if let NodeData::PropertySignature(updated_data) = &mut self
-            .arena
-            .source_mut(updated.source)?
-            .source
-            .arena
-            .node_mut(updated.node)
-            .data_mut()
-        {
+        let arena = &mut self.arena.source_mut(updated.source)?.source.arena;
+        if let NodeData::PropertySignature(mut updated_data) = arena.node(updated.node).data() {
             updated_data.initializer = initializer;
+            arena.set_data(updated.node, NodeData::PropertySignature(updated_data));
         }
         self.finish_update(updated, original)
     }
@@ -7905,7 +7890,7 @@ impl<'a> CrossSourceReuseClone<'a> {
         }
         let record = self.arena.node(original)?.clone();
         let transform_flags = self.arena.transform_flags(original);
-        let mut data = record.data().clone();
+        let mut data = record.data();
         try_visit_each_child(&mut data, self)?;
         let js_doc = record
             .js_doc
@@ -7921,14 +7906,12 @@ impl<'a> CrossSourceReuseClone<'a> {
             data => target_arena.alloc_node(data, u32::MAX as usize, u32::MAX as usize, flags),
         };
         {
-            let copied = self
-                .arena
-                .source_mut(self.target)?
-                .source
-                .arena
-                .node_mut(cloned);
-            copied.literal_flags = record.literal_flags;
-            copied.js_doc = js_doc;
+            let arena = &mut self.arena.source_mut(self.target)?.source.arena;
+            if let Some(js_doc) = js_doc {
+                arena.set_js_doc(cloned, js_doc);
+            }
+            let copied = arena.node_mut(cloned);
+            copied.set_literal_flags(record.literal_flags());
             copied.parent = None;
         }
         self.nodes.insert(node, cloned);

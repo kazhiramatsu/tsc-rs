@@ -238,7 +238,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn array_literal(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ArrayLiteralExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::ArrayLiteralExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let (elements, has_trailing_comma) = self.node_array(data.elements);
@@ -314,7 +314,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn object_literal(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ObjectLiteralExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::ObjectLiteralExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let (properties, has_trailing_comma) = self.node_array(data.properties);
@@ -401,7 +401,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn object_member(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        match self.state.data_of(node).clone() {
+        match self.state.data_of(node) {
             NodeData::PropertyAssignment(data) => {
                 let Some(name) = data.name else {
                     return Ok(None);
@@ -468,7 +468,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn property_access(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::PropertyAccessExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::PropertyAccessExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {
@@ -515,7 +515,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn element_access(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ElementAccessExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::ElementAccessExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {
@@ -548,7 +548,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn call_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::CallExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::CallExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {
@@ -575,7 +575,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn new_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::NewExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::NewExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {
@@ -606,7 +606,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn tagged_template(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::TaggedTemplateExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::TaggedTemplateExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(tag) = data.tag else {
@@ -632,7 +632,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn parenthesized_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ParenthesizedExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::ParenthesizedExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {
@@ -644,7 +644,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn type_assertion(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::TypeAssertionExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::TypeAssertionExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(ty) = data.r#type else {
@@ -665,7 +665,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn expression_with_type_arguments(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ExpressionWithTypeArguments(data) = self.state.data_of(node).clone() else {
+        let NodeData::ExpressionWithTypeArguments(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {
@@ -681,7 +681,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn as_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::AsExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::AsExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {
@@ -700,7 +700,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn satisfies_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::SatisfiesExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::SatisfiesExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {
@@ -723,7 +723,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn non_null_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::NonNullExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::NonNullExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {
@@ -739,7 +739,7 @@ impl DisplayClonePrinter<'_, '_> {
         node: NodeId,
         keyword: &'static str,
     ) -> CheckResult<Option<JsString>> {
-        let expression = match self.state.data_of(node).clone() {
+        let expression = match self.state.data_of(node) {
             NodeData::DeleteExpression(data) => data.expression,
             NodeData::TypeOfExpression(data) => data.expression,
             NodeData::VoidExpression(data) => data.expression,
@@ -755,7 +755,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn prefix_unary(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::PrefixUnaryExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::PrefixUnaryExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(operator) = tsc_syntax::tokens::token_to_string(data.operator) else {
@@ -792,7 +792,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn postfix_unary(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::PostfixUnaryExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::PostfixUnaryExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(operator) = tsc_syntax::tokens::token_to_string(data.operator) else {
@@ -808,7 +808,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn binary_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::BinaryExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::BinaryExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let (Some(left), Some(operator_token), Some(right)) =
@@ -851,7 +851,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn conditional_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ConditionalExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::ConditionalExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let (Some(condition), Some(when_true), Some(when_false)) =
@@ -933,7 +933,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn yield_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::YieldExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::YieldExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let mut text = JsString::from("yield");
@@ -954,7 +954,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn spread_element(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::SpreadElement(data) = self.state.data_of(node).clone() else {
+        let NodeData::SpreadElement(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {
@@ -968,13 +968,13 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn template_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::TemplateExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::TemplateExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(head) = data.head else {
             return Ok(None);
         };
-        let NodeData::TemplateHead(head) = self.state.data_of(head).clone() else {
+        let NodeData::TemplateHead(head) = self.state.data_of(head) else {
             return Ok(None);
         };
         let raw = head
@@ -984,7 +984,7 @@ impl DisplayClonePrinter<'_, '_> {
         let mut text = crate::concat_js(&[&"`", &(raw)]);
         let (spans, _) = self.node_array(data.template_spans);
         for span in spans {
-            let NodeData::TemplateSpan(span) = self.state.data_of(span).clone() else {
+            let NodeData::TemplateSpan(span) = self.state.data_of(span) else {
                 return Ok(None);
             };
             let Some(expression) = span.expression else {
@@ -998,7 +998,7 @@ impl DisplayClonePrinter<'_, '_> {
             let Some(literal) = span.literal else {
                 return Ok(None);
             };
-            let raw = match self.state.data_of(literal).clone() {
+            let raw = match self.state.data_of(literal) {
                 NodeData::TemplateMiddle(data) => data
                     .raw_text
                     .map(|raw| crate::annotate::published_text_utf8(raw).to_owned())
@@ -1023,7 +1023,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn meta_property(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::MetaProperty(data) = self.state.data_of(node).clone() else {
+        let NodeData::MetaProperty(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(keyword) = tsc_syntax::tokens::token_to_string(data.keyword_token) else {
@@ -1036,7 +1036,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn partially_emitted_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::PartiallyEmittedExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::PartiallyEmittedExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         match data.expression {
@@ -1046,7 +1046,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn comma_list_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::CommaListExpression(data) = self.state.data_of(node).clone() else {
+        let NodeData::CommaListExpression(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let (elements, _) = self.node_array(data.elements);
@@ -1054,7 +1054,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn jsx(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        match self.state.data_of(node).clone() {
+        match self.state.data_of(node) {
             NodeData::JsxElement(data) => {
                 let (Some(opening), Some(closing)) = (data.opening_element, data.closing_element)
                 else {

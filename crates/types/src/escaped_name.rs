@@ -40,6 +40,13 @@ impl EscapedName {
         self.0
     }
 
+    /// The name at `index` of the name table: a node record's stored word
+    /// read back ([`index`](Self::index) wrote it).
+    #[inline(always)]
+    pub const fn from_index(index: u32) -> Self {
+        Self(index)
+    }
+
     /// tsc escapeLeadingUnderscores (_tsc.js:11438).
     #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn escape(raw: JsStr<'_>) -> Self {

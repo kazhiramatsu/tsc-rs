@@ -77,7 +77,7 @@ impl<'a> File<'a> {
         }
     }
 
-    fn data(&self, node: Node) -> Option<&'a NodeData> {
+    fn data(&self, node: Node) -> Option<NodeData> {
         match node {
             Found::Node(View::Node(id)) => Some(self.source.arena.node(id).data()),
             _ => None,

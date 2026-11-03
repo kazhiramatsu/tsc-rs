@@ -495,7 +495,7 @@ impl<'t> Importers<'t> {
                 continue;
             }
             let source = request.state.binder.source_of_node(direct);
-            match request.state.binder.node_record(direct).data().clone() {
+            match request.state.binder.node_record(direct).data() {
                 NodeData::CallExpression(_) => {
                     if request.state.is_import_call(direct) {
                         self.handle_import_call(request, direct)?;
@@ -529,11 +529,11 @@ impl<'t> Importers<'t> {
                     };
                     self.direct_imports.push(direct);
                     if let Some(NodeData::ImportClause(clause)) = import_clause
-                        .map(|clause| request.state.binder.node_record(clause).data().clone())
+                        .map(|clause| request.state.binder.node_record(clause).data())
                     {
                         if let Some(NodeData::NamespaceImport(namespace)) =
                             clause.named_bindings.map(|bindings| {
-                                request.state.binder.node_record(bindings).data().clone()
+                                request.state.binder.node_record(bindings).data()
                             })
                         {
                             self.handle_namespace_import(
@@ -764,7 +764,7 @@ fn get_searches_from_direct_imports(
             continue;
         }
         let Some(NodeData::ImportClause(clause)) =
-            import_clause.map(|clause| request.state.binder.node_record(clause).data().clone())
+            import_clause.map(|clause| request.state.binder.node_record(clause).data())
         else {
             continue;
         };

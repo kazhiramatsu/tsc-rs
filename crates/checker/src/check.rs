@@ -2225,7 +2225,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(Some(symbol));
         }
-        let NodeData::QualifiedName(QualifiedNameData { left, right }) = self.data_of(name).clone()
+        let NodeData::QualifiedName(QualifiedNameData { left, right }) = self.data_of(name)
         else {
             return Ok(None);
         };
@@ -5171,7 +5171,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::SuperKeyword => return Ok("super".into()),
             _ => {}
         }
-        match self.data_of(node).clone() {
+        match self.data_of(node) {
             NodeData::Identifier(data) => {
                 Ok(data.text().to_owned().into())
             }
@@ -5256,21 +5256,21 @@ impl<'a> CheckerState<'a> {
             }
             NodeData::TemplateExpression(data) => {
                 let head = data.head.expect("TemplateExpression carries its head");
-                let NodeData::TemplateHead(head) = self.data_of(head).clone() else {
+                let NodeData::TemplateHead(head) = self.data_of(head) else {
                     unreachable!("TemplateExpression head is a TemplateHead");
                 };
                 let mut text = crate::concat_js(&[&"`", &(head.raw_text
                         .map(|raw| self.text_utf8(raw).to_owned())
                         .unwrap_or_else(|| template_text_raw(self.text_js(head.text))))]);
                 for span in self.nodes_of(data.template_spans) {
-                    let NodeData::TemplateSpan(span) = self.data_of(span).clone() else {
+                    let NodeData::TemplateSpan(span) = self.data_of(span) else {
                         unreachable!("TemplateExpression spans contain TemplateSpan nodes");
                     };
                     let expression = self.expression_text_display(
                         span.expression.expect("TemplateSpan carries its expression"),
                     )?;
                     let literal = span.literal.expect("TemplateSpan carries its literal");
-                    let literal = match self.data_of(literal).clone() {
+                    let literal = match self.data_of(literal) {
                         NodeData::TemplateMiddle(data) => data
                             .raw_text
                             .map(|raw| self.text_utf8(raw).to_owned())
@@ -11258,7 +11258,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) == SyntaxKind::ThisType && !self.can_reuse_existing_type_node(node)? {
             return self.semantic_existing_type_node_face(node);
         }
-        match self.data_of(node).clone() {
+        match self.data_of(node) {
             NodeData::TypeReference(_) => match self.try_visit_type_reference_face(node)? {
                 Some(face) => Ok(face),
                 None => {
@@ -11367,7 +11367,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<SliceTypeNodeFace>> {
-        let NodeData::IndexedAccessType(data) = self.data_of(node).clone() else {
+        let NodeData::IndexedAccessType(data) = self.data_of(node) else {
             unreachable!("tryVisitIndexedAccess receives IndexedAccessType");
         };
         let object_node = data
@@ -11392,7 +11392,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn try_visit_keyof_face(&mut self, node: NodeId) -> CheckResult<Option<SliceTypeNodeFace>> {
-        let NodeData::TypeOperator(data) = self.data_of(node).clone() else {
+        let NodeData::TypeOperator(data) = self.data_of(node) else {
             unreachable!("tryVisitKeyOf receives TypeOperator");
         };
         debug_assert_eq!(data.operator, SyntaxKind::KeyOfKeyword);
@@ -11415,7 +11415,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<SliceTypeNodeFace>> {
-        let NodeData::TypeQuery(data) = self.data_of(node).clone() else {
+        let NodeData::TypeQuery(data) = self.data_of(node) else {
             unreachable!("tryVisitTypeQuery receives TypeQuery");
         };
         let expr_name = data
@@ -11450,7 +11450,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<SliceTypeNodeFace>> {
-        let NodeData::TypeReference(data) = self.data_of(node).clone() else {
+        let NodeData::TypeReference(data) = self.data_of(node) else {
             unreachable!("tryVisitTypeReference receives TypeReference");
         };
         if !self.can_reuse_existing_type_node(node)? {
@@ -11519,7 +11519,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ThisType => return Ok("this".into()),
             _ => {}
         }
-        match self.data_of(node).clone() {
+        match self.data_of(node) {
             // tsc-port: visitExistingNodeTreeSymbolsWorker's JSDoc
             // lowering @6.0.3.
             // tsc-hash: 8b4acd6f23476915bdfabab514bac75c2ea60ed2d25b510088a3f55c78028978
@@ -11857,7 +11857,7 @@ impl<'a> CheckerState<'a> {
                 let parameter = data
                     .type_parameter
                     .expect("MappedType carries its type parameter");
-                let NodeData::TypeParameter(parameter_data) = state.data_of(parameter).clone()
+                let NodeData::TypeParameter(parameter_data) = state.data_of(parameter)
                 else {
                     unreachable!("MappedType type_parameter is a TypeParameter node");
                 };
@@ -12008,7 +12008,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let mut text = crate::concat_js(&[&"`", &(head_text)]);
                 for span in self.nodes_of(data.template_spans) {
-                    let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span).clone()
+                    let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span)
                     else {
                         unreachable!(
                             "TemplateLiteralType template_spans contain TemplateLiteralTypeSpan"
@@ -12069,7 +12069,7 @@ impl<'a> CheckerState<'a> {
     /// isJSDocIndexSignature is structural and does not require the
     /// TypeReference itself to carry NodeFlags::JSDoc.
     fn jsdoc_index_signature_text(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::TypeReference(data) = self.data_of(node).clone() else {
+        let NodeData::TypeReference(data) = self.data_of(node) else {
             return Ok(None);
         };
         let Some(name) = data.type_name else {
@@ -12842,7 +12842,7 @@ impl<'a> CheckerState<'a> {
             }
             context_type = Some(ty);
         }
-        match self.data_of(node).clone() {
+        match self.data_of(node) {
             NodeData::ImportType(data) => {
                 return self.can_reuse_literal_import_type(node, &data);
             }
@@ -12977,7 +12977,7 @@ impl<'a> CheckerState<'a> {
         let mut return_from_new = None;
         let mut parameters = Vec::new();
         for (index, parameter) in self.nodes_of(data.parameters).into_iter().enumerate() {
-            let NodeData::Parameter(parameter_data) = self.data_of(parameter).clone() else {
+            let NodeData::Parameter(parameter_data) = self.data_of(parameter) else {
                 unreachable!("JSDocFunctionType parameters are Parameter nodes");
             };
             let original_name = parameter_data
@@ -13056,7 +13056,7 @@ impl<'a> CheckerState<'a> {
         let literal_type = self.get_type_from_type_node(node)?;
         let mut rendered = Vec::with_capacity(properties.len());
         for property in properties {
-            let NodeData::JSDocPropertyTag(property_data) = self.data_of(property).clone() else {
+            let NodeData::JSDocPropertyTag(property_data) = self.data_of(property) else {
                 unreachable!("JSDocTypeLiteral property lists contain JSDocPropertyTag nodes");
             };
             let name_node = property_data
@@ -13119,14 +13119,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a0edb1f08aefc12e25f1d599c3cf2229a8048fc7d56e28b1e0785d33726c6b6f
     /// tsc-span: _tsc.js:119322-119332
     fn import_attributes_text(&mut self, node: NodeId) -> CheckResult<JsString> {
-        let NodeData::ImportAttributes(data) = self.data_of(node).clone() else {
+        let NodeData::ImportAttributes(data) = self.data_of(node) else {
             unreachable!("ImportType attributes is an ImportAttributes node");
         };
         let keyword = tsc_syntax::tokens::token_to_string(data.token)
             .expect("ImportAttributes token is with/assert");
         let mut rendered = Vec::new();
         for element in self.nodes_of(data.elements) {
-            let NodeData::ImportAttribute(data) = self.data_of(element).clone() else {
+            let NodeData::ImportAttribute(data) = self.data_of(element) else {
                 unreachable!("ImportAttributes elements contain ImportAttribute nodes");
             };
             let name =
@@ -13153,7 +13153,7 @@ impl<'a> CheckerState<'a> {
     /// Entity names in reused annotations: Identifier / QualifiedName
     /// dots / the property-access spellings type queries carry.
     fn entity_name_text(&mut self, node: NodeId) -> CheckResult<JsString> {
-        match self.data_of(node).clone() {
+        match self.data_of(node) {
             NodeData::Identifier(data) => Ok(data.text().to_owned().into()),
             NodeData::PrivateIdentifier(data) => Ok(data.text().into()),
             NodeData::QualifiedName(data) => {
@@ -13187,7 +13187,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::NullKeyword => return Ok("null".into()),
             _ => {}
         }
-        match self.data_of(literal).clone() {
+        match self.data_of(literal) {
             NodeData::StringLiteral(data) => {
                 // tsgo's reuse clones a string literal with its quote and
                 // prints it without ASCII escaping (nodecopy.go:810-821).
@@ -13294,7 +13294,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn type_parameter_node_text(&mut self, node: NodeId) -> CheckResult<JsString> {
-        let NodeData::TypeParameter(data) = self.data_of(node).clone() else {
+        let NodeData::TypeParameter(data) = self.data_of(node) else {
             unreachable!("type-parameter lists contain TypeParameter nodes");
         };
         let mut text = JsString::new();
@@ -13406,7 +13406,7 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
 
-        match self.data_of(member).clone() {
+        match self.data_of(member) {
             NodeData::PropertySignature(data) => {
                 let modifiers = self.modifier_nodes_text(data.modifiers);
                 let name = self.member_name_node_text(
@@ -13579,7 +13579,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: string-face adapter over the exact property-name
     /// and entity-name ledger blocks.
     pub(crate) fn member_name_node_text(&mut self, name: NodeId) -> CheckResult<JsString> {
-        match self.data_of(name).clone() {
+        match self.data_of(name) {
             NodeData::Identifier(data) => Ok(data.text().to_owned().into()),
             NodeData::PrivateIdentifier(data) => Ok(data.text().into()),
             NodeData::StringLiteral(data) => {
@@ -13687,7 +13687,7 @@ impl<'a> CheckerState<'a> {
         pattern: NodeId,
         preserve_initializers: bool,
     ) -> CheckResult<JsString> {
-        match self.data_of(pattern).clone() {
+        match self.data_of(pattern) {
             NodeData::ObjectBindingPattern(data) => {
                 let (elements, has_trailing_comma) = match data.elements {
                     Some(elements) => {
@@ -13736,7 +13736,7 @@ impl<'a> CheckerState<'a> {
         element: NodeId,
         preserve_initializers: bool,
     ) -> CheckResult<JsString> {
-        match self.data_of(element).clone() {
+        match self.data_of(element) {
             NodeData::OmittedExpression(_) => Ok(JsString::new()),
             NodeData::BindingElement(data) => {
                 let dots = if data.dot_dot_dot_token.is_some() {

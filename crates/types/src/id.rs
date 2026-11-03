@@ -50,6 +50,16 @@ macro_rules! id_type {
             pub const fn position(self) -> u32 {
                 self.0.get()
             }
+
+            /// The identity whose store position is `position`, or `None`
+            /// for zero: a stored word read back.
+            #[inline(always)]
+            pub const fn from_position(position: u32) -> Option<Self> {
+                match ::std::num::NonZeroU32::new(position) {
+                    Some(value) => Some(Self(value)),
+                    None => None,
+                }
+            }
         }
 
         impl Default for $name {

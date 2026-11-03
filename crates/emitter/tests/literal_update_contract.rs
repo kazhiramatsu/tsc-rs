@@ -149,19 +149,19 @@ fn find_kind(arena: &TransformArena, source: TransformSourceId, kind: SyntaxKind
 fn template_payload(kind: SyntaxKind, text: TextId, raw_text: Option<TextId>) -> NodeData {
     match kind {
         SyntaxKind::NoSubstitutionTemplateLiteral => {
-            NodeData::NoSubstitutionTemplateLiteral(Box::new(NoSubstitutionTemplateLiteralData {
+            NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
                 text,
                 raw_text,
-            }))
+            })
         }
         SyntaxKind::TemplateHead => {
-            NodeData::TemplateHead(Box::new(TemplateHeadData { text, raw_text }))
+            NodeData::TemplateHead(TemplateHeadData { text, raw_text })
         }
         SyntaxKind::TemplateMiddle => {
-            NodeData::TemplateMiddle(Box::new(TemplateMiddleData { text, raw_text }))
+            NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
         }
         SyntaxKind::TemplateTail => {
-            NodeData::TemplateTail(Box::new(TemplateTailData { text, raw_text }))
+            NodeData::TemplateTail(TemplateTailData { text, raw_text })
         }
         other => panic!("not a template kind: {other:?}"),
     }
@@ -290,15 +290,15 @@ fn apply_generic(
     let (text, raw_text, has_extended_unicode_escape) = literal_parts(&record);
     let scalar = |units: &[u16]| String::from_utf16(units).ok();
     let payload = match (kind == SyntaxKind::StringLiteral, operation) {
-        (_, "same") => record.data().clone(),
+        (_, "same") => record.data(),
         // `createStringLiteral(after, node.singleQuote)` leaves the escape
         // marker unset. The marker is a node property the generic update
         // keeps, so the route expresses the cooked update only where the
         // marker is unset already (a synthesized literal).
         (true, "cooked") if has_extended_unicode_escape.is_some() => return Ok(None),
-        (true, "cooked") => NodeData::StringLiteral(Box::new(StringLiteralData {
+        (true, "cooked") => NodeData::StringLiteral(StringLiteralData {
             text: push_units(arena, node, after)?,
-        })),
+        }),
         (false, "cooked") => template_payload(kind, push_units(arena, node, after)?, raw_text),
         (false, "raw") => match scalar(after) {
             Some(raw) => {
@@ -452,7 +452,7 @@ fn factory_case(case: &Value, route: Route) -> Outcome {
                     let text = arena.push_text(source, b"abc")?;
                     let literal = arena.factory().create_node(
                         source,
-                        NodeData::StringLiteral(Box::new(StringLiteralData { text })),
+                        NodeData::StringLiteral(StringLiteralData { text }),
                         TransformFlags::NONE,
                     )?;
                     arena
@@ -577,7 +577,7 @@ impl Updater {
                 for span_id in span_ids {
                     let span = TransformNode::new(source, span_id);
                     let NodeData::TemplateSpan(span_data) =
-                        context.arena().node(span)?.data().clone()
+                        context.arena().node(span)?.data()
                     else {
                         unreachable!("template span");
                     };
@@ -632,7 +632,7 @@ impl Transformer for Updater {
     ) -> Result<TransformRoot, TransformError> {
         let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
-        let NodeData::SourceFile(file) = context.arena().node(root_node)?.data().clone() else {
+        let NodeData::SourceFile(file) = context.arena().node(root_node)?.data() else {
             unreachable!("source file root");
         };
         let statements_array = TransformNodeArray::new(source, file.statements.unwrap());
@@ -642,7 +642,7 @@ impl Transformer for Updater {
         for statement_id in statement_ids {
             let statement = TransformNode::new(source, statement_id);
             let NodeData::ExpressionStatement(data) =
-                context.arena().node(statement)?.data().clone()
+                context.arena().node(statement)?.data()
             else {
                 statements.push(statement);
                 continue;

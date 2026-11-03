@@ -66,12 +66,12 @@ impl Transformer for LiteralTransformer {
         if self.origin == "clone" {
             name = context.factory()?.clone_node(name)?;
         } else if self.origin == "synthetic" {
-            let data = context.arena().node(name)?.data().clone();
+            let data = context.arena().node(name)?.data();
             name = context
                 .factory()?
                 .create_node(source, data, TransformFlags::NONE)?;
         }
-        let data = context.arena().node(name)?.data().clone();
+        let data = context.arena().node(name)?.data();
         let literal = match data {
             NodeData::Identifier(identifier) => {
                 let text = context
@@ -79,7 +79,7 @@ impl Transformer for LiteralTransformer {
                     .push_text(source, identifier.text().as_bytes())?;
                 context.factory()?.create_node(
                     source,
-                    NodeData::StringLiteral(Box::new(StringLiteralData { text })),
+                    NodeData::StringLiteral(StringLiteralData { text }),
                     TransformFlags::NONE,
                 )?
             }

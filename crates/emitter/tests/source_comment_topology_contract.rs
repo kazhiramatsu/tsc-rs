@@ -795,7 +795,7 @@ fn update_generator_yield_operand(
     };
     let statement = first_statement(context, source, body_statements);
 
-    let mut yield_data = context.arena().node(yield_expression)?.data().clone();
+    let mut yield_data = context.arena().node(yield_expression)?.data();
     match &mut yield_data {
         NodeData::YieldExpression(data) => data.expression = Some(operand.node()),
         _ => panic!("generator statement is a yield expression"),
@@ -817,7 +817,7 @@ fn update_generator_yield_operand(
     let updated_body_statements = context
         .factory()?
         .update_node_array(body_statements, vec![updated_statement])?;
-    let mut body_data = context.arena().node(body)?.data().clone();
+    let mut body_data = context.arena().node(body)?.data();
     match &mut body_data {
         NodeData::Block(data) => data.statements = Some(updated_body_statements.array()),
         _ => unreachable!(),
@@ -827,7 +827,7 @@ fn update_generator_yield_operand(
         .factory()?
         .update_node(body, body_data, body_flags)?;
 
-    let mut function_data = context.arena().node(function)?.data().clone();
+    let mut function_data = context.arena().node(function)?.data();
     match &mut function_data {
         NodeData::FunctionDeclaration(data) => data.body = Some(updated_body.node()),
         _ => unreachable!(),
