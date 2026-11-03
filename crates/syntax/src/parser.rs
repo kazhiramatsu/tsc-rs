@@ -7118,14 +7118,12 @@ impl<'text> Parser<'text> {
         )
     }
 
+    /// Whether `modifiers` holds a modifier of `kind` (a modifier keyword):
+    /// the array's modifier flags tell.
     fn modifiers_contain(&self, modifiers: Option<crate::NodeArrayId>, kind: SyntaxKind) -> bool {
-        modifiers.is_some_and(|list| {
-            self.arena
-                .node_array(list)
-                .nodes
-                .iter()
-                .any(|&modifier| self.arena.node(modifier).kind == kind)
-        })
+        let flag = crate::utilities::modifier_to_flag(kind);
+        debug_assert!(!flag.is_empty());
+        modifiers.is_some_and(|list| self.arena.node_array(list).modifier_flags.intersects(flag))
     }
 
     fn is_parameter_name_start(&self) -> bool {
@@ -9490,28 +9488,15 @@ impl<'text> Parser<'text> {
         let node = self.arena.node(id);
         match &node.data() {
             NodeData::ImportEqualsDeclaration(data) => {
-                self.statement_modifiers(id).is_some_and(|modifiers| {
-                    self.arena
-                        .node_array(modifiers)
-                        .nodes
-                        .iter()
-                        .any(|modifier| {
-                            self.arena.node(*modifier).kind == SyntaxKind::ExportKeyword
-                        })
-                }) || data.module_reference.is_some_and(|reference| {
-                    self.arena.node(reference).kind == SyntaxKind::ExternalModuleReference
-                })
+                self.modifiers_contain(self.statement_modifiers(id), SyntaxKind::ExportKeyword)
+                    || data.module_reference.is_some_and(|reference| {
+                        self.arena.node(reference).kind == SyntaxKind::ExternalModuleReference
+                    })
             }
             NodeData::ImportDeclaration(_)
             | NodeData::ExportAssignment(_)
             | NodeData::ExportDeclaration(_) => true,
-            _ => self.statement_modifiers(id).is_some_and(|modifiers| {
-                self.arena
-                    .node_array(modifiers)
-                    .nodes
-                    .iter()
-                    .any(|modifier| self.arena.node(*modifier).kind == SyntaxKind::ExportKeyword)
-            }),
+            _ => self.modifiers_contain(self.statement_modifiers(id), SyntaxKind::ExportKeyword),
         }
     }
 
