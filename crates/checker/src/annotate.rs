@@ -9653,7 +9653,7 @@ impl<'a> CheckerState<'a> {
                 let value = self.get_enum_member_value(member)?.value;
                 let base = match value {
                     Some(EvalValue::Str(text)) => self.tables.get_enum_literal_type(
-                        LiteralValue::String(&tsc_types::TemplateText::from_js(text.as_js())),
+                        LiteralValue::String(text.as_js()),
                         symbol,
                         member_symbol,
                     ),

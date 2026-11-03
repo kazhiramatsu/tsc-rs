@@ -15,9 +15,10 @@ use crate::names;
 ///
 /// `Eq` and `Hash` compare ids: two names are equal exactly when their
 /// texts are, so a hash-keyed container hashes a `u32`. `Ord` is the text's
-/// byte order, not JavaScript order: use `cmp_utf16` for upstream explicit
-/// string comparison; do not build identity BTreeMaps or use default sorting
-/// to implement JS name order.
+/// byte order (code point order), which is tsgo's `strings.Compare` of its
+/// Go strings; `cmp_utf16` is JavaScript's UTF-16 order, for the places that
+/// follow a JavaScript comparison. Do not build identity BTreeMaps keyed by
+/// names.
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct EscapedName(u32);
 
@@ -110,7 +111,7 @@ impl EscapedName {
     #[inline]
     #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn as_js(&self) -> JsStr<'static> {
-        names::text(self.0).as_js()
+        names::text(self.0)
     }
 
     #[cfg_attr(feature = "perf-counters", track_caller)]
@@ -157,7 +158,7 @@ impl fmt::Display for EscapedName {
 impl PartialEq<String> for EscapedName {
     #[cfg_attr(feature = "perf-counters", track_caller)]
     fn eq(&self, other: &String) -> bool {
-        *names::text(self.0) == **other
+        names::text(self.0).as_bytes() == other.as_bytes()
     }
 }
 
@@ -179,7 +180,9 @@ impl Ord for EscapedName {
         if self.0 == other.0 {
             Ordering::Equal
         } else {
-            names::text(self.0).cmp(names::text(other.0))
+            names::text(self.0)
+                .as_bytes()
+                .cmp(names::text(other.0).as_bytes())
         }
     }
 }
@@ -193,14 +196,14 @@ impl PartialOrd for EscapedName {
 impl PartialEq<str> for EscapedName {
     #[cfg_attr(feature = "perf-counters", track_caller)]
     fn eq(&self, other: &str) -> bool {
-        *names::text(self.0) == *other
+        names::text(self.0).as_bytes() == other.as_bytes()
     }
 }
 
 impl PartialEq<&str> for EscapedName {
     #[cfg_attr(feature = "perf-counters", track_caller)]
     fn eq(&self, other: &&str) -> bool {
-        *names::text(self.0) == **other
+        names::text(self.0).as_bytes() == other.as_bytes()
     }
 }
 

@@ -270,7 +270,7 @@ impl Completions<'_, '_, '_> {
                     if let Some(LiteralValue::String(text)) =
                         self.request.state.tables.literal_value(ty)
                     {
-                        if text.to_js_string().to_string_lossy() == name {
+                        if text.to_string_lossy() == name {
                             return Ok(create_completion_details(item, name, "", markdown));
                         }
                     }

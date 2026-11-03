@@ -62,7 +62,7 @@ fn enum_values_evaluate_auto_and_constant_expressions() {
             assert_eq!(literal_number(state, c), 14.0);
             let d = annotation_type(state, "d");
             match state.tables.literal_value(d) {
-                Some(tsc_types::LiteralValue::String(text)) => assert!(text.eq_utf8("xy")),
+                Some(tsc_types::LiteralValue::String(text)) => assert!(text == "xy"),
                 other => panic!("expected string literal, got {other:?}"),
             }
             assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);

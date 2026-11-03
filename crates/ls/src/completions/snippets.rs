@@ -904,7 +904,7 @@ fn literal_expression(
             factory.create_numeric_literal(target, tsc_types::js_number_to_string(value))
         }
         tsc_types::LiteralValue::String(text) => {
-            factory.create_string_literal(target, text.to_js_string(), single_quote)
+            factory.create_string_literal(target, text.to_owned(), single_quote)
         }
     }
 }

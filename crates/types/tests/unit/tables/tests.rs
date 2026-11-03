@@ -467,10 +467,9 @@ fn template_literal_types_fold_and_intern() {
     assert_ne!(folded_surrogate, folded_replacement);
     assert_eq!(
         t.literal_value(folded_surrogate),
-        Some(LiteralValue::String(&TemplateText::from_utf16(&[
-            0xD800,
-            b'x' as u16
-        ])))
+        Some(LiteralValue::String(
+            crate::JsString::from_code_units(&[0xD800, b'x' as u16]).as_js()
+        ))
     );
     // `${string}` with empty texts collapses to string (62075-62078).
     let s = t.get_template_literal_type(&["".into(), "".into()], &[string]);
@@ -672,4 +671,34 @@ fn template_literal_types_over_tsgo_limits_are_too_large() {
     assert!(fits.is_ok());
     let over = try_template(&mut t, &["a".repeat(half), "a".repeat(half + 1)], &[string]);
     assert_eq!(over, Err(TemplateLiteralTooLarge));
+}
+
+/// A string literal's text is one type whichever form looks it up: a `str`,
+/// a JavaScript string, UTF-16 units or a template text (a lone surrogate
+/// stays distinct from U+FFFD, and a surrogate pair is its scalar).
+#[test]
+fn a_string_literal_text_is_one_type_from_every_entry() {
+    let mut t = tables();
+    let plain = t.get_string_literal_type("abc");
+    assert_eq!(
+        t.get_string_literal_type_from_utf16(&[0x61, 0x62, 0x63]),
+        plain
+    );
+    assert_eq!(
+        t.get_string_literal_type_from_text(&TemplateText::from_utf8("abc")),
+        plain
+    );
+    assert_eq!(
+        t.literal_value(plain),
+        Some(LiteralValue::String("abc".into()))
+    );
+    let lone = t.get_string_literal_type_from_utf16(&[0xD800]);
+    assert_eq!(
+        t.get_string_literal_type(crate::JsString::from_code_units(&[0xD800]).as_js()),
+        lone
+    );
+    assert_ne!(t.get_string_literal_type("\u{FFFD}"), lone);
+    let pair = t.get_string_literal_type_from_utf16(&[0xD83D, 0xDE00]);
+    assert_eq!(t.get_string_literal_type("\u{1F600}"), pair);
+    assert_ne!(pair, plain);
 }

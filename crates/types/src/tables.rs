@@ -243,16 +243,11 @@ pub struct TypeTables {
     pub exact_optional_property_types: bool,
     pub intrinsics: Intrinsics,
     // ---- tsc interning maps (_tsc.js 46988-47009); M3 subset ----
-    /// stringLiteralTypes (46992), keyed by the string value.
-    string_literal_types: HashMap<TemplateText, TypeId>,
-    /// Fast borrowed lookup for the overwhelmingly common scalar
-    /// UTF-8 entry. The UTF-16 map above remains canonical and owns
-    /// every value; this mirror avoids allocating an encoded key on
-    /// each `get_string_literal_type(&str)` cache hit.
-    /// The WTF-8 bytes of every UTF-8 literal text, so a lookup by
-    /// JavaScript string never validates the text (property-name lookups
-    /// were 5% of a real program's check in from_utf8).
-    utf8_string_literal_types: HashMap<Vec<u8>, TypeId>,
+    /// stringLiteralTypes (46992), keyed by the string value: each entry
+    /// is a text's id in `literal_texts` and its type, found by the hash
+    /// of the text's canonical WTF-8 bytes (byte equality is UTF-16
+    /// equality), so the text is held once.
+    string_literal_types: hashbrown::HashTable<(LiteralTextId, TypeId)>,
     /// Interned type lists (see [`TypeTables::intern_type_list`]), all in
     /// one list: each list is its length (as the index of a `TypeId`)
     /// followed by its items, and a list's id is its length's position, so
@@ -265,10 +260,13 @@ pub struct TypeTables {
     scratch_list: Vec<TypeId>,
     /// The interned empty list.
     empty_list: TypeListId,
-    /// What the type records refer to by id: string literal texts, bigint
-    /// values, intrinsic names, tuple target and template literal payloads,
-    /// and the alias of each aliased type.
-    literal_texts: Vec<TemplateText>,
+    /// What the type records refer to by id: string literal texts
+    /// (canonical WTF-8), bigint values, intrinsic names, tuple target and
+    /// template literal payloads, and the alias of each aliased type.
+    literal_texts: LiteralTexts,
+    /// Room for the bytes of an ASCII UTF-16 text being looked up (a
+    /// template literal's folded text), reused across lookups.
+    literal_scratch: Vec<u8>,
     bigints: Vec<PseudoBigInt>,
     intrinsic_names: Vec<IntrinsicData>,
     tuple_targets: Vec<TupleTargetData>,
@@ -438,6 +436,50 @@ fn list_at(items: &[TypeId], id: TypeListId) -> &[TypeId] {
     &items[at + 1..at + 1 + len]
 }
 
+/// The string literal texts of a checker's types, one after another in one
+/// byte list (canonical WTF-8), each found by its span: a read is a slice,
+/// with no allocation per text and no inline-or-heap branch.
+#[derive(Clone, Debug, Default)]
+struct LiteralTexts {
+    bytes: Vec<u8>,
+    spans: Vec<(u32, u32)>,
+}
+
+impl LiteralTexts {
+    #[inline]
+    fn bytes(&self, id: LiteralTextId) -> &[u8] {
+        let (start, end) = self.spans[id.index() as usize];
+        &self.bytes[start as usize..end as usize]
+    }
+
+    #[inline]
+    fn get(&self, id: LiteralTextId) -> crate::JsStr<'_> {
+        crate::JsStr::from_canonical_bytes(self.bytes(id))
+    }
+
+    fn push(&mut self, text: crate::JsStr<'_>) -> LiteralTextId {
+        let id = LiteralTextId::new(self.spans.len() as u32);
+        let start = u32::try_from(self.bytes.len()).expect("a checker's literal texts fit 4 GiB");
+        self.bytes.extend_from_slice(text.as_bytes());
+        let end = u32::try_from(self.bytes.len()).expect("a checker's literal texts fit 4 GiB");
+        self.spans.push((start, end));
+        id
+    }
+
+    fn heap_bytes(&self) -> usize {
+        self.bytes.capacity() + self.spans.capacity() * std::mem::size_of::<(u32, u32)>()
+    }
+}
+
+/// The hash of a string literal's text, by its canonical WTF-8 bytes.
+#[inline]
+fn hash_literal_text(bytes: &[u8]) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = rustc_hash::FxHasher::default();
+    bytes.hash(&mut hasher);
+    hasher.finish()
+}
+
 fn hash_type_list(types: &[TypeId]) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut hasher = rustc_hash::FxHasher::default();
@@ -499,12 +541,7 @@ impl TypeTables {
         };
         // What the records refer to by id (alias argument lists and member
         // lists are interned, counted with the lists).
-        usage.type_heap_bytes = self
-            .literal_texts
-            .iter()
-            .map(TemplateText::heap_bytes)
-            .sum::<usize>()
-            + self.literal_texts.capacity() * std::mem::size_of::<TemplateText>()
+        usage.type_heap_bytes = self.literal_texts.heap_bytes()
             + self
                 .bigints
                 .iter()
@@ -546,18 +583,8 @@ impl TypeTables {
                 })
                 .sum::<usize>();
         usage.string_literals = self.string_literal_types.len();
-        usage.string_literal_map_bytes = map_bytes(&self.string_literal_types)
-            + self
-                .string_literal_types
-                .keys()
-                .map(TemplateText::heap_bytes)
-                .sum::<usize>()
-            + map_bytes(&self.utf8_string_literal_types)
-            + self
-                .utf8_string_literal_types
-                .keys()
-                .map(Vec::capacity)
-                .sum::<usize>();
+        usage.string_literal_map_bytes = self.string_literal_types.capacity()
+            * (std::mem::size_of::<(LiteralTextId, TypeId)>() + 1);
         usage.type_lists = self.list_ids.len();
         usage.type_list_map_bytes = self.list_ids.capacity()
             * (std::mem::size_of::<TypeListId>() + 1)
@@ -646,13 +673,13 @@ impl TypeTables {
                 numeric_string: TypeId::new(0),
                 unique_literal: TypeId::new(0),
             },
-            string_literal_types: HashMap::default(),
-            utf8_string_literal_types: HashMap::default(),
+            string_literal_types: hashbrown::HashTable::new(),
             list_items: Vec::new(),
             scratch_list: Vec::new(),
             list_ids: hashbrown::HashTable::new(),
             empty_list: TypeListId::new(0),
-            literal_texts: Vec::new(),
+            literal_texts: LiteralTexts::default(),
+            literal_scratch: Vec::new(),
             bigints: Vec::new(),
             intrinsic_names: Vec::new(),
             tuple_targets: Vec::new(),
@@ -826,8 +853,8 @@ impl TypeTables {
 
     /// A string literal's text.
     #[inline]
-    pub fn literal_text(&self, id: LiteralTextId) -> &TemplateText {
-        &self.literal_texts[id.index() as usize]
+    pub fn literal_text(&self, id: LiteralTextId) -> crate::JsStr<'_> {
+        self.literal_texts.get(id)
     }
 
     /// A bigint literal's value.
@@ -1243,11 +1270,7 @@ impl TypeTables {
     /// value join the tables' lists.
     fn literal_data(&mut self, value: LiteralValue<'_>) -> LiteralData {
         match value {
-            LiteralValue::String(text) => {
-                let id = LiteralTextId::new(self.literal_texts.len() as u32);
-                self.literal_texts.push(text.clone());
-                LiteralData::String(id)
-            }
+            LiteralValue::String(text) => LiteralData::String(self.literal_texts.push(text)),
             LiteralValue::Number(value) => LiteralData::Number(NumberBits::new(value)),
             LiteralValue::BigInt(value) => {
                 let id = BigIntId::new(self.bigints.len() as u32);
@@ -1342,36 +1365,50 @@ impl TypeTables {
     pub fn get_string_literal_type<'a>(&mut self, value: impl Into<crate::JsStr<'a>>) -> TypeId {
         let value = value.into();
         crate::perf::bump(crate::perf::PerfCounter::StringLiteralLookups);
-        if let Some(&id) = self.utf8_string_literal_types.get(value.as_bytes()) {
+        let bytes = value.as_bytes();
+        let hash = hash_literal_text(bytes);
+        let texts = &self.literal_texts;
+        if let Some(&(_, id)) = self
+            .string_literal_types
+            .find(hash, |&(text, _)| texts.bytes(text) == bytes)
+        {
             crate::perf::bump(crate::perf::PerfCounter::StringLiteralHits);
             return id;
         }
-        let Some(value) = value.as_str() else {
-            return self.get_string_literal_type_from_text(&TemplateText::from_js(value));
-        };
-        self.get_string_literal_type_from_text(&TemplateText::from_utf8(value))
-    }
-
-    /// Lossless JavaScript-string entry. The cache key and literal
-    /// payload both retain every UTF-16 code unit, including unpaired
-    /// surrogates.
-    pub fn get_string_literal_type_from_text(&mut self, value: &TemplateText) -> TypeId {
-        if let Some(&id) = self.string_literal_types.get(value) {
-            crate::perf::bump(crate::perf::PerfCounter::StringLiteralHits);
-            return id;
-        }
-        let data = self.literal_data(LiteralValue::String(value));
-        let id = self.create_literal_type(TypeFlags::STRING_LITERAL, data, None);
-        self.string_literal_types.insert(value.clone(), id);
-        if let Some(value) = value.to_utf8() {
-            self.utf8_string_literal_types
-                .insert(value.into_bytes(), id);
-        }
+        let text = self.literal_texts.push(value);
+        let id =
+            self.create_literal_type(TypeFlags::STRING_LITERAL, LiteralData::String(text), None);
+        let texts = &self.literal_texts;
+        self.string_literal_types
+            .insert_unique(hash, (text, id), |&(text, _)| {
+                hash_literal_text(texts.bytes(text))
+            });
         id
     }
 
+    /// The string literal type of a text held as UTF-16 code units (a
+    /// template literal's text), including unpaired surrogates.
+    pub fn get_string_literal_type_from_text(&mut self, value: &TemplateText) -> TypeId {
+        self.get_string_literal_type_from_utf16(value.units())
+    }
+
     pub fn get_string_literal_type_from_utf16(&mut self, units: &[u16]) -> TypeId {
-        self.get_string_literal_type_from_text(&TemplateText::from_utf16(units))
+        // ASCII units are their own bytes, which are canonical WTF-8: narrow
+        // them in one pass that also notes any unit past ASCII.
+        let mut text = std::mem::take(&mut self.literal_scratch);
+        text.clear();
+        let mut high = 0u16;
+        text.extend(units.iter().map(|&unit| {
+            high |= unit;
+            unit as u8
+        }));
+        let id = if high < 0x80 {
+            self.get_string_literal_type(crate::JsStr::from_canonical_bytes(&text))
+        } else {
+            self.get_string_literal_type(crate::JsString::from_code_units(units).as_js())
+        };
+        self.literal_scratch = text;
+        id
     }
 
     /// tsc-port: getNumberLiteralType @6.0.3
@@ -1423,7 +1460,7 @@ impl TypeTables {
     ) -> TypeId {
         let (key, flags) = match value {
             LiteralValue::String(text) => (
-                EnumLiteralKey::String(text.clone()),
+                EnumLiteralKey::String(text.to_owned()),
                 TypeFlags::from_bits(
                     TypeFlags::ENUM_LITERAL.bits() | TypeFlags::STRING_LITERAL.bits(),
                 ),
@@ -3218,7 +3255,7 @@ impl TypeTables {
         let ty = self.type_of(id);
         if ty.flags.intersects(TypeFlags::STRING_LITERAL) {
             if let Some(LiteralValue::String(value)) = self.literal_value(id) {
-                return Some(value.clone());
+                return Some(TemplateText::from_js(value));
             }
         }
         if ty.flags.intersects(TypeFlags::NUMBER_LITERAL) {
@@ -3652,7 +3689,7 @@ fn number_map_key(value: f64) -> u64 {
 /// `A = 0 / 0` in non-const enums).
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum EnumLiteralKey {
-    String(TemplateText),
+    String(crate::JsString),
     Number(u64),
 }
 

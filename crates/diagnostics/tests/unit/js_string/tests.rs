@@ -400,3 +400,26 @@ fn byte_truncation_preserves_canonical_prefixes_and_rejects_partial_code_points(
         }
     }
 }
+
+#[test]
+fn canonical_bytes_are_told_from_other_bytes() {
+    // Canonical: scalars, lone surrogates, a trail before a lead.
+    for units in [
+        &[0x41, 0xd83d, 0xde00][..],
+        &[0xd800],
+        &[0xdc00, 0xd800],
+        &[0xd800, 0x41, 0xdc00],
+        &[],
+    ] {
+        let text = JsString::from_code_units(units);
+        assert!(super::is_canonical_wtf8(text.as_bytes()), "{units:x?}");
+        assert_eq!(JsStr::from_canonical_bytes(text.as_bytes()), text.as_js());
+    }
+    // A lead followed by a trail must be one four-byte scalar.
+    assert!(!super::is_canonical_wtf8(&[
+        0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80
+    ]));
+    // Not WTF-8 at all.
+    assert!(!super::is_canonical_wtf8(&[0xff]));
+    assert!(!super::is_canonical_wtf8(&[0xed, 0xa0]));
+}
