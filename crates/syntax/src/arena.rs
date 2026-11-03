@@ -762,6 +762,15 @@ impl NodeArena {
         self.nodes[index].encode(&data, js_doc, &mut self.tails, false);
     }
 
+    /// Give `id` another kind and payload (the API decoder reshapes some of
+    /// tsgo's nodes into tsc's), keeping its JSDoc attachment.
+    pub fn reshape(&mut self, id: NodeId, kind: SyntaxKind, data: NodeData) {
+        let index = self.node_index(id);
+        let js_doc = self.nodes[index].js_doc();
+        self.nodes[index].kind = kind;
+        self.nodes[index].encode(&data, js_doc, &mut self.tails, false);
+    }
+
     /// Write `id`'s payload and JSDoc attachment together.
     pub(crate) fn write_payload(
         &mut self,
@@ -1054,7 +1063,13 @@ impl NodeArena {
 
     /// A record of `kind` with an empty payload, written later
     /// ([`write_payload`](Self::write_payload)).
-    fn push_record(&mut self, kind: SyntaxKind, pos: usize, end: usize, flags: NodeFlags) -> NodeId {
+    fn push_record(
+        &mut self,
+        kind: SyntaxKind,
+        pos: usize,
+        end: usize,
+        flags: NodeFlags,
+    ) -> NodeId {
         let offset = u32::try_from(self.nodes.len()).expect("node arena length exceeds u32");
         let id = NodeId::new(
             self.node_base

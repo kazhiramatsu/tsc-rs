@@ -381,7 +381,7 @@ impl<'context> TargetVisitor<'context> {
             self.nodes.insert(id, transformed);
             return Ok(transformed);
         }
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
         let transformed = match record.data() {
             NodeData::BinaryExpression(data) => Some(self.visit_binary_expression(original, data)?),
             NodeData::CallExpression(data) if self.pass == TargetPass::Es2020 => Some(
@@ -754,7 +754,7 @@ impl<'context> TargetVisitor<'context> {
         capture_receiver: bool,
         is_delete: bool,
     ) -> Result<VisitedExpression, TransformError> {
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
         match record.data() {
             NodeData::ParenthesizedExpression(data) => self
                 .visit_non_optional_parenthesized_expression(
@@ -1397,7 +1397,7 @@ impl<'context> TargetVisitor<'context> {
         node: TransformNode,
         root: bool,
     ) -> Result<bool, TransformError> {
-        let record = self.context.arena().node(node)?.clone();
+        let record = *self.context.arena().node(node)?;
         if !root && is_function_scope_kind(record.kind) {
             return Ok(false);
         }
@@ -1633,8 +1633,7 @@ impl<'context> TargetVisitor<'context> {
         parameter: TransformNode,
         binding_alias: Option<&TargetBinding>,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data()
-        else {
+        let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Parameter,
                 field: "parameter data",
@@ -1732,11 +1731,8 @@ impl<'context> TargetVisitor<'context> {
             data.initializer = None;
         }
 
-        let flags = flags_after_update(
-            self.context.arena(),
-            parameter,
-            &NodeData::Parameter(data.clone()),
-        )?;
+        let flags =
+            flags_after_update(self.context.arena(), parameter, &NodeData::Parameter(data))?;
         self.context
             .factory()?
             .update_node(parameter, NodeData::Parameter(data), flags)
@@ -1756,11 +1752,7 @@ impl<'context> TargetVisitor<'context> {
             });
         };
         data.statements = self.merge_statement_array(data.statements, lexical_environment)?;
-        let flags = flags_after_update(
-            self.context.arena(),
-            root,
-            &NodeData::SourceFile(data.clone()),
-        )?;
+        let flags = flags_after_update(self.context.arena(), root, &NodeData::SourceFile(data))?;
         self.context
             .factory()?
             .update_node(root, NodeData::SourceFile(data), flags)
@@ -1787,8 +1779,7 @@ impl<'context> TargetVisitor<'context> {
                 unreachable!("block kind has block data")
             };
             data.statements = self.merge_statement_array(data.statements, lexical_environment)?;
-            let flags =
-                flags_after_update(self.context.arena(), body, &NodeData::Block(data.clone()))?;
+            let flags = flags_after_update(self.context.arena(), body, &NodeData::Block(data))?;
             self.context
                 .factory()?
                 .update_node(body, NodeData::Block(data), flags)?

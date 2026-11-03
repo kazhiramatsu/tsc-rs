@@ -387,7 +387,7 @@ impl<'context> Es2018Visitor<'context> {
             return Ok(Some(id));
         }
 
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
         let transformed = match record.data() {
             NodeData::TaggedTemplateExpression(_) => {
                 Some(self.visit_tagged_template_expression(original)?.node())
@@ -823,7 +823,7 @@ impl<'context> Es2018Visitor<'context> {
         assignment_target: bool,
         facts: &mut AsyncGeneratorSuperFacts,
     ) -> Result<(), TransformError> {
-        let record = self.context.arena().node(node)?.clone();
+        let record = *self.context.arena().node(node)?;
         let nested_mode = match record.data() {
             NodeData::FunctionDeclaration(data) => {
                 Some(self.function_mode(data.modifiers, data.asterisk_token)?)
@@ -1368,7 +1368,7 @@ impl<'context> Es2018Visitor<'context> {
                 },
             )?);
         }
-        let mut unwrapped = data.clone();
+        let mut unwrapped = data;
         unwrapped.initializer = Some(initializer.node());
         if !self.for_of_head_contains_object_rest(&unwrapped)? {
             return Ok((original, data));
@@ -1436,7 +1436,7 @@ impl<'context> Es2018Visitor<'context> {
             .set_text_range(block, body_location)?;
         data.initializer = Some(list.node());
         data.statement = Some(block.node());
-        let updated_data = NodeData::ForOfStatement(data.clone());
+        let updated_data = NodeData::ForOfStatement(data);
         let flags = flags_after_update(self.context.arena(), original, &updated_data)?;
         let updated = self
             .context
@@ -1675,15 +1675,14 @@ impl<'context> Es2018Visitor<'context> {
                 field: "statement",
             },
         )?;
-        let body_location = if let NodeData::Block(block) =
-            self.context.arena().node(visited_body)?.data()
-        {
-            statements.extend(self.array_nodes(block.statements)?);
-            Some(block.statements)
-        } else {
-            statements.push(visited_body);
-            None
-        };
+        let body_location =
+            if let NodeData::Block(block) = self.context.arena().node(visited_body)?.data() {
+                statements.extend(self.array_nodes(block.statements)?);
+                Some(block.statements)
+            } else {
+                statements.push(visited_body);
+                None
+            };
         let body = self.create_block(statements, true)?;
         if let Some(statements_location) = body_location {
             self.context.factory()?.set_text_range(body, visited_body)?;
@@ -1752,7 +1751,7 @@ impl<'context> Es2018Visitor<'context> {
                     let flags = flags_after_update(
                         self.context.arena(),
                         declaration,
-                        &NodeData::VariableDeclaration(data.clone()),
+                        &NodeData::VariableDeclaration(data),
                     )?;
                     rebound.push(self.context.factory()?.update_node(
                         declaration,
@@ -1768,7 +1767,7 @@ impl<'context> Es2018Visitor<'context> {
                 let flags = flags_after_update(
                     self.context.arena(),
                     initializer,
-                    &NodeData::VariableDeclarationList(list.clone()),
+                    &NodeData::VariableDeclarationList(list),
                 )?;
                 let list = self.context.factory()?.update_node(
                     initializer,
@@ -1946,7 +1945,7 @@ impl<'context> Es2018Visitor<'context> {
                     let flags = flags_after_update(
                         self.context.arena(),
                         declaration,
-                        &NodeData::VariableDeclaration(declaration_data.clone()),
+                        &NodeData::VariableDeclaration(declaration_data),
                     )?;
                     rebound.push(self.context.factory()?.update_node(
                         declaration,
@@ -1963,7 +1962,7 @@ impl<'context> Es2018Visitor<'context> {
                 let flags = flags_after_update(
                     self.context.arena(),
                     initializer,
-                    &NodeData::VariableDeclarationList(list_data.clone()),
+                    &NodeData::VariableDeclarationList(list_data),
                 )?;
                 let list = self.context.factory()?.update_node(
                     initializer,
@@ -2163,7 +2162,7 @@ impl<'context> Es2018Visitor<'context> {
         let variable_flags = flags_after_update(
             self.context.arena(),
             variable,
-            &NodeData::VariableDeclaration(variable_data.clone()),
+            &NodeData::VariableDeclaration(variable_data),
         )?;
         let variable = self.context.factory()?.update_node(
             variable,
@@ -2173,8 +2172,7 @@ impl<'context> Es2018Visitor<'context> {
         data.variable_declaration = Some(variable.node());
 
         let block = self.visit_required(data.block, SyntaxKind::CatchClause, "block")?;
-        let NodeData::Block(mut block_data) = self.context.arena().node(block)?.data()
-        else {
+        let NodeData::Block(mut block_data) = self.context.arena().node(block)?.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::CatchClause,
                 field: "block data",
@@ -2196,11 +2194,8 @@ impl<'context> Es2018Visitor<'context> {
             };
             block_data.statements = Some(statements.array());
         }
-        let block_flags = flags_after_update(
-            self.context.arena(),
-            block,
-            &NodeData::Block(block_data.clone()),
-        )?;
+        let block_flags =
+            flags_after_update(self.context.arena(), block, &NodeData::Block(block_data))?;
         let block =
             self.context
                 .factory()?
@@ -2633,9 +2628,7 @@ impl<'context> Es2018Visitor<'context> {
         let mut follows_object_rest = false;
         let mut deferred_helpers = DeferredParameterHelpers::default();
         for parameter in self.array_nodes(Some(parameters))? {
-            let NodeData::Parameter(mut data) =
-                self.context.arena().node(parameter)?.data()
-            else {
+            let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data() else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::Parameter,
                     field: "parameter",
@@ -2806,11 +2799,8 @@ impl<'context> Es2018Visitor<'context> {
                 };
             }
         }
-        let flags = flags_after_update(
-            self.context.arena(),
-            parameter,
-            &NodeData::Parameter(data.clone()),
-        )?;
+        let flags =
+            flags_after_update(self.context.arena(), parameter, &NodeData::Parameter(data))?;
         self.context
             .factory()?
             .update_node(parameter, NodeData::Parameter(data), flags)
@@ -4073,8 +4063,7 @@ impl<'context> Es2018Visitor<'context> {
         &self,
         property_name: TransformNode,
     ) -> Result<ObjectPatternPropertyKey, TransformError> {
-        let NodeData::ComputedPropertyName(data) =
-            self.context.arena().node(property_name)?.data()
+        let NodeData::ComputedPropertyName(data) = self.context.arena().node(property_name)?.data()
         else {
             return Ok(ObjectPatternPropertyKey::Static(property_name));
         };
@@ -5230,11 +5219,7 @@ impl<'context> Es2018Visitor<'context> {
             });
         };
         data.statements = self.merge_statement_array(data.statements, lexical_environment)?;
-        let flags = flags_after_update(
-            self.context.arena(),
-            root,
-            &NodeData::SourceFile(data.clone()),
-        )?;
+        let flags = flags_after_update(self.context.arena(), root, &NodeData::SourceFile(data))?;
         self.context
             .factory()?
             .update_node(root, NodeData::SourceFile(data), flags)
@@ -5275,7 +5260,7 @@ impl<'context> Es2018Visitor<'context> {
             unreachable!("function body was normalized to a block")
         };
         data.statements = self.merge_statement_array(data.statements, lexical_environment)?;
-        let flags = flags_after_update(self.context.arena(), body, &NodeData::Block(data.clone()))?;
+        let flags = flags_after_update(self.context.arena(), body, &NodeData::Block(data))?;
         Ok(Some(
             self.context
                 .factory()?

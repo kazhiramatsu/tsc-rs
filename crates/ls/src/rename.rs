@@ -552,8 +552,7 @@ impl Request<'_, '_> {
                 let kind = entry.kind;
                 let parent = self.state.binder.node_record(node).parent;
                 let name = self.node_text(Touching::Node(original));
-                let parent_data =
-                    parent.map(|parent| self.state.binder.node_record(parent).data());
+                let parent_data = parent.map(|parent| self.state.binder.node_record(parent).data());
                 let is_shorthand_assignment =
                     matches!(parent_data, Some(NodeData::ShorthandPropertyAssignment(_)));
                 let is_binding_name = parent.is_some_and(|parent| {

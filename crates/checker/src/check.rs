@@ -2225,8 +2225,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(Some(symbol));
         }
-        let NodeData::QualifiedName(QualifiedNameData { left, right }) = self.data_of(name)
-        else {
+        let NodeData::QualifiedName(QualifiedNameData { left, right }) = self.data_of(name) else {
             return Ok(None);
         };
         let Some(left) = left else {
@@ -11857,8 +11856,7 @@ impl<'a> CheckerState<'a> {
                 let parameter = data
                     .type_parameter
                     .expect("MappedType carries its type parameter");
-                let NodeData::TypeParameter(parameter_data) = state.data_of(parameter)
-                else {
+                let NodeData::TypeParameter(parameter_data) = state.data_of(parameter) else {
                     unreachable!("MappedType type_parameter is a TypeParameter node");
                 };
                 let name = state.entity_name_text(
@@ -12008,8 +12006,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let mut text = crate::concat_js(&[&"`", &(head_text)]);
                 for span in self.nodes_of(data.template_spans) {
-                    let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span)
-                    else {
+                    let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span) else {
                         unreachable!(
                             "TemplateLiteralType template_spans contain TemplateLiteralTypeSpan"
                         );

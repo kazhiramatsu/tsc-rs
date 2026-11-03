@@ -280,7 +280,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return Ok(*mapped);
         }
         let original = self.node(id);
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
 
         if matches!(record.data(), NodeData::Identifier(_))
             && self.lexical_arguments_binding.is_some()
@@ -376,9 +376,11 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             NodeData::SetAccessor(data) => Some(self.with_non_top_level_context(|visitor| {
                 visitor.visit_set_accessor(original, data)
             })?),
-            NodeData::Constructor(data) => Some(self.with_non_top_level_context(|visitor| {
-                visitor.visit_constructor(original, data)
-            })?),
+            NodeData::Constructor(data) => {
+                Some(self.with_non_top_level_context(|visitor| {
+                    visitor.visit_constructor(original, data)
+                })?)
+            }
             NodeData::ClassDeclaration(data) => {
                 Some(self.with_non_top_level_context(|visitor| {
                     visitor.visit_class_boundary(original, NodeData::ClassDeclaration(data))
@@ -554,7 +556,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         properties: &mut Vec<CapturedSuperProperty>,
         has_element_access: &mut bool,
     ) -> Result<(), TransformError> {
-        let record = self.context.arena().node(node)?.clone();
+        let record = *self.context.arena().node(node)?;
         let owns_access = if matches!(
             record.kind,
             SyntaxKind::ClassDeclaration
@@ -1009,8 +1011,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                     parent,
                     field: "variable declaration list",
                 })?;
-        let NodeData::VariableDeclarationList(data) =
-            self.context.arena().node(list)?.data()
+        let NodeData::VariableDeclarationList(data) = self.context.arena().node(list)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent,
@@ -1073,8 +1074,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                         parent,
                         field: "receiver declaration",
                     })?;
-            let NodeData::VariableDeclaration(data) =
-                self.context.arena().node(first)?.data()
+            let NodeData::VariableDeclaration(data) = self.context.arena().node(first)?.data()
             else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent,
@@ -1592,11 +1592,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 .create_node_array(self.source, existing)?
         };
         data.statements = Some(statements.array());
-        let flags = flags_after_update(
-            self.context.arena(),
-            body_node,
-            &NodeData::Block(data.clone()),
-        )?;
+        let flags = flags_after_update(self.context.arena(), body_node, &NodeData::Block(data))?;
         let updated =
             self.context
                 .factory()?
@@ -2437,7 +2433,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 .create_node_array(self.source, statements)?
         };
         data.statements = Some(statements.array());
-        let flags = flags_after_update(self.context.arena(), body, &NodeData::Block(data.clone()))?;
+        let flags = flags_after_update(self.context.arena(), body, &NodeData::Block(data))?;
         self.context
             .factory()?
             .update_node(body, NodeData::Block(data), flags)

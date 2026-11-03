@@ -159,8 +159,10 @@ impl Tails {
             assert!(class < CLASSES, "a tail longer than a chunk");
         }
         let position = take_chunk(class);
-        self.chunks
-            .push((position, u8::try_from(class).expect("a chunk class fits u8")));
+        self.chunks.push((
+            position,
+            u8::try_from(class).expect("a chunk class fits u8"),
+        ));
         self.next = position;
         self.end = position + chunk_words(class);
     }

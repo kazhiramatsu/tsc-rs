@@ -1878,7 +1878,6 @@ impl RefState<'_, '_, '_, '_> {
             .binder
             .node_record(export_specifier)
             .data()
-            .clone()
         else {
             return Ok(());
         };

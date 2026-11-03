@@ -44,7 +44,7 @@ fn reference_walk(
     let node = arena
         .node_ref(source, id)
         .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, id)))?;
-    let record = arena.node(node)?.clone();
+    let record = *arena.node(node)?;
     let syntax = arena.source(source)?.syntax();
     let mut children = Vec::new();
     for_each_child(&syntax.arena, &record, |child| {

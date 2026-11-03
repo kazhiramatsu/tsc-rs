@@ -2470,7 +2470,12 @@ fn delimited_list_trailing_comma_is_the_list_extending_past_its_last_element() {
 
 #[test]
 fn delimited_list_reports_missing_commas_and_keeps_progressing() {
-    let mut parser = Parser::new("a.ts".into(), "this this)", LanguageVariant::Standard, false);
+    let mut parser = Parser::new(
+        "a.ts".into(),
+        "this this)",
+        LanguageVariant::Standard,
+        false,
+    );
     parser.next_token();
 
     let list = parser.parse_delimited_list(

@@ -1156,7 +1156,6 @@ impl<'a> CheckerState<'a> {
         let report_mark = sink.mark();
         match self.data_of(expression) {
             NodeData::ArrowFunction(data) => {
-                let data = data.clone();
                 let Some(body) = data.body else {
                     return Ok(ElaborationOutcome::Declined);
                 };

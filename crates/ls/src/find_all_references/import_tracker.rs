@@ -528,13 +528,12 @@ impl<'t> Importers<'t> {
                         _ => None,
                     };
                     self.direct_imports.push(direct);
-                    if let Some(NodeData::ImportClause(clause)) = import_clause
-                        .map(|clause| request.state.binder.node_record(clause).data())
+                    if let Some(NodeData::ImportClause(clause)) =
+                        import_clause.map(|clause| request.state.binder.node_record(clause).data())
                     {
-                        if let Some(NodeData::NamespaceImport(namespace)) =
-                            clause.named_bindings.map(|bindings| {
-                                request.state.binder.node_record(bindings).data()
-                            })
+                        if let Some(NodeData::NamespaceImport(namespace)) = clause
+                            .named_bindings
+                            .map(|bindings| request.state.binder.node_record(bindings).data())
                         {
                             self.handle_namespace_import(
                                 request,
@@ -687,7 +686,7 @@ fn get_searches_from_direct_imports(
             || export_kind != ExportKind::Named && name == InternalSymbolName::DEFAULT
     };
     for &declaration in direct_imports {
-        let record = request.state.binder.node_record(declaration).clone();
+        let record = *request.state.binder.node_record(declaration);
         match record.data() {
             NodeData::ImportEqualsDeclaration(data) => {
                 if external_module_import_equals_expression(request, declaration).is_some() {
@@ -769,13 +768,7 @@ fn get_searches_from_direct_imports(
             continue;
         };
         if let Some(named_bindings) = clause.named_bindings {
-            match request
-                .state
-                .binder
-                .node_record(named_bindings)
-                .data()
-                .clone()
-            {
+            match request.state.binder.node_record(named_bindings).data() {
                 NodeData::NamespaceImport(namespace) => {
                     if let Some(name) = namespace.name {
                         handle_namespace_import_like(

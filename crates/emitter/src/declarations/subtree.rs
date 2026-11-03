@@ -306,8 +306,7 @@ impl DeclarationTransformer<'_> {
                         // tsgo transformMappedTypeNode (transform.go:723-740): a
                         // missing template type is written as `any`.
                         let visited = self.visit_each_child(cx, input)?;
-                        let NodeData::MappedType(mut data) =
-                            cx.arena().node(visited)?.data()
+                        let NodeData::MappedType(mut data) = cx.arena().node(visited)?.data()
                         else {
                             return Err(Self::contract("mapped-type kind/data mismatch"));
                         };
@@ -337,8 +336,7 @@ impl DeclarationTransformer<'_> {
                         self.visit_each_child(cx, input).map(VisitResult::Node)
                     }
                     SyntaxKind::ConstructSignature => {
-                        let NodeData::ConstructSignature(data) =
-                            cx.arena().node(input)?.data()
+                        let NodeData::ConstructSignature(data) = cx.arena().node(input)?.data()
                         else {
                             return Err(Self::contract("construct-signature kind/data mismatch"));
                         };
@@ -373,8 +371,7 @@ impl DeclarationTransformer<'_> {
                         Ok(VisitResult::Node(created))
                     }
                     SyntaxKind::MethodDeclaration => {
-                        let NodeData::MethodDeclaration(data) =
-                            cx.arena().node(input)?.data()
+                        let NodeData::MethodDeclaration(data) = cx.arena().node(input)?.data()
                         else {
                             return Err(Self::contract("method kind/data mismatch"));
                         };
@@ -492,8 +489,7 @@ impl DeclarationTransformer<'_> {
                         if has_private_identifier_name(cx, input)? {
                             Ok(VisitResult::None)
                         } else {
-                            let NodeData::MethodSignature(data) =
-                                cx.arena().node(input)?.data()
+                            let NodeData::MethodSignature(data) = cx.arena().node(input)?.data()
                             else {
                                 return Err(Self::contract("method-signature kind/data mismatch"));
                             };
@@ -518,8 +514,7 @@ impl DeclarationTransformer<'_> {
                         }
                     }
                     SyntaxKind::CallSignature => {
-                        let NodeData::CallSignature(data) = cx.arena().node(input)?.data()
-                        else {
+                        let NodeData::CallSignature(data) = cx.arena().node(input)?.data() else {
                             return Err(Self::contract("call-signature kind/data mismatch"));
                         };
                         let type_parameters =
@@ -541,8 +536,7 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::IndexSignature => {
-                        let NodeData::IndexSignature(data) = cx.arena().node(input)?.data()
-                        else {
+                        let NodeData::IndexSignature(data) = cx.arena().node(input)?.data() else {
                             return Err(Self::contract("index-signature kind/data mismatch"));
                         };
                         let parameters = self.update_params_list(
@@ -617,8 +611,7 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::TypeParameter => {
-                        let NodeData::TypeParameter(data) = cx.arena().node(input)?.data()
-                        else {
+                        let NodeData::TypeParameter(data) = cx.arena().node(input)?.data() else {
                             return Err(Self::contract("type-parameter kind/data mismatch"));
                         };
                         if self.is_private_method_type_parameter(cx, input)?
@@ -639,9 +632,7 @@ impl DeclarationTransformer<'_> {
                         }
                     }
                     SyntaxKind::ConditionalType => {
-                        let NodeData::ConditionalType(data) =
-                            cx.arena().node(input)?.data()
-                        else {
+                        let NodeData::ConditionalType(data) = cx.arena().node(input)?.data() else {
                             return Err(Self::contract("conditional-type kind/data mismatch"));
                         };
                         let check =
@@ -695,8 +686,7 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::ImportType => {
-                        let NodeData::ImportType(data) = cx.arena().node(input)?.data()
-                        else {
+                        let NodeData::ImportType(data) = cx.arena().node(input)?.data() else {
                             return Err(Self::contract("import-type kind/data mismatch"));
                         };
                         let argument = data

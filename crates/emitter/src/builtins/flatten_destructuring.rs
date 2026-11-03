@@ -274,8 +274,7 @@ fn convert_to_object_assignment_pattern(
 ) -> Result<TransformNode, TransformError> {
     match context.arena().node(node)?.kind {
         SyntaxKind::ObjectBindingPattern => {
-            let NodeData::ObjectBindingPattern(data) = context.arena().node(node)?.data()
-            else {
+            let NodeData::ObjectBindingPattern(data) = context.arena().node(node)?.data() else {
                 unreachable!("kind checked above");
             };
             let elements = array_nodes_in_context(context, source, data.elements)?;
@@ -301,8 +300,7 @@ fn convert_to_array_assignment_pattern(
 ) -> Result<TransformNode, TransformError> {
     match context.arena().node(node)?.kind {
         SyntaxKind::ArrayBindingPattern => {
-            let NodeData::ArrayBindingPattern(data) = context.arena().node(node)?.data()
-            else {
+            let NodeData::ArrayBindingPattern(data) = context.arena().node(node)?.data() else {
                 unreachable!("kind checked above");
             };
             let elements = array_nodes_in_context(context, source, data.elements)?;

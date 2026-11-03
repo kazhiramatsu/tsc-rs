@@ -363,16 +363,14 @@ fn factory_private_expression_flags_distinguish_declarations_property_access_and
         let declaration = factory
             .create_node(
                 source,
-                NodeData::PropertyDeclaration(
-                    tsc_syntax::nodes::PropertyDeclarationData {
-                        name: Some(private_name.node()),
-                        modifiers: None,
-                        question_token: None,
-                        exclamation_token: None,
-                        r#type: None,
-                        initializer: None,
-                    },
-                ),
+                NodeData::PropertyDeclaration(tsc_syntax::nodes::PropertyDeclarationData {
+                    name: Some(private_name.node()),
+                    modifiers: None,
+                    question_token: None,
+                    exclamation_token: None,
+                    r#type: None,
+                    initializer: None,
+                }),
                 TransformFlags::NONE,
             )
             .expect("create private declaration");

@@ -560,11 +560,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 self.tags_end.unwrap_or(end),
             ))
         };
-        self.finish(
-            NodeData::JSDoc(JSDocData { tags, comment }),
-            start,
-            end,
-        )
+        self.finish(NodeData::JSDoc(JSDocData { tags, comment }), start, end)
     }
 
     fn parse_tag_comments(

@@ -390,7 +390,7 @@ impl Transformer for TopologyTransformer {
                     };
                     assert_eq!((outer.pos, outer.end), (call.pos, call.end));
                     (
-                        data.clone(),
+                        data,
                         context.arena().transform_flags(parsed_call),
                         (call.pos, call.end),
                     )

@@ -2258,12 +2258,7 @@ pub(crate) fn chains_symbol_to_type_node(
         context,
         type_arguments.as_deref(),
     )?;
-    match arena
-        .node(access.node)
-        .map_err(factory_error)?
-        .data()
-        .clone()
-    {
+    match arena.node(access.node).map_err(factory_error)?.data() {
         NodeData::IndexedAccessType(_) => Ok(access.node),
         _ if is_entity_name(arena, access.node)? => {
             if is_type_of {

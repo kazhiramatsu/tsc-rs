@@ -414,8 +414,7 @@ impl MissingMemberFixer<'_, '_, '_> {
             .arena()
             .node(declaration)
             .map_err(transform_error)?
-            .data()
-            .clone();
+            .data();
         let NodeData::MethodDeclaration(method) = data else {
             return Ok(None);
         };
@@ -541,18 +540,17 @@ impl MissingMemberFixer<'_, '_, '_> {
             None => self.identifier("")?,
             Some(name) => self.create_property_name(name, quote_preference)?,
         };
-        let data =
-            NodeData::MethodDeclaration(tsc_syntax::nodes::MethodDeclarationData {
-                name: Some(method_name.node()),
-                type_parameters,
-                parameters,
-                r#type: type_node,
-                asterisk_token: method.asterisk_token,
-                question_token,
-                exclamation_token: None,
-                body: body.map(|body| body.node()),
-                modifiers: modifiers.map(|modifiers| modifiers.array()),
-            });
+        let data = NodeData::MethodDeclaration(tsc_syntax::nodes::MethodDeclarationData {
+            name: Some(method_name.node()),
+            type_parameters,
+            parameters,
+            r#type: type_node,
+            asterisk_token: method.asterisk_token,
+            question_token,
+            exclamation_token: None,
+            body: body.map(|body| body.node()),
+            modifiers: modifiers.map(|modifiers| modifiers.array()),
+        });
         self.tracker
             .arena()
             .factory()
@@ -982,8 +980,7 @@ impl MissingMemberFixer<'_, '_, '_> {
             .arena()
             .node(node)
             .map_err(transform_error)?
-            .data()
-            .clone();
+            .data();
         if let NodeData::Identifier(identifier) = &data {
             if identifier.text() == "constructor" {
                 let literal = self
@@ -1049,8 +1046,7 @@ impl MissingMemberFixer<'_, '_, '_> {
             .arena()
             .node(node)
             .map_err(transform_error)?
-            .data()
-            .clone())
+            .data())
     }
 
     fn node(&mut self, id: NodeId) -> FixResult<TransformNode> {

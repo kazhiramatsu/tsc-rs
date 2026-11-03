@@ -154,15 +154,11 @@ fn template_payload(kind: SyntaxKind, text: TextId, raw_text: Option<TextId>) ->
                 raw_text,
             })
         }
-        SyntaxKind::TemplateHead => {
-            NodeData::TemplateHead(TemplateHeadData { text, raw_text })
-        }
+        SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData { text, raw_text }),
         SyntaxKind::TemplateMiddle => {
             NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
         }
-        SyntaxKind::TemplateTail => {
-            NodeData::TemplateTail(TemplateTailData { text, raw_text })
-        }
+        SyntaxKind::TemplateTail => NodeData::TemplateTail(TemplateTailData { text, raw_text }),
         other => panic!("not a template kind: {other:?}"),
     }
 }
@@ -285,7 +281,7 @@ fn apply_generic(
     operation: &str,
     after: &[u16],
 ) -> Result<Option<TransformNode>, TransformError> {
-    let record = arena.node(node)?.clone();
+    let record = *arena.node(node)?;
     let flags = arena.transform_flags(node);
     let (text, raw_text, has_extended_unicode_escape) = literal_parts(&record);
     let scalar = |units: &[u16]| String::from_utf16(units).ok();
@@ -327,7 +323,7 @@ fn apply_typed(
     operation: &str,
     after: &[u16],
 ) -> Result<Option<TransformNode>, TransformError> {
-    let record = arena.node(node)?.clone();
+    let record = *arena.node(node)?;
     let current_text = arena.literal_code_units(node)?.expect("literal operand");
     let properties = arena.literal_properties(node);
     if kind == SyntaxKind::StringLiteral {
@@ -563,7 +559,7 @@ impl Updater {
         template: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let source = template.source();
-        let record = context.arena().node(template)?.clone();
+        let record = *context.arena().node(template)?;
         match record.data() {
             NodeData::NoSubstitutionTemplateLiteral(_) => self.update_fragment(context, template),
             NodeData::TemplateExpression(data) => {
@@ -576,8 +572,7 @@ impl Updater {
                     | context.arena().transform_flags(head);
                 for span_id in span_ids {
                     let span = TransformNode::new(source, span_id);
-                    let NodeData::TemplateSpan(span_data) =
-                        context.arena().node(span)?.data()
+                    let NodeData::TemplateSpan(span_data) = context.arena().node(span)?.data()
                     else {
                         unreachable!("template span");
                     };
@@ -641,8 +636,7 @@ impl Transformer for Updater {
         let mut flags = context.arena().transform_flags(root_node);
         for statement_id in statement_ids {
             let statement = TransformNode::new(source, statement_id);
-            let NodeData::ExpressionStatement(data) =
-                context.arena().node(statement)?.data()
+            let NodeData::ExpressionStatement(data) = context.arena().node(statement)?.data()
             else {
                 statements.push(statement);
                 continue;
@@ -652,7 +646,7 @@ impl Transformer for Updater {
                 continue;
             };
             let expression = TransformNode::new(source, expression_id);
-            let record = context.arena().node(expression)?.clone();
+            let record = *context.arena().node(expression)?;
             let updated_expression = match record.data() {
                 NodeData::TaggedTemplateExpression(data) => {
                     let template = self.update_template(

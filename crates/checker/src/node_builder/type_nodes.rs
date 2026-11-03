@@ -1638,11 +1638,7 @@ fn type_to_type_node_worker(
                     NodeData::StringLiteral(StringLiteralData { text }),
                 )?;
                 let literal = create_literal_type_node(arena, target, literal)?;
-                let parent_data = arena
-                    .node(parent_name)
-                    .map_err(factory_error)?
-                    .data()
-                    .clone();
+                let parent_data = arena.node(parent_name).map_err(factory_error)?.data();
                 let object = match parent_data {
                     NodeData::TypeReference(data) => create_node(
                         arena,
@@ -2375,8 +2371,7 @@ fn conditional_type_to_type_node(
         let Some(extends) = extends? else {
             return Ok(None);
         };
-        let NodeData::ConditionalType(root_node) = checker.data_of(NodeId::new(root.node))
-        else {
+        let NodeData::ConditionalType(root_node) = checker.data_of(NodeId::new(root.node)) else {
             context.encountered_error = true;
             return Ok(None);
         };

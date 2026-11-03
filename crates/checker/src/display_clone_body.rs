@@ -1621,8 +1621,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 }
                 let mut first = true;
                 while index < modifiers.len() {
-                    let NodeData::Decorator(data) = self.state.data_of(modifiers[index])
-                    else {
+                    let NodeData::Decorator(data) = self.state.data_of(modifiers[index]) else {
                         break;
                     };
                     if !first {
@@ -1820,18 +1819,17 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     }
 
     fn binding_pattern(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let (elements, has_trailing_comma, open, close, padded) =
-            match self.state.data_of(node) {
-                NodeData::ObjectBindingPattern(data) => {
-                    let (elements, trailing) = self.node_array(data.elements);
-                    (elements, trailing, '{', '}', true)
-                }
-                NodeData::ArrayBindingPattern(data) => {
-                    let (elements, trailing) = self.node_array(data.elements);
-                    (elements, trailing, '[', ']', false)
-                }
-                _ => return Ok(None),
-            };
+        let (elements, has_trailing_comma, open, close, padded) = match self.state.data_of(node) {
+            NodeData::ObjectBindingPattern(data) => {
+                let (elements, trailing) = self.node_array(data.elements);
+                (elements, trailing, '{', '}', true)
+            }
+            NodeData::ArrayBindingPattern(data) => {
+                let (elements, trailing) = self.node_array(data.elements);
+                (elements, trailing, '[', ']', false)
+            }
+            _ => return Ok(None),
+        };
 
         if elements.is_empty() {
             return Ok(Some(crate::concat_js(&[&(open), &(close)])));

@@ -341,7 +341,7 @@ fn node_at_position(file: &SourceFile, position: u32, include_js_doc: bool) -> N
                 | Property::Slice(list)
                 | Property::HeritageTypes(list) => elements(list, &mut visit),
                 Property::Comment(Some(JSDocComment::Nodes(nodes))) => {
-                    elements(Some(*nodes), &mut visit)
+                    elements(Some(nodes), &mut visit)
                 }
                 _ => {}
             });

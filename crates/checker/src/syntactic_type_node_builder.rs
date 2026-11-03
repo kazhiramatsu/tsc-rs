@@ -766,16 +766,16 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                     // tsc-port: visitExistingNodeTreeSymbols (JSDocTypeLiteral) @6.0.3
                     // tsc-hash: 1cf444d81393bf59cab6555d09fa2234a853b231a9def4bf59ad00f2c8f2c323
                     // tsc-span: _tsc.js:133415-133426
-                    let (tag_name, tag_type_expression, is_bracketed) =
-                        match self.node(tag)?.data() {
-                            NodeData::JSDocPropertyTag(data) => {
-                                (data.name, data.type_expression, data.is_bracketed)
-                            }
-                            NodeData::JSDocParameterTag(data) => {
-                                (data.name, data.type_expression, data.is_bracketed)
-                            }
-                            _ => continue,
-                        };
+                    let (tag_name, tag_type_expression, is_bracketed) = match self.node(tag)?.data()
+                    {
+                        NodeData::JSDocPropertyTag(data) => {
+                            (data.name, data.type_expression, data.is_bracketed)
+                        }
+                        NodeData::JSDocParameterTag(data) => {
+                            (data.name, data.type_expression, data.is_bracketed)
+                        }
+                        _ => continue,
+                    };
                     let Some(name) = self.child(source, tag_name) else {
                         continue;
                     };
@@ -872,7 +872,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             return Ok(Some(node));
         }
 
-        if let NodeData::TypeParameter(mut parameter) = data.clone() {
+        if let NodeData::TypeParameter(mut parameter) = data {
             let Some(name) = self.child(source, parameter.name) else {
                 return Ok(Some(node));
             };
@@ -907,7 +907,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             return Ok(Some(node));
         }
 
-        if let NodeData::ImportType(mut import_type) = data.clone() {
+        if let NodeData::ImportType(mut import_type) = data {
             let argument = self.child(source, import_type.argument);
             let literal = match argument {
                 Some(argument) => self.literal_type_literal(argument)?,
@@ -992,7 +992,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             return Ok(Some(node));
         }
 
-        if let NodeData::ComputedPropertyName(mut computed) = data.clone() {
+        if let NodeData::ComputedPropertyName(mut computed) = data {
             if let Some(expression) = self.child(source, computed.expression) {
                 if self.is_entity_name_expression(expression)? {
                     let tracked = self.resolver.track_existing_entity_name(
@@ -1015,7 +1015,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             }
         }
 
-        if let NodeData::TypePredicate(mut predicate) = data.clone() {
+        if let NodeData::TypePredicate(mut predicate) = data {
             if let Some(parameter_name) = self.child(source, predicate.parameter_name) {
                 if self.kind(parameter_name)? == SyntaxKind::Identifier {
                     let tracked = self.resolver.track_existing_entity_name(
@@ -1097,7 +1097,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             return Ok(Some(clone));
         }
 
-        if let NodeData::ConditionalType(mut conditional) = data.clone() {
+        if let NodeData::ConditionalType(mut conditional) = data {
             conditional.check_type = self.visit_optional_child(source, conditional.check_type)?;
             let cleanup =
                 self.resolver

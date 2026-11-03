@@ -1649,12 +1649,7 @@ impl BindingNameVisitor<'_, '_, '_> {
     }
 
     fn visit(&mut self, original: TransformNode) -> BuildResult<TransformNode> {
-        let mut data = self
-            .arena
-            .node(original)
-            .map_err(factory_error)?
-            .data()
-            .clone();
+        let mut data = self.arena.node(original).map_err(factory_error)?.data();
         if self.context.tracker.can_track_symbol
             && matches!(data, NodeData::ComputedPropertyName(_))
         {
@@ -1681,12 +1676,8 @@ impl BindingNameVisitor<'_, '_, '_> {
             other => update_factory_node(self.arena, original, other)?,
         };
         // TypeScript visits the initializer before eliding it.
-        if let NodeData::BindingElement(mut binding) = self
-            .arena
-            .node(visited)
-            .map_err(factory_error)?
-            .data()
-            .clone()
+        if let NodeData::BindingElement(mut binding) =
+            self.arena.node(visited).map_err(factory_error)?.data()
         {
             binding.initializer = None;
             visited = update_factory_node(self.arena, visited, NodeData::BindingElement(binding))?;

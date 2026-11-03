@@ -117,17 +117,26 @@ fn synthetic_missing_operator_slots_are_error_typed_and_siblings_stay_valid() {
                 unreachable!("selected by kind")
             };
             data.left = None;
-            source.arena.set_data(binaries[0], NodeData::BinaryExpression(data));
-            let NodeData::PrefixUnaryExpression(mut data) = source.arena.node(prefixes[0]).data() else {
+            source
+                .arena
+                .set_data(binaries[0], NodeData::BinaryExpression(data));
+            let NodeData::PrefixUnaryExpression(mut data) = source.arena.node(prefixes[0]).data()
+            else {
                 unreachable!("selected by kind")
             };
             data.operand = None;
-            source.arena.set_data(prefixes[0], NodeData::PrefixUnaryExpression(data));
-            let NodeData::ConditionalExpression(mut data) = source.arena.node(conditionals[0]).data() else {
+            source
+                .arena
+                .set_data(prefixes[0], NodeData::PrefixUnaryExpression(data));
+            let NodeData::ConditionalExpression(mut data) =
+                source.arena.node(conditionals[0]).data()
+            else {
                 unreachable!("selected by kind")
             };
             data.when_false = None;
-            source.arena.set_data(conditionals[0], NodeData::ConditionalExpression(data));
+            source
+                .arena
+                .set_data(conditionals[0], NodeData::ConditionalExpression(data));
             vec![
                 binaries[0],
                 binaries[1],
@@ -223,27 +232,39 @@ fn synthetic_missing_assertion_and_template_slots_preserve_valid_siblings() {
                 unreachable!("selected by kind")
             };
             data.expression = None;
-            source.arena.set_data(assertions[0], NodeData::AsExpression(data));
-            let NodeData::SatisfiesExpression(mut data) = source.arena.node(satisfies[0]).data() else {
+            source
+                .arena
+                .set_data(assertions[0], NodeData::AsExpression(data));
+            let NodeData::SatisfiesExpression(mut data) = source.arena.node(satisfies[0]).data()
+            else {
                 unreachable!("selected by kind")
             };
             data.r#type = None;
-            source.arena.set_data(satisfies[0], NodeData::SatisfiesExpression(data));
-            let NodeData::TemplateExpression(mut data) = source.arena.node(templates[0]).data() else {
+            source
+                .arena
+                .set_data(satisfies[0], NodeData::SatisfiesExpression(data));
+            let NodeData::TemplateExpression(mut data) = source.arena.node(templates[0]).data()
+            else {
                 unreachable!("selected by kind")
             };
             data.head = None;
-            source.arena.set_data(templates[0], NodeData::TemplateExpression(data));
+            source
+                .arena
+                .set_data(templates[0], NodeData::TemplateExpression(data));
             let NodeData::TemplateSpan(mut data) = source.arena.node(spans[1]).data() else {
                 unreachable!("selected by kind")
             };
             data.expression = None;
-            source.arena.set_data(spans[1], NodeData::TemplateSpan(data));
+            source
+                .arena
+                .set_data(spans[1], NodeData::TemplateSpan(data));
             let NodeData::TemplateSpan(mut data) = source.arena.node(spans[2]).data() else {
                 unreachable!("selected by kind")
             };
             data.literal = None;
-            source.arena.set_data(spans[2], NodeData::TemplateSpan(data));
+            source
+                .arena
+                .set_data(spans[2], NodeData::TemplateSpan(data));
             vec![
                 assertions[0],
                 assertions[1],

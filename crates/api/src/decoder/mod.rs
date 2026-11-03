@@ -415,10 +415,9 @@ impl<'a> Decoder<'a> {
             }
             SyntaxKind::RegularExpressionLiteral => {
                 let token_flags = self.extended(data, 1);
-                let node_data =
-                    NodeData::RegularExpressionLiteral(RegularExpressionLiteralData {
-                        text: self.push_string(text),
-                    });
+                let node_data = NodeData::RegularExpressionLiteral(RegularExpressionLiteralData {
+                    text: self.push_string(text),
+                });
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena
                     .node_mut(node)
@@ -431,9 +430,11 @@ impl<'a> Decoder<'a> {
                 // writes the raw text only for an empty literal.
                 let raw_text = text.is_empty().then_some(TextId::EMPTY);
                 let text = self.push_js_string(text);
-                let node_data = NodeData::NoSubstitutionTemplateLiteral(
-                    NoSubstitutionTemplateLiteralData { text, raw_text },
-                );
+                let node_data =
+                    NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
+                        text,
+                        raw_text,
+                    });
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena
                     .node_mut(node)
@@ -672,14 +673,14 @@ impl<'a> Decoder<'a> {
         };
         let (type_name, type_arguments) = (reference.type_name, reference.type_arguments);
         let expression = type_name.map(|name| self.entity_name_expression(name));
-        let node = self.arena.node_mut(element);
-        node.kind = SyntaxKind::ExpressionWithTypeArguments;
-        node.set_data(NodeData::ExpressionWithTypeArguments(
-            ExpressionWithTypeArgumentsData {
+        self.arena.reshape(
+            element,
+            SyntaxKind::ExpressionWithTypeArguments,
+            NodeData::ExpressionWithTypeArguments(ExpressionWithTypeArgumentsData {
                 type_arguments,
                 expression,
-            },
-        ));
+            }),
+        );
     }
 
     /// tsc's entity name expression of an entity name: a QualifiedName is
@@ -688,15 +689,15 @@ impl<'a> Decoder<'a> {
         if let NodeData::QualifiedName(qualified) = self.arena.node(name).data() {
             let (left, right) = (qualified.left, qualified.right);
             let expression = left.map(|left| self.entity_name_expression(left));
-            let node = self.arena.node_mut(name);
-            node.kind = SyntaxKind::PropertyAccessExpression;
-            node.set_data(NodeData::PropertyAccessExpression(
-                PropertyAccessExpressionData {
+            self.arena.reshape(
+                name,
+                SyntaxKind::PropertyAccessExpression,
+                NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
                     name: right,
                     expression,
                     question_dot_token: None,
-                },
-            ));
+                }),
+            );
         }
         name
     }

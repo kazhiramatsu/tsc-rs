@@ -829,51 +829,50 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             )?,
         };
         let name_node = self.node(name);
-        let (access, no_nested_source_maps) =
-            match self.context.arena().node(name_node)?.data() {
-                NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => (
-                    self.context.factory()?.create_node(
-                        self.source,
-                        NodeData::PropertyAccessExpression(
-                            tsc_syntax::nodes::PropertyAccessExpressionData {
-                                expression: Some(receiver.node()),
-                                question_dot_token: None,
-                                name: Some(name),
-                            },
-                        ),
-                        TransformFlags::CONTAINS_LEXICAL_THIS,
-                    )?,
-                    true,
-                ),
-                NodeData::ComputedPropertyName(data) => (
-                    self.context.factory()?.create_node(
-                        self.source,
-                        NodeData::ElementAccessExpression(
-                            tsc_syntax::nodes::ElementAccessExpressionData {
-                                expression: Some(receiver.node()),
-                                question_dot_token: None,
-                                argument_expression: data.expression,
-                            },
-                        ),
-                        TransformFlags::CONTAINS_LEXICAL_THIS,
-                    )?,
-                    false,
-                ),
-                _ => (
-                    self.context.factory()?.create_node(
-                        self.source,
-                        NodeData::ElementAccessExpression(
-                            tsc_syntax::nodes::ElementAccessExpressionData {
-                                expression: Some(receiver.node()),
-                                question_dot_token: None,
-                                argument_expression: Some(name),
-                            },
-                        ),
-                        TransformFlags::CONTAINS_LEXICAL_THIS,
-                    )?,
-                    true,
-                ),
-            };
+        let (access, no_nested_source_maps) = match self.context.arena().node(name_node)?.data() {
+            NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => (
+                self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::PropertyAccessExpression(
+                        tsc_syntax::nodes::PropertyAccessExpressionData {
+                            expression: Some(receiver.node()),
+                            question_dot_token: None,
+                            name: Some(name),
+                        },
+                    ),
+                    TransformFlags::CONTAINS_LEXICAL_THIS,
+                )?,
+                true,
+            ),
+            NodeData::ComputedPropertyName(data) => (
+                self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::ElementAccessExpression(
+                        tsc_syntax::nodes::ElementAccessExpressionData {
+                            expression: Some(receiver.node()),
+                            question_dot_token: None,
+                            argument_expression: data.expression,
+                        },
+                    ),
+                    TransformFlags::CONTAINS_LEXICAL_THIS,
+                )?,
+                false,
+            ),
+            _ => (
+                self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::ElementAccessExpression(
+                        tsc_syntax::nodes::ElementAccessExpressionData {
+                            expression: Some(receiver.node()),
+                            question_dot_token: None,
+                            argument_expression: Some(name),
+                        },
+                    ),
+                    TransformFlags::CONTAINS_LEXICAL_THIS,
+                )?,
+                true,
+            ),
+        };
         // createMemberAccessForPropertyName positions the generated access at
         // the source member name. Besides preserving its outer source-map
         // span, that range is the comment-container boundary established by
@@ -1022,13 +1021,11 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         let flags = super::flags_after_update(
             self.context.arena(),
             original,
-            &NodeData::PropertyDeclaration(data.clone()),
+            &NodeData::PropertyDeclaration(data),
         )?;
-        self.context.factory()?.update_node(
-            original,
-            NodeData::PropertyDeclaration(data),
-            flags,
-        )
+        self.context
+            .factory()?
+            .update_node(original, NodeData::PropertyDeclaration(data), flags)
     }
 
     fn update_generic(
@@ -1448,8 +1445,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             return Ok(None);
         };
         let original = self.node(name);
-        let NodeData::ComputedPropertyName(mut data) =
-            self.context.arena().node(original)?.data()
+        let NodeData::ComputedPropertyName(mut data) = self.context.arena().node(original)?.data()
         else {
             return self.visit(name);
         };
@@ -1660,8 +1656,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         name: TransformNode,
         should_hoist: bool,
     ) -> Result<Option<TransformNode>, TransformError> {
-        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data()
-        else {
+        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data() else {
             return Ok(None);
         };
         let original_expression = data.expression.map(|node| self.node(node)).ok_or(
@@ -1712,8 +1707,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         &mut self,
         name: TransformNode,
     ) -> Result<(NodeId, NodeId), TransformError> {
-        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data()
-        else {
+        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data() else {
             return Ok((name.node(), name.node()));
         };
         let original_expression = data.expression.map(|node| self.node(node)).ok_or(
@@ -1992,8 +1986,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         &mut self,
         original: TransformNode,
     ) -> Result<Option<TransformNode>, TransformError> {
-        let NodeData::PropertyDeclaration(mut data) =
-            self.context.arena().node(original)?.data()
+        let NodeData::PropertyDeclaration(mut data) = self.context.arena().node(original)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::PropertyDeclaration,
@@ -2076,8 +2069,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         &mut self,
         property: TransformNode,
     ) -> Result<Option<TransformNode>, TransformError> {
-        let NodeData::PropertyDeclaration(data) =
-            self.context.arena().node(property)?.data()
+        let NodeData::PropertyDeclaration(data) = self.context.arena().node(property)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::PropertyDeclaration,
@@ -2956,8 +2948,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         let derived = self.retained_class_is_derived(container)?;
         let existing_data = constructor
             .map(|node| {
-                let NodeData::Constructor(data) = self.context.arena().node(node)?.data()
-                else {
+                let NodeData::Constructor(data) = self.context.arena().node(node)?.data() else {
                     return Err(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::Constructor,
                         field: "constructor data",
@@ -3228,17 +3219,14 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             })?;
         self.visit_statement_slice(output, &input[offset..index])?;
         let mut offset = index + 1;
-        if let NodeData::TryStatement(mut data) =
-            self.context.arena().node(statement)?.data()
-        {
+        if let NodeData::TryStatement(mut data) = self.context.arena().node(statement)?.data() {
             let block = data.try_block.map(|node| self.node(node)).ok_or(
                 TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::TryStatement,
                     field: "try_block",
                 },
             )?;
-            let NodeData::Block(mut block_data) = self.context.arena().node(block)?.data()
-            else {
+            let NodeData::Block(mut block_data) = self.context.arena().node(block)?.data() else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::TryStatement,
                     field: "block data",
@@ -3664,8 +3652,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         &mut self,
         original: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Parameter(mut data) = self.context.arena().node(original)?.data()
-        else {
+        let NodeData::Parameter(mut data) = self.context.arena().node(original)?.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Parameter,
                 field: "parameter data",
@@ -4271,7 +4258,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         &mut self,
         original: TransformNode,
     ) -> Result<RetainedVisitOutcome, TransformError> {
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
         if record.kind != SyntaxKind::SourceFile
             && self.context.arena().transform_flags(original).bits()
                 & (TransformFlags::CONTAINS_CLASS_FIELDS

@@ -905,7 +905,7 @@ fn import_clause(arena: &NodeArena, declaration: NodeId) -> Option<(NodeId, Impo
     };
     let clause = data.import_clause?;
     match arena.node(clause).data() {
-        NodeData::ImportClause(data) => Some((clause, data.clone())),
+        NodeData::ImportClause(data) => Some((clause, data)),
         _ => None,
     }
 }
@@ -923,7 +923,6 @@ fn update_import_declaration(
         .node(declaration)
         .expect("an import declaration")
         .data()
-        .clone()
     else {
         unreachable!("an import declaration");
     };
@@ -1368,8 +1367,7 @@ fn coalesce_exports_worker<'a>(
                     specifier_comparer.1,
                 )
             });
-            let NodeData::ExportDeclaration(export_decl) = arena.node(sub_group[0]).data()
-            else {
+            let NodeData::ExportDeclaration(export_decl) = arena.node(sub_group[0]).data() else {
                 continue;
             };
             let updated_export_clause = match export_decl.export_clause {

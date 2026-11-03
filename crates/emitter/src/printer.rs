@@ -3363,7 +3363,7 @@ impl Printer {
                 return Ok(());
             }
         }
-        let record = transformation.arena().node(node)?.clone();
+        let record = *transformation.arena().node(node)?;
         let changed = self.node_is_changed(transformation, node)?;
         let multi_line = record.multi_line() == Some(true);
         let declaration_source = transformation
@@ -13360,8 +13360,7 @@ impl Printer {
             .arena()
             .node_ref(parent.source(), type_parameter)
             .ok_or(PrinterError::UnknownStatement(type_parameter.index()))?;
-        let NodeData::TypeParameter(data) = transformation.arena().node(parameter)?.data()
-        else {
+        let NodeData::TypeParameter(data) = transformation.arena().node(parameter)?.data() else {
             return Err(PrinterError::UnsupportedTransformedSyntax {
                 node: parameter,
                 kind: transformation.arena().node(parameter)?.kind,
@@ -13590,8 +13589,7 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        let NodeData::ImportAttributes(data) =
-            transformation.arena().node(attributes_node)?.data()
+        let NodeData::ImportAttributes(data) = transformation.arena().node(attributes_node)?.data()
         else {
             return Err(PrinterError::UnsupportedTransformedSyntax {
                 node: attributes_node,
@@ -13909,7 +13907,7 @@ impl Printer {
                 .arena()
                 .node_ref(node.source(), body_id)
                 .ok_or(PrinterError::UnknownStatement(body_id.index()))?;
-            let record = transformation.arena().node(body)?.clone();
+            let record = *transformation.arena().node(body)?;
             let NodeData::ModuleDeclaration(nested) = record.data() else {
                 writer.write_space(" ");
                 self.emit_node_id_with_context(

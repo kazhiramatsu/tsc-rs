@@ -279,8 +279,7 @@ impl DeclarationTransformer<'_> {
                 let parameter = TransformNode::new(owner.source(), parameter);
                 let visited = match constraint {
                     Some(constraint) if index == 0 => {
-                        let NodeData::TypeParameter(data) =
-                            cx.arena().node(parameter)?.data()
+                        let NodeData::TypeParameter(data) = cx.arena().node(parameter)?.data()
                         else {
                             continue;
                         };
@@ -805,13 +804,13 @@ impl DeclarationTransformer<'_> {
                             data.name,
                             data.type_expression,
                             data.is_bracketed,
-                            data.comment.clone(),
+                            data.comment,
                         ),
                         NodeData::JSDocParameterTag(data) => (
                             data.name,
                             data.type_expression,
                             data.is_bracketed,
-                            data.comment.clone(),
+                            data.comment,
                         ),
                         _ => continue,
                     };

@@ -152,8 +152,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.tables.intrinsics.wildcard);
             }
 
-            let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root_data.node))
-            else {
+            let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root_data.node)) else {
                 unreachable!("conditional root points at a ConditionalType node");
             };
             let check_node = node

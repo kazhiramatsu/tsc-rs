@@ -7465,15 +7465,11 @@ impl<'text> Parser<'text> {
         let raw_text = self.template_literal_raw_text(kind);
         let raw_text = Some(self.arena.push_text(raw_text.as_bytes()));
         let data = match kind {
-            SyntaxKind::TemplateHead => {
-                NodeData::TemplateHead(TemplateHeadData { text, raw_text })
-            }
+            SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData { text, raw_text }),
             SyntaxKind::TemplateMiddle => {
                 NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
             }
-            SyntaxKind::TemplateTail => {
-                NodeData::TemplateTail(TemplateTailData { text, raw_text })
-            }
+            SyntaxKind::TemplateTail => NodeData::TemplateTail(TemplateTailData { text, raw_text }),
             _ => unreachable!("template fragment kind"),
         };
         let id = self.arena.alloc_node(data, pos, end, NodeFlags::NONE);

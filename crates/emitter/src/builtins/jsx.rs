@@ -360,7 +360,7 @@ impl<'context> JsxVisitor<'context> {
                 return Ok(Some(id));
             }
         }
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
         let transformed = match record.data() {
             NodeData::JsxElement(data) => {
                 Some(self.visit_jsx_element(original, data, false)?.node())
@@ -404,8 +404,7 @@ impl<'context> JsxVisitor<'context> {
                 parent: SyntaxKind::JsxElement,
                 field: "opening_element",
             })?;
-        let NodeData::JsxOpeningElement(opening_data) =
-            self.context.arena().node(opening)?.data()
+        let NodeData::JsxOpeningElement(opening_data) = self.context.arena().node(opening)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::JsxElement,
@@ -580,8 +579,7 @@ impl<'context> JsxVisitor<'context> {
             return Ok(Vec::new());
         };
         let attributes_node = self.node(attributes);
-        let NodeData::JsxAttributes(data) =
-            self.context.arena().node(attributes_node)?.data()
+        let NodeData::JsxAttributes(data) = self.context.arena().node(attributes_node)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::JsxOpeningElement,
@@ -667,8 +665,7 @@ impl<'context> JsxVisitor<'context> {
 
     fn transform_key_attribute(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
         let attribute = self.node(id);
-        let NodeData::JsxAttribute(data) = self.context.arena().node(attribute)?.data()
-        else {
+        let NodeData::JsxAttribute(data) = self.context.arena().node(attribute)?.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::JsxOpeningElement,
                 field: "key",
@@ -846,7 +843,7 @@ impl<'context> JsxVisitor<'context> {
         let mut transformed = Vec::new();
         for id in ids {
             let child = self.node(id);
-            let record = self.context.arena().node(child)?.clone();
+            let record = *self.context.arena().node(child)?;
             let result = match record.data() {
                 NodeData::JsxText(data) => {
                     let text = self
@@ -1113,7 +1110,7 @@ impl<'context> JsxVisitor<'context> {
         &mut self,
         original: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
         let syntax = self.context.arena().source(self.source)?.syntax();
         let start = if record.pos == u32::MAX {
             0
@@ -1387,8 +1384,7 @@ impl<'context> JsxVisitor<'context> {
         if self.filename_declaration.is_none() && self.implicit_imports.is_empty() {
             return Ok(root);
         }
-        let (mut data, original_statements) = match self.context.arena().node(root)?.data()
-        {
+        let (mut data, original_statements) = match self.context.arena().node(root)?.data() {
             NodeData::SourceFile(data) => {
                 let statements = data.statements;
                 (data, statements)
@@ -1724,7 +1720,11 @@ impl<'context> JsxVisitor<'context> {
         let mut flags =
             self.context.arena().transform_flags(original) & !TransformFlags::CONTAINS_JSX;
         let mut tails = tsc_syntax::Tails::new();
-        let probe = self.context.arena().node(original)?.with_data(&data, &mut tails);
+        let probe = self
+            .context
+            .arena()
+            .node(original)?
+            .with_data(&data, &mut tails);
         let mut children = Vec::new();
         let syntax = self.context.arena().source(self.source)?.syntax();
         for_each_child(&syntax.arena, &probe, |child| {
@@ -1760,7 +1760,7 @@ impl<'context> JsxVisitor<'context> {
         call: TransformNode,
         original: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
         if record.pos == u32::MAX || record.end == u32::MAX {
             return self.context.factory()?.set_text_range(call, original);
         }

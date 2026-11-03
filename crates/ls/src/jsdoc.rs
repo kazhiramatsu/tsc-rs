@@ -582,7 +582,7 @@ impl Request<'_, '_> {
     fn write_comments(
         &mut self,
         text: &mut String,
-        comment: Option<&JSDocComment>,
+        comment: Option<JSDocComment>,
         markdown: bool,
         locations: LinkLocations,
     ) -> CheckResult<()> {

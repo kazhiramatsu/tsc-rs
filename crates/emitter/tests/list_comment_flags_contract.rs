@@ -60,7 +60,7 @@ impl Transformer for FlagTransformer {
                     .iter()
                     .map(|&n| arena.node_ref(source, n).unwrap())
                     .collect();
-                let mut file = file.clone();
+                let mut file = file;
                 let body_flags = arena.transform_flags(body);
                 let function_flags = arena.transform_flags(statement);
                 let file_flags = arena.transform_flags(root_node);
@@ -126,7 +126,7 @@ impl Transformer for FlagTransformer {
             .filter_map(|&id| {
                 let node = arena.node_ref(source, id).unwrap();
                 if let NodeData::VariableDeclaration(data) = arena.node(node).unwrap().data() {
-                    Some((node, data.clone()))
+                    Some((node, data))
                 } else {
                     None
                 }

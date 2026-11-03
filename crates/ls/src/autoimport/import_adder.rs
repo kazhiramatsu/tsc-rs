@@ -488,7 +488,6 @@ struct AutoImportableReference<'v, 'c> {
 impl AutoImportableReference<'_, '_> {
     fn visit(&mut self, node: TransformNode) -> Result<TransformNode, TransformError> {
         if let NodeData::ImportType(data) = self.arena.node(node)?.data() {
-            let data = data.clone();
             if let (Some(qualifier), true) =
                 (data.qualifier, self.is_literal_argument(data.argument)?)
             {
@@ -521,7 +520,7 @@ impl AutoImportableReference<'_, '_> {
             }
         }
         let mut data = self.arena.node(node)?.data();
-        let original = data.clone();
+        let original = data;
         tsc_syntax::try_visit_each_child(&mut data, self)?;
         if data == original {
             return Ok(node);

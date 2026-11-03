@@ -471,7 +471,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             return Ok(*mapped);
         }
         let original = self.node(id);
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
         let transformed = match record.data() {
             NodeData::Decorator(_) => None,
             NodeData::Token => Some(original.node()),
@@ -502,7 +502,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 let flags = flags_after_update(
                     self.context.arena(),
                     original,
-                    &NodeData::ClassExpression(data.clone()),
+                    &NodeData::ClassExpression(data),
                 )?;
                 Some(
                     self.context
@@ -586,7 +586,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             return Ok(expanded.iter().copied().map(|id| self.node(id)).collect());
         }
         let current = self.node(id);
-        let record = self.context.arena().node(current)?.clone();
+        let record = *self.context.arena().node(current)?;
         let NodeData::ClassDeclaration(mut data) = record.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: record.kind,
@@ -1443,7 +1443,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         // The direct-decorator fact belongs to the source member, while
         // inlineability belongs to the transformTypeScript result (for
         // example, `"x" as string` has already become `"x"`).
-        let record = self.context.arena().node(member)?.clone();
+        let record = *self.context.arena().node(member)?;
         let name = match record.data() {
             NodeData::PropertyDeclaration(data) => data.name,
             NodeData::MethodDeclaration(data) => data.name,
@@ -1455,8 +1455,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         else {
             return Ok(());
         };
-        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data()
-        else {
+        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data() else {
             return Ok(());
         };
         let expression = data
@@ -1533,13 +1532,13 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         metadata: Vec<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let owner_member = owner.member();
-        let record = self.context.arena().node(owner_member)?.clone();
+        let record = *self.context.arena().node(owner_member)?;
         let is_property = matches!(record.data(), NodeData::PropertyDeclaration(_));
 
         // transformLegacyDecorators consumes the expressions visited by the
         // element transaction. Reopening either modifier tree here would
         // revive erased syntax or skip nested legacy-decorator work.
-        let current_record = self.context.arena().node(member)?.clone();
+        let current_record = *self.context.arena().node(member)?;
         let modifiers = match current_record.data() {
             NodeData::PropertyDeclaration(data) => data.modifiers,
             NodeData::MethodDeclaration(data) => data.modifiers,
@@ -1649,7 +1648,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         serialization_context: MetadataSerializationContext,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let original = self.context.arena().get_original_node(member);
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
         let mut metadata = Vec::new();
         match record.data() {
             NodeData::PropertyDeclaration(data) => {
@@ -2291,7 +2290,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             return self.metadata_fallback(fallback);
         };
         let node = self.node(r#type);
-        let record = self.context.arena().node(node)?.clone();
+        let record = *self.context.arena().node(node)?;
         match record.kind {
             SyntaxKind::StringKeyword => self.create_identifier("String"),
             SyntaxKind::NumberKeyword => self.create_identifier("Number"),
@@ -3391,8 +3390,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         else {
             return Ok(name);
         };
-        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data()
-        else {
+        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data() else {
             return Ok(Some(name.node()));
         };
         let expression = data
@@ -4436,7 +4434,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         modifiers: Option<NodeArrayId>,
         injected_metadata: InjectedMetadata,
     ) -> Result<RangePastModifiers, TransformError> {
-        let declaration_record = self.context.arena().node(declaration)?.clone();
+        let declaration_record = *self.context.arena().node(declaration)?;
         let member_name_pos = match declaration_record.data() {
             NodeData::PropertyDeclaration(data) => data.name,
             NodeData::MethodDeclaration(data) => data.name,
