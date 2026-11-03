@@ -1666,12 +1666,14 @@
       "dataName": "ModuleDeclarationData",
       "fields": [
         {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
+        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
         {"name": "name", "array": false},
+        {"name": "attributes", "array": false},
         {"name": "body", "array": false}
       ]
     },
