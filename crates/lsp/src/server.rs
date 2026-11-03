@@ -163,11 +163,19 @@ type Handler = Box<
 >;
 
 /// Why the server stopped (tsgo's first error in `Run`'s group): the end of
-/// the client's input ends it without an error.
+/// the client's input ends it without an error; the client's `exit` ends it
+/// as the input did when the input ends with it, else with tsgo's `context
+/// canceled` ([`EXIT_INPUT_GRACE`]).
 enum StopReason {
     EndOfInput,
+    Exit,
     Error(String),
 }
+
+/// How long the server waits after `exit` for the input's end before it
+/// reports tsgo's `context canceled` (tsgo's answer when the client keeps
+/// its input open).
+const EXIT_INPUT_GRACE: Duration = Duration::from_secs(1);
 
 /// What the client told the server when it initialized it.
 #[derive(Default)]
@@ -202,6 +210,8 @@ pub struct Server {
     builtin_watcher: OnceLock<crate::lspwatcher::Watcher>,
     stopped: Arc<AtomicBool>,
     stop_reason: Mutex<Option<StopReason>>,
+    /// How the read loop ended: at the input's end (true) or with an error.
+    input_end: (Mutex<Option<bool>>, Condvar),
     state: Mutex<ServerState>,
     pub(crate) logger: Logger,
     init_complete: (Mutex<bool>, Condvar),
@@ -293,6 +303,7 @@ impl Server {
             builtin_watcher: OnceLock::new(),
             stopped: Arc::new(AtomicBool::new(false)),
             stop_reason: Mutex::new(None),
+            input_end: (Mutex::new(None), Condvar::new()),
             state: Mutex::default(),
             logger: Logger::default(),
             init_complete: (Mutex::new(false), Condvar::new()),
@@ -338,11 +349,14 @@ impl Server {
         std::thread::Builder::new()
             .name("tsc-rs-lsp-read".to_owned())
             .spawn(move || {
-                let reason = match reader.read_loop(input) {
+                let result = reader.read_loop(input);
+                let (end, ready) = &reader.input_end;
+                *lock(end) = Some(result.is_ok());
+                ready.notify_all();
+                reader.stop_with(match result {
                     Ok(()) => StopReason::EndOfInput,
                     Err(error) => StopReason::Error(error),
-                };
-                reader.stop_with(reason);
+                });
             })
             .map_err(|error| error.to_string())?;
         self.dispatch_loop();
@@ -350,8 +364,12 @@ impl Server {
         // tsgo's API sessions end with the server's context.
         self.close_api_sessions();
         let _ = writer.join();
-        match lock(&self.stop_reason).take() {
+        let reason = lock(&self.stop_reason).take();
+        match reason {
             Some(StopReason::Error(error)) => Err(error),
+            Some(StopReason::Exit) if !self.input_ended_within(EXIT_INPUT_GRACE) => {
+                Err("context canceled".to_owned())
+            }
             _ => Ok(()),
         }
     }
@@ -389,17 +407,44 @@ impl Server {
         }
     }
 
+    /// Whether the read loop reached the input's end within `grace`. tsgo's
+    /// `Run` takes the first of the read loop's `io.EOF` and the dispatch
+    /// loop's cancellation after `exit`: a client that closes its input with
+    /// `exit` gets the end (no error) in 8 sessions of 10 (the fixtures'
+    /// answer), one that keeps it open the cancellation.
+    fn input_ended_within(&self, grace: Duration) -> bool {
+        let (end, ready) = &self.input_end;
+        let deadline = Instant::now() + grace;
+        let mut guard = lock(end);
+        loop {
+            if let Some(ended) = *guard {
+                return ended;
+            }
+            let left = deadline.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                return false;
+            }
+            guard = ready
+                .wait_timeout(guard, left)
+                .unwrap_or_else(PoisonError::into_inner)
+                .0;
+        }
+    }
+
     fn read_loop(self: &Arc<Self>, input: Box<dyn Read + Send>) -> Result<(), String> {
         let mut reader = Reader::new(input);
         loop {
-            if self.stopped.load(Ordering::SeqCst) {
-                return Err("context canceled".to_owned());
-            }
+            // The input's end is read before the stop is looked at: a client
+            // that closes its input with `exit` ends this loop as the input
+            // did, whichever of this loop and the dispatch loop ran first.
             let data = match reader.read() {
                 Ok(Some(data)) => data,
                 Ok(None) => return Ok(()),
                 Err(error) => return Err(error.message().to_owned()),
             };
+            if self.stopped.load(Ordering::SeqCst) {
+                return Err("context canceled".to_owned());
+            }
             let message = match parse_message(&data) {
                 Ok(message) => message,
                 Err(error) => {
@@ -503,7 +548,7 @@ impl Server {
     /// tsgo's `handleError` in the dispatch loop.
     fn handle_failure(&self, id: Option<Id>, failure: Failure) {
         let failure = match failure {
-            Failure::Exit => return self.stop(),
+            Failure::Exit => return self.stop_with(StopReason::Exit),
             Failure::Cancelled => Failure::from(ErrorCode::REQUEST_CANCELLED),
             failure => failure,
         };

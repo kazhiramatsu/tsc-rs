@@ -185,11 +185,10 @@ impl Session {
     /// `text` and the input's end together, as a client that closes its
     /// end right after a message (tsgo's transcript tool writes `exit` and
     /// closes stdin). The server's read loop reads the message and then the
-    /// end at once, so the server ends as the input did, before the
-    /// dispatch loop handles the message: tsgo's `Run` takes the first of
-    /// the read loop's io.EOF and the dispatch loop's cancellation, and a
-    /// separate close could come after the read loop blocked for the next
-    /// message.
+    /// end at once, so the server ends as the input did: tsgo's `Run` takes
+    /// the first of the read loop's io.EOF and the dispatch loop's
+    /// cancellation, the end in 8 such sessions of 10, and the server
+    /// answers that whichever of its loops ran first.
     fn send_and_close(&mut self, text: &str) {
         let frame = format!("Content-Length: {}\r\n\r\n{text}", text.len());
         self.input_pipe.write_and_close(frame.as_bytes());
@@ -558,8 +557,8 @@ fn watches_reach_the_client() {
     assert_eq!(session.finish(), Ok(()));
 }
 
-/// `exit` ends the server with tsgo's `context canceled` (the command's
-/// status 1).
+/// `exit` with the input kept open ends the server with tsgo's `context
+/// canceled` (the command's status 1).
 #[test]
 fn exit_stops_the_server() {
     let mut session = Session::start();
@@ -569,6 +568,22 @@ fn exit_stops_the_server() {
     );
     session.send(r#"{"jsonrpc":"2.0","method":"exit"}"#);
     assert_eq!(session.finish(), Err("context canceled".to_owned()));
+}
+
+/// `exit` with the input's end ends the server as the input did (tsgo's
+/// `Run` reports no error in 8 such sessions of 10, the fixtures' answer),
+/// whichever of the read loop and the dispatch loop ran first.
+#[test]
+fn exit_with_the_inputs_end_ends_the_server_without_an_error() {
+    for _ in 0..10 {
+        let mut session = Session::start();
+        session.initialize(
+            serde_json::json!({"processId": null, "rootUri": null, "capabilities": {}}),
+            Value::Null,
+        );
+        session.send_and_close(r#"{"jsonrpc":"2.0","method":"exit"}"#);
+        assert_eq!(session.finish(), Ok(()));
+    }
 }
 
 /// tsgo `RequestConfiguration`: the preferences of the four sections the
