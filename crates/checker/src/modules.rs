@@ -4110,7 +4110,7 @@ impl<'a> CheckerState<'a> {
                 self.tables.literal_value(property_type)
             {
                 let name = unescape_leading_underscores(self.binder.symbol(property).escaped_name);
-                entries.push((name.to_owned(), value.clone()));
+                entries.push((name.to_owned(), tsc_types::TemplateText::from_js(value)));
             }
         }
         Ok(entries)

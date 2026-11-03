@@ -209,10 +209,8 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
             return Ordering::Greater;
         }
         if symbol1.escaped_name != symbol2.escaped_name {
-            let c = symbol1
-                .escaped_name
-                .as_js()
-                .cmp_utf16(symbol2.escaped_name.as_js());
+            // tsgo `strings.Compare(s1.Name(), s2.Name())`: byte order.
+            let c = symbol1.escaped_name.cmp(&symbol2.escaped_name);
             if c != Ordering::Equal {
                 return c;
             }
@@ -226,11 +224,9 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
     fn compare_symbol_names(&self, s1: SymbolId, s2: SymbolId) -> Ordering {
         let name1 = self.binder.symbol(s1).escaped_name;
         let name2 = self.binder.symbol(s2).escaped_name;
-        // Interned names: the same text is the same key.
-        if name1 == name2 {
-            return Ordering::Equal;
-        }
-        name1.as_js().cmp_utf16(name2.as_js())
+        // tsgo `compareTypeNames`: `strings.Compare` of the names, byte
+        // order (`EscapedName`'s `Ord`; equal ids answer without the text).
+        name1.cmp(&name2)
     }
 
     /// tsc-port: compareNodes @6.0.3
@@ -265,7 +261,8 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
         let name1 = self.element_label_name(NodeId::new(n1));
         let name2 = self.element_label_name(NodeId::new(n2));
         match (name1, name2) {
-            (Some(name1), Some(name2)) => name1.as_js().cmp_utf16(name2.as_js()),
+            // tsgo `strings.Compare` of the label texts: byte order.
+            (Some(name1), Some(name2)) => name1.cmp(&name2),
             (None, None) => Ordering::Equal,
             (None, Some(_)) => Ordering::Less,
             (Some(_), None) => Ordering::Greater,

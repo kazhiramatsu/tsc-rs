@@ -1659,11 +1659,12 @@ fn type_to_type_node_worker(
         let Some(LiteralValue::String(value)) = checker.tables.literal_value(r#type) else {
             unreachable!("StringLiteral flag implies string literal payload")
         };
-        add_approximate_length(context, value.len_utf8() + 2);
+        // Go's len(): the WTF-8 byte length (a lone surrogate is three).
+        add_approximate_length(context, value.as_bytes().len() + 2);
         let single_quote = has_flag(context, USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE);
         let literal = arena
             .factory()
-            .create_string_literal_from_code_units(target, value.units(), single_quote)
+            .create_string_literal_from_code_units(target, &value.to_utf16(), single_quote)
             .map_err(factory_error)?;
         let metadata = arena.metadata_mut(literal);
         metadata.add_flags(EmitFlags::NO_ASCII_ESCAPING);

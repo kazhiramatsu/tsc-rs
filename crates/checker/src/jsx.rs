@@ -1353,7 +1353,9 @@ impl<'a> CheckerState<'a> {
     /// The StringLiteral payload read.
     fn string_literal_type_value(&self, ty: TypeId) -> CheckResult<tsc_types::TemplateText> {
         match self.tables.literal_value(ty) {
-            Some(tsc_types::LiteralValue::String(value)) => Ok(value.clone()),
+            Some(tsc_types::LiteralValue::String(value)) => {
+                Ok(tsc_types::TemplateText::from_js(value))
+            }
             _ => unreachable!("STRING_LITERAL types always carry Literal string data"),
         }
     }

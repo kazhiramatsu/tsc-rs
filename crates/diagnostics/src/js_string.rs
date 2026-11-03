@@ -2,8 +2,9 @@
 //!
 //! WTF-8 encodes adjacent lead/trail surrogates as one four-byte scalar.
 //! All constructors and concatenations preserve that canonical form, so byte
-//! equality is exactly UTF-16 code-unit equality. No arbitrary byte constructor
-//! or mutable byte view is exposed. `Ord` is **byte order**, as required by
+//! equality is exactly UTF-16 code-unit equality. The one byte constructor,
+//! [`JsStr::from_canonical_bytes`], views verbatim copies of canonical text
+//! (checked in debug builds); no mutable byte view is exposed. `Ord` is **byte order**, as required by
 //! `Borrow<[u8]>`; JavaScript string comparers must call `cmp_utf16` instead.
 
 use std::borrow::{Borrow, Cow};
@@ -18,6 +19,7 @@ pub struct JsString(Storage);
 
 /// The length of the common byte prefix of two slices, compared eight
 /// bytes at a time.
+#[inline]
 fn common_prefix_len(left: &[u8], right: &[u8]) -> usize {
     let limit = left.len().min(right.len());
     let mut index = 0;
@@ -232,6 +234,17 @@ impl<'a> JsStr<'a> {
         }
     }
 
+    /// A view of canonical WTF-8 kept outside an owner: a verbatim copy of
+    /// a `JsString`'s or `JsStr`'s bytes (the name table keeps its texts
+    /// so). A copy of canonical bytes is canonical; debug builds check it.
+    pub fn from_canonical_bytes(bytes: &'a [u8]) -> Self {
+        debug_assert!(
+            is_canonical_wtf8(bytes),
+            "bytes that are not canonical WTF-8"
+        );
+        Self { bytes }
+    }
+
     pub fn as_bytes(self) -> &'a [u8] {
         self.bytes
     }
@@ -387,6 +400,7 @@ impl<'a> JsStr<'a> {
     /// before it are identical). Unequal bytes are never ordered by byte
     /// value: an astral sequence (`F0..`) sorts below a BMP code unit above
     /// `U+D7FF` in UTF-16 but above it in UTF-8.
+    #[inline]
     pub fn cmp_utf16(self, other: JsStr<'_>) -> Ordering {
         let (left, right) = (self.bytes, other.bytes);
         let common = common_prefix_len(left, right);
@@ -669,6 +683,38 @@ const _: () = assert!(
     std::mem::size_of::<JsString>() == std::mem::size_of::<Vec<u8>>(),
     "JsString must stay the size of a Vec<u8>"
 );
+
+/// Whether `bytes` are canonical WTF-8: UTF-8 where a surrogate may stand
+/// alone (three bytes), but a lead surrogate is never followed by a trail
+/// one (the pair is one four-byte scalar).
+fn is_canonical_wtf8(mut bytes: &[u8]) -> bool {
+    let mut after_lead = false;
+    loop {
+        match std::str::from_utf8(bytes) {
+            Ok(_) => return true,
+            Err(error) => {
+                let valid = error.valid_up_to();
+                if valid > 0 {
+                    after_lead = false;
+                }
+                let rest = &bytes[valid..];
+                let surrogate = rest.len() >= 3
+                    && rest[0] == 0xED
+                    && (0xA0..=0xBF).contains(&rest[1])
+                    && (0x80..=0xBF).contains(&rest[2]);
+                if !surrogate {
+                    return false;
+                }
+                let lead = rest[1] < 0xB0;
+                if after_lead && !lead {
+                    return false;
+                }
+                after_lead = lead;
+                bytes = &rest[3..];
+            }
+        }
+    }
+}
 
 /// Byte storage of a [`JsString`]: up to `INLINE_CAPACITY` bytes live in the
 /// value itself, so identifier-sized strings are built, copied and dropped

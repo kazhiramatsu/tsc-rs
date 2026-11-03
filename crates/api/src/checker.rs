@@ -1998,7 +1998,7 @@ fn object_flags_of(state: &CheckerState<'_>, ty: TypeId, flags: ObjectFlags) -> 
 fn literal_value(state: &CheckerState<'_>, ty: TypeId) -> Option<Box<RawValue>> {
     match state.tables.type_of(ty).data {
         TypeData::Literal { value, .. } => Some(match state.tables.literal_value_of(value) {
-            LiteralValue::String(text) => string_value(&text.to_js_string().to_string_lossy()),
+            LiteralValue::String(text) => string_value(&text.to_string_lossy()),
             LiteralValue::Number(number) => number_value(number),
             LiteralValue::BigInt(bigint) => string_value(&bigint.to_base10_string()),
         }),
