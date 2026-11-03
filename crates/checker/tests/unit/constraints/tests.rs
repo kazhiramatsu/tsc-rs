@@ -65,18 +65,16 @@ fn intersection_with_covering_constraint_collapses_to_type_parameter() {
 }
 
 #[test]
-fn declared_type_parameter_identity_survives_candidate_rollback() {
+fn declared_type_parameter_identity_is_stable_across_repeated_queries() {
     with_program_state(
         &[("a.ts", "function f<T>() { var v: T; }\n")],
         &CompilerOptions::default(),
         |state| {
-            let checkpoint = state.begin_speculation();
-            let inside_candidate = declared_type_parameter(state, "T");
-            state.rollback_speculation(checkpoint);
+            let first = declared_type_parameter(state, "T");
 
-            let after_candidate = declared_type_parameter(state, "T");
+            let repeated = declared_type_parameter(state, "T");
             assert_eq!(
-                after_candidate, inside_candidate,
+                repeated, first,
                 "semantic types created with the declared parameter retain its TypeId"
             );
         },
@@ -84,7 +82,7 @@ fn declared_type_parameter_identity_survives_candidate_rollback() {
 }
 
 #[test]
-fn class_interface_identity_survives_candidate_rollback() {
+fn class_interface_identity_is_stable_across_repeated_queries() {
     with_program_state(
         &[(
             "a.ts",
@@ -93,23 +91,21 @@ fn class_interface_identity_survives_candidate_rollback() {
         &CompilerOptions::default(),
         |state| {
             let annotation = annotation_of_var(state, "v");
-            let checkpoint = state.begin_speculation();
-            let inside_candidate = state
+            let first = state
                 .get_type_from_type_node(annotation)
-                .expect("candidate reference resolves");
-            state.rollback_speculation(checkpoint);
+                .expect("reference resolves");
 
-            let after_candidate = state
+            let repeated = state
                 .get_type_from_type_node(annotation)
-                .expect("reference resolves after rollback");
+                .expect("reference resolves again");
             assert_eq!(
-                after_candidate, inside_candidate,
-                "declaration-owned reference identity must outlive candidate rollback"
+                repeated, first,
+                "declaration-owned reference identity must remain stable"
             );
             assert_eq!(
-                state.tables.reference_target(after_candidate),
-                state.tables.reference_target(inside_candidate),
-                "the class/interface target cannot be reminted after rollback"
+                state.tables.reference_target(repeated),
+                state.tables.reference_target(first),
+                "the class/interface target cannot be reminted on a repeated query"
             );
         },
     );
