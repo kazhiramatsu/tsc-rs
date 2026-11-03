@@ -243,14 +243,6 @@ fn sparse_memory_usage<const N: usize>(fields: [(usize, usize); N]) -> (usize, u
         })
 }
 
-type SpeculativeResolvedTypeWrite = (
-    u32,
-    NodeId,
-    LinkSlot<TypeId>,
-    LinkSlot<SymbolId>,
-    LinkSlot<TypeId>,
-);
-
 // Debug-only census of OPEN `Resolving` sentinels on this thread.
 // Every slot writer below reports its transition; the
 // abort-unwind invariant reads the census at element/file
@@ -921,39 +913,6 @@ pub struct TypeLinksCold {
 }
 
 impl TypeLinksCold {
-    /// The special-instantiation cache `kind` journals.
-    fn instantiation_cache(
-        &self,
-        kind: SpeculativeTypeInstantiationKind,
-    ) -> &SparseLinks<TypeId, LinkSlot<TypeId>> {
-        match kind {
-            SpeculativeTypeInstantiationKind::UniqueLiteralFilled => {
-                &self.unique_literal_filled_instantiation
-            }
-            SpeculativeTypeInstantiationKind::Permissive => &self.permissive_instantiation,
-            SpeculativeTypeInstantiationKind::Restrictive => &self.restrictive_instantiation,
-            SpeculativeTypeInstantiationKind::BaseConstructor => {
-                &self.resolved_base_constructor_type
-            }
-        }
-    }
-
-    fn instantiation_cache_mut(
-        &mut self,
-        kind: SpeculativeTypeInstantiationKind,
-    ) -> &mut SparseLinks<TypeId, LinkSlot<TypeId>> {
-        match kind {
-            SpeculativeTypeInstantiationKind::UniqueLiteralFilled => {
-                &mut self.unique_literal_filled_instantiation
-            }
-            SpeculativeTypeInstantiationKind::Permissive => &mut self.permissive_instantiation,
-            SpeculativeTypeInstantiationKind::Restrictive => &mut self.restrictive_instantiation,
-            SpeculativeTypeInstantiationKind::BaseConstructor => {
-                &mut self.resolved_base_constructor_type
-            }
-        }
-    }
-
     /// The simplifiedForWriting or simplifiedForReading cache.
     pub fn simplified(&self, writing: bool) -> &SparseLinks<TypeId, LinkSlot<TypeId>> {
         if writing {
@@ -1073,135 +1032,12 @@ pub struct UnionKeyProperty {
     pub constituent_map: Option<rustc_hash::FxHashMap<TypeId, TypeId>>,
 }
 
-/// One speculation journal: for each link a transaction wrote, the value
-/// it held before that transaction's first write, in write order.
-///
-/// Commit and rollback pop entries back to the transaction's mark. A link
-/// is journaled once per transaction depth; `journaled` answers that test
-/// without scanning the open transactions' entries, a scan that made an
-/// overload candidate resolving thousands of lazy links quadratic (6 % of a
-/// serial playwright check).
-#[derive(Debug)]
-struct SpeculativeJournal<K, V> {
-    entries: Vec<(u32, K, V)>,
-    /// `(depth, link)` to the index of its entry in `entries`.
-    journaled: FxHashMap<(u32, K), usize>,
-}
-
-impl<K, V> Default for SpeculativeJournal<K, V> {
-    fn default() -> Self {
-        Self {
-            entries: Vec::new(),
-            journaled: FxHashMap::default(),
-        }
-    }
-}
-
-impl<K: Copy + Eq + std::hash::Hash, V> SpeculativeJournal<K, V> {
-    /// The position a transaction's commit or rollback restores.
-    fn mark(&self) -> usize {
-        self.entries.len()
-    }
-
-    fn contains(&self, depth: u32, key: K) -> bool {
-        self.journaled.contains_key(&(depth, key))
-    }
-
-    /// The entry the transaction at `depth` already journaled for `key`.
-    fn entry_mut(&mut self, depth: u32, key: K) -> Option<&mut V> {
-        let index = *self.journaled.get(&(depth, key))?;
-        Some(&mut self.entries[index].2)
-    }
-
-    /// Journal `key`'s value before the first write of the transaction at
-    /// `depth`; callers check [`Self::contains`] first.
-    fn push(&mut self, depth: u32, key: K, previous: V) {
-        let replaced = self.journaled.insert((depth, key), self.entries.len());
-        debug_assert!(
-            replaced.is_none(),
-            "a link is journaled once per transaction"
-        );
-        self.entries.push((depth, key, previous));
-    }
-
-    /// Remove the newest entry above `mark`.
-    fn pop_above(&mut self, mark: usize) -> Option<(K, V)> {
-        if self.entries.len() <= mark {
-            return None;
-        }
-        let (depth, key, previous) = self.entries.pop()?;
-        self.journaled.remove(&(depth, key));
-        Some((key, previous))
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum SpeculativeTypeInstantiationKind {
-    UniqueLiteralFilled,
-    Permissive,
-    Restrictive,
-    BaseConstructor,
-}
-
-#[derive(Clone, Debug, Default)]
-struct SpeculativeConditionalCacheSnapshot {
-    true_type: LinkSlot<TypeId>,
-    false_type: LinkSlot<TypeId>,
-    inferred_true_type: LinkSlot<TypeId>,
-    default_constraint: LinkSlot<TypeId>,
-    constraint_of_distributive: LinkSlot<Option<TypeId>>,
-}
-
-type SpeculativeSymbolVarianceWrite = (
-    u32,
-    SymbolId,
-    LinkSlot<crate::state::SharedList<tsc_types::VarianceFlags>>,
-);
 type SpeculativeTypeOnlyAliasWrite = (u32, SymbolId, Option<NodeId>);
-
-/// Whether a speculative symbol-type write is merely a candidate-local
-/// cache publication or semantic state selected by overload resolution.
-///
-/// Contextual parameter types and completed accessor types are once-results:
-/// tsc leaves them (and the function's `ContextChecked` flag) in place after
-/// a selected OR rejected candidate. Other lazy symbol-type
-/// publications remain transaction-local and are discarded at either
-/// boundary.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum SpeculativeSymbolTypeDisposition {
-    Temporary,
-    CompletedOnceResult,
-}
-
-#[derive(Clone, Debug)]
-struct SpeculativeSymbolTypeWrite {
-    previous: LinkSlot<TypeId>,
-    disposition: SpeculativeSymbolTypeDisposition,
-}
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct SpeculativeLinksMarks {
     resolved_signatures: usize,
-    declaration_signatures: usize,
-    resolved_types: usize,
-    decorator_signatures: usize,
-    enum_values_computed: usize,
-    context_checked: usize,
-    symbol_declared_types: usize,
-    symbol_types: usize,
-    symbol_write_types: usize,
-    unique_es_symbol_types: usize,
-    late_symbols: usize,
-    symbol_variances: usize,
-    alias_targets: usize,
     type_only_aliases: usize,
-    alias_instantiations: usize,
-    conditional_instantiations: usize,
-    type_instantiations: usize,
-    conditional_caches: usize,
-    type_members: usize,
-    simplified_types: usize,
-    non_existent_props: usize,
 }
 
 impl<K, T> PagedTable<K, T> {
@@ -1483,79 +1319,9 @@ pub struct LinksTables {
     /// entry state; the enclosing non-speculative call frame owns the
     /// permanent call-node publication.
     speculative_resolved_signature_writes: Vec<(u32, NodeId, LinkSlot<crate::state::SignatureId>)>,
-    /// Declaration-site getSignatureFromDeclaration publications.
-    /// These must be visible throughout a candidate so every member
-    /// view shares one SignatureId. Completed candidates retain them
-    /// (and a nested retain promotes the entry snapshot).
-    speculative_declaration_signature_writes:
-        Vec<(u32, NodeId, LinkSlot<crate::state::SignatureId>)>,
-    /// Trial-local type-node resolution publications. A candidate
-    /// needs one stable type identity (and resolving sentinels) while
-    /// it runs, but the AST cache must return to its entry state.
-    speculative_resolved_type_writes: Vec<SpeculativeResolvedTypeWrite>,
-    /// Diagnostic keys must suppress re-entry inside a candidate without
-    /// preventing a later candidate from reporting its own diagnostics.
-    speculative_non_existent_prop_writes: Vec<(NodeId, String)>,
-    /// Trial-local decorator-signature protocol writes. The
-    /// `any_signature` sentinel must remain visible to re-entrant
-    /// decorator checks inside the same candidate.
-    speculative_decorator_signature_writes: Vec<(u32, NodeId, Option<crate::state::SignatureId>)>,
-    /// Trial-local enum-value completion once-flags. Candidate checking
-    /// may force an enum for the first time; the flag must be visible to
-    /// re-entrant reads in that trial and restored at either boundary.
-    speculative_enum_values_computed_writes: Vec<(u32, NodeId, bool)>,
-    /// Trial-local ContextChecked once-flags. Completed candidates retain
-    /// them and promote their rollback snapshot to an enclosing
-    /// transaction; only explicit rollback/CheckAbort restores them.
-    speculative_context_checked_writes: Vec<(u32, NodeId, tsc_types::NodeCheckFlags)>,
-    /// Trial-local declared-type publications for symbols first forced
-    /// by candidate checking.
-    speculative_symbol_declared_type_writes: Vec<(u32, SymbolId, LinkSlot<TypeId>)>,
-    /// Trial-local value-type publications for symbols first forced by
-    /// candidate checking. The disposition distinguishes reproducible
-    /// cache state from completed contextual parameter and accessor types.
-    speculative_symbol_type_writes: SpeculativeJournal<SymbolId, SpeculativeSymbolTypeWrite>,
-    /// Trial-local accessor/instantiated-property write-type caches.
-    speculative_symbol_write_type_writes: Vec<(u32, SymbolId, LinkSlot<TypeId>)>,
-    /// Trial-local unique-symbol type publications.
-    speculative_unique_es_symbol_type_writes: Vec<(u32, SymbolId, Option<TypeId>)>,
-    /// Trial-local links from binder members to synthesized late-bound
-    /// symbols.
-    speculative_late_symbol_writes: Vec<(u32, SymbolId, Option<SymbolId>)>,
-    /// Trial-local variance measurement publications.
-    speculative_symbol_variance_writes: Vec<SpeculativeSymbolVarianceWrite>,
-    /// Trial-local alias-resolution sentinel/final slots.
-    speculative_alias_target_writes: Vec<(u32, SymbolId, LinkSlot<SymbolId>)>,
     /// Trial-local type-only alias protocol state. The declaration
     /// sentinel and export-star name are restored together.
     speculative_type_only_alias_writes: Vec<SpeculativeTypeOnlyAliasWrite>,
-    /// Trial-local generic-alias instantiation cache publications.
-    speculative_alias_instantiation_writes:
-        Vec<(u32, (SymbolId, tsc_types::InstantiationKey), Option<TypeId>)>,
-    /// Trial-local conditional-root instantiation cache publications.
-    /// A candidate needs stable identities for repeated instantiations,
-    /// but those identities must not escape the candidate boundary.
-    speculative_conditional_instantiation_writes:
-        Vec<(u32, ConditionalInstantiationKey, Option<TypeId>)>,
-    /// Trial-local special-instantiation caches used by relation and
-    /// reduction probes.
-    speculative_type_instantiation_writes: Vec<(
-        u32,
-        TypeId,
-        SpeculativeTypeInstantiationKind,
-        LinkSlot<TypeId>,
-    )>,
-    /// Trial-local resolved branch and constraint caches on conditional
-    /// types.
-    speculative_conditional_cache_writes: Vec<(u32, TypeId, SpeculativeConditionalCacheSnapshot)>,
-    /// Trial-local lazy structured-member publications. Fresh semantic
-    /// types use `set_fresh_type_members` and are intentionally not
-    /// journaled.
-    speculative_type_member_writes: SpeculativeJournal<TypeId, LinkSlot<crate::state::MembersId>>,
-    /// Trial-local indexed-access simplification protocols. Both the
-    /// circular sentinel and the completed simplification must remain
-    /// visible for the duration of a candidate.
-    speculative_simplified_type_writes: Vec<(u32, TypeId, bool, LinkSlot<TypeId>)>,
     /// tsc unionType.propertyCache / propertyCacheWithoutObjectFunctionPropertyAugment
     /// (getUnionOrIntersectionProperty 59246) — a monotone cache, not a
     /// one-write slot; only successful synthesis is cached, like tsc.
@@ -1765,25 +1531,12 @@ impl LinksTables {
     /// current cache transaction.
     pub fn set_alias_instantiation(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         symbol: SymbolId,
         key: tsc_types::InstantiationKey,
         value: TypeId,
     ) {
         let cache_key = (symbol, key);
-        if speculation_depth != 0
-            && !self
-                .speculative_alias_instantiation_writes
-                .iter()
-                .any(|(depth, existing, _)| *depth == speculation_depth && existing == &cache_key)
-        {
-            let previous = self.alias_instantiations.get(&cache_key).copied();
-            self.speculative_alias_instantiation_writes.push((
-                speculation_depth,
-                cache_key,
-                previous,
-            ));
-        }
         self.alias_instantiations.insert(cache_key, value);
     }
 
@@ -1791,26 +1544,13 @@ impl LinksTables {
     /// current cache transaction.
     pub fn set_conditional_instantiation(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         root: ConditionalRootId,
         for_constraint: bool,
         key: tsc_types::InstantiationKey,
         value: TypeId,
     ) {
         let cache_key = (root, for_constraint, key);
-        if speculation_depth != 0
-            && !self
-                .speculative_conditional_instantiation_writes
-                .iter()
-                .any(|(depth, existing, _)| *depth == speculation_depth && existing == &cache_key)
-        {
-            let previous = self.conditional_instantiations.get(&cache_key).copied();
-            self.speculative_conditional_instantiation_writes.push((
-                speculation_depth,
-                cache_key,
-                previous,
-            ));
-        }
         self.conditional_instantiations.insert(cache_key, value);
     }
 
@@ -1867,147 +1607,6 @@ impl LinksTables {
         *slot = value.into();
     }
 
-    fn journal_node_resolution(&mut self, speculation_depth: u32, id: NodeId) {
-        if speculation_depth == 0 {
-            return;
-        }
-        // A transaction's entries leave the journal when it ends (they resolve
-        // LIFO), so this transaction's entries are the journal's last ones.
-        debug_assert!(self
-            .speculative_resolved_type_writes
-            .last()
-            .is_none_or(|(depth, ..)| *depth <= speculation_depth));
-        if self
-            .speculative_resolved_type_writes
-            .iter()
-            .rev()
-            .take_while(|(depth, ..)| *depth == speculation_depth)
-            .any(|(_, node, ..)| *node == id)
-        {
-            return;
-        }
-        let (resolved_type, resolved_symbol) = self
-            .node
-            .get(id)
-            .map(|links| (links.resolved_type.get(), links.resolved_symbol.get()))
-            .unwrap_or_default();
-        let resolved_jsdoc_type = self.node_cold.resolved_jsdoc_type.get(id).clone();
-        self.speculative_resolved_type_writes.push((
-            speculation_depth,
-            id,
-            resolved_type,
-            resolved_symbol,
-            resolved_jsdoc_type,
-        ));
-    }
-
-    fn journal_type_instantiation(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        kind: SpeculativeTypeInstantiationKind,
-    ) {
-        if speculation_depth == 0 {
-            return;
-        }
-        if self
-            .speculative_type_instantiation_writes
-            .iter()
-            .any(|(depth, ty, existing_kind, _)| {
-                *depth == speculation_depth && *ty == id && *existing_kind == kind
-            })
-        {
-            return;
-        }
-        let previous = self.type_cold.instantiation_cache(kind).get(id).clone();
-        self.speculative_type_instantiation_writes
-            .push((speculation_depth, id, kind, previous));
-    }
-
-    fn journal_conditional_cache(&mut self, speculation_depth: u32, id: TypeId) {
-        if speculation_depth == 0 {
-            return;
-        }
-        if self
-            .speculative_conditional_cache_writes
-            .iter()
-            .any(|(depth, ty, _)| *depth == speculation_depth && *ty == id)
-        {
-            return;
-        }
-        let cold = &self.type_cold;
-        let snapshot = SpeculativeConditionalCacheSnapshot {
-            true_type: cold.conditional_true_type.get(id).clone(),
-            false_type: cold.conditional_false_type.get(id).clone(),
-            inferred_true_type: cold.conditional_inferred_true_type.get(id).clone(),
-            default_constraint: cold.conditional_default_constraint.get(id).clone(),
-            constraint_of_distributive: cold.conditional_constraint_of_distributive.get(id).clone(),
-        };
-        self.speculative_conditional_cache_writes
-            .push((speculation_depth, id, snapshot));
-    }
-
-    fn journal_symbol_type(
-        &mut self,
-        speculation_depth: u32,
-        id: SymbolId,
-        disposition: SpeculativeSymbolTypeDisposition,
-    ) {
-        if speculation_depth == 0 {
-            return;
-        }
-        if let Some(existing) = self
-            .speculative_symbol_type_writes
-            .entry_mut(speculation_depth, id)
-        {
-            if disposition == SpeculativeSymbolTypeDisposition::CompletedOnceResult {
-                existing.disposition = disposition;
-            }
-            return;
-        }
-        let previous = self.symbol(id).type_of_symbol.get();
-        self.speculative_symbol_type_writes.push(
-            speculation_depth,
-            id,
-            SpeculativeSymbolTypeWrite {
-                previous,
-                disposition,
-            },
-        );
-    }
-
-    fn journal_symbol_write_type(&mut self, speculation_depth: u32, id: SymbolId) {
-        if speculation_depth == 0 {
-            return;
-        }
-        if self
-            .speculative_symbol_write_type_writes
-            .iter()
-            .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
-        {
-            return;
-        }
-        let previous = self.symbol_cold.write_type.get(id).clone();
-        self.speculative_symbol_write_type_writes
-            .push((speculation_depth, id, previous));
-    }
-
-    fn journal_alias_target(&mut self, speculation_depth: u32, id: SymbolId) {
-        if speculation_depth == 0 {
-            return;
-        }
-        if self
-            .speculative_alias_target_writes
-            .iter()
-            .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
-        {
-            return;
-        }
-        let previous = self.symbol_cold.alias_target.get(id).clone();
-        self.speculative_alias_target_writes
-            .push((speculation_depth, id, previous));
-    }
-
     fn journal_type_only_alias(&mut self, speculation_depth: u32, id: SymbolId) {
         if speculation_depth == 0 {
             return;
@@ -2028,11 +1627,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_node_resolved_type(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         value: LinkSlot<TypeId>,
     ) {
-        self.journal_node_resolution(speculation_depth, id);
         Self::write_id_slot(&mut self.node.slot(id).resolved_type, value);
     }
 
@@ -2049,12 +1647,11 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn overwrite_type_reference_resolution(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         symbol: Option<SymbolId>,
         value: TypeId,
     ) {
-        self.journal_node_resolution(speculation_depth, id);
         let links = self.node.slot(id);
         note_resolving_transition(links.resolved_symbol.is_resolving(), false);
         note_resolving_transition(links.resolved_type.is_resolving(), false);
@@ -2070,11 +1667,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn overwrite_node_resolved_jsdoc_type(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         value: TypeId,
     ) {
-        self.journal_node_resolution(speculation_depth, id);
         let slot = self.node_cold.resolved_jsdoc_type.slot(id);
         note_resolving_transition(slot.is_resolving(), false);
         *slot = LinkSlot::Resolved(value);
@@ -2093,11 +1689,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn overwrite_import_type_resolved_symbol(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         value: SymbolId,
     ) {
-        self.journal_node_resolution(speculation_depth, id);
         let links = self.node.slot(id);
         note_resolving_transition(links.resolved_symbol.is_resolving(), false);
         links.resolved_symbol = LinkSlot::Resolved(value).into();
@@ -2110,11 +1705,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn overwrite_import_type_resolved_type(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         value: TypeId,
     ) {
-        self.journal_node_resolution(speculation_depth, id);
         let links = self.node.slot(id);
         note_resolving_transition(links.resolved_type.is_resolving(), false);
         links.resolved_type = LinkSlot::Resolved(value).into();
@@ -2134,15 +1728,10 @@ impl LinksTables {
     /// site (see overwrite_type_reference_resolution).
     pub fn overwrite_symbol_type_for_binding_element(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: SymbolId,
         value: TypeId,
     ) {
-        self.journal_symbol_type(
-            speculation_depth,
-            id,
-            SpeculativeSymbolTypeDisposition::Temporary,
-        );
         let slot = self.symbol_type_mut(id);
         note_resolving_transition(slot.is_resolving(), false);
         *slot = LinkSlot::Resolved(value).into();
@@ -2230,24 +1819,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_node_resolved_signature(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         value: LinkSlot<SignatureId>,
     ) {
-        if speculation_depth != 0
-            && !self
-                .speculative_declaration_signature_writes
-                .iter()
-                .any(|(depth, node, _)| *depth == speculation_depth && *node == id)
-        {
-            let previous = self
-                .node
-                .get(id)
-                .map(|links| links.resolved_signature.get())
-                .unwrap_or_default();
-            self.speculative_declaration_signature_writes
-                .push((speculation_depth, id, previous));
-        }
         Self::write_id_slot(&mut self.node.slot(id).resolved_signature, value);
     }
 
@@ -2384,147 +1959,23 @@ impl LinksTables {
         self.speculative_resolved_signature_writes.len()
     }
 
-    /// tsrs-native: capture the declaration-signature transaction mark.
-    pub fn speculative_declaration_signature_mark(&self) -> usize {
-        self.speculative_declaration_signature_writes.len()
-    }
-
-    /// tsrs-native: capture the type-node-cache journal position at a
-    /// speculation boundary.
-    pub fn speculative_resolved_type_mark(&self) -> usize {
-        self.speculative_resolved_type_writes.len()
-    }
-
-    /// tsrs-native: capture the decorator-signature journal position.
-    pub fn speculative_decorator_signature_mark(&self) -> usize {
-        self.speculative_decorator_signature_writes.len()
-    }
-
-    /// tsrs-native: capture the enum-values-computed journal position.
-    pub fn speculative_enum_values_computed_mark(&self) -> usize {
-        self.speculative_enum_values_computed_writes.len()
-    }
-
-    /// tsrs-native: capture the contextual-check flag journal position.
-    pub fn speculative_context_checked_mark(&self) -> usize {
-        self.speculative_context_checked_writes.len()
-    }
-
-    /// tsrs-native: capture the symbol-declared-type journal position
-    /// at a speculation boundary.
-    pub fn speculative_symbol_declared_type_mark(&self) -> usize {
-        self.speculative_symbol_declared_type_writes.len()
-    }
-
-    /// tsrs-native: capture the symbol-value-type journal position.
-    pub fn speculative_symbol_type_mark(&self) -> usize {
-        self.speculative_symbol_type_writes.mark()
-    }
-
-    /// tsrs-native: capture the symbol-write-type journal position.
-    pub fn speculative_symbol_write_type_mark(&self) -> usize {
-        self.speculative_symbol_write_type_writes.len()
-    }
-
-    /// tsrs-native: capture the unique-symbol cache journal position at
-    /// a speculation boundary.
-    pub fn speculative_unique_es_symbol_type_mark(&self) -> usize {
-        self.speculative_unique_es_symbol_type_writes.len()
-    }
-
-    /// tsrs-native: capture the late-symbol journal position at a
-    /// speculation boundary.
-    pub fn speculative_late_symbol_mark(&self) -> usize {
-        self.speculative_late_symbol_writes.len()
-    }
-
-    /// tsrs-native: capture the variance-cache journal position at a
-    /// speculation boundary.
-    pub fn speculative_symbol_variance_mark(&self) -> usize {
-        self.speculative_symbol_variance_writes.len()
-    }
-
-    /// tsrs-native: capture the alias-target protocol journal position.
-    pub fn speculative_alias_target_mark(&self) -> usize {
-        self.speculative_alias_target_writes.len()
-    }
-
     /// tsrs-native: capture the type-only alias journal position.
     pub fn speculative_type_only_alias_mark(&self) -> usize {
         self.speculative_type_only_alias_writes.len()
-    }
-
-    /// tsrs-native: capture the alias-instantiation journal position.
-    pub fn speculative_alias_instantiation_mark(&self) -> usize {
-        self.speculative_alias_instantiation_writes.len()
-    }
-
-    /// tsrs-native: capture the conditional-root instantiation journal.
-    pub fn speculative_conditional_instantiation_mark(&self) -> usize {
-        self.speculative_conditional_instantiation_writes.len()
-    }
-
-    /// tsrs-native: capture the special-instantiation cache journal
-    /// position.
-    pub fn speculative_type_instantiation_mark(&self) -> usize {
-        self.speculative_type_instantiation_writes.len()
-    }
-
-    /// tsrs-native: capture the conditional-cache journal position.
-    pub fn speculative_conditional_cache_mark(&self) -> usize {
-        self.speculative_conditional_cache_writes.len()
-    }
-
-    /// tsrs-native: capture the structured-member journal position at
-    /// a speculation boundary.
-    pub fn speculative_type_members_mark(&self) -> usize {
-        self.speculative_type_member_writes.mark()
-    }
-
-    /// tsrs-native: capture the indexed-access simplification journal.
-    pub fn speculative_simplified_type_mark(&self) -> usize {
-        self.speculative_simplified_type_writes.len()
     }
 
     /// tsrs-native: capture every LinksTables speculation journal mark.
     pub(crate) fn speculative_marks(&self) -> SpeculativeLinksMarks {
         SpeculativeLinksMarks {
             resolved_signatures: self.speculative_resolved_signature_mark(),
-            declaration_signatures: self.speculative_declaration_signature_mark(),
-            resolved_types: self.speculative_resolved_type_mark(),
-            decorator_signatures: self.speculative_decorator_signature_mark(),
-            enum_values_computed: self.speculative_enum_values_computed_mark(),
-            context_checked: self.speculative_context_checked_mark(),
-            symbol_declared_types: self.speculative_symbol_declared_type_mark(),
-            symbol_types: self.speculative_symbol_type_mark(),
-            symbol_write_types: self.speculative_symbol_write_type_mark(),
-            unique_es_symbol_types: self.speculative_unique_es_symbol_type_mark(),
-            late_symbols: self.speculative_late_symbol_mark(),
-            symbol_variances: self.speculative_symbol_variance_mark(),
-            alias_targets: self.speculative_alias_target_mark(),
             type_only_aliases: self.speculative_type_only_alias_mark(),
-            alias_instantiations: self.speculative_alias_instantiation_mark(),
-            conditional_instantiations: self.speculative_conditional_instantiation_mark(),
-            type_instantiations: self.speculative_type_instantiation_mark(),
-            conditional_caches: self.speculative_conditional_cache_mark(),
-            type_members: self.speculative_type_members_mark(),
-            simplified_types: self.speculative_simplified_type_mark(),
-            non_existent_props: self.speculative_non_existent_prop_writes.len(),
         }
     }
 
     /// tsrs-native: commit one selected overload-candidate transaction.
     ///
-    /// Discard candidate-local protocols and lazy cache publications.
-    /// Semantic objects constructed during the candidate initialize
-    /// their owned fields through the `set_fresh_*` setters instead.
-    /// Declaration signatures, contextual-check flags, contextual parameter
-    /// types, and completed accessor types are the exceptions: these once-results
-    /// must remain available to later candidates and deferred body checks.
-    /// tsrs-native: close a completed candidate's journals. tsc keeps
-    /// every link a candidate resolved, so nothing completed is taken back;
-    /// the twin below applies the same rule on rollback and only in-progress
-    /// sentinels return to their entry state.
+    /// Close the remaining call-resolution and type-only alias journals
+    /// through the same restore walker used on rollback.
     pub(crate) fn commit_speculative_writes(
         &mut self,
         marks: SpeculativeLinksMarks,
@@ -2536,26 +1987,7 @@ impl LinksTables {
     /// tsrs-native: restore every LinksTables journal to its marks.
     pub(crate) fn restore_speculative_writes(&mut self, marks: SpeculativeLinksMarks) {
         self.restore_speculative_resolved_signatures(marks.resolved_signatures);
-        self.restore_speculative_declaration_signatures(marks.declaration_signatures);
-        self.restore_speculative_resolved_types(marks.resolved_types);
-        self.restore_speculative_decorator_signatures(marks.decorator_signatures);
-        self.restore_speculative_enum_values_computed(marks.enum_values_computed);
-        self.restore_speculative_context_checked(marks.context_checked);
-        self.restore_speculative_symbol_declared_types(marks.symbol_declared_types);
-        self.restore_speculative_symbol_types(marks.symbol_types);
-        self.restore_speculative_symbol_write_types(marks.symbol_write_types);
-        self.restore_speculative_unique_es_symbol_types(marks.unique_es_symbol_types);
-        self.restore_speculative_late_symbols(marks.late_symbols);
-        self.restore_speculative_symbol_variances(marks.symbol_variances);
-        self.restore_speculative_alias_targets(marks.alias_targets);
         self.restore_speculative_type_only_aliases(marks.type_only_aliases);
-        self.restore_speculative_alias_instantiations(marks.alias_instantiations);
-        self.restore_speculative_conditional_instantiations(marks.conditional_instantiations);
-        self.restore_speculative_type_instantiations(marks.type_instantiations);
-        self.restore_speculative_conditional_caches(marks.conditional_caches);
-        self.restore_speculative_type_members(marks.type_members);
-        self.restore_speculative_simplified_types(marks.simplified_types);
-        self.restore_speculative_non_existent_props(marks.non_existent_props);
     }
 
     /// tsrs-native: speculation-transaction unwind for call caches.
@@ -2578,161 +2010,6 @@ impl LinksTables {
         }
     }
 
-    fn restore_speculative_declaration_signatures(&mut self, mark: usize) {
-        while self.speculative_declaration_signature_writes.len() > mark {
-            let (_, node, previous) = self
-                .speculative_declaration_signature_writes
-                .pop()
-                .expect("length checked");
-            let slot = &mut self.node.slot(node).resolved_signature;
-            if slot.is_resolving() {
-                note_resolving_transition(true, previous.is_resolving());
-                *slot = previous.into();
-            }
-        }
-    }
-
-    /// tsrs-native: speculation-transaction unwind for type-node caches.
-    ///
-    /// tsc keeps every node resolution a candidate completed
-    /// (`links.resolvedType`/`resolvedSymbol` are written in any check mode
-    /// and never cleared), so a completed resolution stays published here
-    /// too: returning it to its entry state made every later use of the
-    /// node resolve — and instantiate — again (twice tsc's instantiation
-    /// count and a fifth more types on a real program). Only a resolution
-    /// the candidate abandoned mid-way, still `Resolving`, returns to its
-    /// entry state, so no sentinel outlives its transaction.
-    pub fn restore_speculative_resolved_types(&mut self, mark: usize) {
-        while self.speculative_resolved_type_writes.len() > mark {
-            let (_, node, previous_type, previous_symbol, previous_jsdoc_type) = self
-                .speculative_resolved_type_writes
-                .pop()
-                .expect("length checked");
-            let links = self.node.slot(node);
-            if links.resolved_type.is_resolving() {
-                note_resolving_transition(true, previous_type.is_resolving());
-                links.resolved_type = previous_type.into();
-            }
-            if links.resolved_symbol.is_resolving() {
-                note_resolving_transition(true, previous_symbol.is_resolving());
-                links.resolved_symbol = previous_symbol.into();
-            }
-            if self.node_cold.resolved_jsdoc_type.get(node).is_resolving() {
-                note_resolving_transition(true, previous_jsdoc_type.is_resolving());
-                self.node_cold
-                    .resolved_jsdoc_type
-                    .set(node, previous_jsdoc_type);
-            }
-        }
-    }
-
-    /// tsrs-native: speculation-transaction unwind for decorator
-    /// signature sentinels and results.
-    pub fn restore_speculative_decorator_signatures(&mut self, mark: usize) {
-        self.speculative_decorator_signature_writes.truncate(mark);
-    }
-
-    /// tsrs-native: speculation-transaction unwind for the enum value
-    /// completion once-flag.
-    pub fn restore_speculative_enum_values_computed(&mut self, mark: usize) {
-        self.speculative_enum_values_computed_writes.truncate(mark);
-    }
-
-    /// tsrs-native: speculation-transaction unwind for ContextChecked
-    /// once-flags.
-    pub fn restore_speculative_context_checked(&mut self, mark: usize) {
-        self.speculative_context_checked_writes.truncate(mark);
-    }
-
-    /// tsrs-native: speculation-transaction unwind for symbol
-    /// declared-type caches.
-    pub fn restore_speculative_symbol_declared_types(&mut self, mark: usize) {
-        while self.speculative_symbol_declared_type_writes.len() > mark {
-            let (_, symbol, previous) = self
-                .speculative_symbol_declared_type_writes
-                .pop()
-                .expect("length checked");
-            let slot = self.symbol_declared_type_mut(symbol);
-            if slot.is_resolving() {
-                note_resolving_transition(true, previous.is_resolving());
-                *slot = previous.into();
-            }
-        }
-    }
-
-    /// tsrs-native: speculation-transaction unwind for symbol
-    /// value-type caches.
-    pub fn restore_speculative_symbol_types(&mut self, mark: usize) {
-        while let Some((symbol, write)) = self.speculative_symbol_type_writes.pop_above(mark) {
-            let slot = self.symbol_type_mut(symbol);
-            if slot.is_resolving() {
-                perf::bump(PerfCounter::LinksSymbolTypeRollbacks);
-            }
-            if slot.is_resolving() {
-                note_resolving_transition(true, write.previous.is_resolving());
-                *slot = write.previous.into();
-            }
-        }
-    }
-
-    /// tsrs-native: speculation-transaction unwind for symbol
-    /// write-type caches.
-    pub fn restore_speculative_symbol_write_types(&mut self, mark: usize) {
-        while self.speculative_symbol_write_type_writes.len() > mark {
-            let (_, symbol, previous) = self
-                .speculative_symbol_write_type_writes
-                .pop()
-                .expect("length checked");
-            let slot = self.symbol_cold.write_type.slot(symbol);
-            if slot.is_resolving() {
-                note_resolving_transition(true, previous.is_resolving());
-                *slot = previous;
-            }
-        }
-    }
-
-    /// tsrs-native: speculation-transaction unwind for unique-symbol
-    /// type caches.
-    pub fn restore_speculative_unique_es_symbol_types(&mut self, mark: usize) {
-        self.speculative_unique_es_symbol_type_writes.truncate(mark);
-    }
-
-    /// tsrs-native: speculation-transaction unwind for late-symbol
-    /// links.
-    pub fn restore_speculative_late_symbols(&mut self, mark: usize) {
-        self.speculative_late_symbol_writes.truncate(mark);
-    }
-
-    /// tsrs-native: speculation-transaction unwind for variance caches.
-    pub fn restore_speculative_symbol_variances(&mut self, mark: usize) {
-        while self.speculative_symbol_variance_writes.len() > mark {
-            let (_, symbol, previous) = self
-                .speculative_symbol_variance_writes
-                .pop()
-                .expect("length checked");
-            let slot = self.symbol_cold.variances.slot(symbol);
-            if slot.is_resolving() {
-                note_resolving_transition(true, previous.is_resolving());
-                *slot = previous;
-            }
-        }
-    }
-
-    /// tsrs-native: speculation-transaction unwind for alias targets.
-    pub fn restore_speculative_alias_targets(&mut self, mark: usize) {
-        while self.speculative_alias_target_writes.len() > mark {
-            let (_, symbol, previous) = self
-                .speculative_alias_target_writes
-                .pop()
-                .expect("length checked");
-            let slot = self.symbol_cold.alias_target.slot(symbol);
-            if slot.is_resolving() {
-                note_resolving_transition(true, previous.is_resolving());
-                *slot = previous;
-            }
-        }
-    }
-
     /// tsrs-native: speculation-transaction unwind for type-only alias
     /// sentinel/final state.
     pub fn restore_speculative_type_only_aliases(&mut self, mark: usize) {
@@ -2747,119 +2024,14 @@ impl LinksTables {
         }
     }
 
-    /// tsrs-native: speculation-transaction unwind for generic-alias
-    /// instantiation cache entries.
-    pub fn restore_speculative_alias_instantiations(&mut self, mark: usize) {
-        self.speculative_alias_instantiation_writes.truncate(mark);
-    }
-
-    /// tsrs-native: speculation-transaction unwind for conditional-root
-    /// instantiation cache entries.
-    pub fn restore_speculative_conditional_instantiations(&mut self, mark: usize) {
-        self.speculative_conditional_instantiation_writes
-            .truncate(mark);
-    }
-
-    /// tsrs-native: speculation-transaction unwind for special type
-    /// instantiation caches.
-    pub fn restore_speculative_type_instantiations(&mut self, mark: usize) {
-        while self.speculative_type_instantiation_writes.len() > mark {
-            let (_, ty, kind, previous) = self
-                .speculative_type_instantiation_writes
-                .pop()
-                .expect("length checked");
-            let slot = self.type_cold.instantiation_cache_mut(kind).slot(ty);
-            if slot.is_resolving() {
-                note_resolving_transition(true, previous.is_resolving());
-                *slot = previous;
-            }
-        }
-    }
-
-    /// tsrs-native: speculation-transaction unwind for resolved
-    /// conditional branches and constraints.
-    pub fn restore_speculative_conditional_caches(&mut self, mark: usize) {
-        while self.speculative_conditional_cache_writes.len() > mark {
-            let (_, ty, previous) = self
-                .speculative_conditional_cache_writes
-                .pop()
-                .expect("length checked");
-            let cold = &mut self.type_cold;
-            if cold.conditional_true_type.get(ty).is_resolving() {
-                note_resolving_transition(true, previous.true_type.is_resolving());
-                cold.conditional_true_type.set(ty, previous.true_type);
-            }
-            if cold.conditional_false_type.get(ty).is_resolving() {
-                note_resolving_transition(true, previous.false_type.is_resolving());
-                cold.conditional_false_type.set(ty, previous.false_type);
-            }
-            if cold.conditional_inferred_true_type.get(ty).is_resolving() {
-                note_resolving_transition(true, previous.inferred_true_type.is_resolving());
-                cold.conditional_inferred_true_type
-                    .set(ty, previous.inferred_true_type);
-            }
-            if cold.conditional_default_constraint.get(ty).is_resolving() {
-                note_resolving_transition(true, previous.default_constraint.is_resolving());
-                cold.conditional_default_constraint
-                    .set(ty, previous.default_constraint);
-            }
-            if cold
-                .conditional_constraint_of_distributive
-                .get(ty)
-                .is_resolving()
-            {
-                note_resolving_transition(true, previous.constraint_of_distributive.is_resolving());
-                cold.conditional_constraint_of_distributive
-                    .set(ty, previous.constraint_of_distributive);
-            }
-        }
-    }
-
-    /// tsrs-native: speculation-transaction unwind for lazy member
-    /// caches.
-    pub fn restore_speculative_type_members(&mut self, mark: usize) {
-        while let Some((ty, previous)) = self.speculative_type_member_writes.pop_above(mark) {
-            let slot = &mut self.ty.slot(ty).resolved_members;
-            if slot.is_resolving() {
-                *slot = previous.into();
-            }
-        }
-    }
-
-    /// tsrs-native: speculation-transaction unwind for indexed-access
-    /// simplification protocols.
-    pub fn restore_speculative_simplified_types(&mut self, mark: usize) {
-        while self.speculative_simplified_type_writes.len() > mark {
-            let (_, ty, writing, previous) = self
-                .speculative_simplified_type_writes
-                .pop()
-                .expect("length checked");
-            let slot = self.type_cold.simplified_mut(writing).slot(ty);
-            if slot.is_resolving() {
-                note_resolving_transition(true, previous.is_resolving());
-                *slot = previous;
-            }
-        }
-    }
-
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_variances(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: SymbolId,
         value: LinkSlot<crate::state::SharedList<tsc_types::VarianceFlags>>,
     ) {
-        if speculation_depth != 0
-            && !self
-                .speculative_symbol_variance_writes
-                .iter()
-                .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
-        {
-            let previous = self.symbol_cold.variances.get(id).clone();
-            self.speculative_symbol_variance_writes
-                .push((speculation_depth, id, previous));
-        }
         Self::write_slot(self.symbol_cold.variances.slot(id), value);
     }
 
@@ -2884,21 +2056,6 @@ impl LinksTables {
         id: NodeId,
         bits: tsc_types::NodeCheckFlags,
     ) {
-        if speculation_depth != 0
-            && bits.intersects(tsc_types::NodeCheckFlags::CONTEXT_CHECKED)
-            && !self
-                .speculative_context_checked_writes
-                .iter()
-                .any(|(depth, node, _)| *depth == speculation_depth && *node == id)
-        {
-            let previous = self
-                .node
-                .get(id)
-                .map(|links| links.check_flags)
-                .unwrap_or_default();
-            self.speculative_context_checked_writes
-                .push((speculation_depth, id, previous));
-        }
         if speculation_depth != 0
             && !bits.intersects(
                 tsc_types::NodeCheckFlags::IN_CHECK_IDENTIFIER
@@ -3008,20 +2165,10 @@ impl LinksTables {
     /// the same computation).
     pub fn set_node_decorator_signature(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         value: Option<crate::state::SignatureId>,
     ) {
-        if speculation_depth != 0
-            && !self
-                .speculative_decorator_signature_writes
-                .iter()
-                .any(|(depth, node, _)| *depth == speculation_depth && *node == id)
-        {
-            let previous = *self.node_cold.decorator_signature.get(id);
-            self.speculative_decorator_signature_writes
-                .push((speculation_depth, id, previous));
-        }
         self.node_cold.decorator_signature.set(id, value);
     }
 
@@ -3044,17 +2191,7 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_node_enum_values_computed(&mut self, speculation_depth: u32, id: NodeId) {
-        if speculation_depth != 0
-            && !self
-                .speculative_enum_values_computed_writes
-                .iter()
-                .any(|(depth, node, _)| *depth == speculation_depth && *node == id)
-        {
-            let previous = *self.node_cold.enum_values_computed.get(id);
-            self.speculative_enum_values_computed_writes
-                .push((speculation_depth, id, previous));
-        }
+    pub fn set_node_enum_values_computed(&mut self, _speculation_depth: u32, id: NodeId) {
         self.node_cold.enum_values_computed.set(id, true);
     }
 
@@ -3085,20 +2222,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_declared_type(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: SymbolId,
         value: LinkSlot<TypeId>,
     ) {
-        if speculation_depth != 0
-            && !self
-                .speculative_symbol_declared_type_writes
-                .iter()
-                .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
-        {
-            let previous = self.symbol(id).declared_type.get();
-            self.speculative_symbol_declared_type_writes
-                .push((speculation_depth, id, previous));
-        }
         Self::write_id_slot(self.symbol_declared_type_mut(id), value);
     }
 
@@ -3139,15 +2266,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_type(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: SymbolId,
         value: LinkSlot<TypeId>,
     ) {
-        self.journal_symbol_type(
-            speculation_depth,
-            id,
-            SpeculativeSymbolTypeDisposition::Temporary,
-        );
         Self::write_id_slot(self.symbol_type_mut(id), value);
     }
 
@@ -3155,41 +2277,28 @@ impl LinksTables {
     /// overload candidates. Upstream accessor resolution fills links.type
     /// once, including when a candidate is rejected. Recomputing that type
     /// later can encounter a different contextual type and introduce a cycle.
-    /// An aborted or explicitly rolled-back transaction still restores the
-    /// original slot, together with its completed diagnostic journal.
-    /// tsrs-native: journal protocol for upstream's accessor once-result.
+    /// tsrs-native: setter for upstream's accessor once-result.
     pub fn set_symbol_type_once(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: SymbolId,
         value: LinkSlot<TypeId>,
     ) {
-        self.journal_symbol_type(
-            speculation_depth,
-            id,
-            SpeculativeSymbolTypeDisposition::CompletedOnceResult,
-        );
         Self::write_id_slot(self.symbol_type_mut(id), value);
     }
 
     /// tsrs-native: candidate-local contextual symbol initialization.
     ///
     /// The parameter type must remain stable while a candidate is checked.
-    /// A completed candidate retains it with the ContextChecked flag,
-    /// matching tsc's cross-candidate contextual pin; explicit rollback and
-    /// CheckAbort restore both. The plain assignment also preserves tsc's
+    /// It persists with the ContextChecked flag, matching tsc's
+    /// cross-candidate contextual pin. The plain assignment also preserves tsc's
     /// `unknown` binding-pattern replacement.
     pub fn set_symbol_type_contextual(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: SymbolId,
         value: LinkSlot<TypeId>,
     ) {
-        self.journal_symbol_type(
-            speculation_depth,
-            id,
-            SpeculativeSymbolTypeDisposition::CompletedOnceResult,
-        );
         let slot = self.symbol_type_mut(id);
         note_resolving_transition(slot.is_resolving(), value.is_resolving());
         *slot = value.into();
@@ -3213,15 +2322,10 @@ impl LinksTables {
     /// that caller may rewrite Resolved→Resolved.
     pub fn set_symbol_type_func_class_enum_module(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: SymbolId,
         value: TypeId,
     ) {
-        self.journal_symbol_type(
-            speculation_depth,
-            id,
-            SpeculativeSymbolTypeDisposition::Temporary,
-        );
         *self.symbol_type_mut(id) = LinkSlot::Resolved(value).into();
     }
 
@@ -3333,20 +2437,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_unique_es_symbol_type(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: SymbolId,
         ty: TypeId,
     ) {
-        if speculation_depth != 0
-            && !self
-                .speculative_unique_es_symbol_type_writes
-                .iter()
-                .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
-        {
-            let previous = *self.symbol_cold.unique_es_symbol_type.get(id);
-            self.speculative_unique_es_symbol_type_writes
-                .push((speculation_depth, id, previous));
-        }
         self.symbol_cold.unique_es_symbol_type.set(id, Some(ty));
     }
 
@@ -3658,32 +2752,14 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn insert_node_non_existent_prop_key(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         key: String,
     ) -> bool {
-        if speculation_depth == 0 {
-            return self
-                .node_cold
-                .non_existent_prop_check_cache
-                .slot(id)
-                .insert(key);
-        }
-        let inserted = self
-            .node_cold
+        self.node_cold
             .non_existent_prop_check_cache
             .slot(id)
-            .insert(key.clone());
-        if inserted {
-            self.speculative_non_existent_prop_writes.push((id, key));
-        }
-        inserted
-    }
-
-    /// tsrs-native: restore newly inserted diagnostic de-duplication keys
-    /// at either candidate boundary, preserving outer and permanent keys.
-    fn restore_speculative_non_existent_props(&mut self, mark: usize) {
-        self.speculative_non_existent_prop_writes.truncate(mark);
+            .insert(key)
     }
 
     /// getPropertiesOfUnionOrIntersectionType's tail assignment (58743) is
@@ -3871,8 +2947,12 @@ impl LinksTables {
     }
 
     /// tsrs-native: one-write ConditionalType.resolvedTrueType setter.
-    pub fn set_conditional_true_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
-        self.journal_conditional_cache(speculation_depth, id);
+    pub fn set_conditional_true_type(
+        &mut self,
+        _speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
         Self::write_slot(
             self.type_cold.conditional_true_type.slot(id),
             LinkSlot::Resolved(value),
@@ -3882,11 +2962,10 @@ impl LinksTables {
     /// tsrs-native: one-write ConditionalType.resolvedFalseType setter.
     pub fn set_conditional_false_type(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: TypeId,
         value: TypeId,
     ) {
-        self.journal_conditional_cache(speculation_depth, id);
         Self::write_slot(
             self.type_cold.conditional_false_type.slot(id),
             LinkSlot::Resolved(value),
@@ -3896,11 +2975,10 @@ impl LinksTables {
     /// tsrs-native: one-write ConditionalType.resolvedInferredTrueType setter.
     pub fn set_conditional_inferred_true_type(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: TypeId,
         value: TypeId,
     ) {
-        self.journal_conditional_cache(speculation_depth, id);
         Self::write_slot(
             self.type_cold.conditional_inferred_true_type.slot(id),
             LinkSlot::Resolved(value),
@@ -3910,11 +2988,10 @@ impl LinksTables {
     /// tsrs-native: one-write ConditionalType.resolvedDefaultConstraint setter.
     pub fn set_conditional_default_constraint(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: TypeId,
         value: TypeId,
     ) {
-        self.journal_conditional_cache(speculation_depth, id);
         Self::write_slot(
             self.type_cold.conditional_default_constraint.slot(id),
             LinkSlot::Resolved(value),
@@ -3924,7 +3001,7 @@ impl LinksTables {
     /// tsrs-native: one-write resolvedConstraintOfDistributive setter.
     pub fn set_conditional_constraint_of_distributive(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: TypeId,
         value: Option<TypeId>,
     ) {
@@ -3937,7 +3014,6 @@ impl LinksTables {
         {
             return;
         }
-        self.journal_conditional_cache(speculation_depth, id);
         Self::write_slot(
             self.type_cold
                 .conditional_constraint_of_distributive
@@ -3961,27 +3037,11 @@ impl LinksTables {
     /// stores the simplification.
     pub fn set_type_simplified(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: TypeId,
         writing: bool,
         value: LinkSlot<TypeId>,
     ) {
-        if speculation_depth != 0
-            && !self
-                .speculative_simplified_type_writes
-                .iter()
-                .any(|(depth, ty, direction, _)| {
-                    *depth == speculation_depth && *ty == id && *direction == writing
-                })
-        {
-            let previous = self.type_cold.simplified(writing).get(id).clone();
-            self.speculative_simplified_type_writes.push((
-                speculation_depth,
-                id,
-                writing,
-                previous,
-            ));
-        }
         Self::write_slot(self.type_cold.simplified_mut(writing).slot(id), value);
     }
 
@@ -4011,11 +3071,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_node_resolved_symbol_late_bind(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         value: SymbolId,
     ) {
-        self.journal_node_resolution(speculation_depth, id);
         let slot = &mut self.node.slot(id).resolved_symbol;
         note_resolving_transition(slot.is_resolving(), false);
         *slot = LinkSlot::Resolved(value).into();
@@ -4063,11 +3122,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_node_resolved_symbol(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         value: SymbolId,
     ) {
-        self.journal_node_resolution(speculation_depth, id);
         let slot = &mut self.node.slot(id).resolved_symbol;
         match slot.get() {
             LinkSlot::Resolved(existing) if existing == value => {}
@@ -4283,11 +3341,10 @@ impl LinksTables {
     /// re-entry returns unknownSymbol without writing).
     pub fn set_symbol_alias_target(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: SymbolId,
         value: LinkSlot<SymbolId>,
     ) {
-        self.journal_alias_target(speculation_depth, id);
         Self::write_slot(self.symbol_cold.alias_target.slot(id), value);
     }
 
@@ -4416,17 +3473,12 @@ impl LinksTables {
     /// on the MEMBER's binder symbol.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_symbol_late_symbol(&mut self, speculation_depth: u32, id: SymbolId, late: SymbolId) {
-        if speculation_depth != 0
-            && !self
-                .speculative_late_symbol_writes
-                .iter()
-                .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
-        {
-            let previous = *self.symbol_cold.late_symbol.get(id);
-            self.speculative_late_symbol_writes
-                .push((speculation_depth, id, previous));
-        }
+    pub fn set_symbol_late_symbol(
+        &mut self,
+        _speculation_depth: u32,
+        id: SymbolId,
+        late: SymbolId,
+    ) {
         self.symbol_cold.late_symbol.set(id, Some(late));
     }
 
@@ -4474,8 +3526,7 @@ impl LinksTables {
     /// getWriteTypeOfAccessors' links.writeType stamp (56800).
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_symbol_write_type(&mut self, speculation_depth: u32, id: SymbolId, value: TypeId) {
-        self.journal_symbol_write_type(speculation_depth, id);
+    pub fn set_symbol_write_type(&mut self, _speculation_depth: u32, id: SymbolId, value: TypeId) {
         Self::write_slot(
             self.symbol_cold.write_type.slot(id),
             LinkSlot::Resolved(value),
@@ -4511,15 +3562,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_type_resolved_base_constructor_type(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: TypeId,
         value: TypeId,
     ) {
-        self.journal_type_instantiation(
-            speculation_depth,
-            id,
-            SpeculativeTypeInstantiationKind::BaseConstructor,
-        );
         Self::write_slot(
             self.type_cold.resolved_base_constructor_type.slot(id),
             LinkSlot::Resolved(value),
@@ -4728,15 +3774,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_type_unique_literal_filled_instantiation(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: TypeId,
         value: TypeId,
     ) {
-        self.journal_type_instantiation(
-            speculation_depth,
-            id,
-            SpeculativeTypeInstantiationKind::UniqueLiteralFilled,
-        );
         Self::write_slot(
             self.type_cold.unique_literal_filled_instantiation.slot(id),
             LinkSlot::Resolved(value),
@@ -4747,15 +3788,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_type_permissive_instantiation(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: TypeId,
         value: TypeId,
     ) {
-        self.journal_type_instantiation(
-            speculation_depth,
-            id,
-            SpeculativeTypeInstantiationKind::Permissive,
-        );
         Self::write_slot(
             self.type_cold.permissive_instantiation.slot(id),
             LinkSlot::Resolved(value),
@@ -4768,15 +3804,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_type_restrictive_instantiation(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: TypeId,
         value: TypeId,
     ) {
-        self.journal_type_instantiation(
-            speculation_depth,
-            id,
-            SpeculativeTypeInstantiationKind::Restrictive,
-        );
         let slot = self.type_cold.restrictive_instantiation.slot(id);
         match &*slot {
             LinkSlot::Resolved(existing) if *existing == value => {}
@@ -4788,23 +3819,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_type_members(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: TypeId,
         value: LinkSlot<crate::state::MembersId>,
     ) {
-        if speculation_depth != 0
-            && !self
-                .speculative_type_member_writes
-                .contains(speculation_depth, id)
-        {
-            let previous = self
-                .ty
-                .get(id)
-                .map(|links| links.resolved_members.get())
-                .unwrap_or_default();
-            self.speculative_type_member_writes
-                .push(speculation_depth, id, previous);
-        }
         let slot = &mut self.ty.slot(id).resolved_members;
         // setStructuredTypeMembers writes an empty table first as a
         // re-entrancy guard, then the real one (58333/58339) — allow

@@ -436,7 +436,7 @@ fn link_protocols_persist_on_commit_and_rollback() {
             LinkSlot::Resolved(_)
         ));
         // A completed node resolution persists (tsc never clears
-        // links.resolvedType); only a `Resolving` sentinel is unwound.
+        // links.resolvedType).
         assert!(matches!(
             state.links.node(committed_node).resolved_type.get(),
             LinkSlot::Resolved(_)
@@ -488,10 +488,6 @@ fn link_protocols_persist_on_commit_and_rollback() {
             LinkSlot::Resolved(_)
         ));
         assert_eq!(state.links.speculative_resolved_signature_mark(), 0);
-        assert_eq!(state.links.speculative_resolved_type_mark(), 0);
-        assert_eq!(state.links.speculative_symbol_declared_type_mark(), 0);
-        assert_eq!(state.links.speculative_unique_es_symbol_type_mark(), 0);
-        assert_eq!(state.links.speculative_type_members_mark(), 0);
     });
 }
 
@@ -538,7 +534,6 @@ fn declaration_signatures_persist_through_nested_rollback() {
                 state.links.node(g).resolved_signature.get(),
                 LinkSlot::Resolved(_)
             ));
-            assert_eq!(state.links.speculative_declaration_signature_mark(), 0);
         },
     );
 }
@@ -584,8 +579,6 @@ fn selected_context_state_persists_through_nested_rollback() {
                 .resolved(),
             Some(state.tables.intrinsics.string)
         );
-        assert_eq!(state.links.speculative_context_checked_mark(), 0);
-        assert_eq!(state.links.speculative_symbol_type_mark(), 0);
 
         let outer = state.begin_speculation();
         let inner = state.begin_speculation();
@@ -620,8 +613,6 @@ fn selected_context_state_persists_through_nested_rollback() {
             state.links.symbol(nested_symbol).type_of_symbol.resolved(),
             Some(state.tables.intrinsics.number)
         );
-        assert_eq!(state.links.speculative_context_checked_mark(), 0);
-        assert_eq!(state.links.speculative_symbol_type_mark(), 0);
     });
 }
 
@@ -656,14 +647,9 @@ fn rejected_candidate_keeps_its_context_state_and_diagnostics() {
                     temporary_symbol,
                     LinkSlot::Resolved(state.tables.intrinsics.number),
                 );
-                let contextual_diagnostics_start = state.diagnostics.len();
                 let contextual_diagnostic =
                     state.create_error(None, &diagnostics::Cannot_find_name_0, &["contextual"]);
                 state.push_error_diagnostic(contextual_diagnostic);
-                state.record_completed_contextual_diagnostics_since(
-                    contextual_diagnostics_start,
-                    state.visible_global_diagnostics.len(),
-                );
                 let diagnostic =
                     state.create_error(None, &diagnostics::Cannot_find_name_0, &["trial"]);
                 state.push_error_diagnostic(diagnostic);
@@ -712,12 +698,6 @@ fn rejected_candidate_keeps_its_context_state_and_diagnostics() {
                 "Cannot find name 'trial'."
             ]
         );
-        assert_eq!(state.links.speculative_context_checked_mark(), 0);
-        assert_eq!(state.links.speculative_symbol_type_mark(), 0);
-        assert!(state.completed_contextual_diagnostics.is_empty());
-        assert!(state
-            .completed_contextual_visible_global_diagnostics
-            .is_empty());
         assert_eq!(state.speculation_depth, 0);
     });
 }
@@ -822,14 +802,12 @@ fn tsc_eager_and_ordinary_rows_survive_inner_rollback() {
         let diagnostics_before = state.diagnostics.len();
         let visible_before = state.visible_global_diagnostics.len();
         let outer = state.begin_speculation();
-        let outer_capture = state.begin_tsc_eager_iteration_diagnostic_capture();
         let inner = state.begin_speculation();
 
         let ordinary_before =
             state.create_error(None, &diagnostics::Cannot_find_name_0, &["ordinary before"]);
         state.push_error_diagnostic(ordinary_before.clone());
 
-        let nested_capture = state.begin_tsc_eager_iteration_diagnostic_capture();
         let eager = state.create_error(
             None,
             &diagnostics::Cannot_find_name_0,
@@ -837,25 +815,17 @@ fn tsc_eager_and_ordinary_rows_survive_inner_rollback() {
         );
         state.push_error_diagnostic(eager.clone());
         state.visible_global_diagnostics.push(eager.clone());
-        state.end_tsc_eager_iteration_diagnostic_capture(nested_capture);
 
         let ordinary_after =
             state.create_error(None, &diagnostics::Cannot_find_name_0, &["ordinary after"]);
         state.push_error_diagnostic(ordinary_after.clone());
-        assert_eq!(state.tsc_eager_diagnostics, std::slice::from_ref(&eager));
-        assert_eq!(
-            state.tsc_eager_visible_global_diagnostics,
-            std::slice::from_ref(&eager)
-        );
 
         state.rollback_speculation(inner);
         assert!(state.diagnostics.contains(&ordinary_before));
         assert!(state.diagnostics.contains(&ordinary_after));
         assert!(state.diagnostics.contains(&eager));
         assert!(state.visible_global_diagnostics.contains(&eager));
-        assert_eq!(state.tsc_eager_iteration_capture_depth, 1);
 
-        state.end_tsc_eager_iteration_diagnostic_capture(outer_capture);
         state.rollback_speculation(outer);
         assert_eq!(state.diagnostics.len(), diagnostics_before + 3);
         assert_eq!(state.visible_global_diagnostics.len(), visible_before + 1);
@@ -867,42 +837,6 @@ fn tsc_eager_and_ordinary_rows_survive_inner_rollback() {
                 .count(),
             1
         );
-        assert!(state.tsc_eager_diagnostics.is_empty());
-        assert!(state.tsc_eager_visible_global_diagnostics.is_empty());
-        assert_eq!(state.tsc_eager_iteration_capture_depth, 0);
-    });
-}
-
-#[test]
-fn tsc_eager_nested_speculation_commit_is_balanced_inside_reporting_capture() {
-    with_state(|state| {
-        let diagnostics_before = state.diagnostics.len();
-        let outer = state.begin_speculation();
-        let outer_capture = state.begin_tsc_eager_iteration_diagnostic_capture();
-        let inner = state.begin_speculation();
-        let nested_capture = state.begin_tsc_eager_iteration_diagnostic_capture();
-        let eager = state.create_error(None, &diagnostics::Cannot_find_name_0, &["nested commit"]);
-        state.push_error_diagnostic(eager.clone());
-        state.end_tsc_eager_iteration_diagnostic_capture(nested_capture);
-
-        state.commit_speculation(inner);
-        assert_eq!(state.speculation_depth, 1);
-        assert_eq!(state.tsc_eager_iteration_capture_depth, 1);
-        state.end_tsc_eager_iteration_diagnostic_capture(outer_capture);
-        state.rollback_speculation(outer);
-
-        assert_eq!(state.diagnostics.len(), diagnostics_before + 1);
-        assert_eq!(
-            state
-                .diagnostics
-                .iter()
-                .filter(|diagnostic| **diagnostic == eager)
-                .count(),
-            1
-        );
-        assert!(state.tsc_eager_diagnostics.is_empty());
-        assert!(state.tsc_eager_visible_global_diagnostics.is_empty());
-        assert_eq!(state.tsc_eager_iteration_capture_depth, 0);
     });
 }
 
@@ -918,15 +852,11 @@ fn tsc_eager_iteration_diagnostic_survives_nested_and_outer_rollback_in_both_sin
             state.create_error(None, &diagnostics::Cannot_find_name_0, &["ordinary trial"]);
         state.push_error_diagnostic(ordinary.clone());
 
-        let outer_capture = state.begin_tsc_eager_iteration_diagnostic_capture();
-        let nested_capture = state.begin_tsc_eager_iteration_diagnostic_capture();
         let eager =
             state.create_error(None, &diagnostics::Cannot_find_name_0, &["eager iteration"]);
         let root_index = state.push_error_diagnostic(eager);
-        state.end_tsc_eager_iteration_diagnostic_capture(nested_capture);
-        assert_eq!(state.tsc_eager_diagnostics.len(), 1);
-        assert!(state.tsc_eager_diagnostics[0].related.is_empty());
 
+        assert!(state.diagnostics[root_index].related.is_empty());
         let related = state.create_error(None, &diagnostics::Did_you_forget_to_use_await, &[]);
         state.diagnostics[root_index].related.push(RelatedInfo {
             file_name: related.file_name,
@@ -935,69 +865,49 @@ fn tsc_eager_iteration_diagnostic_survives_nested_and_outer_rollback_in_both_sin
             message: related.message,
         });
         let eager = state.diagnostics[root_index].clone();
+        assert_eq!(eager.related.len(), 1);
         state.visible_global_diagnostics.push(eager.clone());
-        state.end_tsc_eager_iteration_diagnostic_capture(outer_capture);
-
-        assert_eq!(state.tsc_eager_diagnostics, std::slice::from_ref(&eager));
-        assert_eq!(
-            state.tsc_eager_visible_global_diagnostics,
-            std::slice::from_ref(&eager)
-        );
-        assert_eq!(state.tsc_eager_diagnostics[0].related.len(), 1);
 
         state.rollback_speculation(inner);
         assert!(state.diagnostics.contains(&ordinary));
         assert!(state.diagnostics.contains(&eager));
         assert!(state.visible_global_diagnostics.contains(&eager));
-        assert_eq!(state.tsc_eager_diagnostics, std::slice::from_ref(&eager));
 
         state.rollback_speculation(outer);
         assert_eq!(state.diagnostics.len(), diagnostics_before + 2);
         assert_eq!(state.visible_global_diagnostics.len(), visible_before + 1);
         assert!(state.diagnostics.contains(&eager));
         assert!(state.visible_global_diagnostics.contains(&eager));
-        assert!(state.tsc_eager_diagnostics.is_empty());
-        assert!(state.tsc_eager_visible_global_diagnostics.is_empty());
-        assert_eq!(state.tsc_eager_iteration_capture_depth, 0);
     });
 }
 
 #[test]
-fn nested_commit_promotes_tsc_eager_iteration_diagnostic_to_outer_rollback() {
+fn nested_commit_keeps_tsc_eager_iteration_diagnostic_through_outer_rollback() {
     with_state(|state| {
         let diagnostics_before = state.diagnostics.len();
         let outer = state.begin_speculation();
         let inner = state.begin_speculation();
-        let capture = state.begin_tsc_eager_iteration_diagnostic_capture();
         let eager = state.create_error(None, &diagnostics::Cannot_find_name_0, &["nested commit"]);
         state.push_error_diagnostic(eager.clone());
-        state.end_tsc_eager_iteration_diagnostic_capture(capture);
 
         state.commit_speculation(inner);
         assert_eq!(state.speculation_depth, 1);
-        assert_eq!(state.tsc_eager_diagnostics, std::slice::from_ref(&eager));
         state.rollback_speculation(outer);
 
         assert_eq!(state.diagnostics.len(), diagnostics_before + 1);
         assert!(state.diagnostics.contains(&eager));
-        assert!(state.tsc_eager_diagnostics.is_empty());
-        assert!(state.tsc_eager_visible_global_diagnostics.is_empty());
     });
 }
 
 #[test]
-fn outermost_commit_keeps_tsc_eager_rows_and_clears_journals() {
+fn outermost_commit_keeps_tsc_eager_rows() {
     with_state(|state| {
         let diagnostics_before = state.diagnostics.len();
         let visible_before = state.visible_global_diagnostics.len();
         let checkpoint = state.begin_speculation();
-        let capture = state.begin_tsc_eager_iteration_diagnostic_capture();
         let eager = state.create_error(None, &diagnostics::Cannot_find_name_0, &["outer commit"]);
         state.push_error_diagnostic(eager.clone());
         state.visible_global_diagnostics.push(eager.clone());
-        state.end_tsc_eager_iteration_diagnostic_capture(capture);
-        assert_eq!(state.tsc_eager_diagnostics.len(), 1);
-        assert_eq!(state.tsc_eager_visible_global_diagnostics.len(), 1);
 
         state.commit_speculation(checkpoint);
 
@@ -1005,9 +915,6 @@ fn outermost_commit_keeps_tsc_eager_rows_and_clears_journals() {
         assert_eq!(state.visible_global_diagnostics.len(), visible_before + 1);
         assert!(state.diagnostics.contains(&eager));
         assert!(state.visible_global_diagnostics.contains(&eager));
-        assert!(state.tsc_eager_diagnostics.is_empty());
-        assert!(state.tsc_eager_visible_global_diagnostics.is_empty());
-        assert_eq!(state.tsc_eager_iteration_capture_depth, 0);
     });
 }
 

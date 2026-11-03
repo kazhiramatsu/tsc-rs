@@ -52,14 +52,47 @@ def llvm_profdata():
     return candidates[0]
 
 
-def cargo_build(target_dir, rustflags, jobs):
+def cargo_build(target_dir, rustflags, jobs, *, prefix=(), runner=run, offline=False):
     env = dict(os.environ)
+    # Never let a caller's training filename collect build-script profiles.
+    env.pop("LLVM_PROFILE_FILE", None)
+    env.pop("CARGO_ENCODED_RUSTFLAGS", None)
     env["RUSTFLAGS"] = rustflags
-    env["CARGO_TARGET_DIR"] = target_dir
-    result = run(["cargo", "build", "--release", "-j", str(jobs), "-p", "tsc-rs-cli"], cwd=ROOT, env=env)
+    env["CARGO_TARGET_DIR"] = str(target_dir)
+    if sys.platform == "darwin" and ("-Cprofile-generate" in rustflags or "-Cprofile-use" in rustflags):
+        # cc-rs forwards Rust PGO flags to clang. Apple clang's profile ABI
+        # can differ from rustc's LLVM (mimalloc then crashes in the profile
+        # runtime). Native libraries are not part of the Rust checker census.
+        for variable in ("CFLAGS", "CXXFLAGS"):
+            env[variable] = (env.get(variable, "") + " -fno-profile-generate -fno-profile-use").strip()
+    command = ["cargo", "build", "--release", "-j", str(jobs), "-p", "tsc-rs-cli"]
+    if offline:
+        env["CARGO_NET_OFFLINE"] = "true"
+        command += ["--offline", "--locked"]
+    result = runner([*prefix, *command], cwd=ROOT, env=env)
     if result.returncode != 0:
         sys.exit(f"cargo build failed ({result.returncode})")
     return os.path.join(target_dir, "release", "tsc-rs")
+
+
+def instrumented_build(out, jobs, *, entry_counts=False, **kwargs):
+    """Shared step 1; build profiles are never training input."""
+    profiles = os.path.join(out, "profiles")
+    os.makedirs(profiles, exist_ok=True)
+    flags = f"-Cprofile-generate={profiles}"
+    if entry_counts:
+        # IR PGO normally chooses counters on CFG edges. A census needs
+        # counter zero to be the entry even when another edge is cheaper.
+        flags += " -Cllvm-args=-pgo-instrument-entry=true"
+    binary = cargo_build(os.path.join(out, "instrumented"), flags, jobs, **kwargs)
+    for stale in glob.glob(os.path.join(profiles, "*.profraw")):
+        os.unlink(stale)
+    return binary
+
+
+def profile_environment(profiles, filename="train-%p-%m.profraw"):
+    # Setting this also asks the CLI to use the profile-writing C exit chain.
+    return dict(os.environ, LLVM_PROFILE_FILE=os.path.join(profiles, filename))
 
 
 def main():
@@ -74,19 +107,14 @@ def main():
     shutil.rmtree(profiles, ignore_errors=True)
     os.makedirs(profiles)
 
-    instrumented = cargo_build(
-        os.path.join(args.out, "instrumented"), f"-Cprofile-generate={profiles}", args.jobs
-    )
-    # The build's own profiles (build scripts, proc macros) are not training.
-    for stale in glob.glob(os.path.join(profiles, "*.profraw")):
-        os.unlink(stale)
+    instrumented = instrumented_build(args.out, args.jobs)
 
     for spec in args.projects:
         directory, _, tsconfig = spec.partition(":")
         tsconfig = tsconfig or "tsconfig.json"
         if not os.path.isfile(os.path.join(directory, tsconfig)):
             sys.exit(f"no {tsconfig} in {directory}")
-        env = dict(os.environ, LLVM_PROFILE_FILE=os.path.join(profiles, "train-%p-%m.profraw"))
+        env = profile_environment(profiles)
         result = run(
             [instrumented, "-p", tsconfig, "--noEmit", "--pretty", "false"],
             cwd=directory,

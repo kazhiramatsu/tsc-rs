@@ -3,7 +3,6 @@ use tsc_types::{CompilerOptions, RelationComparisonResult, VarianceFlags};
 use crate::links::LinkSlot;
 use crate::relate::RelationKind;
 use crate::relpin::find_probe_annotation;
-use crate::speculate::SpeculationOutcome;
 use crate::state::test_support::with_program_state;
 use crate::state::CheckerState;
 
@@ -176,7 +175,7 @@ fn template_members_mark_unreliable_variance_and_cache_entries() {
 }
 
 #[test]
-fn class_union_tuple_rest_variance_survives_nested_candidate_measurement() {
+fn class_union_tuple_rest_variance_survives_repeated_measurement() {
     with_program_state(
         &[("a.ts", TUPLE_REST_CLASS_SOURCE)],
         &CompilerOptions {
@@ -188,17 +187,14 @@ fn class_union_tuple_rest_variance_survives_nested_candidate_measurement() {
             let b = annotation_type(state, "b");
             let holder_symbol = *state.globals.get("Holder").expect("Holder class symbol");
 
-            // Contextual return inference of the nested generic call measures
-            // Holder's variance inside its candidate transaction. The outer
-            // call then relates the concrete Holder instantiations after that
-            // transaction has closed.
-            state
-                .speculate(|state| {
-                    let holder = state.get_declared_type_of_class_or_interface(holder_symbol)?;
-                    let _ = state.get_variances(holder)?;
-                    Ok(SpeculationOutcome::Commit(()))
-                })
-                .expect("nested candidate variance measurement completes");
+            // Measure Holder's variance before relating its concrete
+            // instantiations, then query the cached measurement again.
+            let holder = state
+                .get_declared_type_of_class_or_interface(holder_symbol)
+                .expect("Holder type resolves");
+            let _ = state
+                .get_variances(holder)
+                .expect("variance measurement completes");
 
             // A one-parameter callback accepts a call site that may
             // provide an additional argument. The measured
@@ -220,7 +216,7 @@ fn class_union_tuple_rest_variance_survives_nested_candidate_measurement() {
 }
 
 #[test]
-fn rolled_back_tuple_rest_variance_persists_with_relation_cache_markers() {
+fn tuple_rest_variance_persists_with_relation_cache_markers() {
     with_program_state(
         &[("a.ts", TUPLE_REST_CLASS_SOURCE)],
         &CompilerOptions {
@@ -232,21 +228,20 @@ fn rolled_back_tuple_rest_variance_persists_with_relation_cache_markers() {
             let b = annotation_type(state, "b");
             let holder_symbol = *state.globals.get("Holder").expect("Holder class symbol");
 
-            state
-                .speculate(|state| {
-                    let holder = state.get_declared_type_of_class_or_interface(holder_symbol)?;
-                    let _ = state.get_variances(holder)?;
-                    Ok(SpeculationOutcome::Rollback(()))
-                })
-                .expect("rolled-back variance measurement completes");
+            let holder = state
+                .get_declared_type_of_class_or_interface(holder_symbol)
+                .expect("Holder type resolves");
+            let _ = state
+                .get_variances(holder)
+                .expect("variance measurement completes");
             assert!(matches!(
                 state.links.symbol_cold().variances.get(holder_symbol),
                 LinkSlot::Resolved(_)
             ));
 
-            // Relation caches are monotone across candidate rollback. Their
-            // ReportsUnreliable bits must be replayed when the variance slot
-            // is measured again, otherwise the tuple-rest fallback is lost.
+            // Relation caches retain their ReportsUnreliable bits when
+            // the variance slot is queried again, preserving the tuple-rest
+            // fallback.
             assert_eq!(state.is_type_assignable_to(a, b), Ok(true));
             let expected = VarianceFlags::from_bits(
                 VarianceFlags::CONTRAVARIANT.bits() | VarianceFlags::UNRELIABLE.bits(),
