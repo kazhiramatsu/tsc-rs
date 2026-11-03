@@ -55,6 +55,9 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(true);
             }
+        } else {
+            // Resolving members later can change this answer.
+            self.flow_memo.taint(0);
         }
         match self.tables.type_of(ty).symbol {
             Some(symbol)

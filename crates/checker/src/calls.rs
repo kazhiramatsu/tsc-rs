@@ -5767,6 +5767,7 @@ impl<'a> CheckerState<'a> {
             }
             if any_generic_returning_function {
                 self.skipped_generic_function(node, check_mode);
+                self.flow_memo.taint(0);
                 return Ok(self.resolving_signature);
             }
         }
@@ -6786,6 +6787,10 @@ impl<'a> CheckerState<'a> {
         if let (LinkSlot::Resolved(cached), None) = (&cached, &candidates_out) {
             return Ok(*cached);
         }
+        if cached.is_resolving() {
+            // Re-entry observes an in-progress signature, not its final answer.
+            self.flow_memo.taint(0);
+        }
         let save_resolution_start = self.resolution_start;
         let wrote_sentinel = matches!(cached, LinkSlot::Vacant);
         if wrote_sentinel {
@@ -6816,6 +6821,7 @@ impl<'a> CheckerState<'a> {
                 // write entirely — the Resolving sentinel stays in
                 // links as the load-bearing skip marker (72918/77616).
                 if result == self.resolving_signature {
+                    self.flow_memo.taint(0);
                     return Ok(result);
                 }
                 // tsgo getResolvedSignature (checker.go:8606-8614): "it's
@@ -6910,6 +6916,7 @@ impl<'a> CheckerState<'a> {
         self.check_grammar_type_arguments(node, type_arguments);
         let signature = self.get_resolved_signature(node, None, check_mode)?;
         if signature == self.resolving_signature {
+            self.flow_memo.taint(0);
             // 77616-77618: the SkipGenericFunctions defer (77041, live
             // at 7.4b) — silentNever until the NORMAL-mode re-run
             // resolves for real.

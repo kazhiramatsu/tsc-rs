@@ -788,11 +788,13 @@ pub struct CheckerState<'a> {
     /// (flowInvocationCount pre-exists below — M4 wired it for the
     /// getTypeOfExpression cache gate.)
     pub(crate) flow_analysis_disabled: bool,
-    /// tsc sharedFlowNodes/sharedFlowTypes (69395-69396): one Vec of
-    /// pairs; each getFlowTypeOfReference query scans only its own
+    /// Dependency bookkeeping only; independent of speculation rollback.
+    pub(crate) flow_memo: crate::flow_memo::FlowMemo,
+    /// tsc sharedFlowNodes/sharedFlowTypes (69395-69396), with each
+    /// answer's dependencies; each query scans only its own
     /// window (sharedFlowStart..) and truncates back on exit — also on
     /// CheckAbort unwind (the unwind invariant).
-    pub(crate) shared_flow: Vec<(tsc_binder::flow::FlowId, crate::flow::FlowType)>,
+    pub(crate) shared_flow: Vec<crate::flow::SharedFlow>,
     /// The ReduceLabel antecedent swap (getTypeAtFlowNode 70473): tsc
     /// mutates `target.antecedent` in place during try/finally walks;
     /// the binder graph is immutable to the checker, so the swapped
@@ -1308,6 +1310,9 @@ pub struct CheckerState<'a> {
     pub(crate) resolution_targets: Vec<ResolutionTarget>,
     pub(crate) resolution_results: Vec<bool>,
     pub(crate) resolution_property_names: Vec<TypeSystemPropertyName>,
+    /// Serials parallel to the live resolution_targets prefix. Push/pop
+    /// trim any tail left by speculation's existing stack restoration.
+    pub(crate) resolution_serials: Vec<u32>,
     /// Bumped during speculative/independent passes so cycles don't
     /// leak across them (checker-foundations §1.2).
     pub resolution_start: usize,
@@ -1822,6 +1827,7 @@ impl<'a> CheckerState<'a> {
             type_parameter_defaults_in_progress: Vec::new(),
             mapped_types_in_progress: Vec::new(),
             flow_analysis_disabled: false,
+            flow_memo: crate::flow_memo::FlowMemo::new(),
             shared_flow: Vec::new(),
             reduce_label_overrides: rustc_hash::FxHashMap::default(),
             evolving_array_types: rustc_hash::FxHashMap::default(),
@@ -1938,6 +1944,7 @@ impl<'a> CheckerState<'a> {
             resolution_targets: Vec::new(),
             resolution_results: Vec::new(),
             resolution_property_names: Vec::new(),
+            resolution_serials: Vec::new(),
             resolution_start: 0,
             merged_symbols: rustc_hash::FxHashMap::default(),
             merged_symbol_bits: Vec::new(),
@@ -2376,6 +2383,9 @@ impl<'a> CheckerState<'a> {
             }
             return false;
         }
+        self.resolution_serials
+            .truncate(self.resolution_targets.len());
+        self.resolution_serials.push(self.flow_memo.source_now());
         self.resolution_targets.push(target);
         self.resolution_results.push(true);
         self.resolution_property_names.push(property_name);
@@ -2386,7 +2396,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 251a7ddb169a1bcea40755dfb143b2ccc1043fd9860cc5ad3658792bb09ada88
     /// tsc-span: _tsc.js:55745-55755
     pub(crate) fn find_resolution_cycle_start_index(
-        &self,
+        &mut self,
         target: ResolutionTarget,
         property_name: TypeSystemPropertyName,
     ) -> Option<usize> {
@@ -2400,6 +2410,7 @@ impl<'a> CheckerState<'a> {
             if self.resolution_targets[i] == target
                 && self.resolution_property_names[i] == property_name
             {
+                self.flow_memo.taint(self.resolution_serials[i]);
                 return Some(i);
             }
         }
@@ -2514,6 +2525,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:55779-55783
     pub fn pop_type_resolution(&mut self) -> bool {
         self.resolution_targets.pop();
+        self.resolution_serials
+            .truncate(self.resolution_targets.len());
         self.resolution_property_names.pop();
         self.resolution_results
             .pop()

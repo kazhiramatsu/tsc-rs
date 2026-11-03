@@ -979,6 +979,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_node(call_target, |links| links.resolved_signature.is_resolving())
         {
+            self.flow_memo.taint(0);
             self.resolving_signature
         } else {
             self.get_resolved_signature(call_target, None, tsc_types::CheckMode::NORMAL)?
@@ -1624,7 +1625,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isCircularMappedProperty @6.0.3
     /// tsc-hash: 9491812f1667f3367d92329a3a905a0eb8416ea919212d2ad9209d38070d71d1
     /// tsc-span: _tsc.js:73099-73101
-    fn is_circular_mapped_property(&self, symbol: SymbolId) -> bool {
+    fn is_circular_mapped_property(&mut self, symbol: SymbolId) -> bool {
         self.get_check_flags(symbol).intersects(CheckFlags::MAPPED)
             && self
                 .links
@@ -3886,17 +3887,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isResolvingReturnTypeOfSignature @6.0.3
     /// tsc-hash: f78b4c461afdf8a424ff79b33e53c878d2498a8bf4e5e8006c5c0c25f15da54a
     /// tsc-span: _tsc.js:59872-59874
-    pub(crate) fn is_resolving_return_type_of_signature(&self, signature: SignatureId) -> bool {
-        let data = self.signature_of(signature);
-        if let Some(composite) = &data.composite_signatures {
-            if composite
-                .iter()
-                .any(|&s| self.is_resolving_return_type_of_signature(s))
-            {
+    pub(crate) fn is_resolving_return_type_of_signature(&mut self, signature: SignatureId) -> bool {
+        let mut index = 0;
+        while let Some(&child) = self
+            .signature_of(signature)
+            .composite_signatures
+            .as_ref()
+            .and_then(|composite| composite.get(index))
+        {
+            if self.is_resolving_return_type_of_signature(child) {
                 return true;
             }
+            index += 1;
         }
-        data.resolved_return_type.resolved().is_none()
+        self.signature_of(signature)
+            .resolved_return_type
+            .resolved()
+            .is_none()
             && self
                 .find_resolution_cycle_start_index(
                     crate::state::ResolutionTarget::Signature(signature),
