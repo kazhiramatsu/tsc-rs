@@ -657,7 +657,7 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("UnionOrIntersection flag implies member data");
             };
-            let types = self.tables.list(*types).to_vec();
+            let types = self.tables.list_copy(*types);
             let mut reduced = ObjectFlags::NONE;
             for member in types {
                 reduced |= self.get_generic_object_flags(member)?;

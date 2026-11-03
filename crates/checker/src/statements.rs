@@ -1856,8 +1856,8 @@ impl<'a> CheckerState<'a> {
     /// The binding-pattern element list (Object/Array patterns).
     fn binding_pattern_elements(&self, pattern: NodeId) -> Vec<NodeId> {
         match self.data_of(pattern) {
-            NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements),
-            NodeData::ArrayBindingPattern(data) => self.nodes_of(data.elements),
+            NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements).to_vec(),
+            NodeData::ArrayBindingPattern(data) => self.nodes_of(data.elements).to_vec(),
             _ => Vec::new(),
         }
     }
@@ -2167,7 +2167,7 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
                 let declarations = match self.data_of(initializer) {
                     NodeData::VariableDeclarationList(data) => self.nodes_of(data.declarations),
-                    _ => Vec::new(),
+                    _ => Default::default(),
                 };
                 if let Some(&variable) = declarations.first() {
                     if let Some(name) = self.name_of_node(variable) {
@@ -2331,7 +2331,7 @@ impl<'a> CheckerState<'a> {
         {
             let declarations = match self.data_of(initializer) {
                 NodeData::VariableDeclarationList(data) => self.nodes_of(data.declarations),
-                _ => Vec::new(),
+                _ => Default::default(),
             };
             if declarations.is_empty() {
                 return Ok(false);
@@ -2687,7 +2687,7 @@ impl<'a> CheckerState<'a> {
         let clauses = case_block
             .map(|case_block| match self.data_of(case_block) {
                 NodeData::CaseBlock(data) => self.nodes_of(data.clauses),
-                _ => Vec::new(),
+                _ => Default::default(),
             })
             .unwrap_or_default();
         for clause in clauses {

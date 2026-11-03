@@ -20,7 +20,7 @@ use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
 use crate::inference::CompareTypesFn;
 use crate::relate::RelationKind;
 pub use crate::state::SignatureKind;
-use crate::state::{CheckResult, CheckerState, IndexInfo, SignatureId};
+use crate::state::{CheckResult, CheckerState, IndexInfo, SignatureId, SignatureIds, SymbolIds};
 use tsc_binder::NameKey;
 
 /// tsc SignatureCheckMode (inlined const enum).
@@ -140,7 +140,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let source_types = if self.flags(source).intersects(TypeFlags::INTERSECTION) {
                     self.union_members(source)
                 } else {
-                    vec![source]
+                    tsc_types::TypeListCopy::new(&[source])
                 };
                 let constraint = self.st.get_effective_constraint_of_intersection(
                     &source_types,
@@ -1665,7 +1665,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let target_parameter = self.st.get_type_parameter_from_mapped_type(target)?;
         let mapper = self
             .st
-            .create_type_mapper(vec![source_parameter], Some(vec![target_parameter]));
+            .create_type_mapper(&[source_parameter], Some(&[target_parameter]));
         let source_name = match self.st.get_name_type_from_mapped_type(source)? {
             Some(name) => Some(self.st.instantiate_type(name, Some(mapper))?),
             None => None,
@@ -1863,7 +1863,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .flags(source_property_type)
                     .intersects(TypeFlags::UNION)
                 {
-                    self.union_members(source_property_type)
+                    self.union_members(source_property_type).to_vec()
                 } else {
                     vec![source_property_type]
                 },
@@ -1969,7 +1969,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
 
     fn count_types(&self, ty: TypeId) -> usize {
         if self.flags(ty).intersects(TypeFlags::UNION) {
-            self.union_members(ty).len()
+            self.union_member_count(ty)
         } else {
             1
         }
@@ -2605,7 +2605,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         if self.st.is_object_literal_type(target) {
             let source_props = self.st.get_properties_of_type(source)?;
-            for source_prop in self.exclude_properties(source_props, excluded_properties) {
+            for source_prop in self.exclude_properties(source_props.to_vec(), excluded_properties) {
                 let name = self.st.binder.symbol(source_prop).escaped_name;
                 if self.st.get_property_of_object_type(target, name)?.is_none() {
                     if report_errors {
@@ -2623,7 +2623,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let properties = self.st.get_properties_of_type(target)?;
         let numeric_names_only =
             self.st.tables.is_tuple_type(source) && self.st.tables.is_tuple_type(target);
-        for target_prop in self.exclude_properties(properties, excluded_properties) {
+        for target_prop in self.exclude_properties(properties.to_vec(), excluded_properties) {
             let name = self.st.binder.symbol(target_prop).escaped_name;
             let target_symbol_flags = self.st.symbol_flags(target_prop);
             if !target_symbol_flags.intersects(SymbolFlags::PROTOTYPE)
@@ -2931,9 +2931,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::FALSE);
         }
         let source_props = self.st.get_properties_of_object_type_owned(source)?;
-        let source_properties = self.exclude_properties(source_props, excluded_properties);
+        let source_properties = self.exclude_properties(source_props.to_vec(), excluded_properties);
         let target_props = self.st.get_properties_of_object_type_owned(target)?;
-        let target_properties = self.exclude_properties(target_props, excluded_properties);
+        let target_properties = self.exclude_properties(target_props.to_vec(), excluded_properties);
         if source_properties.len() != target_properties.len() {
             return Ok(Ternary::FALSE);
         }
@@ -3417,10 +3417,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::FALSE);
         }
         if !target_type_parameters.is_empty() {
-            let mapper = self.st.create_type_mapper(
-                source_type_parameters.clone(),
-                Some(target_type_parameters.clone()),
-            );
+            let mapper = self
+                .st
+                .create_type_mapper(&source_type_parameters, Some(&target_type_parameters));
             for (i, &t) in target_type_parameters.iter().enumerate() {
                 let s = source_type_parameters[i];
                 if s == t {
@@ -4611,7 +4610,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertiesOfType @6.0.3
     /// tsc-hash: 24909f78d7ea360522b5188e5af3c7b09613e4dc2e455ea321c4ec054b4d7576
     /// tsc-span: _tsc.js:58745-58748
-    pub fn get_properties_of_type_full(&mut self, ty: TypeId) -> CheckResult<Vec<SymbolId>> {
+    pub fn get_properties_of_type_full(&mut self, ty: TypeId) -> CheckResult<SymbolIds> {
         let reduced = self.get_reduced_apparent_type(ty)?;
         if self
             .tables
@@ -4627,15 +4626,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertiesOfObjectType @6.0.3
     /// tsc-hash: 0f05e506ca30063507136680c157e7c4a6dd4ee239ed17e4f2e5b351133e393f
     /// tsc-span: _tsc.js:58705-58710
-    pub fn get_properties_of_object_type_owned(
-        &mut self,
-        ty: TypeId,
-    ) -> CheckResult<Vec<SymbolId>> {
+    pub fn get_properties_of_object_type_owned(&mut self, ty: TypeId) -> CheckResult<SymbolIds> {
         if self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             let members = self.resolve_structured_type_members(ty)?;
             return Ok(self.members_of(members).properties.clone());
         }
-        Ok(Vec::new())
+        Ok(SymbolIds::new())
     }
 
     /// tsc-port: getPropertyOfObjectType @6.0.3
@@ -4715,7 +4711,7 @@ impl<'a> CheckerState<'a> {
     pub fn get_properties_of_union_or_intersection_type(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult<Vec<SymbolId>> {
+    ) -> CheckResult<SymbolIds> {
         if let Some(cached) = self
             .links
             .type_cold()
@@ -4723,18 +4719,17 @@ impl<'a> CheckerState<'a> {
             .get(ty)
             .resolved()
         {
-            return Ok(cached.to_vec());
+            return Ok(cached.clone());
         }
         let is_union = self.tables.flags_of(ty).intersects(TypeFlags::UNION);
-        let members = match &self.tables.type_of(ty).data {
-            TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                self.tables.list(*types).to_vec()
-            }
+        let members = match self.tables.type_of(ty).data {
+            TypeData::Union { types, .. } | TypeData::Intersection { types } => types,
             _ => unreachable!("union/intersection flag implies member data"),
         };
         let mut seen: Vec<EscapedName> = Vec::new();
         let mut result: Vec<SymbolId> = Vec::new();
-        for current in members {
+        for index in 0..self.tables.list(members).len() {
+            let current = self.tables.list(members)[index];
             for prop in self.get_properties_of_type_full(current)? {
                 let name = self.binder.symbol(prop).escaped_name;
                 if !seen.contains(&name) {
@@ -4752,8 +4747,8 @@ impl<'a> CheckerState<'a> {
         }
         // tsgo keeps the order the properties were found in (checker.go:
         // 19201-19225).
-        self.links
-            .set_type_resolved_properties(ty, result.clone().into_boxed_slice());
+        let result = SymbolIds::from(result);
+        self.links.set_type_resolved_properties(ty, result.clone());
         Ok(result)
     }
 
@@ -5077,7 +5072,7 @@ impl<'a> CheckerState<'a> {
                 let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                     unreachable!("intersection flag implies intersection data");
                 };
-                let types = self.tables.list(types).to_vec();
+                let types = self.tables.list_copy(types);
                 if !self.is_mapping_of_same_object_type(&types)?
                     && self.some_property_reduces_to_never(ty, &types)?
                 {
@@ -5192,7 +5187,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Union { types, .. } = self.tables.type_of(union).data else {
             unreachable!("union flag implies union data");
         };
-        let types = self.tables.list(types).to_vec();
+        let types = self.tables.list_copy(types);
         let mut reduced_types = Vec::with_capacity(types.len());
         let mut changed = false;
         for &t in types.iter() {
@@ -6191,7 +6186,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
-            let types = self.tables.list(types).to_vec();
+            let types = self.tables.list_copy(types);
             for t in types.iter() {
                 if !self.is_object_type_with_inferable_index(*t)? {
                     return Ok(false);
@@ -6506,7 +6501,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 854d0bdd7888a4d1c0d177652aa9715c0f7f9c92a2dabd703825f16449fa6adf
     /// tsc-span: _tsc.js:57868-57886
     pub(crate) fn clone_signature(&mut self, signature: SignatureId) -> SignatureId {
-        let source = self.signature_of(signature).without_caches();
+        // One copy of the source's lists (the clone owns them), not two.
+        let source = self.signature_of(signature);
         let result = crate::state::Signature {
             declaration: source.declaration,
             flags: tsc_types::SignatureFlags::from_bits(
@@ -6842,7 +6838,7 @@ impl<'a> CheckerState<'a> {
         if source_params.is_empty() || target_params.is_empty() {
             return Ok(true);
         }
-        let mapper = self.create_type_mapper(target_params.clone(), Some(source_params.clone()));
+        let mapper = self.create_type_mapper(&target_params, Some(&source_params));
         let unknown = self.tables.intrinsics.unknown;
         for i in 0..source_params.len() {
             let s = source_params[i];
@@ -6941,7 +6937,7 @@ impl<'a> CheckerState<'a> {
                     .expect("freshly created anonymous types carry resolved members");
                 let stripped = crate::state::ResolvedMembers::new(
                     resolved.members.clone(),
-                    resolved.properties.clone(),
+                    resolved.properties.clone().to_vec(),
                     Vec::new(),
                     Vec::new(),
                     Vec::new(),
@@ -7186,7 +7182,7 @@ impl<'a> CheckerState<'a> {
             .or_else(|| right_data.type_parameters.clone());
         let param_mapper = match (&left_data.type_parameters, &right_data.type_parameters) {
             (Some(left_params), Some(right_params)) => {
-                Some(self.create_type_mapper(right_params.clone(), Some(left_params.clone())))
+                Some(self.create_type_mapper(right_params, Some(left_params)))
             }
             _ => None,
         };
@@ -7346,16 +7342,22 @@ impl<'a> CheckerState<'a> {
         let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
             unreachable!("union flag implies union data");
         };
-        let types = self.tables.list(types).to_vec();
+        let types = self.tables.list_copy(types);
         let mut call_lists = Vec::with_capacity(types.len());
         let mut construct_lists = Vec::with_capacity(types.len());
         for &t in types.iter() {
             if self.is_global_function_type(t)? {
                 call_lists.push(vec![self.unknown_signature]);
             } else {
-                call_lists.push(self.get_signatures_of_type(t, SignatureKind::Call)?);
+                call_lists.push(
+                    self.get_signatures_of_type(t, SignatureKind::Call)?
+                        .to_vec(),
+                );
             }
-            construct_lists.push(self.get_signatures_of_type(t, SignatureKind::Construct)?);
+            construct_lists.push(
+                self.get_signatures_of_type(t, SignatureKind::Construct)?
+                    .to_vec(),
+            );
         }
         // W2c: the synthesized signature lists follow member order (observed
         // from the lists already computed; no allocation, lazy iterator).
@@ -7414,7 +7416,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
             unreachable!("intersection flag implies intersection data");
         };
-        let types = self.tables.list(types).to_vec();
+        let types = self.tables.list_copy(types);
         let mixin_flags = self.find_mixins(&types)?;
         let mixin_count = mixin_flags.iter().filter(|&&b| b).count();
         let mut call_signatures: Vec<SignatureId> = Vec::new();
@@ -7440,7 +7442,7 @@ impl<'a> CheckerState<'a> {
                             crate::links::LinkSlot::Resolved(mixed);
                         mapped.push(clone);
                     }
-                    signatures = mapped;
+                    signatures = mapped.into();
                 }
                 self.append_signatures(&mut construct_signatures, &signatures)?;
             }
@@ -7637,7 +7639,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         kind: SignatureKind,
-    ) -> CheckResult<Vec<SignatureId>> {
+    ) -> CheckResult<SignatureIds> {
         let reduced = self.get_reduced_apparent_type(ty)?;
         // getSignaturesOfStructuredType: unions and intersections
         // resolve through their member synthesis (5.3d) like objects.
@@ -7646,13 +7648,13 @@ impl<'a> CheckerState<'a> {
             .flags_of(reduced)
             .intersects(TypeFlags::STRUCTURED_TYPE)
         {
-            Vec::new()
+            SignatureIds::new()
         } else {
             let members = self.resolve_structured_type_members(reduced)?;
             let resolved = self.members_of(members);
             match kind {
-                SignatureKind::Call => resolved.call_signatures().to_vec(),
-                SignatureKind::Construct => resolved.construct_signatures().to_vec(),
+                SignatureKind::Call => resolved.call_signature_list(),
+                SignatureKind::Construct => resolved.construct_signature_list(),
             }
         };
 
@@ -7675,14 +7677,13 @@ impl<'a> CheckerState<'a> {
             .get(ty)
             .resolved()
         {
-            return Ok(cached.into_vec());
+            return Ok(cached.clone());
         }
 
         let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
             unreachable!("union flag implies union data");
         };
-        let types = self.tables.list(types);
-        let constituents = types.to_vec();
+        let constituents = self.tables.list_copy(types);
         let global_array = self.global_array_type()?;
         let global_readonly_array = self.global_readonly_array_type()?;
         let array_symbol = self.tables.type_of(global_array).symbol;
@@ -7767,13 +7768,13 @@ impl<'a> CheckerState<'a> {
                 Some(property_type) => {
                     self.get_signatures_of_type(property_type, SignatureKind::Call)?
                 }
-                None => Vec::new(),
+                None => SignatureIds::new(),
             }
         } else {
             result
         };
         self.links
-            .set_type_array_fallback_signatures(ty, fallback.clone().into_boxed_slice());
+            .set_type_array_fallback_signatures(ty, fallback.clone());
         Ok(fallback)
     }
 
@@ -7795,22 +7796,29 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:64479-64486
     ///
     pub fn is_top_signature(&mut self, signature: SignatureId) -> CheckResult<bool> {
-        let signature_data = self.signature_of(signature).without_caches();
-        let this_is_any = match signature_data.this_parameter {
+        // The fields are read in place (this runs at the start of every
+        // signature comparison), and in tsgo's order: the this-parameter's
+        // type is resolved only for a signature without type parameters.
+        let data = self.signature_of(signature);
+        if data.type_parameters.is_some() {
+            return Ok(false);
+        }
+        let (this_parameter, flags) = (data.this_parameter, data.flags);
+        let single_parameter = match data.parameters.as_slice() {
+            [parameter] => Some(*parameter),
+            _ => None,
+        };
+        let this_is_any = match this_parameter {
             None => true,
             Some(this_parameter) => {
                 let this_type = self.get_type_of_parameter(this_parameter)?;
                 self.tables.flags_of(this_type).intersects(TypeFlags::ANY)
             }
         };
-        if signature_data.type_parameters.is_none()
-            && this_is_any
-            && signature_data.parameters.len() == 1
-            && signature_data
-                .flags
-                .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER)
-        {
-            let parameter_type = self.get_type_of_parameter(signature_data.parameters[0])?;
+        if let Some(parameter) = single_parameter.filter(|_| {
+            this_is_any && flags.intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER)
+        }) {
+            let parameter_type = self.get_type_of_parameter(parameter)?;
             let rest_type = if self.is_array_type(parameter_type)? {
                 self.get_type_arguments(parameter_type)?[0]
             } else {
@@ -7933,7 +7941,7 @@ impl<'a> CheckerState<'a> {
     fn rest_tuple_target_data(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult<Option<(TypeId, tsc_types::TupleTargetData)>> {
+    ) -> CheckResult<Option<(TypeId, tsc_types::TupleTargetId)>> {
         let signature_data = self.signature_of(signature);
         if !signature_data
             .flags
@@ -7953,8 +7961,8 @@ impl<'a> CheckerState<'a> {
         let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
             unreachable!("tuple type targets a tuple target");
         };
-        let data = self.tables.tuple_target(data);
-        Ok(Some((rest_type, data.clone())))
+        // The payload's id: the callers read its fields in place.
+        Ok(Some((rest_type, data)))
     }
 
     // ---- arity helpers (78233-78341) ----
@@ -7965,6 +7973,7 @@ impl<'a> CheckerState<'a> {
     pub fn get_parameter_count(&mut self, signature: SignatureId) -> CheckResult<usize> {
         let length = self.signature_of(signature).parameters.len();
         if let Some((_, data)) = self.rest_tuple_target_data(signature)? {
+            let data = self.tables.tuple_target(data);
             return Ok(length + data.fixed_length
                 - usize::from(!data.combined_flags.intersects(ElementFlags::VARIABLE)));
         }
@@ -7983,6 +7992,7 @@ impl<'a> CheckerState<'a> {
     pub fn get_min_argument_count(&mut self, signature: SignatureId) -> CheckResult<usize> {
         let mut computed: Option<usize> = None;
         if let Some((_, data)) = self.rest_tuple_target_data(signature)? {
+            let data = self.tables.tuple_target(data);
             let first_optional_index = data
                 .element_flags
                 .iter()
@@ -8033,6 +8043,7 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
     ) -> CheckResult<usize> {
         if let Some((_, data)) = self.rest_tuple_target_data(signature)? {
+            let data = self.tables.tuple_target(data);
             let first_optional_index = data
                 .element_flags
                 .iter()
@@ -8058,7 +8069,11 @@ impl<'a> CheckerState<'a> {
         }
         match self.rest_tuple_target_data(signature)? {
             None => Ok(true),
-            Some((_, data)) => Ok(data.combined_flags.intersects(ElementFlags::VARIABLE)),
+            Some((_, data)) => Ok(self
+                .tables
+                .tuple_target(data)
+                .combined_flags
+                .intersects(ElementFlags::VARIABLE)),
         }
     }
 
@@ -8380,17 +8395,20 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         pos: usize,
     ) -> CheckResult<Option<TypeId>> {
+        // The one parameter needed is read in place (no copy of the list:
+        // arity checks and contextual typing ask for every argument).
         let signature_data = self.signature_of(signature);
-        let parameters = signature_data.parameters.clone();
         let has_rest = signature_data
             .flags
             .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER);
-        let parameter_count = parameters.len() - usize::from(has_rest);
+        let parameter_count = signature_data.parameters.len() - usize::from(has_rest);
         if pos < parameter_count {
-            return Ok(Some(self.get_type_of_parameter(parameters[pos])?));
+            let parameter = signature_data.parameters[pos];
+            return Ok(Some(self.get_type_of_parameter(parameter)?));
         }
         if has_rest {
-            let rest_type = self.get_type_of_symbol(parameters[parameter_count])?;
+            let rest_parameter = signature_data.parameters[parameter_count];
+            let rest_type = self.get_type_of_symbol(rest_parameter)?;
             let index = pos - parameter_count;
             let tuple_gate = if self.tables.is_tuple_type(rest_type) {
                 let target = self.tables.reference_target(rest_type);

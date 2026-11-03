@@ -468,6 +468,44 @@ test 4,993 pass（language service は修正後に 256 pass）、conformance 12,
 1,028 s）、suites regressions 0、`--checkers 4` は既知の 4 件（15,335 一致）、8 case で出力一致、k9 は h2 比 VS Code −3.0%、
 peak footprint −85 MB。
 
+## slice 12：複製と確保（branch `perf/ts71-copies`）
+
+handover §6.4。profile の memmove 635 sample（tsrs 85）と malloc/free 約 540（tsrs 60）の呼び出し元を、借用か共有か使い回しに
+替えた。出力は変えない（memo の値と順序はそのまま）。
+
+1. **返す list を共有に**：`get_properties_of_type`・`get_signatures_of_type` は呼ぶたびに `Vec` を複製して返していた。
+   `SharedList<T>`（`Option<Arc<[T]>>`。clone は参照数、空は確保なし）の `SymbolIds`・`SignatureIds` を返し、resolved members と
+   links の `resolved_properties`・`array_fallback_signatures`・variances も同じ list を持つ。
+2. **型 list を複製せずに読む**：`TypeListCopy`（8 個まで inline）、tables を借りない `ListCursor`、`create_type_reference_with_last`
+   （再利用 buffer）。union の member を数えるだけの箇所は `union_member_count`、inference の `types_of` は inline copy、`map_type`
+   は cursor、`filter_type` は全部残るなら元の型を返す（tsgo の `core.Same`）。`list(..).to_vec()` の大半を `list_copy` に。
+3. **式ごとの文字列と node list**：`nodes_of` は program の寿命の slice（`NodeIds<'a>`）。プロパティ名・`escaped_text_of` は
+   `&'a str`。
+4. **call 解決**：`choose_overload` は引数と型引数の node list を借りる。
+5. **signature をその場で読む**：`is_top_signature`（tsgo の順に、型 parameter があれば this 型を解決しない）、
+   `try_get_type_at_position`、`instantiate_signature`、`clone_signature`。signature の instantiation cache の key は
+   `(SignatureId, TypeListId)`。
+6. **instantiation**：`SmallList::clone` は inline なら word の copy。外側の型 parameter の cache は `TypeListId`。
+   `create_type_mapper` などは slice を受け取る。alias と conditional の instantiation cache は値の `InstantiationKey`。
+7. **inference の作業領域を state に**（`InferenceWalkBuffers`）。
+8. **arena の予約**：型 table の上限を 2^20 → 2^22、transient symbol 2^22 → 2^24、inference arena も予約（VS Code で倍増のたびの
+   複製と旧新 buffer の同時 resident をなくす）。memory report の signature・members・mapper・inference・symbol の行は `len` で数える。
+
+**計測**（1 thread、通常 build 同士、各 1 回。k9 = slice 11 最終 `8393ff411`、m1 = この slice の code `26de7bce1`）：
+
+| case | 命令数 k9 → m1 | 差 | peak footprint k9 → m1 |
+|---|---:|---:|---:|
+| VS Code | 170.16 → 162.36 G | −4.6% | 4,077 → 4,064 MB |
+| TypeScript compiler noEmit | 11.74 → 11.32 G | −3.6% | 203 → 202 MB |
+| Next.js noEmit | 36.09 → 34.10 G | −5.5% | 843 → 841 MB |
+| zod | 25.29 → 23.50 G | −7.1% | 802 → 794 MB |
+| effect | 21.12 → 19.54 G | −7.5% | 603 → 596 MB |
+| hono | 3.61 → 3.41 G | −5.5% | 122 → 122 MB |
+| vue | 18.85 → 17.92 G | −4.9% | 360 → 353 MB |
+| playwright | 17.23 → 16.42 G | −4.7% | 471 → 468 MB |
+
+出力は 8 case で k9 と一致。peak はほぼ変わらない（生きている record は同じで、減ったのは一時的な複製と確保）。
+
 ## 次の候補（効果の大きい順の見込み）
 
 利用者の指示（2026-11-02）：「arena の改造が必要な気がします。やはり間接参照が入る分遅くなる気がします」「JsString と JsStr の
