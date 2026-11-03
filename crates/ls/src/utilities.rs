@@ -436,9 +436,11 @@ pub(crate) fn is_require_call(
 /// The text of a string literal or no-substitution template literal.
 fn string_literal_like_text(source: &SourceFile, node: NodeId) -> Option<String> {
     match source.arena.node(node).data() {
-        NodeData::StringLiteral(literal) => Some(literal.text.to_string_lossy().into_owned()),
+        NodeData::StringLiteral(literal) => {
+            Some(source.arena.text_js(literal.text).to_string_lossy().into_owned())
+        }
         NodeData::NoSubstitutionTemplateLiteral(literal) => {
-            Some(literal.text.to_string_lossy().into_owned())
+            Some(source.arena.text_js(literal.text).to_string_lossy().into_owned())
         }
         _ => None,
     }

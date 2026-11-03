@@ -44,7 +44,8 @@ pub use jsdoc_hosted::{HostedCast, HostedTypeParameters, JsDocHosted, JsDocHoste
 pub use kind::SyntaxKind;
 pub use name_table::{NameTable, NameTableCell};
 pub use nodes::{
-    published_node, published_node_array, published_text, published_text_str, Published,
+    published_node, published_node_array, published_text, published_text_js, published_text_str,
+    published_text_utf8, Published,
 };
 pub use nodes::{
     JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData,

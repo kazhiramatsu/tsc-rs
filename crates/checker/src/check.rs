@@ -5176,16 +5176,17 @@ impl<'a> CheckerState<'a> {
                 Ok(data.text().to_owned().into())
             }
             NodeData::PrivateIdentifier(data) => Ok(data.text().into()),
-            NodeData::StringLiteral(data) => string_literal_name(&data.text, false).map(JsString::from),
-            NodeData::NumericLiteral(data) => Ok(data.text.into()),
-            NodeData::BigIntLiteral(data) => Ok(data.text.into()),
+            NodeData::StringLiteral(data) => string_literal_name(self.text_js(data.text), false).map(JsString::from),
+            NodeData::NumericLiteral(data) => Ok(self.text_utf8(data.text).into()),
+            NodeData::BigIntLiteral(data) => Ok(self.text_utf8(data.text).into()),
             NodeData::NoSubstitutionTemplateLiteral(data) => {
                 let raw = data
                     .raw_text
-                    .unwrap_or_else(|| template_text_raw(&data.text));
+                    .map(|raw| self.text_utf8(raw).to_owned())
+                    .unwrap_or_else(|| template_text_raw(self.text_js(data.text)));
                 Ok(crate::concat_js(&[&"`", &(raw), &"`"]))
             }
-            NodeData::RegularExpressionLiteral(data) => Ok(data.text.into()),
+            NodeData::RegularExpressionLiteral(data) => Ok(self.text_utf8(data.text).into()),
             NodeData::PrefixUnaryExpression(data) => {
                 let operator = tsc_syntax::tokens::token_to_string(data.operator)
                     .expect("PrefixUnaryExpression carries a prefix operator");
@@ -5259,7 +5260,8 @@ impl<'a> CheckerState<'a> {
                     unreachable!("TemplateExpression head is a TemplateHead");
                 };
                 let mut text = crate::concat_js(&[&"`", &(head.raw_text
-                        .unwrap_or_else(|| template_text_raw(&head.text)))]);
+                        .map(|raw| self.text_utf8(raw).to_owned())
+                        .unwrap_or_else(|| template_text_raw(self.text_js(head.text))))]);
                 for span in self.nodes_of(data.template_spans) {
                     let NodeData::TemplateSpan(span) = self.data_of(span).clone() else {
                         unreachable!("TemplateExpression spans contain TemplateSpan nodes");
@@ -5271,10 +5273,12 @@ impl<'a> CheckerState<'a> {
                     let literal = match self.data_of(literal).clone() {
                         NodeData::TemplateMiddle(data) => data
                             .raw_text
-                            .unwrap_or_else(|| template_text_raw(&data.text)),
+                            .map(|raw| self.text_utf8(raw).to_owned())
+                            .unwrap_or_else(|| template_text_raw(self.text_js(data.text))),
                         NodeData::TemplateTail(data) => data
                             .raw_text
-                            .unwrap_or_else(|| template_text_raw(&data.text)),
+                            .map(|raw| self.text_utf8(raw).to_owned())
+                            .unwrap_or_else(|| template_text_raw(self.text_js(data.text))),
                         _ => unreachable!("TemplateSpan literal is TemplateMiddle/TemplateTail"),
                     };
                     text.push_js((&crate::concat_js(&[&"${", &(expression), &"}", &(literal)])).into());
@@ -11998,8 +12002,8 @@ impl<'a> CheckerState<'a> {
                 let head_text = match self.data_of(head) {
                     NodeData::TemplateHead(head_data) => head_data
                         .raw_text
-                        .clone()
-                        .unwrap_or_else(|| template_text_raw(&head_data.text)),
+                        .map(|raw| self.text_utf8(raw).to_owned())
+                        .unwrap_or_else(|| template_text_raw(self.text_js(head_data.text))),
                     _ => unreachable!("TemplateLiteralType head is a TemplateHead node"),
                 };
                 let mut text = crate::concat_js(&[&"`", &(head_text)]);
@@ -12021,12 +12025,12 @@ impl<'a> CheckerState<'a> {
                     let literal_text = match self.data_of(literal) {
                         NodeData::TemplateMiddle(data) => data
                             .raw_text
-                            .clone()
-                            .unwrap_or_else(|| template_text_raw(&data.text)),
+                            .map(|raw| self.text_utf8(raw).to_owned())
+                            .unwrap_or_else(|| template_text_raw(self.text_js(data.text))),
                         NodeData::TemplateTail(data) => data
                             .raw_text
-                            .clone()
-                            .unwrap_or_else(|| template_text_raw(&data.text)),
+                            .map(|raw| self.text_utf8(raw).to_owned())
+                            .unwrap_or_else(|| template_text_raw(self.text_js(data.text))),
                         _ => unreachable!(
                             "TemplateLiteralTypeSpan literal is TemplateMiddle/TemplateTail"
                         ),
@@ -13197,17 +13201,17 @@ impl<'a> CheckerState<'a> {
                 Ok(crate::concat_js(&[
                     &quote.to_string(),
                     &string_literal_display_text_with_quote(
-                        &tsc_types::TemplateText::from_js(data.text.as_js()),
+                        &tsc_types::TemplateText::from_js(self.text_js(data.text)),
                         quote,
                     ),
                     &quote.to_string(),
                 ]))
             }
-            NodeData::NumericLiteral(data) => Ok(data.text.clone().into()),
+            NodeData::NumericLiteral(data) => Ok(tsc_types::JsString::from(self.text_utf8(data.text))),
             // getLiteralText's BigIntLiteral arm emits the cloned
             // node's scanner-cooked text verbatim (hex remains hex;
             // binary/octal are already normalized by the scanner).
-            NodeData::BigIntLiteral(data) => Ok(data.text.into()),
+            NodeData::BigIntLiteral(data) => Ok(self.text_utf8(data.text).into()),
             NodeData::PrefixUnaryExpression(data) => {
                 let operator = match data.operator {
                     SyntaxKind::MinusToken => "-",
@@ -13577,9 +13581,9 @@ impl<'a> CheckerState<'a> {
             NodeData::Identifier(data) => Ok(data.text().to_owned().into()),
             NodeData::PrivateIdentifier(data) => Ok(data.text().into()),
             NodeData::StringLiteral(data) => {
-                string_literal_name(&data.text, false).map(JsString::from)
+                string_literal_name(self.text_js(data.text), false).map(JsString::from)
             }
-            NodeData::NumericLiteral(data) => Ok(data.text.clone().into()),
+            NodeData::NumericLiteral(data) => Ok(tsc_types::JsString::from(self.text_utf8(data.text))),
             NodeData::ComputedPropertyName(data) => {
                 let expression = data
                     .expression

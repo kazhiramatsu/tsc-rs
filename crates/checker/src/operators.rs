@@ -1181,7 +1181,7 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let left_is_zero = self.kind_of(left) == SyntaxKind::NumericLiteral
-            && matches!(self.data_of(left), NodeData::NumericLiteral(data) if data.text == "0");
+            && matches!(self.data_of(left), NodeData::NumericLiteral(data) if self.text_utf8(data.text) == "0");
         if !left_is_zero {
             return false;
         }
@@ -3260,7 +3260,7 @@ impl<'a> CheckerState<'a> {
         let mut texts: Vec<tsc_types::TemplateText> = Vec::with_capacity(spans.len() + 1);
         match self.data_of(head) {
             NodeData::TemplateHead(data) => {
-                texts.push(tsc_types::TemplateText::from_js(data.text.as_js()));
+                texts.push(tsc_types::TemplateText::from_js(self.text_js(data.text)));
             }
             _ => unreachable!("parser invariant: template heads carry TemplateHead data"),
         }
@@ -3286,10 +3286,10 @@ impl<'a> CheckerState<'a> {
             };
             match self.data_of(literal) {
                 NodeData::TemplateMiddle(data) => {
-                    texts.push(tsc_types::TemplateText::from_js(data.text.as_js()));
+                    texts.push(tsc_types::TemplateText::from_js(self.text_js(data.text)));
                 }
                 NodeData::TemplateTail(data) => {
-                    texts.push(tsc_types::TemplateText::from_js(data.text.as_js()));
+                    texts.push(tsc_types::TemplateText::from_js(self.text_js(data.text)));
                 }
                 _ => unreachable!(
                     "parser invariant: span literals are TemplateMiddle/TemplateTail (missing shape included)"
@@ -3384,7 +3384,7 @@ impl<'a> CheckerState<'a> {
         match self.kind_of(operand) {
             SyntaxKind::NumericLiteral => {
                 let text = match self.data_of(operand) {
-                    NodeData::NumericLiteral(data) => data.text.clone(),
+                    NodeData::NumericLiteral(data) => self.text_utf8(data.text).to_owned(),
                     _ => unreachable!("kind/data agree"),
                 };
                 match operator {
@@ -3403,7 +3403,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::BigIntLiteral if operator == SyntaxKind::MinusToken => {
                 let text = match self.data_of(operand) {
-                    NodeData::BigIntLiteral(data) => data.text.clone(),
+                    NodeData::BigIntLiteral(data) => self.text_utf8(data.text).to_owned(),
                     _ => unreachable!("kind/data agree"),
                 };
                 let parsed = crate::expr::parse_pseudo_big_int(&text)?;
@@ -3971,7 +3971,7 @@ impl<'a> CheckerState<'a> {
                 let NodeData::NumericLiteral(data) = self.data_of(node) else {
                     unreachable!("kind/data agree");
                 };
-                if data.text == "0" || data.text == "1" {
+                if self.text_utf8(data.text) == "0" || self.text_utf8(data.text) == "1" {
                     SEMANTICS_SOMETIMES
                 } else {
                     SEMANTICS_ALWAYS
@@ -3989,8 +3989,8 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::VoidExpression | SyntaxKind::NullKeyword => SEMANTICS_NEVER,
             SyntaxKind::NoSubstitutionTemplateLiteral | SyntaxKind::StringLiteral => {
                 let text_empty = match self.data_of(node) {
-                    NodeData::StringLiteral(data) => data.text.is_empty(),
-                    NodeData::NoSubstitutionTemplateLiteral(data) => data.text.is_empty(),
+                    NodeData::StringLiteral(data) => self.text_js(data.text).is_empty(),
+                    NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text).is_empty(),
                     _ => unreachable!("kind/data agree"),
                 };
                 if text_empty {

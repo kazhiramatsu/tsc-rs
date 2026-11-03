@@ -559,8 +559,8 @@ impl<'a> CheckerState<'a> {
                     return Ok(self.tables.intrinsics.blocked_string);
                 }
                 let text = match self.data_of(node) {
-                    NodeData::StringLiteral(data) => data.text.clone(),
-                    NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
+                    NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
+                    NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text).to_owned(),
                     _ => unreachable!("kind/data agree"),
                 };
                 let literal = self.tables.get_string_literal_type(&text);
@@ -571,7 +571,7 @@ impl<'a> CheckerState<'a> {
                 let NodeData::NumericLiteral(data) = self.data_of(node) else {
                     unreachable!("kind/data agree");
                 };
-                let value = crate::annotate::parse_numeric_literal_text(&data.text)?;
+                let value = crate::annotate::parse_numeric_literal_text(self.text_utf8(data.text))?;
                 let literal = self.tables.get_number_literal_type(value);
                 Ok(self.tables.get_fresh_type_of_literal_type(literal))
             }
@@ -580,7 +580,7 @@ impl<'a> CheckerState<'a> {
                 let NodeData::BigIntLiteral(data) = self.data_of(node) else {
                     unreachable!("kind/data agree");
                 };
-                let value = parse_pseudo_big_int(&data.text)?;
+                let value = parse_pseudo_big_int(self.text_utf8(data.text))?;
                 let literal = self.tables.get_bigint_literal_type(value);
                 Ok(self.tables.get_fresh_type_of_literal_type(literal))
             }
@@ -801,7 +801,7 @@ impl<'a> CheckerState<'a> {
             let Some(data) = raw.data().as_regular_expression_literal() else {
                 return false;
             };
-            let literal_text = data.text.clone();
+            let literal_text = self.text_utf8(data.text);
             let token_start_byte = (raw.end as usize).saturating_sub(literal_text.len());
             let token_start_utf16 = source
                 .positions()
@@ -821,7 +821,7 @@ impl<'a> CheckerState<'a> {
             return false;
         }
 
-        let regex_diagnostics = validate_regular_expression_literal(&literal_text, target);
+        let regex_diagnostics = validate_regular_expression_literal(literal_text, target);
         let mut last_primary: Option<(u32, u32, usize)> = None;
         for regex_diagnostic in regex_diagnostics {
             let start = token_start_utf16.saturating_add(regex_diagnostic.start_utf16);
@@ -3388,8 +3388,8 @@ impl<'a> CheckerState<'a> {
             .name
             .is_some_and(|name| match self.data_of(name) {
                 NodeData::Identifier(data) => data.escaped_text.identifier_text() == "with",
-                NodeData::StringLiteral(data) => data.text == "with",
-                NodeData::NoSubstitutionTemplateLiteral(data) => data.text == "with",
+                NodeData::StringLiteral(data) => self.text_js(data.text) == "with",
+                NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text) == "with",
                 _ => false,
             });
         if !is_with {

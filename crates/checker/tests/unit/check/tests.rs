@@ -5066,7 +5066,7 @@ fn reused_symbol_visibility_matches_declaration_and_alias_fallbacks() {
                             if data.name.is_some_and(|name| {
                                 matches!(
                                     state.data_of(name),
-                                    NodeData::StringLiteral(data) if data.text == "./m"
+                                    NodeData::StringLiteral(data) if state.text_utf8(data.text) == "./m"
                                 )
                             })
                     )

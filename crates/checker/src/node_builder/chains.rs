@@ -1083,8 +1083,8 @@ fn alternative_containing_module_chains(
         // reached through any import syntax is a container regardless of the
         // usage/default resolution-mode mismatch gated below.
         let ambient_name = match checker.data_of(import_ref) {
-            NodeData::StringLiteral(data) => Some(data.text.clone()),
-            NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.clone()),
+            NodeData::StringLiteral(data) => Some(crate::annotate::published_text_js(data.text).to_owned()),
+            NodeData::NoSubstitutionTemplateLiteral(data) => Some(crate::annotate::published_text_js(data.text).to_owned()),
             _ => None,
         };
         let module = match ambient_name
@@ -1590,12 +1590,13 @@ fn create_string_literal<'t>(
     text: impl Into<JsStr<'t>>,
     single_quote: bool,
 ) -> BuildResult<TransformNode> {
+    let text = arena
+        .push_text(target, text.into().as_bytes())
+        .map_err(super::type_nodes::factory_error)?;
     let literal = create_node(
         arena,
         target,
-        NodeData::StringLiteral(Box::new(StringLiteralData {
-            text: text.into().to_owned(),
-        })),
+        NodeData::StringLiteral(Box::new(StringLiteralData { text })),
     )?;
     arena
         .literal_properties_mut(literal)
@@ -3203,7 +3204,7 @@ pub(crate) fn get_module_specifier_override(
     literal: TransformNode,
 ) -> BuildResult<Option<tsc_types::JsString>> {
     let original_name = match arena.node(literal).map_err(factory_error)?.data() {
-        NodeData::StringLiteral(data) => data.text.clone(),
+        NodeData::StringLiteral(data) => crate::annotate::published_text_js(data.text).to_owned(),
         _ => return Ok(None),
     };
     let literal_file_differs = match arena

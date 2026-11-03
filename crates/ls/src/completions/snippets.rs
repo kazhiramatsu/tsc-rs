@@ -945,16 +945,25 @@ fn type_node_to_expression(
                 return Ok(None);
             };
             match tracker.arena().node(literal)?.data().clone() {
-                NodeData::StringLiteral(text) => tracker
-                    .arena()
-                    .factory()
-                    .create_string_literal(target, text.text, single_quote)
-                    .map(Some),
-                NodeData::NumericLiteral(number) => tracker
-                    .arena()
-                    .factory()
-                    .create_numeric_literal(target, number.text)
-                    .map(Some),
+                NodeData::StringLiteral(text) => {
+                    let text = tracker.arena().text_js(literal.source(), text.text)?.to_owned();
+                    tracker
+                        .arena()
+                        .factory()
+                        .create_string_literal(target, text, single_quote)
+                        .map(Some)
+                }
+                NodeData::NumericLiteral(number) => {
+                    let text = tracker
+                        .arena()
+                        .text_utf8(literal.source(), number.text)?
+                        .to_owned();
+                    tracker
+                        .arena()
+                        .factory()
+                        .create_numeric_literal(target, text)
+                        .map(Some)
+                }
                 _ => Ok(None),
             }
         }

@@ -344,7 +344,10 @@ fn try_update_config_string<'t>(
     let NodeData::StringLiteral(literal) = config_file.arena.node(element).data() else {
         return false;
     };
-    let element_file_name = resolve_path(config_directory, &literal.text.to_string_lossy());
+    let element_file_name = resolve_path(
+                config_directory,
+                &config_file.arena.text_js(literal.text).to_string_lossy(),
+            );
     let Some(updated) = updater.update(&element_file_name) else {
         return false;
     };
@@ -391,11 +394,13 @@ fn object_properties(config_file: &SourceFile, object: NodeId) -> Vec<(String, N
                 return None;
             };
             let name = match config_file.arena.node(assignment.name?).data() {
-                NodeData::StringLiteral(name) => name.text.to_string_lossy().into_owned(),
+                NodeData::StringLiteral(name) => {
+                config_file.arena.text_js(name.text).to_string_lossy().into_owned()
+            }
                 NodeData::NoSubstitutionTemplateLiteral(name) => {
-                    name.text.to_string_lossy().into_owned()
+                    config_file.arena.text_js(name.text).to_string_lossy().into_owned()
                 }
-                NodeData::NumericLiteral(name) => name.text.clone(),
+                NodeData::NumericLiteral(name) => config_file.arena.text_utf8(name.text).to_owned(),
                 NodeData::Identifier(name) => name.escaped_text.to_string(),
                 _ => return None,
             };

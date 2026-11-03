@@ -24,7 +24,7 @@ fn state(arena: &TransformArena, node: TransformNode) -> Value {
     let NodeData::StringLiteral(data) = record.data() else {
         panic!("literal")
     };
-    let value = data.text.to_utf16();
+    let value = arena.text_js(node.source(), data.text).unwrap().to_utf16();
     let parent = record.parent.map(|id| {
         let parent = arena
             .node(arena.node_ref(node.source(), id).unwrap())

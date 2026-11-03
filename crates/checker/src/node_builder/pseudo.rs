@@ -1635,9 +1635,9 @@ fn reuse_name(
             true,
             false,
         ),
-        NodeData::StringLiteral(data) => (data.text.clone(), false, true),
+        NodeData::StringLiteral(data) => (crate::annotate::published_text_js(data.text).to_owned(), false, true),
         NodeData::NumericLiteral(data) => {
-            (tsc_types::JsString::from(data.text.as_str()), false, false)
+            (tsc_types::JsString::from(crate::annotate::published_text_utf8(data.text)), false, false)
         }
         NodeData::ComputedPropertyName(data) => {
             let expression = data
@@ -1646,12 +1646,12 @@ fn reuse_name(
                 .transpose()
                 .map_err(factory_error)?;
             match expression.map(|expression| expression.data()) {
-                Some(NodeData::StringLiteral(data)) => (data.text.clone(), false, false),
+                Some(NodeData::StringLiteral(data)) => (crate::annotate::published_text_js(data.text).to_owned(), false, false),
                 Some(NodeData::NoSubstitutionTemplateLiteral(data)) => {
-                    (data.text.clone(), false, false)
+                    (crate::annotate::published_text_js(data.text).to_owned(), false, false)
                 }
                 Some(NodeData::NumericLiteral(data)) => {
-                    (tsc_types::JsString::from(data.text.as_str()), false, false)
+                    (tsc_types::JsString::from(crate::annotate::published_text_utf8(data.text)), false, false)
                 }
                 _ => return Ok(reused),
             }

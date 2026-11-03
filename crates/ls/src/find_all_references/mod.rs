@@ -584,12 +584,16 @@ impl Request<'_, '_> {
             return String::new();
         };
         match self.state.binder.node_record(id).data() {
-            NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
+            NodeData::StringLiteral(data) => tsc_syntax::published_text_js(data.text)
+                .to_string_lossy()
+                .into_owned(),
             NodeData::NoSubstitutionTemplateLiteral(data) => {
-                data.text.to_string_lossy().into_owned()
+                tsc_syntax::published_text_js(data.text)
+                    .to_string_lossy()
+                    .into_owned()
             }
-            NodeData::NumericLiteral(data) => data.text.clone(),
-            NodeData::BigIntLiteral(data) => data.text.to_string(),
+            NodeData::NumericLiteral(data) => tsc_syntax::published_text_utf8(data.text).to_owned(),
+            NodeData::BigIntLiteral(data) => tsc_syntax::published_text_utf8(data.text).to_owned(),
             _ => node_util::id_text(self.state.binder.source_of_node(id), id)
                 .unwrap_or_default()
                 .to_owned(),

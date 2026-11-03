@@ -60,7 +60,9 @@ fn comment_parts<'a>(
 ) -> Vec<CommentPart<'a>> {
     match comment {
         None => Vec::new(),
-        Some(JSDocComment::Text { text, .. }) => vec![CommentPart::Text(text)],
+        Some(JSDocComment::Text { text, .. }) => {
+            vec![CommentPart::Text(tsc_syntax::published_text_utf8(*text))]
+        }
         Some(JSDocComment::Nodes(list)) => state
             .binder
             .node_array(*list)
@@ -69,24 +71,26 @@ fn comment_parts<'a>(
             .filter_map(|&part| {
                 let record = state.binder.node_record(part);
                 match record.data() {
-                    NodeData::JSDocText(text) => Some(CommentPart::Text(&text.text)),
+                    NodeData::JSDocText(text) => Some(CommentPart::Text(
+                        tsc_syntax::published_text_utf8(text.text),
+                    )),
                     NodeData::JSDocLink(link) => Some(CommentPart::Link {
                         node: part,
                         kind: record.kind,
                         name: link.name,
-                        text: &link.text,
+                        text: tsc_syntax::published_text_utf8(link.text),
                     }),
                     NodeData::JSDocLinkCode(link) => Some(CommentPart::Link {
                         node: part,
                         kind: record.kind,
                         name: link.name,
-                        text: &link.text,
+                        text: tsc_syntax::published_text_utf8(link.text),
                     }),
                     NodeData::JSDocLinkPlain(link) => Some(CommentPart::Link {
                         node: part,
                         kind: record.kind,
                         name: link.name,
-                        text: &link.text,
+                        text: tsc_syntax::published_text_utf8(link.text),
                     }),
                     _ => None,
                 }

@@ -13,8 +13,8 @@ use tsc_lsproto::{
     InlayHint, InlayHintKind, InlayHintLabelPart, InlayHintParams, InlayHintResponse,
     InlayHintsOrNull, Location, StringOrInlayHintLabelParts,
 };
-use tsc_syntax::{NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
-use tsc_types::{ElementFlags, SignatureFlags, SymbolFlags, TypeFlags, TypeId};
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind, TextId};
+use tsc_types::{ElementFlags, JsStr, SignatureFlags, SymbolFlags, TypeFlags, TypeId};
 
 use crate::astnav::{Found, Navigator};
 use crate::language_service::{LanguageService, LsError};
@@ -615,11 +615,11 @@ impl InlayHints<'_, '_, '_, '_> {
         parts
     }
 
-    /// tsgo `getLiteralText`.
-    fn literal_text(&self, data: &NodeData) -> String {
+    /// tsgo `getLiteralText`; `text` reads the literal's tree's texts.
+    fn literal_text<'t>(&self, data: &NodeData, text: impl Fn(TextId) -> JsStr<'t>) -> String {
         match data {
             NodeData::StringLiteral(literal) => {
-                let units = &literal.text.to_utf16();
+                let units = &text(literal.text).to_utf16();
                 if self.quote_preference == QuotePreference::SINGLE {
                     format!(
                         "'{}'",
@@ -635,19 +635,22 @@ impl InlayHints<'_, '_, '_, '_> {
             NodeData::TemplateHead(literal) => {
                 format!(
                     "`{}${{",
-                    template_raw_text(&literal.raw_text, &literal.text)
+                    template_raw_text(literal.raw_text.map(&text), text(literal.text))
                 )
             }
             NodeData::TemplateMiddle(literal) => {
                 format!(
                     "}}{}${{",
-                    template_raw_text(&literal.raw_text, &literal.text)
+                    template_raw_text(literal.raw_text.map(&text), text(literal.text))
                 )
             }
             NodeData::TemplateTail(literal) => {
-                format!("}}{}`", template_raw_text(&literal.raw_text, &literal.text))
+                format!(
+                    "}}{}`",
+                    template_raw_text(literal.raw_text.map(&text), text(literal.text))
+                )
             }
-            _ => literal_node_text(data),
+            _ => literal_node_text(data, text),
         }
     }
 
@@ -876,7 +879,7 @@ impl InlayHints<'_, '_, '_, '_> {
             NodeData::PrivateIdentifier(data) => {
                 data.escaped_text.unescape().to_string_lossy().into_owned()
             }
-            data => literal_node_text(data),
+            data => literal_node_text(data, tsc_syntax::published_text_js),
         }
     }
 }
@@ -958,7 +961,9 @@ impl LabelParts<'_, '_, '_, '_, '_, '_> {
             return;
         }
         if is_literal_expression_kind(kind) {
-            let text = self.hints.literal_text(record.data());
+            let text = self.hints.literal_text(record.data(), |id| {
+                self.arena.text_js(node.source(), id).unwrap_or_default()
+            });
             self.parts.push(label_part(&text));
             return;
         }
@@ -1314,7 +1319,9 @@ impl LabelParts<'_, '_, '_, '_, '_, '_> {
                 self.visit(self.child(node, span.literal));
             }
             NodeData::TemplateHead(_) | NodeData::TemplateMiddle(_) | NodeData::TemplateTail(_) => {
-                let text = self.hints.literal_text(&data);
+                let text = self.hints.literal_text(&data, |id| {
+                    self.arena.text_js(node.source(), id).unwrap_or_default()
+                });
                 self.parts.push(label_part(&text));
             }
             NodeData::ComputedPropertyName(computed) => {
@@ -1348,25 +1355,24 @@ fn label_part(value: &str) -> InlayHintLabelPart {
 
 /// A template literal part's raw text, else its text escaped for a
 /// backtick.
-fn template_raw_text(raw_text: &Option<String>, text: &tsc_types::JsString) -> String {
+fn template_raw_text(raw_text: Option<JsStr<'_>>, text: JsStr<'_>) -> String {
     match raw_text {
-        Some(raw) if !raw.is_empty() => raw.clone(),
+        Some(raw) if !raw.is_empty() => raw.to_string_lossy().into_owned(),
         _ => tsc_emitter::escape_string(&text.to_utf16(), tsc_emitter::LiteralQuote::Backtick),
     }
 }
 
-/// tsgo `Node.Text` of a literal.
-fn literal_node_text(data: &NodeData) -> String {
-    match data {
-        NodeData::NumericLiteral(literal) => literal.text.clone(),
-        NodeData::BigIntLiteral(literal) => literal.text.clone(),
-        NodeData::StringLiteral(literal) => literal.text.to_string_lossy().into_owned(),
-        NodeData::NoSubstitutionTemplateLiteral(literal) => {
-            literal.text.to_string_lossy().into_owned()
-        }
-        NodeData::RegularExpressionLiteral(literal) => literal.text.clone(),
-        _ => String::new(),
-    }
+/// tsgo `Node.Text` of a literal; `text` reads the literal's tree's texts.
+fn literal_node_text<'t>(data: &NodeData, text: impl Fn(TextId) -> JsStr<'t>) -> String {
+    let id = match data {
+        NodeData::NumericLiteral(literal) => literal.text,
+        NodeData::BigIntLiteral(literal) => literal.text,
+        NodeData::StringLiteral(literal) => literal.text,
+        NodeData::NoSubstitutionTemplateLiteral(literal) => literal.text,
+        NodeData::RegularExpressionLiteral(literal) => literal.text,
+        _ => return String::new(),
+    };
+    text(id).to_string_lossy().into_owned()
 }
 
 /// tsgo `ast.IsLiteralExpression` (`IsLiteralKind`).

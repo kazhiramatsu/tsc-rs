@@ -582,8 +582,12 @@ impl Encoder<'_> {
                 };
                 let kind = tsgo_kind(SyntaxKind::JSDocText).unwrap();
                 let string =
-                    self.strings
-                        .add(text.as_bytes(), kind, *pos as usize, *text_end as usize);
+                    self.strings.add(
+                        self.file.arena.text(*text),
+                        kind,
+                        *pos as usize,
+                        *text_end as usize,
+                    );
                 let flags = self.tree.comment_flags(owner);
                 [
                     kind,
@@ -700,14 +704,15 @@ impl Encoder<'_> {
 
     /// tsgo `recordNodeStrings`.
     fn node_string(&mut self, node: &Node, kind: u32) -> u32 {
+        let arena = &self.file.arena;
         let text: &[u8] = match node.data() {
             NodeData::Identifier(d) => d.escaped_text.unescape().as_bytes(),
             NodeData::PrivateIdentifier(d) => d.escaped_text.unescape().as_bytes(),
-            NodeData::JsxText(d) => d.text.as_bytes(),
-            NodeData::JSDocText(d) => d.text.as_bytes(),
-            NodeData::JSDocLink(d) => d.text.as_bytes(),
-            NodeData::JSDocLinkPlain(d) => d.text.as_bytes(),
-            NodeData::JSDocLinkCode(d) => d.text.as_bytes(),
+            NodeData::JsxText(d) => arena.text(d.text),
+            NodeData::JSDocText(d) => arena.text(d.text),
+            NodeData::JSDocLink(d) => arena.text(d.text),
+            NodeData::JSDocLinkPlain(d) => arena.text(d.text),
+            NodeData::JSDocLinkCode(d) => arena.text(d.text),
             _ => panic!("{:?} has no string data", node.kind),
         };
         self.strings
@@ -723,39 +728,55 @@ impl Encoder<'_> {
     ) -> u32 {
         let offset = self.extended_data.len() as u32;
         let (pos, end) = (node.pos as usize, node.end as usize);
+        let file = self.file;
         match node.data() {
             NodeData::StringLiteral(d) => {
                 let flags = self.literal_flags(node, STRING_LITERAL_FLAGS);
-                let text = self.strings.add(d.text.as_bytes(), kind, pos, end);
+                let text = self.strings.add(file.arena.text(d.text), kind, pos, end);
                 self.push_extended(&[text, flags]);
             }
             NodeData::NumericLiteral(d) => {
-                let text = self.strings.add(d.text.as_bytes(), kind, pos, end);
+                let text = self.strings.add(file.arena.text(d.text), kind, pos, end);
                 self.push_extended(&[text, u32::from(node.numeric_literal_flags())]);
             }
             NodeData::BigIntLiteral(d) => {
                 let flags = self.literal_flags(node, NUMERIC_LITERAL_FLAGS);
-                let text = self.strings.add(d.text.as_bytes(), kind, pos, end);
+                let text = self.strings.add(file.arena.text(d.text), kind, pos, end);
                 self.push_extended(&[text, flags]);
             }
             NodeData::RegularExpressionLiteral(d) => {
                 let flags = u32::from(node.is_unterminated() == Some(true)) * UNTERMINATED;
-                let text = self.strings.add(d.text.as_bytes(), kind, pos, end);
+                let text = self.strings.add(file.arena.text(d.text), kind, pos, end);
                 self.push_extended(&[text, flags]);
             }
             NodeData::NoSubstitutionTemplateLiteral(d) => {
                 let flags = self.literal_flags(node, TEMPLATE_LITERAL_LIKE_FLAGS);
-                let text = self.strings.add(d.text.as_bytes(), kind, pos, end);
+                let text = self.strings.add(file.arena.text(d.text), kind, pos, end);
                 self.push_extended(&[text, flags]);
             }
             NodeData::TemplateHead(d) => {
-                self.template(node, kind, d.text.as_bytes(), d.raw_text.as_deref())
+                self.template(
+                    node,
+                    kind,
+                    file.arena.text(d.text),
+                    d.raw_text.map(|raw| file.arena.text_utf8(raw)),
+                )
             }
             NodeData::TemplateMiddle(d) => {
-                self.template(node, kind, d.text.as_bytes(), d.raw_text.as_deref())
+                self.template(
+                    node,
+                    kind,
+                    file.arena.text(d.text),
+                    d.raw_text.map(|raw| file.arena.text_utf8(raw)),
+                )
             }
             NodeData::TemplateTail(d) => {
-                self.template(node, kind, d.text.as_bytes(), d.raw_text.as_deref())
+                self.template(
+                    node,
+                    kind,
+                    file.arena.text(d.text),
+                    d.raw_text.map(|raw| file.arena.text_utf8(raw)),
+                )
             }
             NodeData::SourceFile(_) => {
                 let words = self.source_file_data(facts.copied().unwrap_or_default());

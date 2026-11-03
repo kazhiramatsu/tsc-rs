@@ -605,7 +605,10 @@ fn syntactic_jsdoc_type_literal_keeps_written_property_types() {
             else {
                 panic!("expected a string literal name")
             };
-            assert_eq!(literal.text, "data-name");
+            assert_eq!(
+                arena.text_utf8(name.source(), literal.text).expect("literal text"),
+                "data-name"
+            );
             Ok(())
         },
     );

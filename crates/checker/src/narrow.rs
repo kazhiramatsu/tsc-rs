@@ -2431,8 +2431,8 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: NodeData accessor.
     fn string_literal_text(&self, node: NodeId) -> Option<tsc_types::JsString> {
         match self.data_of(node) {
-            NodeData::StringLiteral(data) => Some(data.text.clone()),
-            NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.clone()),
+            NodeData::StringLiteral(data) => Some(self.text_js(data.text).to_owned()),
+            NodeData::NoSubstitutionTemplateLiteral(data) => Some(self.text_js(data.text).to_owned()),
             _ => None,
         }
     }

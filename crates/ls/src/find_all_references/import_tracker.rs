@@ -1455,7 +1455,9 @@ pub(super) fn identifier_text(request: &Request<'_, '_>, node: NodeId) -> String
 /// A module export name's text (an identifier or a string literal).
 pub(super) fn module_export_name_text(request: &Request<'_, '_>, node: NodeId) -> String {
     match request.state.binder.node_record(node).data() {
-        NodeData::StringLiteral(literal) => literal.text.to_string_lossy().into_owned(),
+        NodeData::StringLiteral(literal) => tsc_syntax::published_text_js(literal.text)
+            .to_string_lossy()
+            .into_owned(),
         _ => identifier_text(request, node),
     }
 }

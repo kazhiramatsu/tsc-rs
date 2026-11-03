@@ -86,7 +86,7 @@ fn is_module_with_string_literal_name(source: &SourceFile, node: NodeId) -> bool
 /// The text of a string literal or identifier name.
 fn name_text(source: &SourceFile, node: NodeId) -> String {
     match source.arena.node(node).data() {
-        NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
+        NodeData::StringLiteral(data) => source.arena.text_js(data.text).to_string_lossy().into_owned(),
         NodeData::Identifier(data) => data.text().to_owned(),
         _ => String::new(),
     }

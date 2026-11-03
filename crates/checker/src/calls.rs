@@ -1364,11 +1364,11 @@ impl<'a> CheckerState<'a> {
                 Ok(self.tables.get_string_literal_type(&text))
             }
             NodeData::NumericLiteral(data) => {
-                let text = data.text.clone();
+                let text = self.text_utf8(data.text).to_owned();
                 Ok(self.tables.get_string_literal_type(&text))
             }
             NodeData::StringLiteral(data) => {
-                let text = data.text.clone();
+                let text = self.text_js(data.text).to_owned();
                 Ok(self.tables.get_string_literal_type(&text))
             }
             NodeData::ComputedPropertyName(_) => {

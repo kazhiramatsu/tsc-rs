@@ -137,7 +137,7 @@ fn variable_declaration() {
     let NodeData::NumericLiteral(literal) = initializer(&tree, 0).data() else {
         panic!("a numeric literal");
     };
-    assert_eq!(literal.text, "1");
+    assert_eq!(tree.source_file.arena.text_utf8(literal.text), "1");
 }
 
 #[test]
@@ -191,7 +191,7 @@ fn import_declaration() {
     else {
         panic!("a string literal");
     };
-    assert_eq!(specifier.text.as_str(), Some("bar"));
+    assert_eq!(tree.source_file.arena.text_str(specifier.text), Some("bar"));
     let NodeData::ImportClause(clause) = node(&tree, import.import_clause.unwrap()).data() else {
         panic!("an import clause");
     };
@@ -262,7 +262,7 @@ fn template_expression() {
     let NodeData::TemplateHead(head) = node(&tree, template.head.unwrap()).data() else {
         panic!("a template head");
     };
-    assert_eq!(head.text.as_str(), Some("hello "));
+    assert_eq!(tree.source_file.arena.text_str(head.text), Some("hello "));
     let spans = list(&tree, template.template_spans);
     assert_eq!(spans.len(), 1);
     let NodeData::TemplateSpan(span) = node(&tree, spans[0]).data() else {
@@ -275,7 +275,7 @@ fn template_expression() {
     let NodeData::TemplateTail(tail) = node(&tree, span.literal.unwrap()).data() else {
         panic!("a template tail");
     };
-    assert_eq!(tail.text.as_str(), Some(" world"));
+    assert_eq!(tree.source_file.arena.text_str(tail.text), Some(" world"));
 }
 
 #[test]
@@ -516,7 +516,10 @@ fn literals_keep_the_facts_tsgo_prints_from() {
     let NodeData::TemplateHead(head) = node(&tree, template.head.unwrap()).data() else {
         panic!("a template head");
     };
-    assert_eq!(head.raw_text.as_deref(), Some("a"));
+    assert_eq!(
+        head.raw_text.map(|raw| tree.source_file.arena.text_utf8(raw)),
+        Some("a")
+    );
 }
 
 /// The string literal initializer of the first statement.

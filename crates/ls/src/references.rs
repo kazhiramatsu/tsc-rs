@@ -5,7 +5,7 @@
 //! the names of its ambient modules.
 
 use tsc_syntax::{JSDocComment, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
-use tsc_types::{JsString, NodeFlags};
+use tsc_types::{JsStr, JsString, NodeFlags};
 
 use crate::tree::{for_each_property, tsgo_kind, Property, Tree};
 
@@ -130,9 +130,9 @@ pub(crate) fn statements(file: &SourceFile, id: NodeId) -> &[NodeId] {
         .unwrap_or_default()
 }
 
-fn string_literal_text(file: &SourceFile, id: NodeId) -> Option<&JsString> {
+fn string_literal_text(file: &SourceFile, id: NodeId) -> Option<JsStr<'_>> {
     match file.arena.node(id).data() {
-        NodeData::StringLiteral(literal) => Some(&literal.text),
+        NodeData::StringLiteral(literal) => Some(file.arena.text_js(literal.text)),
         _ => None,
     }
 }
@@ -180,7 +180,7 @@ fn collect_module_references(
     };
     let global = flags.contains(NodeFlags::GLOBAL_AUGMENTATION);
     let name_text = match file.arena.node(name).data() {
-        NodeData::StringLiteral(literal) => literal.text.clone(),
+        NodeData::StringLiteral(literal) => file.arena.text_js(literal.text).to_owned(),
         NodeData::Identifier(identifier) if global => {
             JsString::from(identifier.escaped_text.unescape())
         }
@@ -212,8 +212,8 @@ fn collect_module_references(
 }
 
 /// tsgo `tspath.IsExternalModuleNameRelative`: `.`/`..`-relative or rooted.
-pub(crate) fn is_external_module_name_relative(name: &JsString) -> bool {
-    let bytes = name.as_bytes();
+pub(crate) fn is_external_module_name_relative<'n>(name: impl Into<JsStr<'n>>) -> bool {
+    let bytes = name.into().as_bytes();
     let relative = matches!(bytes, b"." | b"..")
         || matches!(bytes, [b'.', b'/' | b'\\', ..])
         || matches!(bytes, [b'.', b'.', b'/' | b'\\', ..]);

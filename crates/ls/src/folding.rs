@@ -592,7 +592,7 @@ impl<'a> Outlining<'a> {
             }
             SyntaxKind::TemplateExpression | SyntaxKind::NoSubstitutionTemplateLiteral => {
                 if let NodeData::NoSubstitutionTemplateLiteral(data) = self.data(node) {
-                    if data.text.is_empty() {
+                    if self.source.arena.text(data.text).is_empty() {
                         return None;
                     }
                 }

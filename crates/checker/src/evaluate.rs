@@ -504,20 +504,20 @@ impl<'a> CheckerState<'a> {
                 ))
             }
             NodeData::StringLiteral(data) => Ok(evaluator_result(
-                Some(EvalValue::Str(data.text.clone())),
+                Some(EvalValue::Str(self.text_js(data.text).to_owned())),
                 true,
                 false,
                 false,
             )),
             NodeData::NoSubstitutionTemplateLiteral(data) => Ok(evaluator_result(
-                Some(EvalValue::Str(data.text.clone())),
+                Some(EvalValue::Str(self.text_js(data.text).to_owned())),
                 true,
                 false,
                 false,
             )),
             NodeData::TemplateExpression(_) => self.evaluate_template_expression(expr, location),
             NodeData::NumericLiteral(data) => {
-                let value = crate::annotate::parse_numeric_literal_text(&data.text)?;
+                let value = crate::annotate::parse_numeric_literal_text(self.text_utf8(data.text))?;
                 Ok(evaluator_result(
                     Some(EvalValue::Num(value)),
                     false,
@@ -553,7 +553,7 @@ impl<'a> CheckerState<'a> {
         };
         let head = head.expect("parser invariant: TemplateExpression head always parsed");
         let mut result = match self.data_of(head) {
-            NodeData::TemplateHead(data) => data.text.clone(),
+            NodeData::TemplateHead(data) => self.text_js(data.text).to_owned(),
             _ => unreachable!("parser invariant: template heads carry TemplateHead data"),
         };
         let mut resolved_other_files = false;
@@ -575,8 +575,8 @@ impl<'a> CheckerState<'a> {
             }
             let literal = literal.expect("parser invariant: template span literal always parsed");
             match self.data_of(literal) {
-                NodeData::TemplateMiddle(data) => result.push_js(data.text.as_js()),
-                NodeData::TemplateTail(data) => result.push_js(data.text.as_js()),
+                NodeData::TemplateMiddle(data) => result.push_js(self.text_js(data.text)),
+                NodeData::TemplateTail(data) => result.push_js(self.text_js(data.text)),
                 _ => unreachable!(
                     "parser invariant: span literals are TemplateMiddle/TemplateTail (missing shape included)"
                 ),
@@ -705,8 +705,8 @@ impl<'a> CheckerState<'a> {
             return Ok(undefined_result());
         };
         let argument_text = match self.data_of(argument) {
-            NodeData::StringLiteral(data) => data.text.clone(),
-            NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
+            NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
+            NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text).to_owned(),
             _ => return Ok(undefined_result()),
         };
         if !self.is_entity_name_expression(root) {
@@ -1557,28 +1557,28 @@ impl<'a> CheckerState<'a> {
             NodeData::Identifier(data) => Some(data.escaped_text),
             NodeData::PrivateIdentifier(data) => Some(data.escaped_text),
             NodeData::StringLiteral(data) => {
-                Some(tsc_binder::escape_leading_underscores(&data.text))
+                Some(tsc_binder::escape_leading_underscores(self.text_js(data.text)))
             }
             NodeData::NumericLiteral(data) => {
-                Some(tsc_binder::escape_leading_underscores(&data.text))
+                Some(tsc_binder::escape_leading_underscores(self.text_utf8(data.text)))
             }
             NodeData::BigIntLiteral(data) => {
-                Some(tsc_binder::escape_leading_underscores(&data.text))
+                Some(tsc_binder::escape_leading_underscores(self.text_utf8(data.text)))
             }
             NodeData::NoSubstitutionTemplateLiteral(data) => {
-                Some(tsc_binder::escape_leading_underscores(&data.text))
+                Some(tsc_binder::escape_leading_underscores(self.text_js(data.text)))
             }
             NodeData::ComputedPropertyName(data) => {
                 let expression = data.expression?;
                 match self.data_of(expression) {
                     NodeData::StringLiteral(data) => {
-                        Some(tsc_binder::escape_leading_underscores(&data.text))
+                        Some(tsc_binder::escape_leading_underscores(self.text_js(data.text)))
                     }
                     NodeData::NumericLiteral(data) => {
-                        Some(tsc_binder::escape_leading_underscores(&data.text))
+                        Some(tsc_binder::escape_leading_underscores(self.text_utf8(data.text)))
                     }
                     NodeData::NoSubstitutionTemplateLiteral(data) => {
-                        Some(tsc_binder::escape_leading_underscores(&data.text))
+                        Some(tsc_binder::escape_leading_underscores(self.text_js(data.text)))
                     }
                     _ => None,
                 }

@@ -445,11 +445,15 @@ impl Completions<'_, '_, '_> {
     /// numeric literal's text, empty for another name.
     fn text_of_property_name(&self, name: NodeId) -> String {
         match self.data(name) {
-            NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
+            NodeData::StringLiteral(data) => tsc_syntax::published_text_js(data.text)
+                .to_string_lossy()
+                .into_owned(),
             NodeData::NoSubstitutionTemplateLiteral(data) => {
-                data.text.to_string_lossy().into_owned()
+                tsc_syntax::published_text_js(data.text)
+                    .to_string_lossy()
+                    .into_owned()
             }
-            NodeData::NumericLiteral(data) => data.text.to_string(),
+            NodeData::NumericLiteral(data) => tsc_syntax::published_text_utf8(data.text).to_owned(),
             _ => self
                 .identifier_text(Touching::Node(name))
                 .unwrap_or_default()

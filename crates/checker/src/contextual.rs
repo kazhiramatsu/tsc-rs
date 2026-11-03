@@ -1336,10 +1336,10 @@ impl<'a> CheckerState<'a> {
                 let arg = node_util::skip_parentheses_pub(&Published, data.argument_expression?);
                 match self.data_of(arg) {
                     NodeData::StringLiteral(data) => {
-                        Some(tsc_types::EscapedName::escape(data.text.as_js()))
+                        Some(tsc_types::EscapedName::escape(self.text_js(data.text)))
                     }
                     NodeData::NumericLiteral(data) => {
-                        Some(tsc_types::EscapedName::escape(data.text.as_str().into()))
+                        Some(tsc_types::EscapedName::escape(self.text_utf8(data.text).into()))
                     }
                     _ => None,
                 }
@@ -2893,7 +2893,7 @@ impl<'a> CheckerState<'a> {
         match self.data_of(name) {
             NodeData::Identifier(data) => Some(data.escaped_text),
             NodeData::StringLiteral(data) => {
-                Some(tsc_types::EscapedName::escape(data.text.as_js()))
+                Some(tsc_types::EscapedName::escape(self.text_js(data.text)))
             }
             _ => None,
         }

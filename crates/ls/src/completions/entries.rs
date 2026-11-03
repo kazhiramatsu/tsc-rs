@@ -1539,24 +1539,32 @@ impl Completions<'_, '_, '_> {
             let skipped = node_util::skip_parentheses_pub(self.source, expression);
             match self.data(skipped) {
                 NodeData::StringLiteral(data) => {
-                    tracker
-                        .strings
-                        .insert(data.text.to_string_lossy().into_owned());
+                    tracker.strings.insert(
+                        tsc_syntax::published_text_js(data.text)
+                            .to_string_lossy()
+                            .into_owned(),
+                    );
                 }
                 NodeData::NoSubstitutionTemplateLiteral(data) => {
-                    tracker
-                        .strings
-                        .insert(data.text.to_string_lossy().into_owned());
+                    tracker.strings.insert(
+                        tsc_syntax::published_text_js(data.text)
+                            .to_string_lossy()
+                            .into_owned(),
+                    );
                 }
                 NodeData::NumericLiteral(data) => {
-                    tracker
-                        .numbers
-                        .push(data.text.parse::<f64>().unwrap_or(f64::NAN));
+                    tracker.numbers.push(
+                        tsc_syntax::published_text_utf8(data.text)
+                            .parse::<f64>()
+                            .unwrap_or(f64::NAN),
+                    );
                 }
                 NodeData::BigIntLiteral(data) => {
-                    tracker
-                        .big_ints
-                        .insert(data.text.trim_end_matches('n').to_owned());
+                    tracker.big_ints.insert(
+                        tsc_syntax::published_text_utf8(data.text)
+                            .trim_end_matches('n')
+                            .to_owned(),
+                    );
                 }
                 _ => {
                     if super::context::is_literal_kind(self.node_kind(skipped)) {

@@ -1282,8 +1282,10 @@ pub(super) fn is_variable_declaration_initialized_to_require(
 /// A string literal's text.
 fn literal_text(source: &SourceFile, node: NodeId) -> String {
     match source.arena.node(node).data() {
-        NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
-        NodeData::NoSubstitutionTemplateLiteral(data) => data.text.to_string_lossy().into_owned(),
+        NodeData::StringLiteral(data) => source.arena.text_js(data.text).to_string_lossy().into_owned(),
+        NodeData::NoSubstitutionTemplateLiteral(data) => {
+            source.arena.text_js(data.text).to_string_lossy().into_owned()
+        }
         _ => String::new(),
     }
 }
@@ -1422,7 +1424,7 @@ fn should_use_uri_style_node_core_modules(source: &SourceFile) -> Option<bool> {
             let NodeData::StringLiteral(literal) = source.arena.node(import).data() else {
                 return None;
             };
-            let text = literal.text.to_string_lossy();
+            let text = source.arena.text_js(literal.text).to_string_lossy();
             match text.strip_prefix("node:") {
                 Some(name) => unprefixed.contains(&name).then_some(true),
                 None => unprefixed.contains(&text.as_ref()).then_some(false),

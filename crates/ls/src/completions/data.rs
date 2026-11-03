@@ -1923,8 +1923,10 @@ impl Completions<'_, '_, '_> {
             }
         }
         match self.data(node) {
-            NodeData::StringLiteral(data) => data.text.is_empty(),
-            NodeData::NoSubstitutionTemplateLiteral(data) => data.text.is_empty(),
+            NodeData::StringLiteral(data) => tsc_syntax::published_text(data.text).is_empty(),
+            NodeData::NoSubstitutionTemplateLiteral(data) => {
+                tsc_syntax::published_text(data.text).is_empty()
+            }
             _ => true,
         }
     }

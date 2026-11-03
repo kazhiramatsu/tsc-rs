@@ -398,7 +398,7 @@ impl<'a> CheckerState<'a> {
         match self.data_of(name) {
             NodeData::PrivateIdentifier(_) => Ok(self.tables.intrinsics.never),
             NodeData::NumericLiteral(data) => {
-                let value = crate::annotate::parse_numeric_literal_text(&data.text)?;
+                let value = crate::annotate::parse_numeric_literal_text(self.text_utf8(data.text))?;
                 Ok(self.tables.get_number_literal_type(value))
             }
             NodeData::ComputedPropertyName(_) => {
@@ -413,11 +413,11 @@ impl<'a> CheckerState<'a> {
                     )))
             }
             NodeData::StringLiteral(data) => {
-                let text = data.text.clone();
+                let text = self.text_js(data.text).to_owned();
                 Ok(self.tables.get_string_literal_type(&text))
             }
             NodeData::NoSubstitutionTemplateLiteral(data) => {
-                let text = data.text.clone();
+                let text = self.text_js(data.text).to_owned();
                 Ok(self.tables.get_string_literal_type(&text))
             }
             // tsgo GetPropertyNameForPropertyNameNode names a JSX attribute

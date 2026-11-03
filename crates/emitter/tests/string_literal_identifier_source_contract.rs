@@ -73,13 +73,16 @@ impl Transformer for LiteralTransformer {
         }
         let data = context.arena().node(name)?.data().clone();
         let literal = match data {
-            NodeData::Identifier(identifier) => context.factory()?.create_node(
-                source,
-                NodeData::StringLiteral(Box::new(StringLiteralData {
-                    text: identifier.text().into(),
-                })),
-                TransformFlags::NONE,
-            )?,
+            NodeData::Identifier(identifier) => {
+                let text = context
+                    .factory()?
+                    .push_text(source, identifier.text().as_bytes())?;
+                context.factory()?.create_node(
+                    source,
+                    NodeData::StringLiteral(Box::new(StringLiteralData { text })),
+                    TransformFlags::NONE,
+                )?
+            }
             NodeData::StringLiteral(_) => context.factory()?.clone_node(name)?,
             _ => unreachable!(),
         };

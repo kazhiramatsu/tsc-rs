@@ -164,6 +164,19 @@ pub fn published_text_str(id: TextId) -> Option<&'static str> {
     tsc_store::texts::published_text_str(id.position())
 }
 
+/// Literal text `id` of a published tree as a JavaScript string view.
+#[inline]
+pub fn published_text_js(id: TextId) -> tsc_types::JsStr<'static> {
+    tsc_types::JsStr::from_canonical_bytes(published_text(id))
+}
+
+/// Literal text `id` of a published tree, UTF-8 by construction (every text
+/// field but a string literal's or template's value).
+#[inline]
+pub fn published_text_utf8(id: TextId) -> &'static str {
+    published_text_str(id).expect("a UTF-8 literal text")
+}
+
 /// The array `id` of a published tree (see [`published_node`]).
 #[inline(always)]
 pub fn published_node_array(id: NodeArrayId) -> NodeArray<'static> {

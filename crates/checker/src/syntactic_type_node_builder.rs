@@ -295,9 +295,17 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         source: TransformSourceId,
         text: impl Into<tsc_types::JsString>,
     ) -> Result<TransformNode, EmitResolverError> {
+        let text: tsc_types::JsString = text.into();
+        let text = self
+            .arena
+            .push_text(source, text.as_js().as_bytes())
+            .map_err(|error| EmitResolverError::Factory {
+                method: self.method,
+                error: Box::new(error),
+            })?;
         self.create_node(
             source,
-            NodeData::StringLiteral(Box::new(StringLiteralData { text: text.into() })),
+            NodeData::StringLiteral(Box::new(StringLiteralData { text })),
             TransformFlags::NONE,
         )
     }

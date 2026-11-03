@@ -1060,10 +1060,10 @@ fn get_import_attributes_key(arena: &NodeArena, attributes: Option<NodeId>) -> S
                     .value
                     .map_or_else(String::new, |value| match arena.node(value).data() {
                         NodeData::StringLiteral(literal) => {
-                            format!("\"{}\"", literal.text.to_string_lossy())
+                            format!("\"{}\"", arena.text_js(literal.text).to_string_lossy())
                         }
                         NodeData::NoSubstitutionTemplateLiteral(literal) => {
-                            format!("\"{}\"", literal.text.to_string_lossy())
+                            format!("\"{}\"", arena.text_js(literal.text).to_string_lossy())
                         }
                         _ => node_name_text(arena, value),
                     });

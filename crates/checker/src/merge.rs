@@ -1189,7 +1189,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         };
         let name_text = match self.data_of(name) {
-            tsc_syntax::NodeData::StringLiteral(data) => data.text.clone(),
+            tsc_syntax::NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
             _ => return Ok(()),
         };
         // moduleName.parent.parent = the augmentation's container:

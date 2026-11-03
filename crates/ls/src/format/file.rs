@@ -519,7 +519,7 @@ impl<'a> File<'a> {
     /// tsgo `Node.Text` of a numeric literal.
     pub(crate) fn numeric_literal_text(&self, node: Node) -> &'a str {
         match self.data(node) {
-            Some(NodeData::NumericLiteral(data)) => &data.text,
+            Some(NodeData::NumericLiteral(data)) => self.source.arena.text_utf8(data.text),
             _ => "",
         }
     }

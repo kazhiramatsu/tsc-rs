@@ -66,7 +66,7 @@ impl<'a> CheckerState<'a> {
 
         let value = match self.data_of(node) {
             NodeData::NumericLiteral(data) => {
-                crate::annotate::parse_numeric_literal_text(&data.text)?
+                crate::annotate::parse_numeric_literal_text(self.text_utf8(data.text))?
             }
             _ => return Ok(()),
         };
@@ -645,8 +645,8 @@ impl<'a> CheckerState<'a> {
     /// isNumericName's literal arms.
     fn literal_text_of(&self, node: NodeId) -> tsc_types::JsStr<'_> {
         match self.data_of(node) {
-            NodeData::NumericLiteral(data) => data.text.as_str().into(),
-            NodeData::StringLiteral(data) => data.text.as_js(),
+            NodeData::NumericLiteral(data) => self.text_utf8(data.text).into(),
+            NodeData::StringLiteral(data) => self.text_js(data.text),
             _ => "".into(),
         }
     }

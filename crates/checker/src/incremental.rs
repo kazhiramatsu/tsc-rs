@@ -250,9 +250,9 @@ fn collect_module_reference(
     if let Some(module_name) = module_name {
         if let Some(name) = module_name {
             if let NodeData::StringLiteral(literal) = Published.node(name).data() {
-                if !literal.text.is_empty()
+                if !crate::annotate::published_text_js(literal.text).is_empty()
                     && (!in_ambient_module
-                        || !CheckerState::is_external_module_name_relative(literal.text.as_js()))
+                        || !CheckerState::is_external_module_name_relative(crate::annotate::published_text_js(literal.text)))
                 {
                     references.imports.push(name);
                     references.symbol_imports.push(name);

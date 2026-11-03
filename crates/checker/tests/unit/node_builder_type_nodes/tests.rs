@@ -145,13 +145,19 @@ fn primitive_and_literal_arms_preserve_shapes_and_upstream_length_deltas() {
                 let literal = emitted_node(arena, target, data.literal.expect("literal payload"));
                 assert_eq!(literal.kind, expected_literal_kind);
                 match literal.data() {
-                    NodeData::StringLiteral(data) => assert_eq!(data.text, expected_text),
-                    NodeData::BigIntLiteral(data) => assert_eq!(data.text, expected_text),
+                    NodeData::StringLiteral(data) => assert_eq!(
+                        arena.text_utf8(target, data.text).map_err(factory_error)?,
+                        expected_text
+                    ),
+                    NodeData::BigIntLiteral(data) => assert_eq!(
+                        arena.text_utf8(target, data.text).map_err(factory_error)?,
+                        expected_text
+                    ),
                     NodeData::PrefixUnaryExpression(data) => {
                         assert_eq!(data.operator, SyntaxKind::MinusToken);
                         let operand = emitted_node(arena, target, data.operand.expect("operand"));
                         assert!(
-                            matches!(operand.data(), NodeData::NumericLiteral(data) if data.text == "12")
+                            matches!(operand.data(), NodeData::NumericLiteral(data) if arena.text_utf8(target, data.text).map_err(factory_error)? == "12")
                         );
                     }
                     NodeData::Token => {}

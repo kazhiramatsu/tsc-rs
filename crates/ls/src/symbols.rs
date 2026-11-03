@@ -712,7 +712,7 @@ fn is_prototype_expando(source: &SourceFile, target: NodeId) -> bool {
             .and_then(|name| node_util::id_text(source, name))
             == Some("prototype"),
         NodeData::ElementAccessExpression(access) => access.argument_expression.is_some_and(|argument| {
-            matches!(source.arena.node(argument).data(), NodeData::StringLiteral(literal) if literal.text == "prototype")
+            matches!(source.arena.node(argument).data(), NodeData::StringLiteral(literal) if source.arena.text(literal.text) == b"prototype")
         }),
         _ => false,
     }
@@ -817,14 +817,20 @@ fn text_of_name(source: &SourceFile, node: NodeId) -> String {
                 .unwrap_or_default()
                 .to_owned()
         }
-        NodeData::NumericLiteral(data) => data.text.clone(),
+        NodeData::NumericLiteral(data) => source.arena.text_utf8(data.text).to_owned(),
         NodeData::StringLiteral(data) => format!(
             "\"{}\"",
-            tsc_emitter::escape_string(&data.text.to_utf16(), tsc_emitter::LiteralQuote::Double)
+            tsc_emitter::escape_string(
+                &source.arena.text_js(data.text).to_utf16(),
+                tsc_emitter::LiteralQuote::Double,
+            )
         ),
         NodeData::NoSubstitutionTemplateLiteral(data) => format!(
             "`{}`",
-            tsc_emitter::escape_string(&data.text.to_utf16(), tsc_emitter::LiteralQuote::Backtick)
+            tsc_emitter::escape_string(
+                &source.arena.text_js(data.text).to_utf16(),
+                tsc_emitter::LiteralQuote::Backtick,
+            )
         ),
         NodeData::ComputedPropertyName(data)
             if data.expression.is_some_and(|expression| {

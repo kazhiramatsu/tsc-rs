@@ -210,9 +210,13 @@ impl Completions<'_, '_, '_> {
     /// tsgo `Node.Text()` of a string literal: its value.
     fn literal_text(&self, node: NodeId) -> String {
         match self.data(node) {
-            NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
+            NodeData::StringLiteral(data) => tsc_syntax::published_text_js(data.text)
+                .to_string_lossy()
+                .into_owned(),
             NodeData::NoSubstitutionTemplateLiteral(data) => {
-                data.text.to_string_lossy().into_owned()
+                tsc_syntax::published_text_js(data.text)
+                    .to_string_lossy()
+                    .into_owned()
             }
             _ => String::new(),
         }
@@ -390,7 +394,9 @@ impl Completions<'_, '_, '_> {
             if let NodeData::ModuleDeclaration(module) = self.data(declaration) {
                 if let Some(name) = module.name {
                     if let NodeData::StringLiteral(literal) = self.data(name) {
-                        return literal.text.to_string_lossy().into_owned();
+                        return tsc_syntax::published_text_js(literal.text)
+                            .to_string_lossy()
+                            .into_owned();
                     }
                 }
             }

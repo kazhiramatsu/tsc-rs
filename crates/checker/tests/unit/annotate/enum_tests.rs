@@ -151,14 +151,14 @@ fn property_name_text_switch_matches_tsc_kinds() {
                 .iter()
                 .copied()
                 .find(|&id| {
-                    matches!(source.arena.node(id).data(), NodeData::StringLiteral(data) if data.text == "-1")
+                    matches!(source.arena.node(id).data(), NodeData::StringLiteral(data) if source.arena.text_utf8(data.text) == "-1")
                 })
                 .expect("signed numeric text literal");
             let numeric = ids
                 .iter()
                 .copied()
                 .find(|&id| {
-                    matches!(source.arena.node(id).data(), NodeData::NumericLiteral(data) if data.text == "42")
+                    matches!(source.arena.node(id).data(), NodeData::NumericLiteral(data) if source.arena.text_utf8(data.text) == "42")
                 })
                 .expect("numeric literal");
             let bigint = ids
@@ -173,7 +173,7 @@ fn property_name_text_switch_matches_tsc_kinds() {
                     matches!(
                         source.arena.node(id).data(),
                         NodeData::NoSubstitutionTemplateLiteral(data)
-                            if data.text == "template"
+                            if source.arena.text_utf8(data.text) == "template"
                     )
                 })
                 .expect("template literal");

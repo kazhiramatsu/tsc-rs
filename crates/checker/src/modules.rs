@@ -2491,7 +2491,7 @@ impl<'a> CheckerState<'a> {
                 let NodeData::StringLiteral(data) = self.data_of(usage) else {
                     return Ok(false);
                 };
-                let module_reference = data.text.clone();
+                let module_reference = self.text_js(data.text).to_owned();
                 if Self::is_external_module_name_relative(&module_reference)
                     || module_reference.starts_with("/")
                     || !matches!(
@@ -3147,7 +3147,7 @@ impl<'a> CheckerState<'a> {
         if let Some(NodeData::StringLiteral(data)) =
             specifier.map(|specifier| self.data_of(specifier))
         {
-            return crate::check::string_literal_name(&data.text, false).map(JsString::from);
+            return crate::check::string_literal_name(self.text_js(data.text), false).map(JsString::from);
         }
         Ok(self.get_fully_qualified_name(module_symbol))
     }
@@ -3857,8 +3857,8 @@ impl<'a> CheckerState<'a> {
         is_for_augmentation: bool,
     ) -> CheckResult<Option<SymbolId>> {
         let text = match self.data_of(module_reference_expression) {
-            NodeData::StringLiteral(data) => data.text.clone(),
-            NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
+            NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
+            NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text).to_owned(),
             _ => return Ok(None),
         };
         // tsgo: a source phase import resolves no module.
@@ -4042,7 +4042,7 @@ impl<'a> CheckerState<'a> {
             .find_map(|&declaration| match self.data_of(declaration) {
                 NodeData::ModuleDeclaration(data) => {
                     data.name.and_then(|name| match self.data_of(name) {
-                        NodeData::StringLiteral(literal) => Some(literal.text.clone()),
+                        NodeData::StringLiteral(literal) => Some(self.text_js(literal.text).to_owned()),
                         _ => None,
                     })
                 }
@@ -5204,7 +5204,7 @@ impl<'a> CheckerState<'a> {
         module_name: NodeId,
     ) -> Option<&'static DiagnosticMessage> {
         let text = match self.data_of(module_name) {
-            NodeData::StringLiteral(data) => &data.text,
+            NodeData::StringLiteral(data) => self.text_js(data.text),
             _ => return None,
         };
         if !is_node_core_module(text) {
@@ -8587,7 +8587,7 @@ impl<'a> CheckerState<'a> {
     /// Folded family: TextUnescaped/TextEscaped/IsDefault.
     pub(crate) fn module_export_name_text_escaped(&self, name: NodeId) -> EscapedName {
         match self.data_of(name) {
-            NodeData::StringLiteral(data) => escape_leading_underscores(&data.text),
+            NodeData::StringLiteral(data) => escape_leading_underscores(self.text_js(data.text)),
             NodeData::Identifier(data) => data.escaped_text,
             _ => EscapedName::escape("".into()),
         }
@@ -8598,7 +8598,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:13026-13028
     pub(crate) fn module_export_name_text_unescaped(&self, name: NodeId) -> JsString {
         match self.data_of(name) {
-            NodeData::StringLiteral(data) => data.text.clone(),
+            NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
             NodeData::Identifier(data) => {
                 unescape_leading_underscores(data.escaped_text).to_owned()
             }
@@ -8611,7 +8611,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:13032-13034
     pub(crate) fn module_export_name_is_default(&self, name: NodeId) -> bool {
         match self.data_of(name) {
-            NodeData::StringLiteral(data) => data.text == InternalSymbolName::DEFAULT,
+            NodeData::StringLiteral(data) => self.text_js(data.text) == InternalSymbolName::DEFAULT,
             NodeData::Identifier(data) => data.escaped_text == InternalSymbolName::DEFAULT,
             _ => false,
         }
@@ -9099,7 +9099,7 @@ impl<'a> CheckerState<'a> {
         }
         if in_ambient_external_module {
             let text = match self.data_of(module_name) {
-                NodeData::StringLiteral(data) => data.text.clone(),
+                NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
                 _ => String::new().into(),
             };
             if Self::is_external_module_name_relative(&text)
@@ -9402,7 +9402,7 @@ impl<'a> CheckerState<'a> {
                         )
                     })
                     .and_then(|specifier| match self.data_of(specifier) {
-                        NodeData::StringLiteral(data) => Some(data.text.as_js()),
+                        NodeData::StringLiteral(data) => Some(self.text_js(data.text)),
                         _ => None,
                     })
                     .unwrap_or("...".into());
@@ -9944,7 +9944,7 @@ impl<'a> CheckerState<'a> {
             let name = data.name?;
             // An identifier cannot spell the hyphenated key.
             let text = match self.data_of(name) {
-                NodeData::StringLiteral(data) => data.text.as_str(),
+                NodeData::StringLiteral(data) => self.text_js(data.text).as_str(),
                 _ => return None,
             };
             Some((name, text))
@@ -9963,8 +9963,8 @@ impl<'a> CheckerState<'a> {
             return ResolutionModeOverrideParse::Missing;
         };
         let value_text = match self.data_of(value) {
-            NodeData::StringLiteral(data) => data.text.as_str(),
-            NodeData::NoSubstitutionTemplateLiteral(data) => data.text.as_str(),
+            NodeData::StringLiteral(data) => self.text_js(data.text).as_str(),
+            NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text).as_str(),
             _ => return ResolutionModeOverrideParse::Missing,
         };
         let mode = match value_text {
@@ -10188,7 +10188,7 @@ impl<'a> CheckerState<'a> {
                 && value.is_some_and(|value| {
                     matches!(
                         self.data_of(value),
-                        NodeData::StringLiteral(data) if data.text == "json"
+                        NodeData::StringLiteral(data) if self.text_js(data.text) == "json"
                     )
                 })
         })

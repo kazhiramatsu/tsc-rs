@@ -692,7 +692,7 @@ impl TransformArena {
     }
 
     /// Store `bytes` as a literal text of `source`'s tree.
-    pub(crate) fn push_text(
+    pub fn push_text(
         &mut self,
         source: TransformSourceId,
         bytes: &[u8],

@@ -4410,7 +4410,7 @@ impl<'a> CheckerState<'a> {
             let string_constructor_name = self.kind_of(name) == SyntaxKind::StringLiteral
                 && matches!(
                     self.data_of(name),
-                    NodeData::StringLiteral(data) if data.text == "constructor"
+                    NodeData::StringLiteral(data) if self.text_js(data.text) == "constructor"
                 );
             if string_constructor_name {
                 return Ok(self.grammar_error_on_node(
@@ -5132,7 +5132,7 @@ impl<'a> CheckerState<'a> {
             let NodeData::StringLiteral(literal) = self.data_of(expression) else {
                 return None;
             };
-            if literal.text == "use strict" {
+            if self.text_js(literal.text) == "use strict" {
                 return Some(statement);
             }
         }

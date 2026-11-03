@@ -29,6 +29,7 @@ use tsc_emitter::{
 };
 use tsc_syntax::{
     for_each_child,
+    TextId,
     nodes::{
         ExpressionStatementData, NoSubstitutionTemplateLiteralData, SourceFileData,
         StringLiteralData, TaggedTemplateExpressionData, TemplateExpressionData, TemplateHeadData,
@@ -146,7 +147,7 @@ fn find_kind(arena: &TransformArena, source: TransformSourceId, kind: SyntaxKind
     walk(arena, source, arena.root(source).unwrap(), kind).expect("parsed literal present")
 }
 
-fn template_payload(kind: SyntaxKind, text: JsString, raw_text: Option<String>) -> NodeData {
+fn template_payload(kind: SyntaxKind, text: TextId, raw_text: Option<TextId>) -> NodeData {
     match kind {
         SyntaxKind::NoSubstitutionTemplateLiteral => {
             NodeData::NoSubstitutionTemplateLiteral(Box::new(NoSubstitutionTemplateLiteralData {
@@ -167,19 +168,13 @@ fn template_payload(kind: SyntaxKind, text: JsString, raw_text: Option<String>) 
     }
 }
 
-fn literal_parts(record: &tsc_syntax::Node) -> (JsString, Option<String>, Option<bool>) {
+fn literal_parts(record: &tsc_syntax::Node) -> (TextId, Option<TextId>, Option<bool>) {
     match record.data() {
-        NodeData::StringLiteral(data) => (
-            data.text.clone(),
-            None,
-            record.has_extended_unicode_escape(),
-        ),
-        NodeData::NoSubstitutionTemplateLiteral(data) => {
-            (data.text.clone(), data.raw_text.clone(), None)
-        }
-        NodeData::TemplateHead(data) => (data.text.clone(), data.raw_text.clone(), None),
-        NodeData::TemplateMiddle(data) => (data.text.clone(), data.raw_text.clone(), None),
-        NodeData::TemplateTail(data) => (data.text.clone(), data.raw_text.clone(), None),
+        NodeData::StringLiteral(data) => (data.text, None, record.has_extended_unicode_escape()),
+        NodeData::NoSubstitutionTemplateLiteral(data) => (data.text, data.raw_text, None),
+        NodeData::TemplateHead(data) => (data.text, data.raw_text, None),
+        NodeData::TemplateMiddle(data) => (data.text, data.raw_text, None),
+        NodeData::TemplateTail(data) => (data.text, data.raw_text, None),
         other => panic!("not a literal payload: {other:?}"),
     }
 }
@@ -210,7 +205,7 @@ fn state(
     {
         json!(raw.code_units())
     } else {
-        json!(raw_projection.map(|raw| raw.encode_utf16().collect::<Vec<_>>()))
+        json!(raw_projection.map(|raw| arena.text_js(node.source(), raw).unwrap().to_utf16()))
     };
     let original = metadata.and_then(EmitMetadata::original).map(|original| {
         labels
@@ -275,6 +270,15 @@ fn transform_flags_of(data: &NodeData, original_flags: TransformFlags) -> Transf
     original_flags
 }
 
+/// Store UTF-16 `units` as a literal text of `node`'s tree.
+fn push_units(
+    arena: &mut TransformArena,
+    node: TransformNode,
+    units: &[u16],
+) -> Result<TextId, TransformError> {
+    arena.push_text(node.source(), JsString::from_code_units(units).as_bytes())
+}
+
 fn apply_generic(
     arena: &mut TransformArena,
     node: TransformNode,
@@ -294,15 +298,18 @@ fn apply_generic(
         // marker is unset already (a synthesized literal).
         (true, "cooked") if has_extended_unicode_escape.is_some() => return Ok(None),
         (true, "cooked") => NodeData::StringLiteral(Box::new(StringLiteralData {
-            text: JsString::from_code_units(after),
+            text: push_units(arena, node, after)?,
         })),
-        (false, "cooked") => template_payload(kind, JsString::from_code_units(after), raw_text),
+        (false, "cooked") => template_payload(kind, push_units(arena, node, after)?, raw_text),
         (false, "raw") => match scalar(after) {
-            Some(raw) => template_payload(kind, text, Some(raw)),
+            Some(raw) => {
+                let raw = arena.push_text(node.source(), raw.as_bytes())?;
+                template_payload(kind, text, Some(raw))
+            }
             None => return Ok(None),
         },
         (false, "raw-absent") => template_payload(kind, text, None),
-        (false, "raw-empty") => template_payload(kind, text, Some(String::new())),
+        (false, "raw-empty") => template_payload(kind, text, Some(TextId::EMPTY)),
         // Template flags and the quote preference are node properties, not
         // payload fields: the generic update cannot express them.
         (false, "flags") | (true, "quote") => return Ok(None),
@@ -343,7 +350,7 @@ fn apply_typed(
     let current_raw: Option<Vec<u16>> =
         match properties.and_then(tsc_emitter::LiteralNodeProperties::raw_template_text) {
             Some(owned) => Some(owned.code_units().to_vec()),
-            None => projection.map(|raw| raw.encode_utf16().collect()),
+            None => projection.map(|raw| arena.text_js(node.source(), raw).unwrap().to_utf16()),
         };
     let flags = i32::from(record.template_flags()) & TokenFlags::TEMPLATE_LITERAL_LIKE_FLAGS.bits();
     let empty: &[u16] = &[];
@@ -443,9 +450,10 @@ fn factory_case(case: &Value, route: Route) -> Outcome {
                 "text-source" => {
                     let identifier = arena.factory().create_identifier(source, "abc")?;
                     base = Some(identifier);
+                    let text = arena.push_text(source, b"abc")?;
                     let literal = arena.factory().create_node(
                         source,
-                        NodeData::StringLiteral(Box::new(StringLiteralData { text: "abc".into() })),
+                        NodeData::StringLiteral(Box::new(StringLiteralData { text })),
                         TransformFlags::NONE,
                     )?;
                     arena
@@ -854,7 +862,7 @@ fn lifetime_case(case: &Value) -> Result<Value, String> {
         {
             json!(raw.code_units())
         } else {
-            json!(raw_projection.map(|raw| raw.encode_utf16().collect::<Vec<_>>()))
+            json!(raw_projection.map(|raw| arena.text_js(node.source(), raw).unwrap().to_utf16()))
         },
         "single_quote": if is_string {
             json!(arena.literal_properties(node).and_then(tsc_emitter::LiteralNodeProperties::string_literal_single_quote))

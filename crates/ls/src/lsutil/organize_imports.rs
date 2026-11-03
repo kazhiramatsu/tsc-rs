@@ -321,9 +321,11 @@ fn module_specifier_expression(arena: &NodeArena, declaration: NodeId) -> Option
 /// tsgo `GetExternalModuleName`: a string literal's text, else empty.
 pub(crate) fn get_external_module_name(arena: &NodeArena, specifier: Option<NodeId>) -> String {
     match specifier.map(|specifier| arena.node(specifier).data()) {
-        Some(NodeData::StringLiteral(data)) => data.text.to_string_lossy().into_owned(),
+        Some(NodeData::StringLiteral(data)) => {
+            arena.text_js(data.text).to_string_lossy().into_owned()
+        }
         Some(NodeData::NoSubstitutionTemplateLiteral(data)) => {
-            data.text.to_string_lossy().into_owned()
+            arena.text_js(data.text).to_string_lossy().into_owned()
         }
         _ => String::new(),
     }
@@ -415,7 +417,7 @@ fn specifier_name_and_type_only(arena: &NodeArena, specifier: NodeId) -> (String
 pub(crate) fn node_name_text(arena: &NodeArena, name: NodeId) -> String {
     match arena.node(name).data() {
         NodeData::Identifier(data) => data.text().to_owned(),
-        NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
+        NodeData::StringLiteral(data) => arena.text_js(data.text).to_string_lossy().into_owned(),
         _ => String::new(),
     }
 }
