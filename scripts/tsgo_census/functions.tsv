@@ -1,0 +1,50 @@
+# tsgo file:receiver.method or file:func (relative to upstream/tsc)	tsc-rs symbol or re:regex	note
+internal/checker/checker.go:Checker.getPropertyOfType	get_property_of_type_full	structural.rs; wrapper boundary
+internal/checker/checker.go:Checker.getPropertyOfTypeEx	get_property_of_type_ex_with_include_type_only_members	structural.rs; full body including Rust compatibility wrappers
+internal/checker/checker.go:Checker.getPropertiesOfType	get_properties_of_type	engine.rs
+internal/checker/checker.go:Checker.getSignaturesOfType	get_signatures_of_type	structural.rs
+internal/checker/checker.go:Checker.getIndexInfosOfType	get_index_infos_of_type	structural.rs
+internal/checker/checker.go:Checker.resolveStructuredTypeMembers	resolve_structured_type_members	annotate.rs
+internal/checker/relater.go:Relater.recursiveTypeRelatedTo	recursive_type_related_to	engine.rs
+internal/checker/relater.go:Relater.structuredTypeRelatedTo	structured_type_related_to	structural.rs
+internal/checker/relater.go:Relater.isRelatedTo	is_related_to	engine.rs
+internal/checker/relater.go:Checker.isTypeRelatedTo	is_type_related_to	engine.rs
+internal/checker/relater.go:Checker.isSimpleTypeRelatedTo	is_simple_type_related_to	engine.rs
+internal/checker/utilities.go:CompareTypes		Exported Go name; JSON compareTypes; no fn compare_types under crates/checker/src (imported from tsc_types)
+internal/checker/checker.go:Checker.getTypeOfSymbol	get_type_of_symbol	annotate.rs
+internal/checker/checker.go:Checker.getTypeOfExpression	get_type_of_expression	expr.rs
+internal/checker/checker.go:Checker.checkExpression	check_expression	expr.rs; Rust wrapper accepts CheckMode whereas Go wrapper fixes Normal
+internal/checker/checker.go:Checker.checkExpressionEx	check_expression_with_force_tuple	expr.rs; full body; Rust has additional force_tuple argument
+internal/checker/checker.go:Checker.checkIdentifier	check_identifier	expr.rs
+internal/checker/checker.go:Checker.getResolvedSignature	get_resolved_signature	calls.rs
+internal/checker/checker.go:Checker.resolveCall	resolve_call	calls.rs
+internal/checker/checker.go:Checker.chooseOverload	choose_overload	calls.rs
+internal/checker/inference.go:Checker.inferTypes	infer_types	inference.rs
+internal/checker/inference.go:Checker.inferFromTypes	infer_from_types	inference.rs
+internal/checker/checker.go:Checker.instantiateType	instantiate_type	instantiate.rs
+internal/checker/checker.go:Checker.instantiateTypeWithAlias	instantiate_type_with_alias	instantiate.rs
+internal/checker/checker.go:Checker.getObjectTypeInstantiation	get_object_type_instantiation	instantiate.rs
+internal/checker/checker.go:Checker.getUnionType	get_union_type	services.rs
+internal/checker/checker.go:Checker.getIntersectionType	get_intersection_type	intersect.rs
+internal/checker/checker.go:Checker.getApparentType	get_apparent_type	structural.rs
+internal/checker/checker.go:Checker.getReducedType	get_reduced_type	structural.rs
+internal/checker/checker.go:Checker.getMergedSymbol	get_merged_symbol	merge.rs
+internal/checker/checker.go:Checker.resolveName	resolve_name	NOT FOUND as a declaration: Checker.resolveName is a function field assigned c.createNameResolver().Resolve; skipped, not reported as zero
+internal/checker/flow.go:Checker.getFlowTypeOfReference	get_flow_type_of_reference	flow.rs
+internal/checker/flow.go:Checker.getTypeAtFlowNode	get_type_at_flow_node	flow.rs
+internal/checker/flow.go:Checker.getEffectsSignature	get_effects_signature	narrow.rs
+internal/checker/flow.go:Checker.isPastLastAssignment	is_past_last_assignment	flow.rs
+internal/checker/flow.go:Checker.isMatchingReference	is_matching_reference	flow.rs
+internal/checker/checker.go:Checker.markAliasReferenced	mark_alias_referenced	modules.rs
+internal/checker/checker.go:Checker.markPropertyAliasReferenced	mark_property_alias_referenced	modules.rs
+internal/checker/checker.go:Checker.getCannotFindNameDiagnosticForName	cannot_find_name_diagnostic_for_name	resolve.rs; Rust omits get prefix
+internal/checker/checker.go:Checker.resolveExternalModule	resolve_external_module	modules.rs
+internal/checker/checker.go:Checker.getTypeFromTypeNode	get_type_from_type_node	annotate.rs; excludes NodeBuilderImpl method of the same Go name
+internal/checker/checker.go:Checker.getNarrowableTypeForReference	get_narrowable_type_for_reference	expr.rs
+internal/checker/flow.go:Checker.narrowType	narrow_type	narrow.rs
+internal/checker/checker.go:Checker.getTypeArguments	get_type_arguments	annotate.rs
+internal/checker/checker.go:Checker.createTupleType	create_tuple_type_forced	structural.rs; Rust variadic pre-force wrapper (extra flags and readonly arguments)
+internal/checker/checker.go:Checker.getIndexedAccessType	get_indexed_access_type	indexed.rs
+internal/checker/checker.go:Checker.getConditionalType	get_conditional_type	conditional.rs
+internal/checker/checker.go:Checker.getSymbolOfDeclaration	get_symbol_of_declaration	check.rs
+internal/checker/checker.go:Checker.getDeclaredTypeOfSymbol	get_declared_type_of_symbol	annotate.rs
