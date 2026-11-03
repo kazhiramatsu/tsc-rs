@@ -175,6 +175,59 @@ fn overload_arguments_retain_capture_private_and_super_flags() {
     );
 }
 
+#[test]
+fn overload_argument_retains_completed_class_and_interface_base_types() {
+    for declarations in [
+        "class Parent<T> { value: T; } class Child extends Parent<number> {}",
+        "interface Parent<T> { value: T; } interface Child extends Parent<number> {}",
+    ] {
+        let text = format!(
+            "{declarations}\n\
+             declare function take(x: Parent<string>): 1;\n\
+             declare function take(x: Parent<number>): 2;\n\
+             declare const value: Child;\n\
+             take(value);\n"
+        );
+        with_program_state(&[("a.ts", &text)], &CompilerOptions::default(), |state| {
+            let symbol = state
+                .resolve_file_scope_name("Child", SymbolFlags::CLASS | SymbolFlags::INTERFACE)
+                .expect("Child symbol");
+            let child = state
+                .get_declared_type_of_symbol(symbol)
+                .expect("Child type");
+            assert!(!*state.links.type_cold().base_types_resolved.get(child));
+            let nodes = state.binder.source(0).arena.node_ids().collect::<Vec<_>>();
+            let call = nodes
+                .iter()
+                .copied()
+                .find(|&node| state.kind_of(node) == SyntaxKind::CallExpression)
+                .expect("overloaded call");
+            let selected = state
+                .get_resolved_signature(call, None, CheckMode::NORMAL)
+                .expect("second overload applies");
+            let second = nodes
+                .into_iter()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::FunctionDeclaration)
+                .nth(1)
+                .expect("second overload");
+            assert_eq!(state.signature_of(selected).declaration, Some(second));
+            assert!(*state.links.type_cold().base_types_resolved.get(child));
+            let bases = state.get_base_types(child).expect("completed bases");
+            assert_eq!(bases.len(), 1);
+            assert_eq!(
+                state
+                    .get_type_arguments(bases[0])
+                    .expect("Parent arguments"),
+                vec![state.tables.intrinsics.number]
+            );
+            assert_eq!(
+                state.get_base_types(child).expect("repeated base query"),
+                bases
+            );
+        });
+    }
+}
+
 /// The node's nonExistentPropCheckCache keys (empty when none was ever
 /// inserted).
 fn cache_keys(state: &CheckerState<'_>, node: tsc_syntax::NodeId) -> rustc_hash::FxHashSet<String> {
