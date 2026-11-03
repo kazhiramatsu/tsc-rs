@@ -90,9 +90,7 @@
       "why": "kept in the header's literal_flags, not in the payload"
     }
   ],
-  "equalitySkips": {
-    "ModuleDeclaration.attributes": "2517f726b added the field by hand but not to node_data_structurally_equal; kept as is (a fix candidate)"
-  },
+  "equalitySkips": {},
   "fieldDocs": {
     "ModuleDeclaration.attributes": [
       "TypeScript 7.1's import attributes type of an ambient module",
