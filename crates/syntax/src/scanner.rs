@@ -388,10 +388,12 @@ impl<'text> Scanner<'text> {
                 }
 
                 b'!' => {
-                    if self.starts_with("!==") {
+                    if (self.lookahead_byte(1) == Some(b'=')
+                        && self.lookahead_byte(2) == Some(b'='))
+                    {
                         return self.finish_token(SyntaxKind::ExclamationEqualsEqualsToken, 3);
                     }
-                    if self.starts_with("!=") {
+                    if (self.lookahead_byte(1) == Some(b'=')) {
                         return self.finish_token(SyntaxKind::ExclamationEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::ExclamationToken, 1);
@@ -399,19 +401,21 @@ impl<'text> Scanner<'text> {
                 b'"' | b'\'' => return self.scan_string_literal(),
                 b'`' => return self.scan_template_token(),
                 b'%' => {
-                    if self.starts_with("%=") {
+                    if (self.lookahead_byte(1) == Some(b'=')) {
                         return self.finish_token(SyntaxKind::PercentEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::PercentToken, 1);
                 }
                 b'&' => {
-                    if self.starts_with("&&=") {
+                    if (self.lookahead_byte(1) == Some(b'&')
+                        && self.lookahead_byte(2) == Some(b'='))
+                    {
                         return self.finish_token(SyntaxKind::AmpersandAmpersandEqualsToken, 3);
                     }
-                    if self.starts_with("&&") {
+                    if (self.lookahead_byte(1) == Some(b'&')) {
                         return self.finish_token(SyntaxKind::AmpersandAmpersandToken, 2);
                     }
-                    if self.starts_with("&=") {
+                    if (self.lookahead_byte(1) == Some(b'=')) {
                         return self.finish_token(SyntaxKind::AmpersandEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::AmpersandToken, 1);
@@ -419,13 +423,15 @@ impl<'text> Scanner<'text> {
                 b'(' => return self.finish_token(SyntaxKind::OpenParenToken, 1),
                 b')' => return self.finish_token(SyntaxKind::CloseParenToken, 1),
                 b'*' => {
-                    if self.starts_with("**=") {
+                    if (self.lookahead_byte(1) == Some(b'*')
+                        && self.lookahead_byte(2) == Some(b'='))
+                    {
                         return self.finish_token(SyntaxKind::AsteriskAsteriskEqualsToken, 3);
                     }
-                    if self.starts_with("**") {
+                    if (self.lookahead_byte(1) == Some(b'*')) {
                         return self.finish_token(SyntaxKind::AsteriskAsteriskToken, 2);
                     }
-                    if self.starts_with("*=") {
+                    if (self.lookahead_byte(1) == Some(b'=')) {
                         return self.finish_token(SyntaxKind::AsteriskEqualsToken, 2);
                     }
                     self.pos += 1;
@@ -443,20 +449,20 @@ impl<'text> Scanner<'text> {
                     return self.token;
                 }
                 b'+' => {
-                    if self.starts_with("++") {
+                    if (self.lookahead_byte(1) == Some(b'+')) {
                         return self.finish_token(SyntaxKind::PlusPlusToken, 2);
                     }
-                    if self.starts_with("+=") {
+                    if (self.lookahead_byte(1) == Some(b'=')) {
                         return self.finish_token(SyntaxKind::PlusEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::PlusToken, 1);
                 }
                 b',' => return self.finish_token(SyntaxKind::CommaToken, 1),
                 b'-' => {
-                    if self.starts_with("--") {
+                    if (self.lookahead_byte(1) == Some(b'-')) {
                         return self.finish_token(SyntaxKind::MinusMinusToken, 2);
                     }
-                    if self.starts_with("-=") {
+                    if (self.lookahead_byte(1) == Some(b'=')) {
                         return self.finish_token(SyntaxKind::MinusEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::MinusToken, 1);
@@ -465,7 +471,9 @@ impl<'text> Scanner<'text> {
                     if self.byte_at(self.pos + 1).is_some_and(is_ascii_digit) {
                         return self.scan_number_literal();
                     }
-                    if self.starts_with("...") {
+                    if (self.lookahead_byte(1) == Some(b'.')
+                        && self.lookahead_byte(2) == Some(b'.'))
+                    {
                         return self.finish_token(SyntaxKind::DotDotDotToken, 3);
                     }
                     return self.finish_token(SyntaxKind::DotToken, 1);
@@ -495,7 +503,7 @@ impl<'text> Scanner<'text> {
                         }
                         _ => {}
                     }
-                    if self.starts_with("/=") {
+                    if (self.lookahead_byte(1) == Some(b'=')) {
                         return self.finish_token(SyntaxKind::SlashEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::SlashToken, 1);
@@ -510,18 +518,21 @@ impl<'text> Scanner<'text> {
                         }
                         continue;
                     }
-                    if self.starts_with("<<=") {
+                    if (self.lookahead_byte(1) == Some(b'<')
+                        && self.lookahead_byte(2) == Some(b'='))
+                    {
                         return self.finish_token(SyntaxKind::LessThanLessThanEqualsToken, 3);
                     }
-                    if self.starts_with("<<") {
+                    if (self.lookahead_byte(1) == Some(b'<')) {
                         return self.finish_token(SyntaxKind::LessThanLessThanToken, 2);
                     }
-                    if self.starts_with("<=") {
+                    if (self.lookahead_byte(1) == Some(b'=')) {
                         return self.finish_token(SyntaxKind::LessThanEqualsToken, 2);
                     }
                     if self.language_variant == LanguageVariant::Jsx
-                        && self.starts_with("</")
-                        && !self.starts_with("</*")
+                        && (self.lookahead_byte(1) == Some(b'/'))
+                        && !(self.lookahead_byte(1) == Some(b'/')
+                            && self.lookahead_byte(2) == Some(b'*'))
                     {
                         return self.finish_token(SyntaxKind::LessThanSlashToken, 2);
                     }
@@ -534,13 +545,15 @@ impl<'text> Scanner<'text> {
                         }
                         continue;
                     }
-                    if self.starts_with("===") {
+                    if (self.lookahead_byte(1) == Some(b'=')
+                        && self.lookahead_byte(2) == Some(b'='))
+                    {
                         return self.finish_token(SyntaxKind::EqualsEqualsEqualsToken, 3);
                     }
-                    if self.starts_with("==") {
+                    if (self.lookahead_byte(1) == Some(b'=')) {
                         return self.finish_token(SyntaxKind::EqualsEqualsToken, 2);
                     }
-                    if self.starts_with("=>") {
+                    if (self.lookahead_byte(1) == Some(b'>')) {
                         return self.finish_token(SyntaxKind::EqualsGreaterThanToken, 2);
                     }
                     return self.finish_token(SyntaxKind::EqualsToken, 1);
@@ -555,15 +568,17 @@ impl<'text> Scanner<'text> {
                     return self.finish_token(SyntaxKind::GreaterThanToken, 1);
                 }
                 b'?' => {
-                    if self.starts_with("?.")
+                    if (self.lookahead_byte(1) == Some(b'.'))
                         && !self.byte_at(self.pos + 2).is_some_and(is_ascii_digit)
                     {
                         return self.finish_token(SyntaxKind::QuestionDotToken, 2);
                     }
-                    if self.starts_with("??=") {
+                    if (self.lookahead_byte(1) == Some(b'?')
+                        && self.lookahead_byte(2) == Some(b'='))
+                    {
                         return self.finish_token(SyntaxKind::QuestionQuestionEqualsToken, 3);
                     }
-                    if self.starts_with("??") {
+                    if (self.lookahead_byte(1) == Some(b'?')) {
                         return self.finish_token(SyntaxKind::QuestionQuestionToken, 2);
                     }
                     return self.finish_token(SyntaxKind::QuestionToken, 1);
@@ -571,7 +586,7 @@ impl<'text> Scanner<'text> {
                 b'[' => return self.finish_token(SyntaxKind::OpenBracketToken, 1),
                 b']' => return self.finish_token(SyntaxKind::CloseBracketToken, 1),
                 b'^' => {
-                    if self.starts_with("^=") {
+                    if (self.lookahead_byte(1) == Some(b'=')) {
                         return self.finish_token(SyntaxKind::CaretEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::CaretToken, 1);
@@ -584,13 +599,15 @@ impl<'text> Scanner<'text> {
                         }
                         continue;
                     }
-                    if self.starts_with("||=") {
+                    if (self.lookahead_byte(1) == Some(b'|')
+                        && self.lookahead_byte(2) == Some(b'='))
+                    {
                         return self.finish_token(SyntaxKind::BarBarEqualsToken, 3);
                     }
-                    if self.starts_with("||") {
+                    if (self.lookahead_byte(1) == Some(b'|')) {
                         return self.finish_token(SyntaxKind::BarBarToken, 2);
                     }
-                    if self.starts_with("|=") {
+                    if (self.lookahead_byte(1) == Some(b'=')) {
                         return self.finish_token(SyntaxKind::BarEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::BarToken, 1);
@@ -608,7 +625,7 @@ impl<'text> Scanner<'text> {
                 }
                 b'#' => {
                     // A shebang is skipped even when trivia is not.
-                    if self.pos == 0 && self.starts_with("#!") {
+                    if self.pos == 0 && (self.lookahead_byte(1) == Some(b'!')) {
                         self.scan_shebang_trivia();
                         continue;
                     }
@@ -2767,7 +2784,21 @@ impl<'text> Scanner<'text> {
 
     /// tsgo's `<`, `=`, `>` and `|` cases (scanner/scanner.go:765-871): a
     /// merge conflict marker is reported and skipped as trivia.
+    #[inline]
     fn skip_conflict_marker_trivia(&mut self) -> bool {
+        let bytes = self.text.as_bytes();
+        let byte = bytes[self.pos];
+        // Ordinary operators cannot be seven repeated bytes. Reject them
+        // before entering the cold conflict-marker scanner or its frame.
+        if bytes.get(self.pos + 1) != Some(&byte) || bytes.get(self.pos + 6) != Some(&byte) {
+            return false;
+        }
+        self.skip_conflict_marker_trivia_worker()
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn skip_conflict_marker_trivia_worker(&mut self) -> bool {
         if !is_conflict_marker_trivia(self.text, self.pos) {
             return false;
         }
@@ -2840,6 +2871,13 @@ impl<'text> Scanner<'text> {
             .current_char()
             .expect("advance_char requires a current character");
         self.pos += ch.len_utf8();
+    }
+
+    /// Punctuation checks bound only the first byte by scanRange. Lookahead
+    /// uses the full source, exactly like starts_with and tsgo charAt.
+    #[inline]
+    fn lookahead_byte(&self, offset: usize) -> Option<u8> {
+        self.text.as_bytes().get(self.pos + offset).copied()
     }
 
     fn starts_with(&self, needle: &str) -> bool {
