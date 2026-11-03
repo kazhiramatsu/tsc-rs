@@ -1604,7 +1604,7 @@ impl CaseClauseTracker {
             LiteralValue::String(text) => self
                 .strings
                 .contains(&text.to_js_string().to_string_lossy().into_owned()),
-            LiteralValue::Number(value) => self.numbers.iter().any(|&existing| existing == value),
+            LiteralValue::Number(value) => self.numbers.contains(&value),
             LiteralValue::BigInt(value) => self.big_ints.contains(&value.to_base10_string()),
         }
     }
