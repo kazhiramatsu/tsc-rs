@@ -17,7 +17,7 @@ mod recovery;
 pub mod regex;
 mod regex_unicode;
 mod relocate;
-pub use relocate::remap_node_data_ids;
+pub use relocate::{node_data_structurally_equal, remap_node_data_ids};
 pub mod scanner;
 mod script_kind;
 pub mod tokens;

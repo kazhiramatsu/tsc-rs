@@ -1243,7 +1243,11 @@ def render_relocate_rs(kinds):
 
     out.append(EQUALITY_HELPERS)
     out.append(
-        "pub(crate) fn node_data_structurally_equal<N, A, T>(left: &NodeData, right: &NodeData, "
+        "/// Whether two payloads are equal field by field, their identities compared through the three"
+    )
+    out.append("/// closures (a copied tree's ids differ; a text compares by content through `text`).")
+    out.append(
+        "pub fn node_data_structurally_equal<N, A, T>(left: &NodeData, right: &NodeData, "
         "mut node: N, mut array: A, mut text: T) -> bool"
     )
     out += [

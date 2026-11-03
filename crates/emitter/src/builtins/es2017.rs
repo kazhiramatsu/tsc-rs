@@ -2471,7 +2471,8 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         original: TransformNode,
         data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        if self.context.arena().node(original)?.data() == &data {
+        let arena = self.context.arena();
+        if arena.same_payload(original.source(), arena.node(original)?.data(), &data) {
             return Ok(original.node());
         }
         let flags = flags_after_update(self.context.arena(), original, &data)?;

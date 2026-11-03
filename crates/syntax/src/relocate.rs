@@ -5557,7 +5557,9 @@ where
     }
 }
 
-pub(crate) fn node_data_structurally_equal<N, A, T>(
+/// Whether two payloads are equal field by field, their identities compared through the three
+/// closures (a copied tree's ids differ; a text compares by content through `text`).
+pub fn node_data_structurally_equal<N, A, T>(
     left: &NodeData,
     right: &NodeData,
     mut node: N,

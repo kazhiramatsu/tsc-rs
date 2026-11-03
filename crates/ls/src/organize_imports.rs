@@ -1029,7 +1029,8 @@ fn has_module_declaration_matching_specifier(
         .any(|&name| {
             matches!(
                 source.arena.node(name).data(),
-                NodeData::StringLiteral(name) if name.text == specifier.text
+                NodeData::StringLiteral(name)
+                    if source.arena.text(name.text) == source.arena.text(specifier.text)
             )
         })
 }
