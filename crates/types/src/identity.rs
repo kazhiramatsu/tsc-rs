@@ -105,7 +105,9 @@ impl Default for IdentityLimits {
             private_name_serial_end: u32::MAX,
             node_array_item_end: u32::MAX,
             type_end: u32::MAX,
-            node_text_end: u32::MAX,
+            // One below the others: the last index is the syntax crate's
+            // empty text, which takes no words.
+            node_text_end: u32::MAX - 1,
         }
     }
 }

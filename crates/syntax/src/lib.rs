@@ -43,9 +43,12 @@ pub use incremental::{
 pub use jsdoc_hosted::{HostedCast, HostedTypeParameters, JsDocHosted, JsDocHostedCell};
 pub use kind::SyntaxKind;
 pub use name_table::{NameTable, NameTableCell};
-pub use nodes::{published_node, published_node_array, Published};
+pub use nodes::{
+    published_node, published_node_array, published_text, published_text_str, Published,
+};
 pub use nodes::{
     JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData,
+    TextId,
 };
 pub use observable_fields::{for_each_observable_field, ObservableField};
 pub use parser::{
@@ -407,13 +410,18 @@ impl SourceFile {
                 IdentitySpace::NodeArrayItem,
                 count(self.arena.array_item_count(), IdentitySpace::NodeArrayItem)?,
             ),
+            (
+                IdentitySpace::NodeText,
+                count(self.arena.text_word_count(), IdentitySpace::NodeText)?,
+            ),
         ])?;
         let mut leases = leases.into_iter();
-        match (leases.next(), leases.next(), leases.next()) {
-            (Some(nodes), Some(arrays), Some(array_items)) => Ok(SyntaxLeases {
+        match (leases.next(), leases.next(), leases.next(), leases.next()) {
+            (Some(nodes), Some(arrays), Some(array_items), Some(texts)) => Ok(SyntaxLeases {
                 nodes,
                 arrays,
                 array_items,
+                texts,
             }),
             _ => Err(IdentityError::ReservationMismatch),
         }
@@ -442,6 +450,16 @@ impl NodeLookup for SourceFile {
     #[inline]
     fn node_array(&self, id: NodeArrayId) -> NodeArray<'_> {
         self.arena.node_array(id)
+    }
+
+    #[inline]
+    fn text(&self, id: TextId) -> &[u8] {
+        self.arena.text(id)
+    }
+
+    #[inline]
+    fn text_str(&self, id: TextId) -> Option<&str> {
+        self.arena.text_str(id)
     }
 }
 

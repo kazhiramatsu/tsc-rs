@@ -260,7 +260,7 @@ VISIT_ORDER_CONDITIONS = {
 # ---------------------------------------------------------------------------
 # nodes.rs
 
-NODES_PRELUDE = r'''pub use crate::ids::{NodeArrayId, NodeId};
+NODES_PRELUDE = r'''pub use crate::ids::{NodeArrayId, NodeId, TextId};
 use crate::SyntaxKind;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -392,6 +392,35 @@ impl crate::for_each_child::NodeLookup for Published {
     fn node_array(&self, id: NodeArrayId) -> NodeArray<'_> {
         published_node_array(id)
     }
+
+    #[inline(always)]
+    fn text(&self, id: TextId) -> &[u8] {
+        published_text(id)
+    }
+
+    #[inline(always)]
+    fn text_str(&self, id: TextId) -> Option<&str> {
+        published_text_str(id)
+    }
+}
+
+/// The bytes of literal text `id` of a published tree (see [`published_node`]).
+#[inline]
+pub fn published_text(id: TextId) -> &'static [u8] {
+    if id == TextId::EMPTY {
+        return &[];
+    }
+    tsc_store::texts::published_text(id.position())
+}
+
+/// Literal text `id` of a published tree as a `str`, unless its bytes are not
+/// UTF-8 (a string literal's value with a lone surrogate).
+#[inline]
+pub fn published_text_str(id: TextId) -> Option<&'static str> {
+    if id == TextId::EMPTY {
+        return Some("");
+    }
+    tsc_store::texts::published_text_str(id.position())
 }
 
 /// The array `id` of a published tree (see [`published_node`]).
@@ -624,12 +653,17 @@ def render_nodes_rs(kinds, layout):
 # ---------------------------------------------------------------------------
 # for_each_child.rs
 
-FOR_EACH_CHILD_PRELUDE = r'''use crate::nodes::{JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId};
+FOR_EACH_CHILD_PRELUDE = r'''use crate::nodes::{JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId, TextId};
 use crate::SyntaxKind;
 
 pub trait NodeLookup {
     fn node(&self, id: NodeId) -> &Node;
     fn node_array(&self, id: NodeArrayId) -> NodeArray<'_>;
+    /// The bytes of literal text `id`: canonical WTF-8, UTF-8 unless the text
+    /// is a string literal's value with a lone surrogate.
+    fn text(&self, id: TextId) -> &[u8];
+    /// Literal text `id` as a `str`, unless its bytes are not UTF-8.
+    fn text_str(&self, id: TextId) -> Option<&str>;
 }
 '''
 
