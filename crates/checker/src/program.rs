@@ -1115,6 +1115,20 @@ impl<'a> ProgramBinder<'a> {
         self.file_entries[index].data()
     }
 
+    /// The immutable flow graph held for the Program lifetime, so a query
+    /// can keep it across mutable checker calls after validating `index` once.
+    /// Legacy entries clone the completed bind data on construction; their
+    /// original binder's graph is identical and remains immutably borrowed.
+    pub(crate) fn flow_arena(&self, index: usize) -> &'a tsc_binder::flow::FlowArena {
+        match &self.file_entries[index] {
+            ProgramEntry::Legacy(entry) => &entry.binder.flow,
+            ProgramEntry::Owned(document) => {
+                let document: &'a Arc<BoundDocument> = document;
+                &document.data.flow
+            }
+        }
+    }
+
     /// tsrs-native: Rust ProgramBinder SourceFile projection.
     pub fn source(&self, index: usize) -> &'a SourceFile {
         self.sources[index]

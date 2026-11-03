@@ -1284,6 +1284,7 @@ where F: FnMut(NodeId) -> bool { if cb(id) { Some(id) } else { None } }
 fn visit_optional_node<F>(id: Option<NodeId>, cb: &mut F) -> Option<NodeId>
 where F: FnMut(NodeId) -> bool { id.and_then(|id| visit_node(id, cb)) }
 
+#[inline]
 fn visit_nodes<L, F>(lookup: &L, id: NodeArrayId, cb: &mut F) -> Option<NodeId>
 where L: NodeLookup, F: FnMut(NodeId) -> bool {
     for node in lookup.node_array(id).nodes {
@@ -1300,6 +1301,7 @@ where L: NodeLookup, F: FnMut(NodeId) -> bool {
     }
 }
 
+#[inline]
 fn visit_optional_nodes<L, F>(lookup: &L, id: Option<NodeArrayId>, cb: &mut F) -> Option<NodeId>
 where L: NodeLookup, F: FnMut(NodeId) -> bool { id.and_then(|id| visit_nodes(lookup, id, cb)) }
 '''

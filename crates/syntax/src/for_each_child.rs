@@ -4275,6 +4275,7 @@ where
     id.and_then(|id| visit_node(id, cb))
 }
 
+#[inline]
 fn visit_nodes<L, F>(lookup: &L, id: NodeArrayId, cb: &mut F) -> Option<NodeId>
 where
     L: NodeLookup,
@@ -4303,6 +4304,7 @@ where
     }
 }
 
+#[inline]
 fn visit_optional_nodes<L, F>(lookup: &L, id: Option<NodeArrayId>, cb: &mut F) -> Option<NodeId>
 where
     L: NodeLookup,

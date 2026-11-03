@@ -1239,6 +1239,18 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
 
     #[inline]
     fn page_mut(&mut self, page_index: usize) -> &mut [u32; PAGE_IDS] {
+        // Only dense pages grow `index`; existing slots use checked reads.
+        if page_index < self.index.len() && self.index[page_index].is_some() {
+            return self.index[page_index]
+                .as_deref_mut()
+                .expect("the existing page was just checked");
+        }
+        self.create_page(page_index)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn create_page(&mut self, page_index: usize) -> &mut [u32; PAGE_IDS] {
         if page_index < DENSE_PAGES {
             if page_index >= self.index.len() {
                 self.index.resize_with(page_index + 1, || None);
