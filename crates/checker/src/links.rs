@@ -3463,13 +3463,6 @@ impl LinksTables {
         self.type_cold.base_types_resolved.set(id, true);
     }
 
-    /// tsrs-native: remove the temporary base-type publication used
-    /// while a rollback-capable candidate computes a cold base list.
-    pub fn clear_speculative_type_base_types(&mut self, id: TypeId) {
-        self.type_cold.resolved_base_types.clear(id);
-        self.type_cold.base_types_resolved.clear(id);
-    }
-
     /// getWriteTypeOfAccessors' links.writeType stamp (56800).
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
