@@ -1,6 +1,47 @@
 use super::*;
 
 #[test]
+fn copied_states_restore_nested_cooked_values_in_any_order() {
+    fn assert_copy<T: Copy>() {}
+    assert_copy::<ScannerState>();
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<ByteTokenIter<'static>>();
+    assert_send_sync::<TokenScanner<'static>>();
+    let text = r#"'long cooked value \uD800' 'second \uD800\uDC00' plain"#;
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+    let first = scanner.save();
+    let first_units: Vec<_> = scanner.token_value().code_units().collect();
+    assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+    let second = scanner.save();
+    let second_units: Vec<_> = scanner.token_value().code_units().collect();
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    let source = scanner.save();
+    for _ in 0..3 {
+        scanner.restore(first);
+        assert_eq!(
+            scanner.token_value().code_units().collect::<Vec<_>>(),
+            first_units
+        );
+        assert_eq!(scanner.save(), first);
+        scanner.restore(source);
+        assert_eq!(scanner.token_value_source(), Some("plain"));
+        scanner.restore(second);
+        assert_eq!(
+            scanner.token_value().code_units().collect::<Vec<_>>(),
+            second_units
+        );
+        assert_eq!(scanner.save(), second);
+    }
+    scanner.restore(first);
+    scanner.reset_range(0, 1);
+    scanner.scan();
+    scanner.restore(second);
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert_eq!(scanner.token_value_source(), Some("plain"));
+}
+
+#[test]
 fn body_runs_preserve_unicode_line_ends_directives_and_wtf8_seams() {
     let text = "/* ASCII body 😀\r\n * @ts-ignore */'a😀\\uD800\\\n\\uDC00z'";
     let mut scanner = Scanner::new(text, LanguageVariant::Standard);

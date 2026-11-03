@@ -1,5 +1,8 @@
 use crate::parser::JSDocParsingMode;
 use crate::{chars, keywords, SyntaxKind};
+use rustc_hash::{FxHashMap, FxHasher};
+use std::hash::{Hash, Hasher};
+use std::sync::Mutex;
 use tsc_diagnostics::{gen, DiagnosticMessage};
 use tsc_types::{JsStr, JsString};
 
@@ -166,25 +169,43 @@ impl TokenFlags {
 /// strings without escapes, plain decimal integers), or the text cooked into
 /// `Scanner::cooked` (escapes, template line ends, canonical numbers). A
 /// source range is set, saved and restored without copying the text.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct TokenValue {
     start: usize,
     end: usize,
     cooked: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+/// A source value stores its two offsets directly. A cooked value stores an
+/// index into the scanner's immutable snapshot pool; the second word is zero.
+/// Snapshots remain reusable in any restore order, including nested lookahead.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ScannerState {
     end: usize,
     pos: usize,
     full_start_pos: usize,
     token_start: usize,
     token: SyntaxKind,
-    token_value: TokenValue,
-    /// The cooked text of a cooked value (none for a source range).
-    cooked: Option<JsString>,
+    value_start: usize,
+    value_end: usize,
+    value_cooked: bool,
     token_flags: TokenFlags,
     error_len: usize,
+}
+
+#[derive(Default)]
+struct CookedSnapshots {
+    // Hash buckets point into an append-only pool. Collisions are checked by
+    // full value/range equality, so neither hashing nor restore order can
+    // affect the saved value. Each distinct cooked snapshot is cloned once.
+    heads: FxHashMap<u64, usize>,
+    values: Vec<CookedSnapshot>,
+}
+
+struct CookedSnapshot {
+    value: JsString,
+    token_value: TokenValue,
+    next: Option<usize>,
 }
 
 pub(crate) struct Scanner<'text> {
@@ -198,6 +219,8 @@ pub(crate) struct Scanner<'text> {
     /// The text of a cooked token value (see [`TokenValue`]), reused from
     /// token to token.
     cooked: JsString,
+    // save() takes &self; only the rare cooked-value path accesses this pool.
+    cooked_snapshots: Mutex<CookedSnapshots>,
     token_flags: TokenFlags,
     language_variant: LanguageVariant,
     js_doc_parsing_mode: JSDocParsingMode,
@@ -285,6 +308,7 @@ impl<'text> Scanner<'text> {
                 cooked: false,
             },
             cooked: JsString::new(),
+            cooked_snapshots: Mutex::new(CookedSnapshots::default()),
             token_flags: TokenFlags::empty(),
             language_variant,
             js_doc_parsing_mode: JSDocParsingMode::ParseAll,
@@ -657,8 +681,17 @@ impl<'text> Scanner<'text> {
             full_start_pos: self.full_start_pos,
             token_start: self.token_start,
             token: self.token,
-            token_value: self.token_value,
-            cooked: self.token_value.cooked.then(|| self.cooked.clone()),
+            value_start: if self.token_value.cooked {
+                self.save_cooked_value()
+            } else {
+                self.token_value.start
+            },
+            value_end: if self.token_value.cooked {
+                0
+            } else {
+                self.token_value.end
+            },
+            value_cooked: self.token_value.cooked,
             token_flags: self.token_flags,
             error_len: self.errors.len(),
         }
@@ -670,12 +703,52 @@ impl<'text> Scanner<'text> {
         self.full_start_pos = state.full_start_pos;
         self.token_start = state.token_start;
         self.token = state.token;
-        self.token_value = state.token_value;
-        if let Some(cooked) = state.cooked {
-            self.cooked = cooked;
+        if state.value_cooked {
+            self.restore_cooked_value(state.value_start);
+        } else {
+            self.value_source(state.value_start, state.value_end);
         }
         self.token_flags = state.token_flags;
         self.errors.truncate(state.error_len);
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn save_cooked_value(&self) -> usize {
+        let mut hasher = FxHasher::default();
+        self.token_value.hash(&mut hasher);
+        self.cooked.as_bytes().hash(&mut hasher);
+        let hash = hasher.finish();
+        let mut snapshots = self.cooked_snapshots.lock().expect("cooked snapshot lock");
+        let head = snapshots.heads.get(&hash).copied();
+        let mut next = head;
+        while let Some(index) = next {
+            let saved = &snapshots.values[index];
+            if saved.token_value == self.token_value && saved.value == self.cooked {
+                return index;
+            }
+            next = saved.next;
+        }
+        let index = snapshots.values.len();
+        snapshots.values.push(CookedSnapshot {
+            value: self.cooked.clone(),
+            token_value: self.token_value,
+            next: head,
+        });
+        snapshots.heads.insert(hash, index);
+        index
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn restore_cooked_value(&mut self, index: usize) {
+        let saved = &self
+            .cooked_snapshots
+            .get_mut()
+            .expect("cooked snapshot lock")
+            .values[index];
+        self.cooked.clone_from(&saved.value);
+        self.token_value = saved.token_value;
     }
 
     /// Enter a bounded source range for the parser-owned JSDoc type
