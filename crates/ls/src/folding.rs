@@ -110,6 +110,7 @@ impl<'a> Outlining<'a> {
         self.source.arena.node(node).kind
     }
 
+    #[inline(always)]
     fn data(&self, node: NodeId) -> NodeData {
         self.source.arena.node(node).data()
     }

@@ -69,6 +69,7 @@ impl<'r, 's, 'a> Completions<'r, 's, 'a> {
         self.record(node).kind
     }
 
+    #[inline(always)]
     pub(crate) fn data(&self, node: NodeId) -> NodeData {
         self.record(node).data()
     }

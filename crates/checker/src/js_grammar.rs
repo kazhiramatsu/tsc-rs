@@ -85,6 +85,7 @@ impl JsSyntaxChecker<'_> {
         Published.node(id).kind
     }
 
+    #[inline(always)]
     fn data(&self, id: NodeId) -> NodeData {
         Published.node(id).data()
     }

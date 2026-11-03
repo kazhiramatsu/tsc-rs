@@ -1929,6 +1929,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
         self.file.arena.node(node).kind
     }
 
+    #[inline(always)]
     fn data(&self, node: NodeId) -> NodeData {
         self.file.arena.node(node).data()
     }

@@ -171,6 +171,7 @@ impl<'a> JsxTags<'a> {
         self.source.arena.node(node).kind
     }
 
+    #[inline(always)]
     fn data(&self, node: NodeId) -> NodeData {
         self.source.arena.node(node).data()
     }

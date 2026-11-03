@@ -378,7 +378,7 @@ impl Node {
 
     /// tsc's internal Node.jsDoc attachment; not an ordinary forEachChild
     /// edge.
-    #[inline]
+    #[inline(always)]
     pub fn js_doc(&self) -> Option<NodeArrayId> {
         let (slots, _) = payload_shape(self.kind);
         let word = if self.literal_flags & HAS_TAIL == 0 {
@@ -415,20 +415,41 @@ impl Node {
             self.kind,
             data.kind()
         );
-        let (slots, comment) = encode_slots(data);
-        let (count, has_comment) = payload_shape(self.kind);
-        let js_doc = js_doc.map_or(0, NodeArrayId::position);
-        let spills = slots[count.min(3)..count].iter().any(|&word| word != 0)
-            || comment != [0; 4]
-            || (count >= 3 && js_doc != 0);
+        encode_payload(
+            self,
+            data,
+            js_doc.map_or(0, NodeArrayId::position),
+            tails,
+            in_place,
+        );
+    }
+
+    /// Store a payload of `N` slots (and a JSDoc comment when `COMMENT`) with
+    /// the JSDoc attachment `js_doc` (see [`Node`]): the generated
+    /// `encode_payload` calls it with each kind's constants, so the spill
+    /// test and the copies are specialized per kind.
+    #[inline(always)]
+    fn store<const N: usize, const COMMENT: bool>(
+        &mut self,
+        slots: [u32; N],
+        comment: [u32; 4],
+        js_doc: u32,
+        tails: &mut tsc_store::tails::Tails,
+        in_place: bool,
+        payload: bool,
+    ) {
+        let spills = slots.iter().skip(3).any(|&word| word != 0)
+            || (COMMENT && comment != [0; 4])
+            || (N >= 3 && js_doc != 0);
         if !spills {
             let mut words = [0u32; 3];
-            let inline = count.min(3);
-            words[..inline].copy_from_slice(&slots[..inline]);
-            if count < 3 {
-                words[count] = js_doc;
+            for (word, &slot) in words.iter_mut().zip(slots.iter()) {
+                *word = slot;
             }
-            if count == 0 && data.kind().is_some() {
+            if N < 3 {
+                words[N.min(2)] = js_doc;
+            }
+            if N == 0 && payload {
                 words[2] = EMPTY_PAYLOAD;
             }
             // A tail the record had stays unused in its tree's chunks.
@@ -436,13 +457,13 @@ impl Node {
             self.literal_flags &= !HAS_TAIL;
             return;
         }
-        let at = count.saturating_sub(2);
+        let at = N.saturating_sub(2);
         let mut tail = [0u32; MAX_TAIL_WORDS];
-        if count > 2 {
-            tail[..at].copy_from_slice(&slots[2..count]);
+        for (word, &slot) in tail.iter_mut().zip(slots.iter().skip(2)) {
+            *word = slot;
         }
         tail[at] = js_doc;
-        let len = if has_comment {
+        let len = if COMMENT {
             tail[at + 1..at + 5].copy_from_slice(&comment);
             at + 5
         } else {
@@ -454,7 +475,11 @@ impl Node {
         } else {
             tails.push(&tail[..len])
         };
-        self.words = [position, slots[0], slots[1]];
+        self.words = [
+            position,
+            slots.first().copied().unwrap_or(0),
+            slots.get(1).copied().unwrap_or(0),
+        ];
         self.literal_flags |= HAS_TAIL;
     }
 
@@ -4533,8 +4558,6 @@ impl NodeData {
     }
 }
 
-/// The most payload slots a kind has.
-const MAX_SLOTS: usize = 9;
 /// The longest tail: the slots past the second, the JSDoc attachment and a comment.
 const MAX_TAIL_WORDS: usize = 8;
 
@@ -5006,1049 +5029,2050 @@ pub(crate) const fn slot_spaces(kind: SyntaxKind) -> &'static [u8] {
     }
 }
 
-/// The slot words and the comment words of a payload.
-fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {
-    let mut s = [0u32; MAX_SLOTS];
-    let comment = match data {
-        NodeData::Token => [0; 4],
-        NodeData::ArrayBindingPattern(data) => {
-            s[0] = data.elements.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::ArrayLiteralExpression(data) => {
-            s[0] = data.elements.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::ArrayType(data) => {
-            s[0] = data.element_type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ArrowFunction(data) => {
-            s[0] = data.parameters.map_or(0, NodeArrayId::position);
-            s[1] = data.body.map_or(0, NodeId::position);
-            s[2] = data.equals_greater_than_token.map_or(0, NodeId::position);
-            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[4] = data.r#type.map_or(0, NodeId::position);
-            s[5] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::AsExpression(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            s[1] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::AwaitExpression(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::BigIntLiteral(data) => {
-            s[0] = data.text.position();
-            [0; 4]
-        }
-        NodeData::BinaryExpression(data) => {
-            s[0] = data.left.map_or(0, NodeId::position);
-            s[1] = data.operator_token.map_or(0, NodeId::position);
-            s[2] = data.right.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::BindingElement(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.property_name.map_or(0, NodeId::position);
-            s[2] = data.dot_dot_dot_token.map_or(0, NodeId::position);
-            s[3] = data.initializer.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::Block(data) => {
-            s[0] = data.statements.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::BreakStatement(data) => {
-            s[0] = data.label.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::CallExpression(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            s[1] = data.type_arguments.map_or(0, NodeArrayId::position);
-            s[2] = data.arguments.map_or(0, NodeArrayId::position);
-            s[3] = data.question_dot_token.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::CallSignature(data) => {
-            s[0] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[1] = data.parameters.map_or(0, NodeArrayId::position);
-            s[2] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::CaseBlock(data) => {
-            s[0] = data.clauses.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::CaseClause(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            s[1] = data.statements.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::CatchClause(data) => {
-            s[0] = data.variable_declaration.map_or(0, NodeId::position);
-            s[1] = data.block.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ClassDeclaration(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.heritage_clauses.map_or(0, NodeArrayId::position);
-            s[2] = data.members.map_or(0, NodeArrayId::position);
-            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[4] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::ClassExpression(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.heritage_clauses.map_or(0, NodeArrayId::position);
-            s[2] = data.members.map_or(0, NodeArrayId::position);
-            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[4] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::ClassStaticBlockDeclaration(data) => {
-            s[0] = data.body.map_or(0, NodeId::position);
-            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::CommaListExpression(data) => {
-            s[0] = data.elements.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::ComputedPropertyName(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ConditionalExpression(data) => {
-            s[0] = data.condition.map_or(0, NodeId::position);
-            s[1] = data.question_token.map_or(0, NodeId::position);
-            s[2] = data.when_true.map_or(0, NodeId::position);
-            s[3] = data.colon_token.map_or(0, NodeId::position);
-            s[4] = data.when_false.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ConditionalType(data) => {
-            s[0] = data.check_type.map_or(0, NodeId::position);
-            s[1] = data.extends_type.map_or(0, NodeId::position);
-            s[2] = data.true_type.map_or(0, NodeId::position);
-            s[3] = data.false_type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ConstructSignature(data) => {
-            s[0] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[1] = data.parameters.map_or(0, NodeArrayId::position);
-            s[2] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::Constructor(data) => {
-            s[0] = data.parameters.map_or(0, NodeArrayId::position);
-            s[1] = data.body.map_or(0, NodeId::position);
-            s[2] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[3] = data.name.map_or(0, NodeId::position);
-            s[4] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[5] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ConstructorType(data) => {
-            s[0] = data.parameters.map_or(0, NodeArrayId::position);
-            s[1] = data.r#type.map_or(0, NodeId::position);
-            s[2] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::ContinueStatement(data) => {
-            s[0] = data.label.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::DebuggerStatement(_) => [0; 4],
-        NodeData::Decorator(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::DefaultClause(data) => {
-            s[0] = data.statements.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::DeleteExpression(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::DoStatement(data) => {
-            s[0] = data.statement.map_or(0, NodeId::position);
-            s[1] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ElementAccessExpression(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            s[1] = data.question_dot_token.map_or(0, NodeId::position);
-            s[2] = data.argument_expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::EmptyStatement(_) => [0; 4],
-        NodeData::EnumDeclaration(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[2] = data.members.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::EnumMember(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.initializer.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ExportAssignment(data) => {
-            s[0] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[1] = data.expression.map_or(0, NodeId::position);
-            s[2] = data
-                .is_export_equals
-                .map_or(0, |value| u32::from(value) + 1);
-            [0; 4]
-        }
-        NodeData::ExportDeclaration(data) => {
-            s[0] = data.export_clause.map_or(0, NodeId::position);
-            s[1] = data.module_specifier.map_or(0, NodeId::position);
-            s[2] = u32::from(data.is_type_only);
-            s[3] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[4] = data.attributes.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ExportSpecifier(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.property_name.map_or(0, NodeId::position);
-            s[2] = u32::from(data.is_type_only);
-            [0; 4]
-        }
-        NodeData::ExpressionStatement(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ExpressionWithTypeArguments(data) => {
-            s[0] = data.type_arguments.map_or(0, NodeArrayId::position);
-            s[1] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ExternalModuleReference(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ForInStatement(data) => {
-            s[0] = data.statement.map_or(0, NodeId::position);
-            s[1] = data.initializer.map_or(0, NodeId::position);
-            s[2] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ForOfStatement(data) => {
-            s[0] = data.statement.map_or(0, NodeId::position);
-            s[1] = data.initializer.map_or(0, NodeId::position);
-            s[2] = data.expression.map_or(0, NodeId::position);
-            s[3] = data.await_modifier.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ForStatement(data) => {
-            s[0] = data.statement.map_or(0, NodeId::position);
-            s[1] = data.condition.map_or(0, NodeId::position);
-            s[2] = data.incrementor.map_or(0, NodeId::position);
-            s[3] = data.initializer.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::FunctionDeclaration(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.parameters.map_or(0, NodeArrayId::position);
-            s[2] = data.r#type.map_or(0, NodeId::position);
-            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[4] = data.asterisk_token.map_or(0, NodeId::position);
-            s[5] = data.body.map_or(0, NodeId::position);
-            s[6] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::FunctionExpression(data) => {
-            s[0] = data.parameters.map_or(0, NodeArrayId::position);
-            s[1] = data.body.map_or(0, NodeId::position);
-            s[2] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[3] = data.name.map_or(0, NodeId::position);
-            s[4] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[5] = data.r#type.map_or(0, NodeId::position);
-            s[6] = data.asterisk_token.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::FunctionType(data) => {
-            s[0] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[1] = data.parameters.map_or(0, NodeArrayId::position);
-            s[2] = data.r#type.map_or(0, NodeId::position);
-            s[3] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::GetAccessor(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.parameters.map_or(0, NodeArrayId::position);
-            s[2] = data.body.map_or(0, NodeId::position);
-            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[4] = data.r#type.map_or(0, NodeId::position);
-            s[5] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::HeritageClause(data) => {
-            s[0] = data.types.map_or(0, NodeArrayId::position);
-            s[1] = (data.token as u32) << 16;
-            [0; 4]
-        }
-        NodeData::Identifier(data) => {
-            s[0] = data.escaped_text.index();
-            [0; 4]
-        }
-        NodeData::IfStatement(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            s[1] = data.then_statement.map_or(0, NodeId::position);
-            s[2] = data.else_statement.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ImportAttribute(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.value.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ImportAttributes(data) => {
-            s[0] = data.elements.map_or(0, NodeArrayId::position);
-            s[1] =
-                (data.token as u32) << 16 | data.multi_line.map_or(0, |value| u32::from(value) + 1);
-            [0; 4]
-        }
-        NodeData::ImportClause(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.named_bindings.map_or(0, NodeId::position);
-            s[2] = u32::from(data.is_type_only)
-                | data.phase_modifier.map_or(0, |kind| kind as u32 + 1) << 16;
-            [0; 4]
-        }
-        NodeData::ImportDeclaration(data) => {
-            s[0] = data.import_clause.map_or(0, NodeId::position);
-            s[1] = data.module_specifier.map_or(0, NodeId::position);
-            s[2] = data.attributes.map_or(0, NodeId::position);
-            s[3] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::ImportEqualsDeclaration(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[2] = data.module_reference.map_or(0, NodeId::position);
-            s[3] = u32::from(data.is_type_only);
-            [0; 4]
-        }
-        NodeData::ImportSpecifier(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.property_name.map_or(0, NodeId::position);
-            s[2] = u32::from(data.is_type_only);
-            [0; 4]
-        }
-        NodeData::ImportType(data) => {
-            s[0] = data.argument.map_or(0, NodeId::position);
-            s[1] = data.qualifier.map_or(0, NodeId::position);
-            s[2] = u32::from(data.is_type_of);
-            s[3] = data.type_arguments.map_or(0, NodeArrayId::position);
-            s[4] = data.attributes.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ImportTypeAssertionContainer(data) => {
-            s[0] = data.assert_clause.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::IndexSignature(data) => {
-            s[0] = data.parameters.map_or(0, NodeArrayId::position);
-            s[1] = data.r#type.map_or(0, NodeId::position);
-            s[2] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::IndexedAccessType(data) => {
-            s[0] = data.object_type.map_or(0, NodeId::position);
-            s[1] = data.index_type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::InferType(data) => {
-            s[0] = data.type_parameter.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::InterfaceDeclaration(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[2] = data.members.map_or(0, NodeArrayId::position);
-            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[4] = data.heritage_clauses.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::IntersectionType(data) => {
-            s[0] = data.types.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::JSDoc(data) => {
-            s[0] = data.tags.map_or(0, NodeArrayId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocAllType(_) => [0; 4],
-        NodeData::JSDocAugmentsTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.class.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocAuthorTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocCallbackTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.name.map_or(0, NodeId::position);
-            s[2] = data.type_expression.map_or(0, NodeId::position);
-            s[3] = data.full_name.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocClassTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocDeprecatedTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocEnumTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.type_expression.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocFunctionType(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[2] = data.parameters.map_or(0, NodeArrayId::position);
-            s[3] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JSDocImplementsTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.class.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocImportTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.import_clause.map_or(0, NodeId::position);
-            s[2] = data.module_specifier.map_or(0, NodeId::position);
-            s[3] = data.attributes.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocLink(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.text.position();
-            [0; 4]
-        }
-        NodeData::JSDocLinkCode(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.text.position();
-            [0; 4]
-        }
-        NodeData::JSDocLinkPlain(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.text.position();
-            [0; 4]
-        }
-        NodeData::JSDocMemberName(data) => {
-            s[0] = data.left.map_or(0, NodeId::position);
-            s[1] = data.right.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JSDocNameReference(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JSDocNamepathType(data) => {
-            s[0] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JSDocNonNullableType(data) => {
-            s[0] = data.r#type.map_or(0, NodeId::position);
-            s[1] = u32::from(data.postfix);
-            [0; 4]
-        }
-        NodeData::JSDocNullableType(data) => {
-            s[0] = data.r#type.map_or(0, NodeId::position);
-            s[1] = u32::from(data.postfix);
-            [0; 4]
-        }
-        NodeData::JSDocOptionalType(data) => {
-            s[0] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JSDocOverloadTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.type_expression.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocOverrideTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocParameterTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.name.map_or(0, NodeId::position);
-            s[2] = u32::from(data.is_name_first) | u32::from(data.is_bracketed) << 1;
-            s[3] = data.type_expression.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocPrivateTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocPropertyTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.name.map_or(0, NodeId::position);
-            s[2] = data.type_expression.map_or(0, NodeId::position);
-            s[3] = u32::from(data.is_name_first) | u32::from(data.is_bracketed) << 1;
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocProtectedTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocPublicTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocReadonlyTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocReturnTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.type_expression.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocSatisfiesTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.type_expression.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocSeeTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.name.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocSignature(data) => {
-            s[0] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[1] = data.parameters.map_or(0, NodeArrayId::position);
-            s[2] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JSDocTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocTemplateTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.constraint.map_or(0, NodeId::position);
-            s[2] = data.type_parameters.map_or(0, NodeArrayId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocText(data) => {
-            s[0] = data.text.position();
-            [0; 4]
-        }
-        NodeData::JSDocThisTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.type_expression.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocThrowsTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.type_expression.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocTypeExpression(data) => {
-            s[0] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JSDocTypeLiteral(data) => {
-            s[0] = data.js_doc_property_tags.map_or(0, NodeArrayId::position);
-            s[1] = u32::from(data.is_array_type);
-            [0; 4]
-        }
-        NodeData::JSDocTypeTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.type_expression.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocTypedefTag(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.name.map_or(0, NodeId::position);
-            s[2] = data.full_name.map_or(0, NodeId::position);
-            s[3] = data.type_expression.map_or(0, NodeId::position);
-            JSDocComment::words(data.comment.as_ref())
-        }
-        NodeData::JSDocUnknownType(_) => [0; 4],
-        NodeData::JSDocVariadicType(data) => {
-            s[0] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JsxAttribute(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.initializer.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JsxAttributes(data) => {
-            s[0] = data.properties.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::JsxClosingElement(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JsxElement(data) => {
-            s[0] = data.opening_element.map_or(0, NodeId::position);
-            s[1] = data.children.map_or(0, NodeArrayId::position);
-            s[2] = data.closing_element.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JsxExpression(data) => {
-            s[0] = data.dot_dot_dot_token.map_or(0, NodeId::position);
-            s[1] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JsxFragment(data) => {
-            s[0] = data.opening_fragment.map_or(0, NodeId::position);
-            s[1] = data.children.map_or(0, NodeArrayId::position);
-            s[2] = data.closing_fragment.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JsxNamespacedName(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.namespace.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JsxOpeningElement(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.type_arguments.map_or(0, NodeArrayId::position);
-            s[2] = data.attributes.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JsxSelfClosingElement(data) => {
-            s[0] = data.tag_name.map_or(0, NodeId::position);
-            s[1] = data.type_arguments.map_or(0, NodeArrayId::position);
-            s[2] = data.attributes.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JsxSpreadAttribute(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::JsxText(data) => {
-            s[0] = data.text.position();
-            s[1] = u32::from(data.contains_only_trivia_white_spaces);
-            [0; 4]
-        }
-        NodeData::LabeledStatement(data) => {
-            s[0] = data.label.map_or(0, NodeId::position);
-            s[1] = data.statement.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::LiteralType(data) => {
-            s[0] = data.literal.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::MappedType(data) => {
-            s[0] = data.type_parameter.map_or(0, NodeId::position);
-            s[1] = data.r#type.map_or(0, NodeId::position);
-            s[2] = data.members.map_or(0, NodeArrayId::position);
-            s[3] = data.readonly_token.map_or(0, NodeId::position);
-            s[4] = data.name_type.map_or(0, NodeId::position);
-            s[5] = data.question_token.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::MetaProperty(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = (data.keyword_token as u32) << 16;
-            [0; 4]
-        }
-        NodeData::MethodDeclaration(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.parameters.map_or(0, NodeArrayId::position);
-            s[2] = data.body.map_or(0, NodeId::position);
-            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[4] = data.r#type.map_or(0, NodeId::position);
-            s[5] = data.asterisk_token.map_or(0, NodeId::position);
-            s[6] = data.question_token.map_or(0, NodeId::position);
-            s[7] = data.exclamation_token.map_or(0, NodeId::position);
-            s[8] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::MethodSignature(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.parameters.map_or(0, NodeArrayId::position);
-            s[2] = data.r#type.map_or(0, NodeId::position);
-            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[4] = data.question_token.map_or(0, NodeId::position);
-            s[5] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::MissingDeclaration(data) => {
-            s[0] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::ModuleBlock(data) => {
-            s[0] = data.statements.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::ModuleDeclaration(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[2] = data.body.map_or(0, NodeId::position);
-            s[3] = data.attributes.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::NamedExports(data) => {
-            s[0] = data.elements.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::NamedImports(data) => {
-            s[0] = data.elements.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::NamedTupleMember(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.question_token.map_or(0, NodeId::position);
-            s[2] = data.r#type.map_or(0, NodeId::position);
-            s[3] = data.dot_dot_dot_token.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::NamespaceExport(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::NamespaceExportDeclaration(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::NamespaceImport(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::NewExpression(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            s[1] = data.type_arguments.map_or(0, NodeArrayId::position);
-            s[2] = data.arguments.map_or(0, NodeArrayId::position);
-            s[3] = data.question_dot_token.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::NoSubstitutionTemplateLiteral(data) => {
-            s[0] = data.text.position();
-            s[1] = data.raw_text.map_or(0, TextId::position);
-            [0; 4]
-        }
-        NodeData::NonNullExpression(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::NotEmittedStatement(_) => [0; 4],
-        NodeData::NumericLiteral(data) => {
-            s[0] = data.text.position();
-            [0; 4]
-        }
-        NodeData::ObjectBindingPattern(data) => {
-            s[0] = data.elements.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::ObjectLiteralExpression(data) => {
-            s[0] = data.properties.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::OmittedExpression(_) => [0; 4],
-        NodeData::OptionalType(data) => {
-            s[0] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::Parameter(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[2] = data.r#type.map_or(0, NodeId::position);
-            s[3] = data.dot_dot_dot_token.map_or(0, NodeId::position);
-            s[4] = data.question_token.map_or(0, NodeId::position);
-            s[5] = data.initializer.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ParenthesizedExpression(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ParenthesizedType(data) => {
-            s[0] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::PartiallyEmittedExpression(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::PostfixUnaryExpression(data) => {
-            s[0] = data.operand.map_or(0, NodeId::position);
-            s[1] = (data.operator as u32) << 16;
-            [0; 4]
-        }
-        NodeData::PrefixUnaryExpression(data) => {
-            s[0] = data.operand.map_or(0, NodeId::position);
-            s[1] = (data.operator as u32) << 16;
-            [0; 4]
-        }
-        NodeData::PrivateIdentifier(data) => {
-            s[0] = data.escaped_text.index();
-            [0; 4]
-        }
-        NodeData::PropertyAccessExpression(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.expression.map_or(0, NodeId::position);
-            s[2] = data.question_dot_token.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::PropertyAssignment(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.initializer.map_or(0, NodeId::position);
-            s[2] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[3] = data.question_token.map_or(0, NodeId::position);
-            s[4] = data.exclamation_token.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::PropertyDeclaration(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[2] = data.initializer.map_or(0, NodeId::position);
-            s[3] = data.question_token.map_or(0, NodeId::position);
-            s[4] = data.exclamation_token.map_or(0, NodeId::position);
-            s[5] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::PropertySignature(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.question_token.map_or(0, NodeId::position);
-            s[2] = data.r#type.map_or(0, NodeId::position);
-            s[3] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[4] = data.initializer.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::QualifiedName(data) => {
-            s[0] = data.left.map_or(0, NodeId::position);
-            s[1] = data.right.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::RegularExpressionLiteral(data) => {
-            s[0] = data.text.position();
-            [0; 4]
-        }
-        NodeData::RestType(data) => {
-            s[0] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::ReturnStatement(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::SatisfiesExpression(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            s[1] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::SetAccessor(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.parameters.map_or(0, NodeArrayId::position);
-            s[2] = data.body.map_or(0, NodeId::position);
-            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
-            s[4] = data.r#type.map_or(0, NodeId::position);
-            s[5] = data.modifiers.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::ShorthandPropertyAssignment(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.equals_token.map_or(0, NodeId::position);
-            s[2] = data
-                .object_assignment_initializer
-                .map_or(0, NodeId::position);
-            s[3] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[4] = data.question_token.map_or(0, NodeId::position);
-            s[5] = data.exclamation_token.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::SourceFile(data) => {
-            s[0] = data.statements.map_or(0, NodeArrayId::position);
-            s[1] = data.end_of_file_token.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::SpreadAssignment(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::SpreadElement(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::StringLiteral(data) => {
-            s[0] = data.text.position();
-            [0; 4]
-        }
-        NodeData::SwitchStatement(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            s[1] = data.case_block.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::SyntaxList(_) => [0; 4],
-        NodeData::TaggedTemplateExpression(data) => {
-            s[0] = data.tag.map_or(0, NodeId::position);
-            s[1] = data.type_arguments.map_or(0, NodeArrayId::position);
-            s[2] = data.template.map_or(0, NodeId::position);
-            s[3] = data.question_dot_token.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::TemplateExpression(data) => {
-            s[0] = data.head.map_or(0, NodeId::position);
-            s[1] = data.template_spans.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::TemplateHead(data) => {
-            s[0] = data.text.position();
-            s[1] = data.raw_text.map_or(0, TextId::position);
-            [0; 4]
-        }
-        NodeData::TemplateLiteralType(data) => {
-            s[0] = data.head.map_or(0, NodeId::position);
-            s[1] = data.template_spans.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::TemplateLiteralTypeSpan(data) => {
-            s[0] = data.r#type.map_or(0, NodeId::position);
-            s[1] = data.literal.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::TemplateMiddle(data) => {
-            s[0] = data.text.position();
-            s[1] = data.raw_text.map_or(0, TextId::position);
-            [0; 4]
-        }
-        NodeData::TemplateSpan(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            s[1] = data.literal.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::TemplateTail(data) => {
-            s[0] = data.text.position();
-            s[1] = data.raw_text.map_or(0, TextId::position);
-            [0; 4]
-        }
-        NodeData::ThrowStatement(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::TryStatement(data) => {
-            s[0] = data.try_block.map_or(0, NodeId::position);
-            s[1] = data.catch_clause.map_or(0, NodeId::position);
-            s[2] = data.finally_block.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::TupleType(data) => {
-            s[0] = data.elements.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::TypeAliasDeclaration(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[2] = data.r#type.map_or(0, NodeId::position);
-            s[3] = data.type_parameters.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::TypeAssertionExpression(data) => {
-            s[0] = data.r#type.map_or(0, NodeId::position);
-            s[1] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::TypeLiteral(data) => {
-            s[0] = data.members.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::TypeOfExpression(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::TypeOperator(data) => {
-            s[0] = data.r#type.map_or(0, NodeId::position);
-            s[1] = (data.operator as u32) << 16;
-            [0; 4]
-        }
-        NodeData::TypeParameter(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.constraint.map_or(0, NodeId::position);
-            s[2] = data.r#default.map_or(0, NodeId::position);
-            s[3] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[4] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::TypePredicate(data) => {
-            s[0] = data.asserts_modifier.map_or(0, NodeId::position);
-            s[1] = data.parameter_name.map_or(0, NodeId::position);
-            s[2] = data.r#type.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::TypeQuery(data) => {
-            s[0] = data.type_arguments.map_or(0, NodeArrayId::position);
-            s[1] = data.expr_name.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::TypeReference(data) => {
-            s[0] = data.type_arguments.map_or(0, NodeArrayId::position);
-            s[1] = data.type_name.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::UnionType(data) => {
-            s[0] = data.types.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::VariableDeclaration(data) => {
-            s[0] = data.name.map_or(0, NodeId::position);
-            s[1] = data.r#type.map_or(0, NodeId::position);
-            s[2] = data.initializer.map_or(0, NodeId::position);
-            s[3] = data.exclamation_token.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::VariableDeclarationList(data) => {
-            s[0] = data.declarations.map_or(0, NodeArrayId::position);
-            [0; 4]
-        }
-        NodeData::VariableStatement(data) => {
-            s[0] = data.modifiers.map_or(0, NodeArrayId::position);
-            s[1] = data.declaration_list.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::VoidExpression(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::WhileStatement(data) => {
-            s[0] = data.statement.map_or(0, NodeId::position);
-            s[1] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::WithStatement(data) => {
-            s[0] = data.expression.map_or(0, NodeId::position);
-            s[1] = data.statement.map_or(0, NodeId::position);
-            [0; 4]
-        }
-        NodeData::YieldExpression(data) => {
-            s[0] = data.asterisk_token.map_or(0, NodeId::position);
-            s[1] = data.expression.map_or(0, NodeId::position);
-            [0; 4]
-        }
-    };
-    (s, comment)
+/// Write a payload into `node` (see `Node::encode`): a jump on the variant into
+/// `Node::store` with the kind's slot count.
+#[inline]
+fn encode_payload(
+    node: &mut Node,
+    data: &NodeData,
+    js_doc: u32,
+    tails: &mut tsc_store::tails::Tails,
+    in_place: bool,
+) {
+    match data {
+        NodeData::Token => node.store::<0, false>([], [0; 4], js_doc, tails, in_place, false),
+        NodeData::ArrayBindingPattern(data) => node.store::<1, false>(
+            [data.elements.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ArrayLiteralExpression(data) => node.store::<1, false>(
+            [data.elements.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ArrayType(data) => node.store::<1, false>(
+            [data.element_type.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ArrowFunction(data) => node.store::<6, false>(
+            [
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.body.map_or(0, NodeId::position),
+                data.equals_greater_than_token.map_or(0, NodeId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::AsExpression(data) => node.store::<2, false>(
+            [
+                data.expression.map_or(0, NodeId::position),
+                data.r#type.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::AwaitExpression(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::BigIntLiteral(data) => node.store::<1, false>(
+            [data.text.position()],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::BinaryExpression(data) => node.store::<3, false>(
+            [
+                data.left.map_or(0, NodeId::position),
+                data.operator_token.map_or(0, NodeId::position),
+                data.right.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::BindingElement(data) => node.store::<4, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.property_name.map_or(0, NodeId::position),
+                data.dot_dot_dot_token.map_or(0, NodeId::position),
+                data.initializer.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::Block(data) => node.store::<1, false>(
+            [data.statements.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::BreakStatement(data) => node.store::<1, false>(
+            [data.label.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::CallExpression(data) => node.store::<4, false>(
+            [
+                data.expression.map_or(0, NodeId::position),
+                data.type_arguments.map_or(0, NodeArrayId::position),
+                data.arguments.map_or(0, NodeArrayId::position),
+                data.question_dot_token.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::CallSignature(data) => node.store::<3, false>(
+            [
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::CaseBlock(data) => node.store::<1, false>(
+            [data.clauses.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::CaseClause(data) => node.store::<2, false>(
+            [
+                data.expression.map_or(0, NodeId::position),
+                data.statements.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::CatchClause(data) => node.store::<2, false>(
+            [
+                data.variable_declaration.map_or(0, NodeId::position),
+                data.block.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ClassDeclaration(data) => node.store::<5, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.heritage_clauses.map_or(0, NodeArrayId::position),
+                data.members.map_or(0, NodeArrayId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ClassExpression(data) => node.store::<5, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.heritage_clauses.map_or(0, NodeArrayId::position),
+                data.members.map_or(0, NodeArrayId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ClassStaticBlockDeclaration(data) => node.store::<2, false>(
+            [
+                data.body.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::CommaListExpression(data) => node.store::<1, false>(
+            [data.elements.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ComputedPropertyName(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ConditionalExpression(data) => node.store::<5, false>(
+            [
+                data.condition.map_or(0, NodeId::position),
+                data.question_token.map_or(0, NodeId::position),
+                data.when_true.map_or(0, NodeId::position),
+                data.colon_token.map_or(0, NodeId::position),
+                data.when_false.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ConditionalType(data) => node.store::<4, false>(
+            [
+                data.check_type.map_or(0, NodeId::position),
+                data.extends_type.map_or(0, NodeId::position),
+                data.true_type.map_or(0, NodeId::position),
+                data.false_type.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ConstructSignature(data) => node.store::<3, false>(
+            [
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::Constructor(data) => node.store::<6, false>(
+            [
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.body.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.name.map_or(0, NodeId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ConstructorType(data) => node.store::<4, false>(
+            [
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ContinueStatement(data) => node.store::<1, false>(
+            [data.label.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::DebuggerStatement(_) => {
+            node.store::<0, false>([], [0; 4], js_doc, tails, in_place, true)
+        }
+        NodeData::Decorator(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::DefaultClause(data) => node.store::<1, false>(
+            [data.statements.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::DeleteExpression(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::DoStatement(data) => node.store::<2, false>(
+            [
+                data.statement.map_or(0, NodeId::position),
+                data.expression.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ElementAccessExpression(data) => node.store::<3, false>(
+            [
+                data.expression.map_or(0, NodeId::position),
+                data.question_dot_token.map_or(0, NodeId::position),
+                data.argument_expression.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::EmptyStatement(_) => {
+            node.store::<0, false>([], [0; 4], js_doc, tails, in_place, true)
+        }
+        NodeData::EnumDeclaration(data) => node.store::<3, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.members.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::EnumMember(data) => node.store::<2, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.initializer.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ExportAssignment(data) => node.store::<3, false>(
+            [
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.expression.map_or(0, NodeId::position),
+                data.is_export_equals
+                    .map_or(0, |value| u32::from(value) + 1),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ExportDeclaration(data) => node.store::<5, false>(
+            [
+                data.export_clause.map_or(0, NodeId::position),
+                data.module_specifier.map_or(0, NodeId::position),
+                u32::from(data.is_type_only),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.attributes.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ExportSpecifier(data) => node.store::<3, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.property_name.map_or(0, NodeId::position),
+                u32::from(data.is_type_only),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ExpressionStatement(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ExpressionWithTypeArguments(data) => node.store::<2, false>(
+            [
+                data.type_arguments.map_or(0, NodeArrayId::position),
+                data.expression.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ExternalModuleReference(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ForInStatement(data) => node.store::<3, false>(
+            [
+                data.statement.map_or(0, NodeId::position),
+                data.initializer.map_or(0, NodeId::position),
+                data.expression.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ForOfStatement(data) => node.store::<4, false>(
+            [
+                data.statement.map_or(0, NodeId::position),
+                data.initializer.map_or(0, NodeId::position),
+                data.expression.map_or(0, NodeId::position),
+                data.await_modifier.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ForStatement(data) => node.store::<4, false>(
+            [
+                data.statement.map_or(0, NodeId::position),
+                data.condition.map_or(0, NodeId::position),
+                data.incrementor.map_or(0, NodeId::position),
+                data.initializer.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::FunctionDeclaration(data) => node.store::<7, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.asterisk_token.map_or(0, NodeId::position),
+                data.body.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::FunctionExpression(data) => node.store::<7, false>(
+            [
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.body.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.name.map_or(0, NodeId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.asterisk_token.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::FunctionType(data) => node.store::<4, false>(
+            [
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::GetAccessor(data) => node.store::<6, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.body.map_or(0, NodeId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::HeritageClause(data) => node.store::<2, false>(
+            [
+                data.types.map_or(0, NodeArrayId::position),
+                (data.token as u32) << 16,
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::Identifier(data) => node.store::<1, false>(
+            [data.escaped_text.index()],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::IfStatement(data) => node.store::<3, false>(
+            [
+                data.expression.map_or(0, NodeId::position),
+                data.then_statement.map_or(0, NodeId::position),
+                data.else_statement.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ImportAttribute(data) => node.store::<2, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.value.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ImportAttributes(data) => node.store::<2, false>(
+            [
+                data.elements.map_or(0, NodeArrayId::position),
+                (data.token as u32) << 16 | data.multi_line.map_or(0, |value| u32::from(value) + 1),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ImportClause(data) => node.store::<3, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.named_bindings.map_or(0, NodeId::position),
+                u32::from(data.is_type_only)
+                    | data.phase_modifier.map_or(0, |kind| kind as u32 + 1) << 16,
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ImportDeclaration(data) => node.store::<4, false>(
+            [
+                data.import_clause.map_or(0, NodeId::position),
+                data.module_specifier.map_or(0, NodeId::position),
+                data.attributes.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ImportEqualsDeclaration(data) => node.store::<4, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.module_reference.map_or(0, NodeId::position),
+                u32::from(data.is_type_only),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ImportSpecifier(data) => node.store::<3, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.property_name.map_or(0, NodeId::position),
+                u32::from(data.is_type_only),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ImportType(data) => node.store::<5, false>(
+            [
+                data.argument.map_or(0, NodeId::position),
+                data.qualifier.map_or(0, NodeId::position),
+                u32::from(data.is_type_of),
+                data.type_arguments.map_or(0, NodeArrayId::position),
+                data.attributes.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ImportTypeAssertionContainer(data) => node.store::<1, false>(
+            [data.assert_clause.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::IndexSignature(data) => node.store::<4, false>(
+            [
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::IndexedAccessType(data) => node.store::<2, false>(
+            [
+                data.object_type.map_or(0, NodeId::position),
+                data.index_type.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::InferType(data) => node.store::<1, false>(
+            [data.type_parameter.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::InterfaceDeclaration(data) => node.store::<5, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.members.map_or(0, NodeArrayId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.heritage_clauses.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::IntersectionType(data) => node.store::<1, false>(
+            [data.types.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDoc(data) => node.store::<1, true>(
+            [data.tags.map_or(0, NodeArrayId::position)],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocAllType(_) => {
+            node.store::<0, false>([], [0; 4], js_doc, tails, in_place, true)
+        }
+        NodeData::JSDocAugmentsTag(data) => node.store::<2, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.class.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocAuthorTag(data) => node.store::<1, true>(
+            [data.tag_name.map_or(0, NodeId::position)],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocCallbackTag(data) => node.store::<4, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.name.map_or(0, NodeId::position),
+                data.type_expression.map_or(0, NodeId::position),
+                data.full_name.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocClassTag(data) => node.store::<1, true>(
+            [data.tag_name.map_or(0, NodeId::position)],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocDeprecatedTag(data) => node.store::<1, true>(
+            [data.tag_name.map_or(0, NodeId::position)],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocEnumTag(data) => node.store::<2, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.type_expression.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocFunctionType(data) => node.store::<4, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocImplementsTag(data) => node.store::<2, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.class.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocImportTag(data) => node.store::<4, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.import_clause.map_or(0, NodeId::position),
+                data.module_specifier.map_or(0, NodeId::position),
+                data.attributes.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocLink(data) => node.store::<2, false>(
+            [data.name.map_or(0, NodeId::position), data.text.position()],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocLinkCode(data) => node.store::<2, false>(
+            [data.name.map_or(0, NodeId::position), data.text.position()],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocLinkPlain(data) => node.store::<2, false>(
+            [data.name.map_or(0, NodeId::position), data.text.position()],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocMemberName(data) => node.store::<2, false>(
+            [
+                data.left.map_or(0, NodeId::position),
+                data.right.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocNameReference(data) => node.store::<1, false>(
+            [data.name.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocNamepathType(data) => node.store::<1, false>(
+            [data.r#type.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocNonNullableType(data) => node.store::<2, false>(
+            [
+                data.r#type.map_or(0, NodeId::position),
+                u32::from(data.postfix),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocNullableType(data) => node.store::<2, false>(
+            [
+                data.r#type.map_or(0, NodeId::position),
+                u32::from(data.postfix),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocOptionalType(data) => node.store::<1, false>(
+            [data.r#type.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocOverloadTag(data) => node.store::<2, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.type_expression.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocOverrideTag(data) => node.store::<1, true>(
+            [data.tag_name.map_or(0, NodeId::position)],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocParameterTag(data) => node.store::<4, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.name.map_or(0, NodeId::position),
+                u32::from(data.is_name_first) | u32::from(data.is_bracketed) << 1,
+                data.type_expression.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocPrivateTag(data) => node.store::<1, true>(
+            [data.tag_name.map_or(0, NodeId::position)],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocPropertyTag(data) => node.store::<4, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.name.map_or(0, NodeId::position),
+                data.type_expression.map_or(0, NodeId::position),
+                u32::from(data.is_name_first) | u32::from(data.is_bracketed) << 1,
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocProtectedTag(data) => node.store::<1, true>(
+            [data.tag_name.map_or(0, NodeId::position)],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocPublicTag(data) => node.store::<1, true>(
+            [data.tag_name.map_or(0, NodeId::position)],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocReadonlyTag(data) => node.store::<1, true>(
+            [data.tag_name.map_or(0, NodeId::position)],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocReturnTag(data) => node.store::<2, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.type_expression.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocSatisfiesTag(data) => node.store::<2, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.type_expression.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocSeeTag(data) => node.store::<2, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.name.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocSignature(data) => node.store::<3, false>(
+            [
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocTag(data) => node.store::<1, true>(
+            [data.tag_name.map_or(0, NodeId::position)],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocTemplateTag(data) => node.store::<3, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.constraint.map_or(0, NodeId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocText(data) => node.store::<1, false>(
+            [data.text.position()],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocThisTag(data) => node.store::<2, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.type_expression.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocThrowsTag(data) => node.store::<2, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.type_expression.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocTypeExpression(data) => node.store::<1, false>(
+            [data.r#type.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocTypeLiteral(data) => node.store::<2, false>(
+            [
+                data.js_doc_property_tags.map_or(0, NodeArrayId::position),
+                u32::from(data.is_array_type),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocTypeTag(data) => node.store::<2, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.type_expression.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocTypedefTag(data) => node.store::<4, true>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.name.map_or(0, NodeId::position),
+                data.full_name.map_or(0, NodeId::position),
+                data.type_expression.map_or(0, NodeId::position),
+            ],
+            JSDocComment::words(data.comment.as_ref()),
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JSDocUnknownType(_) => {
+            node.store::<0, false>([], [0; 4], js_doc, tails, in_place, true)
+        }
+        NodeData::JSDocVariadicType(data) => node.store::<1, false>(
+            [data.r#type.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JsxAttribute(data) => node.store::<2, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.initializer.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JsxAttributes(data) => node.store::<1, false>(
+            [data.properties.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JsxClosingElement(data) => node.store::<1, false>(
+            [data.tag_name.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JsxElement(data) => node.store::<3, false>(
+            [
+                data.opening_element.map_or(0, NodeId::position),
+                data.children.map_or(0, NodeArrayId::position),
+                data.closing_element.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JsxExpression(data) => node.store::<2, false>(
+            [
+                data.dot_dot_dot_token.map_or(0, NodeId::position),
+                data.expression.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JsxFragment(data) => node.store::<3, false>(
+            [
+                data.opening_fragment.map_or(0, NodeId::position),
+                data.children.map_or(0, NodeArrayId::position),
+                data.closing_fragment.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JsxNamespacedName(data) => node.store::<2, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.namespace.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JsxOpeningElement(data) => node.store::<3, false>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.type_arguments.map_or(0, NodeArrayId::position),
+                data.attributes.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JsxSelfClosingElement(data) => node.store::<3, false>(
+            [
+                data.tag_name.map_or(0, NodeId::position),
+                data.type_arguments.map_or(0, NodeArrayId::position),
+                data.attributes.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JsxSpreadAttribute(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::JsxText(data) => node.store::<2, false>(
+            [
+                data.text.position(),
+                u32::from(data.contains_only_trivia_white_spaces),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::LabeledStatement(data) => node.store::<2, false>(
+            [
+                data.label.map_or(0, NodeId::position),
+                data.statement.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::LiteralType(data) => node.store::<1, false>(
+            [data.literal.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::MappedType(data) => node.store::<6, false>(
+            [
+                data.type_parameter.map_or(0, NodeId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.members.map_or(0, NodeArrayId::position),
+                data.readonly_token.map_or(0, NodeId::position),
+                data.name_type.map_or(0, NodeId::position),
+                data.question_token.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::MetaProperty(data) => node.store::<2, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                (data.keyword_token as u32) << 16,
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::MethodDeclaration(data) => node.store::<9, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.body.map_or(0, NodeId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.asterisk_token.map_or(0, NodeId::position),
+                data.question_token.map_or(0, NodeId::position),
+                data.exclamation_token.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::MethodSignature(data) => node.store::<6, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.question_token.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::MissingDeclaration(data) => node.store::<1, false>(
+            [data.modifiers.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ModuleBlock(data) => node.store::<1, false>(
+            [data.statements.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ModuleDeclaration(data) => node.store::<4, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.body.map_or(0, NodeId::position),
+                data.attributes.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::NamedExports(data) => node.store::<1, false>(
+            [data.elements.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::NamedImports(data) => node.store::<1, false>(
+            [data.elements.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::NamedTupleMember(data) => node.store::<4, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.question_token.map_or(0, NodeId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.dot_dot_dot_token.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::NamespaceExport(data) => node.store::<1, false>(
+            [data.name.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::NamespaceExportDeclaration(data) => node.store::<2, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::NamespaceImport(data) => node.store::<1, false>(
+            [data.name.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::NewExpression(data) => node.store::<4, false>(
+            [
+                data.expression.map_or(0, NodeId::position),
+                data.type_arguments.map_or(0, NodeArrayId::position),
+                data.arguments.map_or(0, NodeArrayId::position),
+                data.question_dot_token.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::NoSubstitutionTemplateLiteral(data) => node.store::<2, false>(
+            [
+                data.text.position(),
+                data.raw_text.map_or(0, TextId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::NonNullExpression(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::NotEmittedStatement(_) => {
+            node.store::<0, false>([], [0; 4], js_doc, tails, in_place, true)
+        }
+        NodeData::NumericLiteral(data) => node.store::<1, false>(
+            [data.text.position()],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ObjectBindingPattern(data) => node.store::<1, false>(
+            [data.elements.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ObjectLiteralExpression(data) => node.store::<1, false>(
+            [data.properties.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::OmittedExpression(_) => {
+            node.store::<0, false>([], [0; 4], js_doc, tails, in_place, true)
+        }
+        NodeData::OptionalType(data) => node.store::<1, false>(
+            [data.r#type.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::Parameter(data) => node.store::<6, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.dot_dot_dot_token.map_or(0, NodeId::position),
+                data.question_token.map_or(0, NodeId::position),
+                data.initializer.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ParenthesizedExpression(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ParenthesizedType(data) => node.store::<1, false>(
+            [data.r#type.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::PartiallyEmittedExpression(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::PostfixUnaryExpression(data) => node.store::<2, false>(
+            [
+                data.operand.map_or(0, NodeId::position),
+                (data.operator as u32) << 16,
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::PrefixUnaryExpression(data) => node.store::<2, false>(
+            [
+                data.operand.map_or(0, NodeId::position),
+                (data.operator as u32) << 16,
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::PrivateIdentifier(data) => node.store::<1, false>(
+            [data.escaped_text.index()],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::PropertyAccessExpression(data) => node.store::<3, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.expression.map_or(0, NodeId::position),
+                data.question_dot_token.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::PropertyAssignment(data) => node.store::<5, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.initializer.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.question_token.map_or(0, NodeId::position),
+                data.exclamation_token.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::PropertyDeclaration(data) => node.store::<6, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.initializer.map_or(0, NodeId::position),
+                data.question_token.map_or(0, NodeId::position),
+                data.exclamation_token.map_or(0, NodeId::position),
+                data.r#type.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::PropertySignature(data) => node.store::<5, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.question_token.map_or(0, NodeId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.initializer.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::QualifiedName(data) => node.store::<2, false>(
+            [
+                data.left.map_or(0, NodeId::position),
+                data.right.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::RegularExpressionLiteral(data) => node.store::<1, false>(
+            [data.text.position()],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::RestType(data) => node.store::<1, false>(
+            [data.r#type.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ReturnStatement(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::SatisfiesExpression(data) => node.store::<2, false>(
+            [
+                data.expression.map_or(0, NodeId::position),
+                data.r#type.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::SetAccessor(data) => node.store::<6, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.parameters.map_or(0, NodeArrayId::position),
+                data.body.map_or(0, NodeId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ShorthandPropertyAssignment(data) => node.store::<6, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.equals_token.map_or(0, NodeId::position),
+                data.object_assignment_initializer
+                    .map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.question_token.map_or(0, NodeId::position),
+                data.exclamation_token.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::SourceFile(data) => node.store::<2, false>(
+            [
+                data.statements.map_or(0, NodeArrayId::position),
+                data.end_of_file_token.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::SpreadAssignment(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::SpreadElement(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::StringLiteral(data) => node.store::<1, false>(
+            [data.text.position()],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::SwitchStatement(data) => node.store::<2, false>(
+            [
+                data.expression.map_or(0, NodeId::position),
+                data.case_block.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::SyntaxList(_) => {
+            node.store::<0, false>([], [0; 4], js_doc, tails, in_place, true)
+        }
+        NodeData::TaggedTemplateExpression(data) => node.store::<4, false>(
+            [
+                data.tag.map_or(0, NodeId::position),
+                data.type_arguments.map_or(0, NodeArrayId::position),
+                data.template.map_or(0, NodeId::position),
+                data.question_dot_token.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TemplateExpression(data) => node.store::<2, false>(
+            [
+                data.head.map_or(0, NodeId::position),
+                data.template_spans.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TemplateHead(data) => node.store::<2, false>(
+            [
+                data.text.position(),
+                data.raw_text.map_or(0, TextId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TemplateLiteralType(data) => node.store::<2, false>(
+            [
+                data.head.map_or(0, NodeId::position),
+                data.template_spans.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TemplateLiteralTypeSpan(data) => node.store::<2, false>(
+            [
+                data.r#type.map_or(0, NodeId::position),
+                data.literal.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TemplateMiddle(data) => node.store::<2, false>(
+            [
+                data.text.position(),
+                data.raw_text.map_or(0, TextId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TemplateSpan(data) => node.store::<2, false>(
+            [
+                data.expression.map_or(0, NodeId::position),
+                data.literal.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TemplateTail(data) => node.store::<2, false>(
+            [
+                data.text.position(),
+                data.raw_text.map_or(0, TextId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::ThrowStatement(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TryStatement(data) => node.store::<3, false>(
+            [
+                data.try_block.map_or(0, NodeId::position),
+                data.catch_clause.map_or(0, NodeId::position),
+                data.finally_block.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TupleType(data) => node.store::<1, false>(
+            [data.elements.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TypeAliasDeclaration(data) => node.store::<4, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.type_parameters.map_or(0, NodeArrayId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TypeAssertionExpression(data) => node.store::<2, false>(
+            [
+                data.r#type.map_or(0, NodeId::position),
+                data.expression.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TypeLiteral(data) => node.store::<1, false>(
+            [data.members.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TypeOfExpression(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TypeOperator(data) => node.store::<2, false>(
+            [
+                data.r#type.map_or(0, NodeId::position),
+                (data.operator as u32) << 16,
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TypeParameter(data) => node.store::<5, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.constraint.map_or(0, NodeId::position),
+                data.r#default.map_or(0, NodeId::position),
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.expression.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TypePredicate(data) => node.store::<3, false>(
+            [
+                data.asserts_modifier.map_or(0, NodeId::position),
+                data.parameter_name.map_or(0, NodeId::position),
+                data.r#type.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TypeQuery(data) => node.store::<2, false>(
+            [
+                data.type_arguments.map_or(0, NodeArrayId::position),
+                data.expr_name.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::TypeReference(data) => node.store::<2, false>(
+            [
+                data.type_arguments.map_or(0, NodeArrayId::position),
+                data.type_name.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::UnionType(data) => node.store::<1, false>(
+            [data.types.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::VariableDeclaration(data) => node.store::<4, false>(
+            [
+                data.name.map_or(0, NodeId::position),
+                data.r#type.map_or(0, NodeId::position),
+                data.initializer.map_or(0, NodeId::position),
+                data.exclamation_token.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::VariableDeclarationList(data) => node.store::<1, false>(
+            [data.declarations.map_or(0, NodeArrayId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::VariableStatement(data) => node.store::<2, false>(
+            [
+                data.modifiers.map_or(0, NodeArrayId::position),
+                data.declaration_list.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::VoidExpression(data) => node.store::<1, false>(
+            [data.expression.map_or(0, NodeId::position)],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::WhileStatement(data) => node.store::<2, false>(
+            [
+                data.statement.map_or(0, NodeId::position),
+                data.expression.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::WithStatement(data) => node.store::<2, false>(
+            [
+                data.expression.map_or(0, NodeId::position),
+                data.statement.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+        NodeData::YieldExpression(data) => node.store::<2, false>(
+            [
+                data.asterisk_token.map_or(0, NodeId::position),
+                data.expression.map_or(0, NodeId::position),
+            ],
+            [0; 4],
+            js_doc,
+            tails,
+            in_place,
+            true,
+        ),
+    }
 }
 
 impl Node {
     /// The node's payload, decoded from its words (and its tail): a jump on the
     /// kind into the kind's decoder. A reader of one kind reads it with
-    /// `as_<kind>()`, which decodes that kind alone.
-    #[inline]
+    /// `as_<kind>()`, which decodes that kind alone. Always inlined: a caller's
+    /// `match` on the result then reads only the kinds it names.
+    #[inline(always)]
     pub fn data(&self) -> NodeData {
         match self.kind {
             SyntaxKind::ArrayBindingPattern => {

@@ -67,6 +67,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: typed arena projection for tsc's direct node
     /// payload access.
+    #[inline(always)]
     pub(crate) fn data_of(&self, node: NodeId) -> NodeData {
         self.binder.node_record(node).data()
     }
@@ -74,7 +75,7 @@ impl<'a> CheckerState<'a> {
     /// The record of `node`, for reading one kind's payload with
     /// `record_of(node).as_<kind>()` (no full decode) or one shared field
     /// with `record_of(node).<field>_field()`.
-    #[inline]
+    #[inline(always)]
     pub(crate) fn record_of(&self, node: NodeId) -> &'a tsc_syntax::Node {
         self.binder.node_record(node)
     }

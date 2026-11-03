@@ -90,6 +90,7 @@ impl InlayHints<'_, '_, '_, '_> {
         self.request.state.binder.node_record(node).kind
     }
 
+    #[inline(always)]
     fn data(&self, node: NodeId) -> NodeData {
         self.request.state.binder.node_record(node).data()
     }

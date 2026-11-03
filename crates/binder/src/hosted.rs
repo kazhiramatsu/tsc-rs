@@ -225,6 +225,7 @@ impl Reparser<'_, '_> {
         kind_of(self.source, node)
     }
 
+    #[inline(always)]
     fn data(&self, node: NodeId) -> NodeData {
         self.source.arena.node(node).data()
     }

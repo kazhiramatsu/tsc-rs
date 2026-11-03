@@ -655,7 +655,7 @@ impl Node {
 
     /// tsc's internal Node.jsDoc attachment; not an ordinary forEachChild
     /// edge.
-    #[inline]
+    #[inline(always)]
     pub fn js_doc(&self) -> Option<NodeArrayId> {
         let (slots, _) = payload_shape(self.kind);
         let word = if self.literal_flags & HAS_TAIL == 0 {
@@ -690,20 +690,35 @@ impl Node {
             self.kind,
             data.kind()
         );
-        let (slots, comment) = encode_slots(data);
-        let (count, has_comment) = payload_shape(self.kind);
-        let js_doc = js_doc.map_or(0, NodeArrayId::position);
-        let spills = slots[count.min(3)..count].iter().any(|&word| word != 0)
-            || comment != [0; 4]
-            || (count >= 3 && js_doc != 0);
+        encode_payload(self, data, js_doc.map_or(0, NodeArrayId::position), tails, in_place);
+    }
+
+    /// Store a payload of `N` slots (and a JSDoc comment when `COMMENT`) with
+    /// the JSDoc attachment `js_doc` (see [`Node`]): the generated
+    /// `encode_payload` calls it with each kind's constants, so the spill
+    /// test and the copies are specialized per kind.
+    #[inline(always)]
+    fn store<const N: usize, const COMMENT: bool>(
+        &mut self,
+        slots: [u32; N],
+        comment: [u32; 4],
+        js_doc: u32,
+        tails: &mut tsc_store::tails::Tails,
+        in_place: bool,
+        payload: bool,
+    ) {
+        let spills = slots.iter().skip(3).any(|&word| word != 0)
+            || (COMMENT && comment != [0; 4])
+            || (N >= 3 && js_doc != 0);
         if !spills {
             let mut words = [0u32; 3];
-            let inline = count.min(3);
-            words[..inline].copy_from_slice(&slots[..inline]);
-            if count < 3 {
-                words[count] = js_doc;
+            for (word, &slot) in words.iter_mut().zip(slots.iter()) {
+                *word = slot;
             }
-            if count == 0 && data.kind().is_some() {
+            if N < 3 {
+                words[N.min(2)] = js_doc;
+            }
+            if N == 0 && payload {
                 words[2] = EMPTY_PAYLOAD;
             }
             // A tail the record had stays unused in its tree's chunks.
@@ -711,13 +726,13 @@ impl Node {
             self.literal_flags &= !HAS_TAIL;
             return;
         }
-        let at = count.saturating_sub(2);
+        let at = N.saturating_sub(2);
         let mut tail = [0u32; MAX_TAIL_WORDS];
-        if count > 2 {
-            tail[..at].copy_from_slice(&slots[2..count]);
+        for (word, &slot) in tail.iter_mut().zip(slots.iter().skip(2)) {
+            *word = slot;
         }
         tail[at] = js_doc;
-        let len = if has_comment {
+        let len = if COMMENT {
             tail[at + 1..at + 5].copy_from_slice(&comment);
             at + 5
         } else {
@@ -729,7 +744,11 @@ impl Node {
         } else {
             tails.push(&tail[..len])
         };
-        self.words = [position, slots[0], slots[1]];
+        self.words = [
+            position,
+            slots.first().copied().unwrap_or(0),
+            slots.get(1).copied().unwrap_or(0),
+        ];
         self.literal_flags |= HAS_TAIL;
     }
 
@@ -986,12 +1005,9 @@ def render_payload_codec(kinds):
     """`payload_shape`, `encode_slots` and `Node::data`: a kind's slots in
     record order (`Kind.slots`), its JSDoc comment in the tail."""
     out = []
-    max_slots = max(len(kind.slots()) for kind in kinds)
     max_tail = max(
         max(len(kind.slots()) - 2, 0) + 1 + (4 if kind.comment_field() else 0) for kind in kinds
     )
-    out.append(f"/// The most payload slots a kind has.")
-    out.append(f"const MAX_SLOTS: usize = {max_slots};")
     out.append(f"/// The longest tail: the slots past the second, the JSDoc attachment and a comment.")
     out.append(f"const MAX_TAIL_WORDS: usize = {max_tail};")
     out.append("")
@@ -1021,34 +1037,39 @@ def render_payload_codec(kinds):
         arms = " | ".join(f"SyntaxKind::{name}" for name in names)
         out.append(f"{arms} => &[{', '.join(row)}],")
     out += ["_ => &[],", "}", "}", ""]
-    out.append("/// The slot words and the comment words of a payload.")
-    out.append("fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {")
-    out.append("let mut s = [0u32; MAX_SLOTS];")
-    out.append("let comment = match data {")
-    out.append("NodeData::Token => [0; 4],")
+    out.append("/// Write a payload into `node` (see `Node::encode`): a jump on the variant into")
+    out.append("/// `Node::store` with the kind's slot count.")
+    out.append("#[inline]")
+    out.append(
+        "fn encode_payload(node: &mut Node, data: &NodeData, js_doc: u32, "
+        "tails: &mut tsc_store::tails::Tails, in_place: bool) {"
+    )
+    out.append("match data {")
+    out.append("NodeData::Token => node.store::<0, false>([], [0; 4], js_doc, tails, in_place, false),")
     for kind in kinds:
         slots = kind.slots()
         comment = kind.comment_field()
-        if not slots and not comment:
-            out.append(f"NodeData::{kind.name}(_) => [0; 4],")
-            continue
-        out.append(f"NodeData::{kind.name}(data) => {{")
-        for index, slot in enumerate(slots):
-            out.append(f"s[{index}] = {encode_slot(kind, slot)};")
+        binding = "data" if (slots or comment) else "_"
+        words = ", ".join(encode_slot(kind, slot) for slot in slots)
         if comment is None:
-            out.append("[0; 4]")
+            comment_words = "[0; 4]"
         elif comment.rust_optional:
-            out.append(f"JSDocComment::words(data.{comment.rust_name}.as_ref())")
+            comment_words = f"JSDocComment::words(data.{comment.rust_name}.as_ref())"
         else:
-            out.append(f"JSDocComment::words(Some(&data.{comment.rust_name}))")
-        out.append("}")
-    out += ["};", "(s, comment)", "}", ""]
+            comment_words = f"JSDocComment::words(Some(&data.{comment.rust_name}))"
+        has_comment = "true" if comment else "false"
+        out.append(
+            f"NodeData::{kind.name}({binding}) => node.store::<{len(slots)}, {has_comment}>("
+            f"[{words}], {comment_words}, js_doc, tails, in_place, true),"
+        )
+    out += ["}", "}", ""]
 
     out.append("impl Node {")
     out.append("/// The node's payload, decoded from its words (and its tail): a jump on the")
     out.append("/// kind into the kind's decoder. A reader of one kind reads it with")
-    out.append("/// `as_<kind>()`, which decodes that kind alone.")
-    out.append("#[inline]")
+    out.append("/// `as_<kind>()`, which decodes that kind alone. Always inlined: a caller's")
+    out.append("/// `match` on the result then reads only the kinds it names.")
+    out.append("#[inline(always)]")
     out.append("pub fn data(&self) -> NodeData {")
     out.append("match self.kind {")
     for kind in kinds:
