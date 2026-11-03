@@ -1,0 +1,102 @@
+{
+  "layout": 1,
+  "about": [
+    "Today's Rust layout of the syntax tree's records: what nodes.schema.json (the field schema) does not say",
+    "and scripts/generate_nodes.py needs to render nodes.rs, for_each_child.rs, relocate.rs and",
+    "observable_fields.rs. Every entry carries a one-line reason ('why')."
+  ],
+  "record": {
+    "nodeBytes": 48,
+    "nodeDataBytes": 24,
+    "inlinePayloadBytes": 20,
+    "why": "Node = 24 B header + 24 B NodeData (1 B tag, payload at offset 4); a payload over 20 B or with 8-byte alignment is boxed"
+  },
+  "boxed": [
+    {
+      "why": "a JSDocComment (est. 40 B) or a text (24 B) does not fit the 20 B inline payload",
+      "kinds": [
+        "JSDoc", "JSDocAugmentsTag", "JSDocAuthorTag", "JSDocCallbackTag", "JSDocClassTag", "JSDocDeprecatedTag",
+        "JSDocEnumTag", "JSDocImplementsTag", "JSDocImportTag", "JSDocLink", "JSDocLinkCode", "JSDocLinkPlain",
+        "JSDocOverloadTag", "JSDocOverrideTag", "JSDocParameterTag", "JSDocPrivateTag", "JSDocPropertyTag",
+        "JSDocProtectedTag", "JSDocPublicTag", "JSDocReadonlyTag", "JSDocReturnTag", "JSDocSatisfiesTag",
+        "JSDocSeeTag", "JSDocTag", "JSDocTemplateTag", "JSDocText", "JSDocThisTag", "JSDocThrowsTag",
+        "JSDocTypeTag", "JSDocTypedefTag"
+      ]
+    },
+    {
+      "why": "a literal's text (24 B, 8-byte aligned) does not fit the 20 B inline payload",
+      "kinds": [
+        "BigIntLiteral", "JsxText", "NoSubstitutionTemplateLiteral", "NumericLiteral", "RegularExpressionLiteral",
+        "StringLiteral", "TemplateHead", "TemplateMiddle", "TemplateTail"
+      ]
+    },
+    {
+      "why": "six or more child slots (24 B or more) do not fit the 20 B inline payload",
+      "kinds": [
+        "ArrowFunction", "Constructor", "FunctionDeclaration", "FunctionExpression", "GetAccessor", "MappedType",
+        "MethodDeclaration", "MethodSignature", "Parameter", "PropertyDeclaration", "SetAccessor",
+        "ShorthandPropertyAssignment"
+      ]
+    },
+    {
+      "why": "boxed with the text literals by f6fde16e6; the payload is zero-sized, so the Box never allocates",
+      "kinds": ["NotEmittedStatement"]
+    }
+  ],
+  "stringTypes": {
+    "JsString": {
+      "why": "string literal values hold arbitrary UTF-16 (lone surrogates); numeric, raw and identifier texts stay UTF-8",
+      "fields": [
+        "NoSubstitutionTemplateLiteral.text", "StringLiteral.text", "TemplateHead.text", "TemplateMiddle.text",
+        "TemplateTail.text"
+      ]
+    },
+    "EscapedName": {
+      "why": "an identifier's escaped text is the interned name the binder keys its tables by, at the size of an id",
+      "fields": ["Identifier.escapedText", "PrivateIdentifier.escapedText"]
+    }
+  },
+  "rustOptional": {
+    "JSDocNamepathType.type": "the JSDoc parser creates JSDocNamepathType(undefined) while recovering, though the d.ts says required"
+  },
+  "visitOrder": {
+    "JSDocParameterTag": {
+      "swap": ["name", "typeExpression"],
+      "when": "isNameFirst",
+      "why": "tsc visits name before typeExpression only when isNameFirst"
+    },
+    "JSDocPropertyTag": {
+      "swap": ["name", "typeExpression"],
+      "when": "isNameFirst",
+      "why": "tsc visits name before typeExpression only when isNameFirst"
+    },
+    "JSDocTypedefTag": {
+      "swap": ["typeExpression", "fullName"],
+      "when": "typeExpressionIsJSDocTypeExpression",
+      "why": "tsc visits typeExpression before fullName only when it is a JSDocTypeExpression"
+    }
+  },
+  "headerObservables": [
+    {
+      "kind": "RegularExpressionLiteral",
+      "name": "isUnterminated",
+      "accessor": "is_unterminated",
+      "why": "kept in the header's literal_flags, not in the payload"
+    },
+    {
+      "kind": "StringLiteral",
+      "name": "hasExtendedUnicodeEscape",
+      "accessor": "has_extended_unicode_escape",
+      "why": "kept in the header's literal_flags, not in the payload"
+    }
+  ],
+  "equalitySkips": {
+    "ModuleDeclaration.attributes": "2517f726b added the field by hand but not to node_data_structurally_equal; kept as is (a fix candidate)"
+  },
+  "fieldDocs": {
+    "ModuleDeclaration.attributes": [
+      "TypeScript 7.1's import attributes type of an ambient module",
+      "(`declare module \"*.css\" with { type: \"css\" }`): a TypeLiteral."
+    ]
+  }
+}
