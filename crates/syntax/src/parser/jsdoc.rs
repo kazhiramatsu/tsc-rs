@@ -291,7 +291,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 SyntaxKind::WhitespaceTrivia | SyntaxKind::NewLineTrivia
             )
         {
-            indent_text.push_str(&self.token_text());
+            indent_text.push_str(self.token_text());
             match self.token() {
                 SyntaxKind::NewLineTrivia => {
                     preceding_line_break = true;
@@ -447,21 +447,21 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     } else {
                         // The first asterisk on a line is ignored.
                         state = CommentState::SawAsterisk;
-                        indent += Self::text_len(&asterisk);
+                        indent += Self::text_len(asterisk);
                     }
                 }
                 SyntaxKind::WhitespaceTrivia => {
                     let whitespace = self.token_text();
                     if let Some(margin) = margin {
-                        let whitespace_len = Self::text_len(&whitespace);
+                        let whitespace_len = Self::text_len(whitespace);
                         if indent + whitespace_len > margin {
                             comments.push(Cow::Owned(Self::slice_indent(
-                                &whitespace,
+                                whitespace,
                                 margin as isize - indent as isize,
                             )));
                         }
                     }
-                    indent += Self::text_len(&whitespace);
+                    indent += Self::text_len(whitespace);
                 }
                 SyntaxKind::EndOfFileToken => break,
                 SyntaxKind::JSDocCommentTextToken => {
@@ -625,12 +625,12 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 SyntaxKind::EndOfFileToken => break,
                 SyntaxKind::WhitespaceTrivia => {
                     let whitespace = self.token_text();
-                    let whitespace_len = Self::text_len(&whitespace);
+                    let whitespace_len = Self::text_len(whitespace);
                     // Whitespace crossing the margin keeps the part past it.
                     if let Some(margin) = margin.filter(|&margin| indent + whitespace_len > margin)
                     {
                         comments.push(Cow::Owned(Self::slice_indent(
-                            &whitespace,
+                            whitespace,
                             margin.saturating_sub(indent) as isize,
                         )));
                         state = text_state;
@@ -764,7 +764,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             self.token(),
             SyntaxKind::CloseBraceToken | SyntaxKind::NewLineTrivia | SyntaxKind::EndOfFileToken
         ) {
-            text.push_str(&self.token_text());
+            text.push_str(self.token_text());
             self.next_token_jsdoc();
         }
         let end = self.token_end();
