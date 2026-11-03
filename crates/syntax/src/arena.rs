@@ -1064,6 +1064,7 @@ impl NodeLookup for NodeArena {
         self.node(id)
     }
 
+    #[inline]
     fn node_array(&self, id: NodeArrayId) -> NodeArray<'_> {
         self.node_array(id)
     }

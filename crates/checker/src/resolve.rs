@@ -41,12 +41,19 @@ enum LookupInput {
 
 impl LookupInput {
     /// tsrs-native: borrow-splitting input for createNameResolver lookups.
+    #[inline]
     fn new(table: Option<&SymbolTable>, name: EscapedName, suggestion: bool) -> Self {
         if suggestion {
-            Self::Snapshot(table.cloned().unwrap_or_default())
+            Self::snapshot(table)
         } else {
             Self::Symbol(table.and_then(|table| table.get(name)).copied())
         }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn snapshot(table: Option<&SymbolTable>) -> Self {
+        Self::Snapshot(table.cloned().unwrap_or_default())
     }
 }
 
@@ -136,6 +143,18 @@ impl<'a> CheckerState<'a> {
             }
             LookupInput::Snapshot(table) => table,
         };
+        self.lookup_suggestion(table, name, meaning, is_globals)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn lookup_suggestion(
+        &mut self,
+        table: SymbolTable,
+        name: EscapedName,
+        meaning: SymbolFlags,
+        is_globals: bool,
+    ) -> CheckResult<LookupProbe> {
         if let Some(found) = self.get_symbol_in_table(&table, name, meaning)? {
             return Ok(LookupProbe::Found(found));
         }
@@ -174,24 +193,33 @@ impl<'a> CheckerState<'a> {
             LookupProbe::Suggest {
                 values,
                 capitalized_primitives,
-            } => {
-                let mut candidates =
-                    Vec::with_capacity(values.len() + capitalized_primitives.len());
-                for primitive in capitalized_primitives {
-                    candidates.push(self.binder.create_symbol(
-                        SymbolFlags::TYPE_ALIAS,
-                        tsc_types::EscapedName::from_identifier_escaped_text(primitive),
-                    ));
-                }
-                candidates.extend(values);
-                self.sort_symbols_if_stable(&mut candidates);
-                self.get_spelling_suggestion_for_name(
-                    tsc_binder::unescape_leading_underscores(name),
-                    &candidates,
-                    meaning,
-                )
-            }
+            } => self.finish_suggestion(values, capitalized_primitives, name, meaning),
         }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn finish_suggestion(
+        &mut self,
+        values: Vec<SymbolId>,
+        capitalized_primitives: Vec<&'static str>,
+        name: EscapedName,
+        meaning: SymbolFlags,
+    ) -> Option<SymbolId> {
+        let mut candidates = Vec::with_capacity(values.len() + capitalized_primitives.len());
+        for primitive in capitalized_primitives {
+            candidates.push(self.binder.create_symbol(
+                SymbolFlags::TYPE_ALIAS,
+                tsc_types::EscapedName::from_identifier_escaped_text(primitive),
+            ));
+        }
+        candidates.extend(values);
+        self.sort_symbols_if_stable(&mut candidates);
+        self.get_spelling_suggestion_for_name(
+            tsc_binder::unescape_leading_underscores(name),
+            &candidates,
+            meaning,
+        )
     }
 
     /// tsc-port: resolveNameHelper @6.0.3
@@ -920,15 +948,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             match result {
-                None => {
-                    let message = match message {
-                        NameNotFoundMessage::Message(message) => message,
-                        NameNotFoundMessage::ForName(node) => {
-                            self.cannot_find_name_diagnostic_for_name(node)
-                        }
-                    };
-                    self.on_failed_to_resolve_symbol(original_location, name, meaning, message)
-                }
+                None => self.report_unresolved_name(original_location, name, meaning, message),
                 Some(found) => {
                     self.on_successfully_resolved_symbol(
                         original_location,
@@ -944,6 +964,25 @@ impl<'a> CheckerState<'a> {
         Ok(result)
     }
 
+    /// Construct the selected missing-name diagnostic only after the
+    /// scope/global probes and invalid-initializer check have finished.
+    #[cold]
+    #[inline(never)]
+    fn report_unresolved_name(
+        &mut self,
+        original_location: Option<NodeId>,
+        name: EscapedName,
+        meaning: SymbolFlags,
+        message: NameNotFoundMessage,
+    ) {
+        let message = match message {
+            NameNotFoundMessage::Message(message) => message,
+            NameNotFoundMessage::ForName(node) => self.cannot_find_name_diagnostic_for_name(node),
+        };
+        self.on_failed_to_resolve_symbol(original_location, name, meaning, message)
+    }
+
+    #[inline]
     fn advance_walk(
         &self,
         last_location: &mut Option<NodeId>,
@@ -955,6 +994,25 @@ impl<'a> CheckerState<'a> {
             *last_self_reference_location = Some(loc);
         }
         *last_location = Some(loc);
+        match self.kind_of(loc) {
+            SyntaxKind::JSDocTemplateTag
+            | SyntaxKind::JSDocParameterTag
+            | SyntaxKind::JSDocReturnTag
+            | SyntaxKind::JSDoc => self.advance_jsdoc_walk(last_location, previous, loc),
+            _ => self.parent_of(loc),
+        }
+    }
+
+    /// Hosted JSDoc scope transitions of the same walk, including the
+    /// overload host's replacement of `last_location`.
+    #[cold]
+    #[inline(never)]
+    fn advance_jsdoc_walk(
+        &self,
+        last_location: &mut Option<NodeId>,
+        previous: Option<NodeId>,
+        loc: NodeId,
+    ) -> Option<NodeId> {
         match self.kind_of(loc) {
             SyntaxKind::JSDocTemplateTag => self
                 .effective_container_for_jsdoc_template_tag(loc)
