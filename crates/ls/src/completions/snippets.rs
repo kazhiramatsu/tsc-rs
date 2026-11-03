@@ -946,7 +946,10 @@ fn type_node_to_expression(
             };
             match tracker.arena().node(literal)?.data().clone() {
                 NodeData::StringLiteral(text) => {
-                    let text = tracker.arena().text_js(literal.source(), text.text)?.to_owned();
+                    let text = tracker
+                        .arena()
+                        .text_js(literal.source(), text.text)?
+                        .to_owned();
                     tracker
                         .arena()
                         .factory()

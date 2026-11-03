@@ -3990,7 +3990,9 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::NoSubstitutionTemplateLiteral | SyntaxKind::StringLiteral => {
                 let text_empty = match self.data_of(node) {
                     NodeData::StringLiteral(data) => self.text_js(data.text).is_empty(),
-                    NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text).is_empty(),
+                    NodeData::NoSubstitutionTemplateLiteral(data) => {
+                        self.text_js(data.text).is_empty()
+                    }
                     _ => unreachable!("kind/data agree"),
                 };
                 if text_empty {

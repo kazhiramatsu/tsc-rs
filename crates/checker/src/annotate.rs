@@ -599,7 +599,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::TemplateHead(head_data) = self.data_of(head) else {
             unreachable!("kind/data agree");
         };
-        let mut texts = vec![tsc_types::TemplateText::from_js(self.text_js(head_data.text))];
+        let mut texts = vec![tsc_types::TemplateText::from_js(
+            self.text_js(head_data.text),
+        )];
         let mut types = Vec::with_capacity(spans.len());
         for span in spans {
             let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span) else {

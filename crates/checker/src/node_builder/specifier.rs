@@ -1468,7 +1468,9 @@ fn literal_text_in_source<'a>(
 ) -> Option<JsStr<'a>> {
     match state.binder.source(file_index).arena.node(literal).data() {
         NodeData::StringLiteral(data) => Some(crate::annotate::published_text_js(data.text)),
-        NodeData::NoSubstitutionTemplateLiteral(data) => Some(crate::annotate::published_text_js(data.text)),
+        NodeData::NoSubstitutionTemplateLiteral(data) => {
+            Some(crate::annotate::published_text_js(data.text))
+        }
         _ => None,
     }
 }
@@ -4643,7 +4645,9 @@ pub(crate) fn get_module_name_string_literal_at(
 fn literal_text<'a>(state: &'a CheckerState<'_>, node: NodeId) -> Option<JsStr<'a>> {
     match state.data_of(node) {
         NodeData::StringLiteral(data) => Some(crate::annotate::published_text_js(data.text)),
-        NodeData::NoSubstitutionTemplateLiteral(data) => Some(crate::annotate::published_text_js(data.text)),
+        NodeData::NoSubstitutionTemplateLiteral(data) => {
+            Some(crate::annotate::published_text_js(data.text))
+        }
         _ => None,
     }
 }

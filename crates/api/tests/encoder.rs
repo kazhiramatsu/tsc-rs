@@ -234,9 +234,11 @@ fn module_references_follow_tsgo_parser() {
     let texts = |file: &tsc_syntax::SourceFile, ids: &[tsc_syntax::NodeId]| -> Vec<String> {
         ids.iter()
             .map(|&id| match file.arena.node(id).data() {
-                NodeData::StringLiteral(literal) => {
-                    file.arena.text_js(literal.text).to_string_lossy().into_owned()
-                }
+                NodeData::StringLiteral(literal) => file
+                    .arena
+                    .text_js(literal.text)
+                    .to_string_lossy()
+                    .into_owned(),
                 NodeData::Identifier(identifier) => identifier
                     .escaped_text
                     .unescape()

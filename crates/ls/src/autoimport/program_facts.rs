@@ -113,7 +113,11 @@ fn collect_package_names(state: &CheckerState<'_>, prepared: &PreparedProgram) -
             else {
                 continue;
             };
-            let text = source.arena.text_js(literal.text).to_string_lossy().into_owned();
+            let text = source
+                .arena
+                .text_js(literal.text)
+                .to_string_lossy()
+                .into_owned();
             let parent = source.arena.node(import).parent;
             if parent.is_some_and(|parent| {
                 tsc_syntax::utilities::is_source_phase_import(&source.arena, parent)

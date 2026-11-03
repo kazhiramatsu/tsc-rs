@@ -517,7 +517,8 @@ fn literals_keep_the_facts_tsgo_prints_from() {
         panic!("a template head");
     };
     assert_eq!(
-        head.raw_text.map(|raw| tree.source_file.arena.text_utf8(raw)),
+        head.raw_text
+            .map(|raw| tree.source_file.arena.text_utf8(raw)),
         Some("a")
     );
 }

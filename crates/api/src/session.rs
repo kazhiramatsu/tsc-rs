@@ -2561,12 +2561,20 @@ fn literal_text(source: &tsc_syntax::SourceFile, node: NodeId) -> Option<String>
         return None;
     }
     match source.arena.node(node).data() {
-        NodeData::StringLiteral(literal) => {
-            Some(source.arena.text_js(literal.text).to_string_lossy().into_owned())
-        }
-        NodeData::NoSubstitutionTemplateLiteral(literal) => {
-            Some(source.arena.text_js(literal.text).to_string_lossy().into_owned())
-        }
+        NodeData::StringLiteral(literal) => Some(
+            source
+                .arena
+                .text_js(literal.text)
+                .to_string_lossy()
+                .into_owned(),
+        ),
+        NodeData::NoSubstitutionTemplateLiteral(literal) => Some(
+            source
+                .arena
+                .text_js(literal.text)
+                .to_string_lossy()
+                .into_owned(),
+        ),
         _ => None,
     }
 }

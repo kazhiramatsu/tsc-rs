@@ -2505,9 +2505,11 @@ fn identifier_text(file: &SourceFile, node: NodeId) -> String {
 fn property_name_text(file: &SourceFile, node: NodeId) -> String {
     match file.arena.node(node).data() {
         NodeData::Identifier(identifier) => identifier.text().to_owned(),
-        NodeData::StringLiteral(literal) => {
-                file.arena.text_js(literal.text).to_string_lossy().into_owned()
-            }
+        NodeData::StringLiteral(literal) => file
+            .arena
+            .text_js(literal.text)
+            .to_string_lossy()
+            .into_owned(),
         NodeData::NumericLiteral(literal) => file.arena.text_utf8(literal.text).to_owned(),
         _ => String::new(),
     }

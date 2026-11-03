@@ -13207,7 +13207,9 @@ impl<'a> CheckerState<'a> {
                     &quote.to_string(),
                 ]))
             }
-            NodeData::NumericLiteral(data) => Ok(tsc_types::JsString::from(self.text_utf8(data.text))),
+            NodeData::NumericLiteral(data) => {
+                Ok(tsc_types::JsString::from(self.text_utf8(data.text)))
+            }
             // getLiteralText's BigIntLiteral arm emits the cloned
             // node's scanner-cooked text verbatim (hex remains hex;
             // binary/octal are already normalized by the scanner).
@@ -13583,7 +13585,9 @@ impl<'a> CheckerState<'a> {
             NodeData::StringLiteral(data) => {
                 string_literal_name(self.text_js(data.text), false).map(JsString::from)
             }
-            NodeData::NumericLiteral(data) => Ok(tsc_types::JsString::from(self.text_utf8(data.text))),
+            NodeData::NumericLiteral(data) => {
+                Ok(tsc_types::JsString::from(self.text_utf8(data.text)))
+            }
             NodeData::ComputedPropertyName(data) => {
                 let expression = data
                     .expression

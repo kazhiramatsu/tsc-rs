@@ -1287,7 +1287,9 @@ impl CheckerState<'_> {
     /// `node.Text()` of a string, numeric or template literal.
     fn literal_like_text(&self, node: NodeId) -> Option<String> {
         match self.data_of(node) {
-            NodeData::StringLiteral(data) => Some(self.text_js(data.text).to_string_lossy().into_owned()),
+            NodeData::StringLiteral(data) => {
+                Some(self.text_js(data.text).to_string_lossy().into_owned())
+            }
             NodeData::NumericLiteral(data) => Some(self.text_utf8(data.text).to_owned()),
             NodeData::NoSubstitutionTemplateLiteral(data) => {
                 Some(self.text_js(data.text).to_string_lossy().into_owned())

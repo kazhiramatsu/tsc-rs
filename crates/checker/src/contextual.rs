@@ -1338,9 +1338,9 @@ impl<'a> CheckerState<'a> {
                     NodeData::StringLiteral(data) => {
                         Some(tsc_types::EscapedName::escape(self.text_js(data.text)))
                     }
-                    NodeData::NumericLiteral(data) => {
-                        Some(tsc_types::EscapedName::escape(self.text_utf8(data.text).into()))
-                    }
+                    NodeData::NumericLiteral(data) => Some(tsc_types::EscapedName::escape(
+                        self.text_utf8(data.text).into(),
+                    )),
                     _ => None,
                 }
             }

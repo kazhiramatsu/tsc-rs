@@ -1556,30 +1556,30 @@ impl<'a> CheckerState<'a> {
             // take the escapedText arm directly.
             NodeData::Identifier(data) => Some(data.escaped_text),
             NodeData::PrivateIdentifier(data) => Some(data.escaped_text),
-            NodeData::StringLiteral(data) => {
-                Some(tsc_binder::escape_leading_underscores(self.text_js(data.text)))
-            }
-            NodeData::NumericLiteral(data) => {
-                Some(tsc_binder::escape_leading_underscores(self.text_utf8(data.text)))
-            }
-            NodeData::BigIntLiteral(data) => {
-                Some(tsc_binder::escape_leading_underscores(self.text_utf8(data.text)))
-            }
-            NodeData::NoSubstitutionTemplateLiteral(data) => {
-                Some(tsc_binder::escape_leading_underscores(self.text_js(data.text)))
-            }
+            NodeData::StringLiteral(data) => Some(tsc_binder::escape_leading_underscores(
+                self.text_js(data.text),
+            )),
+            NodeData::NumericLiteral(data) => Some(tsc_binder::escape_leading_underscores(
+                self.text_utf8(data.text),
+            )),
+            NodeData::BigIntLiteral(data) => Some(tsc_binder::escape_leading_underscores(
+                self.text_utf8(data.text),
+            )),
+            NodeData::NoSubstitutionTemplateLiteral(data) => Some(
+                tsc_binder::escape_leading_underscores(self.text_js(data.text)),
+            ),
             NodeData::ComputedPropertyName(data) => {
                 let expression = data.expression?;
                 match self.data_of(expression) {
-                    NodeData::StringLiteral(data) => {
-                        Some(tsc_binder::escape_leading_underscores(self.text_js(data.text)))
-                    }
-                    NodeData::NumericLiteral(data) => {
-                        Some(tsc_binder::escape_leading_underscores(self.text_utf8(data.text)))
-                    }
-                    NodeData::NoSubstitutionTemplateLiteral(data) => {
-                        Some(tsc_binder::escape_leading_underscores(self.text_js(data.text)))
-                    }
+                    NodeData::StringLiteral(data) => Some(tsc_binder::escape_leading_underscores(
+                        self.text_js(data.text),
+                    )),
+                    NodeData::NumericLiteral(data) => Some(tsc_binder::escape_leading_underscores(
+                        self.text_utf8(data.text),
+                    )),
+                    NodeData::NoSubstitutionTemplateLiteral(data) => Some(
+                        tsc_binder::escape_leading_underscores(self.text_js(data.text)),
+                    ),
                     _ => None,
                 }
             }

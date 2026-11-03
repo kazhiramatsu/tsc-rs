@@ -29,13 +29,12 @@ use tsc_emitter::{
 };
 use tsc_syntax::{
     for_each_child,
-    TextId,
     nodes::{
         ExpressionStatementData, NoSubstitutionTemplateLiteralData, SourceFileData,
         StringLiteralData, TaggedTemplateExpressionData, TemplateExpressionData, TemplateHeadData,
         TemplateMiddleData, TemplateSpanData, TemplateTailData,
     },
-    parse_source_file, NodeData, SyntaxKind,
+    parse_source_file, NodeData, SyntaxKind, TextId,
 };
 use tsc_types::{CompilerOptions, JsString, ScriptTarget, TokenFlags};
 

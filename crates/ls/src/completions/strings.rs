@@ -714,9 +714,11 @@ impl Completions<'_, '_, '_> {
             .filter(|&&type_node| type_node != current)
             .filter_map(|&type_node| match self.data(type_node) {
                 NodeData::LiteralType(literal) => match literal.literal.map(|l| self.data(l)) {
-                    Some(NodeData::StringLiteral(text)) => {
-                        Some(tsc_syntax::published_text_js(text.text).code_units().collect())
-                    }
+                    Some(NodeData::StringLiteral(text)) => Some(
+                        tsc_syntax::published_text_js(text.text)
+                            .code_units()
+                            .collect(),
+                    ),
                     _ => None,
                 },
                 _ => None,

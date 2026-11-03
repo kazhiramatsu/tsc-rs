@@ -581,13 +581,12 @@ impl Encoder<'_> {
                     unreachable!("a text comment")
                 };
                 let kind = tsgo_kind(SyntaxKind::JSDocText).unwrap();
-                let string =
-                    self.strings.add(
-                        self.file.arena.text(*text),
-                        kind,
-                        *pos as usize,
-                        *text_end as usize,
-                    );
+                let string = self.strings.add(
+                    self.file.arena.text(*text),
+                    kind,
+                    *pos as usize,
+                    *text_end as usize,
+                );
                 let flags = self.tree.comment_flags(owner);
                 [
                     kind,
@@ -754,30 +753,24 @@ impl Encoder<'_> {
                 let text = self.strings.add(file.arena.text(d.text), kind, pos, end);
                 self.push_extended(&[text, flags]);
             }
-            NodeData::TemplateHead(d) => {
-                self.template(
-                    node,
-                    kind,
-                    file.arena.text(d.text),
-                    d.raw_text.map(|raw| file.arena.text_utf8(raw)),
-                )
-            }
-            NodeData::TemplateMiddle(d) => {
-                self.template(
-                    node,
-                    kind,
-                    file.arena.text(d.text),
-                    d.raw_text.map(|raw| file.arena.text_utf8(raw)),
-                )
-            }
-            NodeData::TemplateTail(d) => {
-                self.template(
-                    node,
-                    kind,
-                    file.arena.text(d.text),
-                    d.raw_text.map(|raw| file.arena.text_utf8(raw)),
-                )
-            }
+            NodeData::TemplateHead(d) => self.template(
+                node,
+                kind,
+                file.arena.text(d.text),
+                d.raw_text.map(|raw| file.arena.text_utf8(raw)),
+            ),
+            NodeData::TemplateMiddle(d) => self.template(
+                node,
+                kind,
+                file.arena.text(d.text),
+                d.raw_text.map(|raw| file.arena.text_utf8(raw)),
+            ),
+            NodeData::TemplateTail(d) => self.template(
+                node,
+                kind,
+                file.arena.text(d.text),
+                d.raw_text.map(|raw| file.arena.text_utf8(raw)),
+            ),
             NodeData::SourceFile(_) => {
                 let words = self.source_file_data(facts.copied().unwrap_or_default());
                 self.push_extended(&words);

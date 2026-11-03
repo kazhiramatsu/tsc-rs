@@ -669,12 +669,16 @@ impl<'a> Request<'_, 'a> {
         let mut files: Vec<String> = Vec::new();
         for import in collect_external_module_references(source).imports {
             let module_name = match source.arena.node(import).data() {
-                NodeData::StringLiteral(data) => {
-                source.arena.text_js(data.text).to_string_lossy().into_owned()
-            }
-                NodeData::NoSubstitutionTemplateLiteral(data) => {
-                    source.arena.text_js(data.text).to_string_lossy().into_owned()
-                }
+                NodeData::StringLiteral(data) => source
+                    .arena
+                    .text_js(data.text)
+                    .to_string_lossy()
+                    .into_owned(),
+                NodeData::NoSubstitutionTemplateLiteral(data) => source
+                    .arena
+                    .text_js(data.text)
+                    .to_string_lossy()
+                    .into_owned(),
                 _ => continue,
             };
             if let Some(implementation) =

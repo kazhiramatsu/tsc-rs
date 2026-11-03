@@ -129,21 +129,38 @@ pub(crate) fn create_factory_node(
             .create_private_identifier(target, data.text()),
         // A face builds its payload in the target arena: its texts are there.
         NodeData::StringLiteral(data) => {
-            let text = arena.text_js(target, data.text).map_err(factory_error)?.to_owned();
+            let text = arena
+                .text_js(target, data.text)
+                .map_err(factory_error)?
+                .to_owned();
             arena.factory().create_string_literal(target, text, false)
         }
         NodeData::NumericLiteral(data) => {
-            let text = arena.text_utf8(target, data.text).map_err(factory_error)?.to_owned();
+            let text = arena
+                .text_utf8(target, data.text)
+                .map_err(factory_error)?
+                .to_owned();
             arena.factory().create_numeric_literal(target, text)
         }
         NodeData::BigIntLiteral(data) => {
-            let text = arena.text_utf8(target, data.text).map_err(factory_error)?.to_owned();
+            let text = arena
+                .text_utf8(target, data.text)
+                .map_err(factory_error)?
+                .to_owned();
             arena.factory().create_big_int_literal(target, text)
         }
         NodeData::TemplateHead(data) => {
-            let text = arena.text_js(target, data.text).map_err(factory_error)?.to_owned();
+            let text = arena
+                .text_js(target, data.text)
+                .map_err(factory_error)?
+                .to_owned();
             let raw_text = match data.raw_text {
-                Some(raw) => Some(arena.text_utf8(target, raw).map_err(factory_error)?.to_owned()),
+                Some(raw) => Some(
+                    arena
+                        .text_utf8(target, raw)
+                        .map_err(factory_error)?
+                        .to_owned(),
+                ),
                 None => None,
             };
             arena.factory().create_template_head(target, text, raw_text)

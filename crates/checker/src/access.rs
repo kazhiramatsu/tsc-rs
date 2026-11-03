@@ -1720,9 +1720,15 @@ impl<'a> CheckerState<'a> {
                 let name = match self.data_of(argument) {
                     NodeData::Identifier(data) => data.text().into(),
                     NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
-                    NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text).to_owned(),
-                    NodeData::NumericLiteral(data) => tsc_types::JsString::from(self.text_utf8(data.text)),
-                    NodeData::BigIntLiteral(data) => tsc_types::JsString::from(self.text_utf8(data.text)),
+                    NodeData::NoSubstitutionTemplateLiteral(data) => {
+                        self.text_js(data.text).to_owned()
+                    }
+                    NodeData::NumericLiteral(data) => {
+                        tsc_types::JsString::from(self.text_utf8(data.text))
+                    }
+                    NodeData::BigIntLiteral(data) => {
+                        tsc_types::JsString::from(self.text_utf8(data.text))
+                    }
                     _ => return None,
                 };
                 base.push_str(".");

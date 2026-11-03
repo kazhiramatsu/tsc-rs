@@ -347,11 +347,9 @@ impl<'a> Decoder<'a> {
                 text: self.push_string(text),
                 contains_only_trivia_white_spaces: common & 1 != 0,
             })),
-            SyntaxKind::JSDocText => {
-                NodeData::JSDocText(Box::new(JSDocTextData {
-                    text: self.push_string(text),
-                }))
-            }
+            SyntaxKind::JSDocText => NodeData::JSDocText(Box::new(JSDocTextData {
+                text: self.push_string(text),
+            })),
             SyntaxKind::JSDocLink => NodeData::JSDocLink(Box::new(JSDocLinkData {
                 name: None,
                 text: self.push_string(text),

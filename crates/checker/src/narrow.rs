@@ -2432,7 +2432,9 @@ impl<'a> CheckerState<'a> {
     fn string_literal_text(&self, node: NodeId) -> Option<tsc_types::JsString> {
         match self.data_of(node) {
             NodeData::StringLiteral(data) => Some(self.text_js(data.text).to_owned()),
-            NodeData::NoSubstitutionTemplateLiteral(data) => Some(self.text_js(data.text).to_owned()),
+            NodeData::NoSubstitutionTemplateLiteral(data) => {
+                Some(self.text_js(data.text).to_owned())
+            }
             _ => None,
         }
     }

@@ -560,7 +560,9 @@ impl<'a> CheckerState<'a> {
                 }
                 let text = match self.data_of(node) {
                     NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
-                    NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text).to_owned(),
+                    NodeData::NoSubstitutionTemplateLiteral(data) => {
+                        self.text_js(data.text).to_owned()
+                    }
                     _ => unreachable!("kind/data agree"),
                 };
                 let literal = self.tables.get_string_literal_type(&text);

@@ -1282,10 +1282,16 @@ pub(super) fn is_variable_declaration_initialized_to_require(
 /// A string literal's text.
 fn literal_text(source: &SourceFile, node: NodeId) -> String {
     match source.arena.node(node).data() {
-        NodeData::StringLiteral(data) => source.arena.text_js(data.text).to_string_lossy().into_owned(),
-        NodeData::NoSubstitutionTemplateLiteral(data) => {
-            source.arena.text_js(data.text).to_string_lossy().into_owned()
-        }
+        NodeData::StringLiteral(data) => source
+            .arena
+            .text_js(data.text)
+            .to_string_lossy()
+            .into_owned(),
+        NodeData::NoSubstitutionTemplateLiteral(data) => source
+            .arena
+            .text_js(data.text)
+            .to_string_lossy()
+            .into_owned(),
         _ => String::new(),
     }
 }

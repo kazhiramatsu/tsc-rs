@@ -1083,8 +1083,12 @@ fn alternative_containing_module_chains(
         // reached through any import syntax is a container regardless of the
         // usage/default resolution-mode mismatch gated below.
         let ambient_name = match checker.data_of(import_ref) {
-            NodeData::StringLiteral(data) => Some(crate::annotate::published_text_js(data.text).to_owned()),
-            NodeData::NoSubstitutionTemplateLiteral(data) => Some(crate::annotate::published_text_js(data.text).to_owned()),
+            NodeData::StringLiteral(data) => {
+                Some(crate::annotate::published_text_js(data.text).to_owned())
+            }
+            NodeData::NoSubstitutionTemplateLiteral(data) => {
+                Some(crate::annotate::published_text_js(data.text).to_owned())
+            }
             _ => None,
         };
         let module = match ambient_name

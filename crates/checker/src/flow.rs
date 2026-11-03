@@ -3890,7 +3890,9 @@ impl<'a> CheckerState<'a> {
         if node_util::is_string_or_numeric_literal_like(&Published, argument) {
             let text = match self.data_of(argument) {
                 NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
-                NodeData::NumericLiteral(data) => tsc_types::JsString::from(self.text_utf8(data.text)),
+                NodeData::NumericLiteral(data) => {
+                    tsc_types::JsString::from(self.text_utf8(data.text))
+                }
                 NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text).to_owned(),
                 _ => return Ok(None),
             };

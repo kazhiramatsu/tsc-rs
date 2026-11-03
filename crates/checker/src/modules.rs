@@ -3147,7 +3147,8 @@ impl<'a> CheckerState<'a> {
         if let Some(NodeData::StringLiteral(data)) =
             specifier.map(|specifier| self.data_of(specifier))
         {
-            return crate::check::string_literal_name(self.text_js(data.text), false).map(JsString::from);
+            return crate::check::string_literal_name(self.text_js(data.text), false)
+                .map(JsString::from);
         }
         Ok(self.get_fully_qualified_name(module_symbol))
     }
@@ -4042,7 +4043,9 @@ impl<'a> CheckerState<'a> {
             .find_map(|&declaration| match self.data_of(declaration) {
                 NodeData::ModuleDeclaration(data) => {
                     data.name.and_then(|name| match self.data_of(name) {
-                        NodeData::StringLiteral(literal) => Some(self.text_js(literal.text).to_owned()),
+                        NodeData::StringLiteral(literal) => {
+                            Some(self.text_js(literal.text).to_owned())
+                        }
                         _ => None,
                     })
                 }

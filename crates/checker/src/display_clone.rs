@@ -214,7 +214,9 @@ impl DisplayClonePrinter<'_, '_> {
         let NodeData::StringLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(quoted_string(crate::annotate::published_text_js(data.text)).into()))
+        Ok(Some(
+            quoted_string(crate::annotate::published_text_js(data.text)).into(),
+        ))
     }
 
     fn regular_expression_literal(&self, node: NodeId) -> CheckResult<Option<JsString>> {
@@ -1000,11 +1002,15 @@ impl DisplayClonePrinter<'_, '_> {
                 NodeData::TemplateMiddle(data) => data
                     .raw_text
                     .map(|raw| crate::annotate::published_text_utf8(raw).to_owned())
-                    .unwrap_or_else(|| template_text_raw(crate::annotate::published_text_js(data.text))),
+                    .unwrap_or_else(|| {
+                        template_text_raw(crate::annotate::published_text_js(data.text))
+                    }),
                 NodeData::TemplateTail(data) => data
                     .raw_text
                     .map(|raw| crate::annotate::published_text_utf8(raw).to_owned())
-                    .unwrap_or_else(|| template_text_raw(crate::annotate::published_text_js(data.text))),
+                    .unwrap_or_else(|| {
+                        template_text_raw(crate::annotate::published_text_js(data.text))
+                    }),
                 _ => return Ok(None),
             };
             text.push_js(("${").into());
@@ -1233,7 +1239,9 @@ impl DisplayClonePrinter<'_, '_> {
                 })
             }
             NodeData::JsxNamespacedName(_) => Ok(self.jsx_attribute_name(node)),
-            NodeData::JsxText(data) => Ok(Some(crate::annotate::published_text_utf8(data.text).into())),
+            NodeData::JsxText(data) => {
+                Ok(Some(crate::annotate::published_text_utf8(data.text).into()))
+            }
             NodeData::Token if self.state.kind_of(node) == SyntaxKind::JsxOpeningFragment => {
                 Ok(Some(JsString::from("<>")))
             }
@@ -1258,7 +1266,9 @@ impl DisplayClonePrinter<'_, '_> {
 
     fn jsx_attribute_value(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         if let NodeData::StringLiteral(data) = self.state.data_of(node) {
-            return Ok(Some(quoted_jsx_attribute(crate::annotate::published_text_js(data.text))));
+            return Ok(Some(quoted_jsx_attribute(
+                crate::annotate::published_text_js(data.text),
+            )));
         }
         match self.state.kind_of(node) {
             SyntaxKind::JsxExpression

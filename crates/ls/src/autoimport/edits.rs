@@ -785,7 +785,9 @@ fn delete_type_keyword<'a>(tracker: &mut Tracker<'a>, file: &'a SourceFile, star
 /// declaration (an import clause or an `import =`).
 fn get_module_specifier_text(file: &SourceFile, promoted: NodeId) -> String {
     let specifier_text = |expression: NodeId| match file.arena.node(expression).data() {
-        NodeData::StringLiteral(data) => file.arena.text_js(data.text).to_string_lossy().into_owned(),
+        NodeData::StringLiteral(data) => {
+            file.arena.text_js(data.text).to_string_lossy().into_owned()
+        }
         NodeData::NoSubstitutionTemplateLiteral(data) => {
             file.arena.text_js(data.text).to_string_lossy().into_owned()
         }
