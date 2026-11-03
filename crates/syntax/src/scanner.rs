@@ -248,6 +248,28 @@ const IDENTIFIER_PART: [bool; 256] = {
     table
 };
 
+// Stop ASCII body loops only at bytes which require scanner work. The high
+// half stops at a scalar boundary and retains current_char's range semantics.
+const fn body_stops(special: &[u8]) -> [bool; 256] {
+    let mut table = [false; 256];
+    let mut i = 128;
+    while i < 256 {
+        table[i] = true;
+        i += 1;
+    }
+    i = 0;
+    while i < special.len() {
+        table[special[i] as usize] = true;
+        i += 1;
+    }
+    table
+}
+const LINE_BODY_STOPS: [bool; 256] = body_stops(b"\r\n");
+const COMMENT_BODY_STOPS: [bool; 256] = body_stops(b"*\r\n");
+const SINGLE_STRING_STOPS: [bool; 256] = body_stops(b"'\\\r\n");
+const DOUBLE_STRING_STOPS: [bool; 256] = body_stops(b"\"\\\r\n");
+const TEMPLATE_BODY_STOPS: [bool; 256] = body_stops(b"`$\\\r");
+
 impl<'text> Scanner<'text> {
     pub(crate) fn new(text: &'text str, language_variant: LanguageVariant) -> Self {
         Self {
@@ -1071,22 +1093,26 @@ impl<'text> Scanner<'text> {
         self.append_if_comment_directive(self.token_start, CommentDirectiveRegEx::SingleLine);
     }
 
+    #[inline]
+    fn skip_ascii_body(&mut self, stops: &[bool; 256]) {
+        if self.pos >= self.end {
+            return;
+        }
+        let rest = &self.text.as_bytes()[self.pos..self.end];
+        self.pos += rest
+            .iter()
+            .position(|&byte| stops[byte as usize])
+            .unwrap_or(rest.len());
+    }
+
     fn skip_to_line_end(&mut self) {
-        let bytes = self.text.as_bytes();
-        while self.pos < self.end {
-            let byte = bytes[self.pos];
-            if byte == b'\n' || byte == b'\r' {
+        loop {
+            self.skip_ascii_body(&LINE_BODY_STOPS);
+            let Some(ch) = self.current_char() else { break };
+            if is_line_break(ch) {
                 break;
             }
-            if byte < 0x80 {
-                self.pos += 1;
-            } else {
-                let Some(ch) = self.current_char() else { break };
-                if is_line_break(ch) {
-                    break;
-                }
-                self.pos += ch.len_utf8();
-            }
+            self.pos += ch.len_utf8();
         }
     }
 
@@ -1109,7 +1135,11 @@ impl<'text> Scanner<'text> {
 
         let mut comment_closed = false;
         while self.pos < self.end {
-            if self.starts_with("*/") {
+            self.skip_ascii_body(&COMMENT_BODY_STOPS);
+            if self.pos >= self.end {
+                break;
+            }
+            if self.text.as_bytes()[self.pos] == b'*' && self.starts_with("*/") {
                 self.pos += 2;
                 comment_closed = true;
                 break;
@@ -1118,7 +1148,7 @@ impl<'text> Scanner<'text> {
             let ch = self
                 .current_char()
                 .expect("position before end has a UTF-8 scalar");
-            self.advance_char();
+            self.pos += ch.len_utf8();
             if is_line_break(ch) {
                 last_line_start = self.pos;
                 self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
@@ -1406,7 +1436,13 @@ impl<'text> Scanner<'text> {
         self.value_clear();
         let mut segment_start = self.pos;
 
+        let stops = if quote == b'\'' {
+            &SINGLE_STRING_STOPS
+        } else {
+            &DOUBLE_STRING_STOPS
+        };
         loop {
+            self.skip_ascii_body(stops);
             let Some(byte) = self.byte_at(self.pos) else {
                 self.value_close_segment(segment_start);
                 self.token_flags.insert(TokenFlags::UNTERMINATED);
@@ -1644,6 +1680,7 @@ impl<'text> Scanner<'text> {
         contents.clear();
 
         let token = loop {
+            self.skip_ascii_body(&TEMPLATE_BODY_STOPS);
             if self.pos >= self.end {
                 contents.push_str(&self.text[segment_start..self.pos]);
                 self.token_flags.insert(TokenFlags::UNTERMINATED);
@@ -1694,7 +1731,7 @@ impl<'text> Scanner<'text> {
                 continue;
             }
 
-            self.advance_char();
+            self.pos += ch.len_utf8();
         };
 
         self.value_set_owned(contents);

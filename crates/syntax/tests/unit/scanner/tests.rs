@@ -1,6 +1,38 @@
 use super::*;
 
 #[test]
+fn body_runs_preserve_unicode_line_ends_directives_and_wtf8_seams() {
+    let text = "/* ASCII body 😀\r\n * @ts-ignore */'a😀\\uD800\\\n\\uDC00z'";
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+    assert!(scanner.has_preceding_line_break());
+    assert_eq!(
+        scanner.token_value().code_units().collect::<Vec<_>>(),
+        "a😀𐀀z".encode_utf16().collect::<Vec<_>>()
+    );
+    let directive = scanner.take_comment_directives();
+    assert_eq!(directive.len(), 1);
+    assert_eq!(directive[0].kind, CommentDirectiveKind::Ignore);
+    assert_eq!(directive[0].pos as usize, text.find(" * @").unwrap());
+    assert_eq!(directive[0].end as usize, text.find("'a").unwrap());
+
+    let text = "`ASCII 😀\r\nnext\u{2028}line${x}tail\\uD800\\uDC00`";
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    assert_eq!(scanner.scan(), SyntaxKind::TemplateHead);
+    assert_eq!(scanner.token_value(), "ASCII 😀\nnext\u{2028}line");
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert_eq!(scanner.scan(), SyntaxKind::CloseBraceToken);
+    assert_eq!(
+        scanner.re_scan_template_token(false),
+        SyntaxKind::TemplateTail
+    );
+    assert_eq!(
+        scanner.token_value().code_units().collect::<Vec<_>>(),
+        "tail𐀀".encode_utf16().collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn identifier_tables_are_esnext_for_bmp_and_supplementary_code_points() {
     // tsgo has only the ESNext tables (stringutil/identifier.go): U+08A1
     // and U+10400 start and continue identifiers. Above the BMP, Rust
