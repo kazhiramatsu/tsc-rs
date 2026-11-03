@@ -119,9 +119,9 @@ impl Completions<'_, '_, '_> {
                     return self.contextual_type_for_conditional_expression(parent, position);
                 }
             }
-            SyntaxKind::CommaToken => {
+            SyntaxKind::CommaToken
                 // After `,` of an array literal, the next element's type.
-                if self.node_kind(parent) == SyntaxKind::ArrayLiteralExpression {
+                if self.node_kind(parent) == SyntaxKind::ArrayLiteralExpression => {
                     if let Some(array_type) = self
                         .request
                         .state
@@ -136,7 +136,6 @@ impl Completions<'_, '_, '_> {
                     }
                     return Ok(None);
                 }
-            }
             _ => {}
         }
         // An argument position.

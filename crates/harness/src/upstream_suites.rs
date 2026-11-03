@@ -63,7 +63,7 @@ fn decode_source(raw: &[u8]) -> (SourceEncoding, String) {
 }
 
 fn decode_utf16(raw: &[u8], big_endian: bool) -> String {
-    let code_units = raw.chunks_exact(2).map(|pair| {
+    let code_units = raw.as_chunks::<2>().0.iter().map(|pair| {
         if big_endian {
             u16::from_be_bytes([pair[0], pair[1]])
         } else {

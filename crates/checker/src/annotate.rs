@@ -6110,7 +6110,7 @@ impl<'a> CheckerState<'a> {
             Some(symbol) => Some(self.get_declared_type_of_symbol(symbol)?),
             None => None,
         };
-        let base_type;
+
         let base_symbol = self.tables.type_of(base_constructor_type).symbol;
         let base_is_applied_class = match (base_symbol, original_base_type) {
             (Some(symbol), Some(original))
@@ -6120,17 +6120,17 @@ impl<'a> CheckerState<'a> {
             }
             _ => false,
         };
-        if base_is_applied_class {
-            base_type = self.get_type_from_class_or_interface_reference(
+        let base_type = if base_is_applied_class {
+            self.get_type_from_class_or_interface_reference(
                 base_type_node,
                 base_symbol.expect("checked above"),
-            )?;
+            )?
         } else if self
             .tables
             .flags_of(base_constructor_type)
             .intersects(TypeFlags::ANY)
         {
-            base_type = base_constructor_type;
+            base_constructor_type
         } else {
             // 57266-57272: constructor-signature selection by type
             // argument count.
@@ -6146,8 +6146,8 @@ impl<'a> CheckerState<'a> {
                 );
                 return Ok(());
             }
-            base_type = self.get_return_type_of_signature(constructors[0])?;
-        }
+            self.get_return_type_of_signature(constructors[0])?
+        };
         if self.tables.is_error_type(base_type) {
             return Ok(());
         }

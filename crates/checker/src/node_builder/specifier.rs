@@ -4545,11 +4545,11 @@ pub(super) fn module_name_literals(
                     }
                 }
             }
-            NodeData::ModuleDeclaration(data) => {
-                if module_declaration_is_collected_augmentation(state, node) {
-                    if let Some(literal) = string_literal_like(state, data.name) {
-                        augmentations.push(literal);
-                    }
+            NodeData::ModuleDeclaration(data)
+                if module_declaration_is_collected_augmentation(state, node) =>
+            {
+                if let Some(literal) = string_literal_like(state, data.name) {
+                    augmentations.push(literal);
                 }
             }
             _ => {}

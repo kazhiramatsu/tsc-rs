@@ -282,12 +282,12 @@ impl ConfigFilePattern {
                         next.push(state);
                     }
                 }
-                Some(PatternComponent::Glob(glob)) => {
-                    if glob.matches(input, is_last_path_component, self.case_sensitive) {
-                        next.push(state + 1);
-                    }
+                Some(PatternComponent::Glob(glob))
+                    if glob.matches(input, is_last_path_component, self.case_sensitive) =>
+                {
+                    next.push(state + 1);
                 }
-                None => {}
+                Some(PatternComponent::Glob(_)) | None => {}
             }
         }
         next.sort_unstable();

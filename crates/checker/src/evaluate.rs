@@ -1190,10 +1190,14 @@ impl<'a> CheckerState<'a> {
         match self.kind_of(grandparent) {
             SyntaxKind::VariableStatement
             | SyntaxKind::ForStatement
-            | SyntaxKind::ForOfStatement => {
-                if self.is_same_scope_descendent_of(usage, Some(declaration), decl_container)? {
-                    return Ok(true);
-                }
+            | SyntaxKind::ForOfStatement
+                if self.is_same_scope_descendent_of(
+                    usage,
+                    Some(declaration),
+                    decl_container,
+                )? =>
+            {
+                return Ok(true);
             }
             _ => {}
         }

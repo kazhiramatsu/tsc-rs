@@ -1,5 +1,8 @@
 use crate::parser::JSDocParsingMode;
 use crate::{chars, keywords, SyntaxKind};
+use rustc_hash::{FxHashMap, FxHasher};
+use std::hash::{Hash, Hasher};
+use std::sync::Mutex;
 use tsc_diagnostics::{gen, DiagnosticMessage};
 use tsc_types::{JsStr, JsString};
 
@@ -166,25 +169,45 @@ impl TokenFlags {
 /// strings without escapes, plain decimal integers), or the text cooked into
 /// `Scanner::cooked` (escapes, template line ends, canonical numbers). A
 /// source range is set, saved and restored without copying the text.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct TokenValue {
     start: usize,
     end: usize,
     cooked: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+/// A source value stores its two offsets directly. A cooked value stores an
+/// index into the scanner's immutable snapshot pool; the second word is zero.
+/// Snapshots remain reusable in any restore order, including nested lookahead.
+/// A state is restored only into the scanner that saved it (the parser's
+/// lookahead, tsgo Mark/Rewind): the index means nothing to another scanner.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ScannerState {
     end: usize,
     pos: usize,
     full_start_pos: usize,
     token_start: usize,
     token: SyntaxKind,
-    token_value: TokenValue,
-    /// The cooked text of a cooked value (none for a source range).
-    cooked: Option<JsString>,
+    value_start: usize,
+    value_end: usize,
+    value_cooked: bool,
     token_flags: TokenFlags,
     error_len: usize,
+}
+
+#[derive(Default)]
+struct CookedSnapshots {
+    // Hash buckets point into an append-only pool. Collisions are checked by
+    // full value/range equality, so neither hashing nor restore order can
+    // affect the saved value. Each distinct cooked snapshot is cloned once.
+    heads: FxHashMap<u64, usize>,
+    values: Vec<CookedSnapshot>,
+}
+
+struct CookedSnapshot {
+    value: JsString,
+    token_value: TokenValue,
+    next: Option<usize>,
 }
 
 pub(crate) struct Scanner<'text> {
@@ -198,6 +221,8 @@ pub(crate) struct Scanner<'text> {
     /// The text of a cooked token value (see [`TokenValue`]), reused from
     /// token to token.
     cooked: JsString,
+    // save() takes &self; only the rare cooked-value path accesses this pool.
+    cooked_snapshots: Mutex<CookedSnapshots>,
     token_flags: TokenFlags,
     language_variant: LanguageVariant,
     js_doc_parsing_mode: JSDocParsingMode,
@@ -217,6 +242,59 @@ pub(crate) struct Scanner<'text> {
     comment_directives: Vec<CommentDirective>,
 }
 
+// ASCII dispatch preserves punctuation bytes and folds the common classes.
+// Non-ASCII is decoded only by the Unicode worker. Identifier continuation
+// uses a separate boolean table so its inner loop is one indexed test.
+const BYTE_CLASS: [u8; 256] = {
+    let mut table = [0; 256];
+    let mut i = 0;
+    while i < table.len() {
+        let byte = i as u8;
+        table[i] = match byte {
+            b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'$' => b'a',
+            b'0'..=b'9' => b'0',
+            b' ' | b'\t' | 0x0b | 0x0c => b' ',
+            b'\n' | b'\r' => b'\n',
+            0x80..=0xff => 0x80,
+            _ => byte,
+        };
+        i += 1;
+    }
+    table
+};
+
+const IDENTIFIER_PART: [bool; 256] = {
+    let mut table = [false; 256];
+    let mut i = 0;
+    while i < table.len() {
+        table[i] = matches!(BYTE_CLASS[i], b'a' | b'0');
+        i += 1;
+    }
+    table
+};
+
+// Stop ASCII body loops only at bytes which require scanner work. The high
+// half stops at a scalar boundary and retains current_char's range semantics.
+const fn body_stops(special: &[u8]) -> [bool; 256] {
+    let mut table = [false; 256];
+    let mut i = 128;
+    while i < 256 {
+        table[i] = true;
+        i += 1;
+    }
+    i = 0;
+    while i < special.len() {
+        table[special[i] as usize] = true;
+        i += 1;
+    }
+    table
+}
+const LINE_BODY_STOPS: [bool; 256] = body_stops(b"\r\n");
+const COMMENT_BODY_STOPS: [bool; 256] = body_stops(b"*\r\n");
+const SINGLE_STRING_STOPS: [bool; 256] = body_stops(b"'\\\r\n");
+const DOUBLE_STRING_STOPS: [bool; 256] = body_stops(b"\"\\\r\n");
+const TEMPLATE_BODY_STOPS: [bool; 256] = body_stops(b"`$\\\r");
+
 impl<'text> Scanner<'text> {
     pub(crate) fn new(text: &'text str, language_variant: LanguageVariant) -> Self {
         Self {
@@ -232,6 +310,7 @@ impl<'text> Scanner<'text> {
                 cooked: false,
             },
             cooked: JsString::new(),
+            cooked_snapshots: Mutex::new(CookedSnapshots::default()),
             token_flags: TokenFlags::empty(),
             language_variant,
             js_doc_parsing_mode: JSDocParsingMode::ParseAll,
@@ -268,107 +347,90 @@ impl<'text> Scanner<'text> {
 
         loop {
             self.token_start = self.pos;
-            let Some(ch) = self.current_char() else {
+            if self.pos >= self.end {
                 self.token = SyntaxKind::EndOfFileToken;
                 return self.token;
-            };
-
-            // A shebang is skipped even when trivia is not.
-            if self.pos == 0 && self.starts_with("#!") {
-                self.scan_shebang_trivia();
-                continue;
             }
-
-            if is_line_break(ch) {
-                self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
-                // tsgo: a line or paragraph separator is skipped even when
-                // trivia is not; `\r\n` is one new line.
-                if !self.skip_trivia && matches!(ch, '\n' | '\r') {
-                    self.pos += if self.starts_with("\r\n") { 2 } else { 1 };
-                    self.token = SyntaxKind::NewLineTrivia;
+            let byte = self.text.as_bytes()[self.pos];
+            match BYTE_CLASS[byte as usize] {
+                b'a' => return self.scan_identifier(),
+                b' ' => {
+                    self.skip_single_line_whitespace();
+                    if self.skip_trivia {
+                        continue;
+                    }
+                    self.token = SyntaxKind::WhitespaceTrivia;
                     return self.token;
                 }
-                self.advance_char();
-                continue;
-            }
-
-            if is_single_line_whitespace(ch) {
-                self.advance_char();
-                // tsgo: a next line (U+0085) is skipped even when trivia is
-                // not.
-                if self.skip_trivia || ch == '\u{85}' {
+                b'\n' => {
+                    self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+                    self.pos += 1;
+                    if self.skip_trivia {
+                        // Once a line break is recorded, consume indentation and
+                        // further ASCII line breaks together (tsgo scanASCIIWhile).
+                        let rest = &self.text.as_bytes()[self.pos..self.end];
+                        self.pos += rest
+                            .iter()
+                            .position(|&b| b != b' ' && !(b'\t'..=b'\r').contains(&b))
+                            .unwrap_or(rest.len());
+                    } else {
+                        if byte == b'\r' && self.text.as_bytes().get(self.pos) == Some(&b'\n') {
+                            self.pos += 1;
+                        }
+                        self.token = SyntaxKind::NewLineTrivia;
+                        return self.token;
+                    }
                     continue;
                 }
-                while self.current_char().is_some_and(is_single_line_whitespace) {
-                    self.advance_char();
-                }
-                self.token = SyntaxKind::WhitespaceTrivia;
-                return self.token;
-            }
-
-            if ch == '/' {
-                // Lookahead past `end` on purpose: see `starts_with`.
-                match self.text.as_bytes().get(self.pos + 1) {
-                    Some(b'/') => {
-                        self.skip_single_line_comment();
-                        if let Some(kind) = self.trivia_token(SyntaxKind::SingleLineCommentTrivia) {
-                            return kind;
-                        }
-                        continue;
+                0x80 => {
+                    if let Some(kind) = self.scan_non_ascii() {
+                        return kind;
                     }
-                    Some(b'*') => {
-                        if !self.skip_multi_line_comment() && !self.skip_trivia {
-                            self.token_flags.insert(TokenFlags::UNTERMINATED);
-                        }
-                        if let Some(kind) = self.trivia_token(SyntaxKind::MultiLineCommentTrivia) {
-                            return kind;
-                        }
-                        continue;
-                    }
-                    _ => {}
+                    continue;
                 }
-            }
 
-            match ch {
-                '!' => {
-                    if self.starts_with("!==") {
+                b'!' => {
+                    if self.lookahead_byte(1) == Some(b'=') && self.lookahead_byte(2) == Some(b'=')
+                    {
                         return self.finish_token(SyntaxKind::ExclamationEqualsEqualsToken, 3);
                     }
-                    if self.starts_with("!=") {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::ExclamationEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::ExclamationToken, 1);
                 }
-                '"' | '\'' => return self.scan_string_literal(),
-                '`' => return self.scan_template_token(),
-                '%' => {
-                    if self.starts_with("%=") {
+                b'"' | b'\'' => return self.scan_string_literal(),
+                b'`' => return self.scan_template_token(),
+                b'%' => {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::PercentEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::PercentToken, 1);
                 }
-                '&' => {
-                    if self.starts_with("&&=") {
+                b'&' => {
+                    if self.lookahead_byte(1) == Some(b'&') && self.lookahead_byte(2) == Some(b'=')
+                    {
                         return self.finish_token(SyntaxKind::AmpersandAmpersandEqualsToken, 3);
                     }
-                    if self.starts_with("&&") {
+                    if self.lookahead_byte(1) == Some(b'&') {
                         return self.finish_token(SyntaxKind::AmpersandAmpersandToken, 2);
                     }
-                    if self.starts_with("&=") {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::AmpersandEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::AmpersandToken, 1);
                 }
-                '(' => return self.finish_token(SyntaxKind::OpenParenToken, 1),
-                ')' => return self.finish_token(SyntaxKind::CloseParenToken, 1),
-                '*' => {
-                    if self.starts_with("**=") {
+                b'(' => return self.finish_token(SyntaxKind::OpenParenToken, 1),
+                b')' => return self.finish_token(SyntaxKind::CloseParenToken, 1),
+                b'*' => {
+                    if self.lookahead_byte(1) == Some(b'*') && self.lookahead_byte(2) == Some(b'=')
+                    {
                         return self.finish_token(SyntaxKind::AsteriskAsteriskEqualsToken, 3);
                     }
-                    if self.starts_with("**") {
+                    if self.lookahead_byte(1) == Some(b'*') {
                         return self.finish_token(SyntaxKind::AsteriskAsteriskToken, 2);
                     }
-                    if self.starts_with("*=") {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::AsteriskEqualsToken, 2);
                     }
                     self.pos += 1;
@@ -385,86 +447,114 @@ impl<'text> Scanner<'text> {
                     self.token = SyntaxKind::AsteriskToken;
                     return self.token;
                 }
-                '+' => {
-                    if self.starts_with("++") {
+                b'+' => {
+                    if self.lookahead_byte(1) == Some(b'+') {
                         return self.finish_token(SyntaxKind::PlusPlusToken, 2);
                     }
-                    if self.starts_with("+=") {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::PlusEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::PlusToken, 1);
                 }
-                ',' => return self.finish_token(SyntaxKind::CommaToken, 1),
-                '-' => {
-                    if self.starts_with("--") {
+                b',' => return self.finish_token(SyntaxKind::CommaToken, 1),
+                b'-' => {
+                    if self.lookahead_byte(1) == Some(b'-') {
                         return self.finish_token(SyntaxKind::MinusMinusToken, 2);
                     }
-                    if self.starts_with("-=") {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::MinusEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::MinusToken, 1);
                 }
-                '.' => {
+                b'.' => {
                     if self.byte_at(self.pos + 1).is_some_and(is_ascii_digit) {
                         return self.scan_number_literal();
                     }
-                    if self.starts_with("...") {
+                    if self.lookahead_byte(1) == Some(b'.') && self.lookahead_byte(2) == Some(b'.')
+                    {
                         return self.finish_token(SyntaxKind::DotDotDotToken, 3);
                     }
                     return self.finish_token(SyntaxKind::DotToken, 1);
                 }
-                '/' => {
-                    if self.starts_with("/=") {
+                b'/' => {
+                    // Comment lookahead deliberately reads beyond scanRange.
+                    match self.text.as_bytes().get(self.pos + 1) {
+                        Some(b'/') => {
+                            self.skip_single_line_comment();
+                            if let Some(kind) =
+                                self.trivia_token(SyntaxKind::SingleLineCommentTrivia)
+                            {
+                                return kind;
+                            }
+                            continue;
+                        }
+                        Some(b'*') => {
+                            if !self.skip_multi_line_comment() && !self.skip_trivia {
+                                self.token_flags.insert(TokenFlags::UNTERMINATED);
+                            }
+                            if let Some(kind) =
+                                self.trivia_token(SyntaxKind::MultiLineCommentTrivia)
+                            {
+                                return kind;
+                            }
+                            continue;
+                        }
+                        _ => {}
+                    }
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::SlashEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::SlashToken, 1);
                 }
-                '0'..='9' => return self.scan_number_literal(),
-                ':' => return self.finish_token(SyntaxKind::ColonToken, 1),
-                ';' => return self.finish_token(SyntaxKind::SemicolonToken, 1),
-                '<' => {
+                b'0' => return self.scan_number_literal(),
+                b':' => return self.finish_token(SyntaxKind::ColonToken, 1),
+                b';' => return self.finish_token(SyntaxKind::SemicolonToken, 1),
+                b'<' => {
                     if self.skip_conflict_marker_trivia() {
                         if let Some(kind) = self.trivia_token(SyntaxKind::ConflictMarkerTrivia) {
                             return kind;
                         }
                         continue;
                     }
-                    if self.starts_with("<<=") {
+                    if self.lookahead_byte(1) == Some(b'<') && self.lookahead_byte(2) == Some(b'=')
+                    {
                         return self.finish_token(SyntaxKind::LessThanLessThanEqualsToken, 3);
                     }
-                    if self.starts_with("<<") {
+                    if self.lookahead_byte(1) == Some(b'<') {
                         return self.finish_token(SyntaxKind::LessThanLessThanToken, 2);
                     }
-                    if self.starts_with("<=") {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::LessThanEqualsToken, 2);
                     }
                     if self.language_variant == LanguageVariant::Jsx
-                        && self.starts_with("</")
-                        && !self.starts_with("</*")
+                        && self.lookahead_byte(1) == Some(b'/')
+                        && !(self.lookahead_byte(1) == Some(b'/')
+                            && self.lookahead_byte(2) == Some(b'*'))
                     {
                         return self.finish_token(SyntaxKind::LessThanSlashToken, 2);
                     }
                     return self.finish_token(SyntaxKind::LessThanToken, 1);
                 }
-                '=' => {
+                b'=' => {
                     if self.skip_conflict_marker_trivia() {
                         if let Some(kind) = self.trivia_token(SyntaxKind::ConflictMarkerTrivia) {
                             return kind;
                         }
                         continue;
                     }
-                    if self.starts_with("===") {
+                    if self.lookahead_byte(1) == Some(b'=') && self.lookahead_byte(2) == Some(b'=')
+                    {
                         return self.finish_token(SyntaxKind::EqualsEqualsEqualsToken, 3);
                     }
-                    if self.starts_with("==") {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::EqualsEqualsToken, 2);
                     }
-                    if self.starts_with("=>") {
+                    if self.lookahead_byte(1) == Some(b'>') {
                         return self.finish_token(SyntaxKind::EqualsGreaterThanToken, 2);
                     }
                     return self.finish_token(SyntaxKind::EqualsToken, 1);
                 }
-                '>' => {
+                b'>' => {
                     if self.skip_conflict_marker_trivia() {
                         if let Some(kind) = self.trivia_token(SyntaxKind::ConflictMarkerTrivia) {
                             return kind;
@@ -473,51 +563,53 @@ impl<'text> Scanner<'text> {
                     }
                     return self.finish_token(SyntaxKind::GreaterThanToken, 1);
                 }
-                '?' => {
-                    if self.starts_with("?.")
+                b'?' => {
+                    if self.lookahead_byte(1) == Some(b'.')
                         && !self.byte_at(self.pos + 2).is_some_and(is_ascii_digit)
                     {
                         return self.finish_token(SyntaxKind::QuestionDotToken, 2);
                     }
-                    if self.starts_with("??=") {
+                    if self.lookahead_byte(1) == Some(b'?') && self.lookahead_byte(2) == Some(b'=')
+                    {
                         return self.finish_token(SyntaxKind::QuestionQuestionEqualsToken, 3);
                     }
-                    if self.starts_with("??") {
+                    if self.lookahead_byte(1) == Some(b'?') {
                         return self.finish_token(SyntaxKind::QuestionQuestionToken, 2);
                     }
                     return self.finish_token(SyntaxKind::QuestionToken, 1);
                 }
-                '[' => return self.finish_token(SyntaxKind::OpenBracketToken, 1),
-                ']' => return self.finish_token(SyntaxKind::CloseBracketToken, 1),
-                '^' => {
-                    if self.starts_with("^=") {
+                b'[' => return self.finish_token(SyntaxKind::OpenBracketToken, 1),
+                b']' => return self.finish_token(SyntaxKind::CloseBracketToken, 1),
+                b'^' => {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::CaretEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::CaretToken, 1);
                 }
-                '{' => return self.finish_token(SyntaxKind::OpenBraceToken, 1),
-                '|' => {
+                b'{' => return self.finish_token(SyntaxKind::OpenBraceToken, 1),
+                b'|' => {
                     if self.skip_conflict_marker_trivia() {
                         if let Some(kind) = self.trivia_token(SyntaxKind::ConflictMarkerTrivia) {
                             return kind;
                         }
                         continue;
                     }
-                    if self.starts_with("||=") {
+                    if self.lookahead_byte(1) == Some(b'|') && self.lookahead_byte(2) == Some(b'=')
+                    {
                         return self.finish_token(SyntaxKind::BarBarEqualsToken, 3);
                     }
-                    if self.starts_with("||") {
+                    if self.lookahead_byte(1) == Some(b'|') {
                         return self.finish_token(SyntaxKind::BarBarToken, 2);
                     }
-                    if self.starts_with("|=") {
+                    if self.lookahead_byte(1) == Some(b'=') {
                         return self.finish_token(SyntaxKind::BarEqualsToken, 2);
                     }
                     return self.finish_token(SyntaxKind::BarToken, 1);
                 }
-                '}' => return self.finish_token(SyntaxKind::CloseBraceToken, 1),
-                '~' => return self.finish_token(SyntaxKind::TildeToken, 1),
-                '@' => return self.finish_token(SyntaxKind::AtToken, 1),
-                '\\' => {
+                b'}' => return self.finish_token(SyntaxKind::CloseBraceToken, 1),
+                b'~' => return self.finish_token(SyntaxKind::TildeToken, 1),
+                b'@' => return self.finish_token(SyntaxKind::AtToken, 1),
+                b'\\' => {
                     if let Some(kind) = self.scan_identifier_escape_start() {
                         return kind;
                     }
@@ -525,27 +617,80 @@ impl<'text> Scanner<'text> {
                     // spans the backslash.
                     self.error_at(self.pos, 1, &gen::Invalid_character);
                 }
-                '#' => return self.scan_private_identifier(),
-                '\u{fffd}' => {
-                    // tsgo Scan (scanner.go:931-936) reports TS1490 at the
-                    // start of the file and stops scanning there.
-                    self.error_at(0, 0, &gen::File_appears_to_be_binary);
-                    self.pos = self.end;
-                    self.token = SyntaxKind::NonTextFileMarkerTrivia;
-                    return self.token;
-                }
-                _ => {
-                    if chars::is_identifier_start(ch) {
-                        return self.scan_identifier();
+                b'#' => {
+                    // A shebang is skipped even when trivia is not.
+                    if self.pos == 0 && self.lookahead_byte(1) == Some(b'!') {
+                        self.scan_shebang_trivia();
+                        continue;
                     }
-                    self.error_at(self.pos, ch.len_utf8(), &gen::Invalid_character);
+                    return self.scan_private_identifier();
                 }
+                _ => self.error_at(self.pos, 1, &gen::Invalid_character),
             }
 
-            self.advance_char();
+            self.pos += 1;
             self.token = SyntaxKind::Unknown;
             return self.token;
         }
+    }
+
+    fn skip_single_line_whitespace(&mut self) {
+        loop {
+            let bytes = self.text.as_bytes();
+            while self.pos < self.end && BYTE_CLASS[bytes[self.pos] as usize] == b' ' {
+                self.pos += 1;
+            }
+            if self.pos < self.end && bytes[self.pos] >= 0x80 {
+                if let Some(ch) = self
+                    .current_char()
+                    .filter(|&ch| is_single_line_whitespace(ch))
+                {
+                    self.pos += ch.len_utf8();
+                    continue;
+                }
+            }
+            break;
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn scan_non_ascii(&mut self) -> Option<SyntaxKind> {
+        let Some(ch) = self.current_char() else {
+            self.token = SyntaxKind::EndOfFileToken;
+            return Some(self.token);
+        };
+        if is_line_break(ch) {
+            self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+            self.pos += ch.len_utf8();
+            return None;
+        }
+        if is_single_line_whitespace(ch) {
+            self.pos += ch.len_utf8();
+            // tsgo skips a next line (U+0085) even when trivia is returned.
+            if self.skip_trivia || ch == '\u{85}' {
+                return None;
+            }
+            self.skip_single_line_whitespace();
+            self.token = SyntaxKind::WhitespaceTrivia;
+            return Some(self.token);
+        }
+        if chars::is_identifier_start(ch) {
+            self.value_clear();
+            self.pos += ch.len_utf8();
+            self.scan_identifier_parts();
+            return Some(self.finish_identifier_token());
+        }
+        if ch == '\u{fffd}' {
+            self.error_at(0, 0, &gen::File_appears_to_be_binary);
+            self.pos = self.end;
+            self.token = SyntaxKind::NonTextFileMarkerTrivia;
+        } else {
+            self.error_at(self.pos, ch.len_utf8(), &gen::Invalid_character);
+            self.pos += ch.len_utf8();
+            self.token = SyntaxKind::Unknown;
+        }
+        Some(self.token)
     }
 
     pub(crate) fn save(&self) -> ScannerState {
@@ -555,8 +700,17 @@ impl<'text> Scanner<'text> {
             full_start_pos: self.full_start_pos,
             token_start: self.token_start,
             token: self.token,
-            token_value: self.token_value,
-            cooked: self.token_value.cooked.then(|| self.cooked.clone()),
+            value_start: if self.token_value.cooked {
+                self.save_cooked_value()
+            } else {
+                self.token_value.start
+            },
+            value_end: if self.token_value.cooked {
+                0
+            } else {
+                self.token_value.end
+            },
+            value_cooked: self.token_value.cooked,
             token_flags: self.token_flags,
             error_len: self.errors.len(),
         }
@@ -568,17 +722,59 @@ impl<'text> Scanner<'text> {
         self.full_start_pos = state.full_start_pos;
         self.token_start = state.token_start;
         self.token = state.token;
-        self.token_value = state.token_value;
-        if let Some(cooked) = state.cooked {
-            self.cooked = cooked;
+        if state.value_cooked {
+            self.restore_cooked_value(state.value_start);
+        } else {
+            self.value_source(state.value_start, state.value_end);
         }
         self.token_flags = state.token_flags;
         self.errors.truncate(state.error_len);
     }
 
+    #[cold]
+    #[inline(never)]
+    fn save_cooked_value(&self) -> usize {
+        let mut hasher = FxHasher::default();
+        self.token_value.hash(&mut hasher);
+        self.cooked.as_bytes().hash(&mut hasher);
+        let hash = hasher.finish();
+        let mut snapshots = self.cooked_snapshots.lock().expect("cooked snapshot lock");
+        let head = snapshots.heads.get(&hash).copied();
+        let mut next = head;
+        while let Some(index) = next {
+            let saved = &snapshots.values[index];
+            if saved.token_value == self.token_value && saved.value == self.cooked {
+                return index;
+            }
+            next = saved.next;
+        }
+        let index = snapshots.values.len();
+        snapshots.values.push(CookedSnapshot {
+            value: self.cooked.clone(),
+            token_value: self.token_value,
+            next: head,
+        });
+        snapshots.heads.insert(hash, index);
+        index
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn restore_cooked_value(&mut self, index: usize) {
+        let saved = &self
+            .cooked_snapshots
+            .get_mut()
+            .expect("cooked snapshot lock")
+            .values[index];
+        self.cooked.clone_from(&saved.value);
+        self.token_value = saved.token_value;
+    }
+
     /// Enter a bounded source range for the parser-owned JSDoc type
     /// parser. The caller saves/restores ScannerState around this
     /// operation, matching tsc scanner.scanRange.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn reset_range(&mut self, start: usize, end: usize) {
         debug_assert!(start <= end);
         debug_assert!(end <= self.text.len());
@@ -614,6 +810,8 @@ impl<'text> Scanner<'text> {
     }
 
     /// tsc scanJSDocCommentTextToken @6.0.3.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn scan_jsdoc_comment_text_token(&mut self, in_backticks: bool) -> SyntaxKind {
         self.full_start_pos = self.pos;
         self.token_start = self.pos;
@@ -661,6 +859,8 @@ impl<'text> Scanner<'text> {
     /// tsc scanJsDocToken @6.0.3. Unlike ordinary scan(), whitespace and
     /// newlines are returned because the JSDoc parser owns indentation and
     /// comment text.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn scan_jsdoc_token(&mut self) -> SyntaxKind {
         self.full_start_pos = self.pos;
         self.token_start = self.pos;
@@ -725,10 +925,7 @@ impl<'text> Scanner<'text> {
         if chars::is_identifier_start(ch) {
             self.value_clear();
             self.advance_char();
-            loop {
-                let Some(next) = self.current_char() else {
-                    break;
-                };
+            while let Some(next) = self.current_char() {
                 if chars::is_identifier_part(next) || next == '-' {
                     if self.token_value.cooked {
                         self.cooked.push(next);
@@ -919,6 +1116,8 @@ impl<'text> Scanner<'text> {
         self.token_flags.contains(TokenFlags::UNTERMINATED)
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn take_errors(&mut self) -> Vec<ScanError> {
         std::mem::take(&mut self.errors)
     }
@@ -975,13 +1174,10 @@ impl<'text> Scanner<'text> {
         &self.errors
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_shebang_trivia(&mut self) {
-        while let Some(ch) = self.current_char() {
-            if is_line_break(ch) {
-                break;
-            }
-            self.advance_char();
-        }
+        self.skip_to_line_end();
     }
 
     /// tsc-port: scan @6.0.3 (single-line comment arm)
@@ -992,13 +1188,52 @@ impl<'text> Scanner<'text> {
     /// appendIfCommentDirective with the single-line directive shape.
     fn skip_single_line_comment(&mut self) {
         self.pos += 2;
-        while let Some(ch) = self.current_char() {
+        self.skip_to_line_end();
+        self.append_if_comment_directive(self.token_start, CommentDirectiveRegEx::SingleLine);
+    }
+
+    #[inline]
+    fn skip_ascii_body(&mut self, stops: &[bool; 256]) {
+        if self.pos >= self.end {
+            return;
+        }
+        let rest = &self.text.as_bytes()[self.pos..self.end];
+        self.pos += rest
+            .iter()
+            .position(|&byte| stops[byte as usize])
+            .unwrap_or(rest.len());
+    }
+
+    fn skip_to_line_end(&mut self) {
+        if self.pos < self.end && self.text.is_char_boundary(self.end) {
+            // One pass: the first of `\r`, `\n`, U+2028 and U+2029 ends the
+            // line; any other character with an E2 lead byte is stepped over,
+            // so a run of separator-ended comments stays linear in the text.
+            let bytes = self.text.as_bytes();
+            let mut pos = self.pos;
+            while let Some(index) = memchr::memchr3(b'\r', b'\n', 0xe2, &bytes[pos..self.end]) {
+                pos += index;
+                if bytes[pos] != 0xe2
+                    || matches!(bytes.get(pos..pos + 3), Some([0xe2, 0x80, 0xa8 | 0xa9]))
+                {
+                    self.pos = pos;
+                    return;
+                }
+                pos += 1;
+            }
+            self.pos = self.end;
+            return;
+        }
+        // A scanRange can end inside a scalar. Keep the original bounded
+        // decoder's recovery for that unusual range rather than skipping it.
+        loop {
+            self.skip_ascii_body(&LINE_BODY_STOPS);
+            let Some(ch) = self.current_char() else { break };
             if is_line_break(ch) {
                 break;
             }
-            self.advance_char();
+            self.pos += ch.len_utf8();
         }
-        self.append_if_comment_directive(self.token_start, CommentDirectiveRegEx::SingleLine);
     }
 
     /// tsc-port: scan @6.0.3 (multi-line comment arm)
@@ -1012,6 +1247,7 @@ impl<'text> Scanner<'text> {
     /// closed. A `/**` other than the empty `/**/` also stamps the
     /// ordinary token that follows with PrecedingJSDocComment. Whether the
     /// comment closed.
+    #[inline(never)]
     fn skip_multi_line_comment(&mut self) -> bool {
         let mut last_line_start = self.token_start;
         let is_jsdoc =
@@ -1019,20 +1255,51 @@ impl<'text> Scanner<'text> {
         self.pos += 2;
 
         let mut comment_closed = false;
-        while self.pos < self.end {
-            if self.starts_with("*/") {
-                self.pos += 2;
-                comment_closed = true;
-                break;
-            }
-
-            let ch = self
-                .current_char()
-                .expect("position before end has a UTF-8 scalar");
-            self.advance_char();
-            if is_line_break(ch) {
-                last_line_start = self.pos;
+        if self.pos < self.end && self.text.is_char_boundary(self.end) {
+            let body_start = self.pos;
+            let bytes = self.text.as_bytes();
+            // The star is bounded; its slash lookahead may be past scanRange.
+            let closing = memchr::memchr_iter(b'*', &bytes[body_start..self.end])
+                .find(|&index| bytes.get(body_start + index + 1) == Some(&b'/'));
+            let body_end = closing.map_or(self.end, |index| body_start + index);
+            self.pos = if closing.is_some() {
+                body_end + 2
+            } else {
+                self.end
+            };
+            comment_closed = closing.is_some();
+            if let Some(index) = memchr::memrchr2(b'\r', b'\n', &bytes[body_start..body_end]) {
+                last_line_start = body_start + index + 1;
                 self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+            }
+            let unicode_start = last_line_start.max(body_start);
+            let rest = &bytes[unicode_start..body_end];
+            for index in memchr::memchr_iter(0xe2, rest) {
+                if matches!(rest.get(index..index + 3), Some([0xe2, 0x80, 0xa8 | 0xa9])) {
+                    last_line_start = unicode_start + index + 3;
+                    self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+                }
+            }
+        } else {
+            while self.pos < self.end {
+                self.skip_ascii_body(&COMMENT_BODY_STOPS);
+                if self.pos >= self.end {
+                    break;
+                }
+                if self.text.as_bytes()[self.pos] == b'*' && self.starts_with("*/") {
+                    self.pos += 2;
+                    comment_closed = true;
+                    break;
+                }
+
+                let ch = self
+                    .current_char()
+                    .expect("position before end has a UTF-8 scalar");
+                self.pos += ch.len_utf8();
+                if is_line_break(ch) {
+                    last_line_start = self.pos;
+                    self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+                }
             }
         }
 
@@ -1044,15 +1311,21 @@ impl<'text> Scanner<'text> {
         if !comment_closed {
             // tsc: the unterminated-comment error sits at the scan
             // position (end of text), zero width.
-            self.errors.push(ScanError {
-                message: &gen::expected,
-                start: self.pos,
-                length: 0,
-                args: Vec::new(),
-                trivia_kind: Some(SyntaxKind::MultiLineCommentTrivia),
-            });
+            self.unterminated_comment_error();
         }
         comment_closed
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn unterminated_comment_error(&mut self) {
+        self.errors.push(ScanError {
+            message: &gen::expected,
+            start: self.pos,
+            length: 0,
+            args: Vec::new(),
+            trivia_kind: Some(SyntaxKind::MultiLineCommentTrivia),
+        });
     }
 
     /// The trivia token `kind` when trivia is not skipped.
@@ -1075,13 +1348,15 @@ impl<'text> Scanner<'text> {
             JSDocParsingMode::ParseForTypeInfo => false,
             JSDocParsingMode::ParseForTypeErrors => {
                 let text = &self.text[self.full_start_pos..self.pos];
-                text.as_bytes()
-                    .windows(4)
-                    .any(|window| window.eq_ignore_ascii_case(b"@see"))
-                    || text
-                        .as_bytes()
-                        .windows(5)
-                        .any(|window| window.eq_ignore_ascii_case(b"@link"))
+                let bytes = text.as_bytes();
+                memchr::memchr_iter(b'@', bytes).any(|index| {
+                    let rest = &bytes[index..];
+                    rest.get(..4)
+                        .is_some_and(|word| word.eq_ignore_ascii_case(b"@see"))
+                        || rest
+                            .get(..5)
+                            .is_some_and(|word| word.eq_ignore_ascii_case(b"@link"))
+                })
             }
         }
     }
@@ -1095,6 +1370,7 @@ impl<'text> Scanner<'text> {
     /// the whole comment for the single-line shape, the last line
     /// incl. `*/` for the multi-line shape. `line_start` doubles as
     /// range.pos.
+    #[inline(never)]
     fn append_if_comment_directive(&mut self, line_start: usize, regex: CommentDirectiveRegEx) {
         let comment = &self.text[line_start..self.pos];
         let Some(kind) = get_directive_from_comment(js_trim_start(comment), regex) else {
@@ -1107,25 +1383,37 @@ impl<'text> Scanner<'text> {
         });
     }
 
+    #[inline]
     fn scan_identifier(&mut self) -> SyntaxKind {
-        self.try_scan_identifier()
-            .expect("scan_identifier requires an identifier start")
-    }
-
-    fn try_scan_identifier(&mut self) -> Option<SyntaxKind> {
-        // The value is the source text from here (cooked at an escape).
-        self.value_clear();
-        let first = self
-            .current_char()
-            .expect("scan_identifier requires a current character");
-        if !chars::is_identifier_start(first) {
-            return None;
+        let start = self.pos;
+        let rest = &self.text.as_bytes()[start + 1..self.end];
+        self.pos = start
+            + 1
+            + rest
+                .iter()
+                .position(|&byte| !IDENTIFIER_PART[byte as usize])
+                .unwrap_or(rest.len());
+        self.value_source(start, self.pos);
+        if self
+            .byte_at(self.pos)
+            .is_some_and(|byte| byte == b'\\' || byte >= 0x80)
+        {
+            return self.scan_identifier_with_unicode_or_escape();
         }
-        self.advance_char();
-        self.scan_identifier_parts();
-        Some(self.finish_identifier_token())
+        self.token =
+            keywords::keyword_kind(&self.text[start..self.pos]).unwrap_or(SyntaxKind::Identifier);
+        self.token
     }
 
+    #[cold]
+    #[inline(never)]
+    fn scan_identifier_with_unicode_or_escape(&mut self) -> SyntaxKind {
+        self.scan_identifier_parts();
+        self.finish_identifier_token()
+    }
+
+    #[cold]
+    #[inline(never)]
     fn scan_identifier_escape_start(&mut self) -> Option<SyntaxKind> {
         let start = self.pos;
         let (ch, escape_flag) = self.scan_unicode_escape()?;
@@ -1154,7 +1442,7 @@ impl<'text> Scanner<'text> {
             let mut run_end = run_start;
             while run_end < self.end {
                 let byte = bytes[run_end];
-                if byte.is_ascii_alphanumeric() || byte == b'$' || byte == b'_' {
+                if IDENTIFIER_PART[byte as usize] {
                     run_end += 1;
                 } else {
                     break;
@@ -1165,6 +1453,12 @@ impl<'text> Scanner<'text> {
                     self.cooked.push_str(&self.text[run_start..run_end]);
                 }
                 self.pos = run_end;
+            }
+            let Some(byte) = self.byte_at(self.pos) else {
+                break;
+            };
+            if byte < 0x80 && byte != b'\\' {
+                break;
             }
             let Some(ch) = self.current_char() else {
                 break;
@@ -1213,6 +1507,8 @@ impl<'text> Scanner<'text> {
     /// identifier (or identifier escape) follows; otherwise it is an
     /// Invalid_character Unknown token. `#!` past position 0 is 18026,
     /// and tsgo's Unknown token covers both characters (scanner.go:912-915).
+    #[cold]
+    #[inline(never)]
     fn scan_private_identifier(&mut self) -> SyntaxKind {
         let hash_pos = self.pos;
         if hash_pos != 0 && self.byte_at(hash_pos + 1) == Some(b'!') {
@@ -1261,6 +1557,8 @@ impl<'text> Scanner<'text> {
     /// a peek that never moves `pos` unless the escape is consumed, returning
     /// the cooked character with the token flag the consumer inserts once it
     /// accepts the character (scanIdentifierParts, 9285-9305).
+    #[cold]
+    #[inline(never)]
     fn scan_unicode_escape(&mut self) -> Option<(char, TokenFlags)> {
         if !self.starts_with("\\u") {
             return None;
@@ -1316,27 +1614,41 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    #[inline(never)]
     fn scan_string_literal(&mut self) -> SyntaxKind {
-        let quote = self.current_char().expect("string literal starts at quote");
-        self.advance_char();
+        let quote = self.text.as_bytes()[self.pos];
+        self.pos += 1;
         // The source text between the quotes, cooked at the first escape.
         self.value_clear();
         let mut segment_start = self.pos;
 
+        let stops = if quote == b'\'' {
+            &SINGLE_STRING_STOPS
+        } else {
+            &DOUBLE_STRING_STOPS
+        };
         loop {
-            let Some(ch) = self.current_char() else {
+            if self.pos < self.end && self.text.is_char_boundary(self.end) {
+                let rest = &self.text.as_bytes()[self.pos..self.end];
+                let end = memchr::memchr3(quote, b'\\', b'\n', rest).unwrap_or(rest.len());
+                let end = memchr::memchr(b'\r', &rest[..end]).unwrap_or(end);
+                self.pos += end;
+            } else {
+                self.skip_ascii_body(stops);
+            }
+            let Some(byte) = self.byte_at(self.pos) else {
                 self.value_close_segment(segment_start);
                 self.token_flags.insert(TokenFlags::UNTERMINATED);
                 self.error_at(self.pos, 0, &gen::Unterminated_string_literal);
                 break;
             };
 
-            if ch == quote {
+            if byte == quote {
                 self.value_close_segment(segment_start);
-                self.advance_char();
+                self.pos += 1;
                 break;
             }
-            if ch == '\\' {
+            if byte == b'\\' {
                 if self.token_value.cooked {
                     self.cooked.push_str(&self.text[segment_start..self.pos]);
                 } else {
@@ -1347,19 +1659,30 @@ impl<'text> Scanner<'text> {
                 segment_start = self.pos;
                 continue;
             }
-            if matches!(ch, '\n' | '\r') {
+            if matches!(byte, b'\n' | b'\r') {
                 self.value_close_segment(segment_start);
                 self.token_flags.insert(TokenFlags::UNTERMINATED);
                 self.error_at(self.pos, 0, &gen::Unterminated_string_literal);
                 break;
             }
-            self.advance_char();
+            if byte < 0x80 {
+                self.pos += 1;
+            } else if let Some(ch) = self.current_char() {
+                self.pos += ch.len_utf8();
+            } else {
+                self.value_close_segment(segment_start);
+                self.token_flags.insert(TokenFlags::UNTERMINATED);
+                self.error_at(self.pos, 0, &gen::Unterminated_string_literal);
+                break;
+            }
         }
 
         self.token = SyntaxKind::StringLiteral;
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_escape_sequence(&mut self, report_errors: bool) -> JsString {
         let start = self.pos;
         self.pos += 1;
@@ -1455,6 +1778,8 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_octal_escape(&mut self, start: usize, first: char, report_errors: bool) -> JsString {
         if self.current_char().is_some_and(is_octal_digit) {
             self.advance_char();
@@ -1479,6 +1804,8 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_extended_unicode_escape(&mut self, report: bool) -> JsString {
         let start = self.pos;
         self.pos += 3;
@@ -1536,10 +1863,14 @@ impl<'text> Scanner<'text> {
         JsString::from_code_point(value.expect("valid extended escape has a value"))
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_template_token(&mut self) -> SyntaxKind {
         self.scan_template_and_set_token_value(false)
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_template_and_set_token_value(
         &mut self,
         should_emit_invalid_escape_error: bool,
@@ -1552,6 +1883,7 @@ impl<'text> Scanner<'text> {
         contents.clear();
 
         let token = loop {
+            self.skip_ascii_body(&TEMPLATE_BODY_STOPS);
             if self.pos >= self.end {
                 contents.push_str(&self.text[segment_start..self.pos]);
                 self.token_flags.insert(TokenFlags::UNTERMINATED);
@@ -1602,7 +1934,7 @@ impl<'text> Scanner<'text> {
                 continue;
             }
 
-            self.advance_char();
+            self.pos += ch.len_utf8();
         };
 
         self.value_set_owned(contents);
@@ -1610,6 +1942,8 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_template_token(&mut self, is_tagged_template: bool) -> SyntaxKind {
         self.pos = self.token_start;
         self.token = self.scan_template_and_set_token_value(!is_tagged_template);
@@ -1647,6 +1981,8 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_slash_token(&mut self, _report_errors: bool) -> SyntaxKind {
         if !matches!(
             self.token,
@@ -1706,6 +2042,8 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     fn regex_unterminated_error_end(&self, start: usize, end: usize) -> usize {
         let mut pos = start;
         let mut in_escape = false;
@@ -1774,6 +2112,8 @@ impl<'text> Scanner<'text> {
         self.token_flags = TokenFlags::empty();
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_less_than_token(&mut self) -> SyntaxKind {
         if self.token == SyntaxKind::LessThanLessThanToken {
             self.pos = self.token_start + 1;
@@ -1784,6 +2124,8 @@ impl<'text> Scanner<'text> {
 
     /// tsc reScanAsteriskEqualsToken: `*=` becomes `*` (consumed by the
     /// caller as a JSDoc all-type) with the scanner repositioned on the `=`.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_asterisk_equals_token(&mut self) -> SyntaxKind {
         debug_assert_eq!(
             self.token,
@@ -1797,6 +2139,8 @@ impl<'text> Scanner<'text> {
 
     /// tsc reScanQuestionToken: `??` split so the first `?` can head a
     /// JSDoc unknown/nullable type.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_question_token(&mut self) -> SyntaxKind {
         debug_assert_eq!(
             self.token,
@@ -1808,6 +2152,8 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_hash_token(&mut self) -> SyntaxKind {
         if self.token == SyntaxKind::PrivateIdentifier {
             self.pos = self.token_start + 1;
@@ -1816,6 +2162,8 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) -> SyntaxKind {
         self.full_start_pos = self.pos;
         self.token_start = self.pos;
@@ -1883,12 +2231,16 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) -> SyntaxKind {
         self.pos = self.full_start_pos;
         self.token_start = self.full_start_pos;
         self.scan_jsx_token(allow_multiline_jsx_text)
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn scan_jsx_identifier(&mut self) -> SyntaxKind {
         if !token_is_identifier_or_keyword(self.token) {
             return self.token;
@@ -1914,6 +2266,8 @@ impl<'text> Scanner<'text> {
     }
 
     /// tsgo `ReScanJsxAttributeValue`.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_jsx_attribute_value(&mut self) -> SyntaxKind {
         self.pos = self.full_start_pos;
         self.token_start = self.full_start_pos;
@@ -1923,6 +2277,8 @@ impl<'text> Scanner<'text> {
     /// tsgo ScanJsxAttributeValue (scanner.go:1330-1347): whitespace and line
     /// breaks between `=` and the value are skipped, so the token starts at
     /// the opening quote and a quoted value may span lines.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn scan_jsx_attribute_value(&mut self) -> SyntaxKind {
         self.full_start_pos = self.pos;
         while let Some(ch) = self.current_char() {
@@ -1938,6 +2294,8 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_jsx_attribute_string(&mut self) -> SyntaxKind {
         let quote = self
             .current_char()
@@ -1962,6 +2320,7 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[inline(never)]
     fn scan_number_literal(&mut self) -> SyntaxKind {
         let start = self.pos;
 
@@ -2008,6 +2367,7 @@ impl<'text> Scanner<'text> {
         self.scan_number(start)
     }
 
+    #[inline(never)]
     fn scan_number(&mut self, start: usize) -> SyntaxKind {
         let main_fragment = if self.byte_at(self.pos) == Some(b'0') {
             self.pos += 1;
@@ -2193,6 +2553,8 @@ impl<'text> Scanner<'text> {
         (&self.text[start..self.pos], is_octal)
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_hex_digits(
         &mut self,
         min_count: usize,
@@ -2247,15 +2609,14 @@ impl<'text> Scanner<'text> {
         value
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_binary_or_octal_digits(&mut self, base: u8) -> String {
         let mut value = String::new();
         let mut separator_allowed = false;
         let mut is_previous_token_separator = false;
 
-        loop {
-            let Some(byte) = self.byte_at(self.pos) else {
-                break;
-            };
+        while let Some(byte) = self.byte_at(self.pos) {
             if byte == b'_' {
                 self.token_flags.insert(TokenFlags::CONTAINS_SEPARATOR);
                 if separator_allowed {
@@ -2375,6 +2736,8 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_identifier_part_length(&mut self) -> usize {
         // Measurement only: keep escape flags from leaking onto the token.
         let saved_token_flags = self.token_flags;
@@ -2383,6 +2746,8 @@ impl<'text> Scanner<'text> {
         length
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_identifier_part_length_worker(&mut self) -> usize {
         let start = self.pos;
         while let Some(ch) = self.current_char() {
@@ -2412,7 +2777,21 @@ impl<'text> Scanner<'text> {
 
     /// tsgo's `<`, `=`, `>` and `|` cases (scanner/scanner.go:765-871): a
     /// merge conflict marker is reported and skipped as trivia.
+    #[inline]
     fn skip_conflict_marker_trivia(&mut self) -> bool {
+        let bytes = self.text.as_bytes();
+        let byte = bytes[self.pos];
+        // Ordinary operators cannot be seven repeated bytes. Reject them
+        // before entering the cold conflict-marker scanner or its frame.
+        if bytes.get(self.pos + 1) != Some(&byte) || bytes.get(self.pos + 6) != Some(&byte) {
+            return false;
+        }
+        self.skip_conflict_marker_trivia_worker()
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn skip_conflict_marker_trivia_worker(&mut self) -> bool {
         if !is_conflict_marker_trivia(self.text, self.pos) {
             return false;
         }
@@ -2423,6 +2802,8 @@ impl<'text> Scanner<'text> {
 
     /// TS1185 at the marker. The marker is trivia, so the report leaves the
     /// tree complete.
+    #[cold]
+    #[inline(never)]
     fn report_conflict_marker(&mut self) {
         self.errors.push(ScanError {
             message: &gen::Merge_conflict_marker_encountered,
@@ -2433,10 +2814,14 @@ impl<'text> Scanner<'text> {
         });
     }
 
+    #[cold]
+    #[inline(never)]
     fn error_at(&mut self, start: usize, length: usize, message: &'static DiagnosticMessage) {
         self.error_at_with_args(start, length, message, Vec::new());
     }
 
+    #[cold]
+    #[inline(never)]
     fn error_at_with_args(
         &mut self,
         start: usize,
@@ -2479,6 +2864,13 @@ impl<'text> Scanner<'text> {
             .current_char()
             .expect("advance_char requires a current character");
         self.pos += ch.len_utf8();
+    }
+
+    /// Punctuation checks bound only the first byte by scanRange. Lookahead
+    /// uses the full source, exactly like starts_with and tsgo charAt.
+    #[inline]
+    fn lookahead_byte(&self, offset: usize) -> Option<u8> {
+        self.text.as_bytes().get(self.pos + offset).copied()
     }
 
     fn starts_with(&self, needle: &str) -> bool {
@@ -3250,6 +3642,7 @@ enum CommentDirectiveRegEx {
 /// appendIfCommentDirective's `text.trimStart()`). The regexes have no
 /// word boundary after the directive name — `@ts-ignored` matches as
 /// `@ts-ignore`, faithfully.
+#[inline(never)]
 fn get_directive_from_comment(
     text: &str,
     regex: CommentDirectiveRegEx,

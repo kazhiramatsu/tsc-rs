@@ -5,6 +5,6 @@
 # divergence on while_let_loop). Bumping this pin is a deliberate,
 # reviewed change that re-runs the full gate suite.
 [toolchain]
-channel = "1.93.0"
+channel = "1.99.1"
 profile = "minimal"
 components = ["clippy", "rustfmt"]
