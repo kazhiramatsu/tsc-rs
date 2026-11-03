@@ -754,6 +754,8 @@ impl<'text> Scanner<'text> {
     /// Enter a bounded source range for the parser-owned JSDoc type
     /// parser. The caller saves/restores ScannerState around this
     /// operation, matching tsc scanner.scanRange.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn reset_range(&mut self, start: usize, end: usize) {
         debug_assert!(start <= end);
         debug_assert!(end <= self.text.len());
@@ -789,6 +791,8 @@ impl<'text> Scanner<'text> {
     }
 
     /// tsc scanJSDocCommentTextToken @6.0.3.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn scan_jsdoc_comment_text_token(&mut self, in_backticks: bool) -> SyntaxKind {
         self.full_start_pos = self.pos;
         self.token_start = self.pos;
@@ -836,6 +840,8 @@ impl<'text> Scanner<'text> {
     /// tsc scanJsDocToken @6.0.3. Unlike ordinary scan(), whitespace and
     /// newlines are returned because the JSDoc parser owns indentation and
     /// comment text.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn scan_jsdoc_token(&mut self) -> SyntaxKind {
         self.full_start_pos = self.pos;
         self.token_start = self.pos;
@@ -1094,6 +1100,8 @@ impl<'text> Scanner<'text> {
         self.token_flags.contains(TokenFlags::UNTERMINATED)
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn take_errors(&mut self) -> Vec<ScanError> {
         std::mem::take(&mut self.errors)
     }
@@ -1150,6 +1158,8 @@ impl<'text> Scanner<'text> {
         &self.errors
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_shebang_trivia(&mut self) {
         self.skip_to_line_end();
     }
@@ -1200,6 +1210,7 @@ impl<'text> Scanner<'text> {
     /// closed. A `/**` other than the empty `/**/` also stamps the
     /// ordinary token that follows with PrecedingJSDocComment. Whether the
     /// comment closed.
+    #[inline(never)]
     fn skip_multi_line_comment(&mut self) -> bool {
         let mut last_line_start = self.token_start;
         let is_jsdoc =
@@ -1236,15 +1247,21 @@ impl<'text> Scanner<'text> {
         if !comment_closed {
             // tsc: the unterminated-comment error sits at the scan
             // position (end of text), zero width.
-            self.errors.push(ScanError {
-                message: &gen::expected,
-                start: self.pos,
-                length: 0,
-                args: Vec::new(),
-                trivia_kind: Some(SyntaxKind::MultiLineCommentTrivia),
-            });
+            self.unterminated_comment_error();
         }
         comment_closed
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn unterminated_comment_error(&mut self) {
+        self.errors.push(ScanError {
+            message: &gen::expected,
+            start: self.pos,
+            length: 0,
+            args: Vec::new(),
+            trivia_kind: Some(SyntaxKind::MultiLineCommentTrivia),
+        });
     }
 
     /// The trivia token `kind` when trivia is not skipped.
@@ -1267,13 +1284,15 @@ impl<'text> Scanner<'text> {
             JSDocParsingMode::ParseForTypeInfo => false,
             JSDocParsingMode::ParseForTypeErrors => {
                 let text = &self.text[self.full_start_pos..self.pos];
-                text.as_bytes()
-                    .windows(4)
-                    .any(|window| window.eq_ignore_ascii_case(b"@see"))
-                    || text
-                        .as_bytes()
-                        .windows(5)
-                        .any(|window| window.eq_ignore_ascii_case(b"@link"))
+                let bytes = text.as_bytes();
+                memchr::memchr_iter(b'@', bytes).any(|index| {
+                    let rest = &bytes[index..];
+                    rest.get(..4)
+                        .is_some_and(|word| word.eq_ignore_ascii_case(b"@see"))
+                        || rest
+                            .get(..5)
+                            .is_some_and(|word| word.eq_ignore_ascii_case(b"@link"))
+                })
             }
         }
     }
@@ -1287,6 +1306,7 @@ impl<'text> Scanner<'text> {
     /// the whole comment for the single-line shape, the last line
     /// incl. `*/` for the multi-line shape. `line_start` doubles as
     /// range.pos.
+    #[inline(never)]
     fn append_if_comment_directive(&mut self, line_start: usize, regex: CommentDirectiveRegEx) {
         let comment = &self.text[line_start..self.pos];
         let Some(kind) = get_directive_from_comment(js_trim_start(comment), regex) else {
@@ -1306,6 +1326,8 @@ impl<'text> Scanner<'text> {
         self.finish_identifier_token()
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_identifier_escape_start(&mut self) -> Option<SyntaxKind> {
         let start = self.pos;
         let (ch, escape_flag) = self.scan_unicode_escape()?;
@@ -1399,6 +1421,8 @@ impl<'text> Scanner<'text> {
     /// identifier (or identifier escape) follows; otherwise it is an
     /// Invalid_character Unknown token. `#!` past position 0 is 18026,
     /// and tsgo's Unknown token covers both characters (scanner.go:912-915).
+    #[cold]
+    #[inline(never)]
     fn scan_private_identifier(&mut self) -> SyntaxKind {
         let hash_pos = self.pos;
         if hash_pos != 0 && self.byte_at(hash_pos + 1) == Some(b'!') {
@@ -1447,6 +1471,8 @@ impl<'text> Scanner<'text> {
     /// a peek that never moves `pos` unless the escape is consumed, returning
     /// the cooked character with the token flag the consumer inserts once it
     /// accepts the character (scanIdentifierParts, 9285-9305).
+    #[cold]
+    #[inline(never)]
     fn scan_unicode_escape(&mut self) -> Option<(char, TokenFlags)> {
         if !self.starts_with("\\u") {
             return None;
@@ -1502,6 +1528,7 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    #[inline(never)]
     fn scan_string_literal(&mut self) -> SyntaxKind {
         let quote = self.text.as_bytes()[self.pos];
         self.pos += 1;
@@ -1561,6 +1588,8 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_escape_sequence(&mut self, report_errors: bool) -> JsString {
         let start = self.pos;
         self.pos += 1;
@@ -1656,6 +1685,8 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_octal_escape(&mut self, start: usize, first: char, report_errors: bool) -> JsString {
         if self.current_char().is_some_and(is_octal_digit) {
             self.advance_char();
@@ -1680,6 +1711,8 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_extended_unicode_escape(&mut self, report: bool) -> JsString {
         let start = self.pos;
         self.pos += 3;
@@ -1737,10 +1770,14 @@ impl<'text> Scanner<'text> {
         JsString::from_code_point(value.expect("valid extended escape has a value"))
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_template_token(&mut self) -> SyntaxKind {
         self.scan_template_and_set_token_value(false)
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_template_and_set_token_value(
         &mut self,
         should_emit_invalid_escape_error: bool,
@@ -1812,12 +1849,16 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_template_token(&mut self, is_tagged_template: bool) -> SyntaxKind {
         self.pos = self.token_start;
         self.token = self.scan_template_and_set_token_value(!is_tagged_template);
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_greater_token(&mut self) -> SyntaxKind {
         if self.token == SyntaxKind::GreaterThanToken {
             if self.byte_at(self.pos) == Some(b'>') {
@@ -1849,6 +1890,8 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_slash_token(&mut self, _report_errors: bool) -> SyntaxKind {
         if !matches!(
             self.token,
@@ -1908,6 +1951,8 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     fn regex_unterminated_error_end(&self, start: usize, end: usize) -> usize {
         let mut pos = start;
         let mut in_escape = false;
@@ -1976,6 +2021,8 @@ impl<'text> Scanner<'text> {
         self.token_flags = TokenFlags::empty();
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_less_than_token(&mut self) -> SyntaxKind {
         if self.token == SyntaxKind::LessThanLessThanToken {
             self.pos = self.token_start + 1;
@@ -1986,6 +2033,8 @@ impl<'text> Scanner<'text> {
 
     /// tsc reScanAsteriskEqualsToken: `*=` becomes `*` (consumed by the
     /// caller as a JSDoc all-type) with the scanner repositioned on the `=`.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_asterisk_equals_token(&mut self) -> SyntaxKind {
         debug_assert_eq!(
             self.token,
@@ -1999,6 +2048,8 @@ impl<'text> Scanner<'text> {
 
     /// tsc reScanQuestionToken: `??` split so the first `?` can head a
     /// JSDoc unknown/nullable type.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_question_token(&mut self) -> SyntaxKind {
         debug_assert_eq!(
             self.token,
@@ -2010,6 +2061,8 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_hash_token(&mut self) -> SyntaxKind {
         if self.token == SyntaxKind::PrivateIdentifier {
             self.pos = self.token_start + 1;
@@ -2018,6 +2071,8 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) -> SyntaxKind {
         self.full_start_pos = self.pos;
         self.token_start = self.pos;
@@ -2085,12 +2140,16 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) -> SyntaxKind {
         self.pos = self.full_start_pos;
         self.token_start = self.full_start_pos;
         self.scan_jsx_token(allow_multiline_jsx_text)
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn scan_jsx_identifier(&mut self) -> SyntaxKind {
         if !token_is_identifier_or_keyword(self.token) {
             return self.token;
@@ -2116,6 +2175,8 @@ impl<'text> Scanner<'text> {
     }
 
     /// tsgo `ReScanJsxAttributeValue`.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn re_scan_jsx_attribute_value(&mut self) -> SyntaxKind {
         self.pos = self.full_start_pos;
         self.token_start = self.full_start_pos;
@@ -2125,6 +2186,8 @@ impl<'text> Scanner<'text> {
     /// tsgo ScanJsxAttributeValue (scanner.go:1330-1347): whitespace and line
     /// breaks between `=` and the value are skipped, so the token starts at
     /// the opening quote and a quoted value may span lines.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn scan_jsx_attribute_value(&mut self) -> SyntaxKind {
         self.full_start_pos = self.pos;
         while let Some(ch) = self.current_char() {
@@ -2140,6 +2203,8 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_jsx_attribute_string(&mut self) -> SyntaxKind {
         let quote = self
             .current_char()
@@ -2164,6 +2229,7 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[inline(never)]
     fn scan_number_literal(&mut self) -> SyntaxKind {
         let start = self.pos;
 
@@ -2210,6 +2276,7 @@ impl<'text> Scanner<'text> {
         self.scan_number(start)
     }
 
+    #[inline(never)]
     fn scan_number(&mut self, start: usize) -> SyntaxKind {
         let main_fragment = if self.byte_at(self.pos) == Some(b'0') {
             self.pos += 1;
@@ -2395,6 +2462,8 @@ impl<'text> Scanner<'text> {
         (&self.text[start..self.pos], is_octal)
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_hex_digits(
         &mut self,
         min_count: usize,
@@ -2449,6 +2518,8 @@ impl<'text> Scanner<'text> {
         value
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_binary_or_octal_digits(&mut self, base: u8) -> String {
         let mut value = String::new();
         let mut separator_allowed = false;
@@ -2577,6 +2648,8 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_identifier_part_length(&mut self) -> usize {
         // Measurement only: keep escape flags from leaking onto the token.
         let saved_token_flags = self.token_flags;
@@ -2585,6 +2658,8 @@ impl<'text> Scanner<'text> {
         length
     }
 
+    #[cold]
+    #[inline(never)]
     fn scan_identifier_part_length_worker(&mut self) -> usize {
         let start = self.pos;
         while let Some(ch) = self.current_char() {
@@ -2625,6 +2700,8 @@ impl<'text> Scanner<'text> {
 
     /// TS1185 at the marker. The marker is trivia, so the report leaves the
     /// tree complete.
+    #[cold]
+    #[inline(never)]
     fn report_conflict_marker(&mut self) {
         self.errors.push(ScanError {
             message: &gen::Merge_conflict_marker_encountered,
@@ -2635,10 +2712,14 @@ impl<'text> Scanner<'text> {
         });
     }
 
+    #[cold]
+    #[inline(never)]
     fn error_at(&mut self, start: usize, length: usize, message: &'static DiagnosticMessage) {
         self.error_at_with_args(start, length, message, Vec::new());
     }
 
+    #[cold]
+    #[inline(never)]
     fn error_at_with_args(
         &mut self,
         start: usize,
@@ -3452,6 +3533,8 @@ enum CommentDirectiveRegEx {
 /// appendIfCommentDirective's `text.trimStart()`). The regexes have no
 /// word boundary after the directive name — `@ts-ignored` matches as
 /// `@ts-ignore`, faithfully.
+#[cold]
+#[inline(never)]
 fn get_directive_from_comment(
     text: &str,
     regex: CommentDirectiveRegEx,
