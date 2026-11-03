@@ -1,7 +1,9 @@
 use tsc_binder::flow::FlowId;
 use tsc_diagnostics::{gen as diagnostics, RelatedInfo};
+use tsc_syntax::SyntaxKind;
 use tsc_types::{
-    CompilerOptions, NodeCheckFlags, SymbolFlags, TypeData, TypeFlags, TypeSystemPropertyName,
+    CheckMode, CompilerOptions, NodeCheckFlags, SymbolFlags, TypeData, TypeFlags,
+    TypeSystemPropertyName,
 };
 
 use super::SpeculationOutcome;
@@ -16,6 +18,72 @@ fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
         &CompilerOptions::default(),
         run,
     )
+}
+
+#[test]
+fn overload_argument_retains_transitive_type_only_alias_facts() {
+    let text = "import { Alias } from './bridge';\n\
+                declare function take(x: number): void;\n\
+                declare function take(x: { new(): { value: number } }): void;\n\
+                take(Alias);\n\
+                Alias;\n";
+    with_program_state(
+        &[
+            ("/a.ts", text),
+            ("/bridge.ts", "export type { Base as Alias } from './base';"),
+            ("/base.ts", "export class Base { value: number; }"),
+        ],
+        &CompilerOptions::default(),
+        |state| {
+            let nodes = state.binder.source(0).arena.node_ids().collect::<Vec<_>>();
+            let import = nodes
+                .iter()
+                .copied()
+                .find(|&node| state.kind_of(node) == SyntaxKind::ImportSpecifier)
+                .expect("import specifier");
+            let alias = state.get_symbol_of_declaration(import).expect("alias");
+            assert!(state
+                .links
+                .symbol_cold()
+                .type_only_declaration
+                .get(alias)
+                .is_none());
+            let call = nodes
+                .iter()
+                .copied()
+                .find(|&node| state.kind_of(node) == SyntaxKind::CallExpression)
+                .expect("overloaded call");
+            let selected = state
+                .get_resolved_signature(call, None, CheckMode::NORMAL)
+                .expect("second overload applies");
+            let second = nodes
+                .iter()
+                .copied()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::FunctionDeclaration)
+                .nth(1)
+                .expect("second overload");
+            assert_eq!(state.signature_of(selected).declaration, Some(second));
+            // tsgo resolveIndirectionAlias keeps this fact with the target
+            // through both the rejected and the selected candidate.
+            assert!(state
+                .links
+                .symbol_cold()
+                .type_only_declaration
+                .get(alias)
+                .is_some());
+            let later_use = nodes
+                .into_iter()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::Identifier)
+                .max_by_key(|&node| state.pos_of(node))
+                .expect("later Alias reference");
+            state
+                .check_expression(later_use, CheckMode::NORMAL)
+                .expect("later use");
+            let diagnostic = state.diagnostics.last().expect("type-only value error");
+            assert_eq!(diagnostic.code(), 1362);
+            assert_eq!(diagnostic.start, Some(text.rfind("Alias").unwrap() as u32));
+        },
+    );
 }
 
 /// The node's nonExistentPropCheckCache keys (empty when none was ever
