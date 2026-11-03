@@ -331,8 +331,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if !new_type_parameters.is_empty() {
-            let mapper =
-                self.create_type_mapper(old_type_parameters, Some(new_type_parameters.clone()));
+            let mapper = self.create_type_mapper(&old_type_parameters, Some(&new_type_parameters));
             for tp in new_type_parameters {
                 self.links
                     .set_type_parameter_mapper(self.speculation_depth, tp, mapper);
@@ -3119,7 +3118,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ObjectBindingPattern(data) => data.elements,
             _ => None,
         };
-        let elements: Vec<NodeId> = self.nodes_of(elements);
+        let elements = self.nodes_of(elements);
         let mut missing_elements: Vec<NodeId> = Vec::new();
         for &e in &elements {
             let is_rest = matches!(
@@ -3224,7 +3223,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ArrayBindingPattern(data) => data.elements,
             _ => None,
         };
-        let pattern_elements: Vec<NodeId> = self.nodes_of(elements);
+        let pattern_elements = self.nodes_of(elements);
         if combined_variable || arity >= pattern_elements.len() {
             return Ok(ty);
         }

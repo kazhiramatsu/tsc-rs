@@ -1385,7 +1385,7 @@ impl Completions<'_, '_, '_> {
     /// tsgo `completionNameForLiteral`.
     pub(super) fn completion_name_for_literal(&self, literal: &LiteralValueOwned) -> String {
         match literal.as_ref() {
-            LiteralValue::String(text) => self.quote_js(&text.to_js_string()),
+            LiteralValue::String(text) => self.quote_js(&text.to_owned()),
             // Go's JSON encoding of a float: ES's number formatting, but
             // `-0` keeps its sign.
             LiteralValue::Number(value) => {
@@ -1601,10 +1601,8 @@ pub(crate) struct CaseClauseTracker {
 impl CaseClauseTracker {
     pub(crate) fn has_value(&self, literal: LiteralValue<'_>) -> bool {
         match literal {
-            LiteralValue::String(text) => self
-                .strings
-                .contains(&text.to_js_string().to_string_lossy().into_owned()),
-            LiteralValue::Number(value) => self.numbers.iter().any(|&existing| existing == value),
+            LiteralValue::String(text) => self.strings.contains(text.to_string_lossy().as_ref()),
+            LiteralValue::Number(value) => self.numbers.contains(&value),
             LiteralValue::BigInt(value) => self.big_ints.contains(&value.to_base10_string()),
         }
     }

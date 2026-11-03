@@ -348,7 +348,7 @@ impl<'a> CheckerState<'a> {
             }
             let parameters = match self.data_of(declaration) {
                 NodeData::IndexSignature(data) => self.nodes_of(data.parameters),
-                _ => Vec::new(),
+                _ => Default::default(),
             };
             if parameters.len() != 1 {
                 continue;
@@ -1159,7 +1159,7 @@ impl<'a> CheckerState<'a> {
                     NodeData::HeritageClause(data)
                         if data.token == SyntaxKind::ImplementsKeyword =>
                     {
-                        Some(self.nodes_of(data.types))
+                        Some(self.nodes_of(data.types).to_vec())
                     }
                     _ => None,
                 });

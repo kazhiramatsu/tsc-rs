@@ -801,9 +801,7 @@ impl<'a> CheckerState<'a> {
                         NodeData::CallExpression(data) => data.arguments,
                         _ => None,
                     };
-                    let arguments: Vec<NodeId> = arguments
-                        .map(|arguments| self.binder.node_array(arguments).nodes.to_vec())
-                        .unwrap_or_default();
+                    let arguments = self.nodes_of(arguments);
                     match usize::try_from(predicate.parameter_index)
                         .ok()
                         .and_then(|index| arguments.get(index).copied())
@@ -974,7 +972,7 @@ impl<'a> CheckerState<'a> {
                                             TypeData::Literal {
                                                 value: tsc_types::LiteralData::String(value),
                                                 ..
-                                            } if state.tables.literal_text(*value).eq_utf8("undefined")
+                                            } if state.tables.literal_text(*value) == "undefined"
                                         );
                                     !is_undefined_literal
                                 },
@@ -1547,8 +1545,7 @@ impl<'a> CheckerState<'a> {
         }
         let mut evolved = ty;
         if let Some(arguments) = call_arguments {
-            let arguments: Vec<NodeId> = self.binder.node_array(arguments).nodes.to_vec();
-            for argument in arguments {
+            for argument in self.nodes_of(Some(arguments)) {
                 evolved = self.add_evolving_array_element_type(evolved, argument)?;
             }
         } else if let Some((argument, right)) = element_write {
@@ -1950,9 +1947,13 @@ impl<'a> CheckerState<'a> {
                 NodeData::ObjectBindingPattern(data) => data.elements,
                 _ => None,
             };
-            let index = elements
-                .map(|elements| self.binder.node_array(elements).nodes.to_vec())
-                .and_then(|nodes| nodes.iter().position(|&element| element == node));
+            let index = elements.and_then(|elements| {
+                self.binder
+                    .node_array(elements)
+                    .nodes
+                    .iter()
+                    .position(|&element| element == node)
+            });
             let Some(index) = index else {
                 return Ok(self.tables.intrinsics.error);
             };
@@ -2032,9 +2033,13 @@ impl<'a> CheckerState<'a> {
             NodeData::ArrayLiteralExpression(data) => data.elements,
             _ => None,
         };
-        let index = elements
-            .map(|elements| self.binder.node_array(elements).nodes.to_vec())
-            .and_then(|nodes| nodes.iter().position(|&e| e == element));
+        let index = elements.and_then(|elements| {
+            self.binder
+                .node_array(elements)
+                .nodes
+                .iter()
+                .position(|&e| e == element)
+        });
         let Some(index) = index else {
             return Ok(self.tables.intrinsics.error);
         };
@@ -2608,15 +2613,15 @@ impl<'a> CheckerState<'a> {
             };
             let name_is_identifier =
                 name.is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier);
-            let name_text = self.escaped_text_of(name).map(str::to_owned);
+            let name_text = self.escaped_text_of(name);
             let grand_is_call = self
                 .parent_of(parent)
                 .is_some_and(|grand| self.kind_of(grand) == SyntaxKind::CallExpression);
             // isPushOrUnshiftIdentifier (15983) folded into the match.
-            let is_length_push_or_unshift = name_text.as_deref() == Some("length")
+            let is_length_push_or_unshift = name_text == Some("length")
                 || (grand_is_call
                     && name_is_identifier
-                    && matches!(name_text.as_deref(), Some("push") | Some("unshift")));
+                    && matches!(name_text, Some("push") | Some("unshift")));
             if is_length_push_or_unshift {
                 return Ok(true);
             }
@@ -3785,7 +3790,7 @@ impl<'a> CheckerState<'a> {
 
     /// The escaped text of an identifier-like name node.
     /// tsrs-native: NodeData accessor.
-    pub(crate) fn escaped_text_of(&self, node: Option<NodeId>) -> Option<&str> {
+    pub(crate) fn escaped_text_of(&self, node: Option<NodeId>) -> Option<&'a str> {
         let node = node?;
         match self.data_of(node) {
             NodeData::Identifier(data) => Some(data.escaped_text.identifier_text()),
@@ -3859,7 +3864,7 @@ impl<'a> CheckerState<'a> {
             // tsc: escapeLeadingUnderscores("" + type.value).
             if let Some(value) = self.tables.literal_value(ty) {
                 let text = match value {
-                    tsc_types::LiteralValue::String(text) => text.to_js_string(),
+                    tsc_types::LiteralValue::String(text) => text.to_owned(),
                     tsc_types::LiteralValue::Number(number) => {
                         JsString::from(tsc_types::tables::js_number_to_string(number))
                     }
@@ -4033,7 +4038,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(value) = self.tables.literal_value(ty) {
             return Ok(match value {
-                tsc_types::LiteralValue::String(text) => Some(text.to_js_string()),
+                tsc_types::LiteralValue::String(text) => Some(text.to_owned()),
                 tsc_types::LiteralValue::Number(number) => {
                     Some(tsc_types::tables::js_number_to_string(number).into())
                 }
@@ -4174,8 +4179,7 @@ impl<'a> CheckerState<'a> {
         let Some(elements) = elements else {
             return Ok(false);
         };
-        let elements: Vec<NodeId> = self.binder.node_array(elements).nodes.to_vec();
-        for element in elements {
+        for element in self.nodes_of(Some(elements)) {
             if self.kind_of(element) == SyntaxKind::OmittedExpression {
                 continue;
             }
@@ -4463,15 +4467,13 @@ impl<'a> CheckerState<'a> {
                 let Some(func) = self.parent_of(declaration) else {
                     return Ok(ty);
                 };
-                let parameters: Vec<NodeId> = match self.data_of(func) {
+                let parameters = self.nodes_of(match self.data_of(func) {
                     NodeData::FunctionExpression(f) => f.parameters,
                     NodeData::ArrowFunction(f) => f.parameters,
                     NodeData::FunctionDeclaration(f) => f.parameters,
                     NodeData::MethodDeclaration(f) => f.parameters,
                     _ => None,
-                }
-                .map(|list| self.binder.node_array(list).nodes.to_vec())
-                .unwrap_or_default();
+                });
                 if parameters.len() >= 2
                     && self.is_context_sensitive_function_or_object_literal_method(func)?
                 {

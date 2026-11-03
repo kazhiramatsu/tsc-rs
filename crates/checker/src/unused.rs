@@ -523,7 +523,7 @@ impl<'a> CheckerState<'a> {
     fn report_unused_variables(&mut self, declaration_list: NodeId) -> CheckResult<()> {
         let declarations = match self.data_of(declaration_list) {
             NodeData::VariableDeclarationList(data) => self.nodes_of(data.declarations),
-            _ => Vec::new(),
+            _ => Default::default(),
         };
         if declarations.len() > 1 && self.all_unreferenced_variable_declarations(&declarations)? {
             self.report_unused_variable(
@@ -806,8 +806,8 @@ impl<'a> CheckerState<'a> {
 
     fn unused_binding_pattern_elements(&self, binding_pattern: NodeId) -> Vec<NodeId> {
         match self.data_of(binding_pattern) {
-            NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements),
-            NodeData::ArrayBindingPattern(data) => self.nodes_of(data.elements),
+            NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements).to_vec(),
+            NodeData::ArrayBindingPattern(data) => self.nodes_of(data.elements).to_vec(),
             _ => Vec::new(),
         }
     }

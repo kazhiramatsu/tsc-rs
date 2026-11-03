@@ -688,7 +688,7 @@ impl CheckerState<'_> {
         let properties = match self.data_of(object) {
             NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
             NodeData::JsxAttributes(data) => self.nodes_of(data.properties),
-            _ => Vec::new(),
+            _ => Default::default(),
         };
         for property in properties {
             let Some(name) = self.name_of_node(property) else {
@@ -791,7 +791,7 @@ impl CheckerState<'_> {
             TypeData::Literal { value, .. } => match self.tables.literal_value_of(*value) {
                 LiteralValue::String(text) => format!(
                     "\"{}\"",
-                    tsc_emitter::escape_string(text.units(), tsc_emitter::LiteralQuote::Double)
+                    tsc_emitter::escape_string(&text.to_utf16(), tsc_emitter::LiteralQuote::Double)
                 ),
                 LiteralValue::Number(value) => tsc_types::js_number_to_string(value),
                 LiteralValue::BigInt(value) => format!("{}n", value.to_base10_string()),
@@ -1028,7 +1028,7 @@ impl CheckerState<'_> {
         location: NodeId,
     ) -> CheckResult<Vec<SymbolId>> {
         let intrinsics = self.get_jsx_type(crate::jsx::JSX_INTRINSIC_ELEMENTS, location)?;
-        self.get_properties_of_type(intrinsics)
+        Ok(self.get_properties_of_type(intrinsics)?.to_vec())
     }
 
     /// tsgo `GetContextualTypeForJsxAttribute` (services.go:865-867).
@@ -1214,7 +1214,7 @@ impl CheckerState<'_> {
                 self.get_constraint_of_type_parameter(type_parameters[position])?
             {
                 let arguments = self.get_effective_type_arguments(parent, &type_parameters)?;
-                let mapper = self.create_type_mapper(type_parameters, Some(arguments));
+                let mapper = self.create_type_mapper(&type_parameters[..], Some(&arguments[..]));
                 return Ok(Some(self.instantiate_type(constraint, Some(mapper))?));
             }
         }
@@ -1277,7 +1277,7 @@ impl CheckerState<'_> {
             return Ok(Vec::new());
         };
         let ty = self.get_type_of_expression(target)?;
-        self.get_signatures_of_type(ty, kind)
+        Ok(self.get_signatures_of_type(ty, kind)?.to_vec())
     }
 
     /// tsgo `GetAccessibleSymbolChain` (symbolaccessibility.go:444-458).

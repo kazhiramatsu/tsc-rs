@@ -199,10 +199,10 @@ impl<'a> CheckerState<'a> {
                     .intersects(TypeFlags::STRING_LITERAL)
             })
             .collect::<Vec<_>>();
-        let source_units = source_value.units().to_vec();
+        let source_units = source_value.to_utf16();
         get_spelling_suggestion_utf16(self, &source_units, &candidates, |state, candidate| {
             match state.tables.literal_value(candidate) {
-                Some(LiteralValue::String(value)) => Some(value.units().to_vec()),
+                Some(LiteralValue::String(value)) => Some(value.to_utf16()),
                 _ => None,
             }
         })
@@ -308,7 +308,7 @@ impl<'a> CheckerState<'a> {
                             filtered.push(prop);
                         }
                     }
-                    props = filtered;
+                    props = filtered.into();
                 }
             }
         }

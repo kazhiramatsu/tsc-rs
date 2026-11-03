@@ -277,11 +277,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:63362-63364
     pub fn make_array_type_mapper(
         &mut self,
-        sources: Vec<TypeId>,
-        targets: Option<Vec<TypeId>>,
+        sources: &[TypeId],
+        targets: Option<&[TypeId]>,
     ) -> MapperId {
-        let sources = self.alloc_mapper_list(&sources);
-        let targets = targets.map(|targets| self.alloc_mapper_list(&targets));
+        let sources = self.alloc_mapper_list(sources);
+        let targets = targets.map(|targets| self.alloc_mapper_list(targets));
         self.alloc_mapper(TypeMapper::Array { sources, targets })
     }
 
@@ -303,11 +303,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:63324-63326
     pub fn create_type_mapper(
         &mut self,
-        sources: Vec<TypeId>,
-        targets: Option<Vec<TypeId>>,
+        sources: &[TypeId],
+        targets: Option<&[TypeId]>,
     ) -> MapperId {
         if sources.len() == 1 {
-            let target = match &targets {
+            let target = match targets {
                 Some(targets) => targets[0],
                 None => self.tables.intrinsics.any,
             };
@@ -320,7 +320,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createTypeEraser @6.0.3
     /// tsc-hash: 014992554244c1b0a4881215b101a857c3e6aa9b7b7a79832eff6a1f6935da8d
     /// tsc-span: _tsc.js:63374-63380
-    pub fn create_type_eraser(&mut self, sources: Vec<TypeId>) -> MapperId {
+    pub fn create_type_eraser(&mut self, sources: &[TypeId]) -> MapperId {
         self.create_type_mapper(sources, None)
     }
 
@@ -621,17 +621,40 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         erase_type_parameters: bool,
     ) -> CheckResult<SignatureId> {
-        let source = self.signature_of(signature).without_caches();
+        // The source's fields are read in place (no copy of its lists);
+        // the lists are re-read by index, the signature arena growing while
+        // the members are instantiated.
+        let source = self.signature_of(signature);
+        let (declaration, flags, source_this_parameter, min_argument_count, from_method) = (
+            source.declaration,
+            source.flags,
+            source.this_parameter,
+            source.min_argument_count,
+            source.from_method,
+        );
+        let isolated_signature_kind = source.isolated_signature_kind;
+        let type_parameter_count = source.type_parameters.as_ref().map(Vec::len);
+        let parameter_count = source.parameters.len();
         let mut mapper = mapper;
         let mut fresh_type_parameters: Option<Vec<TypeId>> = None;
-        if let Some(type_parameters) = &source.type_parameters {
+        if let Some(count) = type_parameter_count {
             if !erase_type_parameters {
-                let fresh: Vec<TypeId> = type_parameters
-                    .iter()
-                    .map(|&tp| self.clone_type_parameter(tp))
-                    .collect();
-                let fresh_mapper =
-                    self.create_type_mapper(type_parameters.clone(), Some(fresh.clone()));
+                let mut fresh: Vec<TypeId> = Vec::with_capacity(count);
+                for index in 0..count {
+                    let tp = self
+                        .signature_of(signature)
+                        .type_parameters
+                        .as_deref()
+                        .expect("counted above")[index];
+                    fresh.push(self.clone_type_parameter(tp));
+                }
+                let sources = tsc_types::TypeListCopy::new(
+                    self.signature_of(signature)
+                        .type_parameters
+                        .as_deref()
+                        .expect("counted above"),
+                );
+                let fresh_mapper = self.create_type_mapper(&sources, Some(&fresh));
                 mapper = self.combine_type_mappers(Some(fresh_mapper), mapper);
                 for &tp in &fresh {
                     self.links
@@ -640,23 +663,22 @@ impl<'a> CheckerState<'a> {
                 fresh_type_parameters = Some(fresh);
             }
         }
-        let this_parameter = source
-            .this_parameter
-            .map(|this| self.instantiate_symbol(this, mapper));
-        let parameters: Vec<SymbolId> = source
-            .parameters
-            .iter()
-            .map(|&parameter| self.instantiate_symbol(parameter, mapper))
-            .collect();
+        let this_parameter =
+            source_this_parameter.map(|this| self.instantiate_symbol(this, mapper));
+        let mut parameters: Vec<SymbolId> = Vec::with_capacity(parameter_count);
+        for index in 0..parameter_count {
+            let parameter = self.signature_of(signature).parameters[index];
+            parameters.push(self.instantiate_symbol(parameter, mapper));
+        }
         let result = Signature {
-            declaration: source.declaration,
-            flags: source.flags & SignatureFlags::PROPAGATING_FLAGS,
+            declaration,
+            flags: flags & SignatureFlags::PROPAGATING_FLAGS,
             type_parameters: fresh_type_parameters,
             parameters,
             this_parameter,
-            min_argument_count: source.min_argument_count,
+            min_argument_count,
             resolved_return_type: LinkSlot::Vacant,
-            from_method: source.from_method,
+            from_method,
             target: Some(signature),
             mapper: Some(mapper),
             erased_signature_cache: None,
@@ -665,7 +687,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: None,
             composite_signatures: None,
             optional_call_signature_cache: (None, None),
-            isolated_signature_kind: source.isolated_signature_kind,
+            isolated_signature_kind,
             isolated_signature_type: None,
             // An instantiation OF the failure stub stays stub-derived.
         };
@@ -827,6 +849,8 @@ impl<'a> CheckerState<'a> {
         } else {
             ty
         };
+        // The outer type parameters as an interned list: the cache, the
+        // seeded self key and the loop below read it without a copy.
         let type_parameters = match self
             .links
             .node_cold()
@@ -834,7 +858,7 @@ impl<'a> CheckerState<'a> {
             .get(declaration)
             .resolved()
         {
-            Some(cached) => cached.to_vec(),
+            Some(cached) => cached,
             None => {
                 let mut outer = self
                     .get_outer_type_parameters(declaration, /*include_this_types*/ true)?
@@ -897,14 +921,13 @@ impl<'a> CheckerState<'a> {
                 } else {
                     outer
                 };
-                self.links.set_node_outer_type_parameters(
-                    declaration,
-                    filtered.clone().into_boxed_slice(),
-                );
-                filtered
+                let list = self.tables.intern_type_list(&filtered);
+                self.links.set_node_outer_type_parameters(declaration, list);
+                list
             }
         };
-        if type_parameters.is_empty() {
+        let parameter_count = self.tables.list(type_parameters).len();
+        if parameter_count == 0 {
             return Ok(ty);
         }
         // `type.mapper` (63485): the deferred-reference mapper for
@@ -917,16 +940,20 @@ impl<'a> CheckerState<'a> {
             self.links.read_ty(ty, |links| links.instantiated_mapper)
         };
         let combined_mapper = self.combine_type_mappers(type_mapper, mapper);
-        let mut type_arguments: Vec<TypeId> = Vec::with_capacity(type_parameters.len());
-        for &tp in &type_parameters {
+        let mut type_arguments: Vec<TypeId> = Vec::with_capacity(parameter_count);
+        let mut parameters = self.tables.cursor(type_parameters);
+        while let Some(tp) = parameters.next(&self.tables) {
             type_arguments.push(self.get_mapped_type(tp, combined_mapper)?);
         }
         let new_alias_symbol = alias_symbol.or(self.tables.alias_symbol(ty));
         let new_alias_type_arguments = if alias_symbol.is_some() {
             alias_type_arguments.map(<[TypeId]>::to_vec)
         } else {
-            match self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec) {
-                Some(arguments) => Some(self.instantiate_types(&arguments, mapper)?),
+            match self.tables.alias_type_argument_list(ty) {
+                Some(arguments) => {
+                    let arguments = self.tables.list_copy(arguments);
+                    Some(self.instantiate_types(&arguments, mapper)?)
+                }
                 None => None,
             }
         };
@@ -937,26 +964,23 @@ impl<'a> CheckerState<'a> {
             object_flags.intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE),
         );
         // 63489-63492: the target's instantiations map is seeded with
-        // itself under its own type-parameter list id.
+        // itself under its own type-parameter list id (the interned ids
+        // directly: the same key instantiation_key would build).
         let target_alias_symbol = self.tables.alias_symbol(target);
-        let target_alias_arguments = self
-            .tables
-            .alias_type_arguments(target)
-            .map(<[TypeId]>::to_vec);
-        let self_key = self.tables.instantiation_key(
-            &type_parameters,
-            target_alias_symbol,
-            target_alias_arguments.as_deref(),
-            false,
-        );
+        let self_key = tsc_types::InstantiationKey {
+            arguments: type_parameters,
+            alias_symbol: target_alias_symbol,
+            alias_arguments: target_alias_symbol.and(self.tables.alias_type_argument_list(target)),
+            single_signature: false,
+        };
         if self.tables.instantiation_get(target, self_key).is_none() {
             self.tables.instantiation_insert(target, self_key, target);
         }
         if let Some(existing) = self.tables.instantiation_get(target, id_key) {
             return Ok(existing);
         }
-        let mut new_mapper =
-            self.create_type_mapper(type_parameters.clone(), Some(type_arguments.clone()));
+        let parameters = self.tables.list_copy(type_parameters);
+        let mut new_mapper = self.create_type_mapper(&parameters, Some(&type_arguments));
         // 63496-63498: a SingleSignatureType target (isolated
         // signature types — constructible since 7.4's contextual
         // re-key and higher-order paths made getOrCreateTypeFrom-
@@ -2483,7 +2507,7 @@ impl<'a> CheckerState<'a> {
         }
         let syntactic = self.nodes_of(self.type_parameter_declaration_list_of(node));
         if !syntactic.is_empty() {
-            return syntactic;
+            return syntactic.to_vec();
         }
         // tsgo node.TypeParameters(): a JavaScript function or class has the
         // type parameters its reparser hosts from the comment's `@template`
@@ -2693,7 +2717,11 @@ impl<'a> CheckerState<'a> {
         is_javascript: bool,
         inferred_type_parameters: Option<&[TypeId]>,
     ) -> CheckResult<SignatureId> {
-        let type_parameters = self.signature_of(signature).type_parameters.clone();
+        let type_parameters = self
+            .signature_of(signature)
+            .type_parameters
+            .as_deref()
+            .map(tsc_types::TypeListCopy::new);
         let min_type_argument_count = self.get_min_type_argument_count(type_parameters.as_deref());
         let filled = self.fill_missing_type_arguments(
             type_arguments,
@@ -2737,9 +2765,11 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<SignatureId> {
+        // The interned list id stands for tsc's getTypeListId string: equal
+        // lists intern to one id, as they format to one string.
         let key = (
             signature,
-            self.tables.get_type_list_id(type_arguments.unwrap_or(&[])),
+            self.tables.intern_type_list(type_arguments.unwrap_or(&[])),
         );
         perf::bump(PerfCounter::SignatureInstantiationLookups);
         if let Some(&existing) = self.signature_instantiations.get(&key) {
@@ -2862,7 +2892,7 @@ impl<'a> CheckerState<'a> {
         type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<MapperId> {
         let sources = self.get_type_parameters_for_mapper(signature)?;
-        Ok(self.create_type_mapper(sources, type_arguments.map(<[TypeId]>::to_vec)))
+        Ok(self.create_type_mapper(&sources, type_arguments))
     }
 
     /// tsc-port: getErasedSignature @6.0.3
@@ -2946,14 +2976,14 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.signature_of(signature).base_signature_cache {
             return Ok(cached);
         }
-        let type_eraser = self.create_type_eraser(type_parameters.clone());
+        let type_eraser = self.create_type_eraser(&type_parameters);
         let mut constraint_targets = Vec::with_capacity(type_parameters.len());
         for &tp in &type_parameters {
             let constraint = self.get_constraint_of_type_parameter(tp)?;
             constraint_targets.push(constraint.unwrap_or(self.tables.intrinsics.unknown));
         }
         let base_constraint_mapper =
-            self.create_type_mapper(type_parameters.clone(), Some(constraint_targets));
+            self.create_type_mapper(&type_parameters[..], Some(&constraint_targets[..]));
         let mut base_constraints = Vec::with_capacity(type_parameters.len());
         for &tp in &type_parameters {
             base_constraints.push(self.instantiate_type(tp, Some(base_constraint_mapper))?);
@@ -2962,7 +2992,8 @@ impl<'a> CheckerState<'a> {
             base_constraints = self.instantiate_types(&base_constraints, base_constraint_mapper)?;
         }
         base_constraints = self.instantiate_types(&base_constraints, type_eraser)?;
-        let final_mapper = self.create_type_mapper(type_parameters, Some(base_constraints));
+        let final_mapper =
+            self.create_type_mapper(&type_parameters[..], Some(&base_constraints[..]));
         let base = self.instantiate_signature(
             signature,
             final_mapper,
@@ -2981,7 +3012,7 @@ impl<'a> CheckerState<'a> {
             .type_parameters
             .clone()
             .expect("getErasedSignature gates on typeParameters");
-        let eraser = self.create_type_eraser(type_parameters);
+        let eraser = self.create_type_eraser(&type_parameters);
         self.instantiate_signature(signature, eraser, /*erase_type_parameters*/ true)
     }
 
@@ -3063,8 +3094,7 @@ impl<'a> CheckerState<'a> {
                 }
                 result[i] = match default_type {
                     Some(default) => {
-                        let mapper =
-                            self.create_type_mapper(type_parameters.to_vec(), Some(result.clone()));
+                        let mapper = self.create_type_mapper(type_parameters, Some(&result));
                         self.instantiate_type(default, Some(mapper))?
                     }
                     None => base_default_type,
@@ -3199,22 +3229,25 @@ impl<'a> CheckerState<'a> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             return mapper(self, ty);
         }
-        let (origin, own_types) = match &self.tables.type_of(ty).data {
-            TypeData::Union { types, origin, .. } => (*origin, self.tables.list(*types).to_vec()),
+        // The list to map is read through a cursor (no copy): interned
+        // lists never change while the mapper runs.
+        let (origin, own_types) = match self.tables.type_of(ty).data {
+            TypeData::Union { types, origin, .. } => (origin, types),
             _ => unreachable!("union flag implies union data"),
         };
-        let types: Vec<TypeId> = match origin {
+        let types = match origin {
             Some(origin) if self.tables.flags_of(origin).intersects(TypeFlags::UNION) => {
-                match &self.tables.type_of(origin).data {
-                    TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                match self.tables.type_of(origin).data {
+                    TypeData::Union { types, .. } => types,
                     _ => unreachable!("union flag implies union data"),
                 }
             }
             _ => own_types,
         };
+        let mut types = self.tables.cursor(types);
         let mut mapped_types: Vec<TypeId> = Vec::new();
         let mut changed = false;
-        for t in types {
+        while let Some(t) = types.next(&self.tables) {
             let mapped = if self.tables.flags_of(t).intersects(TypeFlags::UNION) {
                 self.map_type(t, mapper, no_reductions)?
             } else {
@@ -3254,7 +3287,9 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::STRING_LITERAL) {
             let value = match self.tables.literal_value(ty) {
-                Some(tsc_types::LiteralValue::String(value)) => value.clone(),
+                Some(tsc_types::LiteralValue::String(value)) => {
+                    tsc_types::TemplateText::from_js(value)
+                }
                 _ => unreachable!("string-literal flag implies string payload"),
             };
             let name = self.binder.symbol(symbol).escaped_name;

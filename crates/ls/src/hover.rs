@@ -1399,7 +1399,7 @@ impl<'a> Request<'_, 'a> {
                 )?]);
             }
         }
-        Ok(signatures)
+        Ok(signatures.to_vec())
     }
 
     /// tsgo `getCallOrNewExpression`: the call or `new` the node names.

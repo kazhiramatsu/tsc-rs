@@ -19,7 +19,8 @@ use tsc_diagnostics::{
 };
 use tsc_types::{
     ConditionalRootId, EscapedName, ExpandingFlags, IntersectionState, ObjectFlags, RecursionFlags,
-    RelationComparisonResult, SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
+    RelationComparisonResult, SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, TypeListCopy,
+    UnionReduction,
 };
 
 use tsc_syntax::NodeId;
@@ -427,7 +428,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
                 unreachable!("union flag implies union data");
             };
-            let types = self.tables.list(types).to_vec();
+            let types = self.tables.list_copy(types);
             let is_unknown_like = types.len() >= 3
                 && self
                     .tables
@@ -615,8 +616,8 @@ impl<'a> CheckerState<'a> {
         } else {
             let arguments = self.get_type_arguments(ty)?;
             let mapper = self.create_type_mapper(
-                target_parameters.clone(),
-                Some(arguments[..target_parameters.len()].to_vec()),
+                &target_parameters,
+                Some(&arguments[..target_parameters.len()]),
             );
             self.instantiate_type(bases[0], Some(mapper))?
         };
@@ -661,7 +662,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
-            let types = self.tables.list(types).to_vec();
+            let types = self.tables.list_copy(types);
             let mut normalized = Vec::with_capacity(types.len());
             let mut changed = false;
             for &t in types.iter() {
@@ -683,7 +684,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
             unreachable!("intersection flag implies intersection data");
         };
-        let types = self.tables.list(types).to_vec();
+        let types = self.tables.list_copy(types);
         let mut has_instantiable = false;
         let mut has_nullable_or_empty = false;
         for &t in types.iter() {
@@ -1452,8 +1453,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         {
             return;
         }
-        let source_size = self.union_members(source).len();
-        let target_size = self.union_members(target).len();
+        let source_size = self.union_member_count(source);
+        let target_size = self.union_member_count(target);
         if source_size.saturating_mul(target_size) > 1_000_000 {
             self.st
                 .trace_instant("traceUnionsOrIntersectionsTooLarge_DepthLimit", || {
@@ -1524,13 +1525,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         tsc_types::type_order::contains_type(&self.st.tables, ctx.order(), types, ty)
     }
 
-    pub(crate) fn union_members(&self, ty: TypeId) -> Vec<TypeId> {
-        match &self.st.tables.type_of(ty).data {
-            TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                self.st.tables.list(*types).to_vec()
-            }
-            _ => unreachable!("member access on a non-union/intersection"),
-        }
+    /// A copy of a union's or intersection's members for a loop that
+    /// relates them (inline up to eight: no allocation).
+    pub(crate) fn union_members(&self, ty: TypeId) -> TypeListCopy {
+        TypeListCopy::new(self.st.tables.members_of(ty))
+    }
+
+    /// How many members a union or intersection has (no copy).
+    pub(crate) fn union_member_count(&self, ty: TypeId) -> usize {
+        self.st.tables.members_of(ty).len()
     }
 
     fn is_simple_type_related_to_with_reporting(
@@ -1761,10 +1764,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
             self.trace_unions_or_intersections_too_large(source, target);
             let skip_caching = (self.flags(source).intersects(TypeFlags::UNION)
-                && self.union_members(source).len() < 4
+                && self.union_member_count(source) < 4
                 && !self.flags(target).intersects(TypeFlags::UNION))
                 || (self.flags(target).intersects(TypeFlags::UNION)
-                    && self.union_members(target).len() < 4
+                    && self.union_member_count(target) < 4
                     && !self
                         .flags(source)
                         .intersects(TypeFlags::STRUCTURED_OR_INSTANTIABLE));
@@ -2549,7 +2552,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         let mut reduced_target = target;
-        let mut check_types: Option<Vec<TypeId>> = None;
+        let mut check_types: Option<TypeListCopy> = None;
         if self.flags(target).intersects(TypeFlags::UNION) {
             reduced_target = match self.find_matching_discriminant_type(source, target)? {
                 Some(discriminant) => discriminant,
@@ -2558,7 +2561,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             check_types = Some(if self.flags(reduced_target).intersects(TypeFlags::UNION) {
                 self.union_members(reduced_target)
             } else {
-                vec![reduced_target]
+                TypeListCopy::new(&[reduced_target])
             });
         }
         let source_symbol = self.st.tables.type_of(source).symbol;
@@ -2595,8 +2598,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
                 if let Some(check_types) = &check_types {
                     let prop_type = self.st.get_type_of_symbol(prop)?;
-                    let target_prop_type =
-                        self.get_type_of_property_in_types(check_types.clone(), name)?;
+                    let target_prop_type = self.get_type_of_property_in_types(check_types, name)?;
                     // 65401-65405: this relation is diagnostic-active
                     // in the reporting walk; suppressing it loses the
                     // innermost failure level before 2326 is stacked.
@@ -2928,12 +2930,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// UnionOrIntersection exactly as 65336 does.
     pub(crate) fn get_type_of_property_in_types(
         &mut self,
-        types: Vec<TypeId>,
+        types: &[TypeId],
         name: impl NameKey,
     ) -> CheckResult<TypeId> {
         let name = name.name();
         let mut prop_types = Vec::with_capacity(types.len());
-        for ty in types {
+        for &ty in types {
             let apparent = self.st.get_apparent_type(ty)?;
             let prop = if self
                 .st
@@ -3886,7 +3888,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
-            let types = self.tables.list(types).to_vec();
+            let types = self.tables.list_copy(types);
             for t in types.iter() {
                 if !self.is_weak_type(*t)? {
                     return Ok(false);
@@ -3926,7 +3928,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertiesOfType @6.0.3
     /// tsc-hash: 24909f78d7ea360522b5188e5af3c7b09613e4dc2e455ea321c4ec054b4d7576
     /// tsc-span: _tsc.js:58745-58748
-    pub fn get_properties_of_type(&mut self, ty: TypeId) -> CheckResult<Vec<tsc_binder::SymbolId>> {
+    pub fn get_properties_of_type(&mut self, ty: TypeId) -> CheckResult<crate::state::SymbolIds> {
         self.get_properties_of_type_full(ty)
     }
 
@@ -4181,7 +4183,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
                 unreachable!("union flag implies union data");
             };
-            let types = self.tables.list(types).to_vec();
+            let types = self.tables.list_copy(types);
             for t in types.iter() {
                 if self.is_empty_object_type(*t)? {
                     return Ok(true);
@@ -4193,7 +4195,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
-            let types = self.tables.list(types).to_vec();
+            let types = self.tables.list_copy(types);
             for t in types.iter() {
                 if !self.is_empty_object_type(*t)? {
                     return Ok(false);
@@ -4318,7 +4320,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Union { types, .. } = self.tables.type_of(union).data else {
             unreachable!("union flag implies union data");
         };
-        let types = self.tables.list(types).to_vec();
+        let types = self.tables.list_copy(types);
         let object_like = TypeFlags::from_bits(
             TypeFlags::OBJECT.bits() | TypeFlags::INSTANTIABLE_NON_PRIMITIVE.bits(),
         );
@@ -4949,7 +4951,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
                 unreachable!("union flag implies union data");
             };
-            let types = self.tables.list(types).to_vec();
+            let types = self.tables.list_copy(types);
             let mut mapped = Vec::with_capacity(types.len());
             let mut changed = false;
             for &t in types.iter() {

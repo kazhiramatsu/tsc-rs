@@ -2594,7 +2594,8 @@ fn es_decorator_contextual_signature_cache_is_order_independent() {
         assert_eq!(
             state
                 .get_signatures_of_type(isolated, SignatureKind::Call)
-                .expect("call signatures"),
+                .expect("call signatures")
+                .to_vec(),
             [signature]
         );
         assert!(state

@@ -674,7 +674,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn nodes(&self, nodes: Option<NodeArrayId>) -> Vec<NodeId> {
-        self.state.nodes_of(nodes)
+        self.state.nodes_of(nodes).to_vec()
     }
 
     fn with_increased_indent<T>(

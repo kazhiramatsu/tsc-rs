@@ -657,7 +657,7 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("UnionOrIntersection flag implies member data");
             };
-            let types = self.tables.list(*types).to_vec();
+            let types = self.tables.list_copy(*types);
             let mut reduced = ObjectFlags::NONE;
             for member in types {
                 reduced |= self.get_generic_object_flags(member)?;
@@ -1943,9 +1943,7 @@ impl<'a> CheckerState<'a> {
             TypeData::Literal {
                 value: tsc_types::LiteralData::String(value),
                 ..
-            } => Some(EscapedName::escape(
-                self.tables.literal_text(*value).to_js_string().as_js(),
-            )),
+            } => Some(EscapedName::escape(self.tables.literal_text(*value))),
             TypeData::Literal {
                 value: tsc_types::LiteralData::Number(value),
                 ..
@@ -1970,7 +1968,7 @@ impl<'a> CheckerState<'a> {
     /// surrogates; source escaping belongs to literal-node printing.
     fn index_literal_value_display(&self, ty: TypeId) -> Option<JsString> {
         match self.tables.literal_value(ty) {
-            Some(tsc_types::LiteralValue::String(value)) => Some(value.to_js_string()),
+            Some(tsc_types::LiteralValue::String(value)) => Some(value.to_owned()),
             Some(tsc_types::LiteralValue::Number(value)) => {
                 Some(tsc_types::tables::js_number_to_string(value).into())
             }

@@ -3620,7 +3620,10 @@ const _: () = {
 /// 0.3 and signatures up to 0.2.
 fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
     const MIN_RESERVED: usize = 1 << 12;
-    const MAX_RESERVED: usize = 1 << 20;
+    // Large enough that VS Code's serial check never doubles an arena (2.6
+    // million mappers, 1.2 million resolved members): a doubling copies the
+    // arena while the old buffer is still resident.
+    const MAX_RESERVED: usize = 1 << 22;
     let reserve =
         |per_node: f64| ((node_count as f64 * per_node) as usize).clamp(MIN_RESERVED, MAX_RESERVED);
     state.tables.reserve_types(reserve(1.0));
@@ -3629,7 +3632,7 @@ fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
     // Code's shards by 3-7 %, its serial check three times over), and each
     // doubling copies the arena while the old buffer is still resident;
     // untouched capacity stays virtual, so this arena takes a higher cap.
-    const MAX_RESERVED_TRANSIENT_SYMBOLS: usize = 1 << 22;
+    const MAX_RESERVED_TRANSIENT_SYMBOLS: usize = 1 << 24;
     let transient_symbols =
         ((node_count as f64 * 2.0) as usize).clamp(MIN_RESERVED, MAX_RESERVED_TRANSIENT_SYMBOLS);
     state.binder.reserve_transient_symbols(transient_symbols);
@@ -3639,6 +3642,8 @@ fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
     state.mapper_lists.reserve(reserve(2.0));
     state.members.reserve(reserve(0.5));
     state.signatures.reserve(reserve(0.25));
+    state.inference_context_arena.reserve(reserve(0.1));
+    state.inference_info_arena.reserve(reserve(0.1));
 }
 
 /// With `TSRS_MEMORY_REPORT` set, print what the parsed and bound documents

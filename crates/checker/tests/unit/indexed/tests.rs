@@ -121,7 +121,7 @@ fn keyof_generic_defers_and_instantiates() {
             assert_eq!(again, keyof);
             // Instantiation maps through to the literal key.
             let literal_object = annotation_type(state, "w");
-            let mapper = state.create_type_mapper(vec![t], Some(vec![literal_object]));
+            let mapper = state.create_type_mapper(&[t], Some(&[literal_object]));
             let instantiated = state
                 .instantiate_type(keyof, Some(mapper))
                 .expect("instantiation");
@@ -207,7 +207,7 @@ fn generic_indexed_access_defers_instantiates_and_constrains() {
             assert_eq!(constraint, Some(state.tables.intrinsics.string));
             // Instantiation maps through the concrete object.
             let concrete = annotation_type(state, "w");
-            let mapper = state.create_type_mapper(vec![t], Some(vec![concrete]));
+            let mapper = state.create_type_mapper(&[t], Some(&[concrete]));
             let instantiated = state
                 .instantiate_type(access, Some(mapper))
                 .expect("instantiation");

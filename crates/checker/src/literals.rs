@@ -196,7 +196,7 @@ impl<'a> CheckerState<'a> {
         self.push_cached_contextual_type(node)?;
         let scan = (|state: &mut Self| -> CheckResult<ArrayLiteralScan> {
             let elements: Vec<NodeId> = match state.data_of(node) {
-                NodeData::ArrayLiteralExpression(data) => state.nodes_of(data.elements),
+                NodeData::ArrayLiteralExpression(data) => state.nodes_of(data.elements).to_vec(),
                 _ => Vec::new(),
             };
             let in_destructuring_pattern = node_util::is_assignment_target(&Published, node);
@@ -717,7 +717,7 @@ impl<'a> CheckerState<'a> {
 
         let members = match self.data_of(node) {
             NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
-            _ => Vec::new(),
+            _ => Default::default(),
         };
         let mut seen = rustc_hash::FxHashMap::<tsc_types::EscapedName, u8>::default();
         for member in members {
@@ -1027,7 +1027,7 @@ impl<'a> CheckerState<'a> {
         acc: &mut ObjectLiteralAcc,
     ) -> CheckResult<()> {
         let properties: Vec<NodeId> = match self.data_of(node) {
-            NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
+            NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties).to_vec(),
             _ => Vec::new(),
         };
         acc.contextual_type =

@@ -801,7 +801,10 @@ impl Session {
             "getPropertiesOfType" | "getApparentPropertiesOfType" => {
                 let symbols = if method == "getPropertiesOfType" {
                     let ty = query.resolve_type(params.type_id)?;
-                    query.state.get_properties_of_type(ty)
+                    query
+                        .state
+                        .get_properties_of_type(ty)
+                        .map(|list| list.to_vec())
                 } else {
                     let ty = query.resolve_type(object_type_handle(params)?)?;
                     query.state.get_apparent_properties(ty)
@@ -1995,7 +1998,7 @@ fn object_flags_of(state: &CheckerState<'_>, ty: TypeId, flags: ObjectFlags) -> 
 fn literal_value(state: &CheckerState<'_>, ty: TypeId) -> Option<Box<RawValue>> {
     match state.tables.type_of(ty).data {
         TypeData::Literal { value, .. } => Some(match state.tables.literal_value_of(value) {
-            LiteralValue::String(text) => string_value(&text.to_js_string().to_string_lossy()),
+            LiteralValue::String(text) => string_value(&text.to_string_lossy()),
             LiteralValue::Number(number) => number_value(number),
             LiteralValue::BigInt(bigint) => string_value(&bigint.to_base10_string()),
         }),

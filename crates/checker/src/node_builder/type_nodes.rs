@@ -1659,11 +1659,12 @@ fn type_to_type_node_worker(
         let Some(LiteralValue::String(value)) = checker.tables.literal_value(r#type) else {
             unreachable!("StringLiteral flag implies string literal payload")
         };
-        add_approximate_length(context, value.len_utf8() + 2);
+        // Go's len(): the WTF-8 byte length (a lone surrogate is three).
+        add_approximate_length(context, value.as_bytes().len() + 2);
         let single_quote = has_flag(context, USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE);
         let literal = arena
             .factory()
-            .create_string_literal_from_code_units(target, value.units(), single_quote)
+            .create_string_literal_from_code_units(target, &value.to_utf16(), single_quote)
             .map_err(factory_error)?;
         let metadata = arena.metadata_mut(literal);
         metadata.add_flags(EmitFlags::NO_ASCII_ESCAPING);
@@ -2092,7 +2093,7 @@ fn type_to_type_node_worker(
             )
             .map_err(factory_error)?;
         let head = set_no_ascii_escaping(arena, head);
-        let types = checker.tables.list(types).to_vec();
+        let types = checker.tables.list_copy(types);
         let mut spans = Vec::with_capacity(types.len());
         for (index, span_type) in types.iter().copied().enumerate() {
             let Some(span_type) =
@@ -2602,8 +2603,8 @@ fn create_mapped_type_node_from_type(
                         .get_modifiers_type_from_mapped_type(mapped_target)
                         .map_err(|abort| checker_abort_error(checker, context, abort))?;
                 let mapper = checker.make_array_type_mapper(
-                    vec![target_parameter, target_modifiers],
-                    Some(vec![parameter, parameter_for_modifiers]),
+                    &[target_parameter, target_modifiers],
+                    Some(&[parameter, parameter_for_modifiers]),
                 );
                 template_type = checker
                     .instantiate_type(target_template, Some(mapper))
@@ -3480,7 +3481,7 @@ fn create_type_node_from_object_type(
             let index_infos = resolved.index_infos().to_vec();
             let members = checker.alloc_members(ResolvedMembers::new(
                 resolved.members,
-                resolved.properties,
+                resolved.properties.to_vec(),
                 call_signatures,
                 non_abstract_construct_signatures,
                 index_infos,

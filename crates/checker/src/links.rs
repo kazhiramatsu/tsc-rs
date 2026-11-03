@@ -363,7 +363,7 @@ pub struct NodeLinksCold {
     pub jsx_flags: SparseLinks<NodeId, tsc_types::JsxFlags>,
     /// tsc links.outerTypeParameters (getObjectTypeInstantiation 63466)
     /// on the instantiated type's declaration node.
-    pub outer_type_parameters: SparseLinks<NodeId, LinkSlot<Box<[TypeId]>>>,
+    pub outer_type_parameters: SparseLinks<NodeId, LinkSlot<tsc_types::TypeListId>>,
     /// tsc links.enumMemberValue (computeEnumMemberValues 85587) on
     /// EnumMember nodes.
     pub enum_member_value: SparseLinks<NodeId, Option<crate::evaluate::EvaluatorResult>>,
@@ -620,7 +620,8 @@ pub struct SymbolLinksCold {
     /// stores for a type still being measured (getVariances call sites
     /// answer Ternary.Unknown for it); the measurement replaces it.
     /// Resolving is not used.
-    pub variances: SparseLinks<SymbolId, LinkSlot<Box<[tsc_types::VarianceFlags]>>>,
+    pub variances:
+        SparseLinks<SymbolId, LinkSlot<crate::state::SharedList<tsc_types::VarianceFlags>>>,
     /// tsc links.originatingImport (cloneTypeAsModuleType 49769) — the
     /// import-site provenance an interop module clone carries; read by
     /// the invocation-error related-info band (64900/77252): dormant
@@ -868,10 +869,10 @@ pub struct TypeLinksCold {
     /// 59397-59413): the synthesized call signatures for a union of
     /// matching Array/ReadonlyArray members.  A resolved empty slice is
     /// the negative-cache sentinel.
-    pub array_fallback_signatures: SparseLinks<TypeId, LinkSlot<Box<[SignatureId]>>>,
+    pub array_fallback_signatures: SparseLinks<TypeId, LinkSlot<crate::state::SignatureIds>>,
     /// tsc unionOrIntersection type.resolvedProperties
     /// (getPropertiesOfUnionOrIntersectionType 58721).
-    pub resolved_properties: SparseLinks<TypeId, LinkSlot<Box<[SymbolId]>>>,
+    pub resolved_properties: SparseLinks<TypeId, LinkSlot<crate::state::SymbolIds>>,
     /// tsc unionType.keyPropertyName/constituentMap (getKeyPropertyName
     /// 69612): None name = the "" no-key-property sentinel.
     pub union_key_property: SparseLinks<TypeId, LinkSlot<UnionKeyProperty>>,
@@ -1151,7 +1152,11 @@ struct SpeculativeConditionalCacheSnapshot {
     constraint_of_distributive: LinkSlot<Option<TypeId>>,
 }
 
-type SpeculativeSymbolVarianceWrite = (u32, SymbolId, LinkSlot<Box<[tsc_types::VarianceFlags]>>);
+type SpeculativeSymbolVarianceWrite = (
+    u32,
+    SymbolId,
+    LinkSlot<crate::state::SharedList<tsc_types::VarianceFlags>>,
+);
 type SpeculativeTypeOnlyAliasWrite = (u32, SymbolId, Option<NodeId>);
 
 /// Whether a speculative symbol-type write is merely a candidate-local
@@ -1517,12 +1522,13 @@ pub struct LinksTables {
     /// sentinel and export-star name are restored together.
     speculative_type_only_alias_writes: Vec<SpeculativeTypeOnlyAliasWrite>,
     /// Trial-local generic-alias instantiation cache publications.
-    speculative_alias_instantiation_writes: Vec<(u32, (SymbolId, String), Option<TypeId>)>,
+    speculative_alias_instantiation_writes:
+        Vec<(u32, (SymbolId, tsc_types::InstantiationKey), Option<TypeId>)>,
     /// Trial-local conditional-root instantiation cache publications.
     /// A candidate needs stable identities for repeated instantiations,
     /// but those identities must not escape the candidate boundary.
     speculative_conditional_instantiation_writes:
-        Vec<(u32, (ConditionalRootId, String), Option<TypeId>)>,
+        Vec<(u32, ConditionalInstantiationKey, Option<TypeId>)>,
     /// Trial-local special-instantiation caches used by relation and
     /// reduction probes.
     speculative_type_instantiation_writes: Vec<(
@@ -1552,13 +1558,17 @@ pub struct LinksTables {
     /// tsc type-alias links.instantiations (getDeclaredTypeOfTypeAlias
     /// 57417 seed + getTypeAliasInstantiation 60271), keyed by
     /// getTypeListId + getAliasId — a monotone cache like tsc's map.
-    alias_instantiations: HashMap<(SymbolId, String), TypeId>,
+    alias_instantiations: HashMap<(SymbolId, tsc_types::InstantiationKey), TypeId>,
     /// tsc ConditionalRoot.instantiations, keyed by the shared root
     /// object plus getTypeListId/getAliasId. Writes happen only after
     /// a complete result; a re-entrant outer evaluation may replace
     /// the inner complete result, matching Map.set.
-    conditional_instantiations: HashMap<(ConditionalRootId, String), TypeId>,
+    conditional_instantiations: HashMap<ConditionalInstantiationKey, TypeId>,
 }
+
+/// A conditional root's instantiation key: tsc's `"C"` prefix of the
+/// constraint face, then getTypeListId and getAliasId as one value.
+type ConditionalInstantiationKey = (ConditionalRootId, bool, tsc_types::InstantiationKey);
 
 impl LinksTables {
     /// tsrs-native: select an owned field result without cloning a whole
@@ -1721,17 +1731,24 @@ impl LinksTables {
     }
 
     /// tsrs-native: read the immutable-root conditional instantiation cache.
-    pub fn conditional_instantiation(&self, root: ConditionalRootId, key: &str) -> Option<TypeId> {
+    pub fn conditional_instantiation(
+        &self,
+        root: ConditionalRootId,
+        for_constraint: bool,
+        key: tsc_types::InstantiationKey,
+    ) -> Option<TypeId> {
         self.conditional_instantiations
-            .get(&(root, key.to_owned()))
+            .get(&(root, for_constraint, key))
             .copied()
     }
 
     /// tsrs-native: read the generic-alias instantiation cache.
-    pub fn alias_instantiation(&self, symbol: SymbolId, key: &str) -> Option<TypeId> {
-        self.alias_instantiations
-            .get(&(symbol, key.to_owned()))
-            .copied()
+    pub fn alias_instantiation(
+        &self,
+        symbol: SymbolId,
+        key: tsc_types::InstantiationKey,
+    ) -> Option<TypeId> {
+        self.alias_instantiations.get(&(symbol, key)).copied()
     }
 
     /// tsrs-native: publish a generic-alias instantiation within the
@@ -1740,7 +1757,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         symbol: SymbolId,
-        key: String,
+        key: tsc_types::InstantiationKey,
         value: TypeId,
     ) {
         let cache_key = (symbol, key);
@@ -1753,7 +1770,7 @@ impl LinksTables {
             let previous = self.alias_instantiations.get(&cache_key).copied();
             self.speculative_alias_instantiation_writes.push((
                 speculation_depth,
-                cache_key.clone(),
+                cache_key,
                 previous,
             ));
         }
@@ -1766,10 +1783,11 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         root: ConditionalRootId,
-        key: String,
+        for_constraint: bool,
+        key: tsc_types::InstantiationKey,
         value: TypeId,
     ) {
-        let cache_key = (root, key);
+        let cache_key = (root, for_constraint, key);
         if speculation_depth != 0
             && !self
                 .speculative_conditional_instantiation_writes
@@ -1779,7 +1797,7 @@ impl LinksTables {
             let previous = self.conditional_instantiations.get(&cache_key).copied();
             self.speculative_conditional_instantiation_writes.push((
                 speculation_depth,
-                cache_key.clone(),
+                cache_key,
                 previous,
             ));
         }
@@ -1792,10 +1810,11 @@ impl LinksTables {
     pub fn set_fresh_conditional_instantiation(
         &mut self,
         root: ConditionalRootId,
-        key: String,
+        key: tsc_types::InstantiationKey,
         value: TypeId,
     ) {
-        self.conditional_instantiations.insert((root, key), value);
+        self.conditional_instantiations
+            .insert((root, false, key), value);
     }
 
     fn write_slot<T: Clone + std::fmt::Debug>(slot: &mut LinkSlot<T>, next: LinkSlot<T>) {
@@ -2811,7 +2830,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        value: LinkSlot<Box<[tsc_types::VarianceFlags]>>,
+        value: LinkSlot<crate::state::SharedList<tsc_types::VarianceFlags>>,
     ) {
         if speculation_depth != 0
             && !self
@@ -3662,7 +3681,7 @@ impl LinksTables {
     /// write-twice site (see overwrite_type_reference_resolution).
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_resolved_properties(&mut self, id: TypeId, value: Box<[SymbolId]>) {
+    pub fn set_type_resolved_properties(&mut self, id: TypeId, value: crate::state::SymbolIds) {
         let slot = self.type_cold.resolved_properties.slot(id);
         if matches!(slot, LinkSlot::Resolved(_)) {
             *slot = LinkSlot::Resolved(value);
@@ -3676,7 +3695,11 @@ impl LinksTables {
     ///
     /// getSignaturesOfType's Array/ReadonlyArray union-member fallback
     /// cache (59397-59413).
-    pub fn set_type_array_fallback_signatures(&mut self, id: TypeId, value: Box<[SignatureId]>) {
+    pub fn set_type_array_fallback_signatures(
+        &mut self,
+        id: TypeId,
+        value: crate::state::SignatureIds,
+    ) {
         Self::write_slot(
             self.type_cold.array_fallback_signatures.slot(id),
             LinkSlot::Resolved(value),
@@ -4052,7 +4075,7 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_node_outer_type_parameters(&mut self, id: NodeId, value: Box<[TypeId]>) {
+    pub fn set_node_outer_type_parameters(&mut self, id: NodeId, value: tsc_types::TypeListId) {
         Self::write_slot(
             self.node_cold.outer_type_parameters.slot(id),
             LinkSlot::Resolved(value),

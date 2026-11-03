@@ -2861,7 +2861,7 @@ impl<'a> CheckerState<'a> {
                     } else {
                         let statements = match self.data_of(body) {
                             NodeData::Block(data) => self.nodes_of(data.statements),
-                            _ => Vec::new(),
+                            _ => Default::default(),
                         };
                         let mut super_call_statement = None;
                         for statement in statements {
@@ -5379,10 +5379,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_ty(id, |links| links.resolved_members.resolved())
             .expect("created resolved above");
-        self.members_mut(members)
-            .extras_mut()
-            .call_signatures
-            .push(signature);
+        self.members_mut(members).extras_mut().call_signatures = vec![signature].into();
         id
     }
 
@@ -5550,7 +5547,7 @@ impl<'a> CheckerState<'a> {
             )?;
             let elements = match self.data_of(pattern) {
                 NodeData::ArrayBindingPattern(pattern_data) => self.nodes_of(pattern_data.elements),
-                _ => Vec::new(),
+                _ => Default::default(),
             };
             let Some(index) = elements.iter().position(|&element| element == declaration) else {
                 return Ok(self.tables.intrinsics.error);

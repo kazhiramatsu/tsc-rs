@@ -1346,24 +1346,21 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         let mut property_on_type: Option<SymbolId> = None;
         let properties = self.get_properties_of_type(left_type)?;
-        let right_text = self
-            .identifier_text_of(right)
-            .map(str::to_owned)
-            .unwrap_or_default();
+        let right_text: &'a str = self.identifier_text_of(right).unwrap_or_default();
         for symbol in properties {
             let Some(decl) = self.binder.symbol(symbol).value_declaration else {
                 continue;
             };
             let name_matches = self.name_of_node(decl).is_some_and(|name| {
                 self.kind_of(name) == SyntaxKind::PrivateIdentifier
-                    && self.identifier_text_of(name) == Some(right_text.as_str())
+                    && self.identifier_text_of(name) == Some(right_text)
             });
             if name_matches {
                 property_on_type = Some(symbol);
                 break;
             }
         }
-        let diag_name = tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+        let diag_name = tsc_syntax::unescape_leading_underscores(right_text).to_owned();
         if let Some(property_on_type) = property_on_type {
             let type_value_decl = self
                 .binder
@@ -1998,10 +1995,7 @@ impl<'a> CheckerState<'a> {
             || apparent_type == self.tables.intrinsics.silent_never;
         let right_is_private = self.kind_of(right) == SyntaxKind::PrivateIdentifier;
         let right_name = self.identifier_name_of(right).unwrap_or_default();
-        let right_text = self
-            .identifier_text_of(right)
-            .map(str::to_owned)
-            .unwrap_or_default();
+        let right_text: &'a str = self.identifier_text_of(right).unwrap_or_default();
         let mut prop: Option<SymbolId>;
         if right_is_private {
             // Private access transforms request the get/set helpers. In TS
@@ -2025,7 +2019,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             let lexically_scoped_symbol =
-                self.lookup_symbol_for_private_identifier_declaration(&right_text, right)?;
+                self.lookup_symbol_for_private_identifier_declaration(right_text, right)?;
             if assignment_kind != crate::expr::AssignmentKind::None {
                 if let Some(scoped) = lexically_scoped_symbol {
                     if self
@@ -2035,7 +2029,7 @@ impl<'a> CheckerState<'a> {
                         .is_some_and(|decl| self.kind_of(decl) == SyntaxKind::MethodDeclaration)
                     {
                         let display =
-                            tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                            tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                         self.grammar_error_on_node(
                             right,
                             &tsc_diagnostics::gen::Cannot_assign_to_private_method_0_Private_methods_are_not_writable,
@@ -2092,7 +2086,7 @@ impl<'a> CheckerState<'a> {
                     });
                     if is_plain_js_class {
                         let display =
-                            tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                            tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                         self.grammar_error_on_node(
                             right,
                             &tsc_diagnostics::gen::Private_field_0_must_be_declared_in_an_enclosing_class,
@@ -2145,7 +2139,7 @@ impl<'a> CheckerState<'a> {
             if prop.is_none()
                 && self.tables.type_of(apparent_type).symbol == Some(self.global_this_symbol)
             {
-                if let Some(candidate) = self.effective_global_this_export(right_text.as_str())? {
+                if let Some(candidate) = self.effective_global_this_export(right_text)? {
                     let flags = self.binder.symbol(candidate).flags;
                     let declarations = &self.binder.symbol(candidate).declarations;
                     let ambient_module_only = flags.intersects(SymbolFlags::VALUE_MODULE)
@@ -2172,7 +2166,7 @@ impl<'a> CheckerState<'a> {
                 let declarations = self.binder.symbol(target_prop_symbol).declarations.clone();
                 if !declarations.is_empty() {
                     let deprecated_entity =
-                        tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                        tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                     self.add_deprecated_suggestion(right, &declarations, &deprecated_entity);
                 }
             }
@@ -2192,7 +2186,7 @@ impl<'a> CheckerState<'a> {
                 /*report_error*/ true,
             )?;
             if self.is_assignment_to_readonly_entity(node, prop, assignment_kind)? {
-                let display = tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                let display = tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                 self.error_at_js(
                     Some(right),
                     &tsc_diagnostics::gen::Cannot_assign_to_0_because_it_is_a_read_only_property,
@@ -2216,7 +2210,7 @@ impl<'a> CheckerState<'a> {
                     || !self.is_generic_object_type_state(left_type)?
                     || self.is_this_type_parameter(left_type));
             let index_info = if use_index_info {
-                self.get_applicable_index_info_for_name_info(apparent_type, &right_text)?
+                self.get_applicable_index_info_for_name_info(apparent_type, right_text)?
             } else {
                 None
             };
@@ -2231,7 +2225,7 @@ impl<'a> CheckerState<'a> {
                 }
                 let left_symbol = self.tables.type_of(left_type).symbol;
                 if left_symbol == Some(self.global_this_symbol) {
-                    let exported = self.effective_global_this_export(right_text.as_str())?;
+                    let exported = self.effective_global_this_export(right_text)?;
                     if let Some(exported) = exported {
                         if self
                             .binder
@@ -2240,7 +2234,7 @@ impl<'a> CheckerState<'a> {
                             .intersects(SymbolFlags::BLOCK_SCOPED)
                         {
                             let display =
-                                tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                                tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                             let type_name = self.type_to_string(left_type)?;
                             self.error_at_js(
                                 Some(right),
@@ -2272,7 +2266,7 @@ impl<'a> CheckerState<'a> {
                     // exact/indexed member; a checker-wide or name-only
                     // gate would hide unrelated property errors.
                     if self
-                        .unresolved_module_augmentation_may_add_property(left_type, &right_text)?
+                        .unresolved_module_augmentation_may_add_property(left_type, right_text)?
                     {
                         // tsc has already merged this exact member (or
                         // applicable index signature) from the resolved
@@ -2323,7 +2317,7 @@ impl<'a> CheckerState<'a> {
             if self.options.no_property_access_from_index_signature == Some(true)
                 && self.kind_of(node) == SyntaxKind::PropertyAccessExpression
             {
-                let display = tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                let display = tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                 self.error_at_js(
                     Some(right),
                     &tsc_diagnostics::gen::Property_0_comes_from_an_index_signature_so_it_must_be_accessed_with_0,
@@ -2335,7 +2329,7 @@ impl<'a> CheckerState<'a> {
                 .filter(|&declaration| self.is_deprecated_declaration(declaration))
             {
                 let deprecated_entity =
-                    tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                    tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                 self.add_deprecated_suggestion(right, &[declaration], &deprecated_entity);
             }
             prop_type = index_prop_type;
@@ -3572,7 +3566,7 @@ impl<'a> CheckerState<'a> {
             Some(then_function) => {
                 self.get_signatures_of_type(then_function, crate::structural::SignatureKind::Call)?
             }
-            None => Vec::new(),
+            None => Default::default(),
         };
         if then_signatures.is_empty() {
             if let Some(error_node) = error_node {

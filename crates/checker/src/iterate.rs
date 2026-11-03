@@ -1145,7 +1145,7 @@ impl<'a> CheckerState<'a> {
             Some(method_type) => {
                 self.get_signatures_of_type(method_type, crate::structural::SignatureKind::Call)?
             }
-            None => Vec::new(),
+            None => Default::default(),
         };
         let mut valid_signatures = Vec::new();
         for &signature in &all_signatures {
@@ -1513,7 +1513,7 @@ impl<'a> CheckerState<'a> {
             Some(method_type) => {
                 self.get_signatures_of_type(method_type, crate::structural::SignatureKind::Call)?
             }
-            None => Vec::new(),
+            None => Default::default(),
         };
         if method_signatures.is_empty() {
             if let Some(error_target) = error_target {

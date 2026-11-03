@@ -522,7 +522,7 @@ impl<'a> CheckerState<'a> {
             .map(|&info| self.inference_info(info).type_parameter)
             .collect();
         let targets = vec![self.tables.intrinsics.unknown; sources.len()];
-        self.create_type_mapper(sources, Some(targets))
+        self.create_type_mapper(&sources[..], Some(&targets[..]))
     }
 
     /// tsc-port: createOuterReturnMapper @6.0.3
@@ -741,7 +741,7 @@ impl<'a> CheckerState<'a> {
             let Some(LiteralValue::String(value)) = self.tables.literal_value(t) else {
                 unreachable!("StringLiteral flag implies string data");
             };
-            let name = tsc_types::EscapedName::escape(value.to_js_string().as_js());
+            let name = tsc_types::EscapedName::escape(value);
             let literal_prop = self.binder.create_symbol(SymbolFlags::PROPERTY, name);
             self.links.set_fresh_symbol_type(
                 literal_prop,
@@ -774,7 +774,7 @@ impl<'a> CheckerState<'a> {
                 .push(index_info);
         }
         let properties: Vec<_> = self.members_of(members_id).members.symbols().to_vec();
-        self.members_mut(members_id).properties = properties;
+        self.members_mut(members_id).properties = properties.into();
         id
     }
 
@@ -846,9 +846,18 @@ impl<'a> CheckerState<'a> {
         contravariant: bool,
     ) -> CheckResult<()> {
         let visited = std::mem::take(&mut self.inference_visited);
+        // The slot snapshot and the stacks reuse the buffers of the last
+        // walk (a walk started inside this one finds them taken and gets
+        // empty ones).
+        let InferenceWalkBuffers {
+            inferences: mut slots,
+            source_stack,
+            target_stack,
+        } = std::mem::take(&mut self.inference_walk_buffers);
+        slots.extend_from_slice(inferences);
         let mut walker = InferTypesWalker {
             st: self,
-            inferences: inferences.to_vec(),
+            inferences: slots,
             original_target,
             priority,
             contravariant,
@@ -856,14 +865,30 @@ impl<'a> CheckerState<'a> {
             propagation_type: None,
             inference_priority: InferencePriority::MAX_VALUE,
             visited,
-            source_stack: Vec::new(),
-            target_stack: Vec::new(),
+            source_stack,
+            target_stack,
             expanding_flags: ExpandingFlags::NONE,
         };
         let result = walker.infer_from_types(original_source, original_target);
-        let InferTypesWalker { mut visited, .. } = walker;
+        let InferTypesWalker {
+            mut visited,
+            inferences: mut slots,
+            mut source_stack,
+            mut target_stack,
+            ..
+        } = walker;
         visited.clear();
         self.inference_visited = visited;
+        slots.clear();
+        source_stack.clear();
+        target_stack.clear();
+        if self.inference_walk_buffers.inferences.capacity() < slots.capacity() {
+            self.inference_walk_buffers = InferenceWalkBuffers {
+                inferences: slots,
+                source_stack,
+                target_stack,
+            };
+        }
         result
     }
 
@@ -1805,6 +1830,14 @@ enum TypeMatcher {
 /// dies with an Err unwind — the RelationChecker discipline
 /// (engine.rs) — so none of it joins the UnwindSnapshot census; the
 /// only durable writes go through the E-class info arena.
+/// The buffers an inference walk reuses (see `CheckerState::inference_walk_buffers`).
+#[derive(Default)]
+pub(crate) struct InferenceWalkBuffers {
+    inferences: Vec<InferenceInfoId>,
+    source_stack: Vec<TypeId>,
+    target_stack: Vec<TypeId>,
+}
+
 struct InferTypesWalker<'r, 'a> {
     st: &'r mut CheckerState<'a>,
     /// The `inferences` argument array as an entry-time id snapshot:
@@ -1863,13 +1896,8 @@ enum InferAction {
 impl InferTypesWalker<'_, '_> {
     /// tsrs-native: member access for UnionOrIntersection types (tsc
     /// `type.types`), the engine.rs union_members shape.
-    fn types_of(&self, ty: TypeId) -> Vec<TypeId> {
-        match &self.st.tables.type_of(ty).data {
-            TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                self.st.tables.list(*types).to_vec()
-            }
-            _ => unreachable!("UnionOrIntersection flag implies member data"),
-        }
+    fn types_of(&self, ty: TypeId) -> tsc_types::TypeListCopy {
+        tsc_types::TypeListCopy::new(self.st.tables.members_of(ty))
     }
 
     /// tsrs-native: clearCachedInferences over the walker's array —
@@ -1985,7 +2013,7 @@ impl InferTypesWalker<'_, '_> {
                         VariancesResult::Known(variances) => variances,
                         // No variance information: the arguments infer
                         // covariantly (inferFromTypeArguments' default).
-                        VariancesResult::Empty => Box::default(),
+                        VariancesResult::Empty => crate::state::SharedList::new(),
                     };
                     self.infer_from_type_arguments(&source_types, &target_types, &variances)?;
                 }
@@ -2013,11 +2041,11 @@ impl InferTypesWalker<'_, '_> {
             let initial_sources = if self.st.tables.flags_of(source).intersects(TypeFlags::UNION) {
                 self.types_of(source)
             } else {
-                vec![source]
+                tsc_types::TypeListCopy::new(&[source])
             };
             let (temp_sources, temp_targets) = self.infer_from_matching_types(
-                initial_sources,
-                self.types_of(target),
+                initial_sources.to_vec(),
+                self.types_of(target).to_vec(),
                 TypeMatcher::OrBaseIdenticalTo,
                 false,
             )?;
@@ -2074,11 +2102,11 @@ impl InferTypesWalker<'_, '_> {
                 {
                     self.types_of(source)
                 } else {
-                    vec![source]
+                    tsc_types::TypeListCopy::new(&[source])
                 };
                 let (sources, targets) = self.infer_from_matching_types(
-                    initial_sources,
-                    self.types_of(target),
+                    initial_sources.to_vec(),
+                    self.types_of(target).to_vec(),
                     TypeMatcher::IdenticalTo,
                     false,
                 )?;
@@ -2256,7 +2284,7 @@ impl InferTypesWalker<'_, '_> {
             let reference_target = self.st.tables.reference_target(source);
             let variances = match self.st.get_variances(reference_target)? {
                 VariancesResult::Known(variances) => variances,
-                VariancesResult::Empty => Box::default(),
+                VariancesResult::Empty => crate::state::SharedList::new(),
             };
             self.infer_from_type_arguments(&source_arguments, &target_arguments, &variances)?;
         } else if source_flags.intersects(TypeFlags::INDEX)
@@ -2720,7 +2748,7 @@ impl InferTypesWalker<'_, '_> {
             let sources = if self.st.tables.flags_of(source).intersects(TypeFlags::UNION) {
                 self.types_of(source)
             } else {
-                vec![source]
+                tsc_types::TypeListCopy::new(&[source])
             };
             let mut matched = vec![false; sources.len()];
             let mut inference_circularity = false;
@@ -2926,7 +2954,7 @@ impl InferTypesWalker<'_, '_> {
                         {
                             self.types_of(constraint)
                         } else {
-                            vec![constraint]
+                            tsc_types::TypeListCopy::new(&[constraint])
                         };
                         let mut all_type_flags = TypeFlags::from_bits(0);
                         for &t in &constraint_types {
@@ -2940,7 +2968,7 @@ impl InferTypesWalker<'_, '_> {
                             else {
                                 unreachable!("StringLiteral flag implies string data");
                             };
-                            let str_value = str_value.clone();
+                            let str_value = tsc_types::TemplateText::from_js(str_value);
                             let utf8_value = str_value.to_utf8();
                             // 69038-69050: coercion families the string
                             // can never round-trip through drop out.
@@ -3043,7 +3071,7 @@ impl InferTypesWalker<'_, '_> {
         } else if right_flags.intersects(TypeFlags::STRING_LITERAL)
             && matches!(
                 &self.st.tables.type_of(right).data,
-                TypeData::Literal { value: tsc_types::LiteralData::String(v), .. } if self.st.tables.literal_text(*v) == str_value
+                TypeData::Literal { value: tsc_types::LiteralData::String(v), .. } if self.st.tables.literal_text(*v).code_units().eq(str_value.units().iter().copied())
             )
         {
             Ok(right)
@@ -3281,7 +3309,7 @@ impl InferTypesWalker<'_, '_> {
             let reference_target = self.st.tables.reference_target(source);
             let variances = match self.st.get_variances(reference_target)? {
                 VariancesResult::Known(variances) => variances,
-                VariancesResult::Empty => Box::default(),
+                VariancesResult::Empty => crate::state::SharedList::new(),
             };
             self.infer_from_type_arguments(&source_arguments, &target_arguments, &variances)?;
             return Ok(());
@@ -3727,7 +3755,7 @@ impl InferTypesWalker<'_, '_> {
                 {
                     self.types_of(target_rest_type)
                 } else {
-                    vec![target_rest_type]
+                    tsc_types::TypeListCopy::new(&[target_rest_type])
                 };
                 for member in members {
                     if self.st.is_mutable_array_like_type(member)? {

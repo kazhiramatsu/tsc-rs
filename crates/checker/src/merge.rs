@@ -457,7 +457,7 @@ impl<'a> CheckerState<'a> {
                         let name = match &self.tables.type_of(name_type).data {
                             TypeData::Literal { value, .. } => {
                                 match self.tables.literal_value_of(*value) {
-                                    tsc_types::LiteralValue::String(text) => text.to_js_string(),
+                                    tsc_types::LiteralValue::String(text) => text.to_owned(),
                                     tsc_types::LiteralValue::Number(value) => {
                                         JsString::from(tsc_types::js_number_to_string(value))
                                     }

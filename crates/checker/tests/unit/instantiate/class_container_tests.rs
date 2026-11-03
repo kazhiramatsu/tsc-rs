@@ -32,7 +32,7 @@ fn type_literals_inside_class_bodies_instantiate_with_this_type_filtered() {
                 state.get_declared_type_of_type_parameter(symbol)
             };
             let string = state.tables.intrinsics.string;
-            let mapper = state.create_type_mapper(vec![t], Some(vec![string]));
+            let mapper = state.create_type_mapper(&[t], Some(&[string]));
             // The walk crosses the ClassDeclaration container: its
             // thisType joins the outer parameters and containsReference
             // filters it back out (no `this` in the literal).
@@ -52,7 +52,7 @@ fn type_literals_inside_class_bodies_instantiate_with_this_type_filtered() {
             let declared = state
                 .get_declared_type_of_class_or_interface(c)
                 .expect("C declared");
-            let mapper = state.create_type_mapper(vec![t], Some(vec![string]));
+            let mapper = state.create_type_mapper(&[t], Some(&[string]));
             let instantiated = state
                 .instantiate_type(declared, Some(mapper))
                 .expect("declared-type instantiation");

@@ -2125,7 +2125,7 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
         let elements: Vec<NodeId> = match self.data_of(node) {
-            NodeData::ArrayLiteralExpression(data) => self.nodes_of(data.elements),
+            NodeData::ArrayLiteralExpression(data) => self.nodes_of(data.elements).to_vec(),
             _ => unreachable!("kind/data agree"),
         };
         let undefined_type = self.tables.intrinsics.undefined;
@@ -2793,7 +2793,7 @@ impl<'a> CheckerState<'a> {
                 self.tables.type_mut(result).object_flags = tsc_types::ObjectFlags::ANONYMOUS
                     | tsc_types::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE;
                 self.tables.type_mut(result).symbol = Some(symbol);
-                let mut properties = properties;
+                let mut properties = properties.to_vec();
                 self.order_named_members_if_stable(&mut properties, Some(symbol));
                 let members_id = self.alloc_members(crate::state::ResolvedMembers::new(
                     members,

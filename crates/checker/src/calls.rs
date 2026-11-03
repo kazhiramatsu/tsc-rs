@@ -337,7 +337,7 @@ impl<'a> CheckerState<'a> {
             NodeData::SetAccessor(data) => data.parameters,
             _ => None,
         };
-        self.nodes_of(parameters)
+        self.nodes_of(parameters).to_vec()
     }
 
     /// tsc-port: getParameterTypeNodeForDecoratorCheck @6.0.3
@@ -1228,7 +1228,7 @@ impl<'a> CheckerState<'a> {
                     NodeData::Constructor(data) => self.nodes_of(data.parameters),
                     NodeData::MethodDeclaration(data) => self.nodes_of(data.parameters),
                     NodeData::SetAccessor(data) => self.nodes_of(data.parameters),
-                    _ => Vec::new(),
+                    _ => Default::default(),
                 };
                 let raw_index = parameters
                     .iter()
@@ -1512,7 +1512,7 @@ impl<'a> CheckerState<'a> {
         let members = self.member_table(&members);
         let resolved = self.members_mut(members_id);
         resolved.members = members;
-        resolved.properties = vec![name_prop, private_prop, static_prop];
+        resolved.properties = vec![name_prop, private_prop, static_prop].into();
         self.decorator_context_override_type_cache
             .insert(key, override_type);
         override_type
@@ -2062,7 +2062,7 @@ impl<'a> CheckerState<'a> {
             }
             _ => unreachable!("call-like kinds route here"),
         };
-        let args: Vec<NodeId> = self.nodes_of(arguments);
+        let args = self.nodes_of(arguments);
         let spread_index = args
             .iter()
             .position(|&arg| self.kind_of(arg) == SyntaxKind::SpreadElement);
@@ -2371,9 +2371,9 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         type_arguments: &[NodeId],
     ) -> bool {
-        let type_parameters = self.signature_of(signature).type_parameters.clone();
-        let num_type_parameters = type_parameters.as_deref().map_or(0, <[TypeId]>::len);
-        let min_type_argument_count = self.get_min_type_argument_count(type_parameters.as_deref());
+        let type_parameters = self.signature_of(signature).type_parameters.as_deref();
+        let num_type_parameters = type_parameters.map_or(0, <[TypeId]>::len);
+        let min_type_argument_count = self.get_min_type_argument_count(type_parameters);
         type_arguments.is_empty()
             || (type_arguments.len() >= min_type_argument_count
                 && type_arguments.len() <= num_type_parameters)
@@ -2650,10 +2650,8 @@ impl<'a> CheckerState<'a> {
                 continue;
             };
             if mapper.is_none() {
-                mapper = Some(self.create_type_mapper(
-                    type_parameters.clone(),
-                    Some(type_argument_types.clone()),
-                ));
+                mapper =
+                    Some(self.create_type_mapper(&type_parameters, Some(&type_argument_types)));
             }
             let type_argument = type_argument_types[i];
             let instantiated = self.instantiate_type(constraint, mapper)?;
@@ -3978,7 +3976,7 @@ impl<'a> CheckerState<'a> {
                 NodeData::JsxSelfClosingElement(data) => data.type_arguments,
                 _ => None,
             };
-            type_argument_nodes = self.nodes_of(type_arguments_array);
+            type_argument_nodes = self.nodes_of(type_arguments_array).to_vec();
             for &argument in &type_argument_nodes {
                 self.check_source_element(Some(argument));
             }
@@ -4434,11 +4432,13 @@ impl<'a> CheckerState<'a> {
         let node = ctx.node;
         if is_single_non_generic_candidate {
             let candidate = ctx.candidates[0];
-            let args = ctx.args.clone();
+            // The context is not the checker: its lists are borrowed, not
+            // copied, while the checker relates the arguments.
+            let args = &ctx.args;
             if !ctx.type_argument_nodes.is_empty()
                 || !self.has_correct_arity(
                     node,
-                    &args,
+                    args,
                     candidate,
                     ctx.signature_help_trailing_comma,
                 )?
@@ -4448,7 +4448,7 @@ impl<'a> CheckerState<'a> {
             if self
                 .get_signature_applicability_error(
                     node,
-                    &args,
+                    args,
                     candidate,
                     relation,
                     CheckMode::NORMAL,
@@ -4464,18 +4464,18 @@ impl<'a> CheckerState<'a> {
         }
         for candidate_index in 0..ctx.candidates.len() {
             let candidate = ctx.candidates[candidate_index];
-            let args = ctx.args.clone();
+            let args = &ctx.args;
             if !self.has_correct_type_argument_arity(candidate, &ctx.type_argument_nodes)
                 || !self.has_correct_arity(
                     node,
-                    &args,
+                    args,
                     candidate,
                     ctx.signature_help_trailing_comma,
                 )?
             {
                 continue;
             }
-            let type_argument_nodes = ctx.type_argument_nodes.clone();
+            let type_argument_nodes = &ctx.type_argument_nodes;
             // tsgo chooseOverload (checker.go:9243-9246): "When we are
             // recursively resolving a call with a single candidate, we skip
             // constraints checks during type inference to avoid circularity
@@ -4485,8 +4485,8 @@ impl<'a> CheckerState<'a> {
             let run_trial = |state: &mut Self| {
                 state.try_overload_candidate(
                     node,
-                    &args,
-                    &type_argument_nodes,
+                    args,
+                    type_argument_nodes,
                     candidate,
                     relation,
                     ctx.arg_check_mode,

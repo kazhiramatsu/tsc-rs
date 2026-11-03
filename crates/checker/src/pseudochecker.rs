@@ -999,7 +999,7 @@ impl<'c, 'a> PseudoChecker<'c, 'a> {
             _ => None,
         };
         if syntactic.is_some() || !self.checker.is_in_js_file(function) {
-            return self.checker.nodes_of(syntactic);
+            return self.checker.nodes_of(syntactic).to_vec();
         }
         self.checker.reparsed_type_parameters(function)
     }

@@ -3061,7 +3061,7 @@ impl<'a> CheckerState<'a> {
         tsc_binder::node_util::type_annotation_of_data(self.data_of(node))
     }
 
-    fn parameters_of(&self, node: NodeId) -> Vec<NodeId> {
+    fn parameters_of(&self, node: NodeId) -> crate::annotate::NodeIds<'a> {
         let parameters = match self.data_of(node) {
             NodeData::FunctionDeclaration(data) => data.parameters,
             NodeData::FunctionExpression(data) => data.parameters,
@@ -3075,11 +3075,11 @@ impl<'a> CheckerState<'a> {
         self.nodes_of_array(parameters)
     }
 
-    fn nodes_of_array(&self, array: Option<tsc_syntax::NodeArrayId>) -> Vec<NodeId> {
-        match array {
-            Some(array) => self.binder.node_array(array).nodes.to_vec(),
-            None => Vec::new(),
-        }
+    fn nodes_of_array(
+        &self,
+        array: Option<tsc_syntax::NodeArrayId>,
+    ) -> crate::annotate::NodeIds<'a> {
+        self.nodes_of(array)
     }
 
     fn child_nodes_of(&self, node: NodeId) -> Vec<NodeId> {

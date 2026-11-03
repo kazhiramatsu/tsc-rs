@@ -138,7 +138,7 @@ fn render_element(checker: &CheckerState<'_>, element: &PseudoObjectElement) -> 
 fn statements(checker: &CheckerState<'_>) -> Vec<NodeId> {
     let root = checker.binder.source(0).root;
     match checker.data_of(root) {
-        NodeData::SourceFile(data) => checker.nodes_of(data.statements),
+        NodeData::SourceFile(data) => checker.nodes_of(data.statements).to_vec(),
         _ => Vec::new(),
     }
 }
@@ -181,7 +181,7 @@ fn class_members(checker: &CheckerState<'_>) -> Vec<NodeId> {
     statements(checker)
         .into_iter()
         .find_map(|statement| match checker.data_of(statement) {
-            NodeData::ClassDeclaration(data) => Some(checker.nodes_of(data.members)),
+            NodeData::ClassDeclaration(data) => Some(checker.nodes_of(data.members).to_vec()),
             _ => None,
         })
         .expect("class")

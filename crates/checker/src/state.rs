@@ -7,6 +7,7 @@
 //! (initializeTypeChecker slice, M4 5.0). M3 built the single-file
 //! seed; M4 5.0 extends it program-wide.
 
+use std::sync::Arc;
 use tsc_binder::{Binder, InternalSymbolName, SymbolId, SymbolTable};
 use tsc_diagnostics::JsStr;
 use tsc_diagnostics::{Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain};
@@ -218,6 +219,107 @@ pub struct WideningContext {
 
 pub type WideningContextId = usize;
 
+/// An immutable list shared by its readers: a resolved type's properties or
+/// signatures. Cloning it is a reference count (the getters hand it out
+/// instead of copying the list), an empty list holds no allocation, it
+/// reads as a slice, and iterating it by value yields the ids, as iterating
+/// a copied `Vec` did.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SharedList<T: Copy>(Option<Arc<[T]>>);
+
+/// A resolved type's properties (see [`SharedList`]).
+pub type SymbolIds = SharedList<SymbolId>;
+
+/// A resolved type's call or construct signatures (see [`SharedList`]).
+pub type SignatureIds = SharedList<SignatureId>;
+
+impl<T: Copy> SharedList<T> {
+    /// The empty list.
+    pub const fn new() -> Self {
+        Self(None)
+    }
+
+    /// Bytes the list owns on the heap (its counts and records), for
+    /// memory accounting.
+    pub fn heap_bytes(&self) -> usize {
+        self.0.as_ref().map_or(0, |list| {
+            2 * std::mem::size_of::<usize>() + std::mem::size_of_val::<[T]>(list)
+        })
+    }
+}
+
+impl<T: Copy> Default for SharedList<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: Copy> From<Vec<T>> for SharedList<T> {
+    fn from(list: Vec<T>) -> Self {
+        Self((!list.is_empty()).then(|| Arc::from(list)))
+    }
+}
+
+impl<T: Copy> From<&[T]> for SharedList<T> {
+    fn from(list: &[T]) -> Self {
+        Self((!list.is_empty()).then(|| Arc::from(list)))
+    }
+}
+
+impl<T: Copy> std::ops::Deref for SharedList<T> {
+    type Target = [T];
+
+    #[inline]
+    fn deref(&self) -> &[T] {
+        self.0.as_deref().unwrap_or(&[])
+    }
+}
+
+/// The records of a [`SharedList`] by value, in order.
+pub struct SharedListIter<T: Copy> {
+    list: SharedList<T>,
+    next: usize,
+}
+
+impl<T: Copy> Iterator for SharedListIter<T> {
+    type Item = T;
+
+    #[inline]
+    fn next(&mut self) -> Option<T> {
+        let record = self.list.get(self.next).copied();
+        self.next += usize::from(record.is_some());
+        record
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let left = self.list.len() - self.next;
+        (left, Some(left))
+    }
+}
+
+impl<T: Copy> ExactSizeIterator for SharedListIter<T> {}
+
+impl<T: Copy> IntoIterator for SharedList<T> {
+    type Item = T;
+    type IntoIter = SharedListIter<T>;
+
+    fn into_iter(self) -> SharedListIter<T> {
+        SharedListIter {
+            list: self,
+            next: 0,
+        }
+    }
+}
+
+impl<'a, T: Copy> IntoIterator for &'a SharedList<T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 /// tsc resolved structured-type members (setStructuredTypeMembers
 /// 50198): members table + named properties + signatures + index infos.
 #[derive(Clone, Debug, Default)]
@@ -226,7 +328,7 @@ pub struct ResolvedMembers {
     /// when they are exactly those), the instantiated ones, or the declared
     /// plus inherited ones; see [`MemberTable`].
     pub members: MemberTable,
-    pub properties: Vec<SymbolId>,
+    pub properties: SymbolIds,
     /// The signatures and index infos, which most resolved types have none
     /// of (three empty lists were 72 of a record's 152 bytes, over a million
     /// records on VS Code).
@@ -237,8 +339,8 @@ pub struct ResolvedMembers {
 /// type, allocated when the type has any.
 #[derive(Clone, Debug, Default)]
 pub struct MembersExtras {
-    pub call_signatures: Vec<SignatureId>,
-    pub construct_signatures: Vec<SignatureId>,
+    pub call_signatures: SignatureIds,
+    pub construct_signatures: SignatureIds,
     pub index_infos: Vec<IndexInfo>,
 }
 
@@ -255,14 +357,14 @@ impl ResolvedMembers {
             || !index_infos.is_empty())
         .then(|| {
             Box::new(MembersExtras {
-                call_signatures,
-                construct_signatures,
+                call_signatures: call_signatures.into(),
+                construct_signatures: construct_signatures.into(),
                 index_infos,
             })
         });
         Self {
             members,
-            properties,
+            properties: properties.into(),
             extras,
         }
     }
@@ -270,13 +372,29 @@ impl ResolvedMembers {
     pub fn call_signatures(&self) -> &[SignatureId] {
         self.extras
             .as_ref()
-            .map_or(&[], |extras| extras.call_signatures.as_slice())
+            .map_or(&[], |extras| &extras.call_signatures[..])
     }
 
     pub fn construct_signatures(&self) -> &[SignatureId] {
         self.extras
             .as_ref()
-            .map_or(&[], |extras| extras.construct_signatures.as_slice())
+            .map_or(&[], |extras| &extras.construct_signatures[..])
+    }
+
+    /// The call signatures, shared (a reference count, not a copy).
+    pub fn call_signature_list(&self) -> SignatureIds {
+        self.extras
+            .as_ref()
+            .map_or_else(SignatureIds::new, |extras| extras.call_signatures.clone())
+    }
+
+    /// The construct signatures, shared (a reference count, not a copy).
+    pub fn construct_signature_list(&self) -> SignatureIds {
+        self.extras
+            .as_ref()
+            .map_or_else(SignatureIds::new, |extras| {
+                extras.construct_signatures.clone()
+            })
     }
 
     pub fn index_infos(&self) -> &[IndexInfo] {
@@ -294,13 +412,13 @@ impl ResolvedMembers {
     /// time); an empty list needs no record.
     pub fn set_call_signatures(&mut self, call_signatures: Vec<SignatureId>) {
         if !call_signatures.is_empty() || self.extras.is_some() {
-            self.extras_mut().call_signatures = call_signatures;
+            self.extras_mut().call_signatures = call_signatures.into();
         }
     }
 
     pub fn set_construct_signatures(&mut self, construct_signatures: Vec<SignatureId>) {
         if !construct_signatures.is_empty() || self.extras.is_some() {
-            self.extras_mut().construct_signatures = construct_signatures;
+            self.extras_mut().construct_signatures = construct_signatures.into();
         }
     }
 
@@ -331,8 +449,8 @@ impl ResolvedMembers {
     pub fn extras_heap_bytes(&self) -> usize {
         self.extras.as_ref().map_or(0, |extras| {
             std::mem::size_of::<MembersExtras>()
-                + extras.call_signatures.capacity() * 4
-                + extras.construct_signatures.capacity() * 4
+                + extras.call_signatures.heap_bytes()
+                + extras.construct_signatures.heap_bytes()
                 + extras.index_infos.capacity() * std::mem::size_of::<IndexInfo>()
         })
     }
@@ -413,9 +531,11 @@ pub struct CheckerState<'a> {
     pub signatures: Vec<Signature>,
     /// tsc signature.instantiations (getSignatureInstantiationWithout
     /// FillingInTypeArguments 59903): every signature's map in one table
-    /// keyed by the signature and getTypeListId, so a signature record does
-    /// not carry an (almost always empty) map.
-    pub(crate) signature_instantiations: rustc_hash::FxHashMap<(SignatureId, String), SignatureId>,
+    /// keyed by the signature and the type arguments' interned list (tsc's
+    /// getTypeListId), so a signature record does not carry an (almost
+    /// always empty) map.
+    pub(crate) signature_instantiations:
+        rustc_hash::FxHashMap<(SignatureId, tsc_types::TypeListId), SignatureId>,
     /// Trial-local resolvedReturnType protocol writes. The resolution
     /// stack observes slot completion while a candidate runs, but the
     /// signature memo returns to its entry value at the boundary.
@@ -430,6 +550,11 @@ pub struct CheckerState<'a> {
     /// table so a walk does not grow one from empty (tsgo allocates one per
     /// inferTypes call).
     pub(crate) inference_visited: crate::inference::InferenceVisited,
+    /// The inference walk's slot snapshot and its two stacks, kept between
+    /// walks with their room (a walk inside a walk takes empty ones).
+    pub(crate) inference_walk_buffers: crate::inference::InferenceWalkBuffers,
+    /// tsc arrayVariances, shared by every array and tuple query.
+    pub(crate) array_variances: SharedList<tsc_types::VarianceFlags>,
     /// greenfield §4.3: all links writes assert this is zero.
     pub speculation_depth: u32,
     /// Order-sensitivity guard (slice W2c): armed only by the sharded driver;
@@ -1210,7 +1335,9 @@ pub struct CheckerState<'a> {
 
 impl<'a> CheckerState<'a> {
     /// With `TSRS_MEMORY_REPORT` set, print what this checker allocates, by
-    /// structure, to stderr under `label`.
+    /// structure, to stderr under `label`. The arenas reserved from the
+    /// program's size count the records they hold: their untouched room is
+    /// address space, not memory.
     pub(crate) fn report_memory(&self, label: &str) {
         if std::env::var_os("TSRS_MEMORY_REPORT").is_none() {
             return;
@@ -1266,36 +1393,31 @@ impl<'a> CheckerState<'a> {
                         .map_or(0, |list| list.len() * 4)
             })
             .sum::<usize>()
-            + map_bytes(&self.signature_instantiations)
-            + self
-                .signature_instantiations
-                .keys()
-                .map(|(_, key)| key.capacity())
-                .sum::<usize>();
+            + map_bytes(&self.signature_instantiations);
         rows.push((
             "signatures (Signature)",
             self.signatures.len(),
-            self.signatures.capacity() * std::mem::size_of::<Signature>() + signature_heap,
+            self.signatures.len() * std::mem::size_of::<Signature>() + signature_heap,
         ));
         let members_heap: usize = self
             .members
             .iter()
             .map(|members| {
                 members.members.heap_bytes()
-                    + members.properties.capacity() * 4
+                    + members.properties.heap_bytes()
                     + members.extras_heap_bytes()
             })
             .sum();
         rows.push((
             "resolved members",
             self.members.len(),
-            self.members.capacity() * std::mem::size_of::<ResolvedMembers>() + members_heap,
+            self.members.len() * std::mem::size_of::<ResolvedMembers>() + members_heap,
         ));
         rows.push((
             "type mappers",
             self.mappers.len(),
-            self.mappers.capacity() * std::mem::size_of::<crate::instantiate::TypeMapper>()
-                + self.mapper_lists.capacity() * std::mem::size_of::<TypeId>(),
+            self.mappers.len() * std::mem::size_of::<crate::instantiate::TypeMapper>()
+                + self.mapper_lists.len() * std::mem::size_of::<TypeId>(),
         ));
         let (relations, relation_bytes) = self.relations.memory_usage();
         rows.push(("relation caches", relations, relation_bytes));
@@ -1342,9 +1464,9 @@ impl<'a> CheckerState<'a> {
         rows.push((
             "inference arenas",
             self.inference_context_arena.len() + self.inference_info_arena.len(),
-            self.inference_context_arena.capacity()
+            self.inference_context_arena.len()
                 * std::mem::size_of::<crate::inference::InferenceContext>()
-                + self.inference_info_arena.capacity()
+                + self.inference_info_arena.len()
                     * std::mem::size_of::<crate::inference::InferenceInfo>(),
         ));
         let total: usize = rows.iter().map(|row| row.2).sum();
@@ -1628,6 +1750,8 @@ impl<'a> CheckerState<'a> {
             relations: RelationCaches::default(),
             subtype_reduction_cache: rustc_hash::FxHashMap::default(),
             inference_visited: Default::default(),
+            inference_walk_buffers: Default::default(),
+            array_variances: SharedList::from(crate::variance::ARRAY_VARIANCES),
             speculation_depth: 0,
             order_guard: crate::order_guard::OrderGuard::default(),
             checked_source_files: 0,

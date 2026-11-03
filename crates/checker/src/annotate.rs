@@ -21,6 +21,41 @@ use crate::state::{
 };
 use tsc_types::perf::{self, PerfCounter};
 
+/// A node list of the checked program, borrowed for the program's life
+/// (the published tree outlives the checker): it reads as a slice, and
+/// iterating it by value yields the ids, as iterating a copied `Vec` did.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct NodeIds<'a>(&'a [NodeId]);
+
+impl std::ops::Deref for NodeIds<'_> {
+    type Target = [NodeId];
+
+    #[inline]
+    fn deref(&self) -> &[NodeId] {
+        self.0
+    }
+}
+
+impl<'a> IntoIterator for NodeIds<'a> {
+    type Item = NodeId;
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, NodeId>>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter().copied()
+    }
+}
+
+impl<'a> IntoIterator for &NodeIds<'a> {
+    type Item = &'a NodeId;
+    type IntoIter = std::slice::Iter<'a, NodeId>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
 impl<'a> CheckerState<'a> {
     // ---- node helpers ----
 
@@ -43,11 +78,12 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsrs-native: NodeArray arena projection; tsc arrays are direct
-    /// JavaScript objects.
-    pub(crate) fn nodes_of(&self, array: Option<NodeArrayId>) -> Vec<NodeId> {
+    /// JavaScript objects. The elements are the published tree's, borrowed
+    /// for the program's life: no copy, and `self` stays free to mutate.
+    pub(crate) fn nodes_of(&self, array: Option<NodeArrayId>) -> NodeIds<'a> {
         match array {
-            Some(array) => self.binder.node_array(array).nodes.to_vec(),
-            None => Vec::new(),
+            Some(array) => NodeIds(self.binder.node_array(array).nodes),
+            None => NodeIds(&[]),
         }
     }
 
@@ -596,7 +632,7 @@ impl<'a> CheckerState<'a> {
         let is_tuple = self.kind_of(node) == SyntaxKind::TupleType;
         let elements = match self.data_of(node) {
             NodeData::TupleType(data) => self.nodes_of(data.elements),
-            NodeData::ArrayType(_) => Vec::new(),
+            NodeData::ArrayType(_) => Default::default(),
             _ => unreachable!("array/tuple kind implies payload"),
         };
         let resolved = if target == self.empty_generic_type {
@@ -1952,6 +1988,19 @@ impl<'a> CheckerState<'a> {
     /// resolution — every such forcer pre-5.3 (indexed access over
     /// tuples, member access) escapes, so the arms sit unexercised
     /// until 5.3 (pin then).
+    /// [`Self::get_type_arguments`] as the interned list (no copy): a
+    /// reference's resolved list, a deferred reference's resolved first.
+    pub fn get_type_argument_list(&mut self, ty: TypeId) -> CheckResult<tsc_types::TypeListId> {
+        if let Some(list) = self.tables.try_type_argument_list(ty) {
+            return Ok(list);
+        }
+        let arguments = self.get_type_arguments(ty)?;
+        Ok(match self.tables.try_type_argument_list(ty) {
+            Some(list) => list,
+            None => self.tables.intern_type_list(&arguments),
+        })
+    }
+
     pub fn get_type_arguments(&mut self, ty: TypeId) -> CheckResult<Vec<TypeId>> {
         if let Some(resolved) = self.tables.try_type_arguments(ty) {
             return Ok(resolved.to_vec());
@@ -1982,7 +2031,7 @@ impl<'a> CheckerState<'a> {
                         unreachable!("TypeReference-node deferrals target class/interface types");
                     };
                     let outer_count = *outer_type_parameter_count as usize;
-                    let type_parameters = state.tables.list(*type_parameters).to_vec();
+                    let type_parameters = state.tables.list_copy(*type_parameters);
                     let effective = state
                         .get_effective_type_arguments(node, &type_parameters[outer_count..])?;
                     let mut arguments = type_parameters[..outer_count].to_vec();
@@ -2549,7 +2598,7 @@ impl<'a> CheckerState<'a> {
                     self.nodes_of(self.heritage_type_arguments(node))
                 }
                 NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
-                _ => Vec::new(),
+                _ => Default::default(),
             };
             let num_type_arguments = node_type_arguments.len();
             let min_type_argument_count =
@@ -3032,7 +3081,7 @@ impl<'a> CheckerState<'a> {
             );
         }
         if let Some(parameters) = outer_type_parameters {
-            let key = self.tables.get_type_list_id(&parameters);
+            let key = tsc_types::InstantiationKey::plain(self.tables.intern_type_list(&parameters));
             self.links
                 .set_fresh_conditional_instantiation(root, key, resolved);
         }
@@ -3141,7 +3190,7 @@ impl<'a> CheckerState<'a> {
                     self.nodes_of(self.heritage_type_arguments(node))
                 }
                 NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
-                _ => Vec::new(),
+                _ => Default::default(),
             };
             let num_type_arguments = node_type_arguments.len();
             let min_type_argument_count = self.get_min_type_argument_count(Some(&type_parameters));
@@ -3263,12 +3312,15 @@ impl<'a> CheckerState<'a> {
             .get(symbol)
             .clone()
             .expect("getTypeAliasInstantiation callers gate on typeParameters");
-        let id_key = format!(
-            "{}{}",
-            self.tables.get_type_list_id(type_arguments.unwrap_or(&[])),
-            self.tables.get_alias_id(alias_symbol, alias_type_arguments)
+        // getTypeListId + getAliasId as one value (equal lists and aliases
+        // intern to equal keys, as they format to equal strings).
+        let id_key = self.tables.instantiation_key(
+            type_arguments.unwrap_or(&[]),
+            alias_symbol,
+            alias_type_arguments,
+            false,
         );
-        if let Some(instantiation) = self.links.alias_instantiation(symbol, &id_key) {
+        if let Some(instantiation) = self.links.alias_instantiation(symbol, id_key) {
             return Ok(instantiation);
         }
         let min_type_argument_count = self.get_min_type_argument_count(Some(&type_parameters));
@@ -3283,7 +3335,7 @@ impl<'a> CheckerState<'a> {
             min_type_argument_count,
             is_js,
         )?;
-        let mapper = self.create_type_mapper(type_parameters, filled);
+        let mapper = self.create_type_mapper(&type_parameters, filled.as_deref());
         let instantiation =
             self.instantiate_type_with_alias(ty, mapper, alias_symbol, alias_type_arguments)?;
         self.links
@@ -3749,7 +3801,9 @@ impl<'a> CheckerState<'a> {
             let type_parameters =
                 self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
             if !type_parameters.is_empty() {
-                let list_id = self.tables.get_type_list_id(&type_parameters);
+                let list_id = tsc_types::InstantiationKey::plain(
+                    self.tables.intern_type_list(&type_parameters),
+                );
                 self.links.set_symbol_type_parameters(
                     self.speculation_depth,
                     symbol,
@@ -4021,7 +4075,7 @@ impl<'a> CheckerState<'a> {
                 let NodeData::HeritageClause(clause_data) = self.data_of(clause) else {
                     continue;
                 };
-                return self.nodes_of(clause_data.types);
+                return self.nodes_of(clause_data.types).to_vec();
             }
         }
         Vec::new()
@@ -4113,8 +4167,7 @@ impl<'a> CheckerState<'a> {
         };
         let zero = self.tables.get_number_literal_type(0.0);
         let tuple = self.create_tuple_type_forced(&[replacement], None, false, None)?;
-        let mapper =
-            self.create_type_mapper(vec![index_type, object_type], Some(vec![zero, tuple]));
+        let mapper = self.create_type_mapper(&[index_type, object_type], Some(&[zero, tuple]));
         self.instantiate_type(instantiable, Some(mapper))
     }
 
@@ -4144,7 +4197,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Intersection { types } = self.tables.type_of(origin).data else {
             return Ok(None);
         };
-        let types = self.tables.list(types).to_vec();
+        let types = self.tables.list_copy(types);
         let retained = types
             .iter()
             .copied()
@@ -4564,8 +4617,7 @@ impl<'a> CheckerState<'a> {
             construct_signatures = self.members_of(source).construct_signatures().to_vec();
             index_infos = self.members_of(source).index_infos().to_vec();
         } else {
-            let type_mapper =
-                self.create_type_mapper(type_parameters.to_vec(), Some(type_arguments.to_vec()));
+            let type_mapper = self.create_type_mapper(type_parameters, Some(type_arguments));
             mapper = Some(type_mapper);
             let declared_properties = self.members_of(source).properties.clone();
             members = self.create_instantiated_symbol_table(&declared_properties, type_mapper)?;
@@ -5258,7 +5310,7 @@ impl<'a> CheckerState<'a> {
 
     /// getMembersOfDeclaration (19010-ish): the member lists a
     /// late-binding container declaration carries.
-    fn members_of_declaration(&self, declaration: NodeId) -> Vec<NodeId> {
+    fn members_of_declaration(&self, declaration: NodeId) -> NodeIds<'a> {
         match self.data_of(declaration) {
             NodeData::InterfaceDeclaration(data) => self.nodes_of(data.members),
             NodeData::ClassDeclaration(data) => self.nodes_of(data.members),
@@ -5266,7 +5318,7 @@ impl<'a> CheckerState<'a> {
             NodeData::TypeLiteral(data) => self.nodes_of(data.members),
             NodeData::JSDocTypeLiteral(data) => self.nodes_of(data.js_doc_property_tags),
             NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
-            _ => Vec::new(),
+            _ => NodeIds::default(),
         }
     }
 
@@ -5569,7 +5621,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
-            let types = self.tables.list(types).to_vec();
+            let types = self.tables.list_copy(types);
             for t in types.iter() {
                 if !self.is_valid_base_type(*t)? {
                     return Ok(false);
@@ -5626,7 +5678,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
-            let types = self.tables.list(types).to_vec();
+            let types = self.tables.list_copy(types);
             for t in types.iter() {
                 if self.has_base_type_worker(*t, check_base, visited)? {
                     return Ok(true);
@@ -5682,18 +5734,18 @@ impl<'a> CheckerState<'a> {
             .intersects(ObjectFlags::REFERENCE)
         {
             let target = self.tables.reference_target(ty);
-            let target_parameters: Vec<TypeId> = match &self.tables.type_of(target).data {
+            let target_parameter_count = match self.tables.type_of(target).data {
                 TypeData::GenericType {
                     type_parameters, ..
-                } => self.tables.list(*type_parameters).to_vec(),
+                } => self.tables.list(type_parameters).len(),
                 TypeData::TupleTarget(data) => {
-                    let data = self.tables.tuple_target(*data);
-                    self.tables.list(data.type_parameters).to_vec()
+                    let data = self.tables.tuple_target(data);
+                    self.tables.list(data.type_parameters).len()
                 }
-                _ => Vec::new(),
+                _ => 0,
             };
-            let type_arguments = self.get_type_arguments(ty)?;
-            return if target_parameters.len() == type_arguments.len() {
+            let type_arguments = self.get_type_argument_list(ty)?;
+            return if target_parameter_count == self.tables.list(type_arguments).len() {
                 // PLAIN createTypeReference (57789) — NOT the
                 // normalized path: the this slot appends past the
                 // element list on the SAME target (a tuple target's
@@ -5710,9 +5762,11 @@ impl<'a> CheckerState<'a> {
                     }
                     _ => unreachable!("references target generic or tuple targets"),
                 };
-                let mut arguments = type_arguments;
-                arguments.push(this_argument.unwrap_or(this_type));
-                Ok(self.tables.create_type_reference(target, &arguments))
+                Ok(self.tables.create_type_reference_with_last(
+                    target,
+                    type_arguments,
+                    this_argument.unwrap_or(this_type),
+                ))
             } else {
                 Ok(ty)
             };
@@ -5721,10 +5775,10 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
-            let types = self.tables.list(types).to_vec();
+            let mut types = self.tables.cursor(types);
             let mut new_types = Vec::with_capacity(types.len());
             let mut changed = false;
-            for &t in types.iter() {
+            while let Some(t) = types.next(&self.tables) {
                 let mapped =
                     self.get_type_with_this_argument(t, this_argument, need_apparent_type)?;
                 changed |= mapped != t;
@@ -6258,7 +6312,7 @@ impl<'a> CheckerState<'a> {
                 self.nodes_of(self.heritage_type_arguments(node))
             }
             NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
-            _ => Vec::new(),
+            _ => Default::default(),
         };
         // tsgo getConstructorsForTypeArguments (checker.go:19623-19628) has
         // no JavaScript exception to the minimum type argument count.
@@ -6289,7 +6343,7 @@ impl<'a> CheckerState<'a> {
                 self.nodes_of(self.heritage_type_arguments(node))
             }
             NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
-            _ => Vec::new(),
+            _ => Default::default(),
         };
         let signatures = self.get_constructors_for_type_arguments(ty, node)?;
         let mut type_arguments = Vec::with_capacity(argument_nodes.len());
@@ -6398,7 +6452,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ExpressionWithTypeArguments(_) => {
                 self.nodes_of(self.heritage_type_arguments(base_type_node))
             }
-            _ => Vec::new(),
+            _ => Default::default(),
         };
         let mut type_arguments = Vec::with_capacity(argument_nodes.len());
         for argument in argument_nodes {
@@ -7219,7 +7273,7 @@ impl<'a> CheckerState<'a> {
                 active_id = Some(stage_id);
                 let container = state.tables.type_of(ty).symbol;
                 let pre_merge_properties = state.get_named_members(&members, container)?;
-                state.members_mut(stage_id).properties = pre_merge_properties.clone();
+                state.members_mut(stage_id).properties = pre_merge_properties.clone().into();
                 let mut base_constructor_index_info: Option<IndexInfo> = None;
                 if flags.intersects(SymbolFlags::CLASS) {
                     let class_type = state.get_declared_type_of_class_or_interface(symbol)?;
@@ -7646,7 +7700,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::INTERSECTION) && !self.is_generic_type(key_type)? {
             if let TypeData::Intersection { types } = &self.tables.type_of(key_type).data {
-                let members = self.tables.list(*types).to_vec();
+                let members = self.tables.list_copy(*types);
                 for member in members {
                     if self.is_valid_index_key_type(member)? {
                         return Ok(true);
@@ -9591,7 +9645,7 @@ impl<'a> CheckerState<'a> {
                 let value = self.get_enum_member_value(member)?.value;
                 let base = match value {
                     Some(EvalValue::Str(text)) => self.tables.get_enum_literal_type(
-                        LiteralValue::String(&tsc_types::TemplateText::from_js(text.as_js())),
+                        LiteralValue::String(text.as_js()),
                         symbol,
                         member_symbol,
                     ),
@@ -10662,7 +10716,7 @@ impl<'a> CheckerState<'a> {
         report_errors: bool,
     ) -> CheckResult<TypeId> {
         let elements: Vec<NodeId> = match self.data_of(pattern) {
-            NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements),
+            NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements).to_vec(),
             _ => Vec::new(),
         };
         let mut members = tsc_binder::SymbolTable::default();
@@ -10746,7 +10800,7 @@ impl<'a> CheckerState<'a> {
         report_errors: bool,
     ) -> CheckResult<TypeId> {
         let elements: Vec<NodeId> = match self.data_of(pattern) {
-            NodeData::ArrayBindingPattern(data) => self.nodes_of(data.elements),
+            NodeData::ArrayBindingPattern(data) => self.nodes_of(data.elements).to_vec(),
             _ => Vec::new(),
         };
         let rest_element = elements.last().copied().filter(|&last| {
