@@ -160,7 +160,7 @@ impl Request<'_, '_> {
 
         // Cheap JSX check before resolving files to search.
         if let Some(parent) = self.parent(node) {
-            let is_tag = match &self.state.binder.node_record(parent).data {
+            let is_tag = match self.state.binder.node_record(parent).data() {
                 NodeData::JsxClosingElement(_) => true,
                 NodeData::JsxOpeningElement(data) => {
                     data.tag_name.map(Touching::Node) == Some(node)
@@ -174,7 +174,7 @@ impl Request<'_, '_> {
                     .node_record(parent)
                     .parent
                     .and_then(
-                        |element| match &self.state.binder.node_record(element).data {
+                        |element| match self.state.binder.node_record(element).data() {
                             NodeData::JsxElement(data) => {
                                 Some([data.opening_element, data.closing_element])
                             }
@@ -534,7 +534,7 @@ impl Request<'_, '_> {
         let mut if_statement = if_statement;
         // Traverse upwards through all parent if-statements linked by their else-branches.
         while let Some(parent) = self.state.binder.node_record(if_statement).parent {
-            match &self.state.binder.node_record(parent).data {
+            match self.state.binder.node_record(parent).data() {
                 NodeData::IfStatement(data) if data.else_statement == Some(if_statement) => {
                     if_statement = parent;
                 }
@@ -558,7 +558,7 @@ impl Request<'_, '_> {
             {
                 keywords.push(else_keyword);
             }
-            let NodeData::IfStatement(data) = &self.state.binder.node_record(if_statement).data
+            let NodeData::IfStatement(data) = self.state.binder.node_record(if_statement).data()
             else {
                 break;
             };
@@ -601,7 +601,7 @@ impl Request<'_, '_> {
     /// tsgo `aggregateOwnedThrowStatements`: the throw statements a node
     /// owns (not caught by a try statement in it, not in a nested function).
     fn aggregate_owned_throw_statements(&self, node: NodeId) -> Vec<NodeId> {
-        match &self.state.binder.node_record(node).data {
+        match self.state.binder.node_record(node).data() {
             NodeData::ThrowStatement(_) => return vec![node],
             NodeData::TryStatement(data) => {
                 // Exceptions thrown within a try block lacking a catch clause are "owned" in the current context.
@@ -678,7 +678,7 @@ impl Request<'_, '_> {
             }
             // A throw-statement is only owned by a try-statement if the try-statement has
             // a catch clause, and if the throw-statement occurs within the try block.
-            if let NodeData::TryStatement(data) = &self.state.binder.node_record(parent).data {
+            if let NodeData::TryStatement(data) = self.state.binder.node_record(parent).data() {
                 if data.try_block == Some(child) && data.catch_clause.is_some() {
                     return Some(child);
                 }
@@ -701,7 +701,7 @@ impl Request<'_, '_> {
 
     /// tsgo `getTryCatchFinallyOccurrences`.
     fn try_catch_finally_occurrences(&self, node: NodeId) -> Vec<Touching> {
-        let NodeData::TryStatement(data) = &self.state.binder.node_record(node).data else {
+        let NodeData::TryStatement(data) = self.state.binder.node_record(node).data() else {
             return Vec::new();
         };
         let mut keywords = Vec::new();
@@ -728,12 +728,12 @@ impl Request<'_, '_> {
                 keywords.push(token);
             }
         }
-        let NodeData::SwitchStatement(data) = &self.state.binder.node_record(node).data else {
+        let NodeData::SwitchStatement(data) = self.state.binder.node_record(node).data() else {
             return keywords;
         };
         let clauses = data
             .case_block
-            .and_then(|block| match &self.state.binder.node_record(block).data {
+            .and_then(|block| match self.state.binder.node_record(block).data() {
                 NodeData::CaseBlock(block) => block.clauses,
                 _ => None,
             })
@@ -782,7 +782,7 @@ impl Request<'_, '_> {
     /// tsgo `getBreakOrContinueOwner`: the loop (or, for a `break`, the
     /// switch) a jump targets, by its label if it has one.
     fn break_or_continue_owner(&self, statement: NodeId) -> Option<NodeId> {
-        let label = match &self.state.binder.node_record(statement).data {
+        let label = match self.state.binder.node_record(statement).data() {
             NodeData::BreakStatement(data) => data.label,
             NodeData::ContinueStatement(data) => data.label,
             _ => None,
@@ -824,7 +824,7 @@ impl Request<'_, '_> {
     fn is_labeled_by(&self, node: NodeId, label_name: &str) -> bool {
         let mut owner = self.state.binder.node_record(node).parent;
         while let Some(id) = owner {
-            let NodeData::LabeledStatement(data) = &self.state.binder.node_record(id).data else {
+            let NodeData::LabeledStatement(data) = self.state.binder.node_record(id).data() else {
                 return false;
             };
             let source = self.state.binder.source_of_node(id);
@@ -992,7 +992,7 @@ impl Request<'_, '_> {
                 .unwrap_or_default()
         };
         // Types of node whose children might have modifiers.
-        match &self.state.binder.node_record(container).data {
+        match self.state.binder.node_record(container).data() {
             NodeData::ModuleBlock(_)
             | NodeData::SourceFile(_)
             | NodeData::Block(_)
@@ -1006,7 +1006,7 @@ impl Request<'_, '_> {
                     result.push(declaration);
                     result
                 } else {
-                    list(match &self.state.binder.node_record(container).data {
+                    list(match self.state.binder.node_record(container).data() {
                         NodeData::ModuleBlock(data) => data.statements,
                         NodeData::SourceFile(data) => data.statements,
                         NodeData::Block(data) => data.statements,
@@ -1080,7 +1080,7 @@ impl Request<'_, '_> {
 
     /// tsgo `ast.IsIterationStatement`.
     fn is_iteration_statement(&self, node: NodeId, look_in_labeled_statements: bool) -> bool {
-        match &self.state.binder.node_record(node).data {
+        match self.state.binder.node_record(node).data() {
             NodeData::ForStatement(_)
             | NodeData::ForInStatement(_)
             | NodeData::ForOfStatement(_)

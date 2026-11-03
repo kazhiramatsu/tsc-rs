@@ -255,16 +255,17 @@ fn binding_pattern_return_mapper_contextualizes_later_empty_array_argument() {
                     .arena
                     .node_ids()
                     .find(|&id| {
-                        let NodeData::CallExpression(ref data) = source.arena.node(id).data else {
+                        let NodeData::CallExpression(ref data) = source.arena.node(id).data()
+                        else {
                             return false;
                         };
                         data.expression.is_some_and(|expression| {
                             matches!(
-                                source.arena.node(expression).data,
+                                source.arena.node(expression).data(),
                                 NodeData::PropertyAccessExpression(ref data)
                                     if data.name.is_some_and(|name| {
                                         matches!(
-                                            &source.arena.node(name).data,
+                                            source.arena.node(name).data(),
                                             NodeData::Identifier(identifier)
                                                 if identifier.text() == "reduce"
                                         )
@@ -352,16 +353,17 @@ fn rejected_reduce_overloads_keep_tsc_contextual_state_and_failure_return_type()
                     .arena
                     .node_ids()
                     .find(|&id| {
-                        let NodeData::CallExpression(ref data) = source.arena.node(id).data else {
+                        let NodeData::CallExpression(ref data) = source.arena.node(id).data()
+                        else {
                             return false;
                         };
                         data.expression.is_some_and(|expression| {
                             matches!(
-                                source.arena.node(expression).data,
+                                source.arena.node(expression).data(),
                                 NodeData::PropertyAccessExpression(ref data)
                                     if data.name.is_some_and(|name| {
                                         matches!(
-                                            &source.arena.node(name).data,
+                                            source.arena.node(name).data(),
                                             NodeData::Identifier(identifier)
                                                 if identifier.text() == "reduce"
                                         )

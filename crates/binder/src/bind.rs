@@ -2740,13 +2740,13 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 2c30dad48c8cea8fc38dcf71dc1540246ea176334ec080e5b11f00bb2506dcf7
     /// tsc-span: _tsc.js:43277-43289
     fn bind_if_statement(&mut self, node: NodeId) {
-        let (expression, then_statement, else_statement) = match &self.source.arena.node(node).data()
-        {
-            NodeData::IfStatement(data) => {
-                (data.expression, data.then_statement, data.else_statement)
-            }
-            _ => (None, None, None),
-        };
+        let (expression, then_statement, else_statement) =
+            match &self.source.arena.node(node).data() {
+                NodeData::IfStatement(data) => {
+                    (data.expression, data.then_statement, data.else_statement)
+                }
+                _ => (None, None, None),
+            };
         let then_label = self.flow.create_branch_label();
         let else_label = self.flow.create_branch_label();
         let post_if_label = self.flow.create_branch_label();

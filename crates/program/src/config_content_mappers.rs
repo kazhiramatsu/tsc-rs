@@ -573,7 +573,7 @@ impl ContentMapperSyntax<'_> {
                     source
                         .arena
                         .node(*element)
-                        .data
+                        .data()
                         .as_string_literal()
                         .is_some_and(|literal| literal.text == extension)
                 })

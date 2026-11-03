@@ -506,7 +506,7 @@ pub fn is_jsdoc_type_assertion(source: &SourceFile, node: NodeId) -> bool {
 /// tsrs-native: typed AST projection for tsc's direct declaration `type`
 /// property access.
 pub fn type_annotation_of(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    type_annotation_of_data(&tree.node(node).data())
+    type_annotation_of_data(tree.node(node).data())
 }
 
 /// [`type_annotation_of`] of a node's data.
@@ -628,7 +628,7 @@ pub fn is_modifier_kind(kind: SyntaxKind) -> bool {
 /// that can carry one (canHaveModifiers proxy — exactly the generated
 /// Data structs with a modifiers field).
 pub fn modifiers_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeArrayId> {
-    modifiers_of_data(&tree.node(id).data())
+    modifiers_of_data(tree.node(id).data())
 }
 
 /// [`modifiers_of`] of a node's data.
@@ -1678,10 +1678,11 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
             if parent_of(source, id)
                 .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::JSDocTypeLiteral) =>
         {
-            let name = name_field_of(source, id).map(|name| match &source.arena.node(name).data() {
-                NodeData::QualifiedName(data) => data.right.unwrap_or(name),
-                _ => name,
-            });
+            let name =
+                name_field_of(source, id).map(|name| match &source.arena.node(name).data() {
+                    NodeData::QualifiedName(data) => data.right.unwrap_or(name),
+                    _ => name,
+                });
             error_node = name.or(error_node);
         }
         NodeData::Constructor(_) => {

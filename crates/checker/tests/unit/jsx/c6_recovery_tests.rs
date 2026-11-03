@@ -31,7 +31,7 @@ fn synthetic_attribute_recovery_preserves_a_bound_sibling() {
         let mut intrinsic = None;
         let mut value = None;
         for node in source.arena.node_ids() {
-            let NodeData::JsxSelfClosingElement(data) = &source.arena.node(node).data else {
+            let NodeData::JsxSelfClosingElement(data) = source.arena.node(node).data() else {
                 continue;
             };
             let Some(tag_name) = data.tag_name else {
@@ -40,7 +40,7 @@ fn synthetic_attribute_recovery_preserves_a_bound_sibling() {
             if source.arena.node(tag_name).kind == SyntaxKind::Identifier {
                 let valid_attribute = data
                     .attributes
-                    .and_then(|attributes| match &source.arena.node(attributes).data {
+                    .and_then(|attributes| match source.arena.node(attributes).data() {
                         NodeData::JsxAttributes(data) => data.properties,
                         _ => None,
                     })
@@ -263,11 +263,11 @@ fn non_generic_interface_element_type_uses_its_declared_type() {
                 let declaration = source
                     .arena
                     .node_ids()
-                    .find(|&node| match &source.arena.node(node).data {
+                    .find(|&node| match source.arena.node(node).data() {
                         NodeData::InterfaceDeclaration(data) => {
                             data.name.is_some_and(|name| {
                                 matches!(
-                                    &source.arena.node(name).data,
+                                    source.arena.node(name).data(),
                                     NodeData::Identifier(data)
                                         if data.escaped_text == "ElementType"
                                 )

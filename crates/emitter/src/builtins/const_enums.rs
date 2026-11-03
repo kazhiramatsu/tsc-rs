@@ -186,10 +186,10 @@ impl ConstEnumInliningVisitor<'_, '_> {
         }
         let (kind, mut slots) = {
             let record = self.context.arena().node(node)?;
-            let slots = if matches!(record.data, NodeData::MissingDeclaration(_)) {
+            let slots = if matches!(record.data(), NodeData::MissingDeclaration(_)) {
                 ChildSlots::new()
             } else {
-                child_slots(&record.data, &*self)
+                child_slots(record.data(), &*self)
             };
             (record.kind, slots)
         };
@@ -209,7 +209,10 @@ impl ConstEnumInliningVisitor<'_, '_> {
         }
         let (mut data, flags) = {
             let arena = self.context.arena();
-            (arena.node(node)?.data.clone(), arena.transform_flags(node))
+            (
+                arena.node(node)?.data().clone(),
+                arena.transform_flags(node),
+            )
         };
         apply_child_slots(&mut data, &slots, self)?;
         self.context.factory()?.update_node(node, data, flags)

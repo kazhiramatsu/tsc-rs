@@ -5574,7 +5574,7 @@ fn symbol_expression_reads_astral_identifiers_as_property_access() {
                 .node_ids()
                 .find(|&node| {
                     matches!(
-                        &source.arena.node(node).data,
+                        source.arena.node(node).data(),
                         tsc_syntax::NodeData::Identifier(data)
                             if data.escaped_text == "s"
                     )

@@ -127,7 +127,7 @@ impl GlobalNameOracle for Oracle {
 
 fn root_statements(arena: &TransformArena, source: TransformSourceId) -> Vec<NodeId> {
     let root = arena.root(source).expect("root");
-    let NodeData::SourceFile(data) = &arena.node(root).expect("root record").data else {
+    let NodeData::SourceFile(data) = arena.node(root).expect("root record").data() else {
         panic!("source file root");
     };
     arena
@@ -146,13 +146,13 @@ fn declaration_name(
     statement: NodeId,
 ) -> NodeId {
     let node = arena.node_ref(source, statement).expect("statement");
-    let NodeData::VariableStatement(data) = &arena.node(node).expect("record").data else {
+    let NodeData::VariableStatement(data) = arena.node(node).expect("record").data() else {
         panic!("variable statement");
     };
     let list = arena
         .node_ref(source, data.declaration_list.expect("list"))
         .expect("list");
-    let NodeData::VariableDeclarationList(list_data) = &arena.node(list).expect("record").data
+    let NodeData::VariableDeclarationList(list_data) = arena.node(list).expect("record").data()
     else {
         panic!("declaration list");
     };
@@ -165,7 +165,7 @@ fn declaration_name(
         .nodes[0];
     let declaration = arena.node_ref(source, declaration).expect("declaration");
     let NodeData::VariableDeclaration(declaration_data) =
-        &arena.node(declaration).expect("record").data
+        arena.node(declaration).expect("record").data()
     else {
         panic!("variable declaration");
     };
@@ -178,7 +178,7 @@ fn expression_identifier(
     statement: NodeId,
 ) -> NodeId {
     let node = arena.node_ref(source, statement).expect("statement");
-    let NodeData::ExpressionStatement(data) = &arena.node(node).expect("record").data else {
+    let NodeData::ExpressionStatement(data) = arena.node(node).expect("record").data() else {
         panic!("expression statement");
     };
     data.expression.expect("expression")
@@ -307,7 +307,7 @@ impl Transformer for StatementInjector {
     ) -> Result<TransformRoot, TransformError> {
         let TransformRoot::SourceFile(source) = root;
         let file = context.arena().root(source)?;
-        let NodeData::SourceFile(data) = context.arena().node(file)?.data.clone() else {
+        let NodeData::SourceFile(data) = context.arena().node(file)?.data().clone() else {
             panic!("source file root");
         };
         let mut statements = self.statements.clone();
@@ -430,7 +430,7 @@ fn identity_trace(arena: &TransformArena, source: TransformSourceId) -> Value {
     while let Some((id, declares)) = stack.pop() {
         let node = arena.node_ref(source, id).expect("node");
         let record = arena.node(node).expect("record");
-        if let NodeData::Identifier(identifier) = &record.data {
+        if let NodeData::Identifier(identifier) = record.data() {
             if let Some(binding) = arena.generated_binding_identity(node) {
                 rows.entry(binding).or_default().push(json!({
                     "node": id.index(),
@@ -439,7 +439,7 @@ fn identity_trace(arena: &TransformArena, source: TransformSourceId) -> Value {
                 }));
             }
         }
-        let declared_name = match &record.data {
+        let declared_name = match record.data() {
             NodeData::VariableDeclaration(data) => data.name,
             NodeData::Parameter(data) => data.name,
             NodeData::BindingElement(data) => data.name,

@@ -109,7 +109,7 @@ fn collect_package_names(state: &CheckerState<'_>, prepared: &PreparedProgram) -
             continue;
         }
         for import in collect_external_module_references(source).imports {
-            let tsc_syntax::NodeData::StringLiteral(literal) = &source.arena.node(import).data
+            let tsc_syntax::NodeData::StringLiteral(literal) = source.arena.node(import).data()
             else {
                 continue;
             };

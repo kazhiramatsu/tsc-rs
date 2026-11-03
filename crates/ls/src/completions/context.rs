@@ -70,7 +70,7 @@ impl<'r, 's, 'a> Completions<'r, 's, 'a> {
     }
 
     pub(crate) fn data(&self, node: NodeId) -> &'a NodeData {
-        &self.record(node).data
+        self.record(node).data()
     }
 
     pub(crate) fn parent_of(&self, node: NodeId) -> Option<NodeId> {

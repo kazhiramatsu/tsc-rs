@@ -144,7 +144,7 @@ fn simplify_class_declaration(
         .is_some_and(|declaration| checker.kind_of(declaration) == SyntaxKind::ClassExpression)
     {
         let NodeData::ClassDeclaration(mut data) =
-            arena.node(class).map_err(factory_error)?.data.clone()
+            arena.node(class).map_err(factory_error)?.data().clone()
         else {
             unreachable!("a class expansion is a class declaration");
         };
@@ -608,7 +608,12 @@ fn type_elements_to_class_elements(
     let mut result = Vec::with_capacity(members.len());
     for member in members {
         let source = member.node.source();
-        let node = match arena.node(member.node).map_err(factory_error)?.data.clone() {
+        let node = match arena
+            .node(member.node)
+            .map_err(factory_error)?
+            .data()
+            .clone()
+        {
             NodeData::PropertySignature(data) => {
                 let modifiers = data
                     .modifiers
@@ -1601,7 +1606,7 @@ fn modifiers_of(
     arena: &TransformArena,
     node: TransformNode,
 ) -> BuildResult<Option<tsc_syntax::NodeArrayId>> {
-    Ok(match &arena.node(node).map_err(factory_error)?.data {
+    Ok(match arena.node(node).map_err(factory_error)?.data() {
         NodeData::ClassDeclaration(data) => data.modifiers,
         NodeData::InterfaceDeclaration(data) => data.modifiers,
         NodeData::EnumDeclaration(data) => data.modifiers,
@@ -1661,7 +1666,7 @@ fn replace_modifiers(
 
 /// The name node of a built member.
 fn member_name(arena: &TransformArena, node: TransformNode) -> BuildResult<Option<TransformNode>> {
-    let name = match &arena.node(node).map_err(factory_error)?.data {
+    let name = match arena.node(node).map_err(factory_error)?.data() {
         NodeData::PropertySignature(data) => data.name,
         NodeData::MethodSignature(data) => data.name,
         NodeData::PropertyDeclaration(data) => data.name,

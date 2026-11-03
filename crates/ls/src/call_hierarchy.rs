@@ -444,7 +444,7 @@ impl Request<'_, '_> {
         {
             return Ok(self.node_text(Touching::Node(name)));
         }
-        if let NodeData::ComputedPropertyName(computed) = &self.state.binder.node_record(name).data
+        if let NodeData::ComputedPropertyName(computed) = self.state.binder.node_record(name).data()
         {
             if let Some(expression) = computed.expression {
                 if node_util::is_string_or_numeric_literal_like(source, expression) {
@@ -794,7 +794,7 @@ impl Request<'_, '_> {
                 for member in self.members_of(node) {
                     if let Some(name) = self.name_of(member) {
                         if let NodeData::ComputedPropertyName(computed) =
-                            &self.state.binder.node_record(name).data
+                            self.state.binder.node_record(name).data()
                         {
                             if let Some(expression) = computed.expression {
                                 self.collect(expression, sites)?;
@@ -805,7 +805,7 @@ impl Request<'_, '_> {
             }
             return Ok(());
         }
-        let data = self.state.binder.node_record(node).data.clone();
+        let data = self.state.binder.node_record(node).data().clone();
         match self.node_kind(node) {
             // do not descend into nodes that cannot contain callable nodes
             SyntaxKind::Identifier
@@ -913,7 +913,7 @@ impl Request<'_, '_> {
     /// tsgo `callSiteCollector.recordCallSite`: a call's target and the
     /// declarations it calls.
     fn record_call_site(&mut self, node: NodeId, sites: &mut Vec<CallSite>) -> CheckResult<()> {
-        let target = match &self.state.binder.node_record(node).data {
+        let target = match self.state.binder.node_record(node).data() {
             NodeData::TaggedTemplateExpression(tagged) => tagged.tag,
             NodeData::JsxOpeningElement(element) => element.tag_name,
             NodeData::JsxSelfClosingElement(element) => element.tag_name,

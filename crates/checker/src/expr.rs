@@ -798,7 +798,7 @@ impl<'a> CheckerState<'a> {
         let (literal_text, is_unterminated, target, file_name, token_start_utf16) = {
             let source = self.binder.source_of_node(node);
             let raw = Published.node(node);
-            let Some(data) = raw.data.as_regular_expression_literal() else {
+            let Some(data) = raw.data().as_regular_expression_literal() else {
                 return false;
             };
             let literal_text = data.text.clone();

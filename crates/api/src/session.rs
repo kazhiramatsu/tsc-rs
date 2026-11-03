@@ -2560,7 +2560,7 @@ fn literal_text(source: &tsc_syntax::SourceFile, node: NodeId) -> Option<String>
     if !source.arena.contains_node(node) {
         return None;
     }
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::StringLiteral(literal) => Some(literal.text.to_string_lossy().into_owned()),
         NodeData::NoSubstitutionTemplateLiteral(literal) => {
             Some(literal.text.to_string_lossy().into_owned())

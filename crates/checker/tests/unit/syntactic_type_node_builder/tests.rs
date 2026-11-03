@@ -565,7 +565,7 @@ fn syntactic_jsdoc_type_literal_keeps_written_property_types() {
             let result = builder
                 .try_reuse_existing_type_node(resolver, arena, target, context, jsdoc)?
                 .expect("JSDoc type literal reused");
-            let NodeData::TypeLiteral(data) = &arena.node(result).expect("type literal").data
+            let NodeData::TypeLiteral(data) = arena.node(result).expect("type literal").data()
             else {
                 panic!("expected type literal")
             };
@@ -579,7 +579,7 @@ fn syntactic_jsdoc_type_literal_keeps_written_property_types() {
                     .node_ref(result.source(), members[index])
                     .expect("property signature");
                 let NodeData::PropertySignature(data) =
-                    arena.node(member).expect("property signature record").data.clone()
+                    arena.node(member).expect("property signature record").data().clone()
                 else {
                     panic!("expected property signature")
                 };
@@ -601,7 +601,7 @@ fn syntactic_jsdoc_type_literal_keeps_written_property_types() {
             let name = arena
                 .node_ref(name.source(), name_data.name.expect("property name"))
                 .expect("property name node");
-            let NodeData::StringLiteral(literal) = &arena.node(name).expect("name record").data
+            let NodeData::StringLiteral(literal) = arena.node(name).expect("name record").data()
             else {
                 panic!("expected a string literal name")
             };

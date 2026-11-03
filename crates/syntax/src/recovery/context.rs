@@ -532,7 +532,7 @@ impl ParseRecovery {
     fn supports_reparse_runs(&self, source: &SourceFile) -> bool {
         let mut ranges = BTreeSet::new();
         let mut covered = BTreeSet::new();
-        let Some(statements) = Self::statement_array(&source.arena.node(source.root).data()) else {
+        let Some(statements) = Self::statement_array(source.arena.node(source.root).data()) else {
             return false;
         };
         let statements = &source.arena.node_array(statements).nodes;
@@ -609,7 +609,7 @@ impl ParseRecovery {
         if source.is_declaration_file {
             return claimed;
         }
-        let Some(statements) = Self::statement_array(&source.arena.node(source.root).data()) else {
+        let Some(statements) = Self::statement_array(source.arena.node(source.root).data()) else {
             return claimed;
         };
         let statements = &source.arena.node_array(statements).nodes;

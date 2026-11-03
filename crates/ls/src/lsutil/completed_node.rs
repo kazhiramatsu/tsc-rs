@@ -44,7 +44,7 @@ pub(crate) fn is_completed_node(navigator: &Navigator<'_>, node: Option<Found>) 
     let node_is_present = |child: Option<NodeId>| {
         child.is_some_and(|child| !node_util::node_is_missing(source, Some(child)))
     };
-    match &source.arena.node(id).data {
+    match source.arena.node(id).data() {
         NodeData::ClassDeclaration(_)
         | NodeData::InterfaceDeclaration(_)
         | NodeData::EnumDeclaration(_)

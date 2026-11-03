@@ -50,7 +50,7 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
             let node = source.arena.node(nodes[node_index]);
             let mut child_nodes = Vec::new();
             let mut child_arrays = Vec::new();
-            collect_node_data_ids(&node.data(), &mut child_nodes, &mut child_arrays);
+            collect_node_data_ids(node.data(), &mut child_nodes, &mut child_arrays);
             if let Some(js_doc) = node.js_doc {
                 child_arrays.push(js_doc);
             }

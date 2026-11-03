@@ -528,7 +528,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             SyntaxKind::TypeQuery => self.try_visit_type_query(inner),
             SyntaxKind::IndexedAccessType => self.try_visit_indexed_access(inner),
             SyntaxKind::TypeOperator => {
-                let NodeData::TypeOperator(data) = self.node(inner)?.data.clone() else {
+                let NodeData::TypeOperator(data) = self.node(inner)?.data().clone() else {
                     return Ok(None);
                 };
                 if data.operator == SyntaxKind::KeyOfKeyword {
@@ -548,7 +548,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &mut self,
         node: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let NodeData::IndexedAccessType(mut data) = self.node(node)?.data.clone() else {
+        let NodeData::IndexedAccessType(mut data) = self.node(node)?.data().clone() else {
             return Ok(None);
         };
         let Some(object) = self.child(node.source(), data.object_type) else {
@@ -577,7 +577,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &mut self,
         node: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let NodeData::TypeOperator(mut data) = self.node(node)?.data.clone() else {
+        let NodeData::TypeOperator(mut data) = self.node(node)?.data().clone() else {
             return Ok(None);
         };
         debug_assert_eq!(data.operator, SyntaxKind::KeyOfKeyword);
@@ -599,7 +599,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &mut self,
         node: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let NodeData::TypeQuery(mut data) = self.node(node)?.data.clone() else {
+        let NodeData::TypeQuery(mut data) = self.node(node)?.data().clone() else {
             return Ok(None);
         };
         let Some(expr_name) = self.child(node.source(), data.expr_name) else {
@@ -647,7 +647,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         {
             return Ok(None);
         }
-        let NodeData::TypeReference(mut data) = self.node(node)?.data.clone() else {
+        let NodeData::TypeReference(mut data) = self.node(node)?.data().clone() else {
             return Ok(None);
         };
         let Some(type_name) = self.child(node.source(), data.type_name) else {
@@ -694,7 +694,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         node: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
         let source = node.source();
-        let data = self.node(node)?.data.clone();
+        let data = self.node(node)?.data().clone();
         match data {
             NodeData::JSDocTypeExpression(data) => {
                 return match self.child(source, data.r#type) {
@@ -759,7 +759,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                     // tsc-hash: 1cf444d81393bf59cab6555d09fa2234a853b231a9def4bf59ad00f2c8f2c323
                     // tsc-span: _tsc.js:133415-133426
                     let (tag_name, tag_type_expression, is_bracketed) =
-                        match self.node(tag)?.data.clone() {
+                        match self.node(tag)?.data().clone() {
                             NodeData::JSDocPropertyTag(data) => {
                                 (data.name, data.type_expression, data.is_bracketed)
                             }
@@ -776,7 +776,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                     // property names that are not identifiers are string
                     // literals and whose types are the tags' types as written
                     // (reparseJSDocTypeLiteral, reparser.go:244-283).
-                    let invalid_name = match &self.node(name)?.data {
+                    let invalid_name = match self.node(name)?.data() {
                         NodeData::Identifier(identifier)
                             if !tsc_syntax::is_identifier_text(identifier.text()) =>
                         {
@@ -1144,7 +1144,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         // (ast/visitor.go:225-230, checker/nodecopy.go:827-900), so each is
         // cloned and takes its range only from the enclosing file. tsc 6.0
         // kept the original token, which mapped another file's offset.
-        let mut data = self.node(node)?.data.clone();
+        let mut data = self.node(node)?.data().clone();
         self.visit_sources.push(node.source());
         let result = try_visit_each_child(&mut data, self);
         self.visit_sources.pop();
@@ -1205,7 +1205,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &mut self,
         parameter: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let NodeData::Parameter(data) = self.node(parameter)?.data.clone() else {
+        let NodeData::Parameter(data) = self.node(parameter)?.data().clone() else {
             return Ok(None);
         };
         if let Some(token) = self.child(parameter.source(), data.dot_dot_dot_token) {
@@ -1234,7 +1234,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         parameter: TransformNode,
         index: usize,
     ) -> Result<String, EmitResolverError> {
-        let NodeData::Parameter(data) = self.node(parameter)?.data.clone() else {
+        let NodeData::Parameter(data) = self.node(parameter)?.data().clone() else {
             return Ok(format!("arg{index}"));
         };
         if let Some(name) = self.child(parameter.source(), data.name) {
@@ -1291,7 +1291,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
     }
 
     fn identifier_text(&self, node: TransformNode) -> Result<&str, EmitResolverError> {
-        match &self.node(node)?.data {
+        match self.node(node)?.data() {
             NodeData::Identifier(data) => Ok(data.escaped_text.identifier_text()),
             _ => Err(self.required_child_error(SyntaxKind::Identifier, "escapedText")),
         }
@@ -1299,7 +1299,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
 
     fn rightmost_name(&self, mut node: TransformNode) -> Result<TransformNode, EmitResolverError> {
         loop {
-            let right = match &self.node(node)?.data {
+            let right = match self.node(node)?.data() {
                 NodeData::QualifiedName(data) => data.right,
                 _ => None,
             };
@@ -1316,7 +1316,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         mut node: TransformNode,
     ) -> Result<TransformNode, EmitResolverError> {
         loop {
-            let NodeData::ParenthesizedExpression(data) = &self.node(node)?.data else {
+            let NodeData::ParenthesizedExpression(data) = self.node(node)?.data() else {
                 return Ok(node);
             };
             let Some(inner) = self.child(node.source(), data.expression) else {
@@ -1370,7 +1370,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &self,
         expression: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let NodeData::JSDocTypeExpression(data) = &self.node(expression)?.data else {
+        let NodeData::JSDocTypeExpression(data) = self.node(expression)?.data() else {
             return Ok(None);
         };
         Ok(self.child(expression.source(), data.r#type))
@@ -1380,7 +1380,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &self,
         node: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let NodeData::LiteralType(data) = &self.node(node)?.data else {
+        let NodeData::LiteralType(data) = self.node(node)?.data() else {
             return Ok(None);
         };
         Ok(self.child(node.source(), data.literal))
@@ -1395,13 +1395,13 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             return Ok(false);
         };
         Ok(matches!(
-            &self.node(attributes)?.data,
+            self.node(attributes)?.data(),
             NodeData::ImportAttributes(data) if data.token == SyntaxKind::AssertKeyword
         ))
     }
 
     fn name_of(&self, node: TransformNode) -> Result<Option<TransformNode>, EmitResolverError> {
-        let name = match &self.node(node)?.data {
+        let name = match self.node(node)?.data() {
             NodeData::BindingElement(data) => data.name,
             NodeData::ClassDeclaration(data) => data.name,
             NodeData::ClassExpression(data) => data.name,
@@ -1429,7 +1429,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
     }
 
     fn is_signed_numeric_literal(&self, node: TransformNode) -> Result<bool, EmitResolverError> {
-        let NodeData::PrefixUnaryExpression(data) = &self.node(node)?.data else {
+        let NodeData::PrefixUnaryExpression(data) = self.node(node)?.data() else {
             return Ok(false);
         };
         if !matches!(
@@ -1447,7 +1447,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         let Some(name) = self.name_of(declaration)? else {
             return Ok(false);
         };
-        let expression = match &self.node(name)?.data {
+        let expression = match self.node(name)?.data() {
             NodeData::ComputedPropertyName(data) => self.child(name.source(), data.expression),
             NodeData::ElementAccessExpression(data) => {
                 self.child(name.source(), data.argument_expression)
@@ -1470,7 +1470,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &self,
         node: TransformNode,
     ) -> Result<Option<NodeId>, EmitResolverError> {
-        Ok(match &self.node(node)?.data {
+        Ok(match self.node(node)?.data() {
             NodeData::ArrowFunction(data) => data.r#type,
             NodeData::CallSignature(data) => data.r#type,
             NodeData::ConstructSignature(data) => data.r#type,
@@ -1497,7 +1497,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &self,
         node: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let initializer = match &self.node(node)?.data {
+        let initializer = match self.node(node)?.data() {
             NodeData::BindingElement(data) => data.initializer,
             NodeData::Parameter(data) => data.initializer,
             NodeData::PropertyAssignment(data) => data.initializer,
@@ -1528,7 +1528,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         r#type: Option<NodeId>,
         remove_parameter_modifiers: bool,
     ) -> Result<NodeData, EmitResolverError> {
-        let mut data = self.node(node)?.data.clone();
+        let mut data = self.node(node)?.data().clone();
         match &mut data {
             NodeData::ArrowFunction(value) => value.r#type = r#type,
             NodeData::CallSignature(value) => value.r#type = r#type,
@@ -1559,7 +1559,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
     }
 
     fn is_entity_name_expression(&self, node: TransformNode) -> Result<bool, EmitResolverError> {
-        match &self.node(node)?.data {
+        match self.node(node)?.data() {
             NodeData::Identifier(_) => Ok(true),
             NodeData::PropertyAccessExpression(data) => {
                 let Some(name) = self.child(node.source(), data.name) else {
@@ -1579,7 +1579,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, EmitResolverError> {
-        let NodeData::JSDocFunctionType(data) = self.node(node)?.data.clone() else {
+        let NodeData::JSDocFunctionType(data) = self.node(node)?.data().clone() else {
             return Err(self.required_child_error(SyntaxKind::JSDocFunctionType, "parameters"));
         };
         let source = node.source();
@@ -1587,7 +1587,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         let parameters = self.nodes(source, data.parameters)?;
         let is_constructor = parameters.first().is_some_and(|parameter| {
             matches!(
-                self.node(*parameter).ok().map(|record| &record.data),
+                self.node(*parameter).ok().map(|record| record.data()),
                 Some(NodeData::Parameter(parameter_data))
                     if self.child(source, parameter_data.name).is_some_and(|name| {
                         self.kind(name).ok() == Some(SyntaxKind::Identifier)
@@ -1598,7 +1598,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         let mut result_parameters = Vec::with_capacity(parameters.len());
         let mut constructor_type = None;
         for (index, parameter) in parameters.into_iter().enumerate() {
-            let NodeData::Parameter(parameter_data) = self.node(parameter)?.data.clone() else {
+            let NodeData::Parameter(parameter_data) = self.node(parameter)?.data().clone() else {
                 continue;
             };
             let is_new = self.child(source, parameter_data.name).is_some_and(|name| {

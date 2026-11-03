@@ -1021,7 +1021,8 @@ impl<'a> BinderWorker<'a> {
             }
             SyntaxKind::Parameter => {
                 let parent = parent_of(self.source, node)?;
-                let NodeData::JSDocFunctionType(data) = &self.source.arena.node(parent).data() else {
+                let NodeData::JSDocFunctionType(data) = &self.source.arena.node(parent).data()
+                else {
                     return None;
                 };
                 let index = data.parameters.and_then(|parameters| {

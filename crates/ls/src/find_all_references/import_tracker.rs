@@ -143,7 +143,7 @@ pub(super) fn for_each_import(request: &Request<'_, '_>, file: usize) -> Vec<(No
     }
     let mut result = Vec::new();
     for_each_possible_import_or_export_statement(request, source.root, &mut |statement| {
-        match &request.state.binder.node_record(statement).data {
+        match request.state.binder.node_record(statement).data() {
             NodeData::ExportDeclaration(data) => {
                 if let Some(specifier) = data.module_specifier.filter(|&specifier| {
                     request.state.binder.node_record(specifier).kind == SyntaxKind::StringLiteral
@@ -247,7 +247,7 @@ fn for_each_possible_import_or_export_statement(
 /// tsgo `getStatementsOfSourceFileLike`.
 fn statements_of_source_file_like(request: &Request<'_, '_>, node: NodeId) -> Vec<NodeId> {
     let source = request.state.binder.source_of_node(node);
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::SourceFile(_) => statements(source, node).to_vec(),
         NodeData::ModuleDeclaration(data) => data
             .body
@@ -261,7 +261,7 @@ fn statements_of_source_file_like(request: &Request<'_, '_>, node: NodeId) -> Ve
 /// tsgo `isAmbientModuleDeclaration`: a module declaration named by a
 /// string.
 pub(super) fn is_ambient_module_declaration(request: &Request<'_, '_>, node: NodeId) -> bool {
-    match &request.state.binder.node_record(node).data {
+    match request.state.binder.node_record(node).data() {
         NodeData::ModuleDeclaration(data) => data.name.is_some_and(|name| {
             request.state.binder.node_record(name).kind == SyntaxKind::StringLiteral
         }),
@@ -303,13 +303,13 @@ pub(super) fn external_module_import_equals_expression(
     request: &Request<'_, '_>,
     node: NodeId,
 ) -> Option<NodeId> {
-    let NodeData::ImportEqualsDeclaration(data) = &request.state.binder.node_record(node).data
+    let NodeData::ImportEqualsDeclaration(data) = request.state.binder.node_record(node).data()
     else {
         return None;
     };
     let reference = data.module_reference?;
     let NodeData::ExternalModuleReference(reference) =
-        &request.state.binder.node_record(reference).data
+        request.state.binder.node_record(reference).data()
     else {
         return None;
     };
@@ -495,7 +495,7 @@ impl<'t> Importers<'t> {
                 continue;
             }
             let source = request.state.binder.source_of_node(direct);
-            match request.state.binder.node_record(direct).data.clone() {
+            match request.state.binder.node_record(direct).data().clone() {
                 NodeData::CallExpression(_) => {
                     if request.state.is_import_call(direct) {
                         self.handle_import_call(request, direct)?;
@@ -503,7 +503,7 @@ impl<'t> Importers<'t> {
                         let parent = request.state.binder.node_record(direct).parent;
                         if self.export_info.export_kind == ExportKind::ExportEquals {
                             if let Some(NodeData::VariableDeclaration(variable)) =
-                                parent.map(|parent| &request.state.binder.node_record(parent).data)
+                                parent.map(|parent| request.state.binder.node_record(parent).data())
                             {
                                 if let Some(name) = variable.name.filter(|&name| {
                                     request.state.binder.node_record(name).kind
@@ -529,11 +529,12 @@ impl<'t> Importers<'t> {
                     };
                     self.direct_imports.push(direct);
                     if let Some(NodeData::ImportClause(clause)) = import_clause
-                        .map(|clause| request.state.binder.node_record(clause).data.clone())
+                        .map(|clause| request.state.binder.node_record(clause).data().clone())
                     {
-                        if let Some(NodeData::NamespaceImport(namespace)) = clause
-                            .named_bindings
-                            .map(|bindings| request.state.binder.node_record(bindings).data.clone())
+                        if let Some(NodeData::NamespaceImport(namespace)) =
+                            clause.named_bindings.map(|bindings| {
+                                request.state.binder.node_record(bindings).data().clone()
+                            })
                         {
                             self.handle_namespace_import(
                                 request,
@@ -633,12 +634,13 @@ fn find_namespace_re_exports(
     let namespace_import_symbol = request.state.get_symbol_at_location(name)?;
     let mut exports = Vec::new();
     for_each_possible_import_or_export_statement(request, source_file_like, &mut |statement| {
-        if let NodeData::ExportDeclaration(data) = &request.state.binder.node_record(statement).data
+        if let NodeData::ExportDeclaration(data) =
+            request.state.binder.node_record(statement).data()
         {
             if data.module_specifier.is_none() {
                 if let Some(NodeData::NamedExports(named)) = data
                     .export_clause
-                    .map(|clause| &request.state.binder.node_record(clause).data)
+                    .map(|clause| request.state.binder.node_record(clause).data())
                 {
                     if let Some(elements) = named.elements {
                         exports.extend(
@@ -686,7 +688,7 @@ fn get_searches_from_direct_imports(
     };
     for &declaration in direct_imports {
         let record = request.state.binder.node_record(declaration).clone();
-        match &record.data {
+        match record.data() {
             NodeData::ImportEqualsDeclaration(data) => {
                 if external_module_import_equals_expression(request, declaration).is_some() {
                     if let Some(name) = data.name {
@@ -724,7 +726,7 @@ fn get_searches_from_direct_imports(
                 } else if export_kind == ExportKind::ExportEquals {
                     if let Some(NodeData::LiteralType(literal)) = data
                         .argument
-                        .map(|argument| &request.state.binder.node_record(argument).data)
+                        .map(|argument| request.state.binder.node_record(argument).data())
                     {
                         single_references.extend(literal.literal);
                     }
@@ -734,7 +736,7 @@ fn get_searches_from_direct_imports(
             _ => {}
         }
         // Ignore if there's a grammar error
-        let (module_specifier, import_clause, export_clause) = match &record.data {
+        let (module_specifier, import_clause, export_clause) = match record.data() {
             NodeData::ExportDeclaration(data) => (data.module_specifier, None, data.export_clause),
             NodeData::ImportDeclaration(data) => (data.module_specifier, data.import_clause, None),
             NodeData::JSDocImportTag(data) => (data.module_specifier, data.import_clause, None),
@@ -762,7 +764,7 @@ fn get_searches_from_direct_imports(
             continue;
         }
         let Some(NodeData::ImportClause(clause)) =
-            import_clause.map(|clause| request.state.binder.node_record(clause).data.clone())
+            import_clause.map(|clause| request.state.binder.node_record(clause).data().clone())
         else {
             continue;
         };
@@ -771,7 +773,7 @@ fn get_searches_from_direct_imports(
                 .state
                 .binder
                 .node_record(named_bindings)
-                .data
+                .data()
                 .clone()
             {
                 NodeData::NamespaceImport(namespace) => {
@@ -852,7 +854,7 @@ fn search_for_named_import(
     import_searches: &mut Vec<(NodeId, SymbolId)>,
     single_references: &mut Vec<NodeId>,
 ) -> CheckResult<()> {
-    let elements = match &request.state.binder.node_record(named_bindings).data {
+    let elements = match request.state.binder.node_record(named_bindings).data() {
         NodeData::NamedImports(data) => data.elements,
         NodeData::NamedExports(data) => data.elements,
         _ => None,
@@ -862,7 +864,7 @@ fn search_for_named_import(
         .unwrap_or_default();
     for element in elements {
         let (name, property_name, is_export_specifier) =
-            match &request.state.binder.node_record(element).data {
+            match request.state.binder.node_record(element).data() {
                 NodeData::ImportSpecifier(data) => (data.name, data.property_name, false),
                 NodeData::ExportSpecifier(data) => (data.name, data.property_name, true),
                 _ => continue,
@@ -988,7 +990,7 @@ fn get_export(
         )
     }) {
         if let NodeData::ImportEqualsDeclaration(data) =
-            &request.state.binder.node_record(export_node).data
+            request.state.binder.node_record(export_node).data()
         {
             if data.module_reference.map(Touching::Node) == Some(node) {
                 // We're at `Y` in `export import X = Y`. This is not the exported symbol, the left-hand-side is. So treat this as an import statement.
@@ -1057,7 +1059,7 @@ fn get_export_assignment_export(
     let assignment_symbol = request.state.binder.node_symbol(export_assignment)?;
     let exporting_module_symbol = request.state.binder.symbol(assignment_symbol).parent?;
     let NodeData::ExportAssignment(data) =
-        &request.state.binder.node_record(export_assignment).data
+        request.state.binder.node_record(export_assignment).data()
     else {
         return None;
     };
@@ -1223,7 +1225,7 @@ fn is_node_import(request: &Request<'_, '_>, node: Touching) -> bool {
     let Some(parent) = request.parent(node) else {
         return false;
     };
-    match &request.state.binder.node_record(parent).data {
+    match request.state.binder.node_record(parent).data() {
         NodeData::ImportEqualsDeclaration(data) => {
             data.name.map(Touching::Node) == Some(node)
                 && external_module_import_equals_expression(request, parent).is_some()
@@ -1260,7 +1262,7 @@ fn skip_export_specifier_symbol(
     // For `export { foo } from './bar", there's nothing to skip, because it does not create a new alias. But `export { foo } does.
     for declaration in request.declarations_of(symbol) {
         let source = request.state.binder.source_of_node(declaration);
-        match &request.state.binder.node_record(declaration).data {
+        match request.state.binder.node_record(declaration).data() {
             NodeData::ExportSpecifier(data) => {
                 let module_specifier = request
                     .state
@@ -1269,7 +1271,7 @@ fn skip_export_specifier_symbol(
                     .parent
                     .and_then(|exports| request.state.binder.node_record(exports).parent)
                     .and_then(
-                        |export| match &request.state.binder.node_record(export).data {
+                        |export| match request.state.binder.node_record(export).data() {
                             NodeData::ExportDeclaration(export) => export.module_specifier,
                             _ => None,
                         },
@@ -1336,7 +1338,7 @@ fn get_export_equals_local_symbol(
     else {
         return Ok(None);
     };
-    Ok(match &request.state.binder.node_record(declaration).data {
+    Ok(match request.state.binder.node_record(declaration).data() {
         NodeData::ExportAssignment(data) => data
             .expression
             .and_then(|expression| request.state.binder.node_symbol(expression)),
@@ -1427,7 +1429,7 @@ pub(super) fn find_module_references(
 /// tsgo `ast.GetFirstIdentifier`.
 fn first_identifier(request: &Request<'_, '_>, mut node: NodeId) -> NodeId {
     loop {
-        match &request.state.binder.node_record(node).data {
+        match request.state.binder.node_record(node).data() {
             NodeData::QualifiedName(data) => match data.left {
                 Some(left) => node = left,
                 None => return node,
@@ -1443,7 +1445,7 @@ fn first_identifier(request: &Request<'_, '_>, mut node: NodeId) -> NodeId {
 
 /// An identifier's text.
 pub(super) fn identifier_text(request: &Request<'_, '_>, node: NodeId) -> String {
-    match &request.state.binder.node_record(node).data {
+    match request.state.binder.node_record(node).data() {
         NodeData::Identifier(identifier) => identifier.text().to_owned(),
         NodeData::PrivateIdentifier(identifier) => identifier.text().to_owned(),
         _ => String::new(),
@@ -1452,7 +1454,7 @@ pub(super) fn identifier_text(request: &Request<'_, '_>, node: NodeId) -> String
 
 /// A module export name's text (an identifier or a string literal).
 pub(super) fn module_export_name_text(request: &Request<'_, '_>, node: NodeId) -> String {
-    match &request.state.binder.node_record(node).data {
+    match request.state.binder.node_record(node).data() {
         NodeData::StringLiteral(literal) => literal.text.to_string_lossy().into_owned(),
         _ => identifier_text(request, node),
     }

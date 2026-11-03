@@ -532,7 +532,7 @@ impl<'a> Request<'_, 'a> {
             if is_property_name(self.node_kind(id)) {
                 if let Some(element) = parent {
                     if let NodeData::BindingElement(binding) =
-                        &self.state.binder.node_record(element).data
+                        self.state.binder.node_record(element).data()
                     {
                         let pattern = self.state.binder.node_record(element).parent;
                         if pattern.is_some_and(|pattern| {
@@ -707,7 +707,7 @@ impl<'a> Request<'_, 'a> {
                 return Ok(None);
             };
             let source = self.state.binder.source_of_node(tag);
-            return Ok(match &source.arena.node(tag).data {
+            return Ok(match source.arena.node(tag).data() {
                 NodeData::JSDocOverloadTag(data) => data.tag_name,
                 _ => None,
             });
@@ -800,7 +800,7 @@ impl<'a> Request<'_, 'a> {
             return Ok(None);
         };
         let NodeData::ExpressionWithTypeArguments(data) =
-            &self.state.binder.node_record(base_type).data
+            self.state.binder.node_record(base_type).data()
         else {
             return Ok(None);
         };
@@ -851,7 +851,7 @@ impl<'a> Request<'_, 'a> {
                 // SymbolConstructor` goes to its call signature's return type.
                 value_declaration.is_some_and(|declaration| {
                     matches!(
-                        &self.state.binder.node_record(declaration).data,
+                        self.state.binder.node_record(declaration).data(),
                         NodeData::VariableDeclaration(variable)
                             if variable.initializer
                                 == self.state.binder.symbol(type_symbol).value_declaration
@@ -903,7 +903,8 @@ impl<'a> Request<'_, 'a> {
         let Some(parent) = self.parent(node) else {
             return node;
         };
-        if let NodeData::VariableDeclarationList(list) = &self.state.binder.node_record(parent).data
+        if let NodeData::VariableDeclarationList(list) =
+            self.state.binder.node_record(parent).data()
         {
             let first = list
                 .declarations
@@ -948,7 +949,7 @@ impl<'a> Request<'_, 'a> {
         let Some(parent) = self.state.binder.node_record(node).parent else {
             return false;
         };
-        match &self.state.binder.node_record(parent).data {
+        match self.state.binder.node_record(parent).data() {
             NodeData::BreakStatement(data) => data.label == Some(node),
             NodeData::ContinueStatement(data) => data.label == Some(node),
             _ => false,
@@ -961,7 +962,8 @@ impl<'a> Request<'_, 'a> {
         let source = self.state.binder.source_of_node(name);
         let text = node_util::id_text(source, name)?;
         loop {
-            if let NodeData::LabeledStatement(data) = &self.state.binder.node_record(reference).data
+            if let NodeData::LabeledStatement(data) =
+                self.state.binder.node_record(reference).data()
             {
                 if let Some(label) = data.label {
                     if node_util::id_text(source, label) == Some(text) {
@@ -979,7 +981,7 @@ impl<'a> Request<'_, 'a> {
             return false;
         };
         matches!(
-            &self.state.binder.node_record(parent).data,
+            self.state.binder.node_record(parent).data(),
             NodeData::PropertyAccessExpression(access) if access.name == Some(node)
         )
     }
@@ -990,7 +992,7 @@ impl<'a> Request<'_, 'a> {
             return false;
         };
         matches!(
-            &self.state.binder.node_record(parent).data,
+            self.state.binder.node_record(parent).data(),
             NodeData::ElementAccessExpression(access) if access.argument_expression == Some(node)
         )
     }
@@ -1024,7 +1026,7 @@ impl<'a> Request<'_, 'a> {
         let Some(call) = parent(target) else {
             return false;
         };
-        let selected = match (&self.state.binder.node_record(call).data, callee) {
+        let selected = match (self.state.binder.node_record(call).data(), callee) {
             (NodeData::CallExpression(data), Callee::Call | Callee::CallOrNew) => data.expression,
             (NodeData::NewExpression(data), Callee::New | Callee::CallOrNew) => data.expression,
             (NodeData::TaggedTemplateExpression(data), Callee::TaggedTemplate) => data.tag,
@@ -1050,7 +1052,7 @@ impl<'a> Request<'_, 'a> {
     pub(crate) fn is_expression(&self, node: NodeId) -> bool {
         let mut node = node;
         while let NodeData::PartiallyEmittedExpression(data) =
-            &self.state.binder.node_record(node).data
+            self.state.binder.node_record(node).data()
         {
             match data.expression {
                 Some(expression) => node = expression,
@@ -1062,7 +1064,7 @@ impl<'a> Request<'_, 'a> {
 
     /// tsgo `ast.IsCallLikeExpression`.
     pub(crate) fn is_call_like_expression(&self, node: NodeId) -> bool {
-        match &self.state.binder.node_record(node).data {
+        match self.state.binder.node_record(node).data() {
             NodeData::BinaryExpression(binary) => binary
                 .operator_token
                 .is_some_and(|operator| self.node_kind(operator) == SyntaxKind::InstanceOfKeyword),
@@ -1084,7 +1086,7 @@ impl<'a> Request<'_, 'a> {
         if self.node_kind(call) == SyntaxKind::JsxOpeningFragment {
             return Some(call);
         }
-        match &self.state.binder.node_record(call).data {
+        match self.state.binder.node_record(call).data() {
             NodeData::TaggedTemplateExpression(data) => data.tag,
             NodeData::JsxOpeningElement(data) => data.tag_name,
             NodeData::JsxSelfClosingElement(data) => data.tag_name,
@@ -1098,7 +1100,7 @@ impl<'a> Request<'_, 'a> {
 
     /// tsgo `ast.IsAssignmentExpression(node, false)`.
     fn is_assignment_expression(&self, node: NodeId) -> bool {
-        let NodeData::BinaryExpression(binary) = &self.state.binder.node_record(node).data else {
+        let NodeData::BinaryExpression(binary) = self.state.binder.node_record(node).data() else {
             return false;
         };
         let (Some(operator), Some(left)) = (binary.operator_token, binary.left) else {
@@ -1216,7 +1218,7 @@ pub(crate) fn context_node(source: &SourceFile, node: NodeId) -> Option<NodeId> 
     match record.kind {
         SyntaxKind::VariableDeclaration => {
             let parent = parent?;
-            let NodeData::VariableDeclarationList(list) = &source.arena.node(parent).data else {
+            let NodeData::VariableDeclarationList(list) = source.arena.node(parent).data() else {
                 return Some(node);
             };
             let count = list

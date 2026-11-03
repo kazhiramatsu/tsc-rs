@@ -273,7 +273,7 @@ impl<'a> Tracker<'a> {
                 None => None,
             }
         } else {
-            let postfix = match &record.data {
+            let postfix = match record.data() {
                 NodeData::VariableDeclaration(data) => data.exclamation_token,
                 NodeData::PropertySignature(data) => data.question_token,
                 NodeData::PropertyDeclaration(data) => {
@@ -395,7 +395,7 @@ impl<'a> Tracker<'a> {
         let b_kind = self.new_node_kind(file, b);
         let mut b_has_computed_name = || {
             let syntax = self.syntax(file);
-            let name = match &syntax.node(b.node()).data {
+            let name = match syntax.node(b.node()).data() {
                 NodeData::PropertyDeclaration(data) => data.name,
                 NodeData::PropertySignature(data) => data.name,
                 NodeData::MethodDeclaration(data) => data.name,
@@ -674,7 +674,7 @@ impl<'a> Tracker<'a> {
         named_imports: NodeId,
         index: usize,
     ) -> Result<(), TransformError> {
-        let NodeData::NamedImports(data) = &file.arena.node(named_imports).data else {
+        let NodeData::NamedImports(data) = file.arena.node(named_imports).data() else {
             return Ok(());
         };
         let elements = data
@@ -842,7 +842,7 @@ fn get_insertion_position_at_source_file_top(file: &SourceFile) -> usize {
 /// tsgo `ast.IsPrologueDirective`.
 fn is_prologue_directive(file: &SourceFile, statement: NodeId) -> bool {
     matches!(
-        &file.arena.node(statement).data,
+        file.arena.node(statement).data(),
         NodeData::ExpressionStatement(data)
             if data.expression.is_some_and(|expression| {
                 file.arena.node(expression).kind == SyntaxKind::StringLiteral
@@ -896,7 +896,7 @@ pub(crate) fn is_statement(file: &SourceFile, node: NodeId) -> bool {
 
 /// tsgo `getMembersOrProperties`.
 fn members_or_properties(file: &SourceFile, node: NodeId) -> Option<NodeArrayId> {
-    match &file.arena.node(node).data {
+    match file.arena.node(node).data() {
         NodeData::ObjectLiteralExpression(data) => data.properties,
         NodeData::ClassDeclaration(data) => data.members,
         NodeData::ClassExpression(data) => data.members,

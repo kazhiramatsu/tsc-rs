@@ -122,7 +122,7 @@ fn import_type_attributes_matches_typescript() {
                 let mut arena = TransformArena::new();
                 let source = arena.add_source(&parsed, None);
                 let NodeData::SourceFile(data) =
-                    &arena.node(arena.root(source).unwrap()).unwrap().data
+                    arena.node(arena.root(source).unwrap()).unwrap().data()
                 else {
                     panic!("source")
                 };
@@ -133,18 +133,18 @@ fn import_type_attributes_matches_typescript() {
                 let NodeData::TypeAliasDeclaration(data) = &arena
                     .node(arena.node_ref(source, statement).unwrap())
                     .unwrap()
-                    .data
+                    .data()
                 else {
                     panic!("type alias")
                 };
                 let original_type = arena.node_ref(source, data.r#type.unwrap()).unwrap();
-                let NodeData::ImportType(data) = arena.node(original_type).unwrap().data.clone()
+                let NodeData::ImportType(data) = arena.node(original_type).unwrap().data().clone()
                 else {
                     panic!("import type")
                 };
                 let original = arena.node_ref(source, data.attributes.unwrap()).unwrap();
                 let NodeData::ImportAttributes(attributes_data) =
-                    arena.node(original).unwrap().data.clone()
+                    arena.node(original).unwrap().data().clone()
                 else {
                     panic!("attributes")
                 };
@@ -219,7 +219,7 @@ fn import_type_attributes_matches_typescript() {
                     None
                 };
                 let attribute_state = |node| {
-                    let NodeData::ImportAttributes(data) = &arena.node(node).unwrap().data else {
+                    let NodeData::ImportAttributes(data) = arena.node(node).unwrap().data() else {
                         panic!("attributes")
                     };
                     let array = TransformNodeArray::new(source, data.elements.unwrap());

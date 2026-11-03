@@ -464,7 +464,7 @@ impl Transformer for TypeScriptTransformer<'_> {
         if self.active_namespace_emit_depth == 0 && self.active_enum_emit_depth == 0 {
             return Ok(node);
         }
-        match context.arena().node(node)?.data.clone() {
+        match context.arena().node(node)?.data().clone() {
             NodeData::Identifier(_) if hint == EmitHint::Expression => self
                 .try_substitute_exported_name(context, node)
                 .map(|substitute| substitute.unwrap_or(node)),
@@ -570,7 +570,7 @@ impl TypeScriptTransformer<'_> {
         else {
             return Ok(None);
         };
-        let NodeData::Identifier(identifier) = context.arena().node(node)?.data.clone() else {
+        let NodeData::Identifier(identifier) = context.arena().node(node)?.data().clone() else {
             return Ok(None);
         };
         let source = node.source();
@@ -709,7 +709,7 @@ fn ensure_use_strict_prologue(
     source: TransformSourceId,
     root: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    let (mut data, original_statements) = match context.arena().node(root)?.data.clone() {
+    let (mut data, original_statements) = match context.arena().node(root)?.data().clone() {
         NodeData::SourceFile(data) => {
             let statements = data.statements;
             (data, statements)
@@ -790,7 +790,7 @@ fn source_file_has_use_strict_prologue(
         let statement = arena
             .node_ref(source, *id)
             .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, *id)))?;
-        let NodeData::ExpressionStatement(statement_data) = &arena.node(statement)?.data else {
+        let NodeData::ExpressionStatement(statement_data) = arena.node(statement)?.data() else {
             break;
         };
         let Some(expression) = statement_data
@@ -799,7 +799,7 @@ fn source_file_has_use_strict_prologue(
         else {
             break;
         };
-        let NodeData::StringLiteral(literal) = &arena.node(expression)?.data else {
+        let NodeData::StringLiteral(literal) = arena.node(expression)?.data() else {
             break;
         };
         if literal.text == "use strict" {
@@ -932,18 +932,18 @@ impl Transformer for EcmaScriptModuleTransformer<'_> {
         }
 
         let root_node = context.arena().root(source)?;
-        let (mut source_data, statement_array) = match context.arena().node(root_node)?.data.clone()
-        {
-            NodeData::SourceFile(data) => {
-                let statements = data.statements;
-                (data, statements)
-            }
-            _ => {
-                return Err(TransformError::RootKindExpected {
-                    actual: context.arena().node(root_node)?.kind,
-                });
-            }
-        };
+        let (mut source_data, statement_array) =
+            match context.arena().node(root_node)?.data().clone() {
+                NodeData::SourceFile(data) => {
+                    let statements = data.statements;
+                    (data, statements)
+                }
+                _ => {
+                    return Err(TransformError::RootKindExpected {
+                        actual: context.arena().node(root_node)?.kind,
+                    });
+                }
+            };
         if transformed_source_has_external_module_indicator(
             context.arena(),
             source,
@@ -1029,7 +1029,7 @@ impl Transformer for EcmaScriptModuleTransformer<'_> {
         let Some(source) = self.current_source else {
             return Ok(node);
         };
-        if let NodeData::Identifier(identifier) = &context.arena().node(node)?.data {
+        if let NodeData::Identifier(identifier) = context.arena().node(node)?.data() {
             if let Some(alias) = self
                 .helper_aliases
                 .get(&(source, identifier.text().to_owned()))
@@ -1123,22 +1123,22 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         &mut self,
         root: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let (mut source_data, original_array) = match self.context.arena().node(root)?.data.clone()
-        {
-            NodeData::SourceFile(data) => {
-                let statements = data.statements;
-                (data, statements)
-            }
-            _ => {
-                return Err(TransformError::RootKindExpected {
-                    actual: self.context.arena().node(root)?.kind,
-                });
-            }
-        };
+        let (mut source_data, original_array) =
+            match self.context.arena().node(root)?.data().clone() {
+                NodeData::SourceFile(data) => {
+                    let statements = data.statements;
+                    (data, statements)
+                }
+                _ => {
+                    return Err(TransformError::RootKindExpected {
+                        actual: self.context.arena().node(root)?.kind,
+                    });
+                }
+            };
         let input = node_array_nodes(self.context.arena(), self.source, original_array)?;
         let mut output = Vec::with_capacity(input.len() + 2);
         for statement in input {
-            match self.context.arena().node(statement)?.data.clone() {
+            match self.context.arena().node(statement)?.data().clone() {
                 NodeData::ImportEqualsDeclaration(data) => {
                     output.extend(self.transform_import_equals(statement, data)?);
                 }
@@ -1204,7 +1204,7 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
             return Ok(vec![original]);
         };
         let NodeData::NamespaceExport(namespace) =
-            self.context.arena().node(export_clause)?.data.clone()
+            self.context.arena().node(export_clause)?.data().clone()
         else {
             return Ok(vec![original]);
         };
@@ -1330,7 +1330,7 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
                 parent: SyntaxKind::ImportEqualsDeclaration,
                 field: "name",
             })?;
-        let module_specifier = match &self.context.arena().node(module_reference)?.data {
+        let module_specifier = match self.context.arena().node(module_reference)?.data() {
             NodeData::ExternalModuleReference(data) => data
                 .expression
                 .and_then(|id| self.context.arena().node_ref(self.source, id)),
@@ -1657,7 +1657,7 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
             node.parent
                 .is_some_and(|parent| arena.node(parent).kind != SyntaxKind::SourceFile)
         };
-        Ok(arena.nodes().iter().any(|node| match &node.data {
+        Ok(arena.nodes().iter().any(|node| match node.data() {
             NodeData::ImportEqualsDeclaration(data) => {
                 data.module_reference.is_some_and(|reference| {
                     arena.node(reference).kind == SyntaxKind::ExternalModuleReference
@@ -1674,7 +1674,7 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         &mut self,
         node: TransformNode,
     ) -> Result<Option<Vec<TransformNode>>, TransformError> {
-        match self.context.arena().node(node)?.data.clone() {
+        match self.context.arena().node(node)?.data().clone() {
             NodeData::ImportEqualsDeclaration(data)
                 if data
                     .module_reference
@@ -1829,7 +1829,7 @@ impl<'context> RelativeModuleSpecifierVisitor<'context> {
             .arena()
             .node_ref(self.source, id)
             .ok_or_else(|| TransformError::UnknownNode(self.node(id)))?;
-        let mut data = self.context.arena().node(original)?.data.clone();
+        let mut data = self.context.arena().node(original)?.data().clone();
         if matches!(data, NodeData::Token) {
             self.nodes.insert(id, original.node());
             return Ok(original);
@@ -2098,7 +2098,7 @@ fn insert_external_helpers_statement(
     declaration: TransformNode,
 ) -> Result<(), TransformError> {
     let root_node = context.arena().root(source)?;
-    let NodeData::SourceFile(mut source_data) = context.arena().node(root_node)?.data.clone()
+    let NodeData::SourceFile(mut source_data) = context.arena().node(root_node)?.data().clone()
     else {
         return Err(TransformError::RootKindExpected {
             actual: context.arena().node(root_node)?.kind,
@@ -2121,14 +2121,14 @@ fn insert_external_helpers_statement(
     // lands after leading directive prologues.
     let mut offset = 0;
     for statement in &statements {
-        let NodeData::ExpressionStatement(data) = &context.arena().node(*statement)?.data else {
+        let NodeData::ExpressionStatement(data) = context.arena().node(*statement)?.data() else {
             break;
         };
         let is_prologue = data
             .expression
             .and_then(|id| context.arena().node_ref(source, id))
             .and_then(|expression| context.arena().node(expression).ok())
-            .is_some_and(|record| matches!(record.data, NodeData::StringLiteral(_)));
+            .is_some_and(|record| matches!(record.data(), NodeData::StringLiteral(_)));
         if !is_prologue {
             break;
         }
@@ -2235,7 +2235,7 @@ fn transformed_statement_has_export_modifier(
     arena: &TransformArena,
     statement: TransformNode,
 ) -> Result<bool, TransformError> {
-    let modifiers = match &arena.node(statement)?.data {
+    let modifiers = match arena.node(statement)?.data() {
         NodeData::FunctionDeclaration(data) => data.modifiers,
         NodeData::ClassDeclaration(data) => data.modifiers,
         NodeData::VariableStatement(data) => data.modifiers,
@@ -3259,7 +3259,7 @@ impl CommonJsModuleInfo {
         // before planning import aliases, whose concrete spelling must not
         // steal the declaration's `default_1` slot.
         for statement in &statements {
-            let (name, modifiers) = match &arena.node(*statement)?.data {
+            let (name, modifiers) = match arena.node(*statement)?.data() {
                 NodeData::FunctionDeclaration(data) => (data.name, data.modifiers),
                 NodeData::ClassDeclaration(data) => (data.name, data.modifiers),
                 _ => continue,
@@ -3316,7 +3316,7 @@ impl CommonJsModuleInfo {
 
         for statement in &statements {
             let record = arena.node(*statement)?;
-            match &record.data {
+            match record.data() {
                 NodeData::ExportAssignment(data) if data.is_export_equals == Some(true) => {
                     // tsc's collectExternalModuleInfo records the first
                     // `export =` declaration and leaves later duplicate
@@ -3345,12 +3345,12 @@ impl CommonJsModuleInfo {
                     if let Some(clause) =
                         data.import_clause.and_then(|id| arena.node_ref(source, id))
                     {
-                        if let NodeData::ImportClause(clause_data) = &arena.node(clause)?.data {
+                        if let NodeData::ImportClause(clause_data) = arena.node(clause)?.data() {
                             let has_default = clause_data.name.is_some();
                             let namespace_name = clause_data
                                 .named_bindings
                                 .and_then(|id| arena.node_ref(source, id))
-                                .and_then(|node| match &arena.node(node).ok()?.data {
+                                .and_then(|node| match arena.node(node).ok()?.data() {
                                     NodeData::NamespaceImport(namespace) => namespace
                                         .name
                                         .and_then(|id| arena.node_ref(source, id))
@@ -3371,7 +3371,7 @@ impl CommonJsModuleInfo {
                             let (named_count, named_default_count) = clause_data
                                 .named_bindings
                                 .and_then(|id| arena.node_ref(source, id))
-                                .and_then(|bindings| match &arena.node(bindings).ok()?.data {
+                                .and_then(|bindings| match arena.node(bindings).ok()?.data() {
                                     NodeData::NamedImports(named) => {
                                         let elements =
                                             node_array_nodes(arena, source, named.elements).ok()?;
@@ -3380,7 +3380,7 @@ impl CommonJsModuleInfo {
                                             .filter(|specifier| {
                                                 let Ok(NodeData::ImportSpecifier(data)) = arena
                                                     .node(**specifier)
-                                                    .map(|record| &record.data)
+                                                    .map(|record| record.data())
                                                 else {
                                                     return false;
                                                 };
@@ -3427,7 +3427,7 @@ impl CommonJsModuleInfo {
                                 .named_bindings
                                 .and_then(|id| arena.node_ref(source, id))
                             {
-                                match &arena.node(bindings)?.data {
+                                match arena.node(bindings)?.data() {
                                     NodeData::NamespaceImport(namespace) => {
                                         let namespace_name = namespace
                                             .name
@@ -3451,7 +3451,7 @@ impl CommonJsModuleInfo {
                                             node_array_nodes(arena, source, named.elements)?
                                         {
                                             let NodeData::ImportSpecifier(specifier_data) =
-                                                &arena.node(specifier)?.data
+                                                arena.node(specifier)?.data()
                                             else {
                                                 continue;
                                             };
@@ -3499,7 +3499,7 @@ impl CommonJsModuleInfo {
                         continue;
                     };
                     let NodeData::ExternalModuleReference(reference) =
-                        &arena.node(module_reference)?.data
+                        arena.node(module_reference)?.data()
                     else {
                         continue;
                     };
@@ -3678,7 +3678,7 @@ impl CommonJsModuleInfo {
                     for declaration in variable_declarations(arena, source, data.declaration_list)?
                     {
                         if let NodeData::VariableDeclaration(variable) =
-                            &arena.node(declaration)?.data
+                            arena.node(declaration)?.data()
                         {
                             for leaf in
                                 binding_name_leaves(arena, source, variable.name, declaration)?
@@ -3733,7 +3733,7 @@ impl CommonJsModuleInfo {
                         .export_clause
                         .and_then(|clause| arena.node_ref(source, clause))
                         .is_some_and(|clause| {
-                            matches!(arena.node(clause), Ok(record) if matches!(record.data, NodeData::NamedExports(_)))
+                            matches!(arena.node(clause), Ok(record) if matches!(record.data(), NodeData::NamedExports(_)))
                         });
                     // tsgo visitTopLevelExportDeclaration
                     // (commonjsmodule.go:830-850): `export { x } from` requires
@@ -3754,11 +3754,11 @@ impl CommonJsModuleInfo {
                     if let Some(clause) =
                         data.export_clause.and_then(|id| arena.node_ref(source, id))
                     {
-                        match &arena.node(clause)?.data {
+                        match arena.node(clause)?.data() {
                             NodeData::NamedExports(named) => {
                                 for specifier in node_array_nodes(arena, source, named.elements)? {
                                     if let NodeData::ExportSpecifier(specifier) =
-                                        &arena.node(specifier)?.data
+                                        arena.node(specifier)?.data()
                                     {
                                         info.has_import_default |= specifier
                                             .property_name
@@ -3805,12 +3805,12 @@ impl CommonJsModuleInfo {
                     else {
                         continue;
                     };
-                    let NodeData::NamedExports(named) = &arena.node(clause)?.data else {
+                    let NodeData::NamedExports(named) = arena.node(clause)?.data() else {
                         continue;
                     };
                     for specifier_node in node_array_nodes(arena, source, named.elements)? {
                         let NodeData::ExportSpecifier(specifier) =
-                            &arena.node(specifier_node)?.data
+                            arena.node(specifier_node)?.data()
                         else {
                             continue;
                         };
@@ -3915,7 +3915,7 @@ impl CommonJsModuleInfo {
             else {
                 continue;
             };
-            let NodeData::FunctionDeclaration(data) = &arena.node(statement)?.data else {
+            let NodeData::FunctionDeclaration(data) = arena.node(statement)?.data() else {
                 continue;
             };
             let Some(local) = data
@@ -4038,7 +4038,7 @@ fn source_file_statement_nodes(
     source: TransformSourceId,
     root: TransformNode,
 ) -> Result<Vec<TransformNode>, TransformError> {
-    let NodeData::SourceFile(data) = &arena.node(root)?.data else {
+    let NodeData::SourceFile(data) = arena.node(root)?.data() else {
         return Err(TransformError::RootKindExpected {
             actual: arena.node(root)?.kind,
         });
@@ -4089,32 +4089,32 @@ fn collect_module_reference_candidates(
 ) -> Result<HashSet<String>, TransformError> {
     let mut names = HashSet::default();
     let parsed_root = arena.get_original_node(root);
-    let NodeData::SourceFile(data) = &arena.node(parsed_root)?.data else {
+    let NodeData::SourceFile(data) = arena.node(parsed_root)?.data() else {
         return Ok(names);
     };
     let mut pending = node_array_nodes(arena, source, data.statements)?;
     let child = |id: Option<NodeId>| id.and_then(|id| arena.node_ref(source, id));
     while let Some(statement) = pending.pop() {
-        match &arena.node(statement)?.data {
+        match arena.node(statement)?.data() {
             NodeData::ImportDeclaration(import) => {
                 let Some(clause) = child(import.import_clause) else {
                     continue;
                 };
-                let NodeData::ImportClause(clause_data) = &arena.node(clause)?.data else {
+                let NodeData::ImportClause(clause_data) = arena.node(clause)?.data() else {
                     continue;
                 };
                 push_identifier_text(arena, source, clause_data.name, &mut names)?;
                 let Some(bindings) = child(clause_data.named_bindings) else {
                     continue;
                 };
-                match &arena.node(bindings)?.data {
+                match arena.node(bindings)?.data() {
                     NodeData::NamespaceImport(namespace) => {
                         push_identifier_text(arena, source, namespace.name, &mut names)?;
                     }
                     NodeData::NamedImports(named) => {
                         for specifier in node_array_nodes(arena, source, named.elements)? {
                             if let NodeData::ImportSpecifier(specifier) =
-                                &arena.node(specifier)?.data
+                                arena.node(specifier)?.data()
                             {
                                 push_identifier_text(arena, source, specifier.name, &mut names)?;
                             }
@@ -4133,11 +4133,11 @@ fn collect_module_reference_candidates(
                 let Some(clause) = child(export.export_clause) else {
                     continue;
                 };
-                let NodeData::NamedExports(named) = &arena.node(clause)?.data else {
+                let NodeData::NamedExports(named) = arena.node(clause)?.data() else {
                     continue;
                 };
                 for specifier in node_array_nodes(arena, source, named.elements)? {
-                    if let NodeData::ExportSpecifier(specifier) = &arena.node(specifier)?.data {
+                    if let NodeData::ExportSpecifier(specifier) = arena.node(specifier)?.data() {
                         // `export { local as name }`: the local spelling.
                         push_identifier_text(
                             arena,
@@ -4155,12 +4155,12 @@ fn collect_module_reference_candidates(
                 let Some(list) = child(variable.declaration_list) else {
                     continue;
                 };
-                let NodeData::VariableDeclarationList(list) = &arena.node(list)?.data else {
+                let NodeData::VariableDeclarationList(list) = arena.node(list)?.data() else {
                     continue;
                 };
                 for declaration in node_array_nodes(arena, source, list.declarations)? {
                     if let NodeData::VariableDeclaration(declaration) =
-                        &arena.node(declaration)?.data
+                        arena.node(declaration)?.data()
                     {
                         push_binding_name_texts(arena, source, declaration.name, &mut names)?;
                     }
@@ -4252,7 +4252,7 @@ fn push_identifier_text(
     let Some(name) = name.and_then(|id| arena.node_ref(source, id)) else {
         return Ok(());
     };
-    if let NodeData::Identifier(data) = &arena.node(name)?.data {
+    if let NodeData::Identifier(data) = arena.node(name)?.data() {
         if !names.contains(data.text()) {
             names.insert(data.text().to_owned());
         }
@@ -4270,11 +4270,11 @@ fn push_binding_name_texts(
     let Some(name) = name.and_then(|id| arena.node_ref(source, id)) else {
         return Ok(());
     };
-    match &arena.node(name)?.data {
+    match arena.node(name)?.data() {
         NodeData::Identifier(_) => push_identifier_text(arena, source, Some(name.node()), names),
         NodeData::ObjectBindingPattern(pattern) => {
             for element in node_array_nodes(arena, source, pattern.elements)? {
-                if let NodeData::BindingElement(element) = &arena.node(element)?.data {
+                if let NodeData::BindingElement(element) = arena.node(element)?.data() {
                     push_binding_name_texts(arena, source, element.name, names)?;
                 }
             }
@@ -4282,7 +4282,7 @@ fn push_binding_name_texts(
         }
         NodeData::ArrayBindingPattern(pattern) => {
             for element in node_array_nodes(arena, source, pattern.elements)? {
-                if let NodeData::BindingElement(element) = &arena.node(element)?.data {
+                if let NodeData::BindingElement(element) = arena.node(element)?.data() {
                     push_binding_name_texts(arena, source, element.name, names)?;
                 }
             }
@@ -4305,14 +4305,14 @@ fn is_import_call_callee(
     else {
         return false;
     };
-    match &callee.data {
+    match callee.data() {
         NodeData::MetaProperty(meta) => {
             meta.keyword_token == SyntaxKind::ImportKeyword
                 && meta
                     .name
                     .and_then(|name| arena.node_ref(source, name))
                     .and_then(|name| arena.node(name).ok())
-                    .is_some_and(|name| matches!(&name.data, NodeData::Identifier(identifier)
+                    .is_some_and(|name| matches!(name.data(), NodeData::Identifier(identifier)
                         if identifier.escaped_text == "defer" || identifier.escaped_text == "source"))
         }
         _ => callee.kind == SyntaxKind::ImportKeyword,
@@ -4345,7 +4345,7 @@ fn source_contains_dynamic_import(
         if record.kind == SyntaxKind::MissingDeclaration {
             continue;
         }
-        if let NodeData::CallExpression(data) = &record.data {
+        if let NodeData::CallExpression(data) = record.data() {
             if data
                 .expression
                 .is_some_and(|callee| is_import_call_callee(arena, root.source(), callee))
@@ -4369,7 +4369,7 @@ fn string_literal_text(
     arena: &TransformArena,
     node: TransformNode,
 ) -> Result<JsStr<'_>, TransformError> {
-    match &arena.node(node)?.data {
+    match arena.node(node)?.data() {
         NodeData::StringLiteral(data) => Ok(data.text.as_js()),
         _ => Err(TransformError::RequiredChildRemoved {
             parent: SyntaxKind::ImportDeclaration,
@@ -4428,7 +4428,7 @@ fn identifier_text_owned(
     arena: &TransformArena,
     node: TransformNode,
 ) -> Result<String, TransformError> {
-    match &arena.node(node)?.data {
+    match arena.node(node)?.data() {
         NodeData::Identifier(data) => Ok(data.text().to_owned()),
         _ => Err(TransformError::RequiredChildRemoved {
             parent: arena.node(node)?.kind,
@@ -4441,7 +4441,7 @@ fn identifier_or_literal_text(
     arena: &TransformArena,
     node: TransformNode,
 ) -> Result<JsString, TransformError> {
-    match &arena.node(node)?.data {
+    match arena.node(node)?.data() {
         NodeData::Identifier(data) => Ok(data.text().to_owned().into()),
         NodeData::StringLiteral(data) => Ok(data.text.clone()),
         _ => Err(TransformError::RequiredChildRemoved {
@@ -4492,7 +4492,7 @@ pub(crate) fn range_block_statements_to_body(
     block: TransformNode,
     body: TransformNode,
 ) -> Result<(), TransformError> {
-    let statements = match &context.arena().node(block)?.data {
+    let statements = match context.arena().node(block)?.data() {
         NodeData::Block(data) => data.statements,
         _ => None,
     };
@@ -4533,7 +4533,7 @@ fn variable_declarations(
     let Some(list) = declaration_list.and_then(|id| arena.node_ref(source, id)) else {
         return Ok(Vec::new());
     };
-    let NodeData::VariableDeclarationList(data) = &arena.node(list)?.data else {
+    let NodeData::VariableDeclarationList(data) = arena.node(list)?.data() else {
         return Ok(Vec::new());
     };
     variable_declarations_from_array(arena, source, data.declarations)
@@ -4579,11 +4579,11 @@ fn collect_binding_name_leaves(
     declaration: TransformNode,
     leaves: &mut Vec<BindingNameLeaf>,
 ) -> Result<(), TransformError> {
-    match &arena.node(name)?.data {
+    match arena.node(name)?.data() {
         NodeData::Identifier(_) => leaves.push(BindingNameLeaf { name, declaration }),
         NodeData::ObjectBindingPattern(data) => {
             for element in node_array_nodes(arena, source, data.elements)? {
-                let NodeData::BindingElement(data) = &arena.node(element)?.data else {
+                let NodeData::BindingElement(data) = arena.node(element)?.data() else {
                     continue;
                 };
                 let Some(name) = data.name.and_then(|name| arena.node_ref(source, name)) else {
@@ -4594,7 +4594,7 @@ fn collect_binding_name_leaves(
         }
         NodeData::ArrayBindingPattern(data) => {
             for element in node_array_nodes(arena, source, data.elements)? {
-                let NodeData::BindingElement(data) = &arena.node(element)?.data else {
+                let NodeData::BindingElement(data) = arena.node(element)?.data() else {
                     continue;
                 };
                 let Some(name) = data.name.and_then(|name| arena.node_ref(source, name)) else {
@@ -4627,7 +4627,7 @@ fn is_non_reference_identifier_node(
     else {
         return Ok(false);
     };
-    Ok(match &arena.node(parent)?.data {
+    Ok(match arena.node(parent)?.data() {
         NodeData::VariableDeclaration(data) => data.name == Some(node.node()),
         NodeData::FunctionDeclaration(data) => data.name == Some(node.node()),
         NodeData::FunctionExpression(data) => data.name == Some(node.node()),
@@ -4676,7 +4676,7 @@ fn is_prologue_statement(
     arena: &TransformArena,
     statement: TransformNode,
 ) -> Result<bool, TransformError> {
-    let NodeData::ExpressionStatement(data) = &arena.node(statement)?.data else {
+    let NodeData::ExpressionStatement(data) = arena.node(statement)?.data() else {
         return Ok(false);
     };
     Ok(data
@@ -4685,7 +4685,7 @@ fn is_prologue_statement(
         .is_some_and(|expression| {
             arena
                 .node(expression)
-                .is_ok_and(|expression| matches!(expression.data, NodeData::StringLiteral(_)))
+                .is_ok_and(|expression| matches!(expression.data(), NodeData::StringLiteral(_)))
         }))
 }
 
@@ -4757,7 +4757,7 @@ fn variable_has_initializer(
     declaration: TransformNode,
 ) -> Result<bool, TransformError> {
     Ok(matches!(
-        &arena.node(declaration)?.data,
+        arena.node(declaration)?.data(),
         NodeData::VariableDeclaration(data) if data.initializer.is_some()
     ))
 }
@@ -4768,11 +4768,11 @@ fn variable_list_has_initialized_export_binding(
     list: TransformNode,
     exported_bindings: &BTreeMap<NodeId, Vec<ModuleExportName>>,
 ) -> Result<bool, TransformError> {
-    let NodeData::VariableDeclarationList(data) = &arena.node(list)?.data else {
+    let NodeData::VariableDeclarationList(data) = arena.node(list)?.data() else {
         return Ok(false);
     };
     for declaration in variable_declarations_from_array(arena, source, data.declarations)? {
-        if let NodeData::VariableDeclaration(data) = &arena.node(declaration)?.data {
+        if let NodeData::VariableDeclaration(data) = arena.node(declaration)?.data() {
             if data.initializer.is_none() {
                 continue;
             }
@@ -5108,7 +5108,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::CallExpression(mut data) = self.context.arena().node(node)?.data.clone()
+        let NodeData::CallExpression(mut data) = self.context.arena().node(node)?.data().clone()
         else {
             return Ok(node);
         };
@@ -5124,7 +5124,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let NodeData::TaggedTemplateExpression(mut data) =
-            self.context.arena().node(node)?.data.clone()
+            self.context.arena().node(node)?.data().clone()
         else {
             return Ok(node);
         };
@@ -5141,7 +5141,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::BinaryExpression(data) = &self.context.arena().node(node)?.data else {
+        let NodeData::BinaryExpression(data) = self.context.arena().node(node)?.data() else {
             return Ok(node);
         };
         let exports = self.exports_for_assignment(data)?;
@@ -5161,7 +5161,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let NodeData::ShorthandPropertyAssignment(data) =
-            self.context.arena().node(node)?.data.clone()
+            self.context.arena().node(node)?.data().clone()
         else {
             return Ok(node);
         };
@@ -5202,18 +5202,18 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         root: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let (mut source_data, original_array) = match self.context.arena().node(root)?.data.clone()
-        {
-            NodeData::SourceFile(data) => {
-                let statements = data.statements;
-                (data, statements)
-            }
-            _ => {
-                return Err(TransformError::RootKindExpected {
-                    actual: self.context.arena().node(root)?.kind,
-                })
-            }
-        };
+        let (mut source_data, original_array) =
+            match self.context.arena().node(root)?.data().clone() {
+                NodeData::SourceFile(data) => {
+                    let statements = data.statements;
+                    (data, statements)
+                }
+                _ => {
+                    return Err(TransformError::RootKindExpected {
+                        actual: self.context.arena().node(root)?.kind,
+                    })
+                }
+            };
         let input = node_array_nodes(self.context.arena(), self.source, original_array)?;
         // `transformAsynchronousModuleBody` and `transformCommonJSModule`
         // each own one lexical environment in tsc. transformModule keeps that
@@ -5351,7 +5351,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         export_equals: NodeId,
     ) -> Result<TransformNode, TransformError> {
         let original = self.node(export_equals);
-        let expression = match &self.context.arena().node(original)?.data {
+        let expression = match self.context.arena().node(original)?.data() {
             NodeData::ExportAssignment(data) => data.expression,
             _ => None,
         }
@@ -5397,7 +5397,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         statement: TransformNode,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let record = self.context.arena().node(statement)?.clone();
-        match record.data {
+        match record.data().clone() {
             NodeData::ImportDeclaration(data) => self.transform_import(statement, data),
             NodeData::ImportEqualsDeclaration(data) => {
                 self.transform_import_equals(statement, data)
@@ -5593,7 +5593,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 self.context
                     .arena()
                     .node(clause)
-                    .map(|record| record.data.clone())
+                    .map(|record| record.data().clone())
             })
             .transpose()?
         {
@@ -5602,7 +5602,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .named_bindings
                     .and_then(|bindings| self.context.arena().node_ref(self.source, bindings))
                     .and_then(
-                        |bindings| match &self.context.arena().node(bindings).ok()?.data {
+                        |bindings| match self.context.arena().node(bindings).ok()?.data() {
                             NodeData::NamespaceImport(namespace) => namespace.name,
                             _ => None,
                         },
@@ -5649,7 +5649,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         else {
             return Ok(Vec::new());
         };
-        let NodeData::ImportClause(clause_data) = &self.context.arena().node(clause)?.data else {
+        let NodeData::ImportClause(clause_data) = self.context.arena().node(clause)?.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::ImportDeclaration,
                 field: "import_clause",
@@ -5668,7 +5668,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         else {
             return Ok(plans);
         };
-        match &self.context.arena().node(bindings)?.data {
+        match self.context.arena().node(bindings)?.data() {
             NodeData::NamespaceImport(namespace) => {
                 if let Some(name) = namespace
                     .name
@@ -5682,7 +5682,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     node_array_nodes(self.context.arena(), self.source, named.elements)?
                 {
                     let NodeData::ImportSpecifier(data) =
-                        &self.context.arena().node(specifier)?.data
+                        self.context.arena().node(specifier)?.data()
                     else {
                         continue;
                     };
@@ -5791,7 +5791,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             // specifier under its name's clone, which keeps them.
             if publication.origin == HoistedExportOrigin::DirectDeclaration {
                 if let NodeData::PropertyAccessExpression(access) =
-                    &self.context.arena().node(target)?.data
+                    self.context.arena().node(target)?.data()
                 {
                     if let Some(name) = access
                         .name
@@ -5997,7 +5997,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 parent: SyntaxKind::ImportEqualsDeclaration,
                 field: "module_reference",
             })?;
-        let module_specifier = match &self.context.arena().node(module_reference)?.data {
+        let module_specifier = match self.context.arena().node(module_reference)?.data() {
             NodeData::ExternalModuleReference(reference) => reference
                 .expression
                 .and_then(|id| self.context.arena().node_ref(self.source, id)),
@@ -6035,7 +6035,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 // createExportExpression accesses the name's clone, which
                 // maps to the name (commonjsmodule.go:784-797, 660-667).
                 if let (NodeData::PropertyAccessExpression(access), Some(source_name)) = (
-                    self.context.arena().node(target)?.data.clone(),
+                    self.context.arena().node(target)?.data().clone(),
                     data.name
                         .and_then(|name| self.context.arena().node_ref(self.source, name)),
                 ) {
@@ -6105,7 +6105,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             return Ok(vec![statement]);
         };
 
-        match self.context.arena().node(clause)?.data.clone() {
+        match self.context.arena().node(clause)?.data().clone() {
             NodeData::NamedExports(named) => {
                 let generated_name = plan
                     .runtime_name
@@ -6134,7 +6134,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     node_array_nodes(self.context.arena(), self.source, named.elements)?
                 {
                     let NodeData::ExportSpecifier(specifier_data) =
-                        self.context.arena().node(specifier)?.data.clone()
+                        self.context.arena().node(specifier)?.data().clone()
                     else {
                         continue;
                     };
@@ -6264,7 +6264,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let mut remove_comments_on_expressions = false;
         for declaration in declarations {
             let NodeData::VariableDeclaration(mut variable) =
-                self.context.arena().node(declaration)?.data.clone()
+                self.context.arena().node(declaration)?.data().clone()
             else {
                 retained.push(self.visit(declaration.node())?);
                 continue;
@@ -6287,7 +6287,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .name
                 .and_then(|id| self.context.arena().node_ref(self.source, id));
             let original_declaration = self.context.arena().get_original_node(declaration);
-            let publication_name = match &self.context.arena().node(original_declaration)?.data {
+            let publication_name = match self.context.arena().node(original_declaration)?.data() {
                 NodeData::VariableDeclaration(data) => data
                     .name
                     .and_then(|id| {
@@ -6479,7 +6479,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     field: "declaration_list",
                 })?;
             let NodeData::VariableDeclarationList(mut list_data) =
-                self.context.arena().node(list)?.data.clone()
+                self.context.arena().node(list)?.data().clone()
             else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::VariableStatement,
@@ -6588,7 +6588,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 parent,
                 field: "statement",
             })?;
-        if let NodeData::Block(data) = self.context.arena().node(statement)?.data.clone() {
+        if let NodeData::Block(data) = self.context.arena().node(statement)?.data().clone() {
             return self.transform_block(statement, data);
         }
         let mut statements = self.visit_top_level_nested_statement(statement)?;
@@ -6656,7 +6656,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .and_then(|id| self.context.arena().node_ref(self.source, id))
         {
             let NodeData::CaseBlock(mut block_data) =
-                self.context.arena().node(case_block)?.data.clone()
+                self.context.arena().node(case_block)?.data().clone()
             else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::SwitchStatement,
@@ -6667,7 +6667,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let mut updated_clauses = Vec::new();
             for clause in clauses {
                 let record = self.context.arena().node(clause)?.clone();
-                let updated = match record.data {
+                let updated = match record.data().clone() {
                     NodeData::CaseClause(mut clause_data) => {
                         clause_data.expression = clause_data
                             .expression
@@ -6920,7 +6920,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if self.context.arena().node(initializer)?.kind != SyntaxKind::VariableDeclarationList {
             return Ok(Vec::new());
         }
-        let declarations = match &self.context.arena().node(initializer)?.data {
+        let declarations = match self.context.arena().node(initializer)?.data() {
             NodeData::VariableDeclarationList(data) => variable_declarations_from_array(
                 self.context.arena(),
                 self.source,
@@ -6951,7 +6951,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &self,
         declaration: TransformNode,
     ) -> Result<Vec<DeclarationExportPlan>, TransformError> {
-        let NodeData::VariableDeclaration(data) = &self.context.arena().node(declaration)?.data
+        let NodeData::VariableDeclaration(data) = self.context.arena().node(declaration)?.data()
         else {
             return Ok(Vec::new());
         };
@@ -7007,7 +7007,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if self.context.arena().node(source_name)?.pos == u32::MAX {
             return Ok(());
         }
-        let name = match &self.context.arena().node(declaration)?.data {
+        let name = match self.context.arena().node(declaration)?.data() {
             NodeData::VariableDeclaration(data) => data.name,
             _ => None,
         }
@@ -7130,7 +7130,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if prefix.is_empty() {
             return Ok(body);
         }
-        if let NodeData::Block(mut data) = self.context.arena().node(body)?.data.clone() {
+        if let NodeData::Block(mut data) = self.context.arena().node(body)?.data().clone() {
             prefix.extend(node_array_nodes(
                 self.context.arena(),
                 self.source,
@@ -7161,7 +7161,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .try_block
             .and_then(|id| self.context.arena().node_ref(self.source, id))
         {
-            let NodeData::Block(block_data) = self.context.arena().node(block)?.data.clone() else {
+            let NodeData::Block(block_data) = self.context.arena().node(block)?.data().clone()
+            else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::TryStatement,
                     field: "try_block",
@@ -7174,7 +7175,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .and_then(|id| self.context.arena().node_ref(self.source, id))
         {
             let NodeData::CatchClause(mut catch_data) =
-                self.context.arena().node(catch)?.data.clone()
+                self.context.arena().node(catch)?.data().clone()
             else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::TryStatement,
@@ -7189,7 +7190,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .block
                 .and_then(|id| self.context.arena().node_ref(self.source, id))
             {
-                let NodeData::Block(block_data) = self.context.arena().node(block)?.data.clone()
+                let NodeData::Block(block_data) = self.context.arena().node(block)?.data().clone()
                 else {
                     return Err(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::CatchClause,
@@ -7210,7 +7211,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .finally_block
             .and_then(|id| self.context.arena().node_ref(self.source, id))
         {
-            let NodeData::Block(block_data) = self.context.arena().node(block)?.data.clone() else {
+            let NodeData::Block(block_data) = self.context.arena().node(block)?.data().clone()
+            else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::TryStatement,
                     field: "finally_block",
@@ -7320,7 +7322,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         // The payload is cloned only for a node an arm below consumes; every
         // other node maps its children from a slot snapshot.
         let (substitute_generic, identifier, specialized) = {
-            let data = &self.context.arena().node(original)?.data;
+            let data = self.context.arena().node(original)?.data();
             let substitute_generic = self.visit_phase == CommonJsVisitPhase::Substitute
                 && !matches!(
                     data,
@@ -7379,7 +7381,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             })?
         } else {
             let record = self.context.arena().node(original)?.clone();
-            match record.data {
+            match record.data().clone() {
                 NodeData::Token => original,
                 // tsc-port: onSubstituteNode @6.0.3
                 // tsc-hash: 4275c47c81e1ec247934ac9d79029304a6b07f259ccde7a9036f1bdc3d160a3c
@@ -7719,7 +7721,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         parameter: NodeId,
     ) -> Result<TransformNode, TransformError> {
         let parameter = self.node(parameter);
-        let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data.clone()
+        let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data().clone()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Parameter,
@@ -7842,7 +7844,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 field: "block function body for lexical declarations",
             });
         };
-        let NodeData::Block(mut data) = self.context.arena().node(block)?.data.clone() else {
+        let NodeData::Block(mut data) = self.context.arena().node(block)?.data().clone() else {
             unreachable!("function lexical body is a block")
         };
         let original_statements = data.statements;
@@ -8245,7 +8247,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &self,
         identifier: TransformNode,
     ) -> Result<Option<ExportAssignmentPlan>, TransformError> {
-        let NodeData::Identifier(data) = &self.context.arena().node(identifier)?.data else {
+        let NodeData::Identifier(data) = self.context.arena().node(identifier)?.data() else {
             return Ok(None);
         };
         if self.is_local_name(identifier) {
@@ -8367,7 +8369,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &self,
         pattern: TransformNode,
     ) -> Result<bool, TransformError> {
-        match &self.context.arena().node(pattern)?.data {
+        match self.context.arena().node(pattern)?.data() {
             NodeData::Identifier(_) => {
                 let Some(plan) = self.export_assignment_plan(pattern)? else {
                     return Ok(false);
@@ -8457,7 +8459,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     })
             })?;
         let mut expressions = Vec::new();
-        let force_fresh_right = match &self.context.arena().node(right)?.data {
+        let force_fresh_right = match self.context.arena().node(right)?.data() {
             NodeData::Identifier(identifier) => {
                 self.module_pattern_assigns_to_identifier(pattern, identifier.text())?
             }
@@ -8508,7 +8510,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &self,
         name: TransformNode,
     ) -> Result<bool, TransformError> {
-        let elements = match &self.context.arena().node(name)?.data {
+        let elements = match self.context.arena().node(name)?.data() {
             NodeData::ObjectBindingPattern(data) => data.elements,
             NodeData::ArrayBindingPattern(data) => data.elements,
             NodeData::Identifier(identifier) => {
@@ -8526,7 +8528,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             _ => return Ok(false),
         };
         for element in node_array_nodes(self.context.arena(), self.source, elements)? {
-            let NodeData::BindingElement(data) = &self.context.arena().node(element)?.data else {
+            let NodeData::BindingElement(data) = self.context.arena().node(element)?.data() else {
                 continue;
             };
             let Some(target) = data
@@ -8570,7 +8572,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         name: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let data = self.context.arena().node(name)?.data.clone();
+        let data = self.context.arena().node(name)?.data().clone();
         match data {
             NodeData::ObjectBindingPattern(data) => {
                 let mut properties = Vec::new();
@@ -8629,7 +8631,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         element: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::BindingElement(data) = self.context.arena().node(element)?.data.clone()
+        let NodeData::BindingElement(data) = self.context.arena().node(element)?.data().clone()
         else {
             // An array binding hole.
             let omitted = self.create_omitted_expression()?;
@@ -8660,7 +8662,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         element: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::BindingElement(data) = self.context.arena().node(element)?.data.clone()
+        let NodeData::BindingElement(data) = self.context.arena().node(element)?.data().clone()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::ObjectBindingPattern,
@@ -8767,7 +8769,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         value: TransformNode,
         original: Option<TransformNode>,
     ) -> Result<(), TransformError> {
-        match self.context.arena().node(target)?.data.clone() {
+        match self.context.arena().node(target)?.data().clone() {
             NodeData::ObjectLiteralExpression(data) => self.flatten_module_object_pattern(
                 expressions,
                 target,
@@ -9009,7 +9011,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let base = self.context.factory()?.clone_node(value)?;
         self.context.factory()?.set_text_range(base, value)?;
         if let NodeData::ComputedPropertyName(data) =
-            self.context.arena().node(property_name)?.data.clone()
+            self.context.arena().node(property_name)?.data().clone()
         {
             let argument =
                 self.with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
@@ -9154,7 +9156,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &self,
         element: TransformNode,
     ) -> Result<ModuleDestructuringElement, TransformError> {
-        match &self.context.arena().node(element)?.data {
+        match self.context.arena().node(element)?.data() {
             NodeData::BindingElement(data) => {
                 let target = data
                     .name
@@ -9267,7 +9269,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &self,
         expression: TransformNode,
     ) -> Result<(TransformNode, Option<TransformNode>), TransformError> {
-        let NodeData::BinaryExpression(data) = &self.context.arena().node(expression)?.data else {
+        let NodeData::BinaryExpression(data) = self.context.arena().node(expression)?.data() else {
             return Ok((expression, None));
         };
         let operator = data
@@ -9300,10 +9302,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         pattern: TransformNode,
         identifier: &str,
     ) -> Result<bool, TransformError> {
-        if let NodeData::Identifier(data) = &self.context.arena().node(pattern)?.data {
+        if let NodeData::Identifier(data) = self.context.arena().node(pattern)?.data() {
             return Ok(data.text() == identifier);
         }
-        let elements = match &self.context.arena().node(pattern)?.data {
+        let elements = match self.context.arena().node(pattern)?.data() {
             NodeData::ObjectLiteralExpression(data) => {
                 node_array_nodes(self.context.arena(), self.source, data.properties)?
             }
@@ -9336,7 +9338,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &self,
         pattern: TransformNode,
     ) -> Result<bool, TransformError> {
-        let elements = match &self.context.arena().node(pattern)?.data {
+        let elements = match self.context.arena().node(pattern)?.data() {
             NodeData::ObjectLiteralExpression(data) => {
                 node_array_nodes(self.context.arena(), self.source, data.properties)?
             }
@@ -9358,7 +9360,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let element = self.module_destructuring_element(element)?;
             if let Some(property_name) = element.property_name {
                 if let NodeData::ComputedPropertyName(data) =
-                    &self.context.arena().node(property_name)?.data
+                    self.context.arena().node(property_name)?.data()
                 {
                     let literal = data
                         .expression
@@ -9457,7 +9459,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let argument = if let Some(module_name) = external_module_name.filter(|name| {
                 !argument.is_some_and(|argument| {
                     self.context.arena().node(argument).is_ok_and(|node| {
-                        matches!(&node.data, NodeData::StringLiteral(literal) if literal.text.as_js() == name.as_js())
+                        matches!(node.data(), NodeData::StringLiteral(literal) if literal.text.as_js() == name.as_js())
                     })
                 })
             }) {
@@ -9794,7 +9796,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         // for an elided import still takes the new spelling.
         if binding.property.is_none()
             && matches!(
-                &self.context.arena().node(original)?.data,
+                self.context.arena().node(original)?.data(),
                 NodeData::Identifier(data) if data.text() == &*binding.generated_name
             )
         {
@@ -9886,7 +9888,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     // `EFStartOnNewLine` moves to the member name:
                     // `exports.⏎local`.
                     if let NodeData::PropertyAccessExpression(access) =
-                        self.context.arena().node(transformed)?.data.clone()
+                        self.context.arena().node(transformed)?.data().clone()
                     {
                         if let Some(member) = access
                             .name
@@ -9937,7 +9939,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         else {
             return Ok(false);
         };
-        Ok(match &arena.node(parent)?.data {
+        Ok(match arena.node(parent)?.data() {
             NodeData::EnumDeclaration(data) => data.name == Some(original.node()),
             NodeData::ModuleDeclaration(data) => data.name == Some(original.node()),
             _ => false,
@@ -9957,7 +9959,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         {
             return Ok(true);
         }
-        let NodeData::Identifier(data) = &arena.node(node)?.data else {
+        let NodeData::Identifier(data) = arena.node(node)?.data() else {
             return Ok(true);
         };
         Ok(self
@@ -9980,7 +9982,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         declaration: TransformNode,
     ) -> Result<Option<ImportBinding>, TransformError> {
         let declaration = self.context.arena().get_original_node(declaration);
-        let (property, property_node) = match &self.context.arena().node(declaration)?.data {
+        let (property, property_node) = match self.context.arena().node(declaration)?.data() {
             NodeData::ImportSpecifier(specifier) => {
                 let Some(name) = specifier
                     .property_name
@@ -10034,7 +10036,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let runtime_name = if let Some(name) = planned_runtime_name.or(cached_runtime_name) {
             name
         } else {
-            let module_text = match &self.context.arena().node(import_declaration)?.data {
+            let module_text = match self.context.arena().node(import_declaration)?.data() {
                 NodeData::ImportDeclaration(import) => {
                     let Some(specifier) = import
                         .module_specifier
@@ -10116,7 +10118,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             // specifier's generated container name. Preserve that declaration
             // identity and allocate the binding lazily, when a reachable
             // reference is actually visited.
-            let (property, property_node) = match &self.context.arena().node(declaration)?.data {
+            let (property, property_node) = match self.context.arena().node(declaration)?.data() {
                 NodeData::ImportSpecifier(specifier)
                     if self.context.arena().node(declaration)?.pos == u32::MAX =>
                 {
@@ -10327,7 +10329,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     ) -> Option<target_bindings::TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let NodeData::Identifier(identifier) = &self.context.arena().node(name).ok()?.data else {
+        let NodeData::Identifier(identifier) = self.context.arena().node(name).ok()?.data() else {
             return None;
         };
         Some(target_bindings::TargetBinding::from_existing(
@@ -11403,7 +11405,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let Some(list) = list else {
             return Ok(());
         };
-        let declarations = match &self.context.arena().node(self.node(list))?.data {
+        let declarations = match self.context.arena().node(self.node(list))?.data() {
             NodeData::VariableDeclarationList(data) => data.declarations,
             _ => None,
         };
@@ -11424,7 +11426,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         declaration: TransformNode,
         names: &mut Vec<String>,
     ) -> Result<(), TransformError> {
-        let name = match &self.context.arena().node(declaration)?.data {
+        let name = match self.context.arena().node(declaration)?.data() {
             NodeData::VariableDeclaration(data) => data.name,
             NodeData::BindingElement(data) => data.name,
             _ => None,
@@ -11432,7 +11434,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let Some(name) = name.map(|name| self.node(name)) else {
             return Ok(());
         };
-        let elements = match &self.context.arena().node(name)?.data {
+        let elements = match self.context.arena().node(name)?.data() {
             NodeData::Identifier(_) => {
                 names.push(self.identifier_text(name.node())?.to_owned());
                 return Ok(());
@@ -11483,12 +11485,12 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         // ContainsTypeScript gate; only a node the gate admits is cloned.
         let (kind, parent, declaration, variables) = {
             let record = self.context.arena().node(original)?;
-            let declaration = match &record.data {
+            let declaration = match record.data() {
                 NodeData::ClassDeclaration(data) => Some((data.name, data.modifiers)),
                 NodeData::FunctionDeclaration(data) => Some((data.name, data.modifiers)),
                 _ => None,
             };
-            let variables = match &record.data {
+            let variables = match record.data() {
                 NodeData::VariableStatement(data) => Some((data.declaration_list, data.modifiers)),
                 _ => None,
             };
@@ -11540,7 +11542,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         // The payload is cloned only for a node an arm below consumes; every
         // other node maps its children from a slot snapshot.
         let specialized = matches!(
-            self.context.arena().node(original)?.data,
+            self.context.arena().node(original)?.data(),
             NodeData::Token
                 | NodeData::AsExpression(_)
                 | NodeData::SatisfiesExpression(_)
@@ -11575,7 +11577,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         );
 
         let transformed = if kind == SyntaxKind::SourceFile {
-            let NodeData::SourceFile(data) = self.context.arena().node(original)?.data.clone()
+            let NodeData::SourceFile(data) = self.context.arena().node(original)?.data().clone()
             else {
                 unreachable!("source-file kind owns source-file data")
             };
@@ -11617,7 +11619,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             Some(update_children_lazily(self, original)?.node())
         } else {
             let record = self.context.arena().node(original)?.clone();
-            match record.data {
+            match record.data().clone() {
                 NodeData::Token => Some(id),
                 NodeData::AsExpression(data) => {
                     self.visit_partially_emitted(original, data.expression)?
@@ -11710,7 +11712,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                             )?;
                             if let Some(erased_type) = erased_type {
                                 let name =
-                                    match &self.context.arena().node(self.node(updated))?.data {
+                                    match self.context.arena().node(self.node(updated))?.data() {
                                         NodeData::Parameter(data) => data.name,
                                         _ => None,
                                     };
@@ -11746,7 +11748,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     let updated =
                         self.update_generic(original, NodeData::VariableDeclaration(data))?;
                     if let Some(erased_type) = erased_type {
-                        let name = match &self.context.arena().node(self.node(updated))?.data {
+                        let name = match self.context.arena().node(self.node(updated))?.data() {
                             NodeData::VariableDeclaration(data) => data.name,
                             _ => None,
                         };
@@ -12031,7 +12033,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let mut parameters = Vec::new();
         for member in &member_ids {
             let record = self.context.arena().node(self.node(*member))?;
-            let NodeData::Constructor(data) = &record.data else {
+            let NodeData::Constructor(data) = record.data() else {
                 continue;
             };
             if !self.function_body_is_missing(data.body)? {
@@ -12063,7 +12065,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let mut properties = Vec::new();
         for parameter in self.context.arena().node_array(parameters)?.nodes {
             let node = self.node(*parameter);
-            let NodeData::Parameter(data) = &self.context.arena().node(node)?.data else {
+            let NodeData::Parameter(data) = self.context.arena().node(node)?.data() else {
                 continue;
             };
             if self.has_parameter_property_modifier(data.modifiers)? {
@@ -12096,7 +12098,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         parameter: NodeId,
     ) -> Result<Option<TransformNode>, TransformError> {
         let parameter_node = self.node(parameter);
-        let NodeData::Parameter(data) = self.context.arena().node(parameter_node)?.data.clone()
+        let NodeData::Parameter(data) = self.context.arena().node(parameter_node)?.data().clone()
         else {
             return Ok(None);
         };
@@ -12142,7 +12144,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             }
         }
         let body_node = self.node(body);
-        let NodeData::Block(data) = self.context.arena().node(body_node)?.data.clone() else {
+        let NodeData::Block(data) = self.context.arena().node(body_node)?.data().clone() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Constructor,
                 field: "body block",
@@ -12198,7 +12200,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         parameter: NodeId,
     ) -> Result<Option<TransformNode>, TransformError> {
         let parameter_node = self.node(parameter);
-        let NodeData::Parameter(data) = self.context.arena().node(parameter_node)?.data.clone()
+        let NodeData::Parameter(data) = self.context.arena().node(parameter_node)?.data().clone()
         else {
             return Ok(None);
         };
@@ -12206,7 +12208,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             return Ok(None);
         };
         let name_node = self.node(name);
-        let NodeData::Identifier(identifier) = self.context.arena().node(name_node)?.data.clone()
+        let NodeData::Identifier(identifier) = self.context.arena().node(name_node)?.data().clone()
         else {
             return Ok(None);
         };
@@ -12264,7 +12266,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 return Ok(vec![index]);
             }
             let NodeData::TryStatement(data) =
-                self.context.arena().node(statement_node)?.data.clone()
+                self.context.arena().node(statement_node)?.data().clone()
             else {
                 continue;
             };
@@ -12275,7 +12277,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 .context
                 .arena()
                 .node(self.node(try_block))?
-                .data
+                .data()
                 .clone()
             else {
                 continue;
@@ -12301,7 +12303,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     }
 
     fn statement_is_super_call(&self, statement: TransformNode) -> Result<bool, TransformError> {
-        let NodeData::ExpressionStatement(data) = &self.context.arena().node(statement)?.data
+        let NodeData::ExpressionStatement(data) = self.context.arena().node(statement)?.data()
         else {
             return Ok(false);
         };
@@ -12312,7 +12314,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             return Ok(false);
         };
         while let NodeData::ParenthesizedExpression(data) =
-            self.context.arena().node(expression)?.data.clone()
+            self.context.arena().node(expression)?.data().clone()
         {
             let Some(inner) = data
                 .expression
@@ -12322,7 +12324,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             };
             expression = inner;
         }
-        let NodeData::CallExpression(data) = &self.context.arena().node(expression)?.data else {
+        let NodeData::CallExpression(data) = self.context.arena().node(expression)?.data() else {
             return Ok(false);
         };
         Ok(data
@@ -12338,7 +12340,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         path: &[usize],
         assignments: &[TransformNode],
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Block(data) = self.context.arena().node(block)?.data.clone() else {
+        let NodeData::Block(data) = self.context.arena().node(block)?.data().clone() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::TryStatement,
                 field: "try block",
@@ -12377,7 +12379,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         }
         let statement = self.node(statement_ids[index]);
         let NodeData::TryStatement(mut try_data) =
-            self.context.arena().node(statement)?.data.clone()
+            self.context.arena().node(statement)?.data().clone()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::TryStatement,
@@ -12437,7 +12439,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     /// tsgo getInnermostModuleDeclarationFromDottedModule(node).Body != nil.
     fn innermost_module_has_body(&self, mut body: Option<NodeId>) -> Result<bool, TransformError> {
         while let Some(id) = body {
-            match &self.context.arena().node(self.node(id))?.data {
+            match self.context.arena().node(self.node(id))?.data() {
                 NodeData::ModuleDeclaration(inner) => body = inner.body,
                 _ => return Ok(true),
             }
@@ -12454,7 +12456,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         }
         let original = self.node(id);
         let record = self.context.arena().node(original)?.clone();
-        let NodeData::ModuleDeclaration(data) = record.data else {
+        let NodeData::ModuleDeclaration(data) = record.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: record.kind,
                 field: "module declaration",
@@ -12625,7 +12627,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 return self.create_block_from_array(Vec::new(), None, true);
             };
             let body_node = self.node(body);
-            match self.context.arena().node(body_node)?.data.clone() {
+            match self.context.arena().node(body_node)?.data().clone() {
                 NodeData::ModuleBlock(data) => {
                     let input = data
                         .statements
@@ -12654,7 +12656,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         self.inner_module_block_statements_end(self.node(declaration))?
                     {
                         let statements = {
-                            let NodeData::Block(data) = &self.context.arena().node(block)?.data
+                            let NodeData::Block(data) = self.context.arena().node(block)?.data()
                             else {
                                 return Err(TransformError::RequiredChildRemoved {
                                     parent: SyntaxKind::ModuleDeclaration,
@@ -12707,7 +12709,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     ) -> Result<Option<u32>, TransformError> {
         let mut current = declaration;
         loop {
-            let body = match &self.context.arena().node(current)?.data {
+            let body = match self.context.arena().node(current)?.data() {
                 NodeData::ModuleDeclaration(data) => data.body,
                 _ => return Ok(None),
             };
@@ -12717,7 +12719,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             match self.context.arena().node(body)?.kind {
                 SyntaxKind::ModuleDeclaration => current = body,
                 SyntaxKind::ModuleBlock => {
-                    let statements = match &self.context.arena().node(body)?.data {
+                    let statements = match self.context.arena().node(body)?.data() {
                         NodeData::ModuleBlock(data) => data.statements,
                         _ => unreachable!("module block kind has module block data"),
                     };
@@ -12746,7 +12748,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         if lexical_environment.is_empty() {
             return Ok(block);
         }
-        let NodeData::Block(mut data) = self.context.arena().node(block)?.data.clone() else {
+        let NodeData::Block(mut data) = self.context.arena().node(block)?.data().clone() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::ModuleDeclaration,
                 field: "namespace lexical block",
@@ -12825,7 +12827,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         // The latter syntax is diagnosed inside a namespace (TS1147), so it
         // must not leak into the generated namespace IIFE even when uses of
         // the alias made the checker mark it as referenced.
-        let external_import_equals = match &record.data {
+        let external_import_equals = match record.data() {
             NodeData::ImportEqualsDeclaration(data) => data
                 .module_reference
                 .and_then(|reference| self.context.arena().node_ref(self.source, reference))
@@ -12840,7 +12842,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         {
             return Ok(Vec::new());
         }
-        match record.data {
+        match record.data().clone() {
             NodeData::ModuleDeclaration(_) => self.visit_module_declaration(id),
             NodeData::EnumDeclaration(_) => self.visit_enum_declaration(id),
             NodeData::VariableStatement(data)
@@ -12963,7 +12965,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         };
         let list = self.node(list);
         let NodeData::VariableDeclarationList(list_data) =
-            self.context.arena().node(list)?.data.clone()
+            self.context.arena().node(list)?.data().clone()
         else {
             return Ok(Vec::new());
         };
@@ -12982,7 +12984,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         for declaration in declarations {
             let declaration_node = self.node(declaration);
             let NodeData::VariableDeclaration(declaration_data) =
-                self.context.arena().node(declaration_node)?.data.clone()
+                self.context.arena().node(declaration_node)?.data().clone()
             else {
                 continue;
             };
@@ -13049,7 +13051,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             SyntaxKind::VariableDeclaration,
             "initializer",
         )?;
-        let force_fresh_value = match &self.context.arena().node(value)?.data {
+        let force_fresh_value = match self.context.arena().node(value)?.data() {
             NodeData::Identifier(identifier) => {
                 self.namespace_pattern_assigns_to_identifier(pattern, identifier.text())?
             }
@@ -13075,7 +13077,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         value: TransformNode,
         original: Option<TransformNode>,
     ) -> Result<(), TransformError> {
-        match self.context.arena().node(target)?.data.clone() {
+        match self.context.arena().node(target)?.data().clone() {
             NodeData::ObjectBindingPattern(data) => {
                 self.flatten_namespace_object_pattern(plan, data.elements, value, original)
             }
@@ -13228,7 +13230,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             })?;
         let base = self.context.factory()?.clone_node(value)?;
         if let NodeData::ComputedPropertyName(data) =
-            self.context.arena().node(property_name)?.data.clone()
+            self.context.arena().node(property_name)?.data().clone()
         {
             let expression = data
                 .expression
@@ -13419,7 +13421,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         &self,
         element: TransformNode,
     ) -> Result<ModuleDestructuringElement, TransformError> {
-        let NodeData::BindingElement(data) = &self.context.arena().node(element)?.data else {
+        let NodeData::BindingElement(data) = self.context.arena().node(element)?.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(element)?.kind,
                 field: "binding element",
@@ -13451,10 +13453,10 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         pattern: TransformNode,
         identifier: &str,
     ) -> Result<bool, TransformError> {
-        if let NodeData::Identifier(data) = &self.context.arena().node(pattern)?.data {
+        if let NodeData::Identifier(data) = self.context.arena().node(pattern)?.data() {
             return Ok(data.text() == identifier);
         }
-        let elements = match &self.context.arena().node(pattern)?.data {
+        let elements = match self.context.arena().node(pattern)?.data() {
             NodeData::ObjectBindingPattern(data) => {
                 node_array_nodes(self.context.arena(), self.source, data.elements)?
             }
@@ -13481,7 +13483,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         &self,
         pattern: TransformNode,
     ) -> Result<bool, TransformError> {
-        let elements = match &self.context.arena().node(pattern)?.data {
+        let elements = match self.context.arena().node(pattern)?.data() {
             NodeData::ObjectBindingPattern(data) => {
                 node_array_nodes(self.context.arena(), self.source, data.elements)?
             }
@@ -13497,7 +13499,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             let element = self.namespace_destructuring_element(element)?;
             if let Some(property_name) = element.property_name {
                 if let NodeData::ComputedPropertyName(data) =
-                    &self.context.arena().node(property_name)?.data
+                    self.context.arena().node(property_name)?.data()
                 {
                     let literal = data
                         .expression
@@ -13589,7 +13591,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         // give the synthesized access a parse-looking identity.
         let name_node = {
             let arena = self.context.arena();
-            match &arena.node(original)?.data {
+            match arena.node(original)?.data() {
                 NodeData::FunctionDeclaration(data) => data.name,
                 NodeData::ClassDeclaration(data) => data.name,
                 _ => None,
@@ -13631,7 +13633,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             let arena = self.context.arena();
             let source = arena.source(original.source())?.syntax();
             let record = arena.node(original)?;
-            let name_node = match &record.data {
+            let name_node = match record.data() {
                 NodeData::FunctionDeclaration(data) => data.name,
                 NodeData::ClassDeclaration(data) => data.name,
                 _ => None,
@@ -13669,7 +13671,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         }
         let original = self.node(id);
         let record = self.context.arena().node(original)?.clone();
-        let NodeData::EnumDeclaration(data) = record.data else {
+        let NodeData::EnumDeclaration(data) = record.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: record.kind,
                 field: "enum declaration",
@@ -13725,7 +13727,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 .arena_mut()?
                 .set_original_node(statement, Some(original))?;
             self.set_comment_range_from(statement, original)?;
-            let declaration_list_id = match &self.context.arena().node(statement)?.data {
+            let declaration_list_id = match self.context.arena().node(statement)?.data() {
                 NodeData::VariableStatement(data) => data.declaration_list,
                 _ => None,
             }
@@ -13820,7 +13822,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         container_name: &str,
     ) -> Result<TransformNode, TransformError> {
         let original = self.node(id);
-        let NodeData::EnumMember(data) = self.context.arena().node(original)?.data.clone() else {
+        let NodeData::EnumMember(data) = self.context.arena().node(original)?.data().clone() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(original)?.kind,
                 field: "enum member",
@@ -13871,7 +13873,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
 
     fn enum_member_name_expression(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
         let original = self.node(id);
-        match self.context.arena().node(original)?.data.clone() {
+        match self.context.arena().node(original)?.data().clone() {
             NodeData::Identifier(data) => self.create_string_literal(data.text()),
             // getExpressionForPropertyName copies the owned JavaScript text.
             NodeData::StringLiteral(data) => self.create_string_literal(data.text.as_js()),
@@ -13984,7 +13986,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         original_name: Option<NodeId>,
     ) -> Result<NodeId, TransformError> {
         let updated_node = self.node(updated);
-        let NodeData::Parameter(mut data) = self.context.arena().node(updated_node)?.data.clone()
+        let NodeData::Parameter(mut data) = self.context.arena().node(updated_node)?.data().clone()
         else {
             return Err(TransformError::FactoryKindMismatch {
                 expected: SyntaxKind::Parameter,
@@ -14124,7 +14126,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     }
 
     fn identifier_text(&self, id: NodeId) -> Result<&str, TransformError> {
-        match &self.context.arena().node(self.node(id))?.data {
+        match self.context.arena().node(self.node(id))?.data() {
             NodeData::Identifier(data) => Ok(data.text()),
             _ => Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::EnumDeclaration,
@@ -14831,7 +14833,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         };
         loop {
             let record = self.context.arena().node(self.node(expression))?;
-            expression = match &record.data {
+            expression = match record.data() {
                 NodeData::ParenthesizedExpression(data) => match data.expression {
                     Some(expression) => expression,
                     None => return Ok(false),
@@ -14934,7 +14936,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             return Ok(Some(original.node()));
         };
         let clause_node = self.node(clause_id);
-        let clause_data = match &self.context.arena().node(clause_node)?.data {
+        let clause_data = match self.context.arena().node(clause_node)?.data() {
             NodeData::ImportClause(data) => data.clone(),
             _ => {
                 return Ok(Some(
@@ -15108,7 +15110,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         &mut self,
         name: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        match self.context.arena().node(name)?.data.clone() {
+        match self.context.arena().node(name)?.data().clone() {
             NodeData::Identifier(_) => {
                 let clone = self.context.factory()?.clone_node(name)?;
                 self.context.factory()?.set_text_range(clone, name)
@@ -15184,7 +15186,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     /// The element count of named imports, `None` for other bindings.
     fn named_imports_len(&self, id: NodeId) -> Result<Option<usize>, TransformError> {
         let node = self.node(id);
-        let NodeData::NamedImports(data) = &self.context.arena().node(node)?.data else {
+        let NodeData::NamedImports(data) = self.context.arena().node(node)?.data() else {
             return Ok(None);
         };
         match data.elements {
@@ -15201,7 +15203,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
 
     fn visit_import_bindings(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
         let node = self.node(id);
-        match self.context.arena().node(node)?.data.clone() {
+        match self.context.arena().node(node)?.data().clone() {
             NodeData::NamespaceImport(_data) => {
                 if self.should_emit_alias_declaration(node)? {
                     Ok(Some(id))
@@ -15228,7 +15230,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 let mut retained = Vec::new();
                 for specifier in ids {
                     let specifier_node = self.node(specifier);
-                    let is_type_only = match &self.context.arena().node(specifier_node)?.data {
+                    let is_type_only = match self.context.arena().node(specifier_node)?.data() {
                         NodeData::ImportSpecifier(data) => data.is_type_only,
                         _ => false,
                     };
@@ -15291,7 +15293,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             }
         };
         let NodeData::NamedExports(mut named) =
-            self.context.arena().node(clause_node)?.data.clone()
+            self.context.arena().node(clause_node)?.data().clone()
         else {
             return Ok(Some(
                 self.update_generic(original, NodeData::ExportDeclaration(data))?,
@@ -15317,7 +15319,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let mut retained = Vec::new();
         for specifier in ids {
             let specifier_node = self.node(specifier);
-            let is_type_only = match &self.context.arena().node(specifier_node)?.data {
+            let is_type_only = match self.context.arena().node(specifier_node)?.data() {
                 NodeData::ExportSpecifier(data) => data.is_type_only,
                 _ => false,
             };
@@ -15505,7 +15507,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             let record = self.context.arena().node(self.node(id))?;
             // Named expressions bind their self-name outside container locals.
             // Their descendant parameters/locals still reserve generated names.
-            let binding_name = match &record.data {
+            let binding_name = match record.data() {
                 NodeData::VariableDeclaration(data) => data.name,
                 NodeData::Parameter(data) => data.name,
                 NodeData::BindingElement(data) => data.name,
@@ -15536,7 +15538,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
 
     fn binding_name_contains(&self, name: NodeId, expected: &str) -> Result<bool, TransformError> {
         let name = self.node(name);
-        match self.context.arena().node(name)?.data.clone() {
+        match self.context.arena().node(name)?.data().clone() {
             NodeData::Identifier(data) => Ok(data.text() == expected),
             NodeData::BindingElement(data) => data
                 .name
@@ -15627,7 +15629,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             let Some(member) = self.context.arena().node_ref(self.source, *member) else {
                 continue;
             };
-            if let NodeData::PropertyDeclaration(data) = &self.context.arena().node(member)?.data {
+            if let NodeData::PropertyDeclaration(data) = self.context.arena().node(member)?.data() {
                 if data.initializer.is_some()
                     && self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)?
                 {
@@ -15659,7 +15661,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     ) -> Result<Vec<TransformNode>, TransformError> {
         let (has_export, has_default, declaration_name) = {
             let record = self.context.arena().node(self.node(statement))?;
-            match &record.data {
+            match record.data() {
                 NodeData::ClassDeclaration(data) => (
                     self.has_modifier(data.modifiers, SyntaxKind::ExportKeyword)?,
                     self.has_modifier(data.modifiers, SyntaxKind::DefaultKeyword)?,
@@ -15677,7 +15679,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             return Ok(vec![visited]);
         }
         let name_text = {
-            let declarations = match &self.context.arena().node(visited)?.data {
+            let declarations = match self.context.arena().node(visited)?.data() {
                 NodeData::VariableStatement(data) => data.declaration_list,
                 _ => None,
             };
@@ -15689,7 +15691,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         parent: SyntaxKind::VariableStatement,
                         field: "promoted class wrapper declaration",
                     })?;
-            let name = match &self.context.arena().node(declaration)?.data {
+            let name = match self.context.arena().node(declaration)?.data() {
                 NodeData::VariableDeclaration(data) => data.name,
                 _ => None,
             }
@@ -15784,7 +15786,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         if mode == TypeScriptDecoratorMode::Standard {
             return Ok(false);
         }
-        let parameters = match &self.context.arena().node(member)?.data {
+        let parameters = match self.context.arena().node(member)?.data() {
             NodeData::MethodDeclaration(data) if data.body.is_some() => data.parameters,
             NodeData::SetAccessor(data) if data.body.is_some() => data.parameters,
             NodeData::Constructor(data) if data.body.is_some() => data.parameters,
@@ -15799,7 +15801,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         mode: TypeScriptDecoratorMode,
     ) -> Result<bool, TransformError> {
         let record = self.context.arena().node(member)?;
-        let (modifiers, name, eligible) = match &record.data {
+        let (modifiers, name, eligible) = match record.data() {
             NodeData::PropertyDeclaration(data) => {
                 let standard_ambient = mode == TypeScriptDecoratorMode::Standard
                     && (self.has_modifier(data.modifiers, SyntaxKind::DeclareKeyword)?
@@ -15835,7 +15837,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             let Some(parameter) = self.context.arena().node_ref(self.source, *parameter) else {
                 continue;
             };
-            let NodeData::Parameter(data) = &self.context.arena().node(parameter)?.data else {
+            let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() else {
                 continue;
             };
             let is_this_parameter = index == 0
@@ -16064,7 +16066,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             .node_ref(self.source, id)
             .ok_or_else(|| TransformError::UnknownNode(self.node(id)))?;
         let record = self.context.arena().node(original)?.clone();
-        let NodeData::ClassStaticBlockDeclaration(data) = record.data else {
+        let NodeData::ClassStaticBlockDeclaration(data) = record.data().clone() else {
             return Err(TransformError::FactoryKindMismatch {
                 expected: SyntaxKind::ClassStaticBlockDeclaration,
                 actual: record.kind,
@@ -16305,7 +16307,7 @@ fn flags_after_update_probe(
         | TransformFlags::CONTAINS_DESTRUCTURING_ASSIGNMENT
         | TransformFlags::CONTAINS_UPDATE_EXPRESSION_FOR_IDENTIFIER;
     let recomputed = if matches!(
-        probe.data,
+        probe.data(),
         NodeData::PropertyDeclaration(_)
             | NodeData::ClassDeclaration(_)
             | NodeData::ClassExpression(_)
@@ -16441,24 +16443,25 @@ pub(crate) fn update_children_lazily<V: LazyChildVisitor>(
         let record = visitor.transformation_context().arena().node(original)?;
         // try_visit_transform_children: a missing declaration keeps its
         // reachable decorators unvisited.
-        if matches!(record.data, NodeData::MissingDeclaration(_)) {
+        if matches!(record.data(), NodeData::MissingDeclaration(_)) {
             ChildSlots::new()
         } else {
-            child_slots(&record.data, visitor)
+            child_slots(record.data(), visitor)
         }
     };
     if map_child_slots(&mut slots, visitor)? {
         let mut probe = {
             let record = visitor.transformation_context().arena().node(original)?;
-            record.with_data(record.data.clone())
+            record.with_data(record.data().clone())
         };
-        apply_child_slots(&mut probe.data, &slots, visitor)?;
+        apply_child_slots(probe.data_mut(), &slots, visitor)?;
         let flags =
             flags_after_update_probe(visitor.transformation_context().arena(), original, &probe)?;
-        visitor
-            .transformation_context_mut()
-            .factory()?
-            .update_node(original, probe.data, flags)
+        visitor.transformation_context_mut().factory()?.update_node(
+            original,
+            probe.data().clone(),
+            flags,
+        )
     } else {
         let flags = {
             let arena = visitor.transformation_context().arena();
@@ -16471,13 +16474,13 @@ pub(crate) fn update_children_lazily<V: LazyChildVisitor>(
             // Embedded-statement kinds take the full path (`update_node`
             // normalizes their bodies), and so does a private-name
             // expression whose stored flags lack the bit the update adds.
-            if !normalizes_embedded_statements(&record.data)
+            if !normalizes_embedded_statements(record.data())
                 && arena.transform_flags_complete(original)
             {
                 let private = crate::factory::private_identifier_expression_flags(
                     arena,
                     original.source(),
-                    &record.data,
+                    record.data(),
                 )?;
                 let stored = arena.transform_flags(original);
                 if stored.contains(private) {
@@ -17142,7 +17145,7 @@ fn complete_class_transform_flags(
     node: &Node,
     mut flags: TransformFlags,
 ) -> Result<TransformFlags, TransformError> {
-    if let NodeData::ClassDeclaration(data) = &node.data {
+    if let NodeData::ClassDeclaration(data) = node.data() {
         if has_modifier(arena, source, data.modifiers, SyntaxKind::DeclareKeyword)? {
             return Ok(TransformFlags::CONTAINS_TYPE_SCRIPT);
         }
@@ -17202,7 +17205,7 @@ fn parameter_emit_role(
     let name = arena.node(name)?;
     let is_this = name.kind == SyntaxKind::ThisKeyword
         || matches!(
-            &name.data,
+            name.data(),
             NodeData::Identifier(identifier)
                 if identifier_to_keyword_kind(identifier.escaped_text.identifier_text())
                     == Some(SyntaxKind::ThisKeyword)
@@ -17219,7 +17222,7 @@ impl<'a> FactoryTransformChildren<'a> {
         if !propagates_transform_child_flags(node.kind) {
             return Self::None;
         }
-        match &node.data {
+        match node.data() {
             NodeData::Constructor(data) => Self::Constructor(data),
             NodeData::GetAccessor(data) => Self::GetAccessor(data),
             NodeData::SetAccessor(data) => Self::SetAccessor(data),
@@ -17362,7 +17365,7 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
     {
         flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
     }
-    match &node.data {
+    match node.data() {
         NodeData::Token => match kind {
             SyntaxKind::AsyncKeyword => {
                 flags |= TransformFlags::CONTAINS_ES_2017;
@@ -17788,7 +17791,7 @@ fn local_contextual_target_flags(
     source: TransformSourceId,
     node: &Node,
 ) -> Result<TransformFlags, TransformError> {
-    match &node.data {
+    match node.data() {
         NodeData::CallExpression(data) => {
             // createBaseCallExpression super-property row
             // (_tsc.js:22574-22576): a call whose callee is a super
@@ -17802,7 +17805,7 @@ fn local_contextual_target_flags(
                 let Ok(record) = arena.node(callee) else {
                     return false;
                 };
-                let receiver = match &record.data {
+                let receiver = match record.data() {
                     NodeData::PropertyAccessExpression(access) => access.expression,
                     NodeData::ElementAccessExpression(access) => access.expression,
                     _ => None,
@@ -17970,7 +17973,7 @@ fn local_contextual_target_flags(
                     }
                 }
             }
-            flags |= private_identifier_expression_flags(arena, source, &node.data)?;
+            flags |= private_identifier_expression_flags(arena, source, node.data())?;
             Ok(flags)
         }
         NodeData::ObjectBindingPattern(data) => {
@@ -17985,7 +17988,7 @@ fn local_contextual_target_flags(
                                 .and_then(|element| arena.node(element).ok())
                                 .is_some_and(|element| {
                                     matches!(
-                                        &element.data,
+                                        element.data(),
                                         NodeData::BindingElement(element)
                                             if element.dot_dot_dot_token.is_some()
                                     )
@@ -18001,11 +18004,11 @@ fn local_contextual_target_flags(
         }
         NodeData::PropertyAccessExpression(data) => {
             Ok(super_access_target_flags(arena, source, data.expression)?
-                | private_identifier_expression_flags(arena, source, &node.data)?)
+                | private_identifier_expression_flags(arena, source, node.data())?)
         }
         NodeData::ElementAccessExpression(data) => {
             Ok(super_access_target_flags(arena, source, data.expression)?
-                | private_identifier_expression_flags(arena, source, &node.data)?)
+                | private_identifier_expression_flags(arena, source, node.data())?)
         }
         // The factory's per-function facet conditional
         // (`createFunctionExpression`/`createFunctionDeclaration`/

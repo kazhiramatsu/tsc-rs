@@ -277,14 +277,14 @@ fn emit_helper_name_distinguishes_user_calls_and_survives_factory_updates() {
         Default::default(),
         None,
     );
-    let NodeData::SourceFile(source_file) = &parsed.arena.node(parsed.root).data else {
+    let NodeData::SourceFile(source_file) = parsed.arena.node(parsed.root).data() else {
         panic!("source file root");
     };
     let source_statements = parsed
         .arena
         .node_array(source_file.statements.expect("source statements"));
     let NodeData::ExpressionStatement(statement) =
-        &parsed.arena.node(source_statements.nodes[0]).data
+        parsed.arena.node(source_statements.nodes[0]).data()
     else {
         panic!("parsed helper call statement");
     };
@@ -322,7 +322,7 @@ fn emit_helper_name_distinguishes_user_calls_and_survives_factory_updates() {
         .is_call_to_emit_helper(parsed_call, EmitHelperName::RunInitializers)
         .expect("classify parsed same-spelling user call"));
 
-    let helper_data = arena.node(helper).expect("helper node").data.clone();
+    let helper_data = arena.node(helper).expect("helper node").data().clone();
     let (cloned_call, updated_call) = {
         let mut factory = NodeFactory::new(&mut arena);
         let cloned = factory.clone_node(helper).expect("clone helper identifier");

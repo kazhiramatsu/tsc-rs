@@ -33,7 +33,7 @@ impl ImportCallRewrites {
         positions.sort_unstable();
         for position in positions {
             let node = node_at_position(arena, root, position)?;
-            let NodeData::CallExpression(call) = &arena.node(node)?.data else {
+            let NodeData::CallExpression(call) = arena.node(node)?.data() else {
                 continue;
             };
             let Some(callee) = call
@@ -51,7 +51,7 @@ impl ImportCallRewrites {
             // local declaration shadows require. TypeScript files are excluded.
             let require = javascript
                 && arguments.len() == 1
-                && matches!(&callee.data, NodeData::Identifier(name) if name.escaped_text == "require");
+                && matches!(callee.data(), NodeData::Identifier(name) if name.escaped_text == "require");
             // tsgo IsImportCall: `import(...)`, `import.defer(...)` or
             // `import.source(...)`.
             if !require
@@ -62,7 +62,7 @@ impl ImportCallRewrites {
             {
                 continue;
             }
-            let literal = match &arena.node(*first)?.data {
+            let literal = match arena.node(*first)?.data() {
                 NodeData::StringLiteral(data) => Some(data.text.as_js()),
                 NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.as_js()),
                 _ => None,
@@ -147,7 +147,7 @@ pub(super) fn rewrite_literal(
     node: TransformNode,
     preserve_jsx: bool,
 ) -> Result<TransformNode, TransformError> {
-    let NodeData::StringLiteral(literal) = context.arena().node(node)?.data.clone() else {
+    let NodeData::StringLiteral(literal) = context.arena().node(node)?.data().clone() else {
         return Ok(node);
     };
     let Some(mut text) = rewrite_relative_module_specifier(&literal.text) else {

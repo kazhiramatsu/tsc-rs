@@ -68,7 +68,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed arena projection for tsc's direct node
     /// payload access.
     pub(crate) fn data_of(&self, node: NodeId) -> &'a NodeData {
-        &self.binder.node_record(node).data
+        self.binder.node_record(node).data()
     }
 
     /// tsrs-native: typed arena projection for tsc's direct

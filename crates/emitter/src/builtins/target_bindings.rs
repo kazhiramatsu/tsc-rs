@@ -147,7 +147,7 @@ impl ParsedSourceIdentifierNames {
         // Most identifier texts repeat many times per file; a name already
         // in the census is skipped before its parse ownership is checked.
         for (offset, record) in syntax.arena.nodes().iter().enumerate() {
-            let NodeData::Identifier(identifier) = &record.data else {
+            let NodeData::Identifier(identifier) = record.data() else {
                 continue;
             };
             if names.contains(identifier.text()) {
@@ -632,7 +632,7 @@ pub(super) fn collect_untagged_identifier_texts(
         }
         let node = TransformNode::new(source, id);
         let record = arena.node(node)?;
-        if let NodeData::Identifier(data) = &record.data {
+        if let NodeData::Identifier(data) = record.data() {
             if !names.contains(data.text())
                 && arena
                     .metadata(node)
@@ -1418,7 +1418,7 @@ fn collect_binding_name_events(
         // naming moment at its tree position (`_tsc.js:120568-120574`);
         // every other reuse-flagged function-like keeps the parent
         // uniqueness scope but delays its body's naming moment.
-        let body = match &record.data {
+        let body = match record.data() {
             NodeData::ArrowFunction(data) => data.body,
             NodeData::Constructor(data) => data.body,
             NodeData::FunctionExpression(data) => data.body,
@@ -1479,7 +1479,7 @@ fn collect_binding_name_events(
         // name belongs to the enclosing class-evaluation scope, while its
         // parameters and body share the function scope. A whole-node enter
         // would incorrectly let every method reuse the computed-name `_a`.
-        let body = match &record.data {
+        let body = match record.data() {
             NodeData::ArrowFunction(data) => data.body,
             NodeData::Constructor(data) => data.body,
             NodeData::FunctionDeclaration(data) => data.body,
@@ -1539,7 +1539,7 @@ fn collect_binding_name_events(
     }
 
     if !scope_root && record.kind == SyntaxKind::ClassStaticBlockDeclaration {
-        let body = match &record.data {
+        let body = match record.data() {
             NodeData::ClassStaticBlockDeclaration(data) => data.body,
             _ => None,
         };
@@ -1657,7 +1657,7 @@ fn collect_binding_name_events(
         let reserve_in_nested_scopes = arena
             .metadata(node)
             .is_some_and(|metadata| metadata.generated_binding_reserved_in_nested_scopes());
-        let planned_name = match &record.data {
+        let planned_name = match record.data() {
             NodeData::Identifier(data) => data.text().to_owned(),
             _ => {
                 return Err(TransformError::RequiredChildRemoved {
@@ -1724,7 +1724,7 @@ fn collect_function_body_declaration_name_events(
     let record = arena.node(node)?;
     let mut children = Vec::new();
     let mut arrays = Vec::new();
-    match &record.data {
+    match record.data() {
         NodeData::Identifier(_) => {
             if arena.metadata(node).is_some_and(|metadata| {
                 metadata.generated_binding_id().is_some()

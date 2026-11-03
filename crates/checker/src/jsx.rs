@@ -2243,7 +2243,7 @@ impl<'a> CheckerState<'a> {
         stack.reverse();
         while let Some(node) = stack.pop() {
             let record = Published.node(node);
-            match &record.data {
+            match record.data() {
                 NodeData::JsxElement(_) | NodeData::JsxSelfClosingElement(_) => return Some(node),
                 NodeData::JsxFragment(data) => return data.opening_fragment,
                 _ => {}

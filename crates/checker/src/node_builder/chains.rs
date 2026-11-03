@@ -1441,7 +1441,7 @@ fn get_topmost_indexed_access_type(
     mut top: TransformNode,
 ) -> BuildResult<TransformNode> {
     loop {
-        let NodeData::IndexedAccessType(data) = &arena.node(top).map_err(factory_error)?.data
+        let NodeData::IndexedAccessType(data) = arena.node(top).map_err(factory_error)?.data()
         else {
             return Ok(top);
         };
@@ -1788,7 +1788,7 @@ fn create_import_type(
 }
 
 fn is_entity_name(arena: &TransformArena, node: TransformNode) -> BuildResult<bool> {
-    match &arena.node(node).map_err(factory_error)?.data {
+    match arena.node(node).map_err(factory_error)?.data() {
         NodeData::Identifier(_) => Ok(true),
         NodeData::QualifiedName(data) => {
             let Some(left) = data
@@ -2211,7 +2211,7 @@ pub(crate) fn chains_symbol_to_type_node(
         }
         let split = get_topmost_indexed_access_type(arena, non_root.expect("non-entity access"))?;
         let NodeData::IndexedAccessType(split_data) =
-            arena.node(split).map_err(factory_error)?.data.clone()
+            arena.node(split).map_err(factory_error)?.data().clone()
         else {
             unreachable!("non-entity access from a symbol chain is indexed access")
         };
@@ -2219,7 +2219,7 @@ pub(crate) fn chains_symbol_to_type_node(
             .object_type
             .and_then(|node| arena.node_ref(split.source(), node))
             .expect("indexed access object");
-        let qualifier = match &arena.node(object).map_err(factory_error)?.data {
+        let qualifier = match arena.node(object).map_err(factory_error)?.data() {
             NodeData::TypeReference(data) => Some(
                 data.type_name
                     .and_then(|node| arena.node_ref(object.source(), node))
@@ -2253,7 +2253,12 @@ pub(crate) fn chains_symbol_to_type_node(
         context,
         type_arguments.as_deref(),
     )?;
-    match arena.node(access.node).map_err(factory_error)?.data.clone() {
+    match arena
+        .node(access.node)
+        .map_err(factory_error)?
+        .data()
+        .clone()
+    {
         NodeData::IndexedAccessType(_) => Ok(access.node),
         _ if is_entity_name(arena, access.node)? => {
             if is_type_of {
@@ -2282,7 +2287,7 @@ pub(super) fn create_access_expression(
     target: TransformSourceId,
     node: TransformNode,
 ) -> BuildResult<TransformNode> {
-    match arena.node(node).map_err(factory_error)?.data.clone() {
+    match arena.node(node).map_err(factory_error)?.data().clone() {
         NodeData::QualifiedName(data) => {
             let left = data
                 .left
@@ -2362,7 +2367,7 @@ fn type_parameter_shadows_other_type_parameter_in_scope(
 }
 
 fn identifier_text(arena: &TransformArena, node: TransformNode) -> BuildResult<Option<String>> {
-    Ok(match &arena.node(node).map_err(factory_error)?.data {
+    Ok(match arena.node(node).map_err(factory_error)?.data() {
         NodeData::Identifier(data) => Some(data.text().to_owned()),
         _ => None,
     })
@@ -3197,7 +3202,7 @@ pub(crate) fn get_module_specifier_override(
     parent: TransformNode,
     literal: TransformNode,
 ) -> BuildResult<Option<tsc_types::JsString>> {
-    let original_name = match &arena.node(literal).map_err(factory_error)?.data {
+    let original_name = match arena.node(literal).map_err(factory_error)?.data() {
         NodeData::StringLiteral(data) => data.text.clone(),
         _ => return Ok(None),
     };
@@ -3225,7 +3230,7 @@ pub(crate) fn get_module_specifier_override(
             .filter(|&symbol| symbol != checker.unknown_symbol)
     });
     let is_type_of = matches!(
-        &arena.node(parent).map_err(factory_error)?.data,
+        arena.node(parent).map_err(factory_error)?.data(),
         NodeData::ImportType(data) if data.is_type_of
     );
     let meaning = if is_type_of {

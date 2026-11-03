@@ -226,7 +226,7 @@ impl Reparser<'_, '_> {
     }
 
     fn data(&self, node: NodeId) -> &NodeData {
-        &self.source.arena.node(node).data()
+        self.source.arena.node(node).data()
     }
 
     fn nodes(&self, array: Option<tsc_syntax::NodeArrayId>) -> &[NodeId] {

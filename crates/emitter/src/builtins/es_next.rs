@@ -373,12 +373,12 @@ impl<'context> EsNextVisitor<'context> {
         }
         let (kind, body, statements) = {
             let record = self.context.arena().node(node)?;
-            let statements = match &record.data {
+            let statements = match record.data() {
                 NodeData::SourceFile(data) => Some(data.statements),
                 NodeData::Block(data) => Some(data.statements),
                 _ => None,
             };
-            (record.kind, Self::function_body(&record.data), statements)
+            (record.kind, Self::function_body(record.data()), statements)
         };
         if !is_scope_root && Self::establishes_name_generation_scope(kind) {
             nested_scopes.push(node);
@@ -463,8 +463,8 @@ impl<'context> EsNextVisitor<'context> {
             children: Vec::new(),
         };
         let record = self.context.arena().node(node)?;
-        if !matches!(record.data, NodeData::MissingDeclaration(_)) {
-            let mut slots = child_slots(&record.data, &collector);
+        if !matches!(record.data(), NodeData::MissingDeclaration(_)) {
+            let mut slots = child_slots(record.data(), &collector);
             map_child_slots(&mut slots, &mut collector)?;
         }
         Ok(collector
@@ -524,7 +524,7 @@ impl<'context> EsNextVisitor<'context> {
             return Ok(Some(id));
         }
         let record = self.context.arena().node(original)?.clone();
-        let transformed = match record.data {
+        let transformed = match record.data().clone() {
             NodeData::SourceFile(data) => Some(self.visit_source_file(original, data)?),
             NodeData::Block(data) => Some(self.visit_block(original, data)?),
             NodeData::ForStatement(data) => Some(self.visit_for_statement(original, data)?),
@@ -740,14 +740,14 @@ impl<'context> EsNextVisitor<'context> {
         let Some(mode) = self.declaration_list_mode(initializer)? else {
             return self.update_generic(original, NodeData::ForOfStatement(data));
         };
-        let declaration_ids = match &self.context.arena().node(initializer)?.data {
+        let declaration_ids = match self.context.arena().node(initializer)?.data() {
             NodeData::VariableDeclarationList(list) => self.array_node_ids(list.declarations)?,
             _ => Vec::new(),
         };
         let first = declaration_ids.first().copied();
         let (binding_name, original_declaration) = if let Some(declaration) = first {
             let declaration_node = self.node(declaration);
-            let name = match &self.context.arena().node(declaration_node)?.data {
+            let name = match self.context.arena().node(declaration_node)?.data() {
                 NodeData::VariableDeclaration(data) => data.name,
                 _ => None,
             };
@@ -803,7 +803,7 @@ impl<'context> EsNextVisitor<'context> {
                 .context
                 .arena()
                 .node(original_declaration)?
-                .data
+                .data()
                 .clone()
             else {
                 unreachable!("for-of declaration remains a variable declaration")
@@ -835,7 +835,7 @@ impl<'context> EsNextVisitor<'context> {
         let using_statement = self.create_variable_statement_from_list(using_list)?;
         let body = if let Some(statement) = data.statement {
             let statement = self.node(statement);
-            match self.context.arena().node(statement)?.data.clone() {
+            match self.context.arena().node(statement)?.data().clone() {
                 NodeData::Block(mut block) => {
                     let mut statements = vec![using_statement];
                     statements.extend(self.array_nodes(block.statements)?);
@@ -875,7 +875,7 @@ impl<'context> EsNextVisitor<'context> {
         &mut self,
         block: TransformNode,
     ) -> Result<NodeId, TransformError> {
-        let NodeData::Block(data) = self.context.arena().node(block)?.data.clone() else {
+        let NodeData::Block(data) = self.context.arena().node(block)?.data().clone() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(block)?.kind,
                 field: "synthetic disposal block",
@@ -896,7 +896,7 @@ impl<'context> EsNextVisitor<'context> {
                 .unwrap_or_default());
         };
         let NodeData::VariableStatement(statement_data) =
-            self.context.arena().node(statement)?.data.clone()
+            self.context.arena().node(statement)?.data().clone()
         else {
             unreachable!("a using statement is a variable statement")
         };
@@ -908,14 +908,14 @@ impl<'context> EsNextVisitor<'context> {
                 field: "declaration_list",
             })?;
         let NodeData::VariableDeclarationList(list_data) =
-            self.context.arena().node(list)?.data.clone()
+            self.context.arena().node(list)?.data().clone()
         else {
             unreachable!("using statement list remains a declaration list")
         };
         let declarations = self.array_nodes(list_data.declarations)?;
         if declarations.iter().any(|declaration| {
             !matches!(
-                self.context.arena().node(*declaration).map(|record| &record.data),
+                self.context.arena().node(*declaration).map(|record| record.data()),
                 Ok(NodeData::VariableDeclaration(data))
                     if data.name.is_some_and(|name| self.context.arena().node(self.node(name)).is_ok_and(|name| name.kind == SyntaxKind::Identifier))
             )
@@ -930,7 +930,7 @@ impl<'context> EsNextVisitor<'context> {
         let mut lowered = Vec::with_capacity(declarations.len());
         for declaration in declarations {
             let NodeData::VariableDeclaration(mut data) =
-                self.context.arena().node(declaration)?.data.clone()
+                self.context.arena().node(declaration)?.data().clone()
             else {
                 unreachable!("checked variable declaration")
             };
@@ -979,7 +979,7 @@ impl<'context> EsNextVisitor<'context> {
         &mut self,
         original: TransformNode,
     ) -> Result<Option<TransformNode>, TransformError> {
-        let mut data = self.context.arena().node(original)?.data.clone();
+        let mut data = self.context.arena().node(original)?.data().clone();
         try_visit_transform_children(&mut data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &data)?;
         Ok(Some(
@@ -1092,7 +1092,7 @@ impl<'context> EsNextVisitor<'context> {
         plan: &mut TopLevelPlan,
     ) -> Result<(), TransformError> {
         let record = self.context.arena().node(statement)?.clone();
-        match record.data {
+        match record.data().clone() {
             NodeData::ImportDeclaration(_)
             | NodeData::ImportEqualsDeclaration(_)
             | NodeData::ExportDeclaration(_)
@@ -1125,14 +1125,14 @@ impl<'context> EsNextVisitor<'context> {
         let declarations = data
             .declaration_list
             .and_then(|list| self.context.arena().node_ref(self.source, list))
-            .and_then(|list| match &self.context.arena().node(list).ok()?.data {
+            .and_then(|list| match self.context.arena().node(list).ok()?.data() {
                 NodeData::VariableDeclarationList(data) => Some(data.declarations),
                 _ => None,
             });
         let mut assignments = Vec::new();
         for declaration in self.array_nodes(declarations.flatten())? {
             let NodeData::VariableDeclaration(data) =
-                self.context.arena().node(declaration)?.data.clone()
+                self.context.arena().node(declaration)?.data().clone()
             else {
                 continue;
             };
@@ -1188,7 +1188,7 @@ impl<'context> EsNextVisitor<'context> {
         let class_binding = if let Some(name) = data.name {
             let name = self.node(name);
             let binding = if matches!(
-                self.context.arena().node(name)?.data,
+                self.context.arena().node(name)?.data(),
                 NodeData::Identifier(_)
             ) {
                 if self.is_generated_binding_name(name)? {
@@ -1339,7 +1339,7 @@ impl<'context> EsNextVisitor<'context> {
         exported: bool,
         plan: &mut TopLevelPlan,
     ) -> Result<(), TransformError> {
-        match self.context.arena().node(name)?.data.clone() {
+        match self.context.arena().node(name)?.data().clone() {
             NodeData::Identifier(_) => self.hoist_binding_identifier(
                 &HoistedBindingName::Parsed {
                     name,
@@ -1353,7 +1353,7 @@ impl<'context> EsNextVisitor<'context> {
             NodeData::ObjectBindingPattern(data) => {
                 for element in self.array_nodes(data.elements)? {
                     if let NodeData::BindingElement(data) =
-                        self.context.arena().node(element)?.data.clone()
+                        self.context.arena().node(element)?.data().clone()
                     {
                         if let Some(name) = data.name {
                             self.hoist_binding_pattern(
@@ -1370,7 +1370,7 @@ impl<'context> EsNextVisitor<'context> {
             NodeData::ArrayBindingPattern(data) => {
                 for element in self.array_nodes(data.elements)? {
                     if let NodeData::BindingElement(data) =
-                        self.context.arena().node(element)?.data.clone()
+                        self.context.arena().node(element)?.data().clone()
                     {
                         if let Some(name) = data.name {
                             self.hoist_binding_pattern(
@@ -1536,7 +1536,7 @@ impl<'context> EsNextVisitor<'context> {
     fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let NodeData::Identifier(identifier) = &self.context.arena().node(name).ok()?.data else {
+        let NodeData::Identifier(identifier) = self.context.arena().node(name).ok()?.data() else {
             return None;
         };
         Some(TargetBinding::from_existing(
@@ -1568,7 +1568,7 @@ impl<'context> EsNextVisitor<'context> {
 
         if let Some(parsed) = self.context.arena().parse_tree_node(name)? {
             return Ok(!matches!(
-                self.context.arena().node(parsed)?.data,
+                self.context.arena().node(parsed)?.data(),
                 NodeData::Identifier(_)
             ));
         }
@@ -1598,7 +1598,7 @@ impl<'context> EsNextVisitor<'context> {
             return Ok(initializer);
         };
         let binding = self.node(binding);
-        let NodeData::Identifier(binding_data) = &self.context.arena().node(binding)?.data else {
+        let NodeData::Identifier(binding_data) = self.context.arena().node(binding)?.data() else {
             return Ok(initializer);
         };
         let assigned_name_text = binding_data.text().to_owned();
@@ -1612,7 +1612,7 @@ impl<'context> EsNextVisitor<'context> {
         expression: TransformNode,
         assigned_name_text: &str,
     ) -> Result<NamedEvaluationOutcome, TransformError> {
-        match self.context.arena().node(expression)?.data.clone() {
+        match self.context.arena().node(expression)?.data().clone() {
             NodeData::ParenthesizedExpression(mut data) => {
                 let inner = data
                     .expression
@@ -1750,7 +1750,7 @@ impl<'context> EsNextVisitor<'context> {
     }
 
     fn statement_mode(&self, statement: TransformNode) -> Option<DisposalMode> {
-        let NodeData::VariableStatement(data) = &self.context.arena().node(statement).ok()?.data
+        let NodeData::VariableStatement(data) = self.context.arena().node(statement).ok()?.data()
         else {
             return None;
         };
@@ -1782,9 +1782,9 @@ impl<'context> EsNextVisitor<'context> {
         let mut count = 0;
         for statement in statements {
             let string_prologue = matches!(
-                &self.context.arena().node(*statement)?.data,
+                self.context.arena().node(*statement)?.data(),
                 NodeData::ExpressionStatement(data)
-                    if data.expression.and_then(|expression| self.context.arena().node_ref(self.source, expression)).is_some_and(|expression| self.context.arena().node(expression).is_ok_and(|expression| matches!(expression.data, NodeData::StringLiteral(_))))
+                    if data.expression.and_then(|expression| self.context.arena().node_ref(self.source, expression)).is_some_and(|expression| self.context.arena().node(expression).is_ok_and(|expression| matches!(expression.data(), NodeData::StringLiteral(_))))
             );
             let custom_prologue = self
                 .context
@@ -2324,7 +2324,7 @@ impl<'context> EsNextVisitor<'context> {
         projection: ParsedAssignmentProjection,
     ) -> Result<(), TransformError> {
         if matches!(
-            self.context.arena().node(target)?.data,
+            self.context.arena().node(target)?.data(),
             NodeData::Identifier(_)
         ) {
             let metadata = self.context.arena_mut()?.metadata_mut(target);
@@ -2405,7 +2405,7 @@ impl<'context> EsNextVisitor<'context> {
     }
 
     fn identifier_text(&self, node: TransformNode) -> Option<&str> {
-        match &self.context.arena().node(node).ok()?.data {
+        match self.context.arena().node(node).ok()?.data() {
             NodeData::Identifier(data) => Some(data.text()),
             _ => None,
         }

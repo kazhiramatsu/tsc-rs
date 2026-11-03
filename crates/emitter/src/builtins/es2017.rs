@@ -184,7 +184,7 @@ fn source_file_is_effectively_strict(
     if syntax.external_module_indicator.is_some() {
         return Ok(true);
     }
-    let NodeData::SourceFile(data) = &context.arena().node(root)?.data else {
+    let NodeData::SourceFile(data) = context.arena().node(root)?.data() else {
         return Ok(false);
     };
     let Some(statements) = data
@@ -197,7 +197,7 @@ fn source_file_is_effectively_strict(
         let Some(statement) = context.arena().node_ref(root.source(), *statement) else {
             continue;
         };
-        let NodeData::ExpressionStatement(statement) = &context.arena().node(statement)?.data
+        let NodeData::ExpressionStatement(statement) = context.arena().node(statement)?.data()
         else {
             break;
         };
@@ -207,7 +207,7 @@ fn source_file_is_effectively_strict(
         else {
             break;
         };
-        let NodeData::StringLiteral(literal) = &context.arena().node(expression)?.data else {
+        let NodeData::StringLiteral(literal) = context.arena().node(expression)?.data() else {
             break;
         };
         if literal.text == "use strict" {
@@ -282,7 +282,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let original = self.node(id);
         let record = self.context.arena().node(original)?.clone();
 
-        if matches!(record.data, NodeData::Identifier(_))
+        if matches!(record.data(), NodeData::Identifier(_))
             && self.lexical_arguments_binding.is_some()
             && self
                 .resolver
@@ -316,7 +316,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return Ok(Some(id));
         }
 
-        let transformed = match record.data {
+        let transformed = match record.data().clone() {
             NodeData::CallExpression(data) if self.call_expression_targets_super(&data)? => {
                 Some(self.visit_captured_super_call(original, data)?.node())
             }
@@ -456,7 +456,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let Some(expression) = data.expression.map(|expression| self.node(expression)) else {
             return Ok(false);
         };
-        match &self.context.arena().node(expression)?.data {
+        match self.context.arena().node(expression)?.data() {
             NodeData::PropertyAccessExpression(property) => {
                 self.property_access_targets_super(property)
             }
@@ -468,7 +468,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     }
 
     fn node_is_direct_super_use(&self, node: TransformNode) -> Result<bool, TransformError> {
-        match &self.context.arena().node(node)?.data {
+        match self.context.arena().node(node)?.data() {
             NodeData::PropertyAccessExpression(data) => self.property_access_targets_super(data),
             NodeData::ElementAccessExpression(data) => self.element_access_targets_super(data),
             NodeData::CallExpression(data) => self.call_expression_targets_super(data),
@@ -478,7 +478,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
 
     fn is_async_generator(&self, function: TransformNode) -> Result<bool, TransformError> {
         let original = self.context.arena().get_original_node(function);
-        Ok(match &self.context.arena().node(original)?.data {
+        Ok(match self.context.arena().node(original)?.data() {
             NodeData::MethodDeclaration(data) => data.asterisk_token.is_some(),
             NodeData::FunctionDeclaration(data) => data.asterisk_token.is_some(),
             NodeData::FunctionExpression(data) => data.asterisk_token.is_some(),
@@ -571,7 +571,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             owns_access
         };
         if owns_access {
-            match &record.data {
+            match record.data() {
                 NodeData::PropertyAccessExpression(data)
                     if self.expression_is_super(data.expression)? =>
                 {
@@ -699,7 +699,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 field: "expression",
             },
         )?;
-        let access = match self.context.arena().node(callee)?.data.clone() {
+        let access = match self.context.arena().node(callee)?.data().clone() {
             NodeData::PropertyAccessExpression(property) => {
                 self.visit_captured_super_property(callee, property)?
             }
@@ -764,7 +764,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return Ok(false);
         };
         let parent = self.node(parent);
-        Ok(match &self.context.arena().node(parent)?.data {
+        Ok(match self.context.arena().node(parent)?.data() {
             NodeData::BinaryExpression(data) => {
                 // binaryOperandNeedsParentheses (`updateBinaryExpression` →
                 // parenthesizeLeft/RightSideOfBinary): a yield operand
@@ -835,7 +835,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return Ok(false);
         };
         let record = self.context.arena().node(list)?;
-        let NodeData::VariableDeclarationList(data) = &record.data else {
+        let NodeData::VariableDeclarationList(data) = record.data() else {
             return Ok(false);
         };
         if NodeFlags::from_bits(record.flags).intersects(NodeFlags::BLOCK_SCOPED) {
@@ -843,7 +843,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         }
         for declaration in self.array_nodes(data.declarations)? {
             let NodeData::VariableDeclaration(declaration) =
-                &self.context.arena().node(declaration)?.data
+                self.context.arena().node(declaration)?.data()
             else {
                 continue;
             };
@@ -867,7 +867,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let NodeData::Identifier(identifier) = &self.context.arena().node(name).ok()?.data else {
+        let NodeData::Identifier(identifier) = self.context.arena().node(name).ok()?.data() else {
             return None;
         };
         Some(TargetBinding::from_existing(
@@ -891,7 +891,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         name: TransformNode,
         names: &BTreeSet<String>,
     ) -> Result<bool, TransformError> {
-        match &self.context.arena().node(name)?.data {
+        match self.context.arena().node(name)?.data() {
             NodeData::Identifier(identifier) => {
                 // getGeneratedNameForNode retains the source identifier's
                 // escapedText for collision checks even though the printer
@@ -908,7 +908,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             NodeData::ObjectBindingPattern(data) => {
                 for element in self.array_nodes(data.elements)? {
                     if let NodeData::BindingElement(element) =
-                        &self.context.arena().node(element)?.data
+                        self.context.arena().node(element)?.data()
                     {
                         if let Some(name) = element.name {
                             if self.binding_name_intersects(self.node(name), names)? {
@@ -922,7 +922,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             NodeData::ArrayBindingPattern(data) => {
                 for element in self.array_nodes(data.elements)? {
                     if let NodeData::BindingElement(element) =
-                        &self.context.arena().node(element)?.data
+                        self.context.arena().node(element)?.data()
                     {
                         if let Some(name) = element.name {
                             if self.binding_name_intersects(self.node(name), names)? {
@@ -1009,7 +1009,8 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                     parent,
                     field: "variable declaration list",
                 })?;
-        let NodeData::VariableDeclarationList(data) = self.context.arena().node(list)?.data.clone()
+        let NodeData::VariableDeclarationList(data) =
+            self.context.arena().node(list)?.data().clone()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent,
@@ -1019,7 +1020,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let declarations = self.array_nodes(data.declarations)?;
         for declaration in &declarations {
             let NodeData::VariableDeclaration(data) =
-                self.context.arena().node(*declaration)?.data.clone()
+                self.context.arena().node(*declaration)?.data().clone()
             else {
                 continue;
             };
@@ -1030,7 +1031,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let mut assignments = Vec::new();
         for declaration in &declarations {
             let NodeData::VariableDeclaration(data) =
-                self.context.arena().node(*declaration)?.data.clone()
+                self.context.arena().node(*declaration)?.data().clone()
             else {
                 continue;
             };
@@ -1073,7 +1074,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                         field: "receiver declaration",
                     })?;
             let NodeData::VariableDeclaration(data) =
-                self.context.arena().node(first)?.data.clone()
+                self.context.arena().node(first)?.data().clone()
             else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent,
@@ -1113,7 +1114,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         if let Some(binding) = self.generated_binding_for_identifier(name) {
             return self.create_generated_identifier(&binding);
         }
-        match self.context.arena().node(name)?.data.clone() {
+        match self.context.arena().node(name)?.data().clone() {
             NodeData::Identifier(identifier) => self.create_identifier(identifier.text()),
             // Binding-pattern conversion is structural. Keeping it here makes
             // the collision plan explicit and leaves object-rest flattening to
@@ -1122,7 +1123,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 let mut properties = Vec::new();
                 for element in self.array_nodes(data.elements)? {
                     let NodeData::BindingElement(element_data) =
-                        self.context.arena().node(element)?.data.clone()
+                        self.context.arena().node(element)?.data().clone()
                     else {
                         continue;
                     };
@@ -1170,7 +1171,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                         continue;
                     }
                     let NodeData::BindingElement(element_data) =
-                        self.context.arena().node(element)?.data.clone()
+                        self.context.arena().node(element)?.data().clone()
                     else {
                         continue;
                     };
@@ -1222,7 +1223,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         else {
             return Ok(false);
         };
-        let NodeData::VariableDeclaration(variable) = &self.context.arena().node(variable)?.data
+        let NodeData::VariableDeclaration(variable) = self.context.arena().node(variable)?.data()
         else {
             return Ok(false);
         };
@@ -1244,7 +1245,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             .map(|variable| self.node(variable))
         {
             if let NodeData::VariableDeclaration(variable) =
-                &self.context.arena().node(variable)?.data
+                self.context.arena().node(variable)?.data()
             {
                 if let Some(name) = variable.name {
                     self.collect_binding_names(self.node(name), &mut shadowed)?;
@@ -1569,7 +1570,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return Ok(body);
         }
         let body_node = self.node(body);
-        let NodeData::Block(mut data) = self.context.arena().node(body_node)?.data.clone() else {
+        let NodeData::Block(mut data) = self.context.arena().node(body_node)?.data().clone() else {
             return Ok(body);
         };
         let mut existing = self.array_nodes(data.statements)?;
@@ -1721,7 +1722,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let mut outer = Vec::new();
         let mut forwarded_arguments = Vec::new();
         for parameter in self.array_nodes(Some(parameters))? {
-            let NodeData::Parameter(data) = &self.context.arena().node(parameter)?.data else {
+            let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::Parameter,
                     field: "parameter",
@@ -1741,7 +1742,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                     field: "name",
                 },
             )?;
-            let identifier_text = match &self.context.arena().node(name)?.data {
+            let identifier_text = match self.context.arena().node(name)?.data() {
                 NodeData::Identifier(identifier) => Some(identifier.text().to_owned()),
                 _ => None,
             };
@@ -1789,7 +1790,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         &self,
         parameter: TransformNode,
     ) -> Result<AsyncParameterFact, TransformError> {
-        let NodeData::Parameter(data) = &self.context.arena().node(parameter)?.data else {
+        let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Parameter,
                 field: "parameter",
@@ -1838,7 +1839,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     ) -> Result<BTreeSet<String>, TransformError> {
         let mut names = BTreeSet::new();
         for parameter in self.array_nodes(parameters)? {
-            if let NodeData::Parameter(data) = &self.context.arena().node(parameter)?.data {
+            if let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() {
                 if let Some(name) = data.name {
                     self.collect_binding_names(self.node(name), &mut names)?;
                 }
@@ -1852,14 +1853,14 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         name: TransformNode,
         names: &mut BTreeSet<String>,
     ) -> Result<(), TransformError> {
-        match &self.context.arena().node(name)?.data {
+        match self.context.arena().node(name)?.data() {
             NodeData::Identifier(identifier) => {
                 names.insert(identifier.text().to_owned());
             }
             NodeData::ObjectBindingPattern(data) => {
                 for element in self.array_nodes(data.elements)? {
                     if let NodeData::BindingElement(element) =
-                        &self.context.arena().node(element)?.data
+                        self.context.arena().node(element)?.data()
                     {
                         if let Some(name) = element.name {
                             self.collect_binding_names(self.node(name), names)?;
@@ -1870,7 +1871,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             NodeData::ArrayBindingPattern(data) => {
                 for element in self.array_nodes(data.elements)? {
                     if let NodeData::BindingElement(element) =
-                        &self.context.arena().node(element)?.data
+                        self.context.arena().node(element)?.data()
                     {
                         if let Some(name) = element.name {
                             self.collect_binding_names(self.node(name), names)?;
@@ -1927,7 +1928,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         &mut self,
         name: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        match self.context.arena().node(name)?.data.clone() {
+        match self.context.arena().node(name)?.data().clone() {
             NodeData::QualifiedName(data) => {
                 let left = data
                     .left
@@ -2376,7 +2377,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         if lexical_environment.is_empty() {
             return Ok(body);
         }
-        let NodeData::Block(mut data) = self.context.arena().node(body)?.data.clone() else {
+        let NodeData::Block(mut data) = self.context.arena().node(body)?.data().clone() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::FunctionExpression,
                 field: "generator block",
@@ -2444,7 +2445,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
 
     fn is_prologue_statement(&self, statement: TransformNode) -> bool {
         let Ok(NodeData::ExpressionStatement(data)) =
-            self.context.arena().node(statement).map(|node| &node.data)
+            self.context.arena().node(statement).map(|node| node.data())
         else {
             return false;
         };
@@ -2452,7 +2453,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             self.context
                 .arena()
                 .node(self.node(expression))
-                .is_ok_and(|expression| matches!(expression.data, NodeData::StringLiteral(_)))
+                .is_ok_and(|expression| matches!(expression.data(), NodeData::StringLiteral(_)))
         })
     }
 
@@ -2470,7 +2471,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         original: TransformNode,
         data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        if self.context.arena().node(original)?.data == data {
+        if self.context.arena().node(original)?.data() == &data {
             return Ok(original.node());
         }
         let flags = flags_after_update(self.context.arena(), original, &data)?;
@@ -3036,7 +3037,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     }
 
     fn identifier_text(&self, node: TransformNode) -> Result<&str, TransformError> {
-        match &self.context.arena().node(node)?.data {
+        match self.context.arena().node(node)?.data() {
             NodeData::Identifier(identifier) => Ok(identifier.text()),
             _ => Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::PropertyAccessExpression,

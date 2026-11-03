@@ -737,7 +737,7 @@ pub fn node_data_type(kind: u32) -> u32 {
 /// The child properties tsgo's encoder visits on `node`, in visitor order
 /// (`getChildrenPropertyMask`'s bits); a node with none calls nothing.
 pub fn for_each_property<'a>(node: &'a Node, mut f: impl FnMut(Property<'a>)) {
-    match &node.data {
+    match node.data() {
         NodeData::QualifiedName(d) => {
             f(Property::Node(d.left));
             f(Property::Node(d.right));

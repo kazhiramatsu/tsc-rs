@@ -111,7 +111,7 @@ impl<'a> Outlining<'a> {
     }
 
     fn data(&self, node: NodeId) -> &'a NodeData {
-        &self.source.arena.node(node).data
+        self.source.arena.node(node).data()
     }
 
     fn pos(&self, node: NodeId) -> usize {
@@ -753,7 +753,7 @@ impl<'a> Outlining<'a> {
         // the list takes several lines.
         let this_tag = tsc_binder::hosted::jsdoc_hosted(self.source)
             .this_tag_of(function)
-            .map(|tag| match &self.source.arena.node(tag).data {
+            .map(|tag| match self.source.arena.node(tag).data() {
                 NodeData::JSDocThisTag(data) => data.tag_name.unwrap_or(tag),
                 _ => tag,
             });

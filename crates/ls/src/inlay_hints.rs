@@ -91,7 +91,7 @@ impl InlayHints<'_, '_, '_, '_> {
     }
 
     fn data(&self, node: NodeId) -> &NodeData {
-        &self.request.state.binder.node_record(node).data
+        self.request.state.binder.node_record(node).data()
     }
 
     fn name_of(&self, node: NodeId) -> Option<NodeId> {
@@ -958,7 +958,7 @@ impl LabelParts<'_, '_, '_, '_, '_, '_> {
             return;
         }
         if is_literal_expression_kind(kind) {
-            let text = self.hints.literal_text(&record.data);
+            let text = self.hints.literal_text(record.data());
             self.parts.push(label_part(&text));
             return;
         }
@@ -966,7 +966,7 @@ impl LabelParts<'_, '_, '_, '_, '_, '_> {
             self.push("this");
             return;
         }
-        let data = record.data.clone();
+        let data = record.data().clone();
         match data {
             NodeData::Identifier(identifier) => {
                 let text = identifier

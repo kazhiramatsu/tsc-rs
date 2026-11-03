@@ -1064,7 +1064,7 @@ impl<'a> Navigator<'a> {
             return false;
         };
         matches!(
-            &self.file.arena.node(parent).data,
+            self.file.arena.node(parent).data(),
             NodeData::ParenthesizedExpression(data) if data.expression == Some(id)
         ) && tsc_binder::hosted::jsdoc_hosted(self.file)
             .cast_of(id)
@@ -1136,7 +1136,7 @@ impl<'a> Navigator<'a> {
     fn is_whitespace_only_jsx_text(&self, found: Found) -> bool {
         match found {
             Found::Node(View::Node(id)) => matches!(
-                &self.tree.node(id).data,
+                self.tree.node(id).data(),
                 NodeData::JsxText(text) if text.contains_only_trivia_white_spaces
             ),
             Found::Token(token) => token.kind == SyntaxKind::JsxTextAllWhiteSpaces,

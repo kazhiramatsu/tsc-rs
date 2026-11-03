@@ -124,7 +124,7 @@ pub(super) fn process_tagged_template_expression(
     node: TransformNode,
 ) -> Result<TransformNode, TransformError> {
     let (tag, template) = {
-        let NodeData::TaggedTemplateExpression(data) = &host.arena_node(node)?.data else {
+        let NodeData::TaggedTemplateExpression(data) = host.arena_node(node)?.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::TaggedTemplateExpression,
                 field: "tagged template",
@@ -158,7 +158,7 @@ pub(super) fn process_tagged_template_expression(
         }
         SyntaxKind::TemplateExpression => {
             let (head, spans) = {
-                let NodeData::TemplateExpression(data) = &host.arena_node(template)?.data else {
+                let NodeData::TemplateExpression(data) = host.arena_node(template)?.data() else {
                     unreachable!("kind-checked template expression");
                 };
                 let head = data.head.ok_or(TransformError::RequiredChildRemoved {
@@ -171,7 +171,7 @@ pub(super) fn process_tagged_template_expression(
             raw_strings.push(get_raw_literal(host, head)?);
             for span in spans {
                 let (expression, literal) = {
-                    let NodeData::TemplateSpan(data) = &host.arena_node(span)?.data else {
+                    let NodeData::TemplateSpan(data) = host.arena_node(span)?.data() else {
                         return Err(TransformError::RequiredChildRemoved {
                             parent: SyntaxKind::TemplateSpan,
                             field: "template span",
@@ -280,7 +280,7 @@ fn template_fragment_texts(
     node: TransformNode,
 ) -> Result<(JsString, JsString), TransformError> {
     let record = host.arena_node(node)?;
-    let (text, raw_text) = match &record.data {
+    let (text, raw_text) = match record.data() {
         NodeData::NoSubstitutionTemplateLiteral(data) => (&data.text, &data.raw_text),
         NodeData::TemplateHead(data) => (&data.text, &data.raw_text),
         NodeData::TemplateMiddle(data) => (&data.text, &data.raw_text),
@@ -366,7 +366,7 @@ fn has_invalid_escape(
     template: TransformNode,
 ) -> Result<bool, TransformError> {
     let record = host.arena_node(template)?;
-    match &record.data {
+    match record.data() {
         NodeData::NoSubstitutionTemplateLiteral(_) => Ok(i32::from(record.template_flags())
             & TokenFlags::CONTAINS_INVALID_ESCAPE.bits()
             != 0),
@@ -382,7 +382,7 @@ fn has_invalid_escape(
                 return Ok(true);
             }
             for span in host.array_nodes(data.template_spans)? {
-                let NodeData::TemplateSpan(span_data) = &host.arena_node(span)?.data else {
+                let NodeData::TemplateSpan(span_data) = host.arena_node(span)?.data() else {
                     return Err(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::TemplateSpan,
                         field: "template span",

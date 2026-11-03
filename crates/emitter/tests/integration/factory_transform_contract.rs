@@ -56,7 +56,7 @@ impl Transformer for ProbeTransformer {
         assert_eq!(context.state(), TransformationState::Initialized);
         let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
-        let statements = match &context.arena().node(root_node)?.data {
+        let statements = match context.arena().node(root_node)?.data() {
             NodeData::SourceFile(data) => data
                 .statements
                 .map(|array| context.arena().node_array_ref(source, array).unwrap())
@@ -192,7 +192,7 @@ fn factory_and_transform_lifecycle_are_session_owned_and_disposed() {
     assert_eq!(parsed.root, original_root);
 
     let root = result.arena().root(source).unwrap();
-    let statements = match &result.arena().node(root).unwrap().data {
+    let statements = match result.arena().node(root).unwrap().data() {
         NodeData::SourceFile(data) => data.statements.unwrap(),
         _ => unreachable!(),
     };
@@ -378,7 +378,7 @@ impl Transformer for SharedClassMemberArrayTransformer {
     ) -> Result<TransformRoot, TransformError> {
         let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
-        let NodeData::SourceFile(mut root_data) = context.arena().node(root_node)?.data.clone()
+        let NodeData::SourceFile(mut root_data) = context.arena().node(root_node)?.data().clone()
         else {
             unreachable!("source-file transform root owns SourceFileData")
         };
@@ -398,12 +398,12 @@ impl Transformer for SharedClassMemberArrayTransformer {
             .arena()
             .node_ref(source, *second_id)
             .expect("second class belongs to the transform source");
-        let shared_members = match &context.arena().node(first)?.data {
+        let shared_members = match context.arena().node(first)?.data() {
             NodeData::ClassDeclaration(data) => data.members.expect("first class members"),
             _ => panic!("first statement must be a class declaration"),
         };
         let NodeData::ClassDeclaration(mut second_data) =
-            context.arena().node(second)?.data.clone()
+            context.arena().node(second)?.data().clone()
         else {
             panic!("second statement must be a class declaration")
         };
@@ -487,7 +487,7 @@ fn property_name_flags_survive_named_declaration_subtree_exclusions() {
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, None);
     let root = arena.root(source).unwrap();
-    let statements = match &arena.node(root).unwrap().data {
+    let statements = match arena.node(root).unwrap().data() {
         NodeData::SourceFile(data) => data.statements.unwrap(),
         _ => unreachable!(),
     };
@@ -496,7 +496,7 @@ fn property_name_flags_survive_named_declaration_subtree_exclusions() {
         .unwrap()
         .nodes[0];
     let class = arena.node_ref(source, class).unwrap();
-    let members = match &arena.node(class).unwrap().data {
+    let members = match arena.node(class).unwrap().data() {
         NodeData::ClassDeclaration(data) => data.members.unwrap(),
         _ => unreachable!(),
     };
@@ -505,7 +505,7 @@ fn property_name_flags_survive_named_declaration_subtree_exclusions() {
         .unwrap()
         .nodes[0];
     let method = arena.node_ref(source, method).unwrap();
-    let name = match &arena.node(method).unwrap().data {
+    let name = match arena.node(method).unwrap().data() {
         NodeData::MethodDeclaration(data) => data.name.unwrap(),
         _ => unreachable!(),
     };
@@ -602,7 +602,7 @@ impl Transformer for SyntheticArrowTokenOriginalTransformer {
         let root_node = context.arena().root(source)?;
         let (end_of_file_token, original_arrow_token, explicit_comment_range) = {
             let syntax = context.arena().source(source)?.syntax();
-            let end_of_file_token = match &syntax.arena.node(syntax.root).data {
+            let end_of_file_token = match syntax.arena.node(syntax.root).data() {
                 NodeData::SourceFile(data) => data.end_of_file_token,
                 _ => unreachable!("transform root is a source file"),
             };
@@ -834,7 +834,7 @@ impl Transformer for NoAsiPartialExpressionTransformer {
     ) -> Result<TransformRoot, TransformError> {
         let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
-        let (statements, end_of_file_token) = match &context.arena().node(root_node)?.data {
+        let (statements, end_of_file_token) = match context.arena().node(root_node)?.data() {
             NodeData::SourceFile(data) => (
                 data.statements
                     .and_then(|statements| context.arena().node_array_ref(source, statements))
@@ -850,7 +850,7 @@ impl Transformer for NoAsiPartialExpressionTransformer {
             .first()
             .and_then(|statement| context.arena().node_ref(source, *statement))
             .expect("fixture starts with a return statement");
-        let expression = match &context.arena().node(statement)?.data {
+        let expression = match context.arena().node(statement)?.data() {
             NodeData::ReturnStatement(data) => data
                 .expression
                 .and_then(|expression| context.arena().node_ref(source, expression))
@@ -859,7 +859,7 @@ impl Transformer for NoAsiPartialExpressionTransformer {
         };
         let inner = match self.original {
             NoAsiPartialOriginal::ParsedParentheses => {
-                match &context.arena().node(expression)?.data {
+                match context.arena().node(expression)?.data() {
                     NodeData::ParenthesizedExpression(data) => data
                         .expression
                         .and_then(|inner| context.arena().node_ref(source, inner))
@@ -1219,7 +1219,7 @@ impl Transformer for SyntheticExportAssignmentTransformer {
     ) -> Result<TransformRoot, TransformError> {
         let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
-        let end_of_file_token = match &context.arena().node(root_node)?.data {
+        let end_of_file_token = match context.arena().node(root_node)?.data() {
             NodeData::SourceFile(data) => data.end_of_file_token,
             _ => unreachable!("transform root is a source file"),
         };
@@ -1287,7 +1287,7 @@ impl Transformer for SyntheticThrowRecoveryTransformer {
     ) -> Result<TransformRoot, TransformError> {
         let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
-        let end_of_file_token = match &context.arena().node(root_node)?.data {
+        let end_of_file_token = match context.arena().node(root_node)?.data() {
             NodeData::SourceFile(data) => data.end_of_file_token,
             _ => unreachable!("transform root is a source file"),
         };

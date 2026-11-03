@@ -414,7 +414,7 @@ impl MissingMemberFixer<'_, '_, '_> {
             .arena()
             .node(declaration)
             .map_err(transform_error)?
-            .data
+            .data()
             .clone();
         let NodeData::MethodDeclaration(method) = data else {
             return Ok(None);
@@ -982,7 +982,7 @@ impl MissingMemberFixer<'_, '_, '_> {
             .arena()
             .node(node)
             .map_err(transform_error)?
-            .data
+            .data()
             .clone();
         if let NodeData::Identifier(identifier) = &data {
             if identifier.text() == "constructor" {
@@ -1049,7 +1049,7 @@ impl MissingMemberFixer<'_, '_, '_> {
             .arena()
             .node(node)
             .map_err(transform_error)?
-            .data
+            .data()
             .clone())
     }
 
@@ -1160,10 +1160,10 @@ fn get_all_accessor_declarations(
 
 /// The text of a parameter's name.
 fn parameter_name_text(source: &SourceFile, parameter: NodeId) -> String {
-    let NodeData::Parameter(data) = &source.arena.node(parameter).data else {
+    let NodeData::Parameter(data) = source.arena.node(parameter).data() else {
         return String::new();
     };
-    match data.name.map(|name| &source.arena.node(name).data) {
+    match data.name.map(|name| source.arena.node(name).data()) {
         Some(NodeData::Identifier(identifier)) => identifier.text().to_owned(),
         _ => String::new(),
     }

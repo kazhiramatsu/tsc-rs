@@ -654,32 +654,36 @@ impl<'a> Decoder<'a> {
     /// class's `implements`) as a TypeReference of an entity name; tsc's
     /// is an ExpressionWithTypeArguments of an entity name expression.
     fn heritage_type(&mut self, element: NodeId) {
-        let NodeData::TypeReference(reference) = &self.arena.node(element).data else {
+        let NodeData::TypeReference(reference) = self.arena.node(element).data() else {
             return;
         };
         let (type_name, type_arguments) = (reference.type_name, reference.type_arguments);
         let expression = type_name.map(|name| self.entity_name_expression(name));
         let node = self.arena.node_mut(element);
         node.kind = SyntaxKind::ExpressionWithTypeArguments;
-        node.data = NodeData::ExpressionWithTypeArguments(ExpressionWithTypeArgumentsData {
-            type_arguments,
-            expression,
-        });
+        node.set_data(NodeData::ExpressionWithTypeArguments(
+            ExpressionWithTypeArgumentsData {
+                type_arguments,
+                expression,
+            },
+        ));
     }
 
     /// tsc's entity name expression of an entity name: a QualifiedName is
     /// a PropertyAccessExpression.
     fn entity_name_expression(&mut self, name: NodeId) -> NodeId {
-        if let NodeData::QualifiedName(qualified) = &self.arena.node(name).data {
+        if let NodeData::QualifiedName(qualified) = self.arena.node(name).data() {
             let (left, right) = (qualified.left, qualified.right);
             let expression = left.map(|left| self.entity_name_expression(left));
             let node = self.arena.node_mut(name);
             node.kind = SyntaxKind::PropertyAccessExpression;
-            node.data = NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
-                name: right,
-                expression,
-                question_dot_token: None,
-            });
+            node.set_data(NodeData::PropertyAccessExpression(
+                PropertyAccessExpressionData {
+                    name: right,
+                    expression,
+                    question_dot_token: None,
+                },
+            ));
         }
         name
     }
@@ -688,7 +692,7 @@ impl<'a> Decoder<'a> {
     /// an implicit `export` modifier; tsc flags it NestedNamespace instead.
     fn nested_namespace(&mut self, body: NodeId) {
         let node = self.arena.node_mut(body);
-        if let NodeData::ModuleDeclaration(declaration) = &mut node.data {
+        if let NodeData::ModuleDeclaration(declaration) = node.data_mut() {
             declaration.modifiers = None;
             node.flags |= NodeFlags::NESTED_NAMESPACE.bits();
         }

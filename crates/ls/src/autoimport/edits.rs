@@ -279,7 +279,7 @@ pub(super) fn get_add_to_existing_import_fix(
     let Some(import_node) = try_get_import_from_module_specifier(file, module_specifier) else {
         panic!("expected import declaration");
     };
-    let clause_or_pattern = match &file.arena.node(import_node).data {
+    let clause_or_pattern = match file.arena.node(import_node).data() {
         NodeData::ImportDeclaration(data) => data.import_clause.expect("expected import clause"),
         NodeData::CallExpression(_) => {
             let declaration = file
@@ -288,7 +288,7 @@ pub(super) fn get_add_to_existing_import_fix(
                 .parent
                 .filter(|&parent| is_variable_declaration_initialized_to_require(file, parent))
                 .expect("expected require call expression to be in variable declaration");
-            match &file.arena.node(declaration).data {
+            match file.arena.node(declaration).data() {
                 NodeData::VariableDeclaration(data) => data
                     .name
                     .filter(|&name| file.arena.node(name).kind == SyntaxKind::ObjectBindingPattern)
@@ -317,7 +317,7 @@ pub(super) fn add_to_existing_import<'a>(
     named_imports: &[NewImportBinding],
     preferences: &UserPreferences,
 ) -> Result<(), TransformError> {
-    let clause = match &file.arena.node(clause_or_pattern).data {
+    let clause = match file.arena.node(clause_or_pattern).data() {
         NodeData::ObjectBindingPattern(_) => {
             if let Some(default_import) = default_import {
                 add_element_to_binding_pattern(
@@ -356,7 +356,7 @@ pub(super) fn add_to_existing_import<'a>(
 
     let existing_specifiers: Vec<NodeId> = match clause
         .named_bindings
-        .map(|bindings| &file.arena.node(bindings).data)
+        .map(|bindings| file.arena.node(bindings).data())
     {
         Some(NodeData::NamedImports(named)) => named
             .elements
@@ -432,7 +432,7 @@ pub(super) fn add_to_existing_import<'a>(
             let specs_to_compare_against = if promote_from_type_only {
                 let mut synthetic = Vec::with_capacity(existing_specifiers.len());
                 for &existing in &existing_specifiers {
-                    let NodeData::ImportSpecifier(spec) = &file.arena.node(existing).data else {
+                    let NodeData::ImportSpecifier(spec) = file.arena.node(existing).data() else {
                         unreachable!("an import specifier");
                     };
                     let property_name = spec
@@ -507,7 +507,7 @@ pub(super) fn add_to_existing_import<'a>(
         // it would make a difference in emit (user preference).
         for &specifier in &existing_specifiers {
             let is_type_only = matches!(
-                &file.arena.node(specifier).data,
+                file.arena.node(specifier).data(),
                 NodeData::ImportSpecifier(data) if data.is_type_only
             );
             if !is_type_only {
@@ -530,13 +530,13 @@ fn promote_from_type_only<'a>(
     // See comment in `doAddExistingFix` on constant with the same name.
     let convert_existing_to_type_only = options.verbatim_module_syntax == Some(true);
     let node = file.arena.node(alias_declaration);
-    match &node.data {
+    match node.data() {
         NodeData::ImportSpecifier(spec) => {
             let parent = node
                 .parent
                 .expect("ImportSpecifier parent must be NamedImports");
             if spec.is_type_only {
-                if let NodeData::NamedImports(named) = &file.arena.node(parent).data {
+                if let NodeData::NamedImports(named) = file.arena.node(parent).data() {
                     let elements = named
                         .elements
                         .map(|elements| file.arena.node_array(elements).nodes)
@@ -685,7 +685,7 @@ fn promote_import_clause<'a>(
     convert_existing_to_type_only: bool,
     alias_declaration: Option<NodeId>,
 ) -> Result<(), TransformError> {
-    let NodeData::ImportClause(data) = &file.arena.node(clause).data else {
+    let NodeData::ImportClause(data) = file.arena.node(clause).data() else {
         unreachable!("an import clause");
     };
     // Delete the 'type' keyword
@@ -701,7 +701,7 @@ fn promote_import_clause<'a>(
     let Some(named_bindings) = data.named_bindings else {
         return Ok(());
     };
-    let NodeData::NamedImports(named) = &file.arena.node(named_bindings).data else {
+    let NodeData::NamedImports(named) = file.arena.node(named_bindings).data() else {
         return Ok(());
     };
     let elements = named
@@ -754,7 +754,7 @@ fn promote_import_clause<'a>(
         }
         // Skip if already type-only
         let is_type_only = matches!(
-            &file.arena.node(element).data,
+            file.arena.node(element).data(),
             NodeData::ImportSpecifier(spec) if spec.is_type_only
         );
         if !is_type_only {
@@ -784,14 +784,14 @@ fn delete_type_keyword<'a>(tracker: &mut Tracker<'a>, file: &'a SourceFile, star
 /// tsgo `getModuleSpecifierText`: the module specifier of a promoted
 /// declaration (an import clause or an `import =`).
 fn get_module_specifier_text(file: &SourceFile, promoted: NodeId) -> String {
-    let specifier_text = |expression: NodeId| match &file.arena.node(expression).data {
+    let specifier_text = |expression: NodeId| match file.arena.node(expression).data() {
         NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
         NodeData::NoSubstitutionTemplateLiteral(data) => data.text.to_string_lossy().into_owned(),
         _ => text_of_node(file, expression),
     };
-    if let NodeData::ImportEqualsDeclaration(data) = &file.arena.node(promoted).data {
+    if let NodeData::ImportEqualsDeclaration(data) = file.arena.node(promoted).data() {
         let reference = data.module_reference.expect("an import = reference");
-        if let NodeData::ExternalModuleReference(external) = &file.arena.node(reference).data {
+        if let NodeData::ExternalModuleReference(external) = file.arena.node(reference).data() {
             if let Some(expression) = external.expression {
                 return specifier_text(expression);
             }
@@ -803,7 +803,7 @@ fn get_module_specifier_text(file: &SourceFile, promoted: NodeId) -> String {
         .node(promoted)
         .parent
         .expect("an import declaration");
-    let NodeData::ImportDeclaration(data) = &file.arena.node(declaration).data else {
+    let NodeData::ImportDeclaration(data) = file.arena.node(declaration).data() else {
         unreachable!("an import declaration");
     };
     specifier_text(data.module_specifier.expect("a module specifier"))
@@ -844,7 +844,7 @@ fn add_element_to_binding_pattern<'a>(
         }),
         TransformFlags::NONE,
     )?;
-    let NodeData::ObjectBindingPattern(data) = &file.arena.node(pattern).data else {
+    let NodeData::ObjectBindingPattern(data) = file.arena.node(pattern).data() else {
         unreachable!("an object binding pattern");
     };
     let elements = data.elements.expect("a binding pattern's elements");
@@ -1151,12 +1151,12 @@ pub(super) fn insert_imports<'a>(
 
 /// tsgo `ast.IsRequireVariableStatement`.
 fn is_require_variable_statement(file: &SourceFile, statement: NodeId) -> bool {
-    let NodeData::VariableStatement(data) = &file.arena.node(statement).data else {
+    let NodeData::VariableStatement(data) = file.arena.node(statement).data() else {
         return false;
     };
     let Some(NodeData::VariableDeclarationList(list)) = data
         .declaration_list
-        .map(|list| &file.arena.node(list).data)
+        .map(|list| file.arena.node(list).data())
     else {
         return false;
     };

@@ -1805,7 +1805,7 @@ impl Printer {
         }
 
         let record = transformation.arena().node(node)?;
-        let function_body = match &record.data {
+        let function_body = match record.data() {
             NodeData::FunctionDeclaration(data) => data.body,
             NodeData::FunctionExpression(data) => data.body,
             NodeData::ArrowFunction(data) => data.body,
@@ -1827,7 +1827,7 @@ impl Printer {
         {
             function_body_blocks.insert(body);
         }
-        let requires_literal_rewrite = match &record.data {
+        let requires_literal_rewrite = match record.data() {
             NodeData::NumericLiteral(_) => {
                 let flags = TokenFlags::from_bits(i32::from(record.numeric_literal_flags()));
                 flags.intersects(TokenFlags::IS_INVALID)
@@ -2086,7 +2086,7 @@ impl Printer {
         let (language_variant, statement_array, statements) = {
             let source = transformation.arena().source(source_id)?.syntax();
             let root_record = source.arena.node(root.node());
-            let statement_array = match &root_record.data {
+            let statement_array = match root_record.data() {
                 NodeData::SourceFile(data) => data.statements,
                 _ => return Err(PrinterError::RootIsNotSourceFile(root)),
             };
@@ -2214,7 +2214,7 @@ impl Printer {
             return Err(PrinterError::TransformedNodeWorkerUnavailable(emitted_root));
         }
 
-        let statements = match &transformation.arena().node(root)?.data {
+        let statements = match transformation.arena().node(root)?.data() {
             NodeData::SourceFile(data) => data
                 .statements
                 .and_then(|array| transformation.arena().node_array_ref(source_id, array))
@@ -2239,7 +2239,7 @@ impl Printer {
                     .arena()
                     .node_ref(source_id, statement_id)
                     .ok_or(PrinterError::UnknownStatement(statement_id.index()))?;
-                let expression = match &transformation.arena().node(statement)?.data {
+                let expression = match transformation.arena().node(statement)?.data() {
                     NodeData::ExpressionStatement(data) => {
                         data.expression
                             .ok_or(PrinterError::MissingTransformedChild {
@@ -2460,7 +2460,7 @@ impl Printer {
         root: TransformNode,
     ) -> Result<(), PrinterError> {
         for identifier in transformation.root_declaration_generated_identifiers(root)? {
-            let text = match &transformation.arena().node(identifier)?.data {
+            let text = match transformation.arena().node(identifier)?.data() {
                 NodeData::Identifier(data) => data.text().to_owned(),
                 _ => continue,
             };
@@ -2501,7 +2501,7 @@ impl Printer {
             original_statement_list_end,
         ) = {
             let original_root = transformation.arena().get_original_node(root);
-            match &transformation.arena().node(original_root)?.data {
+            match transformation.arena().node(original_root)?.data() {
                 NodeData::SourceFile(data) => {
                     let statements = data.statements.and_then(|array| {
                         transformation
@@ -3118,11 +3118,11 @@ impl Printer {
     ) -> Option<TransformNode> {
         let arena = transformation.arena();
         let source = statement.source();
-        let NodeData::ExpressionStatement(data) = &arena.node(statement).ok()?.data else {
+        let NodeData::ExpressionStatement(data) = arena.node(statement).ok()?.data() else {
             return None;
         };
         let call = arena.node_ref(source, data.expression?)?;
-        let NodeData::CallExpression(data) = &arena.node(call).ok()?.data else {
+        let NodeData::CallExpression(data) = arena.node(call).ok()?.data() else {
             return None;
         };
         let access = arena.node_ref(source, data.expression?)?;
@@ -3130,17 +3130,17 @@ impl Printer {
             .node_array(arena.node_array_ref(source, data.arguments?)?)
             .ok()?;
         let function = arena.node_ref(source, *arguments.nodes.last()?)?;
-        let NodeData::FunctionExpression(function) = &arena.node(function).ok()?.data else {
+        let NodeData::FunctionExpression(function) = arena.node(function).ok()?.data() else {
             return None;
         };
         let body = arena.node_ref(source, function.body?)?;
-        let NodeData::PropertyAccessExpression(data) = &arena.node(access).ok()?.data else {
+        let NodeData::PropertyAccessExpression(data) = arena.node(access).ok()?.data() else {
             return None;
         };
         let expression = arena.node(arena.node_ref(source, data.expression?)?).ok()?;
         let name = arena.node(arena.node_ref(source, data.name?)?).ok()?;
-        (matches!(&expression.data, NodeData::Identifier(data) if data.text() == "System")
-            && matches!(&name.data, NodeData::Identifier(data) if data.text() == "register"))
+        (matches!(expression.data(), NodeData::Identifier(data) if data.text() == "System")
+            && matches!(name.data(), NodeData::Identifier(data) if data.text() == "register"))
         .then_some(body)
     }
 
@@ -3347,7 +3347,7 @@ impl Printer {
         {
             let record = transformation.arena().node(node)?;
             if matches!(
-                record.data,
+                record.data(),
                 NodeData::Identifier(_) | NodeData::PrivateIdentifier(_)
             ) && !NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
                 && record.parent.is_some()
@@ -3395,7 +3395,7 @@ impl Printer {
 
         let unterminated = record.is_unterminated() == Some(true);
         let decoded_parse_node = Self::is_decoded_parse_node(&record);
-        match record.data {
+        match record.data().clone() {
             // Both statement and expression hints use this worker after the
             // ordinary comment/map phases. Upstream emits no token for this
             // recovery node, while preserving those surrounding observations.
@@ -3981,7 +3981,7 @@ impl Printer {
                         .and_then(crate::LiteralNodeProperties::string_literal_text_source)
                     {
                         let source_record = transformation.arena().node(text_source)?;
-                        let name_text = match &source_record.data {
+                        let name_text = match source_record.data() {
                             NodeData::Identifier(identifier) => Some(identifier.text()),
                             NodeData::PrivateIdentifier(identifier) => Some(identifier.text()),
                             _ => None,
@@ -4029,7 +4029,7 @@ impl Printer {
                             );
                             return Ok(());
                         }
-                        if let NodeData::NumericLiteral(numeric) = &source_record.data {
+                        if let NodeData::NumericLiteral(numeric) = source_record.data() {
                             // getLiteralTextOfNode: a numeric text source
                             // contributes its cooked text
                             // (`textSourceNode.text`), quoted and escaped like
@@ -4067,7 +4067,7 @@ impl Printer {
                                     );
                                 }
                                 if let NodeData::NoSubstitutionTemplateLiteral(template) =
-                                    &source_record.data
+                                    source_record.data()
                                 {
                                     return self.emit_template_literal_token(
                                         transformation,
@@ -4228,7 +4228,7 @@ impl Printer {
                     .attributes
                     .and_then(|id| transformation.arena().node_ref(node.source(), id))
                     .and_then(|attributes| transformation.arena().node(attributes).ok())
-                    .and_then(|attributes| attributes.data.as_jsx_attributes())
+                    .and_then(|attributes| attributes.data().as_jsx_attributes())
                     .and_then(|attributes| attributes.properties)
                     .and_then(|id| transformation.arena().node_array_ref(node.source(), id))
                     .is_some_and(|array| {
@@ -4460,7 +4460,7 @@ impl Printer {
                 writer.set_list_pos(Some(spans));
                 for id in ids {
                     let span = TransformNode::new(node.source(), id);
-                    let expression_id = match &transformation.arena().node(span)?.data {
+                    let expression_id = match transformation.arena().node(span)?.data() {
                         NodeData::TemplateSpan(span_data) => span_data.expression,
                         _ => None,
                     };
@@ -4586,9 +4586,9 @@ impl Printer {
                     // visits the clause's leading comments independently.
                     let modifiers_erased = data.modifiers.is_none()
                         && matches!(
-                            &transformation.arena().node(
+                            transformation.arena().node(
                                 transformation.arena().get_original_node(node)
-                            )?.data,
+                            )?.data(),
                             NodeData::ImportDeclaration(original) if original.modifiers.is_some()
                         );
                     let prefix = if modifiers_erased {
@@ -8393,7 +8393,7 @@ impl Printer {
                     .and_then(|operand| transformation.arena().node_ref(node.source(), operand))
                     .map(|operand| transformation.arena().node(operand))
                     .transpose()?
-                    .and_then(|operand| match &operand.data {
+                    .and_then(|operand| match operand.data() {
                         NodeData::PrefixUnaryExpression(data) => Some(data.operator),
                         _ => None,
                     });
@@ -9659,7 +9659,7 @@ impl Printer {
         let Ok(record) = transformation.arena().node(statement) else {
             return false;
         };
-        let NodeData::ExpressionStatement(data) = &record.data else {
+        let NodeData::ExpressionStatement(data) = record.data() else {
             return false;
         };
         data.expression
@@ -9669,7 +9669,7 @@ impl Printer {
                     .node_ref(statement.source(), expression)
             })
             .and_then(|expression| transformation.arena().node(expression).ok())
-            .is_some_and(|expression| matches!(expression.data, NodeData::StringLiteral(_)))
+            .is_some_and(|expression| matches!(expression.data(), NodeData::StringLiteral(_)))
     }
 
     fn emit_helpers(
@@ -10791,7 +10791,7 @@ impl Printer {
         loop {
             let arena = transformation.arena();
             let record = arena.node(node)?;
-            let NodeData::ParenthesizedExpression(data) = &record.data else {
+            let NodeData::ParenthesizedExpression(data) = record.data() else {
                 return Ok(node);
             };
             if Self::own_original_range(transformation, node)?.is_some() {
@@ -13344,7 +13344,7 @@ impl Printer {
             .arena()
             .node_ref(parent.source(), type_parameter)
             .ok_or(PrinterError::UnknownStatement(type_parameter.index()))?;
-        let NodeData::TypeParameter(data) = transformation.arena().node(parameter)?.data.clone()
+        let NodeData::TypeParameter(data) = transformation.arena().node(parameter)?.data().clone()
         else {
             return Err(PrinterError::UnsupportedTransformedSyntax {
                 node: parameter,
@@ -13575,7 +13575,7 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let NodeData::ImportAttributes(data) =
-            transformation.arena().node(attributes_node)?.data.clone()
+            transformation.arena().node(attributes_node)?.data().clone()
         else {
             return Err(PrinterError::UnsupportedTransformedSyntax {
                 node: attributes_node,
@@ -13894,7 +13894,7 @@ impl Printer {
                 .node_ref(node.source(), body_id)
                 .ok_or(PrinterError::UnknownStatement(body_id.index()))?;
             let record = transformation.arena().node(body)?.clone();
-            let NodeData::ModuleDeclaration(nested) = record.data else {
+            let NodeData::ModuleDeclaration(nested) = record.data() else {
                 writer.write_space(" ");
                 self.emit_node_id_with_context(
                     transformation,
@@ -15516,7 +15516,7 @@ impl Printer {
             .arena()
             .node_ref(arrow.source(), parameter_id)
             .ok_or(PrinterError::UnknownStatement(parameter_id.index()))?;
-        let NodeData::Parameter(parameter_data) = &transformation.arena().node(parameter)?.data
+        let NodeData::Parameter(parameter_data) = transformation.arena().node(parameter)?.data()
         else {
             return Ok(false);
         };
@@ -15583,7 +15583,7 @@ impl Printer {
                 let callee_record = transformation.arena().node(emitted)?;
                 if callee_record.kind == SyntaxKind::CallExpression
                     || matches!(
-                        &callee_record.data,
+                        callee_record.data(),
                         NodeData::NewExpression(data) if data.arguments.is_none()
                     )
                 {
@@ -15646,7 +15646,7 @@ impl Printer {
     ) -> Result<bool, PrinterError> {
         let expression = self.skip_partially_emitted_expressions(transformation, expression)?;
         let record = transformation.arena().node(expression)?;
-        match &record.data {
+        match record.data() {
             NodeData::CommaListExpression(_) => Ok(true),
             NodeData::BinaryExpression(data) => Ok(data
                 .operator_token
@@ -15670,7 +15670,7 @@ impl Printer {
     ) -> Result<bool, PrinterError> {
         let record = transformation.arena().node(expression)?;
         if !crate::factory::is_left_hand_side_expression_kind(record.kind)
-            || matches!(&record.data, NodeData::NewExpression(data) if data.arguments.is_none())
+            || matches!(record.data(), NodeData::NewExpression(data) if data.arguments.is_none())
         {
             return Ok(true);
         }
@@ -15682,7 +15682,7 @@ impl Printer {
 
     fn is_optional_chain(&self, record: &tsc_syntax::Node) -> bool {
         NodeFlags::from_bits(record.flags).contains(NodeFlags::OPTIONAL_CHAIN)
-            || match &record.data {
+            || match record.data() {
                 NodeData::PropertyAccessExpression(data) => data.question_dot_token.is_some(),
                 NodeData::ElementAccessExpression(data) => data.question_dot_token.is_some(),
                 NodeData::CallExpression(data) => data.question_dot_token.is_some(),
@@ -15704,7 +15704,7 @@ impl Printer {
         expression: TransformNode,
     ) -> Result<bool, PrinterError> {
         let emitted = self.skip_partially_emitted_expressions(transformation, expression)?;
-        if let NodeData::CallExpression(data) = &transformation.arena().node(emitted)?.data {
+        if let NodeData::CallExpression(data) = transformation.arena().node(emitted)?.data() {
             if let Some(callee) = data
                 .expression
                 .and_then(|callee| transformation.arena().node_ref(emitted.source(), callee))
@@ -15775,7 +15775,7 @@ impl Printer {
     ) -> Result<bool, PrinterError> {
         let expression = self.skip_partially_emitted_expressions(transformation, expression)?;
         let record = transformation.arena().node(expression)?;
-        if let NodeData::NumericLiteral(data) = &record.data {
+        if let NodeData::NumericLiteral(data) = record.data() {
             if TokenFlags::from_bits(i32::from(record.numeric_literal_flags()))
                 .intersects(TokenFlags::WITH_SPECIFIER)
             {
@@ -15838,7 +15838,7 @@ impl Printer {
     ) -> Result<TransformNode, PrinterError> {
         loop {
             let NodeData::PartiallyEmittedExpression(data) =
-                &transformation.arena().node(expression)?.data
+                transformation.arena().node(expression)?.data()
             else {
                 return Ok(expression);
             };
@@ -15860,7 +15860,7 @@ impl Printer {
     ) -> Result<TransformNode, PrinterError> {
         loop {
             let record = transformation.arena().node(expression)?;
-            let next = match &record.data {
+            let next = match record.data() {
                 NodeData::PostfixUnaryExpression(data) => data.operand,
                 NodeData::BinaryExpression(data) => data.left,
                 NodeData::ConditionalExpression(data) => data.condition,
@@ -16334,7 +16334,7 @@ impl Printer {
             return Ok(None);
         }
         let NodeData::PartiallyEmittedExpression(data) =
-            &transformation.arena().node(expression)?.data
+            transformation.arena().node(expression)?.data()
         else {
             return Ok(None);
         };
@@ -16380,7 +16380,7 @@ impl Printer {
             {
                 return Ok(true);
             }
-            let next = match &transformation.arena().node(expression)?.data {
+            let next = match transformation.arena().node(expression)?.data() {
                 NodeData::PartiallyEmittedExpression(data) => data.expression,
                 NodeData::PropertyAccessExpression(data) => data.expression,
                 NodeData::ElementAccessExpression(data) => data.expression,
@@ -16453,7 +16453,7 @@ impl Printer {
             return Ok(true);
         }
 
-        let NodeData::PartiallyEmittedExpression(data) = &record.data else {
+        let NodeData::PartiallyEmittedExpression(data) = record.data() else {
             return Ok(false);
         };
         let Some(inner) = data
@@ -17874,7 +17874,7 @@ impl Printer {
         node: TransformNode,
     ) -> Result<TypePrecedence, PrinterError> {
         let record = transformation.arena().node(node)?;
-        Ok(match &record.data {
+        Ok(match record.data() {
             NodeData::ConditionalType(_) => TypePrecedence::Conditional,
             NodeData::JSDocOptionalType(_) | NodeData::JSDocVariadicType(_) => {
                 TypePrecedence::JsDoc
@@ -17893,7 +17893,7 @@ impl Printer {
                     .transpose()?
                     .is_some_and(|parameter| {
                         matches!(
-                            &parameter.data,
+                            parameter.data(),
                             NodeData::TypeParameter(data) if data.constraint.is_some()
                         )
                     });
@@ -18831,7 +18831,7 @@ impl Printer {
         }
         let record = transformation.arena().node(node)?;
         let original_record = transformation.arena().node(original)?;
-        let original_text = match &original_record.data {
+        let original_text = match original_record.data() {
             NodeData::Identifier(identifier) => identifier.text(),
             NodeData::PrivateIdentifier(identifier) => identifier.text(),
             _ => return Ok(None),
@@ -20040,7 +20040,7 @@ impl Printer {
     ) -> Result<TokenEmission, PrinterError> {
         let record = transformation.arena().node(token)?;
         if record.kind != SyntaxKind::EqualsGreaterThanToken
-            || !matches!(&record.data, NodeData::Token)
+            || !matches!(record.data(), NodeData::Token)
         {
             return Err(PrinterError::UnsupportedTransformedSyntax {
                 node: token,

@@ -36,7 +36,7 @@ fn print_file(name: &str, text: &str) -> String {
 /// node of a source file, and printed.
 fn print_statements(name: &str, text: &str) -> Vec<String> {
     let file = crate::parse_source_file(name, text, ScriptKind::from_file_name(name));
-    let NodeData::SourceFile(root) = &file.arena.node(file.root).data else {
+    let NodeData::SourceFile(root) = file.arena.node(file.root).data() else {
         unreachable!("a parsed file's root is its source file")
     };
     let statements = file
@@ -300,7 +300,7 @@ fn bad_data_is_a_client_error() {
 /// made: without positions. A single-quoted literal keeps its quote.
 fn synthesized_statement_data(text: &str) -> String {
     let mut file = crate::parse_source_file("/n.ts", text, ScriptKind::Ts);
-    let NodeData::SourceFile(root) = &file.arena.node(file.root).data else {
+    let NodeData::SourceFile(root) = file.arena.node(file.root).data() else {
         unreachable!("a parsed file's root is its source file")
     };
     let statement = file.arena.node_array(root.statements.unwrap()).nodes[0];

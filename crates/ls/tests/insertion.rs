@@ -65,7 +65,7 @@ fn print_decoded(
         },
         None,
     );
-    let NodeData::SourceFile(data) = &source.arena.node(source.root).data else {
+    let NodeData::SourceFile(data) = source.arena.node(source.root).data() else {
         unreachable!()
     };
     let statement = source.arena.node_array(data.statements.unwrap()).nodes[0];
@@ -1349,7 +1349,7 @@ fn assert_source_statement(text: &str, index: usize, printed: &str, expected: &s
         },
         None,
     );
-    let NodeData::SourceFile(data) = &source.arena.node(source.root).data else {
+    let NodeData::SourceFile(data) = source.arena.node(source.root).data() else {
         unreachable!()
     };
     let statement = source.arena.node_array(data.statements.unwrap()).nodes[index];

@@ -83,7 +83,7 @@ impl Request<'_, '_> {
             let name = if kind == SyntaxKind::QualifiedName {
                 Some(id)
             } else {
-                match &self.state.binder.node_record(parent).data {
+                match self.state.binder.node_record(parent).data() {
                     NodeData::QualifiedName(qualified) if qualified.right == Some(id) => {
                         Some(parent)
                     }
@@ -194,7 +194,7 @@ impl Request<'_, '_> {
         };
         let kind = self.kind(node);
         let parent_kind = self.node_kind(parent);
-        let parent_data = &self.state.binder.node_record(parent).data;
+        let parent_data = self.state.binder.node_record(parent).data();
         // /**/<modifier> [|name|] ...
         // /**/<modifier> <class|interface|type|enum|module|namespace|function|get|set> [|name|] ...
         // /**/import [|name|] = ...
@@ -279,7 +279,7 @@ impl Request<'_, '_> {
                 NodeData::ExportDeclaration(export) => {
                     if let Some(clause) = export.export_clause {
                         if let NodeData::NamespaceExport(namespace) =
-                            &self.state.binder.node_record(clause).data
+                            self.state.binder.node_record(clause).data()
                         {
                             if let Some(name) = namespace.name {
                                 return Touching::Node(name);
@@ -420,7 +420,7 @@ impl Request<'_, '_> {
                 if operator.operator == SyntaxKind::ReadonlyKeyword {
                     if let Some(array) = operator.r#type {
                         if let NodeData::ArrayType(array) =
-                            &self.state.binder.node_record(array).data
+                            self.state.binder.node_record(array).data()
                         {
                             if let Some(name) = array
                                 .element_type
@@ -589,11 +589,11 @@ impl Request<'_, '_> {
         import: NodeId,
         for_rename: bool,
     ) -> Option<Touching> {
-        let NodeData::ImportDeclaration(data) = &self.state.binder.node_record(import).data else {
+        let NodeData::ImportDeclaration(data) = self.state.binder.node_record(import).data() else {
             return None;
         };
         if let Some(clause) = data.import_clause {
-            if let NodeData::ImportClause(clause) = &self.state.binder.node_record(clause).data {
+            if let NodeData::ImportClause(clause) = self.state.binder.node_record(clause).data() {
                 if let Some(name) = clause.name {
                     if clause.named_bindings.is_some() {
                         // Not with both a name and named bindings.
@@ -602,7 +602,7 @@ impl Request<'_, '_> {
                     return Some(Touching::Node(name));
                 }
                 if let Some(bindings) = clause.named_bindings {
-                    match &self.state.binder.node_record(bindings).data {
+                    match self.state.binder.node_record(bindings).data() {
                         NodeData::NamedImports(named) => {
                             let elements = named
                                 .elements
@@ -633,11 +633,11 @@ impl Request<'_, '_> {
         export: NodeId,
         for_rename: bool,
     ) -> Option<Touching> {
-        let NodeData::ExportDeclaration(data) = &self.state.binder.node_record(export).data else {
+        let NodeData::ExportDeclaration(data) = self.state.binder.node_record(export).data() else {
             return None;
         };
         if let Some(clause) = data.export_clause {
-            match &self.state.binder.node_record(clause).data {
+            match self.state.binder.node_record(clause).data() {
                 NodeData::NamedExports(named) => {
                     let elements = named
                         .elements
@@ -662,12 +662,12 @@ impl Request<'_, '_> {
     /// extended type names.
     fn heritage_clause_element_name(&self, element: NodeId) -> Option<NodeId> {
         let NodeData::ExpressionWithTypeArguments(data) =
-            &self.state.binder.node_record(element).data
+            self.state.binder.node_record(element).data()
         else {
             return None;
         };
         let expression = data.expression?;
-        match &self.state.binder.node_record(expression).data {
+        match self.state.binder.node_record(expression).data() {
             NodeData::Identifier(_) => Some(expression),
             NodeData::PropertyAccessExpression(access) => access.name,
             _ => None,
@@ -676,7 +676,7 @@ impl Request<'_, '_> {
 
     /// The name of a type reference.
     fn type_reference_name(&self, node: NodeId) -> Option<NodeId> {
-        match &self.state.binder.node_record(node).data {
+        match self.state.binder.node_record(node).data() {
             NodeData::TypeReference(reference) => reference.type_name,
             _ => None,
         }
@@ -685,7 +685,7 @@ impl Request<'_, '_> {
     /// tsgo `ast.SkipOuterExpressions(node, OEKAll)`.
     pub(crate) fn skip_outer_expressions(&self, mut node: NodeId) -> NodeId {
         loop {
-            let next = match &self.state.binder.node_record(node).data {
+            let next = match self.state.binder.node_record(node).data() {
                 NodeData::ParenthesizedExpression(data) => data.expression,
                 NodeData::AsExpression(data) => data.expression,
                 NodeData::SatisfiesExpression(data) => data.expression,
@@ -712,7 +712,7 @@ impl Request<'_, '_> {
                 node = parent;
                 continue;
             }
-            return match &self.state.binder.node_record(parent).data {
+            return match self.state.binder.node_record(parent).data() {
                 NodeData::ImportEqualsDeclaration(import) => {
                     import.module_reference == Some(node)
                         && self.node_kind(node) != SyntaxKind::ExternalModuleReference
@@ -782,7 +782,7 @@ impl Request<'_, '_> {
         let Some(parent) = self.state.binder.node_record(node).parent else {
             return false;
         };
-        match &self.state.binder.node_record(parent).data {
+        match self.state.binder.node_record(parent).data() {
             NodeData::TypeReference(_) => true,
             NodeData::ImportType(import) => !import.is_type_of,
             NodeData::ExpressionWithTypeArguments(_) => self.state.is_part_of_type_node(parent),
@@ -795,7 +795,7 @@ impl Request<'_, '_> {
         let Some(parent) = self.state.binder.node_record(node).parent else {
             return false;
         };
-        match &self.state.binder.node_record(parent).data {
+        match self.state.binder.node_record(parent).data() {
             NodeData::QualifiedName(name) => name.right == Some(node),
             NodeData::PropertyAccessExpression(access) => access.name == Some(node),
             NodeData::MetaProperty(meta) => meta.name == Some(node),
@@ -821,7 +821,7 @@ impl Request<'_, '_> {
                 root = parent;
             }
             is_last_clause = matches!(
-                &self.state.binder.node_record(root).data,
+                self.state.binder.node_record(root).data(),
                 NodeData::QualifiedName(name) if name.right == Some(node)
             );
         }
@@ -854,7 +854,8 @@ impl Request<'_, '_> {
         let Some(clause) = parent_of(element) else {
             return false;
         };
-        let NodeData::HeritageClause(heritage) = &self.state.binder.node_record(clause).data else {
+        let NodeData::HeritageClause(heritage) = self.state.binder.node_record(clause).data()
+        else {
             return false;
         };
         let Some(declaration) = parent_of(clause) else {
@@ -908,7 +909,7 @@ impl Request<'_, '_> {
                 None => break,
             }
         }
-        match &self.state.binder.node_record(parent).data {
+        match self.state.binder.node_record(parent).data() {
             NodeData::NewExpression(_) => {
                 self.state.language_service_contextual_type(parent, flags)
             }
@@ -942,7 +943,7 @@ impl Request<'_, '_> {
             .parent
             .and_then(|block| self.state.binder.node_record(block).parent)
             .expect("a case clause's switch");
-        match &self.state.binder.node_record(switch).data {
+        match self.state.binder.node_record(switch).data() {
             NodeData::SwitchStatement(data) => match data.expression {
                 Some(expression) => Ok(Some(self.state.get_type_at_location(expression)?)),
                 None => Ok(None),
@@ -1064,18 +1065,19 @@ impl Request<'_, '_> {
                 .binder
                 .node_record(node)
                 .parent
-                .is_some_and(|parent| match &self.state.binder.node_record(parent).data {
-                    NodeData::ExternalModuleReference(_) => true,
-                    NodeData::ElementAccessExpression(data) => {
-                        data.argument_expression == Some(node)
-                    }
-                    NodeData::ComputedPropertyName(_) => self
-                        .state
-                        .binder
-                        .node_record(parent)
-                        .parent
-                        .is_some_and(|declaration| self.name_of(declaration) == Some(parent)),
-                    _ => false,
-                })
+                .is_some_and(
+                    |parent| match self.state.binder.node_record(parent).data() {
+                        NodeData::ExternalModuleReference(_) => true,
+                        NodeData::ElementAccessExpression(data) => {
+                            data.argument_expression == Some(node)
+                        }
+                        NodeData::ComputedPropertyName(_) => {
+                            self.state.binder.node_record(parent).parent.is_some_and(
+                                |declaration| self.name_of(declaration) == Some(parent),
+                            )
+                        }
+                        _ => false,
+                    },
+                )
     }
 }

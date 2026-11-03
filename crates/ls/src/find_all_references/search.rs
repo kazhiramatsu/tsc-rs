@@ -846,7 +846,7 @@ fn get_referenced_symbols_for_module(
                 {
                     if let Some(import_type) = request.state.binder.node_record(parent).parent {
                         if let NodeData::ImportType(data) =
-                            &request.state.binder.node_record(import_type).data
+                            request.state.binder.node_record(import_type).data()
                         {
                             if exclude_import_type_of_export_equals && data.qualifier.is_none() {
                                 continue;
@@ -910,7 +910,7 @@ fn get_referenced_symbols_for_module(
             if !file_set.contains(&file) {
                 continue;
             }
-            let node = match &request.state.binder.node_record(declaration).data {
+            let node = match request.state.binder.node_record(declaration).data() {
                 // At `module.exports = ...`, reference node is `module`
                 NodeData::BinaryExpression(binary)
                     if binary.left.is_some_and(|left| {
@@ -918,7 +918,7 @@ fn get_referenced_symbols_for_module(
                     }) =>
                 {
                     let left = binary.left.expect("a left side");
-                    match &request.state.binder.node_record(left).data {
+                    match request.state.binder.node_record(left).data() {
                         NodeData::PropertyAccessExpression(access) => {
                             access.expression.map(Touching::Node)
                         }
@@ -1180,7 +1180,7 @@ fn is_export_specifier_alias(
     reference_location: NodeId,
     export_specifier: NodeId,
 ) -> bool {
-    let NodeData::ExportSpecifier(data) = &request.state.binder.node_record(export_specifier).data
+    let NodeData::ExportSpecifier(data) = request.state.binder.node_record(export_specifier).data()
     else {
         return false;
     };
@@ -1200,7 +1200,7 @@ fn export_declaration_module_specifier(
 ) -> Option<NodeId> {
     let named_exports = request.state.binder.node_record(export_specifier).parent?;
     let declaration = request.state.binder.node_record(named_exports).parent?;
-    match &request.state.binder.node_record(declaration).data {
+    match request.state.binder.node_record(declaration).data() {
         NodeData::ExportDeclaration(data) => data.module_specifier,
         _ => None,
     }
@@ -1507,7 +1507,7 @@ impl RefState<'_, '_, '_, '_> {
                         let mut returned = Vec::new();
                         node_util::for_each_return_statement(source, body, &mut |statement| {
                             if let NodeData::ReturnStatement(data) =
-                                &source.arena.node(statement).data
+                                source.arena.node(statement).data()
                             {
                                 if let Some(expression) = data.expression {
                                     returned.push(expression);
@@ -1523,17 +1523,18 @@ impl RefState<'_, '_, '_, '_> {
                     }
                 }
             } else if let NodeData::TypeAssertionExpression(data) =
-                &source.arena.node(type_having_node).data
+                source.arena.node(type_having_node).data()
             {
                 if let Some(expression) = data.expression {
                     add_if_implementation(self.request, expression);
                 }
-            } else if let NodeData::AsExpression(data) = &source.arena.node(type_having_node).data {
+            } else if let NodeData::AsExpression(data) = source.arena.node(type_having_node).data()
+            {
                 if let Some(expression) = data.expression {
                     add_if_implementation(self.request, expression);
                 }
             } else if let NodeData::SatisfiesExpression(data) =
-                &source.arena.node(type_having_node).data
+                source.arena.node(type_having_node).data()
             {
                 if let Some(expression) = data.expression {
                     add_if_implementation(self.request, expression);
@@ -1646,7 +1647,7 @@ impl RefState<'_, '_, '_, '_> {
             .parent(reference_location)
             .expect("a reference's parent");
         if let (NodeData::ImportSpecifier(data), Touching::Node(id)) = (
-            &self.request.state.binder.node_record(parent).data,
+            self.request.state.binder.node_record(parent).data(),
             reference_location,
         ) {
             if data.property_name == Some(id) {
@@ -1876,7 +1877,7 @@ impl RefState<'_, '_, '_, '_> {
             .state
             .binder
             .node_record(export_specifier)
-            .data
+            .data()
             .clone()
         else {
             return Ok(());
@@ -2508,7 +2509,7 @@ impl RefState<'_, '_, '_, '_> {
                 });
         if let Some(export_specifier) = export_specifier {
             let has_property_name = matches!(
-                &self.request.state.binder.node_record(export_specifier).data,
+                self.request.state.binder.node_record(export_specifier).data(),
                 NodeData::ExportSpecifier(data) if data.property_name.is_some()
             );
             if !is_for_rename_populate_search_symbol_set || !has_property_name {
@@ -2811,7 +2812,7 @@ fn is_second_argument_of_bindable_object_define_property_call(
     let Some(call) = request.state.binder.node_record(node).parent else {
         return false;
     };
-    let NodeData::CallExpression(data) = &request.state.binder.node_record(call).data else {
+    let NodeData::CallExpression(data) = request.state.binder.node_record(call).data() else {
         return false;
     };
     let source = request.state.binder.source_of_node(call);
@@ -2841,7 +2842,7 @@ fn get_parent_symbols_of_property_access(
         .node_record(id)
         .parent
         .expect("a property access");
-    let NodeData::PropertyAccessExpression(data) = &request.state.binder.node_record(parent).data
+    let NodeData::PropertyAccessExpression(data) = request.state.binder.node_record(parent).data()
     else {
         return Ok(Vec::new());
     };
@@ -3001,7 +3002,7 @@ pub(crate) fn is_object_binding_element_without_property_name(
     request: &Request<'_, '_>,
     binding_element: NodeId,
 ) -> bool {
-    let NodeData::BindingElement(data) = &request.state.binder.node_record(binding_element).data
+    let NodeData::BindingElement(data) = request.state.binder.node_record(binding_element).data()
     else {
         return false;
     };
@@ -3072,7 +3073,7 @@ fn is_implementation(request: &Request<'_, '_>, node: NodeId) -> bool {
 
 /// tsgo `isImplementationExpression`.
 fn is_implementation_expression(request: &Request<'_, '_>, node: NodeId) -> bool {
-    match &request.state.binder.node_record(node).data {
+    match request.state.binder.node_record(node).data() {
         NodeData::ParenthesizedExpression(data) => data
             .expression
             .is_some_and(|expression| is_implementation_expression(request, expression)),
@@ -3205,7 +3206,7 @@ fn is_label_of_labeled_statement(request: &Request<'_, '_>, node: NodeId) -> boo
             .parent
             .is_some_and(|parent| {
                 matches!(
-                    &request.state.binder.node_record(parent).data,
+                    request.state.binder.node_record(parent).data(),
                     NodeData::LabeledStatement(data) if data.label == Some(node)
                 )
             })
@@ -3216,7 +3217,7 @@ fn is_readonly_type_operator(request: &Request<'_, '_>, node: Touching) -> bool 
     request.kind(node) == SyntaxKind::ReadonlyKeyword
         && request.parent(node).is_some_and(|parent| {
             matches!(
-                &request.state.binder.node_record(parent).data,
+                request.state.binder.node_record(parent).data(),
                 NodeData::TypeOperator(data) if data.operator == SyntaxKind::ReadonlyKeyword
             )
         })
@@ -3305,7 +3306,7 @@ fn is_function_like_declaration(kind: SyntaxKind) -> bool {
 /// tsgo `Node.Type`: the checker's (annotations and JSDoc types), and the
 /// type of an assertion, a `satisfies` expression or a type alias.
 fn node_type(request: &Request<'_, '_>, node: NodeId) -> Option<NodeId> {
-    match &request.state.binder.node_record(node).data {
+    match request.state.binder.node_record(node).data() {
         NodeData::AsExpression(data) => data.r#type,
         NodeData::SatisfiesExpression(data) => data.r#type,
         NodeData::TypeAssertionExpression(data) => data.r#type,
@@ -3338,7 +3339,7 @@ fn try_get_class_by_extending_identifier(
         return None;
     }
     let clause = request.state.binder.node_record(element).parent?;
-    let NodeData::HeritageClause(data) = &request.state.binder.node_record(clause).data else {
+    let NodeData::HeritageClause(data) = request.state.binder.node_record(clause).data() else {
         return None;
     };
     let class = request.state.binder.node_record(clause).parent?;
@@ -3496,7 +3497,7 @@ fn collect_static_this_keywords(source: &SourceFile, node: NodeId, found: &mut V
 /// tsgo `classLike.Members()`.
 fn class_members(request: &Request<'_, '_>, class_like: NodeId) -> Vec<NodeId> {
     let source = request.state.binder.source_of_node(class_like);
-    let members = match &source.arena.node(class_like).data {
+    let members = match source.arena.node(class_like).data() {
         NodeData::ClassDeclaration(data) => data.members,
         NodeData::ClassExpression(data) => data.members,
         _ => None,

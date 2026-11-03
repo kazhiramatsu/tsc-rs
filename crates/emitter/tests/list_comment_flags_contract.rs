@@ -28,7 +28,7 @@ impl Transformer for FlagTransformer {
         let TransformRoot::SourceFile(source) = root;
         let arena = context.arena();
         let root_node = arena.root(source)?;
-        let NodeData::SourceFile(file) = &arena.node(root_node)?.data else {
+        let NodeData::SourceFile(file) = arena.node(root_node)?.data() else {
             unreachable!()
         };
         let statements = arena
@@ -37,11 +37,11 @@ impl Transformer for FlagTransformer {
         let statement = arena
             .node_ref(source, arena.node_array(statements)?.nodes[0])
             .unwrap();
-        if let NodeData::FunctionDeclaration(mut function) = arena.node(statement)?.data.clone() {
+        if let NodeData::FunctionDeclaration(mut function) = arena.node(statement)?.data().clone() {
             let mut statement = statement;
             let mut body = arena.node_ref(source, function.body.unwrap()).unwrap();
             if let Some((keep_start, keep_end)) = self.body_range {
-                let NodeData::Block(mut block) = arena.node(body)?.data.clone() else {
+                let NodeData::Block(mut block) = arena.node(body)?.data().clone() else {
                     unreachable!()
                 };
                 let original = arena
@@ -106,13 +106,13 @@ impl Transformer for FlagTransformer {
             }
             return Ok(root);
         }
-        let parent = match &arena.node(statement)?.data {
+        let parent = match arena.node(statement)?.data() {
             NodeData::ExpressionStatement(statement) => statement.expression.unwrap(),
             NodeData::VariableStatement(statement) => statement.declaration_list.unwrap(),
             _ => unreachable!(),
         };
         let parent = arena.node_ref(source, parent).unwrap();
-        let array = match &arena.node(parent)?.data {
+        let array = match arena.node(parent)?.data() {
             NodeData::CallExpression(call) => call.arguments.unwrap(),
             NodeData::ArrayLiteralExpression(array) => array.elements.unwrap(),
             NodeData::VariableDeclarationList(list) => list.declarations.unwrap(),
@@ -125,7 +125,7 @@ impl Transformer for FlagTransformer {
             .iter()
             .filter_map(|&id| {
                 let node = arena.node_ref(source, id).unwrap();
-                if let NodeData::VariableDeclaration(data) = &arena.node(node).unwrap().data {
+                if let NodeData::VariableDeclaration(data) = arena.node(node).unwrap().data() {
                     Some((node, data.clone()))
                 } else {
                     None
@@ -141,7 +141,7 @@ impl Transformer for FlagTransformer {
                 .iter()
                 .map(|&node| {
                     let node = arena.node_ref(source, node).unwrap();
-                    if let NodeData::VariableDeclaration(data) = &arena.node(node).unwrap().data {
+                    if let NodeData::VariableDeclaration(data) = arena.node(node).unwrap().data() {
                         arena.node_ref(source, data.name.unwrap()).unwrap()
                     } else {
                         node
@@ -183,13 +183,14 @@ impl Transformer for FlagTransformer {
             let list = context
                 .factory()?
                 .update_variable_declaration_list(parent, list)?;
-            let modifiers =
-                if let NodeData::VariableStatement(data) = &context.arena().node(statement)?.data {
-                    data.modifiers
-                        .and_then(|array| context.arena().node_array_ref(source, array))
-                } else {
-                    unreachable!()
-                };
+            let modifiers = if let NodeData::VariableStatement(data) =
+                context.arena().node(statement)?.data()
+            {
+                data.modifiers
+                    .and_then(|array| context.arena().node_array_ref(source, array))
+            } else {
+                unreachable!()
+            };
             let statement = context
                 .factory()?
                 .update_variable_statement(statement, modifiers, list)?;

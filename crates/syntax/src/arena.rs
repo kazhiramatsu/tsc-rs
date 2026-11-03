@@ -191,7 +191,7 @@ impl SubtreeCopier {
                 let node = old.node(id);
                 self.old_nodes.push(id);
                 collect_node_data_ids(
-                    &node.data(),
+                    node.data(),
                     &mut self.pending_nodes,
                     &mut self.pending_arrays,
                 );

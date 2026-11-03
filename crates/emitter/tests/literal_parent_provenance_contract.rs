@@ -21,7 +21,7 @@ fn state(arena: &TransformArena, node: TransformNode) -> Value {
         }
     };
     let metadata = arena.metadata(node);
-    let NodeData::StringLiteral(data) = &record.data else {
+    let NodeData::StringLiteral(data) = record.data() else {
         panic!("literal")
     };
     let value = data.text.to_utf16();
@@ -62,11 +62,12 @@ fn literal_parent_provenance_matches_typescript() {
                 } else {
                     parse_source_file("main.ts", format!("{token};"), Default::default(), None)
                 };
-                let NodeData::SourceFile(data) = &parsed.arena.node(parsed.root).data else {
+                let NodeData::SourceFile(data) = parsed.arena.node(parsed.root).data() else {
                     panic!("source")
                 };
                 let statement = parsed.arena.node_array(data.statements.unwrap()).nodes[0];
-                let NodeData::ExpressionStatement(data) = &parsed.arena.node(statement).data else {
+                let NodeData::ExpressionStatement(data) = parsed.arena.node(statement).data()
+                else {
                     panic!("statement")
                 };
                 let literal = data.expression.unwrap();

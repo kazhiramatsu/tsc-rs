@@ -216,7 +216,7 @@ fn update_tsconfig_files<'t>(
                     tracker,
                     updater,
                 );
-                let elements = match &config_file.arena.node(initializer).data {
+                let elements = match config_file.arena.node(initializer).data() {
                     NodeData::ArrayLiteralExpression(data) if name == "include" => data.elements,
                     _ => continue,
                 };
@@ -281,7 +281,7 @@ fn update_tsconfig_files<'t>(
                     }
                     for (_, mapping) in object_properties(config_file, value) {
                         let NodeData::ArrayLiteralExpression(data) =
-                            &config_file.arena.node(mapping).data
+                            config_file.arena.node(mapping).data()
                         else {
                             continue;
                         };
@@ -316,7 +316,7 @@ fn update_paths_property<'t>(
     tracker: &mut Tracker<'t>,
     updater: &PathUpdater,
 ) -> bool {
-    let elements = match &config_file.arena.node(initializer).data {
+    let elements = match config_file.arena.node(initializer).data() {
         NodeData::ArrayLiteralExpression(data) => data
             .elements
             .map(|elements| config_file.arena.node_array(elements).nodes.to_vec())
@@ -341,7 +341,7 @@ fn try_update_config_string<'t>(
     tracker: &mut Tracker<'t>,
     updater: &PathUpdater,
 ) -> bool {
-    let NodeData::StringLiteral(literal) = &config_file.arena.node(element).data else {
+    let NodeData::StringLiteral(literal) = config_file.arena.node(element).data() else {
         return false;
     };
     let element_file_name = resolve_path(config_directory, &literal.text.to_string_lossy());
@@ -359,7 +359,7 @@ fn try_update_config_string<'t>(
 /// tsgo `getTsConfigObjectLiteralExpression`: the object of the config's
 /// first statement.
 fn config_object_literal(config_file: &SourceFile) -> Option<NodeId> {
-    let NodeData::SourceFile(data) = &config_file.arena.node(config_file.root).data else {
+    let NodeData::SourceFile(data) = config_file.arena.node(config_file.root).data() else {
         return None;
     };
     let &statement = config_file
@@ -367,7 +367,7 @@ fn config_object_literal(config_file: &SourceFile) -> Option<NodeId> {
         .node_array(data.statements?)
         .nodes
         .first()?;
-    let NodeData::ExpressionStatement(statement) = &config_file.arena.node(statement).data else {
+    let NodeData::ExpressionStatement(statement) = config_file.arena.node(statement).data() else {
         return None;
     };
     let expression = statement.expression?;
@@ -378,7 +378,7 @@ fn config_object_literal(config_file: &SourceFile) -> Option<NodeId> {
 /// tsgo `forEachObjectProperty`: the object's property assignments with a
 /// name text, and their initializers.
 fn object_properties(config_file: &SourceFile, object: NodeId) -> Vec<(String, NodeId)> {
-    let NodeData::ObjectLiteralExpression(data) = &config_file.arena.node(object).data else {
+    let NodeData::ObjectLiteralExpression(data) = config_file.arena.node(object).data() else {
         return Vec::new();
     };
     data.properties
@@ -386,11 +386,11 @@ fn object_properties(config_file: &SourceFile, object: NodeId) -> Vec<(String, N
         .unwrap_or_default()
         .iter()
         .filter_map(|&property| {
-            let NodeData::PropertyAssignment(assignment) = &config_file.arena.node(property).data
+            let NodeData::PropertyAssignment(assignment) = config_file.arena.node(property).data()
             else {
                 return None;
             };
-            let name = match &config_file.arena.node(assignment.name?).data {
+            let name = match config_file.arena.node(assignment.name?).data() {
                 NodeData::StringLiteral(name) => name.text.to_string_lossy().into_owned(),
                 NodeData::NoSubstitutionTemplateLiteral(name) => {
                     name.text.to_string_lossy().into_owned()
@@ -587,7 +587,7 @@ fn updated_import_specifier(
 fn is_ambient_module_symbol(request: &Request<'_, '_>, symbol: tsc_types::SymbolId) -> bool {
     request.declarations_of(symbol).into_iter().any(|declaration| {
         matches!(
-            &request.state.binder.node_record(declaration).data,
+            request.state.binder.node_record(declaration).data(),
             NodeData::ModuleDeclaration(data) if data.name.is_some_and(|name| {
                 matches!(request.node_kind(name), SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral)
             })

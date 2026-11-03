@@ -200,7 +200,7 @@ fn typed_faces_smoke_families_and_preserve_exact_type_flags() {
         factory.arena.transform_flags(array),
         TransformFlags::CONTAINS_TYPE_SCRIPT,
     );
-    let NodeData::ArrayType(array_data) = &factory.arena.node(array).unwrap().data else {
+    let NodeData::ArrayType(array_data) = factory.arena.node(array).unwrap().data() else {
         panic!("ArrayType expected")
     };
     // The factory keeps the element as given; the printer parenthesizes it.
@@ -400,7 +400,7 @@ fn typed_updates_reuse_identity_or_preserve_original_provenance() {
 #[test]
 fn a_rebuilt_union_keeps_its_constituents_unparenthesized() {
     fn members(arena: &TransformArena, union: TransformNode) -> Vec<NodeId> {
-        let NodeData::UnionType(data) = &arena.node(union).unwrap().data else {
+        let NodeData::UnionType(data) = arena.node(union).unwrap().data() else {
             panic!("union type")
         };
         let types = arena
@@ -413,7 +413,7 @@ fn a_rebuilt_union_keeps_its_constituents_unparenthesized() {
     let mut arena = TransformArena::new();
     let source = arena.add_source(&source_file, None);
     let root = arena.root(source).unwrap();
-    let NodeData::SourceFile(file) = &arena.node(root).unwrap().data else {
+    let NodeData::SourceFile(file) = arena.node(root).unwrap().data() else {
         panic!("source file root")
     };
     let statements = arena
@@ -423,7 +423,7 @@ fn a_rebuilt_union_keeps_its_constituents_unparenthesized() {
     let NodeData::TypeAliasDeclaration(alias) = &arena
         .node(arena.node_ref(source, alias).unwrap())
         .unwrap()
-        .data
+        .data()
     else {
         panic!("type alias")
     };
@@ -433,7 +433,7 @@ fn a_rebuilt_union_keeps_its_constituents_unparenthesized() {
     let flags = arena.transform_flags(union) | TransformFlags::CONTAINS_ES_2015;
 
     let mut factory = arena.factory();
-    let data = factory.arena.node(union).unwrap().data.clone();
+    let data = factory.arena.node(union).unwrap().data().clone();
     let reflagged = factory.update_node(union, data, flags).unwrap();
     assert_eq!(members(factory.arena, reflagged), parsed_members);
 
@@ -522,7 +522,7 @@ fn literal_code_units_follow_owned_values_independently_of_source_provenance() {
         "\"\\u{D800}\";\n`\\u{DC00}${1}\\uD800`;\n'plain';\n\"\\u{D800}",
     );
     let statements = {
-        let NodeData::SourceFile(data) = &source_file.arena.node(source_file.root).data else {
+        let NodeData::SourceFile(data) = source_file.arena.node(source_file.root).data() else {
             panic!("source file")
         };
         source_file
@@ -531,7 +531,7 @@ fn literal_code_units_follow_owned_values_independently_of_source_provenance() {
             .nodes
             .to_vec()
     };
-    let expression = |statement: NodeId| match &source_file.arena.node(statement).data {
+    let expression = |statement: NodeId| match source_file.arena.node(statement).data() {
         NodeData::ExpressionStatement(data) => data.expression.unwrap(),
         _ => panic!("expression statement"),
     };
@@ -557,14 +557,14 @@ fn literal_code_units_follow_owned_values_independently_of_source_provenance() {
     );
     // Template fragments own cooked values separately from raw text.
     let (head, tail) = {
-        let NodeData::TemplateExpression(data) = &arena.node(template).unwrap().data else {
+        let NodeData::TemplateExpression(data) = arena.node(template).unwrap().data() else {
             panic!("template expression")
         };
         let spans = &source_file
             .arena
             .node_array(data.template_spans.unwrap())
             .nodes;
-        let NodeData::TemplateSpan(span) = &source_file.arena.node(spans[0]).data else {
+        let NodeData::TemplateSpan(span) = source_file.arena.node(spans[0]).data() else {
             panic!("template span")
         };
         (
@@ -686,7 +686,7 @@ impl crate::Transformer for Utf16LiteralTransformer {
     ) -> Result<crate::TransformRoot, TransformError> {
         let crate::TransformRoot::SourceFile(source) = root;
         let root = context.arena().root(source)?;
-        let end_of_file_token = match &context.arena().node(root)?.data {
+        let end_of_file_token = match context.arena().node(root)?.data() {
             NodeData::SourceFile(data) => data.end_of_file_token,
             _ => unreachable!("transform root is a SourceFile"),
         };
@@ -823,7 +823,7 @@ fn cross_source_missing_declaration_clone_preserves_reachable_decorators() {
         .factory()
         .clone_node_to_source(original, destination)
         .unwrap();
-    let NodeData::MissingDeclaration(data) = &arena.node(cloned).unwrap().data else {
+    let NodeData::MissingDeclaration(data) = arena.node(cloned).unwrap().data() else {
         panic!("missing declaration clone");
     };
     let modifiers = arena
@@ -832,13 +832,13 @@ fn cross_source_missing_declaration_clone_preserves_reachable_decorators() {
     let modifiers = &arena.node_array(modifiers).unwrap().nodes;
     assert_eq!(modifiers.len(), 1);
     let decorator = arena.node_ref(destination, modifiers[0]).unwrap();
-    let NodeData::Decorator(data) = &arena.node(decorator).unwrap().data else {
+    let NodeData::Decorator(data) = arena.node(decorator).unwrap().data() else {
         panic!("cross-source cloning must remap the retained decorator");
     };
     let expression = arena
         .node_ref(destination, data.expression.unwrap())
         .unwrap();
-    let NodeData::Identifier(data) = &arena.node(expression).unwrap().data else {
+    let NodeData::Identifier(data) = arena.node(expression).unwrap().data() else {
         panic!("cross-source cloning must remap the decorator expression");
     };
     assert_eq!(data.text(), "g");
@@ -1005,7 +1005,7 @@ fn access_parenthesization_matches_typescript_kind_and_range_boundaries() {
         let access = factory
             .create_property_access_expression(source, original, member)
             .unwrap();
-        let NodeData::PropertyAccessExpression(data) = &factory.arena.node(access).unwrap().data
+        let NodeData::PropertyAccessExpression(data) = factory.arena.node(access).unwrap().data()
         else {
             panic!("property access for {name}");
         };
@@ -1017,7 +1017,7 @@ fn access_parenthesization_matches_typescript_kind_and_range_boundaries() {
         let record = factory.arena.node(result).unwrap();
         assert_eq!((record.pos, record.end), (5, 15), "{name}");
         if wrapped {
-            let NodeData::ParenthesizedExpression(data) = &record.data else {
+            let NodeData::ParenthesizedExpression(data) = record.data() else {
                 panic!("expected ranged wrapper for {name}");
             };
             assert_eq!(data.expression, Some(original.node()), "{name}");
@@ -1059,7 +1059,7 @@ fn position_free_copy_shares_the_subtrees_without_a_position() {
         })
     }
     fn union_members(arena: &TransformArena, union: TransformNode) -> (NodeArrayId, Vec<NodeId>) {
-        let NodeData::UnionType(data) = &arena.node(union).unwrap().data else {
+        let NodeData::UnionType(data) = arena.node(union).unwrap().data() else {
             panic!("union type");
         };
         let types = data.types.unwrap();
@@ -1103,7 +1103,7 @@ fn position_free_copy_shares_the_subtrees_without_a_position() {
     let NodeData::TupleType(data) = &arena
         .node(arena.node_ref(source, tuple).unwrap())
         .unwrap()
-        .data
+        .data()
     else {
         panic!("tuple type");
     };
@@ -1121,8 +1121,8 @@ fn position_free_copy_shares_the_subtrees_without_a_position() {
         .unwrap();
     assert_ne!(again, copy);
     assert_eq!(
-        arena.node(again).unwrap().data,
-        arena.node(copy).unwrap().data
+        arena.node(again).unwrap().data(),
+        arena.node(copy).unwrap().data()
     );
     assert_eq!(subtree(&arena, again)[1..], subtree(&arena, copy)[1..]);
 

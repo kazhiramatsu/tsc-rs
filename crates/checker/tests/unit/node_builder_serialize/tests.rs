@@ -264,7 +264,7 @@ fn initialized_parameter_before_required_parameter_adds_undefined_union() {
             )
             .expect("serialization succeeds")
             .expect("type node");
-            let NodeData::UnionType(data) = &arena.node(built).expect("union").data else {
+            let NodeData::UnionType(data) = arena.node(built).expect("union").data() else {
                 panic!("undefined composition must be a union")
             };
             let types = arena

@@ -279,16 +279,18 @@ impl<'a> Request<'_, 'a> {
         let parent = self.parent(node);
         let access = parent.filter(|&parent| {
             matches!(
-                &self.state.binder.node_record(parent).data,
+                self.state.binder.node_record(parent).data(),
                 NodeData::PropertyAccessExpression(access)
                     if access.name == Some(match node { Touching::Node(id) => id, Touching::Token { parent, .. } => parent })
                         && matches!(node, Touching::Node(_))
             )
         });
-        let left = access.and_then(|access| match &self.state.binder.node_record(access).data {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            _ => None,
-        });
+        let left = access.and_then(
+            |access| match self.state.binder.node_record(access).data() {
+                NodeData::PropertyAccessExpression(data) => data.expression,
+                _ => None,
+            },
+        );
         if declarations.is_empty() {
             if let Some(left) = left {
                 let ty = self.state.get_type_at_location(left)?;
@@ -311,7 +313,7 @@ impl<'a> Request<'_, 'a> {
         // root expression's symbol.
         let mut resolve_node = node;
         if let Some(mut expression) = left {
-            while let Some(inner) = match &self.state.binder.node_record(expression).data {
+            while let Some(inner) = match self.state.binder.node_record(expression).data() {
                 NodeData::PropertyAccessExpression(data) => data.expression,
                 NodeData::ElementAccessExpression(data) => data.expression,
                 _ => None,
@@ -474,7 +476,7 @@ impl<'a> Request<'_, 'a> {
         let Some(clause) = self.parent_of(id) else {
             return false;
         };
-        let NodeData::ImportClause(data) = &self.state.binder.node_record(clause).data else {
+        let NodeData::ImportClause(data) = self.state.binder.node_record(clause).data() else {
             return false;
         };
         data.name == Some(id)
@@ -666,7 +668,7 @@ impl<'a> Request<'_, 'a> {
         let preferred_mode = resolver.infer_implied_node_format(&file_name);
         let mut files: Vec<String> = Vec::new();
         for import in collect_external_module_references(source).imports {
-            let module_name = match &source.arena.node(import).data {
+            let module_name = match source.arena.node(import).data() {
                 NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
                 NodeData::NoSubstitutionTemplateLiteral(data) => {
                     data.text.to_string_lossy().into_owned()
@@ -738,7 +740,7 @@ impl<'a> Request<'_, 'a> {
 
     /// The property name of an import or export specifier (`a` of `a as b`).
     fn specifier_property_name(&self, node: NodeId) -> Option<String> {
-        let property_name = match &self.state.binder.node_record(node).data {
+        let property_name = match self.state.binder.node_record(node).data() {
             NodeData::ImportSpecifier(data) => data.property_name,
             NodeData::ExportSpecifier(data) => data.property_name,
             _ => None,
@@ -783,7 +785,7 @@ impl<'a> Request<'_, 'a> {
         };
         let is_property_name = self.parent_of(id).is_some_and(|parent| {
             matches!(
-                &self.state.binder.node_record(parent).data,
+                self.state.binder.node_record(parent).data(),
                 NodeData::PropertyAccessExpression(access) if access.name == Some(id)
             )
         });
@@ -819,12 +821,12 @@ impl<'a> Request<'_, 'a> {
         };
         while let Some(id) = current {
             let source = self.state.binder.source_of_node(id);
-            let module_name = match &source.arena.node(id).data {
+            let module_name = match source.arena.node(id).data() {
                 NodeData::ImportDeclaration(data) => data.module_specifier,
                 NodeData::ExportDeclaration(data) => data.module_specifier,
                 NodeData::ImportEqualsDeclaration(data) => {
                     data.module_reference.and_then(|reference| {
-                        match &source.arena.node(reference).data {
+                        match source.arena.node(reference).data() {
                             NodeData::ExternalModuleReference(reference) => reference.expression,
                             _ => None,
                         }
@@ -924,7 +926,7 @@ impl SourceDefResolver<'_> {
 /// else the file.
 fn entry_declarations(file: DeclarationFile<'_>) -> Vec<Declaration<'_>> {
     let source = file.source();
-    let node = match &source.arena.node(source.root).data {
+    let node = match source.arena.node(source.root).data() {
         NodeData::SourceFile(data) => data
             .statements
             .and_then(|statements| source.arena.node_array(statements).nodes.first().copied()),

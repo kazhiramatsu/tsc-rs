@@ -169,11 +169,12 @@ fn assert_slots_agree_with_each_child(name: &str, text: &str, min_kinds: usize) 
         let mut data = node.data().clone();
         try_visit_each_child(&mut data, &mut recorder).unwrap();
         assert_eq!(
-            &data, node.data(),
+            &data,
+            node.data(),
             "{name}: identity visit changed {:?}",
             node.kind
         );
-        let slots = child_slots(&node.data(), &recorder);
+        let slots = child_slots(node.data(), &recorder);
         assert_eq!(
             slot_visits(slots.as_slice()),
             recorder.visits,
@@ -187,7 +188,8 @@ fn assert_slots_agree_with_each_child(name: &str, text: &str, min_kinds: usize) 
         let mut applied = node.data().clone();
         apply_child_slots(&mut applied, &identity, &mut recorder).unwrap();
         assert_eq!(
-            &applied, node.data(),
+            &applied,
+            node.data(),
             "{name}: identity slots changed {:?}",
             node.kind
         );
@@ -197,7 +199,7 @@ fn assert_slots_agree_with_each_child(name: &str, text: &str, min_kinds: usize) 
             let mut mapper = Mapper { arena, remove };
             let mut through_visit = node.data().clone();
             let visit_result = try_visit_each_child(&mut through_visit, &mut mapper);
-            let mut mapped = child_slots(&node.data(), &mapper);
+            let mut mapped = child_slots(node.data(), &mapper);
             let changed = map_child_slots(&mut mapped, &mut mapper).unwrap();
             assert_eq!(
                 changed,

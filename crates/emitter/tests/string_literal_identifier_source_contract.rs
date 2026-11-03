@@ -29,7 +29,7 @@ impl Transformer for LiteralTransformer {
         let TransformRoot::SourceFile(source) = root;
         let arena = context.arena();
         let root_node = arena.root(source)?;
-        let NodeData::SourceFile(file) = &arena.node(root_node)?.data else {
+        let NodeData::SourceFile(file) = arena.node(root_node)?.data() else {
             unreachable!()
         };
         let end_of_file_token = file.end_of_file_token;
@@ -39,7 +39,7 @@ impl Transformer for LiteralTransformer {
         let statement = arena
             .node_ref(source, arena.node_array(statements)?.nodes[0])
             .unwrap();
-        let NodeData::ExpressionStatement(statement) = &arena.node(statement)?.data else {
+        let NodeData::ExpressionStatement(statement) = arena.node(statement)?.data() else {
             unreachable!()
         };
         let mut name = arena
@@ -47,7 +47,7 @@ impl Transformer for LiteralTransformer {
             .unwrap();
         if self.origin == "foreign" {
             let foreign_root = arena.root(self.foreign_source)?;
-            let NodeData::SourceFile(file) = &arena.node(foreign_root)?.data else {
+            let NodeData::SourceFile(file) = arena.node(foreign_root)?.data() else {
                 unreachable!()
             };
             let statements = arena
@@ -56,7 +56,7 @@ impl Transformer for LiteralTransformer {
             let statement = arena
                 .node_ref(self.foreign_source, arena.node_array(statements)?.nodes[0])
                 .unwrap();
-            let NodeData::ExpressionStatement(statement) = &arena.node(statement)?.data else {
+            let NodeData::ExpressionStatement(statement) = arena.node(statement)?.data() else {
                 unreachable!()
             };
             name = arena
@@ -66,12 +66,12 @@ impl Transformer for LiteralTransformer {
         if self.origin == "clone" {
             name = context.factory()?.clone_node(name)?;
         } else if self.origin == "synthetic" {
-            let data = context.arena().node(name)?.data.clone();
+            let data = context.arena().node(name)?.data().clone();
             name = context
                 .factory()?
                 .create_node(source, data, TransformFlags::NONE)?;
         }
-        let data = context.arena().node(name)?.data.clone();
+        let data = context.arena().node(name)?.data().clone();
         let literal = match data {
             NodeData::Identifier(identifier) => context.factory()?.create_node(
                 source,

@@ -47,7 +47,7 @@ fn identifier_named(state: &CheckerState, text: &str) -> NodeId {
         .node_ids()
         .find(|&id| {
             matches!(
-                &source.arena.node(id).data,
+                source.arena.node(id).data(),
                 NodeData::Identifier(data) if data.escaped_text == text
             )
         })

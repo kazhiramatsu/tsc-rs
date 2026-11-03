@@ -153,7 +153,7 @@ fn assign_positions_to_node(
         record.pos = positions.pos(key) as u32;
         record.end = positions.end(key) as u32;
         record.js_doc = None;
-        modifiers.extend(node_util::modifiers_of_data(&record.data));
+        modifiers.extend(node_util::modifiers_of_data(record.data()));
     }
     for &(old, new) in &copy.arrays {
         let (pos, end) = if modifiers.contains(&new) {

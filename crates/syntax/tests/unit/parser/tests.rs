@@ -451,7 +451,8 @@ fn dynamic_phase_imports_follow_tsgo() {
         let NodeData::CallExpression(call) = &source.arena.node(call).data() else {
             unreachable!()
         };
-        let NodeData::MetaProperty(meta) = &source.arena.node(call.expression.unwrap()).data() else {
+        let NodeData::MetaProperty(meta) = &source.arena.node(call.expression.unwrap()).data()
+        else {
             panic!("a meta-property callee");
         };
         assert_eq!(meta.keyword_token, SyntaxKind::ImportKeyword);
@@ -2567,8 +2568,10 @@ fn parse_type_reference_and_postfix_shapes() {
     let NodeData::ArrayType(array) = &source.arena.node(types[2]).data() else {
         panic!("expected array type");
     };
-    let NodeData::TypeReference(qualified) =
-        &source.arena.node(array.element_type.expect("element")).data()
+    let NodeData::TypeReference(qualified) = &source
+        .arena
+        .node(array.element_type.expect("element"))
+        .data()
     else {
         panic!("expected type reference element");
     };
@@ -2662,7 +2665,8 @@ fn parse_object_type_member_shapes() {
             SyntaxKind::SetAccessor,
         ]
     );
-    let NodeData::PropertySignature(readonly_property) = &source.arena.node(members.nodes[1]).data()
+    let NodeData::PropertySignature(readonly_property) =
+        &source.arena.node(members.nodes[1]).data()
     else {
         panic!("expected property signature");
     };
@@ -2884,8 +2888,10 @@ fn parse_type_predicates_in_return_types() {
     let NodeData::MethodSignature(method) = &source.arena.node(members.nodes[0]).data() else {
         panic!("expected method signature");
     };
-    let NodeData::TypePredicate(this_predicate) =
-        &source.arena.node(method.r#type.expect("return type")).data()
+    let NodeData::TypePredicate(this_predicate) = &source
+        .arena
+        .node(method.r#type.expect("return type"))
+        .data()
     else {
         panic!("expected this predicate");
     };
@@ -2941,7 +2947,8 @@ fn parse_generic_arrow_type_assertion_and_object_accessors() {
             .expect("initializer")
     };
 
-    let NodeData::ArrowFunction(arrow) = &source.arena.node(initializer(statements.nodes[0])).data()
+    let NodeData::ArrowFunction(arrow) =
+        &source.arena.node(initializer(statements.nodes[0])).data()
     else {
         panic!("expected arrow function");
     };
@@ -3150,7 +3157,8 @@ fn parse_interface_type_alias_and_enum() {
             .kind,
         SyntaxKind::IntrinsicKeyword
     );
-    let NodeData::EnumDeclaration(enum_declaration) = &source.arena.node(statements[3]).data() else {
+    let NodeData::EnumDeclaration(enum_declaration) = &source.arena.node(statements[3]).data()
+    else {
         panic!("expected enum declaration");
     };
     assert!(enum_declaration.modifiers.is_some());

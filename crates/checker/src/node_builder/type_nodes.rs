@@ -1607,7 +1607,11 @@ fn type_to_type_node_worker(
                     NodeData::StringLiteral(Box::new(StringLiteralData { text: member_name })),
                 )?;
                 let literal = create_literal_type_node(arena, target, literal)?;
-                let parent_data = arena.node(parent_name).map_err(factory_error)?.data.clone();
+                let parent_data = arena
+                    .node(parent_name)
+                    .map_err(factory_error)?
+                    .data()
+                    .clone();
                 let object = match parent_data {
                     NodeData::TypeReference(data) => create_node(
                         arena,
@@ -2239,7 +2243,7 @@ fn resolver_node(checker: &CheckerState<'_>, context: &NodeBuilderContext<'_>) -
 }
 
 fn identifier_text(arena: &TransformArena, node: TransformNode) -> Option<&str> {
-    let NodeData::Identifier(data) = &arena.node(node).ok()?.data else {
+    let NodeData::Identifier(data) = arena.node(node).ok()?.data() else {
         return None;
     };
     Some(data.text())
@@ -3907,11 +3911,11 @@ fn append_reference_to_type(
     context: &NodeBuilderContext<'_>,
 ) -> BuildResult<TransformNode> {
     let access = get_access_stack(arena, reference)?;
-    let reference_arguments = match &arena.node(reference).map_err(factory_error)?.data {
+    let reference_arguments = match arena.node(reference).map_err(factory_error)?.data() {
         NodeData::TypeReference(data) => data.type_arguments,
         _ => None,
     };
-    let root_data = arena.node(root).map_err(factory_error)?.data.clone();
+    let root_data = arena.node(root).map_err(factory_error)?.data().clone();
     let data = match root_data {
         // tsgo: an instantiated qualifier becomes an instantiation
         // expression, `f<string>.C`.
@@ -4012,13 +4016,13 @@ fn get_access_stack(
     arena: &TransformArena,
     reference: TransformNode,
 ) -> BuildResult<Vec<TransformNode>> {
-    let NodeData::TypeReference(data) = &arena.node(reference).map_err(factory_error)?.data else {
+    let NodeData::TypeReference(data) = arena.node(reference).map_err(factory_error)?.data() else {
         return Ok(Vec::new());
     };
     let mut state = data.type_name;
     let mut result = Vec::new();
     while let Some(node) = state.and_then(|node| arena.node_ref(reference.source(), node)) {
-        match &arena.node(node).map_err(factory_error)?.data {
+        match arena.node(node).map_err(factory_error)?.data() {
             NodeData::Identifier(_) => {
                 result.insert(0, node);
                 break;
@@ -5114,7 +5118,7 @@ pub(crate) fn map_to_type_nodes(
         if let Some(node) = type_to_type_node_helper(checker, arena, target, r#type, context)? {
             if may_have_name_collisions {
                 if let NodeData::TypeReference(data) =
-                    &arena.node(node).map_err(factory_error)?.data
+                    arena.node(node).map_err(factory_error)?.data()
                 {
                     if let Some(type_name) = data.type_name {
                         if let NodeData::Identifier(identifier) = &arena
@@ -5123,7 +5127,7 @@ pub(crate) fn map_to_type_nodes(
                             .syntax()
                             .arena
                             .node(type_name)
-                            .data
+                            .data()
                         {
                             seen_names
                                 .entry(identifier.text().to_owned())

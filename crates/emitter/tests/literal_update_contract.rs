@@ -168,7 +168,7 @@ fn template_payload(kind: SyntaxKind, text: JsString, raw_text: Option<String>) 
 }
 
 fn literal_parts(record: &tsc_syntax::Node) -> (JsString, Option<String>, Option<bool>) {
-    match &record.data {
+    match record.data() {
         NodeData::StringLiteral(data) => (
             data.text.clone(),
             None,
@@ -287,7 +287,7 @@ fn apply_generic(
     let (text, raw_text, has_extended_unicode_escape) = literal_parts(&record);
     let scalar = |units: &[u16]| String::from_utf16(units).ok();
     let payload = match (kind == SyntaxKind::StringLiteral, operation) {
-        (_, "same") => record.data.clone(),
+        (_, "same") => record.data().clone(),
         // `createStringLiteral(after, node.singleQuote)` leaves the escape
         // marker unset. The marker is a node property the generic update
         // keeps, so the route expresses the cooked update only where the
@@ -557,7 +557,7 @@ impl Updater {
     ) -> Result<TransformNode, TransformError> {
         let source = template.source();
         let record = context.arena().node(template)?.clone();
-        match record.data {
+        match record.data() {
             NodeData::NoSubstitutionTemplateLiteral(_) => self.update_fragment(context, template),
             NodeData::TemplateExpression(data) => {
                 let head =
@@ -570,7 +570,7 @@ impl Updater {
                 for span_id in span_ids {
                     let span = TransformNode::new(source, span_id);
                     let NodeData::TemplateSpan(span_data) =
-                        context.arena().node(span)?.data.clone()
+                        context.arena().node(span)?.data().clone()
                     else {
                         unreachable!("template span");
                     };
@@ -625,7 +625,7 @@ impl Transformer for Updater {
     ) -> Result<TransformRoot, TransformError> {
         let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
-        let NodeData::SourceFile(file) = context.arena().node(root_node)?.data.clone() else {
+        let NodeData::SourceFile(file) = context.arena().node(root_node)?.data().clone() else {
             unreachable!("source file root");
         };
         let statements_array = TransformNodeArray::new(source, file.statements.unwrap());
@@ -634,7 +634,8 @@ impl Transformer for Updater {
         let mut flags = context.arena().transform_flags(root_node);
         for statement_id in statement_ids {
             let statement = TransformNode::new(source, statement_id);
-            let NodeData::ExpressionStatement(data) = context.arena().node(statement)?.data.clone()
+            let NodeData::ExpressionStatement(data) =
+                context.arena().node(statement)?.data().clone()
             else {
                 statements.push(statement);
                 continue;
@@ -645,7 +646,7 @@ impl Transformer for Updater {
             };
             let expression = TransformNode::new(source, expression_id);
             let record = context.arena().node(expression)?.clone();
-            let updated_expression = match record.data {
+            let updated_expression = match record.data() {
                 NodeData::TaggedTemplateExpression(data) => {
                     let template = self.update_template(
                         context,

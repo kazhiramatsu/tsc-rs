@@ -98,7 +98,7 @@ impl Site<'_> {
             .arena()
             .node(self.node(id))
             .expect("node record")
-            .data
+            .data()
             .clone()
     }
 

@@ -509,7 +509,7 @@ impl Encoder<'_> {
             }
             View::HeritageTypeReference(id) => {
                 let node = self.tree.node(id);
-                let NodeData::ExpressionWithTypeArguments(element) = &node.data else {
+                let NodeData::ExpressionWithTypeArguments(element) = node.data() else {
                     unreachable!("a heritage element")
                 };
                 let mask = 1 | u32::from(element.type_arguments.is_some()) << 1;
@@ -553,7 +553,7 @@ impl Encoder<'_> {
             }
             View::JSDoc(id, pos) => {
                 let node = self.tree.node(id);
-                let NodeData::JSDoc(js_doc) = &node.data else {
+                let NodeData::JSDoc(js_doc) = node.data() else {
                     unreachable!("a JSDoc comment")
                 };
                 // The comment list is always there.
@@ -700,7 +700,7 @@ impl Encoder<'_> {
 
     /// tsgo `recordNodeStrings`.
     fn node_string(&mut self, node: &Node, kind: u32) -> u32 {
-        let text: &[u8] = match &node.data {
+        let text: &[u8] = match node.data() {
             NodeData::Identifier(d) => d.escaped_text.unescape().as_bytes(),
             NodeData::PrivateIdentifier(d) => d.escaped_text.unescape().as_bytes(),
             NodeData::JsxText(d) => d.text.as_bytes(),
@@ -723,7 +723,7 @@ impl Encoder<'_> {
     ) -> u32 {
         let offset = self.extended_data.len() as u32;
         let (pos, end) = (node.pos as usize, node.end as usize);
-        match &node.data {
+        match node.data() {
             NodeData::StringLiteral(d) => {
                 let flags = self.literal_flags(node, STRING_LITERAL_FLAGS);
                 let text = self.strings.add(d.text.as_bytes(), kind, pos, end);

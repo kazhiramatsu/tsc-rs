@@ -469,7 +469,7 @@ fn append_union_member(
     has_undefined: &mut bool,
 ) -> BuildResult<()> {
     let record = arena.node(node).map_err(factory_error)?;
-    if let NodeData::UnionType(data) = &record.data {
+    if let NodeData::UnionType(data) = record.data() {
         let members = match data
             .types
             .and_then(|array| arena.node_array_ref(node.source(), array))
@@ -540,7 +540,7 @@ fn reuse_type_parameters(
         if let Some(constraint) = template_tag_constraint(checker, type_parameter) {
             let constraint = reuse_type_node(checker, arena, target, context, constraint)?;
             if let NodeData::TypeParameter(mut data) =
-                arena.node(reused).map_err(factory_error)?.data.clone()
+                arena.node(reused).map_err(factory_error)?.data().clone()
             {
                 data.constraint = Some(constraint.node());
                 reused = update_factory_node(arena, reused, NodeData::TypeParameter(data))?;
@@ -1629,7 +1629,7 @@ fn reuse_name(
     let reused = reuse_node_or_clone(checker, arena, target, context, name)?;
     let record = arena.node(reused).map_err(factory_error)?;
     // ast.TryGetTextOfPropertyName on the reused name.
-    let (text, is_identifier, is_string_literal) = match &record.data {
+    let (text, is_identifier, is_string_literal) = match record.data() {
         NodeData::Identifier(data) => (
             tsc_types::JsString::from(data.escaped_text.identifier_text()),
             true,
@@ -1645,7 +1645,7 @@ fn reuse_name(
                 .map(|expression| arena.node(TransformNode::new(reused.source(), expression)))
                 .transpose()
                 .map_err(factory_error)?;
-            match expression.map(|expression| &expression.data) {
+            match expression.map(|expression| expression.data()) {
                 Some(NodeData::StringLiteral(data)) => (data.text.clone(), false, false),
                 Some(NodeData::NoSubstitutionTemplateLiteral(data)) => {
                     (data.text.clone(), false, false)

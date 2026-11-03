@@ -35,7 +35,7 @@ fn mapped_type_members_matches_typescript() {
                 let mut arena = TransformArena::new();
                 let source = arena.add_source(&parsed, None);
                 let NodeData::SourceFile(data) =
-                    &arena.node(arena.root(source).unwrap()).unwrap().data
+                    arena.node(arena.root(source).unwrap()).unwrap().data()
                 else {
                     panic!("source")
                 };
@@ -46,12 +46,12 @@ fn mapped_type_members_matches_typescript() {
                 let NodeData::TypeAliasDeclaration(data) = &arena
                     .node(arena.node_ref(source, statement).unwrap())
                     .unwrap()
-                    .data
+                    .data()
                 else {
                     panic!("type alias")
                 };
                 let original = arena.node_ref(source, data.r#type.unwrap()).unwrap();
-                let NodeData::MappedType(mut data) = arena.node(original).unwrap().data.clone()
+                let NodeData::MappedType(mut data) = arena.node(original).unwrap().data().clone()
                 else {
                     panic!("mapped type")
                 };
@@ -151,7 +151,7 @@ fn mapped_type_members_matches_typescript() {
                         "flags":record.flags, "emit_flags":metadata.map_or(EmitFlags::NONE, |m| m.flags()).bits(),
                         "original_present":metadata.and_then(|m| m.original()).is_some()})
                 };
-                let NodeData::MappedType(data) = &arena.node(node).unwrap().data else {
+                let NodeData::MappedType(data) = arena.node(node).unwrap().data() else {
                     unreachable!()
                 };
                 let members = data.members.map(|array| {

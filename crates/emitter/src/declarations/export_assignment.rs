@@ -36,7 +36,7 @@ fn skip_passthrough_expressions(
     mut node: TransformNode,
 ) -> Result<Unwrapped, TransformError> {
     loop {
-        let next = match &cx.arena().node(node)?.data {
+        let next = match cx.arena().node(node)?.data() {
             NodeData::ParenthesizedExpression(data) => data.expression,
             NodeData::BinaryExpression(data)
                 if data.operator_token.is_some_and(|operator| {
@@ -71,7 +71,7 @@ fn unwrap_parenthesized_expression(
     cx: &TransformationContext,
     mut node: TransformNode,
 ) -> Result<Option<TransformNode>, TransformError> {
-    while let NodeData::ParenthesizedExpression(data) = &cx.arena().node(node)?.data {
+    while let NodeData::ParenthesizedExpression(data) = cx.arena().node(node)?.data() {
         let Some(expression) = data.expression else {
             break;
         };
@@ -89,7 +89,7 @@ pub(crate) fn unwrap_parentheses(
     cx: &TransformationContext,
     mut node: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    while let NodeData::ParenthesizedExpression(data) = &cx.arena().node(node)?.data {
+    while let NodeData::ParenthesizedExpression(data) = cx.arena().node(node)?.data() {
         let Some(expression) = data.expression else {
             break;
         };
@@ -315,7 +315,7 @@ impl DeclarationTransformer<'_> {
     ) -> Result<TransformNode, TransformError> {
         let source = self.state()?.current_source_file;
         let name_node = match unwrapped {
-            Unwrapped::Node(node) => match &cx.arena().node(*node)?.data {
+            Unwrapped::Node(node) => match cx.arena().node(*node)?.data() {
                 NodeData::ClassExpression(data) => data.name,
                 NodeData::FunctionExpression(data) => data.name,
                 NodeData::Identifier(_) => Some(node.node()),
@@ -325,7 +325,7 @@ impl DeclarationTransformer<'_> {
             Unwrapped::Cast => None,
         };
         let text = match name_node {
-            Some(name) => match &cx.arena().node(name)?.data {
+            Some(name) => match cx.arena().node(name)?.data() {
                 NodeData::Identifier(data) => data.text().to_owned(),
                 _ => String::new(),
             },
@@ -388,7 +388,7 @@ impl DeclarationTransformer<'_> {
                 factory.create_variable_declaration_list(source, declarations, NodeFlags::CONST)?;
             return factory.create_variable_statement(source, Some(modifiers), list);
         }
-        let (type_parameters, parameters) = match &cx.arena().node(function)?.data {
+        let (type_parameters, parameters) = match cx.arena().node(function)?.data() {
             NodeData::FunctionExpression(data) => (data.type_parameters, data.parameters),
             NodeData::ArrowFunction(data) => (data.type_parameters, data.parameters),
             _ => {

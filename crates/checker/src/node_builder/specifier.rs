@@ -1466,7 +1466,7 @@ fn literal_text_in_source<'a>(
     file_index: usize,
     literal: NodeId,
 ) -> Option<JsStr<'a>> {
-    match &state.binder.source(file_index).arena.node(literal).data {
+    match state.binder.source(file_index).arena.node(literal).data() {
         NodeData::StringLiteral(data) => Some(data.text.as_js()),
         NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.as_js()),
         _ => None,
@@ -4474,7 +4474,7 @@ pub(super) fn module_name_literals(
         if record.parent.is_none() {
             continue;
         }
-        match &record.data {
+        match record.data() {
             NodeData::ImportDeclaration(data) => {
                 if let Some(literal) = string_literal_like(state, data.module_specifier)
                     .filter(|&literal| static_module_reference_is_collected(state, node, literal))

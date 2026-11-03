@@ -44,7 +44,7 @@ pub(crate) fn get_additional_js_syntactic_diagnostics(source: &SourceFile) -> Ve
     let mut stack = vec![source.root];
     let mut children = Vec::new();
     while let Some(node) = stack.pop() {
-        if let NodeData::Parameter(data) = &Published.node(node).data {
+        if let NodeData::Parameter(data) = Published.node(node).data() {
             let decorator = data.modifiers.and_then(|modifiers| {
                 Published
                     .node_array(modifiers)
@@ -86,7 +86,7 @@ impl JsSyntaxChecker<'_> {
     }
 
     fn data(&self, id: NodeId) -> &NodeData {
-        &Published.node(id).data
+        Published.node(id).data()
     }
 
     fn parent_kind(&self, id: NodeId) -> Option<SyntaxKind> {
