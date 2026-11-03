@@ -68,33 +68,39 @@ fn a_large_dropped_range_reads_as_zeros_up_to_both_edges() {
         .all(|&value| value == 0));
 }
 
+/// The tests of one binary run in parallel and share each region: these
+/// rooms lie above the 786,432 slots the large-range test publishes from
+/// position 3, which it fills with 9 while it runs (a claim finds its slots
+/// zero only when no other test holds them).
+const ROOM: u32 = 8_000_000;
+
 #[test]
 fn a_list_built_in_claimed_room_publishes_in_place_or_moves_out() {
-    let mut list = StoreVec::<u32>::claim_room(6_000, 3);
+    let mut list = StoreVec::<u32>::claim_room(ROOM, 3);
     list.push(1);
     list.push(2);
     assert!(list.is_published());
-    assert_eq!(*get::<u32>(6_001), 2);
-    list.publish(6_000);
+    assert_eq!(*get::<u32>(ROOM + 1), 2);
+    list.publish(ROOM);
     assert_eq!(list.capacity(), 2);
     drop(list);
-    assert_eq!(*get::<u32>(6_001), 0);
+    assert_eq!(*get::<u32>(ROOM + 1), 0);
 
-    let mut list = StoreVec::<u32>::claim_room(6_010, 2);
+    let mut list = StoreVec::<u32>::claim_room(ROOM + 10, 2);
     list.push(1);
     list.push(2);
     list.push(3);
     assert!(!list.is_published());
     assert_eq!(&*list, &[1, 2, 3]);
-    assert_eq!(*get::<u32>(6_010), 0, "the slots it left are zeroed");
-    list.publish(6_020);
-    assert_eq!(*get::<u32>(6_022), 3);
+    assert_eq!(*get::<u32>(ROOM + 10), 0, "the slots it left are zeroed");
+    list.publish(ROOM + 20);
+    assert_eq!(*get::<u32>(ROOM + 22), 3);
 
-    let mut list = StoreVec::<u32>::claim_room(6_030, 2);
+    let mut list = StoreVec::<u32>::claim_room(ROOM + 30, 2);
     list.push(4);
-    list.publish(6_040);
-    assert_eq!(*get::<u32>(6_030), 0, "the room it left is zeroed");
-    assert_eq!(*get::<u32>(6_040), 4);
+    list.publish(ROOM + 40);
+    assert_eq!(*get::<u32>(ROOM + 30), 0, "the room it left is zeroed");
+    assert_eq!(*get::<u32>(ROOM + 40), 4);
 }
 
 #[test]
