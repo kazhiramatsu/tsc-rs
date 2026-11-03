@@ -2274,7 +2274,7 @@ fn resolver_node(checker: &CheckerState<'_>, context: &NodeBuilderContext<'_>) -
 }
 
 fn identifier_text(arena: &TransformArena, node: TransformNode) -> Option<&str> {
-    let NodeData::Identifier(data) = arena.node(node).ok()?.data() else {
+    let Some(data) = arena.node(node).ok()?.as_identifier() else {
         return None;
     };
     Some(data.text())
@@ -4046,7 +4046,7 @@ fn get_access_stack(
     arena: &TransformArena,
     reference: TransformNode,
 ) -> BuildResult<Vec<TransformNode>> {
-    let NodeData::TypeReference(data) = arena.node(reference).map_err(factory_error)?.data() else {
+    let Some(data) = arena.node(reference).map_err(factory_error)?.as_type_reference() else {
         return Ok(Vec::new());
     };
     let mut state = data.type_name;

@@ -392,7 +392,7 @@ pub fn get_initializer_of_binary_expression(tree: &impl NodeLookup, mut expr: No
             return expr;
         };
         match data.right {
-            Some(right) if matches!(&tree.node(right).data(), NodeData::BinaryExpression(_)) => {
+            Some(right) if &tree.node(right).kind == SyntaxKind::BinaryExpression => {
                 expr = right;
             }
             Some(right) => return right,

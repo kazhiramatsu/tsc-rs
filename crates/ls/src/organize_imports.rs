@@ -206,7 +206,7 @@ fn organize_imports<'a>(
 /// or a global augmentation.
 fn is_ambient_module(arena: &NodeArena, node: NodeId) -> bool {
     let record = arena.node(node);
-    let NodeData::ModuleDeclaration(module) = record.data() else {
+    let Some(module) = record.as_module_declaration() else {
         return false;
     };
     module
@@ -847,7 +847,7 @@ fn sorted_specifier_list<'a>(
 ) -> TransformNodeArray {
     let original_range = first_named_bindings.and_then(|bindings| {
         let arena = tracker.syntax(source);
-        let NodeData::NamedImports(named_imports) = arena.node(bindings).data() else {
+        let Some(named_imports) = arena.node(bindings).as_named_imports() else {
             return None;
         };
         let record = arena.node_array(named_imports.elements?);
@@ -900,7 +900,7 @@ fn module_specifier(arena: &NodeArena, declaration: NodeId) -> Option<NodeId> {
 
 /// An import declaration's clause.
 fn import_clause(arena: &NodeArena, declaration: NodeId) -> Option<(NodeId, ImportClauseData)> {
-    let NodeData::ImportDeclaration(data) = arena.node(declaration).data() else {
+    let Some(data) = arena.node(declaration).as_import_declaration() else {
         return None;
     };
     let clause = data.import_clause?;
@@ -1048,7 +1048,7 @@ fn get_import_attributes_key(arena: &NodeArena, attributes: Option<NodeId>) -> S
         .unwrap_or_default()
         .iter()
         .filter_map(|&attribute| {
-            let NodeData::ImportAttribute(attribute) = arena.node(attribute).data() else {
+            let Some(attribute) = arena.node(attribute).as_import_attribute() else {
                 return None;
             };
             let name = attribute
@@ -1324,7 +1324,7 @@ fn coalesce_exports_worker<'a>(
         let mut named_exports = Vec::new();
         let mut type_only_exports = Vec::new();
         for &export_decl in &group {
-            let NodeData::ExportDeclaration(export) = arena.node(export_decl).data() else {
+            let Some(export) = arena.node(export_decl).as_export_declaration() else {
                 continue;
             };
             if export.export_clause.is_none() {
@@ -1344,7 +1344,7 @@ fn coalesce_exports_worker<'a>(
             }
             let mut new_export_specifiers: Vec<NodeId> = Vec::new();
             for &export_decl in &sub_group {
-                let NodeData::ExportDeclaration(export) = arena.node(export_decl).data() else {
+                let Some(export) = arena.node(export_decl).as_export_declaration() else {
                     continue;
                 };
                 if let Some(NodeData::NamedExports(named_exports)) =
@@ -1367,7 +1367,7 @@ fn coalesce_exports_worker<'a>(
                     specifier_comparer.1,
                 )
             });
-            let NodeData::ExportDeclaration(export_decl) = arena.node(sub_group[0]).data() else {
+            let Some(export_decl) = arena.node(sub_group[0]).as_export_declaration() else {
                 continue;
             };
             let updated_export_clause = match export_decl.export_clause {

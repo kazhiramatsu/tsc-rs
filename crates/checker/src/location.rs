@@ -134,7 +134,7 @@ impl CheckerState<'_> {
         }
 
         if let Some(parent) = self.parent_of(node) {
-            if let NodeData::MetaProperty(data) = self.data_of(parent) {
+            if let Some(data) = self.record_of(parent).as_meta_property() {
                 if data.keyword_token == self.kind_of(node) {
                     // tsgo checkMetaPropertyKeyword (checker.go:10999-11002)
                     // is a stub returning the error type.
@@ -186,7 +186,7 @@ impl CheckerState<'_> {
     /// The name of a `name is T` predicate that is the whole type of a
     /// JavaScript `@returns` tag: it starts where the predicate starts.
     fn opens_hosted_return_type_predicate(&self, node: NodeId) -> bool {
-        if !matches!(self.data_of(node), NodeData::Identifier(_)) || !self.is_in_js_file(node) {
+        if !self.kind_of(node) == SyntaxKind::Identifier || !self.is_in_js_file(node) {
             return false;
         }
         let Some(predicate) = self
@@ -216,7 +216,7 @@ impl CheckerState<'_> {
     /// string literal, which leaves the JSDoc name without a clone or symbol
     /// (`Some(None)`).
     pub fn jsdoc_reparsed_name(&self, node: NodeId) -> Option<Option<NodeId>> {
-        let NodeData::Identifier(identifier) = self.data_of(node) else {
+        let Some(identifier) = self.record_of(node).as_identifier() else {
             return None;
         };
         let parent = self.parent_of(node)?;
@@ -254,7 +254,7 @@ impl CheckerState<'_> {
         }
         // A `@callback` signature's or a reparsed `@overload` signature's
         // parameter is the reparsed parameter's name (reparser.go:146-236).
-        if let NodeData::JSDocParameterTag(tag) = self.data_of(parent) {
+        if let Some(tag) = self.record_of(parent).as_js_doc_parameter_tag() {
             if tag.name == Some(node) {
                 if let Some(owner) = self
                     .parent_of(parent)
@@ -369,7 +369,7 @@ impl CheckerState<'_> {
                         return Ok(Some(property));
                     }
                 }
-            } else if let NodeData::MetaProperty(data) = self.data_of(parent) {
+            } else if let Some(data) = self.record_of(parent).as_meta_property() {
                 if data.name == Some(node) {
                     let keyword = data.keyword_token;
                     let text = self.identifier_text_of(node).unwrap_or_default().to_owned();
@@ -388,7 +388,7 @@ impl CheckerState<'_> {
                     return Ok(None);
                 }
             }
-            if let NodeData::JSDocParameterTag(tag) = self.data_of(parent) {
+            if let Some(tag) = self.record_of(parent).as_js_doc_parameter_tag() {
                 if tag.name == Some(node) {
                     let pos = self.binder.node_record(node).pos;
                     let function = self.node_at_position(self.binder.file_index_of_node(node), pos);
@@ -546,7 +546,7 @@ impl CheckerState<'_> {
             // a stub (the error type) for the other meta properties.
             SyntaxKind::ImportKeyword | SyntaxKind::NewKeyword => Ok(None),
             SyntaxKind::InstanceOfKeyword => {
-                if let NodeData::BinaryExpression(data) = self.data_of(parent) {
+                if let Some(data) = self.record_of(parent).as_binary_expression() {
                     let Some(right) = data.right else {
                         return Ok(None);
                     };
@@ -1052,7 +1052,7 @@ impl CheckerState<'_> {
             return None;
         }
         let clause = self.parent_of(node)?;
-        let NodeData::HeritageClause(data) = self.data_of(clause) else {
+        let Some(data) = self.record_of(clause).as_heritage_clause() else {
             return None;
         };
         let token = data.token;
@@ -1169,7 +1169,7 @@ impl CheckerState<'_> {
         grand_parent: Option<NodeId>,
     ) -> bool {
         if let Some(grand_parent) = grand_parent {
-            if let NodeData::ImportEqualsDeclaration(data) = self.data_of(grand_parent) {
+            if let Some(data) = self.record_of(grand_parent).as_import_equals_declaration() {
                 if data.module_reference == Some(parent)
                     && matches!(self.data_of(parent), NodeData::ExternalModuleReference(reference) if reference.expression == Some(node))
                 {
@@ -1202,7 +1202,7 @@ impl CheckerState<'_> {
         }
         if self.kind_of(parent) == SyntaxKind::LiteralType {
             if let Some(grand_parent) = grand_parent {
-                if let NodeData::ImportType(data) = self.data_of(grand_parent) {
+                if let Some(data) = self.record_of(grand_parent).as_import_type() {
                     return data.argument == Some(parent);
                 }
             }
@@ -1255,7 +1255,7 @@ impl CheckerState<'_> {
     }
 
     fn literal_import_type_literal(&self, node: NodeId) -> Option<NodeId> {
-        let NodeData::ImportType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_import_type() else {
             return None;
         };
         let argument = data.argument?;
@@ -1271,7 +1271,7 @@ impl CheckerState<'_> {
     }
 
     fn call_argument(&self, call: NodeId, index: usize) -> Option<NodeId> {
-        let NodeData::CallExpression(data) = self.data_of(call) else {
+        let Some(data) = self.record_of(call).as_call_expression() else {
             return None;
         };
         let arguments = data.arguments?;

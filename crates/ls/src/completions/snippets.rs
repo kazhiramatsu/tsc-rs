@@ -539,7 +539,7 @@ fn create_object_literal_method(
     name: TransformNode,
     is_snippet: bool,
 ) -> Result<Option<(TransformNode, tsc_emitter::TransformNodeArray)>, TransformError> {
-    let NodeData::FunctionType(function) = tracker.arena().node(type_node)?.data() else {
+    let Some(function) = tracker.arena().node(type_node)?.as_function_type() else {
         return Ok(None);
     };
     let type_parameters = function
@@ -550,7 +550,7 @@ fn create_object_literal_method(
         let ids = tracker.arena().node_array(list)?.nodes.to_vec();
         for id in ids {
             let parameter = TransformNode::new(type_node.source(), id);
-            let NodeData::Parameter(data) = tracker.arena().node(parameter)?.data() else {
+            let Some(data) = tracker.arena().node(parameter)?.as_parameter() else {
                 continue;
             };
             let child =
@@ -1002,7 +1002,7 @@ fn entity_name_to_expression(
     target: tsc_emitter::TransformSourceId,
     name: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    let NodeData::QualifiedName(qualified) = tracker.arena().node(name)?.data() else {
+    let Some(qualified) = tracker.arena().node(name)?.as_qualified_name() else {
         return Ok(name);
     };
     let source = name.source();

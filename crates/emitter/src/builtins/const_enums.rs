@@ -186,7 +186,7 @@ impl ConstEnumInliningVisitor<'_, '_> {
         }
         let (kind, mut slots) = {
             let record = self.context.arena().node(node)?;
-            let slots = if matches!(record.data(), NodeData::MissingDeclaration(_)) {
+            let slots = if record.kind == SyntaxKind::MissingDeclaration {
                 ChildSlots::new()
             } else {
                 child_slots(&record.data(), &*self)

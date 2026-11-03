@@ -148,7 +148,7 @@ pub(crate) fn is_variable_declaration_initialized_to_bare_or_accessed_require(
     source: &SourceFile,
     node: NodeId,
 ) -> bool {
-    let NodeData::VariableDeclaration(data) = source.arena.node(node).data() else {
+    let Some(data) = source.arena.node(node).as_variable_declaration() else {
         return false;
     };
     let Some(mut initializer) = data.initializer else {
@@ -391,7 +391,7 @@ fn is_module_specifier_like(source: &SourceFile, node: NodeId) -> bool {
     let first_argument = |arguments: Option<tsc_syntax::NodeArrayId>| {
         arguments.and_then(|arguments| source.arena.node_array(arguments).nodes.first().copied())
     };
-    if let NodeData::CallExpression(call) = source.arena.node(parent).data() {
+    if let Some(call) = source.arena.node(parent).as_call_expression() {
         if is_require_call(source, parent, false)
             || tsc_syntax::utilities::is_import_call(&source.arena, parent)
         {
@@ -411,7 +411,7 @@ pub(crate) fn is_require_call(
     node: NodeId,
     require_string_literal_like_argument: bool,
 ) -> bool {
-    let NodeData::CallExpression(call) = source.arena.node(node).data() else {
+    let Some(call) = source.arena.node(node).as_call_expression() else {
         return false;
     };
     let is_require = call.expression.is_some_and(|expression| {

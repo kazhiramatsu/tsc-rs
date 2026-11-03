@@ -52,7 +52,7 @@ impl<'a> CheckerState<'a> {
                 Ok(source.text()[start..raw.end as usize].to_owned())
             }
             SyntaxKind::QualifiedName => {
-                let NodeData::QualifiedName(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_qualified_name() else {
                     unreachable!("kind/data agree");
                 };
                 // A parsed missing identifier is a zero-width node whose
@@ -73,7 +73,7 @@ impl<'a> CheckerState<'a> {
                 Ok(format!("{left}.{right}"))
             }
             SyntaxKind::JsxNamespacedName => {
-                let NodeData::JsxNamespacedName(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_jsx_namespaced_name() else {
                     unreachable!("kind/data agree");
                 };
                 // createJsxNamespacedName's children are required in tsc, but
@@ -93,7 +93,7 @@ impl<'a> CheckerState<'a> {
                 Ok(format!("{}:{}", namespace, name))
             }
             SyntaxKind::PropertyAccessExpression => {
-                let NodeData::PropertyAccessExpression(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_property_access_expression() else {
                     unreachable!("kind/data agree");
                 };
                 let expression = data
@@ -453,14 +453,14 @@ impl<'a> CheckerState<'a> {
         } else {
             match self.kind_of(node) {
                 SyntaxKind::QualifiedName => {
-                    let NodeData::QualifiedName(data) = self.data_of(node) else {
+                    let Some(data) = self.record_of(node).as_qualified_name() else {
                         unreachable!("kind/data agree");
                     };
                     data.right
                 }
                 SyntaxKind::ImportType => Some(node),
                 SyntaxKind::BindingElement => {
-                    let NodeData::BindingElement(data) = self.data_of(node) else {
+                    let Some(data) = self.record_of(node).as_binding_element() else {
                         unreachable!("kind/data agree");
                     };
                     data.property_name.or_else(|| self.name_of_node(node))
@@ -863,7 +863,7 @@ impl<'a> CheckerState<'a> {
     /// non-accessor class property declaration.
     fn is_class_instance_property(&self, node: NodeId) -> bool {
         if self.is_in_js_file(node) {
-            if let NodeData::BinaryExpression(data) = self.data_of(node) {
+            if let Some(data) = self.record_of(node).as_binary_expression() {
                 let Some(left) = data.left else {
                     return false;
                 };
@@ -908,7 +908,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn is_this_initialized_declaration(&self, node: NodeId) -> bool {
-        let NodeData::VariableDeclaration(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_variable_declaration() else {
             return false;
         };
         data.initializer
@@ -928,7 +928,7 @@ impl<'a> CheckerState<'a> {
         let Some(grand) = self.parent_of(parent) else {
             return false;
         };
-        let NodeData::BinaryExpression(data) = self.data_of(grand) else {
+        let Some(data) = self.record_of(grand).as_binary_expression() else {
             return false;
         };
         data.operator_token
@@ -1020,7 +1020,7 @@ impl<'a> CheckerState<'a> {
     /// checkNonNullNonVoidType's consumers are the 5.8 declaration
     /// sites. `x!` on void → never, no diagnostic (pinned).
     pub(crate) fn check_non_null_assertion(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let NodeData::NonNullExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_non_null_expression() else {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
@@ -1062,7 +1062,7 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
         write_only: bool,
     ) -> CheckResult<TypeId> {
-        let NodeData::PropertyAccessExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_property_access_expression() else {
             unreachable!("kind/data agree");
         };
         let (Some(expression), Some(name)) = (data.expression, data.name) else {
@@ -1082,7 +1082,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let NodeData::PropertyAccessExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_property_access_expression() else {
             unreachable!("kind/data agree");
         };
         let (Some(expression), Some(name)) = (data.expression, data.name) else {
@@ -1105,7 +1105,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let NodeData::QualifiedName(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_qualified_name() else {
             unreachable!("kind/data agree");
         };
         let (Some(left), Some(right)) = (data.left, data.right) else {
@@ -1270,7 +1270,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(());
             }
             let is_in_operation = self.parent_of(priv_id).is_some_and(|parent| {
-                let NodeData::BinaryExpression(data) = self.data_of(parent) else {
+                let Some(data) = self.record_of(parent).as_binary_expression() else {
                     return false;
                 };
                 data.operator_token
@@ -2558,7 +2558,7 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 }
-            } else if let NodeData::BinaryExpression(data) = self.data_of(declaration) {
+            } else if let Some(data) = self.record_of(declaration).as_binary_expression() {
                 if data
                     .left
                     .is_some_and(|left| self.kind_of(left) == SyntaxKind::PropertyAccessExpression)
@@ -2966,7 +2966,7 @@ impl<'a> CheckerState<'a> {
         }
         // getResolvedSymbol(getFirstIdentifier(name)).
         let mut first = name;
-        while let NodeData::PropertyAccessExpression(data) = self.data_of(first) {
+        while let Some(data) = self.record_of(first).as_property_access_expression() {
             let Some(expression) = data.expression else {
                 return Ok(false);
             };
@@ -3167,7 +3167,7 @@ impl<'a> CheckerState<'a> {
             };
             if let Some(mut node) = receiver {
                 while self.kind_of(node) == SyntaxKind::ParenthesizedExpression {
-                    let NodeData::ParenthesizedExpression(data) = self.data_of(node) else {
+                    let Some(data) = self.record_of(node).as_parenthesized_expression() else {
                         break;
                     };
                     let Some(inner) = data.expression else { break };
@@ -3244,7 +3244,7 @@ impl<'a> CheckerState<'a> {
                 .parent_of(node)
                 .and_then(|parent| self.get_entity_name_for_extending_interface(parent)),
             SyntaxKind::ExpressionWithTypeArguments => {
-                let NodeData::ExpressionWithTypeArguments(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_expression_with_type_arguments() else {
                     return None;
                 };
                 let expression = data.expression?;
@@ -3697,7 +3697,7 @@ impl<'a> CheckerState<'a> {
         if node_util::node_flags(&Published, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
             return self.check_element_access_chain(node, check_mode);
         }
-        let NodeData::ElementAccessExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_element_access_expression() else {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
@@ -3712,7 +3712,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let NodeData::ElementAccessExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_element_access_expression() else {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
@@ -3731,7 +3731,7 @@ impl<'a> CheckerState<'a> {
         expr_type: TypeId,
         _check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let NodeData::ElementAccessExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_element_access_expression() else {
             unreachable!("kind/data agree");
         };
         let (Some(_expression), Some(index_expression)) =
@@ -3822,7 +3822,7 @@ impl<'a> CheckerState<'a> {
     fn is_for_in_variable_for_numeric_property_names(&mut self, expr: NodeId) -> CheckResult<bool> {
         let mut e = expr;
         while self.kind_of(e) == SyntaxKind::ParenthesizedExpression {
-            let NodeData::ParenthesizedExpression(data) = self.data_of(e) else {
+            let Some(data) = self.record_of(e).as_parenthesized_expression() else {
                 break;
             };
             let Some(inner) = data.expression else { break };
@@ -3846,7 +3846,7 @@ impl<'a> CheckerState<'a> {
         let mut node = self.parent_of(expr);
         while let Some(current) = node {
             if self.kind_of(current) == SyntaxKind::ForInStatement {
-                let NodeData::ForInStatement(data) = self.data_of(current) else {
+                let Some(data) = self.record_of(current).as_for_in_statement() else {
                     unreachable!("kind/data agree");
                 };
                 if data.statement == Some(child) {
@@ -3872,7 +3872,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn get_for_in_variable_symbol(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
-        let NodeData::ForInStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_for_in_statement() else {
             unreachable!("kind/data agree");
         };
         let Some(initializer) = data.initializer else {
@@ -3880,7 +3880,7 @@ impl<'a> CheckerState<'a> {
         };
         match self.kind_of(initializer) {
             SyntaxKind::VariableDeclarationList => {
-                let NodeData::VariableDeclarationList(list) = self.data_of(initializer) else {
+                let Some(list) = self.record_of(initializer).as_variable_declaration_list() else {
                     unreachable!("kind/data agree");
                 };
                 let first = list.declarations.and_then(|declarations| {

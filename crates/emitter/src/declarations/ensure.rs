@@ -62,7 +62,7 @@ impl DeclarationTransformer<'_> {
         if self.kind(cx, element)? == SyntaxKind::OmittedExpression {
             return Ok(element);
         }
-        let NodeData::BindingElement(data) = cx.arena().node(element)?.data() else {
+        let Some(data) = cx.arena().node(element)?.as_binding_element() else {
             return Err(Self::contract(
                 "visitBindingElement received a non-binding element",
             ));
@@ -120,7 +120,7 @@ impl DeclarationTransformer<'_> {
                 )?)
             };
         let result = (|| {
-            let NodeData::Parameter(data) = cx.arena().node(parameter)?.data() else {
+            let Some(data) = cx.arena().node(parameter)?.as_parameter() else {
                 return Err(Self::contract("ensureParameter received a non-parameter"));
             };
             let name = data
@@ -684,7 +684,7 @@ impl DeclarationTransformer<'_> {
             let parent = self
                 .parent(cx, parsed)?
                 .ok_or_else(|| Self::contract("internal parameter has no parse-tree parent"))?;
-            let NodeData::Constructor(data) = cx.arena().node(parent)?.data() else {
+            let Some(data) = cx.arena().node(parent)?.as_constructor() else {
                 return Err(Self::contract(
                     "internal parameter property is not in a constructor",
                 ));
@@ -801,7 +801,7 @@ impl DeclarationTransformer<'_> {
         match self.kind(cx, node)? {
             SyntaxKind::Identifier => Ok(true),
             SyntaxKind::PropertyAccessExpression => {
-                let NodeData::PropertyAccessExpression(data) = cx.arena().node(node)?.data() else {
+                let Some(data) = cx.arena().node(node)?.as_property_access_expression() else {
                     return Ok(false);
                 };
                 if !data.name.is_some_and(|name| {
@@ -1078,7 +1078,7 @@ pub(crate) fn unwrap_parenthesized(
     cx: &TransformationContext,
     mut node: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    while let NodeData::ParenthesizedExpression(data) = cx.arena().node(node)?.data() {
+    while let Some(data) = cx.arena().node(node)?.as_parenthesized_expression() {
         let Some(expression) = data
             .expression
             .and_then(|id| cx.arena().node_ref(node.source(), id))
@@ -1102,7 +1102,7 @@ pub(crate) fn is_primitive_literal_value(
         | SyntaxKind::NoSubstitutionTemplateLiteral
         | SyntaxKind::BigIntLiteral => true,
         SyntaxKind::PrefixUnaryExpression => {
-            let NodeData::PrefixUnaryExpression(data) = cx.arena().node(node)?.data() else {
+            let Some(data) = cx.arena().node(node)?.as_prefix_unary_expression() else {
                 return Ok(false);
             };
             let operand = data

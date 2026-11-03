@@ -244,7 +244,7 @@ impl<'a> File<'a> {
                 });
             }
             View::HeritageTypeReference(id) => {
-                let NodeData::ExpressionWithTypeArguments(element) = tree.node(id).data() else {
+                let Some(element) = tree.node(id).as_expression_with_type_arguments() else {
                     unreachable!("a heritage element")
                 };
                 if let Some(expression) = element.expression {
@@ -258,7 +258,7 @@ impl<'a> File<'a> {
                 }
             }
             View::QualifiedName(id) => {
-                let NodeData::PropertyAccessExpression(access) = tree.node(id).data() else {
+                let Some(access) = tree.node(id).as_property_access_expression() else {
                     unreachable!("a property access")
                 };
                 if let Some(expression) = access.expression {

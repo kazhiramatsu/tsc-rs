@@ -79,7 +79,7 @@ pub fn typedef_type_parameter_range(source: &SourceFile, tag: NodeId) -> Option<
     let mut range: Option<(u32, u32)> = None;
     for &candidate in source.arena.node_array(document.tags?).nodes {
         let node = source.arena.node(candidate);
-        if matches!(node.data(), NodeData::JSDocTemplateTag(_)) {
+        if node.kind == SyntaxKind::JSDocTemplateTag {
             range = Some((range.map_or(node.pos, |(pos, _)| pos), node.end));
         }
     }

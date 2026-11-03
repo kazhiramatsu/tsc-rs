@@ -668,7 +668,7 @@ impl<'a> Decoder<'a> {
     /// class's `implements`) as a TypeReference of an entity name; tsc's
     /// is an ExpressionWithTypeArguments of an entity name expression.
     fn heritage_type(&mut self, element: NodeId) {
-        let NodeData::TypeReference(reference) = self.arena.node(element).data() else {
+        let Some(reference) = self.arena.node(element).as_type_reference() else {
             return;
         };
         let (type_name, type_arguments) = (reference.type_name, reference.type_arguments);
@@ -686,7 +686,7 @@ impl<'a> Decoder<'a> {
     /// tsc's entity name expression of an entity name: a QualifiedName is
     /// a PropertyAccessExpression.
     fn entity_name_expression(&mut self, name: NodeId) -> NodeId {
-        if let NodeData::QualifiedName(qualified) = self.arena.node(name).data() {
+        if let Some(qualified) = self.arena.node(name).as_qualified_name() {
             let (left, right) = (qualified.left, qualified.right);
             let expression = left.map(|left| self.entity_name_expression(left));
             self.arena.reshape(
@@ -705,7 +705,7 @@ impl<'a> Decoder<'a> {
     /// tsgo gives the declaration of a dotted namespace name's later part
     /// an implicit `export` modifier; tsc flags it NestedNamespace instead.
     fn nested_namespace(&mut self, body: NodeId) {
-        if let NodeData::ModuleDeclaration(mut declaration) = self.arena.node(body).data() {
+        if let Some(mut declaration) = self.arena.node(body).as_module_declaration() {
             declaration.modifiers = None;
             self.arena
                 .set_data(body, NodeData::ModuleDeclaration(declaration));

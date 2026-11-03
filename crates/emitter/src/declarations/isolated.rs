@@ -143,7 +143,7 @@ fn parameter_error(
     add_undefined: bool,
 ) -> Result<Diagnostic, TransformError> {
     let record = source.arena.node(node);
-    let NodeData::Parameter(data) = record.data() else {
+    let Some(data) = record.as_parameter() else {
         return Err(contract("parameter diagnostic anchor is not a parameter"));
     };
     if record

@@ -420,7 +420,7 @@ impl<'a> CheckerState<'a> {
             );
             if is_class_element {
                 if let Some(name) = get_name_of_declaration(source, declaration) {
-                    if let NodeData::PrivateIdentifier(data) = Published.node(name).data() {
+                    if let Some(data) = Published.node(name).as_private_identifier() {
                         return JsString::from(data.text());
                     }
                 }
@@ -515,7 +515,7 @@ impl<'a> CheckerState<'a> {
                 .reparsed_type_owner(declaration)
                 .or_else(|| self.parent_of(declaration));
             if let Some(parent) = parent {
-                if let NodeData::VariableDeclaration(variable) = self.data_of(parent) {
+                if let Some(variable) = self.record_of(parent).as_variable_declaration() {
                     return tsc_binder::node_util::declaration_name_to_string(
                         source,
                         variable.name,

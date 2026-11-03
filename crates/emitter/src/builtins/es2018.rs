@@ -565,7 +565,7 @@ impl<'context> Es2018Visitor<'context> {
         if self.tagged_template_string_declarations.is_empty() {
             return Ok(root);
         }
-        let NodeData::SourceFile(mut data) = self.context.arena().node(root)?.data() else {
+        let Some(mut data) = self.context.arena().node(root)?.as_source_file() else {
             return Err(TransformError::RootKindExpected {
                 actual: self.context.arena().node(root)?.kind,
             });
@@ -1399,7 +1399,7 @@ impl<'context> Es2018Visitor<'context> {
             })?);
         let mut statements = vec![binding];
         let statements_range =
-            if let NodeData::Block(block) = self.context.arena().node(body_location)?.data() {
+            if let Some(block) = self.context.arena().node(body_location)?.as_block() {
                 let array = block.statements;
                 statements.extend(self.array_nodes(array)?);
                 array
@@ -1676,7 +1676,7 @@ impl<'context> Es2018Visitor<'context> {
             },
         )?;
         let body_location =
-            if let NodeData::Block(block) = self.context.arena().node(visited_body)?.data() {
+            if let Some(block) = self.context.arena().node(visited_body)?.as_block() {
                 statements.extend(self.array_nodes(block.statements)?);
                 Some(block.statements)
             } else {
@@ -1693,7 +1693,7 @@ impl<'context> Es2018Visitor<'context> {
                     .node_array(self.array(statements_location))?;
                 let (pos, end) = (original_array.pos, original_array.end);
                 let body_record = self.context.arena().node(body)?;
-                let NodeData::Block(block) = body_record.data() else {
+                let Some(block) = body_record.as_block() else {
                     return Err(TransformError::FactoryKindMismatch {
                         expected: SyntaxKind::Block,
                         actual: body_record.kind,
@@ -1998,7 +1998,7 @@ impl<'context> Es2018Visitor<'context> {
                     parent: SyntaxKind::ForOfStatement,
                     field: "statement",
                 })?;
-            if let NodeData::Block(block) = self.context.arena().node(visited)?.data() {
+            if let Some(block) = self.context.arena().node(visited)?.as_block() {
                 statements.extend(self.array_nodes(block.statements)?);
             } else {
                 statements.push(visited);
@@ -2172,7 +2172,7 @@ impl<'context> Es2018Visitor<'context> {
         data.variable_declaration = Some(variable.node());
 
         let block = self.visit_required(data.block, SyntaxKind::CatchClause, "block")?;
-        let NodeData::Block(mut block_data) = self.context.arena().node(block)?.data() else {
+        let Some(mut block_data) = self.context.arena().node(block)?.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::CatchClause,
                 field: "block data",
@@ -2531,7 +2531,7 @@ impl<'context> Es2018Visitor<'context> {
         parameters: Option<NodeArrayId>,
     ) -> Result<bool, TransformError> {
         for parameter in self.array_nodes(parameters)? {
-            let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() else {
+            let Some(data) = self.context.arena().node(parameter)?.as_parameter() else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::Parameter,
                     field: "parameter",
@@ -2560,7 +2560,7 @@ impl<'context> Es2018Visitor<'context> {
         let original = self.array(parameters);
         let mut forwarded = Vec::new();
         for parameter in self.array_nodes(Some(parameters))? {
-            let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() else {
+            let Some(data) = self.context.arena().node(parameter)?.as_parameter() else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::Parameter,
                     field: "parameter",
@@ -2576,7 +2576,7 @@ impl<'context> Es2018Visitor<'context> {
                 },
             )?;
             let binding =
-                if let NodeData::Identifier(identifier) = self.context.arena().node(name)?.data() {
+                if let Some(identifier) = self.context.arena().node(name)?.as_identifier() {
                     let provisional = self
                         .generated_bindings
                         .allocate_local_numbered(identifier.text());
@@ -2628,7 +2628,7 @@ impl<'context> Es2018Visitor<'context> {
         let mut follows_object_rest = false;
         let mut deferred_helpers = DeferredParameterHelpers::default();
         for parameter in self.array_nodes(Some(parameters))? {
-            let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data() else {
+            let Some(mut data) = self.context.arena().node(parameter)?.as_parameter() else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::Parameter,
                     field: "parameter",
@@ -3236,7 +3236,7 @@ impl<'context> Es2018Visitor<'context> {
         pattern: TransformNode,
         identifier: &str,
     ) -> Result<bool, TransformError> {
-        if let NodeData::Identifier(data) = self.context.arena().node(pattern)?.data() {
+        if let Some(data) = self.context.arena().node(pattern)?.as_identifier() {
             return Ok(data.text() == identifier);
         }
         let elements = match self.context.arena().node(pattern)?.data() {
@@ -3404,7 +3404,7 @@ impl<'context> Es2018Visitor<'context> {
         &self,
         expression: TransformNode,
     ) -> Result<(TransformNode, Option<TransformNode>), TransformError> {
-        let NodeData::BinaryExpression(data) = self.context.arena().node(expression)?.data() else {
+        let Some(data) = self.context.arena().node(expression)?.as_binary_expression() else {
             return Ok((expression, None));
         };
         if self.operator_kind(data.operator_token)? != Some(SyntaxKind::EqualsToken) {
@@ -5213,7 +5213,7 @@ impl<'context> Es2018Visitor<'context> {
         if lexical_environment.is_empty() {
             return Ok(root);
         }
-        let NodeData::SourceFile(mut data) = self.context.arena().node(root)?.data() else {
+        let Some(mut data) = self.context.arena().node(root)?.as_source_file() else {
             return Err(TransformError::RootKindExpected {
                 actual: self.context.arena().node(root)?.kind,
             });
@@ -5256,7 +5256,7 @@ impl<'context> Es2018Visitor<'context> {
                 field: "block function body for lexical declarations",
             });
         };
-        let NodeData::Block(mut data) = self.context.arena().node(body)?.data() else {
+        let Some(mut data) = self.context.arena().node(body)?.as_block() else {
             unreachable!("function body was normalized to a block")
         };
         data.statements = self.merge_statement_array(data.statements, lexical_environment)?;
@@ -5400,7 +5400,7 @@ impl<'context> Es2018Visitor<'context> {
             self.context
                 .arena()
                 .node(self.node(expression))
-                .is_ok_and(|expression| matches!(expression.data(), NodeData::StringLiteral(_)))
+                .is_ok_and(|expression| expression.kind == SyntaxKind::StringLiteral)
         }))
     }
 

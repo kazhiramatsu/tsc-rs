@@ -177,7 +177,7 @@ impl Transformer for ClassFieldsTransformer<'_> {
         }
         if self.class_aliases.is_empty()
             || hint != EmitHint::Expression
-            || !matches!(context.arena().node(node)?.data(), NodeData::Identifier(_))
+            || !context.arena().node(node)?.kind == SyntaxKind::Identifier
         {
             return Ok(node);
         }
@@ -896,7 +896,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             if self.statement_is_super_call(*statement)? {
                 return Ok(Some(SuperStatementPath(vec![index])));
             }
-            let NodeData::TryStatement(data) = self.context.arena().node(*statement)?.data() else {
+            let Some(data) = self.context.arena().node(*statement)?.as_try_statement() else {
                 continue;
             };
             let Some(try_block) = data
@@ -905,7 +905,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             else {
                 continue;
             };
-            let NodeData::Block(block) = self.context.arena().node(try_block)?.data() else {
+            let Some(block) = self.context.arena().node(try_block)?.as_block() else {
                 continue;
             };
             let nested = self.array_nodes(block.statements)?;
@@ -928,7 +928,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             return Ok(false);
         };
         let expression = self.skip_parenthesized_expression(self.node(expression))?;
-        let NodeData::CallExpression(data) = self.context.arena().node(expression)?.data() else {
+        let Some(data) = self.context.arena().node(expression)?.as_call_expression() else {
             return Ok(false);
         };
         Ok(data.expression.is_some_and(|expression| {
@@ -965,7 +965,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         emitted_name: Option<NodeId>,
     ) -> Result<Option<ParameterPropertyLocal>, TransformError> {
         let original = self.context.arena().get_original_node(property);
-        let NodeData::Parameter(data) = self.context.arena().node(original)?.data() else {
+        let Some(data) = self.context.arena().node(original)?.as_parameter() else {
             return Ok(None);
         };
         let parameter_modifiers = self.array_nodes(data.modifiers)?;
@@ -1533,7 +1533,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         expression: TransformNode,
         exclude_compound: bool,
     ) -> Result<Option<TransformNode>, TransformError> {
-        let NodeData::BinaryExpression(data) = self.context.arena().node(expression)?.data() else {
+        let Some(data) = self.context.arena().node(expression)?.as_binary_expression() else {
             return Ok(None);
         };
         let Some(operator) = data.operator_token else {
@@ -1616,7 +1616,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
     fn binding_of_generated_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let NodeData::Identifier(identifier) = self.context.arena().node(name).ok()?.data() else {
+        let Some(identifier) = self.context.arena().node(name).ok()?.as_identifier() else {
             return None;
         };
         Some(TargetBinding::from_existing(
@@ -1656,7 +1656,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         name: TransformNode,
         should_hoist: bool,
     ) -> Result<Option<TransformNode>, TransformError> {
-        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data() else {
+        let Some(data) = self.context.arena().node(name)?.as_computed_property_name() else {
             return Ok(None);
         };
         let original_expression = data.expression.map(|node| self.node(node)).ok_or(
@@ -1707,7 +1707,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         &mut self,
         name: TransformNode,
     ) -> Result<(NodeId, NodeId), TransformError> {
-        let NodeData::ComputedPropertyName(data) = self.context.arena().node(name)?.data() else {
+        let Some(data) = self.context.arena().node(name)?.as_computed_property_name() else {
             return Ok((name.node(), name.node()));
         };
         let original_expression = data.expression.map(|node| self.node(node)).ok_or(
@@ -1797,7 +1797,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 continue;
             };
             let record = self.context.arena().node(name)?;
-            if let NodeData::PrivateIdentifier(data) = record.data() {
+            if let Some(data) = record.as_private_identifier() {
                 if record.pos == u32::MAX {
                     let text = data.text().to_owned();
                     if let Some(scope) = self.private_name_scopes.last_mut() {
@@ -2240,7 +2240,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         property: TransformNode,
     ) -> Result<SourceMapRange, TransformError> {
         let record = self.context.arena().node(property)?;
-        let NodeData::PropertyDeclaration(data) = record.data() else {
+        let Some(data) = record.as_property_declaration() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: record.kind,
                 field: "property initializer range",
@@ -2280,7 +2280,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         let Some(inner) = data.expression.map(|node| self.node(node)) else {
             return Ok(None);
         };
-        let NodeData::BinaryExpression(data) = self.context.arena().node(inner)?.data() else {
+        let Some(data) = self.context.arena().node(inner)?.as_binary_expression() else {
             return Ok(None);
         };
         let Some(operator) = data.operator_token else {
@@ -2454,14 +2454,14 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             return Ok(false);
         }
         for member in self.array_nodes(members)? {
-            let NodeData::Constructor(data) = self.context.arena().node(member)?.data() else {
+            let Some(data) = self.context.arena().node(member)?.as_constructor() else {
                 continue;
             };
             if data.body.is_none() {
                 continue;
             }
             for parameter in self.array_nodes(data.parameters)? {
-                let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() else {
+                let Some(data) = self.context.arena().node(parameter)?.as_parameter() else {
                     continue;
                 };
                 if let Some(name) = data.name {
@@ -2850,7 +2850,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         let Some(body) = data.body else {
             return Ok(None);
         };
-        let NodeData::Block(data) = self.context.arena().node(self.node(body))?.data() else {
+        let Some(data) = self.context.arena().node(self.node(body))?.as_block() else {
             return Ok(None);
         };
         let statements = self.array_nodes(data.statements)?;
@@ -2868,7 +2868,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         let Some(expression) = self.retained_static_block_expression(node)? else {
             return Ok(false);
         };
-        let NodeData::BinaryExpression(data) = self.context.arena().node(expression)?.data() else {
+        let Some(data) = self.context.arena().node(expression)?.as_binary_expression() else {
             return Ok(false);
         };
         let (Some(operator), Some(left), Some(right)) =
@@ -2901,7 +2901,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         {
             return Ok(false);
         }
-        let NodeData::CallExpression(data) = self.context.arena().node(expression)?.data() else {
+        let Some(data) = self.context.arena().node(expression)?.as_call_expression() else {
             return Ok(false);
         };
         let arguments = self.array_nodes(data.arguments)?;
@@ -2948,7 +2948,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         let derived = self.retained_class_is_derived(container)?;
         let existing_data = constructor
             .map(|node| {
-                let NodeData::Constructor(data) = self.context.arena().node(node)?.data() else {
+                let Some(data) = self.context.arena().node(node)?.as_constructor() else {
                     return Err(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::Constructor,
                         field: "constructor data",
@@ -2979,7 +2979,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 .and_then(|data| data.body)
                 .map(|node| self.node(node));
             let (old_statements, mut statements) = if let Some(body) = old_body {
-                let NodeData::Block(data) = self.context.arena().node(body)?.data() else {
+                let Some(data) = self.context.arena().node(body)?.as_block() else {
                     return Err(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::Constructor,
                         field: "body block",
@@ -3164,7 +3164,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             return Ok(false);
         }
         let original = self.context.arena().get_original_node(node);
-        let NodeData::Parameter(data) = self.context.arena().node(original)?.data() else {
+        let Some(data) = self.context.arena().node(original)?.as_parameter() else {
             return Ok(false);
         };
         for modifier in self.array_nodes(data.modifiers)? {
@@ -3219,14 +3219,14 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             })?;
         self.visit_statement_slice(output, &input[offset..index])?;
         let mut offset = index + 1;
-        if let NodeData::TryStatement(mut data) = self.context.arena().node(statement)?.data() {
+        if let Some(mut data) = self.context.arena().node(statement)?.as_try_statement() {
             let block = data.try_block.map(|node| self.node(node)).ok_or(
                 TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::TryStatement,
                     field: "try_block",
                 },
             )?;
-            let NodeData::Block(mut block_data) = self.context.arena().node(block)?.data() else {
+            let Some(mut block_data) = self.context.arena().node(block)?.as_block() else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::TryStatement,
                     field: "block data",
@@ -3275,7 +3275,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             _ => return Ok(false),
         };
         for clause in self.array_nodes(clauses)? {
-            let NodeData::HeritageClause(data) = self.context.arena().node(clause)?.data() else {
+            let Some(data) = self.context.arena().node(clause)?.as_heritage_clause() else {
                 continue;
             };
             if data.token != SyntaxKind::ExtendsKeyword {
@@ -3479,7 +3479,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         if !self.is_custom_prologue(node) {
             return Ok(false);
         }
-        let NodeData::VariableStatement(statement) = self.context.arena().node(node)?.data() else {
+        let Some(statement) = self.context.arena().node(node)?.as_variable_statement() else {
             return Ok(false);
         };
         let Some(list) = statement.declaration_list else {
@@ -3513,7 +3513,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
     }
 
     fn prologue_text(&self, node: TransformNode) -> Result<Option<JsString>, TransformError> {
-        let NodeData::ExpressionStatement(data) = self.context.arena().node(node)?.data() else {
+        let Some(data) = self.context.arena().node(node)?.as_expression_statement() else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {
@@ -3524,7 +3524,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             return Ok(None);
         }
         // The syntax payload of all literal-like expressions is shared.
-        let NodeData::StringLiteral(data) = record.data() else {
+        let Some(data) = record.as_string_literal() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::ExpressionStatement,
                 field: "string literal prologue payload",
@@ -3652,7 +3652,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         &mut self,
         original: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Parameter(mut data) = self.context.arena().node(original)?.data() else {
+        let Some(mut data) = self.context.arena().node(original)?.as_parameter() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Parameter,
                 field: "parameter data",
@@ -3775,7 +3775,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             self.context.factory()?.set_text_range(block, original)?;
             block
         };
-        let NodeData::Block(mut data) = self.context.arena().node(block)?.data() else {
+        let Some(mut data) = self.context.arena().node(block)?.as_block() else {
             unreachable!("function conversion creates a block")
         };
         let mut statements = self.array_nodes(data.statements)?;

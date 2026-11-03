@@ -469,7 +469,7 @@ fn append_union_member(
     has_undefined: &mut bool,
 ) -> BuildResult<()> {
     let record = arena.node(node).map_err(factory_error)?;
-    if let NodeData::UnionType(data) = record.data() {
+    if let Some(data) = record.as_union_type() {
         let members = match data
             .types
             .and_then(|array| arena.node_array_ref(node.source(), array))

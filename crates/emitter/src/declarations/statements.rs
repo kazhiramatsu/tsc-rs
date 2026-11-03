@@ -942,7 +942,7 @@ fn first_constructor_with_body(
     class: TransformNode,
 ) -> Result<Option<TransformNode>, TransformError> {
     for member in source_array(context, class.source(), class_data(context, class)?.members)? {
-        if let NodeData::Constructor(data) = context.arena().node(member)?.data() {
+        if let Some(data) = context.arena().node(member)?.as_constructor() {
             if let Some(body) = data.body {
                 let body = context
                     .arena()
@@ -1115,7 +1115,7 @@ pub(crate) fn has_any_binding_initializers(
         _ => None,
     };
     for element in source_array(context, pattern.source(), elements)? {
-        let NodeData::BindingElement(data) = context.arena().node(element)?.data() else {
+        let Some(data) = context.arena().node(element)?.as_binding_element() else {
             continue;
         };
         if data.initializer.is_some() {
@@ -2604,7 +2604,7 @@ fn is_external_module_augmentation(
         node: crate::TransformNode,
     ) -> Result<bool, TransformError> {
         let record = context.arena().node(node)?;
-        let NodeData::ModuleDeclaration(data) = record.data() else {
+        let Some(data) = record.as_module_declaration() else {
             return Ok(false);
         };
         Ok(

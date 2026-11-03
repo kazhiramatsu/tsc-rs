@@ -1156,7 +1156,7 @@ fn get_all_accessor_declarations(
 
 /// The text of a parameter's name.
 fn parameter_name_text(source: &SourceFile, parameter: NodeId) -> String {
-    let NodeData::Parameter(data) = source.arena.node(parameter).data() else {
+    let Some(data) = source.arena.node(parameter).as_parameter() else {
         return String::new();
     };
     match data.name.map(|name| source.arena.node(name).data()) {

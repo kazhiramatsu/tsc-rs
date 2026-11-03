@@ -5914,7 +5914,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        let NodeData::CallExpression(call) = self.data_of(declaration) else {
+        let Some(call) = self.record_of(declaration).as_call_expression() else {
             unreachable!("bindable defineProperty call has call data");
         };
         let descriptor = self.nodes_of(call.arguments)[2];
@@ -5936,7 +5936,7 @@ impl<'a> CheckerState<'a> {
             if let Some(declaration) =
                 writable.and_then(|property| self.binder.symbol(property).value_declaration)
             {
-                if let NodeData::PropertyAssignment(data) = self.data_of(declaration) {
+                if let Some(data) = self.record_of(declaration).as_property_assignment() {
                     let initializer = data.initializer.expect("property assignment initializer");
                     let raw_type = self.check_expression(initializer, CheckMode::NORMAL)?;
                     if raw_type == self.tables.intrinsics.false_fresh

@@ -37,7 +37,7 @@ impl<'a> CheckerState<'a> {
     /// checkGrammarModifiers feeds the && chain so the grammar workers
     /// sit in tsc's slots.
     pub(crate) fn check_variable_statement(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::VariableStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_variable_statement() else {
             unreachable!("kind/data agree");
         };
         let Some(declaration_list) = data.declaration_list else {
@@ -61,7 +61,7 @@ impl<'a> CheckerState<'a> {
     /// using/await-using below ESNext requires the paired disposal
     /// helpers when importHelpers is enabled.
     pub(crate) fn check_variable_declaration_list(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::VariableDeclarationList(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_variable_declaration_list() else {
             unreachable!("kind/data agree");
         };
         let block_scope_kind = self.node_flags(node) & NodeFlags::BLOCK_SCOPED.bits();
@@ -145,7 +145,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if is_binding_element {
-            let NodeData::BindingElement(data) = self.data_of(node) else {
+            let Some(data) = self.record_of(node).as_binding_element() else {
                 unreachable!("kind/data agree");
             };
             let (dot_dot_dot, property_name) = (data.dot_dot_dot_token, data.property_name);
@@ -740,7 +740,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration_list: NodeId,
     ) -> CheckResult<bool> {
-        let NodeData::VariableDeclarationList(data) = self.data_of(declaration_list) else {
+        let Some(data) = self.record_of(declaration_list).as_variable_declaration_list() else {
             unreachable!("kind/data agree");
         };
         let declarations = data.declarations;
@@ -888,7 +888,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b9957e90211a97064ed1f557b7648e68bfd5f77c0cebb3b53ca6c9d77b193903
     /// tsc-span: _tsc.js:90063-90099
     fn check_grammar_variable_declaration(&mut self, node: NodeId) -> CheckResult<bool> {
-        let NodeData::VariableDeclaration(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_variable_declaration() else {
             unreachable!("kind/data agree");
         };
         let (name, exclamation_token, annotation, initializer) = (
@@ -1216,7 +1216,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 362d42c73508058edac981bf53b16ca8ef9efe987c1ac5ebef4d56ac2bc0c132
     /// tsc-span: _tsc.js:90023-90037
     fn check_grammar_binding_element(&mut self, node: NodeId) -> bool {
-        let NodeData::BindingElement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_binding_element() else {
             unreachable!("kind/data agree");
         };
         let (dot_dot_dot, property_name, name, initializer) = (
@@ -1765,7 +1765,7 @@ impl<'a> CheckerState<'a> {
         if !self.is_in_js_file(node) {
             return Some(initializer);
         }
-        let NodeData::BinaryExpression(data) = self.data_of(initializer) else {
+        let Some(data) = self.record_of(initializer).as_binary_expression() else {
             return Some(initializer);
         };
         if !data.operator_token.is_some_and(|operator| {
@@ -1928,7 +1928,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:83626-83635
     pub(crate) fn check_if_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_statement_in_ambient_context(node);
-        let NodeData::IfStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_if_statement() else {
             unreachable!("kind/data agree");
         };
         let (expression, then_statement, else_statement) =
@@ -1960,7 +1960,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:83738-83742
     pub(crate) fn check_do_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_statement_in_ambient_context(node);
-        let NodeData::DoStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_do_statement() else {
             unreachable!("kind/data agree");
         };
         let (statement, expression) = (data.statement, data.expression);
@@ -1976,7 +1976,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:83743-83747
     pub(crate) fn check_while_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_statement_in_ambient_context(node);
-        let NodeData::WhileStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_while_statement() else {
             unreachable!("kind/data agree");
         };
         let (expression, statement) = (data.expression, data.statement);
@@ -1994,7 +1994,7 @@ impl<'a> CheckerState<'a> {
     /// Loop-local unused identifiers are registered after the body
     /// walk, preserving tsc's deferred producer order.
     pub(crate) fn check_for_statement(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::ForStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_for_statement() else {
             unreachable!("kind/data agree");
         };
         let (initializer, condition, incrementor, statement) = (
@@ -2038,7 +2038,7 @@ impl<'a> CheckerState<'a> {
     /// export is reported at its first requesting syntax node.
     pub(crate) fn check_for_of_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_for_in_or_for_of_statement(node)?;
-        let NodeData::ForOfStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_for_of_statement() else {
             unreachable!("kind/data agree");
         };
         let (await_modifier, initializer, statement) =
@@ -2124,7 +2124,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         statement: NodeId,
     ) -> CheckResult<TypeId> {
-        let NodeData::ForOfStatement(data) = self.data_of(statement) else {
+        let Some(data) = self.record_of(statement).as_for_of_statement() else {
             unreachable!("kind/data agree");
         };
         let (await_modifier, expression) = (data.await_modifier, data.expression);
@@ -2146,7 +2146,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:83858-83889
     pub(crate) fn check_for_in_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_for_in_or_for_of_statement(node)?;
-        let NodeData::ForInStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_for_in_statement() else {
             unreachable!("kind/data agree");
         };
         let (initializer, expression, statement) =
@@ -2506,7 +2506,7 @@ impl<'a> CheckerState<'a> {
     /// tsgo (checker.go:4114-4122) checks the return expression first, so its
     /// names resolve even when the return statement is misplaced.
     pub(crate) fn check_return_statement(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::ReturnStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_return_statement() else {
             unreachable!("kind/data agree");
         };
         let expression = data.expression;
@@ -2632,7 +2632,7 @@ impl<'a> CheckerState<'a> {
                 &[],
             );
         }
-        let NodeData::WithStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_with_statement() else {
             unreachable!("kind/data agree");
         };
         let (expression, statement) = (data.expression, data.statement);
@@ -2669,7 +2669,7 @@ impl<'a> CheckerState<'a> {
     /// locals register after all clauses are checked.
     pub(crate) fn check_switch_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_statement_in_ambient_context(node);
-        let NodeData::SwitchStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_switch_statement() else {
             unreachable!("kind/data agree");
         };
         let (expression, case_block) = (data.expression, data.case_block);
@@ -2760,7 +2760,7 @@ impl<'a> CheckerState<'a> {
     /// errorOrSuggestion's tri-state option projection is preserved:
     /// absent = suggestion, explicit false = error, true = suppressed.
     pub(crate) fn check_labeled_statement(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::LabeledStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_labeled_statement() else {
             unreachable!("kind/data agree");
         };
         let (label, statement) = (data.label, data.statement);
@@ -2818,7 +2818,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 0290673363a1ea730a006aebe88afb8bdcd18f2e9cbef47902b8bba29fe69b83
     /// tsc-span: _tsc.js:84661-84670
     pub(crate) fn check_throw_statement(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::ThrowStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_throw_statement() else {
             unreachable!("kind/data agree");
         };
         let expression = data.expression;
@@ -2870,7 +2870,7 @@ impl<'a> CheckerState<'a> {
     /// (IndexMap).
     pub(crate) fn check_try_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_statement_in_ambient_context(node);
-        let NodeData::TryStatement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_try_statement() else {
             unreachable!("kind/data agree");
         };
         let (try_block, catch_clause, finally_block) =
@@ -2879,7 +2879,7 @@ impl<'a> CheckerState<'a> {
             self.check_block(try_block)?;
         }
         if let Some(catch_clause) = catch_clause {
-            let NodeData::CatchClause(clause_data) = self.data_of(catch_clause) else {
+            let Some(clause_data) = self.record_of(catch_clause).as_catch_clause() else {
                 unreachable!("kind/data agree");
             };
             let (variable_declaration, catch_block) =

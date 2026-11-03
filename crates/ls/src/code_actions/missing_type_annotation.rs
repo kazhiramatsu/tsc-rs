@@ -2212,7 +2212,7 @@ fn find_expando_function(
     };
     let mut assignment_target = expando_declaration;
     // Some late bound expando members use the whole expression as the declaration.
-    if let NodeData::BinaryExpression(binary) = file.arena.node(assignment_target).data() {
+    if let Some(binary) = file.arena.node(assignment_target).as_binary_expression() {
         let Some(left) = binary
             .left
             .filter(|&left| is_expando_property_declaration_for_fix(file.arena.node(left).kind))
@@ -2469,7 +2469,7 @@ fn walk_up_parenthesized_expressions(file: &SourceFile, mut node: NodeId) -> Nod
 /// tsgo `getIdentifierNameForNode`: a property access's name, else
 /// `newLocal`.
 fn get_identifier_name_for_node(file: &SourceFile, node: NodeId) -> String {
-    if let NodeData::PropertyAccessExpression(data) = file.arena.node(node).data() {
+    if let Some(data) = file.arena.node(node).as_property_access_expression() {
         if let Some(NodeData::Identifier(name)) = data.name.map(|name| file.arena.node(name).data())
         {
             if tsc_syntax::identifier_to_keyword_kind(name.text()).is_none() {

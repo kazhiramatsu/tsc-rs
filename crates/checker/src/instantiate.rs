@@ -1114,7 +1114,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(true);
             }
             if self.kind_of(current) == SyntaxKind::ConditionalType {
-                let NodeData::ConditionalType(data) = self.data_of(current) else {
+                let Some(data) = self.record_of(current).as_conditional_type() else {
                     unreachable!("ConditionalType kind implies payload");
                 };
                 if let Some(extends_type) = data.extends_type {
@@ -1194,7 +1194,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             SyntaxKind::TypeQuery => {
-                let NodeData::TypeQuery(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_type_query() else {
                     unreachable!("TypeQuery kind implies payload");
                 };
                 let type_arguments = data.type_arguments;
@@ -2470,7 +2470,7 @@ impl<'a> CheckerState<'a> {
                 .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::JSDocOverloadTag)
             {
                 if let Some(document) = self.get_jsdoc_root(node) {
-                    if let NodeData::JSDoc(data) = self.data_of(document) {
+                    if let Some(data) = self.record_of(document).as_js_doc() {
                         return self
                             .nodes_of(data.tags)
                             .into_iter()
@@ -2489,7 +2489,7 @@ impl<'a> CheckerState<'a> {
         }
         if self.is_jsdoc_type_alias(node) {
             if let Some(document) = self.parent_of(node) {
-                if let NodeData::JSDoc(data) = self.data_of(document) {
+                if let Some(data) = self.record_of(document).as_js_doc() {
                     return self
                         .nodes_of(data.tags)
                         .into_iter()
@@ -2585,7 +2585,7 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                     if kind == SyntaxKind::MappedType {
-                        let NodeData::MappedType(data) = self.data_of(node) else {
+                        let Some(data) = self.record_of(node).as_mapped_type() else {
                             unreachable!("MappedType kind implies payload");
                         };
                         let type_parameter = data
@@ -2648,7 +2648,7 @@ impl<'a> CheckerState<'a> {
                     let mut outer = self
                         .get_outer_type_parameters(node, include_this_types)?
                         .unwrap_or_default();
-                    if let NodeData::JSDoc(data) = self.data_of(node) {
+                    if let Some(data) = self.record_of(node).as_js_doc() {
                         let declarations: Vec<NodeId> = self
                             .nodes_of(data.tags)
                             .into_iter()

@@ -205,7 +205,7 @@ impl DeclarationTransformer<'_> {
         };
 
         if self.kind(cx, input)? == SyntaxKind::TypeQuery {
-            if let NodeData::TypeQuery(data) = cx.arena().node(input)?.data() {
+            if let Some(data) = cx.arena().node(input)?.as_type_query() {
                 if let Some(name) = data
                     .expr_name
                     .and_then(|name| cx.arena().node_ref(input.source(), name))
@@ -514,7 +514,7 @@ impl DeclarationTransformer<'_> {
                         }
                     }
                     SyntaxKind::CallSignature => {
-                        let NodeData::CallSignature(data) = cx.arena().node(input)?.data() else {
+                        let Some(data) = cx.arena().node(input)?.as_call_signature() else {
                             return Err(Self::contract("call-signature kind/data mismatch"));
                         };
                         let type_parameters =
@@ -536,7 +536,7 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::IndexSignature => {
-                        let NodeData::IndexSignature(data) = cx.arena().node(input)?.data() else {
+                        let Some(data) = cx.arena().node(input)?.as_index_signature() else {
                             return Err(Self::contract("index-signature kind/data mismatch"));
                         };
                         let parameters = self.update_params_list(
@@ -611,7 +611,7 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::TypeParameter => {
-                        let NodeData::TypeParameter(data) = cx.arena().node(input)?.data() else {
+                        let Some(data) = cx.arena().node(input)?.as_type_parameter() else {
                             return Err(Self::contract("type-parameter kind/data mismatch"));
                         };
                         if self.is_private_method_type_parameter(cx, input)?
@@ -632,7 +632,7 @@ impl DeclarationTransformer<'_> {
                         }
                     }
                     SyntaxKind::ConditionalType => {
-                        let NodeData::ConditionalType(data) = cx.arena().node(input)?.data() else {
+                        let Some(data) = cx.arena().node(input)?.as_conditional_type() else {
                             return Err(Self::contract("conditional-type kind/data mismatch"));
                         };
                         let check =
@@ -686,7 +686,7 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::ImportType => {
-                        let NodeData::ImportType(data) = cx.arena().node(input)?.data() else {
+                        let Some(data) = cx.arena().node(input)?.as_import_type() else {
                             return Err(Self::contract("import-type kind/data mismatch"));
                         };
                         let argument = data
@@ -982,7 +982,7 @@ impl DeclarationTransformer<'_> {
             .ok_or_else(|| Self::contract("dynamic declaration has no name"))?;
         self.tracker.error_name_node = Some(name);
         let result = (|| {
-            let NodeData::ComputedPropertyName(data) = cx.arena().node(name)?.data() else {
+            let Some(data) = cx.arena().node(name)?.as_computed_property_name() else {
                 return Err(Self::contract(
                     "checkName requires a computed property name",
                 ));
@@ -1310,7 +1310,7 @@ fn dynamic_name_expression(
     let Some(name) = declaration_name(cx, node)? else {
         return Ok(None);
     };
-    let NodeData::ComputedPropertyName(data) = cx.arena().node(name)?.data() else {
+    let Some(data) = cx.arena().node(name)?.as_computed_property_name() else {
         return Ok(None);
     };
     let Some(expression) = data
@@ -1536,7 +1536,7 @@ fn update_variable(
     r#type: Option<TransformNode>,
     initializer: Option<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
-    let NodeData::VariableDeclaration(data) = cx.arena().node(original)?.data() else {
+    let Some(data) = cx.arena().node(original)?.as_variable_declaration() else {
         return Err(DeclarationTransformer::contract(
             "variable update kind mismatch",
         ));
@@ -1555,7 +1555,7 @@ fn update_literal_type(
     literal: TransformNode,
 ) -> Result<TransformNode, TransformError> {
     // Dispatch through the typed literal-type update face.
-    let NodeData::LiteralType(mut data) = cx.arena().node(original)?.data() else {
+    let Some(mut data) = cx.arena().node(original)?.as_literal_type() else {
         return Err(DeclarationTransformer::contract(
             "literal-type update kind mismatch",
         ));

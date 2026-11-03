@@ -301,15 +301,15 @@ fn module_specifier_expression(arena: &NodeArena, declaration: NodeId) -> Option
         NodeData::ImportDeclaration(data) => data.module_specifier,
         NodeData::VariableStatement(data) => {
             let list = data.declaration_list?;
-            let NodeData::VariableDeclarationList(list) = arena.node(list).data() else {
+            let Some(list) = arena.node(list).as_variable_declaration_list() else {
                 return None;
             };
             let first = *arena.node_array(list.declarations?).nodes.first()?;
-            let NodeData::VariableDeclaration(declaration) = arena.node(first).data() else {
+            let Some(declaration) = arena.node(first).as_variable_declaration() else {
                 return None;
             };
             let initializer = declaration.initializer?;
-            let NodeData::CallExpression(call) = arena.node(initializer).data() else {
+            let Some(call) = arena.node(initializer).as_call_expression() else {
                 return None;
             };
             arena.node_array(call.arguments?).nodes.first().copied()
@@ -362,7 +362,7 @@ fn import_kind_order(arena: &NodeArena, statement: NodeId) -> u8 {
             let Some(clause) = data.import_clause else {
                 return 0;
             };
-            let NodeData::ImportClause(clause) = arena.node(clause).data() else {
+            let Some(clause) = arena.node(clause).as_import_clause() else {
                 return 7;
             };
             if clause.is_type_only {
@@ -527,19 +527,19 @@ pub(crate) fn detect_named_import_organization_by_sort(
     let mut both_named_imports = false;
     let mut named_imports_by_declaration: Vec<Vec<NodeId>> = Vec::new();
     for &declaration in declarations {
-        let NodeData::ImportDeclaration(data) = arena.node(declaration).data() else {
+        let Some(data) = arena.node(declaration).as_import_declaration() else {
             continue;
         };
         let Some(clause) = data.import_clause else {
             continue;
         };
-        let NodeData::ImportClause(clause) = arena.node(clause).data() else {
+        let Some(clause) = arena.node(clause).as_import_clause() else {
             continue;
         };
         let Some(bindings) = clause.named_bindings else {
             continue;
         };
-        let NodeData::NamedImports(named) = arena.node(bindings).data() else {
+        let Some(named) = arena.node(bindings).as_named_imports() else {
             continue;
         };
         let elements = named

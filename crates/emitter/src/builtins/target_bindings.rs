@@ -147,7 +147,7 @@ impl ParsedSourceIdentifierNames {
         // Most identifier texts repeat many times per file; a name already
         // in the census is skipped before its parse ownership is checked.
         for (offset, record) in syntax.arena.nodes().iter().enumerate() {
-            let NodeData::Identifier(identifier) = record.data() else {
+            let Some(identifier) = record.as_identifier() else {
                 continue;
             };
             if names.contains(identifier.text()) {
@@ -632,7 +632,7 @@ pub(super) fn collect_untagged_identifier_texts(
         }
         let node = TransformNode::new(source, id);
         let record = arena.node(node)?;
-        if let NodeData::Identifier(data) = record.data() {
+        if let Some(data) = record.as_identifier() {
             if !names.contains(data.text())
                 && arena
                     .metadata(node)

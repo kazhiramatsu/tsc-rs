@@ -311,7 +311,7 @@ impl<'a> CheckerState<'a> {
                 parent = self.parent_of(current);
             }
             if let Some(parent) = parent {
-                if let NodeData::BinaryExpression(data) = self.data_of(parent) {
+                if let Some(data) = self.record_of(parent).as_binary_expression() {
                     let (left, operator) = (data.left, data.operator_token);
                     // tsc isAssignmentExpression (72671): EVERY
                     // assignment operator counts — the `??=` prototype
@@ -518,7 +518,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<TypeId>> {
         let pattern = self.parent_of(declaration).expect("element has a pattern");
         let parent = self.parent_of(pattern).expect("pattern has a declaration");
-        let NodeData::BindingElement(data) = self.data_of(declaration) else {
+        let Some(data) = self.record_of(declaration).as_binding_element() else {
             unreachable!("kind/data agree");
         };
         let (property_name, element_name, dot_dot_dot) = (
@@ -1052,7 +1052,7 @@ impl<'a> CheckerState<'a> {
         if let Some(type_node) = self.assignment_declaration_type_node(binary) {
             return Ok(Some(self.get_type_from_type_node(type_node)?));
         }
-        let NodeData::BinaryExpression(data) = self.data_of(binary) else {
+        let Some(data) = self.record_of(binary).as_binary_expression() else {
             unreachable!("kind/data agree");
         };
         match data.operator_token.map(|token| self.kind_of(token)) {
@@ -1069,7 +1069,7 @@ impl<'a> CheckerState<'a> {
         context_flags: ContextFlags,
     ) -> CheckResult<Option<TypeId>> {
         let binary = self.parent_of(node).expect("operand has a binary parent");
-        let NodeData::BinaryExpression(data) = self.data_of(binary) else {
+        let Some(data) = self.record_of(binary).as_binary_expression() else {
             unreachable!("kind/data agree");
         };
         let (left, operator_token, right) = (data.left, data.operator_token, data.right);
@@ -1176,7 +1176,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         binary: NodeId,
     ) -> CheckResult<Option<TypeId>> {
-        let NodeData::BinaryExpression(data) = self.data_of(binary) else {
+        let Some(data) = self.record_of(binary).as_binary_expression() else {
             unreachable!("kind/data agree");
         };
         let left = data.left.expect("assignment has a left side");
@@ -1725,7 +1725,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(name) = self.name_of_node(element) {
             if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
-                let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
+                let Some(data) = self.record_of(name).as_computed_property_name() else {
                     unreachable!("kind/data agree");
                 };
                 if let Some(expression) = data.expression {
@@ -1914,7 +1914,7 @@ impl<'a> CheckerState<'a> {
         context_flags: ContextFlags,
     ) -> CheckResult<Option<TypeId>> {
         let conditional = self.parent_of(node).expect("operand has a conditional");
-        let NodeData::ConditionalExpression(data) = self.data_of(conditional) else {
+        let Some(data) = self.record_of(conditional).as_conditional_expression() else {
             unreachable!("kind/data agree");
         };
         if Some(node) == data.when_true || Some(node) == data.when_false {
@@ -1994,7 +1994,7 @@ impl<'a> CheckerState<'a> {
         let Some(prop_node) = prop_node else {
             return Ok(None);
         };
-        let NodeData::PropertyAssignment(data) = self.data_of(prop_node) else {
+        let Some(data) = self.record_of(prop_node).as_property_assignment() else {
             unreachable!("found above");
         };
         let initializer = data.initializer.expect("filtered above");
@@ -2032,7 +2032,7 @@ impl<'a> CheckerState<'a> {
                 let escaped_name = self.binder.symbol(symbol).escaped_name;
                 match self.kind_of(p) {
                     SyntaxKind::PropertyAssignment => {
-                        let NodeData::PropertyAssignment(data) = self.data_of(p) else {
+                        let Some(data) = self.record_of(p).as_property_assignment() else {
                             unreachable!("kind/data agree");
                         };
                         let Some(initializer) = data.initializer else {
@@ -2048,7 +2048,7 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                     SyntaxKind::ShorthandPropertyAssignment => {
-                        let NodeData::ShorthandPropertyAssignment(data) = self.data_of(p) else {
+                        let Some(data) = self.record_of(p).as_shorthand_property_assignment() else {
                             unreachable!("kind/data agree");
                         };
                         let Some(name) = data.name else { continue };
@@ -2163,7 +2163,7 @@ impl<'a> CheckerState<'a> {
                 {
                     let element = self.parent_of(node).and_then(|p| self.parent_of(p));
                     let has_semantic_children = element.is_some_and(|element| {
-                        matches!(self.data_of(element), NodeData::JsxElement(_))
+                        self.kind_of(element) == SyntaxKind::JsxElement
                             && self
                                 .nodes_of(match self.data_of(element) {
                                     NodeData::JsxElement(data) => data.children,
@@ -2627,7 +2627,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ArrayLiteralExpression => {
                 let array_literal = parent;
                 let ty = self.get_apparent_type_of_contextual_type(array_literal, context_flags)?;
-                let NodeData::ArrayLiteralExpression(data) = self.data_of(array_literal) else {
+                let Some(data) = self.record_of(array_literal).as_array_literal_expression() else {
                     unreachable!("kind/data agree");
                 };
                 let elements = self.nodes_of(data.elements);
@@ -2681,7 +2681,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::NonNullExpression => self.get_contextual_type(parent, context_flags),
             SyntaxKind::SatisfiesExpression => {
-                let NodeData::SatisfiesExpression(data) = self.data_of(parent) else {
+                let Some(data) = self.record_of(parent).as_satisfies_expression() else {
                     unreachable!("kind/data agree");
                 };
                 match data.r#type {
@@ -2886,7 +2886,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsc getNameFromImportAttribute (19376-19378).
     fn get_name_from_import_attribute(&self, node: NodeId) -> Option<tsc_types::EscapedName> {
-        let NodeData::ImportAttribute(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_import_attribute() else {
             return None;
         };
         let name = data.name?;
@@ -3192,7 +3192,7 @@ impl<'a> CheckerState<'a> {
         let mut target_parameter_count = 0usize;
         while target_parameter_count < parameters.len() {
             let param = parameters[target_parameter_count];
-            let NodeData::Parameter(data) = self.data_of(param) else {
+            let Some(data) = self.record_of(param).as_parameter() else {
                 break;
             };
             if data.initializer.is_some()
@@ -3564,7 +3564,7 @@ impl<'a> CheckerState<'a> {
                     if visitor(self, node) {
                         return true;
                     }
-                    if let NodeData::YieldExpression(data) = self.data_of(node) {
+                    if let Some(data) = self.record_of(node).as_yield_expression() {
                         if let Some(operand) = data.expression {
                             worklist.push(operand);
                         }
@@ -3578,7 +3578,7 @@ impl<'a> CheckerState<'a> {
                     if node_util::is_function_like_kind(self.kind_of(node)) {
                         if let Some(name) = self.name_of_node(node) {
                             if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
-                                if let NodeData::ComputedPropertyName(data) = self.data_of(name) {
+                                if let Some(data) = self.record_of(name).as_computed_property_name() {
                                     if let Some(expression) = data.expression {
                                         worklist.push(expression);
                                     }
@@ -3785,7 +3785,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c8471d35ea7ac67784b55175f273e9f6ff8b77a3437ef18fda76699877a208b5
     /// tsc-span: _tsc.js:11848-11850
     pub(crate) fn is_const_type_reference_node(&self, type_node: NodeId) -> bool {
-        let NodeData::TypeReference(data) = self.data_of(type_node) else {
+        let Some(data) = self.record_of(type_node).as_type_reference() else {
             return false;
         };
         data.type_arguments.is_none()

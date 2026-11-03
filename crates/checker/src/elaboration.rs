@@ -1159,7 +1159,7 @@ impl<'a> CheckerState<'a> {
                 let Some(body) = data.body else {
                     return Ok(ElaborationOutcome::Declined);
                 };
-                if matches!(self.data_of(body), NodeData::Block(_)) {
+                if self.kind_of(body) == SyntaxKind::Block {
                     return Ok(ElaborationOutcome::Declined);
                 }
                 let any_annotated = self.nodes_of(data.parameters).iter().any(|&parameter| {

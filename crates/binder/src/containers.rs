@@ -738,7 +738,7 @@ impl<'a> BinderWorker<'a> {
                 };
                 let mut pattern: Option<ParsedPattern> = None;
                 if let Some(name) = name {
-                    if let NodeData::StringLiteral(data) = self.source.arena.node(name).data() {
+                    if let Some(data) = self.source.arena.node(name).as_string_literal() {
                         let text = self.source.arena.text_js(data.text).to_owned();
                         pattern = try_parse_pattern(&text);
                         if pattern.is_none() {

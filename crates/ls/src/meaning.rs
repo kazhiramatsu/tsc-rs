@@ -589,11 +589,11 @@ impl Request<'_, '_> {
         import: NodeId,
         for_rename: bool,
     ) -> Option<Touching> {
-        let NodeData::ImportDeclaration(data) = self.state.binder.node_record(import).data() else {
+        let Some(data) = self.state.binder.node_record(import).as_import_declaration() else {
             return None;
         };
         if let Some(clause) = data.import_clause {
-            if let NodeData::ImportClause(clause) = self.state.binder.node_record(clause).data() {
+            if let Some(clause) = self.state.binder.node_record(clause).as_import_clause() {
                 if let Some(name) = clause.name {
                     if clause.named_bindings.is_some() {
                         // Not with both a name and named bindings.
@@ -633,7 +633,7 @@ impl Request<'_, '_> {
         export: NodeId,
         for_rename: bool,
     ) -> Option<Touching> {
-        let NodeData::ExportDeclaration(data) = self.state.binder.node_record(export).data() else {
+        let Some(data) = self.state.binder.node_record(export).as_export_declaration() else {
             return None;
         };
         if let Some(clause) = data.export_clause {

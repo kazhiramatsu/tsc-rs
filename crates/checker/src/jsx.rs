@@ -203,7 +203,7 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
         self.check_grammar_jsx_expression(node);
-        let NodeData::JsxExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_jsx_expression() else {
             return Ok(self.tables.intrinsics.error);
         };
         let Some(expression) = data.expression else {
@@ -2364,7 +2364,7 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(attr) == SyntaxKind::JsxSpreadAttribute {
                 continue;
             }
-            let NodeData::JsxAttribute(data) = self.data_of(attr) else {
+            let Some(data) = self.record_of(attr).as_jsx_attribute() else {
                 continue;
             };
             let Some(name) = data.name else { continue };
@@ -2399,7 +2399,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:89748-89755
     fn check_grammar_jsx_name(&mut self, node: NodeId) -> bool {
         if self.kind_of(node) == SyntaxKind::PropertyAccessExpression {
-            if let NodeData::PropertyAccessExpression(data) = self.data_of(node) {
+            if let Some(data) = self.record_of(node).as_property_access_expression() {
                 if let Some(expression) = data.expression {
                     if self.kind_of(expression) == SyntaxKind::JsxNamespacedName {
                         return self.grammar_error_on_node(

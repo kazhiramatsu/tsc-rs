@@ -341,7 +341,7 @@ impl CheckerState<'_> {
         let Some(ty) = self.get_type_of_assignment_pattern(pattern)? else {
             return Ok(None);
         };
-        let NodeData::Identifier(identifier) = self.data_of(location) else {
+        let Some(identifier) = self.record_of(location).as_identifier() else {
             return Ok(None);
         };
         let name = identifier.escaped_text;
@@ -729,7 +729,7 @@ impl CheckerState<'_> {
         let Some(parent) = self.parent_of(node) else {
             return Ok(signatures);
         };
-        let NodeData::PropertyAccessExpression(access) = self.data_of(parent) else {
+        let Some(access) = self.record_of(parent).as_property_access_expression() else {
             return Ok(signatures);
         };
         if self.kind_of(node) != SyntaxKind::Identifier || access.name != Some(node) {
@@ -1154,7 +1154,7 @@ impl CheckerState<'_> {
                 self.kind_of(grandparent) == SyntaxKind::ExpressionStatement
             })
         {
-            let NodeData::ExpressionWithTypeArguments(data) = self.data_of(parent) else {
+            let Some(data) = self.record_of(parent).as_expression_with_type_arguments() else {
                 unreachable!("an expression with type arguments");
             };
             let expression = data

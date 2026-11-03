@@ -71,6 +71,14 @@ impl<'a> CheckerState<'a> {
         self.binder.node_record(node).data()
     }
 
+    /// The record of `node`, for reading one kind's payload with
+    /// `record_of(node).as_<kind>()` (no full decode) or one shared field
+    /// with `record_of(node).<field>_field()`.
+    #[inline]
+    pub(crate) fn record_of(&self, node: NodeId) -> &'a tsc_syntax::Node {
+        self.binder.node_record(node)
+    }
+
     /// A literal text of a Program's tree as a JavaScript string view (a
     /// string literal's or template's value may hold lone surrogates).
     #[inline]
@@ -148,7 +156,7 @@ impl<'a> CheckerState<'a> {
                     .intersects(TypeFlags::TYPE_VARIABLE))
                 && parent_kind == SyntaxKind::ConditionalType
             {
-                let NodeData::ConditionalType(data) = self.data_of(parent) else {
+                let Some(data) = self.record_of(parent).as_conditional_type() else {
                     unreachable!("kind/data agree");
                 };
                 let (check_type, extends_type, true_type) =
@@ -168,7 +176,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(TypeFlags::TYPE_PARAMETER)
                 && parent_kind == SyntaxKind::MappedType
             {
-                let NodeData::MappedType(data) = self.data_of(parent) else {
+                let Some(data) = self.record_of(parent).as_mapped_type() else {
                     unreachable!("kind/data agree");
                 };
                 if data.name_type.is_none() && data.r#type == Some(node) {
@@ -245,7 +253,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) != SyntaxKind::TupleType {
             return None;
         }
-        let NodeData::TupleType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_tuple_type() else {
             unreachable!("kind/data agree");
         };
         let elements = self.nodes_of(data.elements);
@@ -303,7 +311,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::LiteralType => self.get_type_from_literal_type_node(node),
             SyntaxKind::TypeReference => self.get_type_from_type_reference(node),
             SyntaxKind::TypePredicate => {
-                let NodeData::TypePredicate(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_type_predicate() else {
                     unreachable!("TypePredicate kind implies payload");
                 };
                 Ok(if data.asserts_modifier.is_some() {
@@ -317,7 +325,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::OptionalType => self.get_type_from_optional_type_node(node),
             SyntaxKind::JSDocOptionalType => {
-                let NodeData::JSDocOptionalType(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_js_doc_optional_type() else {
                     unreachable!("JSDocOptionalType kind implies payload");
                 };
                 let inner = data.r#type.expect("JSDoc optional operand");
@@ -345,7 +353,7 @@ impl<'a> CheckerState<'a> {
             // is always `T[]` (a reparsed callback parameter takes the element
             // type and a rest token instead).
             SyntaxKind::JSDocVariadicType => {
-                let NodeData::JSDocVariadicType(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_js_doc_variadic_type() else {
                     unreachable!("JSDocVariadicType kind implies payload");
                 };
                 let inner = data.r#type.expect("JSDoc variadic operand");
@@ -386,7 +394,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 32d41b6c0209245ea57edd770f01ade757ee22fd27e9c490c3db76c8af46d281
     /// tsc-span: _tsc.js:63102-63111
     fn get_type_from_literal_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let NodeData::LiteralType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_literal_type() else {
             unreachable!("LiteralType kind implies payload");
         };
         let literal = data
@@ -495,7 +503,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let NodeData::UnionType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_union_type() else {
             unreachable!("UnionType kind implies payload");
         };
         let alias_symbol = self.get_alias_symbol_for_type_node(node);
@@ -531,7 +539,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let NodeData::IntersectionType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_intersection_type() else {
             unreachable!("IntersectionType kind implies payload");
         };
         let alias_symbol = self.get_alias_symbol_for_type_node(node);
@@ -589,14 +597,14 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let NodeData::TemplateLiteralType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_template_literal_type() else {
             unreachable!("TemplateLiteralType kind implies payload");
         };
         let head = data
             .head
             .expect("parser invariant: TemplateLiteralType head always parsed");
         let spans = self.nodes_of(data.template_spans);
-        let NodeData::TemplateHead(head_data) = self.data_of(head) else {
+        let Some(head_data) = self.record_of(head).as_template_head() else {
             unreachable!("kind/data agree");
         };
         let mut texts = vec![tsc_types::TemplateText::from_js(
@@ -604,7 +612,7 @@ impl<'a> CheckerState<'a> {
         )];
         let mut types = Vec::with_capacity(spans.len());
         for span in spans {
-            let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span) else {
+            let Some(span_data) = self.record_of(span).as_template_literal_type_span() else {
                 unreachable!("parser invariant: template spans are TemplateLiteralTypeSpan nodes");
             };
             let span_type = span_data
@@ -674,7 +682,7 @@ impl<'a> CheckerState<'a> {
                     }
                     element_types
                 } else {
-                    let NodeData::ArrayType(data) = self.data_of(node) else {
+                    let Some(data) = self.record_of(node).as_array_type() else {
                         unreachable!("non-tuple node here is an array");
                     };
                     let element = data
@@ -1059,7 +1067,7 @@ impl<'a> CheckerState<'a> {
                 self.global_array_type()
             };
         }
-        let NodeData::TupleType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_tuple_type() else {
             unreachable!("non-array node here is a tuple");
         };
         let elements = self.nodes_of(data.elements);
@@ -1161,7 +1169,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 59ecf05dbac008065e30a599ef231d99430997ea5f02e0e8fa22403f36c272b8
     /// tsc-span: _tsc.js:61317-61323
     fn get_type_from_optional_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let NodeData::OptionalType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_optional_type() else {
             unreachable!("OptionalType kind implies payload");
         };
         let inner = data
@@ -1175,7 +1183,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 27b010970c110f8e8112f6e8e7721dbb3ac7cf23dff972eec00fa61a020e44e4
     /// tsc-span: _tsc.js:60553-60556
     fn get_type_from_jsdoc_nullable_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let NodeData::JSDocNullableType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_js_doc_nullable_type() else {
             unreachable!("JSDocNullableType kind implies payload");
         };
         let inner = data
@@ -1193,7 +1201,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ac5c2df0a5261dbe26796cdc3b31ab0eb6b4958511857d46f68fe049197608ba
     /// tsc-span: _tsc.js:63167-63169
     fn get_type_from_rest_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let NodeData::RestType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_rest_type() else {
             unreachable!("RestType kind implies payload");
         };
         let inner = data
@@ -1213,7 +1221,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let NodeData::NamedTupleMember(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_named_tuple_member() else {
             unreachable!("NamedTupleMember kind implies payload");
         };
         let inner = data
@@ -1242,7 +1250,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7bad7b2a41d1aa311c75b425dfb27261472876c904bca19627c209e416008579
     /// tsc-span: _tsc.js:62028-62046
     fn get_type_from_type_operator_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let NodeData::TypeOperator(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_type_operator() else {
             unreachable!("TypeOperator kind implies payload");
         };
         let operator = data.operator;
@@ -1310,7 +1318,7 @@ impl<'a> CheckerState<'a> {
                         == Some(js_doc)
                 });
                 if let Some(host) = host {
-                    node = if let NodeData::VariableStatement(data) = self.data_of(host) {
+                    node = if let Some(data) = self.record_of(host).as_variable_statement() {
                         data.declaration_list
                             .and_then(|list| match self.data_of(list) {
                                 NodeData::VariableDeclarationList(data) => data
@@ -1571,7 +1579,7 @@ impl<'a> CheckerState<'a> {
             if self.is_statement_node(ancestor) {
                 break;
             }
-            if let NodeData::ConditionalType(data) = self.data_of(ancestor) {
+            if let Some(data) = self.record_of(ancestor).as_conditional_type() {
                 if let Some(check_type) = data.check_type {
                     if self.is_simple_identifier_type_reference(check_type) {
                         // tsgo getSymbolFromTypeReference caches the symbol on
@@ -1705,7 +1713,7 @@ impl<'a> CheckerState<'a> {
         if !self.is_jsdoc_type_reference(node) {
             return Ok(None);
         }
-        let NodeData::TypeReference(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_type_reference() else {
             return Ok(None);
         };
         let Some(type_name) = data.type_name else {
@@ -2238,7 +2246,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let NodeData::ImportType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_import_type() else {
             unreachable!("kind/data agree");
         };
         let argument = data.argument;
@@ -2738,7 +2746,7 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let declaration = self.mapped_type_declaration(ty);
-        let NodeData::MappedType(data) = self.data_of(declaration) else {
+        let Some(data) = self.record_of(declaration).as_mapped_type() else {
             unreachable!("mapped payload declaration has MappedType syntax kind");
         };
         let parameter = data
@@ -2804,7 +2812,7 @@ impl<'a> CheckerState<'a> {
         }
         let mapped = self.mapped_type_data(ty);
         let declaration = NodeId::new(mapped.declaration);
-        let NodeData::MappedType(data) = self.data_of(declaration) else {
+        let Some(data) = self.record_of(declaration).as_mapped_type() else {
             unreachable!("mapped payload declaration has MappedType syntax kind");
         };
         let name_node = data.name_type;
@@ -2827,7 +2835,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:58638-58641
     pub(crate) fn get_mapped_type_modifiers(&self, ty: TypeId) -> MappedTypeModifiers {
         let declaration = self.mapped_type_declaration(ty);
-        let NodeData::MappedType(data) = self.data_of(declaration) else {
+        let Some(data) = self.record_of(declaration).as_mapped_type() else {
             unreachable!("mapped payload declaration has MappedType syntax kind");
         };
         let readonly = match data.readonly_token.map(|token| self.kind_of(token)) {
@@ -2858,7 +2866,7 @@ impl<'a> CheckerState<'a> {
         }
         let mapped = self.mapped_type_data(ty);
         let declaration = NodeId::new(mapped.declaration);
-        let NodeData::MappedType(data) = self.data_of(declaration) else {
+        let Some(data) = self.record_of(declaration).as_mapped_type() else {
             unreachable!("mapped payload declaration has MappedType syntax kind");
         };
         let template_node = data.r#type;
@@ -2977,7 +2985,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let NodeData::IndexedAccessType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_indexed_access_type() else {
             unreachable!("IndexedAccessType kind implies payload");
         };
         let object_node = data
@@ -3026,7 +3034,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let NodeData::ConditionalType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_conditional_type() else {
             unreachable!("ConditionalType kind implies payload");
         };
         let check_node = data
@@ -3114,7 +3122,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let NodeData::InferType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_infer_type() else {
             unreachable!("InferType kind implies payload");
         };
         let parameter = data
@@ -3986,7 +3994,7 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(declaration) == SyntaxKind::InterfaceDeclaration {
                     return true;
                 }
-                let NodeData::VariableDeclaration(data) = self.data_of(declaration) else {
+                let Some(data) = self.record_of(declaration).as_variable_declaration() else {
                     return false;
                 };
                 data.initializer.is_some_and(|initializer| {
@@ -4040,7 +4048,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             }
             for base_node in self.interface_base_type_nodes(declaration) {
-                let NodeData::ExpressionWithTypeArguments(data) = self.data_of(base_node) else {
+                let Some(data) = self.record_of(base_node).as_expression_with_type_arguments() else {
                     continue;
                 };
                 let Some(expression) = data.expression else {
@@ -4083,12 +4091,12 @@ impl<'a> CheckerState<'a> {
     /// The extends heritage clause's types (token recovered from source
     /// text, like every heritage read).
     pub(crate) fn interface_base_type_nodes(&self, declaration: NodeId) -> Vec<NodeId> {
-        let NodeData::InterfaceDeclaration(data) = self.data_of(declaration) else {
+        let Some(data) = self.record_of(declaration).as_interface_declaration() else {
             return Vec::new();
         };
         for clause in self.nodes_of(data.heritage_clauses) {
             if self.heritage_clause_is_extends(clause) {
-                let NodeData::HeritageClause(clause_data) = self.data_of(clause) else {
+                let Some(clause_data) = self.record_of(clause).as_heritage_clause() else {
                     continue;
                 };
                 return self.nodes_of(clause_data.types).to_vec();
@@ -5877,7 +5885,7 @@ impl<'a> CheckerState<'a> {
         ) {
             return Ok(self.tables.intrinsics.error);
         }
-        let NodeData::ExpressionWithTypeArguments(data) = self.data_of(base_type_node) else {
+        let Some(data) = self.record_of(base_type_node).as_expression_with_type_arguments() else {
             unreachable!("heritage clause types are ExpressionWithTypeArguments");
         };
         let expression = data.expression.expect(
@@ -7563,12 +7571,12 @@ impl<'a> CheckerState<'a> {
         let mut readonly_computed_string_property = true;
         let mut computed_property_symbols: Vec<SymbolId> = Vec::new();
         for declaration in declarations {
-            if let NodeData::IndexSignature(data) = self.data_of(declaration) {
+            if let Some(data) = self.record_of(declaration).as_index_signature() {
                 let parameters = self.nodes_of(data.parameters);
                 if parameters.len() != 1 {
                     continue;
                 }
-                let NodeData::Parameter(parameter) = self.data_of(parameters[0]) else {
+                let Some(parameter) = self.record_of(parameters[0]).as_parameter() else {
                     continue;
                 };
                 let Some(parameter_type) = parameter.r#type else {
@@ -8971,7 +8979,7 @@ impl<'a> CheckerState<'a> {
 
     fn jsdoc_property_like_type_node(&self, expression: Option<NodeId>) -> Option<NodeId> {
         let expression = expression?;
-        let NodeData::JSDocTypeExpression(data) = self.data_of(expression) else {
+        let Some(data) = self.record_of(expression).as_js_doc_type_expression() else {
             return None;
         };
         data.r#type
@@ -9089,7 +9097,7 @@ impl<'a> CheckerState<'a> {
         }
         let mut type_annotation = None;
         for declaration in self.binder.symbol(symbol).declarations.clone() {
-            let NodeData::BinaryExpression(data) = self.data_of(declaration) else {
+            let Some(data) = self.record_of(declaration).as_binary_expression() else {
                 return Ok(none);
             };
             let left = data.left;
@@ -9425,11 +9433,11 @@ impl<'a> CheckerState<'a> {
                     result = false;
                     break;
                 }
-                let NodeData::BinaryExpression(data) = self.data_of(declaration) else {
+                let Some(data) = self.record_of(declaration).as_binary_expression() else {
                     unreachable!("kind/data agree");
                 };
                 if let Some(left) = data.left {
-                    if let NodeData::ElementAccessExpression(access) = self.data_of(left) {
+                    if let Some(access) = self.record_of(left).as_element_access_expression() {
                         let Some(argument) = access.argument_expression else {
                             result = false;
                             break;
@@ -9646,7 +9654,7 @@ impl<'a> CheckerState<'a> {
         let mut member_type_list: Vec<TypeId> = Vec::new();
         let declarations = self.binder.symbol(symbol).declarations.clone();
         for declaration in declarations {
-            let NodeData::EnumDeclaration(data) = self.data_of(declaration) else {
+            let Some(data) = self.record_of(declaration).as_enum_declaration() else {
                 continue;
             };
             for member in self.nodes_of(data.members) {
@@ -9871,7 +9879,7 @@ impl<'a> CheckerState<'a> {
                     .collect();
                 if !overloads.is_empty() {
                     for overload in overloads {
-                        let NodeData::JSDocOverloadTag(data) = self.data_of(overload) else {
+                        let Some(data) = self.record_of(overload).as_js_doc_overload_tag() else {
                             unreachable!("kind/data agree");
                         };
                         if let Some(signature) = data.type_expression {
@@ -10678,7 +10686,7 @@ impl<'a> CheckerState<'a> {
         include_pattern_in_type: bool,
         report_errors: bool,
     ) -> CheckResult<TypeId> {
-        let NodeData::BindingElement(data) = self.data_of(element) else {
+        let Some(data) = self.record_of(element).as_binding_element() else {
             return Ok(self.tables.intrinsics.error);
         };
         let (initializer, name) = (data.initializer, data.name);
@@ -10739,7 +10747,7 @@ impl<'a> CheckerState<'a> {
         let mut object_flags =
             ObjectFlags::OBJECT_LITERAL | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
         for e in elements {
-            let NodeData::BindingElement(data) = self.data_of(e) else {
+            let Some(data) = self.record_of(e).as_binding_element() else {
                 continue;
             };
             let (dot_dot_dot, property_name, element_name, initializer) = (

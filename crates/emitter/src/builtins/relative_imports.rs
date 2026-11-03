@@ -33,7 +33,7 @@ impl ImportCallRewrites {
         positions.sort_unstable();
         for position in positions {
             let node = node_at_position(arena, root, position)?;
-            let NodeData::CallExpression(call) = arena.node(node)?.data() else {
+            let Some(call) = arena.node(node)?.as_call_expression() else {
                 continue;
             };
             let Some(callee) = call
@@ -149,7 +149,7 @@ pub(super) fn rewrite_literal(
     node: TransformNode,
     preserve_jsx: bool,
 ) -> Result<TransformNode, TransformError> {
-    let NodeData::StringLiteral(literal) = context.arena().node(node)?.data() else {
+    let Some(literal) = context.arena().node(node)?.as_string_literal() else {
         return Ok(node);
     };
     let literal_text = context

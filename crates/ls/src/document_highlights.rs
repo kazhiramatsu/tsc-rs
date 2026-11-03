@@ -678,7 +678,7 @@ impl Request<'_, '_> {
             }
             // A throw-statement is only owned by a try-statement if the try-statement has
             // a catch clause, and if the throw-statement occurs within the try block.
-            if let NodeData::TryStatement(data) = self.state.binder.node_record(parent).data() {
+            if let Some(data) = self.state.binder.node_record(parent).as_try_statement() {
                 if data.try_block == Some(child) && data.catch_clause.is_some() {
                     return Some(child);
                 }
@@ -701,7 +701,7 @@ impl Request<'_, '_> {
 
     /// tsgo `getTryCatchFinallyOccurrences`.
     fn try_catch_finally_occurrences(&self, node: NodeId) -> Vec<Touching> {
-        let NodeData::TryStatement(data) = self.state.binder.node_record(node).data() else {
+        let Some(data) = self.state.binder.node_record(node).as_try_statement() else {
             return Vec::new();
         };
         let mut keywords = Vec::new();
@@ -728,7 +728,7 @@ impl Request<'_, '_> {
                 keywords.push(token);
             }
         }
-        let NodeData::SwitchStatement(data) = self.state.binder.node_record(node).data() else {
+        let Some(data) = self.state.binder.node_record(node).as_switch_statement() else {
             return keywords;
         };
         let clauses = data
@@ -824,7 +824,7 @@ impl Request<'_, '_> {
     fn is_labeled_by(&self, node: NodeId, label_name: &str) -> bool {
         let mut owner = self.state.binder.node_record(node).parent;
         while let Some(id) = owner {
-            let NodeData::LabeledStatement(data) = self.state.binder.node_record(id).data() else {
+            let Some(data) = self.state.binder.node_record(id).as_labeled_statement() else {
                 return false;
             };
             let source = self.state.binder.source_of_node(id);

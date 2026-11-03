@@ -2652,7 +2652,7 @@ impl<'text> Parser<'text> {
             &[],
         );
         self.arena.node_mut(missing).pos = pos as u32;
-        if let NodeData::MissingDeclaration(mut data) = self.arena.node(missing).data() {
+        if let Some(mut data) = self.arena.node(missing).as_missing_declaration() {
             data.modifiers = modifiers;
             self.arena
                 .set_data(missing, NodeData::MissingDeclaration(data));
@@ -6303,7 +6303,7 @@ impl<'text> Parser<'text> {
             &[],
         );
         self.arena.node_mut(missing).pos = pos as u32;
-        if let NodeData::MissingDeclaration(mut data) = self.arena.node(missing).data() {
+        if let Some(mut data) = self.arena.node(missing).as_missing_declaration() {
             data.modifiers = modifiers;
             self.arena
                 .set_data(missing, NodeData::MissingDeclaration(data));

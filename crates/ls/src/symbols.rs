@@ -221,7 +221,7 @@ impl Request<'_, '_> {
     /// The symbols of what tsgo's reparser makes of a comment's typedef,
     /// callback and import tags, in tag order.
     fn visit_reparsed_jsdoc_children(&mut self, state: &mut DocumentSymbols, comment: NodeId) {
-        let NodeData::JSDoc(data) = self.state.binder.node_record(comment).data() else {
+        let Some(data) = self.state.binder.node_record(comment).as_js_doc() else {
             return;
         };
         for tag in self.node_list(data.tags) {
@@ -288,7 +288,7 @@ impl Request<'_, '_> {
         if let Some(js_doc) = record.js_doc() {
             let comments = self.state.binder.node_array(js_doc).nodes.to_vec();
             for &comment in &comments {
-                let NodeData::JSDoc(data) = self.state.binder.node_record(comment).data() else {
+                let Some(data) = self.state.binder.node_record(comment).as_js_doc() else {
                     continue;
                 };
                 for tag in self.node_list(data.tags) {
@@ -400,7 +400,7 @@ impl Request<'_, '_> {
                 self.add_document_symbol(state, node, None, Vec::new());
             }
             SyntaxKind::ImportClause => {
-                let NodeData::ImportClause(data) = record.data() else {
+                let Some(data) = record.as_import_clause() else {
                     return;
                 };
                 // A default import, `import d from "mod"`.
@@ -437,7 +437,7 @@ impl Request<'_, '_> {
                 }
             }
             SyntaxKind::ExportAssignment => {
-                let NodeData::ExportAssignment(data) = record.data() else {
+                let Some(data) = record.as_export_assignment() else {
                     return;
                 };
                 if data.is_export_equals == Some(true) {
@@ -629,7 +629,7 @@ impl Request<'_, '_> {
             parent = self.parent_of(current);
         }
         if let Some(parent) = parent {
-            if let NodeData::ExportAssignment(data) = self.state.binder.node_record(parent).data() {
+            if let Some(data) = self.state.binder.node_record(parent).as_export_assignment() {
                 return if data.is_export_equals == Some(true) {
                     "export="
                 } else {
@@ -685,7 +685,7 @@ impl Request<'_, '_> {
     /// template arguments' text, joined.
     fn call_expression_literal_arguments(&self, call: NodeId) -> String {
         let source = self.state.binder.source_of_node(call);
-        let NodeData::CallExpression(data) = source.arena.node(call).data() else {
+        let Some(data) = source.arena.node(call).as_call_expression() else {
             return String::new();
         };
         self.node_list(data.arguments)
@@ -1229,7 +1229,7 @@ impl DeclarationMap<'_, '_> {
                 let Some(clause) = import.import_clause else {
                     return;
                 };
-                let NodeData::ImportClause(clause) = source.arena.node(clause).data() else {
+                let Some(clause) = source.arena.node(clause).as_import_clause() else {
                     return;
                 };
                 // Handle default import case e.g.:

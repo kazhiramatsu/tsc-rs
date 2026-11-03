@@ -1123,7 +1123,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             return Ok(false);
         };
         let inner = self.skip_outer_expressions(self.node(expression))?;
-        let NodeData::ClassExpression(data) = self.context.arena().node(inner)?.data() else {
+        let Some(data) = self.context.arena().node(inner)?.as_class_expression() else {
             return Ok(false);
         };
         if data.name.is_some() || !self.decorator_expressions(data.modifiers)?.is_empty() {
@@ -1157,7 +1157,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             return Ok(None);
         };
         let class = self.skip_outer_expressions(self.node(initializer))?;
-        let NodeData::ClassExpression(data) = self.context.arena().node(class)?.data() else {
+        let Some(data) = self.context.arena().node(class)?.as_class_expression() else {
             return Ok(None);
         };
         if data.name.is_some() || self.explicitly_assigned_class_name(class)?.is_some() {
@@ -1445,7 +1445,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         }
         let original = self.node(id);
         let record = *self.context.arena().node(original)?;
-        let NodeData::ClassDeclaration(mut data) = record.data() else {
+        let Some(mut data) = record.as_class_declaration() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: record.kind,
                 field: "class declaration",
@@ -4670,7 +4670,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         constructor: TransformNode,
         statement: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Constructor(mut data) = self.context.arena().node(constructor)?.data() else {
+        let Some(mut data) = self.context.arena().node(constructor)?.as_constructor() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::ClassExpression,
                 field: "constructor",
@@ -4683,7 +4683,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 parent: SyntaxKind::Constructor,
                 field: "body",
             })?;
-        let NodeData::Block(block) = self.context.arena().node(body)?.data() else {
+        let Some(block) = self.context.arena().node(body)?.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Constructor,
                 field: "body block",
@@ -4751,7 +4751,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     statement_indices: vec![index],
                 }));
             }
-            let NodeData::TryStatement(data) = self.context.arena().node(*statement)?.data() else {
+            let Some(data) = self.context.arena().node(*statement)?.as_try_statement() else {
                 continue;
             };
             let Some(try_block) = data
@@ -4760,7 +4760,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             else {
                 continue;
             };
-            let NodeData::Block(block) = self.context.arena().node(try_block)?.data() else {
+            let Some(block) = self.context.arena().node(try_block)?.as_block() else {
                 continue;
             };
             let nested_statements = self.array_nodes(block.statements)?;
@@ -4819,7 +4819,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 parent: SyntaxKind::TryStatement,
                 field: "try_block on super path",
             })?;
-        let NodeData::Block(mut block) = self.context.arena().node(try_block)?.data() else {
+        let Some(mut block) = self.context.arena().node(try_block)?.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::TryStatement,
                 field: "try block on super path",
@@ -4870,7 +4870,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             return Ok(false);
         };
         let expression = self.skip_parenthesized_expression(self.node(expression))?;
-        let NodeData::CallExpression(data) = self.context.arena().node(expression)?.data() else {
+        let Some(data) = self.context.arena().node(expression)?.as_call_expression() else {
             return Ok(false);
         };
         Ok(data.expression.is_some_and(|expression| {
@@ -5508,7 +5508,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let NodeData::Identifier(identifier) = self.context.arena().node(name).ok()?.data() else {
+        let Some(identifier) = self.context.arena().node(name).ok()?.as_identifier() else {
             return None;
         };
         Some(TargetBinding::from_existing(
@@ -5836,7 +5836,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             });
         };
         let body = self.node(body);
-        let block = if matches!(self.context.arena().node(body)?.data(), NodeData::Block(_)) {
+        let block = if self.context.arena().node(body)?.kind == SyntaxKind::Block {
             body
         } else {
             // VisitFunctionBody: the concise body writes no comments of its
@@ -6026,7 +6026,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         &mut self,
         parameter: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() else {
+        let Some(data) = self.context.arena().node(parameter)?.as_parameter() else {
             return Ok(parameter);
         };
         if data.dot_dot_dot_token.is_some() {
@@ -6212,7 +6212,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     ) -> Result<Vec<TransformNode>, TransformError> {
         let mut decorators = Vec::new();
         for modifier in self.array_nodes(modifiers)? {
-            let NodeData::Decorator(data) = self.context.arena().node(modifier)?.data() else {
+            let Some(data) = self.context.arena().node(modifier)?.as_decorator() else {
                 continue;
             };
             let expression = data
@@ -6781,7 +6781,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             return Ok(root);
         };
         let root_node = self.node(root);
-        let NodeData::SourceFile(mut data) = self.context.arena().node(root_node)?.data() else {
+        let Some(mut data) = self.context.arena().node(root_node)?.as_source_file() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::SourceFile,
                 field: "source file for hoisted temporaries",
@@ -6840,7 +6840,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     /// tsc-span: _tsc.js:14161-14163
     fn is_prologue_directive(&self, node: TransformNode) -> Result<bool, TransformError> {
         let arena = self.context.arena();
-        if let NodeData::ExpressionStatement(data) = arena.node(node)?.data() {
+        if let Some(data) = arena.node(node)?.as_expression_statement() {
             if let Some(expression) = data.expression {
                 return Ok(matches!(
                     arena.node(self.node(expression))?.data(),
@@ -6881,7 +6881,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         if !self.is_custom_prologue(node) {
             return Ok(false);
         }
-        let NodeData::VariableStatement(statement) = self.context.arena().node(node)?.data() else {
+        let Some(statement) = self.context.arena().node(node)?.as_variable_statement() else {
             return Ok(false);
         };
         let Some(list) = statement.declaration_list else {
@@ -6941,7 +6941,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         if declaration.is_none() && initialization_statements.is_empty() {
             return Ok(body);
         }
-        let NodeData::Block(mut data) = self.context.arena().node(body)?.data() else {
+        let Some(mut data) = self.context.arena().node(body)?.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Block,
                 field: "block body for hoisted temporaries",
@@ -7037,7 +7037,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         };
         let name = self.node(name);
         let record = self.context.arena().node(name)?;
-        if !matches!(record.data(), NodeData::PrivateIdentifier(_))
+        if !record.kind == SyntaxKind::PrivateIdentifier
             || record.parent.is_none()
             || record.pos == u32::MAX
             || record.end == u32::MAX
@@ -8976,7 +8976,7 @@ impl StandardDecoratorVisitor<'_> {
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        if let NodeData::BinaryExpression(mut data) = self.context.arena().node(node)?.data() {
+        if let Some(mut data) = self.context.arena().node(node)?.as_binary_expression() {
             if self.token_kind(data.operator_token)? == Some(SyntaxKind::EqualsToken) {
                 if let Some(left) = data.left {
                     let left = self.node(left);

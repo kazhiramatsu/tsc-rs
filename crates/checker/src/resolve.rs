@@ -402,7 +402,7 @@ impl<'a> CheckerState<'a> {
                         } else if self.kind_of(loc) == SyntaxKind::ConditionalType {
                             // Type parameters declared in an infer are
                             // in scope in the TRUE branch only.
-                            let NodeData::ConditionalType(data) = self.data_of(loc) else {
+                            let Some(data) = self.record_of(loc).as_conditional_type() else {
                                 unreachable!("ConditionalType kind implies payload");
                             };
                             use_result = last_location == data.true_type;
@@ -605,7 +605,7 @@ impl<'a> CheckerState<'a> {
                     if self.kind_of(loc) == SyntaxKind::ClassExpression
                         && meaning.intersects(SymbolFlags::CLASS)
                     {
-                        let NodeData::ClassExpression(data) = self.data_of(loc) else {
+                        let Some(data) = self.record_of(loc).as_class_expression() else {
                             unreachable!("ClassExpression kind implies payload");
                         };
                         if let Some(class_name) = data.name {
@@ -619,7 +619,7 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 SyntaxKind::ExpressionWithTypeArguments => {
-                    let NodeData::ExpressionWithTypeArguments(data) = self.data_of(loc) else {
+                    let Some(data) = self.record_of(loc).as_expression_with_type_arguments() else {
                         unreachable!("kind implies payload");
                     };
                     if last_location == data.expression
@@ -711,7 +711,7 @@ impl<'a> CheckerState<'a> {
                         break 'walk;
                     }
                     if meaning.intersects(SymbolFlags::FUNCTION) {
-                        let NodeData::FunctionExpression(data) = self.data_of(loc) else {
+                        let Some(data) = self.record_of(loc).as_function_expression() else {
                             unreachable!("kind implies payload");
                         };
                         if let Some(function_name) = data.name {
@@ -793,7 +793,7 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 SyntaxKind::Parameter => {
-                    let NodeData::Parameter(data) = self.data_of(loc) else {
+                    let Some(data) = self.record_of(loc).as_parameter() else {
                         unreachable!("kind implies payload");
                     };
                     if last_location.is_some()
@@ -807,7 +807,7 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 SyntaxKind::BindingElement => {
-                    let NodeData::BindingElement(data) = self.data_of(loc) else {
+                    let Some(data) = self.record_of(loc).as_binding_element() else {
                         unreachable!("kind implies payload");
                     };
                     if last_location.is_some()
@@ -823,11 +823,11 @@ impl<'a> CheckerState<'a> {
                 }
                 SyntaxKind::InferType => {
                     if meaning.intersects(SymbolFlags::TYPE_PARAMETER) {
-                        let NodeData::InferType(data) = self.data_of(loc) else {
+                        let Some(data) = self.record_of(loc).as_infer_type() else {
                             unreachable!("kind implies payload");
                         };
                         if let Some(type_parameter) = data.type_parameter {
-                            let NodeData::TypeParameter(tp) = self.data_of(type_parameter) else {
+                            let Some(tp) = self.record_of(type_parameter).as_type_parameter() else {
                                 unreachable!("TypeParameter kind implies payload");
                             };
                             if let Some(tp_name) = tp.name {
@@ -842,7 +842,7 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 SyntaxKind::ExportSpecifier => {
-                    let NodeData::ExportSpecifier(data) = self.data_of(loc) else {
+                    let Some(data) = self.record_of(loc).as_export_specifier() else {
                         unreachable!("kind implies payload");
                     };
                     // Re-exports (`export { a as b } from "m"`) resolve
@@ -1016,7 +1016,7 @@ impl<'a> CheckerState<'a> {
         let mut namespaces = Vec::new();
         let mut current = full_name.filter(|_| type_expression.is_some());
         while let Some(node) = current {
-            let NodeData::ModuleDeclaration(data) = self.data_of(node) else {
+            let Some(data) = self.record_of(node).as_module_declaration() else {
                 break;
             };
             namespaces.push(node);
@@ -1074,7 +1074,7 @@ impl<'a> CheckerState<'a> {
         // static class fields).
         let parameters = self.parameters_of(location);
         let requires_change = parameters.iter().any(|&parameter| {
-            let NodeData::Parameter(data) = self.data_of(parameter) else {
+            let Some(data) = self.record_of(parameter).as_parameter() else {
                 return false;
             };
             data.name
@@ -1112,7 +1112,7 @@ impl<'a> CheckerState<'a> {
                 {
                     return target < ScriptTarget::ES2020;
                 }
-                if let NodeData::BindingElement(data) = self.data_of(node) {
+                if let Some(data) = self.record_of(node).as_binding_element() {
                     if data.dot_dot_dot_token.is_some()
                         && self
                             .parent_of(node)
@@ -1261,7 +1261,7 @@ impl<'a> CheckerState<'a> {
                 Ok(false) => {}
             }
         }
-        let NodeData::PropertyDeclaration(data) = self.data_of(property) else {
+        let Some(data) = self.record_of(property).as_property_declaration() else {
             unreachable!("PropertyDeclaration kind implies payload");
         };
         let in_type = match (error_location, data.r#type) {
@@ -1602,7 +1602,7 @@ impl<'a> CheckerState<'a> {
         let display = tsc_binder::unescape_leading_underscores(name);
         let mut reported = false;
         if let Some(parent) = self.parent_of(error_location) {
-            if let NodeData::QualifiedName(data) = self.data_of(parent) {
+            if let Some(data) = self.record_of(parent).as_qualified_name() {
                 if data.left == Some(error_location) {
                     if let Some(right) = data.right {
                         if let Some(property_name) =
@@ -1988,7 +1988,7 @@ impl<'a> CheckerState<'a> {
         }
         let grandparent = parent.and_then(|parent| self.parent_of(parent));
         if let Some(grandparent) = grandparent {
-            if let NodeData::HeritageClause(_) = self.data_of(grandparent) {
+            if let Some(_) = self.record_of(grandparent).as_heritage_clause() {
                 let heritage_is_extends = self.heritage_clause_is_extends(grandparent);
                 let container = self.parent_of(grandparent);
                 let container_kind = container.map(|container| self.kind_of(container));
@@ -2848,7 +2848,7 @@ impl<'a> CheckerState<'a> {
         let Some(type_node) = type_node else {
             return false;
         };
-        let NodeData::TypeReference(data) = self.data_of(type_node) else {
+        let Some(data) = self.record_of(type_node).as_type_reference() else {
             return false;
         };
         data.type_arguments.is_none()
@@ -2957,7 +2957,7 @@ impl<'a> CheckerState<'a> {
     fn type_heritage_qualified_name_root(&self, name: NodeId) -> Option<NodeId> {
         let mut root = name;
         while let Some(parent) = self.parent_of(root) {
-            let NodeData::PropertyAccessExpression(data) = self.data_of(parent) else {
+            let Some(data) = self.record_of(parent).as_property_access_expression() else {
                 break;
             };
             if data.expression != Some(root) {
@@ -2966,14 +2966,14 @@ impl<'a> CheckerState<'a> {
             root = parent;
         }
         let element = self.parent_of(root)?;
-        let NodeData::ExpressionWithTypeArguments(element_data) = self.data_of(element) else {
+        let Some(element_data) = self.record_of(element).as_expression_with_type_arguments() else {
             return None;
         };
         if element_data.expression != Some(root) {
             return None;
         }
         let clause = self.parent_of(element)?;
-        let NodeData::HeritageClause(clause_data) = self.data_of(clause) else {
+        let Some(clause_data) = self.record_of(clause).as_heritage_clause() else {
             return None;
         };
         let owner = self.parent_of(clause)?;

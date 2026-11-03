@@ -674,7 +674,7 @@ impl<'a> Tracker<'a> {
         named_imports: NodeId,
         index: usize,
     ) -> Result<(), TransformError> {
-        let NodeData::NamedImports(data) = file.arena.node(named_imports).data() else {
+        let Some(data) = file.arena.node(named_imports).as_named_imports() else {
             return Ok(());
         };
         let elements = data

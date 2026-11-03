@@ -509,7 +509,7 @@ impl Encoder<'_> {
             }
             View::HeritageTypeReference(id) => {
                 let node = self.tree.node(id);
-                let NodeData::ExpressionWithTypeArguments(element) = node.data() else {
+                let Some(element) = node.as_expression_with_type_arguments() else {
                     unreachable!("a heritage element")
                 };
                 let mask = 1 | u32::from(element.type_arguments.is_some()) << 1;
@@ -553,7 +553,7 @@ impl Encoder<'_> {
             }
             View::JSDoc(id, pos) => {
                 let node = self.tree.node(id);
-                let NodeData::JSDoc(js_doc) = node.data() else {
+                let Some(js_doc) = node.as_js_doc() else {
                     unreachable!("a JSDoc comment")
                 };
                 // The comment list is always there.

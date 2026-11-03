@@ -76,7 +76,7 @@ fn is_require_call(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<bool, TransformError> {
-    let NodeData::CallExpression(data) = cx.arena().node(node)?.data() else {
+    let Some(data) = cx.arena().node(node)?.as_call_expression() else {
         return Ok(false);
     };
     let Some(callee) = data
@@ -113,7 +113,7 @@ pub(crate) fn is_variable_declaration_initialized_to_require(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<bool, TransformError> {
-    let NodeData::VariableDeclaration(data) = cx.arena().node(node)?.data() else {
+    let Some(data) = cx.arena().node(node)?.as_variable_declaration() else {
         return Ok(false);
     };
     match data

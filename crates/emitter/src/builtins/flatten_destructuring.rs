@@ -95,7 +95,7 @@ fn convert_to_array_assignment_element(
     element: TransformNode,
     role: AssignmentTargetRole,
 ) -> Result<TransformNode, TransformError> {
-    if let NodeData::BindingElement(data) = context.arena().node(element)?.data() {
+    if let Some(data) = context.arena().node(element)?.as_binding_element() {
         let name = data
             .name
             .and_then(|name| context.arena().node_ref(source, name))
@@ -146,7 +146,7 @@ fn convert_to_object_assignment_element(
     element: TransformNode,
     role: AssignmentTargetRole,
 ) -> Result<TransformNode, TransformError> {
-    if let NodeData::BindingElement(data) = context.arena().node(element)?.data() {
+    if let Some(data) = context.arena().node(element)?.as_binding_element() {
         let name = data
             .name
             .and_then(|name| context.arena().node_ref(source, name))
@@ -274,7 +274,7 @@ fn convert_to_object_assignment_pattern(
 ) -> Result<TransformNode, TransformError> {
     match context.arena().node(node)?.kind {
         SyntaxKind::ObjectBindingPattern => {
-            let NodeData::ObjectBindingPattern(data) = context.arena().node(node)?.data() else {
+            let Some(data) = context.arena().node(node)?.as_object_binding_pattern() else {
                 unreachable!("kind checked above");
             };
             let elements = array_nodes_in_context(context, source, data.elements)?;
@@ -300,7 +300,7 @@ fn convert_to_array_assignment_pattern(
 ) -> Result<TransformNode, TransformError> {
     match context.arena().node(node)?.kind {
         SyntaxKind::ArrayBindingPattern => {
-            let NodeData::ArrayBindingPattern(data) = context.arena().node(node)?.data() else {
+            let Some(data) = context.arena().node(node)?.as_array_binding_pattern() else {
                 unreachable!("kind checked above");
             };
             let elements = array_nodes_in_context(context, source, data.elements)?;

@@ -789,7 +789,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn import_clause_declaration_count(&self, import_clause: NodeId) -> usize {
-        let NodeData::ImportClause(data) = self.data_of(import_clause) else {
+        let Some(data) = self.record_of(import_clause).as_import_clause() else {
             return 0;
         };
         usize::from(data.name.is_some())

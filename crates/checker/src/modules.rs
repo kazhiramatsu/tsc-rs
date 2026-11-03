@@ -384,7 +384,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a4a009d67ec8efa73e0542bd8df80114b6fd459181e410f12afba35cec6b4056
     /// tsc-span: _tsc.js:87858-87866
     pub(crate) fn emit_is_arguments_local_binding(&mut self, node: NodeId) -> CheckResult<bool> {
-        if !matches!(self.data_of(node), NodeData::Identifier(_)) {
+        if !self.kind_of(node) == SyntaxKind::Identifier {
             return Ok(false);
         }
         let Some(parent) = self.parent_of(node) else {
@@ -1447,7 +1447,7 @@ impl<'a> CheckerState<'a> {
             // parentType: the left type is checkExpressionCached(left).
             return self.mark_property_alias_referenced_unspecified(location, left);
         }
-        if matches!(self.data_of(location), NodeData::ExportAssignment(_)) {
+        if self.kind_of(location) == SyntaxKind::ExportAssignment {
             return self.mark_export_assignment_alias_referenced(location);
         }
         if matches!(
@@ -1458,7 +1458,7 @@ impl<'a> CheckerState<'a> {
         ) {
             return self.mark_jsx_alias_referenced(location);
         }
-        if matches!(self.data_of(location), NodeData::ImportEqualsDeclaration(_)) {
+        if self.kind_of(location) == SyntaxKind::ImportEqualsDeclaration {
             if self.is_internal_module_import_equals_declaration(location)
                 || self.check_external_import_or_export_declaration(location)?
             {
@@ -1466,7 +1466,7 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(());
         }
-        if matches!(self.data_of(location), NodeData::ExportSpecifier(_)) {
+        if self.kind_of(location) == SyntaxKind::ExportSpecifier {
             return self.mark_export_specifier_alias_referenced(location);
         }
         if self.options.emit_decorator_metadata != Some(true) {
@@ -1506,7 +1506,7 @@ impl<'a> CheckerState<'a> {
         parent: Option<NodeId>,
     ) -> bool {
         if let Some(parent) = parent {
-            if let NodeData::ShorthandPropertyAssignment(data) = self.data_of(parent) {
+            if let Some(data) = self.record_of(parent).as_shorthand_property_assignment() {
                 if data.name == Some(location)
                     && data.object_assignment_initializer.is_some()
                     && !self
@@ -2185,7 +2185,7 @@ impl<'a> CheckerState<'a> {
         } else {
             node
         };
-        let NodeData::VariableDeclaration(data) = self.data_of(declaration) else {
+        let Some(data) = self.record_of(declaration).as_variable_declaration() else {
             return false;
         };
         self.is_in_js_file(declaration)
@@ -2488,7 +2488,7 @@ impl<'a> CheckerState<'a> {
                 // the resolved file name for tsc's JSON-attribute
                 // predicate; project only that existing diagnostic
                 // target without publishing a general resolver hit.
-                let NodeData::StringLiteral(data) = self.data_of(usage) else {
+                let Some(data) = self.record_of(usage).as_string_literal() else {
                     return Ok(false);
                 };
                 let module_reference = self.text_js(data.text).to_owned();
@@ -3921,7 +3921,7 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         for member in self.nodes_of(members) {
-            let NodeData::PropertySignature(signature) = self.data_of(member) else {
+            let Some(signature) = self.record_of(member).as_property_signature() else {
                 return self.grammar_error_on_node(
                     member,
                     &diagnostics::An_import_attributes_type_may_only_contain_property_signatures,
@@ -5598,7 +5598,7 @@ impl<'a> CheckerState<'a> {
         module_reference: impl Into<JsStr<'n>>,
     ) -> Option<SymbolId> {
         let module_reference = module_reference.into();
-        let NodeData::ImportType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_import_type() else {
             return None;
         };
         if data.is_type_of
@@ -7209,9 +7209,9 @@ impl<'a> CheckerState<'a> {
         });
         let context_specifier = if is_string_literal_like(location) || names_module {
             Some(location)
-        } else if let NodeData::ModuleDeclaration(data) = self.data_of(location) {
+        } else if let Some(data) = self.record_of(location).as_module_declaration() {
             data.name
-        } else if let NodeData::ImportType(data) = self.data_of(location) {
+        } else if let Some(data) = self.record_of(location).as_import_type() {
             data.argument
                 .and_then(|argument| match self.data_of(argument) {
                     NodeData::LiteralType(literal) => {
@@ -7829,7 +7829,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsc isLiteralImportTypeNode (_tsc.js:14158).
     fn is_literal_import_type_node(&self, node: NodeId) -> bool {
-        let NodeData::ImportType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_import_type() else {
             return false;
         };
         data.argument
@@ -7859,7 +7859,7 @@ impl<'a> CheckerState<'a> {
     fn is_side_effect_import(&self, node: NodeId) -> bool {
         let mut current = Some(node);
         while let Some(ancestor) = current {
-            if let NodeData::ImportDeclaration(data) = self.data_of(ancestor) {
+            if let Some(data) = self.record_of(ancestor).as_import_declaration() {
                 return data.import_clause.is_none();
             }
             current = self.parent_of(ancestor);
@@ -9201,7 +9201,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             NodeData::ImportType(data) => data.argument.and_then(|argument| {
-                let NodeData::LiteralType(literal) = self.data_of(argument) else {
+                let Some(literal) = self.record_of(argument).as_literal_type() else {
                     return None;
                 };
                 literal
@@ -9941,7 +9941,7 @@ impl<'a> CheckerState<'a> {
         };
         let elements = self.nodes_of(elements);
         let attribute_name_text = |attribute: NodeId| -> Option<(NodeId, Option<&str>)> {
-            let NodeData::ImportAttribute(data) = self.data_of(attribute) else {
+            let Some(data) = self.record_of(attribute).as_import_attribute() else {
                 return None;
             };
             let name = data.name?;
@@ -9959,7 +9959,7 @@ impl<'a> CheckerState<'a> {
         }) else {
             return ResolutionModeOverrideParse::Missing;
         };
-        let NodeData::ImportAttribute(data) = self.data_of(attribute) else {
+        let Some(data) = self.record_of(attribute).as_import_attribute() else {
             return ResolutionModeOverrideParse::Missing;
         };
         let Some(value) = data.value else {

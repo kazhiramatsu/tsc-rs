@@ -123,13 +123,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:58618-58620
     fn get_constraint_declaration_for_mapped_type(&self, ty: TypeId) -> NodeId {
         let declaration = self.mapped_type_declaration(ty);
-        let NodeData::MappedType(mapped) = self.data_of(declaration) else {
+        let Some(mapped) = self.record_of(declaration).as_mapped_type() else {
             unreachable!("mapped payload declaration has MappedType syntax kind");
         };
         let parameter = mapped
             .type_parameter
             .expect("parser invariant: mapped type has a type parameter");
-        let NodeData::TypeParameter(parameter) = self.data_of(parameter) else {
+        let Some(parameter) = self.record_of(parameter).as_type_parameter() else {
             unreachable!("mapped type_parameter has TypeParameter data");
         };
         parameter
@@ -168,7 +168,7 @@ impl<'a> CheckerState<'a> {
         let mapped = self.mapped_type_data(ty);
         let resolved = if self.is_mapped_type_with_keyof_constraint_declaration(ty) {
             let constraint = self.get_constraint_declaration_for_mapped_type(ty);
-            let NodeData::TypeOperator(operator) = self.data_of(constraint) else {
+            let Some(operator) = self.record_of(constraint).as_type_operator() else {
                 unreachable!("keyof constraint has TypeOperator data");
             };
             let operand = operator
@@ -828,7 +828,7 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         };
         let declaration = self.mapped_type_declaration(target);
-        let NodeData::MappedType(declaration) = self.data_of(declaration) else {
+        let Some(declaration) = self.record_of(declaration).as_mapped_type() else {
             unreachable!("mapped declaration has MappedType data");
         };
         if declaration.name_type.is_some() {

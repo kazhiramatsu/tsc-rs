@@ -430,7 +430,7 @@ fn template_for_node(
         | SyntaxKind::JSDocTypedefTag
         | SyntaxKind::JSDocCallbackTag => {
             let (error, name) = if kind == SyntaxKind::TypeAliasDeclaration {
-                let NodeData::TypeAliasDeclaration(data) = source.arena.node(node).data() else {
+                let Some(data) = source.arena.node(node).as_type_alias_declaration() else {
                     return Err(DeclarationTransformer::contract(
                         "type-alias diagnostic kind/data mismatch",
                     ));
@@ -741,7 +741,7 @@ fn parent(source: &SourceFile, node: NodeId) -> Option<NodeId> {
             return Some(host);
         }
         let comment = source.arena.node(parent).parent?;
-        if let NodeData::JSDoc(data) = source.arena.node(comment).data() {
+        if let Some(data) = source.arena.node(comment).as_js_doc() {
             let tags = data
                 .tags
                 .map_or(&[][..], |tags| source.arena.node_array(tags).nodes);

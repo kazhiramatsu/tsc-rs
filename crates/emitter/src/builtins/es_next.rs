@@ -463,7 +463,7 @@ impl<'context> EsNextVisitor<'context> {
             children: Vec::new(),
         };
         let record = self.context.arena().node(node)?;
-        if !matches!(record.data(), NodeData::MissingDeclaration(_)) {
+        if !record.kind == SyntaxKind::MissingDeclaration {
             let mut slots = child_slots(&record.data(), &collector);
             map_child_slots(&mut slots, &mut collector)?;
         }
@@ -864,7 +864,7 @@ impl<'context> EsNextVisitor<'context> {
         &mut self,
         block: TransformNode,
     ) -> Result<NodeId, TransformError> {
-        let NodeData::Block(data) = self.context.arena().node(block)?.data() else {
+        let Some(data) = self.context.arena().node(block)?.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(block)?.kind,
                 field: "synthetic disposal block",
@@ -1524,7 +1524,7 @@ impl<'context> EsNextVisitor<'context> {
     fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let NodeData::Identifier(identifier) = self.context.arena().node(name).ok()?.data() else {
+        let Some(identifier) = self.context.arena().node(name).ok()?.as_identifier() else {
             return None;
         };
         Some(TargetBinding::from_existing(
@@ -1586,7 +1586,7 @@ impl<'context> EsNextVisitor<'context> {
             return Ok(initializer);
         };
         let binding = self.node(binding);
-        let NodeData::Identifier(binding_data) = self.context.arena().node(binding)?.data() else {
+        let Some(binding_data) = self.context.arena().node(binding)?.as_identifier() else {
             return Ok(initializer);
         };
         let assigned_name_text = binding_data.text().to_owned();
@@ -1772,7 +1772,7 @@ impl<'context> EsNextVisitor<'context> {
             let string_prologue = matches!(
                 self.context.arena().node(*statement)?.data(),
                 NodeData::ExpressionStatement(data)
-                    if data.expression.and_then(|expression| self.context.arena().node_ref(self.source, expression)).is_some_and(|expression| self.context.arena().node(expression).is_ok_and(|expression| matches!(expression.data(), NodeData::StringLiteral(_))))
+                    if data.expression.and_then(|expression| self.context.arena().node_ref(self.source, expression)).is_some_and(|expression| self.context.arena().node(expression).is_ok_and(|expression| expression.kind == SyntaxKind::StringLiteral))
             );
             let custom_prologue = self
                 .context

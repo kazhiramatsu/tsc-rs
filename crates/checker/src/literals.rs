@@ -900,7 +900,7 @@ impl<'a> CheckerState<'a> {
     /// those exports, a JS literal in JavaScript (not JSON); it has no
     /// property children to check.
     fn expando_object_literal_type(&mut self, node: NodeId) -> Option<TypeId> {
-        let NodeData::ObjectLiteralExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_object_literal_expression() else {
             return None;
         };
         if !self.nodes_of(data.properties).is_empty() {

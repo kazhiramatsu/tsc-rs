@@ -626,6 +626,22 @@ impl Node {
         out
     }
 
+    /// Payload slot `index` (below the kind's slot count) as stored.
+    #[inline(always)]
+    fn slot(&self, index: usize) -> u32 {
+        if self.literal_flags & HAS_TAIL == 0 {
+            if index < 3 {
+                self.words[index]
+            } else {
+                0
+            }
+        } else if index < 2 {
+            self.words[index + 1]
+        } else {
+            tsc_store::tails::tail(self.words[0], index as u32 - 1)[index - 2]
+        }
+    }
+
     /// The JSDoc comment words of a kind of `slots` slots with a comment.
     #[inline]
     fn comment_words(&self, slots: usize) -> [u32; 4] {
@@ -1029,32 +1045,90 @@ def render_payload_codec(kinds):
     out += ["};", "(s, comment)", "}", ""]
 
     out.append("impl Node {")
-    out.append("/// The node's payload, decoded from its words (and its tail).")
+    out.append("/// The node's payload, decoded from its words (and its tail): a jump on the")
+    out.append("/// kind into the kind's decoder. A reader of one kind reads it with")
+    out.append("/// `as_<kind>()`, which decodes that kind alone.")
     out.append("#[inline]")
     out.append("pub fn data(&self) -> NodeData {")
     out.append("match self.kind {")
     for kind in kinds:
-        slots = kind.slots()
-        scalars_index = slots.index(SCALARS) if SCALARS in slots else None
-        out.append(f"SyntaxKind::{kind.name} => {{")
+        snake = snake_case(kind.name)
         if not kind.fields:
             out.append(
-                f"if self.words[2] == EMPTY_PAYLOAD {{ NodeData::{kind.name}({kind.data_name} {{}}) }} "
-                "else { NodeData::Token }"
+                f"SyntaxKind::{kind.name} => if self.words[2] == EMPTY_PAYLOAD "
+                f"{{ NodeData::{kind.name}({kind.data_name} {{}}) }} else {{ NodeData::Token }},"
             )
-            out.append("}")
             continue
+        out.append(f"SyntaxKind::{kind.name} => NodeData::{kind.name}(self.decode_{snake}()),")
+    out += ["_ => NodeData::Token,", "}", "}", ""]
+    for kind in kinds:
+        snake = snake_case(kind.name)
+        slots = kind.slots()
+        scalars_index = slots.index(SCALARS) if SCALARS in slots else None
+        if not kind.fields:
+            out.append(f"/// The {kind.name} payload, unless the record holds a `Token`.")
+            out.append("#[inline]")
+            out.append(f"pub fn as_{snake}(&self) -> Option<{kind.data_name}> {{")
+            out.append(
+                f"(self.kind == SyntaxKind::{kind.name} && self.words[2] == EMPTY_PAYLOAD)"
+                f".then_some({kind.data_name} {{}})"
+            )
+            out += ["}", ""]
+            continue
+        out.append(f"/// The {kind.name} payload of a record of that kind.")
+        out.append("#[inline(always)]")
+        out.append(f"pub(crate) fn decode_{snake}(&self) -> {kind.data_name} {{")
         if slots:
             out.append(f"let s = self.slots::<{len(slots)}>();")
-        out.append(f"NodeData::{kind.name}({kind.data_name} {{")
+        out.append(f"{kind.data_name} {{")
         for field in kind.fields:
             slot_index = next(
                 (index for index, slot in enumerate(slots) if slot is field), None
             )
             out.append(f"{field.rust_name}: {decode_field(kind, field, slot_index, scalars_index)},")
-        out.append("})")
-        out.append("}")
-    out += ["_ => NodeData::Token,", "}", "}", "}", ""]
+        out += ["}", "}", ""]
+        out.append(f"/// The {kind.name} payload, if this is a {kind.name} record (decodes only it).")
+        out.append("#[inline]")
+        out.append(f"pub fn as_{snake}(&self) -> Option<{kind.data_name}> {{")
+        out.append(f"(self.kind == SyntaxKind::{kind.name}).then(|| self.decode_{snake}())")
+        out += ["}", ""]
+    out += render_field_reads(kinds)
+    out += ["}", ""]
+    return out
+
+
+# Fields many kinds share, read from a record's slot without decoding its
+# payload (`Node::<field>_field`): the per-field helpers of the binder and the
+# checker (name, modifiers, type annotation, ...).
+def shared_fields(kinds):
+    uses = {}
+    for kind in kinds:
+        for field in kind.fields:
+            if field.ty in ("Node", "NodeArray"):
+                uses.setdefault(field.rust_name, []).append((kind, field))
+    return {
+        name: entries
+        for name, entries in uses.items()
+        if len(entries) >= 3 and len({field.ty for _, field in entries}) == 1
+    }
+
+
+def render_field_reads(kinds):
+    out = []
+    for name, entries in sorted(shared_fields(kinds).items()):
+        plain = name.removeprefix("r#")
+        id_type = ID_TYPES[entries[0][1].ty]
+        out.append(f"/// The `{plain}` field of a kind that has one, read from its slot.")
+        out.append("#[inline]")
+        out.append(f"pub fn {plain}_field(&self) -> Option<{id_type}> {{")
+        out.append("let index = match self.kind {")
+        by_index = {}
+        for kind, field in entries:
+            index = next(i for i, slot in enumerate(kind.slots()) if slot is field)
+            by_index.setdefault(index, []).append(kind.name)
+        for index, names in sorted(by_index.items()):
+            out.append(" | ".join(f"SyntaxKind::{n}" for n in names) + f" => {index},")
+        out += ["_ => return None,", "};", f"{id_type}::from_position(self.slot(index))", "}", ""]
     return out
 
 
@@ -1383,29 +1457,29 @@ def render_children(kind, out, line, node_kind):
 
 def render_for_each_child_rs(kinds):
     out = [HEADER, "", FOR_EACH_CHILD_PRELUDE]
+    # The walks switch on the record's kind and decode that kind alone: no
+    # NodeData is built for a walk.
     out.append("pub fn for_each_child<L, F>(lookup: &L, node: &Node, mut cb: F) -> Option<NodeId>")
-    out += ["where", "L: NodeLookup,", "F: FnMut(NodeId) -> bool,", "{", "match node.data() {"]
-    out.append("NodeData::Token => None,")
+    out += ["where", "L: NodeLookup,", "F: FnMut(NodeId) -> bool,", "{", "match node.kind {"]
     for kind in kinds:
         if not kind.children:
-            out.append(f"NodeData::{kind.name}(_data) => None,")
             continue
-        out.append(f"NodeData::{kind.name}(data) => {{")
+        out.append(f"SyntaxKind::{kind.name} => {{")
+        out.append(f"let data = node.decode_{snake_case(kind.name)}();")
         render_children(kind, out, for_each_child_line, "lookup.node(node).kind")
         out += ["None", "}"]
-    out += ["}", "}", ""]
+    out += ["_ => None,", "}", "}", ""]
 
     out.append("pub fn for_each_child_array<F>(node: &Node, mut cb: F) -> Option<NodeArrayId>")
-    out += ["where", "F: FnMut(NodeArrayId) -> bool,", "{", "match node.data() {"]
-    out.append("NodeData::Token => None,")
+    out += ["where", "F: FnMut(NodeArrayId) -> bool,", "{", "match node.kind {"]
     for kind in kinds:
         arrays = [
             field for field, _ in kind.child_fields() if field.ty in ("NodeArray", "JSDocComment")
         ]
         if not arrays:
-            out.append(f"NodeData::{kind.name}(_data) => None,")
             continue
-        out.append(f"NodeData::{kind.name}(data) => {{")
+        out.append(f"SyntaxKind::{kind.name} => {{")
+        out.append(f"let data = node.decode_{snake_case(kind.name)}();")
         for field in arrays:
             name = field.rust_name
             if field.ty == "NodeArray":
@@ -1423,7 +1497,7 @@ def render_for_each_child_rs(kinds):
                     f"if let JSDocComment::Nodes(id) = &data.{name} {{ if cb(*id) {{ return Some(*id); }} }}"
                 )
         out += ["None", "}"]
-    out += ["}", "}", ""]
+    out += ["_ => None,", "}", "}", ""]
 
     out.append(CHILD_VISITOR_TRAIT)
     out.append("pub fn try_visit_each_child<V>(data: &mut NodeData, visitor: &mut V) -> Result<(), V::Error>")

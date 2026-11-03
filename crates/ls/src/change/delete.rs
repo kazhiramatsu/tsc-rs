@@ -314,7 +314,7 @@ fn delete_default_import<'a>(
     file: &'a SourceFile,
     import_clause: NodeId,
 ) {
-    let NodeData::ImportClause(clause) = file.arena.node(import_clause).data() else {
+    let Some(clause) = file.arena.node(import_clause).as_import_clause() else {
         return;
     };
     let declaration = file.arena.node(import_clause).parent;

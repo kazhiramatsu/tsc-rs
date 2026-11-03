@@ -712,7 +712,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::JSDocSignature => {
                 if no_implicit_any {
                     if let Some(parent) = self.parent_of(declaration) {
-                        if let NodeData::JSDocOverloadTag(data) = self.data_of(parent) {
+                        if let Some(data) = self.record_of(parent).as_js_doc_overload_tag() {
                             let host = self
                                 .parent_of(parent)
                                 .and_then(|document| self.parent_of(document));

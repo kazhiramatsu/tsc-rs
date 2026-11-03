@@ -124,7 +124,7 @@ pub(super) fn process_tagged_template_expression(
     node: TransformNode,
 ) -> Result<TransformNode, TransformError> {
     let (tag, template) = {
-        let NodeData::TaggedTemplateExpression(data) = host.arena_node(node)?.data() else {
+        let Some(data) = host.arena_node(node)?.as_tagged_template_expression() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::TaggedTemplateExpression,
                 field: "tagged template",
@@ -158,7 +158,7 @@ pub(super) fn process_tagged_template_expression(
         }
         SyntaxKind::TemplateExpression => {
             let (head, spans) = {
-                let NodeData::TemplateExpression(data) = host.arena_node(template)?.data() else {
+                let Some(data) = host.arena_node(template)?.as_template_expression() else {
                     unreachable!("kind-checked template expression");
                 };
                 let head = data.head.ok_or(TransformError::RequiredChildRemoved {
@@ -171,7 +171,7 @@ pub(super) fn process_tagged_template_expression(
             raw_strings.push(get_raw_literal(host, head)?);
             for span in spans {
                 let (expression, literal) = {
-                    let NodeData::TemplateSpan(data) = host.arena_node(span)?.data() else {
+                    let Some(data) = host.arena_node(span)?.as_template_span() else {
                         return Err(TransformError::RequiredChildRemoved {
                             parent: SyntaxKind::TemplateSpan,
                             field: "template span",
@@ -388,7 +388,7 @@ fn has_invalid_escape(
                 return Ok(true);
             }
             for span in host.array_nodes(data.template_spans)? {
-                let NodeData::TemplateSpan(span_data) = host.arena_node(span)?.data() else {
+                let Some(span_data) = host.arena_node(span)?.as_template_span() else {
                     return Err(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::TemplateSpan,
                         field: "template span",

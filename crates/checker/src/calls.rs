@@ -647,7 +647,7 @@ impl<'a> CheckerState<'a> {
         if self.has_parse_diagnostics(decorator) {
             return false;
         }
-        let NodeData::Decorator(data) = self.data_of(decorator) else {
+        let Some(data) = self.record_of(decorator).as_decorator() else {
             return false;
         };
         let Some(expression) = data.expression else {
@@ -805,7 +805,7 @@ impl<'a> CheckerState<'a> {
         candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
-        let NodeData::Decorator(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_decorator() else {
             unreachable!("kind/data agree");
         };
         // tsgo: a decorator where none can be (a function declaration's,
@@ -913,7 +913,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<Vec<EffectiveArg>> {
-        let NodeData::Decorator(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_decorator() else {
             unreachable!("kind/data agree");
         };
         let expression = data.expression.expect(
@@ -1733,7 +1733,7 @@ impl<'a> CheckerState<'a> {
     /// `.name`); every other call-like → the node's own error span.
     fn diag_span_for_call_node(&self, node: NodeId) -> DiagSpan {
         if self.kind_of(node) == SyntaxKind::CallExpression {
-            let NodeData::CallExpression(data) = self.data_of(node) else {
+            let Some(data) = self.record_of(node).as_call_expression() else {
                 unreachable!("kind/data agree");
             };
             if let Some(expression) = data.expression {
@@ -1994,10 +1994,10 @@ impl<'a> CheckerState<'a> {
                     is_spread: false,
                     tuple_name_source: None,
                 }];
-                if let NodeData::TemplateExpression(template_data) = self.data_of(template) {
+                if let Some(template_data) = self.record_of(template).as_template_expression() {
                     let spans = template_data.template_spans;
                     for span in self.nodes_of(spans) {
-                        if let NodeData::TemplateSpan(span_data) = self.data_of(span) {
+                        if let Some(span_data) = self.record_of(span).as_template_span() {
                             if let Some(expression) = span_data.expression {
                                 args.push(EffectiveArg::Node(expression));
                             }
@@ -2076,7 +2076,7 @@ impl<'a> CheckerState<'a> {
             .collect();
         for &arg in &args[spread_index..] {
             let spread_type = if self.kind_of(arg) == SyntaxKind::SpreadElement {
-                let NodeData::SpreadElement(data) = self.data_of(arg) else {
+                let Some(data) = self.record_of(arg).as_spread_element() else {
                     unreachable!("kind/data agree");
                 };
                 match data.expression {
@@ -2258,14 +2258,14 @@ impl<'a> CheckerState<'a> {
         match self.kind_of(node) {
             SyntaxKind::TaggedTemplateExpression => {
                 arg_count = args.len();
-                let NodeData::TaggedTemplateExpression(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_tagged_template_expression() else {
                     unreachable!("kind/data agree");
                 };
                 let template = data.template.expect(
                     "parser invariant: parse_tagged_template_rest always stores a template \
                      (parse recovery stores a missing TemplateTail)",
                 );
-                if let NodeData::TemplateExpression(template_data) = self.data_of(template) {
+                if let Some(template_data) = self.record_of(template).as_template_expression() {
                     let spans = self.nodes_of(template_data.template_spans);
                     let last_span = spans.last().copied().expect(
                         "parser invariant: parse_template_expression always stores at least \
@@ -2476,7 +2476,7 @@ impl<'a> CheckerState<'a> {
                 let (spread_type, error_node) = match *arg {
                     EffectiveArg::Synthetic { ty, .. } => (ty, None),
                     EffectiveArg::Node(node) => {
-                        let NodeData::SpreadElement(data) = self.data_of(node) else {
+                        let Some(data) = self.record_of(node).as_spread_element() else {
                             unreachable!("spread arguments are spread elements");
                         };
                         let expression = data.expression.expect(
@@ -2509,7 +2509,7 @@ impl<'a> CheckerState<'a> {
                 let (spread_type, error_node) = match arg {
                     EffectiveArg::Synthetic { ty, .. } => (ty, None),
                     EffectiveArg::Node(node) => {
-                        let NodeData::SpreadElement(data) = self.data_of(node) else {
+                        let Some(data) = self.record_of(node).as_spread_element() else {
                             unreachable!("spread arguments are spread elements");
                         };
                         let expression = data.expression.expect(
@@ -4002,7 +4002,7 @@ impl<'a> CheckerState<'a> {
                 return false;
             };
             let argument = self.get_effective_check_node(argument);
-            let NodeData::ObjectLiteralExpression(data) = self.data_of(argument) else {
+            let Some(data) = self.record_of(argument).as_object_literal_expression() else {
                 return false;
             };
             self.nodes_of(data.properties).into_iter().any(|property| {
@@ -5012,7 +5012,7 @@ impl<'a> CheckerState<'a> {
     /// on the constructor identifier reduces to the same resolveName
     /// probe for the identifier-callee shape this predicate demands.
     fn is_promise_resolve_arity_error(&mut self, node: NodeId) -> CheckResult<bool> {
-        let NodeData::CallExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_call_expression() else {
             return Ok(false);
         };
         let Some(callee) = data.expression else {
@@ -5054,7 +5054,7 @@ impl<'a> CheckerState<'a> {
         let Some(new_expr) = self.parent_of(func) else {
             return Ok(false);
         };
-        let NodeData::NewExpression(new_data) = self.data_of(new_expr) else {
+        let Some(new_data) = self.record_of(new_expr).as_new_expression() else {
             return Ok(false);
         };
         let Some(ctor) = new_data.expression else {
@@ -5615,7 +5615,7 @@ impl<'a> CheckerState<'a> {
         candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
-        let NodeData::CallExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_call_expression() else {
             unreachable!("kind/data agree");
         };
         let expression = data.expression.expect(
@@ -5806,7 +5806,7 @@ impl<'a> CheckerState<'a> {
         candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
-        let NodeData::NewExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_new_expression() else {
             unreachable!("kind/data agree");
         };
         let expression = data.expression.expect(
@@ -6086,7 +6086,7 @@ impl<'a> CheckerState<'a> {
         };
         let mut reported = false;
         for attribute in self.nodes_of(properties) {
-            let NodeData::JsxAttribute(data) = self.data_of(attribute) else {
+            let Some(data) = self.record_of(attribute).as_jsx_attribute() else {
                 continue;
             };
             let Some(name_node) = data.name else {
@@ -6326,7 +6326,7 @@ impl<'a> CheckerState<'a> {
         candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
-        let NodeData::TaggedTemplateExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_tagged_template_expression() else {
             unreachable!("kind/data agree");
         };
         let tag = data.tag.expect(
@@ -6384,7 +6384,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let NodeData::TaggedTemplateExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_tagged_template_expression() else {
             unreachable!("kind/data agree");
         };
         let type_arguments = data.type_arguments;
@@ -6400,7 +6400,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c082b1bcdc184cc37412b14ed705d10bc415a8b6c7d80ac4b82d0e8b7185fc32
     /// tsc-span: _tsc.js:89540-89545
     fn check_grammar_tagged_template_chain(&mut self, node: NodeId) -> bool {
-        let NodeData::TaggedTemplateExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_tagged_template_expression() else {
             unreachable!("kind/data agree");
         };
         let question_dot = data.question_dot_token.is_some();
@@ -6431,7 +6431,7 @@ impl<'a> CheckerState<'a> {
         candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
-        let NodeData::BinaryExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_binary_expression() else {
             unreachable!("kind/data agree");
         };
         let right = data.right.expect(
@@ -6502,7 +6502,7 @@ impl<'a> CheckerState<'a> {
     /// produce real Promise-wrapped module types.
     pub(crate) fn check_import_call_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
         self.check_grammar_import_call_expression(node);
-        let NodeData::CallExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_call_expression() else {
             unreachable!("import calls are call expressions");
         };
         let arguments = data.arguments;
@@ -6548,10 +6548,10 @@ impl<'a> CheckerState<'a> {
             }
             // The `assert` option property stays a checker row in 7.1
             // (tsgo checker.go:8462); `ignoreDeprecations` has no effect.
-            if let NodeData::ObjectLiteralExpression(literal) = self.data_of(args[1]) {
+            if let Some(literal) = self.record_of(args[1]).as_object_literal_expression() {
                 let properties = literal.properties;
                 for property in self.nodes_of(properties) {
-                    let NodeData::PropertyAssignment(assignment) = self.data_of(property) else {
+                    let Some(assignment) = self.record_of(property).as_property_assignment() else {
                         continue;
                     };
                     let Some(name) = assignment.name else {
@@ -6624,7 +6624,7 @@ impl<'a> CheckerState<'a> {
             let message = self.get_verbatim_module_syntax_error_message(node);
             return self.grammar_error_on_node(node, message, &[]);
         }
-        let NodeData::CallExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_call_expression() else {
             unreachable!("import calls are call expressions");
         };
         let expression = data.expression;
@@ -7125,13 +7125,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7f795d82739f8c0d3e0537b4833ca9e15fe55c71dd23938052fff87798ea1dfc
     /// tsc-span: _tsc.js:77692-77717
     pub(crate) fn is_symbol_or_symbol_for_call(&mut self, node: NodeId) -> CheckResult<bool> {
-        let NodeData::CallExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_call_expression() else {
             return Ok(false);
         };
         let Some(mut left) = data.expression else {
             return Ok(false);
         };
-        if let NodeData::PropertyAccessExpression(access) = self.data_of(left) {
+        if let Some(access) = self.record_of(left).as_property_access_expression() {
             let is_for = access
                 .name
                 .and_then(|name| self.identifier_text_of(name))

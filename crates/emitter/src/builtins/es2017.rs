@@ -184,7 +184,7 @@ fn source_file_is_effectively_strict(
     if syntax.external_module_indicator.is_some() {
         return Ok(true);
     }
-    let NodeData::SourceFile(data) = context.arena().node(root)?.data() else {
+    let Some(data) = context.arena().node(root)?.as_source_file() else {
         return Ok(false);
     };
     let Some(statements) = data
@@ -207,7 +207,7 @@ fn source_file_is_effectively_strict(
         else {
             break;
         };
-        let NodeData::StringLiteral(literal) = context.arena().node(expression)?.data() else {
+        let Some(literal) = context.arena().node(expression)?.as_string_literal() else {
             break;
         };
         if context.arena().text(expression.source(), literal.text)? == b"use strict" {
@@ -282,7 +282,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let original = self.node(id);
         let record = *self.context.arena().node(original)?;
 
-        if matches!(record.data(), NodeData::Identifier(_))
+        if record.kind == SyntaxKind::Identifier
             && self.lexical_arguments_binding.is_some()
             && self
                 .resolver
@@ -837,7 +837,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return Ok(false);
         };
         let record = self.context.arena().node(list)?;
-        let NodeData::VariableDeclarationList(data) = record.data() else {
+        let Some(data) = record.as_variable_declaration_list() else {
             return Ok(false);
         };
         if NodeFlags::from_bits(record.flags).intersects(NodeFlags::BLOCK_SCOPED) {
@@ -869,7 +869,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let NodeData::Identifier(identifier) = self.context.arena().node(name).ok()?.data() else {
+        let Some(identifier) = self.context.arena().node(name).ok()?.as_identifier() else {
             return None;
         };
         Some(TargetBinding::from_existing(
@@ -1570,7 +1570,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return Ok(body);
         }
         let body_node = self.node(body);
-        let NodeData::Block(mut data) = self.context.arena().node(body_node)?.data() else {
+        let Some(mut data) = self.context.arena().node(body_node)?.as_block() else {
             return Ok(body);
         };
         let mut existing = self.array_nodes(data.statements)?;
@@ -1718,7 +1718,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let mut outer = Vec::new();
         let mut forwarded_arguments = Vec::new();
         for parameter in self.array_nodes(Some(parameters))? {
-            let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() else {
+            let Some(data) = self.context.arena().node(parameter)?.as_parameter() else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::Parameter,
                     field: "parameter",
@@ -1786,7 +1786,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         &self,
         parameter: TransformNode,
     ) -> Result<AsyncParameterFact, TransformError> {
-        let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() else {
+        let Some(data) = self.context.arena().node(parameter)?.as_parameter() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Parameter,
                 field: "parameter",
@@ -1835,7 +1835,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     ) -> Result<BTreeSet<String>, TransformError> {
         let mut names = BTreeSet::new();
         for parameter in self.array_nodes(parameters)? {
-            if let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() {
+            if let Some(data) = self.context.arena().node(parameter)?.as_parameter() {
                 if let Some(name) = data.name {
                     self.collect_binding_names(self.node(name), &mut names)?;
                 }
@@ -2373,7 +2373,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         if lexical_environment.is_empty() {
             return Ok(body);
         }
-        let NodeData::Block(mut data) = self.context.arena().node(body)?.data() else {
+        let Some(mut data) = self.context.arena().node(body)?.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::FunctionExpression,
                 field: "generator block",
@@ -2449,7 +2449,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             self.context
                 .arena()
                 .node(self.node(expression))
-                .is_ok_and(|expression| matches!(expression.data(), NodeData::StringLiteral(_)))
+                .is_ok_and(|expression| expression.kind == SyntaxKind::StringLiteral)
         })
     }
 

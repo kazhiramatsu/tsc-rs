@@ -639,7 +639,7 @@ impl<'context> JsxVisitor<'context> {
                                 properties.into_iter().all(|property| {
                                     !matches!(
                                         self.context.arena().node(self.node(property)),
-                                        Ok(record) if matches!(record.data(), NodeData::SpreadAssignment(_))
+                                        Ok(record) if record.kind == SyntaxKind::SpreadAssignment
                                     )
                                 })
                             })
@@ -665,7 +665,7 @@ impl<'context> JsxVisitor<'context> {
 
     fn transform_key_attribute(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
         let attribute = self.node(id);
-        let NodeData::JsxAttribute(data) = self.context.arena().node(attribute)?.data() else {
+        let Some(data) = self.context.arena().node(attribute)?.as_jsx_attribute() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::JsxOpeningElement,
                 field: "key",
@@ -1794,7 +1794,7 @@ impl<'context> JsxVisitor<'context> {
             parent,
             field: "name",
         })?;
-        let NodeData::Identifier(data) = self.context.arena().node(self.node(id))?.data() else {
+        let Some(data) = self.context.arena().node(self.node(id))?.as_identifier() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent,
                 field: "name",

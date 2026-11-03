@@ -649,7 +649,7 @@ impl<'a> CheckerState<'a> {
         if self.is_constant_variable(symbol) {
             let declaration = self.binder.symbol(symbol).value_declaration;
             if let Some(declaration) = declaration {
-                if let NodeData::VariableDeclaration(data) = self.data_of(declaration) {
+                if let Some(data) = self.record_of(declaration).as_variable_declaration() {
                     if let (None, Some(initializer)) = (data.r#type, data.initializer) {
                         let gate = match location {
                             None => true,
@@ -882,13 +882,13 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(parent) == SyntaxKind::ExportSpecifier {
                 return Ok(true);
             }
-            if let NodeData::ExportAssignment(data) = self.data_of(parent) {
+            if let Some(data) = self.record_of(parent).as_export_assignment() {
                 if data.is_export_equals == Some(true) {
                     return Ok(true);
                 }
             }
         }
-        if let NodeData::ExportAssignment(data) = self.data_of(usage) {
+        if let Some(data) = self.record_of(usage).as_export_assignment() {
             if data.is_export_equals == Some(true) {
                 return Ok(true);
             }
@@ -1092,7 +1092,7 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
         current: NodeId,
     ) -> CheckResult<bool> {
-        let NodeData::PropertyDeclaration(data) = self.data_of(declaration) else {
+        let Some(data) = self.record_of(declaration).as_property_declaration() else {
             unreachable!("caller checked the declaration kind");
         };
         let name_ok = data.name.is_some_and(|name| {
@@ -1156,7 +1156,7 @@ impl<'a> CheckerState<'a> {
     /// isThisProperty(usage.parent) && !declaration.initializer &&
     /// !declaration.exclamationToken`.
     fn is_unrealized_this_property_use(&self, declaration: NodeId, usage: NodeId) -> bool {
-        let NodeData::PropertyDeclaration(data) = self.data_of(declaration) else {
+        let Some(data) = self.record_of(declaration).as_property_declaration() else {
             return false;
         };
         if data.initializer.is_some() || data.exclamation_token.is_some() {
@@ -1253,7 +1253,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             if let Some(parent) = self.parent_of(node) {
-                if let NodeData::PropertyDeclaration(data) = self.data_of(parent) {
+                if let Some(data) = self.record_of(parent).as_property_declaration() {
                     if data.initializer == Some(node) {
                         if self.has_static_modifier(parent) {
                             if self.kind_of(declaration) == SyntaxKind::MethodDeclaration {
@@ -1282,7 +1282,7 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 }
-                if let NodeData::Decorator(data) = self.data_of(parent) {
+                if let Some(data) = self.record_of(parent).as_decorator() {
                     if data.expression == Some(node) {
                         // Recursion restarts the worker from the
                         // decorated declaration's container; a false
@@ -1508,7 +1508,7 @@ impl<'a> CheckerState<'a> {
     /// passes excludeJSDocTypeAssertions.
     pub(crate) fn skip_parentheses(&self, node: NodeId) -> NodeId {
         let mut node = node;
-        while let NodeData::ParenthesizedExpression(data) = self.data_of(node) {
+        while let Some(data) = self.record_of(node).as_parenthesized_expression() {
             match data.expression {
                 Some(expression) => node = expression,
                 None => break,
@@ -1522,7 +1522,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:15661-15664
     pub(crate) fn skip_parentheses_excluding_jsdoc_type_assertions(&self, node: NodeId) -> NodeId {
         let mut node = node;
-        while let NodeData::ParenthesizedExpression(data) = self.data_of(node) {
+        while let Some(data) = self.record_of(node).as_parenthesized_expression() {
             if node_util::is_jsdoc_type_assertion(self.binder.source_of_node(node), node) {
                 break;
             }
@@ -1663,7 +1663,7 @@ impl<'a> CheckerState<'a> {
     /// erasableSyntaxOnly contract before member-value computation.
     fn check_enum_declaration_worker(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_modifiers(node);
-        let NodeData::EnumDeclaration(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_enum_declaration() else {
             unreachable!("kind/data agree");
         };
         let (name, members) = (data.name, data.members);
@@ -1711,14 +1711,14 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(declaration) != SyntaxKind::EnumDeclaration {
                 continue;
             }
-            let NodeData::EnumDeclaration(declaration_data) = self.data_of(declaration) else {
+            let Some(declaration_data) = self.record_of(declaration).as_enum_declaration() else {
                 unreachable!("kind/data agree");
             };
             let members = self.nodes_of(declaration_data.members);
             let Some(&first_enum_member) = members.first() else {
                 continue;
             };
-            let NodeData::EnumMember(member_data) = self.data_of(first_enum_member) else {
+            let Some(member_data) = self.record_of(first_enum_member).as_enum_member() else {
                 unreachable!("enum members hold EnumMember data");
             };
             if member_data.initializer.is_none() {
@@ -1744,7 +1744,7 @@ impl<'a> CheckerState<'a> {
     /// The initializer checkExpression is idempotent over the
     /// evaluator's checkExpressionCached demand (m4-58 §8).
     pub(crate) fn check_enum_member(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::EnumMember(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_enum_member() else {
             unreachable!("kind/data agree");
         };
         let (name, initializer) = (data.name, data.initializer);
@@ -1757,7 +1757,7 @@ impl<'a> CheckerState<'a> {
         }
         // tsgo (#64674): a computed name is checked like any expression.
         if let Some(name) = name {
-            if let NodeData::ComputedPropertyName(computed) = self.data_of(name) {
+            if let Some(computed) = self.record_of(name).as_computed_property_name() {
                 if let Some(expression) = computed.expression {
                     self.check_expression(expression, tsc_types::CheckMode::NORMAL)?;
                 }
