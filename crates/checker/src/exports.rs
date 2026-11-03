@@ -295,7 +295,7 @@ impl CheckerState<'_> {
             };
         }
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
-            return self.links.read_ty(ty, |links| links.type_parameter_target);
+            return *self.links.type_cold().type_parameter_target.get(ty);
         }
         match data {
             TypeData::Index { ty, .. } | TypeData::StringMapping { ty } => Some(*ty),

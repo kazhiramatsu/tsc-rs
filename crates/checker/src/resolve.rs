@@ -322,7 +322,7 @@ impl<'a> CheckerState<'a> {
                             && (after_token
                                 || last_location.is_some()
                                     && last_location
-                                        != body_of(self.binder.source_of_node(loc), loc))
+                                        != body_of(&tsc_syntax::Published, loc))
                         {
                             // Type parameters of a function are in scope
                             // only in the return type and parameter list
@@ -804,7 +804,7 @@ impl<'a> CheckerState<'a> {
                             || (last_location == data.name
                                 && last_location
                                     .is_some_and(|l| node_util::is_binding_pattern(&Published, l))))
-                        && is_part_of_parameter_declaration(self.binder.source_of_node(loc), loc)
+                        && is_part_of_parameter_declaration(&tsc_syntax::Published, loc)
                         && associated_declaration_for_containing_initializer.is_none()
                     {
                         associated_declaration_for_containing_initializer = Some(loc);
@@ -970,7 +970,7 @@ impl<'a> CheckerState<'a> {
                         .is_some_and(|tag| self.kind_of(tag) == SyntaxKind::JSDocOverloadTag) =>
             {
                 match previous.and_then(|tag| {
-                    tsc_binder::hosted::reparsed_overload_host(self.binder.source_of_node(tag), tag)
+                    tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published, tag)
                 }) {
                     Some(host) => {
                         *last_location = Some(host);
@@ -1081,8 +1081,7 @@ impl<'a> CheckerState<'a> {
                 .name_of_node(node)
                 .is_some_and(|n| self.requires_scope_change_worker(n)),
             SyntaxKind::PropertyDeclaration => {
-                if has_syntactic_modifier(
-                    self.binder.source_of_node(node),
+                if has_syntactic_modifier(&tsc_syntax::Published,
                     node,
                     ModifierFlags::STATIC,
                 ) {
@@ -1207,8 +1206,7 @@ impl<'a> CheckerState<'a> {
     pub fn local_symbol_for_export_default(&self, symbol: SymbolId) -> Option<SymbolId> {
         let data = self.binder.symbol(symbol);
         let first = *data.declarations.first()?;
-        if !has_syntactic_modifier(
-            self.binder.source_of_node(first),
+        if !has_syntactic_modifier(&tsc_syntax::Published,
             first,
             ModifierFlags::DEFAULT,
         ) {
@@ -2070,8 +2068,7 @@ impl<'a> CheckerState<'a> {
         }
         if self.kind_of(computed_ancestor) == SyntaxKind::ComputedPropertyName {
             if let Some(member) = self.parent_of(computed_ancestor) {
-                if has_syntactic_modifier(
-                    self.binder.source_of_node(member),
+                if has_syntactic_modifier(&tsc_syntax::Published,
                     member,
                     ModifierFlags::ABSTRACT,
                 ) {
@@ -2913,8 +2910,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn is_static_node(&self, node: NodeId) -> bool {
-        has_syntactic_modifier(
-            self.binder.source_of_node(node),
+        has_syntactic_modifier(&tsc_syntax::Published,
             node,
             ModifierFlags::STATIC,
         )
@@ -2932,7 +2928,7 @@ impl<'a> CheckerState<'a> {
         };
         self.nodes_of_array(members).into_iter().find(|&member| {
             self.kind_of(member) == SyntaxKind::Constructor
-                && body_of(self.binder.source_of_node(member), member).is_some()
+                && body_of(&tsc_syntax::Published, member).is_some()
         })
     }
 

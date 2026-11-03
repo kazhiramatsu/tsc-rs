@@ -763,10 +763,10 @@ pub fn walk_up_binding_elements_and_patterns(
 /// tsc-port: getCombinedFlags @6.0.3
 /// tsc-hash: a6c964170d4df0cc4be460454fb5933c6f1dd557cd9cdca86648e2ba4b17b44b
 /// tsc-span: _tsc.js:11322-11338
-fn get_combined_flags(
-    source: &SourceFile,
+fn get_combined_flags<T: NodeLookup>(
+    source: &T,
     id: NodeId,
-    get_flags: impl Fn(&SourceFile, NodeId) -> ModifierFlags,
+    get_flags: impl Fn(&T, NodeId) -> ModifierFlags,
 ) -> ModifierFlags {
     let mut node = Some(id);
     if kind_of(source, id) == SyntaxKind::BindingElement {
@@ -837,6 +837,12 @@ pub fn get_effective_modifier_flags(source: &SourceFile, id: NodeId) -> Modifier
 /// tsc getCombinedModifierFlags via getEffectiveModifierFlags.
 pub fn get_combined_modifier_flags(source: &SourceFile, id: NodeId) -> ModifierFlags {
     get_combined_flags(source, id, get_effective_modifier_flags)
+}
+
+/// getCombinedModifierFlags of a node outside JavaScript files, whose
+/// effective modifiers are its syntactic ones: no file is needed.
+pub fn get_combined_syntactic_modifier_flags(tree: &impl NodeLookup, id: NodeId) -> ModifierFlags {
+    get_combined_flags(tree, id, |tree, id| get_syntactic_modifier_flags(tree, id))
 }
 
 /// tsc `declaration.name` dynamic access: the name field of any kind
@@ -1022,17 +1028,17 @@ pub fn is_declaration(tree: &impl NodeLookup, node: NodeId) -> bool {
 /// JS assignment declarations reuse the binder's authoritative
 /// assignment-kind classifier. This became a checker prerequisite when
 /// M7 activated unused-local diagnostics for function owners.
-pub fn get_non_assigned_name_of_declaration(source: &SourceFile, id: NodeId) -> Option<NodeId> {
-    match kind_of(source, id) {
+pub fn get_non_assigned_name_of_declaration(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
+    match kind_of(tree, id) {
         // An identifier names no declaration (tsgo has no case for one), but
         // two stand for tsgo's reparsed declarations:
         SyntaxKind::Identifier => {
-            let tag = parent_of(source, id)?;
-            match kind_of(source, tag) {
+            let tag = parent_of(tree, id)?;
+            match kind_of(tree, tag) {
                 // the tag name of a reparsed `@overload` declares the overload
                 // declaration, whose name is a clone of its host's;
-                SyntaxKind::JSDocOverloadTag => crate::hosted::reparsed_overload_host(source, tag)
-                    .and_then(|host| name_field_of(source, host)),
+                SyntaxKind::JSDocOverloadTag => crate::hosted::reparsed_overload_host(tree, tag)
+                    .and_then(|host| name_field_of(tree, host)),
                 // the identifier over a `@this` tag is the `this` parameter,
                 // with its synthesized (zero-width) name.
                 SyntaxKind::JSDocThisTag => Some(id),
@@ -1040,35 +1046,35 @@ pub fn get_non_assigned_name_of_declaration(source: &SourceFile, id: NodeId) -> 
             }
         }
         SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag => {
-            let name = name_field_of(source, id)?;
-            match &source.arena.node(name).data {
+            let name = name_field_of(tree, id)?;
+            match &tree.node(name).data {
                 NodeData::QualifiedName(data) => data.right,
                 _ => Some(name),
             }
         }
         SyntaxKind::CallExpression | SyntaxKind::BinaryExpression => {
-            crate::assignment::get_assignment_declaration_name(source, id)
+            crate::assignment::get_assignment_declaration_name(tree, id)
         }
-        SyntaxKind::JSDocTypedefTag => name_field_of(source, id),
+        SyntaxKind::JSDocTypedefTag => name_field_of(tree, id),
         // The `this` parameter tsgo reparses from a JSDoc signature's `@this`
         // is named by an identifier over the tag (reparser.go:168-176).
         SyntaxKind::JSDocThisTag => Some(id),
-        SyntaxKind::ExportAssignment => match &source.arena.node(id).data {
+        SyntaxKind::ExportAssignment => match &tree.node(id).data {
             NodeData::ExportAssignment(data) => data
                 .expression
-                .filter(|&expression| kind_of(source, expression) == SyntaxKind::Identifier),
+                .filter(|&expression| kind_of(tree, expression) == SyntaxKind::Identifier),
             _ => None,
         },
         SyntaxKind::ElementAccessExpression => {
-            crate::assignment::is_bindable_static_element_access_expression(source, id, false)
+            crate::assignment::is_bindable_static_element_access_expression(tree, id, false)
                 .then(|| {
                     crate::assignment::get_element_or_property_access_argument_expression_or_name(
-                        source, id,
+                        tree, id,
                     )
                 })
                 .flatten()
         }
-        _ => name_field_of(source, id),
+        _ => name_field_of(tree, id),
     }
 }
 
@@ -1111,11 +1117,11 @@ pub fn get_assigned_name(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
 /// tsc-port: getNameOfDeclaration @6.0.3
 /// tsc-hash: 5d3aafbdab871f0fe6f088a4904cd11e6b44e467e0cca8ad0c215b3f899b570b
 /// tsc-span: _tsc.js:11562-11565
-pub fn get_name_of_declaration(source: &SourceFile, id: NodeId) -> Option<NodeId> {
-    get_non_assigned_name_of_declaration(source, id).or_else(|| match kind_of(source, id) {
+pub fn get_name_of_declaration(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
+    get_non_assigned_name_of_declaration(tree, id).or_else(|| match kind_of(tree, id) {
         SyntaxKind::FunctionExpression
         | SyntaxKind::ArrowFunction
-        | SyntaxKind::ClassExpression => get_assigned_name(source, id),
+        | SyntaxKind::ClassExpression => get_assigned_name(tree, id),
         _ => None,
     })
 }
@@ -1197,9 +1203,9 @@ pub fn is_signed_numeric_literal(tree: &impl NodeLookup, id: NodeId) -> bool {
 /// tsc-port: hasDynamicName @6.0.3
 /// tsc-hash: d126787bc1b36621098ed5255c26d1e27abe5bf6dbc55570657aa03f95a588bb
 /// tsc-span: _tsc.js:15850-15853
-pub fn has_dynamic_name(source: &SourceFile, declaration: NodeId) -> bool {
-    match get_name_of_declaration(source, declaration) {
-        Some(name) => is_dynamic_name(source, name),
+pub fn has_dynamic_name(tree: &impl NodeLookup, declaration: NodeId) -> bool {
+    match get_name_of_declaration(tree, declaration) {
+        Some(name) => is_dynamic_name(tree, name),
         None => false,
     }
 }

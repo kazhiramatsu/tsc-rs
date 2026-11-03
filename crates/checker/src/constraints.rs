@@ -109,9 +109,9 @@ impl<'a> CheckerState<'a> {
         {
             return Ok((cached != self.no_constraint_type).then_some(cached));
         }
-        if let Some(target) = self.links.read_ty(ty, |links| links.type_parameter_target) {
+        if let Some(target) = *self.links.type_cold().type_parameter_target.get(ty) {
             let target_constraint = self.get_constraint_of_type_parameter(target)?;
-            let mapper = self.links.read_ty(ty, |links| links.type_parameter_mapper);
+            let mapper = *self.links.type_cold().type_parameter_mapper.get(ty);
             let constraint = match target_constraint {
                 Some(target_constraint) => self.instantiate_type(target_constraint, mapper)?,
                 None => self.no_constraint_type,

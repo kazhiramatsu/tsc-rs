@@ -2182,10 +2182,7 @@ impl<'a> CheckerState<'a> {
         self.is_in_js_file(declaration)
             && data.r#type.is_none()
             && self.reparsed_type_node(declaration).is_none()
-            && !tsc_binder::node_util::get_combined_modifier_flags(
-                self.binder.source_of_node(declaration),
-                declaration,
-            )
+            && !self.combined_modifier_flags(declaration)
             .intersects(ModifierFlags::EXPORT)
             && data
                 .initializer
@@ -9525,10 +9522,7 @@ impl<'a> CheckerState<'a> {
                         }
                         if is_type
                             && self.kind_of(node) == SyntaxKind::ImportEqualsDeclaration
-                            && node_util::get_effective_modifier_flags(
-                                self.binder.source_of_node(node),
-                                node,
-                            )
+                            && self.effective_modifier_flags(node)
                             .intersects(ModifierFlags::EXPORT)
                         {
                             let option_name = if self.options.verbatim_module_syntax == Some(true) {
@@ -10960,8 +10954,7 @@ impl<'a> CheckerState<'a> {
             // tsgo: names declared only by `exports.p = ...` assignments may
             // repeat.
             let all_exports_properties = declarations.iter().all(|&declaration| {
-                tsc_binder::get_assignment_declaration_kind(
-                    self.binder.source_of_node(declaration),
+                tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published,
                     declaration,
                 ) == tsc_binder::AssignmentDeclarationKind::ExportsProperty
             });

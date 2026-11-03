@@ -1394,8 +1394,7 @@ impl<'a> CheckerState<'a> {
             .parent_of(left)
             .filter(|&parent| self.kind_of(parent) == SyntaxKind::BinaryExpression);
         if assignment.is_some_and(|assignment| {
-            tsc_binder::get_assignment_declaration_kind(
-                self.binder.source_of_node(assignment),
+            tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published,
                 assignment,
             ) == tsc_binder::AssignmentDeclarationKind::ExportsProperty
         }) {

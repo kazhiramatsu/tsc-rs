@@ -1099,10 +1099,7 @@ pub(crate) fn pseudo_object_literal_equivalent_to_type_core(
                         .symbol(property)
                         .value_declaration
                         .is_some_and(|declaration| {
-                            tsc_binder::node_util::get_name_of_declaration(
-                                checker.binder.source_of_node(declaration),
-                                declaration,
-                            ) == Some(element.name)
+                            tsc_binder::node_util::get_name_of_declaration(&tsc_syntax::Published, declaration) == Some(element.name)
                         })
                 });
                 match by_name {

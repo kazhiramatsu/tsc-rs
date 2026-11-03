@@ -415,10 +415,7 @@ impl<'a> CheckerState<'a> {
         };
         let mut modifiers = 0;
         for &declaration in &self.binder.symbol(symbol).declarations {
-            modifiers |= node_util::get_effective_modifier_flags(
-                self.binder.source_of_node(declaration),
-                declaration,
-            )
+            modifiers |= self.effective_modifier_flags(declaration)
             .bits();
         }
         ModifierFlags::from_bits(

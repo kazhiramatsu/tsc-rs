@@ -213,7 +213,32 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c5f0db66356c51537ce1e7c91692c0775f3db5764d39100f22ad85b89e0ec9a1
     /// tsc-span: _tsc.js:14886-14888
     pub fn is_in_js_file(&self, node: NodeId) -> bool {
-        self.binder.source_of_node(node).is_source_file_js()
+        // The parser's JavaScriptFile flag, on every node of a JS or JSX
+        // file: read from the node, with no route to its file.
+        tsc_binder::node_util::node_flags(&Published, node).intersects(NodeFlags::JAVA_SCRIPT_FILE)
+    }
+
+    /// tsc getEffectiveModifierFlags: JSDoc modifiers count in JavaScript
+    /// files only, so another node's are its syntactic modifiers, read with
+    /// no route to its file.
+    pub(crate) fn effective_modifier_flags(&self, node: NodeId) -> tsc_types::ModifierFlags {
+        if self.is_in_js_file(node) {
+            let source = self.binder.source_of_node(node);
+            tsc_binder::node_util::get_effective_modifier_flags(source, node)
+        } else {
+            tsc_binder::node_util::get_syntactic_modifier_flags(&Published, node)
+        }
+    }
+
+    /// tsc getCombinedModifierFlags, read as
+    /// [`CheckerState::effective_modifier_flags`] reads a node's own.
+    pub(crate) fn combined_modifier_flags(&self, node: NodeId) -> tsc_types::ModifierFlags {
+        if self.is_in_js_file(node) {
+            let source = self.binder.source_of_node(node);
+            tsc_binder::node_util::get_combined_modifier_flags(source, node)
+        } else {
+            tsc_binder::node_util::get_combined_syntactic_modifier_flags(&Published, node)
+        }
     }
 
     /// tsc resolveSymbol (49113) on mergeSymbol's immutable-target arm.
@@ -336,10 +361,7 @@ impl<'a> CheckerState<'a> {
                         .declarations
                         .first()
                         .and_then(|&declaration| {
-                            get_name_of_declaration(
-                                self.binder.source_of_node(declaration),
-                                declaration,
-                            )
+                            get_name_of_declaration(&tsc_syntax::Published, declaration)
                         });
                 let name = self.symbol_display_name(target);
                 self.error_at_js(
@@ -603,7 +625,7 @@ impl<'a> CheckerState<'a> {
     ) {
         let symbol_name = symbol_name.into();
         let error_node =
-            get_name_of_declaration(self.binder.source_of_node(node), node).unwrap_or(node);
+            get_name_of_declaration(&tsc_syntax::Published, node).unwrap_or(node);
         // A row in a file whose check is skipped (skipLibCheck on a
         // declaration file, skipDefaultLibCheck, noCheck, unchecked
         // JavaScript) is never published: tsgo builds it in every checker
@@ -620,7 +642,7 @@ impl<'a> CheckerState<'a> {
         let index = self.lookup_or_issue_error_js(Some(error_node), message, &[symbol_name]);
         for &related_node in related_nodes {
             let adjusted =
-                get_name_of_declaration(self.binder.source_of_node(related_node), related_node)
+                get_name_of_declaration(&tsc_syntax::Published, related_node)
                     .unwrap_or(related_node);
             if adjusted == error_node {
                 continue;

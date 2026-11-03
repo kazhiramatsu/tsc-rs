@@ -123,6 +123,12 @@ impl FlowArena {
         &self.nodes[id.index() as usize]
     }
 
+    /// Give back the room past the last node: a bound file's arena does not
+    /// grow again, and its doubling slack was a third of the flow memory.
+    pub fn shrink_to_fit(&mut self) {
+        self.nodes.shrink_to_fit();
+    }
+
     pub fn flow_mut(&mut self, id: FlowId) -> &mut FlowNode {
         &mut self.nodes[id.index() as usize]
     }

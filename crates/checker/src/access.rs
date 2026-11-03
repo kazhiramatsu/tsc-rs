@@ -890,10 +890,7 @@ impl<'a> CheckerState<'a> {
             self.kind_of(parent),
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
         ) && self.kind_of(node) == SyntaxKind::PropertyDeclaration
-            && !tsc_binder::node_util::get_combined_modifier_flags(
-                self.binder.source_of_node(node),
-                node,
-            )
+            && !self.combined_modifier_flags(node)
             .intersects(ModifierFlags::ACCESSOR)
     }
 
@@ -2540,10 +2537,7 @@ impl<'a> CheckerState<'a> {
                     }
                     _ => false,
                 };
-            let is_static = tsc_binder::node_util::get_combined_modifier_flags(
-                self.binder.source_of_node(declaration),
-                declaration,
-            )
+            let is_static = self.combined_modifier_flags(declaration)
             .intersects(ModifierFlags::STATIC);
             // tsgo (#64523): a `this` access under strictPropertyInitialization
             // never takes the assignment-declaration branch, so an inherited
@@ -2909,10 +2903,7 @@ impl<'a> CheckerState<'a> {
         let Some(value_declaration) = self.binder.symbol(prop).value_declaration else {
             return;
         };
-        let has_private_modifier = tsc_binder::node_util::get_combined_modifier_flags(
-            self.binder.source_of_node(value_declaration),
-            value_declaration,
-        )
+        let has_private_modifier = self.combined_modifier_flags(value_declaration)
         .intersects(ModifierFlags::PRIVATE);
         let has_private_identifier = self
             .name_of_node(value_declaration)
@@ -3032,10 +3023,7 @@ impl<'a> CheckerState<'a> {
         };
         let static_method_exemption = self.kind_of(value_declaration)
             == SyntaxKind::MethodDeclaration
-            && tsc_binder::node_util::get_combined_modifier_flags(
-                self.binder.source_of_node(value_declaration),
-                value_declaration,
-            )
+            && self.combined_modifier_flags(value_declaration)
             .intersects(ModifierFlags::STATIC);
         if self.is_in_property_initializer_or_class_static_block(node, false)
             && !is_optional_property
@@ -3465,10 +3453,7 @@ impl<'a> CheckerState<'a> {
         let Some(value_declaration) = self.binder.symbol(prop).value_declaration else {
             return Ok(false);
         };
-        Ok(tsc_binder::node_util::get_combined_modifier_flags(
-            self.binder.source_of_node(value_declaration),
-            value_declaration,
-        )
+        Ok(self.combined_modifier_flags(value_declaration)
         .intersects(ModifierFlags::STATIC))
     }
 

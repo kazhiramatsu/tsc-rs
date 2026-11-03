@@ -4317,8 +4317,7 @@ impl<'a> CheckerState<'a> {
                 .parent_of(declaration)
                 .filter(|&tag| state.is_reparsed_overload_tag(tag))
                 .and_then(|tag| {
-                    tsc_binder::hosted::reparsed_overload_host(
-                        state.binder.source_of_node(tag),
+                    tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published,
                         tag,
                     )
                 });

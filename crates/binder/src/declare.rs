@@ -1512,7 +1512,7 @@ impl BinderWorker<'_> {
     /// worker-local.
     pub fn into_bind_data(self) -> BindData {
         let Self {
-            source: _,
+            source,
             common_js_module_indicator,
             symbols,
             node_symbol,
@@ -1561,6 +1561,14 @@ impl BinderWorker<'_> {
             child_scratch: _,
             tree_claim,
         } = self;
+        let mut flow = flow;
+        flow.shrink_to_fit();
+        // The scopes with locals, final now: a lookup reads the byte.
+        let mut node_flags_mut = node_flags_mut;
+        let base = source.arena.node_base();
+        for &scope in locals.keys() {
+            node_flags_mut.mark_has_locals((scope.index() - base) as usize);
+        }
         BindData {
             common_js_module_indicator,
             symbols,
@@ -1609,6 +1617,11 @@ const BINDER_NODE_FLAGS: [NodeFlags; 6] = [
 
 const BINDER_NODE_FLAG_MASK: i32 = unpack_binder_node_flags(u8::MAX);
 
+/// A bit of the overlay byte past the node flags: the node is a scope with
+/// locals (a key of the bound file's `locals`), so a name lookup tests one
+/// byte before it looks for the table.
+const HAS_LOCALS: u8 = 1 << BINDER_NODE_FLAGS.len();
+
 /// `unpack_binder_node_flags` of every byte the overlay can hold.
 const BINDER_NODE_FLAG_VALUES: [i32; 256] = {
     let mut values = [0; 256];
@@ -1653,6 +1666,12 @@ pub fn published_node_flags(node: NodeId) -> NodeFlags {
     tsc_store::get::<PackedNodeFlags>(node.position()).over(parsed)
 }
 
+/// Whether a published, bound node has locals (`container.locals`).
+#[inline(always)]
+pub fn published_has_locals(node: NodeId) -> bool {
+    tsc_store::get::<PackedNodeFlags>(node.position()).0 & HAS_LOCALS != 0
+}
+
 impl BinderNodeFlags {
     fn new(arena: &NodeArena) -> Self {
         let mut flags = if arena.is_published() {
@@ -1679,7 +1698,13 @@ impl BinderNodeFlags {
     }
 
     fn set(&mut self, index: usize, flags: NodeFlags) {
-        self.0[index] = PackedNodeFlags(pack_binder_node_flags(flags.bits()));
+        let has_locals = self.0[index].0 & HAS_LOCALS;
+        self.0[index] = PackedNodeFlags(pack_binder_node_flags(flags.bits()) | has_locals);
+    }
+
+    /// Mark the node at `index` as a scope with locals.
+    fn mark_has_locals(&mut self, index: usize) {
+        self.0[index].0 |= HAS_LOCALS;
     }
 }
 
