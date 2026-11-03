@@ -510,8 +510,8 @@ impl<'a> CheckerState<'a> {
                     &tsc_diagnostics::gen::The_right_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type,
                     true,
                 )?;
-                let result_type;
-                if (self.is_type_assignable_to_kind(left_type, TypeFlags::ANY_OR_UNKNOWN, false)?
+
+                let result_type = if (self.is_type_assignable_to_kind(left_type, TypeFlags::ANY_OR_UNKNOWN, false)?
                     && self.is_type_assignable_to_kind(
                         right_type,
                         TypeFlags::ANY_OR_UNKNOWN,
@@ -522,7 +522,7 @@ impl<'a> CheckerState<'a> {
                     || !(self.maybe_type_of_kind(left_type, TypeFlags::BIG_INT_LIKE)
                         || self.maybe_type_of_kind(right_type, TypeFlags::BIG_INT_LIKE))
                 {
-                    result_type = self.tables.intrinsics.number;
+                    self.tables.intrinsics.number
                 } else if self.both_are_bigint_like(left_type, right_type)? {
                     match operator {
                         SyntaxKind::GreaterThanGreaterThanGreaterThanToken
@@ -538,20 +538,19 @@ impl<'a> CheckerState<'a> {
                             )?;
                         }
                         SyntaxKind::AsteriskAsteriskToken
-                        | SyntaxKind::AsteriskAsteriskEqualsToken => {
+                        | SyntaxKind::AsteriskAsteriskEqualsToken
                             if self.options.emit_script_target().bits()
-                                < tsc_types::ScriptTarget::ES2016.bits()
-                            {
-                                self.error_at(
+                                < tsc_types::ScriptTarget::ES2016.bits() =>
+                        {
+                            self.error_at(
                                     error_node,
                                     &tsc_diagnostics::gen::Exponentiation_cannot_be_performed_on_bigint_values_unless_the_target_option_is_set_to_es2016_or_later,
                                     &[],
                                 );
-                            }
                         }
                         _ => {}
                     }
-                    result_type = self.tables.intrinsics.bigint;
+                    self.tables.intrinsics.bigint
                 } else {
                     self.report_operator_error(
                         operator_token,
@@ -562,8 +561,8 @@ impl<'a> CheckerState<'a> {
                         error_node,
                         Some(&mut |state, l, r| state.both_are_bigint_like(l, r)),
                     )?;
-                    result_type = self.tables.intrinsics.error;
-                }
+                    self.tables.intrinsics.error
+                };
                 if left_ok && right_ok {
                     self.check_assignment_operator(
                         left,
@@ -3402,21 +3401,19 @@ impl<'a> CheckerState<'a> {
                     _ => {}
                 }
             }
-            SyntaxKind::BigIntLiteral => {
-                if operator == SyntaxKind::MinusToken {
-                    let text = match self.data_of(operand) {
-                        NodeData::BigIntLiteral(data) => data.text.clone(),
-                        _ => unreachable!("kind/data agree"),
-                    };
-                    let parsed = crate::expr::parse_pseudo_big_int(&text)?;
-                    let literal = self
-                        .tables
-                        .get_bigint_literal_type(tsc_types::PseudoBigInt {
-                            negative: true,
-                            base10_value: parsed.base10_value,
-                        });
-                    return Ok(self.tables.get_fresh_type_of_literal_type(literal));
-                }
+            SyntaxKind::BigIntLiteral if operator == SyntaxKind::MinusToken => {
+                let text = match self.data_of(operand) {
+                    NodeData::BigIntLiteral(data) => data.text.clone(),
+                    _ => unreachable!("kind/data agree"),
+                };
+                let parsed = crate::expr::parse_pseudo_big_int(&text)?;
+                let literal = self
+                    .tables
+                    .get_bigint_literal_type(tsc_types::PseudoBigInt {
+                        negative: true,
+                        base10_value: parsed.base10_value,
+                    });
+                return Ok(self.tables.get_fresh_type_of_literal_type(literal));
             }
             _ => {}
         }

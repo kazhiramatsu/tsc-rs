@@ -31,7 +31,7 @@ fn write_any(text: &mut String, value: &Value) {
         }
         Value::Object(map) => {
             let mut entries = map.iter().collect::<Vec<_>>();
-            entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+            entries.sort_by_key(|(left, _)| *left);
             text.push_str("map[");
             for (index, (key, item)) in entries.into_iter().enumerate() {
                 if index > 0 {

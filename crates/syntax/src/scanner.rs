@@ -925,10 +925,7 @@ impl<'text> Scanner<'text> {
         if chars::is_identifier_start(ch) {
             self.value_clear();
             self.advance_char();
-            loop {
-                let Some(next) = self.current_char() else {
-                    break;
-                };
+            while let Some(next) = self.current_char() {
                 if chars::is_identifier_part(next) || next == '-' {
                     if self.token_value.cooked {
                         self.cooked.push(next);
@@ -2619,10 +2616,7 @@ impl<'text> Scanner<'text> {
         let mut separator_allowed = false;
         let mut is_previous_token_separator = false;
 
-        loop {
-            let Some(byte) = self.byte_at(self.pos) else {
-                break;
-            };
+        while let Some(byte) = self.byte_at(self.pos) {
             if byte == b'_' {
                 self.token_flags.insert(TokenFlags::CONTAINS_SEPARATOR);
                 if separator_allowed {

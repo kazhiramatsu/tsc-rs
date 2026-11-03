@@ -918,14 +918,13 @@ fn get_module_instance_state_worker(
         NodeData::ModuleDeclaration(_) => {
             return get_module_instance_state(source, node, visited);
         }
-        NodeData::Identifier(_) => {
+        NodeData::Identifier(_)
             // JSDoc namespace leaves are type-only.
             if crate::node_util::node_flags(source, node)
                 .intersects(NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
-            {
+            => {
                 return ModuleInstanceState::NonInstantiated;
             }
-        }
         _ => {}
     }
     ModuleInstanceState::Instantiated

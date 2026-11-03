@@ -1196,12 +1196,9 @@ impl<'context> TargetVisitor<'context> {
     ) -> Result<TransformNode, TransformError> {
         let mut wrappers = Vec::new();
         let mut current = original;
-        loop {
-            let NodeData::PartiallyEmittedExpression(data) =
-                &self.context.arena().node(current)?.data
-            else {
-                break;
-            };
+        while let NodeData::PartiallyEmittedExpression(data) =
+            &self.context.arena().node(current)?.data
+        {
             wrappers.push(current);
             current = data
                 .expression

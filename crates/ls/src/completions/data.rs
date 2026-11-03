@@ -416,10 +416,10 @@ impl Completions<'_, '_, '_> {
                                 location = current_token;
                             }
                         }
-                        SyntaxKind::LessThanSlashToken => {
-                            if parent_kind == Some(SyntaxKind::JsxSelfClosingElement) {
-                                location = current_token;
-                            }
+                        SyntaxKind::LessThanSlashToken
+                            if parent_kind == Some(SyntaxKind::JsxSelfClosingElement) =>
+                        {
+                            location = current_token;
                         }
                         _ => {}
                     }

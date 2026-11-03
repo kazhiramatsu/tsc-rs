@@ -159,19 +159,19 @@ pub(super) fn pseudo_type_to_node_with_checker_fallback(
                 checker_type,
             );
         }
-        PseudoType::Direct(existing) => {
-            if !can_reuse_existing_js_type_node(checker, context, *existing, checker_type)? {
-                if !context.suppress_report_inference_fallback {
-                    report_inference_fallback(checker, context, *existing)?;
-                }
-                return type_to_type_node_without_fallback_reports(
-                    checker,
-                    arena,
-                    target,
-                    context,
-                    checker_type,
-                );
+        PseudoType::Direct(existing)
+            if !can_reuse_existing_js_type_node(checker, context, *existing, checker_type)? =>
+        {
+            if !context.suppress_report_inference_fallback {
+                report_inference_fallback(checker, context, *existing)?;
             }
+            return type_to_type_node_without_fallback_reports(
+                checker,
+                arena,
+                target,
+                context,
+                checker_type,
+            );
         }
         _ => {}
     }
