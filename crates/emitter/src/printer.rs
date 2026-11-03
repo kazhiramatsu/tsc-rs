@@ -3696,22 +3696,23 @@ impl Printer {
                 Ok(())
             }
             NodeData::NumericLiteral(data) if changed => {
-                writer.write_literal(&data.text);
+                writer.write_literal(transformation.arena().text_utf8(node.source(), data.text)?);
                 Ok(())
             }
             NodeData::BigIntLiteral(data) => {
-                writer.write_literal(&data.text);
+                writer.write_literal(transformation.arena().text_utf8(node.source(), data.text)?);
                 Ok(())
             }
             // tsgo getLiteralText: without its source text, a regular
             // expression is its text, closed when the printer terminates
             // unterminated literals.
             NodeData::RegularExpressionLiteral(data) if changed => {
+                let text = transformation.arena().text_utf8(node.source(), data.text)?;
                 if self.options.terminate_unterminated_literals && unterminated {
-                    let terminator = if data.text.ends_with('\\') { " /" } else { "/" };
-                    writer.write_literal(&format!("{}{terminator}", data.text));
+                    let terminator = if text.ends_with('\\') { " /" } else { "/" };
+                    writer.write_literal(&format!("{text}{terminator}"));
                 } else {
-                    writer.write_literal(&data.text);
+                    writer.write_literal(text);
                 }
                 Ok(())
             }
@@ -4035,7 +4036,13 @@ impl Printer {
                             // (`textSourceNode.text`), quoted and escaped like
                             // an identifier source.
                             writer.write_string_literal_utf16(
-                                quote_string_literal(&numeric.text, false, no_ascii_escaping)
+                                quote_string_literal(
+                                    transformation
+                                        .arena()
+                                        .text_utf8(text_source.source(), numeric.text)?,
+                                    false,
+                                    no_ascii_escaping,
+                                )
                                     .code_units(),
                             );
                             return Ok(());
@@ -4073,8 +4080,8 @@ impl Printer {
                                         transformation,
                                         text_source,
                                         SyntaxKind::NoSubstitutionTemplateLiteral,
-                                        &template.text,
-                                        template.raw_text.as_deref(),
+                                        template.text,
+                                        template.raw_text,
                                         writer,
                                     );
                                 }
@@ -4086,7 +4093,10 @@ impl Printer {
                         .and_then(crate::LiteralNodeProperties::string_literal_single_quote)
                         .unwrap_or(false);
                     let quoted = quote_javascript_string(
-                        &data.text.to_utf16(),
+                        &transformation
+                            .arena()
+                            .text_js(node.source(), data.text)?
+                            .to_utf16(),
                         single_quote,
                         no_ascii_escaping,
                     );
@@ -4418,7 +4428,7 @@ impl Printer {
                 )
             }
             NodeData::JsxText(data) => {
-                writer.write_literal(&data.text);
+                writer.write_literal(transformation.arena().text_utf8(node.source(), data.text)?);
                 Ok(())
             }
             NodeData::NoSubstitutionTemplateLiteral(_) if !changed => {
@@ -4428,8 +4438,8 @@ impl Printer {
                 transformation,
                 node,
                 record.kind,
-                &data.text,
-                data.raw_text.as_deref(),
+                data.text,
+                data.raw_text,
                 writer,
             ),
             NodeData::TemplateExpression(data) => {
@@ -4494,24 +4504,24 @@ impl Printer {
                 transformation,
                 node,
                 record.kind,
-                &data.text,
-                data.raw_text.as_deref(),
+                data.text,
+                data.raw_text,
                 writer,
             ),
             NodeData::TemplateMiddle(data) => self.emit_template_literal_token(
                 transformation,
                 node,
                 record.kind,
-                &data.text,
-                data.raw_text.as_deref(),
+                data.text,
+                data.raw_text,
                 writer,
             ),
             NodeData::TemplateTail(data) => self.emit_template_literal_token(
                 transformation,
                 node,
                 record.kind,
-                &data.text,
-                data.raw_text.as_deref(),
+                data.text,
+                data.raw_text,
                 writer,
             ),
             NodeData::TemplateSpan(data) => {
@@ -11843,10 +11853,16 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
         kind: SyntaxKind,
-        text: &tsc_types::JsString,
-        raw_text: Option<&str>,
+        text: tsc_syntax::TextId,
+        raw_text: Option<tsc_syntax::TextId>,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        let arena = transformation.arena();
+        let text = arena.text_js(node.source(), text)?;
+        let raw_text = match raw_text {
+            Some(raw_text) => Some(arena.text_utf8(node.source(), raw_text)?),
+            None => None,
+        };
         // tsgo getLiteralText reads a parsed token from the source text, and
         // a missing token (the empty TemplateTail after an unterminated
         // substitution) has none, so it prints nothing. A token without a
@@ -15792,7 +15808,10 @@ impl Printer {
                 || self.emission_plan.structured_nodes.contains(&expression)
                 || record.parent.is_none();
             let text = if changed {
-                data.text.clone()
+                transformation
+                    .arena()
+                    .text_utf8(expression.source(), data.text)?
+                    .to_owned()
             } else {
                 let source = transformation.arena().source(expression.source())?.syntax();
                 let SourceRange::Original(range) =

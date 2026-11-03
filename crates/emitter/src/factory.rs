@@ -1524,6 +1524,16 @@ impl<'arena> NodeFactory<'arena> {
         Self { arena }
     }
 
+    /// Store `bytes` as a literal text of `source`'s tree, for a payload this
+    /// factory is about to create.
+    pub fn push_text(
+        &mut self,
+        source: TransformSourceId,
+        bytes: &[u8],
+    ) -> Result<TextId, TransformError> {
+        self.arena.push_text(source, bytes)
+    }
+
     fn node_id(
         &self,
         source: TransformSourceId,

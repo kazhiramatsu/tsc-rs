@@ -725,11 +725,10 @@ fn ensure_use_strict_prologue(
         return Ok(root);
     }
 
+    let text = context.factory()?.push_text(source, b"use strict")?;
     let literal = context.factory()?.create_node(
         source,
-        NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
-            text: "use strict".into(),
-        })),
+        NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData { text })),
         TransformFlags::NONE,
     )?;
     let statement = context.factory()?.create_node(
@@ -802,7 +801,7 @@ fn source_file_has_use_strict_prologue(
         let NodeData::StringLiteral(literal) = arena.node(expression)?.data() else {
             break;
         };
-        if literal.text == "use strict" {
+        if arena.text(expression.source(), literal.text)? == b"use strict" {
             return Ok(true);
         }
     }
@@ -2017,11 +2016,10 @@ fn insert_external_helpers_import_declaration(
         }),
         TransformFlags::NONE,
     )?;
+    let text = context.factory()?.push_text(source, b"tslib")?;
     let specifier = context.factory()?.create_node(
         source,
-        NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
-            text: "tslib".into(),
-        })),
+        NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData { text })),
         TransformFlags::NONE,
     )?;
     let declaration = context.factory()?.create_node(
@@ -4370,7 +4368,7 @@ fn string_literal_text(
     node: TransformNode,
 ) -> Result<JsStr<'_>, TransformError> {
     match arena.node(node)?.data() {
-        NodeData::StringLiteral(data) => Ok(data.text.as_js()),
+        NodeData::StringLiteral(data) => arena.text_js(node.source(), data.text),
         _ => Err(TransformError::RequiredChildRemoved {
             parent: SyntaxKind::ImportDeclaration,
             field: "string module_specifier",
@@ -4443,7 +4441,7 @@ fn identifier_or_literal_text(
 ) -> Result<JsString, TransformError> {
     match arena.node(node)?.data() {
         NodeData::Identifier(data) => Ok(data.text().to_owned().into()),
-        NodeData::StringLiteral(data) => Ok(data.text.clone()),
+        NodeData::StringLiteral(data) => Ok(arena.text_js(node.source(), data.text)?.to_owned()),
         _ => Err(TransformError::RequiredChildRemoved {
             parent: arena.node(node)?.kind,
             field: "identifier or literal text",
@@ -9459,7 +9457,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let argument = if let Some(module_name) = external_module_name.filter(|name| {
                 !argument.is_some_and(|argument| {
                     self.context.arena().node(argument).is_ok_and(|node| {
-                        matches!(node.data(), NodeData::StringLiteral(literal) if literal.text.as_js() == name.as_js())
+                        matches!(node.data(), NodeData::StringLiteral(literal) if self.context.arena().text_js(argument.source(), literal.text).is_ok_and(|text| text == name.as_js()))
                     })
                 })
             }) {
@@ -9718,16 +9716,16 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let head = self.context.factory()?.create_node(
             self.source,
             NodeData::TemplateHead(Box::new(tsc_syntax::nodes::TemplateHeadData {
-                text: JsString::new(),
-                raw_text: Some(String::new()),
+                text: tsc_syntax::TextId::EMPTY,
+                raw_text: Some(tsc_syntax::TextId::EMPTY),
             })),
             TransformFlags::NONE,
         )?;
         let tail = self.context.factory()?.create_node(
             self.source,
             NodeData::TemplateTail(Box::new(tsc_syntax::nodes::TemplateTailData {
-                text: JsString::new(),
-                raw_text: Some(String::new()),
+                text: tsc_syntax::TextId::EMPTY,
+                raw_text: Some(tsc_syntax::TextId::EMPTY),
             })),
             TransformFlags::NONE,
         )?;
@@ -10349,11 +10347,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     }
 
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        let text = self.context.factory()?.push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
-                text: text.to_owned(),
-            })),
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
             TransformFlags::NONE,
         )
     }
@@ -13876,8 +13873,14 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         match self.context.arena().node(original)?.data().clone() {
             NodeData::Identifier(data) => self.create_string_literal(data.text()),
             // getExpressionForPropertyName copies the owned JavaScript text.
-            NodeData::StringLiteral(data) => self.create_string_literal(data.text.as_js()),
-            NodeData::NumericLiteral(data) => self.create_numeric_literal(&data.text),
+            NodeData::StringLiteral(data) => {
+                let text = self.context.arena().text_js(original.source(), data.text)?.to_owned();
+                self.create_string_literal(text.as_js())
+            }
+            NodeData::NumericLiteral(data) => {
+                let text = self.context.arena().text_utf8(original.source(), data.text)?.to_owned();
+                self.create_numeric_literal(&text)
+            }
             NodeData::BigIntLiteral(_) => self.context.factory()?.clone_node(original),
             NodeData::ComputedPropertyName(data) => {
                 let expression = data
@@ -14211,11 +14214,10 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     }
 
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        let text = self.context.factory()?.push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
-                text: text.to_owned(),
-            })),
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
             TransformFlags::NONE,
         )
     }
