@@ -5015,22 +5015,17 @@ impl<'a> CheckerState<'a> {
         let Some(arrow) = data.equals_greater_than_token else {
             return false;
         };
-        let source = self.binder.source_of_node(node);
+        // tsgo compares the lines of the token's start and end. The token's
+        // text is its leading trivia and `=>`, so the lines differ exactly
+        // when that text holds a line terminator: no line table is built.
+        let text = self.binder.source_of_node(node).text();
         let arrow_record = Published.node(arrow);
-        let line_of = |byte: u32| -> usize {
-            let utf16 = source
-                .positions()
-                .byte_to_utf16(byte)
-                .unwrap_or_else(|| source.positions().utf16_len());
-            source
-                .positions()
-                .line_and_character_utf16(utf16)
-                .expect("clamped source position has a line")
-                .line as usize
-        };
-        let start_line = line_of(arrow_record.pos);
-        let end_line = line_of(arrow_record.end);
-        if start_line != end_line {
+        let end = (arrow_record.end as usize).min(text.len());
+        let start = (arrow_record.pos as usize).min(end);
+        if text
+            .get(start..end)
+            .is_some_and(|token_text| token_text.chars().any(tsc_syntax::is_line_break))
+        {
             return self.grammar_error_on_node(
                 arrow,
                 &diagnostics::Line_terminator_not_permitted_before_arrow,

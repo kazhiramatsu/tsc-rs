@@ -1867,10 +1867,18 @@ impl LinksTables {
         if speculation_depth == 0 {
             return;
         }
+        // A transaction's entries leave the journal when it ends (they resolve
+        // LIFO), so this transaction's entries are the journal's last ones.
+        debug_assert!(self
+            .speculative_resolved_type_writes
+            .last()
+            .is_none_or(|(depth, ..)| *depth <= speculation_depth));
         if self
             .speculative_resolved_type_writes
             .iter()
-            .any(|(depth, node, _, _, _)| *depth == speculation_depth && *node == id)
+            .rev()
+            .take_while(|(depth, ..)| *depth == speculation_depth)
+            .any(|(_, node, ..)| *node == id)
         {
             return;
         }
