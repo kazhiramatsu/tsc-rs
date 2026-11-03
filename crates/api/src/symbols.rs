@@ -153,7 +153,10 @@ impl<'d> FileSymbols<'d> {
     }
 
     pub(crate) fn record(&self, symbol: SymbolId) -> &Symbol {
-        self.data.symbols.symbol(symbol)
+        self.data
+            .symbols
+            .get(symbol)
+            .expect("a file's tables hold the file's own symbols")
     }
 
     /// The node an index of the file's encoding names: `None` past the

@@ -728,9 +728,10 @@ impl<'a> CheckerState<'a> {
         element_types: &[TypeId],
         object_flags: ObjectFlags,
     ) -> CheckResult<TypeId> {
-        let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+        let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
             unreachable!("createNormalizedTupleType requires a tuple target");
         };
+        let data = self.tables.tuple_target(data).clone();
         if !data.combined_flags.intersects(ElementFlags::NON_REQUIRED) {
             // No non-required elements: plain reference (61215-61217).
             return Ok(self
@@ -867,13 +868,14 @@ impl<'a> CheckerState<'a> {
                             return Ok(self.tables.intrinsics.error);
                         }
                         let inner_target = self.tables.reference_target(element_type);
-                        let TypeData::TupleTarget(inner) =
-                            self.tables.type_of(inner_target).data.clone()
+                        let TypeData::TupleTarget(inner) = self.tables.type_of(inner_target).data
                         else {
                             unreachable!("tuple type targets a tuple target");
                         };
                         for (n, &inner_type) in inner_args.iter().enumerate() {
-                            let inner_declaration = inner
+                            let inner_declaration = self
+                                .tables
+                                .tuple_target(inner)
                                 .labeled_element_declarations
                                 .as_ref()
                                 .and_then(|declarations| declarations.get(n).copied())
@@ -884,7 +886,7 @@ impl<'a> CheckerState<'a> {
                                 &mut expanded_flags,
                                 &mut expanded_declarations,
                                 inner_type,
-                                inner.element_flags[n],
+                                self.tables.tuple_target(inner).element_flags[n],
                                 inner_declaration,
                             );
                         }
@@ -1405,8 +1407,8 @@ impl<'a> CheckerState<'a> {
                 let ty = self.tables.type_mut(id);
                 ty.object_flags = ObjectFlags::ANONYMOUS;
                 ty.symbol = Some(symbol);
-                ty.alias_symbol = alias_symbol;
-                ty.alias_type_arguments = alias_type_arguments;
+                self.tables
+                    .set_alias(id, alias_symbol, alias_type_arguments);
                 id
             }
         };
@@ -1932,9 +1934,8 @@ impl<'a> CheckerState<'a> {
         let alias_type_arguments = self
             .tables
             .intern_alias_arguments(alias_type_arguments.as_deref());
-        let type_object = self.tables.type_mut(ty);
-        type_object.alias_symbol = alias_symbol;
-        type_object.alias_type_arguments = alias_type_arguments;
+        self.tables
+            .set_alias(ty, alias_symbol, alias_type_arguments);
         Ok(ty)
     }
 
@@ -1981,7 +1982,7 @@ impl<'a> CheckerState<'a> {
                         unreachable!("TypeReference-node deferrals target class/interface types");
                     };
                     let outer_count = *outer_type_parameter_count as usize;
-                    let type_parameters = type_parameters.to_vec();
+                    let type_parameters = state.tables.list(*type_parameters).to_vec();
                     let effective = state
                         .get_effective_type_arguments(node, &type_parameters[outer_count..])?;
                     let mut arguments = type_parameters[..outer_count].to_vec();
@@ -2028,12 +2029,12 @@ impl<'a> CheckerState<'a> {
                     Some(mapper) => self.instantiate_types(&type_arguments, mapper)?,
                     None => type_arguments,
                 };
-                self.tables.set_resolved_type_arguments(ty, resolved);
+                self.tables.set_resolved_type_arguments(ty, &resolved);
             }
         } else {
             let fallback = self.error_filled_type_arguments(ty);
             self.tables
-                .set_resolved_type_arguments_if_vacant(ty, fallback);
+                .set_resolved_type_arguments_if_vacant(ty, &fallback);
             let target = self.tables.reference_target(ty);
             match self.tables.type_of(target).symbol {
                 Some(symbol) => {
@@ -2065,8 +2066,11 @@ impl<'a> CheckerState<'a> {
         match &self.tables.type_of(target).data {
             TypeData::GenericType {
                 type_parameters, ..
-            } => vec![error; type_parameters.len()],
-            TypeData::TupleTarget(data) => vec![error; data.type_parameters.len()],
+            } => vec![error; self.tables.list(*type_parameters).len()],
+            TypeData::TupleTarget(data) => {
+                let data = self.tables.tuple_target(*data);
+                vec![error; self.tables.list(data.type_parameters).len()]
+            }
             _ => Vec::new(),
         }
     }
@@ -2532,7 +2536,7 @@ impl<'a> CheckerState<'a> {
                 outer_type_parameter_count,
                 ..
             } => (
-                type_parameters.to_vec(),
+                self.tables.list(*type_parameters).to_vec(),
                 *outer_type_parameter_count as usize,
             ),
             _ => (Vec::new(), 0),
@@ -2641,7 +2645,7 @@ impl<'a> CheckerState<'a> {
     /// mapped-type algorithms.
     pub(crate) fn mapped_type_data(&self, ty: TypeId) -> MappedTypeData {
         match &self.tables.type_of(ty).data {
-            TypeData::Mapped(data) => data.clone(),
+            TypeData::Mapped(data) => *data,
             other => unreachable!("mapped object flag implies mapped payload, got {other:?}"),
         }
     }
@@ -2866,9 +2870,8 @@ impl<'a> CheckerState<'a> {
         let alias_type_arguments = self
             .tables
             .intern_alias_arguments(alias_type_arguments.as_deref());
-        let type_object = self.tables.type_mut(mapped);
-        type_object.alias_symbol = alias_symbol;
-        type_object.alias_type_arguments = alias_type_arguments;
+        self.tables
+            .set_alias(mapped, alias_symbol, alias_type_arguments);
 
         // tsc publishes this shell before resolving the constraint. Keep the
         // same recursive identity in typed transient state, then commit the
@@ -3384,8 +3387,11 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } if type_parameters.len() > *outer_type_parameter_count as usize => {
-                let locals: Vec<JsString> = type_parameters[*outer_type_parameter_count as usize..]
+            } if self.tables.list(*type_parameters).len()
+                > *outer_type_parameter_count as usize =>
+            {
+                let locals: Vec<JsString> = self.tables.list(*type_parameters)
+                    [*outer_type_parameter_count as usize..]
                     .iter()
                     .map(|&parameter| {
                         self.tables
@@ -3850,8 +3856,8 @@ impl<'a> CheckerState<'a> {
             // 57392-57393: the instantiations map is seeded with the
             // target under its own type-parameter list id (the shared
             // tables map that createTypeReference consults).
-            let list_id =
-                tsc_types::InstantiationKey::plain(self.tables.intern_type_list(&type_parameters));
+            let type_parameter_list = self.tables.intern_type_list(&type_parameters);
+            let list_id = tsc_types::InstantiationKey::plain(type_parameter_list);
             self.tables.instantiation_insert(id, list_id, id);
             // 57400-57402: thisType — isThisType, constraint = target
             // (the inline constraint slot, like tuple this types).
@@ -3868,7 +3874,7 @@ impl<'a> CheckerState<'a> {
             generic_type.object_flags =
                 ObjectFlags::from_bits(kind.bits() | ObjectFlags::REFERENCE.bits());
             generic_type.data = TypeData::GenericType {
-                type_parameters: type_parameters.into_boxed_slice(),
+                type_parameters: type_parameter_list,
                 outer_type_parameter_count: outer_count as u32,
                 this_type,
             };
@@ -4116,7 +4122,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 93099ab3d057c9f1bb52abae53c24e1f38e170b770ce24737fe40cd6e0332fd0
     /// tsc-span: _tsc.js:58411-58422
     fn get_limited_reverse_mapped_constraint(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
-        let TypeData::ReverseMapped(reverse) = self.tables.type_of(ty).data.clone() else {
+        let TypeData::ReverseMapped(reverse) = self.tables.type_of(ty).data else {
             unreachable!("limited constraint takes a reverse mapped type");
         };
         let constraint = self.get_constraint_type_from_mapped_type(reverse.mapped_type)?;
@@ -4135,9 +4141,10 @@ impl<'a> CheckerState<'a> {
         let Some(origin) = origin else {
             return Ok(None);
         };
-        let TypeData::Intersection { types } = self.tables.type_of(origin).data.clone() else {
+        let TypeData::Intersection { types } = self.tables.type_of(origin).data else {
             return Ok(None);
         };
+        let types = self.tables.list(types).to_vec();
         let retained = types
             .iter()
             .copied()
@@ -4157,7 +4164,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let reverse = match self.tables.type_of(ty).data.clone() {
+        let reverse = match self.tables.type_of(ty).data {
             TypeData::ReverseMapped(data) => data,
             _ => unreachable!("reverse mapped flags imply reverse payload"),
         };
@@ -4310,8 +4317,13 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 this_type,
                 ..
-            } => (type_parameters.to_vec(), *this_type),
-            TypeData::TupleTarget(data) => (data.type_parameters.to_vec(), data.this_type),
+            } => (self.tables.list(*type_parameters).to_vec(), *this_type),
+            TypeData::TupleTarget(data) => (
+                self.tables
+                    .list(self.tables.tuple_target(*data).type_parameters)
+                    .to_vec(),
+                self.tables.tuple_target(*data).this_type,
+            ),
             _ => unreachable!("reference targets are generic or tuple targets"),
         };
         let mut type_parameters = source_type_parameters;
@@ -4354,7 +4366,10 @@ impl<'a> CheckerState<'a> {
             return Ok(declared);
         }
         let tuple_target = match &self.tables.type_of(target).data {
-            TypeData::TupleTarget(data) => Some(data.clone()),
+            TypeData::TupleTarget(data) => {
+                let data = self.tables.tuple_target(*data);
+                Some(data.clone())
+            }
             _ => None,
         };
         if let Some(data) = tuple_target {
@@ -4366,7 +4381,7 @@ impl<'a> CheckerState<'a> {
             // union). Call/construct/index lists are empty (61198-61200).
             let mut properties: Vec<SymbolId> = Vec::new();
             let mut combined = ElementFlags::from_bits(0);
-            for (i, &type_parameter) in data.type_parameters.iter().enumerate() {
+            for (i, &type_parameter) in self.tables.list(data.type_parameters).iter().enumerate() {
                 let flags = data.element_flags[i];
                 combined |= flags;
                 if !combined.intersects(ElementFlags::VARIABLE) {
@@ -5462,11 +5477,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b528c842896a958ebf1d8e80b191f9ab6e92a2903a555b6c21b4de6133d03dcf
     /// tsc-span: _tsc.js:57248-57251
     fn get_tuple_base_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
-        let TypeData::TupleTarget(data) = self.tables.type_of(ty).data.clone() else {
+        let TypeData::TupleTarget(data) = self.tables.type_of(ty).data else {
             unreachable!("TUPLE object flag implies a tuple target");
         };
-        let mut element_types = Vec::with_capacity(data.type_parameters.len());
-        for (i, &tp) in data.type_parameters.iter().enumerate() {
+        let data = self.tables.tuple_target(data).clone();
+        let mut element_types = Vec::with_capacity(self.tables.list(data.type_parameters).len());
+        for (i, &tp) in self
+            .tables
+            .list(data.type_parameters)
+            .to_vec()
+            .iter()
+            .enumerate()
+        {
             if data.element_flags[i].intersects(ElementFlags::VARIADIC) {
                 element_types.push(self.get_indexed_access_type(
                     tp,
@@ -5547,9 +5569,10 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
-            let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
+            let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
+            let types = self.tables.list(types).to_vec();
             for t in types.iter() {
                 if !self.is_valid_base_type(*t)? {
                     return Ok(false);
@@ -5603,9 +5626,10 @@ impl<'a> CheckerState<'a> {
             if !visited.insert(ty) {
                 return Ok(false);
             }
-            let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
+            let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
+            let types = self.tables.list(types).to_vec();
             for t in types.iter() {
                 if self.has_base_type_worker(*t, check_base, visited)? {
                     return Ok(true);
@@ -5664,8 +5688,11 @@ impl<'a> CheckerState<'a> {
             let target_parameters: Vec<TypeId> = match &self.tables.type_of(target).data {
                 TypeData::GenericType {
                     type_parameters, ..
-                } => type_parameters.to_vec(),
-                TypeData::TupleTarget(data) => data.type_parameters.to_vec(),
+                } => self.tables.list(*type_parameters).to_vec(),
+                TypeData::TupleTarget(data) => {
+                    let data = self.tables.tuple_target(*data);
+                    self.tables.list(data.type_parameters).to_vec()
+                }
                 _ => Vec::new(),
             };
             let type_arguments = self.get_type_arguments(ty)?;
@@ -5680,7 +5707,10 @@ impl<'a> CheckerState<'a> {
                 // INSTANTIATION later re-normalizes this reference.
                 let this_type = match &self.tables.type_of(target).data {
                     TypeData::GenericType { this_type, .. } => *this_type,
-                    TypeData::TupleTarget(data) => data.this_type,
+                    TypeData::TupleTarget(data) => {
+                        let data = self.tables.tuple_target(*data);
+                        data.this_type
+                    }
                     _ => unreachable!("references target generic or tuple targets"),
                 };
                 let mut arguments = type_arguments;
@@ -5691,9 +5721,10 @@ impl<'a> CheckerState<'a> {
             };
         }
         if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
-            let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
+            let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
+            let types = self.tables.list(types).to_vec();
             let mut new_types = Vec::with_capacity(types.len());
             let mut changed = false;
             for &t in types.iter() {
@@ -6201,7 +6232,7 @@ impl<'a> CheckerState<'a> {
                 ..
             } => (
                 *outer_type_parameter_count as usize,
-                type_parameters.to_vec(),
+                self.tables.list(*type_parameters).to_vec(),
             ),
             _ => return Ok(true),
         };
@@ -6324,8 +6355,13 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } if type_parameters.len() > *outer_type_parameter_count as usize => {
-                Some(type_parameters[*outer_type_parameter_count as usize..].to_vec())
+            } if self.tables.list(*type_parameters).len()
+                > *outer_type_parameter_count as usize =>
+            {
+                Some(
+                    self.tables.list(*type_parameters)[*outer_type_parameter_count as usize..]
+                        .to_vec(),
+                )
             }
             _ => None,
         };
@@ -6436,12 +6472,13 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(base_constructor_type));
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
-            let TypeData::Intersection { types } =
-                self.tables.type_of(base_constructor_type).data.clone()
+            let TypeData::Intersection { types } = self.tables.type_of(base_constructor_type).data
             else {
                 unreachable!("intersection flag implies intersection data");
             };
-            return Ok(types
+            return Ok(self
+                .tables
+                .list(types)
                 .iter()
                 .copied()
                 .find(|&t| self.tables.flags_of(t).intersects(TypeFlags::TYPE_VARIABLE)));
@@ -7480,7 +7517,7 @@ impl<'a> CheckerState<'a> {
                 let key_types: Vec<TypeId> =
                     if self.tables.flags_of(key_type).intersects(TypeFlags::UNION) {
                         match &self.tables.type_of(key_type).data {
-                            TypeData::Union { types, .. } => types.to_vec(),
+                            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                             _ => vec![key_type],
                         }
                     } else {
@@ -7615,7 +7652,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::INTERSECTION) && !self.is_generic_type(key_type)? {
             if let TypeData::Intersection { types } = &self.tables.type_of(key_type).data {
-                let members = types.to_vec();
+                let members = self.tables.list(*types).to_vec();
                 for member in members {
                     if self.is_valid_index_key_type(member)? {
                         return Ok(true);
@@ -8204,7 +8241,7 @@ impl<'a> CheckerState<'a> {
         let type_parameter_count = match &self.tables.type_of(class_type).data {
             TypeData::GenericType {
                 type_parameters, ..
-            } => type_parameters.len(),
+            } => self.tables.list(*type_parameters).len(),
             _ => 0,
         };
         if type_parameter_count == 0 {
@@ -9562,7 +9599,7 @@ impl<'a> CheckerState<'a> {
                 let value = self.get_enum_member_value(member)?.value;
                 let base = match value {
                     Some(EvalValue::Str(text)) => self.tables.get_enum_literal_type(
-                        LiteralValue::String(tsc_types::TemplateText::from_js(text.as_js())),
+                        LiteralValue::String(&tsc_types::TemplateText::from_js(text.as_js())),
                         symbol,
                         member_symbol,
                     ),

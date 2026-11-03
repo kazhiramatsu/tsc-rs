@@ -573,9 +573,9 @@ impl CheckerState<'_> {
         ty: TypeId,
     ) -> CheckResult<Option<TypeId>> {
         let record = self.tables.type_of(ty);
-        let (object_flags, symbol, alias_symbol) =
-            (record.object_flags, record.symbol, record.alias_symbol);
-        let alias_arguments = record.alias_type_arguments;
+        let (object_flags, symbol) = (record.object_flags, record.symbol);
+        let alias_symbol = self.tables.alias_symbol(ty);
+        let alias_arguments = self.tables.alias_type_argument_list(ty);
         if object_flags.intersects(ObjectFlags::REFERENCE) {
             if let Some(symbol) = symbol {
                 let name = self
@@ -788,12 +788,12 @@ impl CheckerState<'_> {
     /// quoted, a number as JavaScript writes it, a bigint with its `n`.
     pub fn literal_type_value_text(&self, ty: TypeId) -> String {
         match &self.tables.type_of(ty).data {
-            TypeData::Literal { value } => match value {
+            TypeData::Literal { value, .. } => match self.tables.literal_value_of(*value) {
                 LiteralValue::String(text) => format!(
                     "\"{}\"",
                     tsc_emitter::escape_string(text.units(), tsc_emitter::LiteralQuote::Double)
                 ),
-                LiteralValue::Number(value) => tsc_types::js_number_to_string(*value),
+                LiteralValue::Number(value) => tsc_types::js_number_to_string(value),
                 LiteralValue::BigInt(value) => format!("{}n", value.to_base10_string()),
             },
             _ if ty == self.tables.intrinsics.true_fresh

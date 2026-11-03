@@ -1,6 +1,6 @@
 use tsc_binder::bind_source_file;
 use tsc_syntax::{parse_published_source_file, ParseOptions, ScriptKind};
-use tsc_types::{CheckFlags, CompilerOptions, LiteralValue, TemplateText, TypeData};
+use tsc_types::{CheckFlags, CompilerOptions, LiteralValue, TemplateText};
 
 use crate::relpin::find_probe_annotation;
 use crate::relpin::{probe_relation, RelpinQuery, RelpinRelation, RelpinVerdict};
@@ -245,10 +245,8 @@ fn template_inference_splits_unpaired_surrogate_losslessly() {
             assert_eq!(inferred[0], source);
             assert_eq!(inferred[1], state.tables.get_string_literal_type(""));
             assert_eq!(
-                &state.tables.type_of(inferred[0]).data,
-                &TypeData::Literal {
-                    value: LiteralValue::String(TemplateText::from_utf16(&[0xD800])),
-                }
+                state.tables.literal_value(inferred[0]),
+                Some(LiteralValue::String(&TemplateText::from_utf16(&[0xD800])))
             );
             let replacement_inferred = state
                 .infer_types_from_template_literal_type(replacement, target)
@@ -385,8 +383,7 @@ fn conditional_source_and_target_relations_are_live() {
             assert!(state
                 .is_type_assignable_to(wide, false_type)
                 .expect("false branch relation"));
-            let tsc_types::TypeData::Conditional(target_data) =
-                state.tables.type_of(target).data.clone()
+            let tsc_types::TypeData::Conditional(target_data) = state.tables.type_of(target).data
             else {
                 panic!("target remains conditional");
             };

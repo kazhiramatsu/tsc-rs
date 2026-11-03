@@ -75,7 +75,7 @@ impl<'a> CheckerState<'a> {
     pub fn get_index_type(&mut self, ty: TypeId, index_flags: IndexFlags) -> CheckResult<TypeId> {
         let ty = self.get_reduced_type(ty)?;
         if self.tables.is_no_infer_type(ty) {
-            let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+            let TypeData::Substitution(data) = self.tables.type_of(ty).data else {
                 unreachable!("NoInfer is a Substitution type");
             };
             let indexed = self.get_index_type(data.base_type, index_flags)?;
@@ -95,7 +95,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
             let mut index_types = Vec::with_capacity(members.len());
@@ -167,7 +167,7 @@ impl<'a> CheckerState<'a> {
             && self.maybe_type_of_kind(ty, TypeFlags::INSTANTIABLE)
         {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
             for &member in &members {
@@ -295,7 +295,7 @@ impl<'a> CheckerState<'a> {
                 .tables
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::CLASS_OR_INTERFACE | ObjectFlags::REFERENCE)
-                || self.tables.type_of(ty).alias_symbol.is_some())
+                || self.tables.alias_symbol(ty).is_some())
         {
             Some(self.tables.create_type(
                 TypeFlags::INDEX,
@@ -463,7 +463,9 @@ impl<'a> CheckerState<'a> {
             .intersects(TypeFlags::INTERSECTION)
         {
             if let TypeData::Intersection { types } = &self.tables.type_of(key_type).data {
-                return types
+                return self
+                    .tables
+                    .list(*types)
                     .iter()
                     .any(|&member| self.is_key_type_included(member, include));
             }
@@ -474,24 +476,25 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: maybeTypeOfKind @6.0.3
     /// tsc-hash: f741e7c78ead28c1af6f8f4db9c6784b186cf4c525a2c8b26dc8a7eb8921abc6
     /// tsc-span: _tsc.js:79514-79527
+    ///
+    /// The entry answers from the type's own flags; the members of a union
+    /// or intersection are read out of line.
+    #[inline]
     pub(crate) fn maybe_type_of_kind(&self, ty: TypeId, kind: TypeFlags) -> bool {
-        if self.tables.flags_of(ty).intersects(kind) {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(kind) {
             return true;
         }
-        if self
-            .tables
-            .flags_of(ty)
-            .intersects(TypeFlags::UNION_OR_INTERSECTION)
-        {
-            let members: &[TypeId] = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } | TypeData::Intersection { types } => types,
-                _ => unreachable!("union/intersection flag implies member data"),
-            };
-            return members
-                .iter()
-                .any(|&member| self.maybe_type_of_kind(member, kind));
-        }
-        false
+        flags.intersects(TypeFlags::UNION_OR_INTERSECTION) && self.maybe_members_of_kind(ty, kind)
+    }
+
+    /// [`Self::maybe_type_of_kind`] over a union's or intersection's members.
+    #[inline(never)]
+    fn maybe_members_of_kind(&self, ty: TypeId, kind: TypeFlags) -> bool {
+        self.tables
+            .members_of(ty)
+            .iter()
+            .any(|&member| self.maybe_type_of_kind(member, kind))
     }
 
     /// tsc-port: isTypeAssignableToKind @6.0.3
@@ -578,7 +581,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_actual_type_variable(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::SUBSTITUTION) {
-            let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+            let TypeData::Substitution(data) = self.tables.type_of(ty).data else {
                 unreachable!("Substitution flag implies substitution data");
             };
             return self.get_actual_type_variable(data.base_type);
@@ -654,7 +657,7 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("UnionOrIntersection flag implies member data");
             };
-            let types = types.to_vec();
+            let types = self.tables.list(*types).to_vec();
             let mut reduced = ObjectFlags::NONE;
             for member in types {
                 reduced |= self.get_generic_object_flags(member)?;
@@ -662,7 +665,7 @@ impl<'a> CheckerState<'a> {
             return Ok(reduced & ObjectFlags::IS_GENERIC_TYPE);
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
-            let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+            let TypeData::Substitution(data) = self.tables.type_of(ty).data else {
                 unreachable!("Substitution flag implies substitution data");
             };
             return Ok((self.get_generic_object_flags(data.base_type)?
@@ -722,8 +725,8 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let members: Vec<TypeId> = match &self.tables.type_of(object_type).data {
-            TypeData::Union { types, .. } => types.to_vec(),
-            TypeData::Intersection { types } => types.to_vec(),
+            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
             _ => unreachable!("union/intersection flag implies member data"),
         };
         let mut types = Vec::with_capacity(members.len());
@@ -764,7 +767,7 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let members: Vec<TypeId> = match &self.tables.type_of(index_type).data {
-            TypeData::Union { types, .. } => types.to_vec(),
+            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
             _ => unreachable!("union flag implies union data"),
         };
         let mut types = Vec::with_capacity(members.len());
@@ -881,7 +884,10 @@ impl<'a> CheckerState<'a> {
             } else {
                 let target = self.tables.reference_target(object_type);
                 match &self.tables.type_of(target).data {
-                    TypeData::TupleTarget(data) => data.fixed_length,
+                    TypeData::TupleTarget(data) => {
+                        let data = self.tables.tuple_target(*data);
+                        data.fixed_length
+                    }
                     _ => unreachable!("tuple type targets a tuple target"),
                 }
             };
@@ -1274,7 +1280,9 @@ impl<'a> CheckerState<'a> {
                 let all_fixed = self.every_type(object_type, |state, t| {
                     let target = state.tables.reference_target(t);
                     match &state.tables.type_of(target).data {
-                        TypeData::TupleTarget(data) => !data
+                        TypeData::TupleTarget(data) => !state
+                            .tables
+                            .tuple_target(*data)
                             .combined_flags
                             .intersects(tsc_types::ElementFlags::VARIABLE),
                         _ => false,
@@ -1299,7 +1307,10 @@ impl<'a> CheckerState<'a> {
                             let tuple_display = self.type_to_string(object_type)?;
                             let target = self.tables.reference_target(object_type);
                             let arity = match &self.tables.type_of(target).data {
-                                TypeData::TupleTarget(data) => data.element_flags.len(),
+                                TypeData::TupleTarget(data) => {
+                                    let data = self.tables.tuple_target(*data);
+                                    data.element_flags.len()
+                                }
                                 _ => 0,
                             };
                             self.error_at_js(
@@ -1847,7 +1858,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
             for member in members {
@@ -1888,8 +1899,8 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => types.to_vec(),
-                TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union/intersection flag implies member data"),
             };
             for member in members {
@@ -1930,12 +1941,16 @@ impl<'a> CheckerState<'a> {
             // literal value (tsc passes `indexType.value` there) use
             // index_literal_value_display instead.
             TypeData::Literal {
-                value: tsc_types::LiteralValue::String(value),
-            } => Some(EscapedName::escape(value.to_js_string().as_js())),
-            TypeData::Literal {
-                value: tsc_types::LiteralValue::Number(value),
+                value: tsc_types::LiteralData::String(value),
+                ..
             } => Some(EscapedName::escape(
-                tsc_types::tables::js_number_to_string(*value)
+                self.tables.literal_text(*value).to_js_string().as_js(),
+            )),
+            TypeData::Literal {
+                value: tsc_types::LiteralData::Number(value),
+                ..
+            } => Some(EscapedName::escape(
+                tsc_types::tables::js_number_to_string(value.get())
                     .as_str()
                     .into(),
             )),
@@ -1954,13 +1969,11 @@ impl<'a> CheckerState<'a> {
     /// Diagnostic values remain JavaScript strings, including unpaired
     /// surrogates; source escaping belongs to literal-node printing.
     fn index_literal_value_display(&self, ty: TypeId) -> Option<JsString> {
-        match &self.tables.type_of(ty).data {
-            TypeData::Literal {
-                value: tsc_types::LiteralValue::String(value),
-            } => Some(value.to_js_string()),
-            TypeData::Literal {
-                value: tsc_types::LiteralValue::Number(value),
-            } => Some(tsc_types::tables::js_number_to_string(*value).into()),
+        match self.tables.literal_value(ty) {
+            Some(tsc_types::LiteralValue::String(value)) => Some(value.to_js_string()),
+            Some(tsc_types::LiteralValue::Number(value)) => {
+                Some(tsc_types::tables::js_number_to_string(value).into())
+            }
             _ => None,
         }
     }
@@ -1975,13 +1988,19 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_total_fixed_element_count(&self, target: TypeId) -> usize {
         match &self.tables.type_of(target).data {
             TypeData::TupleTarget(data) => {
-                let end = data
+                let end = self
+                    .tables
+                    .tuple_target(*data)
                     .element_flags
                     .iter()
                     .rev()
                     .position(|f| !f.intersects(tsc_types::ElementFlags::FIXED))
-                    .unwrap_or(data.element_flags.len());
-                data.fixed_length + end.min(data.element_flags.len() - data.fixed_length)
+                    .unwrap_or(self.tables.tuple_target(*data).element_flags.len());
+                self.tables.tuple_target(*data).fixed_length
+                    + end.min(
+                        self.tables.tuple_target(*data).element_flags.len()
+                            - self.tables.tuple_target(*data).fixed_length,
+                    )
             }
             _ => 0,
         }
@@ -1996,7 +2015,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<TypeId>> {
         let target = self.tables.reference_target(ty);
         let fixed_length = match &self.tables.type_of(target).data {
-            TypeData::TupleTarget(data) => data.fixed_length,
+            TypeData::TupleTarget(data) => {
+                let data = self.tables.tuple_target(*data);
+                data.fixed_length
+            }
             _ => return Ok(None),
         };
         self.get_element_type_of_slice_of_tuple_type(ty, fixed_length, 0, false, false)
@@ -2007,9 +2029,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:61299-61301
     pub(crate) fn get_known_keys_of_tuple_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let target = self.tables.reference_target(ty);
-        let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+        let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
             unreachable!("tuple type targets a tuple target");
         };
+        let data = self.tables.tuple_target(data).clone();
         let array = if data.readonly {
             self.global_readonly_array_type()?
         } else {
@@ -2038,7 +2061,10 @@ impl<'a> CheckerState<'a> {
         let type_arguments: Vec<TypeId> = self.get_type_arguments(ty)?;
         let target = self.tables.reference_target(ty);
         let element_flags: Vec<tsc_types::ElementFlags> = match &self.tables.type_of(target).data {
-            TypeData::TupleTarget(data) => data.element_flags.to_vec(),
+            TypeData::TupleTarget(data) => {
+                let data = self.tables.tuple_target(*data);
+                data.element_flags.to_vec()
+            }
             _ => return Ok(None),
         };
         let length = element_flags.len().saturating_sub(end_skip_count);

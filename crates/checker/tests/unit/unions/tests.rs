@@ -100,7 +100,7 @@ fn eager_array_roots_precede_user_types_in_union_order() {
             let TypeData::Union { types, .. } = &state.tables.type_of(union).data else {
                 panic!("distinct object types form a union");
             };
-            assert_eq!(types.as_ref(), &[any_array, record]);
+            assert_eq!(state.tables.list(*types), &[any_array, record]);
             assert_eq!(
                 state.type_to_string(union).expect("union renders"),
                 "any[] | Record<string, any>"
@@ -129,7 +129,7 @@ fn checker_side_unions_reduce_template_matched_string_literals() {
         let TypeData::Union { types, .. } = &state.tables.type_of(mixed).data else {
             panic!("unmatched literal survives the union");
         };
-        assert_eq!(types.len(), 2);
+        assert_eq!(state.tables.list(*types).len(), 2);
     });
 }
 
@@ -184,7 +184,10 @@ fn common_supertype_prefers_single_supertypes_over_unions() {
         let TypeData::Union { types, .. } = &state.tables.type_of(joined).data else {
             panic!("nullable join is a union");
         };
-        assert!(types.contains(&state.tables.intrinsics.null));
-        assert!(types.contains(&string));
+        assert!(state
+            .tables
+            .list(*types)
+            .contains(&state.tables.intrinsics.null));
+        assert!(state.tables.list(*types).contains(&string));
     });
 }

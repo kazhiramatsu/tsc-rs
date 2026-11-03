@@ -138,7 +138,7 @@ impl<'a> CheckerState<'a> {
             || self.tables.flags_of(ty).intersects(TypeFlags::UNION)
                 && match &self.tables.type_of(ty).data {
                     tsc_types::TypeData::Union { types, .. } => {
-                        types.first() == Some(&missing_or_undefined)
+                        self.tables.list(*types).first() == Some(&missing_or_undefined)
                     }
                     _ => unreachable!("union flag implies union data"),
                 };
@@ -750,8 +750,8 @@ impl<'a> CheckerState<'a> {
                 .expect("Synthetic check flag implies containing type");
             let name = self.binder.symbol(prop).escaped_name;
             let constituents: Vec<TypeId> = match &self.tables.type_of(containing).data {
-                tsc_types::TypeData::Union { types, .. } => types.to_vec(),
-                tsc_types::TypeData::Intersection { types } => types.to_vec(),
+                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                tsc_types::TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("synthetic containing type is a union or intersection"),
             };
             for constituent in constituents {
@@ -3298,7 +3298,7 @@ impl<'a> CheckerState<'a> {
             && !flags.intersects(TypeFlags::PRIMITIVE)
         {
             let constituents: Vec<TypeId> = match &self.tables.type_of(containing_type).data {
-                tsc_types::TypeData::Union { types, .. } => types.to_vec(),
+                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             for subtype in constituents {
@@ -3504,7 +3504,7 @@ impl<'a> CheckerState<'a> {
         // everyContainedType(t => symbol name matches the DOM shape).
         let constituents: Vec<TypeId> = match &self.tables.type_of(containing_type).data {
             tsc_types::TypeData::Union { types, .. }
-            | tsc_types::TypeData::Intersection { types } => types.to_vec(),
+            | tsc_types::TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
             _ => vec![containing_type],
         };
         let dom_shape = |name: JsStr<'_>| {
@@ -3667,7 +3667,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         if self.tables.flags_of(source).intersects(TypeFlags::UNION) {
             let constituents: Vec<TypeId> = match &self.tables.type_of(source).data {
-                tsc_types::TypeData::Union { types, .. } => types.to_vec(),
+                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             for constituent in constituents {
@@ -4048,7 +4048,7 @@ impl<'a> CheckerState<'a> {
         if !seen.insert(ty) {
             return Ok(false);
         }
-        match self.tables.type_of(ty).data.clone() {
+        match self.tables.type_of(ty).data {
             tsc_types::TypeData::TypeParameter { .. } => {
                 if let Some(constraint) = self.get_base_constraint_of_type(ty)? {
                     if constraint != ty
@@ -4063,7 +4063,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             tsc_types::TypeData::Intersection { types } => {
-                for constituent in types.iter().copied() {
+                for constituent in self.tables.list(types).to_vec() {
                     let mut branch_seen = seen.clone();
                     if self.type_may_receive_unresolved_augmentation_property(
                         constituent,
@@ -4075,7 +4075,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             tsc_types::TypeData::Union { types, .. } => {
-                for constituent in types.iter().copied() {
+                for constituent in self.tables.list(types).to_vec() {
                     if !self.type_already_has_property_or_index(constituent, property_name)? {
                         let mut branch_seen = seen.clone();
                         if !self.type_may_receive_unresolved_augmentation_property(

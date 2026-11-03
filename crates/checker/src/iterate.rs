@@ -635,7 +635,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(TypeFlags::UNION)
             {
                 let array_types: Vec<TypeId> = match &self.tables.type_of(input_type).data {
-                    tsc_types::TypeData::Union { types, .. } => types.to_vec(),
+                    tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                     _ => unreachable!("union flag implies union data"),
                 };
                 let filtered_types: Vec<TypeId> = array_types
@@ -937,7 +937,7 @@ impl<'a> CheckerState<'a> {
         let allow_async_iterables = use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG);
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             let constituents: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsc_types::TypeData::Union { types, .. } => types.to_vec(),
+                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             let mut all_iteration_types = Vec::with_capacity(constituents.len());
@@ -1575,7 +1575,7 @@ impl<'a> CheckerState<'a> {
                                 match &self.tables.type_of(global_type).data {
                                     tsc_types::TypeData::GenericType {
                                         type_parameters, ..
-                                    } => type_parameters.to_vec(),
+                                    } => self.tables.list(*type_parameters).to_vec(),
                                     _ => Vec::new(),
                                 };
                             if type_parameters.len() >= 3 {

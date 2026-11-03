@@ -4107,9 +4107,8 @@ impl<'a> CheckerState<'a> {
         let mut entries = Vec::with_capacity(properties.len());
         for (_, property) in properties {
             let property_type = self.get_type_of_symbol(property)?;
-            if let tsc_types::TypeData::Literal {
-                value: tsc_types::LiteralValue::String(value),
-            } = &self.tables.type_of(property_type).data
+            if let Some(tsc_types::LiteralValue::String(value)) =
+                self.tables.literal_value(property_type)
             {
                 let name = unescape_leading_underscores(self.binder.symbol(property).escaped_name);
                 entries.push((name.to_owned(), value.clone()));

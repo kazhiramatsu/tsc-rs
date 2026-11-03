@@ -19,11 +19,11 @@ fn generic_interface_declared_type_is_a_generic_type_target() {
                 type_parameters,
                 outer_type_parameter_count,
                 this_type,
-            } = state.tables.type_of(declared).data.clone()
+            } = state.tables.type_of(declared).data
             else {
                 panic!("generic interfaces declare GenericType targets");
             };
-            assert_eq!(type_parameters.len(), 1);
+            assert_eq!(state.tables.list(type_parameters).len(), 1);
             assert_eq!(outer_type_parameter_count, 0);
             assert!(state
                 .tables
@@ -39,6 +39,7 @@ fn generic_interface_declared_type_is_a_generic_type_target() {
             ));
             // The instantiations map is seeded with the target:
             // referencing it with its own parameters IS the target.
+            let type_parameters = state.tables.list(type_parameters).to_vec();
             let reference = state
                 .tables
                 .create_type_reference(declared, &type_parameters);
@@ -65,7 +66,7 @@ fn thisful_interface_declares_a_generic_type_without_parameters() {
                 TypeData::GenericType {
                     ref type_parameters,
                     ..
-                } if type_parameters.is_empty()
+                } if state.tables.list(*type_parameters).is_empty()
             ));
             assert!(
                 !state.could_contain_type_variables(declared),
@@ -210,7 +211,7 @@ fn class_declared_types_are_generic_type_targets() {
                 .expect("D declared");
             assert!(matches!(
                 state.tables.type_of(declared_c).data,
-                TypeData::GenericType { ref type_parameters, .. } if type_parameters.len() == 1
+                TypeData::GenericType { ref type_parameters, .. } if state.tables.list(*type_parameters).len() == 1
             ));
             assert!(state
                 .tables
@@ -220,7 +221,7 @@ fn class_declared_types_are_generic_type_targets() {
             // no parameters (57387).
             assert!(matches!(
                 state.tables.type_of(declared_d).data,
-                TypeData::GenericType { ref type_parameters, .. } if type_parameters.is_empty()
+                TypeData::GenericType { ref type_parameters, .. } if state.tables.list(*type_parameters).is_empty()
             ));
             assert!(!state.could_contain_type_variables(declared_d));
             assert!(state

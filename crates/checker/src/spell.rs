@@ -183,15 +183,13 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
     ) -> Option<TypeId> {
-        let TypeData::Literal {
-            value: LiteralValue::String(source_value),
-        } = &self.tables.type_of(source).data
-        else {
+        let Some(LiteralValue::String(source_value)) = self.tables.literal_value(source) else {
             return None;
         };
-        let TypeData::Union { types, .. } = &self.tables.type_of(target).data else {
+        let TypeData::Union { types, .. } = self.tables.type_of(target).data else {
             return None;
         };
+        let types = self.tables.list(types);
         let candidates = types
             .iter()
             .copied()
@@ -203,10 +201,8 @@ impl<'a> CheckerState<'a> {
             .collect::<Vec<_>>();
         let source_units = source_value.units().to_vec();
         get_spelling_suggestion_utf16(self, &source_units, &candidates, |state, candidate| {
-            match &state.tables.type_of(candidate).data {
-                TypeData::Literal {
-                    value: LiteralValue::String(value),
-                } => Some(value.units().to_vec()),
+            match state.tables.literal_value(candidate) {
+                Some(LiteralValue::String(value)) => Some(value.units().to_vec()),
                 _ => None,
             }
         })

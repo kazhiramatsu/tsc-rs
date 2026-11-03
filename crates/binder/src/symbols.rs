@@ -486,8 +486,27 @@ impl SymbolArena {
         (id.index() - self.base) as usize
     }
 
+    /// The symbol `id`, which this arena holds: one load, as
+    /// `TypeTables::type_of` reads a type (the index is checked in debug
+    /// builds only; a checker reads its transient symbols here 200 million
+    /// times on six real projects).
+    #[inline]
     pub fn symbol(&self, id: SymbolId) -> &Symbol {
-        &self.symbols[self.index(id)]
+        debug_assert!(
+            id.index() >= self.base && ((id.index() - self.base) as usize) < self.symbols.len(),
+            "SymbolId outside its arena: {id:?} (base {}, len {})",
+            self.base,
+            self.symbols.len()
+        );
+        self.symbols.record(id.index().wrapping_sub(self.base))
+    }
+
+    /// The symbol `id` if this arena holds it: the checked read for
+    /// identities from outside the compiler (the API, the emit resolver).
+    pub fn get(&self, id: SymbolId) -> Option<&Symbol> {
+        id.index()
+            .checked_sub(self.base)
+            .and_then(|index| self.symbols.get(index as usize))
     }
 
     pub fn symbol_mut(&mut self, id: SymbolId) -> &mut Symbol {

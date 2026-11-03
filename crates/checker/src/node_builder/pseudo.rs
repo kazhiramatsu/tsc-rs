@@ -955,9 +955,11 @@ pub(crate) fn pseudo_type_equivalent_to_type_core(
             // required elements.
             let tuple_target = checker.tables.reference_target(undefined_stripped);
             let non_required = match &checker.tables.type_of(tuple_target).data {
-                TypeData::TupleTarget(tuple) => {
-                    tuple.combined_flags.intersects(ElementFlags::NON_REQUIRED)
-                }
+                TypeData::TupleTarget(tuple) => checker
+                    .tables
+                    .tuple_target(*tuple)
+                    .combined_flags
+                    .intersects(ElementFlags::NON_REQUIRED),
                 _ => true,
             };
             if non_required {

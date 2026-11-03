@@ -457,15 +457,16 @@ fn is_type_on_stack(r#type: TypeId, context: &NodeBuilderContext<'_>) -> bool {
 /// the anonymous type of a class, enum, module or function — not one
 /// declared in a default library; for an alias, the alias's symbol.
 fn is_expandable_type(checker: &CheckerState<'_>, r#type: TypeId, is_alias: bool) -> bool {
-    let ty = checker.tables.type_of(r#type);
     if is_alias {
-        return !ty
-            .alias_symbol
+        return !checker
+            .tables
+            .alias_symbol(r#type)
             .is_some_and(|alias| is_lib_symbol(checker, alias));
     }
     if is_lib_type(checker, r#type) {
         return false;
     }
+    let ty = checker.tables.type_of(r#type);
     if ty.flags.intersects(TypeFlags::ENUM_LIKE)
         || ty
             .object_flags
@@ -535,7 +536,7 @@ fn check_type_expandability_worker(
     if is_type_on_stack(r#type, context) {
         return Ok(());
     }
-    if checker.tables.type_of(r#type).alias_symbol.is_some() {
+    if checker.tables.alias_symbol(r#type).is_some() {
         should_expand_type(checker, r#type, context, true);
     }
     if !context.out.can_increase_expansion_depth {

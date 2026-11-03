@@ -26,7 +26,7 @@ fn generic_alias_instantiates_with_alias_stamping_and_interning() {
                 .tables
                 .flags_of(instantiated)
                 .intersects(TypeFlags::UNION));
-            assert_eq!(state.tables.type_of(instantiated).alias_symbol, Some(a));
+            assert_eq!(state.tables.alias_symbol(instantiated), Some(a));
             assert_eq!(
                 state.tables.alias_type_arguments(instantiated),
                 Some(&[state.tables.intrinsics.string][..])
@@ -90,8 +90,10 @@ fn generic_tuple_normalization_simplifies_variadic_indexed_access_elements() {
             let TypeData::Union { types, .. } = &state.tables.type_of(normalized).data else {
                 panic!("the union index should distribute the variadic tuple");
             };
-            assert_eq!(types.len(), 2);
-            assert!(types
+            assert_eq!(state.tables.list(*types).len(), 2);
+            assert!(state
+                .tables
+                .list(*types)
                 .iter()
                 .all(|&member| state.tables.is_generic_tuple_type(member)));
 
@@ -120,7 +122,7 @@ fn alias_of_alias_restamps_the_outer_alias() {
             let declared = state.get_type_from_type_node(v).expect("B resolves");
             assert!(state.tables.flags_of(declared).intersects(TypeFlags::UNION));
             assert_eq!(
-                state.tables.type_of(declared).alias_symbol,
+                state.tables.alias_symbol(declared),
                 Some(b),
                 "the outer alias reference stamps ITS symbol on the instantiation"
             );
@@ -145,8 +147,7 @@ fn declared_alias_union_carries_the_alias_with_parameter_arguments() {
             let instantiated = state.get_type_from_type_node(v).expect("L<string>");
             let alias = state
                 .tables
-                .type_of(instantiated)
-                .alias_symbol
+                .alias_symbol(instantiated)
                 .expect("inherited alias symbol");
             assert_eq!(state.binder.symbol(alias).escaped_name, "L");
             assert_eq!(
@@ -251,7 +252,7 @@ fn generic_alias_of_type_literal_stamps_the_anonymous_type() {
                 TypeData::Object
             ));
             assert_eq!(
-                state.tables.type_of(instantiated).alias_symbol,
+                state.tables.alias_symbol(instantiated),
                 Some(box_symbol)
             );
             let w = annotation_of(state, "w");

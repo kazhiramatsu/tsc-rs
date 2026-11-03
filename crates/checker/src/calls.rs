@@ -2100,8 +2100,7 @@ impl<'a> CheckerState<'a> {
                 Some(spread_type) if self.tables.is_tuple_type(spread_type) => {
                     let element_types = self.get_type_arguments(spread_type)?;
                     let target = self.tables.reference_target(spread_type);
-                    let TypeData::TupleTarget(target_data) =
-                        self.tables.type_of(target).data.clone()
+                    let TypeData::TupleTarget(target_data) = self.tables.type_of(target).data
                     else {
                         unreachable!("tuple type targets a tuple target");
                     };
@@ -2110,13 +2109,15 @@ impl<'a> CheckerState<'a> {
                         (raw.pos, raw.end)
                     };
                     for (i, &element) in element_types.iter().enumerate() {
-                        let flags = target_data.element_flags[i];
+                        let flags = self.tables.tuple_target(target_data).element_flags[i];
                         let ty = if flags.intersects(ElementFlags::REST) {
                             self.create_array_type(element, /*readonly*/ false)?
                         } else {
                             element
                         };
-                        let name = target_data
+                        let name = self
+                            .tables
+                            .tuple_target(target_data)
                             .labeled_element_declarations
                             .as_ref()
                             .and_then(|names| names.get(i).copied())
@@ -2402,9 +2403,10 @@ impl<'a> CheckerState<'a> {
         if self.tables.is_tuple_type(ty) {
             let element_types = self.get_type_arguments(ty)?;
             let target = self.tables.reference_target(ty);
-            let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+            let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
                 unreachable!("tuple type targets a tuple target");
             };
+            let data = self.tables.tuple_target(data).clone();
             let names = data.labeled_element_declarations.clone();
             return self.create_tuple_type_forced(
                 &element_types,
@@ -3568,7 +3570,7 @@ impl<'a> CheckerState<'a> {
             return Ok(target);
         }
         let target_types = match &self.tables.type_of(target).data {
-            TypeData::Union { types, .. } => types.to_vec(),
+            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
             _ => return Ok(target),
         };
         if self
@@ -5444,7 +5446,7 @@ impl<'a> CheckerState<'a> {
         };
 
         let union_types = match &self.tables.type_of(apparent_type).data {
-            TypeData::Union { types, .. } => Some(types.to_vec()),
+            TypeData::Union { types, .. } => Some(self.tables.list(*types).to_vec()),
             _ => None,
         };
         let error_info = if let Some(types) = union_types {
@@ -5986,7 +5988,7 @@ impl<'a> CheckerState<'a> {
             .intersects(TypeFlags::INTERSECTION)
         {
             let types = match &self.tables.type_of(first_base).data {
-                TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("intersection flag implies payload"),
             };
             let mixin_flags = self.find_mixins(&types)?;

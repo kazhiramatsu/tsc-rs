@@ -1789,7 +1789,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let constituents = match &self.tables.type_of(ty).data {
-            tsc_types::TypeData::Union { types, .. } => types.to_vec(),
+            tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
             _ => unreachable!("union flag implies union data"),
         };
         for constituent in constituents {

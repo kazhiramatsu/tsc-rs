@@ -180,7 +180,6 @@ fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
             | ObjectFlags::OBJECT_LITERAL.bits()
             | ObjectFlags::FRESH_LITERAL.bits();
         state.tables.type_mut(ty).object_flags = tsc_types::ObjectFlags::from_bits(flags);
-        state.tables.type_mut(ty).fresh_type = Some(ty);
         // A REAL object literal's symbol is a VALUE symbol whose
         // valueDeclaration is the literal node, and every own
         // property's declaration parent is that node — which is what

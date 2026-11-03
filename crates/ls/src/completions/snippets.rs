@@ -793,7 +793,7 @@ impl Completions<'_, '_, '_> {
                 };
                 elements.push(expression);
             } else if let Some(value) = self.literal_value(member) {
-                if tracker.has_value(&value) {
+                if tracker.has_value(value.as_ref()) {
                     continue;
                 }
                 let expression =
@@ -874,11 +874,11 @@ impl Completions<'_, '_, '_> {
 fn literal_expression(
     tracker: &mut Tracker<'_>,
     target: tsc_emitter::TransformSourceId,
-    value: &tsc_types::LiteralValue,
+    value: &tsc_types::LiteralValueOwned,
     single_quote: bool,
 ) -> Result<TransformNode, TransformError> {
     let mut factory = tracker.arena().factory();
-    match value {
+    match value.as_ref() {
         tsc_types::LiteralValue::BigInt(value) => {
             let text = format!("{}n", value.base10_value);
             let literal = factory.create_big_int_literal(target, text)?;
@@ -892,7 +892,7 @@ fn literal_expression(
             Ok(literal)
         }
         tsc_types::LiteralValue::Number(value) => {
-            if *value < 0.0 {
+            if value < 0.0 {
                 let literal = factory
                     .create_numeric_literal(target, tsc_types::js_number_to_string(-value))?;
                 return tracker.arena().factory().create_prefix_unary_expression(
@@ -901,7 +901,7 @@ fn literal_expression(
                     literal,
                 );
             }
-            factory.create_numeric_literal(target, tsc_types::js_number_to_string(*value))
+            factory.create_numeric_literal(target, tsc_types::js_number_to_string(value))
         }
         tsc_types::LiteralValue::String(text) => {
             factory.create_string_literal(target, text.to_js_string(), single_quote)

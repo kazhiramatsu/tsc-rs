@@ -1372,7 +1372,9 @@ impl<'a> CheckerState<'a> {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
-            } => type_parameters[*outer_type_parameter_count as usize..].to_vec(),
+            } => tsc_types::TypeTables::list(&self.tables, *type_parameters)
+                [*outer_type_parameter_count as usize..]
+                .to_vec(),
             _ => Vec::new(),
         };
         if !self.are_type_parameters_identical(&declarations, &local_type_parameters)? {

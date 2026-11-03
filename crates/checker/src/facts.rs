@@ -89,7 +89,7 @@ impl<'a> CheckerState<'a> {
             let is_empty = flags.intersects(TypeFlags::STRING_LITERAL)
                 && matches!(
                     &self.tables.type_of(ty).data,
-                    TypeData::Literal { value: tsc_types::LiteralValue::String(value) } if value.is_empty()
+                    TypeData::Literal { value: tsc_types::LiteralData::String(value), .. } if self.tables.literal_text(*value).is_empty()
                 );
             return Ok(match (strict_null_checks, is_empty) {
                 (true, true) => TypeFacts::EMPTY_STRING_STRICT_FACTS,
@@ -108,7 +108,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::NUMBER_LITERAL) {
             let is_zero = matches!(
                 &self.tables.type_of(ty).data,
-                TypeData::Literal { value: tsc_types::LiteralValue::Number(value) } if *value == 0.0
+                TypeData::Literal { value: tsc_types::LiteralData::Number(value), .. } if value.get() == 0.0
             );
             return Ok(match (strict_null_checks, is_zero) {
                 (true, true) => TypeFacts::ZERO_NUMBER_STRICT_FACTS,
@@ -212,7 +212,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             let mut facts = TypeFacts::NONE;
@@ -237,7 +237,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeFacts> {
         let ignore_objects = self.maybe_type_of_kind(ty, TypeFlags::PRIMITIVE);
         let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-            TypeData::Intersection { types } => types.to_vec(),
+            TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
             _ => unreachable!("intersection flag implies intersection data"),
         };
         let mut ored = TypeFacts::NONE;
@@ -290,7 +290,7 @@ impl<'a> CheckerState<'a> {
     fn is_zero_big_int(&self, ty: TypeId) -> bool {
         matches!(
             &self.tables.type_of(ty).data,
-            TypeData::Literal { value: tsc_types::LiteralValue::BigInt(value) } if value.base10_value == "0"
+            TypeData::Literal { value: tsc_types::LiteralData::BigInt(value), .. } if self.tables.bigint(*value).base10_value == "0"
         )
     }
 
@@ -505,7 +505,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             let mut keep = rustc_hash::FxHashSet::default();

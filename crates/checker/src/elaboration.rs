@@ -243,7 +243,9 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
             if let TypeData::Intersection { types } = &self.tables.type_of(ty).data {
-                return types
+                return self
+                    .tables
+                    .list(*types)
                     .to_vec()
                     .iter()
                     .any(|&ty| self.is_or_has_generic_conditional(ty));
@@ -519,7 +521,7 @@ impl<'a> CheckerState<'a> {
         children_target: TypeId,
     ) -> CheckResult<(TypeId, TypeId)> {
         let parts = match &self.tables.type_of(children_target).data {
-            TypeData::Union { types, .. } => types.to_vec(),
+            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
             _ => vec![children_target],
         };
         let iterable = self.get_global_iterable_type(/*report_errors*/ false)?;
@@ -706,7 +708,7 @@ impl<'a> CheckerState<'a> {
         // Iterable targets need their yielded type in addition to the
         // ordinary numeric indexed access supplied by arrays/tuples.
         let target_parts = match &self.tables.type_of(array_like_target).data {
-            TypeData::Union { types, .. } => types.to_vec(),
+            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
             _ => vec![array_like_target],
         };
         let mut tuple_or_array_parts = Vec::new();

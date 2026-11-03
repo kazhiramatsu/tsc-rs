@@ -375,11 +375,10 @@ impl Session {
                 let ty = object_type_handle(params)?;
                 return setup.query(self, |query| {
                     let ty = query.resolve_type(ty)?;
-                    let data = query.state.tables.type_of(ty);
                     let symbol = if method == "getSymbolOfType" {
-                        data.symbol
+                        query.state.tables.type_of(ty).symbol
                     } else {
-                        data.alias_symbol
+                        query.state.tables.alias_symbol(ty)
                     };
                     Ok(json(&symbol.map(|symbol| query.symbol_response(symbol))))
                 });
@@ -1595,7 +1594,7 @@ impl Query<'_, '_> {
             response.name_type = register(name);
             response.template_type = register(template);
         }
-        if let TypeData::TupleTarget(target) = &self.state.tables.type_of(ty).data {
+        if let Some(target) = self.state.tables.tuple_target_of(ty) {
             if let Some(labels) = target.labeled_element_declarations.clone() {
                 response.labeled_element_declarations = labels
                     .iter()
@@ -1614,7 +1613,7 @@ impl Query<'_, '_> {
         let data = tables.type_of(ty);
         let flags = data.flags;
         let symbol = data.symbol;
-        let alias_symbol = data.alias_symbol;
+        let alias_symbol = tables.alias_symbol(ty);
         let alias_type_arguments = tables
             .alias_type_arguments(ty)
             .unwrap_or_default()
@@ -1632,14 +1631,14 @@ impl Query<'_, '_> {
                 response.value = literal_value(self.state, ty);
             }
             let data = self.state.tables.type_of(ty);
-            response.fresh_type = data.fresh_type.map_or(0, Self::type_handle);
-            response.regular_type = data.regular_type.map_or(0, Self::type_handle);
+            response.fresh_type = data.fresh_type().map_or(0, Self::type_handle);
+            response.regular_type = data.regular_type().map_or(0, Self::type_handle);
         } else if flags.intersects(TypeFlags::OBJECT) {
             let object_flags = self.state.tables.object_flags_of(ty);
             response.object_flags = object_flags_of(self.state, ty, object_flags);
             response.is_tuple_type = self.is_tuple_type(ty);
             if object_flags.intersects(ObjectFlags::REFERENCE) {
-                if let TypeData::TupleTarget(target) = &self.state.tables.type_of(ty).data {
+                if let Some(target) = self.state.tables.tuple_target_of(ty) {
                     response.element_flags = target
                         .element_flags
                         .iter()
@@ -1655,17 +1654,20 @@ impl Query<'_, '_> {
                     type_parameters,
                     outer_type_parameter_count,
                     this_type,
-                } = &self.state.tables.type_of(ty).data
+                } = self.state.tables.type_of(ty).data
                 {
-                    let handles = type_parameters
+                    let handles = self
+                        .state
+                        .tables
+                        .list(type_parameters)
                         .iter()
                         .map(|&ty| Self::type_handle(ty))
                         .collect::<Vec<_>>();
-                    let outer_count = *outer_type_parameter_count as usize;
+                    let outer_count = outer_type_parameter_count as usize;
                     response.outer_type_parameters = handles[..outer_count].to_vec();
                     response.local_type_parameters = handles[outer_count..].to_vec();
                     response.type_parameters = handles;
-                    response.this_type = Self::type_handle(*this_type);
+                    response.this_type = Self::type_handle(this_type);
                 }
             }
         } else if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
@@ -1693,7 +1695,10 @@ impl Query<'_, '_> {
                 }
                 TypeData::TemplateLiteral(template) => {
                     // The types are fetched with their own request.
-                    response.texts = template
+                    response.texts = self
+                        .state
+                        .tables
+                        .template_literal(*template)
                         .texts
                         .iter()
                         .map(|text| text.to_js_string().to_string_lossy().into_owned())
@@ -1702,8 +1707,9 @@ impl Query<'_, '_> {
                 TypeData::TypeParameter { is_this_type, .. } => {
                     response.is_this_type = *is_this_type;
                 }
-                TypeData::Intrinsic(data) if flags.intersects(TypeFlags::INTRINSIC) => {
-                    response.intrinsic_name = data.name.to_owned();
+                TypeData::Intrinsic { name, .. } if flags.intersects(TypeFlags::INTRINSIC) => {
+                    response.intrinsic_name =
+                        self.state.tables.intrinsic_data(*name).name.to_owned();
                 }
                 _ => {}
             }
@@ -1987,13 +1993,13 @@ fn object_flags_of(state: &CheckerState<'_>, ty: TypeId, flags: ObjectFlags) -> 
 /// (`"+Infinity"`, `"-Infinity"` or `"NaN"` as strings), a boolean, or a
 /// bigint as its signed decimal string.
 fn literal_value(state: &CheckerState<'_>, ty: TypeId) -> Option<Box<RawValue>> {
-    match &state.tables.type_of(ty).data {
-        TypeData::Literal { value } => Some(match value {
+    match state.tables.type_of(ty).data {
+        TypeData::Literal { value, .. } => Some(match state.tables.literal_value_of(value) {
             LiteralValue::String(text) => string_value(&text.to_js_string().to_string_lossy()),
-            LiteralValue::Number(number) => number_value(*number),
+            LiteralValue::Number(number) => number_value(number),
             LiteralValue::BigInt(bigint) => string_value(&bigint.to_base10_string()),
         }),
-        TypeData::Intrinsic(data) => match data.name {
+        TypeData::Intrinsic { name, .. } => match state.tables.intrinsic_data(name).name {
             "true" => Some(raw("true".to_owned())),
             "false" => Some(raw("false".to_owned())),
             _ => None,

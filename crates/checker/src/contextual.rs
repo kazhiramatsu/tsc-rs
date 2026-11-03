@@ -213,7 +213,7 @@ impl<'a> CheckerState<'a> {
             &mut |state, t| {
                 if state.tables.flags_of(t).intersects(TypeFlags::INTERSECTION) {
                     let types = match &state.tables.type_of(t).data {
-                        TypeData::Intersection { types } => types.to_vec(),
+                        TypeData::Intersection { types } => state.tables.list(*types).to_vec(),
                         _ => unreachable!("intersection flag implies payload"),
                     };
                     for member in types {
@@ -1423,7 +1423,7 @@ impl<'a> CheckerState<'a> {
             &mut |state, t| {
                 if state.tables.flags_of(t).intersects(TypeFlags::INTERSECTION) {
                     let constituents = match &state.tables.type_of(t).data {
-                        TypeData::Intersection { types } => types.to_vec(),
+                        TypeData::Intersection { types } => state.tables.list(*types).to_vec(),
                         _ => unreachable!("intersection flag implies payload"),
                     };
                     let mut types: Vec<TypeId> = Vec::new();
@@ -1522,7 +1522,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         let flags = self.tables.flags_of(constraint);
         if flags.intersects(TypeFlags::CONDITIONAL) {
-            let TypeData::Conditional(data) = self.tables.type_of(constraint).data.clone() else {
+            let TypeData::Conditional(data) = self.tables.type_of(constraint).data else {
                 unreachable!("Conditional flag implies conditional data");
             };
             let true_type = self.get_true_type_from_conditional_type(constraint)?;
@@ -1534,10 +1534,10 @@ impl<'a> CheckerState<'a> {
                 && self.is_type_assignable_to(property_name_type, data.extends_type)?);
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
-            let TypeData::Intersection { types } = self.tables.type_of(constraint).data.clone()
-            else {
+            let TypeData::Intersection { types } = self.tables.type_of(constraint).data else {
                 unreachable!("intersection flag implies payload");
             };
+            let types = self.tables.list(types).to_vec();
             for member in types.iter().copied() {
                 if self.is_excluded_mapped_property_name(member, property_name_type)? {
                     return Ok(true);
@@ -1653,7 +1653,10 @@ impl<'a> CheckerState<'a> {
             if parsed >= 0.0 {
                 let target = self.tables.reference_target(ty);
                 let fixed_length = match &self.tables.type_of(target).data {
-                    TypeData::TupleTarget(data) => data.fixed_length,
+                    TypeData::TupleTarget(data) => {
+                        let data = self.tables.tuple_target(*data);
+                        data.fixed_length
+                    }
                     _ => unreachable!("tuple type has a tuple target"),
                 };
                 let rest_type = self.get_element_type_of_slice_of_tuple_type(
@@ -1819,9 +1822,12 @@ impl<'a> CheckerState<'a> {
                     let (fixed_length, element_flags, combined_variable) =
                         match &state.tables.type_of(target).data {
                             TypeData::TupleTarget(data) => (
-                                data.fixed_length,
-                                data.element_flags.to_vec(),
-                                data.combined_flags
+                                state.tables.tuple_target(*data).fixed_length,
+                                state.tables.tuple_target(*data).element_flags.to_vec(),
+                                state
+                                    .tables
+                                    .tuple_target(*data)
+                                    .combined_flags
                                     .intersects(tsc_types::ElementFlags::VARIABLE),
                             ),
                             _ => unreachable!("tuple type has a tuple target"),
@@ -2211,7 +2217,7 @@ impl<'a> CheckerState<'a> {
         discriminators: &[(ContextualDiscriminator, tsc_types::EscapedName)],
     ) -> CheckResult<TypeId> {
         let types = match &self.tables.type_of(target).data {
-            TypeData::Union { types, .. } => types.to_vec(),
+            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
             _ => unreachable!("discrimination over a union"),
         };
         // include: 0 = False, -1 = True, 3 = Maybe (tsc Ternary words).
@@ -2409,12 +2415,12 @@ impl<'a> CheckerState<'a> {
                                             tsc_types::type_order::contains_type(
                                                 &self.tables,
                                                 ctx.order(),
-                                                types,
+                                                self.tables.list(*types),
                                                 false_regular,
                                             ) && tsc_types::type_order::contains_type(
                                                 &self.tables,
                                                 ctx.order(),
-                                                types,
+                                                self.tables.list(*types),
                                                 true_regular,
                                             )
                                         }
@@ -2456,7 +2462,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             let mut mapped = Vec::with_capacity(members.len());
@@ -2467,7 +2473,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Intersection { types, .. } => types.to_vec(),
+                TypeData::Intersection { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
             let mut mapped = Vec::with_capacity(members.len());
@@ -3247,7 +3253,7 @@ impl<'a> CheckerState<'a> {
             return self.get_contextual_call_signature(ty, node);
         }
         let types = match &self.tables.type_of(ty).data {
-            TypeData::Union { types, .. } => types.to_vec(),
+            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
             _ => unreachable!("union flag implies payload"),
         };
         let mut signature_list: Vec<SignatureId> = Vec::new();

@@ -853,21 +853,20 @@ impl<'a> CheckerState<'a> {
                 // Method || ... & TypeLiteral` — the symbol read is
                 // short-circuited away for references (tuple-target
                 // deferred references have no symbol).
-                let filter_applies =
-                    (self.tables.object_flags_of(target).intersects(
-                        ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE,
-                    ) || {
-                        let target_symbol = self
-                            .tables
-                            .type_of(target)
-                            .symbol
-                            .expect("non-reference instantiation targets carry their symbol");
-                        self.symbol_flags(target_symbol)
-                            .intersects(SymbolFlags::METHOD)
-                            || self
-                                .symbol_flags(target_symbol)
-                                .intersects(SymbolFlags::TYPE_LITERAL)
-                    }) && self.tables.type_of(target).alias_type_arguments.is_none();
+                let filter_applies = (self.tables.object_flags_of(target).intersects(
+                    ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE,
+                ) || {
+                    let target_symbol = self
+                        .tables
+                        .type_of(target)
+                        .symbol
+                        .expect("non-reference instantiation targets carry their symbol");
+                    self.symbol_flags(target_symbol)
+                        .intersects(SymbolFlags::METHOD)
+                        || self
+                            .symbol_flags(target_symbol)
+                            .intersects(SymbolFlags::TYPE_LITERAL)
+                }) && self.tables.alias_type_argument_list(target).is_none();
                 let all_declarations: Vec<NodeId> = if object_flags
                     .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
                 {
@@ -922,7 +921,7 @@ impl<'a> CheckerState<'a> {
         for &tp in &type_parameters {
             type_arguments.push(self.get_mapped_type(tp, combined_mapper)?);
         }
-        let new_alias_symbol = alias_symbol.or(self.tables.type_of(ty).alias_symbol);
+        let new_alias_symbol = alias_symbol.or(self.tables.alias_symbol(ty));
         let new_alias_type_arguments = if alias_symbol.is_some() {
             alias_type_arguments.map(<[TypeId]>::to_vec)
         } else {
@@ -939,7 +938,7 @@ impl<'a> CheckerState<'a> {
         );
         // 63489-63492: the target's instantiations map is seeded with
         // itself under its own type-parameter list id.
-        let target_alias_symbol = self.tables.type_of(target).alias_symbol;
+        let target_alias_symbol = self.tables.alias_symbol(target);
         let target_alias_arguments = self
             .tables
             .alias_type_arguments(target)
@@ -1291,7 +1290,7 @@ impl<'a> CheckerState<'a> {
             "anonymous type must have symbol to be instantiated"
         );
         let source_symbol = source.symbol;
-        let source_alias_symbol = source.alias_symbol;
+        let source_alias_symbol = self.tables.alias_symbol(ty);
         let source_alias_type_arguments =
             self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec);
         let source_object_flags = self.tables.object_flags_of(ty);
@@ -1361,10 +1360,9 @@ impl<'a> CheckerState<'a> {
         let new_alias_type_arguments = self
             .tables
             .intern_alias_arguments(new_alias_type_arguments.as_deref());
-        let result_type = self.tables.type_mut(result);
-        result_type.alias_symbol = new_alias_symbol;
-        result_type.alias_type_arguments = new_alias_type_arguments;
-        result_type.object_flags = ObjectFlags::from_bits(object_flags);
+        self.tables
+            .set_alias(result, new_alias_symbol, new_alias_type_arguments);
+        self.tables.type_mut(result).object_flags = ObjectFlags::from_bits(object_flags);
         Ok(result)
     }
 
@@ -1465,10 +1463,10 @@ impl<'a> CheckerState<'a> {
             if flags.intersects(TypeFlags::INTERSECTION)
                 && self.is_array_or_tuple_or_intersection(constituent)?
             {
-                let TypeData::Intersection { types } = &self.tables.type_of(constituent).data
-                else {
+                let TypeData::Intersection { types } = self.tables.type_of(constituent).data else {
                     unreachable!("intersection flag implies intersection data");
                 };
+                let types = self.tables.list(types);
                 let members = types.to_vec();
                 let mut instantiated = Vec::with_capacity(members.len());
                 for member in members {
@@ -1524,9 +1522,10 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
     ) -> CheckResult<TypeId> {
         let target = self.tables.reference_target(tuple_type);
-        let TypeData::TupleTarget(tuple) = self.tables.type_of(target).data.clone() else {
+        let TypeData::TupleTarget(tuple) = self.tables.type_of(target).data else {
             unreachable!("tuple type points at a tuple target");
         };
+        let tuple = self.tables.tuple_target(tuple).clone();
         let element_types = self.get_type_arguments(tuple_type)?;
         let fixed_mapper = if tuple.fixed_length != 0 {
             self.prepend_type_mapping(type_variable, tuple_type, Some(mapper))
@@ -1637,9 +1636,10 @@ impl<'a> CheckerState<'a> {
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) && alias_symbol.is_some() {
-            let TypeData::Union { types, .. } = &self.tables.type_of(ty).data else {
+            let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
                 unreachable!("union flag implies union data");
             };
+            let types = self.tables.list(types);
             let types = types.to_vec();
             let mut mapped = Vec::with_capacity(types.len());
             for member in types {
@@ -1778,8 +1778,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn alias_type_arguments_could_contain_type_variables(&mut self, ty: TypeId) -> bool {
-        let data = self.tables.type_of(ty);
-        if data.alias_symbol.is_none() {
+        if self.tables.alias_symbol(ty).is_none() {
             return false;
         }
         let Some(arguments) = self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec) else {
@@ -1800,8 +1799,11 @@ impl<'a> CheckerState<'a> {
             let count = counts.entry(ty).or_insert(0);
             *count += 1;
             if *count == 3 {
-                let data = self.tables.type_of(ty);
-                if let Some(symbol) = data.alias_symbol.or(data.symbol) {
+                if let Some(symbol) = self
+                    .tables
+                    .alias_symbol(ty)
+                    .or(self.tables.type_of(ty).symbol)
+                {
                     symbols.push(symbol);
                 }
             }
@@ -1896,22 +1898,22 @@ impl<'a> CheckerState<'a> {
                         .intersects(TypeFlags::UNION_OR_INTERSECTION) =>
                 {
                     match &self.tables.type_of(origin).data {
-                        TypeData::Union { types, .. } => types.to_vec(),
-                        TypeData::Intersection { types } => types.to_vec(),
+                        TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                        TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                         _ => unreachable!("origin union/intersection flag implies member data"),
                     }
                 }
                 _ => match &self.tables.type_of(ty).data {
-                    TypeData::Union { types, .. } => types.to_vec(),
-                    TypeData::Intersection { types } => types.to_vec(),
+                    TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                    TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                     _ => unreachable!("union/intersection flag implies member data"),
                 },
             };
             let new_types = self.instantiate_types(&source_types, mapper)?;
-            if new_types == source_types && alias_symbol == self.tables.type_of(ty).alias_symbol {
+            if new_types == source_types && alias_symbol == self.tables.alias_symbol(ty) {
                 return Ok(ty);
             }
-            let new_alias_symbol = alias_symbol.or(self.tables.type_of(ty).alias_symbol);
+            let new_alias_symbol = alias_symbol.or(self.tables.alias_symbol(ty));
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(<[TypeId]>::to_vec)
             } else {
@@ -1953,7 +1955,10 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(ty).data {
-                TypeData::TemplateLiteral(data) => (data.texts.to_vec(), data.types.to_vec()),
+                TypeData::TemplateLiteral(data) => {
+                    let data = self.tables.template_literal(*data);
+                    (data.texts.to_vec(), self.tables.list(data.types).to_vec())
+                }
                 _ => unreachable!("template flag implies template data"),
             };
             let new_types = self.instantiate_types(&types, mapper)?;
@@ -1972,7 +1977,7 @@ impl<'a> CheckerState<'a> {
             return self.get_string_mapping_type(symbol, new_inner);
         }
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
-            let new_alias_symbol = alias_symbol.or(self.tables.type_of(ty).alias_symbol);
+            let new_alias_symbol = alias_symbol.or(self.tables.alias_symbol(ty));
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(<[TypeId]>::to_vec)
             } else {
@@ -2001,7 +2006,7 @@ impl<'a> CheckerState<'a> {
             );
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
-            let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
+            let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
                 unreachable!("Conditional flag implies conditional data");
             };
             let conditional_mapper = self.combine_type_mappers(data.mapper, mapper);
@@ -2014,7 +2019,7 @@ impl<'a> CheckerState<'a> {
             );
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
-            let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+            let TypeData::Substitution(data) = self.tables.type_of(ty).data else {
                 unreachable!("Substitution flag implies substitution data");
             };
             let new_base = self.instantiate_type(data.base_type, Some(mapper))?;
@@ -2061,7 +2066,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         mapper: MapperId,
     ) -> CheckResult<TypeId> {
-        let TypeData::ReverseMapped(reverse) = self.tables.type_of(ty).data.clone() else {
+        let TypeData::ReverseMapped(reverse) = self.tables.type_of(ty).data else {
             unreachable!("reverse mapped flags imply reverse payload");
         };
         let inner_mapped_type = self.instantiate_type(reverse.mapped_type, Some(mapper))?;
@@ -2289,8 +2294,8 @@ impl<'a> CheckerState<'a> {
                 && !self.is_non_generic_top_level_type(ty)
                 && {
                     let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                        TypeData::Union { types, .. } => types.to_vec(),
-                        TypeData::Intersection { types } => types.to_vec(),
+                        TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                        TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                         _ => unreachable!("union/intersection flag implies member data"),
                     };
                     members
@@ -2314,8 +2319,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 9a8529c79d22d005a3e0866a1e80befc1fdd042ea2a2bab0d5dd5659f758d565
     /// tsc-span: _tsc.js:68344-68350
     fn is_non_generic_top_level_type(&self, ty: TypeId) -> bool {
-        let source = self.tables.type_of(ty);
-        if let (Some(alias_symbol), None) = (source.alias_symbol, &source.alias_type_arguments) {
+        if let (Some(alias_symbol), None) = (
+            self.tables.alias_symbol(ty),
+            self.tables.alias_type_argument_list(ty),
+        ) {
             // tsgo: a type alias declaration, else the reparsed
             // `@typedef` / `@callback` (its JSTypeAliasDeclaration).
             let declarations = &self.binder.symbol(alias_symbol).declarations;
@@ -3187,13 +3194,13 @@ impl<'a> CheckerState<'a> {
             return mapper(self, ty);
         }
         let (origin, own_types) = match &self.tables.type_of(ty).data {
-            TypeData::Union { types, origin } => (*origin, types.to_vec()),
+            TypeData::Union { types, origin, .. } => (*origin, self.tables.list(*types).to_vec()),
             _ => unreachable!("union flag implies union data"),
         };
         let types: Vec<TypeId> = match origin {
             Some(origin) if self.tables.flags_of(origin).intersects(TypeFlags::UNION) => {
                 match &self.tables.type_of(origin).data {
-                    TypeData::Union { types, .. } => types.to_vec(),
+                    TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                     _ => unreachable!("union flag implies union data"),
                 }
             }
@@ -3240,10 +3247,8 @@ impl<'a> CheckerState<'a> {
             return Ok(mapped.expect("string mapping over unions never drops members"));
         }
         if flags.intersects(TypeFlags::STRING_LITERAL) {
-            let value = match &self.tables.type_of(ty).data {
-                TypeData::Literal {
-                    value: tsc_types::LiteralValue::String(value),
-                } => value.clone(),
+            let value = match self.tables.literal_value(ty) {
+                Some(tsc_types::LiteralValue::String(value)) => value.clone(),
                 _ => unreachable!("string-literal flag implies string payload"),
             };
             let name = self.binder.symbol(symbol).escaped_name;
@@ -3252,7 +3257,10 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(ty).data {
-                TypeData::TemplateLiteral(data) => (data.texts.to_vec(), data.types.to_vec()),
+                TypeData::TemplateLiteral(data) => {
+                    let data = self.tables.template_literal(*data);
+                    (data.texts.to_vec(), self.tables.list(data.types).to_vec())
+                }
                 _ => unreachable!("template flag implies template data"),
             };
             let (new_texts, new_types) =

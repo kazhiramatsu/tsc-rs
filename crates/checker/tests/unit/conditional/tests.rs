@@ -48,7 +48,7 @@ fn no_infer_type_production() {
             let key = state
                 .get_type_from_type_node(key_node)
                 .expect("keyof NoInfer constructs");
-            let TypeData::Substitution(key_data) = state.tables.type_of(key).data.clone() else {
+            let TypeData::Substitution(key_data) = state.tables.type_of(key).data else {
                 panic!("keyof NoInfer<T> preserves the inference barrier");
             };
             assert!(state.tables.is_no_infer_type(key));

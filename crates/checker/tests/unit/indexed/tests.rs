@@ -83,7 +83,7 @@ fn keyof_interface_carries_an_index_origin() {
             // index type: a DISTINCT union interned under the `#`
             // key, structurally equal to the plain literal union.
             assert_ne!(keyof, plain);
-            let TypeData::Union { origin, .. } = state.tables.type_of(keyof).data.clone()
+            let TypeData::Union { origin, .. } = state.tables.type_of(keyof).data
             else {
                 panic!("keyof I is a union");
             };

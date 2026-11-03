@@ -2026,7 +2026,7 @@ fn homomorphic_mapped_inference_builds_lazy_reverse_members() {
                 .tables
                 .object_flags_of(reverse)
                 .intersects(ObjectFlags::REVERSE_MAPPED));
-            let TypeData::ReverseMapped(data) = state.tables.type_of(reverse).data.clone() else {
+            let TypeData::ReverseMapped(data) = state.tables.type_of(reverse).data else {
                 panic!("object reverse inference retains its semantic inputs");
             };
             assert_eq!(data.source, source);
@@ -2078,12 +2078,12 @@ fn homomorphic_mapped_inference_preserves_tuple_shape() {
             let reversed = state.inference_info(info).candidates.as_ref().unwrap()[0];
             assert!(state.tables.is_tuple_type(reversed));
             let target = state.tables.reference_target(reversed);
-            let TypeData::TupleTarget(data) = state.tables.type_of(target).data.clone() else {
+            let TypeData::TupleTarget(data) = state.tables.type_of(target).data else {
                 panic!("reverse tuple has a tuple target");
             };
-            assert!(data.readonly);
+            assert!(state.tables.tuple_target(data).readonly);
             assert_eq!(
-                data.element_flags.as_ref(),
+                state.tables.tuple_target(data).element_flags.as_ref(),
                 &[ElementFlags::REQUIRED, ElementFlags::OPTIONAL]
             );
             let arguments = state.get_type_arguments(reversed).expect("tuple arguments");

@@ -1499,7 +1499,9 @@ impl<'a> CheckerState<'a> {
         ty == missing
             || (self.tables.flags_of(ty).intersects(TypeFlags::UNION)
                 && match &self.tables.type_of(ty).data {
-                    TypeData::Union { types, .. } => types.first() == Some(&missing),
+                    TypeData::Union { types, .. } => {
+                        self.tables.list(*types).first() == Some(&missing)
+                    }
                     _ => false,
                 })
     }
@@ -1850,12 +1852,12 @@ impl<'a> CheckerState<'a> {
                     | TypeFlags::ANY_OR_UNKNOWN.bits(),
             ))
             || match &self.tables.type_of(ty).data {
-                TypeData::Literal { value } => match value {
+                TypeData::Literal { value, .. } => match self.tables.literal_value_of(*value) {
                     LiteralValue::String(text) => {
                         flags.intersects(TypeFlags::STRING_LITERAL) && text.is_empty()
                     }
                     LiteralValue::Number(value) => {
-                        flags.intersects(TypeFlags::NUMBER_LITERAL) && *value == 0.0
+                        flags.intersects(TypeFlags::NUMBER_LITERAL) && value == 0.0
                     }
                     LiteralValue::BigInt(value) => {
                         flags.intersects(TypeFlags::BIG_INT_LITERAL) && value.base10_value == "0"
@@ -2852,7 +2854,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
             let parts = match &self.tables.type_of(ty).data {
-                TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("intersection flag implies payload"),
             };
             let mut mapped = Vec::with_capacity(parts.len());
@@ -4210,9 +4212,9 @@ impl<'a> CheckerState<'a> {
     /// The EnumLiteral truthiness read (83657: `!!type.value`).
     fn enum_literal_type_is_truthy(&self, ty: TypeId) -> CheckResult<bool> {
         match &self.tables.type_of(ty).data {
-            TypeData::Literal { value } => Ok(match value {
+            TypeData::Literal { value, .. } => Ok(match self.tables.literal_value_of(*value) {
                 LiteralValue::String(text) => !text.is_empty(),
-                LiteralValue::Number(value) => *value != 0.0,
+                LiteralValue::Number(value) => value != 0.0,
                 LiteralValue::BigInt(value) => value.base10_value != "0",
             }),
             // 83657 reads `.value` off the type: non-Literal payloads
@@ -4691,9 +4693,8 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let awaited_symbol = self.get_global_awaited_symbol(false)?;
-        let type_record = self.tables.type_of(ty);
         Ok(awaited_symbol.is_some()
-            && type_record.alias_symbol == awaited_symbol
+            && self.tables.alias_symbol(ty) == awaited_symbol
             && self
                 .tables
                 .alias_type_arguments(ty)

@@ -2872,14 +2872,11 @@ fn get_property_name_node_for_symbol_from_name_type(
         }
     }
     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
-        let literal_type = checker.tables.type_of(name_type).data.clone();
-        let name = match &literal_type {
-            TypeData::Literal {
-                value: LiteralValue::String(value),
-            } => value.to_js_string(),
-            TypeData::Literal {
-                value: LiteralValue::Number(value),
-            } => JsString::from(tsc_types::js_number_to_string(*value)),
+        let name = match checker.tables.literal_value(name_type) {
+            Some(LiteralValue::String(value)) => value.to_js_string(),
+            Some(LiteralValue::Number(value)) => {
+                JsString::from(tsc_types::js_number_to_string(value))
+            }
             _ => unreachable!("string/number literal flags carry literal data"),
         };
         let numeric = name
@@ -2979,10 +2976,10 @@ pub(crate) fn existing_type_node_is_not_reference_or_is_reference_with_compatibl
     if existing_target != target {
         return Ok(true);
     }
-    let parameters = match &checker.tables.type_of(target).data {
+    let parameters = match checker.tables.type_of(target).data {
         TypeData::GenericType {
             type_parameters, ..
-        } => Some(type_parameters.as_ref()),
+        } => Some(checker.tables.list(type_parameters)),
         _ => None,
     };
     let existing_count = match checker.data_of(existing) {

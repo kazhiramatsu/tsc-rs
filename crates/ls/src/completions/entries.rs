@@ -9,7 +9,7 @@ use tsc_checker::exports::ConstantValue;
 use tsc_checker::state::CheckResult;
 use tsc_lsproto::{CompletionItem, CompletionItemKind, Range};
 use tsc_syntax::{identifier_to_keyword_kind, NodeData, NodeId, SyntaxKind};
-use tsc_types::{LiteralValue, SymbolFlags, SymbolId, TypeFlags, TypeId};
+use tsc_types::{LiteralValue, LiteralValueOwned, SymbolFlags, SymbolId, TypeFlags, TypeId};
 
 use crate::lsutil::{get_symbol_kind, get_symbol_modifiers, QuotePreference, ScriptElementKind};
 use crate::utilities::Touching;
@@ -77,7 +77,7 @@ impl Completions<'_, '_, '_> {
                 if in_expression {
                     let block = self.parent_of(case_clause).expect("a case clause's block");
                     let tracker = self.case_clause_tracker(block)?;
-                    literals.retain(|literal| !tracker.has_value(literal));
+                    literals.retain(|literal| !tracker.has_value(literal.as_ref()));
                     let mut kept = Vec::with_capacity(data.symbols.len());
                     for &symbol in &data.symbols {
                         let value_declaration =
@@ -1372,7 +1372,7 @@ impl Completions<'_, '_, '_> {
     }
 
     /// tsgo `createCompletionItemForLiteral`.
-    fn completion_item_for_literal(&self, literal: &LiteralValue) -> CompletionItem {
+    fn completion_item_for_literal(&self, literal: &LiteralValueOwned) -> CompletionItem {
         CompletionItem {
             label: self.completion_name_for_literal(literal),
             kind: Some(CompletionItemKind::CONSTANT),
@@ -1383,16 +1383,16 @@ impl Completions<'_, '_, '_> {
     }
 
     /// tsgo `completionNameForLiteral`.
-    pub(super) fn completion_name_for_literal(&self, literal: &LiteralValue) -> String {
-        match literal {
+    pub(super) fn completion_name_for_literal(&self, literal: &LiteralValueOwned) -> String {
+        match literal.as_ref() {
             LiteralValue::String(text) => self.quote_js(&text.to_js_string()),
             // Go's JSON encoding of a float: ES's number formatting, but
             // `-0` keeps its sign.
             LiteralValue::Number(value) => {
-                if *value == 0.0 && value.is_sign_negative() {
+                if value == 0.0 && value.is_sign_negative() {
                     "-0".to_owned()
                 } else {
-                    tsc_types::js_number_to_string(*value)
+                    tsc_types::js_number_to_string(value)
                 }
             }
             LiteralValue::BigInt(value) => format!("{}n", value.to_base10_string()),
@@ -1599,12 +1599,12 @@ pub(crate) struct CaseClauseTracker {
 }
 
 impl CaseClauseTracker {
-    pub(crate) fn has_value(&self, literal: &LiteralValue) -> bool {
+    pub(crate) fn has_value(&self, literal: LiteralValue<'_>) -> bool {
         match literal {
             LiteralValue::String(text) => self
                 .strings
                 .contains(&text.to_js_string().to_string_lossy().into_owned()),
-            LiteralValue::Number(value) => self.numbers.iter().any(|existing| existing == value),
+            LiteralValue::Number(value) => self.numbers.iter().any(|&existing| existing == value),
             LiteralValue::BigInt(value) => self.big_ints.contains(&value.to_base10_string()),
         }
     }

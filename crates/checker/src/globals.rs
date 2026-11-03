@@ -375,7 +375,7 @@ impl<'a> CheckerState<'a> {
         let type_parameter_count = match &self.tables.type_of(declared).data {
             tsc_types::TypeData::GenericType {
                 type_parameters, ..
-            } => type_parameters.len(),
+            } => self.tables.list(*type_parameters).len(),
             _ => 0,
         };
         if type_parameter_count != arity {

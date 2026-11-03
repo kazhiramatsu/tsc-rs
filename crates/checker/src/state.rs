@@ -688,6 +688,11 @@ pub struct CheckerState<'a> {
     /// evolving→final memo — the arena Type is immutable once minted,
     /// so the per-type lazy slot lives here.
     pub(crate) final_array_types: rustc_hash::FxHashMap<TypeId, TypeId>,
+    /// tsgo cachedTypes[CachedTypeKindRegularObjectLiteral]
+    /// (getRegularTypeOfObjectLiteral): fresh object literal type → its
+    /// regular twin. Object types carry no fresh/regular words; only the
+    /// freshable and union records do.
+    pub(crate) regular_object_literal_types: rustc_hash::FxHashMap<TypeId, TypeId>,
     /// tsc flowLoopCaches (47428): per-loop-label finalized-fixpoint
     /// memo, `getFlowNodeId(flow)` → (flow-cache-key → type). FlowIds
     /// are per-file arena indices here, so (file, FlowId) is the
@@ -1306,8 +1311,12 @@ impl<'a> CheckerState<'a> {
         ));
         rows.push((
             "cached/error types, unresolved",
-            self.cached_types.len() + self.error_types.len() + self.unresolved_symbols.len(),
+            self.cached_types.len()
+                + self.regular_object_literal_types.len()
+                + self.error_types.len()
+                + self.unresolved_symbols.len(),
             map_bytes(&self.cached_types)
+                + map_bytes(&self.regular_object_literal_types)
                 + self
                     .cached_types
                     .keys()
@@ -1694,6 +1703,7 @@ impl<'a> CheckerState<'a> {
             evolving_array_types: rustc_hash::FxHashMap::default(),
             generic_object_flags: rustc_hash::FxHashMap::default(),
             final_array_types: rustc_hash::FxHashMap::default(),
+            regular_object_literal_types: rustc_hash::FxHashMap::default(),
             flow_loop_caches: rustc_hash::FxHashMap::default(),
             last_flow_node: None,
             last_flow_node_reachable: false,

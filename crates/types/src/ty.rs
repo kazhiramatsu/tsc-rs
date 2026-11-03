@@ -164,12 +164,110 @@ impl From<&str> for TemplateText {
     }
 }
 
-/// tsc LiteralType.value: string | number | PseudoBigInt.
+/// tsc LiteralType.value: string | number | PseudoBigInt, read from or
+/// given to the tables (`TypeTables::literal_value`; the record holds
+/// [`LiteralData`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum LiteralValue<'a> {
+    String(&'a TemplateText),
+    Number(f64),
+    BigInt(&'a PseudoBigInt),
+}
+
+/// A literal value owned by its holder (a completion list keeps the
+/// literals of a union after the checker's borrow ends).
 #[derive(Clone, Debug, PartialEq)]
-pub enum LiteralValue {
+pub enum LiteralValueOwned {
     String(TemplateText),
     Number(f64),
-    BigInt(Box<PseudoBigInt>),
+    BigInt(PseudoBigInt),
+}
+
+impl LiteralValue<'_> {
+    /// The value with its text or bigint copied.
+    pub fn to_owned(self) -> LiteralValueOwned {
+        match self {
+            LiteralValue::String(text) => LiteralValueOwned::String(text.clone()),
+            LiteralValue::Number(value) => LiteralValueOwned::Number(value),
+            LiteralValue::BigInt(value) => LiteralValueOwned::BigInt(value.clone()),
+        }
+    }
+}
+
+impl LiteralValueOwned {
+    /// The value borrowed.
+    pub fn as_ref(&self) -> LiteralValue<'_> {
+        match self {
+            LiteralValueOwned::String(text) => LiteralValue::String(text),
+            LiteralValueOwned::Number(value) => LiteralValue::Number(*value),
+            LiteralValueOwned::BigInt(value) => LiteralValue::BigInt(value),
+        }
+    }
+}
+
+crate::id_type!(
+    /// A string literal's text in its tables' text list.
+    LiteralTextId
+);
+
+crate::id_type!(
+    /// A bigint literal's value in its tables' bigint list.
+    BigIntId
+);
+
+crate::id_type!(
+    /// An intrinsic type's names in its tables' intrinsic list.
+    IntrinsicId
+);
+
+crate::id_type!(
+    /// A tuple target's payload in its tables' tuple target list.
+    TupleTargetId
+);
+
+crate::id_type!(
+    /// A template literal type's payload in its tables' template list.
+    TemplateLiteralId
+);
+
+crate::id_type!(
+    /// A type's alias symbol and type arguments in its tables' alias list
+    /// (most types have none).
+    AliasId
+);
+
+/// An `f64` as two words, so a record that holds a number needs no
+/// 8-byte alignment.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct NumberBits {
+    low: u32,
+    high: u32,
+}
+
+impl NumberBits {
+    #[inline]
+    pub fn new(value: f64) -> Self {
+        let bits = value.to_bits();
+        Self {
+            low: bits as u32,
+            high: (bits >> 32) as u32,
+        }
+    }
+
+    #[inline]
+    pub fn get(self) -> f64 {
+        f64::from_bits(u64::from(self.low) | (u64::from(self.high) << 32))
+    }
+}
+
+/// A literal type's value as the record holds it: a string by its text id,
+/// a number by its bits, a bigint by its value id (the tables own the
+/// texts and values).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum LiteralData {
+    String(LiteralTextId),
+    Number(NumberBits),
+    BigInt(BigIntId),
 }
 
 /// Synthesized tuple target payload (createTupleTargetType 61156).
@@ -186,8 +284,9 @@ pub enum LiteralValue {
 /// tupleTypes cache key) are likewise deferred with them.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TupleTargetData {
-    /// One synthesized TypeParameter per element (empty for `[]`).
-    pub type_parameters: Box<[TypeId]>,
+    /// One synthesized TypeParameter per element (empty for `[]`), as an
+    /// interned list.
+    pub type_parameters: crate::tables::TypeListId,
     /// Synthesized `thisType` TypeParameter (isThisType, constraint =
     /// this target).
     pub this_type: TypeId,
@@ -217,7 +316,7 @@ pub struct TupleTargetData {
 /// instantiated mapped types retain both. Lazily resolved constraint,
 /// name, template, modifier-source, and member data live in the
 /// checker's TypeLinks rather than mutating this payload.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MappedTypeData {
     pub declaration: u32,
     pub target: Option<TypeId>,
@@ -228,7 +327,7 @@ pub struct MappedTypeData {
 ///
 /// Member and symbol types resolve lazily in the checker. Arrays and
 /// tuples are reversed directly and therefore never use this payload.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ReverseMappedTypeData {
     pub source: TypeId,
     pub mapped_type: TypeId,
@@ -254,7 +353,7 @@ pub struct ConditionalRootData {
 
 /// Immutable per-instantiation fields of a conditional type. Resolved
 /// true/false/default/constraint types are checker-owned lazy links.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ConditionalTypeData {
     pub root: ConditionalRootId,
     pub check_type: TypeId,
@@ -264,7 +363,7 @@ pub struct ConditionalTypeData {
 }
 
 /// Immutable semantic inputs of a substitution type.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SubstitutionTypeData {
     pub base_type: TypeId,
     pub constraint: TypeId,
@@ -314,7 +413,8 @@ pub struct IntrinsicData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct TemplateLiteralData {
     pub texts: Box<[TemplateText]>,
-    pub types: Box<[TypeId]>,
+    /// The span types, as an interned list.
+    pub types: crate::tables::TypeListId,
 }
 
 /// Per-kind payload (greenfield §4.2 TypeData). M3 carries the kinds
@@ -323,10 +423,13 @@ pub struct TemplateLiteralData {
 /// ReverseMapped are live from phase 9.5; Conditional/Substitution
 /// follow in phase 9.6.
 ///
-/// The tag is a byte and the first variant carries nothing, so an all-zero
-/// record is a valid (empty object) type: the type store's contract
-/// (`tsc_store::StoreRecord`).
-#[derive(Clone, Debug, PartialEq)]
+/// Every variant is identities, bits and small flags (`Copy`, 24 bytes):
+/// lists are interned type lists, texts and the few large payloads (tuple
+/// targets, template literals, intrinsic names, bigints) are ids into the
+/// tables' lists. The tag is a byte and the first variant carries nothing,
+/// so an all-zero record is a valid (empty object) type: the type store's
+/// contract (`tsc_store::StoreRecord`).
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 pub enum TypeData {
     /// Anonymous object types AND class/interface declared types —
@@ -334,19 +437,28 @@ pub enum TypeData {
     /// Members resolve lazily in the checker (resolveStructuredTypeMembers).
     Object,
     /// any/unknown/string/... incl. error/silentNever/wildcard/missing
-    /// variants (createIntrinsicType 50111).
-    Intrinsic(Box<IntrinsicData>),
-    /// String/number/bigint/boolean-literal types. The fresh/regular
-    /// pair lives on Type::fresh_type/regular_type (freshness is
-    /// STRUCTURE: fresh_type == self).
+    /// variants (createIntrinsicType 50111). The boolean literal
+    /// intrinsics carry their fresh/regular twins (47070-47077).
+    Intrinsic {
+        name: IntrinsicId,
+        fresh_type: Option<TypeId>,
+        regular_type: Option<TypeId>,
+    },
+    /// String/number/bigint-literal types with their fresh/regular pair
+    /// (freshness is STRUCTURE: fresh_type == self).
     Literal {
-        value: LiteralValue,
+        value: LiteralData,
+        fresh_type: Option<TypeId>,
+        regular_type: Option<TypeId>,
     },
     /// Computed enum types (createComputedEnumType 57475): a freshable
     /// TypeFlags::Enum pair carrying the enum (or member) symbol —
     /// minted for enums whose member list is empty or whose members
     /// have no compile-time value; never interned.
-    Enum,
+    Enum {
+        fresh_type: Option<TypeId>,
+        regular_type: Option<TypeId>,
+    },
     /// `unique symbol` (createUniqueESSymbolType 63112): one per
     /// declaration symbol (memoized in SymbolLinks.uniqueESSymbolType);
     /// escaped_name = `<late-bound prefix><symbol.escapedName>@<symbolId>` — the
@@ -355,12 +467,16 @@ pub enum TypeData {
         escaped_name: crate::EscapedName,
     },
     Union {
-        types: Box<[TypeId]>,
+        /// The members, the interned list the union cache keys by.
+        types: crate::tables::TypeListId,
         /// Denormalized origin union/intersection (4.2+).
         origin: Option<TypeId>,
+        /// The lazily computed union regular type
+        /// (getRegularTypeOfLiteralType 63078).
+        regular_type: Option<TypeId>,
     },
     Intersection {
-        types: Box<[TypeId]>,
+        types: crate::tables::TypeListId,
     },
     /// Evolving (auto) array types (createEvolvingArrayType 70073,
     /// object_flags EvolvingArray): the element-type accumulator for
@@ -381,11 +497,11 @@ pub enum TypeData {
     /// filled by the checker's lazy getTypeArguments (60202).
     Reference {
         target: TypeId,
-        resolved_type_arguments: Option<Box<[TypeId]>>,
+        resolved_type_arguments: Option<crate::tables::TypeListId>,
     },
-    /// The synthesized generic tuple TARGET (objectFlags Tuple|Reference).
-    /// Boxed: one per tuple shape, and inline it would size every type.
-    TupleTarget(Box<TupleTargetData>),
+    /// The synthesized generic tuple TARGET (objectFlags Tuple|Reference):
+    /// one payload per tuple shape in the tables' list.
+    TupleTarget(TupleTargetId),
     /// Synthesized type parameters (tuple targets, thisType). Real
     /// declared type parameters are M4.
     TypeParameter {
@@ -397,7 +513,7 @@ pub enum TypeData {
         constraint: Option<TypeId>,
     },
     /// getTemplateLiteralType (62057): texts.len() == types.len() + 1.
-    TemplateLiteral(Box<TemplateLiteralData>),
+    TemplateLiteral(TemplateLiteralId),
     /// createStringMappingType (62163): `Uppercase<T>` over a generic
     /// operand — Type::symbol names the intrinsic alias.
     StringMapping {
@@ -439,8 +555,8 @@ pub enum TypeData {
     /// targets.
     GenericType {
         /// outerTypeParameters ++ localTypeParameters (may be empty:
-        /// non-generic classes and this-ful interfaces).
-        type_parameters: Box<[TypeId]>,
+        /// non-generic classes and this-ful interfaces), interned.
+        type_parameters: crate::tables::TypeListId,
         /// Length of the outerTypeParameters prefix.
         outer_type_parameter_count: u32,
         /// Synthesized thisType (isThisType, constraint = this target).
@@ -448,29 +564,24 @@ pub enum TypeData {
     },
 }
 
-/// tsc Type (core-interfaces §3). `symbol` is None for intrinsics
-/// (tsc leaves it undefined); alias fields arrive with M4 aliases.
+const _: () = assert!(std::mem::size_of::<TypeData>() == 24);
+
+/// tsc Type (core-interfaces §3): 40 bytes of words, in the type store.
+/// `symbol` is None for intrinsics (tsc leaves it undefined); the alias
+/// symbol and type arguments are one id into the tables' alias list
+/// (`TypeTables::alias_symbol`, `alias_type_arguments`); the fresh/regular
+/// twins live in the freshable variants' data.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Type {
     pub flags: TypeFlags,
     pub object_flags: ObjectFlags,
     pub symbol: Option<SymbolId>,
-    pub alias_symbol: Option<SymbolId>,
-    /// The alias type arguments as an interned list (`TypeTables::list`).
-    pub alias_type_arguments: Option<crate::tables::TypeListId>,
-    /// tsc FreshableType.freshType — lazily wired
-    /// (getFreshTypeOfLiteralType 63066); eagerly wired for the four
-    /// boolean literal intrinsics (47070-47077).
-    pub fresh_type: Option<TypeId>,
-    /// tsc FreshableType.regularType (createLiteralType 63063:
-    /// defaults to self). Also the lazily-computed union regular-type
-    /// cache (getRegularTypeOfLiteralType 63078).
-    pub regular_type: Option<TypeId>,
+    pub alias: Option<AliasId>,
     pub data: TypeData,
 }
 
-#[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Type>() == 64);
+const _: () = assert!(std::mem::size_of::<Type>() == 40);
+const _: () = assert!(std::mem::align_of::<Type>() == 4);
 
 /// A checker's types live in the type store at leased positions (see
 /// `TypeTables::new`); an all-zero record is an empty object type.
@@ -484,11 +595,64 @@ impl Type {
             flags,
             object_flags: ObjectFlags::from_bits(0),
             symbol: None,
-            alias_symbol: None,
-            alias_type_arguments: None,
-            fresh_type: None,
-            regular_type: None,
+            alias: None,
             data,
         }
     }
+
+    /// tsc FreshableType.freshType — lazily wired
+    /// (getFreshTypeOfLiteralType 63066); eagerly wired for the four
+    /// boolean literal intrinsics (47070-47077). None for every other kind.
+    #[inline]
+    pub fn fresh_type(&self) -> Option<TypeId> {
+        match self.data {
+            TypeData::Intrinsic { fresh_type, .. }
+            | TypeData::Literal { fresh_type, .. }
+            | TypeData::Enum { fresh_type, .. } => fresh_type,
+            _ => None,
+        }
+    }
+
+    /// tsc FreshableType.regularType (createLiteralType 63063: defaults to
+    /// self), and the lazily-computed union regular-type cache
+    /// (getRegularTypeOfLiteralType 63078). None for every other kind.
+    #[inline]
+    pub fn regular_type(&self) -> Option<TypeId> {
+        match self.data {
+            TypeData::Intrinsic { regular_type, .. }
+            | TypeData::Literal { regular_type, .. }
+            | TypeData::Enum { regular_type, .. }
+            | TypeData::Union { regular_type, .. } => regular_type,
+            _ => None,
+        }
+    }
+
+    /// Wire the fresh twin of a freshable type.
+    pub fn set_fresh_type(&mut self, fresh: Option<TypeId>) {
+        match &mut self.data {
+            TypeData::Intrinsic { fresh_type, .. }
+            | TypeData::Literal { fresh_type, .. }
+            | TypeData::Enum { fresh_type, .. } => *fresh_type = fresh,
+            _ => unreachable!("fresh types belong to freshable types"),
+        }
+    }
+
+    /// Wire the regular twin of a freshable type or a union's regular type.
+    pub fn set_regular_type(&mut self, regular: Option<TypeId>) {
+        match &mut self.data {
+            TypeData::Intrinsic { regular_type, .. }
+            | TypeData::Literal { regular_type, .. }
+            | TypeData::Enum { regular_type, .. }
+            | TypeData::Union { regular_type, .. } => *regular_type = regular,
+            _ => unreachable!("regular types belong to freshable and union types"),
+        }
+    }
+}
+
+/// A type's alias: the alias symbol and its type arguments
+/// (`Type::alias` into `TypeTables`' alias list).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TypeAlias {
+    pub symbol: Option<SymbolId>,
+    pub type_arguments: Option<crate::tables::TypeListId>,
 }

@@ -285,7 +285,7 @@ impl MissingMemberFixer<'_, '_, '_> {
             TypeData::Union { types, .. }
                 if checker.tables.flags_of(ty).intersects(TypeFlags::UNION) =>
             {
-                types.to_vec()
+                checker.tables.list(*types).to_vec()
             }
             _ => vec![ty],
         };
