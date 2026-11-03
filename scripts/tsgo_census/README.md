@@ -1,9 +1,13 @@
-# tsgo checker entry census
+# tsgo / tsc-rs checker entry census
 
 ```sh
 python3 scripts/tsgo_census.py build
 python3 scripts/tsgo_census.py run --check-stdout
-python3 scripts/tsgo_census.py compare target/tsgo-census/counts/hono.json target/tsgo-census/counts/zod.json
+python3 scripts/tsgo_census.py run-rs --projects hono zod ts
+python3 scripts/tsgo_census.py run-rs --skip-build --projects vscode effect next playwright vue
+python3 scripts/tsgo_census.py compare target/tsgo-census/counts/hono.json target/tsc-census/counts/hono.json
+python3 scripts/tsgo_census.py compare --summary
+python3 -B -m unittest discover -s scripts/tsgo_census -p test_census.py -v
 ```
 
 `build` verifies the clean `aa8149273` source checkout, copies its working tree
@@ -15,7 +19,7 @@ the Go toolchain locally (`GOSUMDB=sum.golang.org`; Go rejects `GOSUMDB=off` for
 downloaded toolchains, even when cached). The two Go commands and all
 compiler invocations run serially under `nice -n 20`, with a direct fallback
 if the sandbox refuses nice. A checkout-local lock prevents overlapping invocations.
-No cargo or network access is used.
+The tsgo build uses no cargo or network access.
 
 Everything generated is under `target/tsgo-census/`: `upstream/`, `tsc`, isolated
 Go caches, `build.json`, `rewrite.json`, `run.json`, compiler output in `runs/`,
@@ -60,20 +64,91 @@ deferred functions.
 
 At this pin `resolveName` is a function field, not a declaration in
 `internal/checker`; it is recorded as missing. `CompareTypes` is the exported
-function in `utilities.go`. Its Rust mapping is empty because `compare_types`
-is imported from `tsc_types`, outside the requested checker source scope. The
+function in `utilities.go`; its Rust counterpart is `compare_types` in
+`crates/types/src/type_order.rs`, imported by the checker. The
 checker and node builder both have `getTypeFromTypeNode`; only the checker entry
 is counted. Notes identify other wrapper/body differences requiring care when
 interpreting a cross-port comparison.
 
-`compare` accepts the same JSON shape from both compilers. It maps canonical Go
+## Rust PGO entry counts
+
+`run-rs` reuses step 1 of `scripts/pgo_build.py`: an instrumented release build
+in `target/tsc-census/instrumented` with `-Cprofile-generate` and
+`-Cllvm-args=-pgo-instrument-entry=true`, `cargo build
+--release -j 1 -p tsc-rs-cli --offline --locked`, and `CARGO_NET_OFFLINE=true`.
+It stops if a dependency is unavailable locally. The build and measured runs
+try `nice -n 20`, falling back directly if nice is refused. The same lock as the
+tsgo runner prevents concurrent census builds/runs. Projects run serially with
+the same roots, benchmark configs, and `--pretty false --singleThreaded` flags
+as `run`; VS Code uses `tsconfig.bench-stable.json`, the others `bench-noemit`.
+`--projects` selects projects in the specified order; the default is all eight.
+On macOS the shared PGO helper appends `-fno-profile-generate -fno-profile-use`
+to `CFLAGS`/`CXXFLAGS`: cc-rs otherwise instruments native dependencies with
+Apple clang's incompatible profile ABI, which can crash mimalloc at startup.
+Rust instrumentation remains enabled; the effective environment is recorded.
+
+`--skip-build` reuses the binary after checking its commit and SHA-256 against
+`build.json`. Compiler sources must be clean for both building and reusing it. The binary's commit,
+build flags, exact commands, exits, and elapsed seconds are recorded. A compiler
+diagnostic exit is retained and collection continues; `run-rs` returns zero
+when all selected profiles were collected. A missing, empty, or extra training
+profile or a failed profile conversion makes the runner fail.
+
+The PGO helper supplies `LLVM_PROFILE_FILE=.../profiles/<project>/train-%p.profraw`;
+the CLI already uses the C runtime exit chain when this variable is present.
+Only that project's fresh `train-*.profraw` file is merged; build-script and
+proc-macro profiles are excluded. `llvm-profdata` is discovered in the pinned
+Rust toolchain (override with `--llvm-profdata PATH`), then `merge` and
+`show --all-functions --counts` run once per project. The **first block count**
+is the function entry count; the displayed `Function count` is not used.
+The extra LLVM flag is essential: ordinary IR PGO can place another block's
+counter first. The parser rejects profiles reporting `entry_first = 0`.
+All symbols are demangled in one `c++filt` process per project.
+
+Plain Rust TSV names match the function's own final path segment exactly,
+after removing generic arguments and before any `::{{closure}}`. Counts sum
+over monomorphizations **and closure children**, as requested for this census.
+Consequently the aggregate can exceed the parent function's own entry count;
+inspect `mapping.txt` before interpreting a large ratio as extra checker work.
+`re:` rows search the full demangled path. Ambiguous matches fail collection.
+Blank mappings and names absent from the profile are unmapped, even if the
+function might simply be unused in that project. A matched zero counter is
+retained as a real zero.
+
+PGO observes optimized emitted bodies: early/MIR inlining can erase a source
+boundary or leave an unused outlined copy with zero counters. Thin wrappers
+and direct worker calls therefore need inspection even when a symbol matched.
+A zero outlined entry count does not establish that the source operation was
+skipped. The mapping audit exposes these boundaries instead of guessing counts.
+
+Rust artifacts live under `target/tsc-census/`: `build.json`, invocation history
+in `run.json`, stdout/stderr and raw conversion/demangling output in `runs/`,
+and `counts/<project>.json`. Count keys use the Go JSON names. `_unmapped` lists
+canonical TSV names with no matching Rust symbol; these keys are omitted from
+the count object. `_meta` records the binary commit and digest, manifest digest,
+command, working directory, profile environment, compiler exit, and elapsed
+seconds. `mapping.txt` lists every TSV row and each matched demangled symbol
+with its count, grouped by project (including matched zero counts).
+
+## Comparing counts
+
+`compare` accepts count JSONs from both compilers. It maps canonical Go
 names, full TSV Go locations, simple Rust names, and demangled qualified Rust
 symbols through the TSV. Multiple matching Rust instantiations are summed.
 An optional legacy `::h<hash>` suffix is accepted; closure child entry counts
-are not folded into their parent. Raw mangled LLVM symbols should be demangled
+are folded into their parent. Raw mangled LLVM symbols should be demangled
 by the profile-to-JSON producer. Explicit `re:` patterns can match other formats.
 Unmapped names remain visible unchanged.
 
 The ratio is **B / A**, sorted by descending `abs(ratio - 1)`, then name.
+Pass tsgo as A and tsc-rs as B for a port comparison. Metadata is ignored;
+unmapped rows are listed separately and excluded from ratios.
 A missing key displays `-` / `missing`, never zero. Missing and infinite ratios
 sort first. `0/0` displays `1.000000`; positive/zero displays `inf`.
+
+`compare --summary [GO_COUNTS_DIR RS_COUNTS_DIR]` prints a function-by-project
+ratio table, sorted by each row's largest distance from 1. The default paths
+are the two census count directories. `--projects hono zod ts` selects columns.
+A missing project file fails rather than silently hiding an incomplete run.
+The default selects projects with a file on either side. Missing functions and
+unmapped functions keep their distinct labels in this table as well.

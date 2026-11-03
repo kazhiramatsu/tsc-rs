@@ -10,7 +10,7 @@ internal/checker/relater.go:Relater.structuredTypeRelatedTo	structured_type_rela
 internal/checker/relater.go:Relater.isRelatedTo	is_related_to	engine.rs
 internal/checker/relater.go:Checker.isTypeRelatedTo	is_type_related_to	engine.rs
 internal/checker/relater.go:Checker.isSimpleTypeRelatedTo	is_simple_type_related_to	engine.rs
-internal/checker/utilities.go:CompareTypes		Exported Go name; JSON compareTypes; no fn compare_types under crates/checker/src (imported from tsc_types)
+internal/checker/utilities.go:CompareTypes	compare_types	Exported Go name; JSON compareTypes; crates/types/src/type_order.rs (imported by the checker)
 internal/checker/checker.go:Checker.getTypeOfSymbol	get_type_of_symbol	annotate.rs
 internal/checker/checker.go:Checker.getTypeOfExpression	get_type_of_expression	expr.rs
 internal/checker/checker.go:Checker.checkExpression	check_expression	expr.rs; Rust wrapper accepts CheckMode whereas Go wrapper fixes Normal

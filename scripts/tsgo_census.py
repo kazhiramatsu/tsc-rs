@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Build offline tsgo entry counters, run serial benchmarks, or compare JSON counts."""
+"""Collect offline tsgo/tsc-rs checker entry counts and compare serial benchmarks."""
 
 import argparse
 import csv
 import fcntl
 import hashlib
+import importlib.util
 import json
 import math
 import os
@@ -18,9 +19,13 @@ import sys
 import time
 
 
+# Dynamic loading of the PGO helper must not create files outside the census
+# artifact/source directories (notably scripts/__pycache__).
+sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "scripts/tsgo_census"
 WORK = ROOT / "target/tsgo-census"
+RS_WORK = ROOT / "target/tsc-census"
 UPSTREAM = WORK / "upstream"
 BINARY = WORK / "tsc"
 MANIFEST = ASSETS / "functions.tsv"
@@ -39,12 +44,12 @@ PROJECTS = {
 }
 
 
-def local_work():
+def local_work(work=WORK):
     # Never follow an existing target symlink into another checkout.
-    if not WORK.resolve().is_relative_to(ROOT):
-        raise ValueError(f"work directory escapes this clone: {WORK.resolve()}")
-    WORK.mkdir(parents=True, exist_ok=True)
-    for path in WORK.iterdir():
+    if not work.resolve().is_relative_to(ROOT):
+        raise ValueError(f"work directory escapes this clone: {work.resolve()}")
+    work.mkdir(parents=True, exist_ok=True)
+    for path in work.iterdir():
         # Upstream may have legitimate internal links; only write destinations
         # are checked here, rather than traversing the whole 1.5 GB copy.
         if path.is_symlink():
@@ -114,12 +119,16 @@ def nice_prefix(records):
     return []
 
 
-def recorded(command, cwd, env, stdout, stderr, records):
+def recorded(command, cwd, env, stdout, stderr, records, *, stdin=None):
     print(f"census: cd {shlex.quote(str(cwd))} && {shlex.join(map(str, command))}",
           file=sys.stderr, flush=True)
     started = time.monotonic()
     with stdout.open("wb") as out, stderr.open("wb") as err:
-        proc = subprocess.run(command, cwd=cwd, env=env, stdout=out, stderr=err)
+        if stdin is None:
+            proc = subprocess.run(command, cwd=cwd, env=env, stdout=out, stderr=err)
+        else:
+            with stdin.open("rb") as source:
+                proc = subprocess.run(command, cwd=cwd, env=env, stdout=out, stderr=err, stdin=source)
     result = {
         "command": list(map(str, command)), "cwd": str(cwd),
         "exit_code": proc.returncode,
@@ -127,6 +136,8 @@ def recorded(command, cwd, env, stdout, stderr, records):
         "stdout": str(stdout), "stderr": str(stderr),
     }
     records.append(result)
+    if stdin is not None:
+        result["stdin"] = str(stdin)
     print(f"census: exit={proc.returncode}, elapsed={result['elapsed_seconds']}s",
           file=sys.stderr, flush=True)
     return result
@@ -197,10 +208,25 @@ def build(args):
 
 def read_counts(path):
     data = json.loads(path.read_text())
-    if not isinstance(data, dict) or any(not isinstance(k, str) or type(v) is not int or v < 0
-                                         for k, v in data.items()):
+    if not isinstance(data, dict):
+        raise ValueError(f"expected an object of nonnegative integer entry counts: {path}")
+    unmapped = data.get("_unmapped", [])
+    if (not isinstance(unmapped, list) or any(not isinstance(k, str) for k in unmapped)
+            or len(unmapped) != len(set(unmapped))
+            or any(k in data for k in unmapped)
+            or not isinstance(data.get("_meta", {}), dict)
+            or any(not isinstance(k, str) or type(v) is not int or v < 0
+                   for k, v in data.items() if k not in ("_unmapped", "_meta"))):
         raise ValueError(f"expected an object of nonnegative integer entry counts: {path}")
     return data
+
+
+def project_arguments(project, root):
+    variant = "stable" if project == "vscode" else "noemit"
+    config = f"tsconfig.bench-{variant}.json"
+    if not (root / config).is_file():
+        raise ValueError(f"benchmark config missing: {root / config}")
+    return ["-p", config, "--pretty", "false", "--singleThreaded"]
 
 
 def run(args):
@@ -221,10 +247,7 @@ def run(args):
     try:
         for project in args.projects or PROJECTS:
             root = args.bench_root / PROJECTS[project]
-            variant = "stable" if project == "vscode" else "noemit"
-            command_args = ["-p", f"tsconfig.bench-{variant}.json", "--pretty", "false", "--singleThreaded"]
-            if not (root / command_args[1]).is_file():
-                raise ValueError(f"benchmark config missing: {root / command_args[1]}")
+            command_args = project_arguments(project, root)
             output = counts_dir / f"{project}.json"
             output.unlink(missing_ok=True)
             env = os.environ.copy()
@@ -262,51 +285,310 @@ def run(args):
         write_json(WORK / "run.json", summary)
 
 
+def parse_profdata(lines):
+    """IR instrumentation: the first block counter is the entry count.
+
+    In this format `Function count` is not the entry counter. LLVM may prefix
+    local symbols with `source-file;`; multiple records for a name are summed.
+    """
+    counts, current = {}, None
+    for line in lines:
+        if re.search(r"\bentry_first\s*=\s*0\b", line):
+            raise ValueError("profile is not entry-first; rebuild with -Cllvm-args=-pgo-instrument-entry=true")
+        header = re.fullmatch(r"  (\S.*):\s*", line.rstrip("\n"))
+        if header:
+            current = header[1].split(";")[-1]
+            continue
+        block = re.match(r"    Block counts: \[(\d+)", line)
+        if block and current:
+            counts[current] = counts.get(current, 0) + int(block[1])
+            current = None
+        elif line.startswith("    Block counts:"):
+            current = None
+    if not counts:
+        raise ValueError("llvm-profdata show contained no first-block entry counts")
+    return counts
+
+
+def rust_function_name(symbol):
+    # Strip closure children before finding the owning function. Drop generic
+    # arguments with balanced brackets: their type paths can contain `::` too.
+    symbol = re.sub(r"::h[0-9a-f]{16}$", "", symbol)
+    symbol = re.split(r"::(?:\{\{closure\}\}|\{closure#\d+\})", symbol, maxsplit=1)[0]
+    plain, depth = [], 0
+    for char in symbol:
+        if char == "<":
+            depth += 1
+        elif char == ">" and depth:
+            depth -= 1
+        elif depth == 0:
+            plain.append(char)
+    return "".join(plain).rstrip(":").rsplit("::", 1)[-1]
+
+
+def rust_matchers(rows):
+    return [(name, re.compile(rust[3:]) if rust.startswith("re:") else rust)
+            for name, _, rust, _ in rows if rust]
+
+
+def rust_matches(symbol, matchers):
+    own_name = rust_function_name(symbol)
+    matches = {name for name, pattern in matchers
+               if (pattern == own_name if isinstance(pattern, str) else pattern.search(symbol))}
+    if len(matches) > 1:
+        raise ValueError(f"ambiguous function mapping: {symbol}: {sorted(matches)}")
+    return next(iter(matches), None)
+
+
+def map_rust_counts(data):
+    rows = manifest_rows()
+    matchers = rust_matchers(rows)
+    matched = {name: [] for name, *_ in rows}
+    result = {}
+    for symbol, count in sorted(data.items()):
+        name = rust_matches(symbol, matchers)
+        if name is not None:
+            result[name] = result.get(name, 0) + count
+            matched[name].append((symbol, count))
+    result["_unmapped"] = [name for name, *_ in rows if not matched[name]]
+    return result, matched
+
+
+def pgo_helpers():
+    spec = importlib.util.spec_from_file_location("pgo_build", ROOT / "scripts/pgo_build.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def checked_record(command, stdout, stderr, records, **kwargs):
+    result = recorded(command, ROOT, os.environ.copy(), stdout, stderr, records, **kwargs)
+    if result["exit_code"]:
+        raise ValueError(f"command failed ({result['exit_code']}): {shlex.join(map(str, command))}; see {stderr}")
+    return result
+
+
+def rs_build(args, prefix, records, pgo):
+    metadata = {"commands": records, "manifest_sha256": hashlib.sha256(MANIFEST.read_bytes()).hexdigest()}
+    binary = RS_WORK / "instrumented/release/tsc-rs"
+    checked_record(["git", "rev-parse", "HEAD"], RS_WORK / "commit.stdout", RS_WORK / "commit.stderr", records)
+    commit = (RS_WORK / "commit.stdout").read_text().strip()
+    # HEAD must describe the measured compiler even when reusing a binary.
+    checked_record(["git", "diff", "--exit-code", "HEAD", "--", "crates", "Cargo.toml",
+                    "Cargo.lock", "rust-toolchain.toml", ".cargo"],
+                   RS_WORK / "source-diff.stdout", RS_WORK / "source-diff.stderr", records)
+    if args.skip_build:
+        metadata = json.loads((RS_WORK / "build.json").read_text())
+        if (metadata["binary_commit"] != commit or not binary.is_file()
+                or not metadata.get("entry_first")
+                or metadata["binary_sha256"] != hashlib.sha256(binary.read_bytes()).hexdigest()):
+            raise ValueError("instrumented binary/commit changed; run-rs without --skip-build first")
+        return binary, metadata
+    started = time.monotonic()
+    try:
+        metadata["binary_commit"] = commit
+        checked_record(["rustc", "-Vv"], RS_WORK / "rustc.stdout", RS_WORK / "rustc.stderr", records)
+
+        def cargo_runner(command, **kwargs):
+            metadata["rustflags"] = kwargs["env"]["RUSTFLAGS"]
+            metadata["environment"] = {key: kwargs["env"][key] for key in
+                                       ("CARGO_NET_OFFLINE", "CARGO_TARGET_DIR", "RUSTFLAGS", "CFLAGS", "CXXFLAGS")
+                                       if key in kwargs["env"]}
+            result = recorded(command, stdout=RS_WORK / "build.stdout", stderr=RS_WORK / "build.stderr",
+                              records=records, **kwargs)
+            if result["exit_code"]:
+                raise ValueError(f"offline cargo build failed ({result['exit_code']}); see {RS_WORK / 'build.stderr'}")
+            return subprocess.CompletedProcess(command, result["exit_code"])
+
+        pgo.instrumented_build(str(RS_WORK), 1, entry_counts=True, prefix=prefix, runner=cargo_runner, offline=True)
+        metadata["entry_first"] = True
+        metadata["binary_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
+        return binary, metadata
+    finally:
+        metadata["elapsed_seconds"] = round(time.monotonic() - started, 3)
+        metadata["binary_exists"] = binary.is_file()
+        write_json(RS_WORK / "build.json", metadata)
+
+
+def rs_profile_counts(project, raw, profdata, prefix, records):
+    logs = RS_WORK / "runs"
+    merged = logs / f"{project}.profdata"
+    checked_record([*prefix, str(profdata), "merge", "-o", str(merged), str(raw)],
+                   logs / f"{project}.merge.stdout", logs / f"{project}.merge.stderr", records)
+    shown = logs / f"{project}.show.txt"
+    checked_record([*prefix, str(profdata), "show", "--all-functions", "--counts", str(merged)],
+                   shown, logs / f"{project}.show.stderr", records)
+    with shown.open() as source:
+        counts = parse_profdata(source)
+    names = list(counts)
+    mangled = logs / f"{project}.mangled.txt"
+    mangled.write_text("\n".join(names) + "\n")
+    demangled = logs / f"{project}.demangled.txt"
+    checked_record([*prefix, "c++filt"], demangled, logs / f"{project}.demangle.stderr", records, stdin=mangled)
+    symbols = demangled.read_text().splitlines()
+    if len(symbols) != len(names):
+        raise ValueError(f"c++filt returned {len(symbols)} names for {len(names)} symbols")
+    result = {}
+    for name, symbol in zip(names, symbols):
+        if symbol.startswith(("_ZN", "_R")):
+            raise ValueError(f"c++filt did not demangle Rust symbol: {symbol}")
+        result[symbol] = result.get(symbol, 0) + counts[name]
+    return map_rust_counts(result)
+
+
+def write_mapping():
+    projects = {project: json.loads(path.read_text()) for project in PROJECTS
+                if (path := RS_WORK / "runs" / f"{project}.mapping.json").is_file()}
+    with (RS_WORK / "mapping.txt").open("w") as out:
+        for name, source, rust, note in manifest_rows():
+            out.write(f"{name}\t{source}\t{rust or '(empty Rust mapping)'}\n  {note}\n")
+            for project, mapping in projects.items():
+                matches = mapping.get(name, [])
+                out.write(f"  {project}: " + (f"{sum(count for _, count in matches)} entries" if matches else "UNMAPPED") + "\n")
+                for symbol, count in matches:
+                    out.write(f"    {count:>16}  {symbol}\n")
+
+
+def run_rs(args):
+    local_work(RS_WORK)
+    records = []
+    prefix = nice_prefix(records)
+    pgo = pgo_helpers()
+    summary = {"commands": records, "projects": {}}
+    try:
+        binary, build_info = rs_build(args, prefix, records, pgo)
+        profdata = args.llvm_profdata or Path(pgo.llvm_profdata())
+        checked_record([str(profdata), "--version"], RS_WORK / "profdata.stdout", RS_WORK / "profdata.stderr", records)
+        summary["binary_commit"] = build_info["binary_commit"]
+        counts_dir, logs = RS_WORK / "counts", RS_WORK / "runs"
+        counts_dir.mkdir(exist_ok=True)
+        logs.mkdir(exist_ok=True)
+        for project in args.projects or PROJECTS:
+            root = args.bench_root / PROJECTS[project]
+            command_args = project_arguments(project, root)
+            profiles = RS_WORK / "profiles" / project
+            profiles.mkdir(exist_ok=True)
+            if profiles.is_symlink():
+                raise ValueError(f"unexpected profile directory symlink: {profiles}")
+            for stale in profiles.glob("train-*.profraw"):
+                stale.unlink()
+            output = counts_dir / f"{project}.json"
+            output.unlink(missing_ok=True)
+            (logs / f"{project}.mapping.json").unlink(missing_ok=True)
+            env = pgo.profile_environment(str(profiles), "train-%p.profraw")
+            env.pop("TSGO_CENSUS", None)
+            result = recorded(prefix + [str(binary), *command_args], root, env,
+                              logs / f"{project}.stdout", logs / f"{project}.stderr", records)
+            result["environment"] = {"LLVM_PROFILE_FILE": env["LLVM_PROFILE_FILE"]}
+            summary["projects"][project] = dict(result, counts=str(output))
+            raw = sorted(profiles.glob("train-*.profraw"))
+            if len(raw) != 1 or raw[0].stat().st_size == 0:
+                raise ValueError(f"expected one nonempty training profile for {project}, found {raw}")
+            counts, matched = rs_profile_counts(project, raw[0], profdata, prefix, records)
+            counts["_meta"] = dict(result, binary_commit=build_info["binary_commit"],
+                                   binary_sha256=build_info["binary_sha256"], profile=str(raw[0]),
+                                   manifest_sha256=hashlib.sha256(MANIFEST.read_bytes()).hexdigest(),
+                                   llvm_profdata=str(profdata))
+            write_json(output, counts)
+            read_counts(output)
+            write_json(logs / f"{project}.mapping.json", matched)
+            write_mapping()
+            print(f"{project}: {len(counts) - 2} mapped, {len(counts['_unmapped'])} unmapped, "
+                  f"compiler exit={result['exit_code']}, {result['elapsed_seconds']}s, {output}", flush=True)
+        # Diagnostics are data, not a runner failure. Missing profiles/tool
+        # failures above still fail the invocation, including after a crash.
+        return 0
+    except (OSError, ValueError, KeyError) as error:
+        summary["error"] = str(error)
+        raise
+    finally:
+        # Keep the history when a later invocation measures the remaining projects.
+        path = RS_WORK / "run.json"
+        history = json.loads(path.read_text()) if path.is_file() else {"invocations": []}
+        history.setdefault("invocations", []).append(summary)
+        write_json(path, history)
+
+
 def normalize(data):
     rows = manifest_rows()
     aliases = {}
-    patterns = []
+    patterns = rust_matchers(rows)
     for name, source, rust, _ in rows:
         symbol = source.split(":", 1)[1].split(".")[-1]
         for alias in (name, source, symbol):
             aliases[alias] = name
-        if rust.startswith("re:"):
-            patterns.append((name, re.compile(rust[3:])))
-        elif rust:
+        if rust and not rust.startswith("re:"):
             aliases[rust] = name
-            # Accept demangled LLVM profile names, including monomorphizations
-            # and the optional legacy Rust hash, but never closure child entries.
-            patterns.append((name, re.compile(r"(?:^|::)" + re.escape(rust)
-                                               + r"(?:::<.*>)?(?:::h[0-9a-f]{16})?$")))
     result = {}
     for symbol, count in data.items():
+        if symbol in ("_meta", "_unmapped"):
+            continue
         if symbol in aliases:
             name = aliases[symbol]
         else:
-            matches = {name for name, pattern in patterns if pattern.search(symbol)}
-            if len(matches) > 1:
-                raise ValueError(f"ambiguous function mapping: {symbol}: {sorted(matches)}")
-            name = next(iter(matches), symbol)
+            name = rust_matches(symbol, patterns) or symbol
         result[name] = result.get(name, 0) + count
     return result
 
 
-def compare(args):
-    a, b = normalize(read_counts(args.a)), normalize(read_counts(args.b))
+def ratio_value(x, y):
+    if x is None or y is None:
+        return "missing", math.inf
+    value = y / x if x else (1.0 if y == 0 else math.inf)
+    return ("inf" if math.isinf(value) else f"{value:.6f}"), abs(value - 1)
+
+
+def comparison_rows(a, b):
+    unmapped = set(a.get("_unmapped", [])) | set(b.get("_unmapped", []))
+    a, b = normalize(a), normalize(b)
     rows = []
-    for name in a.keys() | b.keys():
+    for name in (a.keys() | b.keys()) - unmapped:
         x, y = a.get(name), b.get(name)
-        if x is None or y is None:
-            ratio, score = "missing", math.inf
-        else:
-            value = y / x if x else (1.0 if y == 0 else math.inf)
-            ratio, score = ("inf" if math.isinf(value) else f"{value:.6f}"), abs(value - 1)
+        ratio, score = ratio_value(x, y)
         rows.append((score, name, x, y, ratio))
+    return sorted(rows, key=lambda row: (-row[0], row[1])), sorted(unmapped)
+
+
+def compare_summary(args):
+    a_dir, b_dir = args.a or WORK / "counts", args.b or RS_WORK / "counts"
+    projects = args.projects or [p for p in PROJECTS if (a_dir / f"{p}.json").exists()
+                                or (b_dir / f"{p}.json").exists()]
+    if not projects:
+        raise ValueError("no project counts found")
+    table, unmapped, scores = {}, {}, {}
+    for project in projects:
+        # A missing project is an error, rather than an apparently empty census.
+        rows, missing = comparison_rows(read_counts(a_dir / f"{project}.json"),
+                                        read_counts(b_dir / f"{project}.json"))
+        for score, name, _, _, ratio in rows:
+            table.setdefault(name, {})[project] = ratio
+            scores[name] = max(score, scores.get(name, 0))
+        for name in missing:
+            unmapped.setdefault(name, []).append(project)
+    width = max([len("function")] + list(map(len, table)))
+    print(f"{'function':<{width}}" + "".join(f" {p:>12}" for p in projects))
+    for name in sorted(table, key=lambda name: (-scores[name], name)):
+        print(f"{name:<{width}}" + "".join(f" {table[name].get(p, 'unmapped'):>12}" for p in projects))
+    if unmapped:
+        print("\nUnmapped rows (excluded from ratios):")
+        for name, affected in sorted(unmapped.items()):
+            print(f"  {name}: {', '.join(affected)}")
+    return 0
+
+
+def compare(args):
+    if getattr(args, "summary", False):
+        return compare_summary(args)
+    rows, unmapped = comparison_rows(read_counts(args.a), read_counts(args.b))
     width = max([len("function")] + [len(row[1]) for row in rows])
     print(f"{'function':<{width}} {'count A':>16} {'count B':>16} {'B / A':>12}")
-    for _, name, x, y, ratio in sorted(rows, key=lambda row: (-row[0], row[1])):
+    for _, name, x, y, ratio in rows:
         print(f"{name:<{width}} {str(x) if x is not None else '-':>16} "
               f"{str(y) if y is not None else '-':>16} {ratio:>12}")
+    if unmapped:
+        print("\nUnmapped rows (excluded from ratios):")
+        for name in unmapped:
+            print(f"  {name}")
     return 0
 
 
@@ -321,11 +603,22 @@ def main():
     runner.add_argument("--bench-root", type=Path, default=BENCH)
     runner.add_argument("--check-stdout", action="store_true", help="compare hono with census disabled and pinned reference")
     runner.add_argument("--reference-binary", type=Path, default=REFERENCE / "bin/tsc-aa814927")
+    rust_runner = actions.add_parser("run-rs", help="build offline PGO instrumented tsc-rs, then collect serial entry counts")
+    rust_runner.add_argument("--projects", nargs="+", choices=PROJECTS, help="default: all eight")
+    rust_runner.add_argument("--bench-root", type=Path, default=BENCH)
+    rust_runner.add_argument("--skip-build", action="store_true", help="reuse the verified instrumented binary")
+    rust_runner.add_argument("--llvm-profdata", type=Path, help="default: pinned Rust toolchain's llvm-profdata")
     comparer = actions.add_parser("compare", help="compare JSON counts; ratio is B/A, descending |ratio-1|")
-    comparer.add_argument("a", type=Path)
-    comparer.add_argument("b", type=Path)
+    comparer.add_argument("a", type=Path, nargs="?")
+    comparer.add_argument("b", type=Path, nargs="?")
+    comparer.add_argument("--summary", action="store_true", help="compare project directories (default: tsgo vs tsc-rs counts)")
+    comparer.add_argument("--projects", nargs="+", choices=PROJECTS, help="select summary columns")
     args = parser.parse_args()
     if args.action == "compare":
+        if bool(args.a) != bool(args.b) or (not args.summary and not args.a):
+            parser.error("compare needs two JSON paths, or --summary [GO_DIR RS_DIR]")
+        if args.projects and not args.summary:
+            parser.error("compare --projects requires --summary")
         return compare(args)
     if args.action == "run" and args.check_stdout and args.projects and "hono" not in args.projects:
         parser.error("--check-stdout requires hono in --projects")
@@ -336,6 +629,8 @@ def main():
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise ValueError("another census build/run is active in this clone") from None
+        if args.action == "run-rs":
+            return run_rs(args)
         return build(args) if args.action == "build" else run(args)
 
 
