@@ -156,7 +156,7 @@ impl Completions<'_, '_, '_> {
                         &data_file,
                         self.position,
                         items::ItemSpec {
-                            name: tsc_emitter::escape_string(text.units(), quote),
+                            name: tsc_emitter::escape_string(&text.to_utf16(), quote),
                             sort_text: sort_text::LOCATION_PRIORITY.to_owned(),
                             element_kind: Some(ScriptElementKind::String),
                             kind_modifiers: ScriptElementKindModifier::NONE,
@@ -511,7 +511,7 @@ impl Completions<'_, '_, '_> {
                                 .into_iter()
                                 .filter(|&ty| match self.request.state.tables.literal_value(ty) {
                                     Some(LiteralValue::String(text)) => {
-                                        !already_used.contains(&text.units().to_vec())
+                                        !already_used.contains(&text.to_utf16())
                                     }
                                     _ => true,
                                 })
@@ -674,7 +674,7 @@ impl Completions<'_, '_, '_> {
         if flags.intersects(TypeFlags::STRING_LITERAL) && !flags.intersects(TypeFlags::ENUM_LITERAL)
         {
             if let Some(LiteralValue::String(text)) = self.request.state.tables.literal_value(ty) {
-                if uniques.insert(text.units().to_vec()) {
+                if uniques.insert(text.to_utf16()) {
                     return Ok(vec![ty]);
                 }
             }

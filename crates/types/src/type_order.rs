@@ -285,10 +285,10 @@ pub fn compare_types(
         ) = (tables.type_of(t1).data, tables.type_of(t2).data)
         {
             if text1 != text2 {
+                // UTF-16 code-unit order, as tsgo compares the strings.
                 let c = tables
                     .literal_text(text1)
-                    .units()
-                    .cmp(tables.literal_text(text2).units());
+                    .cmp_utf16(tables.literal_text(text2));
                 if c != Ordering::Equal {
                     return c;
                 }

@@ -176,3 +176,21 @@ fn zero_bytes_are_an_empty_small_list() {
     list.push(7);
     assert_eq!(&**list, &[7]);
 }
+
+#[test]
+fn a_name_is_read_back_by_its_id() {
+    let plain = names::push(b"identifier");
+    let empty = names::push(b"");
+    // `a` and a lone lead surrogate, U+D800 in WTF-8.
+    let lone = names::push(&[0x61, 0xED, 0xA0, 0x80]);
+    assert_ne!(plain, empty);
+    assert_eq!(names::text(plain), b"identifier");
+    assert_eq!(names::scalar_text(plain), Some("identifier"));
+    assert_eq!(names::text(empty), b"");
+    assert_eq!(names::scalar_text(empty), Some(""));
+    assert_eq!(names::text(lone), &[0x61, 0xED, 0xA0, 0x80]);
+    assert_eq!(names::scalar_text(lone), None);
+    let (count, bytes) = names::usage();
+    assert!(count >= 3);
+    assert!(bytes >= 3 * 8 + 14);
+}

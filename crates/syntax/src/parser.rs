@@ -5679,12 +5679,7 @@ impl<'text> Parser<'text> {
     /// tsc parseJsxText.
     fn parse_jsx_text(&mut self) -> NodeId {
         let pos = self.node_pos();
-        let text = self
-            .scanner
-            .token_value()
-            .as_str()
-            .expect("JSX text is a raw UTF-8 source slice")
-            .to_owned();
+        let text = self.scanner.token_value_str().to_owned();
         let contains_only_trivia_white_spaces = self.token() == SyntaxKind::JsxTextAllWhiteSpaces;
         self.scan_jsx_text();
         self.finish_node_data(
@@ -9460,14 +9455,11 @@ impl<'text> Parser<'text> {
     }
 
     fn current_token_text(&self) -> String {
-        let value = self.scanner.token_value();
+        let value = self.scanner.token_value_str();
         if value.is_empty() {
             return token_to_string(self.token());
         }
-        value
-            .as_str()
-            .expect("identifier, numeric and regexp token text is Unicode scalar text")
-            .to_owned()
+        value.to_owned()
     }
 
     /// tsc isFileProbablyExternalModule: the first statement that is an

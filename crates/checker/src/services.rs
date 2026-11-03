@@ -791,7 +791,7 @@ impl CheckerState<'_> {
             TypeData::Literal { value, .. } => match self.tables.literal_value_of(*value) {
                 LiteralValue::String(text) => format!(
                     "\"{}\"",
-                    tsc_emitter::escape_string(text.units(), tsc_emitter::LiteralQuote::Double)
+                    tsc_emitter::escape_string(&text.to_utf16(), tsc_emitter::LiteralQuote::Double)
                 ),
                 LiteralValue::Number(value) => tsc_types::js_number_to_string(value),
                 LiteralValue::BigInt(value) => format!("{}n", value.to_base10_string()),

@@ -89,6 +89,13 @@ impl TemplateText {
     }
 
     pub fn from_js(text: crate::JsStr<'_>) -> Self {
+        let bytes = text.as_bytes();
+        if bytes.is_ascii() {
+            // ASCII bytes are their own UTF-16 units.
+            return Self {
+                units: bytes.iter().map(|&byte| u16::from(byte)).collect(),
+            };
+        }
         Self {
             units: text.to_utf16().into_boxed_slice(),
         }
@@ -169,7 +176,8 @@ impl From<&str> for TemplateText {
 /// [`LiteralData`]).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LiteralValue<'a> {
-    String(&'a TemplateText),
+    /// The text, canonical WTF-8 (byte equality is UTF-16 equality).
+    String(crate::JsStr<'a>),
     Number(f64),
     BigInt(&'a PseudoBigInt),
 }
@@ -178,7 +186,7 @@ pub enum LiteralValue<'a> {
 /// literals of a union after the checker's borrow ends).
 #[derive(Clone, Debug, PartialEq)]
 pub enum LiteralValueOwned {
-    String(TemplateText),
+    String(crate::JsString),
     Number(f64),
     BigInt(PseudoBigInt),
 }
@@ -187,7 +195,7 @@ impl LiteralValue<'_> {
     /// The value with its text or bigint copied.
     pub fn to_owned(self) -> LiteralValueOwned {
         match self {
-            LiteralValue::String(text) => LiteralValueOwned::String(text.clone()),
+            LiteralValue::String(text) => LiteralValueOwned::String(text.to_owned()),
             LiteralValue::Number(value) => LiteralValueOwned::Number(value),
             LiteralValue::BigInt(value) => LiteralValueOwned::BigInt(value.clone()),
         }
@@ -198,7 +206,7 @@ impl LiteralValueOwned {
     /// The value borrowed.
     pub fn as_ref(&self) -> LiteralValue<'_> {
         match self {
-            LiteralValueOwned::String(text) => LiteralValue::String(text),
+            LiteralValueOwned::String(text) => LiteralValue::String(text.as_js()),
             LiteralValueOwned::Number(value) => LiteralValue::Number(*value),
             LiteralValueOwned::BigInt(value) => LiteralValue::BigInt(value),
         }

@@ -366,7 +366,7 @@ fn string_escape_sequences_set_value_and_flags() {
 
     assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
 
-    assert_eq!(scanner.token_value, "\n\tABC");
+    assert_eq!(scanner.token_value(), "\n\tABC");
     assert!(scanner.token_flags.contains(TokenFlags::HEX_ESCAPE));
     assert!(scanner.token_flags.contains(TokenFlags::UNICODE_ESCAPE));
     assert!(scanner
@@ -553,7 +553,7 @@ fn string_escape_oracle_pins() {
         let mut scanner = Scanner::new(case.text, LanguageVariant::Standard);
 
         assert_eq!(scanner.scan(), SyntaxKind::StringLiteral, "{}", case.text);
-        assert_eq!(scanner.token_value, case.value, "{}", case.text);
+        assert_eq!(scanner.token_value(), case.value, "{}", case.text);
         assert_eq!(scanner.token_flags.0, case.flags, "{}", case.text);
         assert_eq!(
             scanner
@@ -731,7 +731,7 @@ fn numeric_literal_oracle_pins() {
 
         assert_eq!(scanner.scan(), case.kind, "{}", case.text);
         assert_eq!(scanner.pos(), case.end, "{}", case.text);
-        assert_eq!(scanner.token_value, case.value, "{}", case.text);
+        assert_eq!(scanner.token_value(), case.value, "{}", case.text);
         assert_eq!(scanner.token_flags.0, case.flags, "{}", case.text);
         assert_eq!(
             scanner
@@ -753,7 +753,7 @@ fn legacy_octal_after_minus_reports_from_minus() {
     assert_eq!(scanner.scan(), SyntaxKind::MinusToken);
     assert_eq!(scanner.scan(), SyntaxKind::NumericLiteral);
 
-    assert_eq!(scanner.token_value, "1");
+    assert_eq!(scanner.token_value(), "1");
     assert_eq!(scanner.token_flags.0, 32);
     assert_eq!(scanner.errors().len(), 1);
     assert_eq!(scanner.errors()[0].start, 0);
@@ -845,7 +845,7 @@ fn template_literal_oracle_pins() {
 
         assert_eq!(scanner.scan(), case.kind, "{}", case.text);
         assert_eq!(scanner.pos(), case.end, "{}", case.text);
-        assert_eq!(scanner.token_value, case.value, "{}", case.text);
+        assert_eq!(scanner.token_value(), case.value, "{}", case.text);
         assert_eq!(scanner.token_flags.0, case.flags, "{}", case.text);
         assert_eq!(
             scanner
@@ -931,7 +931,7 @@ fn rescan_template_token_oracle_pins() {
             case.text
         );
         assert_eq!(scanner.pos(), case.end, "{}", case.text);
-        assert_eq!(scanner.token_value, case.value, "{}", case.text);
+        assert_eq!(scanner.token_value(), case.value, "{}", case.text);
         assert_eq!(scanner.token_flags.0, case.flags, "{}", case.text);
         assert_eq!(
             scanner
@@ -1042,7 +1042,7 @@ fn rescan_slash_regex_extent_oracle_pins() {
             case.text
         );
         assert_eq!(scanner.pos(), case.end, "{}", case.text);
-        assert_eq!(scanner.token_value, case.value, "{}", case.text);
+        assert_eq!(scanner.token_value(), case.value, "{}", case.text);
         assert_eq!(scanner.token_flags.0, case.flags, "{}", case.text);
         assert_eq!(
             scanner
@@ -1117,7 +1117,7 @@ fn jsx_scanner_oracle_pins() {
 
         assert_eq!(scanner.scan_jsx_token(true), case.kind, "{}", case.text);
         assert_eq!(scanner.pos(), case.end, "{}", case.text);
-        assert_eq!(scanner.token_value, case.value, "{}", case.text);
+        assert_eq!(scanner.token_value(), case.value, "{}", case.text);
         assert_eq!(
             scanner
                 .errors()
@@ -1137,13 +1137,13 @@ fn jsx_identifier_and_attribute_value_oracle_pins() {
     assert_eq!(scanner.scan(), SyntaxKind::Identifier);
     assert_eq!(scanner.scan_jsx_identifier(), SyntaxKind::Identifier);
     assert_eq!(scanner.pos(), 7);
-    assert_eq!(scanner.token_value, "foo-bar");
+    assert_eq!(scanner.token_value(), "foo-bar");
 
     let mut scanner = Scanner::new("class-name", LanguageVariant::Jsx);
     assert_eq!(scanner.scan(), SyntaxKind::ClassKeyword);
     assert_eq!(scanner.scan_jsx_identifier(), SyntaxKind::Identifier);
     assert_eq!(scanner.pos(), 10);
-    assert_eq!(scanner.token_value, "class-name");
+    assert_eq!(scanner.token_value(), "class-name");
 
     let mut scanner = Scanner::new("\"a\\nb\"", LanguageVariant::Jsx);
     assert_eq!(
@@ -1151,7 +1151,7 @@ fn jsx_identifier_and_attribute_value_oracle_pins() {
         SyntaxKind::StringLiteral
     );
     assert_eq!(scanner.pos(), 6);
-    assert_eq!(scanner.token_value, "a\\nb");
+    assert_eq!(scanner.token_value(), "a\\nb");
     assert!(scanner.errors().is_empty());
 
     let mut scanner = Scanner::new("\"a\nb\"", LanguageVariant::Jsx);
@@ -1160,7 +1160,7 @@ fn jsx_identifier_and_attribute_value_oracle_pins() {
         SyntaxKind::StringLiteral
     );
     assert_eq!(scanner.pos(), 5);
-    assert_eq!(scanner.token_value, "a\nb");
+    assert_eq!(scanner.token_value(), "a\nb");
     assert!(scanner.errors().is_empty());
 }
 
@@ -1404,4 +1404,61 @@ fn scanner_restore_rolls_back_the_errors_trivia_provenance() {
         scanner.errors()[0].trivia_kind,
         Some(SyntaxKind::MultiLineCommentTrivia)
     );
+}
+
+/// A token's value is its source text unless an escape or a numeric
+/// normalization cooked it; both read back as tsgo's token values.
+#[test]
+fn token_values_are_source_ranges_or_cooked_text() {
+    let text = r#"plain ab\u0063d "str" 'x\ny' 1_000 0x1F 0b11n 12n 3.50 #p\u0061 /re+/g"#;
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    let mut values = Vec::new();
+    loop {
+        let token = scanner.scan();
+        if token == SyntaxKind::EndOfFileToken {
+            break;
+        }
+        if token == SyntaxKind::SlashToken {
+            scanner.re_scan_slash_token(true);
+        }
+        values.push((
+            scanner.token_value().to_string_lossy().into_owned(),
+            scanner.token_value_source().is_some(),
+        ));
+    }
+    let expected = [
+        ("plain", true),
+        ("abcd", false),
+        ("str", true),
+        ("x\ny", false),
+        ("1000", false),
+        ("31", false),
+        ("3n", false),
+        ("12n", true),
+        ("3.5", false),
+        ("#pa", false),
+        ("/re+/g", true),
+    ];
+    let expected: Vec<(String, bool)> = expected
+        .iter()
+        .map(|&(value, source)| (value.to_owned(), source))
+        .collect();
+    assert_eq!(values, expected);
+}
+
+/// A saved cooked value survives the tokens scanned before the restore.
+#[test]
+fn a_restored_state_keeps_its_cooked_value() {
+    let text = r#"'a\tb' c "d\u0065""#;
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+    assert_eq!(scanner.token_value(), "a\tb");
+    let state = scanner.save();
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+    assert_eq!(scanner.token_value(), "de");
+    scanner.restore(state);
+    assert_eq!(scanner.token_value(), "a\tb");
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert_eq!(scanner.token_value(), "c");
 }

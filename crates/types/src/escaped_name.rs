@@ -110,7 +110,7 @@ impl EscapedName {
     #[inline]
     #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn as_js(&self) -> JsStr<'static> {
-        names::text(self.0).as_js()
+        names::text(self.0)
     }
 
     #[cfg_attr(feature = "perf-counters", track_caller)]
@@ -157,7 +157,7 @@ impl fmt::Display for EscapedName {
 impl PartialEq<String> for EscapedName {
     #[cfg_attr(feature = "perf-counters", track_caller)]
     fn eq(&self, other: &String) -> bool {
-        *names::text(self.0) == **other
+        names::text(self.0).as_bytes() == other.as_bytes()
     }
 }
 
@@ -179,7 +179,9 @@ impl Ord for EscapedName {
         if self.0 == other.0 {
             Ordering::Equal
         } else {
-            names::text(self.0).cmp(names::text(other.0))
+            names::text(self.0)
+                .as_bytes()
+                .cmp(names::text(other.0).as_bytes())
         }
     }
 }
@@ -193,14 +195,14 @@ impl PartialOrd for EscapedName {
 impl PartialEq<str> for EscapedName {
     #[cfg_attr(feature = "perf-counters", track_caller)]
     fn eq(&self, other: &str) -> bool {
-        *names::text(self.0) == *other
+        names::text(self.0).as_bytes() == other.as_bytes()
     }
 }
 
 impl PartialEq<&str> for EscapedName {
     #[cfg_attr(feature = "perf-counters", track_caller)]
     fn eq(&self, other: &&str) -> bool {
-        *names::text(self.0) == **other
+        names::text(self.0).as_bytes() == other.as_bytes()
     }
 }
 

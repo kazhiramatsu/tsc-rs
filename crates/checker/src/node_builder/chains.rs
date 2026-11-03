@@ -2873,7 +2873,7 @@ fn get_property_name_node_for_symbol_from_name_type(
     }
     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
         let name = match checker.tables.literal_value(name_type) {
-            Some(LiteralValue::String(value)) => value.to_js_string(),
+            Some(LiteralValue::String(value)) => value.to_owned(),
             Some(LiteralValue::Number(value)) => {
                 JsString::from(tsc_types::js_number_to_string(value))
             }
