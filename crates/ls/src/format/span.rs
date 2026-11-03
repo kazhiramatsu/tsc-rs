@@ -1609,10 +1609,10 @@ impl<'a> FormatSpanWorker<'a> {
                     return false;
                 }
             }
-            SyntaxKind::OpenBracketToken | SyntaxKind::CloseBracketToken => {
-                if file.kind(container) != SyntaxKind::MappedType {
-                    return false;
-                }
+            SyntaxKind::OpenBracketToken | SyntaxKind::CloseBracketToken
+                if file.kind(container) != SyntaxKind::MappedType =>
+            {
+                return false;
             }
             _ => {}
         }

@@ -6166,13 +6166,13 @@ fn lib_bundle_with_fingerprint(
 fn lib_text_fingerprint(text: &str) -> u64 {
     let bytes = text.as_bytes();
     let mut hash = 0xcbf29ce484222325u64;
-    let mut chunks = bytes.chunks_exact(8);
-    for chunk in &mut chunks {
-        let word = u64::from_le_bytes(chunk.try_into().expect("8-byte chunk"));
+    let (chunks, remainder) = bytes.as_chunks::<8>();
+    for chunk in chunks {
+        let word = u64::from_le_bytes(*chunk);
         hash = (hash ^ word).wrapping_mul(0x100000001b3).rotate_left(23);
     }
     let mut tail = [0u8; 8];
-    tail[..chunks.remainder().len()].copy_from_slice(chunks.remainder());
+    tail[..remainder.len()].copy_from_slice(remainder);
     hash = (hash ^ u64::from_le_bytes(tail)).wrapping_mul(0x100000001b3);
     hash ^ bytes.len() as u64
 }
