@@ -15,9 +15,10 @@ use crate::names;
 ///
 /// `Eq` and `Hash` compare ids: two names are equal exactly when their
 /// texts are, so a hash-keyed container hashes a `u32`. `Ord` is the text's
-/// byte order, not JavaScript order: use `cmp_utf16` for upstream explicit
-/// string comparison; do not build identity BTreeMaps or use default sorting
-/// to implement JS name order.
+/// byte order (code point order), which is tsgo's `strings.Compare` of its
+/// Go strings; `cmp_utf16` is JavaScript's UTF-16 order, for the places that
+/// follow a JavaScript comparison. Do not build identity BTreeMaps keyed by
+/// names.
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct EscapedName(u32);
 

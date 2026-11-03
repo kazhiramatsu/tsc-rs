@@ -167,6 +167,36 @@ fn stable_type_ordering_makes_inference_independent_of_file_order() {
     }
 }
 
+/// tsgo orders string literal types, tuple element labels and symbol names
+/// with `strings.Compare` on its Go strings: byte (code point) order, not
+/// JavaScript's UTF-16 order. The two differ for a character above U+FFFF
+/// against one in U+E000..=U+FFFF; lone surrogates sort by their code point.
+/// The expected texts are tsgo 7.1.0-dev `aa814927`'s messages.
+#[test]
+fn stable_type_ordering_compares_texts_in_code_point_order() {
+    for (source, expected) in [
+        (
+            "const u: \"\\u{1F600}\" | \"\\uFFFF\" | \"\\uE000\" | \"a\" | \"\\u{10000}\" = 1;\n",
+            "Type '1' is not assignable to type '\"a\" | \"\u{E000}\" | \"\u{FFFF}\" | \"\u{10000}\" | \"\u{1F600}\"'.",
+        ),
+        (
+            "const u: \"\\uD800\" | \"\\uE000\" | \"\\uD7FF\" | \"\\u{1F600}\" | \"\\uDC00\" | \"\\uD83D\\uDE00\" | \"\\uFFFD\" = 1;\n",
+            "Type '1' is not assignable to type '\"\u{D7FF}\" | \"\\uD800\" | \"\\uDC00\" | \"\u{E000}\" | \"\u{FFFD}\" | \"\u{1F600}\"'.",
+        ),
+        (
+            "const t: [\u{1D465}: string] | [\u{FF41}: string] | [b: string] = 1;\n",
+            "Type 'number' is not assignable to type '[b: string] | [\u{FF41}: string] | [\u{1D465}: string]'.",
+        ),
+    ] {
+        let files = [InputFile::new("/main.ts", source)];
+        assert_eq!(
+            messages(&check(&files, None)),
+            [expected.to_owned()],
+            "{source:?}"
+        );
+    }
+}
+
 /// createTypeofType (50137): the option sorts the `typeof` facts.
 #[test]
 fn stable_type_ordering_sorts_the_typeof_union() {
