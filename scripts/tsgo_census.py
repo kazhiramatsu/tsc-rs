@@ -373,16 +373,21 @@ def rs_build(args, prefix, records, pgo):
     binary = RS_WORK / "instrumented/release/tsc-rs"
     checked_record(["git", "rev-parse", "HEAD"], RS_WORK / "commit.stdout", RS_WORK / "commit.stderr", records)
     commit = (RS_WORK / "commit.stdout").read_text().strip()
-    # HEAD must describe the measured compiler even when reusing a binary.
-    checked_record(["git", "diff", "--exit-code", "HEAD", "--", "crates", "Cargo.toml",
-                    "Cargo.lock", "rust-toolchain.toml", ".cargo"],
+    # Tooling-only commits may follow the compiler's instrumented build.
+    # Require clean compiler inputs and, on reuse, identical committed inputs.
+    compiler_inputs = ["crates", "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", ".cargo"]
+    checked_record(["git", "diff", "--exit-code", "HEAD", "--", *compiler_inputs],
                    RS_WORK / "source-diff.stdout", RS_WORK / "source-diff.stderr", records)
     if args.skip_build:
         metadata = json.loads((RS_WORK / "build.json").read_text())
-        if (metadata["binary_commit"] != commit or not binary.is_file()
+        if (not binary.is_file()
                 or not metadata.get("entry_first")
                 or metadata["binary_sha256"] != hashlib.sha256(binary.read_bytes()).hexdigest()):
             raise ValueError("instrumented binary/commit changed; run-rs without --skip-build first")
+        if metadata["binary_commit"] != commit:
+            checked_record(["git", "diff", "--exit-code", metadata["binary_commit"], commit,
+                            "--", *compiler_inputs],
+                           RS_WORK / "reuse-diff.stdout", RS_WORK / "reuse-diff.stderr", records)
         return binary, metadata
     started = time.monotonic()
     try:

@@ -7,7 +7,7 @@ python3 scripts/tsgo_census.py run-rs --projects hono zod ts
 python3 scripts/tsgo_census.py run-rs --skip-build --projects vscode effect next playwright vue
 python3 scripts/tsgo_census.py compare target/tsgo-census/counts/hono.json target/tsc-census/counts/hono.json
 python3 scripts/tsgo_census.py compare --summary
-python3 -B -m unittest discover -s scripts/tsgo_census -p test_census.py -v
+python3 -I scripts/tsgo_census/test_census.py
 ```
 
 `build` verifies the clean `aa8149273` source checkout, copies its working tree
@@ -62,13 +62,15 @@ excluded from the enum and counts, so absence cannot be confused with zero.
 The exit hook dumps explicitly between `runMain()` and `os.Exit`, which skips
 deferred functions.
 
-At this pin `resolveName` is a function field, not a declaration in
-`internal/checker`; it is recorded as missing. `CompareTypes` is the exported
+At this pin `Checker.resolveName` is a function field, not a declaration.
+The manifest instruments its shared `internal/binder/nameresolver.go:NameResolver.Resolve`
+implementation, including ordinary and suggestion lookups, against Rust's
+`resolve_name_full`. Its JSON key is `resolve`. `CompareTypes` is the exported
 function in `utilities.go`; its Rust counterpart is `compare_types` in
 `crates/types/src/type_order.rs`, imported by the checker. The
-checker and node builder both have `getTypeFromTypeNode`; only the checker entry
-is counted. Notes identify other wrapper/body differences requiring care when
-interpreting a cross-port comparison.
+checker and node builder both have `getTypeFromTypeNode`; only the checker's
+`getTypeFromTypeNodeWorker` is counted. Notes identify the exact source boundaries
+and intentional exclusions for cross-port comparisons.
 
 ## Rust PGO entry counts
 
@@ -87,8 +89,12 @@ to `CFLAGS`/`CXXFLAGS`: cc-rs otherwise instruments native dependencies with
 Apple clang's incompatible profile ABI, which can crash mimalloc at startup.
 Rust instrumentation remains enabled; the effective environment is recorded.
 
-`--skip-build` reuses the binary after checking its commit and SHA-256 against
-`build.json`. Compiler sources must be clean for both building and reusing it. The binary's commit,
+`--skip-build` reuses the binary after checking its SHA-256 and entry-first metadata
+against `build.json`. Compiler sources must be clean for both building and reusing it.
+If HEAD differs from the build commit, a recorded `git diff --exit-code` must show
+identical `crates/`, Cargo manifests/lockfile, toolchain, and `.cargo/` inputs.
+This permits tooling-only commits without rebuilding the measured compiler.
+The binary's original build commit remains in the metadata. The binary's commit,
 build flags, exact commands, exits, and elapsed seconds are recorded. A compiler
 diagnostic exit is retained and collection continues; `run-rs` returns zero
 when all selected profiles were collected. A missing, empty, or extra training
@@ -105,7 +111,39 @@ The extra LLVM flag is essential: ordinary IR PGO can place another block's
 counter first. The parser rejects profiles reporting `entry_first = 0`.
 All symbols are demangled in one `c++filt` process per project.
 
-Plain Rust TSV names match the function's own final path segment exactly,
+The checked-in manifest uses **anchored `re:` paths** to count only the selected
+function entry and its monomorphizations. Closure children, shims, and a method's
+name appearing inside another function's generic arguments are excluded. The
+checker and `TypeTables` methods are selected explicitly. In particular:
+
+- Flow, tuple, union, intersection, relation, and indexed-access rows select
+  the full option-carrying body on both sides, rather than a default wrapper.
+- The union row sums the disjoint checker and pure-table full entries
+  (`get_union_type_ex_with_origin` and `TypeTables::get_union_type_with_origin`).
+  Pure optionality/tuple/template construction uses the latter. The checker
+  body does not call it; forwarding wrappers and downstream workers are excluded
+  so an operation is counted once.
+- Expression and type-node dispatch rows select the surviving workers.
+- Assignment rows count the shared assignment-marking query, including queries
+  made by `isSymbolAssigned`, rather than only last-assignment location tests.
+- Declared-type rows select the kind dispatcher (`tryGetDeclaredTypeOfSymbol`).
+  Type-argument rows retain the full getter; direct table reads in other callers
+  are a real routing difference, and adding table reads would double-count.
+- Fully inlined wrappers, or bodies whose surviving worker omits inline cache
+  hits/early returns, have an empty Rust mapping. Their notes explain why a
+  same-boundary count cannot be reconstructed from this binary. They are never
+  reported as zero or compared to a narrower worker.
+- Alias-aware instantiation is also unavailable: Go counts nil-mapper requests
+  inside the body, while Rust rejects them in an inlined adapter before the
+  surviving body. The raw body entries would have different preconditions.
+
+Worker substitutions change the JSON keys to the selected Go declaration names,
+for example `getFlowTypeOfReferenceEx`, `getUnionTypeEx`, and
+`getIndexedAccessTypeOrUndefined`. Rebuild Go and regenerate **both** count sets
+after a manifest change; do not compare old wrapper counts with worker counts.
+`mapping.txt` and the manifest notes are the audit trail for these choices.
+
+For custom manifests, plain Rust TSV names match the function's own final path segment exactly,
 after removing generic arguments and before any `::{{closure}}`. Counts sum
 over monomorphizations **and closure children**, as requested for this census.
 Consequently the aggregate can exceed the parent function's own entry count;

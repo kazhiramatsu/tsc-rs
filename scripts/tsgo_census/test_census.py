@@ -1,6 +1,7 @@
 """Checks for cross-port count normalization and comparison edge cases."""
 
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
@@ -24,18 +25,54 @@ class CensusTests(unittest.TestCase):
     def test_go_and_rust_names_share_keys(self):
         self.assertEqual(census.normalize({
             "CompareTypes": 3,
-            "internal/checker/checker.go:Checker.getPropertyOfType": 4,
-            "tsc_checker::State::get_effects_signature::h0123456789abcdef": 5,
-            "tsc_checker::State::get_property_of_type_full::<Name>": 6,
-        }), {"compareTypes": 3, "getPropertyOfType": 10, "getEffectsSignature": 5})
+            "internal/checker/checker.go:Checker.getPropertyOfTypeEx": 4,
+            "<tsc_checker::state::CheckerState>::get_effects_signature": 5,
+            "<tsc_checker::state::CheckerState>::get_property_of_type_ex_with_include_type_only_members::<Name>": 6,
+        }), {"compareTypes": 3, "getPropertyOfTypeEx": 10, "getEffectsSignature": 5})
 
     def test_monomorphizations_and_closures_sum(self):
         closure = "tsc_checker::State::infer_types::{{closure}}"
-        self.assertEqual(census.normalize({
-            "tsc_checker::State::infer_types::<First>": 7,
-            "tsc_checker::State::infer_types::<Second>": 11,
-            closure: 100,
-        }), {"inferTypes": 118})
+        # Plain-name mappings retain their legacy aggregation semantics.
+        with patch.object(census, "manifest_rows", return_value=[
+            ("inferTypes", "a.go:inferTypes", "infer_types", ""),
+        ]):
+            self.assertEqual(census.normalize({
+                "tsc_checker::State::infer_types::<First>": 7,
+                "tsc_checker::State::infer_types::<Second>": 11,
+                closure: 100,
+            }), {"inferTypes": 118})
+
+    def test_manifest_counts_only_selected_worker_entries(self):
+        state = "<tsc_checker::state::CheckerState>"
+        worker = state + "::get_property_of_type_ex_with_include_type_only_members"
+        symbols = {
+            worker + "::<tsc_types::escaped_name::EscapedName>": 7,
+            worker + "::<&alloc::string::String>": 11,
+            worker + "::<Name>::{closure#0}": 101,
+            worker + "::<Name>::{{closure}}": 103,
+            worker + "::<State::{closure#0}>": 107,
+            "<tsc_checker::links::LinksTables>::read_symbol::<Type, " + worker + "::{closure#0}>": 109,
+            state + "::get_union_type": 113,
+            state + "::get_union_type_ex_with_origin": 13,
+            state + "::instantiate_type_with_alias": 211,
+            "<tsc_types::tables::TypeTables>::get_union_type": 127,
+            "<tsc_types::tables::TypeTables>::get_union_type_with_origin": 17,
+            "<tsc_types::tables::TypeTables>::get_union_type_worker": 199,
+            "<tsc_checker::engine::RelationChecker>::is_related_to_with_head": 17,
+            "<tsc_checker::inference::InferTypesWalker>::infer_from_types": 19,
+        }
+        counts, matched = census.map_rust_counts(symbols)
+        self.assertEqual(counts["getPropertyOfTypeEx"], 18)
+        self.assertEqual(len(matched["getPropertyOfTypeEx"]), 2)
+        # Pure table construction and checker construction are disjoint full
+        # entries. Their forwarding wrappers and downstream workers are not.
+        self.assertEqual(counts["getUnionTypeEx"], 30)
+        self.assertEqual(len(matched["getUnionTypeEx"]), 2)
+        self.assertEqual(counts["isRelatedToEx"], 17)
+        self.assertEqual(counts["inferFromTypes"], 19)
+        self.assertIn("getPropertyOfType", counts["_unmapped"])
+        self.assertIn("instantiateTypeWithAlias", counts["_unmapped"])
+        self.assertNotIn("instantiateTypeWithAlias", counts)
 
     def test_profdata_fixture_uses_first_block_not_function_count(self):
         fixture = Path(__file__).parent / "fixtures/profdata-show.txt"
@@ -86,13 +123,49 @@ class CensusTests(unittest.TestCase):
             census.map_rust_counts({"checker::infer_types": 1})
 
     def test_wrapper_and_body_mapping_stay_separate(self):
+        state = "<tsc_checker::state::CheckerState>::"
         self.assertEqual(census.normalize({
-            "get_property_of_type_full": 2,
-            "get_property_of_type_ex_with_include_type_only_members": 9,
-            "check_expression": 12,
-            "check_expression_with_force_tuple": 15,
-        }), {"getPropertyOfType": 2, "getPropertyOfTypeEx": 9,
-             "checkExpression": 12, "checkExpressionEx": 15})
+            state + "get_property_of_type_ex_with_include_type_only_members::<Name>": 9,
+            state + "check_expression_worker": 12,
+            state + "check_expression_with_force_tuple": 15,
+        }), {"getPropertyOfTypeEx": 9, "checkExpressionWorker": 12,
+             "checkExpressionEx": 15})
+
+    def test_skip_build_requires_identical_compiler_inputs_and_binary(self):
+        for changed_sources, changed_binary in ((False, False), (True, False), (False, True)):
+            with self.subTest(changed_sources=changed_sources, changed_binary=changed_binary), \
+                    tempfile.TemporaryDirectory() as directory:
+                work = Path(directory)
+                binary = work / "instrumented/release/tsc-rs"
+                binary.parent.mkdir(parents=True)
+                binary.write_bytes(b"instrumented compiler")
+                census.write_json(work / "build.json", {
+                    "binary_commit": "build-commit", "entry_first": True,
+                    "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+                })
+                if changed_binary:
+                    binary.write_bytes(b"changed compiler")
+                commands = []
+
+                def checked(command, stdout, stderr, records, **kwargs):
+                    commands.append(command)
+                    if command == ["git", "rev-parse", "HEAD"]:
+                        stdout.write_text("tooling-commit\n")
+                    if command[:5] == ["git", "diff", "--exit-code", "build-commit", "tooling-commit"] and changed_sources:
+                        raise ValueError("compiler inputs changed")
+
+                with patch.object(census, "RS_WORK", work), \
+                        patch.object(census, "checked_record", side_effect=checked):
+                    args = SimpleNamespace(skip_build=True)
+                    if changed_sources or changed_binary:
+                        with self.assertRaises(ValueError):
+                            census.rs_build(args, [], [], None)
+                    else:
+                        actual, metadata = census.rs_build(args, [], [], None)
+                        self.assertEqual(actual, binary)
+                        self.assertEqual(metadata["binary_commit"], "build-commit")
+                        self.assertIn(["git", "diff", "--exit-code", "build-commit", "tooling-commit", "--",
+                                       "crates", "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", ".cargo"], commands)
 
     def test_explicit_regex_and_ambiguity(self):
         with patch.object(census, "manifest_rows", return_value=[
