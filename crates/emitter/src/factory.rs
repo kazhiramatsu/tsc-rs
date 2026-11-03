@@ -7892,6 +7892,32 @@ impl<'a> CrossSourceReuseClone<'a> {
         let transform_flags = self.arena.transform_flags(original);
         let mut data = record.data();
         try_visit_each_child(&mut data, self)?;
+        if self.source != self.target {
+            // A copy into another source stores its literal texts there.
+            let (source, target, arena) = (self.source, self.target, &mut *self.arena);
+            let mut failed = None;
+            tsc_syntax::remap_node_data_ids(
+                &mut data,
+                |id| id,
+                |id| id,
+                |text| {
+                    if text == tsc_syntax::TextId::EMPTY {
+                        return text;
+                    }
+                    let copied = arena
+                        .text(source, text)
+                        .map(<[u8]>::to_vec)
+                        .and_then(|bytes| arena.push_text(target, &bytes));
+                    copied.unwrap_or_else(|error| {
+                        failed = Some(error);
+                        text
+                    })
+                },
+            );
+            if let Some(error) = failed {
+                return Err(error);
+            }
+        }
         let js_doc = record
             .js_doc
             .map(|array| self.clone_array(array))

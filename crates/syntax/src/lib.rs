@@ -17,6 +17,7 @@ mod recovery;
 pub mod regex;
 mod regex_unicode;
 mod relocate;
+pub use relocate::remap_node_data_ids;
 pub use tsc_store::tails::Tails;
 pub mod scanner;
 mod script_kind;

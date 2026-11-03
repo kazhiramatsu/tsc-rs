@@ -1560,7 +1560,11 @@ def render_relocate_rs(kinds):
     out += ["}", "}", ""]
 
     out.append(
-        "pub(crate) fn remap_node_data_ids<N, A, T>(data: &mut NodeData, mut node: N, mut array: A, mut text: T)"
+        "/// Rewrite each identity of `data` (child nodes, node arrays, literal texts) through the three maps:"
+    )
+    out.append("/// a payload copied into another tree names that tree's nodes and texts.")
+    out.append(
+        "pub fn remap_node_data_ids<N, A, T>(data: &mut NodeData, mut node: N, mut array: A, mut text: T)"
     )
     out += [
         "where",
