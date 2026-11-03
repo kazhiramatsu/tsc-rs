@@ -185,10 +185,11 @@ impl<'a> BinderWorker<'a> {
 
     /// tsc isInJSFile: the JavaScriptFile node flag. Every node in a
     /// JS file carries it (parser context flags); the root carries
-    /// sourceFlags, so the file-level question reads the root.
+    /// sourceFlags, so the file-level question reads the root (once, when
+    /// the binder is made: the binder never changes the flag).
+    #[inline]
     pub(crate) fn is_in_js_file(&self) -> bool {
-        self.flags_of(self.source.root)
-            .intersects(NodeFlags::JAVA_SCRIPT_FILE)
+        self.in_js_file
     }
 
     /// tsc-port: addToContainerChain @6.0.3
@@ -207,6 +208,7 @@ impl<'a> BinderWorker<'a> {
     pub fn ensure_locals(&mut self, node: NodeId) {
         if let std::collections::hash_map::Entry::Vacant(entry) = self.locals.entry(node) {
             entry.insert(SymbolTable::default());
+            self.set_has_locals(node, true);
             self.add_to_container_chain(node);
         }
     }
@@ -234,6 +236,7 @@ impl<'a> BinderWorker<'a> {
             self.block_scope_container = Some(node);
             if container_flags.intersects(ContainerFlags::HAS_LOCALS) {
                 self.locals.insert(node, SymbolTable::default());
+                self.set_has_locals(node, true);
                 self.add_to_container_chain(node);
             }
         } else if container_flags.intersects(ContainerFlags::IS_BLOCK_SCOPED_CONTAINER) {
@@ -242,6 +245,7 @@ impl<'a> BinderWorker<'a> {
                 // Cleared here, created lazily on the first block-scoped
                 // declaration (ensure_locals).
                 self.locals.remove(&node);
+                self.set_has_locals(node, false);
             }
         }
 

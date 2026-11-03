@@ -48,6 +48,9 @@ pub enum TableRef {
 /// `SymbolTable`. Construct identity maps with `Default` or `collect`.
 pub struct BinderWorker<'a> {
     pub source: &'a SourceFile,
+    /// tsc isInJSFile of the file: the root's parse-time JavaScriptFile flag,
+    /// read once (the walk asks for every node).
+    pub(crate) in_js_file: bool,
     /// tsc file.commonJsModuleIndicator.
     pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
@@ -358,6 +361,8 @@ impl<'a> BinderWorker<'a> {
         let node_count = source.arena.nodes().len();
         Self {
             source,
+            in_js_file: crate::node_util::node_flags(source, source.root)
+                .intersects(NodeFlags::JAVA_SCRIPT_FILE),
             common_js_module_indicator: None,
             symbols,
             node_symbol: NodeSymbolMap::for_tree(&source.arena),
@@ -415,6 +420,20 @@ impl<'a> BinderWorker<'a> {
         let index = (node.index() - self.source.arena.node_base()) as usize;
         self.node_flags_mut
             .get(index, self.source.arena.nodes()[index].flags)
+    }
+
+    /// Keep `node`'s `HAS_LOCALS` bit equal to whether it has a locals table:
+    /// every site that creates or drops a table calls this, and a name lookup
+    /// tests the bit before it looks for a table.
+    pub(crate) fn set_has_locals(&mut self, node: NodeId, has_locals: bool) {
+        let index = (node.index() - self.source.arena.node_base()) as usize;
+        self.node_flags_mut.set_has_locals(index, has_locals);
+    }
+
+    /// `node`'s locals table, created (with its bit) on first use.
+    pub(crate) fn locals_entry(&mut self, node: NodeId) -> &mut SymbolTable {
+        self.set_has_locals(node, true);
+        self.locals.entry(node).or_default()
     }
 
     pub fn set_flags_of(&mut self, node: NodeId, flags: NodeFlags) {
@@ -646,7 +665,7 @@ impl<'a> BinderWorker<'a> {
 
     fn table(&mut self, table: TableRef) -> &SymbolTable {
         match table {
-            TableRef::Locals(node) => self.locals.entry(node).or_default(),
+            TableRef::Locals(node) => self.locals_entry(node),
             TableRef::Members(symbol) => self.symbols.symbol(symbol).members(),
             TableRef::Exports(symbol) => self.symbols.symbol(symbol).exports(),
             TableRef::GlobalExports(symbol) => &self.symbols.symbol(symbol).extras().global_exports,
@@ -655,7 +674,7 @@ impl<'a> BinderWorker<'a> {
 
     fn table_mut(&mut self, table: TableRef) -> &mut SymbolTable {
         match table {
-            TableRef::Locals(node) => self.locals.entry(node).or_default(),
+            TableRef::Locals(node) => self.locals_entry(node),
             TableRef::Members(symbol) => {
                 Arc::make_mut(self.symbols.symbol_mut(symbol).members_mut())
             }
@@ -1273,6 +1292,7 @@ impl BinderWorker<'_> {
     ) -> Result<(), IdentityError> {
         let Self {
             source: _,
+            in_js_file: _,
             common_js_module_indicator: _,
             symbols,
             node_symbol,
@@ -1513,6 +1533,7 @@ impl BinderWorker<'_> {
     pub fn into_bind_data(self) -> BindData {
         let Self {
             source: _,
+            in_js_file: _,
             common_js_module_indicator,
             symbols,
             node_symbol,
@@ -1561,6 +1582,8 @@ impl BinderWorker<'_> {
             child_scratch: _,
             tree_claim,
         } = self;
+        let mut flow = flow;
+        flow.shrink_to_fit();
         BindData {
             common_js_module_indicator,
             symbols,
@@ -1609,6 +1632,11 @@ const BINDER_NODE_FLAGS: [NodeFlags; 6] = [
 
 const BINDER_NODE_FLAG_MASK: i32 = unpack_binder_node_flags(u8::MAX);
 
+/// A bit of the overlay byte past the node flags: the node is a scope with
+/// locals (a key of the bound file's `locals`), so a name lookup tests one
+/// byte before it looks for the table.
+const HAS_LOCALS: u8 = 1 << BINDER_NODE_FLAGS.len();
+
 /// `unpack_binder_node_flags` of every byte the overlay can hold.
 const BINDER_NODE_FLAG_VALUES: [i32; 256] = {
     let mut values = [0; 256];
@@ -1653,6 +1681,12 @@ pub fn published_node_flags(node: NodeId) -> NodeFlags {
     tsc_store::get::<PackedNodeFlags>(node.position()).over(parsed)
 }
 
+/// Whether a published, bound node has locals (`container.locals`).
+#[inline(always)]
+pub fn published_has_locals(node: NodeId) -> bool {
+    tsc_store::get::<PackedNodeFlags>(node.position()).0 & HAS_LOCALS != 0
+}
+
 impl BinderNodeFlags {
     fn new(arena: &NodeArena) -> Self {
         let mut flags = if arena.is_published() {
@@ -1679,7 +1713,17 @@ impl BinderNodeFlags {
     }
 
     fn set(&mut self, index: usize, flags: NodeFlags) {
-        self.0[index] = PackedNodeFlags(pack_binder_node_flags(flags.bits()));
+        let has_locals = self.0[index].0 & HAS_LOCALS;
+        self.0[index] = PackedNodeFlags(pack_binder_node_flags(flags.bits()) | has_locals);
+    }
+
+    /// Set or clear the `HAS_LOCALS` bit of the node at `index`.
+    fn set_has_locals(&mut self, index: usize, has_locals: bool) {
+        if has_locals {
+            self.0[index].0 |= HAS_LOCALS;
+        } else {
+            self.0[index].0 &= !HAS_LOCALS;
+        }
     }
 }
 

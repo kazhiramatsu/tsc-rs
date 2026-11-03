@@ -1554,7 +1554,7 @@ fn import_publication_declaration_references_match_typescript_resolver() {
                     )
                 })
                 .filter_map(|id| {
-                    node_util::get_name_of_declaration(source, id).map(|name| (id, name))
+                    node_util::get_name_of_declaration(&**source, id).map(|name| (id, name))
                 })
                 .collect::<Vec<_>>();
             let expected = case["observations"].as_array().unwrap();

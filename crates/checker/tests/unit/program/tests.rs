@@ -348,3 +348,28 @@ fn registry_tells_parse_and_domain_addresses_apart() {
         )
         .is_some());
 }
+
+/// The binder marks every scope with locals in the node's flag byte, so
+/// `locals_of` answers every other node from that byte: the tables it finds
+/// are exactly the bound file's.
+#[test]
+fn locals_are_found_for_exactly_the_scopes_that_have_them() {
+    let text = "function f(a: number) { let b = a; { const c = b; } }\n\
+                const g = (x: string) => x;\n\
+                class K { m() { for (let i = 0; i < 1; i++) {} } }\n";
+    crate::state::test_support::with_program_state(
+        &[("scopes.ts", text)],
+        &CompilerOptions::default(),
+        |state| {
+            let bound = state.binder.file(0);
+            let source = state.binder.source(0);
+            let mut scopes = 0;
+            for node in source.arena.node_ids() {
+                let found = state.binder.locals_of(node).is_some();
+                assert_eq!(found, bound.locals.contains_key(&node), "{node:?}");
+                scopes += usize::from(found);
+            }
+            assert!(scopes >= 5, "the source file, functions, blocks and loop");
+        },
+    );
+}

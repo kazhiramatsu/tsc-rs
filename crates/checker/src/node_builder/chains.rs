@@ -1919,10 +1919,8 @@ fn create_access_from_symbol_chain(
                 .declarations
                 .iter()
                 .find_map(|&declaration| {
-                    let name = node_util::get_name_of_declaration(
-                        checker.binder.source_of_node(declaration),
-                        declaration,
-                    )?;
+                    let name =
+                        node_util::get_name_of_declaration(&tsc_syntax::Published, declaration)?;
                     let NodeData::ComputedPropertyName(data) = checker.data_of(name) else {
                         return None;
                     };
@@ -2710,10 +2708,8 @@ fn cloned_hash_private_name(
     let Some(value_declaration) = checker.binder.symbol(symbol).value_declaration else {
         return Ok(None);
     };
-    let Some(name) = node_util::get_name_of_declaration(
-        checker.binder.source_of_node(value_declaration),
-        value_declaration,
-    ) else {
+    let Some(name) = node_util::get_name_of_declaration(&tsc_syntax::Published, value_declaration)
+    else {
         return Ok(None);
     };
     if checker.kind_of(name) != SyntaxKind::PrivateIdentifier {
@@ -3144,10 +3140,9 @@ pub(crate) fn symbol_to_node(
         .contains(EmitInternalNodeBuilderFlags::WRITE_COMPUTED_PROPS)
     {
         if let Some(value_declaration) = checker.binder.symbol(symbol).value_declaration {
-            if let Some(name) = node_util::get_name_of_declaration(
-                checker.binder.source_of_node(value_declaration),
-                value_declaration,
-            ) {
+            if let Some(name) =
+                node_util::get_name_of_declaration(&tsc_syntax::Published, value_declaration)
+            {
                 if checker.kind_of(name) == SyntaxKind::ComputedPropertyName {
                     if let Some(name) = project_parse_node(checker, arena, name)? {
                         return Ok(name);

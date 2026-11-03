@@ -3215,18 +3215,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let Some(target_declaration) = self.st.signature_of(target_signature).declaration else {
             return Ok(true);
         };
-        let source_file = self.st.binder.source_of_node(source_declaration);
-        let target_file = self.st.binder.source_of_node(target_declaration);
         let non_public = ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
         let source_accessibility = ModifierFlags::from_bits(
-            tsc_binder::node_util::get_combined_modifier_flags(source_file, source_declaration)
-                .bits()
-                & non_public.bits(),
+            self.st.combined_modifier_flags(source_declaration).bits() & non_public.bits(),
         );
         let target_accessibility = ModifierFlags::from_bits(
-            tsc_binder::node_util::get_combined_modifier_flags(target_file, target_declaration)
-                .bits()
-                & non_public.bits(),
+            self.st.combined_modifier_flags(target_declaration).bits() & non_public.bits(),
         );
         if target_accessibility.intersects(ModifierFlags::PRIVATE) {
             return Ok(true);
@@ -6077,10 +6071,7 @@ impl<'a> CheckerState<'a> {
                         .flatten()
                 })
                 .unwrap_or(value_declaration);
-            let flags = tsc_binder::node_util::get_combined_modifier_flags(
-                self.binder.source_of_node(declaration),
-                declaration,
-            );
+            let flags = self.combined_modifier_flags(declaration);
             let parent_is_class = self.binder.symbol(symbol).parent.is_some_and(|parent| {
                 self.binder
                     .symbol(parent)

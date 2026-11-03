@@ -5129,7 +5129,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         let computed_name = self.binder.symbol(prop).value_declaration.and_then(|decl| {
-            tsc_binder::node_util::get_name_of_declaration(self.binder.source_of_node(decl), decl)
+            tsc_binder::node_util::get_name_of_declaration(&tsc_syntax::Published, decl)
                 .filter(|&name| matches!(self.data_of(name), NodeData::ComputedPropertyName(_)))
         });
         if let Some(name) = computed_name {
@@ -5817,11 +5817,7 @@ impl<'a> CheckerState<'a> {
 
         if !declarations.is_empty() {
             let named_declaration = declarations.iter().copied().find(|&declaration| {
-                node_util::get_name_of_declaration(
-                    self.binder.source_of_node(declaration),
-                    declaration,
-                )
-                .is_some()
+                node_util::get_name_of_declaration(&tsc_syntax::Published, declaration).is_some()
             });
             if named_declaration.is_some() {
                 return named(self.symbol_name_as_written(symbol));
@@ -9205,10 +9201,8 @@ impl<'a> CheckerState<'a> {
         {
             return false;
         }
-        tsc_binder::get_assignment_declaration_kind(
-            self.binder.source_of_node(assignment),
-            assignment,
-        ) == tsc_binder::AssignmentDeclarationKind::ThisProperty
+        tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published, assignment)
+            == tsc_binder::AssignmentDeclarationKind::ThisProperty
     }
 
     /// Generic or error-containing mapped types preserve their mapped
@@ -13798,7 +13792,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<JsString> {
         if let Some(value_declaration) = self.binder.symbol(property).value_declaration {
             let name = tsc_binder::node_util::get_name_of_declaration(
-                self.binder.source_of_node(value_declaration),
+                &tsc_syntax::Published,
                 value_declaration,
             );
             if let Some(name) = name {
@@ -13929,10 +13923,8 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
         name_type_flags: Option<TypeFlags>,
     ) -> bool {
-        let name = tsc_binder::node_util::get_name_of_declaration(
-            self.binder.source_of_node(declaration),
-            declaration,
-        );
+        let name =
+            tsc_binder::node_util::get_name_of_declaration(&tsc_syntax::Published, declaration);
         let Some(name) = name else {
             return false;
         };

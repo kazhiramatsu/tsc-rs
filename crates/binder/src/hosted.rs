@@ -9,8 +9,8 @@
 //! order) and records each decision in `tsc_syntax::JsDocHosted`.
 
 use tsc_syntax::{
-    for_each_child, HostedCast, HostedTypeParameters, JsDocHosted, NodeData, NodeId, SourceFile,
-    SyntaxKind,
+    for_each_child, HostedCast, HostedTypeParameters, JsDocHosted, NodeData, NodeId, NodeLookup,
+    SourceFile, SyntaxKind,
 };
 use tsc_types::NodeFlags;
 
@@ -89,32 +89,33 @@ pub fn typedef_type_parameter_range(source: &SourceFile, tag: NodeId) -> Option<
 /// The function, method or constructor an `@overload` tag is reparsed into an
 /// overload of (reparser.go:138-142): its JSDoc's host, outside object
 /// literals.
-pub fn reparsed_overload_host(source: &SourceFile, tag: NodeId) -> Option<NodeId> {
+pub fn reparsed_overload_host(tree: &impl NodeLookup, tag: NodeId) -> Option<NodeId> {
     // The reparser runs for JavaScript files only (parser/jsdoc.go:
     // `if p.isJavaScript() { p.reparseTags(node, jsdoc) }`): an `@overload`
     // in a TypeScript file declares nothing, and the function's value
     // declaration — whose tags-only JSDoc documents an alias hover — stays
     // the first written one.
-    if !node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE) {
+    // Every node of a JavaScript file carries the parser's JavaScriptFile
+    // flag, the tag included.
+    if !node_flags(tree, tag).intersects(NodeFlags::JAVA_SCRIPT_FILE) {
         return None;
     }
-    let host = source
-        .arena
+    let host = tree
         .node(tag)
         .parent
-        .and_then(|document| source.arena.node(document).parent)?;
+        .and_then(|document| tree.node(document).parent)?;
     if !matches!(
-        kind_of(source, host),
+        kind_of(tree, host),
         SyntaxKind::FunctionDeclaration | SyntaxKind::MethodDeclaration | SyntaxKind::Constructor
     ) {
         return None;
     }
-    let mut ancestor = source.arena.node(host).parent;
+    let mut ancestor = tree.node(host).parent;
     while let Some(node) = ancestor {
-        if kind_of(source, node) == SyntaxKind::ObjectLiteralExpression {
+        if kind_of(tree, node) == SyntaxKind::ObjectLiteralExpression {
             return None;
         }
-        ancestor = source.arena.node(node).parent;
+        ancestor = tree.node(node).parent;
     }
     Some(host)
 }

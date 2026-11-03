@@ -77,8 +77,17 @@ impl CheckerState<'_> {
     }
 
     /// A sampled event of a node's check with tsgo's arguments: the node's
-    /// kind, its range and its file.
+    /// kind, its range and its file. Inline, so an untraced check (every
+    /// expression's) pays one branch, not a call.
+    #[inline]
     pub(crate) fn trace_node_sample(&self, name: &'static str, node: NodeId) -> Option<Sample> {
+        self.tracer.as_ref()?;
+        self.trace_node_sample_with_tracer(name, node)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn trace_node_sample_with_tracer(&self, name: &'static str, node: NodeId) -> Option<Sample> {
         self.trace_sample(Phase::Check, name, || {
             let source = self.binder.source_of_node(node);
             let record = Published.node(node);

@@ -448,7 +448,7 @@ impl NodeLinksCold {
 /// instantiated symbols, the bulk of the records on a large program, carry
 /// their check flags, target and mapper. The other SymbolLinks fields, except
 /// the name type most symbol reads consult, live in [`SymbolLinksCold`].
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct SymbolLinks {
     /// tsc links.declaredType (getDeclaredTypeOfClassOrInterface 57381).
     pub declared_type: IdSlot<TypeId>,
@@ -475,6 +475,32 @@ pub struct SymbolLinks {
 }
 
 const _: () = assert!(std::mem::size_of::<SymbolLinks>() == 28);
+
+/// The SymbolLinks of a persistent (binder) symbol: the fields tsc writes on
+/// any symbol. Check flags, target, mapper and name type exist only on
+/// transient symbols (tsc's `TransientSymbol` links), so a persistent symbol
+/// reads them as unset, as `getCheckFlags` answers 0 for it.
+#[derive(Clone, Copy, Debug, Default)]
+struct PersistentSymbolLinks {
+    declared_type: IdSlot<TypeId>,
+    type_of_symbol: IdSlot<TypeId>,
+    is_referenced: tsc_types::SymbolFlags,
+}
+
+const _: () = assert!(std::mem::size_of::<PersistentSymbolLinks>() == 12);
+
+/// A persistent symbol as a paged-table key: its index, dense from zero.
+#[derive(Clone, Copy, Debug)]
+struct PersistentSymbol(SymbolId);
+
+/// The position of a transient symbol in its checker's dense table (`None`
+/// for a persistent symbol).
+#[inline]
+fn transient_index(id: SymbolId) -> Option<usize> {
+    let raw = id.index();
+    (raw & tsc_types::TRANSIENT_SYMBOL_BIT != 0)
+        .then_some((raw & !tsc_types::TRANSIENT_SYMBOL_BIT) as usize)
+}
 
 /// A module symbol's specifiers by mode-aware cache key, each with the
 /// import attributes type of the ambient module that named it.
@@ -743,17 +769,6 @@ pub struct TypeLinks {
     /// tsc type.mapper for ObjectFlags::INSTANTIATED anonymous types
     /// (63659).
     pub instantiated_mapper: Option<MapperId>,
-    /// tsc TypeParameter.target (cloneTypeParameter 63403 /
-    /// getRestrictiveTypeParameter 63400).
-    pub type_parameter_target: Option<TypeId>,
-    /// tsc TypeParameter.mapper (instantiateSignature 63418).
-    pub type_parameter_mapper: Option<MapperId>,
-    /// tsc TypeParameter.default (getResolvedTypeParameterDefault
-    /// 59043) — Resolved(noConstraintType) = computed, none;
-    /// Resolved(circularConstraintType) = the cycle sentinel. The
-    /// resolvingDefaultType in-flight sentinel is the checker's
-    /// in-progress set, so Err unwinds stay re-queryable.
-    pub type_parameter_default: IdSlot<TypeId>,
     /// tsc TypeReference.node for DEFERRED references
     /// (createDeferredTypeReference 60196): the TypeReference/ArrayType/
     /// TupleType node the lazy getTypeArguments reads. `Some` IS the
@@ -763,12 +778,23 @@ pub struct TypeLinks {
     pub deferred_node: Option<NodeId>,
 }
 
-const _: () = assert!(std::mem::size_of::<TypeLinks>() == 36);
+const _: () = assert!(std::mem::size_of::<TypeLinks>() == 24);
 
 /// The TypeLinks fields few types set, one sparse map per field (see
 /// [`SparseLinks`]).
 #[derive(Debug, Default)]
 pub struct TypeLinksCold {
+    /// tsc TypeParameter.target (cloneTypeParameter 63403 /
+    /// getRestrictiveTypeParameter 63400).
+    pub type_parameter_target: SparseLinks<TypeId, Option<TypeId>>,
+    /// tsc TypeParameter.mapper (instantiateSignature 63418).
+    pub type_parameter_mapper: SparseLinks<TypeId, Option<MapperId>>,
+    /// tsc TypeParameter.default (getResolvedTypeParameterDefault
+    /// 59043) — Resolved(noConstraintType) = computed, none;
+    /// Resolved(circularConstraintType) = the cycle sentinel. The
+    /// resolvingDefaultType in-flight sentinel is the checker's
+    /// in-progress set, so Err unwinds stay re-queryable.
+    pub type_parameter_default: SparseLinks<TypeId, IdSlot<TypeId>>,
     /// tsc MappedType.typeParameter (getTypeParameterFromMappedType
     /// 58601): declaration-derived and computed once.
     pub mapped_type_parameter: SparseLinks<TypeId, LinkSlot<TypeId>>,
@@ -947,6 +973,9 @@ impl TypeLinksCold {
 
     fn memory_usage(&self) -> (usize, usize) {
         let Self {
+            type_parameter_target,
+            type_parameter_mapper,
+            type_parameter_default,
             mapped_type_parameter,
             mapped_constraint_type,
             mapped_name_type,
@@ -986,6 +1015,9 @@ impl TypeLinksCold {
             iteration_types,
         } = self;
         sparse_memory_usage([
+            type_parameter_target.memory_usage(),
+            type_parameter_mapper.memory_usage(),
+            type_parameter_default.memory_usage(),
             mapped_type_parameter.memory_usage(),
             mapped_constraint_type.memory_usage(),
             mapped_name_type.memory_usage(),
@@ -1189,9 +1221,15 @@ impl<K, T> PagedTable<K, T> {
 impl LinksTables {
     /// The node, symbol and type link records and their sparse fields, by
     /// entries and bytes (memory accounting).
-    pub(crate) fn memory_usage(&self) -> [(&'static str, usize, usize); 6] {
+    pub(crate) fn memory_usage(&self) -> [(&'static str, usize, usize); 7] {
         let node = self.node.memory_usage();
-        let symbol = self.symbol.memory_usage();
+        let persistent = self.persistent_symbols.memory_usage();
+        // The transient and type tables are reserved up front; the untouched
+        // tail is address space, so they count by length.
+        let transient = (
+            self.transient_symbols.len(),
+            self.transient_symbols.len() * std::mem::size_of::<SymbolLinks>(),
+        );
         let ty = self.ty.memory_usage();
         let node_cold = self.node_cold.memory_usage();
         let symbol_cold = self.symbol_cold.memory_usage();
@@ -1199,7 +1237,12 @@ impl LinksTables {
         [
             ("links: node (NodeLinks)", node.0, node.1),
             ("links: node sparse fields", node_cold.0, node_cold.1),
-            ("links: symbol (SymbolLinks)", symbol.0, symbol.1),
+            ("links: persistent symbol", persistent.0, persistent.1),
+            (
+                "links: transient symbol (SymbolLinks)",
+                transient.0,
+                transient.1,
+            ),
             ("links: symbol sparse fields", symbol_cold.0, symbol_cold.1),
             ("links: type (TypeLinks)", ty.0, ty.1),
             ("links: type sparse fields", type_cold.0, type_cold.1),
@@ -1239,19 +1282,10 @@ impl DenseKey for NodeId {
     }
 }
 
-impl DenseKey for SymbolId {
-    /// Persistent (binder) ids and checker-transient ids (those carrying
-    /// `TRANSIENT_SYMBOL_BIT`) are each dense from zero; interleaving them
-    /// keeps both in the dense page range instead of letting the transient
-    /// bit address page 2^21.
+impl DenseKey for PersistentSymbol {
     #[inline]
     fn dense_index(self) -> usize {
-        let raw = self.index();
-        if raw & tsc_types::TRANSIENT_SYMBOL_BIT != 0 {
-            ((raw & !tsc_types::TRANSIENT_SYMBOL_BIT) as usize) * 2 + 1
-        } else {
-            (raw as usize) * 2
-        }
+        self.0.index() as usize
     }
 }
 
@@ -1276,6 +1310,46 @@ const CHUNK_RECORDS: usize = 1 << CHUNK_SHIFT;
 /// reach it. VS Code's node ids reach 17 million and its symbols' dense
 /// indices 34 million.
 const DENSE_PAGES: usize = 1 << 18;
+
+/// Links of a checker's own types, by type index: a checker's type ids are
+/// dense from zero, so the records sit in one vector (an unwritten record
+/// in range is the default, tsc's unset fields) and a read is a bounds
+/// check and a load.
+#[derive(Debug, Default)]
+struct DenseLinks<T> {
+    records: Vec<T>,
+}
+
+impl<T: Default> DenseLinks<T> {
+    #[inline]
+    fn get(&self, id: TypeId) -> Option<&T> {
+        self.records.get(id.index() as usize)
+    }
+
+    /// The record for `id`, grown on the first write past the end.
+    #[inline]
+    fn slot(&mut self, id: TypeId) -> &mut T {
+        let index = id.index() as usize;
+        if index >= self.records.len() {
+            self.records.resize_with(index + 1, T::default);
+        }
+        &mut self.records[index]
+    }
+
+    fn reserve(&mut self, additional: usize) {
+        self.records.reserve(additional);
+    }
+
+    /// Records and their bytes (memory accounting). The vector is reserved
+    /// up front and its untouched tail is address space, so it counts by
+    /// length.
+    fn memory_usage(&self) -> (usize, usize) {
+        (
+            self.records.len(),
+            self.records.len() * std::mem::size_of::<T>(),
+        )
+    }
+}
 
 /// Side table keyed by a dense compiler-assigned id.
 ///
@@ -1315,8 +1389,16 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
         if page_index < DENSE_PAGES {
             self.index.get(page_index)?.as_deref()
         } else {
-            self.far.get(&page_index).map(|page| &**page)
+            self.far_page(page_index)
         }
+    }
+
+    /// A page beyond the dense range: rare, so its hash lookup stays out of
+    /// every inlined `get`.
+    #[cold]
+    #[inline(never)]
+    fn far_page(&self, page_index: usize) -> Option<&[u32; PAGE_IDS]> {
+        self.far.get(&page_index).map(|page| &**page)
     }
 
     #[inline]
@@ -1374,8 +1456,16 @@ pub struct LinksTables {
     // hashing, no rehash, records never move. Their iteration order is not
     // observable. Keep the other cache and public field types unchanged.
     node: PagedTable<NodeId, NodeLinks>,
-    symbol: PagedTable<SymbolId, SymbolLinks>,
-    ty: PagedTable<TypeId, TypeLinks>,
+    /// The links of the binder's symbols (see [`PersistentSymbolLinks`]).
+    persistent_symbols: PagedTable<PersistentSymbol, PersistentSymbolLinks>,
+    /// The links of this checker's transient symbols, by their dense
+    /// position: one bounds check and one load, no index pages. Every
+    /// transient symbol gets links, so the table is dense; it grows on the
+    /// first write past its end (an unwritten record reads as unset).
+    transient_symbols: Vec<SymbolLinks>,
+    /// A checker's type ids are dense from zero: a read is a bounds check
+    /// and a load (see [`DenseLinks`]).
+    ty: DenseLinks<TypeLinks>,
     // The fields few records set, one sparse map per field.
     node_cold: NodeLinksCold,
     symbol_cold: SymbolLinksCold,
@@ -1386,7 +1476,6 @@ pub struct LinksTables {
     // never mutated (writes go through the maps' entries), so every reader
     // observes exactly `Default::default()`.
     absent_node: NodeLinks,
-    absent_symbol: SymbolLinks,
     absent_ty: TypeLinks,
     /// Trial-local resolvedSignature protocol writes. Nested call
     /// resolution needs its Resolving sentinel and failure stash while
@@ -1507,20 +1596,26 @@ impl LinksTables {
 
     /// Number of symbol records this table holds (trace evidence).
     pub(crate) fn symbol_len(&self) -> usize {
-        self.symbol.len
+        self.persistent_symbols.len + self.transient_symbols.len()
+    }
+
+    /// Size the transient symbols' table for `additional` symbols up front,
+    /// as their arena is (untouched capacity stays virtual).
+    pub(crate) fn reserve_transient_symbols(&mut self, additional: usize) {
+        self.transient_symbols.reserve(additional);
+    }
+
+    /// Size the type links' table for `additional` types up front, as the
+    /// type table is.
+    pub(crate) fn reserve_types(&mut self, additional: usize) {
+        self.ty.reserve(additional);
     }
 
     /// tsrs-native: owned projection of an immutable symbol-links field.
     #[inline]
     pub(crate) fn read_symbol<R>(&self, id: SymbolId, read: impl FnOnce(&SymbolLinks) -> R) -> R {
         perf::bump(PerfCounter::LinksSymbolReads);
-        match self.symbol.get(id) {
-            Some(links) => read(links),
-            None => {
-                perf::bump(PerfCounter::LinksSymbolReadAbsent);
-                read(&self.absent_symbol)
-            }
-        }
+        read(&self.symbol(id))
     }
 
     /// tsrs-native: owned projection of an immutable type-links field.
@@ -1545,10 +1640,82 @@ impl LinksTables {
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
-    /// links-field access; no standalone tsc function. By reference, as
-    /// [`LinksTables::node`].
-    pub fn symbol(&self, id: SymbolId) -> &SymbolLinks {
-        self.symbol.get(id).unwrap_or(&self.absent_symbol)
+    /// links-field access; no standalone tsc function. A copy of the record
+    /// (all unset when none was written): a persistent symbol's has unset
+    /// transient-only fields.
+    #[inline]
+    pub fn symbol(&self, id: SymbolId) -> SymbolLinks {
+        match transient_index(id) {
+            Some(index) => self
+                .transient_symbols
+                .get(index)
+                .copied()
+                .unwrap_or_default(),
+            None => match self.persistent_symbols.get(PersistentSymbol(id)) {
+                Some(links) => SymbolLinks {
+                    declared_type: links.declared_type,
+                    type_of_symbol: links.type_of_symbol,
+                    is_referenced: links.is_referenced,
+                    ..SymbolLinks::default()
+                },
+                None => SymbolLinks::default(),
+            },
+        }
+    }
+
+    /// The record of a transient symbol, for its transient-only fields,
+    /// grown on the first write past the table's end.
+    #[inline]
+    fn transient_symbol_mut(&mut self, id: SymbolId) -> &mut SymbolLinks {
+        let Some(index) = transient_index(id) else {
+            panic!(
+                "check flags, target, mapper and name type belong to transient symbols, not {id:?}"
+            )
+        };
+        if index >= self.transient_symbols.len() {
+            self.transient_symbols
+                .resize(index + 1, SymbolLinks::default());
+        }
+        &mut self.transient_symbols[index]
+    }
+
+    /// `links.declaredType` of any symbol, for writing.
+    #[inline]
+    fn symbol_declared_type_mut(&mut self, id: SymbolId) -> &mut IdSlot<TypeId> {
+        if transient_index(id).is_some() {
+            &mut self.transient_symbol_mut(id).declared_type
+        } else {
+            &mut self
+                .persistent_symbols
+                .slot(PersistentSymbol(id))
+                .declared_type
+        }
+    }
+
+    /// `links.type` of any symbol, for writing.
+    #[inline]
+    fn symbol_type_mut(&mut self, id: SymbolId) -> &mut IdSlot<TypeId> {
+        if transient_index(id).is_some() {
+            &mut self.transient_symbol_mut(id).type_of_symbol
+        } else {
+            &mut self
+                .persistent_symbols
+                .slot(PersistentSymbol(id))
+                .type_of_symbol
+        }
+    }
+
+    /// `symbol.isReferenced` of any symbol, for writing.
+    #[inline]
+    fn symbol_is_referenced_mut(&mut self, id: SymbolId) -> &mut tsc_types::SymbolFlags {
+        if transient_index(id).is_some() {
+            &mut self.transient_symbol_mut(id).is_referenced
+        } else {
+            &mut self
+                .persistent_symbols
+                .slot(PersistentSymbol(id))
+                .is_referenced
+        }
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -1704,10 +1871,18 @@ impl LinksTables {
         if speculation_depth == 0 {
             return;
         }
+        // A transaction's entries leave the journal when it ends (they resolve
+        // LIFO), so this transaction's entries are the journal's last ones.
+        debug_assert!(self
+            .speculative_resolved_type_writes
+            .last()
+            .is_none_or(|(depth, ..)| *depth <= speculation_depth));
         if self
             .speculative_resolved_type_writes
             .iter()
-            .any(|(depth, node, _, _, _)| *depth == speculation_depth && *node == id)
+            .rev()
+            .take_while(|(depth, ..)| *depth == speculation_depth)
+            .any(|(_, node, ..)| *node == id)
         {
             return;
         }
@@ -1790,11 +1965,7 @@ impl LinksTables {
             }
             return;
         }
-        let previous = self
-            .symbol
-            .get(id)
-            .map(|links| links.type_of_symbol.get())
-            .unwrap_or_default();
+        let previous = self.symbol(id).type_of_symbol.get();
         self.speculative_symbol_type_writes.push(
             speculation_depth,
             id,
@@ -1972,9 +2143,9 @@ impl LinksTables {
             id,
             SpeculativeSymbolTypeDisposition::Temporary,
         );
-        let links = self.symbol.slot(id);
-        note_resolving_transition(links.type_of_symbol.is_resolving(), false);
-        links.type_of_symbol = LinkSlot::Resolved(value).into();
+        let slot = self.symbol_type_mut(id);
+        note_resolving_transition(slot.is_resolving(), false);
+        *slot = LinkSlot::Resolved(value).into();
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2481,7 +2652,7 @@ impl LinksTables {
                 .speculative_symbol_declared_type_writes
                 .pop()
                 .expect("length checked");
-            let slot = &mut self.symbol.slot(symbol).declared_type;
+            let slot = self.symbol_declared_type_mut(symbol);
             if slot.is_resolving() {
                 note_resolving_transition(true, previous.is_resolving());
                 *slot = previous.into();
@@ -2493,7 +2664,7 @@ impl LinksTables {
     /// value-type caches.
     pub fn restore_speculative_symbol_types(&mut self, mark: usize) {
         while let Some((symbol, write)) = self.speculative_symbol_type_writes.pop_above(mark) {
-            let slot = &mut self.symbol.slot(symbol).type_of_symbol;
+            let slot = self.symbol_type_mut(symbol);
             if slot.is_resolving() {
                 perf::bump(PerfCounter::LinksSymbolTypeRollbacks);
             }
@@ -2924,15 +3095,11 @@ impl LinksTables {
                 .iter()
                 .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
         {
-            let previous = self
-                .symbol
-                .get(id)
-                .map(|links| links.declared_type.get())
-                .unwrap_or_default();
+            let previous = self.symbol(id).declared_type.get();
             self.speculative_symbol_declared_type_writes
                 .push((speculation_depth, id, previous));
         }
-        Self::write_id_slot(&mut self.symbol.slot(id).declared_type, value);
+        Self::write_id_slot(self.symbol_declared_type_mut(id), value);
     }
 
     /// tsrs-native: declared type-parameter singleton initialization.
@@ -2944,7 +3111,7 @@ impl LinksTables {
     /// when a candidate transaction closes. This path is restricted to
     /// the diagnostic-free declared-type-parameter constructor.
     pub fn set_fresh_symbol_declared_type(&mut self, id: SymbolId, value: LinkSlot<TypeId>) {
-        Self::write_id_slot(&mut self.symbol.slot(id).declared_type, value);
+        Self::write_id_slot(self.symbol_declared_type_mut(id), value);
     }
 
     /// tsrs-native: publish a class or interface declared-type identity
@@ -2965,7 +3132,7 @@ impl LinksTables {
         id: SymbolId,
         value: LinkSlot<TypeId>,
     ) {
-        Self::write_id_slot(&mut self.symbol.slot(id).declared_type, value);
+        Self::write_id_slot(self.symbol_declared_type_mut(id), value);
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2981,7 +3148,7 @@ impl LinksTables {
             id,
             SpeculativeSymbolTypeDisposition::Temporary,
         );
-        Self::write_id_slot(&mut self.symbol.slot(id).type_of_symbol, value);
+        Self::write_id_slot(self.symbol_type_mut(id), value);
     }
 
     /// Retain a completed declaration-owned value type across completed
@@ -3002,7 +3169,7 @@ impl LinksTables {
             id,
             SpeculativeSymbolTypeDisposition::CompletedOnceResult,
         );
-        Self::write_id_slot(&mut self.symbol.slot(id).type_of_symbol, value);
+        Self::write_id_slot(self.symbol_type_mut(id), value);
     }
 
     /// tsrs-native: candidate-local contextual symbol initialization.
@@ -3023,7 +3190,7 @@ impl LinksTables {
             id,
             SpeculativeSymbolTypeDisposition::CompletedOnceResult,
         );
-        let slot = &mut self.symbol.slot(id).type_of_symbol;
+        let slot = self.symbol_type_mut(id);
         note_resolving_transition(slot.is_resolving(), value.is_resolving());
         *slot = value.into();
     }
@@ -3034,7 +3201,7 @@ impl LinksTables {
     /// symbol. The symbol and this slot form one semantic object, so
     /// construction is safe inside a candidate trial.
     pub fn set_fresh_symbol_type(&mut self, id: SymbolId, value: LinkSlot<TypeId>) {
-        Self::write_id_slot(&mut self.symbol.slot(id).type_of_symbol, value);
+        Self::write_id_slot(self.symbol_type_mut(id), value);
     }
 
     /// tsrs-native: links-table setter (tsc plain property write).
@@ -3055,7 +3222,7 @@ impl LinksTables {
             id,
             SpeculativeSymbolTypeDisposition::Temporary,
         );
-        self.symbol.slot(id).type_of_symbol = LinkSlot::Resolved(value).into();
+        *self.symbol_type_mut(id) = LinkSlot::Resolved(value).into();
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -3069,7 +3236,7 @@ impl LinksTables {
         type_of_symbol: TypeId,
     ) {
         let _ = speculation_depth;
-        let links = self.symbol.slot(id);
+        let links = self.transient_symbol_mut(id);
         links.check_flags = check_flags;
         Self::write_id_slot(
             &mut links.type_of_symbol,
@@ -3094,7 +3261,7 @@ impl LinksTables {
         constituents: Vec<TypeId>,
         write_constituents: Option<Vec<TypeId>>,
     ) {
-        self.symbol.slot(id).check_flags = tsc_types::CheckFlags::from_bits(
+        self.transient_symbol_mut(id).check_flags = tsc_types::CheckFlags::from_bits(
             check_flags.bits() | tsc_types::CheckFlags::DEFERRED_TYPE.bits(),
         );
         let cold = &mut self.symbol_cold;
@@ -3194,7 +3361,7 @@ impl LinksTables {
         check_flags: tsc_types::CheckFlags,
     ) {
         let _ = speculation_depth;
-        self.symbol.slot(id).check_flags = check_flags;
+        self.transient_symbol_mut(id).check_flags = check_flags;
     }
 
     /// `links.nameType = ...` on a fresh transient symbol (getSpreadSymbol
@@ -3208,7 +3375,7 @@ impl LinksTables {
         name_type: Option<TypeId>,
     ) {
         let _ = speculation_depth;
-        self.symbol.slot(id).name_type = name_type;
+        self.transient_symbol_mut(id).name_type = name_type;
     }
 
     /// tsc-port: getSpecifierForModuleSymbol @6.0.3 (links.specifierCache write)
@@ -3267,7 +3434,7 @@ impl LinksTables {
         key_type: TypeId,
     ) {
         let _ = speculation_depth;
-        self.symbol.slot(id).name_type = Some(name_type);
+        self.transient_symbol_mut(id).name_type = Some(name_type);
         let cold = &mut self.symbol_cold;
         let previous_mapped_type = cold.mapped_type.replace(id, Some(mapped_type));
         let previous_key_type = cold.key_type.replace(id, Some(key_type));
@@ -3289,7 +3456,7 @@ impl LinksTables {
         constraint_type: TypeId,
     ) {
         let _ = speculation_depth;
-        self.symbol.slot(id).name_type = name_type;
+        self.transient_symbol_mut(id).name_type = name_type;
         let cold = &mut self.symbol_cold;
         let previous_property_type = cold.property_type.replace(id, Some(property_type));
         let previous_mapped_type = cold.mapped_type.replace(id, Some(mapped_type));
@@ -3315,7 +3482,7 @@ impl LinksTables {
             self.symbol_cold.mapped_type.get(id).is_some(),
             "only mapped symbols merge name/key links"
         );
-        self.symbol.slot(id).name_type = Some(name_type);
+        self.transient_symbol_mut(id).name_type = Some(name_type);
         self.symbol_cold.key_type.set(id, Some(key_type));
     }
 
@@ -3325,7 +3492,7 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_target(&mut self, speculation_depth: u32, id: SymbolId, target: SymbolId) {
         let _ = speculation_depth;
-        self.symbol.slot(id).target = Some(target);
+        self.transient_symbol_mut(id).target = Some(target);
     }
 
     /// `links.originatingImport = referenceParent` on a fresh interop
@@ -3462,7 +3629,7 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_is_referenced(&mut self, speculation_depth: u32, id: SymbolId) {
         let _ = speculation_depth;
-        self.symbol.slot(id).is_referenced = tsc_types::SymbolFlags::ALL;
+        *self.symbol_is_referenced_mut(id) = tsc_types::SymbolFlags::ALL;
     }
 
     /// tsrs-native: Links-table adapter for tsc resolveNameHelper
@@ -3475,7 +3642,7 @@ impl LinksTables {
         meaning: tsc_types::SymbolFlags,
     ) {
         let _ = speculation_depth;
-        self.symbol.slot(id).is_referenced |= meaning;
+        *self.symbol_is_referenced_mut(id) |= meaning;
     }
 
     /// tsrs-native: grow-only LinksTables setter for tsc
@@ -3874,19 +4041,6 @@ impl LinksTables {
         self.symbol_cold.late_symbol.clear(id);
     }
 
-    /// The instantiation root: follow links.target (instantiated /
-    /// mapped symbols) to the underlying declaration symbol.
-    fn instantiation_root(&self, id: SymbolId) -> SymbolId {
-        let mut current = id;
-        while let Some(target) = self.symbol.get(current).and_then(|links| links.target) {
-            if target == current {
-                break;
-            }
-            current = target;
-        }
-        current
-    }
-
     /// tsc reassigns links.resolvedSymbol unconditionally on every
     /// checkPropertyAccessExpression run — re-checks (the compound
     /// assignment writeOnly pass 80311, the condition-walker forcing
@@ -3914,15 +4068,6 @@ impl LinksTables {
         value: SymbolId,
     ) {
         self.journal_node_resolution(speculation_depth, id);
-        let sanctioned_rewrite = self
-            .node
-            .get(id)
-            .and_then(|links| links.resolved_symbol.resolved())
-            .is_some_and(|existing| {
-                existing != value
-                    && (*self.symbol_cold.late_symbol.get(existing) == Some(value)
-                        || self.instantiation_root(existing) == self.instantiation_root(value))
-            });
         let slot = &mut self.node.slot(id).resolved_symbol;
         match slot.get() {
             LinkSlot::Resolved(existing) if existing == value => {}
@@ -3933,7 +4078,6 @@ impl LinksTables {
             // property over the same declaration, or the late twin —
             // overwrites it, last write wins as in tsc.
             LinkSlot::Resolved(_) => {
-                let _ = (sanctioned_rewrite, speculation_depth);
                 *slot = LinkSlot::Resolved(value).into();
             }
             _ => {
@@ -3964,7 +4108,7 @@ impl LinksTables {
         mapper: Option<MapperId>,
     ) {
         let _ = speculation_depth;
-        self.symbol.slot(id).mapper = mapper;
+        self.transient_symbol_mut(id).mapper = mapper;
         self.symbol_cold
             .containing_type
             .set(id, Some(containing_type));
@@ -3983,7 +4127,7 @@ impl LinksTables {
         name_type: Option<TypeId>,
     ) {
         let _ = speculation_depth;
-        let links = self.symbol.slot(id);
+        let links = self.transient_symbol_mut(id);
         assert!(
             links.target.is_none() && links.mapper.is_none(),
             "instantiation links written twice for {id:?}"
@@ -4473,12 +4617,14 @@ impl LinksTables {
         target: TypeId,
     ) {
         let _ = speculation_depth;
-        let links = self.ty.slot(id);
+        let previous = self
+            .type_cold
+            .type_parameter_target
+            .replace(id, Some(target));
         assert!(
-            links.type_parameter_target.is_none(),
+            previous.is_none(),
             "type parameter target written twice for {id:?}"
         );
-        links.type_parameter_target = Some(target);
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -4487,7 +4633,7 @@ impl LinksTables {
         // Defaults are lazily derived from declarations (or a targeted
         // parameter) and can be recomputed after candidate speculation.
         Self::write_id_slot(
-            &mut self.ty.slot(id).type_parameter_default,
+            self.type_cold.type_parameter_default.slot(id),
             LinkSlot::Resolved(value),
         );
     }
@@ -4502,12 +4648,14 @@ impl LinksTables {
         mapper: MapperId,
     ) {
         let _ = speculation_depth;
-        let links = self.ty.slot(id);
+        let previous = self
+            .type_cold
+            .type_parameter_mapper
+            .replace(id, Some(mapper));
         assert!(
-            links.type_parameter_mapper.is_none(),
+            previous.is_none(),
             "type parameter mapper written twice for {id:?}"
         );
-        links.type_parameter_mapper = Some(mapper);
     }
 
     /// getDeclaredTypeOfTypeAlias's typeParameters stamp (57416).

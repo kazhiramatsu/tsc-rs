@@ -890,11 +890,9 @@ impl<'a> CheckerState<'a> {
             self.kind_of(parent),
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
         ) && self.kind_of(node) == SyntaxKind::PropertyDeclaration
-            && !tsc_binder::node_util::get_combined_modifier_flags(
-                self.binder.source_of_node(node),
-                node,
-            )
-            .intersects(ModifierFlags::ACCESSOR)
+            && !self
+                .combined_modifier_flags(node)
+                .intersects(ModifierFlags::ACCESSOR)
     }
 
     /// tsc-port: isThisProperty @6.0.3
@@ -2534,11 +2532,9 @@ impl<'a> CheckerState<'a> {
                     }
                     _ => false,
                 };
-            let is_static = tsc_binder::node_util::get_combined_modifier_flags(
-                self.binder.source_of_node(declaration),
-                declaration,
-            )
-            .intersects(ModifierFlags::STATIC);
+            let is_static = self
+                .combined_modifier_flags(declaration)
+                .intersects(ModifierFlags::STATIC);
             // tsgo (#64523): a `this` access under strictPropertyInitialization
             // never takes the assignment-declaration branch, so an inherited
             // field reassigned in JavaScript is not uninitialized.
@@ -2903,11 +2899,9 @@ impl<'a> CheckerState<'a> {
         let Some(value_declaration) = self.binder.symbol(prop).value_declaration else {
             return;
         };
-        let has_private_modifier = tsc_binder::node_util::get_combined_modifier_flags(
-            self.binder.source_of_node(value_declaration),
-            value_declaration,
-        )
-        .intersects(ModifierFlags::PRIVATE);
+        let has_private_modifier = self
+            .combined_modifier_flags(value_declaration)
+            .intersects(ModifierFlags::PRIVATE);
         let has_private_identifier = self
             .name_of_node(value_declaration)
             .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier);
@@ -3026,11 +3020,9 @@ impl<'a> CheckerState<'a> {
         };
         let static_method_exemption = self.kind_of(value_declaration)
             == SyntaxKind::MethodDeclaration
-            && tsc_binder::node_util::get_combined_modifier_flags(
-                self.binder.source_of_node(value_declaration),
-                value_declaration,
-            )
-            .intersects(ModifierFlags::STATIC);
+            && self
+                .combined_modifier_flags(value_declaration)
+                .intersects(ModifierFlags::STATIC);
         if self.is_in_property_initializer_or_class_static_block(node, false)
             && !is_optional_property
             && !node_is_nested_access
@@ -3459,11 +3451,9 @@ impl<'a> CheckerState<'a> {
         let Some(value_declaration) = self.binder.symbol(prop).value_declaration else {
             return Ok(false);
         };
-        Ok(tsc_binder::node_util::get_combined_modifier_flags(
-            self.binder.source_of_node(value_declaration),
-            value_declaration,
-        )
-        .intersects(ModifierFlags::STATIC))
+        Ok(self
+            .combined_modifier_flags(value_declaration)
+            .intersects(ModifierFlags::STATIC))
     }
 
     fn get_suggested_lib_for_non_existent_property(

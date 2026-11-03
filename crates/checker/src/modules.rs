@@ -95,7 +95,7 @@ pub(crate) struct UnresolvedProgramModule {
 }
 
 /// tsgo `core.UnprefixedNodeCoreModules`: the Node core modules importable
-/// without the `node:` prefix.
+/// without the `node:` prefix, in byte order (looked up by binary search).
 pub const UNPREFIXED_NODE_CORE_MODULES: &[&str] = &[
     "assert",
     "assert/strict",
@@ -160,22 +160,32 @@ pub const UNPREFIXED_NODE_CORE_MODULES: &[&str] = &[
 /// tsc-span: _tsc.js:19947-20016
 pub fn is_node_core_module<'n>(name: impl Into<JsStr<'n>>) -> bool {
     // The names are ASCII, so the text's bytes compare as the names do;
-    // a specifier is not interned just to be looked up.
+    // a specifier is not interned just to be looked up. Both lists are in
+    // byte order, so each lookup is a binary search.
     let name = name.into().as_bytes();
-    const EXCLUSIVELY_PREFIXED: &[&str] = &[
-        "node:quic",
-        "node:sea",
-        "node:sqlite",
-        "node:test",
-        "node:test/reporters",
-    ];
-    let listed = |names: &[&str], name: &[u8]| names.iter().any(|known| known.as_bytes() == name);
-    if listed(UNPREFIXED_NODE_CORE_MODULES, name) || listed(EXCLUSIVELY_PREFIXED, name) {
+    let listed = |names: &[&str], name: &[u8]| {
+        names
+            .binary_search_by(|known| known.as_bytes().cmp(name))
+            .is_ok()
+    };
+    if listed(UNPREFIXED_NODE_CORE_MODULES, name)
+        || listed(EXCLUSIVELY_PREFIXED_NODE_CORE_MODULES, name)
+    {
         return true;
     }
     name.strip_prefix(b"node:")
         .is_some_and(|unprefixed| listed(UNPREFIXED_NODE_CORE_MODULES, unprefixed))
 }
+
+/// The Node core modules importable only with the `node:` prefix, in byte
+/// order.
+const EXCLUSIVELY_PREFIXED_NODE_CORE_MODULES: &[&str] = &[
+    "node:quic",
+    "node:sea",
+    "node:sqlite",
+    "node:test",
+    "node:test/reporters",
+];
 
 impl ProgramModuleResolution {
     fn missed() -> Self {
@@ -2181,11 +2191,9 @@ impl<'a> CheckerState<'a> {
         self.is_in_js_file(declaration)
             && data.r#type.is_none()
             && self.reparsed_type_node(declaration).is_none()
-            && !tsc_binder::node_util::get_combined_modifier_flags(
-                self.binder.source_of_node(declaration),
-                declaration,
-            )
-            .intersects(ModifierFlags::EXPORT)
+            && !self
+                .combined_modifier_flags(declaration)
+                .intersects(ModifierFlags::EXPORT)
             && data
                 .initializer
                 .is_some_and(|initializer| self.is_require_call(initializer, true))
@@ -9524,11 +9532,9 @@ impl<'a> CheckerState<'a> {
                         }
                         if is_type
                             && self.kind_of(node) == SyntaxKind::ImportEqualsDeclaration
-                            && node_util::get_effective_modifier_flags(
-                                self.binder.source_of_node(node),
-                                node,
-                            )
-                            .intersects(ModifierFlags::EXPORT)
+                            && self
+                                .effective_modifier_flags(node)
+                                .intersects(ModifierFlags::EXPORT)
                         {
                             let option_name = if self.options.verbatim_module_syntax == Some(true) {
                                 "verbatimModuleSyntax"
@@ -10959,10 +10965,8 @@ impl<'a> CheckerState<'a> {
             // tsgo: names declared only by `exports.p = ...` assignments may
             // repeat.
             let all_exports_properties = declarations.iter().all(|&declaration| {
-                tsc_binder::get_assignment_declaration_kind(
-                    self.binder.source_of_node(declaration),
-                    declaration,
-                ) == tsc_binder::AssignmentDeclarationKind::ExportsProperty
+                tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published, declaration)
+                    == tsc_binder::AssignmentDeclarationKind::ExportsProperty
             });
             if exported_declarations_count > 1 && !all_exports_properties {
                 for &declaration in &declarations {

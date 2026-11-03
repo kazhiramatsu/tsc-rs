@@ -838,6 +838,24 @@ impl DenseOwners {
         }
     }
 
+    /// The file of the interval owning `id`: the interval just read holds
+    /// it, so no second array is read.
+    #[inline]
+    fn lookup_file(&self, id: u32) -> Option<usize> {
+        let page = (id >> OWNER_PAGE_SHIFT).checked_sub(self.first_page)? as usize;
+        let mut index = *self.pages.get(page)? as usize;
+        loop {
+            let owner = self.owners.get(index)?;
+            if id < owner.start {
+                return None;
+            }
+            if id < owner.end {
+                return Some(owner.file);
+            }
+            index += 1;
+        }
+    }
+
     fn is_empty(&self) -> bool {
         self.pages.is_empty()
     }
@@ -1115,22 +1133,18 @@ impl<'a> ProgramBinder<'a> {
     /// checker-owned emit resolver. Ordinary checker code already owns valid
     /// node identities and continues to use [`Self::file_index_of_node`].
     /// tsrs-native: validation for Rust's source-token/node-id pair.
+    ///
+    /// The page table answers (or the interval search, for a sparse
+    /// domain). A checker's lookups alternate between the file it checks
+    /// and the files its declarations come from, so a last-hit hint missed
+    /// about as often as it hit.
     #[inline]
     pub(crate) fn try_file_index_of_node(&self, node: NodeId) -> Option<usize> {
-        self.node_owner_index(node.index())
-            .map(|index| self.node_owners[index].file)
-    }
-
-    /// The node interval owning `id`: the page table (or the interval
-    /// search for a sparse domain). A checker's lookups alternate between
-    /// the file it checks and the files its declarations come from, so a
-    /// last-hit hint missed about as often as it hit.
-    #[inline]
-    fn node_owner_index(&self, id: u32) -> Option<usize> {
         if self.node_files.is_empty() {
-            Self::try_owner_index(&self.node_owners, id)
+            Self::try_owner_index(&self.node_owners, node.index())
+                .map(|index| self.node_owners[index].file)
         } else {
-            self.node_files.lookup_index(id)
+            self.node_files.lookup_file(node.index())
         }
     }
 
@@ -1270,7 +1284,24 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: binder-table projection for tsc's direct
     /// `container.locals` property access.
     pub fn locals_of(&self, scope: NodeId) -> Option<&SymbolTable> {
+        // Most nodes have no locals: one byte answers without a route to
+        // the file and a probe of its table.
+        if !tsc_binder::published_has_locals(scope) {
+            self.debug_assert_no_locals(scope);
+            return None;
+        }
         self.binder_of_node(scope).locals.get(&scope)
+    }
+
+    /// The binder sets `HAS_LOCALS` wherever it creates a locals table; a
+    /// table without the bit would be invisible to name resolution.
+    #[inline]
+    fn debug_assert_no_locals(&self, scope: NodeId) {
+        debug_assert!(
+            self.try_file_index_of_node(scope)
+                .is_none_or(|file| !self.file_entries[file].data().locals.contains_key(&scope)),
+            "{scope:?} has a locals table without its HAS_LOCALS bit"
+        );
     }
 
     /// [`Self::locals_of`] held for the program lifetime instead of the
@@ -1280,6 +1311,10 @@ impl<'a> ProgramBinder<'a> {
     /// A legacy borrowed-binder entry (unit-test callers) owns its bind data,
     /// so its table is copied.
     pub(crate) fn locals_of_scope(&self, scope: NodeId) -> Option<ScopeTable<'a>> {
+        if !tsc_binder::published_has_locals(scope) {
+            self.debug_assert_no_locals(scope);
+            return None;
+        }
         match &self.file_entries[self.file_index_of_node(scope)] {
             ProgramEntry::Owned(document) => {
                 let document: &'a Arc<BoundDocument> = document;

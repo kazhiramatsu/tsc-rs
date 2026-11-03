@@ -2877,7 +2877,7 @@ impl<'a> CheckerState<'a> {
             .unwrap_or_default();
         let mut result = Vec::with_capacity(type_parameters.len());
         for tp in type_parameters {
-            let mapper = self.links.read_ty(tp, |links| links.type_parameter_mapper);
+            let mapper = *self.links.type_cold().type_parameter_mapper.get(tp);
             result.push(self.instantiate_type(tp, mapper)?);
         }
         Ok(result)
@@ -2943,7 +2943,7 @@ impl<'a> CheckerState<'a> {
             .expect("getCanonicalSignature gates on typeParameters (59937)");
         let mut type_arguments = Vec::with_capacity(type_parameters.len());
         for tp in type_parameters {
-            let target = self.links.read_ty(tp, |links| links.type_parameter_target);
+            let target = *self.links.type_cold().type_parameter_target.get(tp);
             let argument = match target {
                 Some(target) if self.get_constraint_of_type_parameter(target)?.is_none() => target,
                 _ => tp,
@@ -3136,7 +3136,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if let Some(resolved) = self
             .links
-            .read_ty(tp, |links| links.type_parameter_default.resolved())
+            .type_cold()
+            .type_parameter_default
+            .get(tp)
+            .resolved()
         {
             return Ok(resolved);
         }
@@ -3145,11 +3148,11 @@ impl<'a> CheckerState<'a> {
             self.links.set_type_parameter_default(tp, circular);
             return Ok(circular);
         }
-        if let Some(target) = self.links.read_ty(tp, |links| links.type_parameter_target) {
+        if let Some(target) = *self.links.type_cold().type_parameter_target.get(tp) {
             let target_default = self.get_resolved_type_parameter_default(target)?;
             // tsc instantiates the sentinel types too — they carry no
             // type variables, so this is the identity for them.
-            let mapper = self.links.read_ty(tp, |links| links.type_parameter_mapper);
+            let mapper = *self.links.type_cold().type_parameter_mapper.get(tp);
             let default = self.instantiate_type(target_default, mapper)?;
             self.links.set_type_parameter_default(tp, default);
             return Ok(default);
@@ -3180,7 +3183,10 @@ impl<'a> CheckerState<'a> {
         // default resolved — tsc keeps the stamp (59057-59059).
         if let Some(stamped) = self
             .links
-            .read_ty(tp, |links| links.type_parameter_default.resolved())
+            .type_cold()
+            .type_parameter_default
+            .get(tp)
+            .resolved()
         {
             return Ok(stamped);
         }

@@ -1327,10 +1327,8 @@ impl<'a> CheckerState<'a> {
                     self.kind_of(declaration),
                     SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
                 );
-                let declaration_name = node_util::get_name_of_declaration(
-                    self.binder.source_of_node(declaration),
-                    declaration,
-                );
+                let declaration_name =
+                    node_util::get_name_of_declaration(&tsc_syntax::Published, declaration);
                 if is_class_like && declaration_name != Some(node) {
                     let mut container = node_util::get_this_container(&Published, node, false);
                     while let Some(current) = container {
@@ -3689,16 +3687,14 @@ impl<'a> CheckerState<'a> {
             && self.parent_of(parent).is_some_and(|assignment| {
                 self.kind_of(assignment) == SyntaxKind::BinaryExpression
                     && tsc_binder::get_assignment_declaration_kind(
-                        self.binder.source_of_node(assignment),
+                        &tsc_syntax::Published,
                         assignment,
                     ) == tsc_binder::AssignmentDeclarationKind::ModuleExports
             });
         object_literal_module_export
             || (self.kind_of(parent) == SyntaxKind::BinaryExpression
-                && tsc_binder::get_assignment_declaration_kind(
-                    self.binder.source_of_node(parent),
-                    parent,
-                ) == tsc_binder::AssignmentDeclarationKind::ExportsProperty)
+                && tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published, parent)
+                    == tsc_binder::AssignmentDeclarationKind::ExportsProperty)
     }
 
     /// tsc-port: checkPropertyAssignment @6.0.3

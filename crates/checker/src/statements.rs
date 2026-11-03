@@ -626,13 +626,8 @@ impl<'a> CheckerState<'a> {
             | ModifierFlags::ABSTRACT.bits()
             | ModifierFlags::READONLY.bits()
             | ModifierFlags::STATIC.bits();
-        let left_flags =
-            node_util::get_effective_modifier_flags(self.binder.source_of_node(left), left).bits()
-                & interesting;
-        let right_flags =
-            node_util::get_effective_modifier_flags(self.binder.source_of_node(right), right)
-                .bits()
-                & interesting;
+        let left_flags = self.effective_modifier_flags(left).bits() & interesting;
+        let right_flags = self.effective_modifier_flags(right).bits() & interesting;
         left_flags == right_flags
     }
 

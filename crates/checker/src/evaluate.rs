@@ -1599,7 +1599,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4f77dd246f3d44f2c2d865ed0dc45bba90d3db5bfef3641db124643e7b77e6a2
     /// tsc-span: _tsc.js:14125-14127
     pub(crate) fn is_enum_const(&self, node: NodeId) -> bool {
-        node_util::get_combined_modifier_flags(self.binder.source_of_node(node), node)
+        self.combined_modifier_flags(node)
             .intersects(ModifierFlags::CONST)
     }
 

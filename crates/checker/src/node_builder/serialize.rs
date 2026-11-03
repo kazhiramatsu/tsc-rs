@@ -2672,9 +2672,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
             return Ok(true);
         }
         let node = self.parse_node(arena, node)?;
-        let Some(name) =
-            node_util::get_name_of_declaration(self.checker.binder.source_of_node(node), node)
-        else {
+        let Some(name) = node_util::get_name_of_declaration(&tsc_syntax::Published, node) else {
             return Ok(true);
         };
         let NodeData::ComputedPropertyName(data) = self.checker.data_of(name) else {

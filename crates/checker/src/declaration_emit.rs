@@ -1816,7 +1816,7 @@ impl CheckerState<'_> {
         };
         self.binder.is_common_js_module_of_node(file)
             && matches!(
-                tsc_binder::get_assignment_declaration_kind(self.binder.source_of_node(node), node),
+                tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published, node),
                 tsc_binder::AssignmentDeclarationKind::ModuleExports
                     | tsc_binder::AssignmentDeclarationKind::ExportsProperty
             )

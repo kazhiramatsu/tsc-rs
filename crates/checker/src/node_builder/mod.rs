@@ -214,7 +214,7 @@ fn tracker_accessor_declarations(
     }
     let symbol = checker.binder.node_symbol(node)?;
     let name = |node| {
-        tsc_binder::node_util::get_name_of_declaration(checker.binder.source_of_node(node), node)
+        tsc_binder::node_util::get_name_of_declaration(&tsc_syntax::Published, node)
             .and_then(|name| checker.property_name_for_property_name_node(name))
     };
     let accessor_name = name(node);

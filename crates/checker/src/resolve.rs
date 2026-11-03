@@ -19,6 +19,18 @@ use tsc_types::{EscapedName, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags
 
 use crate::state::{CheckResult, CheckerState};
 
+/// The message a failed name lookup reports.
+#[derive(Clone, Copy)]
+enum NameNotFoundMessage {
+    /// The caller's message.
+    Message(&'static DiagnosticMessage),
+    /// tsgo getCannotFindNameDiagnosticForName of this name. tsgo chooses it
+    /// before the lookup; it reads only the name, its parent and the
+    /// options, so choosing it when the lookup fails reports the same
+    /// message without a string match per resolved identifier.
+    ForName(NodeId),
+}
+
 /// Own only what lookup needs before mutably borrowing the checker to resolve
 /// aliases. Normal lookups copy one candidate; spelling keeps the original
 /// table snapshot so alias resolution cannot change its candidate order.
@@ -201,7 +213,7 @@ impl<'a> CheckerState<'a> {
             location,
             name.name(),
             meaning,
-            name_not_found_message,
+            name_not_found_message.map(NameNotFoundMessage::Message),
             is_use,
             exclude_globals,
             /*suggestion*/ false,
@@ -274,7 +286,7 @@ impl<'a> CheckerState<'a> {
         location: Option<NodeId>,
         name: EscapedName,
         meaning: SymbolFlags,
-        name_not_found_message: Option<&'static DiagnosticMessage>,
+        name_not_found_message: Option<NameNotFoundMessage>,
         is_use: bool,
         exclude_globals: bool,
         suggestion: bool,
@@ -321,8 +333,7 @@ impl<'a> CheckerState<'a> {
                         } else if is_function_like_kind(self.kind_of(loc))
                             && (after_token
                                 || last_location.is_some()
-                                    && last_location
-                                        != body_of(self.binder.source_of_node(loc), loc))
+                                    && last_location != body_of(&tsc_syntax::Published, loc))
                         {
                             // Type parameters of a function are in scope
                             // only in the return type and parameter list
@@ -804,7 +815,7 @@ impl<'a> CheckerState<'a> {
                             || (last_location == data.name
                                 && last_location
                                     .is_some_and(|l| node_util::is_binding_pattern(&Published, l))))
-                        && is_part_of_parameter_declaration(self.binder.source_of_node(loc), loc)
+                        && is_part_of_parameter_declaration(&tsc_syntax::Published, loc)
                         && associated_declaration_for_containing_initializer.is_none()
                     {
                         associated_declaration_for_containing_initializer = Some(loc);
@@ -909,7 +920,15 @@ impl<'a> CheckerState<'a> {
                 }
             }
             match result {
-                None => self.on_failed_to_resolve_symbol(original_location, name, meaning, message),
+                None => {
+                    let message = match message {
+                        NameNotFoundMessage::Message(message) => message,
+                        NameNotFoundMessage::ForName(node) => {
+                            self.cannot_find_name_diagnostic_for_name(node)
+                        }
+                    };
+                    self.on_failed_to_resolve_symbol(original_location, name, meaning, message)
+                }
                 Some(found) => {
                     self.on_successfully_resolved_symbol(
                         original_location,
@@ -970,7 +989,7 @@ impl<'a> CheckerState<'a> {
                         .is_some_and(|tag| self.kind_of(tag) == SyntaxKind::JSDocOverloadTag) =>
             {
                 match previous.and_then(|tag| {
-                    tsc_binder::hosted::reparsed_overload_host(self.binder.source_of_node(tag), tag)
+                    tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published, tag)
                 }) {
                     Some(host) => {
                         *last_location = Some(host);
@@ -1081,11 +1100,7 @@ impl<'a> CheckerState<'a> {
                 .name_of_node(node)
                 .is_some_and(|n| self.requires_scope_change_worker(n)),
             SyntaxKind::PropertyDeclaration => {
-                if has_syntactic_modifier(
-                    self.binder.source_of_node(node),
-                    node,
-                    ModifierFlags::STATIC,
-                ) {
+                if has_syntactic_modifier(&tsc_syntax::Published, node, ModifierFlags::STATIC) {
                     return !self.options.emit_standard_class_fields();
                 }
                 self.name_of_node(node)
@@ -1207,11 +1222,7 @@ impl<'a> CheckerState<'a> {
     pub fn local_symbol_for_export_default(&self, symbol: SymbolId) -> Option<SymbolId> {
         let data = self.binder.symbol(symbol);
         let first = *data.declarations.first()?;
-        if !has_syntactic_modifier(
-            self.binder.source_of_node(first),
-            first,
-            ModifierFlags::DEFAULT,
-        ) {
+        if !has_syntactic_modifier(&tsc_syntax::Published, first, ModifierFlags::DEFAULT) {
             return None;
         }
         data.declarations.iter().find_map(|&declaration| {
@@ -2070,11 +2081,7 @@ impl<'a> CheckerState<'a> {
         }
         if self.kind_of(computed_ancestor) == SyntaxKind::ComputedPropertyName {
             if let Some(member) = self.parent_of(computed_ancestor) {
-                if has_syntactic_modifier(
-                    self.binder.source_of_node(member),
-                    member,
-                    ModifierFlags::ABSTRACT,
-                ) {
+                if has_syntactic_modifier(&tsc_syntax::Published, member, ModifierFlags::ABSTRACT) {
                     return true;
                 }
                 if self.parent_of(member).is_some_and(|container| {
@@ -2440,21 +2447,23 @@ impl<'a> CheckerState<'a> {
                 };
                 let synthesized = self.node_flags(name) & NodeFlags::SYNTHESIZED.bits() != 0;
                 let message = if meaning == namespace_meaning || synthesized {
-                    &diagnostics::Cannot_find_namespace_0
+                    NameNotFoundMessage::Message(&diagnostics::Cannot_find_namespace_0)
                 } else {
-                    self.cannot_find_name_diagnostic_for_name(name)
+                    NameNotFoundMessage::ForName(name)
                 };
                 // tsgo resolveEntityName (TypeScript 7.1) has no second lookup
                 // of a JavaScript JSDoc type name from its host function (tsc
                 // 6.0 resolveEntityNameFromAssignmentDeclaration): a name the
                 // reparsed annotation cannot see is unresolved.
-                let symbol = self.resolve_name(
+                let symbol = self.resolve_name_full(
                     location.or(Some(name)),
                     text,
                     meaning,
                     (!ignore_errors).then_some(message),
-                    true,
-                    false,
+                    /*is_use*/ true,
+                    /*exclude_globals*/ false,
+                    /*suggestion*/ false,
+                    /*from_token*/ false,
                 )?;
                 let Some(symbol) = symbol else {
                     return Ok(None);
@@ -2895,15 +2904,16 @@ impl<'a> CheckerState<'a> {
             None
         } else {
             let name = self.identifier_name_of(node).unwrap_or_default();
-            let message = self.cannot_find_name_diagnostic_for_name(node);
             let is_use = !self.is_write_only_access(node);
-            self.resolve_name(
+            self.resolve_name_full(
                 Some(node),
                 name,
                 SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE,
-                Some(message),
+                Some(NameNotFoundMessage::ForName(node)),
                 is_use,
                 /*exclude_globals*/ false,
+                /*suggestion*/ false,
+                /*from_token*/ false,
             )?
         };
         let cached = resolved.unwrap_or(self.unknown_symbol);
@@ -2913,11 +2923,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn is_static_node(&self, node: NodeId) -> bool {
-        has_syntactic_modifier(
-            self.binder.source_of_node(node),
-            node,
-            ModifierFlags::STATIC,
-        )
+        has_syntactic_modifier(&tsc_syntax::Published, node, ModifierFlags::STATIC)
     }
 
     /// tsc findConstructorDeclaration: the constructor WITH a body.
@@ -2932,7 +2938,7 @@ impl<'a> CheckerState<'a> {
         };
         self.nodes_of_array(members).into_iter().find(|&member| {
             self.kind_of(member) == SyntaxKind::Constructor
-                && body_of(self.binder.source_of_node(member), member).is_some()
+                && body_of(&tsc_syntax::Published, member).is_some()
         })
     }
 

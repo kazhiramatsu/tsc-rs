@@ -6,7 +6,7 @@
 //! stored list is tsgo's empty slice, which the getVariances call sites
 //! answer with Ternary.Unknown.
 
-use tsc_binder::{node_util, SymbolId};
+use tsc_binder::SymbolId;
 use tsc_types::{
     ModifierFlags, ObjectFlags, RelationComparisonResult, TypeData, TypeFlags, TypeId,
     VarianceFlags,
@@ -416,11 +416,7 @@ impl<'a> CheckerState<'a> {
         };
         let mut modifiers = 0;
         for &declaration in &self.binder.symbol(symbol).declarations {
-            modifiers |= node_util::get_effective_modifier_flags(
-                self.binder.source_of_node(declaration),
-                declaration,
-            )
-            .bits();
+            modifiers |= self.effective_modifier_flags(declaration).bits();
         }
         ModifierFlags::from_bits(
             modifiers

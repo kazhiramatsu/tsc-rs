@@ -15,6 +15,16 @@ use crate::state::CheckerState;
 /// annotations, never the tags; `tsc_binder::jsdoc_hosted` records them.
 impl<'a> CheckerState<'a> {
     pub(crate) fn hosted_jsdoc(&self, node: NodeId) -> &'a JsDocHosted {
+        // Only a JavaScript file has a hosted reparse, and every node of one
+        // carries the parser's JavaScriptFile flag: another node's table is
+        // the empty one, with no route to its file.
+        static EMPTY: std::sync::LazyLock<JsDocHosted> =
+            std::sync::LazyLock::new(JsDocHosted::default);
+        if !node_util::node_flags(&Published, node)
+            .intersects(tsc_types::NodeFlags::JAVA_SCRIPT_FILE)
+        {
+            return &EMPTY;
+        }
         tsc_binder::jsdoc_hosted(self.binder.source_of_node(node))
     }
 
@@ -133,7 +143,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(tag) != SyntaxKind::JSDocOverloadTag {
             return None;
         }
-        tsc_binder::hosted::reparsed_overload_host(self.binder.source_of_node(tag), tag)
+        tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published, tag)
     }
 
     /// An `@overload` tsgo reparses into an overload declaration of its
@@ -141,8 +151,7 @@ impl<'a> CheckerState<'a> {
     /// (reparser.go:138-142).
     pub(crate) fn is_reparsed_overload_tag(&self, tag: NodeId) -> bool {
         self.kind_of(tag) == SyntaxKind::JSDocOverloadTag
-            && tsc_binder::hosted::reparsed_overload_host(self.binder.source_of_node(tag), tag)
-                .is_some()
+            && tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published, tag).is_some()
     }
 
     /// The declaration whose reparsed `Type()` is `type_node`, the type of

@@ -113,6 +113,19 @@ pub fn get_excluded_symbol_flags(flags: SymbolFlags) -> SymbolFlags {
     result
 }
 
+/// A symbol's bit in the merged-symbol bitset. Binder symbols and transient
+/// symbols are each dense from zero, so they interleave (a transient id's
+/// own value would address bit 2^31).
+#[inline]
+fn merged_symbol_bit(symbol: SymbolId) -> usize {
+    let raw = symbol.index();
+    if raw & tsc_types::TRANSIENT_SYMBOL_BIT != 0 {
+        ((raw & !tsc_types::TRANSIENT_SYMBOL_BIT) as usize) * 2 + 1
+    } else {
+        (raw as usize) * 2
+    }
+}
+
 impl<'a> CheckerState<'a> {
     /// tsc-port: getMergedSymbol @6.0.3
     /// tsc-hash: d38909f3d76db468de6e0df4d57914bb34e5d0049669cfa184e092e62378ddf5
@@ -120,7 +133,7 @@ impl<'a> CheckerState<'a> {
     pub fn get_merged_symbol(&self, symbol: SymbolId) -> SymbolId {
         // tsgo reads `symbol.MergeId != 0` before its map; the bit answers
         // the common case without a hash.
-        let index = crate::links::DenseKey::dense_index(symbol);
+        let index = merged_symbol_bit(symbol);
         let merged = self
             .merged_symbol_bits
             .get(index / 64)
@@ -140,7 +153,7 @@ impl<'a> CheckerState<'a> {
     /// lib-binder symbol) is never mutated (lib-loading L3 invariant:
     /// file binders are read-only after bind).
     fn record_merged_symbol(&mut self, target: SymbolId, source: SymbolId) {
-        let index = crate::links::DenseKey::dense_index(source);
+        let index = merged_symbol_bit(source);
         if self.merged_symbol_bits.len() <= index / 64 {
             self.merged_symbol_bits.resize(index / 64 + 1, 0);
         }
@@ -213,7 +226,32 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c5f0db66356c51537ce1e7c91692c0775f3db5764d39100f22ad85b89e0ec9a1
     /// tsc-span: _tsc.js:14886-14888
     pub fn is_in_js_file(&self, node: NodeId) -> bool {
-        self.binder.source_of_node(node).is_source_file_js()
+        // The parser's JavaScriptFile flag, on every node of a JS or JSX
+        // file: read from the node, with no route to its file.
+        tsc_binder::node_util::node_flags(&Published, node).intersects(NodeFlags::JAVA_SCRIPT_FILE)
+    }
+
+    /// tsc getEffectiveModifierFlags: JSDoc modifiers count in JavaScript
+    /// files only, so another node's are its syntactic modifiers, read with
+    /// no route to its file.
+    pub(crate) fn effective_modifier_flags(&self, node: NodeId) -> tsc_types::ModifierFlags {
+        if self.is_in_js_file(node) {
+            let source = self.binder.source_of_node(node);
+            tsc_binder::node_util::get_effective_modifier_flags(source, node)
+        } else {
+            tsc_binder::node_util::get_syntactic_modifier_flags(&Published, node)
+        }
+    }
+
+    /// tsc getCombinedModifierFlags, read as
+    /// [`CheckerState::effective_modifier_flags`] reads a node's own.
+    pub(crate) fn combined_modifier_flags(&self, node: NodeId) -> tsc_types::ModifierFlags {
+        if self.is_in_js_file(node) {
+            let source = self.binder.source_of_node(node);
+            tsc_binder::node_util::get_combined_modifier_flags(source, node)
+        } else {
+            tsc_binder::node_util::get_combined_syntactic_modifier_flags(&Published, node)
+        }
     }
 
     /// tsc resolveSymbol (49113) on mergeSymbol's immutable-target arm.
@@ -336,10 +374,7 @@ impl<'a> CheckerState<'a> {
                         .declarations
                         .first()
                         .and_then(|&declaration| {
-                            get_name_of_declaration(
-                                self.binder.source_of_node(declaration),
-                                declaration,
-                            )
+                            get_name_of_declaration(&tsc_syntax::Published, declaration)
                         });
                 let name = self.symbol_display_name(target);
                 self.error_at_js(
@@ -602,8 +637,7 @@ impl<'a> CheckerState<'a> {
         related_nodes: &[NodeId],
     ) {
         let symbol_name = symbol_name.into();
-        let error_node =
-            get_name_of_declaration(self.binder.source_of_node(node), node).unwrap_or(node);
+        let error_node = get_name_of_declaration(&tsc_syntax::Published, node).unwrap_or(node);
         // A row in a file whose check is skipped (skipLibCheck on a
         // declaration file, skipDefaultLibCheck, noCheck, unchecked
         // JavaScript) is never published: tsgo builds it in every checker
@@ -619,9 +653,8 @@ impl<'a> CheckerState<'a> {
         }
         let index = self.lookup_or_issue_error_js(Some(error_node), message, &[symbol_name]);
         for &related_node in related_nodes {
-            let adjusted =
-                get_name_of_declaration(self.binder.source_of_node(related_node), related_node)
-                    .unwrap_or(related_node);
+            let adjusted = get_name_of_declaration(&tsc_syntax::Published, related_node)
+                .unwrap_or(related_node);
             if adjusted == error_node {
                 continue;
             }

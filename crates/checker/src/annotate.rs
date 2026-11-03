@@ -1386,7 +1386,7 @@ impl<'a> CheckerState<'a> {
     fn is_common_js_export_property_assignment(&self, node: NodeId) -> bool {
         self.is_in_js_file(node)
             && self.kind_of(node) == SyntaxKind::BinaryExpression
-            && tsc_binder::get_assignment_declaration_kind(self.binder.source_of_node(node), node)
+            && tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published, node)
                 == tsc_binder::AssignmentDeclarationKind::ExportsProperty
     }
 
@@ -5130,11 +5130,9 @@ impl<'a> CheckerState<'a> {
                 self.text_of_node(decl_name)?.into()
             };
             for declaration in declarations {
-                let error_node = node_util::get_name_of_declaration(
-                    self.binder.source_of_node(declaration),
-                    declaration,
-                )
-                .unwrap_or(declaration);
+                let error_node =
+                    node_util::get_name_of_declaration(&tsc_syntax::Published, declaration)
+                        .unwrap_or(declaration);
                 self.error_at_js(
                     Some(error_node),
                     &diagnostics::Duplicate_identifier_0,
@@ -7606,11 +7604,9 @@ impl<'a> CheckerState<'a> {
                 }
                 let string_number_symbol = self.tables.intrinsics.string_number_symbol;
                 if self.is_type_assignable_to(key_type, string_number_symbol)? {
-                    let readonly = node_util::get_combined_modifier_flags(
-                        self.binder.source_of_node(declaration),
-                        declaration,
-                    )
-                    .intersects(ModifierFlags::READONLY);
+                    let readonly = self
+                        .combined_modifier_flags(declaration)
+                        .intersects(ModifierFlags::READONLY);
                     let number = self.tables.intrinsics.number;
                     let es_symbol = self.tables.intrinsics.es_symbol;
                     if self.is_type_assignable_to(key_type, number)? {
@@ -9012,10 +9008,8 @@ impl<'a> CheckerState<'a> {
                 else {
                     continue;
                 };
-                let kind = tsc_binder::get_assignment_declaration_kind(
-                    self.binder.source_of_node(expression),
-                    expression,
-                );
+                let kind =
+                    tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published, expression);
                 let kept = kind != tsc_binder::AssignmentDeclarationKind::ExportsProperty
                     || index != 0
                     || declaration_count == 1
@@ -9083,10 +9077,8 @@ impl<'a> CheckerState<'a> {
                 return Ok(none);
             };
             let left = data.left;
-            let kind = tsc_binder::get_assignment_declaration_kind(
-                self.binder.source_of_node(declaration),
-                declaration,
-            );
+            let kind =
+                tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published, declaration);
             let literal_or_property = left.is_some_and(|left| match self.data_of(left) {
                 NodeData::ElementAccessExpression(access) => {
                     access.argument_expression.is_some_and(|argument| {
@@ -9645,7 +9637,7 @@ impl<'a> CheckerState<'a> {
                 // tsgo skips every member with a dynamic name; tsc 6.0
                 // kept the late-bindable ones, whose names reach back
                 // into the enum's members (`[foo]` beside `foo`).
-                if node_util::has_dynamic_name(self.binder.source_of_node(member), member) {
+                if node_util::has_dynamic_name(&tsc_syntax::Published, member) {
                     continue;
                 }
                 // getSymbolOfDeclaration (57448).
@@ -9857,10 +9849,8 @@ impl<'a> CheckerState<'a> {
                     .all_jsdoc_tags(declaration, SyntaxKind::JSDocOverloadTag)
                     .into_iter()
                     .filter(|&tag| {
-                        tsc_binder::hosted::reparsed_overload_host(
-                            self.binder.source_of_node(tag),
-                            tag,
-                        ) == Some(declaration)
+                        tsc_binder::hosted::reparsed_overload_host(&tsc_syntax::Published, tag)
+                            == Some(declaration)
                     })
                     .collect();
                 if !overloads.is_empty() {
@@ -10260,7 +10250,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
         ) && this_parameter.is_none()
             && !self.has_late_bindable_ast_name(declaration)
-            && !node_util::has_dynamic_name(self.binder.source_of_node(declaration), declaration)
+            && !node_util::has_dynamic_name(&tsc_syntax::Published, declaration)
         {
             let other_kind = if self.kind_of(declaration) == SyntaxKind::GetAccessor {
                 SyntaxKind::SetAccessor
@@ -10546,10 +10536,7 @@ impl<'a> CheckerState<'a> {
                 // That makes `const f = () => f()` a named 7023 on
                 // `f`, not an anonymous 7024 on the arrow.
                 let name = declaration.and_then(|declaration| {
-                    node_util::get_name_of_declaration(
-                        self.binder.source_of_node(declaration),
-                        declaration,
-                    )
+                    node_util::get_name_of_declaration(&tsc_syntax::Published, declaration)
                 });
                 match name {
                     Some(name) => {
