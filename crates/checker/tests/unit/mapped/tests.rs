@@ -98,7 +98,7 @@ fn finite_mapped_members_remap_duplicate_keys_and_instantiate_values() {
             let TypeData::Union { types, .. } = &state.tables.type_of(x_type).data else {
                 panic!("duplicate key value is a union");
             };
-            assert_eq!(types.len(), 2);
+            assert_eq!(state.tables.list(*types).len(), 2);
         },
     );
 }
@@ -160,12 +160,12 @@ fn homomorphic_mapped_instantiation_preserves_array_and_tuple_shapes() {
             let tuple = annotation_type(state, "tuple");
             assert!(state.tables.is_tuple_type(tuple));
             let tuple_target = state.tables.reference_target(tuple);
-            let TypeData::TupleTarget(tuple_data) = state.tables.type_of(tuple_target).data.clone()
-            else {
+            let TypeData::TupleTarget(tuple_data) = state.tables.type_of(tuple_target).data else {
                 panic!("tuple instantiation retains a tuple target");
             };
-            assert!(tuple_data.readonly);
-            assert!(tuple_data.element_flags[1].intersects(ElementFlags::OPTIONAL));
+            assert!(state.tables.tuple_target(tuple_data).readonly);
+            assert!(state.tables.tuple_target(tuple_data).element_flags[1]
+                .intersects(ElementFlags::OPTIONAL));
             let tuple_arguments = state.get_type_arguments(tuple).expect("tuple elements");
             assert_eq!(tuple_arguments[0], state.tables.intrinsics.number);
 
@@ -189,12 +189,12 @@ fn homomorphic_mapped_instantiation_preserves_array_and_tuple_shapes() {
             let required = annotation_type(state, "required");
             assert!(state.tables.is_tuple_type(required));
             let required_target = state.tables.reference_target(required);
-            let TypeData::TupleTarget(required_data) =
-                state.tables.type_of(required_target).data.clone()
+            let TypeData::TupleTarget(required_data) = state.tables.type_of(required_target).data
             else {
                 panic!("required mapped tuple retains a tuple target");
             };
-            assert!(required_data.element_flags[1].intersects(ElementFlags::REQUIRED));
+            assert!(state.tables.tuple_target(required_data).element_flags[1]
+                .intersects(ElementFlags::REQUIRED));
         },
     );
 }

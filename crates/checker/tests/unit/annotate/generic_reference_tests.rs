@@ -232,7 +232,7 @@ fn alias_hosted_generic_references_defer_and_resolve_lazily() {
                 }
             ));
             assert!(state.links.ty(deferred).deferred_node.is_some());
-            assert!(state.tables.type_of(deferred).alias_symbol.is_some());
+            assert!(state.tables.alias_symbol(deferred).is_some());
             // Forcing reads the node lazily.
             let arguments = state.get_type_arguments(deferred).expect("forcible");
             assert_eq!(arguments, [state.tables.intrinsics.number]);

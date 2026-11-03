@@ -7,7 +7,7 @@ use tsc_binder::node_util;
 use tsc_checker::state::CheckResult;
 use tsc_lsproto::{CompletionItem, CompletionItemKind, Range};
 use tsc_syntax::{identifier_to_keyword_kind, NodeData, NodeId, SyntaxKind};
-use tsc_types::{LiteralValue, NodeFlags, SymbolFlags, SymbolId, TypeData, TypeFlags, TypeId};
+use tsc_types::{LiteralValueOwned, NodeFlags, SymbolFlags, SymbolId, TypeFlags, TypeId};
 
 use crate::format::is_white_space_single_line;
 use crate::utilities::Touching;
@@ -100,7 +100,7 @@ pub(crate) struct CompletionDataData {
     pub(crate) is_new_identifier_location: bool,
     pub(crate) location: Touching,
     pub(crate) keyword_filters: KeywordCompletionFilters,
-    pub(crate) literals: Vec<LiteralValue>,
+    pub(crate) literals: Vec<LiteralValueOwned>,
     pub(crate) symbol_to_origin_info_map: HashMap<usize, SymbolOriginInfo>,
     pub(crate) symbol_to_sort_text_map: HashMap<SymbolId, String>,
     pub(crate) recommended_completion: Option<SymbolId>,
@@ -1636,11 +1636,11 @@ impl Completions<'_, '_, '_> {
 
     /// A union's or intersection's types.
     pub(crate) fn union_types(&self, ty: TypeId) -> Vec<TypeId> {
-        match &self.request.state.tables.type_of(ty).data {
-            TypeData::Union { types, .. } => types.to_vec(),
-            TypeData::Intersection { types } => types.to_vec(),
-            _ => Vec::new(),
-        }
+        self.request
+            .state
+            .tables
+            .union_or_intersection_members(ty)
+            .map_or_else(Vec::new, <[TypeId]>::to_vec)
     }
 
     /// tsgo `symbolCanBeReferencedAtTypeLocation`.
@@ -1711,11 +1711,12 @@ impl Completions<'_, '_, '_> {
     }
 
     /// A literal type's value.
-    pub(crate) fn literal_value(&self, ty: TypeId) -> Option<LiteralValue> {
-        match &self.request.state.tables.type_of(ty).data {
-            TypeData::Literal { value } => Some(value.clone()),
-            _ => None,
-        }
+    pub(crate) fn literal_value(&self, ty: TypeId) -> Option<LiteralValueOwned> {
+        self.request
+            .state
+            .tables
+            .literal_value(ty)
+            .map(tsc_types::LiteralValue::to_owned)
     }
 
     /// tsgo `getImportStatementCompletionInfo`.

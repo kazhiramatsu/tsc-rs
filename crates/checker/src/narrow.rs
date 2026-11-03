@@ -1656,7 +1656,7 @@ impl<'a> CheckerState<'a> {
         let source_flags = self.tables.flags_of(source);
         if source_flags.intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(source).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             for member in members {
@@ -1668,7 +1668,7 @@ impl<'a> CheckerState<'a> {
         }
         if self.tables.flags_of(target).intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(target).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             for member in members {
@@ -1680,7 +1680,7 @@ impl<'a> CheckerState<'a> {
         }
         if source_flags.intersects(TypeFlags::INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(source).data {
-                TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
             for member in members {
@@ -1764,7 +1764,7 @@ impl<'a> CheckerState<'a> {
         let t = self.get_base_constraint_or_type(ty)?;
         if self.tables.flags_of(t).intersects(TypeFlags::INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(t).data {
-                TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
             return Ok(members.iter().any(|&member| self.is_unit_type(member)));
@@ -1987,7 +1987,7 @@ impl<'a> CheckerState<'a> {
     fn each_type_contained_in(&self, source: TypeId, types: &[TypeId]) -> bool {
         if self.tables.flags_of(source).intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(source).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             members.iter().all(|member| types.contains(member))
@@ -2117,7 +2117,7 @@ impl<'a> CheckerState<'a> {
     fn extract_unit_type(&self, ty: TypeId) -> TypeId {
         if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
             if let TypeData::Intersection { types } = &self.tables.type_of(ty).data {
-                for &member in types.iter() {
+                for &member in self.tables.list(*types).iter() {
                     if self.is_unit_type(member) {
                         return member;
                     }
@@ -2575,7 +2575,7 @@ impl<'a> CheckerState<'a> {
                     .intersects(TypeFlags::UNION)
                 {
                     match &self.tables.type_of(predicate_type).data {
-                        TypeData::Union { types, .. } => types.to_vec(),
+                        TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                         _ => unreachable!("union flag implies union data"),
                     }
                 } else {

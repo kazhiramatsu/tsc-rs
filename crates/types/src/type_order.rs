@@ -16,7 +16,7 @@
 use std::cmp::Ordering;
 
 use crate::tables::TypeTables;
-use crate::ty::{LiteralValue, PseudoBigInt};
+use crate::ty::{LiteralData, PseudoBigInt};
 use crate::{MapperId, ObjectFlags, SymbolId, TypeData, TypeFlags, TypeId};
 
 /// The checker-owned half of the comparison. Node ids are passed as their
@@ -214,18 +214,25 @@ pub fn compare_types(
             TypeData::Union {
                 types: types1,
                 origin: origin1,
+                ..
             },
             TypeData::Union {
                 types: types2,
                 origin: origin2,
+                ..
             },
-        ) = (&tables.type_of(t1).data, &tables.type_of(t2).data)
+        ) = (tables.type_of(t1).data, tables.type_of(t2).data)
         else {
             unreachable!("union flag implies union data");
         };
         match (origin1, origin2) {
             (None, None) => {
-                let c = compare_type_lists(tables, ctx, Some(types1), Some(types2));
+                let c = compare_type_lists(
+                    tables,
+                    ctx,
+                    Some(tables.list(types1)),
+                    Some(tables.list(types2)),
+                );
                 if c != Ordering::Equal {
                     return c;
                 }
@@ -233,7 +240,7 @@ pub fn compare_types(
             (None, Some(_)) => return Ordering::Greater,
             (Some(_), None) => return Ordering::Less,
             (Some(origin1), Some(origin2)) => {
-                let c = compare_types(tables, ctx, *origin1, *origin2);
+                let c = compare_types(tables, ctx, origin1, origin2);
                 if c != Ordering::Equal {
                     return c;
                 }
@@ -241,11 +248,16 @@ pub fn compare_types(
         }
     } else if flags.intersects(TypeFlags::INTERSECTION) {
         let (TypeData::Intersection { types: types1 }, TypeData::Intersection { types: types2 }) =
-            (&tables.type_of(t1).data, &tables.type_of(t2).data)
+            (tables.type_of(t1).data, tables.type_of(t2).data)
         else {
             unreachable!("intersection flag implies intersection data");
         };
-        let c = compare_type_lists(tables, ctx, Some(types1), Some(types2));
+        let c = compare_type_lists(
+            tables,
+            ctx,
+            Some(tables.list(types1)),
+            Some(tables.list(types2)),
+        );
         if c != Ordering::Equal {
             return c;
         }
@@ -259,31 +271,42 @@ pub fn compare_types(
             return c;
         }
     } else if flags.intersects(TypeFlags::STRING_LITERAL) {
+        // The records' text ids directly (a union sort compares literals
+        // n log n times); one text is equal to itself.
         if let (
             TypeData::Literal {
-                value: LiteralValue::String(value1),
+                value: LiteralData::String(text1),
+                ..
             },
             TypeData::Literal {
-                value: LiteralValue::String(value2),
+                value: LiteralData::String(text2),
+                ..
             },
-        ) = (&tables.type_of(t1).data, &tables.type_of(t2).data)
+        ) = (tables.type_of(t1).data, tables.type_of(t2).data)
         {
-            let c = value1.units().cmp(value2.units());
-            if c != Ordering::Equal {
-                return c;
+            if text1 != text2 {
+                let c = tables
+                    .literal_text(text1)
+                    .units()
+                    .cmp(tables.literal_text(text2).units());
+                if c != Ordering::Equal {
+                    return c;
+                }
             }
         }
     } else if flags.intersects(TypeFlags::NUMBER_LITERAL) {
         if let (
             TypeData::Literal {
-                value: LiteralValue::Number(value1),
+                value: LiteralData::Number(value1),
+                ..
             },
             TypeData::Literal {
-                value: LiteralValue::Number(value2),
+                value: LiteralData::Number(value2),
+                ..
             },
-        ) = (&tables.type_of(t1).data, &tables.type_of(t2).data)
+        ) = (tables.type_of(t1).data, tables.type_of(t2).data)
         {
-            let c = compare_numbers(*value1, *value2);
+            let c = compare_numbers(value1.get(), value2.get());
             if c != Ordering::Equal {
                 return c;
             }
@@ -293,14 +316,16 @@ pub fn compare_types(
         // types are ordered by their values.
         if let (
             TypeData::Literal {
-                value: LiteralValue::BigInt(value1),
+                value: LiteralData::BigInt(value1),
+                ..
             },
             TypeData::Literal {
-                value: LiteralValue::BigInt(value2),
+                value: LiteralData::BigInt(value2),
+                ..
             },
-        ) = (&tables.type_of(t1).data, &tables.type_of(t2).data)
+        ) = (tables.type_of(t1).data, tables.type_of(t2).data)
         {
-            let c = compare_pseudo_big_ints(value1, value2);
+            let c = compare_pseudo_big_ints(tables.bigint(value1), tables.bigint(value2));
             if c != Ordering::Equal {
                 return c;
             }
@@ -395,14 +420,19 @@ pub fn compare_types(
         }
     } else if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
         if let (TypeData::TemplateLiteral(d1), TypeData::TemplateLiteral(d2)) =
-            (&tables.type_of(t1).data, &tables.type_of(t2).data)
+            (tables.type_of(t1).data, tables.type_of(t2).data)
         {
-            let (texts1, types1, texts2, types2) = (&d1.texts, &d1.types, &d2.texts, &d2.types);
-            let c = slices_compare_string(texts1, texts2);
+            let (d1, d2) = (tables.template_literal(d1), tables.template_literal(d2));
+            let c = slices_compare_string(&d1.texts, &d2.texts);
             if c != Ordering::Equal {
                 return c;
             }
-            let c = compare_type_lists(tables, ctx, Some(types1), Some(types2));
+            let c = compare_type_lists(
+                tables,
+                ctx,
+                Some(tables.list(d1.types)),
+                Some(tables.list(d2.types)),
+            );
             if c != Ordering::Equal {
                 return c;
             }
@@ -439,8 +469,8 @@ fn sort_order_flags(tables: &TypeTables, ty: TypeId) -> i64 {
 /// tsc-span: _tsc.js:90803-90811
 fn type_name_symbol(tables: &TypeTables, ty: TypeId) -> Option<SymbolId> {
     let r#type = tables.type_of(ty);
-    if r#type.alias_symbol.is_some() {
-        return r#type.alias_symbol;
+    if let Some(alias) = tables.alias_symbol(ty) {
+        return Some(alias);
     }
     if r#type.flags.intersects(TypeFlags::from_bits(
         TypeFlags::TYPE_PARAMETER.bits() | TypeFlags::STRING_MAPPING.bits(),
@@ -463,7 +493,7 @@ fn compare_type_names(
     let s1 = type_name_symbol(tables, t1);
     let s2 = type_name_symbol(tables, t2);
     if s1 == s2 {
-        if tables.type_of(t1).alias_type_arguments.is_some() {
+        if tables.alias_type_argument_list(t1).is_some() {
             return compare_type_lists(
                 tables,
                 ctx,
@@ -533,9 +563,10 @@ fn compare_tuple_types(
     if target1 == target2 {
         return Ordering::Equal;
     }
-    let (TypeData::TupleTarget(data1), TypeData::TupleTarget(data2)) =
-        (&tables.type_of(target1).data, &tables.type_of(target2).data)
-    else {
+    let (Some(data1), Some(data2)) = (
+        tables.tuple_target_of(target1),
+        tables.tuple_target_of(target2),
+    ) else {
         return Ordering::Equal;
     };
     if data1.readonly != data2.readonly {
@@ -607,10 +638,7 @@ fn compare_numbers(a: f64, b: f64) -> Ordering {
 }
 
 fn is_true_literal(tables: &TypeTables, ty: TypeId) -> bool {
-    matches!(
-        &tables.type_of(ty).data,
-        TypeData::Intrinsic(data) if data.name == "true"
-    )
+    tables.intrinsic_name(ty) == Some("true")
 }
 
 /// The `target` of a type reference; generic class/interface and tuple

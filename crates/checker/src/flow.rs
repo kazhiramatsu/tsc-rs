@@ -972,8 +972,9 @@ impl<'a> CheckerState<'a> {
                                         && matches!(
                                             &state.tables.type_of(t).data,
                                             TypeData::Literal {
-                                                value: tsc_types::LiteralValue::String(value)
-                                            } if value.eq_utf8("undefined")
+                                                value: tsc_types::LiteralData::String(value),
+                                                ..
+                                            } if state.tables.literal_text(*value).eq_utf8("undefined")
                                         );
                                     !is_undefined_literal
                                 },
@@ -2137,7 +2138,7 @@ impl<'a> CheckerState<'a> {
     fn every_type_is_tuple_like(&mut self, ty: TypeId) -> CheckResult<bool> {
         let members: Vec<TypeId> = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             }
         } else {
@@ -2276,7 +2277,7 @@ impl<'a> CheckerState<'a> {
             return self.is_type_assignable_to(source, target);
         }
         let members: Vec<TypeId> = match &self.tables.type_of(source).data {
-            TypeData::Union { types, .. } => types.to_vec(),
+            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
             _ => unreachable!("union flag implies union data"),
         };
         for member in members {
@@ -2520,7 +2521,7 @@ impl<'a> CheckerState<'a> {
             .intersects(TypeFlags::UNION)
         {
             let members: Vec<TypeId> = match &self.tables.type_of(element_type).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             self.get_union_type_ex(&members, tsc_types::UnionReduction::Subtype)?
@@ -2941,7 +2942,7 @@ impl<'a> CheckerState<'a> {
     fn every_type_is_nullable(&mut self, ty: TypeId) -> CheckResult<bool> {
         let members: Vec<TypeId> = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             }
         } else {
@@ -3856,11 +3857,11 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::STRING_OR_NUMBER_LITERAL) {
             // tsc: escapeLeadingUnderscores("" + type.value).
-            if let TypeData::Literal { value } = &self.tables.type_of(ty).data {
+            if let Some(value) = self.tables.literal_value(ty) {
                 let text = match value {
                     tsc_types::LiteralValue::String(text) => text.to_js_string(),
                     tsc_types::LiteralValue::Number(number) => {
-                        JsString::from(tsc_types::tables::js_number_to_string(*number))
+                        JsString::from(tsc_types::tables::js_number_to_string(number))
                     }
                     tsc_types::LiteralValue::BigInt(_) => return None,
                 };
@@ -4030,11 +4031,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
-        if let TypeData::Literal { value } = &self.tables.type_of(ty).data {
+        if let Some(value) = self.tables.literal_value(ty) {
             return Ok(match value {
                 tsc_types::LiteralValue::String(text) => Some(text.to_js_string()),
                 tsc_types::LiteralValue::Number(number) => {
-                    Some(tsc_types::tables::js_number_to_string(*number).into())
+                    Some(tsc_types::tables::js_number_to_string(number).into())
                 }
                 tsc_types::LiteralValue::BigInt(_) => None,
             });

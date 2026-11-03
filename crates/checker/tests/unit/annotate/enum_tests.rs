@@ -18,10 +18,8 @@ fn annotation_type(state: &mut CheckerState, name: &str) -> TypeId {
 }
 
 fn literal_number(state: &CheckerState, ty: TypeId) -> f64 {
-    match &state.tables.type_of(ty).data {
-        TypeData::Literal {
-            value: tsc_types::LiteralValue::Number(value),
-        } => *value,
+    match state.tables.literal_value(ty) {
+        Some(tsc_types::LiteralValue::Number(value)) => value,
         other => panic!("expected number literal, got {other:?}"),
     }
 }
@@ -41,7 +39,7 @@ fn enum_declared_type_is_a_stamped_literal_union() {
             let TypeData::Union { types, .. } = &state.tables.type_of(e).data else {
                 panic!("two-member enums declare unions");
             };
-            let members: Vec<TypeId> = types.to_vec();
+            let members: Vec<TypeId> = state.tables.list(*types).to_vec();
             assert_eq!(members.len(), 2);
             assert_eq!(literal_number(state, members[0]), 0.0);
             assert_eq!(literal_number(state, members[1]), 1.0);
@@ -63,10 +61,8 @@ fn enum_values_evaluate_auto_and_constant_expressions() {
             // A|B = 3|4 = 7, *2 = 14.
             assert_eq!(literal_number(state, c), 14.0);
             let d = annotation_type(state, "d");
-            match &state.tables.type_of(d).data {
-                TypeData::Literal {
-                    value: tsc_types::LiteralValue::String(text),
-                } => assert!(text.eq_utf8("xy")),
+            match state.tables.literal_value(d) {
+                Some(tsc_types::LiteralValue::String(text)) => assert!(text.eq_utf8("xy")),
                 other => panic!("expected string literal, got {other:?}"),
             }
             assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
@@ -95,7 +91,10 @@ fn ambient_uninitialized_members_get_computed_enum_types() {
         let flags = state.tables.flags_of(a);
         assert!(flags.intersects(TypeFlags::ENUM), "{flags:?}");
         assert!(!flags.intersects(TypeFlags::UNION));
-        assert!(matches!(state.tables.type_of(a).data, TypeData::Enum));
+        assert!(matches!(
+            state.tables.type_of(a).data,
+            TypeData::Enum { .. }
+        ));
     });
 }
 
@@ -116,7 +115,10 @@ fn computed_enum_names_are_left_out_of_the_enum_type_like_tsgo() {
             for name in ["bound", "skipped"] {
                 let ty = annotation_type(state, name);
                 assert!(state.tables.flags_of(ty).intersects(TypeFlags::ENUM));
-                assert!(matches!(state.tables.type_of(ty).data, TypeData::Enum));
+                assert!(matches!(
+                    state.tables.type_of(ty).data,
+                    TypeData::Enum { .. }
+                ));
             }
             assert_eq!(
                 state
@@ -370,7 +372,9 @@ fn tuple_this_append_keeps_the_target() {
         let TypeData::TupleTarget(data) = &state.tables.type_of(target).data else {
             panic!("tuple annotations target a tuple target");
         };
-        assert_eq!(arguments.len(), data.type_parameters.len() + 1);
-        assert_eq!(data.element_flags.len(), data.type_parameters.len());
+        let target = state.tables.tuple_target(*data);
+        let type_parameters = state.tables.list(target.type_parameters);
+        assert_eq!(arguments.len(), type_parameters.len() + 1);
+        assert_eq!(target.element_flags.len(), type_parameters.len());
     });
 }

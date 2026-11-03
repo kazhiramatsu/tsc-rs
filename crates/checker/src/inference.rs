@@ -577,13 +577,14 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_type_closely_matched_by(&self, s: TypeId, t: TypeId) -> bool {
         let s_ty = self.tables.type_of(s);
         let t_ty = self.tables.type_of(t);
+        let s_alias = self.tables.alias(s);
         (s_ty.flags.intersects(TypeFlags::OBJECT)
             && t_ty.flags.intersects(TypeFlags::OBJECT)
             && s_ty.symbol.is_some()
             && s_ty.symbol == t_ty.symbol)
-            || (s_ty.alias_symbol.is_some()
-                && s_ty.alias_type_arguments.is_some()
-                && s_ty.alias_symbol == t_ty.alias_symbol)
+            || (s_alias
+                .is_some_and(|alias| alias.symbol.is_some() && alias.type_arguments.is_some())
+                && s_alias.and_then(|alias| alias.symbol) == self.tables.alias_symbol(t))
     }
 
     /// tsgo `getTypeDepth` (checker/inference.go:420-438): the depth of
@@ -619,7 +620,9 @@ impl<'a> CheckerState<'a> {
             .intersects(TypeFlags::UNION_OR_INTERSECTION)
         {
             let members = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                    self.tables.list(*types).to_vec()
+                }
                 _ => unreachable!("UnionOrIntersection flag implies member data"),
             };
             return self.get_type_list_depth(&members, max_depth);
@@ -651,7 +654,9 @@ impl<'a> CheckerState<'a> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let members = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                    self.tables.list(*types).to_vec()
+                }
                 _ => unreachable!("UnionOrIntersection flag implies member data"),
             };
             for member in members {
@@ -719,7 +724,7 @@ impl<'a> CheckerState<'a> {
         // the callback once.
         let source_members = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("Union flag implies member data"),
             }
         } else {
@@ -733,10 +738,7 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            let TypeData::Literal {
-                value: LiteralValue::String(value),
-            } = &self.tables.type_of(t).data
-            else {
+            let Some(LiteralValue::String(value)) = self.tables.literal_value(t) else {
                 unreachable!("StringLiteral flag implies string data");
             };
             let name = tsc_types::EscapedName::escape(value.to_js_string().as_js());
@@ -956,9 +958,10 @@ impl<'a> CheckerState<'a> {
                 reversed_elements.push(reversed);
             }
             let tuple_target = self.tables.reference_target(source);
-            let TypeData::TupleTarget(data) = self.tables.type_of(tuple_target).data.clone() else {
+            let TypeData::TupleTarget(data) = self.tables.type_of(tuple_target).data else {
                 unreachable!("tuple source has a tuple target");
             };
+            let data = self.tables.tuple_target(data).clone();
             let element_flags = if self
                 .get_mapped_type_modifiers(target)
                 .intersects(tsc_types::MappedTypeModifiers::INCLUDE_OPTIONAL)
@@ -1671,7 +1674,7 @@ impl<'a> CheckerState<'a> {
                     .intersects(TypeFlags::UNION)
                 {
                     match &self.tables.type_of(target_rest_type).data {
-                        TypeData::Union { types, .. } => types.to_vec(),
+                        TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                         _ => vec![target_rest_type],
                     }
                 } else {
@@ -1862,7 +1865,9 @@ impl InferTypesWalker<'_, '_> {
     /// `type.types`), the engine.rs union_members shape.
     fn types_of(&self, ty: TypeId) -> Vec<TypeId> {
         match &self.st.tables.type_of(ty).data {
-            TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+            TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                self.st.tables.list(*types).to_vec()
+            }
             _ => unreachable!("UnionOrIntersection flag implies member data"),
         }
     }
@@ -1921,8 +1926,8 @@ impl InferTypesWalker<'_, '_> {
             self.propagation_type = save_propagation_type;
             return result;
         }
-        if let Some(alias) = self.st.tables.type_of(source).alias_symbol {
-            if Some(alias) == self.st.tables.type_of(target).alias_symbol {
+        if let Some(alias) = self.st.tables.alias_symbol(source) {
+            if Some(alias) == self.st.tables.alias_symbol(target) {
                 if let Some(source_args) = self
                     .st
                     .tables
@@ -2329,7 +2334,7 @@ impl InferTypesWalker<'_, '_> {
                 self.infer_from_types(source_inner, target_inner)?;
             }
         } else if source_flags.intersects(TypeFlags::SUBSTITUTION) {
-            let TypeData::Substitution(data) = self.st.tables.type_of(source).data.clone() else {
+            let TypeData::Substitution(data) = self.st.tables.type_of(source).data else {
                 unreachable!("Substitution flag implies data");
             };
             self.infer_from_types(data.base_type, target)?;
@@ -2804,7 +2809,7 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-span: _tsc.js:69011-69021
     ///
     fn infer_to_conditional_type(&mut self, source: TypeId, target: TypeId) -> CheckResult<()> {
-        let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data.clone() else {
+        let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data else {
             unreachable!("Conditional target flag implies data");
         };
         if self
@@ -2813,8 +2818,7 @@ impl InferTypesWalker<'_, '_> {
             .flags_of(source)
             .intersects(TypeFlags::CONDITIONAL)
         {
-            let TypeData::Conditional(source_data) = self.st.tables.type_of(source).data.clone()
-            else {
+            let TypeData::Conditional(source_data) = self.st.tables.type_of(source).data else {
                 unreachable!("Conditional source flag implies data");
             };
             // tsgo infers from the originals of distributed type parameters
@@ -2874,15 +2878,15 @@ impl InferTypesWalker<'_, '_> {
         let matches = self
             .st
             .infer_types_from_template_literal_type(source, target)?;
-        let TypeData::TemplateLiteral(template) = self.st.tables.type_of(target).data.clone()
-        else {
+        let TypeData::TemplateLiteral(template) = self.st.tables.type_of(target).data else {
             unreachable!("TemplateLiteral flag implies data");
         };
-        let TemplateLiteralData { texts, types } = *template;
+        let TemplateLiteralData { texts, types } =
+            self.st.tables.template_literal(template).clone();
         if matches.is_none() && !texts.iter().all(|s| s.is_empty()) {
             return Ok(());
         }
-        for (i, &target2) in types.iter().enumerate() {
+        for (i, &target2) in self.st.tables.list(types).to_vec().iter().enumerate() {
             let source2 = match &matches {
                 Some(matches) => matches[i],
                 None => self.st.tables.intrinsics.never,
@@ -2931,12 +2935,12 @@ impl InferTypesWalker<'_, '_> {
                             );
                         }
                         if !all_type_flags.intersects(TypeFlags::STRING) {
-                            let TypeData::Literal {
-                                value: LiteralValue::String(str_value),
-                            } = self.st.tables.type_of(source2).data.clone()
+                            let Some(LiteralValue::String(str_value)) =
+                                self.st.tables.literal_value(source2)
                             else {
                                 unreachable!("StringLiteral flag implies string data");
                             };
+                            let str_value = str_value.clone();
                             let utf8_value = str_value.to_utf8();
                             // 69038-69050: coercion families the string
                             // can never round-trip through drop out.
@@ -3039,7 +3043,7 @@ impl InferTypesWalker<'_, '_> {
         } else if right_flags.intersects(TypeFlags::STRING_LITERAL)
             && matches!(
                 &self.st.tables.type_of(right).data,
-                TypeData::Literal { value: LiteralValue::String(v) } if v == str_value
+                TypeData::Literal { value: tsc_types::LiteralData::String(v), .. } if self.st.tables.literal_text(*v) == str_value
             )
         {
             Ok(right)
@@ -3060,9 +3064,9 @@ impl InferTypesWalker<'_, '_> {
         } else if right_flags.intersects(TypeFlags::NUMBER_LITERAL)
             && matches!(
                 &self.st.tables.type_of(right).data,
-                TypeData::Literal { value: LiteralValue::Number(v) }
+                TypeData::Literal { value: tsc_types::LiteralData::Number(v), .. }
                     if utf8_value.as_deref().and_then(crate::structural::js_string_to_number)
-                        == Some(*v)
+                        == Some(v.get())
             )
         {
             Ok(right)
@@ -3078,10 +3082,10 @@ impl InferTypesWalker<'_, '_> {
         } else if right_flags.intersects(TypeFlags::BIG_INT_LITERAL)
             && matches!(
                 &self.st.tables.type_of(right).data,
-                TypeData::Literal { value: LiteralValue::BigInt(v) }
+                TypeData::Literal { value: tsc_types::LiteralData::BigInt(v), .. }
                     if utf8_value
                         .as_deref()
-                        .is_some_and(|value| v.to_base10_string() == value)
+                        .is_some_and(|value| self.st.tables.bigint(*v).to_base10_string() == value)
             )
         {
             Ok(right)
@@ -3136,10 +3140,7 @@ impl InferTypesWalker<'_, '_> {
     /// tsc `type.intrinsicName` reads on constraint members — None for
     /// non-intrinsic data, exactly as the property is undefined there.
     fn intrinsic_name_of(&self, ty: TypeId) -> Option<&str> {
-        match &self.st.tables.type_of(ty).data {
-            TypeData::Intrinsic(data) => Some(data.name),
-            _ => None,
-        }
+        self.st.tables.intrinsic_name(ty)
     }
 
     /// tsc-port: inferFromGenericMappedTypes @6.0.3
@@ -3329,10 +3330,10 @@ impl InferTypesWalker<'_, '_> {
         let target_arity = self.st.get_type_reference_arity(target);
         let element_types = self.st.get_type_arguments(target)?;
         let target_target = self.st.tables.reference_target(target);
-        let TypeData::TupleTarget(target_data) = self.st.tables.type_of(target_target).data.clone()
-        else {
+        let TypeData::TupleTarget(target_data) = self.st.tables.type_of(target_target).data else {
             unreachable!("tuple type targets a tuple target");
         };
+        let target_data = self.st.tables.tuple_target(target_data).clone();
         let element_flags = target_data.element_flags.clone();
         if source_is_tuple && self.st.is_tuple_type_structure_matching(source, target) {
             // 69094-69098: same shape — element-wise.
@@ -3344,18 +3345,21 @@ impl InferTypesWalker<'_, '_> {
         }
         let (source_fixed_length, source_end_count, source_element_flags) = if source_is_tuple {
             let source_target = self.st.tables.reference_target(source);
-            let TypeData::TupleTarget(source_data) =
-                self.st.tables.type_of(source_target).data.clone()
+            let TypeData::TupleTarget(source_data) = self.st.tables.type_of(source_target).data
             else {
                 unreachable!("tuple type targets a tuple target");
             };
             (
-                source_data.fixed_length,
+                self.st.tables.tuple_target(source_data).fixed_length,
                 crate::structural::end_element_count(
-                    &source_data.element_flags,
+                    &self.st.tables.tuple_target(source_data).element_flags,
                     ElementFlags::FIXED,
                 ),
-                source_data.element_flags.to_vec(),
+                self.st
+                    .tables
+                    .tuple_target(source_data)
+                    .element_flags
+                    .to_vec(),
             )
         } else {
             (0, 0, Vec::new())
@@ -3468,17 +3472,23 @@ impl InferTypesWalker<'_, '_> {
                         let source_arguments = self.st.get_type_arguments(source)?;
                         let source_target = self.st.tables.reference_target(source);
                         let TypeData::TupleTarget(source_data) =
-                            self.st.tables.type_of(source_target).data.clone()
+                            self.st.tables.type_of(source_target).data
                         else {
                             unreachable!("tuple type targets a tuple target");
                         };
-                        let labels = source_data
+                        let labels = self
+                            .st
+                            .tables
+                            .tuple_target(source_data)
                             .labeled_element_declarations
                             .as_ref()
                             .map(|declarations| declarations[start_index..end_index].to_vec());
+                        let trailing_flags = self.st.tables.tuple_target(source_data).element_flags
+                            [start_index..end_index]
+                            .to_vec();
                         let trailing_slice = self.st.create_tuple_type_forced(
                             &source_arguments[start_index..end_index],
-                            Some(&source_data.element_flags[start_index..end_index]),
+                            Some(&trailing_flags),
                             /*readonly*/ false,
                             labels.as_deref(),
                         )?;
@@ -3550,9 +3560,10 @@ impl InferTypesWalker<'_, '_> {
             return Ok(None);
         }
         let constraint_target = self.st.tables.reference_target(constraint);
-        let TypeData::TupleTarget(data) = &self.st.tables.type_of(constraint_target).data else {
+        let TypeData::TupleTarget(data) = self.st.tables.type_of(constraint_target).data else {
             unreachable!("tuple type targets a tuple target");
         };
+        let data = self.st.tables.tuple_target(data);
         if data.combined_flags.intersects(ElementFlags::VARIABLE) {
             return Ok(None);
         }

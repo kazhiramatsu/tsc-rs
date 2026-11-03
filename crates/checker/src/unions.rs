@@ -233,9 +233,10 @@ impl<'a> CheckerState<'a> {
             {
                 return None;
             }
-            let TypeData::Intersection { types: members } = &state.tables.type_of(t).data else {
+            let TypeData::Intersection { types: members } = state.tables.type_of(t).data else {
                 unreachable!("intersection flag implies intersection data");
             };
+            let members = state.tables.list(members);
             let index = usize::from(
                 !state
                     .tables
@@ -613,9 +614,8 @@ impl<'a> CheckerState<'a> {
         let mut flags = 0i32;
         for &t in types {
             if self.tables.flags_of(t).intersects(TypeFlags::UNION) {
-                if let TypeData::Union { types: members, .. } = self.tables.type_of(t).data.clone()
-                {
-                    flags |= self.get_combined_type_flags(&members);
+                if let TypeData::Union { types: members, .. } = self.tables.type_of(t).data {
+                    flags |= self.get_combined_type_flags(self.tables.list(members));
                     continue;
                 }
             }

@@ -1220,16 +1220,13 @@ impl<'a> ProgramBinder<'a> {
     /// symbol-token validation boundary (h2-7a-m-2 §4).
     pub(crate) fn try_symbol(&self, id: SymbolId) -> Option<&Symbol> {
         if id.index() & TRANSIENT_SYMBOL_BIT != 0 {
-            return self
-                .transient
-                .contains(id)
-                .then(|| self.transient.symbol(id));
+            return self.transient.get(id);
         }
         let file = Self::try_owner_file(&self.symbol_owners, id.index())?;
-        Some(match &self.file_entries[file] {
-            ProgramEntry::Legacy(entry) => entry.binder.symbols.symbol(id),
-            ProgramEntry::Owned(document) => document.data.symbols.symbol(id),
-        })
+        match &self.file_entries[file] {
+            ProgramEntry::Legacy(entry) => entry.binder.symbols.get(id),
+            ProgramEntry::Owned(document) => document.data.symbols.get(id),
+        }
     }
 
     /// TRANSIENT symbols only: file binders are read-only after bind

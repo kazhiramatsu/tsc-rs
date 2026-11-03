@@ -307,8 +307,13 @@ impl CheckerState<'_> {
     /// types, or a template literal type's.
     pub fn get_types_of_type(&self, ty: TypeId) -> Vec<TypeId> {
         match &self.tables.type_of(ty).data {
-            TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
-            TypeData::TemplateLiteral(data) => data.types.to_vec(),
+            TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                self.tables.list(*types).to_vec()
+            }
+            TypeData::TemplateLiteral(data) => {
+                let data = self.tables.template_literal(*data);
+                self.tables.list(data.types).to_vec()
+            }
             _ => panic!("Unhandled case in Type.Types"),
         }
     }
@@ -323,7 +328,7 @@ impl CheckerState<'_> {
             self.type_assertion_failure(ty, "LiteralType");
         }
         let data = self.tables.type_of(ty);
-        (data.fresh_type, data.regular_type)
+        (data.fresh_type(), data.regular_type())
     }
 
     /// tsgo `Type.AsInterfaceType`'s type parameters and this type, of a
@@ -336,14 +341,17 @@ impl CheckerState<'_> {
                 outer_type_parameter_count,
                 this_type,
             } => InterfaceTypeParts {
-                type_parameters: type_parameters.to_vec(),
+                type_parameters: self.tables.list(*type_parameters).to_vec(),
                 outer_type_parameter_count: *outer_type_parameter_count as usize,
                 this_type: Some(*this_type),
             },
             TypeData::TupleTarget(target) => InterfaceTypeParts {
-                type_parameters: target.type_parameters.to_vec(),
+                type_parameters: self
+                    .tables
+                    .list(self.tables.tuple_target(*target).type_parameters)
+                    .to_vec(),
                 outer_type_parameter_count: 0,
-                this_type: Some(target.this_type),
+                this_type: Some(self.tables.tuple_target(*target).this_type),
             },
             _ if self
                 .tables

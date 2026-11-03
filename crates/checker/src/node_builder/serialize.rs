@@ -391,9 +391,10 @@ pub(crate) fn recover_suppressed_import_call_return_type(
 
     if checker.tables.is_tuple_type(return_type) {
         let target = checker.tables.reference_target(return_type);
-        let TypeData::TupleTarget(tuple) = checker.tables.type_of(target).data.clone() else {
+        let TypeData::TupleTarget(tuple) = checker.tables.type_of(target).data else {
             return Some(return_type);
         };
+        let tuple = checker.tables.tuple_target(tuple).clone();
         let signature_declaration = checker.signature_of(signature).declaration?;
         let annotation = match checker.data_of(signature_declaration) {
             NodeData::FunctionDeclaration(data) => data.r#type?,
@@ -2127,7 +2128,12 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
 
 pub(crate) fn contains_non_missing_undefined(checker: &CheckerState<'_>, r#type: TypeId) -> bool {
     let candidate = match &checker.tables.type_of(r#type).data {
-        TypeData::Union { types, .. } => types.first().copied().unwrap_or(r#type),
+        TypeData::Union { types, .. } => checker
+            .tables
+            .list(*types)
+            .first()
+            .copied()
+            .unwrap_or(r#type),
         _ => r#type,
     };
     candidate != checker.tables.intrinsics.missing

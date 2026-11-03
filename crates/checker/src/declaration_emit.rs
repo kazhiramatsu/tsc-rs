@@ -236,7 +236,7 @@ impl CheckerState<'_> {
                 // containsNonMissingUndefinedType (checker/utilities.go:1647-1655).
                 let candidate = match &self.tables.type_of(r#type).data {
                     tsc_types::TypeData::Union { types, .. } => {
-                        types.first().copied().unwrap_or(r#type)
+                        self.tables.list(*types).first().copied().unwrap_or(r#type)
                     }
                     _ => r#type,
                 };
@@ -2309,7 +2309,7 @@ impl<'a> CheckerState<'a> {
         enclosing_declaration: NodeId,
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
     ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
-        use tsc_types::{LiteralValue, TypeData, TypeFlags};
+        use tsc_types::{LiteralValue, TypeFlags};
         let method = tsc_emitter::EmitResolverMethod::CreateLiteralConstValue;
         let flags = self.tables.flags_of(literal_type);
         // `type.flags & EnumLike` (88492): EnumLike = Enum | EnumLiteral, so
@@ -2360,10 +2360,7 @@ impl<'a> CheckerState<'a> {
             // literal-value arms exactly as upstream's falsy `enumResult`.
         }
         if flags.contains(TypeFlags::BOOLEAN_LITERAL) {
-            let is_true = matches!(
-                &self.tables.type_of(literal_type).data,
-                TypeData::Intrinsic(data) if data.name == "true"
-            );
+            let is_true = self.tables.intrinsic_name(literal_type) == Some("true");
             let kind = if is_true {
                 SyntaxKind::TrueKeyword
             } else {
@@ -2377,9 +2374,8 @@ impl<'a> CheckerState<'a> {
         }
         // tsgo CreateLiteralConstValue (emitresolver.go:988-1030) answers no
         // value for a type that is not a literal.
-        let value = match &self.tables.type_of(literal_type).data {
-            TypeData::Literal { value } => value.clone(),
-            _ => return Ok(None),
+        let Some(value) = self.tables.literal_value(literal_type) else {
+            return Ok(None);
         };
         let mut factory = arena.factory();
         let map_factory = |error| node_builder_factory_error(method, error);

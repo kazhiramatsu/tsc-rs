@@ -146,9 +146,8 @@ impl Completions<'_, '_, '_> {
                 let data_file = self.data_file();
                 let mut items = Vec::with_capacity(completion.types.len());
                 for ty in completion.types {
-                    let TypeData::Literal {
-                        value: LiteralValue::String(text),
-                    } = &self.request.state.tables.type_of(ty).data
+                    let Some(LiteralValue::String(text)) =
+                        self.request.state.tables.literal_value(ty)
                     else {
                         continue;
                     };
@@ -302,7 +301,9 @@ impl Completions<'_, '_, '_> {
                     .types
                     .into_iter()
                     .filter(|&ty| match &self.request.state.tables.type_of(ty).data {
-                        TypeData::Literal { value } => !tracker.has_value(value),
+                        TypeData::Literal { value, .. } => {
+                            !tracker.has_value(self.request.state.tables.literal_value_of(*value))
+                        }
                         _ => true,
                     })
                     .collect();
@@ -508,10 +509,10 @@ impl Completions<'_, '_, '_> {
                             types: result
                                 .types
                                 .into_iter()
-                                .filter(|&ty| match &self.request.state.tables.type_of(ty).data {
-                                    TypeData::Literal {
-                                        value: LiteralValue::String(text),
-                                    } => !already_used.contains(&text.units().to_vec()),
+                                .filter(|&ty| match self.request.state.tables.literal_value(ty) {
+                                    Some(LiteralValue::String(text)) => {
+                                        !already_used.contains(&text.units().to_vec())
+                                    }
                                     _ => true,
                                 })
                                 .collect(),
@@ -672,10 +673,7 @@ impl Completions<'_, '_, '_> {
         }
         if flags.intersects(TypeFlags::STRING_LITERAL) && !flags.intersects(TypeFlags::ENUM_LITERAL)
         {
-            if let TypeData::Literal {
-                value: LiteralValue::String(text),
-            } = &self.request.state.tables.type_of(ty).data
-            {
+            if let Some(LiteralValue::String(text)) = self.request.state.tables.literal_value(ty) {
                 if uniques.insert(text.units().to_vec()) {
                     return Ok(vec![ty]);
                 }

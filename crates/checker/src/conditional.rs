@@ -31,7 +31,9 @@ impl<'a> CheckerState<'a> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(tsc_types::TypeFlags::UNION_OR_INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                    self.tables.list(*types).to_vec()
+                }
                 _ => unreachable!("union/intersection flag implies member data"),
             };
             for member in members {
@@ -45,7 +47,7 @@ impl<'a> CheckerState<'a> {
             if self.tables.is_no_infer_type(ty) {
                 return Ok(false);
             }
-            let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+            let TypeData::Substitution(data) = self.tables.type_of(ty).data else {
                 unreachable!("Substitution flag implies substitution data");
             };
             return self.is_no_infer_target_type(data.base_type);
@@ -259,8 +261,7 @@ impl<'a> CheckerState<'a> {
                         .false_type
                         .expect("parser invariant: ConditionalType false_type always parsed");
                     let false_type = self.get_type_from_type_node(false_node)?;
-                    if let TypeData::Conditional(false_data) =
-                        self.tables.type_of(false_type).data.clone()
+                    if let TypeData::Conditional(false_data) = self.tables.type_of(false_type).data
                     {
                         let new_root = self.tables.conditional_root(false_data.root).clone();
                         if self.parent_of(NodeId::new(new_root.node))
@@ -368,7 +369,7 @@ impl<'a> CheckerState<'a> {
         let Some(new_mapper) = new_mapper else {
             return Ok(None);
         };
-        let TypeData::Conditional(data) = self.tables.type_of(new_type).data.clone() else {
+        let TypeData::Conditional(data) = self.tables.type_of(new_type).data else {
             return Ok(None);
         };
         let new_root = self.tables.conditional_root(data.root).clone();
@@ -437,7 +438,7 @@ impl<'a> CheckerState<'a> {
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
-        let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
+        let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
         let root = self.tables.conditional_root(data.root).clone();
@@ -560,7 +561,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
+        let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
         let root = self.tables.conditional_root(data.root).clone();
@@ -638,7 +639,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         writing: bool,
     ) -> CheckResult<TypeId> {
-        let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
+        let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
         let true_type = self.get_true_type_from_conditional_type(ty)?;
@@ -710,7 +711,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
+        let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
         let root = self.tables.conditional_root(data.root).clone();
@@ -743,7 +744,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
+        let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
         let root = self.tables.conditional_root(data.root).clone();
@@ -776,7 +777,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
+        let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
         let resolved = if let Some(mapper) = data.combined_mapper {
@@ -801,7 +802,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5bddb04660c7780c154c4dc8330df3a5cd62e27322c28dc4bb5c56b75f01162d
     /// tsc-span: _tsc.js:60446-60448
     pub(crate) fn get_substitution_intersection(&mut self, ty: TypeId) -> CheckResult<TypeId> {
-        let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+        let TypeData::Substitution(data) = self.tables.type_of(ty).data else {
             unreachable!("Substitution flag implies substitution data");
         };
         if self.tables.is_no_infer_type(ty) {

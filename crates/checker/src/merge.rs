@@ -433,17 +433,19 @@ impl<'a> CheckerState<'a> {
                     let flags = self.tables.flags_of(name_type);
                     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
                         let name = match &self.tables.type_of(name_type).data {
-                            TypeData::Literal { value } => match value {
-                                tsc_types::LiteralValue::String(text) => text.to_js_string(),
-                                tsc_types::LiteralValue::Number(value) => {
-                                    JsString::from(tsc_types::js_number_to_string(*value))
+                            TypeData::Literal { value, .. } => {
+                                match self.tables.literal_value_of(*value) {
+                                    tsc_types::LiteralValue::String(text) => text.to_js_string(),
+                                    tsc_types::LiteralValue::Number(value) => {
+                                        JsString::from(tsc_types::js_number_to_string(value))
+                                    }
+                                    tsc_types::LiteralValue::BigInt(_) => {
+                                        unreachable!(
+                                            "string/number literal flags imply string/number value"
+                                        )
+                                    }
                                 }
-                                tsc_types::LiteralValue::BigInt(_) => {
-                                    unreachable!(
-                                        "string/number literal flags imply string/number value"
-                                    )
-                                }
-                            },
+                            }
                             _ => unreachable!("literal flags imply literal data"),
                         };
                         // A non-scalar value cannot be an identifier or numeric spelling.

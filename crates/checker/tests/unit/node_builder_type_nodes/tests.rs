@@ -172,11 +172,13 @@ fn union_and_intersection_arms_emit_plain_constituent_lists() {
         |checker, arena, target, context| {
             let string = checker.tables.intrinsics.string;
             let number = checker.tables.intrinsics.number;
+            let members = checker.tables.intern_type_list(&[string, number]);
             let union = checker.tables.create_type(
                 TypeFlags::UNION,
                 TypeData::Union {
-                    types: vec![string, number].into_boxed_slice(),
+                    types: members,
                     origin: None,
+                    regular_type: None,
                 },
             );
             let intersection = checker.tables.create_intersection_type(
@@ -286,8 +288,7 @@ fn mapped_conditional_and_this_type_arms_emit_semantic_shapes() {
                 let r#type = checker
                     .get_type_from_type_node(node)
                     .map_err(|abort| checker_abort_error(checker, context, abort))?;
-                checker.tables.type_mut(r#type).alias_symbol = None;
-                checker.tables.type_mut(r#type).alias_type_arguments = None;
+                checker.tables.set_alias(r#type, None, None);
                 let emitted = type_to_type_node_helper(checker, arena, target, r#type, context)?
                     .expect("mapped/conditional node");
                 assert_eq!(arena.node(emitted).map_err(factory_error)?.kind, expected);
@@ -323,8 +324,7 @@ fn object_index_info_arm_emits_readonly_index_signature() {
             let indexed = checker
                 .get_type_from_type_node(rhs[0])
                 .map_err(|abort| checker_abort_error(checker, context, abort))?;
-            checker.tables.type_mut(indexed).alias_symbol = None;
-            checker.tables.type_mut(indexed).alias_type_arguments = None;
+            checker.tables.set_alias(indexed, None, None);
             let node = type_to_type_node_helper(checker, arena, target, indexed, context)?
                 .expect("indexed type literal");
             let NodeData::TypeLiteral(data) = &arena.node(node).map_err(factory_error)?.data else {
@@ -447,17 +447,19 @@ fn alias_instantiations_are_different_references() {
             let number = checker.tables.intrinsics.number;
             let alias = tsc_binder::SymbolId::new(1);
             let mut aliased = |arguments: &[_]| {
+                let members = checker.tables.intern_type_list(&[string, number]);
                 let union = checker.tables.create_type(
                     TypeFlags::UNION,
                     TypeData::Union {
-                        types: vec![string, number].into_boxed_slice(),
+                        types: members,
                         origin: None,
+                        regular_type: None,
                     },
                 );
                 let arguments = checker.tables.intern_type_list(arguments);
-                let ty = checker.tables.type_mut(union);
-                ty.alias_symbol = Some(alias);
-                ty.alias_type_arguments = Some(arguments);
+                checker
+                    .tables
+                    .set_alias(union, Some(alias), Some(arguments));
                 union
             };
             let of_string = aliased(&[string]);

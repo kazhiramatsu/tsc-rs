@@ -232,7 +232,7 @@ pub(crate) fn expanded_parameters(
     }
     if !skip_union_expanding {
         if let TypeData::Union { types, .. } = &checker.tables.type_of(rest_type).data {
-            let types = types.to_vec();
+            let types = checker.tables.list(*types).to_vec();
             if types.iter().all(|&ty| checker.tables.is_tuple_type(ty)) {
                 return types
                     .into_iter()
@@ -258,9 +258,10 @@ fn expand_signature_parameters_with_tuple_members(
     let rest_index = signature.parameters.len() - 1;
     let rest_symbol = signature.parameters[rest_index];
     let target = checker.tables.reference_target(rest_type);
-    let TypeData::TupleTarget(tuple) = checker.tables.type_of(target).data.clone() else {
+    let TypeData::TupleTarget(tuple) = checker.tables.type_of(target).data else {
         return Ok(signature.parameters);
     };
+    let tuple = checker.tables.tuple_target(tuple).clone();
     let element_types = checker.get_type_arguments(rest_type)?;
     let count = element_types.len().min(tuple.element_flags.len());
     // tsgo 7.1 `getUniqAssociatedNamesFromTupleType`: every element's label

@@ -341,7 +341,7 @@ fn type_to_string(
 /// intrinsic.
 fn intrinsic_name<'a>(state: &'a CheckerState<'_>, ty: TypeId) -> &'a str {
     match &state.tables.type_of(ty).data {
-        TypeData::Intrinsic(data) => data.name,
+        TypeData::Intrinsic { name, .. } => state.tables.intrinsic_data(*name).name,
         _ => "any",
     }
 }

@@ -700,8 +700,8 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let types: Vec<TypeId> = match &self.tables.type_of(t).data {
-                TypeData::Union { types, .. } => types.to_vec(),
-                TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union/intersection flag implies member data"),
             };
             let mut base_types: Vec<TypeId> = Vec::new();
@@ -755,7 +755,10 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(t).data {
-                TypeData::TemplateLiteral(data) => (data.texts.to_vec(), data.types.to_vec()),
+                TypeData::TemplateLiteral(data) => {
+                    let data = self.tables.template_literal(*data);
+                    (data.texts.to_vec(), self.tables.list(data.types).to_vec())
+                }
                 _ => unreachable!("template flag implies template data"),
             };
             let mut constraints: Vec<TypeId> = Vec::new();
@@ -846,12 +849,13 @@ impl<'a> CheckerState<'a> {
             // their base constraints when every constituent of the
             // constraint is a non-generic array/tuple.
             let target = self.tables.reference_target(t);
-            let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+            let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
                 unreachable!("generic tuple targets a tuple target");
             };
+            let data = self.tables.tuple_target(data).clone();
             // getElementTypes (61313-61316): arguments sliced to arity.
             let mut elements = self.get_type_arguments(t)?;
-            elements.truncate(data.type_parameters.len());
+            elements.truncate(self.tables.list(data.type_parameters).len());
             let global_array = self.global_array_type()?;
             let global_readonly = self.global_readonly_array_type()?;
             let mut new_elements = Vec::with_capacity(elements.len());
@@ -899,9 +903,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:69982-69984
     pub fn some_type(&self, ty: TypeId, f: impl Fn(&Self, TypeId) -> bool) -> bool {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
-            let TypeData::Union { types, .. } = &self.tables.type_of(ty).data else {
+            let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
                 unreachable!("union flag implies union data");
             };
+            let types = self.tables.list(types);
             return types.iter().any(|&member| f(self, member));
         }
         f(self, ty)
@@ -912,9 +917,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:69985-69987
     pub fn every_type(&self, ty: TypeId, f: impl Fn(&Self, TypeId) -> bool) -> bool {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
-            let TypeData::Union { types, .. } = &self.tables.type_of(ty).data else {
+            let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
                 unreachable!("union flag implies union data");
             };
+            let types = self.tables.list(types);
             return types.iter().all(|&member| f(self, member));
         }
         f(self, ty)
@@ -927,7 +933,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn union_members_or_self(&self, ty: TypeId) -> Vec<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             }
         } else {

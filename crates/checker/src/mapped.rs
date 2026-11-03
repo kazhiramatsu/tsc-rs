@@ -87,9 +87,10 @@ impl<'a> CheckerState<'a> {
             };
         }
         if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
-            let TypeData::Intersection { types } = &self.tables.type_of(ty).data else {
+            let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection payload");
             };
+            let types = self.tables.list(types);
             let types = types.to_vec();
             let Some((&first, rest)) = types.split_first() else {
                 return Ok(0);
@@ -373,7 +374,7 @@ impl<'a> CheckerState<'a> {
             };
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
-            let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
+            let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
                 unreachable!("Conditional flag implies conditional data");
             };
             let root = self.tables.conditional_root(data.root).clone();
@@ -398,9 +399,10 @@ impl<'a> CheckerState<'a> {
             return Ok(mapped.expect("lower-bound mapping never drops a union member"));
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
-            let TypeData::Intersection { types } = &self.tables.type_of(ty).data else {
+            let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("Intersection flag implies Intersection payload");
             };
+            let types = self.tables.list(types);
             let types = types.to_vec();
             if types.len() == 2
                 && self
@@ -872,9 +874,10 @@ impl<'a> CheckerState<'a> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
             return Ok(false);
         }
-        let TypeData::Intersection { types } = &self.tables.type_of(ty).data else {
+        let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
             unreachable!("intersection flag implies intersection payload");
         };
+        let types = self.tables.list(types);
         let types = types.to_vec();
         for member in types {
             if !self.is_array_type(member)? && !self.tables.is_tuple_type(member) {

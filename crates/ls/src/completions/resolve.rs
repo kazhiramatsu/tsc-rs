@@ -7,7 +7,7 @@ use tsc_diagnostics::JsStr;
 use tsc_lsproto::{
     CompletionItem, CompletionItemData, MarkupContent, MarkupKind, StringOrMarkupContent,
 };
-use tsc_types::{LiteralValue, SymbolFlags, SymbolId, TypeData};
+use tsc_types::{LiteralValue, LiteralValueOwned, SymbolFlags, SymbolId};
 
 use crate::language_service::{LanguageService, LsError};
 use crate::utilities::Touching;
@@ -31,7 +31,7 @@ enum DetailsData {
         symbol: SymbolId,
         location: Touching,
     },
-    Literal(LiteralValue),
+    Literal(LiteralValueOwned),
     Cases,
     None,
 }
@@ -267,9 +267,8 @@ impl Completions<'_, '_, '_> {
             }
             StringLiteralCompletions::Types(types) => {
                 for ty in types.types {
-                    if let TypeData::Literal {
-                        value: LiteralValue::String(text),
-                    } = &self.request.state.tables.type_of(ty).data
+                    if let Some(LiteralValue::String(text)) =
+                        self.request.state.tables.literal_value(ty)
                     {
                         if text.to_js_string().to_string_lossy() == name {
                             return Ok(create_completion_details(item, name, "", markdown));

@@ -153,8 +153,14 @@ fn late_bound_index_info_includes_sibling_property_types() {
         let TypeData::Union { types, .. } = &state.tables.type_of(info.value_type).data else {
             panic!("sibling property type must join the computed property type");
         };
-        assert!(types.contains(&state.tables.intrinsics.number));
-        assert!(types.contains(&state.tables.intrinsics.string));
+        assert!(state
+            .tables
+            .list(*types)
+            .contains(&state.tables.intrinsics.number));
+        assert!(state
+            .tables
+            .list(*types)
+            .contains(&state.tables.intrinsics.string));
 
         let access = source
             .arena
@@ -167,8 +173,14 @@ fn late_bound_index_info_includes_sibling_property_types() {
         let TypeData::Union { types, .. } = &state.tables.type_of(access_type).data else {
             panic!("the synthesized index info must reach the access consumer");
         };
-        assert!(types.contains(&state.tables.intrinsics.number));
-        assert!(types.contains(&state.tables.intrinsics.string));
+        assert!(state
+            .tables
+            .list(*types)
+            .contains(&state.tables.intrinsics.number));
+        assert!(state
+            .tables
+            .list(*types)
+            .contains(&state.tables.intrinsics.string));
     });
     let result = check_program(
         &[InputFile::new("a.ts".to_owned(), text.to_owned())],

@@ -1506,7 +1506,7 @@ fn type_to_type_node_worker(
     let mut flags = ty.flags;
 
     if flags.intersects(TypeFlags::ANY) {
-        if let Some(alias) = ty.alias_symbol {
+        if let Some(alias) = checker.tables.alias_symbol(r#type) {
             let name = chains_symbol_to_entity_name_node(checker, arena, target, context, alias)?;
             let alias_arguments = checker
                 .tables
@@ -1551,7 +1551,7 @@ fn type_to_type_node_worker(
         add_approximate_length(context, 6);
         return create_keyword_type_node(arena, target, SyntaxKind::BigIntKeyword).map(Some);
     }
-    if flags.intersects(TypeFlags::BOOLEAN) && ty.alias_symbol.is_none() {
+    if flags.intersects(TypeFlags::BOOLEAN) && checker.tables.alias_symbol(r#type).is_none() {
         add_approximate_length(context, 7);
         return create_keyword_type_node(arena, target, SyntaxKind::BooleanKeyword).map(Some);
     }
@@ -1656,10 +1656,7 @@ fn type_to_type_node_worker(
     }
 
     if flags.intersects(TypeFlags::STRING_LITERAL) {
-        let TypeData::Literal {
-            value: LiteralValue::String(value),
-        } = ty.data
-        else {
+        let Some(LiteralValue::String(value)) = checker.tables.literal_value(r#type) else {
             unreachable!("StringLiteral flag implies string literal payload")
         };
         add_approximate_length(context, value.len_utf8() + 2);
@@ -1673,10 +1670,7 @@ fn type_to_type_node_worker(
         return create_literal_type_node(arena, target, literal).map(Some);
     }
     if flags.intersects(TypeFlags::NUMBER_LITERAL) {
-        let TypeData::Literal {
-            value: LiteralValue::Number(value),
-        } = ty.data
-        else {
+        let Some(LiteralValue::Number(value)) = checker.tables.literal_value(r#type) else {
             unreachable!("NumberLiteral flag implies number literal payload")
         };
         let text = tsc_types::js_number_to_string(value);
@@ -1706,10 +1700,7 @@ fn type_to_type_node_worker(
         return create_literal_type_node(arena, target, literal).map(Some);
     }
     if flags.intersects(TypeFlags::BIG_INT_LITERAL) {
-        let TypeData::Literal {
-            value: LiteralValue::BigInt(value),
-        } = ty.data
-        else {
+        let Some(LiteralValue::BigInt(value)) = checker.tables.literal_value(r#type) else {
             unreachable!("BigIntLiteral flag implies bigint literal payload")
         };
         let text = value.to_base10_string();
@@ -1724,9 +1715,10 @@ fn type_to_type_node_worker(
         return create_literal_type_node(arena, target, literal).map(Some);
     }
     if flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
-        let TypeData::Intrinsic(intrinsic) = ty.data else {
+        let TypeData::Intrinsic { name, .. } = ty.data else {
             unreachable!("BooleanLiteral flag implies intrinsic payload")
         };
+        let intrinsic = checker.tables.intrinsic_data(name);
         let name = intrinsic.name;
         add_approximate_length(context, js_len(name));
         let literal = create_token(
@@ -1812,7 +1804,7 @@ fn type_to_type_node_worker(
     }
 
     if !in_type_alias {
-        if let Some(alias) = ty.alias_symbol {
+        if let Some(alias) = checker.tables.alias_symbol(r#type) {
             let accessible = has_flag(context, USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE)
                 || is_type_symbol_accessible(checker, arena, target, alias, context)?;
             if accessible {
@@ -2033,7 +2025,9 @@ fn type_to_type_node_worker(
     }
     if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
         let mut types = match ty.data {
-            TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+            TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                checker.tables.list(types).to_vec()
+            }
             _ => unreachable!("union/intersection flags imply list payload"),
         };
         // W2c: member order becomes type-node order (declaration text). Kept
@@ -2085,7 +2079,8 @@ fn type_to_type_node_worker(
         let TypeData::TemplateLiteral(template) = ty.data else {
             unreachable!("TemplateLiteral flag implies template payload")
         };
-        let TemplateLiteralData { texts, types } = *template;
+        let TemplateLiteralData { texts, types } =
+            checker.tables.template_literal(template).clone();
         // tsgo keeps the texts' characters (nodebuilderimpl.go:3576-3586).
         let head = arena
             .factory()
@@ -2097,6 +2092,7 @@ fn type_to_type_node_worker(
             )
             .map_err(factory_error)?;
         let head = set_no_ascii_escaping(arena, head);
+        let types = checker.tables.list(types).to_vec();
         let mut spans = Vec::with_capacity(types.len());
         for (index, span_type) in types.iter().copied().enumerate() {
             let Some(span_type) =
@@ -2300,7 +2296,7 @@ fn conditional_type_to_type_node(
     if check_truncation_length(context) {
         return create_elided_information_placeholder(arena, target, context).map(Some);
     }
-    let TypeData::Conditional(data) = checker.tables.type_of(r#type).data.clone() else {
+    let TypeData::Conditional(data) = checker.tables.type_of(r#type).data else {
         unreachable!("conditional worker receives a conditional type")
     };
     let root = checker.tables.conditional_root(data.root).clone();
@@ -2896,7 +2892,7 @@ fn create_anonymous_type_node(
                 || if let TypeData::Intersection { types } =
                     &checker.tables.type_of(base_constructor).data
                 {
-                    types.iter().any(|&ty| {
+                    checker.tables.list(*types).iter().any(|&ty| {
                         checker
                             .tables
                             .flags_of(ty)
@@ -3615,9 +3611,10 @@ fn type_reference_to_type_node(
     }
 
     if checker.tables.is_tuple_type(r#type) {
-        let TypeData::TupleTarget(tuple) = checker.tables.type_of(target_type).data.clone() else {
+        let TypeData::TupleTarget(tuple) = checker.tables.type_of(target_type).data else {
             unreachable!("tuple reference targets have tuple payload")
         };
+        let tuple = checker.tables.tuple_target(tuple).clone();
         for (index, argument) in arguments.clone().iter().copied().enumerate() {
             let optional = tuple
                 .element_flags
@@ -3757,7 +3754,7 @@ fn type_reference_to_type_node(
             outer_type_parameter_count,
             ..
         } => (
-            type_parameters.to_vec(),
+            checker.tables.list(type_parameters).to_vec(),
             outer_type_parameter_count as usize,
         ),
         _ => (Vec::new(), 0),
@@ -5180,11 +5177,10 @@ pub(crate) fn map_to_type_nodes(
 fn types_are_same_reference(checker: &CheckerState<'_>, left: TypeId, right: TypeId) -> bool {
     let left_type = checker.tables.type_of(left);
     let right_type = checker.tables.type_of(right);
+    let (left_alias, right_alias) = (checker.tables.alias(left), checker.tables.alias(right));
     left == right
         || left_type.symbol.is_some() && left_type.symbol == right_type.symbol
-        || left_type.alias_symbol.is_some()
-            && left_type.alias_symbol == right_type.alias_symbol
-            && left_type.alias_type_arguments == right_type.alias_type_arguments
+        || left_alias.is_some_and(|alias| alias.symbol.is_some()) && left_alias == right_alias
 }
 
 fn format_union_types(
@@ -5208,13 +5204,15 @@ fn format_union_types(
                 };
                 if let TypeData::Union {
                     types: base_types, ..
-                } = checker.tables.type_of(base).data.clone()
+                } = checker.tables.type_of(base).data
                 {
-                    let count = base_types.len();
+                    let count = checker.tables.list(base_types).len();
                     if count > 0 && index + count <= types.len() {
                         let run_last =
                             checker.regular_type_of_literal_type(types[index + count - 1]);
-                        let base_last = checker.regular_type_of_literal_type(base_types[count - 1]);
+                        let base_last = checker.regular_type_of_literal_type(
+                            checker.tables.list(base_types)[count - 1],
+                        );
                         if run_last == base_last {
                             result.push(base);
                             index += count;

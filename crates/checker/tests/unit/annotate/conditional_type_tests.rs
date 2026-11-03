@@ -21,7 +21,7 @@ fn conditional_and_substitution_models_are_constructible_and_renderable() {
                 .tables
                 .flags_of(conditional)
                 .intersects(TypeFlags::CONDITIONAL));
-            let TypeData::Conditional(data) = state.tables.type_of(conditional).data.clone() else {
+            let TypeData::Conditional(data) = state.tables.type_of(conditional).data else {
                 panic!("conditional flags require the semantic payload");
             };
             let root = state.tables.conditional_root(data.root);
@@ -38,8 +38,7 @@ fn conditional_and_substitution_models_are_constructible_and_renderable() {
             let true_type = state
                 .get_true_type_from_conditional_type(conditional)
                 .expect("true arm");
-            let TypeData::Substitution(substitution) = state.tables.type_of(true_type).data.clone()
-            else {
+            let TypeData::Substitution(substitution) = state.tables.type_of(true_type).data else {
                 panic!("true-arm narrowing creates a substitution");
             };
             assert_eq!(substitution.base_type, data.check_type);

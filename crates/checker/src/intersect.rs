@@ -84,9 +84,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<i32> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::INTERSECTION) {
-            let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
+            let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
+            let types = self.tables.list(types).to_vec();
             return self.add_types_to_intersection(type_set, includes, &types);
         }
         if self.is_empty_anonymous_object_type(ty)? {
@@ -430,9 +431,11 @@ impl<'a> CheckerState<'a> {
         let all_first_undefined = type_set.iter().all(|&t| {
             self.tables.flags_of(t).intersects(TypeFlags::UNION)
                 && match &self.tables.type_of(t).data {
-                    TypeData::Union { types, .. } => types
-                        .first()
-                        .is_some_and(|&m| self.tables.flags_of(m).intersects(TypeFlags::UNDEFINED)),
+                    TypeData::Union { types, .. } => {
+                        self.tables.list(*types).first().is_some_and(|&m| {
+                            self.tables.flags_of(m).intersects(TypeFlags::UNDEFINED)
+                        })
+                    }
                     _ => false,
                 }
         });
@@ -455,20 +458,20 @@ impl<'a> CheckerState<'a> {
                 None,
             );
         }
-        let all_contain_null = type_set.iter().all(|&t| {
-            self.tables.flags_of(t).intersects(TypeFlags::UNION)
-                && match &self.tables.type_of(t).data {
-                    TypeData::Union { types, .. } => {
-                        types
-                            .first()
-                            .is_some_and(|&m| self.tables.flags_of(m).intersects(TypeFlags::NULL))
-                            || types.get(1).is_some_and(|&m| {
+        let all_contain_null =
+            type_set.iter().all(|&t| {
+                self.tables.flags_of(t).intersects(TypeFlags::UNION)
+                    && match &self.tables.type_of(t).data {
+                        TypeData::Union { types, .. } => {
+                            self.tables.list(*types).first().is_some_and(|&m| {
+                                self.tables.flags_of(m).intersects(TypeFlags::NULL)
+                            }) || self.tables.list(*types).get(1).is_some_and(|&m| {
                                 self.tables.flags_of(m).intersects(TypeFlags::NULL)
                             })
+                        }
+                        _ => false,
                     }
-                    _ => false,
-                }
-        });
+            });
         if all_contain_null {
             let null = self.tables.intrinsics.null;
             self.tables.remove_from_each(type_set, TypeFlags::NULL);
@@ -537,12 +540,12 @@ impl<'a> CheckerState<'a> {
                     let TypeData::Union {
                         types: source_types,
                         ..
-                    } = self.tables.type_of(types[j]).data.clone()
+                    } = self.tables.type_of(types[j]).data
                     else {
                         unreachable!("union flag implies union data");
                     };
-                    let length = source_types.len();
-                    constituents[j] = source_types[n % length];
+                    let length = self.tables.list(source_types).len();
+                    constituents[j] = self.tables.list(source_types)[n % length];
                     n /= length;
                 }
             }
@@ -562,7 +565,7 @@ impl<'a> CheckerState<'a> {
         for &t in types {
             if self.tables.flags_of(t).intersects(TypeFlags::UNION) {
                 if let TypeData::Union { types: members, .. } = &self.tables.type_of(t).data {
-                    size = size.saturating_mul(members.len());
+                    size = size.saturating_mul(self.tables.list(*members).len());
                 }
             } else if self.tables.flags_of(t).intersects(TypeFlags::NEVER) {
                 size = 0;

@@ -678,7 +678,7 @@ impl<'a> CheckerState<'a> {
         };
         let constituents: Vec<TypeId> = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => vec![ty],
             }
         } else {
@@ -1108,7 +1108,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let target_types = match &self.tables.type_of(target).data {
-            TypeData::Intersection { types } => types.to_vec(),
+            TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
             _ => return Ok(false),
         };
         let intrinsic_attributes = self.get_jsx_type(JSX_INTRINSIC_ATTRIBUTES, location)?;
@@ -1352,10 +1352,8 @@ impl<'a> CheckerState<'a> {
 
     /// The StringLiteral payload read.
     fn string_literal_type_value(&self, ty: TypeId) -> CheckResult<tsc_types::TemplateText> {
-        match &self.tables.type_of(ty).data {
-            TypeData::Literal {
-                value: tsc_types::LiteralValue::String(value),
-            } => Ok(value.clone()),
+        match self.tables.literal_value(ty) {
+            Some(tsc_types::LiteralValue::String(value)) => Ok(value.clone()),
             _ => unreachable!("STRING_LITERAL types always carry Literal string data"),
         }
     }
@@ -1517,7 +1515,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(TypeFlags::UNION)
         {
             let constituents: Vec<TypeId> = match &self.tables.type_of(apparent_elem_type).data {
-                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => Vec::new(),
             };
             let mut lists: Vec<Vec<SignatureId>> = Vec::with_capacity(constituents.len());
@@ -1963,7 +1961,7 @@ impl<'a> CheckerState<'a> {
         match &self.tables.type_of(ty).data {
             TypeData::GenericType {
                 type_parameters, ..
-            } => Some(type_parameters.to_vec()),
+            } => Some(self.tables.list(*type_parameters).to_vec()),
             _ => None,
         }
     }

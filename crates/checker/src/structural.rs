@@ -40,7 +40,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     fn tuple_target_readonly(&self, ty: TypeId) -> bool {
         let target = self.st.tables.reference_target(ty);
         match &self.st.tables.type_of(target).data {
-            TypeData::TupleTarget(data) => data.readonly,
+            TypeData::TupleTarget(data) => {
+                let data = self.st.tables.tuple_target(*data);
+                data.readonly
+            }
             _ => unreachable!("tuple references target tuple targets"),
         }
     }
@@ -336,14 +339,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
             if source_flags.intersects(TypeFlags::CONDITIONAL) {
-                let TypeData::Conditional(source_data) =
-                    self.st.tables.type_of(source).data.clone()
-                else {
+                let TypeData::Conditional(source_data) = self.st.tables.type_of(source).data else {
                     unreachable!("Conditional flag implies conditional data");
                 };
-                let TypeData::Conditional(target_data) =
-                    self.st.tables.type_of(target).data.clone()
-                else {
+                let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data else {
                     unreachable!("Conditional flag implies conditional data");
                 };
                 let source_root = self
@@ -410,13 +409,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
             if source_flags.intersects(TypeFlags::SUBSTITUTION) {
-                let TypeData::Substitution(source_data) =
-                    self.st.tables.type_of(source).data.clone()
+                let TypeData::Substitution(source_data) = self.st.tables.type_of(source).data
                 else {
                     unreachable!("Substitution flag implies substitution data");
                 };
-                let TypeData::Substitution(target_data) =
-                    self.st.tables.type_of(target).data.clone()
+                let TypeData::Substitution(target_data) = self.st.tables.type_of(target).data
                 else {
                     unreachable!("Substitution flag implies substitution data");
                 };
@@ -520,13 +517,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if source_flags.intersects(TypeFlags::from_bits(
             TypeFlags::OBJECT.bits() | TypeFlags::CONDITIONAL.bits(),
         )) {
-            let source_alias = self.st.tables.type_of(source).alias_symbol;
+            let source_alias = self.st.tables.alias_symbol(source);
             let source_alias_arguments = self
                 .st
                 .tables
                 .alias_type_arguments(source)
                 .map(<[TypeId]>::to_vec);
-            let target_alias = self.st.tables.type_of(target).alias_symbol;
+            let target_alias = self.st.tables.alias_symbol(target);
             if let (Some(alias_symbol), Some(source_arguments)) =
                 (source_alias, source_alias_arguments)
             {
@@ -920,8 +917,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             {
                 return Ok(Ternary::MAYBE);
             }
-            let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data.clone()
-            else {
+            let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data else {
                 unreachable!("Conditional target flag implies data");
             };
             let target_root = self.st.tables.conditional_root(target_data.root).clone();
@@ -1228,14 +1224,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             {
                 return Ok(Ternary::MAYBE);
             }
-            let TypeData::Conditional(source_data) = self.st.tables.type_of(source).data.clone()
-            else {
+            let TypeData::Conditional(source_data) = self.st.tables.type_of(source).data else {
                 unreachable!("Conditional source flag implies data");
             };
             if target_flags.intersects(TypeFlags::CONDITIONAL) {
-                let TypeData::Conditional(target_data) =
-                    self.st.tables.type_of(target).data.clone()
-                else {
+                let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data else {
                     unreachable!("Conditional target flag implies data");
                 };
                 let source_root = self.st.tables.conditional_root(source_data.root).clone();
@@ -1466,7 +1459,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             st.tables.is_tuple_type(t) && {
                                 let tuple_target = st.tables.reference_target(t);
                                 match &st.tables.type_of(tuple_target).data {
-                                    TypeData::TupleTarget(data) => !data.readonly,
+                                    TypeData::TupleTarget(data) => {
+                                        let data = st.tables.tuple_target(*data);
+                                        !data.readonly
+                                    }
                                     _ => false,
                                 }
                             }
@@ -1614,7 +1610,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
 
     fn template_parts(&self, ty: TypeId) -> (Vec<TemplateText>, Vec<TypeId>) {
         match &self.st.tables.type_of(ty).data {
-            TypeData::TemplateLiteral(data) => (data.texts.to_vec(), data.types.to_vec()),
+            TypeData::TemplateLiteral(data) => {
+                let data = self.st.tables.template_literal(*data);
+                (
+                    data.texts.to_vec(),
+                    self.st.tables.list(data.types).to_vec(),
+                )
+            }
             _ => unreachable!("template flag implies template data"),
         }
     }
@@ -2311,8 +2313,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if source_is_tuple || self.st.is_array_type(source)? {
                 let source_data = if source_is_tuple {
                     let source_target = self.st.tables.reference_target(source);
-                    let TypeData::TupleTarget(data) =
-                        self.st.tables.type_of(source_target).data.clone()
+                    let TypeData::TupleTarget(data) = self.st.tables.type_of(source_target).data
                     else {
                         unreachable!("tuple type targets a tuple target");
                     };
@@ -2321,36 +2322,57 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     None
                 };
                 let target_target = self.st.tables.reference_target(target);
-                let TypeData::TupleTarget(target_data) =
-                    self.st.tables.type_of(target_target).data.clone()
+                let TypeData::TupleTarget(target_data) = self.st.tables.type_of(target_target).data
                 else {
                     unreachable!("tuple type targets a tuple target");
                 };
                 let source_readonly = match &source_data {
-                    Some(data) => data.readonly,
+                    Some(data) => self.st.tables.tuple_target(*data).readonly,
                     None => self.st.is_readonly_array_type(source)?,
                 };
-                if !target_data.readonly && source_readonly {
+                if !self.st.tables.tuple_target(target_data).readonly && source_readonly {
                     return Ok(Ternary::FALSE);
                 }
                 let source_arity = match &source_data {
-                    Some(data) => data.type_parameters.len(),
+                    Some(data) => self
+                        .st
+                        .tables
+                        .list(self.st.tables.tuple_target(*data).type_parameters)
+                        .len(),
                     None => 1,
                 };
-                let target_arity = target_data.type_parameters.len();
+                let target_arity = self
+                    .st
+                    .tables
+                    .list(self.st.tables.tuple_target(target_data).type_parameters)
+                    .len();
                 let source_rest_flag = match &source_data {
-                    Some(data) => data.combined_flags.intersects(ElementFlags::REST),
+                    Some(data) => self
+                        .st
+                        .tables
+                        .tuple_target(*data)
+                        .combined_flags
+                        .intersects(ElementFlags::REST),
                     None => true,
                 };
                 // tsgo (relater.go:4150-4151) maps positions by a rest
                 // element and bounds the arity by any variable element.
-                let target_has_rest_element =
-                    target_data.combined_flags.intersects(ElementFlags::REST);
-                let target_has_variable_element = target_data
+                let target_has_rest_element = self
+                    .st
+                    .tables
+                    .tuple_target(target_data)
+                    .combined_flags
+                    .intersects(ElementFlags::REST);
+                let target_has_variable_element = self
+                    .st
+                    .tables
+                    .tuple_target(target_data)
                     .combined_flags
                     .intersects(ElementFlags::VARIABLE);
-                let source_min_length = source_data.as_ref().map_or(0, |data| data.min_length);
-                let target_min_length = target_data.min_length;
+                let source_min_length = source_data
+                    .as_ref()
+                    .map_or(0, |data| self.st.tables.tuple_target(*data).min_length);
+                let target_min_length = self.st.tables.tuple_target(target_data).min_length;
                 if !source_rest_flag && source_arity < target_min_length {
                     if report_errors {
                         self.report_error(
@@ -2390,16 +2412,22 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 // references force their arguments lazily here.
                 let source_type_arguments = self.st.get_type_arguments(source)?;
                 let target_type_arguments = self.st.get_type_arguments(target)?;
-                let target_start_count =
-                    start_element_count(&target_data.element_flags, ElementFlags::NON_REST);
-                let target_end_count =
-                    end_element_count(&target_data.element_flags, ElementFlags::NON_REST);
+                let target_start_count = start_element_count(
+                    &self.st.tables.tuple_target(target_data).element_flags,
+                    ElementFlags::NON_REST,
+                );
+                let target_end_count = end_element_count(
+                    &self.st.tables.tuple_target(target_data).element_flags,
+                    ElementFlags::NON_REST,
+                );
                 let mut can_exclude_discriminants = excluded_properties.is_some();
                 for source_position in 0..source_arity {
                     // 66809: array sources read as Rest at every
                     // position.
                     let source_flags = match &source_data {
-                        Some(data) => data.element_flags[source_position],
+                        Some(data) => {
+                            self.st.tables.tuple_target(*data).element_flags[source_position]
+                        }
                         None => ElementFlags::REST,
                     };
                     let source_position_from_end = source_arity - 1 - source_position;
@@ -2429,7 +2457,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         }
                         source_position
                     };
-                    let target_flags = target_data.element_flags[target_position];
+                    let target_flags =
+                        self.st.tables.tuple_target(target_data).element_flags[target_position];
                     if target_flags.intersects(ElementFlags::VARIADIC)
                         && !source_flags.intersects(ElementFlags::VARIADIC)
                     {
@@ -2542,12 +2571,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             // through to the property machinery over the synthesized
             // tuple index members.
             let target_target = self.st.tables.reference_target(target);
-            let TypeData::TupleTarget(target_data) =
-                self.st.tables.type_of(target_target).data.clone()
+            let TypeData::TupleTarget(target_data) = self.st.tables.type_of(target_target).data
             else {
                 unreachable!("tuple type targets a tuple target");
             };
-            if target_data
+            if self
+                .st
+                .tables
+                .tuple_target(target_data)
                 .combined_flags
                 .intersects(ElementFlags::VARIABLE)
             {
@@ -4696,7 +4727,9 @@ impl<'a> CheckerState<'a> {
         }
         let is_union = self.tables.flags_of(ty).intersects(TypeFlags::UNION);
         let members = match &self.tables.type_of(ty).data {
-            TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+            TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                self.tables.list(*types).to_vec()
+            }
             _ => unreachable!("union/intersection flag implies member data"),
         };
         let mut seen: Vec<EscapedName> = Vec::new();
@@ -5041,9 +5074,10 @@ impl<'a> CheckerState<'a> {
                 .intersects(ObjectFlags::IS_NEVER_INTERSECTION_COMPUTED)
             {
                 self.add_object_flags(ty, ObjectFlags::IS_NEVER_INTERSECTION_COMPUTED);
-                let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
+                let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                     unreachable!("intersection flag implies intersection data");
                 };
+                let types = self.tables.list(types).to_vec();
                 if !self.is_mapping_of_same_object_type(&types)?
                     && self.some_property_reduces_to_never(ty, &types)?
                 {
@@ -5155,9 +5189,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b3c08b496383a35f8652196b191738f0a7d6d25a3857ed0a0f7e25cdc41340e1
     /// tsc-span: _tsc.js:59298-59308
     fn get_reduced_union_type(&mut self, union: TypeId) -> CheckResult<TypeId> {
-        let TypeData::Union { types, .. } = self.tables.type_of(union).data.clone() else {
+        let TypeData::Union { types, .. } = self.tables.type_of(union).data else {
             unreachable!("union flag implies union data");
         };
+        let types = self.tables.list(types).to_vec();
         let mut reduced_types = Vec::with_capacity(types.len());
         let mut changed = false;
         for &t in types.iter() {
@@ -5322,7 +5357,9 @@ impl<'a> CheckerState<'a> {
             .flags_of(containing_type)
             .intersects(TypeFlags::UNION);
         let members = match &self.tables.type_of(containing_type).data {
-            TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+            TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                self.tables.list(*types).to_vec()
+            }
             _ => unreachable!("union/intersection flag implies member data"),
         };
         let mut prop_flags = SymbolFlags::from_bits(0);
@@ -5812,9 +5849,10 @@ impl<'a> CheckerState<'a> {
             if flags.intersects(TypeFlags::ENUM_LITERAL) {
                 return true;
             }
-            let TypeData::Union { types, .. } = &self.tables.type_of(ty).data else {
+            let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
                 return false;
             };
+            let types = self.tables.list(types);
             return types
                 .iter()
                 .all(|&t| self.tables.flags_of(t).intersects(TypeFlags::UNIT));
@@ -6150,9 +6188,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:67895-67898
     pub(crate) fn is_object_type_with_inferable_index(&mut self, ty: TypeId) -> CheckResult<bool> {
         if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
-            let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
+            let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
+            let types = self.tables.list(types).to_vec();
             for t in types.iter() {
                 if !self.is_object_type_with_inferable_index(*t)? {
                     return Ok(false);
@@ -6177,7 +6216,7 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         if object_flags.intersects(ObjectFlags::REVERSE_MAPPED) {
-            let TypeData::ReverseMapped(reverse) = self.tables.type_of(ty).data.clone() else {
+            let TypeData::ReverseMapped(reverse) = self.tables.type_of(ty).data else {
                 unreachable!("reverse mapped flags imply reverse payload");
             };
             return self.is_object_type_with_inferable_index(reverse.source);
@@ -6256,17 +6295,25 @@ impl<'a> CheckerState<'a> {
         ) else {
             unreachable!("tuple types target tuple targets");
         };
-        (!target_data
+        (!self
+            .tables
+            .tuple_target(*target_data)
             .combined_flags
             .intersects(ElementFlags::VARIADIC)
-            && target_data.min_length > source_data.min_length)
-            || (!target_data
+            && self.tables.tuple_target(*target_data).min_length
+                > self.tables.tuple_target(*source_data).min_length)
+            || (!self
+                .tables
+                .tuple_target(*target_data)
                 .combined_flags
                 .intersects(ElementFlags::VARIABLE)
-                && (source_data
+                && (self
+                    .tables
+                    .tuple_target(*source_data)
                     .combined_flags
                     .intersects(ElementFlags::VARIABLE)
-                    || target_data.fixed_length < source_data.fixed_length))
+                    || self.tables.tuple_target(*target_data).fixed_length
+                        < self.tables.tuple_target(*source_data).fixed_length))
     }
 
     /// tsc-port: typesDefinitelyUnrelated @6.0.3
@@ -6307,9 +6354,11 @@ impl<'a> CheckerState<'a> {
         ) else {
             unreachable!("tuple types target tuple targets");
         };
-        d1.element_flags
+        self.tables
+            .tuple_target(*d1)
+            .element_flags
             .iter()
-            .zip(d2.element_flags.iter())
+            .zip(self.tables.tuple_target(*d2).element_flags.iter())
             .all(|(f1, f2)| {
                 (f1.bits() & ElementFlags::VARIABLE.bits())
                     == (f2.bits() & ElementFlags::VARIABLE.bits())
@@ -6326,8 +6375,9 @@ impl<'a> CheckerState<'a> {
     /// isArrayOrTupleType consumers).
     pub(crate) fn get_type_reference_arity(&self, ty: TypeId) -> usize {
         let target = self.tables.reference_target(ty);
-        if let TypeData::TupleTarget(data) = &self.tables.type_of(target).data {
-            return data.type_parameters.len();
+        if let TypeData::TupleTarget(data) = self.tables.type_of(target).data {
+            let data = self.tables.tuple_target(data);
+            return self.tables.list(data.type_parameters).len();
         }
         let Some(symbol) = self.tables.type_of(target).symbol else {
             return 0;
@@ -6363,7 +6413,9 @@ impl<'a> CheckerState<'a> {
                 .expect("synthetic properties carry their containing type");
             let name = self.binder.symbol(prop).escaped_name;
             let types = match &self.tables.type_of(containing).data {
-                TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                    self.tables.list(*types).to_vec()
+                }
                 _ => unreachable!("containing types are unions or intersections"),
             };
             for t in types {
@@ -6899,7 +6951,7 @@ impl<'a> CheckerState<'a> {
             }
         } else if flags.intersects(TypeFlags::INTERSECTION) {
             let constituents = match &self.tables.type_of(ty).data {
-                TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
             let mut mapped = Vec::with_capacity(constituents.len());
@@ -7090,7 +7142,8 @@ impl<'a> CheckerState<'a> {
             .intersects(ObjectFlags::REFERENCE)
         {
             let target = self.tables.reference_target(rest_type);
-            if let TypeData::TupleTarget(tuple) = self.tables.type_of(target).data.clone() {
+            if let TypeData::TupleTarget(tuple) = self.tables.type_of(target).data {
+                let tuple = self.tables.tuple_target(tuple);
                 let index = pos - param_count;
                 let declaration = tuple
                     .labeled_element_declarations
@@ -7290,9 +7343,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<crate::state::MembersId> {
-        let TypeData::Union { types, .. } = self.tables.type_of(ty).data.clone() else {
+        let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
             unreachable!("union flag implies union data");
         };
+        let types = self.tables.list(types).to_vec();
         let mut call_lists = Vec::with_capacity(types.len());
         let mut construct_lists = Vec::with_capacity(types.len());
         for &t in types.iter() {
@@ -7357,9 +7411,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<crate::state::MembersId> {
-        let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
+        let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
             unreachable!("intersection flag implies intersection data");
         };
+        let types = self.tables.list(types).to_vec();
         let mixin_flags = self.find_mixins(&types)?;
         let mixin_count = mixin_flags.iter().filter(|&&b| b).count();
         let mut call_signatures: Vec<SignatureId> = Vec::new();
@@ -7623,9 +7678,10 @@ impl<'a> CheckerState<'a> {
             return Ok(cached.into_vec());
         }
 
-        let TypeData::Union { types, .. } = &self.tables.type_of(ty).data else {
+        let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
             unreachable!("union flag implies union data");
         };
+        let types = self.tables.list(types);
         let constituents = types.to_vec();
         let global_array = self.global_array_type()?;
         let global_readonly_array = self.global_readonly_array_type()?;
@@ -7689,7 +7745,7 @@ impl<'a> CheckerState<'a> {
                 eligible = false;
                 break;
             };
-            let Some(&element_parameter) = type_parameters.first() else {
+            let Some(&element_parameter) = self.tables.list(*type_parameters).first() else {
                 eligible = false;
                 break;
             };
@@ -7812,7 +7868,8 @@ impl<'a> CheckerState<'a> {
         }
         if self.tables.is_tuple_type(ty) {
             let target = self.tables.reference_target(ty);
-            if let TypeData::TupleTarget(data) = &self.tables.type_of(target).data {
+            if let TypeData::TupleTarget(data) = self.tables.type_of(target).data {
+                let data = self.tables.tuple_target(data);
                 return Ok(!data.readonly);
             }
         }
@@ -7828,7 +7885,10 @@ impl<'a> CheckerState<'a> {
         }
         let target = self.tables.reference_target(ty);
         match &self.tables.type_of(target).data {
-            TypeData::TupleTarget(data) => data.element_flags.len() == 1,
+            TypeData::TupleTarget(data) => {
+                let data = self.tables.tuple_target(*data);
+                data.element_flags.len() == 1
+            }
             _ => false,
         }
     }
@@ -7890,10 +7950,11 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let target = self.tables.reference_target(rest_type);
-        let TypeData::TupleTarget(data) = &self.tables.type_of(target).data else {
+        let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
             unreachable!("tuple type targets a tuple target");
         };
-        Ok(Some((rest_type, (**data).clone())))
+        let data = self.tables.tuple_target(data);
+        Ok(Some((rest_type, data.clone())))
     }
 
     // ---- arity helpers (78233-78341) ----
@@ -8120,7 +8181,8 @@ impl<'a> CheckerState<'a> {
         let rest_type = self.get_type_of_symbol(rest_parameter)?;
         if self.tables.is_tuple_type(rest_type) {
             let target = self.tables.reference_target(rest_type);
-            if let TypeData::TupleTarget(data) = &self.tables.type_of(target).data {
+            if let TypeData::TupleTarget(data) = self.tables.type_of(target).data {
+                let data = self.tables.tuple_target(data);
                 let index = pos - param_count;
                 return Ok(data
                     .labeled_element_declarations
@@ -8178,9 +8240,10 @@ impl<'a> CheckerState<'a> {
             ));
         }
         let target = self.tables.reference_target(rest_type);
-        let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+        let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
             unreachable!("tuple type targets a tuple target");
         };
+        let data = self.tables.tuple_target(data).clone();
         if data.combined_flags.intersects(ElementFlags::VARIABLE) {
             return Ok(Some(self.slice_tuple_type(
                 rest_type,
@@ -8201,9 +8264,10 @@ impl<'a> CheckerState<'a> {
         end_skip_count: usize,
     ) -> CheckResult<TypeId> {
         let target = self.tables.reference_target(ty);
-        let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+        let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
             unreachable!("tuple type targets a tuple target");
         };
+        let data = self.tables.tuple_target(data).clone();
         // 61290 slices with JS Array.prototype.slice semantics: an end
         // before the start yields the empty slice (reachable from
         // inferFromObjectTypes' middle-arm bounds when the source
@@ -8214,7 +8278,7 @@ impl<'a> CheckerState<'a> {
         // (69114) passes endLength + sourceArity - impliedArity, which
         // exceeds the source arity whenever impliedArity < endLength
         // (7.2d re-audit item, resolved — pinned below).
-        let len = data.type_parameters.len();
+        let len = self.tables.list(data.type_parameters).len();
         let end_index = if end_skip_count <= len {
             len - end_skip_count
         } else {
@@ -8332,8 +8396,11 @@ impl<'a> CheckerState<'a> {
                 let target = self.tables.reference_target(rest_type);
                 match &self.tables.type_of(target).data {
                     TypeData::TupleTarget(data) => {
-                        data.combined_flags.intersects(ElementFlags::VARIABLE)
-                            || index < data.fixed_length
+                        self.tables
+                            .tuple_target(*data)
+                            .combined_flags
+                            .intersects(ElementFlags::VARIABLE)
+                            || index < self.tables.tuple_target(*data).fixed_length
                     }
                     _ => unreachable!("tuple type targets a tuple target"),
                 }
@@ -8454,9 +8521,7 @@ impl<'a> CheckerState<'a> {
             if source == self.tables.intrinsics.numeric_string {
                 return Ok(true);
             }
-            if let TypeData::Literal {
-                value: tsc_types::LiteralValue::String(value),
-            } = &self.tables.type_of(source).data
+            if let Some(tsc_types::LiteralValue::String(value)) = self.tables.literal_value(source)
             {
                 return Ok(value
                     .to_utf8()
@@ -8596,7 +8661,7 @@ impl<'a> CheckerState<'a> {
         };
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             if let TypeData::Union { types, .. } = &self.tables.type_of(ty).data {
-                for &t in types.iter() {
+                for &t in self.tables.list(*types).iter() {
                     visit(self.tables.flags_of(t));
                 }
             }
@@ -8633,7 +8698,10 @@ impl<'a> CheckerState<'a> {
 
     fn template_parts_of(&self, ty: TypeId) -> (Vec<TemplateText>, Vec<TypeId>) {
         match &self.tables.type_of(ty).data {
-            TypeData::TemplateLiteral(data) => (data.texts.to_vec(), data.types.to_vec()),
+            TypeData::TemplateLiteral(data) => {
+                let data = self.tables.template_literal(*data);
+                (data.texts.to_vec(), self.tables.list(data.types).to_vec())
+            }
             _ => unreachable!("template flag implies template data"),
         }
     }
@@ -8648,9 +8716,10 @@ impl<'a> CheckerState<'a> {
         source_texts: &[TemplateText],
         target: TypeId,
     ) -> bool {
-        let TypeData::TemplateLiteral(target_template) = &self.tables.type_of(target).data else {
+        let TypeData::TemplateLiteral(target_template) = self.tables.type_of(target).data else {
             unreachable!("template flag implies template data");
         };
+        let target_template = self.tables.template_literal(target_template);
         let target_texts = &target_template.texts;
         let source_start = source_texts[0].units();
         let source_end = source_texts[source_texts.len() - 1].units();
@@ -8994,10 +9063,7 @@ fn infer_types_from_template_literal_type<'a, C: TemplateTypeComparer<'a>>(
     let st = comparer.state();
     let source_flags = st.tables.flags_of(source);
     if source_flags.intersects(TypeFlags::STRING_LITERAL) {
-        let TypeData::Literal {
-            value: tsc_types::LiteralValue::String(value),
-        } = &st.tables.type_of(source).data
-        else {
+        let Some(tsc_types::LiteralValue::String(value)) = st.tables.literal_value(source) else {
             unreachable!("string literal data");
         };
         // Test the ends before copying the literal.
@@ -9054,9 +9120,10 @@ fn is_valid_type_for_template_literal_placeholder<'a, C: TemplateTypeComparer<'a
         .flags_of(target)
         .intersects(TypeFlags::INTERSECTION)
     {
-        let TypeData::Intersection { types } = st.tables.type_of(target).data.clone() else {
+        let TypeData::Intersection { types } = st.tables.type_of(target).data else {
             unreachable!("intersection flag implies intersection data");
         };
+        let types = st.tables.list(types).to_vec();
         let empty_type_literal = st.empty_type_literal_type;
         for t in types.iter() {
             if *t == empty_type_literal {
@@ -9079,10 +9146,7 @@ fn is_valid_type_for_template_literal_placeholder<'a, C: TemplateTypeComparer<'a
         .flags_of(source)
         .intersects(TypeFlags::STRING_LITERAL)
     {
-        let TypeData::Literal {
-            value: tsc_types::LiteralValue::String(value),
-        } = st.tables.type_of(source).data.clone()
-        else {
+        let Some(tsc_types::LiteralValue::String(value)) = st.tables.literal_value(source) else {
             unreachable!("string literal data");
         };
         let target_flags = st.tables.flags_of(target);
@@ -9104,8 +9168,8 @@ fn is_valid_type_for_template_literal_placeholder<'a, C: TemplateTypeComparer<'a
         if target_flags.intersects(TypeFlags::from_bits(
             TypeFlags::BOOLEAN_LITERAL.bits() | TypeFlags::NULLABLE.bits(),
         )) {
-            if let TypeData::Intrinsic(data) = &st.tables.type_of(target).data {
-                return Ok(value.eq_utf8(data.name));
+            if let Some(name) = st.tables.intrinsic_name(target) {
+                return Ok(value.eq_utf8(name));
             }
         }
         if target_flags.intersects(TypeFlags::STRING_MAPPING) {

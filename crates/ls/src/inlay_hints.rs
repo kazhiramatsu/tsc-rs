@@ -14,7 +14,7 @@ use tsc_lsproto::{
     InlayHintsOrNull, Location, StringOrInlayHintLabelParts,
 };
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
-use tsc_types::{ElementFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId};
+use tsc_types::{ElementFlags, SignatureFlags, SymbolFlags, TypeFlags, TypeId};
 
 use crate::astnav::{Found, Navigator};
 use crate::language_service::{LanguageService, LsError};
@@ -250,7 +250,7 @@ impl InlayHints<'_, '_, '_, '_> {
                     let spread_type = state.get_type_at_location(spread_expression)?;
                     if state.tables.is_tuple_type(spread_type) {
                         let target = state.tables.reference_target(spread_type);
-                        if let TypeData::TupleTarget(tuple) = &state.tables.type_of(target).data {
+                        if let Some(tuple) = state.tables.tuple_target_of(target) {
                             if tuple.fixed_length == 0 {
                                 continue;
                             }
@@ -684,12 +684,12 @@ impl InlayHints<'_, '_, '_, '_> {
         let rest_type = state.get_type_of_symbol(rest)?;
         if state.tables.is_tuple_type(rest_type) {
             let target = state.tables.reference_target(rest_type);
-            let labeled: Vec<Option<NodeId>> = match &state.tables.type_of(target).data {
-                TypeData::TupleTarget(tuple) => match &tuple.labeled_element_declarations {
+            let labeled: Vec<Option<NodeId>> = match state.tables.tuple_target_of(target) {
+                Some(tuple) => match &tuple.labeled_element_declarations {
                     Some(names) => names.iter().map(|name| name.map(NodeId::new)).collect(),
                     None => vec![None; tuple.element_flags.len()],
                 },
-                _ => Vec::new(),
+                None => Vec::new(),
             };
             let index = position - parameter_count;
             if let Some(Some(element)) = labeled.get(index).copied() {

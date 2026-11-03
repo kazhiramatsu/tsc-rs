@@ -427,6 +427,22 @@ impl<T: StoreRecord> StoreVec<T> {
         self.capacity
     }
 
+    /// The record at `index`, an index below the list's length: a list whose
+    /// indices are its records' identities (a checker's types) reads a
+    /// record it pushed with one load, as [`get`] reads a published record,
+    /// and no bound. `index` must name a record the list holds.
+    #[inline(always)]
+    pub fn record(&self, index: u32) -> &T {
+        debug_assert!(
+            (index as usize) < self.len,
+            "a store list index past its length"
+        );
+        // SAFETY: the caller's contract puts `index` below `len` (checked in
+        // debug builds), so the slot is inside the buffer and holds a record
+        // this list wrote.
+        unsafe { &*self.records.as_ptr().add(index as usize) }
+    }
+
     /// Add a record; a published list is final.
     #[inline]
     pub fn push(&mut self, record: T) {

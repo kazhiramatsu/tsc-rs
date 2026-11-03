@@ -30,10 +30,11 @@ pub use tables::{
 };
 pub use tsc_diagnostics::{JsStr, JsString};
 pub use ty::{
-    ConditionalRootData, ConditionalRootId, ConditionalTypeData, IntrinsicData, LiteralValue,
-    MappedTypeData, MappedTypeModifiers, MapperId, PseudoBigInt, ReverseMappedTypeData,
-    SubstitutionTypeData, SymbolId, TemplateLiteralData, TemplateText, TupleTargetData, Type,
-    TypeData, TypeId,
+    AliasId, BigIntId, ConditionalRootData, ConditionalRootId, ConditionalTypeData, IntrinsicData,
+    IntrinsicId, LiteralData, LiteralTextId, LiteralValue, LiteralValueOwned, MappedTypeData,
+    MappedTypeModifiers, MapperId, NumberBits, PseudoBigInt, ReverseMappedTypeData,
+    SubstitutionTypeData, SymbolId, TemplateLiteralData, TemplateLiteralId, TemplateText,
+    TupleTargetData, TupleTargetId, Type, TypeAlias, TypeData, TypeId,
 };
 pub use type_order::{sort_func_like_go, TypeOrder, TypeOrderContext};
 pub use version::{

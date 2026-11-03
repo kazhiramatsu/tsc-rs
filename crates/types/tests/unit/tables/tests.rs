@@ -1,7 +1,11 @@
 use super::*;
 
 fn tables() -> TypeTables {
-    TypeTables::new(/*strict_null_checks*/ true, /*eopt*/ false)
+    TypeTables::new(
+        /*strict_null_checks*/ true,
+        /*eopt*/ false,
+        &IdentityDomain::new(),
+    )
 }
 
 #[test]
@@ -17,7 +21,7 @@ fn intrinsics_are_allocated_in_tsc_order() {
     // exactOptionalPropertyTypes off aliases undefinedOrMissing.
     assert_eq!(t.intrinsics.undefined_or_missing, t.intrinsics.undefined);
 
-    let loose = TypeTables::new(false, false);
+    let loose = TypeTables::new(false, false, &IdentityDomain::new());
     assert_ne!(
         loose.intrinsics.undefined_widening,
         loose.intrinsics.undefined
@@ -40,10 +44,11 @@ fn template_constraint_and_numeric_string_shapes() {
         .intersects(TypeFlags::UNION));
     match &t.type_of(t.intrinsics.numeric_string).data {
         TypeData::TemplateLiteral(data) => {
+            let data = t.template_literal(*data);
             assert_eq!(data.texts.len(), 2);
             assert!(data.texts.iter().all(|text| text.is_empty()));
-            assert_eq!(data.types.len(), 1);
-            assert_eq!(data.types[0], t.intrinsics.number);
+            assert_eq!(t.list(data.types).len(), 1);
+            assert_eq!(t.list(data.types)[0], t.intrinsics.number);
         }
         other => panic!("numeric_string should be a template literal: {other:?}"),
     }
@@ -83,7 +88,7 @@ fn boolean_is_a_flagged_union_of_regular_literals() {
         panic!("boolean must be a union");
     };
     assert_eq!(
-        types.as_ref(),
+        t.list(*types),
         [t.intrinsics.false_regular, t.intrinsics.true_regular]
     );
 }
@@ -172,7 +177,7 @@ fn union_literal_reduction_drops_subsumed_literals() {
     let TypeData::Union { types, .. } = &t.type_of(unreduced).data else {
         panic!("unreduced union stays a union");
     };
-    assert_eq!(types.len(), 2);
+    assert_eq!(t.list(*types).len(), 2);
 }
 
 #[test]
@@ -212,7 +217,7 @@ fn union_any_unknown_absorption() {
 
 #[test]
 fn union_folds_nullable_members_without_strict_null_checks() {
-    let mut loose = TypeTables::new(false, false);
+    let mut loose = TypeTables::new(false, false, &IdentityDomain::new());
     let number = loose.intrinsics.number;
     let null = loose.intrinsics.null;
     // number | null collapses to number at construction (61347-61349).
@@ -254,7 +259,7 @@ fn union_folds_nullable_members_without_strict_null_checks() {
 #[test]
 fn union_dedups_missing_against_undefined() {
     // exactOptionalPropertyTypes tables: undefinedOrMissing = missing.
-    let mut t = TypeTables::new(true, true);
+    let mut t = TypeTables::new(true, true, &IdentityDomain::new());
     let missing = t.intrinsics.missing;
     let undefined = t.intrinsics.undefined;
     assert_ne!(missing, undefined);
@@ -287,16 +292,16 @@ fn named_union_members_denormalize_into_origin() {
     let two = t.get_number_literal_type(2.0);
     let named = t.get_union_type(None, &[one, two], UnionReduction::Literal);
     // Synthesize an alias (M4 machinery) to make the union "named".
-    t.type_mut(named).alias_symbol = Some(crate::ty::SymbolId::new(0));
+    t.set_alias(named, Some(crate::ty::SymbolId::new(0)), None);
     // A union containing ONLY the named union returns it unchanged.
     let string = t.intrinsics.string;
     let widened = t.get_union_type(None, &[named, string], UnionReduction::Literal);
-    let TypeData::Union { types, origin } = &t.type_of(widened).data else {
+    let TypeData::Union { types, origin, .. } = &t.type_of(widened).data else {
         panic!("union expected");
     };
     // typeSet is id-sorted: the string intrinsic precedes the
     // literal types allocated by this test.
-    assert_eq!(types.as_ref(), [string, one, two]);
+    assert_eq!(t.list(*types), [string, one, two]);
     let origin = origin.expect("named member denormalizes into an origin");
     let TypeData::Union {
         types: origin_types,
@@ -307,7 +312,7 @@ fn named_union_members_denormalize_into_origin() {
     };
     // insertType keeps id order: string (intrinsic) precedes the
     // later-allocated named union.
-    assert_eq!(origin_types.as_ref(), [string, named]);
+    assert_eq!(t.list(*origin_types), [string, named]);
 }
 
 #[test]
@@ -336,7 +341,7 @@ fn tuple_targets_intern_by_flags_and_readonly() {
     let readonly = t.get_tuple_target_type(None, req_flags, true, None);
     assert_eq!(a, b);
     assert_ne!(a, readonly);
-    let TypeData::TupleTarget(data) = &t.type_of(a).data else {
+    let Some(data) = t.tuple_target_of(a) else {
         panic!("tuple target expected");
     };
     assert_eq!(data.min_length, 1);
@@ -350,7 +355,7 @@ fn tuple_targets_intern_by_flags_and_readonly() {
         false,
         None,
     );
-    let TypeData::TupleTarget(data) = &t.type_of(with_rest).data else {
+    let Some(data) = t.tuple_target_of(with_rest) else {
         panic!("tuple target expected");
     };
     assert_eq!(data.min_length, 1);
@@ -372,7 +377,7 @@ fn tuple_length_types_exist_before_member_queries() {
             let mut t = tables();
             let flags = TupleTargetFlags::new(&flags).expect("fixed tuple shape");
             let target = t.get_tuple_target_type(None, flags, readonly, None);
-            let TypeData::TupleTarget(data) = &t.type_of(target).data else {
+            let Some(data) = t.tuple_target_of(target) else {
                 panic!("tuple target");
             };
             let length_type = data.length_type;
@@ -394,7 +399,7 @@ fn tuple_length_types_exist_before_member_queries() {
         let flags = [ElementFlags::REQUIRED, tail];
         let target =
             t.get_tuple_target_type(None, TupleTargetFlags::new(&flags).unwrap(), false, None);
-        let TypeData::TupleTarget(data) = &t.type_of(target).data else {
+        let Some(data) = t.tuple_target_of(target) else {
             panic!("tuple target");
         };
         assert_eq!(data.length_type, t.intrinsics.number);
@@ -461,10 +466,11 @@ fn template_literal_types_fold_and_intern() {
     );
     assert_ne!(folded_surrogate, folded_replacement);
     assert_eq!(
-        &t.type_of(folded_surrogate).data,
-        &TypeData::Literal {
-            value: LiteralValue::String(TemplateText::from_utf16(&[0xD800, b'x' as u16])),
-        }
+        t.literal_value(folded_surrogate),
+        Some(LiteralValue::String(&TemplateText::from_utf16(&[
+            0xD800,
+            b'x' as u16
+        ])))
     );
     // `${string}` with empty texts collapses to string (62075-62078).
     let s = t.get_template_literal_type(&["".into(), "".into()], &[string]);
@@ -621,10 +627,10 @@ fn optionality_follows_strict_null_checks() {
     let TypeData::Union { types, .. } = &t.type_of(optional).data else {
         panic!("optional property type must union undefined");
     };
-    assert!(types.contains(&t.intrinsics.undefined));
+    assert!(t.list(*types).contains(&t.intrinsics.undefined));
     assert_eq!(t.add_optionality(None, number, true, false), number);
 
-    let mut loose = TypeTables::new(false, false);
+    let mut loose = TypeTables::new(false, false, &IdentityDomain::new());
     let number = loose.intrinsics.number;
     assert_eq!(loose.add_optionality(None, number, true, true), number);
 }

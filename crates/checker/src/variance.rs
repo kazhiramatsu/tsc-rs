@@ -60,7 +60,7 @@ impl<'a> CheckerState<'a> {
         let type_parameters = match &self.tables.type_of(ty).data {
             TypeData::GenericType {
                 type_parameters, ..
-            } => type_parameters.to_vec(),
+            } => self.tables.list(*type_parameters).to_vec(),
             _ => unreachable!(
                 "getVariances runs on same-target reference pairs, whose non-tuple \
                  targets are GenericTypes"
@@ -366,7 +366,7 @@ impl<'a> CheckerState<'a> {
             let type_parameters = match &self.tables.type_of(ty).data {
                 TypeData::GenericType {
                     type_parameters, ..
-                } => type_parameters.to_vec(),
+                } => self.tables.list(*type_parameters).to_vec(),
                 _ => unreachable!(
                     "variance measurement runs over generic class/interface declared types"
                 ),

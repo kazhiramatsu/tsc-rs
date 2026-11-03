@@ -217,11 +217,11 @@ fn tuple_annotations_build_normalized_references() {
                 panic!("tuple reference targets a tuple target");
             };
             assert_eq!(
-                data.element_flags.as_ref(),
+                state.tables.tuple_target(*data).element_flags.as_ref(),
                 [ElementFlags::REQUIRED, ElementFlags::OPTIONAL]
             );
-            assert_eq!(data.min_length, 1);
-            assert!(!data.readonly);
+            assert_eq!(state.tables.tuple_target(*data).min_length, 1);
+            assert!(!state.tables.tuple_target(*data).readonly);
             // Optional element type widened with undefined (strict).
             let args = state.tables.type_arguments(a).to_vec();
             assert!(state.tables.flags_of(args[1]).intersects(TypeFlags::UNION));
@@ -231,7 +231,7 @@ fn tuple_annotations_build_normalized_references() {
             let TypeData::TupleTarget(data) = &state.tables.type_of(b_target).data else {
                 panic!("tuple reference targets a tuple target");
             };
-            assert!(data.readonly);
+            assert!(state.tables.tuple_target(*data).readonly);
 
             // Variadic tuple spread normalizes to the flat tuple.
             assert_eq!(annotation_type(state, "c"), annotation_type(state, "d"));
@@ -373,7 +373,7 @@ fn intersection_normalization_matches_tsc() {
             let TypeData::Intersection { types } = &state.tables.type_of(d).data else {
                 panic!("string & {{}} stays an intersection");
             };
-            assert_eq!(types.len(), 2);
+            assert_eq!(state.tables.list(*types).len(), 2);
             // unknown vanishes from intersections.
             assert_eq!(annotation_type(state, "e"), state.tables.intrinsics.string);
             // Union distribution: ("a"|"b") & string = "a" | "b".
@@ -422,8 +422,8 @@ fn intersections_are_insertion_order_sensitive_and_never_structural() {
             let TypeData::Intersection { types } = &state.tables.type_of(c).data else {
                 panic!("distinct {{x}} literals stay an intersection");
             };
-            assert_eq!(types.len(), 2);
-            assert_ne!(types[0], types[1]);
+            assert_eq!(state.tables.list(*types).len(), 2);
+            assert_ne!(state.tables.list(*types)[0], state.tables.list(*types)[1]);
         },
     );
 }
@@ -461,8 +461,7 @@ fn resolved_conditional_and_unresolved_name_shapes_are_sound() {
             assert!(state.tables.is_error_type(ty));
             let alias = state
                 .tables
-                .type_of(ty)
-                .alias_symbol
+                .alias_symbol(ty)
                 .expect("unresolved error retains its alias symbol");
             assert!(state
                 .get_check_flags(alias)
@@ -489,8 +488,7 @@ fn resolved_conditional_and_unresolved_name_shapes_are_sound() {
             assert!(state.tables.is_error_type(d));
             let qualified_alias = state
                 .tables
-                .type_of(d)
-                .alias_symbol
+                .alias_symbol(d)
                 .expect("qualified unresolved error retains its alias symbol");
             assert_eq!(
                 state.get_fully_qualified_name(qualified_alias),

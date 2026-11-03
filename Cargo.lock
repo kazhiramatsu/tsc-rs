@@ -1045,6 +1045,7 @@ dependencies = [
  "hashbrown 0.16.1",
  "rustc-hash",
  "tsc-rs-diagnostics",
+ "tsc-rs-store",
  "xxhash-rust",
 ]
 

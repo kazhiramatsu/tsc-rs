@@ -1507,8 +1507,8 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(t).data {
-                TypeData::Union { types, .. } => types.to_vec(),
-                TypeData::Intersection { types } => types.to_vec(),
+                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => return Ok(false),
             };
             for member in members {
@@ -1594,7 +1594,7 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         }
         let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-            TypeData::Union { types, .. } => types.to_vec(),
+            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
             _ => unreachable!("union flag implies union data"),
         };
         let mut all_empty_or_spread = true;
@@ -1844,7 +1844,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(TypeFlags::INTERSECTION)
             {
                 let types: Vec<TypeId> = match &self.tables.type_of(left).data {
-                    TypeData::Intersection { types } => types.to_vec(),
+                    TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                     _ => unreachable!("intersection flag implies intersection data"),
                 };
                 // W2c: the LAST constituent (by stored order) is folded.

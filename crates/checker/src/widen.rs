@@ -230,7 +230,9 @@ impl<'a> CheckerState<'a> {
     fn for_each_type_members(&self, ty: TypeId, out: &mut Vec<TypeId>) {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
-                tsc_types::TypeData::Union { types, .. } => out.extend(types.iter().copied()),
+                tsc_types::TypeData::Union { types, .. } => {
+                    out.extend(self.tables.list(*types).iter().copied())
+                }
                 _ => unreachable!("union flag implies union data"),
             }
         } else {
@@ -414,7 +416,7 @@ impl<'a> CheckerState<'a> {
             result = Some(self.get_widened_type_of_object_literal(ty, context)?);
         } else if flags.intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsc_types::TypeData::Union { types, .. } => types.to_vec(),
+                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             let union_context = match context {
@@ -453,7 +455,7 @@ impl<'a> CheckerState<'a> {
             result = Some(self.get_union_type_ex(&widened, reduction)?);
         } else if flags.intersects(TypeFlags::INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsc_types::TypeData::Intersection { types } => types.to_vec(),
+                tsc_types::TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
             let mut widened = Vec::with_capacity(members.len());
@@ -500,7 +502,7 @@ impl<'a> CheckerState<'a> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsc_types::TypeData::Union { types, .. } => types.to_vec(),
+                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             let mut any_empty_object = false;

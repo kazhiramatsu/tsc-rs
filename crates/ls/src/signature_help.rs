@@ -14,7 +14,7 @@ use tsc_lsproto::{
     VSClassifiedTextElement, VSClassifiedTextRun,
 };
 use tsc_syntax::{skip_trivia, NodeArrayId, NodeData, NodeId, SyntaxKind, TokenScanner};
-use tsc_types::{CheckFlags, ContextFlags, ElementFlags, InternalSymbolName, SymbolId, TypeData};
+use tsc_types::{CheckFlags, ContextFlags, ElementFlags, InternalSymbolName, SymbolId};
 
 use crate::completions::{is_template_literal_kind, Completions};
 use crate::hover::classification_for_symbol;
@@ -925,7 +925,7 @@ impl Completions<'_, '_, '_> {
             return Ok(0);
         }
         let target = state.tables.reference_target(spread_type);
-        let TypeData::TupleTarget(tuple) = &state.tables.type_of(target).data else {
+        let Some(tuple) = state.tables.tuple_target_of(target) else {
             return Ok(0);
         };
         if tuple.fixed_length == 0 {
