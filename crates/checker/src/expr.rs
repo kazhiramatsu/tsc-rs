@@ -1438,26 +1438,40 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:71640-71646
     pub(crate) fn get_narrowable_type_for_reference(
         &mut self,
-        mut ty: TypeId,
+        ty: TypeId,
         reference: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
+        self.get_narrowable_type_for_reference_with_position(ty, reference, check_mode)
+            .map(|(ty, _)| ty)
+    }
+
+    /// Also reports whether constraint substitution read this node's
+    /// position, which a structural flow-reference key cannot describe.
+    pub(crate) fn get_narrowable_type_for_reference_with_position(
+        &mut self,
+        mut ty: TypeId,
+        reference: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult<(TypeId, bool)> {
         if self.tables.is_no_infer_type(ty) {
             let TypeData::Substitution(data) = self.tables.type_of(ty).data else {
                 unreachable!("NoInfer is a Substitution type");
             };
             ty = data.base_type;
         }
-        let substitute_constraints = !check_mode.intersects(CheckMode::INFERENTIAL)
+        let position_read = !check_mode.intersects(CheckMode::INFERENTIAL)
             && self.some_type_result(ty, |state, t| {
                 state.is_generic_type_with_union_constraint(t)
-            })?
+            })?;
+        let substitute_constraints = position_read
             && (self.is_constraint_position(ty, reference)?
                 || self.has_contextual_type_with_no_generic_types(reference, check_mode)?);
         if substitute_constraints {
             self.map_type_result(ty, |state, t| state.get_base_constraint_or_type(t))
+                .map(|ty| (ty, position_read))
         } else {
-            Ok(ty)
+            Ok((ty, position_read))
         }
     }
 
@@ -3017,10 +3031,10 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let save_flow_loop_start = self.flow_loop_start;
-        let save_flow_type_cache = self.flow_type_cache.take();
+        let save_flow_type_cache = self.take_flow_type_cache();
         self.flow_loop_start = self.flow_loop_stack.len() as u32;
         let result = self.check_expression(node, check_mode);
-        self.flow_type_cache = save_flow_type_cache;
+        self.restore_flow_type_cache(save_flow_type_cache);
         self.flow_loop_start = save_flow_loop_start;
         let ty = result?;
         if self
@@ -3842,6 +3856,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(cache) = &self.flow_type_cache {
             if let Some(&cached) = cache.get(&node) {
+                self.flow_memo.add_flags(crate::flow_memo::FLAG_TYPE_CACHE);
                 return Ok(cached);
             }
         }
@@ -3849,7 +3864,12 @@ impl<'a> CheckerState<'a> {
         let ty = self.check_expression(node, CheckMode::TYPE_ONLY)?;
         if self.flow_invocation_count != start_invocation_count {
             let cache = self.flow_type_cache.get_or_insert_with(Default::default);
-            cache.insert(node, ty);
+            if cache
+                .insert(node, ty)
+                .is_some_and(|previous| previous != ty)
+            {
+                self.flow_memo.type_cache_epoch = self.flow_memo.next_serial();
+            }
         }
         Ok(ty)
     }

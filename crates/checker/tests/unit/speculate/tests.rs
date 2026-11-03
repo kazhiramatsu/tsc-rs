@@ -182,9 +182,14 @@ fn mutate_everything(state: &mut CheckerState) {
         ty: string,
     });
     state.flow_loop_start += 3;
-    state
-        .shared_flow
-        .push((FlowId::new(0), FlowType::Type(string)));
+    state.shared_flow.push(crate::flow::SharedFlow {
+        flow: FlowId::new(0),
+        flow_type: FlowType::Type(string),
+        transient: crate::flow_memo::UNTAINTED,
+        reference: crate::flow_memo::UNTAINTED,
+        height: 0,
+        flags: 0,
+    });
     state
         .reduce_label_overrides
         .insert((0, FlowId::new(1)), vec![FlowId::new(2)]);
