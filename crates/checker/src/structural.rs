@@ -7182,7 +7182,7 @@ impl<'a> CheckerState<'a> {
             .or_else(|| right_data.type_parameters.clone());
         let param_mapper = match (&left_data.type_parameters, &right_data.type_parameters) {
             (Some(left_params), Some(right_params)) => {
-                Some(self.create_type_mapper(&right_params, Some(&left_params)))
+                Some(self.create_type_mapper(right_params, Some(left_params)))
             }
             _ => None,
         };

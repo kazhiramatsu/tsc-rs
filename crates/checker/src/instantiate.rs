@@ -3094,7 +3094,7 @@ impl<'a> CheckerState<'a> {
                 }
                 result[i] = match default_type {
                     Some(default) => {
-                        let mapper = self.create_type_mapper(&type_parameters, Some(&result));
+                        let mapper = self.create_type_mapper(type_parameters, Some(&result));
                         self.instantiate_type(default, Some(mapper))?
                     }
                     None => base_default_type,

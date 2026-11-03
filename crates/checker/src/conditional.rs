@@ -381,8 +381,7 @@ impl<'a> CheckerState<'a> {
         for &parameter in outer_parameters {
             type_arguments.push(self.get_mapped_type(parameter, type_parameter_mapper)?);
         }
-        let new_root_mapper =
-            self.create_type_mapper(&outer_parameters[..], Some(&type_arguments[..]));
+        let new_root_mapper = self.create_type_mapper(outer_parameters, Some(&type_arguments[..]));
         let new_check_type = if new_root.is_distributive {
             Some(self.get_mapped_type(new_root.check_type, new_root_mapper)?)
         } else {
@@ -463,7 +462,7 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
 
-        let new_mapper = self.create_type_mapper(&outer_parameters[..], Some(&type_arguments[..]));
+        let new_mapper = self.create_type_mapper(outer_parameters, Some(&type_arguments[..]));
         let distribution_type = if root.is_distributive {
             let mapped = self.get_mapped_type(root.check_type, new_mapper)?;
             Some(self.get_reduced_type(mapped)?)

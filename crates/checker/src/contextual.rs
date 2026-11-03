@@ -3092,7 +3092,7 @@ impl<'a> CheckerState<'a> {
         let type_params = left_tps.clone().or(right_tps.clone());
         let param_mapper = match (left_tps.as_ref(), right_tps.as_ref()) {
             (Some(left_tps), Some(right_tps)) => {
-                Some(self.create_type_mapper(&right_tps, Some(&left_tps)))
+                Some(self.create_type_mapper(right_tps, Some(left_tps)))
             }
             _ => None,
         };

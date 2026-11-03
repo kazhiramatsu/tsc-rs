@@ -1363,7 +1363,7 @@ impl<'a> CheckerState<'a> {
                 break;
             }
         }
-        let diag_name = tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+        let diag_name = tsc_syntax::unescape_leading_underscores(right_text).to_owned();
         if let Some(property_on_type) = property_on_type {
             let type_value_decl = self
                 .binder
@@ -2022,7 +2022,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             let lexically_scoped_symbol =
-                self.lookup_symbol_for_private_identifier_declaration(&right_text, right)?;
+                self.lookup_symbol_for_private_identifier_declaration(right_text, right)?;
             if assignment_kind != crate::expr::AssignmentKind::None {
                 if let Some(scoped) = lexically_scoped_symbol {
                     if self
@@ -2032,7 +2032,7 @@ impl<'a> CheckerState<'a> {
                         .is_some_and(|decl| self.kind_of(decl) == SyntaxKind::MethodDeclaration)
                     {
                         let display =
-                            tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                            tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                         self.grammar_error_on_node(
                             right,
                             &tsc_diagnostics::gen::Cannot_assign_to_private_method_0_Private_methods_are_not_writable,
@@ -2089,7 +2089,7 @@ impl<'a> CheckerState<'a> {
                     });
                     if is_plain_js_class {
                         let display =
-                            tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                            tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                         self.grammar_error_on_node(
                             right,
                             &tsc_diagnostics::gen::Private_field_0_must_be_declared_in_an_enclosing_class,
@@ -2169,7 +2169,7 @@ impl<'a> CheckerState<'a> {
                 let declarations = self.binder.symbol(target_prop_symbol).declarations.clone();
                 if !declarations.is_empty() {
                     let deprecated_entity =
-                        tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                        tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                     self.add_deprecated_suggestion(right, &declarations, &deprecated_entity);
                 }
             }
@@ -2189,7 +2189,7 @@ impl<'a> CheckerState<'a> {
                 /*report_error*/ true,
             )?;
             if self.is_assignment_to_readonly_entity(node, prop, assignment_kind)? {
-                let display = tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                let display = tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                 self.error_at_js(
                     Some(right),
                     &tsc_diagnostics::gen::Cannot_assign_to_0_because_it_is_a_read_only_property,
@@ -2237,7 +2237,7 @@ impl<'a> CheckerState<'a> {
                             .intersects(SymbolFlags::BLOCK_SCOPED)
                         {
                             let display =
-                                tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                                tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                             let type_name = self.type_to_string(left_type)?;
                             self.error_at_js(
                                 Some(right),
@@ -2269,7 +2269,7 @@ impl<'a> CheckerState<'a> {
                     // exact/indexed member; a checker-wide or name-only
                     // gate would hide unrelated property errors.
                     if self
-                        .unresolved_module_augmentation_may_add_property(left_type, &right_text)?
+                        .unresolved_module_augmentation_may_add_property(left_type, right_text)?
                     {
                         // tsc has already merged this exact member (or
                         // applicable index signature) from the resolved
@@ -2320,7 +2320,7 @@ impl<'a> CheckerState<'a> {
             if self.options.no_property_access_from_index_signature == Some(true)
                 && self.kind_of(node) == SyntaxKind::PropertyAccessExpression
             {
-                let display = tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                let display = tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                 self.error_at_js(
                     Some(right),
                     &tsc_diagnostics::gen::Property_0_comes_from_an_index_signature_so_it_must_be_accessed_with_0,
@@ -2332,7 +2332,7 @@ impl<'a> CheckerState<'a> {
                 .filter(|&declaration| self.is_deprecated_declaration(declaration))
             {
                 let deprecated_entity =
-                    tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                    tsc_syntax::unescape_leading_underscores(right_text).to_owned();
                 self.add_deprecated_suggestion(right, &[declaration], &deprecated_entity);
             }
             prop_type = index_prop_type;

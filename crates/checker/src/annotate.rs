@@ -4617,8 +4617,7 @@ impl<'a> CheckerState<'a> {
             construct_signatures = self.members_of(source).construct_signatures().to_vec();
             index_infos = self.members_of(source).index_infos().to_vec();
         } else {
-            let type_mapper =
-                self.create_type_mapper(&type_parameters[..], Some(&type_arguments[..]));
+            let type_mapper = self.create_type_mapper(type_parameters, Some(type_arguments));
             mapper = Some(type_mapper);
             let declared_properties = self.members_of(source).properties.clone();
             members = self.create_instantiated_symbol_table(&declared_properties, type_mapper)?;

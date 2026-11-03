@@ -4439,7 +4439,7 @@ impl<'a> CheckerState<'a> {
             if !ctx.type_argument_nodes.is_empty()
                 || !self.has_correct_arity(
                     node,
-                    &args,
+                    args,
                     candidate,
                     ctx.signature_help_trailing_comma,
                 )?
@@ -4449,7 +4449,7 @@ impl<'a> CheckerState<'a> {
             if self
                 .get_signature_applicability_error(
                     node,
-                    &args,
+                    args,
                     candidate,
                     relation,
                     CheckMode::NORMAL,
@@ -4469,7 +4469,7 @@ impl<'a> CheckerState<'a> {
             if !self.has_correct_type_argument_arity(candidate, &ctx.type_argument_nodes)
                 || !self.has_correct_arity(
                     node,
-                    &args,
+                    args,
                     candidate,
                     ctx.signature_help_trailing_comma,
                 )?
@@ -4486,8 +4486,8 @@ impl<'a> CheckerState<'a> {
             let run_trial = |state: &mut Self| {
                 state.try_overload_candidate(
                     node,
-                    &args,
-                    &type_argument_nodes,
+                    args,
+                    type_argument_nodes,
                     candidate,
                     relation,
                     ctx.arg_check_mode,
