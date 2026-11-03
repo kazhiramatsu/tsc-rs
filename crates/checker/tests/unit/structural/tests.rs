@@ -246,7 +246,9 @@ fn template_inference_splits_unpaired_surrogate_losslessly() {
             assert_eq!(inferred[1], state.tables.get_string_literal_type(""));
             assert_eq!(
                 state.tables.literal_value(inferred[0]),
-                Some(LiteralValue::String(&TemplateText::from_utf16(&[0xD800])))
+                Some(LiteralValue::String(
+                    tsc_types::JsString::from_code_units(&[0xD800]).as_js()
+                ))
             );
             let replacement_inferred = state
                 .infer_types_from_template_literal_type(replacement, target)

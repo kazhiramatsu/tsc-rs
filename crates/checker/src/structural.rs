@@ -8541,9 +8541,7 @@ impl<'a> CheckerState<'a> {
             }
             if let Some(tsc_types::LiteralValue::String(value)) = self.tables.literal_value(source)
             {
-                return Ok(value
-                    .to_utf8()
-                    .is_some_and(|value| is_numeric_literal_name_js(&value)));
+                return Ok(value.as_str().is_some_and(is_numeric_literal_name_js));
             }
         }
         Ok(false)
@@ -8746,6 +8744,67 @@ impl<'a> CheckerState<'a> {
         !(source_texts.len() == 1 && source_start.len() < target_start.len() + target_end.len())
             && source_start.starts_with(target_start)
             && source_end.ends_with(target_end)
+    }
+
+    /// [`Self::literal_parts_fit_template_ends`] for one string literal,
+    /// read in place: union reduction tries every string literal against
+    /// every template literal, so the test copies nothing.
+    fn literal_fits_template_ends(&self, source: tsc_types::JsStr<'_>, target: TypeId) -> bool {
+        let TypeData::TemplateLiteral(target_template) = self.tables.type_of(target).data else {
+            unreachable!("template flag implies template data");
+        };
+        let target_template = self.tables.template_literal(target_template);
+        let target_texts = &target_template.texts;
+        let target_start = target_texts[0].units();
+        let target_end = target_texts[target_texts.len() - 1].units();
+        // An ASCII byte of canonical WTF-8 is a whole code point and one
+        // code unit, so while the template's units are ASCII the ends
+        // compare as bytes: forward over the start, backward over the end
+        // (the first difference decides either way), and the ends do not
+        // overlap in units exactly when they do not in bytes. A non-ASCII
+        // template unit falls back to comparing code units.
+        let bytes = source.as_bytes();
+        if bytes.len() < target_start.len() + target_end.len() {
+            return false;
+        }
+        for (&byte, &unit) in bytes.iter().zip(target_start) {
+            if unit >= 0x80 {
+                return Self::literal_fits_template_ends_by_units(source, target_start, target_end);
+            }
+            if u16::from(byte) != unit {
+                return false;
+            }
+        }
+        for (&byte, &unit) in bytes.iter().rev().zip(target_end.iter().rev()) {
+            if unit >= 0x80 {
+                return Self::literal_fits_template_ends_by_units(source, target_start, target_end);
+            }
+            if u16::from(byte) != unit {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// [`Self::literal_fits_template_ends`] by code units, for a template
+    /// whose end texts are not ASCII.
+    #[cold]
+    #[inline(never)]
+    fn literal_fits_template_ends_by_units(
+        source: tsc_types::JsStr<'_>,
+        target_start: &[u16],
+        target_end: &[u16],
+    ) -> bool {
+        let len = source.len_units();
+        len >= target_start.len() + target_end.len()
+            && source
+                .code_units()
+                .take(target_start.len())
+                .eq(target_start.iter().copied())
+            && source
+                .code_units()
+                .skip(len - target_end.len())
+                .eq(target_end.iter().copied())
     }
 
     /// tsc-port: isValidNumberString @6.0.3
@@ -9085,10 +9144,10 @@ fn infer_types_from_template_literal_type<'a, C: TemplateTypeComparer<'a>>(
             unreachable!("string literal data");
         };
         // Test the ends before copying the literal.
-        if !st.literal_parts_fit_template_ends(std::slice::from_ref(value), target) {
+        if !st.literal_fits_template_ends(value, target) {
             return Ok(None);
         }
-        let value = value.clone();
+        let value = tsc_types::TemplateText::from_js(value);
         return st.infer_from_literal_parts_to_template_literal(&[value], &[], target);
     }
     if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
@@ -9168,18 +9227,14 @@ fn is_valid_type_for_template_literal_placeholder<'a, C: TemplateTypeComparer<'a
             unreachable!("string literal data");
         };
         let target_flags = st.tables.flags_of(target);
-        let utf8_value = value.to_utf8();
+        let utf8_value = value.as_str();
         if target_flags.intersects(TypeFlags::NUMBER)
-            && utf8_value
-                .as_deref()
-                .is_some_and(|value| st.is_valid_number_string(value, false))
+            && utf8_value.is_some_and(|value| st.is_valid_number_string(value, false))
         {
             return Ok(true);
         }
         if target_flags.intersects(TypeFlags::BIG_INT)
-            && utf8_value
-                .as_deref()
-                .is_some_and(|value| st.is_valid_big_int_string(value, false))
+            && utf8_value.is_some_and(|value| st.is_valid_big_int_string(value, false))
         {
             return Ok(true);
         }
@@ -9187,7 +9242,7 @@ fn is_valid_type_for_template_literal_placeholder<'a, C: TemplateTypeComparer<'a
             TypeFlags::BOOLEAN_LITERAL.bits() | TypeFlags::NULLABLE.bits(),
         )) {
             if let Some(name) = st.tables.intrinsic_name(target) {
-                return Ok(value.eq_utf8(name));
+                return Ok(value == name);
             }
         }
         if target_flags.intersects(TypeFlags::STRING_MAPPING) {

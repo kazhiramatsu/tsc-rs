@@ -12,6 +12,7 @@ use crate::nodes::{
     TypeParameterData,
 };
 use crate::SyntaxKind;
+use std::borrow::Cow;
 use tsc_diagnostics::{gen, DiagnosticMessage, RelatedInfo};
 use tsc_types::NodeFlags;
 
@@ -67,20 +68,28 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         self.parser.scanner.pos()
     }
 
-    fn token_text(&self) -> String {
-        self.parser.scanner.token_text().to_owned()
+    fn token_text(&self) -> &'text str {
+        self.parser.scanner.token_text()
     }
 
-    fn token_value(&self) -> String {
-        if self.parser.scanner.token_value().is_empty() {
-            self.token_text()
-        } else {
-            self.parser
-                .scanner
-                .token_value()
-                .as_str()
-                .expect("JSDoc names are identifiers and comment text is a raw UTF-8 slice")
-                .to_owned()
+    /// The token's value, or its text when the value is empty: a slice of
+    /// the source unless an escape cooked the value.
+    fn token_value(&self) -> Cow<'text, str> {
+        let scanner = &self.parser.scanner;
+        if scanner.token_value().is_empty() {
+            return Cow::Borrowed(self.token_text());
+        }
+        match scanner.token_value_source() {
+            Some(text) => Cow::Borrowed(text),
+            None => Cow::Owned(scanner.token_value_str().to_owned()),
+        }
+    }
+
+    /// Shorten a comment piece to `len` bytes.
+    fn truncate_piece(piece: &mut Cow<'text, str>, len: usize) {
+        match piece {
+            Cow::Borrowed(text) => *text = &text[..len],
+            Cow::Owned(text) => text.truncate(len),
         }
     }
 
@@ -207,7 +216,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let text = self.token_value();
         let id = self.finish(
             NodeData::Identifier(IdentifierData {
-                escaped_text: tsc_types::EscapedName::escape((&text).into()),
+                escaped_text: tsc_types::EscapedName::escape((&*text).into()),
             }),
             pos,
             end,
@@ -282,7 +291,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 SyntaxKind::WhitespaceTrivia | SyntaxKind::NewLineTrivia
             )
         {
-            indent_text.push_str(&self.token_text());
+            indent_text.push_str(self.token_text());
             match self.token() {
                 SyntaxKind::NewLineTrivia => {
                     preceding_line_break = true;
@@ -301,7 +310,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         }
     }
 
-    fn remove_leading_newlines(comments: &mut Vec<String>) {
+    fn remove_leading_newlines(comments: &mut Vec<Cow<'text, str>>) {
         while comments
             .first()
             .is_some_and(|text| text == "\n" || text == "\r")
@@ -310,15 +319,15 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         }
     }
 
-    fn remove_trailing_whitespace(comments: &mut Vec<String>) {
+    fn remove_trailing_whitespace(comments: &mut Vec<Cow<'text, str>>) {
         while let Some(last) = comments.last_mut() {
-            let trimmed = Self::trim_end(last).to_owned();
-            if trimmed.is_empty() {
+            let trimmed = Self::trim_end(last).len();
+            if trimmed == 0 {
                 comments.pop();
-            } else if trimmed.len() != last.len() {
-                *last = trimmed;
-                break;
             } else {
+                if trimmed != last.len() {
+                    Self::truncate_piece(last, trimmed);
+                }
                 break;
             }
         }
@@ -350,11 +359,12 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
 
     /// tsgo pushComment: the margin is the indent of the first saved text.
     fn push_comment(
-        comments: &mut Vec<String>,
+        comments: &mut Vec<Cow<'text, str>>,
         margin: &mut Option<usize>,
         indent: &mut usize,
-        text: String,
+        text: impl Into<Cow<'text, str>>,
     ) {
+        let text = text.into();
         if margin.is_none() {
             *margin = Some(*indent);
         }
@@ -377,7 +387,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             .rfind('\n')
             .map_or(0, |index| index + 1);
         let mut indent = Self::text_len(&self.parser.source_text[line_start..start]) + 4;
-        let mut comments = Vec::<String>::new();
+        let mut comments = Vec::<Cow<'text, str>>::new();
         let mut parts = Vec::<NodeId>::new();
         let mut link_end: Option<usize> = None;
         let mut comments_pos: Option<usize> = None;
@@ -424,7 +434,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     margin = None;
                 }
                 SyntaxKind::NewLineTrivia => {
-                    comments.push(self.token_text());
+                    comments.push(Cow::Borrowed(self.token_text()));
                     state = CommentState::BeginningOfLine;
                     indent = 0;
                 }
@@ -437,21 +447,21 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     } else {
                         // The first asterisk on a line is ignored.
                         state = CommentState::SawAsterisk;
-                        indent += Self::text_len(&asterisk);
+                        indent += Self::text_len(asterisk);
                     }
                 }
                 SyntaxKind::WhitespaceTrivia => {
                     let whitespace = self.token_text();
                     if let Some(margin) = margin {
-                        let whitespace_len = Self::text_len(&whitespace);
+                        let whitespace_len = Self::text_len(whitespace);
                         if indent + whitespace_len > margin {
-                            comments.push(Self::slice_indent(
-                                &whitespace,
+                            comments.push(Cow::Owned(Self::slice_indent(
+                                whitespace,
                                 margin as isize - indent as isize,
-                            ));
+                            )));
                         }
                     }
-                    indent += Self::text_len(&whitespace);
+                    indent += Self::text_len(whitespace);
                 }
                 SyntaxKind::EndOfFileToken => break,
                 SyntaxKind::JSDocCommentTextToken => {
@@ -521,7 +531,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         // the end stays a newline).
         if let Some(last) = comments.last_mut() {
             let trimmed = last.trim_end_matches(char::is_whitespace).len();
-            last.truncate(trimmed);
+            Self::truncate_piece(last, trimmed);
         }
         let trimmed_comments = comments.join("");
         if !parts.is_empty() && !trimmed_comments.is_empty() {
@@ -563,7 +573,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         initial_margin: Option<String>,
     ) -> Option<JSDocComment> {
         let comments_pos = self.node_pos();
-        let mut comments = Vec::<String>::new();
+        let mut comments = Vec::<Cow<'text, str>>::new();
         let mut parts = Vec::<NodeId>::new();
         let mut link_end = None;
         let mut state = CommentState::BeginningOfLine;
@@ -596,7 +606,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 SyntaxKind::NewLineTrivia => {
                     state = CommentState::BeginningOfLine;
                     // Not pushComment: the margin stays.
-                    comments.push(self.token_text());
+                    comments.push(Cow::Borrowed(self.token_text()));
                     indent = 0;
                 }
                 SyntaxKind::AtToken
@@ -615,14 +625,14 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 SyntaxKind::EndOfFileToken => break,
                 SyntaxKind::WhitespaceTrivia => {
                     let whitespace = self.token_text();
-                    let whitespace_len = Self::text_len(&whitespace);
+                    let whitespace_len = Self::text_len(whitespace);
                     // Whitespace crossing the margin keeps the part past it.
                     if let Some(margin) = margin.filter(|&margin| indent + whitespace_len > margin)
                     {
-                        comments.push(Self::slice_indent(
-                            &whitespace,
+                        comments.push(Cow::Owned(Self::slice_indent(
+                            whitespace,
                             margin.saturating_sub(indent) as isize,
-                        ));
+                        )));
                         state = text_state;
                     }
                     indent += whitespace_len;
@@ -754,7 +764,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             self.token(),
             SyntaxKind::CloseBraceToken | SyntaxKind::NewLineTrivia | SyntaxKind::EndOfFileToken
         ) {
-            text.push_str(&self.token_text());
+            text.push_str(self.token_text());
             self.next_token_jsdoc();
         }
         let end = self.token_end();
@@ -780,7 +790,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             return None;
         }
         let kind = self.token_value();
-        matches!(kind.as_str(), "link" | "linkcode" | "linkplain").then_some(kind)
+        matches!(&*kind, "link" | "linkcode" | "linkplain").then(|| kind.into_owned())
     }
 
     fn parse_jsdoc_link_name(&mut self) -> Option<NodeId> {

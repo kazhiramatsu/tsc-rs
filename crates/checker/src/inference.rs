@@ -741,7 +741,7 @@ impl<'a> CheckerState<'a> {
             let Some(LiteralValue::String(value)) = self.tables.literal_value(t) else {
                 unreachable!("StringLiteral flag implies string data");
             };
-            let name = tsc_types::EscapedName::escape(value.to_js_string().as_js());
+            let name = tsc_types::EscapedName::escape(value);
             let literal_prop = self.binder.create_symbol(SymbolFlags::PROPERTY, name);
             self.links.set_fresh_symbol_type(
                 literal_prop,
@@ -2968,7 +2968,7 @@ impl InferTypesWalker<'_, '_> {
                             else {
                                 unreachable!("StringLiteral flag implies string data");
                             };
-                            let str_value = str_value.clone();
+                            let str_value = tsc_types::TemplateText::from_js(str_value);
                             let utf8_value = str_value.to_utf8();
                             // 69038-69050: coercion families the string
                             // can never round-trip through drop out.
@@ -3071,7 +3071,7 @@ impl InferTypesWalker<'_, '_> {
         } else if right_flags.intersects(TypeFlags::STRING_LITERAL)
             && matches!(
                 &self.st.tables.type_of(right).data,
-                TypeData::Literal { value: tsc_types::LiteralData::String(v), .. } if self.st.tables.literal_text(*v) == str_value
+                TypeData::Literal { value: tsc_types::LiteralData::String(v), .. } if self.st.tables.literal_text(*v).code_units().eq(str_value.units().iter().copied())
             )
         {
             Ok(right)

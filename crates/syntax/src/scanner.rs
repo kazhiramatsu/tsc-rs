@@ -161,6 +161,18 @@ impl TokenFlags {
     }
 }
 
+/// tsc scanner.tokenValue: a range of the source text while the value is
+/// the text itself (identifiers, keywords, regular expressions, JSX text,
+/// strings without escapes, plain decimal integers), or the text cooked into
+/// `Scanner::cooked` (escapes, template line ends, canonical numbers). A
+/// source range is set, saved and restored without copying the text.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct TokenValue {
+    start: usize,
+    end: usize,
+    cooked: bool,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ScannerState {
     end: usize,
@@ -168,7 +180,9 @@ pub(crate) struct ScannerState {
     full_start_pos: usize,
     token_start: usize,
     token: SyntaxKind,
-    token_value: JsString,
+    token_value: TokenValue,
+    /// The cooked text of a cooked value (none for a source range).
+    cooked: Option<JsString>,
     token_flags: TokenFlags,
     error_len: usize,
 }
@@ -180,7 +194,10 @@ pub(crate) struct Scanner<'text> {
     full_start_pos: usize,
     token_start: usize,
     token: SyntaxKind,
-    token_value: JsString,
+    token_value: TokenValue,
+    /// The text of a cooked token value (see [`TokenValue`]), reused from
+    /// token to token.
+    cooked: JsString,
     token_flags: TokenFlags,
     language_variant: LanguageVariant,
     js_doc_parsing_mode: JSDocParsingMode,
@@ -209,7 +226,12 @@ impl<'text> Scanner<'text> {
             full_start_pos: 0,
             token_start: 0,
             token: SyntaxKind::Unknown,
-            token_value: JsString::new(),
+            token_value: TokenValue {
+                start: 0,
+                end: 0,
+                cooked: false,
+            },
+            cooked: JsString::new(),
             token_flags: TokenFlags::empty(),
             language_variant,
             js_doc_parsing_mode: JSDocParsingMode::ParseAll,
@@ -242,7 +264,7 @@ impl<'text> Scanner<'text> {
     pub(crate) fn scan(&mut self) -> SyntaxKind {
         self.full_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
-        self.token_value.clear();
+        self.value_clear();
 
         loop {
             self.token_start = self.pos;
@@ -533,7 +555,8 @@ impl<'text> Scanner<'text> {
             full_start_pos: self.full_start_pos,
             token_start: self.token_start,
             token: self.token,
-            token_value: self.token_value.clone(),
+            token_value: self.token_value,
+            cooked: self.token_value.cooked.then(|| self.cooked.clone()),
             token_flags: self.token_flags,
             error_len: self.errors.len(),
         }
@@ -546,6 +569,9 @@ impl<'text> Scanner<'text> {
         self.token_start = state.token_start;
         self.token = state.token;
         self.token_value = state.token_value;
+        if let Some(cooked) = state.cooked {
+            self.cooked = cooked;
+        }
         self.token_flags = state.token_flags;
         self.errors.truncate(state.error_len);
     }
@@ -561,7 +587,7 @@ impl<'text> Scanner<'text> {
         self.full_start_pos = start;
         self.token_start = start;
         self.token = SyntaxKind::Unknown;
-        self.token_value.clear();
+        self.value_clear();
         self.token_flags = TokenFlags::empty();
     }
 
@@ -592,7 +618,7 @@ impl<'text> Scanner<'text> {
         self.full_start_pos = self.pos;
         self.token_start = self.pos;
         self.token_flags = TokenFlags::empty();
-        self.token_value.clear();
+        self.value_clear();
         if self.pos >= self.end {
             self.token = SyntaxKind::EndOfFileToken;
             return self.token;
@@ -627,8 +653,7 @@ impl<'text> Scanner<'text> {
         if self.pos == self.token_start {
             return self.scan_jsdoc_token();
         }
-        self.token_value
-            .push_str(&self.text[self.token_start..self.pos]);
+        self.value_source(self.token_start, self.pos);
         self.token = SyntaxKind::JSDocCommentTextToken;
         self.token
     }
@@ -640,7 +665,7 @@ impl<'text> Scanner<'text> {
         self.full_start_pos = self.pos;
         self.token_start = self.pos;
         self.token_flags = TokenFlags::empty();
-        self.token_value.clear();
+        self.value_clear();
         let Some(ch) = self.current_char() else {
             self.token = SyntaxKind::EndOfFileToken;
             return self.token;
@@ -698,14 +723,16 @@ impl<'text> Scanner<'text> {
         }
 
         if chars::is_identifier_start(ch) {
-            self.token_value.push(ch);
+            self.value_clear();
             self.advance_char();
             loop {
                 let Some(next) = self.current_char() else {
                     break;
                 };
                 if chars::is_identifier_part(next) || next == '-' {
-                    self.token_value.push(next);
+                    if self.token_value.cooked {
+                        self.cooked.push(next);
+                    }
                     self.advance_char();
                     continue;
                 }
@@ -714,7 +741,8 @@ impl<'text> Scanner<'text> {
                     if let Some((cooked, escape_flag)) = self.scan_unicode_escape() {
                         if chars::is_identifier_part(cooked) {
                             self.token_flags.insert(escape_flag);
-                            self.token_value.push(cooked);
+                            self.value_cook_until(escape_start);
+                            self.cooked.push(cooked);
                             continue;
                         }
                     }
@@ -747,16 +775,125 @@ impl<'text> Scanner<'text> {
     }
 
     pub(crate) fn token_value(&self) -> JsStr<'_> {
-        self.token_value.as_js()
+        if self.token_value.cooked {
+            self.cooked.as_js()
+        } else {
+            JsStr::from(&self.text[self.token_value.start..self.token_value.end])
+        }
     }
 
+    /// The token's value as a slice of the source, unless an escape (or a
+    /// normalization) cooked it. The slice outlives the next token.
+    pub(crate) fn token_value_source(&self) -> Option<&'text str> {
+        (!self.token_value.cooked).then(|| &self.text[self.token_value.start..self.token_value.end])
+    }
+
+    /// The value of a token whose value is Unicode scalars by grammar (an
+    /// identifier, number, regular expression, JSX text or JSDoc text): a
+    /// source slice needs no UTF-8 check.
+    pub(crate) fn token_value_str(&self) -> &str {
+        if self.token_value.cooked {
+            self.cooked
+                .as_str()
+                .expect("this token's value is Unicode scalars by grammar")
+        } else {
+            &self.text[self.token_value.start..self.token_value.end]
+        }
+    }
+
+    /// The value of a numeric token, which is ASCII.
     fn numeric_token_value(&self) -> &str {
-        let text = self
-            .token_value
-            .as_str()
-            .expect("numeric scanner values are ASCII");
+        let text = self.token_value_str();
         debug_assert!(text.is_ascii());
         text
+    }
+
+    /// An empty value at the current position.
+    #[inline]
+    fn value_clear(&mut self) {
+        self.value_source(self.pos, self.pos);
+    }
+
+    /// The value `text[start..end]`.
+    #[inline]
+    fn value_source(&mut self, start: usize, end: usize) {
+        self.token_value = TokenValue {
+            start,
+            end,
+            cooked: false,
+        };
+    }
+
+    /// End a source-range value at the current position (a cooked value
+    /// holds its text already).
+    #[inline]
+    fn value_end_here(&mut self) {
+        if !self.token_value.cooked {
+            self.token_value.end = self.pos;
+        }
+    }
+
+    /// Turn a source-range value into a cooked one holding the source text
+    /// from its start to `until`, before text that differs from the source
+    /// (an escape) is appended.
+    fn value_cook_until(&mut self, until: usize) {
+        if !self.token_value.cooked {
+            self.cooked.clear();
+            self.cooked
+                .push_str(&self.text[self.token_value.start..until]);
+            self.token_value.cooked = true;
+        }
+    }
+
+    /// Close a value at the current position: a source range ends here; a
+    /// cooked value appends the source text since `segment_start`.
+    fn value_close_segment(&mut self, segment_start: usize) {
+        if self.token_value.cooked {
+            self.cooked.push_str(&self.text[segment_start..self.pos]);
+        } else {
+            self.token_value.end = self.pos;
+        }
+    }
+
+    /// The cooked value `text`.
+    fn value_set(&mut self, text: &str) {
+        self.value_set_prefixed("", text);
+    }
+
+    /// The cooked value `prefix` + `text`.
+    fn value_set_prefixed(&mut self, prefix: &str, text: &str) {
+        self.cooked.clear();
+        self.cooked.push_str(prefix);
+        self.cooked.push_str(text);
+        self.token_value = TokenValue {
+            start: self.pos,
+            end: self.pos,
+            cooked: true,
+        };
+    }
+
+    /// Append `ch`, the character at the current position: a source range
+    /// that ends here grows over it.
+    fn value_push_current(&mut self, ch: char) {
+        debug_assert!(self.text[self.pos..].starts_with(ch));
+        if self.token_value.cooked {
+            self.cooked.push(ch);
+        } else if self.token_value.end == self.pos {
+            self.token_value.end += ch.len_utf8();
+        } else {
+            self.value_cook_until(self.token_value.end);
+            self.cooked.push(ch);
+        }
+    }
+
+    /// The cooked value `text`, built elsewhere.
+    fn value_set_owned(&mut self, text: JsString) {
+        self.cooked = text;
+        self.token_value = TokenValue {
+            start: self.pos,
+            end: self.pos,
+            cooked: true,
+        };
     }
 
     /// tsc scanner.getNumericLiteralFlags; every such bit lies below bit 16.
@@ -976,14 +1113,14 @@ impl<'text> Scanner<'text> {
     }
 
     fn try_scan_identifier(&mut self) -> Option<SyntaxKind> {
-        self.token_value.clear();
+        // The value is the source text from here (cooked at an escape).
+        self.value_clear();
         let first = self
             .current_char()
             .expect("scan_identifier requires a current character");
         if !chars::is_identifier_start(first) {
             return None;
         }
-        self.token_value.push(first);
         self.advance_char();
         self.scan_identifier_parts();
         Some(self.finish_identifier_token())
@@ -997,8 +1134,13 @@ impl<'text> Scanner<'text> {
             return None;
         }
         self.token_flags.insert(escape_flag);
-        self.token_value.clear();
-        self.token_value.push(ch);
+        self.cooked.clear();
+        self.cooked.push(ch);
+        self.token_value = TokenValue {
+            start,
+            end: start,
+            cooked: true,
+        };
         self.scan_identifier_parts();
         Some(self.finish_identifier_token())
     }
@@ -1019,21 +1161,26 @@ impl<'text> Scanner<'text> {
                 }
             }
             if run_end > run_start {
-                self.token_value.push_str(&self.text[run_start..run_end]);
+                if self.token_value.cooked {
+                    self.cooked.push_str(&self.text[run_start..run_end]);
+                }
                 self.pos = run_end;
             }
             let Some(ch) = self.current_char() else {
                 break;
             };
             if chars::is_identifier_part(ch) {
-                self.token_value.push(ch);
+                if self.token_value.cooked {
+                    self.cooked.push(ch);
+                }
                 self.advance_char();
             } else if ch == '\\' {
                 let start = self.pos;
                 if let Some((ch, escape_flag)) = self.scan_unicode_escape() {
                     if chars::is_identifier_part(ch) {
                         self.token_flags.insert(escape_flag);
-                        self.token_value.push(ch);
+                        self.value_cook_until(start);
+                        self.cooked.push(ch);
                         continue;
                     }
                 }
@@ -1046,25 +1193,17 @@ impl<'text> Scanner<'text> {
     }
 
     fn finish_identifier_token(&mut self) -> SyntaxKind {
-        // Without escapes the value is exactly the bytes just consumed, so
-        // the keyword lookup reads the (already valid UTF-8) source slice
-        // instead of re-validating the value.
-        let kind = {
-            let value = self.token_value.as_js();
-            let value_bytes = value.as_bytes();
-            let source = self
-                .pos
-                .checked_sub(value_bytes.len())
-                .and_then(|start| self.text.get(start..self.pos))
-                .filter(|slice| slice.as_bytes() == value_bytes);
-            match source {
-                Some(slice) => keywords::keyword_kind(slice),
-                None => keywords::keyword_kind(
-                    value
-                        .as_str()
-                        .expect("identifier parts are Unicode scalars"),
-                ),
-            }
+        // Without escapes the value is the source text just consumed, which
+        // the keyword lookup reads in place (already valid UTF-8).
+        self.value_end_here();
+        let kind = if self.token_value.cooked {
+            keywords::keyword_kind(
+                self.cooked
+                    .as_str()
+                    .expect("identifier parts are Unicode scalars"),
+            )
+        } else {
+            keywords::keyword_kind(&self.text[self.token_value.start..self.token_value.end])
         };
         self.token = kind.unwrap_or(SyntaxKind::Identifier);
         self.token
@@ -1084,12 +1223,10 @@ impl<'text> Scanner<'text> {
         }
 
         self.pos += 1;
-        self.token_value.clear();
-        self.token_value.push('#');
+        self.value_source(hash_pos, self.pos);
 
         match self.current_char() {
             Some(ch) if chars::is_identifier_start(ch) => {
-                self.token_value.push(ch);
                 self.advance_char();
                 self.scan_identifier_parts();
             }
@@ -1098,7 +1235,8 @@ impl<'text> Scanner<'text> {
                 match self.scan_unicode_escape() {
                     Some((ch, escape_flag)) if chars::is_identifier_start(ch) => {
                         self.token_flags.insert(escape_flag);
-                        self.token_value.push(ch);
+                        self.value_cook_until(escape_start);
+                        self.cooked.push(ch);
                         self.scan_identifier_parts();
                     }
                     _ => {
@@ -1114,6 +1252,7 @@ impl<'text> Scanner<'text> {
             }
         }
 
+        self.value_end_here();
         self.token = SyntaxKind::PrivateIdentifier;
         self.token
     }
@@ -1180,35 +1319,36 @@ impl<'text> Scanner<'text> {
     fn scan_string_literal(&mut self) -> SyntaxKind {
         let quote = self.current_char().expect("string literal starts at quote");
         self.advance_char();
-        self.token_value.clear();
+        // The source text between the quotes, cooked at the first escape.
+        self.value_clear();
         let mut segment_start = self.pos;
 
         loop {
             let Some(ch) = self.current_char() else {
-                self.token_value
-                    .push_str(&self.text[segment_start..self.pos]);
+                self.value_close_segment(segment_start);
                 self.token_flags.insert(TokenFlags::UNTERMINATED);
                 self.error_at(self.pos, 0, &gen::Unterminated_string_literal);
                 break;
             };
 
             if ch == quote {
-                self.token_value
-                    .push_str(&self.text[segment_start..self.pos]);
+                self.value_close_segment(segment_start);
                 self.advance_char();
                 break;
             }
             if ch == '\\' {
-                self.token_value
-                    .push_str(&self.text[segment_start..self.pos]);
+                if self.token_value.cooked {
+                    self.cooked.push_str(&self.text[segment_start..self.pos]);
+                } else {
+                    self.value_cook_until(self.pos);
+                }
                 let escaped = self.scan_escape_sequence(true);
-                self.token_value.push_js(escaped.as_js());
+                self.cooked.push_js(escaped.as_js());
                 segment_start = self.pos;
                 continue;
             }
             if matches!(ch, '\n' | '\r') {
-                self.token_value
-                    .push_str(&self.text[segment_start..self.pos]);
+                self.value_close_segment(segment_start);
                 self.token_flags.insert(TokenFlags::UNTERMINATED);
                 self.error_at(self.pos, 0, &gen::Unterminated_string_literal);
                 break;
@@ -1407,7 +1547,9 @@ impl<'text> Scanner<'text> {
         let started_with_backtick = self.byte_at(self.pos) == Some(b'`');
         self.pos += 1;
         let mut segment_start = self.pos;
-        let mut contents = JsString::new();
+        // Built in the cooked buffer, whose room is reused.
+        let mut contents = std::mem::take(&mut self.cooked);
+        contents.clear();
 
         let token = loop {
             if self.pos >= self.end {
@@ -1463,7 +1605,7 @@ impl<'text> Scanner<'text> {
             self.advance_char();
         };
 
-        self.token_value = contents;
+        self.value_set_owned(contents);
         self.token = token;
         self.token
     }
@@ -1559,7 +1701,7 @@ impl<'text> Scanner<'text> {
             }
         }
 
-        self.token_value = self.text[self.token_start..self.pos].into();
+        self.value_source(self.token_start, self.pos);
         self.token = SyntaxKind::RegularExpressionLiteral;
         self.token
     }
@@ -1628,7 +1770,7 @@ impl<'text> Scanner<'text> {
         self.full_start_pos = pos;
         self.token_start = pos;
         self.token = SyntaxKind::Unknown;
-        self.token_value.clear();
+        self.value_clear();
         self.token_flags = TokenFlags::empty();
     }
 
@@ -1732,7 +1874,7 @@ impl<'text> Scanner<'text> {
             self.advance_char();
         }
 
-        self.token_value = self.text[self.full_start_pos..self.pos].into();
+        self.value_source(self.full_start_pos, self.pos);
         self.token = if first_non_whitespace == -1 {
             SyntaxKind::JsxTextAllWhiteSpaces
         } else {
@@ -1754,7 +1896,9 @@ impl<'text> Scanner<'text> {
 
         while self.pos < self.end {
             if self.byte_at(self.pos) == Some(b'-') {
-                self.token_value.push('-');
+                if self.token_value.cooked {
+                    self.cooked.push('-');
+                }
                 self.pos += 1;
                 continue;
             }
@@ -1799,13 +1943,11 @@ impl<'text> Scanner<'text> {
             .current_char()
             .expect("JSX attribute string starts at a quote");
         self.advance_char();
-        self.token_value.clear();
         let segment_start = self.pos;
 
         while let Some(ch) = self.current_char() {
             if ch == quote {
-                self.token_value
-                    .push_str(&self.text[segment_start..self.pos]);
+                self.value_source(segment_start, self.pos);
                 self.advance_char();
                 self.token = SyntaxKind::StringLiteral;
                 return self.token;
@@ -1813,8 +1955,7 @@ impl<'text> Scanner<'text> {
             self.advance_char();
         }
 
-        self.token_value
-            .push_str(&self.text[segment_start..self.pos]);
+        self.value_source(segment_start, self.pos);
         self.token_flags.insert(TokenFlags::UNTERMINATED);
         self.error_at(self.pos, 0, &gen::Unterminated_string_literal);
         self.token = SyntaxKind::StringLiteral;
@@ -1829,12 +1970,11 @@ impl<'text> Scanner<'text> {
             && matches!(self.byte_at(self.pos + 1), Some(b'x' | b'X'))
         {
             self.pos += 2;
-            self.token_value = (self.scan_hex_digits(1, true, true)).into();
-            if self.token_value.is_empty() {
+            let digits = self.scan_hex_digits(1, true, true);
+            if digits.is_empty() {
                 self.error_at(self.pos, 0, &gen::Hexadecimal_digit_expected);
-                self.token_value = ("0".to_owned()).into();
             }
-            self.token_value = (format!("0x{}", self.numeric_token_value())).into();
+            self.value_set_prefixed("0x", if digits.is_empty() { "0" } else { &digits });
             self.token_flags.insert(TokenFlags::HEX_SPECIFIER);
             return self.check_big_int_suffix();
         }
@@ -1843,12 +1983,11 @@ impl<'text> Scanner<'text> {
             && matches!(self.byte_at(self.pos + 1), Some(b'b' | b'B'))
         {
             self.pos += 2;
-            self.token_value = (self.scan_binary_or_octal_digits(2)).into();
-            if self.token_value.is_empty() {
+            let digits = self.scan_binary_or_octal_digits(2);
+            if digits.is_empty() {
                 self.error_at(self.pos, 0, &gen::Binary_digit_expected);
-                self.token_value = ("0".to_owned()).into();
             }
-            self.token_value = (format!("0b{}", self.numeric_token_value())).into();
+            self.value_set_prefixed("0b", if digits.is_empty() { "0" } else { &digits });
             self.token_flags.insert(TokenFlags::BINARY_SPECIFIER);
             return self.check_big_int_suffix();
         }
@@ -1857,12 +1996,11 @@ impl<'text> Scanner<'text> {
             && matches!(self.byte_at(self.pos + 1), Some(b'o' | b'O'))
         {
             self.pos += 2;
-            self.token_value = (self.scan_binary_or_octal_digits(8)).into();
-            if self.token_value.is_empty() {
+            let digits = self.scan_binary_or_octal_digits(8);
+            if digits.is_empty() {
                 self.error_at(self.pos, 0, &gen::Octal_digit_expected);
-                self.token_value = ("0".to_owned()).into();
             }
-            self.token_value = (format!("0o{}", self.numeric_token_value())).into();
+            self.value_set_prefixed("0o", if digits.is_empty() { "0" } else { &digits });
             self.token_flags.insert(TokenFlags::OCTAL_SPECIFIER);
             return self.check_big_int_suffix();
         }
@@ -1889,7 +2027,7 @@ impl<'text> Scanner<'text> {
                     std::borrow::Cow::Borrowed("0")
                 } else {
                     let value = trim_leading_zeroes(digits);
-                    self.token_value = (radix_digits_to_decimal_string(value, 8)).into();
+                    self.value_set(&radix_digits_to_decimal_string(value, 8));
                     self.token_flags.insert(TokenFlags::OCTAL);
                     let with_minus = self.token == SyntaxKind::MinusToken;
                     let error_start = if with_minus {
@@ -1940,7 +2078,8 @@ impl<'text> Scanner<'text> {
             }
         }
 
-        let mut result = if self.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR) {
+        // Without separators the literal is its source text.
+        let result = if self.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR) {
             let mut result = main_fragment.into_owned();
             if let Some(fragment) = &decimal_fragment {
                 result.push('.');
@@ -1949,9 +2088,9 @@ impl<'text> Scanner<'text> {
             if let Some(fragment) = &scientific_fragment {
                 result.push_str(fragment);
             }
-            result
+            std::borrow::Cow::Owned(result)
         } else {
-            self.text[start..end].to_owned()
+            std::borrow::Cow::Borrowed(&self.text[start..end])
         };
 
         if self.token_flags.contains(TokenFlags::CONTAINS_LEADING_ZERO) {
@@ -1960,7 +2099,7 @@ impl<'text> Scanner<'text> {
                 end.saturating_sub(start),
                 &gen::Decimals_with_leading_zeros_are_not_allowed,
             );
-            self.token_value = (js_number_to_string(&result)).into();
+            self.value_set(&js_number_to_string(&result));
             self.token = SyntaxKind::NumericLiteral;
             return self.token;
         }
@@ -1969,12 +2108,15 @@ impl<'text> Scanner<'text> {
             let is_scientific =
                 decimal_fragment.is_none() && self.token_flags.contains(TokenFlags::SCIENTIFIC);
             self.check_for_identifier_start_after_numeric_literal(start, is_scientific);
-            self.token_value = (js_number_to_string(&result)).into();
+            self.value_set(&js_number_to_string(&result));
             self.token = SyntaxKind::NumericLiteral;
             return self.token;
         }
 
-        self.token_value = (std::mem::take(&mut result)).into();
+        match result {
+            std::borrow::Cow::Borrowed(_) => self.value_source(start, end),
+            std::borrow::Cow::Owned(text) => self.value_set(&text),
+        }
         let token = self.check_big_int_suffix();
         self.check_for_identifier_start_after_numeric_literal(start, false);
         token
@@ -2152,15 +2294,18 @@ impl<'text> Scanner<'text> {
 
     fn check_big_int_suffix(&mut self) -> SyntaxKind {
         if self.byte_at(self.pos) == Some(b'n') {
-            self.token_value.push('n');
-            if self.token_flags.contains(TokenFlags::BINARY_SPECIFIER) {
-                let digits = &self.numeric_token_value()[2..self.numeric_token_value().len() - 1];
-                self.token_value =
-                    (format!("{}n", radix_digits_to_decimal_string(digits, 2))).into();
+            self.value_push_current('n');
+            let radix = if self.token_flags.contains(TokenFlags::BINARY_SPECIFIER) {
+                Some(2)
             } else if self.token_flags.contains(TokenFlags::OCTAL_SPECIFIER) {
-                let digits = &self.numeric_token_value()[2..self.numeric_token_value().len() - 1];
-                self.token_value =
-                    (format!("{}n", radix_digits_to_decimal_string(digits, 8))).into();
+                Some(8)
+            } else {
+                None
+            };
+            if let Some(radix) = radix {
+                let value = self.numeric_token_value();
+                let digits = radix_digits_to_decimal_string(&value[2..value.len() - 1], radix);
+                self.value_set_prefixed(&digits, "n");
             }
             self.pos += 1;
             self.token = SyntaxKind::BigIntLiteral;
@@ -2172,26 +2317,27 @@ impl<'text> Scanner<'text> {
             // cooking only. Long literals therefore round ONCE
             // through the exact decimal (a huge 0B… key names its
             // member "9.671406556917009e+24", not the full digits).
-            if self.token_flags.contains(TokenFlags::BINARY_SPECIFIER) {
-                self.token_value = (js_number_to_string(&radix_digits_to_decimal_string(
-                    &self.numeric_token_value()[2..],
-                    2,
-                )))
-                .into();
+            let radix = if self.token_flags.contains(TokenFlags::BINARY_SPECIFIER) {
+                Some(2)
             } else if self.token_flags.contains(TokenFlags::OCTAL_SPECIFIER) {
-                self.token_value = (js_number_to_string(&radix_digits_to_decimal_string(
-                    &self.numeric_token_value()[2..],
-                    8,
-                )))
-                .into();
+                Some(8)
             } else if self.token_flags.contains(TokenFlags::HEX_SPECIFIER) {
-                self.token_value = (js_number_to_string(&radix_digits_to_decimal_string(
+                Some(16)
+            } else {
+                None
+            };
+            let cooked = match radix {
+                Some(radix) => Some(js_number_to_string(&radix_digits_to_decimal_string(
                     &self.numeric_token_value()[2..],
-                    16,
-                )))
-                .into();
-            } else if !is_canonical_js_integer_text(self.numeric_token_value()) {
-                self.token_value = (js_number_to_string(self.numeric_token_value())).into();
+                    radix,
+                ))),
+                None if !is_canonical_js_integer_text(self.numeric_token_value()) => {
+                    Some(js_number_to_string(self.numeric_token_value()))
+                }
+                None => None,
+            };
+            if let Some(cooked) = cooked {
+                self.value_set(&cooked);
             }
             self.token = SyntaxKind::NumericLiteral;
         }

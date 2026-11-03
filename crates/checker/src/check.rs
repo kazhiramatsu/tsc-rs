@@ -5884,7 +5884,7 @@ impl<'a> CheckerState<'a> {
         let flags = self.tables.flags_of(name_type);
         if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
             let name = match self.tables.literal_value(name_type) {
-                Some(tsc_types::LiteralValue::String(value)) => value.to_js_string(),
+                Some(tsc_types::LiteralValue::String(value)) => value.to_owned(),
                 Some(tsc_types::LiteralValue::Number(value)) => {
                     tsc_types::js_number_to_string(value).into()
                 }
@@ -6348,7 +6348,7 @@ impl<'a> CheckerState<'a> {
             }
             TypeData::Literal { value, .. } => match self.tables.literal_value_of(value) {
                 tsc_types::LiteralValue::String(text) => {
-                    let text = text.clone();
+                    let text = tsc_types::TemplateText::from_js(text);
                     // 51401-51403: the StringLiteral face carries
                     // EmitFlags.NoAsciiEscaping, so getLiteralText
                     // runs escapeString(text, '"') WITHOUT the
@@ -13612,10 +13612,13 @@ impl<'a> CheckerState<'a> {
         let expression_type = self.regular_type_of_literal_type(expression_type);
         let literal = match self.tables.literal_value(expression_type) {
             Some(tsc_types::LiteralValue::String(value)) => {
-                let Some(value_utf8) = value.to_utf8() else {
+                let Some(value_utf8) = value.as_str() else {
                     return Ok(crate::concat_js(&[
                         &"[",
-                        &(string_literal_name_text(value, false)?),
+                        &(string_literal_name_text(
+                            &tsc_types::TemplateText::from_js(value),
+                            false,
+                        )?),
                         &"]",
                     ]));
                 };
@@ -13854,11 +13857,14 @@ impl<'a> CheckerState<'a> {
                 let name = match &self.tables.type_of(name_type).data {
                     TypeData::Literal { value, .. } => match self.tables.literal_value_of(*value) {
                         tsc_types::LiteralValue::String(text) => {
-                            let Some(text_utf8) = text.to_utf8() else {
-                                return string_literal_name_text(text, single_quote)
-                                    .map(JsString::from);
+                            let Some(text_utf8) = text.as_str() else {
+                                return string_literal_name_text(
+                                    &tsc_types::TemplateText::from_js(text),
+                                    single_quote,
+                                )
+                                .map(JsString::from);
                             };
-                            text_utf8
+                            text_utf8.to_owned()
                         }
                         tsc_types::LiteralValue::Number(value) => {
                             tsc_types::js_number_to_string(value)

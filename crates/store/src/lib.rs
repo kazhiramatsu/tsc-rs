@@ -17,6 +17,7 @@
 //!   heap at private identities, then [`published`](StoreVec::publish) to its
 //!   final leased range, where it stays until it is dropped.
 //! - [`get`] and [`slice`], the identity-indexed reads.
+//! - [`names`], the storage of the process-wide name table.
 //!
 //! [`SmallList`] is the list a stored record can hold.
 //!
@@ -42,6 +43,8 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::Once;
 
+pub mod names;
+
 /// Where the reservation starts: clear of every placement seen on macOS and
 /// Linux (binaries, shared caches and heaps sit well below, stacks and PIE
 /// binaries above), and a single 16-bit chunk so that one `movz` on arm64
@@ -52,8 +55,9 @@ const FIRST_REGION: usize = 0x4000_0000_0000;
 const REGION_BYTES: usize = 1 << 38;
 
 /// The regions the reservation holds. A record type names its region with
-/// [`StoreRecord::REGION`].
-const REGIONS: usize = 8;
+/// [`StoreRecord::REGION`]; regions 8 and 9 hold the name table
+/// ([`names`]).
+const REGIONS: usize = 12;
 
 /// The size of the pages the kernel hands out, which covers both 4 KiB and
 /// 16 KiB systems: only whole multiples of it are returned to the kernel.
@@ -74,6 +78,10 @@ pub trait StoreRecord: Sized + 'static {
 
 const fn base<T: StoreRecord>() -> usize {
     assert!(T::REGION < REGIONS, "a store region out of range");
+    assert!(
+        T::REGION != names::TEXT_REGION,
+        "the name table's text region holds no records"
+    );
     assert!(
         std::mem::size_of::<T>() <= 64,
         "a record larger than a region's slots"

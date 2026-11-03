@@ -3281,7 +3281,9 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::STRING_LITERAL) {
             let value = match self.tables.literal_value(ty) {
-                Some(tsc_types::LiteralValue::String(value)) => value.clone(),
+                Some(tsc_types::LiteralValue::String(value)) => {
+                    tsc_types::TemplateText::from_js(value)
+                }
                 _ => unreachable!("string-literal flag implies string payload"),
             };
             let name = self.binder.symbol(symbol).escaped_name;
