@@ -3679,12 +3679,10 @@ pub(crate) fn collect_node_data_ids(
     }
 }
 
-pub(crate) fn remap_node_data_ids<N, A, T>(
-    data: &mut NodeData,
-    mut node: N,
-    mut array: A,
-    mut text: T,
-) where
+/// Rewrite each identity of `data` (child nodes, node arrays, literal texts) through the three maps:
+/// a payload copied into another tree names that tree's nodes and texts.
+pub fn remap_node_data_ids<N, A, T>(data: &mut NodeData, mut node: N, mut array: A, mut text: T)
+where
     N: FnMut(NodeId) -> NodeId,
     A: FnMut(NodeArrayId) -> NodeArrayId,
     T: FnMut(TextId) -> TextId,
