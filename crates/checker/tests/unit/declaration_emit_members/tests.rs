@@ -42,7 +42,7 @@ fn node_kind(
 
 fn statement_at(checker: &CheckerState<'_>, index: usize) -> NodeId {
     let source = checker.binder.source(0);
-    let NodeData::SourceFile(data) = &source.arena.node(source.root).data else {
+    let NodeData::SourceFile(data) = source.arena.node(source.root).data() else {
         panic!("source file expected")
     };
     let statements = source
@@ -54,13 +54,13 @@ fn statement_at(checker: &CheckerState<'_>, index: usize) -> NodeId {
 fn first_variable_declaration(checker: &CheckerState<'_>, statement: usize) -> NodeId {
     let statement = statement_at(checker, statement);
     let source = checker.binder.source(0);
-    let NodeData::VariableStatement(data) = &source.arena.node(statement).data else {
+    let NodeData::VariableStatement(data) = source.arena.node(statement).data() else {
         panic!("variable statement expected")
     };
     let NodeData::VariableDeclarationList(list) = &source
         .arena
         .node(data.declaration_list.expect("declaration list"))
-        .data
+        .data()
     else {
         panic!("declaration list expected")
     };
@@ -160,7 +160,7 @@ fn dm_symbol_declaration_order_facts_follow_binder_declarations() {
         Default::default(),
         None,
     );
-    let NodeData::SourceFile(data) = &source.arena.node(source.root).data else {
+    let NodeData::SourceFile(data) = source.arena.node(source.root).data() else {
         panic!("source file expected")
     };
     let declarations = source
@@ -212,7 +212,7 @@ fn dm_function_properties_need_an_implementation() {
         Default::default(),
         None,
     );
-    let NodeData::SourceFile(data) = &source.arena.node(source.root).data else {
+    let NodeData::SourceFile(data) = source.arena.node(source.root).data() else {
         panic!("source file expected")
     };
     let declarations = source

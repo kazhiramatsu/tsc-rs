@@ -24,12 +24,12 @@ fn assigned_expression_names_include_static_property_and_element_accesses() {
     let function_name = get_name_of_declaration(&source, function).expect("property name");
     let class_name = get_name_of_declaration(&source, class).expect("element name");
     assert!(matches!(
-        &source.arena.node(function_name).data,
+        &source.arena.node(function_name).data(),
         NodeData::Identifier(data) if data.escaped_text == "member"
     ));
     assert!(matches!(
-        &source.arena.node(class_name).data,
-        NodeData::StringLiteral(data) if data.text == "key"
+        &source.arena.node(class_name).data(),
+        NodeData::StringLiteral(data) if source.arena.text(data.text) == b"key"
     ));
 }
 

@@ -576,7 +576,7 @@ impl<'a> CheckerState<'a> {
                     .source_of_node(base_type_node)
                     .arena
                     .node(base_type_node)
-                    .data
+                    .data()
                 {
                     tsc_syntax::NodeData::ExpressionWithTypeArguments(data) => data.expression,
                     _ => None,

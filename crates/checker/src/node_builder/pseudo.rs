@@ -469,7 +469,7 @@ fn append_union_member(
     has_undefined: &mut bool,
 ) -> BuildResult<()> {
     let record = arena.node(node).map_err(factory_error)?;
-    if let NodeData::UnionType(data) = &record.data {
+    if let NodeData::UnionType(data) = record.data() {
         let members = match data
             .types
             .and_then(|array| arena.node_array_ref(node.source(), array))
@@ -540,7 +540,7 @@ fn reuse_type_parameters(
         if let Some(constraint) = template_tag_constraint(checker, type_parameter) {
             let constraint = reuse_type_node(checker, arena, target, context, constraint)?;
             if let NodeData::TypeParameter(mut data) =
-                arena.node(reused).map_err(factory_error)?.data.clone()
+                arena.node(reused).map_err(factory_error)?.data().clone()
             {
                 data.constraint = Some(constraint.node());
                 reused = update_factory_node(arena, reused, NodeData::TypeParameter(data))?;
@@ -1628,31 +1628,35 @@ fn reuse_name(
 ) -> BuildResult<TransformNode> {
     let reused = reuse_node_or_clone(checker, arena, target, context, name)?;
     let record = arena.node(reused).map_err(factory_error)?;
+    // The reused name may be a copy in another tree: its texts are that
+    // tree's.
+    let text_js = |id| {
+        arena
+            .text_js(reused.source(), id)
+            .map(tsc_types::JsStr::to_owned)
+            .map_err(factory_error)
+    };
     // ast.TryGetTextOfPropertyName on the reused name.
-    let (text, is_identifier, is_string_literal) = match &record.data {
+    let (text, is_identifier, is_string_literal) = match record.data() {
         NodeData::Identifier(data) => (
             tsc_types::JsString::from(data.escaped_text.identifier_text()),
             true,
             false,
         ),
-        NodeData::StringLiteral(data) => (data.text.clone(), false, true),
-        NodeData::NumericLiteral(data) => {
-            (tsc_types::JsString::from(data.text.as_str()), false, false)
-        }
+        NodeData::StringLiteral(data) => (text_js(data.text)?, false, true),
+        NodeData::NumericLiteral(data) => (text_js(data.text)?, false, false),
         NodeData::ComputedPropertyName(data) => {
             let expression = data
                 .expression
                 .map(|expression| arena.node(TransformNode::new(reused.source(), expression)))
                 .transpose()
                 .map_err(factory_error)?;
-            match expression.map(|expression| &expression.data) {
-                Some(NodeData::StringLiteral(data)) => (data.text.clone(), false, false),
+            match expression.map(|expression| expression.data()) {
+                Some(NodeData::StringLiteral(data)) => (text_js(data.text)?, false, false),
                 Some(NodeData::NoSubstitutionTemplateLiteral(data)) => {
-                    (data.text.clone(), false, false)
+                    (text_js(data.text)?, false, false)
                 }
-                Some(NodeData::NumericLiteral(data)) => {
-                    (tsc_types::JsString::from(data.text.as_str()), false, false)
-                }
+                Some(NodeData::NumericLiteral(data)) => (text_js(data.text)?, false, false),
                 _ => return Ok(reused),
             }
         }

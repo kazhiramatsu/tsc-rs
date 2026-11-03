@@ -216,7 +216,7 @@ impl LanguageService<'_> {
                             };
                             request.parent_of(called).filter(|&parent| {
                                 matches!(
-                                    &request.state.binder.node_record(parent).data,
+                                    request.state.binder.node_record(parent).data(),
                                     NodeData::CallExpression(call) if call.expression == Some(called)
                                 )
                             })
@@ -583,13 +583,17 @@ impl Request<'_, '_> {
         let Touching::Node(id) = node else {
             return String::new();
         };
-        match &self.state.binder.node_record(id).data {
-            NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
+        match self.state.binder.node_record(id).data() {
+            NodeData::StringLiteral(data) => tsc_syntax::published_text_js(data.text)
+                .to_string_lossy()
+                .into_owned(),
             NodeData::NoSubstitutionTemplateLiteral(data) => {
-                data.text.to_string_lossy().into_owned()
+                tsc_syntax::published_text_js(data.text)
+                    .to_string_lossy()
+                    .into_owned()
             }
-            NodeData::NumericLiteral(data) => data.text.clone(),
-            NodeData::BigIntLiteral(data) => data.text.to_string(),
+            NodeData::NumericLiteral(data) => tsc_syntax::published_text_utf8(data.text).to_owned(),
+            NodeData::BigIntLiteral(data) => tsc_syntax::published_text_utf8(data.text).to_owned(),
             _ => node_util::id_text(self.state.binder.source_of_node(id), id)
                 .unwrap_or_default()
                 .to_owned(),
@@ -617,7 +621,7 @@ impl Request<'_, '_> {
             return true;
         }
         let source = self.state.binder.source_of_node(declaration);
-        match &record.data {
+        match record.data() {
             NodeData::BinaryExpression(_)
             | NodeData::BindingElement(_)
             | NodeData::ClassDeclaration(_)
@@ -1008,7 +1012,7 @@ impl Request<'_, '_> {
                     .then_some(tag);
                 }
                 let binary = self.state.binder.node_record(parent).parent?;
-                let NodeData::BinaryExpression(data) = &self.state.binder.node_record(binary).data
+                let NodeData::BinaryExpression(data) = self.state.binder.node_record(binary).data()
                 else {
                     return None;
                 };
@@ -1147,7 +1151,7 @@ impl Request<'_, '_> {
                     ) {
                         self.state.binder.node_record(parent).parent.filter(|&grandparent| {
                             matches!(
-                                &self.state.binder.node_record(grandparent).data,
+                                self.state.binder.node_record(grandparent).data(),
                                 NodeData::BinaryExpression(binary) if binary.left == Some(parent)
                             )
                         })
@@ -1204,7 +1208,7 @@ impl Request<'_, '_> {
         let parent_name = self.name_of(parent);
         let is_parent_name = matches!(node, Touching::Node(id) if parent_name == Some(id));
         let is_property_name_of_specifier_or_binding =
-            match (node, &self.state.binder.node_record(parent).data) {
+            match (node, self.state.binder.node_record(parent).data()) {
                 (Touching::Node(id), NodeData::ImportSpecifier(data)) => {
                     data.property_name == Some(id)
                 }
@@ -1240,7 +1244,7 @@ impl Request<'_, '_> {
         let Some(parent) = self.state.binder.node_record(node).parent else {
             return false;
         };
-        match &self.state.binder.node_record(parent).data {
+        match self.state.binder.node_record(parent).data() {
             NodeData::PropertyDeclaration(_)
             | NodeData::PropertySignature(_)
             | NodeData::PropertyAssignment(_)

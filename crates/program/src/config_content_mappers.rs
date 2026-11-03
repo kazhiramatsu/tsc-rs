@@ -573,9 +573,11 @@ impl ContentMapperSyntax<'_> {
                     source
                         .arena
                         .node(*element)
-                        .data
+                        .data()
                         .as_string_literal()
-                        .is_some_and(|literal| literal.text == extension)
+                        .is_some_and(|literal| {
+                            source.arena.text(literal.text) == extension.as_bytes()
+                        })
                 })
             {
                 return Some(element);

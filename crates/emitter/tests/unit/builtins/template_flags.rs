@@ -11,7 +11,7 @@ fn fragments(
 ) {
     let record = arena.node(node).unwrap();
     if matches!(
-        record.data,
+        record.data(),
         NodeData::NoSubstitutionTemplateLiteral(_)
             | NodeData::TemplateHead(_)
             | NodeData::TemplateMiddle(_)

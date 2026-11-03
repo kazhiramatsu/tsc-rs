@@ -34,6 +34,8 @@ struct CanonicalTree {
     nodes: Vec<CanonicalNode>,
     arrays: Vec<CanonicalArray>,
     external_module_indicator: Option<NodeId>,
+    /// The literal texts by canonical identity: first appearance in the walk.
+    texts: Vec<Vec<u8>>,
 }
 
 fn canonical_tree(source: &SourceFile) -> CanonicalTree {
@@ -50,7 +52,7 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
             let node = source.arena.node(nodes[node_index]);
             let mut child_nodes = Vec::new();
             let mut child_arrays = Vec::new();
-            collect_node_data_ids(&node.data, &mut child_nodes, &mut child_arrays);
+            collect_node_data_ids(node.data(), &mut child_nodes, &mut child_arrays);
             if let Some(js_doc) = node.js_doc {
                 child_arrays.push(js_doc);
             }
@@ -83,15 +85,26 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
         }
     }
 
+    let mut text_map = std::collections::HashMap::new();
+    let mut texts: Vec<Vec<u8>> = Vec::new();
     let canonical_nodes = nodes
         .iter()
         .map(|id| {
             let node = source.arena.node(*id);
-            let mut data = node.data.clone();
+            let mut data = node.data().clone();
             remap_node_data_ids(
                 &mut data,
                 |id| *node_map.get(&id).expect("canonical node reference"),
                 |id| *array_map.get(&id).expect("canonical array reference"),
+                |id| {
+                    if id == crate::TextId::EMPTY {
+                        return id;
+                    }
+                    *text_map.entry(id).or_insert_with(|| {
+                        texts.push(source.arena.text(id).to_vec());
+                        crate::TextId::new(texts.len() as u32 - 1)
+                    })
+                },
             );
             CanonicalNode {
                 kind: node.kind,
@@ -139,6 +152,7 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
     CanonicalTree {
         nodes: canonical_nodes,
         arrays: canonical_arrays,
+        texts,
         external_module_indicator: source.external_module_indicator.map(|id| {
             *node_map
                 .get(&id)
@@ -1259,6 +1273,7 @@ fn module_declaration_attributes_take_part_in_the_structural_comparison() {
         &module(None),
         |_, _| true,
         |_, _| true,
+        |_, _| true,
     ));
     let mut compared = Vec::new();
     assert!(node_data_structurally_equal(
@@ -1268,6 +1283,7 @@ fn module_declaration_attributes_take_part_in_the_structural_comparison() {
             compared.push((left, right));
             true
         },
+        |_, _| true,
         |_, _| true,
     ));
     assert_eq!(

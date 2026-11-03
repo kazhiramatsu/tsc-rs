@@ -30,7 +30,8 @@ fn comma_list_printer_matches_typescript() {
                 let mut arena = TransformArena::new();
                 let source = arena.add_source(&parsed, None);
                 let root = arena.root(source).unwrap();
-                let NodeData::SourceFile(mut source_data) = arena.node(root).unwrap().data.clone()
+                let NodeData::SourceFile(mut source_data) =
+                    arena.node(root).unwrap().data().clone()
                 else {
                     panic!("source file")
                 };
@@ -43,7 +44,7 @@ fn comma_list_printer_matches_typescript() {
                     .nodes[0];
                 let statement = arena.node_ref(source, statement_id).unwrap();
                 let NodeData::ExpressionStatement(mut statement_data) =
-                    arena.node(statement).unwrap().data.clone()
+                    arena.node(statement).unwrap().data().clone()
                 else {
                     panic!("expression statement")
                 };
@@ -51,7 +52,7 @@ fn comma_list_printer_matches_typescript() {
                     .node_ref(source, statement_data.expression.unwrap())
                     .unwrap();
                 let NodeData::CallExpression(mut call_data) =
-                    arena.node(call).unwrap().data.clone()
+                    arena.node(call).unwrap().data().clone()
                 else {
                     panic!("call")
                 };
@@ -65,10 +66,10 @@ fn comma_list_printer_matches_typescript() {
                 for element in &original {
                     let current = if case["synthetic"].as_bool() == Some(true) {
                         let record = arena.node(*element).unwrap().clone();
-                        assert!(matches!(record.data, NodeData::Identifier(_)));
+                        assert!(matches!(record.data(), NodeData::Identifier(_)));
                         let created = arena
                             .factory()
-                            .create_node(source, record.data, TransformFlags::NONE)
+                            .create_node(source, record.data().clone(), TransformFlags::NONE)
                             .unwrap();
                         if case["comment_range"].as_bool() == Some(true) {
                             let range =

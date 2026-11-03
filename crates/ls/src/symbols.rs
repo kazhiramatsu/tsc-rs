@@ -221,14 +221,14 @@ impl Request<'_, '_> {
     /// The symbols of what tsgo's reparser makes of a comment's typedef,
     /// callback and import tags, in tag order.
     fn visit_reparsed_jsdoc_children(&mut self, state: &mut DocumentSymbols, comment: NodeId) {
-        let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
+        let NodeData::JSDoc(data) = self.state.binder.node_record(comment).data() else {
             return;
         };
         for tag in self.node_list(data.tags) {
-            let reparsed = match &self.state.binder.node_record(tag).data {
+            let reparsed = match self.state.binder.node_record(tag).data() {
                 NodeData::JSDocTypedefTag(typedef) => {
                     typedef.type_expression.and_then(|expression| {
-                        match &self.state.binder.node_record(expression).data {
+                        match self.state.binder.node_record(expression).data() {
                             NodeData::JSDocTypeExpression(expression) => expression.r#type,
                             _ => None,
                         }
@@ -288,7 +288,7 @@ impl Request<'_, '_> {
         if let Some(js_doc) = record.js_doc {
             let comments = self.state.binder.node_array(js_doc).nodes.to_vec();
             for &comment in &comments {
-                let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
+                let NodeData::JSDoc(data) = self.state.binder.node_record(comment).data() else {
                     continue;
                 };
                 for tag in self.node_list(data.tags) {
@@ -381,7 +381,7 @@ impl Request<'_, '_> {
                 }
             }
             SyntaxKind::SpreadAssignment => {
-                let expression = match &record.data {
+                let expression = match record.data() {
                     NodeData::SpreadAssignment(data) => data.expression,
                     _ => None,
                 };
@@ -400,7 +400,7 @@ impl Request<'_, '_> {
                 self.add_document_symbol(state, node, None, Vec::new());
             }
             SyntaxKind::ImportClause => {
-                let NodeData::ImportClause(data) = &record.data else {
+                let NodeData::ImportClause(data) = record.data() else {
                     return;
                 };
                 // A default import, `import d from "mod"`.
@@ -410,7 +410,7 @@ impl Request<'_, '_> {
                 // Named bindings, `import * as NS from "mod"` or
                 // `import { a, b as B } from "mod"`.
                 if let Some(bindings) = data.named_bindings {
-                    match &self.state.binder.node_record(bindings).data {
+                    match self.state.binder.node_record(bindings).data() {
                         NodeData::NamespaceImport(_) => {
                             self.add_document_symbol(state, bindings, None, Vec::new());
                         }
@@ -437,7 +437,7 @@ impl Request<'_, '_> {
                 }
             }
             SyntaxKind::ExportAssignment => {
-                let NodeData::ExportAssignment(data) = &record.data else {
+                let NodeData::ExportAssignment(data) = record.data() else {
                     return;
                 };
                 if data.is_export_equals == Some(true) {
@@ -471,13 +471,13 @@ impl Request<'_, '_> {
     fn visit_expando_assignment(&mut self, state: &mut DocumentSymbols, node: NodeId) {
         let source = self.state.binder.source_of_node(node);
         let (target, mut target_function, definition, property_name) =
-            match &self.state.binder.node_record(node).data {
+            match self.state.binder.node_record(node).data() {
                 NodeData::BinaryExpression(data) => {
                     let Some(target) = data.left else {
                         return;
                     };
                     let (target_function, property_name) =
-                        match &self.state.binder.node_record(target).data {
+                        match self.state.binder.node_record(target).data() {
                             NodeData::PropertyAccessExpression(access) => {
                                 (access.expression, access.name)
                             }
@@ -557,7 +557,7 @@ impl Request<'_, '_> {
             let interior = interior_module(source, node);
             name_end = node_util::name_field_of(source, interior)
                 .map_or(name_start, |name| source.arena.node(name).end as usize);
-        } else if matches!(&record.data, NodeData::ExportAssignment(data) if data.is_export_equals == Some(true))
+        } else if matches!(record.data(), NodeData::ExportAssignment(data) if data.is_export_equals == Some(true))
         {
             text = "export=".to_owned();
             if !node_util::node_is_missing(source, name) {
@@ -629,7 +629,7 @@ impl Request<'_, '_> {
             parent = self.parent_of(current);
         }
         if let Some(parent) = parent {
-            if let NodeData::ExportAssignment(data) = &self.state.binder.node_record(parent).data {
+            if let NodeData::ExportAssignment(data) = self.state.binder.node_record(parent).data() {
                 return if data.is_export_equals == Some(true) {
                     "export="
                 } else {
@@ -685,7 +685,7 @@ impl Request<'_, '_> {
     /// template arguments' text, joined.
     fn call_expression_literal_arguments(&self, call: NodeId) -> String {
         let source = self.state.binder.source_of_node(call);
-        let NodeData::CallExpression(data) = &source.arena.node(call).data else {
+        let NodeData::CallExpression(data) = source.arena.node(call).data() else {
             return String::new();
         };
         self.node_list(data.arguments)
@@ -706,13 +706,13 @@ impl Request<'_, '_> {
 
 /// tsgo `isPrototypeExpando`: `f.prototype` (or `f["prototype"]`).
 fn is_prototype_expando(source: &SourceFile, target: NodeId) -> bool {
-    match &source.arena.node(target).data {
+    match source.arena.node(target).data() {
         NodeData::PropertyAccessExpression(access) => access
             .name
             .and_then(|name| node_util::id_text(source, name))
             == Some("prototype"),
         NodeData::ElementAccessExpression(access) => access.argument_expression.is_some_and(|argument| {
-            matches!(&source.arena.node(argument).data, NodeData::StringLiteral(literal) if literal.text == "prototype")
+            matches!(source.arena.node(argument).data(), NodeData::StringLiteral(literal) if source.arena.text(literal.text) == b"prototype")
         }),
         _ => false,
     }
@@ -811,20 +811,26 @@ fn is_anonymous_name(name: &str) -> bool {
 /// template's escaped and quoted, a computed name's literal's; else the
 /// node's source text.
 fn text_of_name(source: &SourceFile, node: NodeId) -> String {
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => {
             node_util::id_text(source, node)
                 .unwrap_or_default()
                 .to_owned()
         }
-        NodeData::NumericLiteral(data) => data.text.clone(),
+        NodeData::NumericLiteral(data) => source.arena.text_utf8(data.text).to_owned(),
         NodeData::StringLiteral(data) => format!(
             "\"{}\"",
-            tsc_emitter::escape_string(&data.text.to_utf16(), tsc_emitter::LiteralQuote::Double)
+            tsc_emitter::escape_string(
+                &source.arena.text_js(data.text).to_utf16(),
+                tsc_emitter::LiteralQuote::Double,
+            )
         ),
         NodeData::NoSubstitutionTemplateLiteral(data) => format!(
             "`{}`",
-            tsc_emitter::escape_string(&data.text.to_utf16(), tsc_emitter::LiteralQuote::Backtick)
+            tsc_emitter::escape_string(
+                &source.arena.text_js(data.text).to_utf16(),
+                tsc_emitter::LiteralQuote::Backtick,
+            )
         ),
         NodeData::ComputedPropertyName(data)
             if data.expression.is_some_and(|expression| {
@@ -846,7 +852,7 @@ fn text_of_node(source: &SourceFile, node: NodeId) -> &str {
 /// tsgo `getCallExpressionName`: an identifier's text, or a property
 /// access's dotted names.
 fn call_expression_name(source: &SourceFile, node: NodeId) -> String {
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => {
             node_util::id_text(source, node)
                 .unwrap_or_default()
@@ -1112,7 +1118,7 @@ impl DeclarationMap<'_, '_> {
 
     fn visit(&mut self, node: NodeId) {
         let source = self.source;
-        let data = &source.arena.node(node).data;
+        let data = source.arena.node(node).data();
         match source.arena.node(node).kind {
             SyntaxKind::FunctionDeclaration
             | SyntaxKind::FunctionExpression
@@ -1201,7 +1207,7 @@ impl DeclarationMap<'_, '_> {
                     return;
                 };
                 if let Some(clause) = export.export_clause {
-                    match &source.arena.node(clause).data {
+                    match source.arena.node(clause).data() {
                         NodeData::NamedExports(named) => {
                             for element in list(source, named.elements) {
                                 self.visit(element);
@@ -1223,7 +1229,7 @@ impl DeclarationMap<'_, '_> {
                 let Some(clause) = import.import_clause else {
                     return;
                 };
-                let NodeData::ImportClause(clause) = &source.arena.node(clause).data else {
+                let NodeData::ImportClause(clause) = source.arena.node(clause).data() else {
                     return;
                 };
                 // Handle default import case e.g.:
@@ -1235,7 +1241,7 @@ impl DeclarationMap<'_, '_> {
                 //    import * as NS from "mod";
                 //    import {a, b as B} from "mod";
                 if let Some(bindings) = clause.named_bindings {
-                    match &source.arena.node(bindings).data {
+                    match source.arena.node(bindings).data() {
                         NodeData::NamespaceImport(_) => self.add(bindings),
                         NodeData::NamedImports(named) => {
                             for element in list(source, named.elements) {
@@ -1268,7 +1274,7 @@ pub(crate) fn get_declaration_name(source: &SourceFile, declaration: NodeId) -> 
     let Some(name) = node_util::get_non_assigned_name_of_declaration(source, declaration) else {
         return String::new();
     };
-    match &source.arena.node(name).data {
+    match source.arena.node(name).data() {
         NodeData::ComputedPropertyName(computed) => {
             let Some(expression) = computed.expression else {
                 return String::new();
@@ -1277,7 +1283,7 @@ pub(crate) fn get_declaration_name(source: &SourceFile, declaration: NodeId) -> 
                 return node_util::try_get_text_of_property_name(source, expression)
                     .unwrap_or_default();
             }
-            match &source.arena.node(expression).data {
+            match source.arena.node(expression).data() {
                 NodeData::PropertyAccessExpression(access) => access
                     .name
                     .and_then(|name| node_util::id_text(source, name))
@@ -1360,7 +1366,7 @@ fn children(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
         return children;
     }
     let hosted = tsc_binder::hosted::jsdoc_hosted(source);
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::Parameter(data) => {
             if data.r#type.is_none() {
                 if let Some(r#type) = hosted.type_of(node) {
@@ -1400,7 +1406,7 @@ fn children(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
                     parameters
                         .tags
                         .iter()
-                        .filter_map(|&tag| match &source.arena.node(tag).data {
+                        .filter_map(|&tag| match source.arena.node(tag).data() {
                             NodeData::JSDocTemplateTag(data) => data.constraint,
                             _ => None,
                         })
@@ -1460,7 +1466,7 @@ fn children_with_return_type(
     node: NodeId,
     mut children: Vec<NodeId>,
 ) -> Vec<NodeId> {
-    let (written_type, body) = match &source.arena.node(node).data {
+    let (written_type, body) = match source.arena.node(node).data() {
         NodeData::FunctionDeclaration(data) => (data.r#type, data.body),
         NodeData::FunctionExpression(data) => (data.r#type, data.body),
         NodeData::ArrowFunction(data) => (data.r#type, data.body),

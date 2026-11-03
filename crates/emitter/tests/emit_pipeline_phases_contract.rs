@@ -109,7 +109,7 @@ fn emit_pipeline_phases_matches_typescript() {
                 let mut arena = TransformArena::new();
                 let source = arena.add_source(&parsed, None);
                 let root = arena.root(source).unwrap();
-                let NodeData::SourceFile(data) = &arena.node(root).unwrap().data else {
+                let NodeData::SourceFile(data) = arena.node(root).unwrap().data() else {
                     panic!("source")
                 };
                 let statement = arena

@@ -372,7 +372,7 @@ impl<'a> SmartSelection<'a> {
             return children;
         }
         let (readonly_token, question_token) =
-            match node.node().map(|id| &self.navigator.tree().node(id).data) {
+            match node.node().map(|id| self.navigator.tree().node(id).data()) {
                 Some(tsc_syntax::NodeData::MappedType(data)) => {
                     (data.readonly_token, data.question_token)
                 }
@@ -486,7 +486,7 @@ impl<'a> SmartSelection<'a> {
             }
             // A lone variable declaration.
             Some(SyntaxKind::VariableDeclaration) => {
-                match parent.node().map(|id| &tree.node(id).data) {
+                match parent.node().map(|id| tree.node(id).data()) {
                     Some(tsc_syntax::NodeData::VariableDeclarationList(data)) => data
                         .declarations
                         .is_some_and(|list| tree.arena.node_array(list).nodes.len() == 1),
@@ -501,7 +501,7 @@ impl<'a> SmartSelection<'a> {
     fn template_span_literal(&self, span: View) -> Option<View> {
         let tree = self.navigator.tree();
         let id = span.node()?;
-        match &tree.node(id).data {
+        match tree.node(id).data() {
             tsc_syntax::NodeData::TemplateSpan(data) => data.literal.map(View::Node),
             _ => None,
         }

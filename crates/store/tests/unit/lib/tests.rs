@@ -8,12 +8,13 @@ struct Record {
     owned: Option<Arc<u64>>,
 }
 
+// Regions 10 and 11 hold no record type of the compiler: the tests' own.
 impl StoreRecord for Record {
-    const REGION: usize = REGIONS - 1;
+    const REGION: usize = 11;
 }
 
 impl StoreRecord for u32 {
-    const REGION: usize = REGIONS - 2;
+    const REGION: usize = 10;
 }
 
 fn records(values: std::ops::Range<u64>) -> StoreVec<Record> {
@@ -199,4 +200,44 @@ fn a_name_is_read_back_by_its_id() {
     let (count, bytes) = names::usage();
     assert!(count >= 3);
     assert!(bytes >= 3 * 8 + 14);
+}
+
+/// A text is its length word and its bytes, four to a word; it reads back the
+/// same from the words and, once published, from the store.
+#[test]
+fn texts_read_back_from_their_words_and_the_store() {
+    use crate::texts::{
+        published_text, published_text_str, push_text, text_in, text_str_in, text_words, TextWord,
+    };
+    let texts: [&[u8]; 5] = [b"", b"a", b"abcd", b"hello, world", "\u{1F600}x".as_bytes()];
+    let mut words = StoreVec::<TextWord>::new();
+    let starts: Vec<usize> = texts
+        .iter()
+        .map(|text| push_text(&mut words, text))
+        .collect();
+    assert_eq!(
+        words.len(),
+        texts
+            .iter()
+            .map(|text| text_words(text.len()))
+            .sum::<usize>()
+    );
+    for (text, &start) in texts.iter().zip(&starts) {
+        assert_eq!(text_in(&words, start), *text);
+    }
+    const TEXTS: u32 = 9_000_000;
+    words.publish(TEXTS);
+    for (text, &start) in texts.iter().zip(&starts) {
+        assert_eq!(published_text(TEXTS + start as u32), *text);
+        assert_eq!(
+            published_text_str(TEXTS + start as u32),
+            std::str::from_utf8(text).ok()
+        );
+    }
+    // Bytes that are not UTF-8 (a lone surrogate's WTF-8) read as bytes only.
+    let mut words = StoreVec::<TextWord>::new();
+    let surrogate = [0xED, 0xA0, 0x80];
+    let start = push_text(&mut words, &surrogate);
+    assert_eq!(text_in(&words, start), surrogate);
+    assert_eq!(text_str_in(&words, start), None);
 }

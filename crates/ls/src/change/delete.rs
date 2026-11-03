@@ -155,7 +155,7 @@ fn delete_declaration<'a>(
     match record.kind {
         SyntaxKind::Parameter => {
             let function = record.parent.expect("a parameter has a parent");
-            let lone_arrow_parameter = match &file.arena.node(function).data {
+            let lone_arrow_parameter = match file.arena.node(function).data() {
                 NodeData::ArrowFunction(data) => {
                     data.parameters
                         .is_some_and(|list| file.arena.node_array(list).nodes.len() == 1)
@@ -205,7 +205,7 @@ fn delete_declaration<'a>(
         }
         SyntaxKind::BindingElement => {
             let pattern = record.parent.expect("a binding element has a parent");
-            let preserve_comma = match &file.arena.node(pattern).data {
+            let preserve_comma = match file.arena.node(pattern).data() {
                 NodeData::ArrayBindingPattern(data) => data
                     .elements
                     .is_some_and(|list| file.arena.node_array(list).nodes.last() != Some(&node)),
@@ -229,7 +229,7 @@ fn delete_declaration<'a>(
         SyntaxKind::TypeParameter => delete_node_in_list(tracker, deleted_in_lists, file, node),
         SyntaxKind::ImportSpecifier => {
             let named_imports = record.parent.expect("an import specifier has a parent");
-            let lone = match &file.arena.node(named_imports).data {
+            let lone = match file.arena.node(named_imports).data() {
                 NodeData::NamedImports(data) => data
                     .elements
                     .is_some_and(|list| file.arena.node_array(list).nodes.len() == 1),
@@ -275,7 +275,7 @@ fn delete_declaration<'a>(
                 LeadingTriviaOption::IncludeAll,
                 TrailingTriviaOption::Include,
             ),
-            Some(parent) => match &file.arena.node(parent).data {
+            Some(parent) => match file.arena.node(parent).data() {
                 NodeData::ImportClause(data) if data.name == Some(node) => {
                     delete_default_import(tracker, file, parent);
                 }
@@ -299,7 +299,7 @@ fn delete_declaration<'a>(
 }
 
 fn statements(file: &SourceFile) -> &[NodeId] {
-    match &file.arena.node(file.root).data {
+    match file.arena.node(file.root).data() {
         NodeData::SourceFile(data) => data
             .statements
             .map(|list| file.arena.node_array(list).nodes)
@@ -314,7 +314,7 @@ fn delete_default_import<'a>(
     file: &'a SourceFile,
     import_clause: NodeId,
 ) {
-    let NodeData::ImportClause(clause) = &file.arena.node(import_clause).data else {
+    let NodeData::ImportClause(clause) = file.arena.node(import_clause).data() else {
         return;
     };
     let declaration = file.arena.node(import_clause).parent;
@@ -363,7 +363,7 @@ fn delete_import_binding<'a>(tracker: &mut Tracker<'a>, file: &'a SourceFile, no
         return;
     };
     let has_name = matches!(
-        &file.arena.node(clause).data,
+        file.arena.node(clause).data(),
         NodeData::ImportClause(data) if data.name.is_some()
     );
     if has_name {
@@ -432,7 +432,7 @@ fn delete_variable_declaration<'a>(
         }
         return;
     }
-    let lone = match &file.arena.node(parent).data {
+    let lone = match file.arena.node(parent).data() {
         NodeData::VariableDeclarationList(data) => data
             .declarations
             .is_some_and(|list| file.arena.node_array(list).nodes.len() == 1),

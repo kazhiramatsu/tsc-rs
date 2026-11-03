@@ -205,7 +205,7 @@ impl DeclarationTransformer<'_> {
         };
 
         if self.kind(cx, input)? == SyntaxKind::TypeQuery {
-            if let NodeData::TypeQuery(data) = &cx.arena().node(input)?.data {
+            if let NodeData::TypeQuery(data) = cx.arena().node(input)?.data() {
                 if let Some(name) = data
                     .expr_name
                     .and_then(|name| cx.arena().node_ref(input.source(), name))
@@ -243,7 +243,7 @@ impl DeclarationTransformer<'_> {
             let result = (|| -> Result<VisitResult, TransformError> {
                 match self.kind(cx, input)? {
                     SyntaxKind::ExpressionWithTypeArguments => {
-                        let expression = match &cx.arena().node(input)?.data {
+                        let expression = match cx.arena().node(input)?.data() {
                             NodeData::ExpressionWithTypeArguments(data) => data.expression,
                             _ => None,
                         }
@@ -281,14 +281,14 @@ impl DeclarationTransformer<'_> {
                         // tsgo (transform.go:668-672): declaration emit elides
                         // private members, so a private name on the right of a
                         // qualified name is reported.
-                        let right = match &cx.arena().node(input)?.data {
+                        let right = match cx.arena().node(input)?.data() {
                             NodeData::QualifiedName(data) => data.right,
                             _ => None,
                         }
                         .and_then(|right| cx.arena().node_ref(input.source(), right));
                         if let Some(right) = right {
                             if let NodeData::PrivateIdentifier(identifier) =
-                                &cx.arena().node(right)?.data
+                                cx.arena().node(right)?.data()
                             {
                                 let text = tsc_types::JsString::from(identifier.text());
                                 self.tracker.report_diagnostic_with_args_at(
@@ -306,7 +306,8 @@ impl DeclarationTransformer<'_> {
                         // tsgo transformMappedTypeNode (transform.go:723-740): a
                         // missing template type is written as `any`.
                         let visited = self.visit_each_child(cx, input)?;
-                        let NodeData::MappedType(mut data) = cx.arena().node(visited)?.data.clone()
+                        let NodeData::MappedType(mut data) =
+                            cx.arena().node(visited)?.data().clone()
                         else {
                             return Err(Self::contract("mapped-type kind/data mismatch"));
                         };
@@ -323,7 +324,7 @@ impl DeclarationTransformer<'_> {
                             .map(VisitResult::Node)
                     }
                     SyntaxKind::TypeReference => {
-                        let name = match &cx.arena().node(input)?.data {
+                        let name = match cx.arena().node(input)?.data() {
                             NodeData::TypeReference(data) => data.type_name,
                             _ => None,
                         }
@@ -337,7 +338,7 @@ impl DeclarationTransformer<'_> {
                     }
                     SyntaxKind::ConstructSignature => {
                         let NodeData::ConstructSignature(data) =
-                            cx.arena().node(input)?.data.clone()
+                            cx.arena().node(input)?.data().clone()
                         else {
                             return Err(Self::contract("construct-signature kind/data mismatch"));
                         };
@@ -355,7 +356,7 @@ impl DeclarationTransformer<'_> {
                         Ok(VisitResult::Node(updated))
                     }
                     SyntaxKind::Constructor => {
-                        let parameters = match &cx.arena().node(input)?.data {
+                        let parameters = match cx.arena().node(input)?.data() {
                             NodeData::Constructor(data) => data.parameters,
                             _ => None,
                         };
@@ -373,7 +374,7 @@ impl DeclarationTransformer<'_> {
                     }
                     SyntaxKind::MethodDeclaration => {
                         let NodeData::MethodDeclaration(data) =
-                            cx.arena().node(input)?.data.clone()
+                            cx.arena().node(input)?.data().clone()
                         else {
                             return Err(Self::contract("method kind/data mismatch"));
                         };
@@ -492,7 +493,7 @@ impl DeclarationTransformer<'_> {
                             Ok(VisitResult::None)
                         } else {
                             let NodeData::MethodSignature(data) =
-                                cx.arena().node(input)?.data.clone()
+                                cx.arena().node(input)?.data().clone()
                             else {
                                 return Err(Self::contract("method-signature kind/data mismatch"));
                             };
@@ -517,7 +518,7 @@ impl DeclarationTransformer<'_> {
                         }
                     }
                     SyntaxKind::CallSignature => {
-                        let NodeData::CallSignature(data) = cx.arena().node(input)?.data.clone()
+                        let NodeData::CallSignature(data) = cx.arena().node(input)?.data().clone()
                         else {
                             return Err(Self::contract("call-signature kind/data mismatch"));
                         };
@@ -540,7 +541,7 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::IndexSignature => {
-                        let NodeData::IndexSignature(data) = cx.arena().node(input)?.data.clone()
+                        let NodeData::IndexSignature(data) = cx.arena().node(input)?.data().clone()
                         else {
                             return Err(Self::contract("index-signature kind/data mismatch"));
                         };
@@ -616,7 +617,7 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::TypeParameter => {
-                        let NodeData::TypeParameter(data) = cx.arena().node(input)?.data.clone()
+                        let NodeData::TypeParameter(data) = cx.arena().node(input)?.data().clone()
                         else {
                             return Err(Self::contract("type-parameter kind/data mismatch"));
                         };
@@ -638,7 +639,8 @@ impl DeclarationTransformer<'_> {
                         }
                     }
                     SyntaxKind::ConditionalType => {
-                        let NodeData::ConditionalType(data) = cx.arena().node(input)?.data.clone()
+                        let NodeData::ConditionalType(data) =
+                            cx.arena().node(input)?.data().clone()
                         else {
                             return Err(Self::contract("conditional-type kind/data mismatch"));
                         };
@@ -693,7 +695,7 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::ImportType => {
-                        let NodeData::ImportType(data) = cx.arena().node(input)?.data.clone()
+                        let NodeData::ImportType(data) = cx.arena().node(input)?.data().clone()
                         else {
                             return Err(Self::contract("import-type kind/data mismatch"));
                         };
@@ -701,7 +703,7 @@ impl DeclarationTransformer<'_> {
                             .argument
                             .and_then(|node| cx.arena().node_ref(input.source(), node))
                             .ok_or_else(|| Self::contract("import type has no argument"))?;
-                        let literal = match &cx.arena().node(argument)?.data {
+                        let literal = match cx.arena().node(argument)?.data() {
                             NodeData::LiteralType(data) => data
                                 .literal
                                 .and_then(|node| cx.arena().node_ref(input.source(), node)),
@@ -781,7 +783,7 @@ impl DeclarationTransformer<'_> {
         input: TransformNode,
     ) -> Result<Option<TransformNode>, TransformError> {
         let source = input.source();
-        let (inner, kind) = match &cx.arena().node(input)?.data {
+        let (inner, kind) = match cx.arena().node(input)?.data() {
             NodeData::JSDocTypeExpression(data) => (data.r#type, SyntaxKind::JSDocTypeExpression),
             NodeData::JSDocAllType(_) => (None, SyntaxKind::JSDocAllType),
             NodeData::JSDocNullableType(data) => (data.r#type, SyntaxKind::JSDocNullableType),
@@ -907,7 +909,7 @@ impl DeclarationTransformer<'_> {
             self.kind(cx, name)?,
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern
         ) {
-            let elements = match &cx.arena().node(name)?.data {
+            let elements = match cx.arena().node(name)?.data() {
                 NodeData::ArrayBindingPattern(data) => data.elements,
                 NodeData::ObjectBindingPattern(data) => data.elements,
                 _ => None,
@@ -990,7 +992,7 @@ impl DeclarationTransformer<'_> {
             .ok_or_else(|| Self::contract("dynamic declaration has no name"))?;
         self.tracker.error_name_node = Some(name);
         let result = (|| {
-            let NodeData::ComputedPropertyName(data) = &cx.arena().node(name)?.data else {
+            let NodeData::ComputedPropertyName(data) = cx.arena().node(name)?.data() else {
                 return Err(Self::contract(
                     "checkName requires a computed property name",
                 ));
@@ -1035,7 +1037,7 @@ impl DeclarationTransformer<'_> {
         cx: &mut TransformationContext,
         input: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let mut data = cx.arena().node(input)?.data.clone();
+        let mut data = cx.arena().node(input)?.data().clone();
         {
             let mut visitor = DeclarationChildVisitor {
                 transformer: self,
@@ -1044,7 +1046,10 @@ impl DeclarationTransformer<'_> {
             };
             try_visit_transform_children(&mut data, &mut visitor)?;
         }
-        if cx.arena().node(input)?.data == data {
+        if cx
+            .arena()
+            .same_payload(input.source(), cx.arena().node(input)?.data(), &data)
+        {
             return Ok(input);
         }
         let kind = cx.arena().node(input)?.kind;
@@ -1287,7 +1292,7 @@ fn declaration_name(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<Option<TransformNode>, TransformError> {
-    let name = match &cx.arena().node(node)?.data {
+    let name = match cx.arena().node(node)?.data() {
         NodeData::BindingElement(data) => data.name,
         NodeData::ClassDeclaration(data) => data.name,
         NodeData::FunctionDeclaration(data) => data.name,
@@ -1318,7 +1323,7 @@ fn dynamic_name_expression(
     let Some(name) = declaration_name(cx, node)? else {
         return Ok(None);
     };
-    let NodeData::ComputedPropertyName(data) = &cx.arena().node(name)?.data else {
+    let NodeData::ComputedPropertyName(data) = cx.arena().node(name)?.data() else {
         return Ok(None);
     };
     let Some(expression) = data
@@ -1332,7 +1337,7 @@ fn dynamic_name_expression(
     // tsc-span: _tsc.js:15844-15860
     // ComputedPropertyName expressions are inspected directly. Parentheses are
     // stripped only for ElementAccessExpression names in upstream.
-    let is_static = match &cx.arena().node(expression)?.data {
+    let is_static = match cx.arena().node(expression)?.data() {
         NodeData::StringLiteral(_)
         | NodeData::NoSubstitutionTemplateLiteral(_)
         | NodeData::NumericLiteral(_) => true,
@@ -1377,7 +1382,7 @@ fn signature_parts(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<SignatureParts, TransformError> {
-    match &cx.arena().node(node)?.data {
+    match cx.arena().node(node)?.data() {
         NodeData::FunctionType(data) => Ok((
             data.type_parameters,
             data.parameters,
@@ -1404,7 +1409,7 @@ fn update_signature(
     r#type: Option<TransformNode>,
     modifiers: Option<TransformNodeArray>,
 ) -> Result<TransformNode, TransformError> {
-    match cx.arena().node(original)?.data.clone() {
+    match cx.arena().node(original)?.data().clone() {
         NodeData::ConstructSignature(_) => {
             cx.factory()?
                 .update_construct_signature(original, type_parameters, parameters, r#type)
@@ -1470,7 +1475,7 @@ fn update_property(
     r#type: Option<TransformNode>,
     initializer: Option<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
-    let data = cx.arena().node(original)?.data.clone();
+    let data = cx.arena().node(original)?.data().clone();
     match data {
         NodeData::PropertyDeclaration(data) => {
             let name = data
@@ -1544,7 +1549,7 @@ fn update_variable(
     r#type: Option<TransformNode>,
     initializer: Option<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
-    let NodeData::VariableDeclaration(data) = cx.arena().node(original)?.data.clone() else {
+    let NodeData::VariableDeclaration(data) = cx.arena().node(original)?.data().clone() else {
         return Err(DeclarationTransformer::contract(
             "variable update kind mismatch",
         ));
@@ -1563,7 +1568,7 @@ fn update_literal_type(
     literal: TransformNode,
 ) -> Result<TransformNode, TransformError> {
     // Dispatch through the typed literal-type update face.
-    let NodeData::LiteralType(mut data) = cx.arena().node(original)?.data.clone() else {
+    let NodeData::LiteralType(mut data) = cx.arena().node(original)?.data().clone() else {
         return Err(DeclarationTransformer::contract(
             "literal-type update kind mismatch",
         ));

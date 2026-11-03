@@ -394,7 +394,7 @@ fn parsed_private_expression_flags_exclude_declaration_names() {
     let mut stack = vec![parsed.root];
     while let Some(id) = stack.pop() {
         let record = parsed.arena.node(id);
-        match &record.data {
+        match record.data() {
             NodeData::PropertyDeclaration(data)
                 if data.name.is_some_and(|name| {
                     parsed.arena.node(name).kind == tsc_syntax::SyntaxKind::PrivateIdentifier
@@ -476,21 +476,21 @@ fn constructor_prologue_stops_before_strings_and_noncontiguous_custom_statements
         Default::default(),
         None,
     );
-    let NodeData::SourceFile(source_file) = &parsed.arena.node(parsed.root).data else {
+    let NodeData::SourceFile(source_file) = parsed.arena.node(parsed.root).data() else {
         panic!("source file root");
     };
     let source_statements = parsed
         .arena
         .node_array(source_file.statements.expect("source statements"));
     let NodeData::FunctionDeclaration(function) =
-        &parsed.arena.node(source_statements.nodes[0]).data
+        parsed.arena.node(source_statements.nodes[0]).data()
     else {
         panic!("function declaration");
     };
     let NodeData::Block(body) = &parsed
         .arena
         .node(function.body.expect("function body"))
-        .data
+        .data()
     else {
         panic!("function body block");
     };
@@ -524,9 +524,9 @@ impl AmbientFunctionExportResolver {
         let mut declarations_by_name = BTreeMap::<String, NodeId>::new();
         let mut stack = vec![source.root];
         while let Some(node) = stack.pop() {
-            if let NodeData::FunctionDeclaration(data) = &source.arena.node(node).data {
+            if let NodeData::FunctionDeclaration(data) = source.arena.node(node).data() {
                 if let Some(NodeData::Identifier(identifier)) =
-                    data.name.map(|name| &source.arena.node(name).data)
+                    data.name.map(|name| source.arena.node(name).data())
                 {
                     declarations_by_name.insert(identifier.text().to_owned(), node);
                 }
@@ -539,7 +539,7 @@ impl AmbientFunctionExportResolver {
         let mut declaration_by_reference = BTreeMap::new();
         let mut stack = vec![source.root];
         while let Some(node) = stack.pop() {
-            if let NodeData::Identifier(identifier) = &source.arena.node(node).data {
+            if let NodeData::Identifier(identifier) = source.arena.node(node).data() {
                 if let Some(declaration) = declarations_by_name.get(identifier.text()) {
                     declaration_by_reference.insert(node, *declaration);
                 }
@@ -612,11 +612,11 @@ impl ConstructorReferenceResolver {
         let mut stack = vec![source.root];
         while let Some(id) = stack.pop() {
             let node = source.arena.node(id);
-            match &node.data {
+            match node.data() {
                 NodeData::ClassDeclaration(data)
                     if data.name.is_some_and(|name| {
                         matches!(
-                            &source.arena.node(name).data,
+                            source.arena.node(name).data(),
                             NodeData::Identifier(identifier) if identifier.text() == "C"
                         )
                     }) =>
@@ -625,7 +625,10 @@ impl ConstructorReferenceResolver {
                 }
                 NodeData::MethodDeclaration(data)
                     if data.name.is_some_and(|name| {
-                        matches!(source.arena.node(name).data, NodeData::PrivateIdentifier(_))
+                        matches!(
+                            source.arena.node(name).data(),
+                            NodeData::PrivateIdentifier(_)
+                        )
                     }) =>
                 {
                     private_method = Some(id);
@@ -677,7 +680,7 @@ fn collect_binding_declarations(
     declaration: NodeId,
     declarations: &mut Vec<(String, NodeId)>,
 ) {
-    match &source.arena.node(name).data {
+    match source.arena.node(name).data() {
         NodeData::Identifier(identifier) => {
             declarations.push((identifier.text().to_owned(), declaration));
         }
@@ -687,7 +690,7 @@ fn collect_binding_declarations(
                 .map(|elements| source.arena.node_array(elements).nodes)
                 .unwrap_or_default()
             {
-                if let NodeData::BindingElement(binding) = &source.arena.node(*element).data {
+                if let NodeData::BindingElement(binding) = source.arena.node(*element).data() {
                     if let Some(name) = binding.name {
                         collect_binding_declarations(source, name, *element, declarations);
                     }
@@ -700,7 +703,7 @@ fn collect_binding_declarations(
                 .map(|elements| source.arena.node_array(elements).nodes)
                 .unwrap_or_default()
             {
-                if let NodeData::BindingElement(binding) = &source.arena.node(*element).data {
+                if let NodeData::BindingElement(binding) = source.arena.node(*element).data() {
                     if let Some(name) = binding.name {
                         collect_binding_declarations(source, name, *element, declarations);
                     }
@@ -715,7 +718,7 @@ impl ExportedVariableResolver {
     fn new(source: &tsc_syntax::SourceFile) -> Self {
         let mut declarations_by_name = BTreeMap::new();
         let mut direct_exports = BTreeMap::new();
-        let NodeData::SourceFile(root) = &source.arena.node(source.root).data else {
+        let NodeData::SourceFile(root) = source.arena.node(source.root).data() else {
             panic!("source root");
         };
         for statement in root
@@ -723,7 +726,7 @@ impl ExportedVariableResolver {
             .map(|statements| source.arena.node_array(statements).nodes)
             .unwrap_or_default()
         {
-            let NodeData::VariableStatement(variable) = &source.arena.node(*statement).data else {
+            let NodeData::VariableStatement(variable) = source.arena.node(*statement).data() else {
                 continue;
             };
             let direct = variable.modifiers.is_some_and(|modifiers| {
@@ -739,7 +742,7 @@ impl ExportedVariableResolver {
             let Some(list) = variable.declaration_list else {
                 continue;
             };
-            let NodeData::VariableDeclarationList(list) = &source.arena.node(list).data else {
+            let NodeData::VariableDeclarationList(list) = source.arena.node(list).data() else {
                 continue;
             };
             for declaration in list
@@ -747,7 +750,8 @@ impl ExportedVariableResolver {
                 .map(|declarations| source.arena.node_array(declarations).nodes)
                 .unwrap_or_default()
             {
-                let NodeData::VariableDeclaration(variable) = &source.arena.node(*declaration).data
+                let NodeData::VariableDeclaration(variable) =
+                    source.arena.node(*declaration).data()
                 else {
                     continue;
                 };
@@ -768,7 +772,7 @@ impl ExportedVariableResolver {
         let mut direct_export_references = BTreeMap::new();
         let mut stack = vec![source.root];
         while let Some(node) = stack.pop() {
-            if let NodeData::Identifier(identifier) = &source.arena.node(node).data {
+            if let NodeData::Identifier(identifier) = source.arena.node(node).data() {
                 if let Some(declaration) = declarations_by_name.get(identifier.text()) {
                     declaration_by_reference.insert(node, *declaration);
                     if direct_exports.contains_key(identifier.text()) {
@@ -857,7 +861,7 @@ impl SourceExportContainerResolver {
         let mut exported_names = BTreeSet::new();
         let mut stack = vec![source.root];
         while let Some(node) = stack.pop() {
-            if let NodeData::VariableStatement(variable) = &source.arena.node(node).data {
+            if let NodeData::VariableStatement(variable) = source.arena.node(node).data() {
                 let direct_export = variable.modifiers.is_some_and(|modifiers| {
                     source
                         .arena
@@ -872,7 +876,7 @@ impl SourceExportContainerResolver {
                 if direct_export {
                     if let Some(NodeData::VariableDeclarationList(list)) = variable
                         .declaration_list
-                        .map(|list| &source.arena.node(list).data)
+                        .map(|list| source.arena.node(list).data())
                     {
                         for declaration in list
                             .declarations
@@ -880,7 +884,7 @@ impl SourceExportContainerResolver {
                             .unwrap_or_default()
                         {
                             let NodeData::VariableDeclaration(variable) =
-                                &source.arena.node(*declaration).data
+                                source.arena.node(*declaration).data()
                             else {
                                 continue;
                             };
@@ -909,7 +913,7 @@ impl SourceExportContainerResolver {
         let mut stack = vec![source.root];
         while let Some(node) = stack.pop() {
             if matches!(
-                &source.arena.node(node).data,
+                source.arena.node(node).data(),
                 NodeData::Identifier(identifier) if exported_names.contains(identifier.text())
             ) {
                 containers_by_reference.insert(node, source.root);
@@ -980,7 +984,7 @@ impl SourceNamedExportContainerResolver {
         let mut stack = vec![source.root];
         while let Some(node) = stack.pop() {
             if matches!(
-                &source.arena.node(node).data,
+                source.arena.node(node).data(),
                 NodeData::Identifier(identifier) if identifier.text() == exported_name
             ) {
                 containers_by_reference.insert(node, source.root);
@@ -1055,9 +1059,9 @@ impl ImportEqualsCallResolver {
         let mut local_name = None;
         let mut stack = vec![source.root];
         while let Some(node) = stack.pop() {
-            if let NodeData::ImportEqualsDeclaration(data) = &source.arena.node(node).data {
+            if let NodeData::ImportEqualsDeclaration(data) = source.arena.node(node).data() {
                 if let Some(name) = data.name {
-                    if let NodeData::Identifier(identifier) = &source.arena.node(name).data {
+                    if let NodeData::Identifier(identifier) = source.arena.node(name).data() {
                         declaration = Some(node);
                         local_name = Some(identifier.text().to_owned());
                     }
@@ -1074,7 +1078,7 @@ impl ImportEqualsCallResolver {
         let mut stack = vec![source.root];
         while let Some(node) = stack.pop() {
             if matches!(
-                &source.arena.node(node).data,
+                source.arena.node(node).data(),
                 NodeData::Identifier(identifier) if identifier.text() == local_name
             ) {
                 declaration_by_reference.insert(node, declaration);
@@ -1145,7 +1149,7 @@ impl EnumBindingResolver {
         let mut stack = vec![source.root];
         while let Some(id) = stack.pop() {
             let node = source.arena.node(id);
-            let name = match &node.data {
+            let name = match node.data() {
                 NodeData::EnumDeclaration(data) => data.name,
                 NodeData::ClassDeclaration(data) => data.name,
                 _ => None,
@@ -1329,10 +1333,10 @@ impl NamespaceAliasResolver {
             ) {
                 parsed_accesses.insert(id);
             }
-            match &node.data {
+            match node.data() {
                 NodeData::ModuleDeclaration(data)
                     if data.name.is_some_and(|name| {
-                        matches!(&source.arena.node(name).data,
+                        matches!(source.arena.node(name).data(),
                             NodeData::Identifier(identifier) if identifier.text() == "published")
                     }) =>
                 {
@@ -1341,7 +1345,7 @@ impl NamespaceAliasResolver {
                 NodeData::Identifier(identifier)
                     if identifier.text() == "exports"
                         && node.parent.is_some_and(|parent| {
-                            matches!(&source.arena.node(parent).data,
+                            matches!(source.arena.node(parent).data(),
                                 NodeData::NewExpression(data) if data.expression == Some(id))
                         }) =>
                 {
@@ -1540,7 +1544,7 @@ impl EmitResolver for ModulePublicationResolver<'_> {
         let Some(parent) = self.source.arena.node(node.node()).parent else {
             return Ok(None);
         };
-        let name = match &self.source.arena.node(parent).data {
+        let name = match self.source.arena.node(parent).data() {
             NodeData::ImportClause(data) => data.name,
             NodeData::ImportSpecifier(data) => data.name,
             NodeData::NamespaceImport(data) => data.name,
@@ -1561,7 +1565,7 @@ impl EmitResolver for ModulePublicationResolver<'_> {
         let Some(parent) = self.source.arena.node(node.node()).parent else {
             return Ok(None);
         };
-        let NodeData::ImportEqualsDeclaration(data) = &self.source.arena.node(parent).data else {
+        let NodeData::ImportEqualsDeclaration(data) = self.source.arena.node(parent).data() else {
             return Ok(None);
         };
         let exported = data.name == Some(node.node())
@@ -2120,7 +2124,7 @@ fn invalid_private_enum_member_recovers_as_an_empty_expression_name() {
     let mut stack = vec![parsed.root];
     let mut member = None;
     while let Some(node) = stack.pop() {
-        if matches!(&parsed.arena.node(node).data, NodeData::EnumMember(_)) {
+        if matches!(parsed.arena.node(node).data(), NodeData::EnumMember(_)) {
             member = Some(node);
         }
         for_each_child(&parsed.arena, parsed.arena.node(node), |child| {
@@ -2903,7 +2907,7 @@ fn common_js_file_level_generated_export_map_rejects_ordinary_generated_ids() {
                         .generated_binding_id()
                         .expect("file-level name owns generated identity"),
                 );
-                let NodeData::Identifier(identifier) = &record.data else {
+                let NodeData::Identifier(identifier) = record.data() else {
                     panic!("file-level generated binding must be an identifier");
                 };
                 printable_texts.insert(identifier.text().to_owned());
@@ -3979,7 +3983,7 @@ fn standard_decorator_class_references_preserve_parsed_and_generated_identity() 
         Default::default(),
         None,
     );
-    let NodeData::SourceFile(parsed_source) = &parsed.arena.node(parsed.root).data else {
+    let NodeData::SourceFile(parsed_source) = parsed.arena.node(parsed.root).data() else {
         panic!("parsed source-file root");
     };
     let mut parsed_name = None;
@@ -3991,7 +3995,7 @@ fn standard_decorator_class_references_preserve_parsed_and_generated_identity() 
         .to_vec();
     while let Some(node) = pending.pop() {
         let record = parsed.arena.node(node);
-        match &record.data {
+        match record.data() {
             NodeData::ClassDeclaration(data) => parsed_name = data.name,
             NodeData::ClassExpression(_) => parsed_expression = Some(node),
             _ => {}
@@ -4040,7 +4044,7 @@ fn standard_decorator_class_references_preserve_parsed_and_generated_identity() 
     let mut pending = vec![root];
     while let Some(node) = pending.pop() {
         let record = arena.node(node).expect("transformed node");
-        if let NodeData::Identifier(identifier) = &record.data {
+        if let NodeData::Identifier(identifier) = record.data() {
             let metadata = arena.metadata(node);
             if identifier.text() == "E"
                 && metadata.is_some_and(|metadata| metadata.flags().contains(required_parsed_flags))
@@ -4106,7 +4110,7 @@ fn using_anonymous_default_decorator_handoff_keeps_owner_and_binding_domains() {
             Default::default(),
             None,
         );
-        let NodeData::SourceFile(parsed_source) = &parsed.arena.node(parsed.root).data else {
+        let NodeData::SourceFile(parsed_source) = parsed.arena.node(parsed.root).data() else {
             panic!("parsed source-file root");
         };
         let parsed_class = parsed
@@ -4154,7 +4158,7 @@ fn using_anonymous_default_decorator_handoff_keeps_owner_and_binding_domains() {
         let mut file_level_identifier = None;
         while let Some(node) = pending.pop() {
             let record = arena.node(node).expect("transformed node");
-            if let NodeData::Identifier(identifier) = &record.data {
+            if let NodeData::Identifier(identifier) = record.data() {
                 if let Some(metadata) = arena.metadata(node) {
                     if metadata.generated_binding_base() == Some("default") {
                         default_identifier.get_or_insert(node);
@@ -4887,11 +4891,11 @@ impl MergedNamespaceResolver {
         let mut stack = vec![source.root];
         while let Some(node) = stack.pop() {
             let record = source.arena.node(node);
-            match &record.data {
+            match record.data() {
                 NodeData::ClassDeclaration(data)
                     if data.name.is_some_and(|name| {
                         matches!(
-                            &source.arena.node(name).data,
+                            source.arena.node(name).data(),
                             NodeData::Identifier(identifier) if identifier.text() == "Observable"
                         )
                     }) =>
@@ -4901,7 +4905,7 @@ impl MergedNamespaceResolver {
                 NodeData::ModuleDeclaration(data)
                     if data.name.is_some_and(|name| {
                         matches!(
-                            &source.arena.node(name).data,
+                            source.arena.node(name).data(),
                             NodeData::Identifier(identifier) if identifier.text() == "Observable"
                         )
                     }) =>
@@ -5071,8 +5075,9 @@ fn updated_class_expression_transform_flags_match_typescript_owned_bits() {
         let mut stack = vec![parsed.root];
         while let Some(id) = stack.pop() {
             let node = parsed.arena.node(id);
-            if let NodeData::ClassExpression(data) = &node.data {
-                let NodeData::Identifier(name) = &parsed.arena.node(data.name.unwrap()).data else {
+            if let NodeData::ClassExpression(data) = node.data() {
+                let NodeData::Identifier(name) = parsed.arena.node(data.name.unwrap()).data()
+                else {
                     panic!()
                 };
                 classes.insert(name.escaped_text.identifier_text(), (id, data.clone()));
@@ -5465,7 +5470,7 @@ fn missing_declaration_transform_flags_do_not_propagate_decorator_effects() {
             .unwrap();
         let node = arena.node_ref(source, missing).unwrap();
         assert_eq!(arena.transform_flags(node), TransformFlags::NONE, "{text}");
-        let NodeData::MissingDeclaration(data) = &arena.node(node).unwrap().data else {
+        let NodeData::MissingDeclaration(data) = arena.node(node).unwrap().data() else {
             unreachable!()
         };
         assert!(

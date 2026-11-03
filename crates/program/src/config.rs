@@ -4532,7 +4532,7 @@ fn config_json_conversion_diagnostics_from_root(
             SyntaxKind::PrefixUnaryExpression if is_negated_json_number(source, node_id) => {}
             SyntaxKind::ObjectLiteralExpression => {
                 let members = node
-                    .data
+                    .data()
                     .as_object_literal_expression()
                     .and_then(|object| object.properties)
                     .map(|members| source.arena.node_array(members).nodes.to_vec())
@@ -4540,7 +4540,7 @@ fn config_json_conversion_diagnostics_from_root(
                 // Pushed last to first, so each member's diagnostics come out
                 // in source order.
                 for member in members.into_iter().rev() {
-                    let Some(property) = source.arena.node(member).data.as_property_assignment()
+                    let Some(property) = source.arena.node(member).data().as_property_assignment()
                     else {
                         tasks.push(ConfigJsonConversionTask::Report(Box::new(config_diagnostic(
                             &gen::Property_assignment_expected,
@@ -4599,7 +4599,7 @@ fn is_negated_json_number(source: &SourceFile, node: NodeId) -> bool {
     source
         .arena
         .node(node)
-        .data
+        .data()
         .as_prefix_unary_expression()
         .filter(|unary| unary.operator == SyntaxKind::MinusToken)
         .and_then(|unary| unary.operand)
@@ -4623,13 +4623,13 @@ fn config_raw_location(source: &SourceFile, node: NodeId) -> Option<ConfigLocati
 }
 
 fn config_root_expression(source: &SourceFile) -> Option<NodeId> {
-    let source_file = source.arena.node(source.root).data.as_source_file()?;
+    let source_file = source.arena.node(source.root).data().as_source_file()?;
     let statements = &source.arena.node_array(source_file.statements?).nodes;
     let statement = *statements.first()?;
     source
         .arena
         .node(statement)
-        .data
+        .data()
         .as_expression_statement()?
         .expression
 }
@@ -4662,7 +4662,7 @@ fn config_object_properties(source: &SourceFile, object: NodeId) -> Vec<ConfigPr
     let Some(properties) = source
         .arena
         .node(object)
-        .data
+        .data()
         .as_object_literal_expression()
         .and_then(|object| object.properties)
     else {
@@ -4674,7 +4674,11 @@ fn config_object_properties(source: &SourceFile, object: NodeId) -> Vec<ConfigPr
         .nodes
         .iter()
         .filter_map(|property| {
-            let property = source.arena.node(*property).data.as_property_assignment()?;
+            let property = source
+                .arena
+                .node(*property)
+                .data()
+                .as_property_assignment()?;
             let name = config_property_name(source, property.name?)?;
             Some(ConfigPropertyNode {
                 name,
@@ -4691,19 +4695,19 @@ fn config_property_name(source: &SourceFile, name: NodeId) -> Option<JsString> {
     let node = source.arena.node(name);
     match node.kind {
         SyntaxKind::StringLiteral => node
-            .data
+            .data()
             .as_string_literal()
-            .map(|literal| literal.text.clone()),
+            .map(|literal| source.arena.text_js(literal.text).to_owned()),
         SyntaxKind::Identifier => node
-            .data
+            .data()
             .as_identifier()
             .map(|identifier| identifier.text().to_owned().into()),
         SyntaxKind::NumericLiteral => node
-            .data
+            .data()
             .as_numeric_literal()
-            .map(|literal| literal.text.clone().into()),
+            .map(|literal| source.arena.text_utf8(literal.text).into()),
         SyntaxKind::ComputedPropertyName => node
-            .data
+            .data()
             .as_computed_property_name()
             .and_then(|computed| computed.expression)
             .filter(|expression| {
@@ -4721,7 +4725,7 @@ fn config_array_elements(source: &SourceFile, array: NodeId) -> Vec<NodeId> {
     source
         .arena
         .node(array)
-        .data
+        .data()
         .as_array_literal_expression()
         .and_then(|array| array.elements)
         .map(|elements| source.arena.node_array(elements).nodes.to_vec())
@@ -5879,7 +5883,7 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
         .filter(|property| matches!(property.name.as_str(), Some("files" | "include")))
     {
         for element in config_array_elements(&parsed, property.initializer) {
-            let Some(literal) = parsed.arena.node(element).data.as_string_literal() else {
+            let Some(literal) = parsed.arena.node(element).data().as_string_literal() else {
                 continue;
             };
             let Some(span) = config_span(&parsed, element) else {
@@ -5887,7 +5891,7 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
             };
             config_file = config_file.with_root_option_array_location(
                 property.name.clone(),
-                literal.text.clone(),
+                parsed.arena.text_js(literal.text).to_owned(),
                 ProgramConfigSpan::new(span.start, span.length),
             );
         }
@@ -5932,26 +5936,27 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
                 parsed
                     .arena
                     .node(property.initializer)
-                    .data
+                    .data()
                     .as_string_literal(),
                 config_span(&parsed, property.initializer),
             ) {
                 config_file = config_file.with_compiler_option_string_location(
                     property.name.clone(),
-                    literal.text.clone(),
+                    parsed.arena.text_js(literal.text).to_owned(),
                     ProgramConfigSpan::new(span.start, span.length),
                 );
             }
             if property.name == "types" {
                 for element in config_array_elements(&parsed, property.initializer) {
-                    let Some(literal) = parsed.arena.node(element).data.as_string_literal() else {
+                    let Some(literal) = parsed.arena.node(element).data().as_string_literal()
+                    else {
                         continue;
                     };
                     let Some(span) = config_span(&parsed, element) else {
                         continue;
                     };
                     config_file = config_file.with_automatic_type_directive_location(
-                        literal.text.clone(),
+                        parsed.arena.text_js(literal.text).to_owned(),
                         ProgramConfigSpan::new(span.start, span.length),
                     );
                 }

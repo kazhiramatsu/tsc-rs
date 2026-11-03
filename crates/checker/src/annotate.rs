@@ -68,7 +68,21 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed arena projection for tsc's direct node
     /// payload access.
     pub(crate) fn data_of(&self, node: NodeId) -> &'a NodeData {
-        &self.binder.node_record(node).data
+        self.binder.node_record(node).data()
+    }
+
+    /// A literal text of a Program's tree as a JavaScript string view (a
+    /// string literal's or template's value may hold lone surrogates).
+    #[inline]
+    pub(crate) fn text_js(&self, id: tsc_syntax::TextId) -> tsc_types::JsStr<'a> {
+        published_text_js(id)
+    }
+
+    /// A literal text of a Program's tree that is UTF-8 by construction:
+    /// every text field but a string literal's or template's value.
+    #[inline]
+    pub(crate) fn text_utf8(&self, id: tsc_syntax::TextId) -> &'a str {
+        published_text_utf8(id)
     }
 
     /// tsrs-native: typed arena projection for tsc's direct
@@ -404,20 +418,20 @@ impl<'a> CheckerState<'a> {
     fn check_literal_expression(&mut self, literal: NodeId) -> CheckResult<TypeId> {
         match self.data_of(literal) {
             NodeData::StringLiteral(data) => {
-                let regular = self.tables.get_string_literal_type(&data.text);
+                let regular = self.tables.get_string_literal_type(self.text_js(data.text));
                 Ok(self.tables.get_fresh_type_of_literal_type(regular))
             }
             NodeData::NoSubstitutionTemplateLiteral(data) => {
-                let regular = self.tables.get_string_literal_type(&data.text);
+                let regular = self.tables.get_string_literal_type(self.text_js(data.text));
                 Ok(self.tables.get_fresh_type_of_literal_type(regular))
             }
             NodeData::NumericLiteral(data) => {
-                let value = parse_numeric_literal_text(&data.text)?;
+                let value = parse_numeric_literal_text(self.text_utf8(data.text))?;
                 let regular = self.tables.get_number_literal_type(value);
                 Ok(self.tables.get_fresh_type_of_literal_type(regular))
             }
             NodeData::BigIntLiteral(data) => {
-                let value = crate::expr::parse_pseudo_big_int(&data.text)?;
+                let value = crate::expr::parse_pseudo_big_int(self.text_utf8(data.text))?;
                 let regular = self.tables.get_bigint_literal_type(value);
                 Ok(self.tables.get_fresh_type_of_literal_type(regular))
             }
@@ -434,12 +448,12 @@ impl<'a> CheckerState<'a> {
                 self.check_literal_expression(operand)?;
                 match self.data_of(operand) {
                     NodeData::NumericLiteral(data) => {
-                        let value = -parse_numeric_literal_text(&data.text)?;
+                        let value = -parse_numeric_literal_text(self.text_utf8(data.text))?;
                         let regular = self.tables.get_number_literal_type(value);
                         Ok(self.tables.get_fresh_type_of_literal_type(regular))
                     }
                     NodeData::BigIntLiteral(data) => {
-                        let parsed = crate::expr::parse_pseudo_big_int(&data.text)?;
+                        let parsed = crate::expr::parse_pseudo_big_int(self.text_utf8(data.text))?;
                         let regular = self.tables.get_bigint_literal_type(PseudoBigInt {
                             negative: true,
                             base10_value: parsed.base10_value,
@@ -585,7 +599,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::TemplateHead(head_data) = self.data_of(head) else {
             unreachable!("kind/data agree");
         };
-        let mut texts = vec![tsc_types::TemplateText::from_js(head_data.text.as_js())];
+        let mut texts = vec![tsc_types::TemplateText::from_js(
+            self.text_js(head_data.text),
+        )];
         let mut types = Vec::with_capacity(spans.len());
         for span in spans {
             let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span) else {
@@ -598,8 +614,8 @@ impl<'a> CheckerState<'a> {
                 .literal
                 .expect("parser invariant: template span literal always parsed");
             let text = match self.data_of(literal) {
-                NodeData::TemplateMiddle(data) => tsc_types::TemplateText::from_js(data.text.as_js()),
-                NodeData::TemplateTail(data) => tsc_types::TemplateText::from_js(data.text.as_js()),
+                NodeData::TemplateMiddle(data) => tsc_types::TemplateText::from_js(self.text_js(data.text)),
+                NodeData::TemplateTail(data) => tsc_types::TemplateText::from_js(self.text_js(data.text)),
                 _ => unreachable!(
                     "parser invariant: span literals are TemplateMiddle/TemplateTail (missing shape included)"
                 ),
@@ -2257,7 +2273,7 @@ impl<'a> CheckerState<'a> {
             SymbolFlags::TYPE
         };
         let module_reference = match self.data_of(literal) {
-            NodeData::StringLiteral(data) => data.text.clone(),
+            NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
             _ => JsString::new(),
         };
         let inner_module_symbol = self
@@ -10969,3 +10985,5 @@ pub(crate) enum ThisAssignmentDeclarationKind {
     Constructor,
     Method,
 }
+
+pub(crate) use tsc_syntax::{published_text_js, published_text_utf8};

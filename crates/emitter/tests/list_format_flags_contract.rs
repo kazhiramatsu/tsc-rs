@@ -45,7 +45,7 @@ fn list_format_flags_matches_typescript() {
                 let source = arena.add_source(&parsed, None);
                 let container = case["container"].as_str().unwrap();
                 let NodeData::SourceFile(data) =
-                    &arena.node(arena.root(source).unwrap()).unwrap().data
+                    arena.node(arena.root(source).unwrap()).unwrap().data()
                 else {
                     panic!("source")
                 };
@@ -55,20 +55,20 @@ fn list_format_flags_matches_typescript() {
                     .nodes[0];
                 let statement = arena.node_ref(source, statement).unwrap();
                 let original = if container == "attributes" {
-                    let NodeData::ImportDeclaration(data) = &arena.node(statement).unwrap().data
+                    let NodeData::ImportDeclaration(data) = arena.node(statement).unwrap().data()
                     else {
                         panic!("import")
                     };
                     arena.node_ref(source, data.attributes.unwrap()).unwrap()
                 } else {
-                    let NodeData::VariableStatement(data) = &arena.node(statement).unwrap().data
+                    let NodeData::VariableStatement(data) = arena.node(statement).unwrap().data()
                     else {
                         panic!("variable statement")
                     };
                     let list = arena
                         .node_ref(source, data.declaration_list.unwrap())
                         .unwrap();
-                    let NodeData::VariableDeclarationList(data) = &arena.node(list).unwrap().data
+                    let NodeData::VariableDeclarationList(data) = arena.node(list).unwrap().data()
                     else {
                         panic!("declarations")
                     };
@@ -78,7 +78,7 @@ fn list_format_flags_matches_typescript() {
                         .nodes[0];
                     let declaration = arena.node_ref(source, declaration).unwrap();
                     let NodeData::VariableDeclaration(data) =
-                        &arena.node(declaration).unwrap().data
+                        arena.node(declaration).unwrap().data()
                     else {
                         panic!("declaration")
                     };
@@ -94,7 +94,7 @@ fn list_format_flags_matches_typescript() {
                         )
                         .unwrap()
                 };
-                let array = match &arena.node(original).unwrap().data {
+                let array = match arena.node(original).unwrap().data() {
                     NodeData::ArrayLiteralExpression(data) => data.elements,
                     NodeData::ObjectLiteralExpression(data) => data.properties,
                     NodeData::ArrayBindingPattern(data) => data.elements,
@@ -176,7 +176,7 @@ fn list_format_flags_matches_typescript() {
                         "starts_on_new_line":metadata.and_then(|m| m.starts_on_new_line())})
                 };
                 let record = arena.node(node).unwrap();
-                let (array, multi_line) = match &record.data {
+                let (array, multi_line) = match record.data() {
                     NodeData::ArrayLiteralExpression(data) => (data.elements, record.multi_line()),
                     NodeData::ObjectLiteralExpression(data) => {
                         (data.properties, record.multi_line())

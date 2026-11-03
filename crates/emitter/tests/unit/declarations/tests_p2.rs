@@ -76,7 +76,7 @@ fn update_faces_preserve_identity_and_attach_original_on_change() {
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
     let root = arena.root(source).expect("source root");
-    let statement = match &arena.node(root).expect("root node").data {
+    let statement = match arena.node(root).expect("root node").data() {
         NodeData::SourceFile(data) => {
             let array = data.statements.expect("statements");
             TransformNode::new(
@@ -89,12 +89,16 @@ fn update_faces_preserve_identity_and_attach_original_on_change() {
         }
         _ => panic!("expected source file"),
     };
-    let declaration_list = match &arena.node(statement).expect("statement").data {
+    let declaration_list = match arena.node(statement).expect("statement").data() {
         NodeData::VariableStatement(data) => data.declaration_list.expect("declaration list"),
         _ => panic!("expected variable statement"),
     };
     let declaration_list = TransformNode::new(source, declaration_list);
-    let declaration = match &arena.node(declaration_list).expect("declaration list").data {
+    let declaration = match arena
+        .node(declaration_list)
+        .expect("declaration list")
+        .data()
+    {
         NodeData::VariableDeclarationList(data) => {
             let declarations = data.declarations.expect("declarations");
             TransformNode::new(
@@ -107,7 +111,7 @@ fn update_faces_preserve_identity_and_attach_original_on_change() {
         }
         _ => panic!("expected variable declaration list"),
     };
-    let declaration_name = match &arena.node(declaration).expect("declaration").data {
+    let declaration_name = match arena.node(declaration).expect("declaration").data() {
         NodeData::VariableDeclaration(data) => {
             TransformNode::new(source, data.name.expect("declaration name"))
         }

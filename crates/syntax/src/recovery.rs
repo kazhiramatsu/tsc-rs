@@ -447,7 +447,7 @@ impl ParseRecovery {
         };
         let name = source.arena.node(id);
         let annotation = source.arena.node(type_id);
-        let NodeData::TypeReference(data) = &annotation.data else {
+        let NodeData::TypeReference(data) = &annotation.data() else {
             return false;
         };
         if annotation.pos != annotation.end
@@ -460,7 +460,7 @@ impl ParseRecovery {
         let Some(declaration_id) = parents.get(&type_id).copied().flatten() else {
             return false;
         };
-        let NodeData::VariableDeclaration(data) = &source.arena.node(declaration_id).data else {
+        let NodeData::VariableDeclaration(data) = &source.arena.node(declaration_id).data() else {
             return false;
         };
         if data.r#type != Some(type_id)
@@ -479,7 +479,7 @@ impl ParseRecovery {
         let Some(statement_id) = parents.get(&list_id).copied().flatten() else {
             return false;
         };
-        matches!(&source.arena.node(statement_id).data,
+        matches!(&source.arena.node(statement_id).data(),
             NodeData::VariableStatement(data) if data.declaration_list == Some(list_id))
     }
 
@@ -640,7 +640,7 @@ impl ParseRecovery {
             let mut owners = Vec::new();
             for &id in parents.keys() {
                 let node = source.arena.node(id);
-                let parameters = match &node.data {
+                let parameters = match &node.data() {
                     NodeData::FunctionDeclaration(data) => data.parameters,
                     NodeData::FunctionExpression(data) => data.parameters,
                     NodeData::ArrowFunction(data) => data.parameters,
@@ -655,10 +655,10 @@ impl ParseRecovery {
                     if !allow_statement_gaps {
                         return None;
                     }
-                    if let NodeData::VariableDeclarationList(data) = &node.data {
+                    if let NodeData::VariableDeclarationList(data) = &node.data() {
                         data.declarations
                     } else {
-                        Self::statement_array(&node.data)
+                        Self::statement_array(node.data())
                     }
                 });
                 let Some(array) = array else {
@@ -765,11 +765,11 @@ impl ParseRecovery {
         let mut candidates = 0;
         for (&id, &parent) in parents {
             let list = source.arena.node(id);
-            let NodeData::VariableDeclarationList(data) = &list.data else {
+            let NodeData::VariableDeclarationList(data) = &list.data() else {
                 continue;
             };
             let Some(statement) = parent else { continue };
-            if !matches!(&source.arena.node(statement).data,
+            if !matches!(&source.arena.node(statement).data(),
                 NodeData::VariableStatement(data) if data.declaration_list == Some(id))
             {
                 continue;
@@ -798,7 +798,7 @@ impl ParseRecovery {
                 let (
                     NodeData::VariableDeclaration(previous_data),
                     NodeData::VariableDeclaration(next_data),
-                ) = (&previous.data, &next.data)
+                ) = (&previous.data(), &next.data())
                 else {
                     continue;
                 };
@@ -849,7 +849,7 @@ impl ParseRecovery {
                 .keys()
                 .filter(|id| {
                     let node = source.arena.node(**id);
-                    let NodeData::ParenthesizedExpression(data) = &node.data else {
+                    let NodeData::ParenthesizedExpression(data) = &node.data() else {
                         return false;
                     };
                     node.end == full_start
@@ -877,7 +877,7 @@ impl ParseRecovery {
                     if !chain.insert(id) {
                         return false;
                     }
-                    let NodeData::ParenthesizedExpression(data) = &source.arena.node(id).data
+                    let NodeData::ParenthesizedExpression(data) = &source.arena.node(id).data()
                     else {
                         return false;
                     };
@@ -902,7 +902,7 @@ impl ParseRecovery {
             .keys()
             .filter(|id| {
                 let node = source.arena.node(**id);
-                let NodeData::ExpressionStatement(data) = &node.data else {
+                let NodeData::ExpressionStatement(data) = &node.data() else {
                     return false;
                 };
                 // The reported token must remain the whole expression. The
@@ -946,7 +946,7 @@ impl ParseRecovery {
         let mut candidates = 0;
         for (&id, &parent) in parents {
             let list = source.arena.node(id);
-            let NodeData::VariableDeclarationList(data) = &list.data else {
+            let NodeData::VariableDeclarationList(data) = &list.data() else {
                 continue;
             };
             if list.end != boundary {
@@ -974,7 +974,7 @@ impl ParseRecovery {
             let Some(owner) = parents[&statement] else {
                 continue;
             };
-            let Some(statements) = Self::statement_array(&source.arena.node(owner).data) else {
+            let Some(statements) = Self::statement_array(source.arena.node(owner).data()) else {
                 continue;
             };
             let statements = &source.arena.node_array(statements).nodes;
@@ -985,7 +985,7 @@ impl ParseRecovery {
                 continue;
             };
             let next = source.arena.node(*next);
-            let NodeData::ExpressionStatement(data) = &next.data else {
+            let NodeData::ExpressionStatement(data) = &next.data() else {
                 continue;
             };
             if next.pos != boundary {
@@ -995,7 +995,7 @@ impl ParseRecovery {
                 continue;
             };
             let expression = source.arena.node(expression);
-            let NodeData::TypeAssertionExpression(data) = &expression.data else {
+            let NodeData::TypeAssertionExpression(data) = &expression.data() else {
                 continue;
             };
             if expression.pos != boundary || expression.end != next.end {

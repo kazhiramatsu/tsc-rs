@@ -25,7 +25,7 @@ impl DeclarationTransformer<'_> {
         match self.kind(cx, name)? {
             SyntaxKind::Identifier => Ok(name),
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => {
-                let elements = match &cx.arena().node(name)?.data {
+                let elements = match cx.arena().node(name)?.data() {
                     NodeData::ArrayBindingPattern(data) => data.elements,
                     NodeData::ObjectBindingPattern(data) => data.elements,
                     _ => None,
@@ -62,7 +62,7 @@ impl DeclarationTransformer<'_> {
         if self.kind(cx, element)? == SyntaxKind::OmittedExpression {
             return Ok(element);
         }
-        let NodeData::BindingElement(data) = cx.arena().node(element)?.data.clone() else {
+        let NodeData::BindingElement(data) = cx.arena().node(element)?.data().clone() else {
             return Err(Self::contract(
                 "visitBindingElement received a non-binding element",
             ));
@@ -71,7 +71,7 @@ impl DeclarationTransformer<'_> {
             .property_name
             .and_then(|node| cx.arena().node_ref(element.source(), node))
         {
-            if let NodeData::ComputedPropertyName(computed) = &cx.arena().node(property_name)?.data
+            if let NodeData::ComputedPropertyName(computed) = cx.arena().node(property_name)?.data()
             {
                 if let Some(expression) = computed
                     .expression
@@ -120,7 +120,7 @@ impl DeclarationTransformer<'_> {
                 )?)
             };
         let result = (|| {
-            let NodeData::Parameter(data) = cx.arena().node(parameter)?.data.clone() else {
+            let NodeData::Parameter(data) = cx.arena().node(parameter)?.data().clone() else {
                 return Err(Self::contract("ensureParameter received a non-parameter"));
             };
             let name = data
@@ -684,7 +684,7 @@ impl DeclarationTransformer<'_> {
             let parent = self
                 .parent(cx, parsed)?
                 .ok_or_else(|| Self::contract("internal parameter has no parse-tree parent"))?;
-            let NodeData::Constructor(data) = &cx.arena().node(parent)?.data else {
+            let NodeData::Constructor(data) = cx.arena().node(parent)?.data() else {
                 return Err(Self::contract(
                     "internal parameter property is not in a constructor",
                 ));
@@ -801,7 +801,7 @@ impl DeclarationTransformer<'_> {
         match self.kind(cx, node)? {
             SyntaxKind::Identifier => Ok(true),
             SyntaxKind::PropertyAccessExpression => {
-                let NodeData::PropertyAccessExpression(data) = &cx.arena().node(node)?.data else {
+                let NodeData::PropertyAccessExpression(data) = cx.arena().node(node)?.data() else {
                     return Ok(false);
                 };
                 if !data.name.is_some_and(|name| {
@@ -904,7 +904,7 @@ fn update_binding_pattern(
     elements: Vec<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
     // Dispatch through the typed binding-pattern update faces.
-    let array = match &cx.arena().node(original)?.data {
+    let array = match cx.arena().node(original)?.data() {
         NodeData::ArrayBindingPattern(data) => data.elements,
         NodeData::ObjectBindingPattern(data) => data.elements,
         _ => None,
@@ -916,7 +916,7 @@ fn update_binding_pattern(
             .factory()?
             .create_node_array(original.source(), elements)?,
     };
-    let data = match cx.arena().node(original)?.data.clone() {
+    let data = match cx.arena().node(original)?.data().clone() {
         NodeData::ArrayBindingPattern(mut data) => {
             data.elements = Some(elements.array());
             NodeData::ArrayBindingPattern(data)
@@ -939,7 +939,7 @@ fn node_name(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<Option<TransformNode>, TransformError> {
-    let id = match &cx.arena().node(node)?.data {
+    let id = match cx.arena().node(node)?.data() {
         NodeData::Parameter(data) => data.name,
         NodeData::VariableDeclaration(data) => data.name,
         NodeData::BindingElement(data) => data.name,
@@ -961,7 +961,7 @@ fn type_annotation(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<Option<TransformNode>, TransformError> {
-    let id = match &cx.arena().node(node)?.data {
+    let id = match cx.arena().node(node)?.data() {
         NodeData::Parameter(data) => data.r#type,
         NodeData::VariableDeclaration(data) => data.r#type,
         NodeData::PropertyDeclaration(data) => data.r#type,
@@ -989,7 +989,7 @@ fn initializer(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<Option<TransformNode>, TransformError> {
-    let id = match &cx.arena().node(node)?.data {
+    let id = match cx.arena().node(node)?.data() {
         NodeData::Parameter(data) => data.initializer,
         NodeData::VariableDeclaration(data) => data.initializer,
         NodeData::PropertyDeclaration(data) => data.initializer,
@@ -1004,7 +1004,7 @@ fn parameters(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<Vec<TransformNode>, TransformError> {
-    let id = match &cx.arena().node(node)?.data {
+    let id = match cx.arena().node(node)?.data() {
         NodeData::GetAccessor(data) => data.parameters,
         NodeData::SetAccessor(data) => data.parameters,
         _ => None,
@@ -1025,7 +1025,7 @@ fn modifier_array(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<Option<TransformNodeArray>, TransformError> {
-    let modifiers = match &cx.arena().node(node)?.data {
+    let modifiers = match cx.arena().node(node)?.data() {
         NodeData::TypeParameter(data) => data.modifiers,
         NodeData::Parameter(data) => data.modifiers,
         NodeData::PropertySignature(data) => data.modifiers,
@@ -1078,7 +1078,7 @@ pub(crate) fn unwrap_parenthesized(
     cx: &TransformationContext,
     mut node: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    while let NodeData::ParenthesizedExpression(data) = &cx.arena().node(node)?.data {
+    while let NodeData::ParenthesizedExpression(data) = cx.arena().node(node)?.data() {
         let Some(expression) = data
             .expression
             .and_then(|id| cx.arena().node_ref(node.source(), id))
@@ -1102,7 +1102,7 @@ pub(crate) fn is_primitive_literal_value(
         | SyntaxKind::NoSubstitutionTemplateLiteral
         | SyntaxKind::BigIntLiteral => true,
         SyntaxKind::PrefixUnaryExpression => {
-            let NodeData::PrefixUnaryExpression(data) = &cx.arena().node(node)?.data else {
+            let NodeData::PrefixUnaryExpression(data) = cx.arena().node(node)?.data() else {
                 return Ok(false);
             };
             let operand = data
@@ -1176,7 +1176,7 @@ fn current_source_is_js(
 }
 
 fn identifier_text(cx: &TransformationContext, node: TransformNode) -> Option<String> {
-    match &cx.arena().node(node).ok()?.data {
+    match cx.arena().node(node).ok()?.data() {
         NodeData::Identifier(data) => Some(data.text().to_owned()),
         _ => None,
     }

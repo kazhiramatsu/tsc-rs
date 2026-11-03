@@ -251,7 +251,7 @@ impl Request<'_, '_> {
                 .find(|&declaration| self.node_kind(declaration) == SyntaxKind::ImportSpecifier);
             if let Some(import_specifier) = import_specifier {
                 if matches!(
-                    &self.state.binder.node_record(import_specifier).data,
+                    self.state.binder.node_record(import_specifier).data(),
                     NodeData::ImportSpecifier(data) if data.property_name.is_none()
                 ) {
                     symbol = self.state.get_aliased_symbol(symbol)?;
@@ -553,14 +553,14 @@ impl Request<'_, '_> {
                 let parent = self.state.binder.node_record(node).parent;
                 let name = self.node_text(Touching::Node(original));
                 let parent_data =
-                    parent.map(|parent| self.state.binder.node_record(parent).data.clone());
+                    parent.map(|parent| self.state.binder.node_record(parent).data().clone());
                 let is_shorthand_assignment =
                     matches!(parent_data, Some(NodeData::ShorthandPropertyAssignment(_)));
                 let is_binding_name = parent.is_some_and(|parent| {
                     is_object_binding_element_without_property_name(self, parent)
                         && self.name_of(parent) == Some(node)
                         && matches!(
-                            &self.state.binder.node_record(parent).data,
+                            self.state.binder.node_record(parent).data(),
                             NodeData::BindingElement(data) if data.dot_dot_dot_token.is_none()
                         )
                 });
@@ -579,7 +579,7 @@ impl Request<'_, '_> {
                         let module_exports = grandparent.is_some_and(|object| {
                             self.node_kind(object) == SyntaxKind::ObjectLiteralExpression
                                 && self.state.binder.node_record(object).parent.is_some_and(|binary| {
-                                    match &self.state.binder.node_record(binary).data {
+                                    match self.state.binder.node_record(binary).data() {
                                         NodeData::BinaryExpression(data) => data.left.is_some_and(|left| {
                                             tsc_binder::assignment::is_module_exports_access_expression(
                                                 self.state.binder.source_of_node(left),

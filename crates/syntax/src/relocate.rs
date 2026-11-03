@@ -2,7 +2,7 @@
 // and crates/syntax/nodes.layout.json. Do not edit by hand.
 
 use crate::arena::SyntaxIdentityRelocation;
-use crate::nodes::{JSDocComment, NodeArrayId, NodeData, NodeId};
+use crate::nodes::{JSDocComment, NodeArrayId, NodeData, NodeId, TextId};
 use tsc_types::IdentityError;
 
 pub(crate) fn relocate_node_data(
@@ -65,7 +65,10 @@ pub(crate) fn relocate_node_data(
             }
             Ok(())
         }
-        NodeData::BigIntLiteral(_data) => Ok(()),
+        NodeData::BigIntLiteral(data) => {
+            relocation.text(&mut data.text)?;
+            Ok(())
+        }
         NodeData::BinaryExpression(data) => {
             if let Some(id) = &mut data.left {
                 relocation.node(id)?;
@@ -700,8 +703,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tags {
                 relocation.node_array(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             Ok(())
         }
@@ -710,8 +715,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.class {
                 relocation.node(id)?;
@@ -722,8 +729,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             Ok(())
         }
@@ -731,8 +740,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.name {
                 relocation.node(id)?;
@@ -749,8 +760,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             Ok(())
         }
@@ -758,8 +771,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             Ok(())
         }
@@ -767,8 +782,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 relocation.node(id)?;
@@ -794,8 +811,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.class {
                 relocation.node(id)?;
@@ -806,8 +825,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.import_clause {
                 relocation.node(id)?;
@@ -824,18 +845,21 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.name {
                 relocation.node(id)?;
             }
+            relocation.text(&mut data.text)?;
             Ok(())
         }
         NodeData::JSDocLinkCode(data) => {
             if let Some(id) = &mut data.name {
                 relocation.node(id)?;
             }
+            relocation.text(&mut data.text)?;
             Ok(())
         }
         NodeData::JSDocLinkPlain(data) => {
             if let Some(id) = &mut data.name {
                 relocation.node(id)?;
             }
+            relocation.text(&mut data.text)?;
             Ok(())
         }
         NodeData::JSDocMemberName(data) => {
@@ -881,8 +905,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 relocation.node(id)?;
@@ -893,8 +919,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             Ok(())
         }
@@ -902,8 +930,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.name {
                 relocation.node(id)?;
@@ -917,8 +947,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             Ok(())
         }
@@ -926,8 +958,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.name {
                 relocation.node(id)?;
@@ -941,8 +975,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             Ok(())
         }
@@ -950,8 +986,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             Ok(())
         }
@@ -959,8 +997,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             Ok(())
         }
@@ -968,8 +1008,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 relocation.node(id)?;
@@ -980,8 +1022,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 relocation.node(id)?;
@@ -992,8 +1036,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.name {
                 relocation.node(id)?;
@@ -1016,8 +1062,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             Ok(())
         }
@@ -1025,8 +1073,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.constraint {
                 relocation.node(id)?;
@@ -1036,13 +1086,18 @@ pub(crate) fn relocate_node_data(
             }
             Ok(())
         }
-        NodeData::JSDocText(_data) => Ok(()),
+        NodeData::JSDocText(data) => {
+            relocation.text(&mut data.text)?;
+            Ok(())
+        }
         NodeData::JSDocThisTag(data) => {
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 relocation.node(id)?;
@@ -1053,8 +1108,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 relocation.node(id)?;
@@ -1077,8 +1134,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 relocation.node(id)?;
@@ -1089,8 +1148,10 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.tag_name {
                 relocation.node(id)?;
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                relocation.node_array(id)?;
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?,
+                Some(JSDocComment::Text { text, .. }) => relocation.text(text)?,
+                None => {}
             }
             if let Some(id) = &mut data.name {
                 relocation.node(id)?;
@@ -1203,7 +1264,10 @@ pub(crate) fn relocate_node_data(
             }
             Ok(())
         }
-        NodeData::JsxText(_data) => Ok(()),
+        NodeData::JsxText(data) => {
+            relocation.text(&mut data.text)?;
+            Ok(())
+        }
         NodeData::LabeledStatement(data) => {
             if let Some(id) = &mut data.label {
                 relocation.node(id)?;
@@ -1387,7 +1451,13 @@ pub(crate) fn relocate_node_data(
             }
             Ok(())
         }
-        NodeData::NoSubstitutionTemplateLiteral(_data) => Ok(()),
+        NodeData::NoSubstitutionTemplateLiteral(data) => {
+            relocation.text(&mut data.text)?;
+            if let Some(id) = &mut data.raw_text {
+                relocation.text(id)?;
+            }
+            Ok(())
+        }
         NodeData::NonNullExpression(data) => {
             if let Some(id) = &mut data.expression {
                 relocation.node(id)?;
@@ -1395,7 +1465,10 @@ pub(crate) fn relocate_node_data(
             Ok(())
         }
         NodeData::NotEmittedStatement(_data) => Ok(()),
-        NodeData::NumericLiteral(_data) => Ok(()),
+        NodeData::NumericLiteral(data) => {
+            relocation.text(&mut data.text)?;
+            Ok(())
+        }
         NodeData::ObjectBindingPattern(data) => {
             if let Some(id) = &mut data.elements {
                 relocation.node_array(id)?;
@@ -1545,7 +1618,10 @@ pub(crate) fn relocate_node_data(
             }
             Ok(())
         }
-        NodeData::RegularExpressionLiteral(_data) => Ok(()),
+        NodeData::RegularExpressionLiteral(data) => {
+            relocation.text(&mut data.text)?;
+            Ok(())
+        }
         NodeData::RestType(data) => {
             if let Some(id) = &mut data.r#type {
                 relocation.node(id)?;
@@ -1630,7 +1706,10 @@ pub(crate) fn relocate_node_data(
             }
             Ok(())
         }
-        NodeData::StringLiteral(_data) => Ok(()),
+        NodeData::StringLiteral(data) => {
+            relocation.text(&mut data.text)?;
+            Ok(())
+        }
         NodeData::SwitchStatement(data) => {
             if let Some(id) = &mut data.expression {
                 relocation.node(id)?;
@@ -1665,7 +1744,13 @@ pub(crate) fn relocate_node_data(
             }
             Ok(())
         }
-        NodeData::TemplateHead(_data) => Ok(()),
+        NodeData::TemplateHead(data) => {
+            relocation.text(&mut data.text)?;
+            if let Some(id) = &mut data.raw_text {
+                relocation.text(id)?;
+            }
+            Ok(())
+        }
         NodeData::TemplateLiteralType(data) => {
             if let Some(id) = &mut data.head {
                 relocation.node(id)?;
@@ -1684,7 +1769,13 @@ pub(crate) fn relocate_node_data(
             }
             Ok(())
         }
-        NodeData::TemplateMiddle(_data) => Ok(()),
+        NodeData::TemplateMiddle(data) => {
+            relocation.text(&mut data.text)?;
+            if let Some(id) = &mut data.raw_text {
+                relocation.text(id)?;
+            }
+            Ok(())
+        }
         NodeData::TemplateSpan(data) => {
             if let Some(id) = &mut data.expression {
                 relocation.node(id)?;
@@ -1694,7 +1785,13 @@ pub(crate) fn relocate_node_data(
             }
             Ok(())
         }
-        NodeData::TemplateTail(_data) => Ok(()),
+        NodeData::TemplateTail(data) => {
+            relocation.text(&mut data.text)?;
+            if let Some(id) = &mut data.raw_text {
+                relocation.text(id)?;
+            }
+            Ok(())
+        }
         NodeData::ThrowStatement(data) => {
             if let Some(id) = &mut data.expression {
                 relocation.node(id)?;
@@ -3582,10 +3679,13 @@ pub(crate) fn collect_node_data_ids(
     }
 }
 
-pub(crate) fn remap_node_data_ids<N, A>(data: &mut NodeData, mut node: N, mut array: A)
+/// Rewrite each identity of `data` (child nodes, node arrays, literal texts) through the three maps:
+/// a payload copied into another tree names that tree's nodes and texts.
+pub fn remap_node_data_ids<N, A, T>(data: &mut NodeData, mut node: N, mut array: A, mut text: T)
 where
     N: FnMut(NodeId) -> NodeId,
     A: FnMut(NodeArrayId) -> NodeArrayId,
+    T: FnMut(TextId) -> TextId,
 {
     match data {
         NodeData::Token => {}
@@ -3637,7 +3737,9 @@ where
                 *id = node(*id);
             }
         }
-        NodeData::BigIntLiteral(_data) => {}
+        NodeData::BigIntLiteral(data) => {
+            data.text = text(data.text);
+        }
         NodeData::BinaryExpression(data) => {
             if let Some(id) = &mut data.left {
                 *id = node(*id);
@@ -4217,8 +4319,10 @@ where
             if let Some(id) = &mut data.tags {
                 *id = array(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
         }
         NodeData::JSDocAllType(_data) => {}
@@ -4226,8 +4330,10 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.class {
                 *id = node(*id);
@@ -4237,16 +4343,20 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
         }
         NodeData::JSDocCallbackTag(data) => {
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.name {
                 *id = node(*id);
@@ -4262,24 +4372,30 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
         }
         NodeData::JSDocDeprecatedTag(data) => {
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
         }
         NodeData::JSDocEnumTag(data) => {
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 *id = node(*id);
@@ -4303,8 +4419,10 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.class {
                 *id = node(*id);
@@ -4314,8 +4432,10 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.import_clause {
                 *id = node(*id);
@@ -4331,16 +4451,19 @@ where
             if let Some(id) = &mut data.name {
                 *id = node(*id);
             }
+            data.text = text(data.text);
         }
         NodeData::JSDocLinkCode(data) => {
             if let Some(id) = &mut data.name {
                 *id = node(*id);
             }
+            data.text = text(data.text);
         }
         NodeData::JSDocLinkPlain(data) => {
             if let Some(id) = &mut data.name {
                 *id = node(*id);
             }
+            data.text = text(data.text);
         }
         NodeData::JSDocMemberName(data) => {
             if let Some(id) = &mut data.left {
@@ -4379,8 +4502,10 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 *id = node(*id);
@@ -4390,16 +4515,20 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
         }
         NodeData::JSDocParameterTag(data) => {
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.name {
                 *id = node(*id);
@@ -4412,16 +4541,20 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
         }
         NodeData::JSDocPropertyTag(data) => {
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.name {
                 *id = node(*id);
@@ -4434,32 +4567,40 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
         }
         NodeData::JSDocPublicTag(data) => {
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
         }
         NodeData::JSDocReadonlyTag(data) => {
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
         }
         NodeData::JSDocReturnTag(data) => {
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 *id = node(*id);
@@ -4469,8 +4610,10 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 *id = node(*id);
@@ -4480,8 +4623,10 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.name {
                 *id = node(*id);
@@ -4502,16 +4647,20 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
         }
         NodeData::JSDocTemplateTag(data) => {
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.constraint {
                 *id = node(*id);
@@ -4520,13 +4669,17 @@ where
                 *id = array(*id);
             }
         }
-        NodeData::JSDocText(_data) => {}
+        NodeData::JSDocText(data) => {
+            data.text = text(data.text);
+        }
         NodeData::JSDocThisTag(data) => {
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 *id = node(*id);
@@ -4536,8 +4689,10 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 *id = node(*id);
@@ -4557,8 +4712,10 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.type_expression {
                 *id = node(*id);
@@ -4568,8 +4725,10 @@ where
             if let Some(id) = &mut data.tag_name {
                 *id = node(*id);
             }
-            if let Some(JSDocComment::Nodes(id)) = &mut data.comment {
-                *id = array(*id);
+            match &mut data.comment {
+                Some(JSDocComment::Nodes(id)) => *id = array(*id),
+                Some(JSDocComment::Text { text: id, .. }) => *id = text(*id),
+                None => {}
             }
             if let Some(id) = &mut data.name {
                 *id = node(*id);
@@ -4670,7 +4829,9 @@ where
                 *id = node(*id);
             }
         }
-        NodeData::JsxText(_data) => {}
+        NodeData::JsxText(data) => {
+            data.text = text(data.text);
+        }
         NodeData::LabeledStatement(data) => {
             if let Some(id) = &mut data.label {
                 *id = node(*id);
@@ -4838,14 +4999,21 @@ where
                 *id = node(*id);
             }
         }
-        NodeData::NoSubstitutionTemplateLiteral(_data) => {}
+        NodeData::NoSubstitutionTemplateLiteral(data) => {
+            data.text = text(data.text);
+            if let Some(id) = &mut data.raw_text {
+                *id = text(*id);
+            }
+        }
         NodeData::NonNullExpression(data) => {
             if let Some(id) = &mut data.expression {
                 *id = node(*id);
             }
         }
         NodeData::NotEmittedStatement(_data) => {}
-        NodeData::NumericLiteral(_data) => {}
+        NodeData::NumericLiteral(data) => {
+            data.text = text(data.text);
+        }
         NodeData::ObjectBindingPattern(data) => {
             if let Some(id) = &mut data.elements {
                 *id = array(*id);
@@ -4981,7 +5149,9 @@ where
                 *id = node(*id);
             }
         }
-        NodeData::RegularExpressionLiteral(_data) => {}
+        NodeData::RegularExpressionLiteral(data) => {
+            data.text = text(data.text);
+        }
         NodeData::RestType(data) => {
             if let Some(id) = &mut data.r#type {
                 *id = node(*id);
@@ -5058,7 +5228,9 @@ where
                 *id = node(*id);
             }
         }
-        NodeData::StringLiteral(_data) => {}
+        NodeData::StringLiteral(data) => {
+            data.text = text(data.text);
+        }
         NodeData::SwitchStatement(data) => {
             if let Some(id) = &mut data.expression {
                 *id = node(*id);
@@ -5090,7 +5262,12 @@ where
                 *id = array(*id);
             }
         }
-        NodeData::TemplateHead(_data) => {}
+        NodeData::TemplateHead(data) => {
+            data.text = text(data.text);
+            if let Some(id) = &mut data.raw_text {
+                *id = text(*id);
+            }
+        }
         NodeData::TemplateLiteralType(data) => {
             if let Some(id) = &mut data.head {
                 *id = node(*id);
@@ -5107,7 +5284,12 @@ where
                 *id = node(*id);
             }
         }
-        NodeData::TemplateMiddle(_data) => {}
+        NodeData::TemplateMiddle(data) => {
+            data.text = text(data.text);
+            if let Some(id) = &mut data.raw_text {
+                *id = text(*id);
+            }
+        }
         NodeData::TemplateSpan(data) => {
             if let Some(id) = &mut data.expression {
                 *id = node(*id);
@@ -5116,7 +5298,12 @@ where
                 *id = node(*id);
             }
         }
-        NodeData::TemplateTail(_data) => {}
+        NodeData::TemplateTail(data) => {
+            data.text = text(data.text);
+            if let Some(id) = &mut data.raw_text {
+                *id = text(*id);
+            }
+        }
         NodeData::ThrowStatement(data) => {
             if let Some(id) = &mut data.expression {
                 *id = node(*id);
@@ -5309,41 +5496,80 @@ where
     }
 }
 
-fn jsdoc_comment_equal<A>(left: &JSDocComment, right: &JSDocComment, array: &mut A) -> bool
+fn optional_text_equal<T>(left: Option<TextId>, right: Option<TextId>, text: &mut T) -> bool
 where
-    A: FnMut(NodeArrayId, NodeArrayId) -> bool,
+    T: FnMut(TextId, TextId) -> bool,
 {
     match (left, right) {
-        (left @ JSDocComment::Text { .. }, right @ JSDocComment::Text { .. }) => left == right,
-        (JSDocComment::Nodes(left), JSDocComment::Nodes(right)) => array(*left, *right),
-        _ => false,
-    }
-}
-
-fn optional_jsdoc_comment_equal<A>(
-    left: Option<&JSDocComment>,
-    right: Option<&JSDocComment>,
-    array: &mut A,
-) -> bool
-where
-    A: FnMut(NodeArrayId, NodeArrayId) -> bool,
-{
-    match (left, right) {
-        (Some(left), Some(right)) => jsdoc_comment_equal(left, right, array),
+        (Some(left), Some(right)) => text(left, right),
         (None, None) => true,
         _ => false,
     }
 }
 
-pub(crate) fn node_data_structurally_equal<N, A>(
+fn jsdoc_comment_equal<A, T>(
+    left: &JSDocComment,
+    right: &JSDocComment,
+    array: &mut A,
+    text: &mut T,
+) -> bool
+where
+    A: FnMut(NodeArrayId, NodeArrayId) -> bool,
+    T: FnMut(TextId, TextId) -> bool,
+{
+    match (left, right) {
+        (
+            JSDocComment::Text {
+                text: left_text,
+                pos: left_pos,
+                end: left_end,
+                text_end: left_text_end,
+            },
+            JSDocComment::Text {
+                text: right_text,
+                pos: right_pos,
+                end: right_end,
+                text_end: right_text_end,
+            },
+        ) => {
+            (left_pos, left_end, left_text_end) == (right_pos, right_end, right_text_end)
+                && text(*left_text, *right_text)
+        }
+        (JSDocComment::Nodes(left), JSDocComment::Nodes(right)) => array(*left, *right),
+        _ => false,
+    }
+}
+
+fn optional_jsdoc_comment_equal<A, T>(
+    left: Option<&JSDocComment>,
+    right: Option<&JSDocComment>,
+    array: &mut A,
+    text: &mut T,
+) -> bool
+where
+    A: FnMut(NodeArrayId, NodeArrayId) -> bool,
+    T: FnMut(TextId, TextId) -> bool,
+{
+    match (left, right) {
+        (Some(left), Some(right)) => jsdoc_comment_equal(left, right, array, text),
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+/// Whether two payloads are equal field by field, their identities compared through the three
+/// closures (a copied tree's ids differ; a text compares by content through `text`).
+pub fn node_data_structurally_equal<N, A, T>(
     left: &NodeData,
     right: &NodeData,
     mut node: N,
     mut array: A,
+    mut text: T,
 ) -> bool
 where
     N: FnMut(NodeId, NodeId) -> bool,
     A: FnMut(NodeArrayId, NodeArrayId) -> bool,
+    T: FnMut(TextId, TextId) -> bool,
 {
     match (left, right) {
         (NodeData::Token, NodeData::Token) => true,
@@ -5375,7 +5601,9 @@ where
         (NodeData::AwaitExpression(left), NodeData::AwaitExpression(right)) => {
             optional_node_equal(left.expression, right.expression, &mut node)
         }
-        (NodeData::BigIntLiteral(left), NodeData::BigIntLiteral(right)) => left.text == right.text,
+        (NodeData::BigIntLiteral(left), NodeData::BigIntLiteral(right)) => {
+            text(left.text, right.text)
+        }
         (NodeData::BinaryExpression(left), NodeData::BinaryExpression(right)) => {
             optional_node_equal(left.left, right.left, &mut node)
                 && optional_node_equal(left.operator_token, right.operator_token, &mut node)
@@ -5675,6 +5903,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
         }
         (NodeData::JSDocAllType(_), NodeData::JSDocAllType(_)) => true,
@@ -5684,6 +5913,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.class, right.class, &mut node)
         }
@@ -5693,6 +5923,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
         }
         (NodeData::JSDocCallbackTag(left), NodeData::JSDocCallbackTag(right)) => {
@@ -5701,6 +5932,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.name, right.name, &mut node)
                 && optional_node_equal(left.full_name, right.full_name, &mut node)
@@ -5712,6 +5944,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
         }
         (NodeData::JSDocDeprecatedTag(left), NodeData::JSDocDeprecatedTag(right)) => {
@@ -5720,6 +5953,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
         }
         (NodeData::JSDocEnumTag(left), NodeData::JSDocEnumTag(right)) => {
@@ -5728,6 +5962,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.type_expression, right.type_expression, &mut node)
         }
@@ -5743,6 +5978,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.class, right.class, &mut node)
         }
@@ -5752,19 +5988,20 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.import_clause, right.import_clause, &mut node)
                 && optional_node_equal(left.module_specifier, right.module_specifier, &mut node)
                 && optional_node_equal(left.attributes, right.attributes, &mut node)
         }
         (NodeData::JSDocLink(left), NodeData::JSDocLink(right)) => {
-            optional_node_equal(left.name, right.name, &mut node) && left.text == right.text
+            optional_node_equal(left.name, right.name, &mut node) && text(left.text, right.text)
         }
         (NodeData::JSDocLinkCode(left), NodeData::JSDocLinkCode(right)) => {
-            optional_node_equal(left.name, right.name, &mut node) && left.text == right.text
+            optional_node_equal(left.name, right.name, &mut node) && text(left.text, right.text)
         }
         (NodeData::JSDocLinkPlain(left), NodeData::JSDocLinkPlain(right)) => {
-            optional_node_equal(left.name, right.name, &mut node) && left.text == right.text
+            optional_node_equal(left.name, right.name, &mut node) && text(left.text, right.text)
         }
         (NodeData::JSDocMemberName(left), NodeData::JSDocMemberName(right)) => {
             optional_node_equal(left.left, right.left, &mut node)
@@ -5793,6 +6030,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.type_expression, right.type_expression, &mut node)
         }
@@ -5802,6 +6040,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
         }
         (NodeData::JSDocParameterTag(left), NodeData::JSDocParameterTag(right)) => {
@@ -5810,6 +6049,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.name, right.name, &mut node)
                 && optional_node_equal(left.type_expression, right.type_expression, &mut node)
@@ -5822,6 +6062,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
         }
         (NodeData::JSDocPropertyTag(left), NodeData::JSDocPropertyTag(right)) => {
@@ -5830,6 +6071,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.name, right.name, &mut node)
                 && optional_node_equal(left.type_expression, right.type_expression, &mut node)
@@ -5842,6 +6084,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
         }
         (NodeData::JSDocPublicTag(left), NodeData::JSDocPublicTag(right)) => {
@@ -5850,6 +6093,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
         }
         (NodeData::JSDocReadonlyTag(left), NodeData::JSDocReadonlyTag(right)) => {
@@ -5858,6 +6102,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
         }
         (NodeData::JSDocReturnTag(left), NodeData::JSDocReturnTag(right)) => {
@@ -5866,6 +6111,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.type_expression, right.type_expression, &mut node)
         }
@@ -5875,6 +6121,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.type_expression, right.type_expression, &mut node)
         }
@@ -5884,6 +6131,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.name, right.name, &mut node)
         }
@@ -5898,6 +6146,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
         }
         (NodeData::JSDocTemplateTag(left), NodeData::JSDocTemplateTag(right)) => {
@@ -5906,17 +6155,19 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.constraint, right.constraint, &mut node)
                 && optional_array_equal(left.type_parameters, right.type_parameters, &mut array)
         }
-        (NodeData::JSDocText(left), NodeData::JSDocText(right)) => left.text == right.text,
+        (NodeData::JSDocText(left), NodeData::JSDocText(right)) => text(left.text, right.text),
         (NodeData::JSDocThisTag(left), NodeData::JSDocThisTag(right)) => {
             optional_node_equal(left.tag_name, right.tag_name, &mut node)
                 && optional_jsdoc_comment_equal(
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.type_expression, right.type_expression, &mut node)
         }
@@ -5926,6 +6177,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.type_expression, right.type_expression, &mut node)
         }
@@ -5945,6 +6197,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.type_expression, right.type_expression, &mut node)
         }
@@ -5954,6 +6207,7 @@ where
                     left.comment.as_ref(),
                     right.comment.as_ref(),
                     &mut array,
+                    &mut text,
                 )
                 && optional_node_equal(left.name, right.name, &mut node)
                 && optional_node_equal(left.full_name, right.full_name, &mut node)
@@ -6005,7 +6259,7 @@ where
             optional_node_equal(left.expression, right.expression, &mut node)
         }
         (NodeData::JsxText(left), NodeData::JsxText(right)) => {
-            left.text == right.text
+            text(left.text, right.text)
                 && left.contains_only_trivia_white_spaces == right.contains_only_trivia_white_spaces
         }
         (NodeData::LabeledStatement(left), NodeData::LabeledStatement(right)) => {
@@ -6092,13 +6346,16 @@ where
         (
             NodeData::NoSubstitutionTemplateLiteral(left),
             NodeData::NoSubstitutionTemplateLiteral(right),
-        ) => left.text == right.text && left.raw_text == right.raw_text,
+        ) => {
+            text(left.text, right.text)
+                && optional_text_equal(left.raw_text, right.raw_text, &mut text)
+        }
         (NodeData::NonNullExpression(left), NodeData::NonNullExpression(right)) => {
             optional_node_equal(left.expression, right.expression, &mut node)
         }
         (NodeData::NotEmittedStatement(_), NodeData::NotEmittedStatement(_)) => true,
         (NodeData::NumericLiteral(left), NodeData::NumericLiteral(right)) => {
-            left.text == right.text
+            text(left.text, right.text)
         }
         (NodeData::ObjectBindingPattern(left), NodeData::ObjectBindingPattern(right)) => {
             optional_array_equal(left.elements, right.elements, &mut array)
@@ -6171,7 +6428,7 @@ where
                 && optional_node_equal(left.right, right.right, &mut node)
         }
         (NodeData::RegularExpressionLiteral(left), NodeData::RegularExpressionLiteral(right)) => {
-            left.text == right.text
+            text(left.text, right.text)
         }
         (NodeData::RestType(left), NodeData::RestType(right)) => {
             optional_node_equal(left.r#type, right.r#type, &mut node)
@@ -6216,7 +6473,9 @@ where
         (NodeData::SpreadElement(left), NodeData::SpreadElement(right)) => {
             optional_node_equal(left.expression, right.expression, &mut node)
         }
-        (NodeData::StringLiteral(left), NodeData::StringLiteral(right)) => left.text == right.text,
+        (NodeData::StringLiteral(left), NodeData::StringLiteral(right)) => {
+            text(left.text, right.text)
+        }
         (NodeData::SwitchStatement(left), NodeData::SwitchStatement(right)) => {
             optional_node_equal(left.expression, right.expression, &mut node)
                 && optional_node_equal(left.case_block, right.case_block, &mut node)
@@ -6233,7 +6492,8 @@ where
                 && optional_array_equal(left.template_spans, right.template_spans, &mut array)
         }
         (NodeData::TemplateHead(left), NodeData::TemplateHead(right)) => {
-            left.text == right.text && left.raw_text == right.raw_text
+            text(left.text, right.text)
+                && optional_text_equal(left.raw_text, right.raw_text, &mut text)
         }
         (NodeData::TemplateLiteralType(left), NodeData::TemplateLiteralType(right)) => {
             optional_node_equal(left.head, right.head, &mut node)
@@ -6244,14 +6504,16 @@ where
                 && optional_node_equal(left.literal, right.literal, &mut node)
         }
         (NodeData::TemplateMiddle(left), NodeData::TemplateMiddle(right)) => {
-            left.text == right.text && left.raw_text == right.raw_text
+            text(left.text, right.text)
+                && optional_text_equal(left.raw_text, right.raw_text, &mut text)
         }
         (NodeData::TemplateSpan(left), NodeData::TemplateSpan(right)) => {
             optional_node_equal(left.expression, right.expression, &mut node)
                 && optional_node_equal(left.literal, right.literal, &mut node)
         }
         (NodeData::TemplateTail(left), NodeData::TemplateTail(right)) => {
-            left.text == right.text && left.raw_text == right.raw_text
+            text(left.text, right.text)
+                && optional_text_equal(left.raw_text, right.raw_text, &mut text)
         }
         (NodeData::ThrowStatement(left), NodeData::ThrowStatement(right)) => {
             optional_node_equal(left.expression, right.expression, &mut node)

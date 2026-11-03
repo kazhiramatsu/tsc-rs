@@ -1719,10 +1719,16 @@ impl<'a> CheckerState<'a> {
                 let argument = data.argument_expression?;
                 let name = match self.data_of(argument) {
                     NodeData::Identifier(data) => data.text().into(),
-                    NodeData::StringLiteral(data) => data.text.clone(),
-                    NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
-                    NodeData::NumericLiteral(data) => data.text.clone().into(),
-                    NodeData::BigIntLiteral(data) => data.text.clone().into(),
+                    NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
+                    NodeData::NoSubstitutionTemplateLiteral(data) => {
+                        self.text_js(data.text).to_owned()
+                    }
+                    NodeData::NumericLiteral(data) => {
+                        tsc_types::JsString::from(self.text_utf8(data.text))
+                    }
+                    NodeData::BigIntLiteral(data) => {
+                        tsc_types::JsString::from(self.text_utf8(data.text))
+                    }
                     _ => return None,
                 };
                 base.push_str(".");

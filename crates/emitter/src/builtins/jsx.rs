@@ -361,7 +361,7 @@ impl<'context> JsxVisitor<'context> {
             }
         }
         let record = self.context.arena().node(original)?.clone();
-        let transformed = match record.data {
+        let transformed = match record.data().clone() {
             NodeData::JsxElement(data) => {
                 Some(self.visit_jsx_element(original, data, false)?.node())
             }
@@ -373,7 +373,14 @@ impl<'context> JsxVisitor<'context> {
                 Some(self.visit_jsx_fragment(original, data, false)?.node())
             }
             NodeData::JsxExpression(data) => self.visit_jsx_expression(original, data)?,
-            NodeData::JsxText(data) => self.visit_jsx_text(&data.text)?.map(TransformNode::node),
+            NodeData::JsxText(data) => {
+                let text = self
+                    .context
+                    .arena()
+                    .text_utf8(original.source(), data.text)?
+                    .to_owned();
+                self.visit_jsx_text(&text)?.map(TransformNode::node)
+            }
             NodeData::Token => Some(id),
             mut data => {
                 try_visit_transform_children(&mut data, self)?;
@@ -398,7 +405,7 @@ impl<'context> JsxVisitor<'context> {
                 field: "opening_element",
             })?;
         let NodeData::JsxOpeningElement(opening_data) =
-            self.context.arena().node(opening)?.data.clone()
+            self.context.arena().node(opening)?.data().clone()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::JsxElement,
@@ -510,7 +517,7 @@ impl<'context> JsxVisitor<'context> {
 
     fn transform_tag_name(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
         let node = self.node(id);
-        match self.context.arena().node(node)?.data.clone() {
+        match self.context.arena().node(node)?.data().clone() {
             NodeData::Identifier(data) if tsc_syntax::is_intrinsic_jsx_name(data.text()) => {
                 self.create_string_literal(data.text().encode_utf16().collect(), false)
             }
@@ -550,7 +557,7 @@ impl<'context> JsxVisitor<'context> {
                 continue;
             }
             let attribute = self.node(id);
-            match self.context.arena().node(attribute)?.data.clone() {
+            match self.context.arena().node(attribute)?.data().clone() {
                 NodeData::JsxAttribute(data) => {
                     properties.push(self.transform_attribute(data)?);
                 }
@@ -574,7 +581,7 @@ impl<'context> JsxVisitor<'context> {
         };
         let attributes_node = self.node(attributes);
         let NodeData::JsxAttributes(data) =
-            self.context.arena().node(attributes_node)?.data.clone()
+            self.context.arena().node(attributes_node)?.data().clone()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::JsxOpeningElement,
@@ -589,7 +596,8 @@ impl<'context> JsxVisitor<'context> {
         attributes: Option<NodeId>,
     ) -> Result<Option<NodeId>, TransformError> {
         for id in self.attribute_nodes(attributes)? {
-            let NodeData::JsxAttribute(attribute) = &self.context.arena().node(self.node(id))?.data
+            let NodeData::JsxAttribute(attribute) =
+                self.context.arena().node(self.node(id))?.data()
             else {
                 continue;
             };
@@ -597,7 +605,7 @@ impl<'context> JsxVisitor<'context> {
                 continue;
             };
             if matches!(
-                &self.context.arena().node(self.node(name))?.data,
+                self.context.arena().node(self.node(name))?.data(),
                 NodeData::Identifier(data) if data.text() == "key"
             ) {
                 return Ok(Some(id));
@@ -615,14 +623,14 @@ impl<'context> JsxVisitor<'context> {
     ) -> Result<bool, TransformError> {
         let mut saw_unflattened_spread = false;
         for id in self.attribute_nodes(attributes)? {
-            match &self.context.arena().node(self.node(id))?.data {
+            match self.context.arena().node(self.node(id))?.data() {
                 NodeData::JsxSpreadAttribute(spread) => {
                     let flattenable = spread
                         .expression
                         .and_then(|id| self.context.arena().node_ref(self.source, id))
                         .and_then(|expression| {
                             let NodeData::ObjectLiteralExpression(object) =
-                                &self.context.arena().node(expression).ok()?.data
+                                self.context.arena().node(expression).ok()?.data()
                             else {
                                 return None;
                             };
@@ -633,7 +641,7 @@ impl<'context> JsxVisitor<'context> {
                                 properties.into_iter().all(|property| {
                                     !matches!(
                                         self.context.arena().node(self.node(property)),
-                                        Ok(record) if matches!(record.data, NodeData::SpreadAssignment(_))
+                                        Ok(record) if matches!(record.data(), NodeData::SpreadAssignment(_))
                                     )
                                 })
                             })
@@ -644,7 +652,7 @@ impl<'context> JsxVisitor<'context> {
                     let is_key = attribute.name.is_some_and(|name| {
                         matches!(
                             self.context.arena().node(self.node(name)),
-                            Ok(record) if matches!(&record.data, NodeData::Identifier(data) if data.text() == "key")
+                            Ok(record) if matches!(record.data(), NodeData::Identifier(data) if data.text() == "key")
                         )
                     });
                     if is_key {
@@ -659,7 +667,7 @@ impl<'context> JsxVisitor<'context> {
 
     fn transform_key_attribute(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
         let attribute = self.node(id);
-        let NodeData::JsxAttribute(data) = self.context.arena().node(attribute)?.data.clone()
+        let NodeData::JsxAttribute(data) = self.context.arena().node(attribute)?.data().clone()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::JsxOpeningElement,
@@ -678,7 +686,7 @@ impl<'context> JsxVisitor<'context> {
             field: "name",
         })?;
         let name_node = self.node(name_id);
-        let name = match self.context.arena().node(name_node)?.data.clone() {
+        let name = match self.context.arena().node(name_node)?.data().clone() {
             NodeData::Identifier(data) if is_identifier_attribute_name(data.text()) => {
                 // getAttributeName returns the ORIGINAL identifier for
                 // identifier-safe attribute names, so the printed property
@@ -735,9 +743,15 @@ impl<'context> JsxVisitor<'context> {
             return self.create_token(SyntaxKind::TrueKeyword);
         };
         let original = self.node(initializer);
-        match self.context.arena().node(original)?.data.clone() {
+        match self.context.arena().node(original)?.data().clone() {
             NodeData::StringLiteral(data) => {
-                let units = decode_entities(&data.text);
+                let units = decode_entities(
+                    &self
+                        .context
+                        .arena()
+                        .text_js(original.source(), data.text)?
+                        .to_owned(),
+                );
                 let single_quote = self.original_string_is_single_quoted(original)?;
                 let literal = self.create_string_literal(units, single_quote)?;
                 self.set_original_and_range(literal, original)
@@ -770,7 +784,7 @@ impl<'context> JsxVisitor<'context> {
             })?;
         let expression_node = self.node(expression);
         if let NodeData::ObjectLiteralExpression(object) =
-            self.context.arena().node(expression_node)?.data.clone()
+            self.context.arena().node(expression_node)?.data().clone()
         {
             if !self.object_literal_has_proto(&object)? {
                 return self
@@ -803,16 +817,21 @@ impl<'context> JsxVisitor<'context> {
     ) -> Result<bool, TransformError> {
         for id in self.array_nodes(data.properties)? {
             let NodeData::PropertyAssignment(property) =
-                self.context.arena().node(self.node(id))?.data.clone()
+                self.context.arena().node(self.node(id))?.data().clone()
             else {
                 continue;
             };
             let Some(name) = property.name else {
                 continue;
             };
-            match &self.context.arena().node(self.node(name))?.data {
+            let name = self.node(name);
+            match self.context.arena().node(name)?.data() {
                 NodeData::Identifier(data) if data.text() == "__proto__" => return Ok(true),
-                NodeData::StringLiteral(data) if data.text == "__proto__" => return Ok(true),
+                NodeData::StringLiteral(data)
+                    if self.context.arena().text(name.source(), data.text)? == b"__proto__" =>
+                {
+                    return Ok(true)
+                }
                 _ => {}
             }
         }
@@ -828,8 +847,15 @@ impl<'context> JsxVisitor<'context> {
         for id in ids {
             let child = self.node(id);
             let record = self.context.arena().node(child)?.clone();
-            let result = match record.data {
-                NodeData::JsxText(data) => self.visit_jsx_text(&data.text)?,
+            let result = match record.data().clone() {
+                NodeData::JsxText(data) => {
+                    let text = self
+                        .context
+                        .arena()
+                        .text_utf8(child.source(), data.text)?
+                        .to_owned();
+                    self.visit_jsx_text(&text)?
+                }
                 NodeData::JsxExpression(data) => self
                     .visit_jsx_expression(child, data)?
                     .map(|id| self.node(id)),
@@ -943,7 +969,7 @@ impl<'context> JsxVisitor<'context> {
         let mut operands = Vec::new();
         let mut chunk = Vec::new();
         for property in properties {
-            let spread = match &self.context.arena().node(property)?.data {
+            let spread = match self.context.arena().node(property)?.data() {
                 NodeData::SpreadAssignment(data) => data.expression.map(|id| self.node(id)),
                 _ => None,
             };
@@ -1121,7 +1147,7 @@ impl<'context> JsxVisitor<'context> {
     fn current_file_name_expression(&mut self) -> Result<TransformNode, TransformError> {
         if let Some(declaration) = self.filename_declaration {
             let NodeData::VariableDeclaration(data) =
-                self.context.arena().node(declaration)?.data.clone()
+                self.context.arena().node(declaration)?.data().clone()
             else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::VariableDeclaration,
@@ -1150,11 +1176,13 @@ impl<'context> JsxVisitor<'context> {
     }
 
     fn create_numeric_literal(&mut self, value: u32) -> Result<TransformNode, TransformError> {
+        let text = self
+            .context
+            .factory()?
+            .push_text(self.source, value.to_string().as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
-                text: value.to_string(),
-            })),
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
             TransformFlags::NONE,
         )
     }
@@ -1359,7 +1387,8 @@ impl<'context> JsxVisitor<'context> {
         if self.filename_declaration.is_none() && self.implicit_imports.is_empty() {
             return Ok(root);
         }
-        let (mut data, original_statements) = match self.context.arena().node(root)?.data.clone() {
+        let (mut data, original_statements) = match self.context.arena().node(root)?.data().clone()
+        {
             NodeData::SourceFile(data) => {
                 let statements = data.statements;
                 (data, statements)
@@ -1695,7 +1724,7 @@ impl<'context> JsxVisitor<'context> {
         let mut flags =
             self.context.arena().transform_flags(original) & !TransformFlags::CONTAINS_JSX;
         let mut probe = self.context.arena().node(original)?.clone();
-        probe.data = data.clone();
+        probe.set_data(data.clone());
         let mut children = Vec::new();
         let syntax = self.context.arena().source(self.source)?.syntax();
         for_each_child(&syntax.arena, &probe, |child| {
@@ -1765,7 +1794,7 @@ impl<'context> JsxVisitor<'context> {
             parent,
             field: "name",
         })?;
-        let NodeData::Identifier(data) = &self.context.arena().node(self.node(id))?.data else {
+        let NodeData::Identifier(data) = self.context.arena().node(self.node(id))?.data() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent,
                 field: "name",

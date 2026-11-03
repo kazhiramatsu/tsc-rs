@@ -1659,7 +1659,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
             .arena()
             .node(type_node)
             .map_err(transform_error)?
-            .data
+            .data()
         {
             NodeData::TypeReference(data) => Some(data.clone()),
             _ => None,
@@ -1793,7 +1793,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
             .unescape()
             .to_string_lossy()
             .into_owned();
-        let statements = match &self.file.arena.node(self.file.root).data {
+        let statements = match self.file.arena.node(self.file.root).data() {
             NodeData::SourceFile(data) => data.statements,
             _ => None,
         };
@@ -1937,7 +1937,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
     }
 
     fn data(&self, node: NodeId) -> &'a NodeData {
-        &self.file.arena.node(node).data
+        self.file.arena.node(node).data()
     }
 
     fn parent(&self, node: NodeId) -> Option<NodeId> {
@@ -2164,7 +2164,7 @@ fn type_parameter_has_default(checker: &CheckerState<'_>, type_parameter: TypeId
         .iter()
         .any(|&declaration| {
             matches!(
-                &checker.binder.source_of_node(declaration).arena.node(declaration).data,
+                checker.binder.source_of_node(declaration).arena.node(declaration).data(),
                 NodeData::TypeParameter(data) if data.default.is_some()
             )
         })
@@ -2219,7 +2219,7 @@ fn find_expando_function(
     };
     let mut assignment_target = expando_declaration;
     // Some late bound expando members use the whole expression as the declaration.
-    if let NodeData::BinaryExpression(binary) = &file.arena.node(assignment_target).data {
+    if let NodeData::BinaryExpression(binary) = file.arena.node(assignment_target).data() {
         let Some(left) = binary
             .left
             .filter(|&left| is_expando_property_declaration_for_fix(file.arena.node(left).kind))
@@ -2228,7 +2228,7 @@ fn find_expando_function(
         };
         assignment_target = left;
     }
-    let expression = match &file.arena.node(assignment_target).data {
+    let expression = match file.arena.node(assignment_target).data() {
         NodeData::PropertyAccessExpression(data) => data.expression,
         NodeData::ElementAccessExpression(data) => data.expression,
         _ => None,
@@ -2423,7 +2423,7 @@ fn is_entity_name_expression_in(
     node: TransformNode,
 ) -> FixResult<bool> {
     let record = arena.node(node).map_err(transform_error)?;
-    match &record.data {
+    match record.data() {
         NodeData::Identifier(_) => Ok(true),
         NodeData::PropertyAccessExpression(data) => {
             let (Some(expression), Some(name)) = (data.expression, data.name) else {
@@ -2446,16 +2446,16 @@ fn is_entity_name_expression_in(
 
 /// tsgo `isConstAssertion`: `x as const` or `<const>x`.
 fn is_const_assertion(file: &SourceFile, node: NodeId) -> bool {
-    let type_node = match &file.arena.node(node).data {
+    let type_node = match file.arena.node(node).data() {
         NodeData::AsExpression(data) => data.r#type,
         NodeData::TypeAssertionExpression(data) => data.r#type,
         _ => return false,
     };
-    type_node.is_some_and(|type_node| match &file.arena.node(type_node).data {
+    type_node.is_some_and(|type_node| match file.arena.node(type_node).data() {
         NodeData::TypeReference(data) => {
             data.type_arguments.is_none()
                 && data.type_name.is_some_and(|name| {
-                    matches!(&file.arena.node(name).data, NodeData::Identifier(identifier) if identifier.text() == "const")
+                    matches!(file.arena.node(name).data(), NodeData::Identifier(identifier) if identifier.text() == "const")
                 })
         }
         _ => false,
@@ -2476,8 +2476,8 @@ fn walk_up_parenthesized_expressions(file: &SourceFile, mut node: NodeId) -> Nod
 /// tsgo `getIdentifierNameForNode`: a property access's name, else
 /// `newLocal`.
 fn get_identifier_name_for_node(file: &SourceFile, node: NodeId) -> String {
-    if let NodeData::PropertyAccessExpression(data) = &file.arena.node(node).data {
-        if let Some(NodeData::Identifier(name)) = data.name.map(|name| &file.arena.node(name).data)
+    if let NodeData::PropertyAccessExpression(data) = file.arena.node(node).data() {
+        if let Some(NodeData::Identifier(name)) = data.name.map(|name| file.arena.node(name).data())
         {
             if tsc_syntax::identifier_to_keyword_kind(name.text()).is_none() {
                 return name.text().to_owned();
@@ -2494,7 +2494,7 @@ fn name_of(file: &SourceFile, node: NodeId) -> Option<NodeId> {
 
 /// The text of an identifier.
 fn identifier_text(file: &SourceFile, node: NodeId) -> String {
-    match &file.arena.node(node).data {
+    match file.arena.node(node).data() {
         NodeData::Identifier(identifier) => identifier.text().to_owned(),
         _ => String::new(),
     }
@@ -2503,10 +2503,14 @@ fn identifier_text(file: &SourceFile, node: NodeId) -> String {
 /// tsgo `Node.Text()` of a binding element's property name: an
 /// identifier's, a string or numeric literal's.
 fn property_name_text(file: &SourceFile, node: NodeId) -> String {
-    match &file.arena.node(node).data {
+    match file.arena.node(node).data() {
         NodeData::Identifier(identifier) => identifier.text().to_owned(),
-        NodeData::StringLiteral(literal) => literal.text.to_string_lossy().into_owned(),
-        NodeData::NumericLiteral(literal) => literal.text.clone(),
+        NodeData::StringLiteral(literal) => file
+            .arena
+            .text_js(literal.text)
+            .to_string_lossy()
+            .into_owned(),
+        NodeData::NumericLiteral(literal) => file.arena.text_utf8(literal.text).to_owned(),
         _ => String::new(),
     }
 }

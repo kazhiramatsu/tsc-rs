@@ -1848,7 +1848,7 @@ impl CheckerState<'_> {
             if node.parent.is_none() {
                 continue;
             }
-            let name = match &node.data {
+            let name = match node.data() {
                 NodeData::ExportAssignment(data) => data
                     .expression
                     .filter(|&expression| self.kind_of(expression) == SyntaxKind::Identifier),

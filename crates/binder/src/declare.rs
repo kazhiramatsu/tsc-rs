@@ -834,7 +834,7 @@ impl<'a> BinderWorker<'a> {
 
     /// tsc moduleExportNameIsDefault(node.name) for an ExportSpecifier.
     fn export_specifier_name_is_default(&self, node: NodeId) -> bool {
-        match &self.source.arena.node(node).data {
+        match &self.source.arena.node(node).data() {
             NodeData::ExportSpecifier(data) => data
                 .name
                 .is_some_and(|name| module_export_name_is_default(self.source, name)),
@@ -906,7 +906,7 @@ impl<'a> BinderWorker<'a> {
     /// JS-only: the BinaryExpression module.exports arm.
     pub fn get_declaration_name(&mut self, node: NodeId) -> Option<EscapedName> {
         if kind_of(self.source, node) == SyntaxKind::ExportAssignment {
-            let is_export_equals = match &self.source.arena.node(node).data {
+            let is_export_equals = match &self.source.arena.node(node).data() {
                 NodeData::ExportAssignment(data) => data.is_export_equals.unwrap_or(false),
                 _ => false,
             };
@@ -931,7 +931,7 @@ impl<'a> BinderWorker<'a> {
                 // attributes node (internal: `__`, as user names escape a
                 // leading `__`); the checker merges the ones whose types are
                 // identical.
-                let attributes = match &self.source.arena.node(node).data {
+                let attributes = match &self.source.arena.node(node).data() {
                     NodeData::ModuleDeclaration(data) => data.attributes,
                     _ => None,
                 };
@@ -950,7 +950,7 @@ impl<'a> BinderWorker<'a> {
                 return Some(EscapedName::quoted_module(module_name.as_js()));
             }
             if kind_of(self.source, name) == SyntaxKind::ComputedPropertyName {
-                let name_expression = match &self.source.arena.node(name).data {
+                let name_expression = match &self.source.arena.node(name).data() {
                     NodeData::ComputedPropertyName(data) => data.expression?,
                     _ => return None,
                 };
@@ -960,7 +960,7 @@ impl<'a> BinderWorker<'a> {
                 }
                 if is_signed_numeric_literal(self.source, name_expression) {
                     let NodeData::PrefixUnaryExpression(data) =
-                        &self.source.arena.node(name_expression).data
+                        &self.source.arena.node(name_expression).data()
                     else {
                         return None;
                     };
@@ -985,7 +985,7 @@ impl<'a> BinderWorker<'a> {
             if kind_of(self.source, name) == SyntaxKind::PrivateIdentifier {
                 let containing_class = get_containing_class(self.source, node)?;
                 let class_symbol = self.node_symbol.get(&containing_class).copied()?;
-                let escaped_text = match &self.source.arena.node(name).data {
+                let escaped_text = match &self.source.arena.node(name).data() {
                     NodeData::PrivateIdentifier(data) => data.escaped_text,
                     _ => return None,
                 };
@@ -1021,7 +1021,8 @@ impl<'a> BinderWorker<'a> {
             }
             SyntaxKind::Parameter => {
                 let parent = parent_of(self.source, node)?;
-                let NodeData::JSDocFunctionType(data) = &self.source.arena.node(parent).data else {
+                let NodeData::JSDocFunctionType(data) = &self.source.arena.node(parent).data()
+                else {
                     return None;
                 };
                 let index = data.parameters.and_then(|parameters| {
@@ -1091,7 +1092,7 @@ impl<'a> BinderWorker<'a> {
         if !self.symbols.symbol(existing).declarations.is_empty() {
             let is_unnamed_default = kind_of(self.source, node) == SyntaxKind::ExportAssignment
                 && !matches!(
-                    &self.source.arena.node(node).data,
+                    &self.source.arena.node(node).data(),
                     NodeData::ExportAssignment(data) if data.is_export_equals == Some(true)
                 );
             if is_default_export || is_unnamed_default {
@@ -1103,7 +1104,7 @@ impl<'a> BinderWorker<'a> {
 
         let mut related_information: Vec<RelatedInfo> = Vec::new();
         if kind_of(self.source, node) == SyntaxKind::TypeAliasDeclaration {
-            let (type_node, alias_name) = match &self.source.arena.node(node).data {
+            let (type_node, alias_name) = match &self.source.arena.node(node).data() {
                 NodeData::TypeAliasDeclaration(data) => (data.r#type, data.name),
                 _ => (None, None),
             };
@@ -1113,7 +1114,7 @@ impl<'a> BinderWorker<'a> {
                     .intersects(SymbolFlags::ALIAS | SymbolFlags::TYPE | SymbolFlags::NAMESPACE)
             {
                 let escaped = alias_name
-                    .and_then(|name| match &self.source.arena.node(name).data {
+                    .and_then(|name| match &self.source.arena.node(name).data() {
                         NodeData::Identifier(data) => Some(data.escaped_text),
                         _ => None,
                     })

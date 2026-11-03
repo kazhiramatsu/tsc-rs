@@ -7,8 +7,9 @@ use crate::nodes::{
 #[test]
 fn finalizes_parent_links_and_error_aggregation() {
     let mut arena = NodeArena::new();
+    let text = arena.push_text(b"x");
     let stmt = arena.alloc_node(
-        NodeData::StringLiteral(Box::new(StringLiteralData { text: "x".into() })),
+        NodeData::StringLiteral(Box::new(StringLiteralData { text })),
         0,
         1,
         NodeFlags::THIS_NODE_HAS_ERROR,
@@ -57,10 +58,9 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
         16,
         NodeFlags::JS_DOC,
     );
+    let description = arena.push_text(b"description");
     let comment_text = arena.alloc_node(
-        NodeData::JSDocText(Box::new(JSDocTextData {
-            text: "description".to_owned(),
-        })),
+        NodeData::JSDocText(Box::new(JSDocTextData { text: description })),
         17,
         28,
         NodeFlags::JS_DOC,
@@ -93,11 +93,12 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
     }
 
     let full_name = identifier(&mut arena, "Alias", 29);
+    let plain = arena.push_text(b"plain");
     let typedef = arena.alloc_node(
         NodeData::JSDocTypedefTag(Box::new(JSDocTypedefTagData {
             tag_name: Some(tag_name),
             comment: Some(JSDocComment::Text {
-                text: "plain".to_owned(),
+                text: plain,
                 pos: 0,
                 end: 0,
                 text_end: 0,

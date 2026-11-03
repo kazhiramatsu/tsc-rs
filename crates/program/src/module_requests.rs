@@ -610,7 +610,7 @@ fn plan_module_requests_worker(
     };
     while let Some(node_id) = stack.pop() {
         let node = parsed.arena.node(node_id);
-        match &node.data {
+        match node.data() {
             NodeData::ImportType(import_type) => {
                 if !expanded {
                     return Err(unsupported_at(
@@ -620,10 +620,10 @@ fn plan_module_requests_worker(
                     ));
                 }
                 if let Some(argument) = import_type.argument {
-                    if let NodeData::LiteralType(argument) = &parsed.arena.node(argument).data {
+                    if let NodeData::LiteralType(argument) = parsed.arena.node(argument).data() {
                         if let Some(literal) = argument.literal {
                             let literal = parsed.arena.node(literal);
-                            if let NodeData::StringLiteral(literal_data) = &literal.data {
+                            if let NodeData::StringLiteral(literal_data) = literal.data() {
                                 let mode_override = import_type.attributes.and_then(|attributes| {
                                     resolution_mode_override(parsed, attributes)
                                 });
@@ -636,7 +636,7 @@ fn plan_module_requests_worker(
                                             .contains(NodeFlags::JS_DOC),
                                     key: ResolutionKey::new(
                                         source.path().canonical().clone(),
-                                        literal_data.text.clone(),
+                                        parsed.arena.text_js(literal_data.text).to_owned(),
                                         mode,
                                     ),
                                 });
@@ -664,7 +664,10 @@ fn plan_module_requests_worker(
                                                         .contains(NodeFlags::JS_DOC),
                                                 key: ResolutionKey::new(
                                                     source.path().canonical().clone(),
-                                                    literal_data.text.clone(),
+                                                    parsed
+                                                        .arena
+                                                        .text_js(literal_data.text)
+                                                        .to_owned(),
                                                     alternate,
                                                 ),
                                             });
@@ -686,19 +689,19 @@ fn plan_module_requests_worker(
                 }
                 if let Some(module_specifier) = import.module_specifier {
                     let module_specifier = parsed.arena.node(module_specifier);
-                    if let NodeData::StringLiteral(literal) = &module_specifier.data {
+                    if let NodeData::StringLiteral(literal) = module_specifier.data() {
                         let mode = import
                             .attributes
                             .and_then(|attributes| resolution_mode_override(parsed, attributes))
                             .unwrap_or(static_mode);
-                        if !literal.text.is_empty() {
+                        if !parsed.arena.text(literal.text).is_empty() {
                             dynamic_occurrences.push(ModuleRequestOccurrence {
                                 pos: module_specifier.pos,
                                 end: module_specifier.end,
                                 loads_source: javascript_file,
                                 key: ResolutionKey::new(
                                     source.path().canonical().clone(),
-                                    literal.text.clone(),
+                                    parsed.arena.text_js(literal.text).to_owned(),
                                     mode,
                                 ),
                             });
@@ -746,7 +749,7 @@ fn plan_module_requests_worker(
                 }
                 let is_require = callee.is_some_and(|callee| {
                     matches!(
-                        &parsed.arena.node(callee).data,
+                        parsed.arena.node(callee).data(),
                         NodeData::Identifier(identifier) if identifier.escaped_text == "require"
                     )
                 });
@@ -816,7 +819,7 @@ fn plan_module_requests_worker(
                     // beside a typedef) are not collected, and the checker
                     // finds no resolution for them.
                     for comment in comments {
-                        let NodeData::JSDoc(comment) = &parsed.arena.node(comment).data else {
+                        let NodeData::JSDoc(comment) = parsed.arena.node(comment).data() else {
                             continue;
                         };
                         let tags = comment
@@ -1070,7 +1073,7 @@ fn collect_static_module_references(
         augmentation_occurrences,
         unpreprocessed_module_requests,
     } = context;
-    let NodeData::SourceFile(root) = &parsed.arena.node(parsed.root).data else {
+    let NodeData::SourceFile(root) = parsed.arena.node(parsed.root).data() else {
         return Err(unsupported(source, "the parsed root is not a source file"));
     };
     let statements = root
@@ -1106,17 +1109,19 @@ fn collect_static_module_reference_statements(
 ) -> Result<(), ResolutionError> {
     for &node_id in statements {
         let node = parsed.arena.node(node_id);
-        match &node.data {
+        match node.data() {
             NodeData::ImportDeclaration(_) if is_source_phase_import(&parsed.arena, node_id) => {
                 continue;
             }
             NodeData::ImportDeclaration(import) => {
                 if let Some(module_specifier) = import.module_specifier {
                     let module_specifier = parsed.arena.node(module_specifier);
-                    if let NodeData::StringLiteral(literal) = &module_specifier.data {
-                        if !literal.text.is_empty()
+                    if let NodeData::StringLiteral(literal) = module_specifier.data() {
+                        if !parsed.arena.text(literal.text).is_empty()
                             && (!in_ambient_module
-                                || !is_external_module_name_relative(&literal.text))
+                                || !is_external_module_name_relative(
+                                    parsed.arena.text_js(literal.text),
+                                ))
                         {
                             let mode = import
                                 .attributes
@@ -1124,7 +1129,7 @@ fn collect_static_module_reference_statements(
                                 .and_then(|attributes| {
                                     import.import_clause.filter(|&clause| {
                                         matches!(
-                                            &parsed.arena.node(clause).data,
+                                            parsed.arena.node(clause).data(),
                                             NodeData::ImportClause(clause) if clause.is_type_only
                                         )
                                     })?;
@@ -1137,7 +1142,7 @@ fn collect_static_module_reference_statements(
                                 loads_source: true,
                                 key: ResolutionKey::new(
                                     source.path().canonical().clone(),
-                                    literal.text.clone(),
+                                    parsed.arena.text_js(literal.text).to_owned(),
                                     mode,
                                 ),
                             });
@@ -1158,9 +1163,12 @@ fn collect_static_module_reference_statements(
                     .module_specifier
                     .expect("guarded ambient export module specifier");
                 let module_specifier = parsed.arena.node(module_specifier);
-                if let NodeData::StringLiteral(literal) = &module_specifier.data {
-                    if !literal.text.is_empty()
-                        && (!in_ambient_module || !is_external_module_name_relative(&literal.text))
+                if let NodeData::StringLiteral(literal) = module_specifier.data() {
+                    if !parsed.arena.text(literal.text).is_empty()
+                        && (!in_ambient_module
+                            || !is_external_module_name_relative(
+                                parsed.arena.text_js(literal.text),
+                            ))
                     {
                         // A type-only export takes the `resolution-mode`
                         // attribute like a type-only import
@@ -1176,7 +1184,7 @@ fn collect_static_module_reference_statements(
                             loads_source: true,
                             key: ResolutionKey::new(
                                 source.path().canonical().clone(),
-                                literal.text.clone(),
+                                parsed.arena.text_js(literal.text).to_owned(),
                                 mode,
                             ),
                         });
@@ -1194,19 +1202,19 @@ fn collect_static_module_reference_statements(
                 }
                 if let Some(module_reference) = import_equals.module_reference {
                     if let NodeData::ExternalModuleReference(reference) =
-                        &parsed.arena.node(module_reference).data
+                        parsed.arena.node(module_reference).data()
                     {
                         if let Some(expression) = reference.expression {
                             let expression = parsed.arena.node(expression);
-                            if let NodeData::StringLiteral(literal) = &expression.data {
-                                if !literal.text.is_empty() {
+                            if let NodeData::StringLiteral(literal) = expression.data() {
+                                if !parsed.arena.text(literal.text).is_empty() {
                                     static_occurrences.push(ModuleRequestOccurrence {
                                         pos: expression.pos,
                                         end: expression.end,
                                         loads_source: true,
                                         key: ResolutionKey::new(
                                             source.path().canonical().clone(),
-                                            literal.text.clone(),
+                                            parsed.arena.text_js(literal.text).to_owned(),
                                             if import_syntax_affects_resolution {
                                                 ResolutionMode::CommonJs
                                             } else {
@@ -1259,15 +1267,15 @@ fn collect_static_module_reference_statements(
                     );
                     continue;
                 }
-                let name_text = match &name_node.data {
-                    NodeData::StringLiteral(literal) => literal.text.as_js(),
+                let name_text = match name_node.data() {
+                    NodeData::StringLiteral(literal) => parsed.arena.text_js(literal.text),
                     NodeData::Identifier(identifier) => JsStr::from_str(identifier.text()),
                     _ => JsStr::from_str(""),
                 };
                 let is_augmentation = parsed.external_module_indicator.is_some()
                     || (in_ambient_module && !is_external_module_name_relative(name_text));
                 if is_augmentation {
-                    if let NodeData::StringLiteral(literal) = &name_node.data {
+                    if let NodeData::StringLiteral(literal) = name_node.data() {
                         if !expanded {
                             return Err(unsupported_at(
                                 source,
@@ -1281,7 +1289,7 @@ fn collect_static_module_reference_statements(
                             loads_source: false,
                             key: ResolutionKey::new(
                                 source.path().canonical().clone(),
-                                literal.text.clone(),
+                                parsed.arena.text_js(literal.text).to_owned(),
                                 static_mode,
                             ),
                         });
@@ -1364,7 +1372,7 @@ fn collect_nested_module_requests(
 }
 
 fn module_body_statements(parsed: &SourceFile, body: Option<NodeId>) -> Option<&[NodeId]> {
-    let NodeData::ModuleBlock(block) = &parsed.arena.node(body?).data else {
+    let NodeData::ModuleBlock(block) = parsed.arena.node(body?).data() else {
         return None;
     };
     Some(
@@ -1389,7 +1397,7 @@ fn collect_unpreprocessed_module_requests(
         return;
     };
     let body = parsed.arena.node(body);
-    if let NodeData::ModuleDeclaration(module) = &body.data {
+    if let NodeData::ModuleDeclaration(module) = body.data() {
         collect_unpreprocessed_module_requests(
             parsed,
             module.body,
@@ -1401,7 +1409,7 @@ fn collect_unpreprocessed_module_requests(
         );
         return;
     }
-    let NodeData::ModuleBlock(block) = &body.data else {
+    let NodeData::ModuleBlock(block) = body.data() else {
         return;
     };
     let statements = block
@@ -1409,16 +1417,16 @@ fn collect_unpreprocessed_module_requests(
         .map(|statements| parsed.arena.node_array(statements).nodes)
         .unwrap_or_default();
     for &statement in statements {
-        match &parsed.arena.node(statement).data {
+        match parsed.arena.node(statement).data() {
             NodeData::ImportDeclaration(_) if is_source_phase_import(&parsed.arena, statement) => {}
             NodeData::ImportDeclaration(import) => {
                 let Some(specifier) = import.module_specifier else {
                     continue;
                 };
-                let NodeData::StringLiteral(literal) = &parsed.arena.node(specifier).data else {
+                let NodeData::StringLiteral(literal) = parsed.arena.node(specifier).data() else {
                     continue;
                 };
-                if literal.text.is_empty() {
+                if parsed.arena.text(literal.text).is_empty() {
                     continue;
                 }
                 let mode = import
@@ -1427,7 +1435,7 @@ fn collect_unpreprocessed_module_requests(
                     .and_then(|attributes| {
                         import.import_clause.filter(|&clause| {
                             matches!(
-                                &parsed.arena.node(clause).data,
+                                parsed.arena.node(clause).data(),
                                 NodeData::ImportClause(clause) if clause.is_type_only
                             )
                         })?;
@@ -1436,7 +1444,7 @@ fn collect_unpreprocessed_module_requests(
                     .unwrap_or(static_mode);
                 requests.insert(ResolutionKey::new(
                     source.path().canonical().clone(),
-                    literal.text.clone(),
+                    parsed.arena.text_js(literal.text).to_owned(),
                     mode,
                 ));
             }
@@ -1444,10 +1452,10 @@ fn collect_unpreprocessed_module_requests(
                 let Some(specifier) = export.module_specifier else {
                     continue;
                 };
-                let NodeData::StringLiteral(literal) = &parsed.arena.node(specifier).data else {
+                let NodeData::StringLiteral(literal) = parsed.arena.node(specifier).data() else {
                     continue;
                 };
-                if !literal.text.is_empty() {
+                if !parsed.arena.text(literal.text).is_empty() {
                     let mode = export
                         .attributes
                         .filter(|_| expanded && export.is_type_only)
@@ -1455,7 +1463,7 @@ fn collect_unpreprocessed_module_requests(
                         .unwrap_or(static_mode);
                     requests.insert(ResolutionKey::new(
                         source.path().canonical().clone(),
-                        literal.text.clone(),
+                        parsed.arena.text_js(literal.text).to_owned(),
                         mode,
                     ));
                 }
@@ -1463,20 +1471,20 @@ fn collect_unpreprocessed_module_requests(
             NodeData::ImportEqualsDeclaration(import_equals) => {
                 let expression = import_equals
                     .module_reference
-                    .and_then(|reference| match &parsed.arena.node(reference).data {
+                    .and_then(|reference| match parsed.arena.node(reference).data() {
                         NodeData::ExternalModuleReference(reference) => reference.expression,
                         _ => None,
                     });
                 let Some(expression) = expression else {
                     continue;
                 };
-                let NodeData::StringLiteral(literal) = &parsed.arena.node(expression).data else {
+                let NodeData::StringLiteral(literal) = parsed.arena.node(expression).data() else {
                     continue;
                 };
-                if !literal.text.is_empty() {
+                if !parsed.arena.text(literal.text).is_empty() {
                     requests.insert(ResolutionKey::new(
                         source.path().canonical().clone(),
-                        literal.text.clone(),
+                        parsed.arena.text_js(literal.text).to_owned(),
                         if import_syntax_affects_resolution {
                             ResolutionMode::CommonJs
                         } else {
@@ -1506,13 +1514,13 @@ fn collect_unpreprocessed_module_requests(
 /// grammar check parses the attributes the same way, so the modes the
 /// resolver prepares are the modes the checker asks for.
 fn resolution_mode_override(parsed: &SourceFile, attributes: NodeId) -> Option<ResolutionMode> {
-    let NodeData::ImportAttributes(attributes) = &parsed.arena.node(attributes).data else {
+    let NodeData::ImportAttributes(attributes) = parsed.arena.node(attributes).data() else {
         return None;
     };
     let elements = attributes.elements?;
     let elements = &parsed.arena.node_array(elements).nodes;
     let attribute = elements.iter().find_map(|&element| {
-        let NodeData::ImportAttribute(attribute) = &parsed.arena.node(element).data else {
+        let NodeData::ImportAttribute(attribute) = parsed.arena.node(element).data() else {
             return None;
         };
         (string_literal_like_text(parsed, attribute.name?)? == "resolution-mode")
@@ -1529,9 +1537,11 @@ fn resolution_mode_override(parsed: &SourceFile, attributes: NodeId) -> Option<R
 // A non-scalar value cannot equal any of those three strings; its original
 // literal ownership and resolution key are unaffected.
 fn string_literal_like_text(parsed: &SourceFile, node: NodeId) -> Option<&str> {
-    match &parsed.arena.node(node).data {
-        NodeData::StringLiteral(literal) => literal.text.as_str(),
-        NodeData::NoSubstitutionTemplateLiteral(literal) => literal.text.as_str(),
+    match parsed.arena.node(node).data() {
+        NodeData::StringLiteral(literal) => parsed.arena.text_js(literal.text).as_str(),
+        NodeData::NoSubstitutionTemplateLiteral(literal) => {
+            parsed.arena.text_js(literal.text).as_str()
+        }
         _ => None,
     }
 }
@@ -1548,14 +1558,14 @@ fn uncollected_import_types(
 ) {
     let mut stack = vec![root];
     while let Some(node_id) = stack.pop() {
-        if let NodeData::ImportType(import_type) = &parsed.arena.node(node_id).data {
+        if let NodeData::ImportType(import_type) = parsed.arena.node(node_id).data() {
             let literal = import_type
                 .argument
-                .and_then(|argument| match &parsed.arena.node(argument).data {
+                .and_then(|argument| match parsed.arena.node(argument).data() {
                     NodeData::LiteralType(argument) => argument.literal,
                     _ => None,
                 })
-                .map(|literal| &parsed.arena.node(literal).data);
+                .map(|literal| parsed.arena.node(literal).data());
             if let Some(NodeData::StringLiteral(literal)) = literal {
                 let mode = import_type
                     .attributes
@@ -1563,7 +1573,7 @@ fn uncollected_import_types(
                     .unwrap_or(static_mode);
                 unpreprocessed_module_requests.insert(ResolutionKey::new(
                     source.path().canonical().clone(),
-                    literal.text.clone(),
+                    parsed.arena.text_js(literal.text).to_owned(),
                     mode,
                 ));
             }

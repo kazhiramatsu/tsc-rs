@@ -5066,7 +5066,7 @@ fn reused_symbol_visibility_matches_declaration_and_alias_fallbacks() {
                             if data.name.is_some_and(|name| {
                                 matches!(
                                     state.data_of(name),
-                                    NodeData::StringLiteral(data) if data.text == "./m"
+                                    NodeData::StringLiteral(data) if state.text_utf8(data.text) == "./m"
                                 )
                             })
                     )
@@ -5574,7 +5574,7 @@ fn symbol_expression_reads_astral_identifiers_as_property_access() {
                 .node_ids()
                 .find(|&node| {
                     matches!(
-                        &source.arena.node(node).data,
+                        source.arena.node(node).data(),
                         tsc_syntax::NodeData::Identifier(data)
                             if data.escaped_text == "s"
                     )

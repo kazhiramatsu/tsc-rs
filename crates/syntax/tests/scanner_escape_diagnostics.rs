@@ -36,7 +36,7 @@ fn scanner_escape_diagnostics_follow_typescript() {
         let mut stack = vec![parsed.root];
         while let Some(id) = stack.pop() {
             let node = parsed.arena.node(id);
-            let text = match &node.data {
+            let text = match &node.data() {
                 NodeData::Identifier(identifier) => Some(identifier.text()),
                 NodeData::PrivateIdentifier(identifier) => Some(identifier.text()),
                 _ => None,
@@ -56,7 +56,7 @@ fn scanner_escape_diagnostics_follow_typescript() {
             // Depth-first in source order.
             stack.extend(children.into_iter().rev());
         }
-        let NodeData::SourceFile(root) = &parsed.arena.node(parsed.root).data else {
+        let NodeData::SourceFile(root) = &parsed.arena.node(parsed.root).data() else {
             panic!("{case_id}: root is not a source file");
         };
         let statements = root.statements.map_or(0, |statements| {

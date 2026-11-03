@@ -186,10 +186,10 @@ impl ConstEnumInliningVisitor<'_, '_> {
         }
         let (kind, mut slots) = {
             let record = self.context.arena().node(node)?;
-            let slots = if matches!(record.data, NodeData::MissingDeclaration(_)) {
+            let slots = if matches!(record.data(), NodeData::MissingDeclaration(_)) {
                 ChildSlots::new()
             } else {
-                child_slots(&record.data, &*self)
+                child_slots(record.data(), &*self)
             };
             (record.kind, slots)
         };
@@ -209,7 +209,10 @@ impl ConstEnumInliningVisitor<'_, '_> {
         }
         let (mut data, flags) = {
             let arena = self.context.arena();
-            (arena.node(node)?.data.clone(), arena.transform_flags(node))
+            (
+                arena.node(node)?.data().clone(),
+                arena.transform_flags(node),
+            )
         };
         apply_child_slots(&mut data, &slots, self)?;
         self.context.factory()?.update_node(node, data, flags)
@@ -301,13 +304,21 @@ fn constant_substitute(
     let substitute = {
         let mut factory = context.factory()?;
         let substitute = match &value {
-            EmitConstantValue::String(value) => factory.create_node(
-                source,
-                NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
-                    text: tsc_types::JsString::from_code_units(value.code_units()),
-                })),
-                TransformFlags::NONE,
-            )?,
+            EmitConstantValue::String(value) => {
+                let text = factory.push_text(
+                    source,
+                    tsc_types::JsString::from_code_units(value.code_units())
+                        .as_js()
+                        .as_bytes(),
+                )?;
+                factory.create_node(
+                    source,
+                    NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData {
+                        text,
+                    })),
+                    TransformFlags::NONE,
+                )?
+            }
             EmitConstantValue::Number(value) => {
                 let value = value.as_f64();
                 if value.is_nan() {
@@ -346,10 +357,12 @@ fn constant_substitute(
                     }
                 } else {
                     let magnitude = if value < 0.0 { -value } else { value };
+                    let text = factory
+                        .push_text(source, tsc_types::js_number_to_string(magnitude).as_bytes())?;
                     let literal = factory.create_node(
                         source,
                         NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
-                            text: tsc_types::js_number_to_string(magnitude),
+                            text,
                         })),
                         TransformFlags::NONE,
                     )?;

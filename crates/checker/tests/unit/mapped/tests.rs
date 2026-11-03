@@ -30,11 +30,11 @@ fn parameter_annotation_type(state: &mut CheckerState, name: &str) -> TypeId {
             .arena
             .node_ids()
             .find_map(|node| {
-                let NodeData::Parameter(parameter) = &source.arena.node(node).data else {
+                let NodeData::Parameter(parameter) = source.arena.node(node).data() else {
                     return None;
                 };
                 let declared_name = parameter.name?;
-                let NodeData::Identifier(identifier) = &source.arena.node(declared_name).data
+                let NodeData::Identifier(identifier) = source.arena.node(declared_name).data()
                 else {
                     return None;
                 };

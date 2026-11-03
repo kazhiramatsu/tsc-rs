@@ -54,11 +54,19 @@ fn node_text(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<Option<String>, TransformError> {
-    Ok(match &cx.arena().node(node)?.data {
+    Ok(match cx.arena().node(node)?.data() {
         NodeData::Identifier(data) => Some(data.text().to_owned()),
-        NodeData::StringLiteral(data) => data.text.as_str().map(str::to_owned),
-        NodeData::NoSubstitutionTemplateLiteral(data) => data.text.as_str().map(str::to_owned),
-        NodeData::NumericLiteral(data) => Some(data.text.clone()),
+        NodeData::StringLiteral(data) => cx
+            .arena()
+            .text_str(node.source(), data.text)?
+            .map(str::to_owned),
+        NodeData::NoSubstitutionTemplateLiteral(data) => cx
+            .arena()
+            .text_str(node.source(), data.text)?
+            .map(str::to_owned),
+        NodeData::NumericLiteral(data) => {
+            Some(cx.arena().text_utf8(node.source(), data.text)?.to_owned())
+        }
         _ => None,
     })
 }
@@ -68,7 +76,7 @@ fn is_require_call(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<bool, TransformError> {
-    let NodeData::CallExpression(data) = &cx.arena().node(node)?.data else {
+    let NodeData::CallExpression(data) = cx.arena().node(node)?.data() else {
         return Ok(false);
     };
     let Some(callee) = data
@@ -77,7 +85,7 @@ fn is_require_call(
     else {
         return Ok(false);
     };
-    if !matches!(&cx.arena().node(callee)?.data, NodeData::Identifier(name) if name.text() == "require")
+    if !matches!(cx.arena().node(callee)?.data(), NodeData::Identifier(name) if name.text() == "require")
     {
         return Ok(false);
     }
@@ -105,7 +113,7 @@ pub(crate) fn is_variable_declaration_initialized_to_require(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<bool, TransformError> {
-    let NodeData::VariableDeclaration(data) = &cx.arena().node(node)?.data else {
+    let NodeData::VariableDeclaration(data) = cx.arena().node(node)?.data() else {
         return Ok(false);
     };
     match data
@@ -129,7 +137,7 @@ impl DeclarationTransformer<'_> {
         let Some(input) = self.parent(cx, binary)? else {
             return Ok(());
         };
-        let right = match &cx.arena().node(binary)?.data {
+        let right = match cx.arena().node(binary)?.data() {
             NodeData::BinaryExpression(data) => data.right,
             _ => None,
         }
@@ -158,7 +166,7 @@ impl DeclarationTransformer<'_> {
         cx: &mut TransformationContext,
         node: TransformNode,
     ) -> Result<(), TransformError> {
-        let name_expression = match &cx.arena().node(node)?.data {
+        let name_expression = match cx.arena().node(node)?.data() {
             NodeData::BinaryExpression(data) => {
                 let left = data
                     .left
@@ -476,7 +484,10 @@ impl DeclarationTransformer<'_> {
             Self::contract("an export of an identifier needs an enclosing declaration")
         })?;
         self.check_entity_name_visibility(cx, right, enclosing)?;
-        let same_name = match (&cx.arena().node(right)?.data, &cx.arena().node(name)?.data) {
+        let same_name = match (
+            cx.arena().node(right)?.data(),
+            cx.arena().node(name)?.data(),
+        ) {
             (NodeData::Identifier(right), NodeData::Identifier(name)) => {
                 right.text() == name.text()
             }
@@ -501,7 +512,7 @@ impl DeclarationTransformer<'_> {
         name: &CjsName,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let source = input.source();
-        let class_name_text = match &cx.arena().node(class)?.data {
+        let class_name_text = match cx.arena().node(class)?.data() {
             NodeData::ClassExpression(data) => data
                 .name
                 .and_then(|name| cx.arena().node_ref(class.source(), name))
@@ -726,7 +737,7 @@ impl DeclarationTransformer<'_> {
         input: TransformNode,
     ) -> Result<VisitResult, TransformError> {
         let source = input.source();
-        let (name, initializer) = match &cx.arena().node(input)?.data {
+        let (name, initializer) = match cx.arena().node(input)?.data() {
             NodeData::VariableDeclaration(data) => (data.name, data.initializer),
             _ => (None, None),
         };
@@ -736,7 +747,7 @@ impl DeclarationTransformer<'_> {
         let (Some(name), Some(initializer)) = (name, initializer) else {
             return Ok(VisitResult::None);
         };
-        let argument = match &cx.arena().node(initializer)?.data {
+        let argument = match cx.arena().node(initializer)?.data() {
             NodeData::CallExpression(data) => data
                 .arguments
                 .and_then(|arguments| cx.arena().node_array_ref(source, arguments))
@@ -759,7 +770,7 @@ impl DeclarationTransformer<'_> {
             Some(TransformNode::new(source, argument)),
         )?
         .ok_or_else(|| Self::contract("a require call has no specifier"))?;
-        match &cx.arena().node(name)?.data {
+        match cx.arena().node(name)?.data() {
             NodeData::Identifier(_) => {
                 let mut factory = cx.factory()?;
                 let reference = factory.create_external_module_reference(source, specifier)?;
@@ -778,7 +789,7 @@ impl DeclarationTransformer<'_> {
                 let mut specifiers = Vec::new();
                 for element in elements {
                     let element = TransformNode::new(source, element);
-                    let NodeData::BindingElement(element_data) = &cx.arena().node(element)?.data
+                    let NodeData::BindingElement(element_data) = cx.arena().node(element)?.data()
                     else {
                         continue;
                     };
@@ -825,7 +836,7 @@ fn element_or_property_access_name(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<Option<TransformNode>, TransformError> {
-    Ok(match &cx.arena().node(node)?.data {
+    Ok(match cx.arena().node(node)?.data() {
         NodeData::PropertyAccessExpression(data) => data
             .name
             .and_then(|name| cx.arena().node_ref(node.source(), name))
@@ -860,7 +871,7 @@ fn binary_right(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<Option<TransformNode>, TransformError> {
-    Ok(match &cx.arena().node(node)?.data {
+    Ok(match cx.arena().node(node)?.data() {
         NodeData::BinaryExpression(data) => data
             .right
             .and_then(|right| cx.arena().node_ref(node.source(), right)),

@@ -174,14 +174,14 @@ impl Transformer for TopologyTransformer {
                 (vec![statement], false)
             }
             TopologyFixture::NoAsiParsed => {
-                let parsed_parentheses = match &context.arena().node(first)?.data {
+                let parsed_parentheses = match context.arena().node(first)?.data() {
                     NodeData::ReturnStatement(data) => data
                         .expression
                         .and_then(|expression| context.arena().node_ref(source, expression))
                         .expect("parsed return has an expression"),
                     _ => panic!("parsed no-ASI fixture starts with return"),
                 };
-                let inner = match &context.arena().node(parsed_parentheses)?.data {
+                let inner = match context.arena().node(parsed_parentheses)?.data() {
                     NodeData::ParenthesizedExpression(data) => data
                         .expression
                         .and_then(|expression| context.arena().node_ref(source, expression))
@@ -385,7 +385,7 @@ impl Transformer for TopologyTransformer {
                 let (call_data, call_flags, call_range) = {
                     let outer = context.arena().node(first)?;
                     let call = context.arena().node(parsed_call)?;
-                    let NodeData::CallExpression(data) = &call.data else {
+                    let NodeData::CallExpression(data) = call.data() else {
                         panic!("ASI container fixture starts with a call expression")
                     };
                     assert_eq!((outer.pos, outer.end), (call.pos, call.end));
@@ -601,14 +601,14 @@ impl Transformer for TopologyTransformer {
             TopologyFixture::YieldParentRetained => {
                 let function = first;
                 let yield_expression = generator_yield_expression(context, source, function);
-                let type_assertion = match &context.arena().node(yield_expression)?.data {
+                let type_assertion = match context.arena().node(yield_expression)?.data() {
                     NodeData::YieldExpression(data) => data
                         .expression
                         .and_then(|expression| context.arena().node_ref(source, expression))
                         .expect("yield fixture has an operand"),
                     _ => panic!("generator statement is a yield expression"),
                 };
-                let inner = match &context.arena().node(type_assertion)?.data {
+                let inner = match context.arena().node(type_assertion)?.data() {
                     NodeData::TypeAssertionExpression(data) => data
                         .expression
                         .and_then(|expression| context.arena().node_ref(source, expression))
@@ -665,7 +665,7 @@ fn source_file_statements(
     context: &TransformationContext,
     root: TransformNode,
 ) -> tsc_emitter::TransformNodeArray {
-    match &context.arena().node(root).expect("source-file root").data {
+    match context.arena().node(root).expect("source-file root").data() {
         NodeData::SourceFile(data) => data
             .statements
             .and_then(|statements| context.arena().node_array_ref(root.source(), statements))
@@ -706,7 +706,7 @@ fn expression_statement_expression(
         .arena()
         .node(statement)
         .expect("fixture statement")
-        .data
+        .data()
     {
         NodeData::ExpressionStatement(data) => data
             .expression
@@ -754,7 +754,7 @@ fn generator_yield_expression(
         .arena()
         .node(function)
         .expect("generator declaration")
-        .data
+        .data()
     {
         NodeData::FunctionDeclaration(data) => data
             .body
@@ -762,7 +762,7 @@ fn generator_yield_expression(
             .expect("generator fixture has a body"),
         _ => panic!("yield fixture contains a generator declaration"),
     };
-    let statements = match &context.arena().node(body).expect("generator body").data {
+    let statements = match context.arena().node(body).expect("generator body").data() {
         NodeData::Block(data) => data
             .statements
             .and_then(|statements| context.arena().node_array_ref(source, statements))
@@ -779,14 +779,14 @@ fn update_generator_yield_operand(
     yield_expression: TransformNode,
     operand: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    let body = match &context.arena().node(function)?.data {
+    let body = match context.arena().node(function)?.data() {
         NodeData::FunctionDeclaration(data) => data
             .body
             .and_then(|body| context.arena().node_ref(source, body))
             .expect("generator fixture has a body"),
         _ => panic!("yield fixture contains a generator declaration"),
     };
-    let body_statements = match &context.arena().node(body)?.data {
+    let body_statements = match context.arena().node(body)?.data() {
         NodeData::Block(data) => data
             .statements
             .and_then(|statements| context.arena().node_array_ref(source, statements))
@@ -795,7 +795,7 @@ fn update_generator_yield_operand(
     };
     let statement = first_statement(context, source, body_statements);
 
-    let mut yield_data = context.arena().node(yield_expression)?.data.clone();
+    let mut yield_data = context.arena().node(yield_expression)?.data().clone();
     match &mut yield_data {
         NodeData::YieldExpression(data) => data.expression = Some(operand.node()),
         _ => panic!("generator statement is a yield expression"),
@@ -817,7 +817,7 @@ fn update_generator_yield_operand(
     let updated_body_statements = context
         .factory()?
         .update_node_array(body_statements, vec![updated_statement])?;
-    let mut body_data = context.arena().node(body)?.data.clone();
+    let mut body_data = context.arena().node(body)?.data().clone();
     match &mut body_data {
         NodeData::Block(data) => data.statements = Some(updated_body_statements.array()),
         _ => unreachable!(),
@@ -827,7 +827,7 @@ fn update_generator_yield_operand(
         .factory()?
         .update_node(body, body_data, body_flags)?;
 
-    let mut function_data = context.arena().node(function)?.data.clone();
+    let mut function_data = context.arena().node(function)?.data().clone();
     match &mut function_data {
         NodeData::FunctionDeclaration(data) => data.body = Some(updated_body.node()),
         _ => unreachable!(),
@@ -899,7 +899,7 @@ fn replace_source_statements(
     } else {
         context.factory()?.create_node_array(source, statements)?
     };
-    let end_of_file_token = match &context.arena().node(root)?.data {
+    let end_of_file_token = match context.arena().node(root)?.data() {
         NodeData::SourceFile(data) => data.end_of_file_token,
         _ => unreachable!(),
     };

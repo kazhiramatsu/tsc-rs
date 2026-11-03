@@ -5,7 +5,7 @@
 //! the names of its ambient modules.
 
 use tsc_syntax::{JSDocComment, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
-use tsc_types::{JsString, NodeFlags};
+use tsc_types::{JsStr, JsString, NodeFlags};
 
 use crate::tree::{for_each_property, tsgo_kind, Property, Tree};
 
@@ -78,7 +78,7 @@ fn jsdoc_tags(file: &SourceFile, js_doc: Option<NodeArrayId>) -> Vec<NodeId> {
         .map(|list| file.arena.node_array(list).nodes)
         .unwrap_or_default()
     {
-        if let NodeData::JSDoc(data) = &file.arena.node(comment).data {
+        if let NodeData::JSDoc(data) = file.arena.node(comment).data() {
             tags.extend(
                 data.tags
                     .map(|list| file.arena.node_array(list).nodes)
@@ -91,7 +91,7 @@ fn jsdoc_tags(file: &SourceFile, js_doc: Option<NodeArrayId>) -> Vec<NodeId> {
 
 /// The tags of the comments before the end of the file.
 fn end_of_file_tags(file: &SourceFile) -> Vec<NodeId> {
-    let NodeData::SourceFile(data) = &file.arena.node(file.root).data else {
+    let NodeData::SourceFile(data) = file.arena.node(file.root).data() else {
         return Vec::new();
     };
     data.end_of_file_token
@@ -102,7 +102,7 @@ fn end_of_file_tags(file: &SourceFile) -> Vec<NodeId> {
 /// tsgo `collectModuleReferences` of a reparsed `@import` declaration: its
 /// module specifier, when the tag imports something.
 fn collect_import_tag_reference(file: &SourceFile, tag: NodeId, references: &mut ModuleReferences) {
-    let NodeData::JSDocImportTag(data) = &file.arena.node(tag).data else {
+    let NodeData::JSDocImportTag(data) = file.arena.node(tag).data() else {
         return;
     };
     if data.import_clause.is_none() {
@@ -121,7 +121,7 @@ fn is_javascript(file: &SourceFile) -> bool {
 
 /// The statements of a source file or a module block.
 pub(crate) fn statements(file: &SourceFile, id: NodeId) -> &[NodeId] {
-    let list = match &file.arena.node(id).data {
+    let list = match file.arena.node(id).data() {
         NodeData::SourceFile(data) => data.statements,
         NodeData::ModuleBlock(data) => data.statements,
         _ => None,
@@ -130,9 +130,9 @@ pub(crate) fn statements(file: &SourceFile, id: NodeId) -> &[NodeId] {
         .unwrap_or_default()
 }
 
-fn string_literal_text(file: &SourceFile, id: NodeId) -> Option<&JsString> {
-    match &file.arena.node(id).data {
-        NodeData::StringLiteral(literal) => Some(&literal.text),
+fn string_literal_text(file: &SourceFile, id: NodeId) -> Option<JsStr<'_>> {
+    match file.arena.node(id).data() {
+        NodeData::StringLiteral(literal) => Some(file.arena.text_js(literal.text)),
         _ => None,
     }
 }
@@ -146,15 +146,17 @@ fn collect_module_references(
 ) {
     let node = file.arena.node(id);
     // ast.IsAnyImportOrReExport and ast.GetExternalModuleName.
-    let module_name = match &node.data {
+    let module_name = match node.data() {
         NodeData::ImportDeclaration(import) => Some(import.module_specifier),
         NodeData::ExportDeclaration(export) => Some(export.module_specifier),
-        NodeData::ImportEqualsDeclaration(import) => Some(import.module_reference.and_then(
-            |reference| match &file.arena.node(reference).data {
-                NodeData::ExternalModuleReference(external) => external.expression,
-                _ => None,
-            },
-        )),
+        NodeData::ImportEqualsDeclaration(import) => {
+            Some(import.module_reference.and_then(|reference| {
+                match file.arena.node(reference).data() {
+                    NodeData::ExternalModuleReference(external) => external.expression,
+                    _ => None,
+                }
+            }))
+        }
         _ => None,
     };
     if let Some(module_name) = module_name {
@@ -169,7 +171,7 @@ fn collect_module_references(
         }
         return;
     }
-    let NodeData::ModuleDeclaration(declaration) = &node.data else {
+    let NodeData::ModuleDeclaration(declaration) = node.data() else {
         return;
     };
     let flags = NodeFlags::from_bits(node.flags);
@@ -177,8 +179,8 @@ fn collect_module_references(
         return;
     };
     let global = flags.contains(NodeFlags::GLOBAL_AUGMENTATION);
-    let name_text = match &file.arena.node(name).data {
-        NodeData::StringLiteral(literal) => literal.text.clone(),
+    let name_text = match file.arena.node(name).data() {
+        NodeData::StringLiteral(literal) => file.arena.text_js(literal.text).to_owned(),
         NodeData::Identifier(identifier) if global => {
             JsString::from(identifier.escaped_text.unescape())
         }
@@ -210,8 +212,8 @@ fn collect_module_references(
 }
 
 /// tsgo `tspath.IsExternalModuleNameRelative`: `.`/`..`-relative or rooted.
-pub(crate) fn is_external_module_name_relative(name: &JsString) -> bool {
-    let bytes = name.as_bytes();
+pub(crate) fn is_external_module_name_relative<'n>(name: impl Into<JsStr<'n>>) -> bool {
+    let bytes = name.into().as_bytes();
     let relative = matches!(bytes, b"." | b"..")
         || matches!(bytes, [b'.', b'/' | b'\\', ..])
         || matches!(bytes, [b'.', b'.', b'/' | b'\\', ..]);
@@ -231,7 +233,7 @@ fn for_each_dynamic_import_or_require_call(file: &SourceFile, mut found: impl Fn
     while let Some((at, size)) = find_import_or_require(text, index) {
         let node_id = node_at_position(file, at as u32, javascript);
         let node = file.arena.node(node_id);
-        match &node.data {
+        match node.data() {
             NodeData::CallExpression(call) => {
                 let arguments = call
                     .arguments
@@ -241,7 +243,7 @@ fn for_each_dynamic_import_or_require_call(file: &SourceFile, mut found: impl Fn
                 let require = javascript
                     && arguments.len() == 1
                     && callee.is_some_and(|callee| {
-                        matches!(&callee.data, NodeData::Identifier(identifier) if identifier.escaped_text == "require")
+                        matches!(callee.data(), NodeData::Identifier(identifier) if identifier.escaped_text == "require")
                     });
                 let import = tsc_syntax::utilities::is_import_call(&file.arena, node_id);
                 if let Some(&argument) = arguments.first() {
@@ -257,7 +259,7 @@ fn for_each_dynamic_import_or_require_call(file: &SourceFile, mut found: impl Fn
             NodeData::ImportType(import) => {
                 // ast.IsLiteralImportTypeNode.
                 if let Some(argument) = import.argument {
-                    if let NodeData::LiteralType(literal) = &file.arena.node(argument).data {
+                    if let NodeData::LiteralType(literal) = file.arena.node(argument).data() {
                         if let Some(literal) = literal.literal {
                             if file.arena.node(literal).kind == SyntaxKind::StringLiteral {
                                 found(literal);
@@ -349,7 +351,7 @@ fn node_at_position(file: &SourceFile, position: u32, include_js_doc: bool) -> N
         // which follow the statements.
         if child.is_none() && include_js_doc && current == file.root {
             child = end_of_file_tags(file).into_iter().find(|&tag| {
-                let type_expression = match &file.arena.node(tag).data {
+                let type_expression = match file.arena.node(tag).data() {
                     NodeData::JSDocTypedefTag(data) => data.type_expression,
                     NodeData::JSDocCallbackTag(data) => data.type_expression,
                     _ => None,

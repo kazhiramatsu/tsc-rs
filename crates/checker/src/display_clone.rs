@@ -200,28 +200,30 @@ impl DisplayClonePrinter<'_, '_> {
         let NodeData::NumericLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(data.text.clone().into()))
+        Ok(Some(crate::annotate::published_text_utf8(data.text).into()))
     }
 
     fn bigint_literal(&self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::BigIntLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(data.text.clone().into()))
+        Ok(Some(crate::annotate::published_text_utf8(data.text).into()))
     }
 
     fn string_literal(&self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::StringLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(quoted_string(&data.text).into()))
+        Ok(Some(
+            quoted_string(crate::annotate::published_text_js(data.text)).into(),
+        ))
     }
 
     fn regular_expression_literal(&self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::RegularExpressionLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(data.text.clone().into()))
+        Ok(Some(crate::annotate::published_text_utf8(data.text).into()))
     }
 
     fn no_substitution_template_literal(&self, node: NodeId) -> CheckResult<Option<JsString>> {
@@ -230,8 +232,8 @@ impl DisplayClonePrinter<'_, '_> {
         };
         let raw = data
             .raw_text
-            .clone()
-            .unwrap_or_else(|| template_text_raw(&data.text));
+            .map(|raw| crate::annotate::published_text_utf8(raw).to_owned())
+            .unwrap_or_else(|| template_text_raw(crate::annotate::published_text_js(data.text)));
         Ok(Some(crate::concat_js(&[&"`", &(raw), &"`"])))
     }
 
@@ -977,7 +979,8 @@ impl DisplayClonePrinter<'_, '_> {
         };
         let raw = head
             .raw_text
-            .unwrap_or_else(|| template_text_raw(&head.text));
+            .map(|raw| crate::annotate::published_text_utf8(raw).to_owned())
+            .unwrap_or_else(|| template_text_raw(crate::annotate::published_text_js(head.text)));
         let mut text = crate::concat_js(&[&"`", &(raw)]);
         let (spans, _) = self.node_array(data.template_spans);
         for span in spans {
@@ -998,10 +1001,16 @@ impl DisplayClonePrinter<'_, '_> {
             let raw = match self.state.data_of(literal).clone() {
                 NodeData::TemplateMiddle(data) => data
                     .raw_text
-                    .unwrap_or_else(|| template_text_raw(&data.text)),
+                    .map(|raw| crate::annotate::published_text_utf8(raw).to_owned())
+                    .unwrap_or_else(|| {
+                        template_text_raw(crate::annotate::published_text_js(data.text))
+                    }),
                 NodeData::TemplateTail(data) => data
                     .raw_text
-                    .unwrap_or_else(|| template_text_raw(&data.text)),
+                    .map(|raw| crate::annotate::published_text_utf8(raw).to_owned())
+                    .unwrap_or_else(|| {
+                        template_text_raw(crate::annotate::published_text_js(data.text))
+                    }),
                 _ => return Ok(None),
             };
             text.push_js(("${").into());
@@ -1230,7 +1239,9 @@ impl DisplayClonePrinter<'_, '_> {
                 })
             }
             NodeData::JsxNamespacedName(_) => Ok(self.jsx_attribute_name(node)),
-            NodeData::JsxText(data) => Ok(Some(data.text.into())),
+            NodeData::JsxText(data) => {
+                Ok(Some(crate::annotate::published_text_utf8(data.text).into()))
+            }
             NodeData::Token if self.state.kind_of(node) == SyntaxKind::JsxOpeningFragment => {
                 Ok(Some(JsString::from("<>")))
             }
@@ -1255,7 +1266,9 @@ impl DisplayClonePrinter<'_, '_> {
 
     fn jsx_attribute_value(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         if let NodeData::StringLiteral(data) = self.state.data_of(node) {
-            return Ok(Some(quoted_jsx_attribute(&data.text)));
+            return Ok(Some(quoted_jsx_attribute(
+                crate::annotate::published_text_js(data.text),
+            )));
         }
         match self.state.kind_of(node) {
             SyntaxKind::JsxExpression
@@ -1714,7 +1727,8 @@ impl DisplayClonePrinter<'_, '_> {
             return false;
         };
         let node = Published.node(node);
-        node.numeric_literal_flags() & 448 == 0 && !data.text.contains(['.', 'e', 'E'])
+        node.numeric_literal_flags() & 448 == 0
+            && !crate::annotate::published_text_utf8(data.text).contains(['.', 'e', 'E'])
     }
 
     fn is_optional_chain(&self, node: NodeId) -> bool {

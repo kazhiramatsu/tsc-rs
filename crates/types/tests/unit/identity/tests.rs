@@ -8,6 +8,7 @@ fn small_domain() -> IdentityDomain {
         private_name_serial_end: 17,
         node_array_item_end: 16,
         type_end: 16,
+        node_text_end: 16,
     })
     .unwrap()
 }

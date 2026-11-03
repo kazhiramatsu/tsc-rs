@@ -40,8 +40,10 @@ HEADER = (
 # The Rust type and missing() value of a text field, by the layout's
 # stringTypes name; a text field the layout does not list is a `String`.
 STRING_TYPES = {
-    "String": ("String", "String::new()"),
-    "JsString": ("tsc_types::JsString", "tsc_types::JsString::new()"),
+    # A literal text is an identity in the tree's text store (`TextId`); the
+    # layout name still says whether its bytes may hold a lone surrogate.
+    "String": ("TextId", "TextId::EMPTY"),
+    "JsString": ("TextId", "TextId::EMPTY"),
     "EscapedName": (
         "tsc_types::EscapedName",
         'tsc_types::EscapedName::from_identifier_escaped_text("")',
@@ -90,11 +92,18 @@ class Field:
             "NodeArray": "NodeArrayId::default()",
             "Bool": "false",
             "SyntaxKind": f"SyntaxKind::{kind}",
-            "JSDocComment": "JSDocComment::Text { text: String::new(), pos: 0, end: 0, text_end: 0 }",
+            "JSDocComment": "JSDocComment::Text { text: TextId::EMPTY, pos: 0, end: 0, text_end: 0 }",
         }[self.ty]
 
+    def is_text(self):
+        """A literal text held as a `TextId` (an identifier's name is an `EscapedName`)."""
+        return self.ty == "String" and self.string_type in ("String", "JsString")
+
+    def walk_type(self):
+        return "Text" if self.is_text() else self.ty
+
     def is_identity(self):
-        return self.ty in ("Node", "NodeArray", "JSDocComment")
+        return self.ty in ("Node", "NodeArray", "JSDocComment") or self.is_text()
 
 
 class Kind:
@@ -260,7 +269,7 @@ VISIT_ORDER_CONDITIONS = {
 # ---------------------------------------------------------------------------
 # nodes.rs
 
-NODES_PRELUDE = r'''pub use crate::ids::{NodeArrayId, NodeId};
+NODES_PRELUDE = r'''pub use crate::ids::{NodeArrayId, NodeId, TextId};
 use crate::SyntaxKind;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -269,7 +278,7 @@ pub enum JSDocComment {
     /// as a list of one JSDocText: `pos..end` is that list's range and
     /// `pos..text_end` the JSDocText's.
     Text {
-        text: String,
+        text: TextId,
         pos: u32,
         end: u32,
         text_end: u32,
@@ -348,7 +357,11 @@ pub struct Node {
     pub js_doc: Option<NodeArrayId>,
     /// tsc Node.transformFlags lives beside the records in `NodeArena`,
     /// written only on an emit session's copy of a tree.
-    pub data: NodeData,
+    ///
+    /// The payload, read through [`Node::data`] and replaced through
+    /// [`Node::set_data`]: the record's layout is the generator's, so no
+    /// reader names the field.
+    data: NodeData,
 }
 
 // A large Program holds tens of millions of node records, so their size
@@ -388,6 +401,48 @@ impl crate::for_each_child::NodeLookup for Published {
     fn node_array(&self, id: NodeArrayId) -> NodeArray<'_> {
         published_node_array(id)
     }
+
+    #[inline(always)]
+    fn text(&self, id: TextId) -> &[u8] {
+        published_text(id)
+    }
+
+    #[inline(always)]
+    fn text_str(&self, id: TextId) -> Option<&str> {
+        published_text_str(id)
+    }
+}
+
+/// The bytes of literal text `id` of a published tree (see [`published_node`]).
+#[inline]
+pub fn published_text(id: TextId) -> &'static [u8] {
+    if id == TextId::EMPTY {
+        return &[];
+    }
+    tsc_store::texts::published_text(id.position())
+}
+
+/// Literal text `id` of a published tree as a `str`, unless its bytes are not
+/// UTF-8 (a string literal's value with a lone surrogate).
+#[inline]
+pub fn published_text_str(id: TextId) -> Option<&'static str> {
+    if id == TextId::EMPTY {
+        return Some("");
+    }
+    tsc_store::texts::published_text_str(id.position())
+}
+
+/// Literal text `id` of a published tree as a JavaScript string view.
+#[inline]
+pub fn published_text_js(id: TextId) -> tsc_types::JsStr<'static> {
+    tsc_types::JsStr::from_canonical_bytes(published_text(id))
+}
+
+/// Literal text `id` of a published tree, UTF-8 by construction (every text
+/// field but a string literal's or template's value).
+#[inline]
+pub fn published_text_utf8(id: TextId) -> &'static str {
+    published_text_str(id).expect("a UTF-8 literal text")
 }
 
 /// The array `id` of a published tree (see [`published_node`]).
@@ -433,6 +488,39 @@ fn tri_state_bits(value: Option<bool>) -> u16 {
 }
 
 impl Node {
+    /// A fresh record: `kind` and `data` at `pos..end` with `flags`, no
+    /// parent, no JSDoc and no literal facts yet.
+    pub(crate) fn new(kind: SyntaxKind, data: NodeData, pos: u32, end: u32, flags: i32) -> Self {
+        Node {
+            kind,
+            literal_flags: 0,
+            flags,
+            pos,
+            end,
+            parent: None,
+            js_doc: None,
+            data,
+        }
+    }
+
+    /// The node's payload.
+    #[inline(always)]
+    pub fn data(&self) -> &NodeData {
+        &self.data
+    }
+
+    /// The node's payload for editing in place.
+    #[inline(always)]
+    pub fn data_mut(&mut self) -> &mut NodeData {
+        &mut self.data
+    }
+
+    /// Replace the node's payload.
+    #[inline]
+    pub fn set_data(&mut self, data: NodeData) {
+        self.data = data;
+    }
+
     /// This record's scalar facts with another payload: a probe for the
     /// emitter's flag classifier that clones no payload of its own.
     pub fn with_data(&self, data: NodeData) -> Node {
@@ -587,12 +675,31 @@ def render_nodes_rs(kinds, layout):
 # ---------------------------------------------------------------------------
 # for_each_child.rs
 
-FOR_EACH_CHILD_PRELUDE = r'''use crate::nodes::{JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId};
+FOR_EACH_CHILD_PRELUDE = r'''use crate::nodes::{JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId, TextId};
 use crate::SyntaxKind;
 
 pub trait NodeLookup {
     fn node(&self, id: NodeId) -> &Node;
     fn node_array(&self, id: NodeArrayId) -> NodeArray<'_>;
+    /// The bytes of literal text `id`: canonical WTF-8, UTF-8 unless the text
+    /// is a string literal's value with a lone surrogate.
+    fn text(&self, id: TextId) -> &[u8];
+    /// Literal text `id` as a `str`, unless its bytes are not UTF-8.
+    fn text_str(&self, id: TextId) -> Option<&str>;
+
+    /// Literal text `id` as a JavaScript string view (a string literal's value
+    /// may hold lone surrogates).
+    #[inline]
+    fn text_js(&self, id: TextId) -> tsc_types::JsStr<'_> {
+        tsc_types::JsStr::from_canonical_bytes(self.text(id))
+    }
+
+    /// A literal text that is UTF-8 by construction: every text field but a
+    /// string literal's or template's value.
+    #[inline]
+    fn text_utf8(&self, id: TextId) -> &str {
+        self.text_str(id).expect("a UTF-8 literal text")
+    }
 }
 '''
 
@@ -848,7 +955,7 @@ def render_children(kind, out, line, node_kind):
 def render_for_each_child_rs(kinds):
     out = [HEADER, "", FOR_EACH_CHILD_PRELUDE]
     out.append("pub fn for_each_child<L, F>(lookup: &L, node: &Node, mut cb: F) -> Option<NodeId>")
-    out += ["where", "L: NodeLookup,", "F: FnMut(NodeId) -> bool,", "{", "match &node.data {"]
+    out += ["where", "L: NodeLookup,", "F: FnMut(NodeId) -> bool,", "{", "match node.data() {"]
     out.append("NodeData::Token => None,")
     for kind in kinds:
         if not kind.children:
@@ -860,7 +967,7 @@ def render_for_each_child_rs(kinds):
     out += ["}", "}", ""]
 
     out.append("pub fn for_each_child_array<F>(node: &Node, mut cb: F) -> Option<NodeArrayId>")
-    out += ["where", "F: FnMut(NodeArrayId) -> bool,", "{", "match &node.data {"]
+    out += ["where", "F: FnMut(NodeArrayId) -> bool,", "{", "match node.data() {"]
     out.append("NodeData::Token => None,")
     for kind in kinds:
         arrays = [
@@ -957,7 +1064,7 @@ def render_for_each_child_rs(kinds):
 # relocate.rs
 
 RELOCATE_PRELUDE = r'''use crate::arena::SyntaxIdentityRelocation;
-use crate::nodes::{JSDocComment, NodeArrayId, NodeData, NodeId};
+use crate::nodes::{JSDocComment, NodeArrayId, NodeData, NodeId, TextId};
 use tsc_types::IdentityError;
 '''
 
@@ -983,23 +1090,47 @@ where
     }
 }
 
-fn jsdoc_comment_equal<A>(left: &JSDocComment, right: &JSDocComment, array: &mut A) -> bool
+fn optional_text_equal<T>(left: Option<TextId>, right: Option<TextId>, text: &mut T) -> bool
 where
-    A: FnMut(NodeArrayId, NodeArrayId) -> bool,
+    T: FnMut(TextId, TextId) -> bool,
 {
     match (left, right) {
-        (left @ JSDocComment::Text { .. }, right @ JSDocComment::Text { .. }) => left == right,
+        (Some(left), Some(right)) => text(left, right),
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+fn jsdoc_comment_equal<A, T>(left: &JSDocComment, right: &JSDocComment, array: &mut A, text: &mut T) -> bool
+where
+    A: FnMut(NodeArrayId, NodeArrayId) -> bool,
+    T: FnMut(TextId, TextId) -> bool,
+{
+    match (left, right) {
+        (
+            JSDocComment::Text { text: left_text, pos: left_pos, end: left_end, text_end: left_text_end },
+            JSDocComment::Text { text: right_text, pos: right_pos, end: right_end, text_end: right_text_end },
+        ) => {
+            (left_pos, left_end, left_text_end) == (right_pos, right_end, right_text_end)
+                && text(*left_text, *right_text)
+        }
         (JSDocComment::Nodes(left), JSDocComment::Nodes(right)) => array(*left, *right),
         _ => false,
     }
 }
 
-fn optional_jsdoc_comment_equal<A>(left: Option<&JSDocComment>, right: Option<&JSDocComment>, array: &mut A) -> bool
+fn optional_jsdoc_comment_equal<A, T>(
+    left: Option<&JSDocComment>,
+    right: Option<&JSDocComment>,
+    array: &mut A,
+    text: &mut T,
+) -> bool
 where
     A: FnMut(NodeArrayId, NodeArrayId) -> bool,
+    T: FnMut(TextId, TextId) -> bool,
 {
     match (left, right) {
-        (Some(left), Some(right)) => jsdoc_comment_equal(left, right, array),
+        (Some(left), Some(right)) => jsdoc_comment_equal(left, right, array, text),
         (None, None) => true,
         _ => false,
     }
@@ -1009,16 +1140,22 @@ where
 # Per identity-field statements: (type, Rust optional) -> template over the
 # field's Rust name, for relocation, collection and remapping.
 RELOCATE_FIELD = {
+    ("Text", True): "if let Some(id) = &mut data.{0} {{ relocation.text(id)?; }}",
+    ("Text", False): "relocation.text(&mut data.{0})?;",
     ("Node", True): "if let Some(id) = &mut data.{0} {{ relocation.node(id)?; }}",
     ("Node", False): "relocation.node(&mut data.{0})?;",
     ("NodeArray", True): "if let Some(id) = &mut data.{0} {{ relocation.node_array(id)?; }}",
     ("NodeArray", False): "relocation.node_array(&mut data.{0})?;",
     ("JSDocComment", True):
-        "if let Some(JSDocComment::Nodes(id)) = &mut data.{0} {{ relocation.node_array(id)?; }}",
+        "match &mut data.{0} {{ Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?, "
+        "Some(JSDocComment::Text {{ text, .. }}) => relocation.text(text)?, None => {{}} }}",
     ("JSDocComment", False):
-        "if let JSDocComment::Nodes(id) = &mut data.{0} {{ relocation.node_array(id)?; }}",
+        "match &mut data.{0} {{ JSDocComment::Nodes(id) => relocation.node_array(id)?, "
+        "JSDocComment::Text {{ text, .. }} => relocation.text(text)?, }}",
 }
 COLLECT_FIELD = {
+    ("Text", True): "",
+    ("Text", False): "",
     ("Node", True): "if let Some(id) = data.{0} {{ nodes.push(id); }}",
     ("Node", False): "nodes.push(data.{0});",
     ("NodeArray", True): "if let Some(id) = data.{0} {{ arrays.push(id); }}",
@@ -1027,30 +1164,43 @@ COLLECT_FIELD = {
     ("JSDocComment", False): "if let JSDocComment::Nodes(id) = &data.{0} {{ arrays.push(*id); }}",
 }
 REMAP_FIELD = {
+    ("Text", True): "if let Some(id) = &mut data.{0} {{ *id = text(*id); }}",
+    ("Text", False): "data.{0} = text(data.{0});",
     ("Node", True): "if let Some(id) = &mut data.{0} {{ *id = node(*id); }}",
     ("Node", False): "data.{0} = node(data.{0});",
     ("NodeArray", True): "if let Some(id) = &mut data.{0} {{ *id = array(*id); }}",
     ("NodeArray", False): "data.{0} = array(data.{0});",
-    ("JSDocComment", True): "if let Some(JSDocComment::Nodes(id)) = &mut data.{0} {{ *id = array(*id); }}",
-    ("JSDocComment", False): "if let JSDocComment::Nodes(id) = &mut data.{0} {{ *id = array(*id); }}",
+    ("JSDocComment", True):
+        "match &mut data.{0} {{ Some(JSDocComment::Nodes(id)) => *id = array(*id), "
+        "Some(JSDocComment::Text {{ text: id, .. }}) => *id = text(*id), None => {{}} }}",
+    ("JSDocComment", False):
+        "match &mut data.{0} {{ JSDocComment::Nodes(id) => *id = array(*id), "
+        "JSDocComment::Text {{ text: id, .. }} => *id = text(*id), }}",
 }
 EQUAL_FIELD = {
+    ("Text", True): "optional_text_equal(left.{0}, right.{0}, &mut text)",
+    ("Text", False): "text(left.{0}, right.{0})",
     ("Node", True): "optional_node_equal(left.{0}, right.{0}, &mut node)",
     ("Node", False): "node(left.{0}, right.{0})",
     ("NodeArray", True): "optional_array_equal(left.{0}, right.{0}, &mut array)",
     ("NodeArray", False): "array(left.{0}, right.{0})",
-    ("JSDocComment", True): "optional_jsdoc_comment_equal(left.{0}.as_ref(), right.{0}.as_ref(), &mut array)",
-    ("JSDocComment", False): "jsdoc_comment_equal(&left.{0}, &right.{0}, &mut array)",
+    ("JSDocComment", True):
+        "optional_jsdoc_comment_equal(left.{0}.as_ref(), right.{0}.as_ref(), &mut array, &mut text)",
+    ("JSDocComment", False): "jsdoc_comment_equal(&left.{0}, &right.{0}, &mut array, &mut text)",
 }
 
 
 def render_identity_walk(kinds, out, templates, finish):
     for kind in kinds:
         fields = [field for field in kind.fields if field.is_identity()]
-        binding = "data" if fields else "_data"
+        lines = [
+            templates[(field.walk_type(), field.rust_optional)].format(field.rust_name)
+            for field in fields
+        ]
+        lines = [line for line in lines if line]
+        binding = "data" if lines else "_data"
         out.append(f"NodeData::{kind.name}({binding}) => {{")
-        for field in fields:
-            out.append(templates[(field.ty, field.rust_optional)].format(field.rust_name))
+        out += lines
         out += finish
         out.append("}")
 
@@ -1073,18 +1223,40 @@ def render_relocate_rs(kinds):
     render_identity_walk(kinds, out, COLLECT_FIELD, [])
     out += ["}", "}", ""]
 
-    out.append("pub(crate) fn remap_node_data_ids<N, A>(data: &mut NodeData, mut node: N, mut array: A)")
-    out += ["where", "N: FnMut(NodeId) -> NodeId,", "A: FnMut(NodeArrayId) -> NodeArrayId,", "{"]
+    out.append(
+        "/// Rewrite each identity of `data` (child nodes, node arrays, literal texts) through the three maps:"
+    )
+    out.append("/// a payload copied into another tree names that tree's nodes and texts.")
+    out.append(
+        "pub fn remap_node_data_ids<N, A, T>(data: &mut NodeData, mut node: N, mut array: A, mut text: T)"
+    )
+    out += [
+        "where",
+        "N: FnMut(NodeId) -> NodeId,",
+        "A: FnMut(NodeArrayId) -> NodeArrayId,",
+        "T: FnMut(TextId) -> TextId,",
+        "{",
+    ]
     out += ["match data {", "NodeData::Token => {}"]
     render_identity_walk(kinds, out, REMAP_FIELD, [])
     out += ["}", "}", ""]
 
     out.append(EQUALITY_HELPERS)
     out.append(
-        "pub(crate) fn node_data_structurally_equal<N, A>(left: &NodeData, right: &NodeData, "
-        "mut node: N, mut array: A) -> bool"
+        "/// Whether two payloads are equal field by field, their identities compared through the three"
     )
-    out += ["where", "N: FnMut(NodeId, NodeId) -> bool,", "A: FnMut(NodeArrayId, NodeArrayId) -> bool,", "{"]
+    out.append("/// closures (a copied tree's ids differ; a text compares by content through `text`).")
+    out.append(
+        "pub fn node_data_structurally_equal<N, A, T>(left: &NodeData, right: &NodeData, "
+        "mut node: N, mut array: A, mut text: T) -> bool"
+    )
+    out += [
+        "where",
+        "N: FnMut(NodeId, NodeId) -> bool,",
+        "A: FnMut(NodeArrayId, NodeArrayId) -> bool,",
+        "T: FnMut(TextId, TextId) -> bool,",
+        "{",
+    ]
     out += ["match (left, right) {", "(NodeData::Token, NodeData::Token) => true,"]
     for kind in kinds:
         left, right = ("left", "right") if kind.fields else ("_", "_")
@@ -1092,7 +1264,7 @@ def render_relocate_rs(kinds):
         if not kind.fields:
             out.append("true")
         for index, field in enumerate(field for field in kind.fields if field.compared):
-            template = EQUAL_FIELD.get((field.ty, field.rust_optional), "left.{0} == right.{0}")
+            template = EQUAL_FIELD.get((field.walk_type(), field.rust_optional), "left.{0} == right.{0}")
             expression = template.format(field.rust_name)
             out.append(expression if index == 0 else f"&& {expression}")
         out.append("}")
@@ -1103,7 +1275,8 @@ def render_relocate_rs(kinds):
 # ---------------------------------------------------------------------------
 # observable_fields.rs
 
-OBSERVABLE_PRELUDE = r'''use crate::nodes::{JSDocComment, Node, NodeArrayId, NodeData, NodeId};
+OBSERVABLE_PRELUDE = r'''use crate::for_each_child::NodeLookup;
+use crate::nodes::{JSDocComment, Node, NodeArrayId, NodeData, NodeId, TextId};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ObservableField<'a> {
@@ -1115,20 +1288,26 @@ pub enum ObservableField<'a> {
 }
 '''
 
-EMIT_JSDOC_COMMENT = r'''fn emit_jsdoc_comment<'a, F>(name: &'static str, value: &'a JSDocComment, cb: &mut F)
+EMIT_JSDOC_COMMENT = r'''/// A UTF-8 literal text (every text field but a string literal's value).
+fn utf8_text<L: NodeLookup>(lookup: &L, id: TextId) -> &str {
+    lookup.text_str(id).expect("a UTF-8 literal text")
+}
+
+fn emit_jsdoc_comment<'a, L, F>(lookup: &'a L, name: &'static str, value: &JSDocComment, cb: &mut F)
 where
+    L: NodeLookup,
     F: FnMut(&'static str, ObservableField<'a>),
 {
     match value {
-        JSDocComment::Text { text, .. } => cb(name, ObservableField::String(text)),
+        JSDocComment::Text { text, .. } => cb(name, ObservableField::String(utf8_text(lookup, *text))),
         JSDocComment::Nodes(nodes) => cb(name, ObservableField::NodeArray(*nodes)),
     }
 }'''
 
 # The text view of a required text field, by its Rust type.
 OBSERVE_TEXT = {
-    "String": "ObservableField::String(&data.{0})",
-    "JsString": "ObservableField::JsString(data.{0}.as_js())",
+    "String": "ObservableField::String(utf8_text(lookup, data.{0}))",
+    "JsString": "ObservableField::JsString(tsc_types::JsStr::from_canonical_bytes(lookup.text(data.{0})))",
     "EscapedName": "ObservableField::String(data.{0}.identifier_text())",
 }
 
@@ -1141,13 +1320,16 @@ def render_observable_field(field):
         return None
     if field.ty == "JSDocComment":
         if field.rust_optional:
-            return f"if let Some(value) = data.{name}.as_ref() {{ emit_jsdoc_comment({key}, value, &mut cb); }}"
-        return f"emit_jsdoc_comment({key}, &data.{name}, &mut cb);"
+            return (
+                f"if let Some(value) = data.{name}.as_ref() "
+                f"{{ emit_jsdoc_comment(lookup, {key}, value, &mut cb); }}"
+            )
+        return f"emit_jsdoc_comment(lookup, {key}, &data.{name}, &mut cb);"
     if field.ty == "String":
         if field.rust_optional:
             return (
-                f"if let Some(value) = data.{name}.as_deref() "
-                f"{{ cb({key}, ObservableField::String(value)); }}"
+                f"if let Some(value) = data.{name} "
+                f"{{ cb({key}, ObservableField::String(utf8_text(lookup, value))); }}"
             )
         return f"cb({key}, {OBSERVE_TEXT[field.string_type].format(name)});"
     variant = {"Node": "Node", "NodeArray": "NodeArray", "Bool": "Bool"}[field.ty]
@@ -1158,8 +1340,8 @@ def render_observable_field(field):
 
 def render_observable_fields_rs(kinds):
     out = [HEADER, "", OBSERVABLE_PRELUDE]
-    out.append("pub fn for_each_observable_field<'a, F>(node: &'a Node, mut cb: F)")
-    out += ["where", "F: FnMut(&'static str, ObservableField<'a>),", "{", "match &node.data {"]
+    out.append("pub fn for_each_observable_field<'a, L, F>(lookup: &'a L, node: &'a Node, mut cb: F)")
+    out += ["where", "L: NodeLookup,", "F: FnMut(&'static str, ObservableField<'a>),", "{", "match node.data() {"]
     out.append("NodeData::Token => {}")
     for kind in kinds:
         fields = sorted(

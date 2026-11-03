@@ -431,7 +431,7 @@ impl<'a> Tree<'a> {
             hash.u32(node.end);
             hash.i32(node.flags);
             hash.u16(node.literal_flags);
-            hash.u16(node.data.kind().map_or(u16::MAX, |kind| kind as u16));
+            hash.u16(node.data().kind().map_or(u16::MAX, |kind| kind as u16));
             // The recorded parent, and whether it is the walk's parent.
             let parent = self.opt_node_ref(node.parent);
             hash.u32(parent);
@@ -443,7 +443,7 @@ impl<'a> Tree<'a> {
                 }
                 None => hash.u8(0),
             }
-            for_each_observable_field(node, |name, field| {
+            for_each_observable_field(&source.arena, node, |name, field| {
                 hash.str(name);
                 match field {
                     ObservableField::Node(child) => {
@@ -468,7 +468,7 @@ impl<'a> Tree<'a> {
                     }
                 }
             });
-            if let Some(kind) = syntax_kind_field(&node.data) {
+            if let Some(kind) = syntax_kind_field(node.data()) {
                 hash.u8(b'K');
                 hash.u16(kind as u16);
             }
@@ -477,10 +477,10 @@ impl<'a> Tree<'a> {
                 pos,
                 end,
                 text_end,
-            }) = jsdoc_comment(&node.data)
+            }) = jsdoc_comment(node.data())
             {
                 hash.u8(b'C');
-                hash.str(text);
+                hash.str(source.arena.text_utf8(*text));
                 hash.u32(*pos);
                 hash.u32(*end);
                 hash.u32(*text_end);

@@ -284,10 +284,13 @@ fn explicit_walk_matches_the_reference_with_shared_children_and_a_back_edge() {
             none,
         );
         let outer_array = syntax.alloc_array(&[shared, shared, inner], 0, 0, false);
-        syntax.node_mut(parent).data =
-            NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
-                elements: Some(outer_array),
-            });
+        syntax
+            .node_mut(parent)
+            .set_data(NodeData::ArrayLiteralExpression(
+                ArrayLiteralExpressionData {
+                    elements: Some(outer_array),
+                },
+            ));
         (parent, inner, shared, leaf, outer_array, inner_array)
     };
     let mut explicit = TransformArena::new();

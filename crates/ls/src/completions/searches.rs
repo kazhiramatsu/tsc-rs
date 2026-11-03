@@ -1197,7 +1197,9 @@ impl Completions<'_, '_, '_> {
             | SyntaxKind::BigIntLiteral => node_util::literal_text_of(source, name)
                 .map(|text| text.to_string_lossy().into_owned())
                 .or_else(|| match self.data(name) {
-                    NodeData::BigIntLiteral(data) => Some(data.text.clone()),
+                    NodeData::BigIntLiteral(data) => {
+                        Some(tsc_syntax::published_text_utf8(data.text).to_owned())
+                    }
                     _ => None,
                 })
                 .unwrap_or_default(),

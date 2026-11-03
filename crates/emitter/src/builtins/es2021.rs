@@ -354,7 +354,7 @@ impl<'context> TargetVisitor<'context> {
         // The payload is cloned only for a node an arm below consumes; every
         // other node maps its children from a slot snapshot.
         let specialized = {
-            let data = &self.context.arena().node(original)?.data;
+            let data = self.context.arena().node(original)?.data();
             matches!(
                 data,
                 NodeData::Token
@@ -382,7 +382,7 @@ impl<'context> TargetVisitor<'context> {
             return Ok(transformed);
         }
         let record = self.context.arena().node(original)?.clone();
-        let transformed = match record.data {
+        let transformed = match record.data().clone() {
             NodeData::BinaryExpression(data) => Some(self.visit_binary_expression(original, data)?),
             NodeData::CallExpression(data) if self.pass == TargetPass::Es2020 => Some(
                 self.visit_non_optional_call_expression(original, data, false)?
@@ -477,7 +477,7 @@ impl<'context> TargetVisitor<'context> {
         let right = self.skip_parentheses(right)?;
         let mut assignment_target = left;
 
-        match self.context.arena().node(left)?.data.clone() {
+        match self.context.arena().node(left)?.data().clone() {
             NodeData::PropertyAccessExpression(access) => {
                 let receiver = access
                     .expression
@@ -551,7 +551,7 @@ impl<'context> TargetVisitor<'context> {
     ) -> Result<NodeId, TransformError> {
         let left = self.visit_required(data.left, SyntaxKind::BinaryExpression, "left")?;
         let right = self.visit_required(data.right, SyntaxKind::BinaryExpression, "right")?;
-        let (target, value) = match self.context.arena().node(left)?.data.clone() {
+        let (target, value) = match self.context.arena().node(left)?.data().clone() {
             NodeData::ElementAccessExpression(access) => {
                 let receiver = access
                     .expression
@@ -755,7 +755,7 @@ impl<'context> TargetVisitor<'context> {
         is_delete: bool,
     ) -> Result<VisitedExpression, TransformError> {
         let record = self.context.arena().node(original)?.clone();
-        match record.data {
+        match record.data().clone() {
             NodeData::ParenthesizedExpression(data) => self
                 .visit_non_optional_parenthesized_expression(
                     original,
@@ -1057,7 +1057,7 @@ impl<'context> TargetVisitor<'context> {
         let mut segments = Vec::new();
         loop {
             let record = self.context.arena().node(current)?;
-            let (segment, expression, has_question_dot) = match &record.data {
+            let (segment, expression, has_question_dot) = match record.data() {
                 NodeData::PropertyAccessExpression(data) => (
                     OptionalChainSegment::Property {
                         original: current,
@@ -1175,7 +1175,7 @@ impl<'context> TargetVisitor<'context> {
     ) -> Result<TransformNode, TransformError> {
         loop {
             let NodeData::PartiallyEmittedExpression(data) =
-                &self.context.arena().node(expression)?.data
+                self.context.arena().node(expression)?.data()
             else {
                 return Ok(expression);
             };
@@ -1197,7 +1197,7 @@ impl<'context> TargetVisitor<'context> {
         let mut wrappers = Vec::new();
         let mut current = original;
         while let NodeData::PartiallyEmittedExpression(data) =
-            &self.context.arena().node(current)?.data
+            self.context.arena().node(current)?.data()
         {
             wrappers.push(current);
             current = data
@@ -1408,7 +1408,7 @@ impl<'context> TargetVisitor<'context> {
                 }
             }
             TargetPass::Es2021 => {
-                if let NodeData::BinaryExpression(data) = &record.data {
+                if let NodeData::BinaryExpression(data) = record.data() {
                     let operator = data
                         .operator_token
                         .map(|operator| {
@@ -1426,7 +1426,7 @@ impl<'context> TargetVisitor<'context> {
                             },
                         )?;
                         let left = self.skip_parentheses(left)?;
-                        match &self.context.arena().node(left)?.data {
+                        match self.context.arena().node(left)?.data() {
                             NodeData::PropertyAccessExpression(access) => {
                                 let receiver = access
                                     .expression
@@ -1490,7 +1490,7 @@ impl<'context> TargetVisitor<'context> {
         &self,
         record: &tsc_syntax::Node,
     ) -> Result<bool, TransformError> {
-        let NodeData::BinaryExpression(data) = &record.data else {
+        let NodeData::BinaryExpression(data) = record.data() else {
             return Ok(false);
         };
         let operator = data
@@ -1527,7 +1527,7 @@ impl<'context> TargetVisitor<'context> {
         if self.is_optional_chain(node)? {
             return self.optional_chain_requires_hoisted_temp(node, false);
         }
-        match &record.data {
+        match record.data() {
             NodeData::BinaryExpression(data) => {
                 let operator = data
                     .operator_token
@@ -1633,7 +1633,7 @@ impl<'context> TargetVisitor<'context> {
         parameter: TransformNode,
         binding_alias: Option<&TargetBinding>,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data.clone()
+        let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data().clone()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Parameter,
@@ -1750,7 +1750,7 @@ impl<'context> TargetVisitor<'context> {
         if lexical_environment.is_empty() {
             return Ok(root);
         }
-        let NodeData::SourceFile(mut data) = self.context.arena().node(root)?.data.clone() else {
+        let NodeData::SourceFile(mut data) = self.context.arena().node(root)?.data().clone() else {
             return Err(TransformError::RootKindExpected {
                 actual: self.context.arena().node(root)?.kind,
             });
@@ -1783,7 +1783,7 @@ impl<'context> TargetVisitor<'context> {
                     field: "body for lexical declarations",
                 })?;
         let body = if self.context.arena().node(body)?.kind == SyntaxKind::Block {
-            let NodeData::Block(mut data) = self.context.arena().node(body)?.data.clone() else {
+            let NodeData::Block(mut data) = self.context.arena().node(body)?.data().clone() else {
                 unreachable!("block kind has block data")
             };
             data.statements = self.merge_statement_array(data.statements, lexical_environment)?;
@@ -1835,7 +1835,7 @@ impl<'context> TargetVisitor<'context> {
             )?;
             self.context.factory()?.set_text_range(block, body)?;
             self.context.factory()?.set_multi_line(block, false)?;
-            let NodeData::Block(mut data) = self.context.arena().node(block)?.data.clone() else {
+            let NodeData::Block(mut data) = self.context.arena().node(block)?.data().clone() else {
                 unreachable!("created block has block data")
             };
             data.statements = self.merge_statement_array(data.statements, lexical_environment)?;
@@ -1972,7 +1972,7 @@ impl<'context> TargetVisitor<'context> {
         &self,
         parameter: TransformNode,
     ) -> Result<bool, TransformError> {
-        let NodeData::Parameter(data) = &self.context.arena().node(parameter)?.data else {
+        let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() else {
             return Ok(false);
         };
         let Some(name) = data.name.map(|name| self.node(name)) else {
@@ -2005,7 +2005,7 @@ impl<'context> TargetVisitor<'context> {
     ) -> Result<TransformNode, TransformError> {
         loop {
             let NodeData::ParenthesizedExpression(data) =
-                &self.context.arena().node(expression)?.data
+                self.context.arena().node(expression)?.data()
             else {
                 return Ok(expression);
             };
@@ -2042,7 +2042,7 @@ impl<'context> TargetVisitor<'context> {
     ) -> Result<bool, TransformError> {
         loop {
             let record = self.context.arena().node(expression)?;
-            if let NodeData::PartiallyEmittedExpression(data) = &record.data {
+            if let NodeData::PartiallyEmittedExpression(data) = record.data() {
                 expression = data
                     .expression
                     .map(|expression| self.node(expression))
@@ -2088,7 +2088,7 @@ impl<'context> TargetVisitor<'context> {
                     | SyntaxKind::MissingDeclaration
             );
             let argumentless_new =
-                matches!(&record.data, NodeData::NewExpression(data) if data.arguments.is_none());
+                matches!(record.data(), NodeData::NewExpression(data) if data.arguments.is_none());
             return Ok(!left_hand_side
                 || argumentless_new
                 || self.is_optional_chain(expression)?);
@@ -2269,7 +2269,7 @@ impl<'context> TargetVisitor<'context> {
     ) -> Result<bool, TransformError> {
         loop {
             let record = self.context.arena().node(expression)?;
-            match &record.data {
+            match record.data() {
                 NodeData::PartiallyEmittedExpression(data) => {
                     expression = data
                         .expression
@@ -2424,11 +2424,10 @@ impl<'context> TargetVisitor<'context> {
     }
 
     fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
+        let text = self.context.factory()?.push_text(self.source, b"0")?;
         let zero = self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData {
-                text: "0".to_owned(),
-            })),
+            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
             TransformFlags::NONE,
         )?;
         let flags = self.child_flags(&[zero])?;
@@ -2646,7 +2645,7 @@ impl<'context> TargetVisitor<'context> {
     }
 
     fn is_prologue_statement(&self, statement: TransformNode) -> Result<bool, TransformError> {
-        let NodeData::ExpressionStatement(data) = &self.context.arena().node(statement)?.data
+        let NodeData::ExpressionStatement(data) = self.context.arena().node(statement)?.data()
         else {
             return Ok(false);
         };
@@ -2654,7 +2653,7 @@ impl<'context> TargetVisitor<'context> {
             self.context
                 .arena()
                 .node(self.node(expression))
-                .is_ok_and(|expression| matches!(expression.data, NodeData::StringLiteral(_)))
+                .is_ok_and(|expression| matches!(expression.data(), NodeData::StringLiteral(_)))
         }))
     }
 
@@ -2670,7 +2669,7 @@ impl<'context> TargetVisitor<'context> {
         if !self.is_custom_prologue(statement) {
             return Ok(false);
         }
-        let NodeData::VariableStatement(data) = &self.context.arena().node(statement)?.data else {
+        let NodeData::VariableStatement(data) = self.context.arena().node(statement)?.data() else {
             return Ok(false);
         };
         let Some(list) = data
@@ -2679,12 +2678,13 @@ impl<'context> TargetVisitor<'context> {
         else {
             return Ok(false);
         };
-        let NodeData::VariableDeclarationList(list) = &self.context.arena().node(list)?.data else {
+        let NodeData::VariableDeclarationList(list) = self.context.arena().node(list)?.data()
+        else {
             return Ok(false);
         };
         Ok(self.array_nodes(list.declarations)?.iter().all(|declaration| {
             matches!(
-                self.context.arena().node(*declaration).ok().map(|node| &node.data),
+                self.context.arena().node(*declaration).ok().map(|node| node.data()),
                 Some(NodeData::VariableDeclaration(data))
                     if data.initializer.is_none()
                         && data.name.is_some_and(|name| self.context.arena().node(self.node(name)).is_ok_and(|name| name.kind == SyntaxKind::Identifier))

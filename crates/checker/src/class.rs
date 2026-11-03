@@ -1562,7 +1562,9 @@ impl<'a> CheckerState<'a> {
                             unary
                                 .operand
                                 .and_then(|operand| match self.data_of(operand) {
-                                    NodeData::NumericLiteral(literal) => Some(literal.text.clone()),
+                                    NodeData::NumericLiteral(literal) => {
+                                        Some(self.text_utf8(literal.text).to_owned())
+                                    }
                                     _ => None,
                                 })?;
                         return Some(EscapedName::from_escaped_value(

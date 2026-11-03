@@ -94,7 +94,7 @@ fn state(
     match kind {
         LiteralKind::String => {
             let text_source = properties.string_literal_text_source().map(|node| {
-                let NodeData::Identifier(data) = &arena.node(node).unwrap().data else {
+                let NodeData::Identifier(data) = arena.node(node).unwrap().data() else {
                     panic!("identifier text source")
                 };
                 data.text().to_owned()

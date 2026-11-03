@@ -434,7 +434,7 @@ fn print_recorded_with_options(
     mutate: impl FnOnce(&mut TransformArena, TransformSourceId, &[TransformNode]),
 ) -> (Vec<String>, Vec<Segment>) {
     let parsed = parse_source_file("/a.ts", source_text, Default::default(), None);
-    let NodeData::SourceFile(source_file) = &parsed.arena.node(parsed.root).data else {
+    let NodeData::SourceFile(source_file) = parsed.arena.node(parsed.root).data() else {
         panic!("source file root");
     };
     let statement_ids = parsed
@@ -500,7 +500,7 @@ fn replace_with_statement(
     statement: TransformNode,
 ) {
     let root = arena.root(source).unwrap();
-    let NodeData::SourceFile(mut data) = arena.node(root).unwrap().data.clone() else {
+    let NodeData::SourceFile(mut data) = arena.node(root).unwrap().data().clone() else {
         panic!("source file root");
     };
     data.statements = Some(
@@ -709,13 +709,13 @@ fn function_body_and_return(
     arena: &TransformArena,
     function: TransformNode,
 ) -> (TransformNode, TransformNode) {
-    let NodeData::FunctionDeclaration(data) = &arena.node(function).expect("function").data else {
+    let NodeData::FunctionDeclaration(data) = arena.node(function).expect("function").data() else {
         panic!("function declaration fixture");
     };
     let body = arena
         .node_ref(function.source(), data.body.expect("function body"))
         .expect("body node");
-    let NodeData::Block(block) = &arena.node(body).expect("body block").data else {
+    let NodeData::Block(block) = arena.node(body).expect("body block").data() else {
         panic!("block body");
     };
     let statement_array = arena
@@ -842,8 +842,10 @@ fn a_source_map_range_from_a_second_source_records_through_the_printed_source() 
         // survive the generator's same-generated-position collapse (a
         // switched STATEMENT's Before would be overwritten by its own
         // first child at the same generated column).
-        let NodeData::VariableStatement(statement) =
-            &arena.node(statements[0]).expect("variable statement").data
+        let NodeData::VariableStatement(statement) = arena
+            .node(statements[0])
+            .expect("variable statement")
+            .data()
         else {
             panic!("variable statement fixture");
         };
@@ -853,7 +855,7 @@ fn a_source_map_range_from_a_second_source_records_through_the_printed_source() 
                 statement.declaration_list.expect("declaration list"),
             )
             .expect("list node");
-        let NodeData::VariableDeclarationList(list_data) = &arena.node(list).expect("list").data
+        let NodeData::VariableDeclarationList(list_data) = arena.node(list).expect("list").data()
         else {
             panic!("declaration list fixture");
         };
@@ -865,7 +867,7 @@ fn a_source_map_range_from_a_second_source_records_through_the_printed_source() 
             .node_ref(list.source(), first)
             .expect("declaration node");
         let NodeData::VariableDeclaration(declaration_data) =
-            &arena.node(declaration).expect("declaration").data
+            arena.node(declaration).expect("declaration").data()
         else {
             panic!("variable declaration fixture");
         };
@@ -875,7 +877,7 @@ fn a_source_map_range_from_a_second_source_records_through_the_printed_source() 
                 declaration_data.initializer.expect("initializer"),
             )
             .expect("initializer node");
-        let NodeData::BinaryExpression(sum) = &arena.node(initializer).expect("sum").data else {
+        let NodeData::BinaryExpression(sum) = arena.node(initializer).expect("sum").data() else {
             panic!("binary initializer fixture");
         };
         // The left operand: records after its After side exist at later

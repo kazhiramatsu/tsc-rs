@@ -118,7 +118,7 @@ struct ModuleReferences {
 }
 
 fn root_statements(source: &SourceFile) -> &[NodeId] {
-    match &Published.node(source.root).data {
+    match Published.node(source.root).data() {
         NodeData::SourceFile(data) => data
             .statements
             .map(|statements| Published.node_array(statements).nodes)
@@ -155,7 +155,7 @@ fn collect_module_references(source: &SourceFile, javascript: bool) -> ModuleRef
             if !javascript && NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC) {
                 continue;
             }
-            match &node.data {
+            match node.data() {
                 NodeData::CallExpression(call) => {
                     let Some(callee) = call.expression else {
                         continue;
@@ -170,7 +170,7 @@ fn collect_module_references(source: &SourceFile, javascript: bool) -> ModuleRef
                     let require_call = javascript
                         && arguments.len() == 1
                         && matches!(
-                            &Published.node(callee).data,
+                            Published.node(callee).data(),
                             NodeData::Identifier(identifier) if identifier.escaped_text == "require"
                         );
                     if (require_call || is_import_callee(source, callee))
@@ -181,10 +181,10 @@ fn collect_module_references(source: &SourceFile, javascript: bool) -> ModuleRef
                         // call initializes the variable declaration above it.
                         let initializes_variable =
                             node.parent
-                                .is_some_and(|parent| match &Published.node(parent).data {
+                                .is_some_and(|parent| match Published.node(parent).data() {
                                     NodeData::VariableDeclaration(declaration) => {
                                         declaration.initializer.is_some_and(|initializer| {
-                                            match &Published.node(initializer).data {
+                                            match Published.node(initializer).data() {
                                                 NodeData::CallExpression(initializer_call) => {
                                                     initializer_call.arguments.is_some_and(
                                                         |arguments| {
@@ -211,7 +211,7 @@ fn collect_module_references(source: &SourceFile, javascript: bool) -> ModuleRef
                     let Some(argument) = import_type.argument else {
                         continue;
                     };
-                    if let NodeData::LiteralType(literal_type) = &Published.node(argument).data {
+                    if let NodeData::LiteralType(literal_type) = Published.node(argument).data() {
                         if let Some(literal) = literal_type.literal {
                             if Published.node(literal).kind == SyntaxKind::StringLiteral {
                                 references.imports.push(literal);
@@ -235,12 +235,12 @@ fn collect_module_reference(
     in_ambient_module: bool,
     references: &mut ModuleReferences,
 ) {
-    let data = &Published.node(node).data;
+    let data = Published.node(node).data();
     let module_name = match data {
         NodeData::ImportDeclaration(import) => Some(import.module_specifier),
         NodeData::ExportDeclaration(export) => Some(export.module_specifier),
         NodeData::ImportEqualsDeclaration(import) => Some(import.module_reference.and_then(
-            |reference| match &Published.node(reference).data {
+            |reference| match Published.node(reference).data() {
                 NodeData::ExternalModuleReference(external) => external.expression,
                 _ => None,
             },
@@ -249,10 +249,12 @@ fn collect_module_reference(
     };
     if let Some(module_name) = module_name {
         if let Some(name) = module_name {
-            if let NodeData::StringLiteral(literal) = &Published.node(name).data {
-                if !literal.text.is_empty()
+            if let NodeData::StringLiteral(literal) = Published.node(name).data() {
+                if !crate::annotate::published_text_js(literal.text).is_empty()
                     && (!in_ambient_module
-                        || !CheckerState::is_external_module_name_relative(literal.text.as_js()))
+                        || !CheckerState::is_external_module_name_relative(
+                            crate::annotate::published_text_js(literal.text),
+                        ))
                 {
                     references.imports.push(name);
                     references.symbol_imports.push(name);
@@ -293,7 +295,7 @@ fn collect_module_reference(
 
 /// tsgo `IsModuleWithStringLiteralName`.
 fn is_module_with_string_literal_name(node: NodeId) -> bool {
-    match &Published.node(node).data {
+    match Published.node(node).data() {
         NodeData::ModuleDeclaration(module) => module
             .name
             .is_some_and(|name| Published.node(name).kind == SyntaxKind::StringLiteral),
@@ -353,7 +355,7 @@ fn referenced_files(
         }
     }
     for &augmentation in &references.module_augmentations {
-        let string_name = match &Published.node(augmentation).data {
+        let string_name = match Published.node(augmentation).data() {
             NodeData::ModuleDeclaration(module) => module
                 .name
                 .is_some_and(|name| Published.node(name).kind == SyntaxKind::StringLiteral),

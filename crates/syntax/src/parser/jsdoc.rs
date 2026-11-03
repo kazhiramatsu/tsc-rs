@@ -226,7 +226,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     }
 
     fn identifier_text(&self, id: NodeId) -> Option<&str> {
-        match &self.parser.arena.node(id).data {
+        match &self.parser.arena.node(id).data() {
             NodeData::Identifier(data) => Some(data.text()),
             _ => None,
         }
@@ -347,7 +347,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             Some(JSDocComment::Nodes(self.alloc_array(parts, pos, end)))
         } else if !text.is_empty() {
             Some(JSDocComment::Text {
-                text,
+                text: self.parser.arena.push_text(text.as_bytes()),
                 pos: pos as u32,
                 end: end as u32,
                 text_end: text_end as u32,
@@ -495,6 +495,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                             Self::remove_leading_newlines(&mut comments);
                         }
                         let text = comments.join("");
+                        let text = self.parser.arena.push_text(text.as_bytes());
                         parts.push(self.finish(
                             NodeData::JSDocText(Box::new(JSDocTextData { text })),
                             link_end.unwrap_or(start),
@@ -535,10 +536,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         }
         let trimmed_comments = comments.join("");
         if !parts.is_empty() && !trimmed_comments.is_empty() {
+            let text = self.parser.arena.push_text(trimmed_comments.as_bytes());
             parts.push(self.finish(
-                NodeData::JSDocText(Box::new(JSDocTextData {
-                    text: trimmed_comments.clone(),
-                })),
+                NodeData::JSDocText(Box::new(JSDocTextData { text })),
                 link_end.unwrap_or(start),
                 comments_pos.unwrap_or(scan_end),
             ));
@@ -647,10 +647,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     let comment_end = self.node_pos();
                     let link_start = self.token_end().saturating_sub(1);
                     if let Some(link) = self.try_parse_jsdoc_link(link_start) {
+                        let text = self.parser.arena.push_text(comments.join("").as_bytes());
                         parts.push(self.finish(
-                            NodeData::JSDocText(Box::new(JSDocTextData {
-                                text: comments.join(""),
-                            })),
+                            NodeData::JSDocText(Box::new(JSDocTextData { text })),
                             link_end.unwrap_or(comments_pos),
                             comment_end,
                         ));
@@ -706,10 +705,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let joined_comments = comments.join("");
         let trimmed = Self::trim_end(&joined_comments).to_owned();
         if !parts.is_empty() && !trimmed.is_empty() {
+            let text = self.parser.arena.push_text(trimmed.as_bytes());
             parts.push(self.finish(
-                NodeData::JSDocText(Box::new(JSDocTextData {
-                    text: trimmed.clone(),
-                })),
+                NodeData::JSDocText(Box::new(JSDocTextData { text })),
                 link_end.unwrap_or(comments_pos),
                 self.node_pos(),
             ));
@@ -768,6 +766,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             self.next_token_jsdoc();
         }
         let end = self.token_end();
+        let text = self.parser.arena.push_text(text.as_bytes());
         let data = match link_type.as_str() {
             "link" => NodeData::JSDocLink(Box::new(JSDocLinkData { name, text })),
             "linkcode" => NodeData::JSDocLinkCode(Box::new(JSDocLinkCodeData { name, text })),
@@ -1110,14 +1109,14 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     }
 
     fn jsdoc_type_expression_type(&self, expression: NodeId) -> Option<NodeId> {
-        match &self.parser.arena.node(expression).data {
+        match &self.parser.arena.node(expression).data() {
             NodeData::JSDocTypeExpression(data) => data.r#type,
             _ => None,
         }
     }
 
     fn is_object_or_object_array_type_reference(&self, node: NodeId) -> bool {
-        match &self.parser.arena.node(node).data {
+        match &self.parser.arena.node(node).data() {
             NodeData::ArrayType(data) => data
                 .element_type
                 .is_some_and(|node| self.is_object_or_object_array_type_reference(node)),
@@ -1184,7 +1183,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     }
 
     fn tag_name_of(&self, node: NodeId) -> Option<NodeId> {
-        match &self.parser.arena.node(node).data {
+        match &self.parser.arena.node(node).data() {
             NodeData::JSDocParameterTag(data) => data.tag_name,
             NodeData::JSDocPropertyTag(data) => data.tag_name,
             NodeData::JSDocTemplateTag(data) => data.tag_name,
@@ -1197,8 +1196,8 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
 
     fn entity_names_equal(&self, left: NodeId, right: NodeId) -> bool {
         match (
-            &self.parser.arena.node(left).data,
-            &self.parser.arena.node(right).data,
+            &self.parser.arena.node(left).data(),
+            &self.parser.arena.node(right).data(),
         ) {
             (NodeData::Identifier(left), NodeData::Identifier(right)) => {
                 left.escaped_text == right.escaped_text
@@ -1293,13 +1292,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 self.parser.arena.node(child).kind,
                 SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocPropertyTag
             ) {
-                let child_name = match &self.parser.arena.node(child).data {
+                let child_name = match &self.parser.arena.node(child).data() {
                     NodeData::JSDocParameterTag(data) => data.name,
                     NodeData::JSDocPropertyTag(data) => data.name,
                     _ => None,
                 };
                 if let Some(child_name) = child_name {
-                    let valid_nested_name = match &self.parser.arena.node(child_name).data {
+                    let valid_nested_name = match &self.parser.arena.node(child_name).data() {
                         NodeData::QualifiedName(data) => data
                             .left
                             .is_some_and(|left| self.entity_names_equal(parent_name, left)),
@@ -1598,7 +1597,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     fn jsdoc_alias_name(&self, full_name: Option<NodeId>) -> Option<NodeId> {
         let mut current = full_name?;
         loop {
-            match &self.parser.arena.node(current).data {
+            match &self.parser.arena.node(current).data() {
                 NodeData::ModuleDeclaration(data) => match data.body {
                     Some(body) => current = body,
                     None => return data.name,
@@ -1674,7 +1673,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     self.parser.arena.node(r#type).kind == SyntaxKind::ArrayType
                 });
                 let replacement = child_type_tag
-                    .and_then(|tag| match &self.parser.arena.node(tag).data {
+                    .and_then(|tag| match &self.parser.arena.node(tag).data() {
                         NodeData::JSDocTypeTag(data) => data.type_expression,
                         _ => None,
                     })
@@ -2021,21 +2020,21 @@ pub(super) fn parse_jsdoc_comment(
 /// needs a name, so a missing one is a regular parse error on the character
 /// before it (checkNonIdentifierName), besides the JSDoc TS1003.
 fn report_missing_typedef_names(parser: &mut Parser<'_>, jsdoc: NodeId) {
-    let NodeData::JSDoc(data) = &parser.arena.node(jsdoc).data else {
+    let NodeData::JSDoc(data) = &parser.arena.node(jsdoc).data() else {
         return;
     };
     let Some(tags) = data.tags else {
         return;
     };
     for tag in parser.arena.node_array(tags).nodes.to_vec() {
-        let NodeData::JSDocTypedefTag(data) = &parser.arena.node(tag).data else {
+        let NodeData::JSDocTypedefTag(data) = &parser.arena.node(tag).data() else {
             continue;
         };
         let (Some(_), Some(name)) = (data.type_expression, data.name) else {
             continue;
         };
         let node = parser.arena.node(name);
-        let missing = matches!(&node.data, NodeData::Identifier(id) if id.text().is_empty());
+        let missing = matches!(&node.data(), NodeData::Identifier(id) if id.text().is_empty());
         if !missing {
             continue;
         }

@@ -79,7 +79,7 @@ impl<'a> File<'a> {
 
     fn data(&self, node: Node) -> Option<&'a NodeData> {
         match node {
-            Found::Node(View::Node(id)) => Some(&self.source.arena.node(id).data),
+            Found::Node(View::Node(id)) => Some(self.source.arena.node(id).data()),
             _ => None,
         }
     }
@@ -244,7 +244,7 @@ impl<'a> File<'a> {
                 });
             }
             View::HeritageTypeReference(id) => {
-                let NodeData::ExpressionWithTypeArguments(element) = &tree.node(id).data else {
+                let NodeData::ExpressionWithTypeArguments(element) = tree.node(id).data() else {
                     unreachable!("a heritage element")
                 };
                 if let Some(expression) = element.expression {
@@ -258,7 +258,7 @@ impl<'a> File<'a> {
                 }
             }
             View::QualifiedName(id) => {
-                let NodeData::PropertyAccessExpression(access) = &tree.node(id).data else {
+                let NodeData::PropertyAccessExpression(access) = tree.node(id).data() else {
                     unreachable!("a property access")
                 };
                 if let Some(expression) = access.expression {
@@ -366,7 +366,7 @@ impl<'a> File<'a> {
     /// tsgo `Node.TypeArgumentList`.
     pub(crate) fn type_argument_list(&self, node: Node) -> Option<NodeArrayId> {
         if let Found::Node(View::HeritageTypeReference(id)) = node {
-            let NodeData::ExpressionWithTypeArguments(element) = &self.source.arena.node(id).data
+            let NodeData::ExpressionWithTypeArguments(element) = self.source.arena.node(id).data()
             else {
                 unreachable!("a heritage element")
             };
@@ -477,7 +477,7 @@ impl<'a> File<'a> {
     /// property access, a call.
     pub(crate) fn expression(&self, node: Node) -> Option<Node> {
         if let Found::Node(View::QualifiedName(id)) = node {
-            let NodeData::PropertyAccessExpression(access) = &self.source.arena.node(id).data
+            let NodeData::PropertyAccessExpression(access) = self.source.arena.node(id).data()
             else {
                 unreachable!("a property access")
             };
@@ -519,7 +519,7 @@ impl<'a> File<'a> {
     /// tsgo `Node.Text` of a numeric literal.
     pub(crate) fn numeric_literal_text(&self, node: Node) -> &'a str {
         match self.data(node) {
-            Some(NodeData::NumericLiteral(data)) => &data.text,
+            Some(NodeData::NumericLiteral(data)) => self.source.arena.text_utf8(data.text),
             _ => "",
         }
     }

@@ -185,7 +185,7 @@ enum Target {
 
 fn statement(arena: &TransformArena, source: TransformSourceId, index: usize) -> TransformNode {
     let root = arena.root(source).unwrap();
-    let NodeData::SourceFile(data) = &arena.node(root).unwrap().data else {
+    let NodeData::SourceFile(data) = arena.node(root).unwrap().data() else {
         panic!("source file")
     };
     let id = arena
@@ -196,7 +196,7 @@ fn statement(arena: &TransformArena, source: TransformSourceId, index: usize) ->
 }
 
 fn expression_of(arena: &TransformArena, statement: TransformNode) -> TransformNode {
-    let NodeData::ExpressionStatement(data) = &arena.node(statement).unwrap().data else {
+    let NodeData::ExpressionStatement(data) = arena.node(statement).unwrap().data() else {
         panic!("expression statement")
     };
     arena
@@ -252,7 +252,7 @@ fn build_targets(
         _ if id.contains("/cursor-array") => {
             let s0 = statement(arena, sources[0], 0);
             let call = expression_of(arena, s0);
-            let NodeData::CallExpression(data) = arena.node(call).unwrap().data.clone() else {
+            let NodeData::CallExpression(data) = arena.node(call).unwrap().data().clone() else {
                 panic!("call")
             };
             let arguments = arena
@@ -305,7 +305,7 @@ fn build_targets(
                 let node = match entry["path"].as_str().unwrap() {
                     "expression" => expression_of(arena, s0),
                     "body" => {
-                        let NodeData::FunctionDeclaration(data) = &arena.node(s0).unwrap().data
+                        let NodeData::FunctionDeclaration(data) = arena.node(s0).unwrap().data()
                         else {
                             panic!("function declaration");
                         };

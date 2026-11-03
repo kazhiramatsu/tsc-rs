@@ -25,7 +25,7 @@ use tsc_syntax::nodes::{
 };
 use tsc_syntax::{
     ExternalModuleIndicatorOptions, LanguageVariant, NodeArena, NodeArrayId, NodeData, NodeId,
-    SourceFile, SyntaxKind,
+    SourceFile, SyntaxKind, TextId,
 };
 use tsc_types::{EscapedName, JsString, NodeFlags, TokenFlags};
 
@@ -316,9 +316,20 @@ impl<'a> Decoder<'a> {
         }
     }
 
+    /// Store tsgo's string bytes as a UTF-8 literal text of the tree.
+    fn push_string(&mut self, bytes: &[u8]) -> TextId {
+        self.arena.push_text(string(bytes).as_bytes())
+    }
+
+    /// Store tsgo's string bytes as a JavaScript literal text of the tree
+    /// (see [`js_string`]).
+    fn push_js_string(&mut self, bytes: &[u8]) -> TextId {
+        self.arena.push_text(js_string(bytes).as_bytes())
+    }
+
     /// tsgo `createStringNode`.
     fn string_node(
-        &self,
+        &mut self,
         syntax_kind: SyntaxKind,
         kind: u32,
         data: u32,
@@ -333,23 +344,23 @@ impl<'a> Decoder<'a> {
                 escaped_text: EscapedName::escape(js_string(text).as_js()),
             }),
             SyntaxKind::JsxText => NodeData::JsxText(Box::new(JsxTextData {
-                text: string(text),
+                text: self.push_string(text),
                 contains_only_trivia_white_spaces: common & 1 != 0,
             })),
-            SyntaxKind::JSDocText => {
-                NodeData::JSDocText(Box::new(JSDocTextData { text: string(text) }))
-            }
+            SyntaxKind::JSDocText => NodeData::JSDocText(Box::new(JSDocTextData {
+                text: self.push_string(text),
+            })),
             SyntaxKind::JSDocLink => NodeData::JSDocLink(Box::new(JSDocLinkData {
                 name: None,
-                text: string(text),
+                text: self.push_string(text),
             })),
             SyntaxKind::JSDocLinkPlain => NodeData::JSDocLinkPlain(Box::new(JSDocLinkPlainData {
                 name: None,
-                text: string(text),
+                text: self.push_string(text),
             })),
             SyntaxKind::JSDocLinkCode => NodeData::JSDocLinkCode(Box::new(JSDocLinkCodeData {
                 name: None,
-                text: string(text),
+                text: self.push_string(text),
             })),
             _ => return Err(format!("unknown string node kind {}", kind_name(kind))),
         })
@@ -372,7 +383,7 @@ impl<'a> Decoder<'a> {
             SyntaxKind::StringLiteral => {
                 let token_flags = self.extended(data, 1);
                 let node_data = NodeData::StringLiteral(Box::new(StringLiteralData {
-                    text: js_string(text),
+                    text: self.push_js_string(text),
                 }));
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena
@@ -387,8 +398,9 @@ impl<'a> Decoder<'a> {
             }
             SyntaxKind::NumericLiteral => {
                 let token_flags = self.extended(data, 1);
-                let node_data =
-                    NodeData::NumericLiteral(Box::new(NumericLiteralData { text: string(text) }));
+                let node_data = NodeData::NumericLiteral(Box::new(NumericLiteralData {
+                    text: self.push_string(text),
+                }));
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena.node_mut(node).set_numeric_literal_flags(
                     (token_flags & TokenFlags::NUMERIC_LITERAL_FLAGS.bits() as u32) as u16,
@@ -396,15 +408,16 @@ impl<'a> Decoder<'a> {
                 Ok(node)
             }
             SyntaxKind::BigIntLiteral => {
-                let node_data =
-                    NodeData::BigIntLiteral(Box::new(BigIntLiteralData { text: string(text) }));
+                let node_data = NodeData::BigIntLiteral(Box::new(BigIntLiteralData {
+                    text: self.push_string(text),
+                }));
                 Ok(self.arena.alloc_node(node_data, pos, end, flags))
             }
             SyntaxKind::RegularExpressionLiteral => {
                 let token_flags = self.extended(data, 1);
                 let node_data =
                     NodeData::RegularExpressionLiteral(Box::new(RegularExpressionLiteralData {
-                        text: string(text),
+                        text: self.push_string(text),
                     }));
                 let node = self.arena.alloc_node(node_data, pos, end, flags);
                 self.arena
@@ -416,8 +429,8 @@ impl<'a> Decoder<'a> {
                 let token_flags = self.extended(data, 1);
                 // tsgo's factory gives the literal no raw text: its printer
                 // writes the raw text only for an empty literal.
-                let text = js_string(text);
-                let raw_text = text.is_empty().then(String::new);
+                let raw_text = text.is_empty().then_some(TextId::EMPTY);
+                let text = self.push_js_string(text);
                 let node_data = NodeData::NoSubstitutionTemplateLiteral(Box::new(
                     NoSubstitutionTemplateLiteralData { text, raw_text },
                 ));
@@ -430,10 +443,10 @@ impl<'a> Decoder<'a> {
             SyntaxKind::TemplateHead | SyntaxKind::TemplateMiddle | SyntaxKind::TemplateTail => {
                 let raw = self.string(self.extended(data, 1))?;
                 let token_flags = self.extended(data, 2);
-                let text = js_string(text);
                 // tsgo getLiteralText writes the raw text when there is
                 // one or the text is empty, and the escaped text otherwise.
-                let raw_text = (!raw.is_empty() || text.is_empty()).then(|| string(raw));
+                let raw_text = (!raw.is_empty() || text.is_empty()).then(|| self.push_string(raw));
+                let text = self.push_js_string(text);
                 let node_data = match syntax_kind {
                     SyntaxKind::TemplateHead => {
                         NodeData::TemplateHead(Box::new(TemplateHeadData { text, raw_text }))
@@ -654,32 +667,36 @@ impl<'a> Decoder<'a> {
     /// class's `implements`) as a TypeReference of an entity name; tsc's
     /// is an ExpressionWithTypeArguments of an entity name expression.
     fn heritage_type(&mut self, element: NodeId) {
-        let NodeData::TypeReference(reference) = &self.arena.node(element).data else {
+        let NodeData::TypeReference(reference) = self.arena.node(element).data() else {
             return;
         };
         let (type_name, type_arguments) = (reference.type_name, reference.type_arguments);
         let expression = type_name.map(|name| self.entity_name_expression(name));
         let node = self.arena.node_mut(element);
         node.kind = SyntaxKind::ExpressionWithTypeArguments;
-        node.data = NodeData::ExpressionWithTypeArguments(ExpressionWithTypeArgumentsData {
-            type_arguments,
-            expression,
-        });
+        node.set_data(NodeData::ExpressionWithTypeArguments(
+            ExpressionWithTypeArgumentsData {
+                type_arguments,
+                expression,
+            },
+        ));
     }
 
     /// tsc's entity name expression of an entity name: a QualifiedName is
     /// a PropertyAccessExpression.
     fn entity_name_expression(&mut self, name: NodeId) -> NodeId {
-        if let NodeData::QualifiedName(qualified) = &self.arena.node(name).data {
+        if let NodeData::QualifiedName(qualified) = self.arena.node(name).data() {
             let (left, right) = (qualified.left, qualified.right);
             let expression = left.map(|left| self.entity_name_expression(left));
             let node = self.arena.node_mut(name);
             node.kind = SyntaxKind::PropertyAccessExpression;
-            node.data = NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
-                name: right,
-                expression,
-                question_dot_token: None,
-            });
+            node.set_data(NodeData::PropertyAccessExpression(
+                PropertyAccessExpressionData {
+                    name: right,
+                    expression,
+                    question_dot_token: None,
+                },
+            ));
         }
         name
     }
@@ -688,7 +705,7 @@ impl<'a> Decoder<'a> {
     /// an implicit `export` modifier; tsc flags it NestedNamespace instead.
     fn nested_namespace(&mut self, body: NodeId) {
         let node = self.arena.node_mut(body);
-        if let NodeData::ModuleDeclaration(declaration) = &mut node.data {
+        if let NodeData::ModuleDeclaration(declaration) = node.data_mut() {
             declaration.modifiers = None;
             node.flags |= NodeFlags::NESTED_NAMESPACE.bits();
         }

@@ -3,17 +3,17 @@ use tsc_syntax::{for_each_child, NodeData, NodeId, ParseOptions, SourceFile};
 
 fn literal_values(source: &SourceFile, id: NodeId, values: &mut Vec<Value>) {
     let node = source.arena.node(id);
-    let literal = match &node.data {
-        NodeData::StringLiteral(data) => Some((&data.text, None)),
-        NodeData::NoSubstitutionTemplateLiteral(data) => {
-            Some((&data.text, data.raw_text.as_deref()))
-        }
-        NodeData::TemplateHead(data) => Some((&data.text, data.raw_text.as_deref())),
-        NodeData::TemplateMiddle(data) => Some((&data.text, data.raw_text.as_deref())),
-        NodeData::TemplateTail(data) => Some((&data.text, data.raw_text.as_deref())),
+    let literal = match node.data() {
+        NodeData::StringLiteral(data) => Some((data.text, None)),
+        NodeData::NoSubstitutionTemplateLiteral(data) => Some((data.text, data.raw_text)),
+        NodeData::TemplateHead(data) => Some((data.text, data.raw_text)),
+        NodeData::TemplateMiddle(data) => Some((data.text, data.raw_text)),
+        NodeData::TemplateTail(data) => Some((data.text, data.raw_text)),
         _ => None,
     };
     if let Some((text, raw)) = literal {
+        let text = tsc_types::JsStr::from_canonical_bytes(source.arena.text(text));
+        let raw = raw.map(|raw| source.arena.text_str(raw).expect("a UTF-8 raw text"));
         values.push(json!({
             "kind": node.kind as u16,
             "pos": source.positions().byte_to_utf16(node.pos).unwrap(),

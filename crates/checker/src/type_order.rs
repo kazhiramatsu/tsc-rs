@@ -82,12 +82,12 @@ impl<'s, 'a> OrderCtx<'s, 'a> {
     /// The `name.escapedText` of a labeled tuple element declaration
     /// (a named tuple member or a parameter); `None` for a binding pattern.
     fn element_label_name(&self, node: NodeId) -> Option<tsc_types::EscapedName> {
-        let name = match &self.binder.node_record(node).data {
+        let name = match self.binder.node_record(node).data() {
             NodeData::NamedTupleMember(data) => data.name,
             NodeData::Parameter(data) => data.name,
             _ => None,
         }?;
-        match &self.binder.node_record(name).data {
+        match self.binder.node_record(name).data() {
             NodeData::Identifier(data) => Some(data.escaped_text),
             _ => None,
         }

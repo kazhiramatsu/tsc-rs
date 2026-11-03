@@ -43,10 +43,10 @@ fn new_meta_property_names_follow_parse_identifier_name() {
             if node.kind == SyntaxKind::NewExpression {
                 new_expressions += 1;
             }
-            if let NodeData::MetaProperty(data) = &node.data {
+            if let NodeData::MetaProperty(data) = &node.data() {
                 assert_eq!(data.keyword_token, SyntaxKind::NewKeyword, "{case_id}");
                 let name = parsed.arena.node(data.name.expect("meta property name"));
-                let NodeData::Identifier(identifier) = &name.data else {
+                let NodeData::Identifier(identifier) = &name.data() else {
                     panic!("{case_id}: meta property name is not an identifier");
                 };
                 meta_properties.push(json!({

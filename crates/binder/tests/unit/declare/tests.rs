@@ -50,7 +50,7 @@ fn statements(source: &SourceFile) -> Vec<NodeId> {
     let data = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("root");
     let statements = data.statements.expect("statements");
@@ -60,7 +60,7 @@ fn statements(source: &SourceFile) -> Vec<NodeId> {
 /// The declared node + includes/excludes a statement would get from
 /// bindWorker (test-only shim until stage 3.4).
 fn masks_for(source: &SourceFile, statement: NodeId) -> (NodeId, SymbolFlags, SymbolFlags) {
-    match &source.arena.node(statement).data {
+    match &source.arena.node(statement).data() {
         NodeData::FunctionDeclaration(_) => (
             statement,
             SymbolFlags::FUNCTION,
@@ -92,7 +92,7 @@ fn masks_for(source: &SourceFile, statement: NodeId) -> (NodeId, SymbolFlags, Sy
         NodeData::ExportAssignment(_) => (statement, SymbolFlags::PROPERTY, SymbolFlags::ALL),
         NodeData::VariableStatement(data) => {
             let list = data.declaration_list.expect("list");
-            let declarations = match &source.arena.node(list).data {
+            let declarations = match &source.arena.node(list).data() {
                 NodeData::VariableDeclarationList(data) => data.declarations.expect("declarations"),
                 _ => panic!("not a declaration list"),
             };

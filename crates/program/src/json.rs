@@ -422,7 +422,7 @@ pub(crate) fn json_source_file_is_empty(source: &SourceFile) -> bool {
     source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .and_then(|source_file| source_file.statements)
         .map(|statements| source.arena.node_array(statements).nodes.is_empty())
@@ -437,7 +437,7 @@ fn convert_json_source_file_to_value_with_assignment(
     if !allow_parse_recovery && !source.parse_diagnostics.is_empty() {
         return None;
     }
-    let source_file = source.arena.node(source.root).data.as_source_file()?;
+    let source_file = source.arena.node(source.root).data().as_source_file()?;
     let statements = source.arena.node_array(source_file.statements?).nodes;
     let [statement] = statements else {
         return None;
@@ -445,7 +445,7 @@ fn convert_json_source_file_to_value_with_assignment(
     let expression = source
         .arena
         .node(*statement)
-        .data
+        .data()
         .as_expression_statement()?
         .expression?;
     if allow_parse_recovery {
@@ -506,12 +506,17 @@ fn convert_jsonc_value_worker(
                             return None;
                         }
                         values.push(RecoverableJsonValue::Defined(Value::String(
-                            node.data.as_string_literal()?.text.to_owned(),
+                            source
+                                .arena
+                                .text_js(node.data().as_string_literal()?.text)
+                                .to_owned(),
                         )));
                     }
                     SyntaxKind::NumericLiteral => {
                         values.push(RecoverableJsonValue::Defined(Value::Number(json_number(
-                            &node.data.as_numeric_literal()?.text,
+                            source
+                                .arena
+                                .text_utf8(node.data().as_numeric_literal()?.text),
                         )?)));
                     }
                     SyntaxKind::TrueKeyword => {
@@ -524,14 +529,14 @@ fn convert_jsonc_value_worker(
                         values.push(RecoverableJsonValue::Defined(Value::Null));
                     }
                     SyntaxKind::PrefixUnaryExpression => {
-                        let unary = node.data.as_prefix_unary_expression()?;
+                        let unary = node.data().as_prefix_unary_expression()?;
                         let negated = unary
                             .operand
                             .filter(|_| unary.operator == SyntaxKind::MinusToken)
                             .map(|operand| source.arena.node(operand))
                             .filter(|operand| operand.kind == SyntaxKind::NumericLiteral)
-                            .and_then(|operand| operand.data.as_numeric_literal())
-                            .and_then(|literal| json_number(&literal.text))
+                            .and_then(|operand| operand.data().as_numeric_literal())
+                            .and_then(|literal| json_number(source.arena.text_utf8(literal.text)))
                             .and_then(|number| negate_json_number(&number));
                         match negated {
                             Some(number) => {
@@ -552,7 +557,7 @@ fn convert_jsonc_value_worker(
                         }
                         let elements = source
                             .arena
-                            .node_array(node.data.as_array_literal_expression()?.elements?)
+                            .node_array(node.data().as_array_literal_expression()?.elements?)
                             .nodes
                             .to_vec();
                         tasks.push(ConversionTask::FinishArray(elements.len()));
@@ -570,7 +575,7 @@ fn convert_jsonc_value_worker(
                         }
                         let properties = source
                             .arena
-                            .node_array(node.data.as_object_literal_expression()?.properties?)
+                            .node_array(node.data().as_object_literal_expression()?.properties?)
                             .nodes
                             .to_vec();
                         let mut keys = Vec::with_capacity(properties.len());
@@ -582,7 +587,7 @@ fn convert_jsonc_value_worker(
                             // the property, and sets no key for a name with
                             // no text; a recovered config does the same.
                             let Some(property) =
-                                source.arena.node(property).data.as_property_assignment()
+                                source.arena.node(property).data().as_property_assignment()
                             else {
                                 if recover_undefined {
                                     continue;
@@ -993,22 +998,22 @@ fn jsonc_property_name(
         SyntaxKind::StringLiteral
             if allow_recovery || is_double_quoted_json_string(source, name) =>
         {
-            node.data
+            node.data()
                 .as_string_literal()
-                .map(|literal| literal.text.clone())
+                .map(|literal| source.arena.text_js(literal.text).to_owned())
         }
         SyntaxKind::Identifier if allow_recovery => node
-            .data
+            .data()
             .as_identifier()
             .map(|identifier| identifier.text().to_owned().into()),
         SyntaxKind::NumericLiteral if allow_recovery => node
-            .data
+            .data()
             .as_numeric_literal()
-            .map(|literal| literal.text.clone().into()),
+            .map(|literal| source.arena.text_utf8(literal.text).into()),
         // tsgo TryGetTextOfPropertyName: `["name"]` and `[1]` name their
         // literal (a name with any other expression has no text).
         SyntaxKind::ComputedPropertyName if allow_recovery => node
-            .data
+            .data()
             .as_computed_property_name()
             .and_then(|computed| computed.expression)
             .filter(|expression| {

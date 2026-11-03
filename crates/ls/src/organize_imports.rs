@@ -178,7 +178,7 @@ fn organize_imports<'a>(
         if !is_ambient_module(arena, statement) {
             continue;
         }
-        let body = match &arena.node(statement).data {
+        let body = match arena.node(statement).data() {
             NodeData::ModuleDeclaration(module) => module.body,
             _ => None,
         };
@@ -206,7 +206,7 @@ fn organize_imports<'a>(
 /// or a global augmentation.
 fn is_ambient_module(arena: &NodeArena, node: NodeId) -> bool {
     let record = arena.node(node);
-    let NodeData::ModuleDeclaration(module) = &record.data else {
+    let NodeData::ModuleDeclaration(module) = record.data() else {
         return false;
     };
     module
@@ -337,7 +337,7 @@ impl<'a> Organizer<'_, '_, 'a> {
                 .named_bindings
                 .map(|bindings| TransformNode::new(file, bindings));
             if let Some(original_bindings) = clause.named_bindings {
-                match &arena.node(original_bindings).data {
+                match arena.node(original_bindings).data() {
                     NodeData::NamespaceImport(namespace_import) => {
                         if let Some(identifier) = namespace_import.name {
                             if !self.is_declaration_used(identifier)? {
@@ -353,7 +353,7 @@ impl<'a> Organizer<'_, '_, 'a> {
                         // tsgo `filterUsedImportSpecifiers`.
                         let mut new_elements = Vec::new();
                         for &element in elements {
-                            let NodeData::ImportSpecifier(specifier) = &arena.node(element).data
+                            let NodeData::ImportSpecifier(specifier) = arena.node(element).data()
                             else {
                                 continue;
                             };
@@ -468,7 +468,7 @@ impl<'a> Organizer<'_, '_, 'a> {
             let Some(parent) = arena.node(token).parent else {
                 continue;
             };
-            match &arena.node(parent).data {
+            match arena.node(parent).data() {
                 NodeData::ShorthandPropertyAssignment(_) => {
                     if self.checker.get_shorthand_assignment_value_symbol(parent)? == Some(symbol) {
                         return Ok(true);
@@ -529,7 +529,7 @@ impl<'a> Organizer<'_, '_, 'a> {
         {
             let arena = tracker.syntax(source);
             for &import_decl in import_decls {
-                let attributes = match &arena.node(import_decl.node()).data {
+                let attributes = match arena.node(import_decl.node()).data() {
                     NodeData::ImportDeclaration(data) => data.attributes,
                     _ => None,
                 };
@@ -614,7 +614,7 @@ impl<'a> Organizer<'_, '_, 'a> {
                     let namespace_name = |import: &TransformNode| {
                         import_clause(arena, import.node())
                             .and_then(|(_, clause)| clause.named_bindings)
-                            .and_then(|bindings| match &arena.node(bindings).data {
+                            .and_then(|bindings| match arena.node(bindings).data() {
                                 NodeData::NamespaceImport(namespace_import) => {
                                     namespace_import.name
                                 }
@@ -847,7 +847,7 @@ fn sorted_specifier_list<'a>(
 ) -> TransformNodeArray {
     let original_range = first_named_bindings.and_then(|bindings| {
         let arena = tracker.syntax(source);
-        let NodeData::NamedImports(named_imports) = &arena.node(bindings).data else {
+        let NodeData::NamedImports(named_imports) = arena.node(bindings).data() else {
             return None;
         };
         let record = arena.node_array(named_imports.elements?);
@@ -891,7 +891,7 @@ fn raw_position(position: u32) -> i64 {
 
 /// The module specifier of an import or export declaration.
 fn module_specifier(arena: &NodeArena, declaration: NodeId) -> Option<NodeId> {
-    match &arena.node(declaration).data {
+    match arena.node(declaration).data() {
         NodeData::ImportDeclaration(data) => data.module_specifier,
         NodeData::ExportDeclaration(data) => data.module_specifier,
         _ => None,
@@ -900,11 +900,11 @@ fn module_specifier(arena: &NodeArena, declaration: NodeId) -> Option<NodeId> {
 
 /// An import declaration's clause.
 fn import_clause(arena: &NodeArena, declaration: NodeId) -> Option<(NodeId, ImportClauseData)> {
-    let NodeData::ImportDeclaration(data) = &arena.node(declaration).data else {
+    let NodeData::ImportDeclaration(data) = arena.node(declaration).data() else {
         return None;
     };
     let clause = data.import_clause?;
-    match &arena.node(clause).data {
+    match arena.node(clause).data() {
         NodeData::ImportClause(data) => Some((clause, data.clone())),
         _ => None,
     }
@@ -922,7 +922,7 @@ fn update_import_declaration(
         .arena()
         .node(declaration)
         .expect("an import declaration")
-        .data
+        .data()
         .clone()
     else {
         unreachable!("an import declaration");
@@ -1019,7 +1019,7 @@ fn has_module_declaration_matching_specifier(
     specifier: Option<NodeId>,
 ) -> bool {
     let Some(NodeData::StringLiteral(specifier)) =
-        specifier.map(|specifier| &source.arena.node(specifier).data)
+        specifier.map(|specifier| source.arena.node(specifier).data())
     else {
         return false;
     };
@@ -1028,8 +1028,9 @@ fn has_module_declaration_matching_specifier(
         .iter()
         .any(|&name| {
             matches!(
-                &source.arena.node(name).data,
-                NodeData::StringLiteral(name) if name.text == specifier.text
+                source.arena.node(name).data(),
+                NodeData::StringLiteral(name)
+                    if source.arena.text(name.text) == source.arena.text(specifier.text)
             )
         })
 }
@@ -1038,7 +1039,7 @@ fn has_module_declaration_matching_specifier(
 /// entries.
 fn get_import_attributes_key(arena: &NodeArena, attributes: Option<NodeId>) -> String {
     let Some(NodeData::ImportAttributes(attributes)) =
-        attributes.map(|attributes| &arena.node(attributes).data)
+        attributes.map(|attributes| arena.node(attributes).data())
     else {
         return String::new();
     };
@@ -1049,7 +1050,7 @@ fn get_import_attributes_key(arena: &NodeArena, attributes: Option<NodeId>) -> S
         .unwrap_or_default()
         .iter()
         .filter_map(|&attribute| {
-            let NodeData::ImportAttribute(attribute) = &arena.node(attribute).data else {
+            let NodeData::ImportAttribute(attribute) = arena.node(attribute).data() else {
                 return None;
             };
             let name = attribute
@@ -1058,12 +1059,12 @@ fn get_import_attributes_key(arena: &NodeArena, attributes: Option<NodeId>) -> S
             let value =
                 attribute
                     .value
-                    .map_or_else(String::new, |value| match &arena.node(value).data {
+                    .map_or_else(String::new, |value| match arena.node(value).data() {
                         NodeData::StringLiteral(literal) => {
-                            format!("\"{}\"", literal.text.to_string_lossy())
+                            format!("\"{}\"", arena.text_js(literal.text).to_string_lossy())
                         }
                         NodeData::NoSubstitutionTemplateLiteral(literal) => {
-                            format!("\"{}\"", literal.text.to_string_lossy())
+                            format!("\"{}\"", arena.text_js(literal.text).to_string_lossy())
                         }
                         _ => node_name_text(arena, value),
                     });
@@ -1202,7 +1203,7 @@ fn get_new_import_specifiers<'a>(
             try_get_named_binding_elements(arena, named_import.node())
                 .iter()
                 .map(|&element| {
-                    let normalized = match &arena.node(element).data {
+                    let normalized = match arena.node(element).data() {
                         NodeData::ImportSpecifier(specifier) => {
                             match (specifier.property_name, specifier.name) {
                                 (Some(property_name), Some(name))
@@ -1243,7 +1244,7 @@ fn get_new_import_specifiers<'a>(
 fn try_get_named_binding_elements(arena: &NodeArena, named_import: NodeId) -> &[NodeId] {
     import_clause(arena, named_import)
         .and_then(|(_, clause)| clause.named_bindings)
-        .and_then(|bindings| match &arena.node(bindings).data {
+        .and_then(|bindings| match arena.node(bindings).data() {
             NodeData::NamedImports(named_imports) => named_imports.elements,
             _ => None,
         })
@@ -1325,7 +1326,7 @@ fn coalesce_exports_worker<'a>(
         let mut named_exports = Vec::new();
         let mut type_only_exports = Vec::new();
         for &export_decl in &group {
-            let NodeData::ExportDeclaration(export) = &arena.node(export_decl).data else {
+            let NodeData::ExportDeclaration(export) = arena.node(export_decl).data() else {
                 continue;
             };
             if export.export_clause.is_none() {
@@ -1345,11 +1346,11 @@ fn coalesce_exports_worker<'a>(
             }
             let mut new_export_specifiers: Vec<NodeId> = Vec::new();
             for &export_decl in &sub_group {
-                let NodeData::ExportDeclaration(export) = &arena.node(export_decl).data else {
+                let NodeData::ExportDeclaration(export) = arena.node(export_decl).data() else {
                     continue;
                 };
                 if let Some(NodeData::NamedExports(named_exports)) =
-                    export.export_clause.map(|clause| &arena.node(clause).data)
+                    export.export_clause.map(|clause| arena.node(clause).data())
                 {
                     new_export_specifiers.extend_from_slice(
                         named_exports
@@ -1368,7 +1369,7 @@ fn coalesce_exports_worker<'a>(
                     specifier_comparer.1,
                 )
             });
-            let NodeData::ExportDeclaration(export_decl) = arena.node(sub_group[0]).data.clone()
+            let NodeData::ExportDeclaration(export_decl) = arena.node(sub_group[0]).data().clone()
             else {
                 continue;
             };

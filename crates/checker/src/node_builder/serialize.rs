@@ -311,7 +311,7 @@ fn recover_suppressed_import_target(
         }
     };
     let module_name = match checker.data_of(module_specifier) {
-        NodeData::StringLiteral(data) => data.text.clone(),
+        NodeData::StringLiteral(data) => crate::annotate::published_text_js(data.text).to_owned(),
         _ => return None,
     };
     if module_name.starts_with(".") || module_name.starts_with("/") {
@@ -2462,7 +2462,7 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
             .require_parse_tree_resolver_node(node)
             .map_err(factory_error)?
             .node();
-        let data = arena.node(node).map_err(factory_error)?.data.clone();
+        let data = arena.node(node).map_err(factory_error)?.data().clone();
         if parse == leftmost {
             let type_parameter = symbol.filter(|&symbol| {
                 self.checker
@@ -2856,7 +2856,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                     )?;
                     if let (Some(symbol), NodeData::Identifier(data)) = (
                         self.checker.tables.type_of(type_parameter).symbol,
-                        &arena.node(name).map_err(factory_error)?.data,
+                        arena.node(name).map_err(factory_error)?.data(),
                     ) {
                         context
                             .synthetic_scope_locals
@@ -2913,7 +2913,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                     )?;
                     if let (Some(symbol), NodeData::Identifier(data)) = (
                         self.checker.tables.type_of(type_parameter).symbol,
-                        &arena.node(name).map_err(factory_error)?.data,
+                        arena.node(name).map_err(factory_error)?.data(),
                     ) {
                         context
                             .synthetic_scope_locals

@@ -270,7 +270,7 @@ def generate(profile):
         "/// The child properties tsgo's encoder visits on `node`, in visitor order",
         "/// (`getChildrenPropertyMask`'s bits); a node with none calls nothing.",
         "pub fn for_each_property<'a>(node: &'a Node, mut f: impl FnMut(Property<'a>)) {",
-        "    match &node.data {",
+        "    match node.data() {",
     ]
     for kind in port:
         name = KIND_RENAMES.get(kind, kind)

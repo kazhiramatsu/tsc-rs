@@ -133,7 +133,7 @@ impl DeclarationTransformer<'_> {
             return Ok(());
         }
         let source = node.source();
-        let (left, right) = match &cx.arena().node(node)?.data {
+        let (left, right) = match cx.arena().node(node)?.data() {
             NodeData::BinaryExpression(data) => (data.left, data.right),
             _ => return Ok(()),
         };
@@ -146,7 +146,7 @@ impl DeclarationTransformer<'_> {
         );
         let mut namespace = left;
         loop {
-            let expression = match &cx.arena().node(namespace)?.data {
+            let expression = match cx.arena().node(namespace)?.data() {
                 NodeData::PropertyAccessExpression(data) => data.expression,
                 NodeData::ElementAccessExpression(data) => data.expression,
                 _ => break,
@@ -156,7 +156,7 @@ impl DeclarationTransformer<'_> {
             };
             namespace = TransformNode::new(source, expression);
         }
-        let namespace_name = match &cx.arena().node(namespace)?.data {
+        let namespace_name = match cx.arena().node(namespace)?.data() {
             NodeData::Identifier(data) => data.text().to_owned(),
             _ => return Ok(()),
         };
@@ -178,7 +178,7 @@ impl DeclarationTransformer<'_> {
             return Ok(());
         }
         let declaration_kind = cx.arena().node(declaration)?.kind;
-        match &cx.arena().node(declaration)?.data {
+        match cx.arena().node(declaration)?.data() {
             NodeData::VariableDeclaration(data) => {
                 if data.r#type.is_some()
                     || super::javascript::hosted_type(cx, declaration)?.is_some()
@@ -203,14 +203,14 @@ impl DeclarationTransformer<'_> {
             }
             _ => {}
         }
-        let property = match &cx.arena().node(left)?.data {
+        let property = match cx.arena().node(left)?.data() {
             NodeData::ElementAccessExpression(_) => self
                 .resolver
                 .get_element_access_expression_name(self.required_resolver_node(cx, left)?)?
                 .unwrap_or_default(),
             NodeData::PropertyAccessExpression(data) => {
                 match data.name.and_then(|name| cx.arena().node_ref(source, name)) {
-                    Some(name) => match &cx.arena().node(name)?.data {
+                    Some(name) => match cx.arena().node(name)?.data() {
                         NodeData::Identifier(name) => name.text().to_owned(),
                         _ => String::new(),
                     },
@@ -285,7 +285,7 @@ impl DeclarationTransformer<'_> {
             })?;
             self.check_entity_name_visibility(cx, right, enclosing)?;
             let same_name = matches!(
-                &cx.arena().node(right)?.data,
+                cx.arena().node(right)?.data(),
                 NodeData::Identifier(data) if data.text() == property
             );
             let mut factory = cx.factory()?;
@@ -545,7 +545,7 @@ impl DeclarationTransformer<'_> {
         flags: ModifierFlags,
     ) -> Result<Option<TransformNode>, TransformError> {
         let source = declaration.source();
-        let function = match &cx.arena().node(declaration)?.data {
+        let function = match cx.arena().node(declaration)?.data() {
             NodeData::FunctionDeclaration(_) => declaration,
             NodeData::VariableDeclaration(data) => {
                 let Some(initializer) = data
@@ -564,7 +564,7 @@ impl DeclarationTransformer<'_> {
             }
             _ => return Ok(None),
         };
-        let (type_parameters, parameters, asterisk) = match &cx.arena().node(function)?.data {
+        let (type_parameters, parameters, asterisk) = match cx.arena().node(function)?.data() {
             NodeData::FunctionDeclaration(data) => {
                 (data.type_parameters, data.parameters, data.asterisk_token)
             }
@@ -588,7 +588,7 @@ impl DeclarationTransformer<'_> {
         let return_type = self.ensure_type(cx, function, false)?;
         let mut factory = cx.factory()?;
         if function == declaration {
-            let name = match &factory.arena().node(declaration)?.data {
+            let name = match factory.arena().node(declaration)?.data() {
                 NodeData::FunctionDeclaration(data) => data.name,
                 _ => None,
             }
@@ -677,7 +677,7 @@ impl DeclarationTransformer<'_> {
         };
         let mut named = None;
         for &node in &nodes {
-            let (name, modifiers) = match &cx.arena().node(node)?.data {
+            let (name, modifiers) = match cx.arena().node(node)?.data() {
                 NodeData::FunctionDeclaration(data) => (data.name, data.modifiers),
                 NodeData::ClassDeclaration(data) => (data.name, data.modifiers),
                 NodeData::InterfaceDeclaration(data) => (data.name, data.modifiers),

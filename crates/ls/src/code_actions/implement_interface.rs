@@ -302,7 +302,7 @@ fn get_class(source: &SourceFile, position: usize) -> Option<NodeId> {
 
 /// tsgo `getConstructor`: the class's first constructor.
 fn get_constructor(source: &SourceFile, class_declaration: NodeId) -> Option<NodeId> {
-    let members = match &source.arena.node(class_declaration).data {
+    let members = match source.arena.node(class_declaration).data() {
         NodeData::ClassDeclaration(data) => data.members,
         NodeData::ClassExpression(data) => data.members,
         _ => None,

@@ -736,7 +736,7 @@ impl EmitResolver for CheckerSession<'_> {
         let root = file.root;
         while let Some(node) = stack.pop() {
             let source_file = state.binder.source_of_node(node);
-            let skip = match &source_file.arena.node(node).data {
+            let skip = match source_file.arena.node(node).data() {
                 tsc_syntax::NodeData::ImportDeclaration(_) => true,
                 tsc_syntax::NodeData::ImportEqualsDeclaration(_) => {
                     !tsc_binder::node_util::has_syntactic_modifier(

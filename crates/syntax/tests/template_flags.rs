@@ -3,14 +3,16 @@ use tsc_syntax::{for_each_child, NodeData, NodeId, ParseOptions, SourceFile};
 
 fn fragments(source: &SourceFile, id: NodeId, output: &mut Vec<Value>) {
     let node = source.arena.node(id);
-    let literal = match &node.data {
-        NodeData::NoSubstitutionTemplateLiteral(data) => Some((&data.text, &data.raw_text)),
-        NodeData::TemplateHead(data) => Some((&data.text, &data.raw_text)),
-        NodeData::TemplateMiddle(data) => Some((&data.text, &data.raw_text)),
-        NodeData::TemplateTail(data) => Some((&data.text, &data.raw_text)),
+    let literal = match node.data() {
+        NodeData::NoSubstitutionTemplateLiteral(data) => Some((data.text, data.raw_text)),
+        NodeData::TemplateHead(data) => Some((data.text, data.raw_text)),
+        NodeData::TemplateMiddle(data) => Some((data.text, data.raw_text)),
+        NodeData::TemplateTail(data) => Some((data.text, data.raw_text)),
         _ => None,
     };
     if let Some((text, raw)) = literal {
+        let text = tsc_types::JsStr::from_canonical_bytes(source.arena.text(text));
+        let raw = raw.map(|raw| source.arena.text_str(raw).expect("a UTF-8 raw text"));
         output.push(json!({
             "kind": node.kind as u16,
             "pos": source.positions().byte_to_utf16(node.pos).unwrap(),

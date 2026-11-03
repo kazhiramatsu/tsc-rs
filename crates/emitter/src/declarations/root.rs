@@ -347,7 +347,7 @@ pub(super) fn source_statement_array(
     arena: &TransformArena,
     root: TransformNode,
 ) -> Result<Option<crate::TransformNodeArray>, TransformError> {
-    let NodeData::SourceFile(data) = &arena.node(root)?.data else {
+    let NodeData::SourceFile(data) = arena.node(root)?.data() else {
         return Err(TransformError::RootKindExpected {
             actual: arena.node(root)?.kind,
         });

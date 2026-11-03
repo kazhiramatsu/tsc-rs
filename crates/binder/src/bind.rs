@@ -373,7 +373,7 @@ impl<'a> BinderWorker<'a> {
     }
 
     fn question_token_of(&self, node: NodeId) -> Option<NodeId> {
-        match &self.source.arena.node(node).data {
+        match &self.source.arena.node(node).data() {
             NodeData::MethodDeclaration(data) => data.question_token,
             NodeData::MethodSignature(data) => data.question_token,
             NodeData::PropertyDeclaration(data) => data.question_token,
@@ -468,7 +468,7 @@ impl<'a> BinderWorker<'a> {
                     false,
                 );
                 let is_export_equals = matches!(
-                    &self.source.arena.node(node).data,
+                    &self.source.arena.node(node).data(),
                     NodeData::ExportAssignment(data) if data.is_export_equals == Some(true)
                 );
                 if is_export_equals {
@@ -481,7 +481,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc exportAssignmentIsAlias (15732): entity-name or class
     /// expressions alias.
     fn export_assignment_is_alias(&self, node: NodeId) -> bool {
-        let expression = match &self.source.arena.node(node).data {
+        let expression = match &self.source.arena.node(node).data() {
             NodeData::ExportAssignment(data) => data.expression,
             _ => None,
         };
@@ -540,7 +540,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: d6d358b0a0eb6ef482febcef992fb422846a31fb14ac856ff0239d0594b01f48
     /// tsc-span: _tsc.js:44574-44583
     fn bind_export_declaration(&mut self, node: NodeId) {
-        let export_clause = match &self.source.arena.node(node).data {
+        let export_clause = match &self.source.arena.node(node).data() {
             NodeData::ExportDeclaration(data) => data.export_clause,
             _ => None,
         };
@@ -586,7 +586,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:44584-44588
     fn bind_import_clause(&mut self, node: NodeId) {
         let has_name = matches!(
-            &self.source.arena.node(node).data,
+            &self.source.arena.node(node).data(),
             NodeData::ImportClause(data) if data.name.is_some()
         );
         if has_name {
@@ -689,7 +689,7 @@ impl<'a> BinderWorker<'a> {
         } else {
             let name = name_field_of(self.source, node);
             let binding_name = name
-                .and_then(|name| match &self.source.arena.node(name).data {
+                .and_then(|name| match &self.source.arena.node(name).data() {
                     NodeData::Identifier(data) => Some(data.escaped_text),
                     _ => None,
                 })
@@ -819,11 +819,11 @@ impl<'a> BinderWorker<'a> {
     ///
     /// The bare form (allowAccessedRequire false) that tsgo binds as an alias.
     fn bare_require_call_for_variable(&self, node: NodeId) -> Option<NodeId> {
-        let initializer = match &self.source.arena.node(node).data {
+        let initializer = match &self.source.arena.node(node).data() {
             NodeData::VariableDeclaration(data) => data.initializer?,
             _ => return None,
         };
-        let NodeData::CallExpression(data) = &self.source.arena.node(initializer).data else {
+        let NodeData::CallExpression(data) = &self.source.arena.node(initializer).data() else {
             return None;
         };
         if data
@@ -904,14 +904,14 @@ impl<'a> BinderWorker<'a> {
     }
 
     fn bind_jsdoc_property_like_tag(&mut self, node: NodeId) {
-        let (is_bracketed, type_expression) = match &self.source.arena.node(node).data {
+        let (is_bracketed, type_expression) = match &self.source.arena.node(node).data() {
             NodeData::JSDocPropertyTag(data) => (data.is_bracketed, data.type_expression),
             NodeData::JSDocParameterTag(data) => (data.is_bracketed, data.type_expression),
             _ => unreachable!("JSDoc property-like kind implies payload"),
         };
         let optional_type = type_expression
             .and_then(
-                |expression| match &self.source.arena.node(expression).data {
+                |expression| match &self.source.arena.node(expression).data() {
                     NodeData::JSDocTypeExpression(data) => data.r#type,
                     _ => None,
                 },
@@ -930,7 +930,7 @@ impl<'a> BinderWorker<'a> {
     }
 
     fn parameter_index(&self, function: NodeId, parameter: NodeId) -> Option<usize> {
-        let parameters = match &self.source.arena.node(function).data {
+        let parameters = match &self.source.arena.node(function).data() {
             NodeData::FunctionDeclaration(data) => data.parameters,
             NodeData::FunctionExpression(data) => data.parameters,
             NodeData::ArrowFunction(data) => data.parameters,
@@ -993,14 +993,14 @@ impl<'a> BinderWorker<'a> {
         };
         let mut names = Vec::new();
         for &doc in self.source.arena.node_array(js_doc).nodes {
-            let NodeData::JSDoc(data) = &self.source.arena.node(doc).data else {
+            let NodeData::JSDoc(data) = &self.source.arena.node(doc).data() else {
                 continue;
             };
             let Some(tags) = data.tags else {
                 continue;
             };
             for &tag in self.source.arena.node_array(tags).nodes {
-                if let NodeData::JSDocOverloadTag(overload) = &self.source.arena.node(tag).data {
+                if let NodeData::JSDocOverloadTag(overload) = &self.source.arena.node(tag).data() {
                     if crate::hosted::reparsed_overload_host(self.source, tag) == Some(node) {
                         names.extend(overload.tag_name);
                     }
@@ -1056,7 +1056,7 @@ impl<'a> BinderWorker<'a> {
         }
         self.check_strict_mode_function_name(node);
         let binding_name = name_field_of(self.source, node)
-            .and_then(|name| match &self.source.arena.node(name).data {
+            .and_then(|name| match &self.source.arena.node(name).data() {
                 NodeData::Identifier(data) => Some(data.escaped_text),
                 _ => None,
             })
@@ -1196,7 +1196,7 @@ impl<'a> BinderWorker<'a> {
     /// (reparser.go:297-344, 457-475).
     fn effective_container_for_jsdoc_template_tag(&self, node: NodeId) -> Option<NodeId> {
         let parent = parent_of(self.source, node)?;
-        if let NodeData::JSDoc(data) = &self.source.arena.node(parent).data {
+        if let NodeData::JSDoc(data) = &self.source.arena.node(parent).data() {
             if let Some(tags) = data.tags {
                 if let Some(alias) = self
                     .source
@@ -1222,7 +1222,7 @@ impl<'a> BinderWorker<'a> {
         let mut current = Some(node);
         while let Some(n) = current {
             if let Some(parent) = parent_of(self.source, n) {
-                if let NodeData::ConditionalType(data) = &self.source.arena.node(parent).data {
+                if let NodeData::ConditionalType(data) = &self.source.arena.node(parent).data() {
                     if data.extends_type == Some(n) {
                         return Some(parent);
                     }
@@ -1273,7 +1273,7 @@ impl<'a> BinderWorker<'a> {
     /// non-expando declaration has that name. The declaration is the
     /// assignment (or call) itself.
     fn bind_deferred_expando_assignment(&mut self, node: NodeId) {
-        let parent = match &self.source.arena.node(node).data {
+        let parent = match &self.source.arena.node(node).data() {
             NodeData::BinaryExpression(data) => data
                 .left
                 .and_then(|left| access_expression_of(self.source, left)),
@@ -1334,7 +1334,7 @@ impl<'a> BinderWorker<'a> {
     /// `this.p` target finds nothing (the pass runs with no `this`
     /// container); `E.p` is the `p` export of E's initializer symbol.
     fn lookup_entity(&self, node: NodeId, container: NodeId) -> Option<SymbolId> {
-        if let NodeData::Identifier(data) = &self.source.arena.node(node).data {
+        if let NodeData::Identifier(data) = &self.source.arena.node(node).data() {
             return self.lookup_name(data.escaped_text, container);
         }
         let expression = access_expression_of(self.source, node)?;
@@ -1374,7 +1374,7 @@ impl<'a> BinderWorker<'a> {
     fn get_initializer_symbol(&self, symbol: Option<SymbolId>) -> Option<SymbolId> {
         let declaration = self.symbols.symbol(symbol?).value_declaration?;
         let in_js = self.is_in_js_file();
-        match &self.source.arena.node(declaration).data {
+        match &self.source.arena.node(declaration).data() {
             NodeData::FunctionDeclaration(_) => symbol,
             NodeData::ClassDeclaration(_) if in_js => symbol,
             NodeData::VariableDeclaration(data) => {
@@ -1404,7 +1404,7 @@ impl<'a> BinderWorker<'a> {
     /// expression, or an empty object literal when the declaration has no
     /// type (a JSDoc `@type` counts, as tsgo reparses it into the type).
     fn is_expando_initializer(&self, declaration: NodeId, initializer: NodeId) -> bool {
-        match &self.source.arena.node(initializer).data {
+        match &self.source.arena.node(initializer).data() {
             NodeData::FunctionExpression(_) | NodeData::ArrowFunction(_) => true,
             _ if !self.is_in_js_file() => false,
             NodeData::ClassExpression(_) => true,
@@ -1422,7 +1422,7 @@ impl<'a> BinderWorker<'a> {
     /// declaration's type).
     fn declaration_has_type(&self, declaration: NodeId) -> bool {
         matches!(
-            &self.source.arena.node(declaration).data,
+            &self.source.arena.node(declaration).data(),
             NodeData::VariableDeclaration(data) if data.r#type.is_some()
         ) || crate::hosted::jsdoc_hosted(self.source)
             .type_of(declaration)
@@ -1460,7 +1460,7 @@ impl<'a> BinderWorker<'a> {
         let Some(file_symbol) = self.file_symbol() else {
             return;
         };
-        let Some(right) = (match &self.source.arena.node(node).data {
+        let Some(right) = (match &self.source.arena.node(node).data() {
             NodeData::BinaryExpression(data) => data.right,
             _ => None,
         }) else {
@@ -1496,7 +1496,7 @@ impl<'a> BinderWorker<'a> {
         let Some(file_symbol) = self.file_symbol() else {
             return;
         };
-        let is_alias = match &self.source.arena.node(node).data {
+        let is_alias = match &self.source.arena.node(node).data() {
             NodeData::BinaryExpression(data) => data
                 .right
                 .is_some_and(|right| self.is_aliasable_expression(right)),
@@ -1607,7 +1607,7 @@ impl<'a> BinderWorker<'a> {
     }
 
     fn bind_this_property_assignment(&mut self, node: NodeId) {
-        let has_private_identifier = match &self.source.arena.node(node).data {
+        let has_private_identifier = match &self.source.arena.node(node).data() {
             NodeData::BinaryExpression(data) => data.left.is_some_and(|left| {
                 kind_of(self.source, left) == SyntaxKind::PropertyAccessExpression
                     && name_field_of(self.source, left).is_some_and(|name| {
@@ -1735,7 +1735,7 @@ impl<'a> BinderWorker<'a> {
         if self.common_js_module_indicator.is_some() {
             return;
         }
-        let NodeData::CallExpression(data) = &self.source.arena.node(node).data else {
+        let NodeData::CallExpression(data) = &self.source.arena.node(node).data() else {
             return;
         };
         let Some(expression) = data.expression else {
@@ -1774,7 +1774,7 @@ impl<'a> BinderWorker<'a> {
         if is_identifier_name(self.source, node) {
             return;
         }
-        let escaped_text = match &self.source.arena.node(node).data {
+        let escaped_text = match &self.source.arena.node(node).data() {
             NodeData::Identifier(data) => data.escaped_text,
             _ => return,
         };
@@ -1837,7 +1837,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: cb3994b9221228cee285a1fdf2ec491cb1055f29567cd50e8ab61460a32df228
     /// tsc-span: _tsc.js:44132-44138
     fn check_private_identifier(&mut self, node: NodeId) {
-        let escaped_text = match &self.source.arena.node(node).data {
+        let escaped_text = match &self.source.arena.node(node).data() {
             NodeData::PrivateIdentifier(data) => data.escaped_text.identifier_text(),
             _ => return,
         };
@@ -1856,7 +1856,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 351653abd86c1f9c51244ccc3f4d53ba8185b945c34fad7b984cb5247e49c343
     /// tsc-span: _tsc.js:44139-44143
     fn check_strict_mode_binary_expression(&mut self, node: NodeId) {
-        let (left, operator) = match &self.source.arena.node(node).data {
+        let (left, operator) = match &self.source.arena.node(node).data() {
             NodeData::BinaryExpression(data) => (
                 data.left,
                 data.operator_token
@@ -1878,7 +1878,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: aeaf9cdd1a2cdbae129c915bed2f44aa252461e410130d0d9d6ff014c719be46
     /// tsc-span: _tsc.js:44144-44148
     fn check_strict_mode_catch_clause(&mut self, node: NodeId) {
-        let variable_declaration = match &self.source.arena.node(node).data {
+        let variable_declaration = match &self.source.arena.node(node).data() {
             NodeData::CatchClause(data) => data.variable_declaration,
             _ => None,
         };
@@ -1892,7 +1892,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 2d8f2e480393280022cdc7db903f5a4fd6d04ab2fd241b494a368db2af099156
     /// tsc-span: _tsc.js:44149-44154
     fn check_strict_mode_delete_expression(&mut self, node: NodeId) {
-        let expression = match &self.source.arena.node(node).data {
+        let expression = match &self.source.arena.node(node).data() {
             NodeData::DeleteExpression(data) => data.expression,
             _ => None,
         };
@@ -1914,7 +1914,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:44158-44166
     fn check_strict_mode_eval_or_arguments(&mut self, context_node: NodeId, name: Option<NodeId>) {
         let Some(name) = name else { return };
-        let NodeData::Identifier(data) = &self.source.arena.node(name).data else {
+        let NodeData::Identifier(data) = &self.source.arena.node(name).data() else {
             return;
         };
         // tsc isEvalOrArgumentsIdentifier (44155).
@@ -1957,7 +1957,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: e0ab6b73ec19c15fa6454693398d05ddf4e44c0e2bdefd38b0a7155d44bd9f5d
     /// tsc-span: _tsc.js:44198-44202
     fn check_strict_mode_postfix_unary_expression(&mut self, node: NodeId) {
-        let operand = match &self.source.arena.node(node).data {
+        let operand = match &self.source.arena.node(node).data() {
             NodeData::PostfixUnaryExpression(data) => data.operand,
             _ => None,
         };
@@ -1968,7 +1968,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 056a7fd1afe468b27ee376391672bf14333f4a94593979b8d5acda5500b8b087
     /// tsc-span: _tsc.js:44203-44209
     fn check_strict_mode_prefix_unary_expression(&mut self, node: NodeId) {
-        if let NodeData::PrefixUnaryExpression(data) = &self.source.arena.node(node).data {
+        if let NodeData::PrefixUnaryExpression(data) = &self.source.arena.node(node).data() {
             if matches!(
                 data.operator,
                 SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
@@ -1997,7 +1997,7 @@ impl<'a> BinderWorker<'a> {
     /// tsgo reports a label on a declaration or variable statement in every
     /// file (binder/binder.go:1440-1446).
     fn check_strict_mode_labeled_statement(&mut self, node: NodeId) {
-        let (label, statement) = match &self.source.arena.node(node).data {
+        let (label, statement) = match &self.source.arena.node(node).data() {
             NodeData::LabeledStatement(data) => (data.label, data.statement),
             _ => (None, None),
         };
@@ -2187,7 +2187,7 @@ impl<'a> BinderWorker<'a> {
             }
             SyntaxKind::JSDocImportTag => self.bind_jsdoc_import_tag(node),
             SyntaxKind::SourceFile => {
-                let (statements, end_of_file_token) = match &self.source.arena.node(node).data {
+                let (statements, end_of_file_token) = match &self.source.arena.node(node).data() {
                     NodeData::SourceFile(data) => (data.statements, data.end_of_file_token),
                     _ => (None, None),
                 };
@@ -2244,7 +2244,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 8cf0c3b0d331c78f424f350936ce80a41890652797352500ee64a594ffab0804
     /// tsc-span: _tsc.js:43715-43727
     fn bind_jsdoc_type_alias(&mut self, node: NodeId) {
-        let (tag_name, comment) = match &self.source.arena.node(node).data {
+        let (tag_name, comment) = match &self.source.arena.node(node).data() {
             NodeData::JSDocTypedefTag(data) => (
                 data.tag_name,
                 data.comment.as_ref().and_then(|comment| comment.nodes()),
@@ -2264,7 +2264,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:43736-43743
     fn bind_jsdoc_import_tag(&mut self, node: NodeId) {
         let (tag_name, module_specifier, attributes, comment) =
-            match &self.source.arena.node(node).data {
+            match &self.source.arena.node(node).data() {
                 NodeData::JSDocImportTag(data) => (
                     data.tag_name,
                     data.module_specifier,
@@ -2369,7 +2369,7 @@ impl<'a> BinderWorker<'a> {
         }
         let mut namespaces = Vec::new();
         for &doc in self.source.arena.node_array(js_doc).nodes {
-            let NodeData::JSDoc(data) = &self.source.arena.node(doc).data else {
+            let NodeData::JSDoc(data) = &self.source.arena.node(doc).data() else {
                 continue;
             };
             let Some(tags) = data.tags else {
@@ -2479,7 +2479,7 @@ impl<'a> BinderWorker<'a> {
                 crate::flow::FlowPayload::None,
                 None,
             ));
-            let import_clause = match &self.source.arena.node(import_tag).data {
+            let import_clause = match &self.source.arena.node(import_tag).data() {
                 NodeData::JSDocImportTag(data) => data.import_clause,
                 _ => None,
             };
@@ -2579,7 +2579,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 9502783d5fee9d39b7c22c38d0c2168ce81a14afdefe39bbc301bacde7070863
     /// tsc-span: _tsc.js:43218-43229
     fn bind_while_statement(&mut self, node: NodeId) {
-        let (expression, statement) = match &self.source.arena.node(node).data {
+        let (expression, statement) = match &self.source.arena.node(node).data() {
             NodeData::WhileStatement(data) => (data.expression, data.statement),
             _ => (None, None),
         };
@@ -2608,7 +2608,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 70fbd4032fe8fe8209fbc80b5f0ba0b5baeac97dfb6d2b600268edf78ea42512
     /// tsc-span: _tsc.js:43230-43241
     fn bind_do_statement(&mut self, node: NodeId) {
-        let (expression, statement) = match &self.source.arena.node(node).data {
+        let (expression, statement) = match &self.source.arena.node(node).data() {
             NodeData::DoStatement(data) => (data.expression, data.statement),
             _ => (None, None),
         };
@@ -2638,7 +2638,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:43242-43258
     fn bind_for_statement(&mut self, node: NodeId) {
         let (initializer, condition, incrementor, statement) =
-            match &self.source.arena.node(node).data {
+            match &self.source.arena.node(node).data() {
                 NodeData::ForStatement(data) => (
                     data.initializer,
                     data.condition,
@@ -2691,7 +2691,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:43259-43276
     fn bind_for_in_or_for_of_statement(&mut self, node: NodeId) {
         let (expression, initializer, statement, await_modifier) =
-            match &self.source.arena.node(node).data {
+            match &self.source.arena.node(node).data() {
                 NodeData::ForInStatement(data) => {
                     (data.expression, data.initializer, data.statement, None)
                 }
@@ -2740,13 +2740,13 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 2c30dad48c8cea8fc38dcf71dc1540246ea176334ec080e5b11f00bb2506dcf7
     /// tsc-span: _tsc.js:43277-43289
     fn bind_if_statement(&mut self, node: NodeId) {
-        let (expression, then_statement, else_statement) = match &self.source.arena.node(node).data
-        {
-            NodeData::IfStatement(data) => {
-                (data.expression, data.then_statement, data.else_statement)
-            }
-            _ => (None, None, None),
-        };
+        let (expression, then_statement, else_statement) =
+            match &self.source.arena.node(node).data() {
+                NodeData::IfStatement(data) => {
+                    (data.expression, data.then_statement, data.else_statement)
+                }
+                _ => (None, None, None),
+            };
         let then_label = self.flow.create_branch_label();
         let else_label = self.flow.create_branch_label();
         let post_if_label = self.flow.create_branch_label();
@@ -2775,7 +2775,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 0d74669036bab103742a58d7497ed102c16393074edc7a911ca0a5e86369327d
     /// tsc-span: _tsc.js:43290-43303
     fn bind_return_or_throw(&mut self, node: NodeId) {
-        let expression = match &self.source.arena.node(node).data {
+        let expression = match &self.source.arena.node(node).data() {
             NodeData::ReturnStatement(data) => data.expression,
             NodeData::ThrowStatement(data) => data.expression,
             _ => None,
@@ -2799,7 +2799,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: e28e187b38fa438f170acb5ab7ffcd119b5c320398e7f55783d452e1e075363c
     /// tsc-span: _tsc.js:43320-43331
     fn bind_break_or_continue_statement(&mut self, node: NodeId) {
-        let label = match &self.source.arena.node(node).data {
+        let label = match &self.source.arena.node(node).data() {
             NodeData::BreakStatement(data) => data.label,
             NodeData::ContinueStatement(data) => data.label,
             _ => None,
@@ -2807,7 +2807,7 @@ impl<'a> BinderWorker<'a> {
         self.bind(label);
         match label {
             Some(label) => {
-                let escaped = match &self.source.arena.node(label).data {
+                let escaped = match &self.source.arena.node(label).data() {
                     NodeData::Identifier(data) => data.escaped_text,
                     _ => return,
                 };
@@ -2859,7 +2859,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 27e30684473d6f50b0b0522497a94c9e39bb2ff8f908d3fb43110f7dda8bfd67
     /// tsc-span: _tsc.js:43332-43374
     fn bind_try_statement(&mut self, node: NodeId) {
-        let (try_block, catch_clause, finally_block) = match &self.source.arena.node(node).data {
+        let (try_block, catch_clause, finally_block) = match &self.source.arena.node(node).data() {
             NodeData::TryStatement(data) => (data.try_block, data.catch_clause, data.finally_block),
             _ => (None, None, None),
         };
@@ -2952,7 +2952,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 92b2f46ea4a5ce9af156abe3d6a00b47a3059978d1217d24aedf349581f24c9f
     /// tsc-span: _tsc.js:43375-43392
     fn bind_switch_statement(&mut self, node: NodeId) {
-        let (expression, case_block) = match &self.source.arena.node(node).data {
+        let (expression, case_block) = match &self.source.arena.node(node).data() {
             NodeData::SwitchStatement(data) => (data.expression, data.case_block),
             _ => (None, None),
         };
@@ -2967,7 +2967,7 @@ impl<'a> BinderWorker<'a> {
         self.flow.add_antecedent(post_switch_label, current);
         let has_default =
             case_block.is_some_and(
-                |case_block| match &self.source.arena.node(case_block).data {
+                |case_block| match &self.source.arena.node(case_block).data() {
                     NodeData::CaseBlock(data) => data.clauses.is_some_and(|clauses| {
                         self.source
                             .arena
@@ -3002,14 +3002,14 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: bd1cf1fbddf3aeec7e66acf5515b3ca553645c4e477d4e96664c6d0194e7efeb
     /// tsc-span: _tsc.js:43393-43417
     fn bind_case_block(&mut self, node: NodeId) {
-        let clauses = match &self.source.arena.node(node).data {
+        let clauses = match &self.source.arena.node(node).data() {
             NodeData::CaseBlock(data) => data.clauses,
             _ => None,
         };
         let Some(clauses) = clauses else { return };
         let clauses = self.source.arena.node_array(clauses).nodes.to_vec();
         let switch_statement = parent_of(self.source, node).expect("case block parent");
-        let switch_expression = match &self.source.arena.node(switch_statement).data {
+        let switch_expression = match &self.source.arena.node(switch_statement).data() {
             NodeData::SwitchStatement(data) => data.expression,
             _ => None,
         };
@@ -3067,7 +3067,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: babfa2aba74aff33e0f550fb1b59d6a3a52472b8412209bc37561c01b7507076
     /// tsc-span: _tsc.js:43418-43424
     fn bind_case_clause(&mut self, node: NodeId) {
-        let (expression, statements) = match &self.source.arena.node(node).data {
+        let (expression, statements) = match &self.source.arena.node(node).data() {
             NodeData::CaseClause(data) => (data.expression, data.statements),
             _ => (None, None),
         };
@@ -3082,7 +3082,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: ecc460eac354017bf8eb09bd872917b739db3a55c1047174100aa7212b22818e
     /// tsc-span: _tsc.js:43425-43428
     fn bind_expression_statement(&mut self, node: NodeId) {
-        let expression = match &self.source.arena.node(node).data {
+        let expression = match &self.source.arena.node(node).data() {
             NodeData::ExpressionStatement(data) => data.expression,
             _ => None,
         };
@@ -3096,7 +3096,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: e63aedaf525ec80be365b3176f72d498a0186fa44337f126ef781ac3ea3fec05
     /// tsc-span: _tsc.js:43429-43436
     fn maybe_bind_expression_flow_if_call(&mut self, node: NodeId) {
-        if let NodeData::CallExpression(data) = &self.source.arena.node(node).data {
+        if let NodeData::CallExpression(data) = &self.source.arena.node(node).data() {
             if let Some(expression) = data.expression {
                 if kind_of(self.source, expression) != SyntaxKind::SuperKeyword
                     && crate::node_util::is_dotted_name(self.source, expression)
@@ -3112,13 +3112,13 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: c1caa33a967160b6944fdc88e26a45551b32980a05b7acf5b14eb2246851c828
     /// tsc-span: _tsc.js:43437-43454
     fn bind_labeled_statement(&mut self, node: NodeId) {
-        let (label, statement) = match &self.source.arena.node(node).data {
+        let (label, statement) = match &self.source.arena.node(node).data() {
             NodeData::LabeledStatement(data) => (data.label, data.statement),
             _ => (None, None),
         };
         let post_statement_label = self.flow.create_branch_label();
         let name = label
-            .and_then(|label| match &self.source.arena.node(label).data {
+            .and_then(|label| match &self.source.arena.node(label).data() {
                 // Labels are grammar identifiers, never literal property values.
                 NodeData::Identifier(data) => Some(data.escaped_text),
                 _ => None,
@@ -3151,7 +3151,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 4bbc1240b69e059e2e26beb081750843d9b27e52a8b7b5f7d6e97ae44f56b834
     /// tsc-span: _tsc.js:43455-43461
     fn bind_destructuring_target_flow(&mut self, node: NodeId) {
-        let assignment_left = match &self.source.arena.node(node).data {
+        let assignment_left = match &self.source.arena.node(node).data() {
             NodeData::BinaryExpression(data)
                 if data.operator_token.is_some_and(|token| {
                     kind_of(self.source, token) == SyntaxKind::EqualsToken
@@ -3176,7 +3176,7 @@ impl<'a> BinderWorker<'a> {
             self.current_flow =
                 Some(self.create_flow_mutation(FlowFlags::ASSIGNMENT, current, node));
         } else if kind_of(self.source, node) == SyntaxKind::ArrayLiteralExpression {
-            let elements = match &self.source.arena.node(node).data {
+            let elements = match &self.source.arena.node(node).data() {
                 NodeData::ArrayLiteralExpression(data) => data.elements,
                 _ => None,
             };
@@ -3192,13 +3192,13 @@ impl<'a> BinderWorker<'a> {
                 }
             }
         } else if kind_of(self.source, node) == SyntaxKind::ObjectLiteralExpression {
-            let properties = match &self.source.arena.node(node).data {
+            let properties = match &self.source.arena.node(node).data() {
                 NodeData::ObjectLiteralExpression(data) => data.properties,
                 _ => None,
             };
             let Some(properties) = properties else { return };
             for &property in &self.source.arena.node_array(properties).nodes.to_vec() {
-                match &self.source.arena.node(property).data {
+                match &self.source.arena.node(property).data() {
                     NodeData::PropertyAssignment(data) => {
                         if let Some(initializer) = data.initializer {
                             self.bind_destructuring_target_flow(initializer);
@@ -3229,7 +3229,7 @@ impl<'a> BinderWorker<'a> {
         true_target: FlowId,
         false_target: FlowId,
     ) {
-        let (left, operator_token, right) = match &self.source.arena.node(node).data {
+        let (left, operator_token, right) = match &self.source.arena.node(node).data() {
             NodeData::BinaryExpression(data) => (data.left, data.operator_token, data.right),
             _ => (None, None, None),
         };
@@ -3276,7 +3276,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 10090c29ecfd2fc2ceab949352b6390644f5f511de68bdcffca952227ea231df
     /// tsc-span: _tsc.js:43503-43517
     fn bind_prefix_unary_expression_flow(&mut self, node: NodeId) {
-        let (operator, operand) = match &self.source.arena.node(node).data {
+        let (operator, operand) = match &self.source.arena.node(node).data() {
             NodeData::PrefixUnaryExpression(data) => (data.operator, data.operand),
             _ => (SyntaxKind::Unknown, None),
         };
@@ -3306,7 +3306,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 15652bcbf955f7a2cf0a4f04eb33326f8f1cb5501e70edb9be966ab11578f25a
     /// tsc-span: _tsc.js:43518-43523
     fn bind_postfix_unary_expression_flow(&mut self, node: NodeId) {
-        let (operator, operand) = match &self.source.arena.node(node).data {
+        let (operator, operand) = match &self.source.arena.node(node).data() {
             NodeData::PostfixUnaryExpression(data) => (data.operator, data.operand),
             _ => (SyntaxKind::Unknown, None),
         };
@@ -3325,7 +3325,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: e9031917fa13ae8fa0b0b28ea8904624e1a167012673309191025b1f5173809b
     /// tsc-span: _tsc.js:43524-43539
     fn bind_destructuring_assignment_flow(&mut self, node: NodeId) {
-        let (left, operator_token, right) = match &self.source.arena.node(node).data {
+        let (left, operator_token, right) = match &self.source.arena.node(node).data() {
             NodeData::BinaryExpression(data) => (data.left, data.operator_token, data.right),
             _ => (None, None, None),
         };
@@ -3374,7 +3374,7 @@ impl<'a> BinderWorker<'a> {
         }];
         while let Some(top) = stack.len().checked_sub(1) {
             let node = stack[top].node;
-            let (left, operator_token, right) = match &self.source.arena.node(node).data {
+            let (left, operator_token, right) = match &self.source.arena.node(node).data() {
                 NodeData::BinaryExpression(data) => (data.left, data.operator_token, data.right),
                 _ => (None, None, None),
             };
@@ -3426,7 +3426,7 @@ impl<'a> BinderWorker<'a> {
                     if !stack[top].skip {
                         if let Some(left) = left {
                             if matches!(
-                                &self.source.arena.node(left).data,
+                                &self.source.arena.node(left).data(),
                                 NodeData::BinaryExpression(_)
                             ) && !is_destructuring_assignment(self.source, left)
                             {
@@ -3455,7 +3455,7 @@ impl<'a> BinderWorker<'a> {
                     if !stack[top].skip {
                         if let Some(right) = right {
                             if matches!(
-                                &self.source.arena.node(right).data,
+                                &self.source.arena.node(right).data(),
                                 NodeData::BinaryExpression(_)
                             ) && !is_destructuring_assignment(self.source, right)
                             {
@@ -3521,7 +3521,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:43646-43670
     fn bind_conditional_expression_flow(&mut self, node: NodeId) {
         let (condition, question_token, when_true, colon_token, when_false) =
-            match &self.source.arena.node(node).data {
+            match &self.source.arena.node(node).data() {
                 NodeData::ConditionalExpression(data) => (
                     data.condition,
                     data.question_token,
@@ -3584,7 +3584,7 @@ impl<'a> BinderWorker<'a> {
         };
         if let Some(name) = name {
             if is_binding_pattern(self.source, name) {
-                let elements = match &self.source.arena.node(name).data {
+                let elements = match &self.source.arena.node(name).data() {
                     NodeData::ObjectBindingPattern(data) => data.elements,
                     NodeData::ArrayBindingPattern(data) => data.elements,
                     _ => None,
@@ -3607,7 +3607,7 @@ impl<'a> BinderWorker<'a> {
     fn bind_variable_declaration_flow(&mut self, node: NodeId) {
         self.bind_each_child(node);
         let has_initializer = matches!(
-            &self.source.arena.node(node).data,
+            &self.source.arena.node(node).data(),
             NodeData::VariableDeclaration(data) if data.initializer.is_some()
         );
         let in_for_in_or_of = parent_of(self.source, node)
@@ -3628,7 +3628,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:43687-43692
     fn bind_binding_element_flow(&mut self, node: NodeId) {
         let (dot_dot_dot_token, property_name, name, initializer) =
-            match &self.source.arena.node(node).data {
+            match &self.source.arena.node(node).data() {
                 NodeData::BindingElement(data) => (
                     data.dot_dot_dot_token,
                     data.property_name,
@@ -3648,7 +3648,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:43693-43700
     fn bind_parameter_flow(&mut self, node: NodeId) {
         let (modifiers, dot_dot_dot_token, question_token, parameter_type, initializer, name) =
-            match &self.source.arena.node(node).data {
+            match &self.source.arena.node(node).data() {
                 NodeData::Parameter(data) => (
                     data.modifiers,
                     data.dot_dot_dot_token,
@@ -3724,7 +3724,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: f06ce5b13af97ecb0dcf462fb0eba0b14547d67e28ad2f965b1a6bf290d08976
     /// tsc-span: _tsc.js:43751-43767
     fn bind_optional_chain_rest(&mut self, node: NodeId) {
-        match &self.source.arena.node(node).data {
+        match &self.source.arena.node(node).data() {
             NodeData::PropertyAccessExpression(data) => {
                 let (question_dot_token, name) = (data.question_dot_token, data.name);
                 self.bind(question_dot_token);
@@ -3838,7 +3838,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 6c23347d48d9e4dfd8f7d6459b2db901236604f0202d523359292aebd4e9f24b
     /// tsc-span: _tsc.js:43806-43828
     fn bind_call_expression_flow(&mut self, node: NodeId) {
-        let (expression, type_arguments, arguments) = match &self.source.arena.node(node).data {
+        let (expression, type_arguments, arguments) = match &self.source.arena.node(node).data() {
             NodeData::CallExpression(data) => {
                 (data.expression, data.type_arguments, data.arguments)
             }
@@ -3865,7 +3865,7 @@ impl<'a> BinderWorker<'a> {
         }
         if let Some(expression) = expression {
             if let NodeData::PropertyAccessExpression(data) =
-                &self.source.arena.node(expression).data
+                &self.source.arena.node(expression).data()
             {
                 let (name, target) = (data.name, data.expression);
                 if let (Some(name), Some(target)) = (name, target) {
@@ -3891,7 +3891,7 @@ fn is_statement_condition(source: &tsc_syntax::SourceFile, node: NodeId) -> bool
     let Some(parent) = parent_of(source, node) else {
         return false;
     };
-    match &source.arena.node(parent).data {
+    match &source.arena.node(parent).data() {
         NodeData::IfStatement(data) => data.expression == Some(node),
         NodeData::WhileStatement(data) => data.expression == Some(node),
         NodeData::DoStatement(data) => data.expression == Some(node),
@@ -3904,7 +3904,7 @@ fn is_statement_condition(source: &tsc_syntax::SourceFile, node: NodeId) -> bool
 /// tsc isLogicalExpression (43164): unwraps parens and `!`.
 fn is_logical_expression(source: &tsc_syntax::SourceFile, mut node: NodeId) -> bool {
     loop {
-        match &source.arena.node(node).data {
+        match &source.arena.node(node).data() {
             NodeData::ParenthesizedExpression(data) => match data.expression {
                 Some(expression) => node = expression,
                 None => return false,
@@ -3928,7 +3928,7 @@ fn is_top_level_logical_expression(source: &tsc_syntax::SourceFile, mut node: No
     while let Some(parent) = parent_of(source, node) {
         let is_wrapper = kind_of(source, parent) == SyntaxKind::ParenthesizedExpression
             || matches!(
-                &source.arena.node(parent).data,
+                &source.arena.node(parent).data(),
                 NodeData::PrefixUnaryExpression(data)
                     if data.operator == SyntaxKind::ExclamationToken
             );
@@ -3949,7 +3949,7 @@ fn is_top_level_logical_expression(source: &tsc_syntax::SourceFile, mut node: No
 /// tsc: a case/default clause with no statements (bindCaseBlock's
 /// fallthrough grouping).
 fn clause_statements_empty(source: &tsc_syntax::SourceFile, clause: NodeId) -> bool {
-    match &source.arena.node(clause).data {
+    match &source.arena.node(clause).data() {
         NodeData::CaseClause(data) => data
             .statements
             .map(|statements| source.arena.node_array(statements).nodes.is_empty())

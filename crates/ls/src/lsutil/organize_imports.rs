@@ -290,10 +290,10 @@ pub(crate) fn filter_import_declarations(arena: &NodeArena, statements: &[NodeId
 
 /// tsgo `getModuleSpecifierExpression`.
 fn module_specifier_expression(arena: &NodeArena, declaration: NodeId) -> Option<NodeId> {
-    match &arena.node(declaration).data {
+    match arena.node(declaration).data() {
         NodeData::ImportEqualsDeclaration(data) => {
             let reference = data.module_reference?;
-            match &arena.node(reference).data {
+            match arena.node(reference).data() {
                 NodeData::ExternalModuleReference(reference) => reference.expression,
                 _ => None,
             }
@@ -301,15 +301,15 @@ fn module_specifier_expression(arena: &NodeArena, declaration: NodeId) -> Option
         NodeData::ImportDeclaration(data) => data.module_specifier,
         NodeData::VariableStatement(data) => {
             let list = data.declaration_list?;
-            let NodeData::VariableDeclarationList(list) = &arena.node(list).data else {
+            let NodeData::VariableDeclarationList(list) = arena.node(list).data() else {
                 return None;
             };
             let first = *arena.node_array(list.declarations?).nodes.first()?;
-            let NodeData::VariableDeclaration(declaration) = &arena.node(first).data else {
+            let NodeData::VariableDeclaration(declaration) = arena.node(first).data() else {
                 return None;
             };
             let initializer = declaration.initializer?;
-            let NodeData::CallExpression(call) = &arena.node(initializer).data else {
+            let NodeData::CallExpression(call) = arena.node(initializer).data() else {
                 return None;
             };
             arena.node_array(call.arguments?).nodes.first().copied()
@@ -320,10 +320,12 @@ fn module_specifier_expression(arena: &NodeArena, declaration: NodeId) -> Option
 
 /// tsgo `GetExternalModuleName`: a string literal's text, else empty.
 pub(crate) fn get_external_module_name(arena: &NodeArena, specifier: Option<NodeId>) -> String {
-    match specifier.map(|specifier| &arena.node(specifier).data) {
-        Some(NodeData::StringLiteral(data)) => data.text.to_string_lossy().into_owned(),
+    match specifier.map(|specifier| arena.node(specifier).data()) {
+        Some(NodeData::StringLiteral(data)) => {
+            arena.text_js(data.text).to_string_lossy().into_owned()
+        }
         Some(NodeData::NoSubstitutionTemplateLiteral(data)) => {
-            data.text.to_string_lossy().into_owned()
+            arena.text_js(data.text).to_string_lossy().into_owned()
         }
         _ => String::new(),
     }
@@ -355,12 +357,12 @@ fn is_external_module_name_relative(name: &str) -> bool {
 
 /// tsgo `getImportKindOrder`.
 fn import_kind_order(arena: &NodeArena, statement: NodeId) -> u8 {
-    match &arena.node(statement).data {
+    match arena.node(statement).data() {
         NodeData::ImportDeclaration(data) => {
             let Some(clause) = data.import_clause else {
                 return 0;
             };
-            let NodeData::ImportClause(clause) = &arena.node(clause).data else {
+            let NodeData::ImportClause(clause) = arena.node(clause).data() else {
                 return 7;
             };
             if clause.is_type_only {
@@ -400,7 +402,7 @@ pub(crate) fn compare_imports_or_require_statements(
 
 /// An import or export specifier's name and whether it is type only.
 fn specifier_name_and_type_only(arena: &NodeArena, specifier: NodeId) -> (String, bool) {
-    let (name, is_type_only) = match &arena.node(specifier).data {
+    let (name, is_type_only) = match arena.node(specifier).data() {
         NodeData::ImportSpecifier(data) => (data.name, data.is_type_only),
         NodeData::ExportSpecifier(data) => (data.name, data.is_type_only),
         // Organize imports compares source phase imports' clauses.
@@ -413,9 +415,9 @@ fn specifier_name_and_type_only(arena: &NodeArena, specifier: NodeId) -> (String
 
 /// The text of a name (an identifier or a string literal).
 pub(crate) fn node_name_text(arena: &NodeArena, name: NodeId) -> String {
-    match &arena.node(name).data {
+    match arena.node(name).data() {
         NodeData::Identifier(data) => data.text().to_owned(),
-        NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
+        NodeData::StringLiteral(data) => arena.text_js(data.text).to_string_lossy().into_owned(),
         _ => String::new(),
     }
 }
@@ -525,19 +527,19 @@ pub(crate) fn detect_named_import_organization_by_sort(
     let mut both_named_imports = false;
     let mut named_imports_by_declaration: Vec<Vec<NodeId>> = Vec::new();
     for &declaration in declarations {
-        let NodeData::ImportDeclaration(data) = &arena.node(declaration).data else {
+        let NodeData::ImportDeclaration(data) = arena.node(declaration).data() else {
             continue;
         };
         let Some(clause) = data.import_clause else {
             continue;
         };
-        let NodeData::ImportClause(clause) = &arena.node(clause).data else {
+        let NodeData::ImportClause(clause) = arena.node(clause).data() else {
             continue;
         };
         let Some(bindings) = clause.named_bindings else {
             continue;
         };
-        let NodeData::NamedImports(named) = &arena.node(bindings).data else {
+        let NodeData::NamedImports(named) = arena.node(bindings).data() else {
             continue;
         };
         let elements = named

@@ -126,10 +126,10 @@ fn exported_namespace_import_alias_reference_reports_its_namespace_container() {
         let mut reference = None;
         while let Some(id) = stack.pop() {
             let node = source.arena.node(id);
-            match &node.data {
+            match node.data() {
                 NodeData::ModuleDeclaration(data)
                     if data.name.is_some_and(|name| {
-                        matches!(&source.arena.node(name).data,
+                        matches!(source.arena.node(name).data(),
                             NodeData::Identifier(identifier) if identifier.text() == "m2")
                     }) =>
                 {
@@ -138,7 +138,7 @@ fn exported_namespace_import_alias_reference_reports_its_namespace_container() {
                 NodeData::Identifier(identifier)
                     if identifier.text() == "exports"
                         && state.parent_of(id).is_some_and(|parent| {
-                            matches!(&source.arena.node(parent).data,
+                            matches!(source.arena.node(parent).data(),
                                 NodeData::NewExpression(data) if data.expression == Some(id))
                         }) =>
                 {
@@ -188,7 +188,7 @@ fn classic_jsx_factory_lookup_reports_its_namespace_container_by_identity() {
         let mut tag = None;
         while let Some(node) = stack.pop() {
             let record = source.arena.node(node);
-            match &record.data {
+            match record.data() {
                 NodeData::ModuleDeclaration(_) => {
                     namespace.get_or_insert(node);
                 }
@@ -240,10 +240,10 @@ fn ambient_export_reference_reports_its_source_container_after_property_recovery
         let mut reference = None;
         while let Some(node) = stack.pop() {
             let record = source.arena.node(node);
-            if let NodeData::PropertyAccessExpression(data) = &record.data {
+            if let NodeData::PropertyAccessExpression(data) = record.data() {
                 reference = data.expression.filter(|expression| {
                     matches!(
-                        &source.arena.node(*expression).data,
+                        source.arena.node(*expression).data(),
                         NodeData::Identifier(identifier) if identifier.text() == "a"
                     )
                 });
@@ -289,9 +289,9 @@ fn export_container_mode_distinguishes_ordinary_merged_locals_from_export_names(
         let mut local = None;
         while let Some(node) = stack.pop() {
             let record = source.arena.node(node);
-            if let NodeData::ModuleDeclaration(data) = &record.data {
+            if let NodeData::ModuleDeclaration(data) = record.data() {
                 if let Some(name) = data.name {
-                    match &source.arena.node(name).data {
+                    match source.arena.node(name).data() {
                         NodeData::Identifier(identifier) if identifier.text() == "Foo" => {
                             foo = Some(name);
                         }
@@ -302,10 +302,10 @@ fn export_container_mode_distinguishes_ordinary_merged_locals_from_export_names(
                     }
                 }
             }
-            if let NodeData::FunctionDeclaration(data) = &record.data {
+            if let NodeData::FunctionDeclaration(data) = record.data() {
                 if let Some(name) = data.name.filter(|name| {
                     matches!(
-                        &source.arena.node(*name).data,
+                        source.arena.node(*name).data(),
                         NodeData::Identifier(identifier) if identifier.text() == "Bar"
                     )
                 }) {

@@ -172,7 +172,7 @@ impl<'a> JsxTags<'a> {
     }
 
     fn data(&self, node: NodeId) -> &'a NodeData {
-        &self.source.arena.node(node).data
+        self.source.arena.node(node).data()
     }
 
     fn parent(&self, node: NodeId) -> Option<NodeId> {

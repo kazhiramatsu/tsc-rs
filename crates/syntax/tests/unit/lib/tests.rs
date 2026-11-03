@@ -39,7 +39,7 @@ fn parse_source_file_creates_root_and_eof_nodes() {
     let data = source
         .arena
         .node(source.root)
-        .data
+        .data()
         .as_source_file()
         .expect("root is a source file");
     let eof = data.end_of_file_token.expect("source file has EOF token");

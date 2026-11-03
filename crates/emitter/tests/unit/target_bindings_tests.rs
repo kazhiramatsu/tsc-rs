@@ -108,7 +108,7 @@ fn declaration_names_precede_uses_in_source_module_and_function_scopes() {
         }
         fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
             let node = TransformNode::new(self.source, id);
-            let mut data = self.arena.node(node)?.data.clone();
+            let mut data = self.arena.node(node)?.data().clone();
             if let NodeData::Identifier(data) = &data {
                 if data.text() == "firstBinding" {
                     return Ok(Some(self.first.node()));

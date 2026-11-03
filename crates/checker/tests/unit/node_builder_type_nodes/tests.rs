@@ -138,20 +138,26 @@ fn primitive_and_literal_arms_preserve_shapes_and_upstream_length_deltas() {
                 let before = context.approximate_length;
                 let node = type_to_type_node_helper(checker, arena, target, r#type, context)?
                     .expect("literal node");
-                let NodeData::LiteralType(data) = &arena.node(node).map_err(factory_error)?.data
+                let NodeData::LiteralType(data) = arena.node(node).map_err(factory_error)?.data()
                 else {
                     panic!("literal type expected")
                 };
                 let literal = emitted_node(arena, target, data.literal.expect("literal payload"));
                 assert_eq!(literal.kind, expected_literal_kind);
-                match &literal.data {
-                    NodeData::StringLiteral(data) => assert_eq!(data.text, expected_text),
-                    NodeData::BigIntLiteral(data) => assert_eq!(data.text, expected_text),
+                match literal.data() {
+                    NodeData::StringLiteral(data) => assert_eq!(
+                        arena.text_utf8(target, data.text).map_err(factory_error)?,
+                        expected_text
+                    ),
+                    NodeData::BigIntLiteral(data) => assert_eq!(
+                        arena.text_utf8(target, data.text).map_err(factory_error)?,
+                        expected_text
+                    ),
                     NodeData::PrefixUnaryExpression(data) => {
                         assert_eq!(data.operator, SyntaxKind::MinusToken);
                         let operand = emitted_node(arena, target, data.operand.expect("operand"));
                         assert!(
-                            matches!(&operand.data, NodeData::NumericLiteral(data) if data.text == "12")
+                            matches!(operand.data(), NodeData::NumericLiteral(data) if arena.text_utf8(target, data.text).map_err(factory_error)? == "12")
                         );
                     }
                     NodeData::Token => {}
@@ -194,7 +200,7 @@ fn union_and_intersection_arms_emit_plain_constituent_lists() {
                 let node = type_to_type_node_helper(checker, arena, target, r#type, context)?
                     .expect("list node");
                 assert_eq!(arena.node(node).map_err(factory_error)?.kind, expected);
-                let types = match &arena.node(node).map_err(factory_error)?.data {
+                let types = match arena.node(node).map_err(factory_error)?.data() {
                     NodeData::UnionType(data) => data.types,
                     NodeData::IntersectionType(data) => data.types,
                     _ => unreachable!(),
@@ -230,7 +236,7 @@ fn array_and_tuple_arms_cover_readonly_optional_and_rest_elements() {
                 type_to_type_node_helper(checker, arena, target, readonly_array, context)?
                     .expect("readonly array node");
             assert!(matches!(
-                &arena.node(readonly_node).map_err(factory_error)?.data,
+                arena.node(readonly_node).map_err(factory_error)?.data(),
                 NodeData::TypeOperator(data) if data.operator == SyntaxKind::ReadonlyKeyword
             ));
 
@@ -252,7 +258,7 @@ fn array_and_tuple_arms_cover_readonly_optional_and_rest_elements() {
                 .map_err(|abort| checker_abort_error(checker, context, abort))?;
             let tuple_node = type_to_type_node_helper(checker, arena, target, tuple, context)?
                 .expect("tuple node");
-            let NodeData::TupleType(data) = &arena.node(tuple_node).map_err(factory_error)?.data
+            let NodeData::TupleType(data) = arena.node(tuple_node).map_err(factory_error)?.data()
             else {
                 panic!("tuple node expected")
             };
@@ -327,12 +333,13 @@ fn object_index_info_arm_emits_readonly_index_signature() {
             checker.tables.set_alias(indexed, None, None);
             let node = type_to_type_node_helper(checker, arena, target, indexed, context)?
                 .expect("indexed type literal");
-            let NodeData::TypeLiteral(data) = &arena.node(node).map_err(factory_error)?.data else {
+            let NodeData::TypeLiteral(data) = arena.node(node).map_err(factory_error)?.data()
+            else {
                 panic!("type literal expected")
             };
             let members = emitted_array(arena, target, data.members.expect("members"));
             assert_eq!(members.len(), 1);
-            let NodeData::IndexSignature(data) = &emitted_node(arena, target, members[0]).data
+            let NodeData::IndexSignature(data) = emitted_node(arena, target, members[0]).data()
             else {
                 panic!("index signature expected")
             };
@@ -355,7 +362,8 @@ fn empty_anonymous_object_emits_an_empty_type_literal() {
             let anonymous = checker.create_resolved_empty_anonymous_type(None);
             let node = type_to_type_node_helper(checker, arena, target, anonymous, context)?
                 .expect("anonymous type literal");
-            let NodeData::TypeLiteral(data) = &arena.node(node).map_err(factory_error)?.data else {
+            let NodeData::TypeLiteral(data) = arena.node(node).map_err(factory_error)?.data()
+            else {
                 panic!("type literal expected")
             };
             assert!(data

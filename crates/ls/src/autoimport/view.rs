@@ -583,7 +583,7 @@ impl<'r> View<'r> {
         let mut best = None;
         for existing in &matching {
             let record = source.arena.node(existing.node);
-            match &record.data {
+            match record.data() {
                 NodeData::ImportEqualsDeclaration(_) => continue,
                 NodeData::VariableDeclaration(data) => {
                     if (import_kind == ImportKind::NAMED || import_kind == ImportKind::DEFAULT)
@@ -616,7 +616,7 @@ impl<'r> View<'r> {
             ) {
                 continue;
             }
-            let NodeData::ImportClause(clause_data) = &source.arena.node(clause).data else {
+            let NodeData::ImportClause(clause_data) = source.arena.node(clause).data() else {
                 continue;
             };
             if clause_data.phase_modifier == Some(SyntaxKind::SourceKeyword) {
@@ -1140,7 +1140,7 @@ pub(crate) fn get_import_kind(
             }
             // `import foo` parses as an ImportEqualsDeclaration even though it could be an ImportDeclaration
             for &statement in statements(source, source.root) {
-                if let NodeData::ImportEqualsDeclaration(data) = &source.arena.node(statement).data
+                if let NodeData::ImportEqualsDeclaration(data) = source.arena.node(statement).data()
                 {
                     if data
                         .module_reference
@@ -1188,11 +1188,11 @@ fn get_add_as_type_only(
 
 /// tsgo `getNamespaceLikeImportText`.
 fn namespace_like_import_text(source: &SourceFile, declaration: NodeId) -> String {
-    let identifier_text = |node: NodeId| match &source.arena.node(node).data {
+    let identifier_text = |node: NodeId| match source.arena.node(node).data() {
         NodeData::Identifier(data) => data.text().to_owned(),
         _ => String::new(),
     };
-    match &source.arena.node(declaration).data {
+    match source.arena.node(declaration).data() {
         NodeData::VariableDeclaration(data) => data
             .name
             .filter(|&name| source.arena.node(name).kind == SyntaxKind::Identifier)
@@ -1201,17 +1201,17 @@ fn namespace_like_import_text(source: &SourceFile, declaration: NodeId) -> Strin
             data.name.map_or_else(String::new, identifier_text)
         }
         NodeData::ImportDeclaration(_) | NodeData::JSDocImportTag(_) => {
-            let clause = match &source.arena.node(declaration).data {
+            let clause = match source.arena.node(declaration).data() {
                 NodeData::ImportDeclaration(data) => data.import_clause,
                 NodeData::JSDocImportTag(data) => data.import_clause,
                 _ => None,
             };
             clause
-                .and_then(|clause| match &source.arena.node(clause).data {
+                .and_then(|clause| match source.arena.node(clause).data() {
                     NodeData::ImportClause(clause) => clause.named_bindings,
                     _ => None,
                 })
-                .and_then(|bindings| match &source.arena.node(bindings).data {
+                .and_then(|bindings| match source.arena.node(bindings).data() {
                     NodeData::NamespaceImport(namespace) => namespace.name,
                     _ => None,
                 })
@@ -1224,7 +1224,7 @@ fn namespace_like_import_text(source: &SourceFile, declaration: NodeId) -> Strin
 /// An import declaration's (or JSDoc import tag's) clause and module
 /// specifier.
 fn import_clause_and_specifier(source: &SourceFile, node: NodeId) -> Option<(NodeId, NodeId)> {
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::ImportDeclaration(data) => Some((data.import_clause?, data.module_specifier?)),
         NodeData::JSDocImportTag(data) => Some((data.import_clause?, data.module_specifier?)),
         _ => None,
@@ -1272,7 +1272,7 @@ pub(super) fn is_variable_declaration_initialized_to_require(
     if !is_source_file_js(source) {
         return false;
     }
-    let NodeData::VariableDeclaration(data) = &source.arena.node(node).data else {
+    let NodeData::VariableDeclaration(data) = source.arena.node(node).data() else {
         return false;
     };
     data.initializer
@@ -1281,9 +1281,17 @@ pub(super) fn is_variable_declaration_initialized_to_require(
 
 /// A string literal's text.
 fn literal_text(source: &SourceFile, node: NodeId) -> String {
-    match &source.arena.node(node).data {
-        NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
-        NodeData::NoSubstitutionTemplateLiteral(data) => data.text.to_string_lossy().into_owned(),
+    match source.arena.node(node).data() {
+        NodeData::StringLiteral(data) => source
+            .arena
+            .text_js(data.text)
+            .to_string_lossy()
+            .into_owned(),
+        NodeData::NoSubstitutionTemplateLiteral(data) => source
+            .arena
+            .text_js(data.text)
+            .to_string_lossy()
+            .into_owned(),
         _ => String::new(),
     }
 }
@@ -1419,10 +1427,10 @@ fn should_use_uri_style_node_core_modules(source: &SourceFile) -> Option<bool> {
         .imports
         .into_iter()
         .find_map(|import| {
-            let NodeData::StringLiteral(literal) = &source.arena.node(import).data else {
+            let NodeData::StringLiteral(literal) = source.arena.node(import).data() else {
                 return None;
             };
-            let text = literal.text.to_string_lossy();
+            let text = source.arena.text_js(literal.text).to_string_lossy();
             match text.strip_prefix("node:") {
                 Some(name) => unprefixed.contains(&name).then_some(true),
                 None => unprefixed.contains(&text.as_ref()).then_some(false),

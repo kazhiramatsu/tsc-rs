@@ -995,7 +995,7 @@ pub(crate) fn prime_type_parameter_names_for_scope(
         let name = type_parameter_to_name(checker, arena, target, type_parameter, context)?;
         if let (Some(symbol), NodeData::Identifier(data)) = (
             checker.tables.type_of(type_parameter).symbol,
-            &arena.node(name).map_err(factory_error)?.data,
+            arena.node(name).map_err(factory_error)?.data(),
         ) {
             context
                 .synthetic_scope_locals
@@ -1653,7 +1653,7 @@ impl BindingNameVisitor<'_, '_, '_> {
             .arena
             .node(original)
             .map_err(factory_error)?
-            .data
+            .data()
             .clone();
         if self.context.tracker.can_track_symbol
             && matches!(data, NodeData::ComputedPropertyName(_))
@@ -1685,7 +1685,7 @@ impl BindingNameVisitor<'_, '_, '_> {
             .arena
             .node(visited)
             .map_err(factory_error)?
-            .data
+            .data()
             .clone()
         {
             binding.initializer = None;

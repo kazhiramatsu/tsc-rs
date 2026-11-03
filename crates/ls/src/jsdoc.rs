@@ -41,7 +41,7 @@ pub(crate) fn tag_name(state: &CheckerState<'_>, tag: NodeId) -> Option<NodeId> 
 /// A JSDoc comment's or tag's comment.
 fn comment_of<'a>(state: &CheckerState<'a>, owner: NodeId) -> Option<&'a JSDocComment> {
     let node = state.binder.node_record(owner);
-    if let NodeData::JSDoc(js_doc) = &node.data {
+    if let NodeData::JSDoc(js_doc) = node.data() {
         return js_doc.comment.as_ref();
     }
     let mut comment = None;
@@ -60,7 +60,9 @@ fn comment_parts<'a>(
 ) -> Vec<CommentPart<'a>> {
     match comment {
         None => Vec::new(),
-        Some(JSDocComment::Text { text, .. }) => vec![CommentPart::Text(text)],
+        Some(JSDocComment::Text { text, .. }) => {
+            vec![CommentPart::Text(tsc_syntax::published_text_utf8(*text))]
+        }
         Some(JSDocComment::Nodes(list)) => state
             .binder
             .node_array(*list)
@@ -68,25 +70,27 @@ fn comment_parts<'a>(
             .iter()
             .filter_map(|&part| {
                 let record = state.binder.node_record(part);
-                match &record.data {
-                    NodeData::JSDocText(text) => Some(CommentPart::Text(&text.text)),
+                match record.data() {
+                    NodeData::JSDocText(text) => Some(CommentPart::Text(
+                        tsc_syntax::published_text_utf8(text.text),
+                    )),
                     NodeData::JSDocLink(link) => Some(CommentPart::Link {
                         node: part,
                         kind: record.kind,
                         name: link.name,
-                        text: &link.text,
+                        text: tsc_syntax::published_text_utf8(link.text),
                     }),
                     NodeData::JSDocLinkCode(link) => Some(CommentPart::Link {
                         node: part,
                         kind: record.kind,
                         name: link.name,
-                        text: &link.text,
+                        text: tsc_syntax::published_text_utf8(link.text),
                     }),
                     NodeData::JSDocLinkPlain(link) => Some(CommentPart::Link {
                         node: part,
                         kind: record.kind,
                         name: link.name,
-                        text: &link.text,
+                        text: tsc_syntax::published_text_utf8(link.text),
                     }),
                     _ => None,
                 }
@@ -128,7 +132,7 @@ fn entity_name_string(state: &CheckerState<'_>, name: NodeId) -> String {
 
 fn write_entity_name_parts(state: &CheckerState<'_>, text: &mut String, node: NodeId) {
     let source = state.binder.source_of_node(node);
-    match &state.binder.node_record(node).data {
+    match state.binder.node_record(node).data() {
         NodeData::Identifier(_) => {
             if let Some(name) = node_util::id_text(source, node) {
                 text.push_str(name);
@@ -398,11 +402,12 @@ impl Request<'_, '_> {
             return Some(value);
         };
         for &comment in self.state.binder.node_array(js_doc).nodes {
-            let NodeData::JSDoc(data) = &self.state.binder.node_record(comment).data else {
+            let NodeData::JSDoc(data) = self.state.binder.node_record(comment).data() else {
                 continue;
             };
             for tag in self.node_list(data.tags) {
-                let NodeData::JSDocOverloadTag(overload) = &self.state.binder.node_record(tag).data
+                let NodeData::JSDocOverloadTag(overload) =
+                    self.state.binder.node_record(tag).data()
                 else {
                     continue;
                 };
@@ -441,7 +446,7 @@ impl Request<'_, '_> {
         if self.node_kind(js_doc) != SyntaxKind::JSDoc || comment_only {
             return Ok(text);
         }
-        let NodeData::JSDoc(data) = &self.state.binder.node_record(js_doc).data else {
+        let NodeData::JSDoc(data) = self.state.binder.node_record(js_doc).data() else {
             return Ok(text);
         };
         let tags = data
@@ -473,7 +478,7 @@ impl Request<'_, '_> {
                 text.push('@');
                 text.push_str(&name);
             }
-            match &self.state.binder.node_record(tag).data {
+            match self.state.binder.node_record(tag).data() {
                 NodeData::JSDocParameterTag(data) => {
                     write_optional_entity_name(self.state, &mut text, data.name)
                 }
@@ -499,7 +504,7 @@ impl Request<'_, '_> {
             }
             let tag_comment = comment_of(self.state, tag);
             let parts = comment_parts(self.state, tag_comment);
-            match &self.state.binder.node_record(tag).data {
+            match self.state.binder.node_record(tag).data() {
                 NodeData::JSDocTag(_) if name == "example" => {
                     let mut comment = text_of_comment(self.state, tag_comment);
                     if let Some(rest) = comment.strip_prefix("<caption>") {
@@ -536,7 +541,7 @@ impl Request<'_, '_> {
                 NodeData::JSDocSeeTag(data) if data.name.is_some() => {
                     text.push_str(" — ");
                     let reference = data.name.expect("tested");
-                    let name = match &self.state.binder.node_record(reference).data {
+                    let name = match self.state.binder.node_record(reference).data() {
                         NodeData::JSDocNameReference(reference) => reference.name,
                         _ => Some(reference),
                     };
@@ -731,7 +736,7 @@ impl Request<'_, '_> {
         }
         let record = self.state.binder.node_record(node);
         let parent = record.parent;
-        match &record.data {
+        match record.data() {
             NodeData::Parameter(parameter) => {
                 let Some(name) = parameter.name else {
                     return Ok(None);
@@ -765,7 +770,7 @@ impl Request<'_, '_> {
             NodeData::VariableDeclaration(_) => {
                 if let Some(list) = parent {
                     if let NodeData::VariableDeclarationList(data) =
-                        &self.state.binder.node_record(list).data
+                        self.state.binder.node_record(list).data()
                     {
                         let first = data.declarations.and_then(|list| {
                             self.state.binder.node_array(list).nodes.first().copied()
@@ -784,7 +789,7 @@ impl Request<'_, '_> {
             | NodeData::ArrowFunction(_)
             | NodeData::ClassExpression(_) => {
                 if let Some(parent) = parent {
-                    let initializer = match &self.state.binder.node_record(parent).data {
+                    let initializer = match self.state.binder.node_record(parent).data() {
                         NodeData::VariableDeclaration(data) => data.initializer,
                         NodeData::PropertyDeclaration(data) => data.initializer,
                         NodeData::PropertyAssignment(data) => data.initializer,
@@ -904,7 +909,7 @@ impl Request<'_, '_> {
         let Some(js_doc) = self.js_doc_or_tag(node, seen)? else {
             return Ok(None);
         };
-        let NodeData::JSDoc(data) = &self.state.binder.node_record(js_doc).data else {
+        let NodeData::JSDoc(data) = self.state.binder.node_record(js_doc).data() else {
             return Ok(None);
         };
         let tags = data
@@ -915,7 +920,7 @@ impl Request<'_, '_> {
             if self.node_kind(tag) != kind {
                 continue;
             }
-            let matches = match &self.state.binder.node_record(tag).data {
+            let matches = match self.state.binder.node_record(tag).data() {
                 NodeData::JSDocParameterTag(data) => data
                     .name
                     .is_some_and(|tag_name| self.is_identifier_named(tag_name, name)),
@@ -958,7 +963,7 @@ impl Request<'_, '_> {
         let Some(js_doc) = self.js_doc_or_tag(owner, &mut seen)? else {
             return Ok(None);
         };
-        let NodeData::JSDoc(data) = &self.state.binder.node_record(js_doc).data else {
+        let NodeData::JSDoc(data) = self.state.binder.node_record(js_doc).data() else {
             return Ok(None);
         };
         let tags = data
@@ -976,7 +981,7 @@ impl Request<'_, '_> {
     /// tag's whole comment; tsc-rs's declaration is the tag, inside it.
     fn last_js_doc(&self, node: NodeId) -> Option<NodeId> {
         let record = self.state.binder.node_record(node);
-        match &record.data {
+        match record.data() {
             NodeData::JSDocTypedefTag(tag) if tag.type_expression.is_some() => {
                 return record
                     .parent
@@ -1033,7 +1038,7 @@ impl Request<'_, '_> {
 
     /// tsgo `containsTypedefTag`.
     fn contains_typedef_tag(&self, js_doc: NodeId) -> bool {
-        let NodeData::JSDoc(data) = &self.state.binder.node_record(js_doc).data else {
+        let NodeData::JSDoc(data) = self.state.binder.node_record(js_doc).data() else {
             return false;
         };
         data.tags.is_some_and(|tags| {
@@ -1171,7 +1176,7 @@ fn declaration_js_doc_tags(state: &CheckerState<'_>, node: NodeId) -> Vec<NodeId
             .js_doc
             .and_then(|list| state.binder.node_array(list).nodes.last().copied());
         if let Some(last) = last {
-            if let NodeData::JSDoc(js_doc) = &state.binder.node_record(last).data {
+            if let NodeData::JSDoc(js_doc) = state.binder.node_record(last).data() {
                 if let Some(tags) = js_doc.tags {
                     return state.binder.node_array(tags).nodes.to_vec();
                 }
@@ -1196,7 +1201,7 @@ fn next_js_doc_comment_location(state: &CheckerState<'_>, node: NodeId) -> Optio
         | SyntaxKind::ReturnStatement
         | SyntaxKind::VariableStatement
         | SyntaxKind::ExpressionStatement => Some(parent),
-        SyntaxKind::VariableDeclarationList => match &record.data {
+        SyntaxKind::VariableDeclarationList => match record.data() {
             NodeData::VariableDeclarationList(list) => list
                 .declarations
                 .and_then(|declarations| {
@@ -1222,7 +1227,7 @@ fn js_doc_tag_text(state: &CheckerState<'_>, tag: NodeId) -> String {
         }
     };
     let text_of = |node: NodeId| source_text_of(state, node);
-    match &state.binder.node_record(tag).data {
+    match state.binder.node_record(tag).data() {
         NodeData::JSDocThrowsTag(data) => match data.type_expression {
             Some(expression) => with_comment(text_of(expression)),
             None => comment.clone(),

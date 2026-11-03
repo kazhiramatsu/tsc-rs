@@ -1466,9 +1466,11 @@ fn literal_text_in_source<'a>(
     file_index: usize,
     literal: NodeId,
 ) -> Option<JsStr<'a>> {
-    match &state.binder.source(file_index).arena.node(literal).data {
-        NodeData::StringLiteral(data) => Some(data.text.as_js()),
-        NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.as_js()),
+    match state.binder.source(file_index).arena.node(literal).data() {
+        NodeData::StringLiteral(data) => Some(crate::annotate::published_text_js(data.text)),
+        NodeData::NoSubstitutionTemplateLiteral(data) => {
+            Some(crate::annotate::published_text_js(data.text))
+        }
         _ => None,
     }
 }
@@ -4474,7 +4476,7 @@ pub(super) fn module_name_literals(
         if record.parent.is_none() {
             continue;
         }
-        match &record.data {
+        match record.data() {
             NodeData::ImportDeclaration(data) => {
                 if let Some(literal) = string_literal_like(state, data.module_specifier)
                     .filter(|&literal| static_module_reference_is_collected(state, node, literal))
@@ -4642,8 +4644,10 @@ pub(crate) fn get_module_name_string_literal_at(
 
 fn literal_text<'a>(state: &'a CheckerState<'_>, node: NodeId) -> Option<JsStr<'a>> {
     match state.data_of(node) {
-        NodeData::StringLiteral(data) => Some(data.text.as_js()),
-        NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.as_js()),
+        NodeData::StringLiteral(data) => Some(crate::annotate::published_text_js(data.text)),
+        NodeData::NoSubstitutionTemplateLiteral(data) => {
+            Some(crate::annotate::published_text_js(data.text))
+        }
         _ => None,
     }
 }

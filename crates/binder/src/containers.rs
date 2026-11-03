@@ -145,7 +145,7 @@ pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags 
         SyntaxKind::ModuleBlock => ContainerFlags::IS_CONTROL_FLOW_CONTAINER,
         SyntaxKind::PropertyDeclaration => {
             let has_initializer = matches!(
-                &source.arena.node(node).data,
+                &source.arena.node(node).data(),
                 NodeData::PropertyDeclaration(data) if data.initializer.is_some()
             );
             if has_initializer {
@@ -728,18 +728,18 @@ impl<'a> BinderWorker<'a> {
             if is_module_augmentation_external(self.source, node) {
                 self.declare_module_symbol(node);
             } else {
-                let name = match &self.source.arena.node(node).data {
+                let name = match &self.source.arena.node(node).data() {
                     NodeData::ModuleDeclaration(data) => data.name,
                     _ => None,
                 };
-                let attributes = match &self.source.arena.node(node).data {
+                let attributes = match &self.source.arena.node(node).data() {
                     NodeData::ModuleDeclaration(data) => data.attributes,
                     _ => None,
                 };
                 let mut pattern: Option<ParsedPattern> = None;
                 if let Some(name) = name {
-                    if let NodeData::StringLiteral(data) = &self.source.arena.node(name).data {
-                        let text = data.text.clone();
+                    if let NodeData::StringLiteral(data) = self.source.arena.node(name).data() {
+                        let text = self.source.arena.text_js(data.text).to_owned();
                         pattern = try_parse_pattern(&text);
                         if pattern.is_none() {
                             self.error_on_first_token(
@@ -856,7 +856,7 @@ fn get_module_instance_state_worker(
     node: NodeId,
     visited: &mut HashMap<NodeId, Option<ModuleInstanceState>>,
 ) -> ModuleInstanceState {
-    match &source.arena.node(node).data {
+    match &source.arena.node(node).data() {
         NodeData::InterfaceDeclaration(_) | NodeData::TypeAliasDeclaration(_) => {
             return ModuleInstanceState::NonInstantiated;
         }
@@ -874,7 +874,7 @@ fn get_module_instance_state_worker(
         NodeData::ExportDeclaration(data) => {
             if data.module_specifier.is_none() {
                 if let Some(clause) = data.export_clause {
-                    if let NodeData::NamedExports(named) = &source.arena.node(clause).data {
+                    if let NodeData::NamedExports(named) = &source.arena.node(clause).data() {
                         let mut state = ModuleInstanceState::NonInstantiated;
                         if let Some(elements) = named.elements {
                             for &specifier in source.arena.node_array(elements).nodes {
@@ -938,7 +938,7 @@ fn get_module_instance_state_for_alias_target(
     specifier: NodeId,
     visited: &mut HashMap<NodeId, Option<ModuleInstanceState>>,
 ) -> ModuleInstanceState {
-    let (property_name, spec_name) = match &source.arena.node(specifier).data {
+    let (property_name, spec_name) = match &source.arena.node(specifier).data() {
         NodeData::ExportSpecifier(data) => (data.property_name, data.name),
         _ => (None, None),
     };

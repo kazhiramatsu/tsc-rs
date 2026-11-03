@@ -113,19 +113,19 @@ fn synthetic_missing_operator_slots_are_error_typed_and_siblings_stay_valid() {
             assert_eq!(binaries.len(), 2);
             assert_eq!(prefixes.len(), 2);
             assert_eq!(conditionals.len(), 2);
-            let NodeData::BinaryExpression(data) = &mut source.arena.node_mut(binaries[0]).data
+            let NodeData::BinaryExpression(data) = source.arena.node_mut(binaries[0]).data_mut()
             else {
                 unreachable!("selected by kind")
             };
             data.left = None;
             let NodeData::PrefixUnaryExpression(data) =
-                &mut source.arena.node_mut(prefixes[0]).data
+                source.arena.node_mut(prefixes[0]).data_mut()
             else {
                 unreachable!("selected by kind")
             };
             data.operand = None;
             let NodeData::ConditionalExpression(data) =
-                &mut source.arena.node_mut(conditionals[0]).data
+                source.arena.node_mut(conditionals[0]).data_mut()
             else {
                 unreachable!("selected by kind")
             };
@@ -221,26 +221,27 @@ fn synthetic_missing_assertion_and_template_slots_preserve_valid_siblings() {
             assert_eq!(satisfies.len(), 2);
             assert_eq!(templates.len(), 4);
             assert_eq!(spans.len(), 4);
-            let NodeData::AsExpression(data) = &mut source.arena.node_mut(assertions[0]).data
+            let NodeData::AsExpression(data) = source.arena.node_mut(assertions[0]).data_mut()
             else {
                 unreachable!("selected by kind")
             };
             data.expression = None;
-            let NodeData::SatisfiesExpression(data) = &mut source.arena.node_mut(satisfies[0]).data
+            let NodeData::SatisfiesExpression(data) =
+                source.arena.node_mut(satisfies[0]).data_mut()
             else {
                 unreachable!("selected by kind")
             };
             data.r#type = None;
-            let NodeData::TemplateExpression(data) = &mut source.arena.node_mut(templates[0]).data
+            let NodeData::TemplateExpression(data) = source.arena.node_mut(templates[0]).data_mut()
             else {
                 unreachable!("selected by kind")
             };
             data.head = None;
-            let NodeData::TemplateSpan(data) = &mut source.arena.node_mut(spans[1]).data else {
+            let NodeData::TemplateSpan(data) = source.arena.node_mut(spans[1]).data_mut() else {
                 unreachable!("selected by kind")
             };
             data.expression = None;
-            let NodeData::TemplateSpan(data) = &mut source.arena.node_mut(spans[2]).data else {
+            let NodeData::TemplateSpan(data) = source.arena.node_mut(spans[2]).data_mut() else {
                 unreachable!("selected by kind")
             };
             data.literal = None;

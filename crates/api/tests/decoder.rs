@@ -27,7 +27,7 @@ fn list(tree: &DecodedTree, id: Option<tsc_syntax::NodeArrayId>) -> Vec<NodeId> 
 }
 
 fn statements(tree: &DecodedTree) -> Vec<NodeId> {
-    let NodeData::SourceFile(file) = &node(tree, tree.root).data else {
+    let NodeData::SourceFile(file) = node(tree, tree.root).data() else {
         panic!("a source file root");
     };
     list(tree, file.statements)
@@ -39,11 +39,11 @@ fn statement(tree: &DecodedTree, index: usize) -> &Node {
 
 /// The first declaration of the `index`th statement, a variable statement.
 fn declaration(tree: &DecodedTree, index: usize) -> &Node {
-    let NodeData::VariableStatement(statement) = &statement(tree, index).data else {
+    let NodeData::VariableStatement(statement) = statement(tree, index).data() else {
         panic!("a variable statement");
     };
     let NodeData::VariableDeclarationList(declarations) =
-        &node(tree, statement.declaration_list.unwrap()).data
+        node(tree, statement.declaration_list.unwrap()).data()
     else {
         panic!("a declaration list");
     };
@@ -51,21 +51,21 @@ fn declaration(tree: &DecodedTree, index: usize) -> &Node {
 }
 
 fn initializer(tree: &DecodedTree, index: usize) -> &Node {
-    let NodeData::VariableDeclaration(declaration) = &declaration(tree, index).data else {
+    let NodeData::VariableDeclaration(declaration) = declaration(tree, index).data() else {
         panic!("a variable declaration");
     };
     node(tree, declaration.initializer.unwrap())
 }
 
 fn expression_statement(tree: &DecodedTree, index: usize) -> &Node {
-    let NodeData::ExpressionStatement(statement) = &statement(tree, index).data else {
+    let NodeData::ExpressionStatement(statement) = statement(tree, index).data() else {
         panic!("an expression statement");
     };
     node(tree, statement.expression.unwrap())
 }
 
 fn identifier_text(tree: &DecodedTree, id: Option<NodeId>) -> String {
-    let NodeData::Identifier(identifier) = &node(tree, id.expect("a name")).data else {
+    let NodeData::Identifier(identifier) = node(tree, id.expect("a name")).data() else {
         panic!("an identifier");
     };
     identifier.text().to_owned()
@@ -78,7 +78,7 @@ fn basic() {
     assert_eq!(node(&tree, tree.root).kind, SyntaxKind::SourceFile);
     assert_eq!(tree.source_file.file_name.as_str(), Some("/test.ts"));
     assert_eq!(tree.source_file.text(), "let x = 1;");
-    let NodeData::SourceFile(file) = &node(&tree, tree.root).data else {
+    let NodeData::SourceFile(file) = node(&tree, tree.root).data() else {
         panic!("a source file");
     };
     assert!(file.statements.is_some());
@@ -130,14 +130,14 @@ fn statements_of_a_file() {
 #[test]
 fn variable_declaration() {
     let tree = decode("/test.ts", "let x = 1;");
-    let NodeData::VariableDeclaration(declaration) = &declaration(&tree, 0).data else {
+    let NodeData::VariableDeclaration(declaration) = declaration(&tree, 0).data() else {
         panic!("a variable declaration");
     };
     assert_eq!(identifier_text(&tree, declaration.name), "x");
-    let NodeData::NumericLiteral(literal) = &initializer(&tree, 0).data else {
+    let NodeData::NumericLiteral(literal) = initializer(&tree, 0).data() else {
         panic!("a numeric literal");
     };
-    assert_eq!(literal.text, "1");
+    assert_eq!(tree.source_file.arena.text_utf8(literal.text), "1");
 }
 
 #[test]
@@ -148,7 +148,7 @@ fn variable_declaration_list_flags() {
         ("var x = 1;", NodeFlags::NONE),
     ] {
         let tree = decode("/test.ts", text);
-        let NodeData::VariableStatement(statement) = &statement(&tree, 0).data else {
+        let NodeData::VariableStatement(statement) = statement(&tree, 0).data() else {
             panic!("a variable statement");
         };
         let flags = node(&tree, statement.declaration_list.unwrap()).flags;
@@ -166,7 +166,7 @@ fn function_declaration() {
         "/test.ts",
         "function add(a: number, b: number): number { return a + b; }",
     );
-    let NodeData::FunctionDeclaration(function) = &statement(&tree, 0).data else {
+    let NodeData::FunctionDeclaration(function) = statement(&tree, 0).data() else {
         panic!("a function declaration");
     };
     assert_eq!(identifier_text(&tree, function.name), "add");
@@ -174,7 +174,7 @@ fn function_declaration() {
     assert_eq!(parameters.len(), 2);
     assert!(function.r#type.is_some());
     assert!(function.body.is_some());
-    let NodeData::Parameter(parameter) = &node(&tree, parameters[0]).data else {
+    let NodeData::Parameter(parameter) = node(&tree, parameters[0]).data() else {
         panic!("a parameter");
     };
     assert_eq!(identifier_text(&tree, parameter.name), "a");
@@ -184,23 +184,23 @@ fn function_declaration() {
 #[test]
 fn import_declaration() {
     let tree = decode("/test.ts", r#"import { bar } from "bar";"#);
-    let NodeData::ImportDeclaration(import) = &statement(&tree, 0).data else {
+    let NodeData::ImportDeclaration(import) = statement(&tree, 0).data() else {
         panic!("an import declaration");
     };
-    let NodeData::StringLiteral(specifier) = &node(&tree, import.module_specifier.unwrap()).data
+    let NodeData::StringLiteral(specifier) = node(&tree, import.module_specifier.unwrap()).data()
     else {
         panic!("a string literal");
     };
-    assert_eq!(specifier.text.as_str(), Some("bar"));
-    let NodeData::ImportClause(clause) = &node(&tree, import.import_clause.unwrap()).data else {
+    assert_eq!(tree.source_file.arena.text_str(specifier.text), Some("bar"));
+    let NodeData::ImportClause(clause) = node(&tree, import.import_clause.unwrap()).data() else {
         panic!("an import clause");
     };
-    let NodeData::NamedImports(named) = &node(&tree, clause.named_bindings.unwrap()).data else {
+    let NodeData::NamedImports(named) = node(&tree, clause.named_bindings.unwrap()).data() else {
         panic!("named imports");
     };
     let elements = list(&tree, named.elements);
     assert_eq!(elements.len(), 1);
-    let NodeData::ImportSpecifier(specifier) = &node(&tree, elements[0]).data else {
+    let NodeData::ImportSpecifier(specifier) = node(&tree, elements[0]).data() else {
         panic!("an import specifier");
     };
     assert_eq!(identifier_text(&tree, specifier.name), "bar");
@@ -216,10 +216,10 @@ fn import_clause_phases() {
     );
     let phases: Vec<_> = (0..3)
         .map(|index| {
-            let NodeData::ImportDeclaration(import) = &statement(&tree, index).data else {
+            let NodeData::ImportDeclaration(import) = statement(&tree, index).data() else {
                 panic!("an import declaration");
             };
-            let NodeData::ImportClause(clause) = &node(&tree, import.import_clause.unwrap()).data
+            let NodeData::ImportClause(clause) = node(&tree, import.import_clause.unwrap()).data()
             else {
                 panic!("an import clause");
             };
@@ -239,7 +239,7 @@ fn import_clause_phases() {
 #[test]
 fn if_statement() {
     let tree = decode("/test.ts", "if (true) { } else { }");
-    let NodeData::IfStatement(statement) = &statement(&tree, 0).data else {
+    let NodeData::IfStatement(statement) = statement(&tree, 0).data() else {
         panic!("an if statement");
     };
     assert!(statement.expression.is_some());
@@ -256,32 +256,32 @@ fn if_statement() {
 #[test]
 fn template_expression() {
     let tree = decode("/test.ts", "let x = `hello ${name} world`;");
-    let NodeData::TemplateExpression(template) = &initializer(&tree, 0).data else {
+    let NodeData::TemplateExpression(template) = initializer(&tree, 0).data() else {
         panic!("a template expression");
     };
-    let NodeData::TemplateHead(head) = &node(&tree, template.head.unwrap()).data else {
+    let NodeData::TemplateHead(head) = node(&tree, template.head.unwrap()).data() else {
         panic!("a template head");
     };
-    assert_eq!(head.text.as_str(), Some("hello "));
+    assert_eq!(tree.source_file.arena.text_str(head.text), Some("hello "));
     let spans = list(&tree, template.template_spans);
     assert_eq!(spans.len(), 1);
-    let NodeData::TemplateSpan(span) = &node(&tree, spans[0]).data else {
+    let NodeData::TemplateSpan(span) = node(&tree, spans[0]).data() else {
         panic!("a template span");
     };
     assert_eq!(
         node(&tree, span.expression.unwrap()).kind,
         SyntaxKind::Identifier
     );
-    let NodeData::TemplateTail(tail) = &node(&tree, span.literal.unwrap()).data else {
+    let NodeData::TemplateTail(tail) = node(&tree, span.literal.unwrap()).data() else {
         panic!("a template tail");
     };
-    assert_eq!(tail.text.as_str(), Some(" world"));
+    assert_eq!(tree.source_file.arena.text_str(tail.text), Some(" world"));
 }
 
 #[test]
 fn export_modifier() {
     let tree = decode("/test.ts", "export function foo() {}");
-    let NodeData::FunctionDeclaration(function) = &statement(&tree, 0).data else {
+    let NodeData::FunctionDeclaration(function) = statement(&tree, 0).data() else {
         panic!("a function declaration");
     };
     let modifiers = list(&tree, function.modifiers);
@@ -300,7 +300,7 @@ fn positions() {
 #[test]
 fn class_declaration() {
     let tree = decode("/test.ts", "class Foo { bar(): void {} }");
-    let NodeData::ClassDeclaration(class) = &statement(&tree, 0).data else {
+    let NodeData::ClassDeclaration(class) = statement(&tree, 0).data() else {
         panic!("a class declaration");
     };
     assert_eq!(identifier_text(&tree, class.name), "Foo");
@@ -316,13 +316,13 @@ fn subtree_round_trip() {
         "function greet(name: string) { return `Hello, ${name}!`; }",
         ScriptKind::Ts,
     );
-    let NodeData::SourceFile(root) = &file.arena.node(file.root).data else {
+    let NodeData::SourceFile(root) = file.arena.node(file.root).data() else {
         panic!("a source file");
     };
     let function = file.arena.node_array(root.statements.unwrap()).nodes[0];
     let tree = decode_nodes(&encode_node(&file, function, &|_| false).0).unwrap();
     assert!(!tree.is_source_file);
-    let NodeData::FunctionDeclaration(function) = &node(&tree, tree.root).data else {
+    let NodeData::FunctionDeclaration(function) = node(&tree, tree.root).data() else {
         panic!("a function declaration");
     };
     assert_eq!(identifier_text(&tree, function.name), "greet");
@@ -337,7 +337,7 @@ fn subtree_round_trip() {
 #[test]
 fn binary_expression() {
     let tree = decode("/test.ts", "let x = 1 + 2;");
-    let NodeData::BinaryExpression(binary) = &initializer(&tree, 0).data else {
+    let NodeData::BinaryExpression(binary) = initializer(&tree, 0).data() else {
         panic!("a binary expression");
     };
     assert_eq!(
@@ -360,16 +360,16 @@ fn keyword_expressions() {
     let tree = decode("/test.ts", "const x = this;");
     let this = initializer(&tree, 0);
     assert_eq!(this.kind, SyntaxKind::ThisKeyword);
-    assert!(matches!(this.data, NodeData::Token));
+    assert!(matches!(this.data(), NodeData::Token));
 }
 
 #[test]
 fn empty_module_block() {
     let tree = decode("/test.ts", "namespace N { }");
-    let NodeData::ModuleDeclaration(module) = &statement(&tree, 0).data else {
+    let NodeData::ModuleDeclaration(module) = statement(&tree, 0).data() else {
         panic!("a module declaration");
     };
-    let NodeData::ModuleBlock(block) = &node(&tree, module.body.unwrap()).data else {
+    let NodeData::ModuleBlock(block) = node(&tree, module.body.unwrap()).data() else {
         panic!("a module block");
     };
     assert!(list(&tree, block.statements).is_empty());
@@ -378,11 +378,11 @@ fn empty_module_block() {
 #[test]
 fn empty_block_and_parameters() {
     let tree = decode("/test.ts", "function foo() {}");
-    let NodeData::FunctionDeclaration(function) = &statement(&tree, 0).data else {
+    let NodeData::FunctionDeclaration(function) = statement(&tree, 0).data() else {
         panic!("a function declaration");
     };
     assert!(list(&tree, function.parameters).is_empty());
-    let NodeData::Block(block) = &node(&tree, function.body.unwrap()).data else {
+    let NodeData::Block(block) = node(&tree, function.body.unwrap()).data() else {
         panic!("a block");
     };
     assert!(list(&tree, block.statements).is_empty());
@@ -391,11 +391,11 @@ fn empty_block_and_parameters() {
 #[test]
 fn arrow_function_empty_parameters() {
     let tree = decode("/test.ts", "const f = () => {};");
-    let NodeData::ArrowFunction(arrow) = &initializer(&tree, 0).data else {
+    let NodeData::ArrowFunction(arrow) = initializer(&tree, 0).data() else {
         panic!("an arrow function");
     };
     assert!(list(&tree, arrow.parameters).is_empty());
-    let NodeData::Block(block) = &node(&tree, arrow.body.unwrap()).data else {
+    let NodeData::Block(block) = node(&tree, arrow.body.unwrap()).data() else {
         panic!("a block");
     };
     assert!(list(&tree, block.statements).is_empty());
@@ -404,7 +404,7 @@ fn arrow_function_empty_parameters() {
 #[test]
 fn function_expression_empty_parameters() {
     let tree = decode("/test.ts", "const f = function() {};");
-    let NodeData::FunctionExpression(function) = &initializer(&tree, 0).data else {
+    let NodeData::FunctionExpression(function) = initializer(&tree, 0).data() else {
         panic!("a function expression");
     };
     assert!(list(&tree, function.parameters).is_empty());
@@ -413,7 +413,7 @@ fn function_expression_empty_parameters() {
 #[test]
 fn postfix_unary_operator() {
     let tree = decode("/test.ts", "let i = 0; i++;");
-    let NodeData::PostfixUnaryExpression(postfix) = &expression_statement(&tree, 1).data else {
+    let NodeData::PostfixUnaryExpression(postfix) = expression_statement(&tree, 1).data() else {
         panic!("a postfix unary expression");
     };
     assert_eq!(postfix.operator, SyntaxKind::PlusPlusToken);
@@ -426,7 +426,7 @@ fn postfix_unary_operator() {
 #[test]
 fn prefix_unary_operator() {
     let tree = decode("/test.ts", "let x = true; !x;");
-    let NodeData::PrefixUnaryExpression(prefix) = &expression_statement(&tree, 1).data else {
+    let NodeData::PrefixUnaryExpression(prefix) = expression_statement(&tree, 1).data() else {
         panic!("a prefix unary expression");
     };
     assert_eq!(prefix.operator, SyntaxKind::ExclamationToken);
@@ -439,7 +439,7 @@ fn prefix_unary_operator() {
 #[test]
 fn postfix_decrement() {
     let tree = decode("/test.ts", "let n = 5; n--;");
-    let NodeData::PostfixUnaryExpression(postfix) = &expression_statement(&tree, 1).data else {
+    let NodeData::PostfixUnaryExpression(postfix) = expression_statement(&tree, 1).data() else {
         panic!("a postfix unary expression");
     };
     assert_eq!(postfix.operator, SyntaxKind::MinusMinusToken);
@@ -450,20 +450,21 @@ fn a_type_heritage_reference_is_an_expression_with_type_arguments() {
     // tsgo writes `extends A.B<T>` of an interface as a TypeReference of a
     // QualifiedName.
     let tree = decode("/test.ts", "interface I extends A.B<T> {}");
-    let NodeData::InterfaceDeclaration(interface) = &statement(&tree, 0).data else {
+    let NodeData::InterfaceDeclaration(interface) = statement(&tree, 0).data() else {
         panic!("an interface declaration");
     };
     let clauses = list(&tree, interface.heritage_clauses);
-    let NodeData::HeritageClause(clause) = &node(&tree, clauses[0]).data else {
+    let NodeData::HeritageClause(clause) = node(&tree, clauses[0]).data() else {
         panic!("a heritage clause");
     };
     assert_eq!(clause.token, SyntaxKind::ExtendsKeyword);
     let element = node(&tree, list(&tree, clause.types)[0]);
-    let NodeData::ExpressionWithTypeArguments(element) = &element.data else {
+    let NodeData::ExpressionWithTypeArguments(element) = element.data() else {
         panic!("an expression with type arguments, not {:?}", element.kind);
     };
     assert_eq!(list(&tree, element.type_arguments).len(), 1);
-    let NodeData::PropertyAccessExpression(access) = &node(&tree, element.expression.unwrap()).data
+    let NodeData::PropertyAccessExpression(access) =
+        node(&tree, element.expression.unwrap()).data()
     else {
         panic!("a property access");
     };
@@ -475,11 +476,11 @@ fn a_type_heritage_reference_is_an_expression_with_type_arguments() {
 fn a_nested_namespace_is_flagged_and_has_no_modifiers() {
     // tsgo gives `B` of `namespace A.B` an implicit `export`.
     let tree = decode("/test.ts", "namespace A.B { }");
-    let NodeData::ModuleDeclaration(outer) = &statement(&tree, 0).data else {
+    let NodeData::ModuleDeclaration(outer) = statement(&tree, 0).data() else {
         panic!("a module declaration");
     };
     let inner = node(&tree, outer.body.unwrap());
-    let NodeData::ModuleDeclaration(inner_data) = &inner.data else {
+    let NodeData::ModuleDeclaration(inner_data) = inner.data() else {
         panic!("a nested module declaration");
     };
     assert!(inner_data.modifiers.is_none());
@@ -490,10 +491,10 @@ fn a_nested_namespace_is_flagged_and_has_no_modifiers() {
 #[test]
 fn an_array_binding_hole_is_an_omitted_expression() {
     let tree = decode("/test.ts", "const [, b] = c;");
-    let NodeData::VariableDeclaration(declaration) = &declaration(&tree, 0).data else {
+    let NodeData::VariableDeclaration(declaration) = declaration(&tree, 0).data() else {
         panic!("a variable declaration");
     };
-    let NodeData::ArrayBindingPattern(pattern) = &node(&tree, declaration.name.unwrap()).data
+    let NodeData::ArrayBindingPattern(pattern) = node(&tree, declaration.name.unwrap()).data()
     else {
         panic!("an array binding pattern");
     };
@@ -509,18 +510,22 @@ fn literals_keep_the_facts_tsgo_prints_from() {
     let regex = initializer(&tree, 1);
     assert_eq!(regex.kind, SyntaxKind::RegularExpressionLiteral);
     assert_eq!(regex.is_unterminated(), Some(true));
-    let NodeData::TemplateExpression(template) = &initializer(&tree, 2).data else {
+    let NodeData::TemplateExpression(template) = initializer(&tree, 2).data() else {
         panic!("a template expression");
     };
-    let NodeData::TemplateHead(head) = &node(&tree, template.head.unwrap()).data else {
+    let NodeData::TemplateHead(head) = node(&tree, template.head.unwrap()).data() else {
         panic!("a template head");
     };
-    assert_eq!(head.raw_text.as_deref(), Some("a"));
+    assert_eq!(
+        head.raw_text
+            .map(|raw| tree.source_file.arena.text_utf8(raw)),
+        Some("a")
+    );
 }
 
 /// The string literal initializer of the first statement.
 fn statements_literal(tree: &DecodedTree) -> NodeId {
-    let NodeData::VariableDeclaration(declaration) = &declaration(tree, 0).data else {
+    let NodeData::VariableDeclaration(declaration) = declaration(tree, 0).data() else {
         panic!("a variable declaration");
     };
     declaration.initializer.unwrap()

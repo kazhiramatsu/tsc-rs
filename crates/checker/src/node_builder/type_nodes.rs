@@ -127,15 +127,43 @@ pub(crate) fn create_factory_node(
         NodeData::PrivateIdentifier(data) => arena
             .factory()
             .create_private_identifier(target, data.text()),
-        NodeData::StringLiteral(data) => arena
-            .factory()
-            .create_string_literal(target, data.text, false),
-        NodeData::NumericLiteral(data) => arena.factory().create_numeric_literal(target, data.text),
-        NodeData::BigIntLiteral(data) => arena.factory().create_big_int_literal(target, data.text),
+        // A face builds its payload in the target arena: its texts are there.
+        NodeData::StringLiteral(data) => {
+            let text = arena
+                .text_js(target, data.text)
+                .map_err(factory_error)?
+                .to_owned();
+            arena.factory().create_string_literal(target, text, false)
+        }
+        NodeData::NumericLiteral(data) => {
+            let text = arena
+                .text_utf8(target, data.text)
+                .map_err(factory_error)?
+                .to_owned();
+            arena.factory().create_numeric_literal(target, text)
+        }
+        NodeData::BigIntLiteral(data) => {
+            let text = arena
+                .text_utf8(target, data.text)
+                .map_err(factory_error)?
+                .to_owned();
+            arena.factory().create_big_int_literal(target, text)
+        }
         NodeData::TemplateHead(data) => {
-            arena
-                .factory()
-                .create_template_head(target, data.text, data.raw_text)
+            let text = arena
+                .text_js(target, data.text)
+                .map_err(factory_error)?
+                .to_owned();
+            let raw_text = match data.raw_text {
+                Some(raw) => Some(
+                    arena
+                        .text_utf8(target, raw)
+                        .map_err(factory_error)?
+                        .to_owned(),
+                ),
+                None => None,
+            };
+            arena.factory().create_template_head(target, text, raw_text)
         }
         NodeData::QualifiedName(data) => arena.factory().create_qualified_name(
             target,
@@ -1601,13 +1629,20 @@ fn type_to_type_node_worker(
                     return append_reference_to_type(arena, target, parent_name, member, context)
                         .map(Some);
                 }
+                let text = arena
+                    .push_text(target, member_name.as_js().as_bytes())
+                    .map_err(factory_error)?;
                 let literal = create_node(
                     arena,
                     target,
-                    NodeData::StringLiteral(Box::new(StringLiteralData { text: member_name })),
+                    NodeData::StringLiteral(Box::new(StringLiteralData { text })),
                 )?;
                 let literal = create_literal_type_node(arena, target, literal)?;
-                let parent_data = arena.node(parent_name).map_err(factory_error)?.data.clone();
+                let parent_data = arena
+                    .node(parent_name)
+                    .map_err(factory_error)?
+                    .data()
+                    .clone();
                 let object = match parent_data {
                     NodeData::TypeReference(data) => create_node(
                         arena,
@@ -1681,10 +1716,13 @@ fn type_to_type_node_worker(
         } else {
             text
         };
+        let text = arena
+            .push_text(target, magnitude.as_bytes())
+            .map_err(factory_error)?;
         let literal = create_node(
             arena,
             target,
-            NodeData::NumericLiteral(Box::new(NumericLiteralData { text: magnitude })),
+            NodeData::NumericLiteral(Box::new(NumericLiteralData { text })),
         )?;
         let literal = if value < 0.0 {
             create_node(
@@ -1706,12 +1744,13 @@ fn type_to_type_node_worker(
         };
         let text = value.to_base10_string();
         add_approximate_length(context, js_len(&text) + 1);
+        let text = arena
+            .push_text(target, format!("{text}n").as_bytes())
+            .map_err(factory_error)?;
         let literal = create_node(
             arena,
             target,
-            NodeData::BigIntLiteral(Box::new(BigIntLiteralData {
-                text: format!("{text}n"),
-            })),
+            NodeData::BigIntLiteral(Box::new(BigIntLiteralData { text })),
         )?;
         return create_literal_type_node(arena, target, literal).map(Some);
     }
@@ -2239,7 +2278,7 @@ fn resolver_node(checker: &CheckerState<'_>, context: &NodeBuilderContext<'_>) -
 }
 
 fn identifier_text(arena: &TransformArena, node: TransformNode) -> Option<&str> {
-    let NodeData::Identifier(data) = &arena.node(node).ok()?.data else {
+    let NodeData::Identifier(data) = arena.node(node).ok()?.data() else {
         return None;
     };
     Some(data.text())
@@ -3907,11 +3946,11 @@ fn append_reference_to_type(
     context: &NodeBuilderContext<'_>,
 ) -> BuildResult<TransformNode> {
     let access = get_access_stack(arena, reference)?;
-    let reference_arguments = match &arena.node(reference).map_err(factory_error)?.data {
+    let reference_arguments = match arena.node(reference).map_err(factory_error)?.data() {
         NodeData::TypeReference(data) => data.type_arguments,
         _ => None,
     };
-    let root_data = arena.node(root).map_err(factory_error)?.data.clone();
+    let root_data = arena.node(root).map_err(factory_error)?.data().clone();
     let data = match root_data {
         // tsgo: an instantiated qualifier becomes an instantiation
         // expression, `f<string>.C`.
@@ -4012,13 +4051,13 @@ fn get_access_stack(
     arena: &TransformArena,
     reference: TransformNode,
 ) -> BuildResult<Vec<TransformNode>> {
-    let NodeData::TypeReference(data) = &arena.node(reference).map_err(factory_error)?.data else {
+    let NodeData::TypeReference(data) = arena.node(reference).map_err(factory_error)?.data() else {
         return Ok(Vec::new());
     };
     let mut state = data.type_name;
     let mut result = Vec::new();
     while let Some(node) = state.and_then(|node| arena.node_ref(reference.source(), node)) {
-        match &arena.node(node).map_err(factory_error)?.data {
+        match arena.node(node).map_err(factory_error)?.data() {
             NodeData::Identifier(_) => {
                 result.insert(0, node);
                 break;
@@ -4918,13 +4957,15 @@ pub(super) fn js_doc_comment_text(
 ) -> BuildResult<Option<String>> {
     match comment {
         None => Ok(None),
-        Some(tsc_syntax::nodes::JSDocComment::Text { text, .. }) => Ok(Some(text.clone())),
+        Some(tsc_syntax::nodes::JSDocComment::Text { text, .. }) => {
+            Ok(Some(crate::annotate::published_text_utf8(*text).to_owned()))
+        }
         Some(tsc_syntax::nodes::JSDocComment::Nodes(nodes)) => {
             let mut text = String::new();
             for node in checker.nodes_of(Some(*nodes)) {
                 let (kind, name, link_text) = match checker.data_of(node).clone() {
                     NodeData::JSDocText(data) => {
-                        text.push_str(&data.text);
+                        text.push_str(crate::annotate::published_text_utf8(data.text));
                         continue;
                     }
                     NodeData::JSDocLink(data) => ("link", data.name, data.text),
@@ -4932,6 +4973,7 @@ pub(super) fn js_doc_comment_text(
                     NodeData::JSDocLinkPlain(data) => ("linkplain", data.name, data.text),
                     _ => continue,
                 };
+                let link_text = crate::annotate::published_text_utf8(link_text);
                 let entity = name
                     .map(|name| checker.entity_name_to_string(name))
                     .transpose()
@@ -5114,7 +5156,7 @@ pub(crate) fn map_to_type_nodes(
         if let Some(node) = type_to_type_node_helper(checker, arena, target, r#type, context)? {
             if may_have_name_collisions {
                 if let NodeData::TypeReference(data) =
-                    &arena.node(node).map_err(factory_error)?.data
+                    arena.node(node).map_err(factory_error)?.data()
                 {
                     if let Some(type_name) = data.type_name {
                         if let NodeData::Identifier(identifier) = &arena
@@ -5123,7 +5165,7 @@ pub(crate) fn map_to_type_nodes(
                             .syntax()
                             .arena
                             .node(type_name)
-                            .data
+                            .data()
                         {
                             seen_names
                                 .entry(identifier.text().to_owned())

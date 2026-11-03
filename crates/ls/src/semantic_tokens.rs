@@ -217,7 +217,7 @@ impl Request<'_, '_> {
                 SyntaxKind::JsxExpression => false,
                 _ => in_jsx_parent,
             };
-            let text = match &record.data {
+            let text = match record.data() {
                 NodeData::Identifier(data) => Some(data.escaped_text),
                 NodeData::PrivateIdentifier(data) => Some(data.escaped_text),
                 _ => None,
@@ -531,7 +531,7 @@ impl Request<'_, '_> {
         }
         self.parent_of(node).is_some_and(|parent| {
             matches!(
-                &self.state.binder.node_record(parent).data,
+                self.state.binder.node_record(parent).data(),
                 NodeData::CallExpression(call) if call.expression == Some(node)
             )
         })

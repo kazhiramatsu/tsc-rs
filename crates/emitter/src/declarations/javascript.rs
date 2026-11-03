@@ -195,7 +195,7 @@ pub(crate) fn hosted_implements(
     Ok(tsc_binder::jsdoc_hosted(source)
         .implements_tags_of(class.node())
         .iter()
-        .filter_map(|&tag| match &source.arena.node(tag).data {
+        .filter_map(|&tag| match source.arena.node(tag).data() {
             NodeData::JSDocImplementsTag(data) => data.class,
             _ => None,
         })
@@ -217,12 +217,12 @@ pub(crate) fn hosted_augments_type_arguments(
     let Some(tag) = tsc_binder::jsdoc_hosted(source).augments_tag_of(element.node()) else {
         return Ok(None);
     };
-    let NodeData::JSDocAugmentsTag(data) = &source.arena.node(tag).data else {
+    let NodeData::JSDocAugmentsTag(data) = source.arena.node(tag).data() else {
         return Ok(None);
     };
     Ok(data
         .class
-        .and_then(|class| match &source.arena.node(class).data {
+        .and_then(|class| match source.arena.node(class).data() {
             NodeData::ExpressionWithTypeArguments(class) => class.type_arguments,
             _ => None,
         }))
@@ -260,11 +260,11 @@ impl DeclarationTransformer<'_> {
         for &tag in tags {
             let (constraint, type_parameters) = {
                 let source = cx.arena().source(owner.source())?.syntax();
-                let NodeData::JSDocTemplateTag(data) = &source.arena.node(tag).data else {
+                let NodeData::JSDocTemplateTag(data) = source.arena.node(tag).data() else {
                     continue;
                 };
                 let constraint = data.constraint.and_then(|expression| {
-                    match &source.arena.node(expression).data {
+                    match source.arena.node(expression).data() {
                         NodeData::JSDocTypeExpression(expression) => expression.r#type,
                         _ => None,
                     }
@@ -280,7 +280,7 @@ impl DeclarationTransformer<'_> {
                 let visited = match constraint {
                     Some(constraint) if index == 0 => {
                         let NodeData::TypeParameter(data) =
-                            cx.arena().node(parameter)?.data.clone()
+                            cx.arena().node(parameter)?.data().clone()
                         else {
                             continue;
                         };
@@ -418,14 +418,14 @@ fn push_reparsed_tags(source: &SourceFile, host: NodeId, tags: &mut Vec<Reparsed
         return;
     };
     for &comment in source.arena.node_array(comments).nodes {
-        let NodeData::JSDoc(data) = &source.arena.node(comment).data else {
+        let NodeData::JSDoc(data) = source.arena.node(comment).data() else {
             continue;
         };
         let Some(list) = data.tags else {
             continue;
         };
         for &tag in source.arena.node_array(list).nodes {
-            let reparsed = match &source.arena.node(tag).data {
+            let reparsed = match source.arena.node(tag).data() {
                 NodeData::JSDocTypedefTag(data) => data.type_expression.is_some(),
                 NodeData::JSDocCallbackTag(data) => data.type_expression.is_some(),
                 NodeData::JSDocImportTag(data) => data.import_clause.is_some(),
@@ -446,7 +446,7 @@ fn overload_tags(source: &SourceFile, host: NodeId) -> Vec<ReparsedTag> {
         return tags;
     };
     for &comment in source.arena.node_array(comments).nodes {
-        let NodeData::JSDoc(data) = &source.arena.node(comment).data else {
+        let NodeData::JSDoc(data) = source.arena.node(comment).data() else {
             continue;
         };
         for &tag in data
@@ -454,7 +454,7 @@ fn overload_tags(source: &SourceFile, host: NodeId) -> Vec<ReparsedTag> {
             .map_or(&[][..], |list| source.arena.node_array(list).nodes)
         {
             if matches!(
-                &source.arena.node(tag).data,
+                source.arena.node(tag).data(),
                 NodeData::JSDocOverloadTag(overload) if overload.type_expression.is_some()
             ) && tsc_binder::hosted::reparsed_overload_host(source, tag) == Some(host)
             {
@@ -466,7 +466,7 @@ fn overload_tags(source: &SourceFile, host: NodeId) -> Vec<ReparsedTag> {
 }
 
 fn template_tags_of_comment(source: &SourceFile, comment: NodeId) -> Vec<NodeId> {
-    let NodeData::JSDoc(data) = &source.arena.node(comment).data else {
+    let NodeData::JSDoc(data) = source.arena.node(comment).data() else {
         return Vec::new();
     };
     data.tags
@@ -482,12 +482,14 @@ fn text_of_jsdoc_comment(source: &SourceFile, comment: Option<&JSDocComment>) ->
     let mut text = String::new();
     match comment {
         None => {}
-        Some(JSDocComment::Text { text: comment, .. }) => text.push_str(comment),
+        Some(JSDocComment::Text { text: comment, .. }) => {
+            text.push_str(source.arena.text_utf8(*comment))
+        }
         Some(JSDocComment::Nodes(nodes)) => {
             for &node in source.arena.node_array(*nodes).nodes {
                 let record = source.arena.node(node);
-                match &record.data {
-                    NodeData::JSDocText(data) => text.push_str(&data.text),
+                match record.data() {
+                    NodeData::JSDocText(data) => text.push_str(source.arena.text_utf8(data.text)),
                     NodeData::JSDocLink(_)
                     | NodeData::JSDocLinkCode(_)
                     | NodeData::JSDocLinkPlain(_) => text.push_str(
@@ -583,7 +585,7 @@ impl DeclarationTransformer<'_> {
                 return Ok(Vec::new());
             }
             let mut tags = Vec::new();
-            if let NodeData::SourceFile(data) = &source.arena.node(root.node()).data {
+            if let NodeData::SourceFile(data) = source.arena.node(root.node()).data() {
                 if let Some(end) = data.end_of_file_token {
                     push_reparsed_tags(source, end, &mut tags);
                 }
@@ -650,7 +652,7 @@ impl DeclarationTransformer<'_> {
         let tag_node = TransformNode::new(source, tag.tag);
         let (namespaces, name, type_expression, templates) = {
             let syntax = cx.arena().source(source)?.syntax();
-            let (full_name, name, type_expression) = match &syntax.arena.node(tag.tag).data {
+            let (full_name, name, type_expression) = match syntax.arena.node(tag.tag).data() {
                 NodeData::JSDocTypedefTag(data) => {
                     (data.full_name, data.name, data.type_expression)
                 }
@@ -662,7 +664,7 @@ impl DeclarationTransformer<'_> {
             let mut namespaces = Vec::new();
             let mut current = full_name;
             while let Some(node) = current {
-                let NodeData::ModuleDeclaration(module) = &syntax.arena.node(node).data else {
+                let NodeData::ModuleDeclaration(module) = syntax.arena.node(node).data() else {
                     break;
                 };
                 namespaces.extend(module.name.map(|name| (node, name)));
@@ -756,7 +758,7 @@ impl DeclarationTransformer<'_> {
         type_expression: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let source = type_expression.source();
-        match cx.arena().node(type_expression)?.data.clone() {
+        match cx.arena().node(type_expression)?.data().clone() {
             NodeData::JSDocTypeExpression(data) => {
                 let r#type = data
                     .r#type
@@ -785,7 +787,7 @@ impl DeclarationTransformer<'_> {
         let source = literal.source();
         let (properties, is_array_type) = {
             let syntax = cx.arena().source(source)?.syntax();
-            let NodeData::JSDocTypeLiteral(data) = &syntax.arena.node(literal.node()).data else {
+            let NodeData::JSDocTypeLiteral(data) = syntax.arena.node(literal.node()).data() else {
                 return Err(Self::contract(
                     "reparsed type literal is not a JSDoc type literal",
                 ));
@@ -798,7 +800,7 @@ impl DeclarationTransformer<'_> {
                 .iter()
             {
                 let (name, type_expression, is_bracketed, comment) =
-                    match &syntax.arena.node(tag).data {
+                    match syntax.arena.node(tag).data() {
                         NodeData::JSDocPropertyTag(data) => (
                             data.name,
                             data.type_expression,
@@ -816,18 +818,18 @@ impl DeclarationTransformer<'_> {
                 let Some(name) = name else {
                     continue;
                 };
-                let name = match &syntax.arena.node(name).data {
+                let name = match syntax.arena.node(name).data() {
                     NodeData::QualifiedName(qualified) => qualified.right.unwrap_or(name),
                     _ => name,
                 };
-                let invalid_name = match &syntax.arena.node(name).data {
+                let invalid_name = match syntax.arena.node(name).data() {
                     NodeData::Identifier(data) if !tsc_syntax::is_identifier_text(data.text()) => {
                         Some(data.text().to_owned())
                     }
                     _ => None,
                 };
                 let r#type = type_expression.and_then(|expression| {
-                    match &syntax.arena.node(expression).data {
+                    match syntax.arena.node(expression).data() {
                         NodeData::JSDocTypeExpression(data) => data.r#type,
                         _ => Some(expression),
                     }
@@ -925,7 +927,7 @@ impl DeclarationTransformer<'_> {
         let source = signature.source();
         let (parameters, return_type) = {
             let syntax = cx.arena().source(source)?.syntax();
-            let NodeData::JSDocSignature(data) = &syntax.arena.node(signature.node()).data else {
+            let NodeData::JSDocSignature(data) = syntax.arena.node(signature.node()).data() else {
                 return Err(Self::contract(
                     "reparsed signature is not a JSDoc signature",
                 ));
@@ -938,7 +940,7 @@ impl DeclarationTransformer<'_> {
                 .iter()
                 .enumerate()
             {
-                let NodeData::JSDocParameterTag(parameter) = &syntax.arena.node(tag).data else {
+                let NodeData::JSDocParameterTag(parameter) = syntax.arena.node(tag).data() else {
                     continue;
                 };
                 let Some(name) = parameter.name else {
@@ -948,12 +950,12 @@ impl DeclarationTransformer<'_> {
                 if syntax.arena.node(name).kind == SyntaxKind::QualifiedName {
                     continue;
                 }
-                let renamed = match &syntax.arena.node(name).data {
+                let renamed = match syntax.arena.node(name).data() {
                     NodeData::Identifier(data) => sanitized_parameter_name(data.text(), index),
                     _ => None,
                 };
                 let mut r#type = parameter.type_expression.and_then(|expression| {
-                    match &syntax.arena.node(expression).data {
+                    match syntax.arena.node(expression).data() {
                         NodeData::JSDocTypeExpression(data) => data.r#type,
                         _ => Some(expression),
                     }
@@ -964,7 +966,7 @@ impl DeclarationTransformer<'_> {
                     });
                 let mut rest = false;
                 if let Some(NodeData::JSDocVariadicType(variadic)) =
-                    r#type.map(|r#type| &syntax.arena.node(r#type).data)
+                    r#type.map(|r#type| syntax.arena.node(r#type).data())
                 {
                     rest = true;
                     r#type = variadic.r#type;
@@ -973,9 +975,9 @@ impl DeclarationTransformer<'_> {
             }
             let return_type = data
                 .r#type
-                .and_then(|tag| match &syntax.arena.node(tag).data {
+                .and_then(|tag| match syntax.arena.node(tag).data() {
                     NodeData::JSDocReturnTag(data) => data.type_expression.and_then(|expression| {
-                        match &syntax.arena.node(expression).data {
+                        match syntax.arena.node(expression).data() {
                             NodeData::JSDocTypeExpression(data) => data.r#type,
                             _ => None,
                         }
@@ -1064,13 +1066,13 @@ impl DeclarationTransformer<'_> {
         let (kind, name, written_modifiers, signature, templates, tag_name) = {
             let syntax = cx.arena().source(source)?.syntax();
             let host_record = syntax.arena.node(host.node());
-            let (name, modifiers) = match &host_record.data {
+            let (name, modifiers) = match host_record.data() {
                 NodeData::FunctionDeclaration(data) => (data.name, data.modifiers),
                 NodeData::MethodDeclaration(data) => (data.name, data.modifiers),
                 NodeData::Constructor(data) => (None, data.modifiers),
                 _ => return Err(Self::contract("overload host is not a function")),
             };
-            let NodeData::JSDocOverloadTag(overload) = &syntax.arena.node(tag.tag).data else {
+            let NodeData::JSDocOverloadTag(overload) = syntax.arena.node(tag.tag).data() else {
                 return Err(Self::contract(
                     "reparsed overload tag is not an @overload tag",
                 ));
@@ -1081,7 +1083,7 @@ impl DeclarationTransformer<'_> {
             let tag_name = overload.tag_name;
             // gatherTypeParameters (reparser.go:297-344): none when the
             // comment declares a type alias.
-            let comment_declares_alias = match &syntax.arena.node(tag.comment).data {
+            let comment_declares_alias = match syntax.arena.node(tag.comment).data() {
                 NodeData::JSDoc(data) => data.tags.is_some_and(|tags| {
                     syntax.arena.node_array(tags).nodes.iter().any(|&tag| {
                         matches!(
@@ -1231,10 +1233,10 @@ impl DeclarationTransformer<'_> {
             };
             let first_is_this = parameters
                 .and_then(|list| syntax.arena.node_array(list).nodes.first().copied())
-                .is_some_and(|first| match &syntax.arena.node(first).data {
+                .is_some_and(|first| match syntax.arena.node(first).data() {
                     NodeData::Parameter(data) => {
                         data.name
-                            .is_some_and(|name| match &syntax.arena.node(name).data {
+                            .is_some_and(|name| match syntax.arena.node(name).data() {
                                 NodeData::Identifier(identifier) => identifier.text() == "this",
                                 _ => syntax.arena.node(name).kind == SyntaxKind::ThisKeyword,
                             })
@@ -1244,9 +1246,9 @@ impl DeclarationTransformer<'_> {
             if first_is_this {
                 return Ok(None);
             }
-            match &syntax.arena.node(tag).data {
+            match syntax.arena.node(tag).data() {
                 NodeData::JSDocThisTag(data) => data.type_expression.and_then(|expression| {
-                    match &syntax.arena.node(expression).data {
+                    match syntax.arena.node(expression).data() {
                         NodeData::JSDocTypeExpression(data) => data.r#type,
                         _ => None,
                     }
@@ -1330,11 +1332,11 @@ fn find_this_property_assignments(
 /// (GetNonAssignedNameOfDeclaration, ast/utilities.go:1467-1477): the
 /// access's identifier name or literal argument, else the access itself.
 fn this_property_assignment_name(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    let NodeData::BinaryExpression(data) = &source.arena.node(node).data else {
+    let NodeData::BinaryExpression(data) = source.arena.node(node).data() else {
         return None;
     };
     let left = data.left?;
-    let name = match &source.arena.node(left).data {
+    let name = match source.arena.node(left).data() {
         NodeData::PropertyAccessExpression(access) => access
             .name
             .filter(|&name| source.arena.node(name).kind == SyntaxKind::Identifier),
@@ -1374,7 +1376,7 @@ fn this_property_key(
 
 /// tsgo TryGetTextOfPropertyName (ast/utilities.go:2182-2195).
 fn property_name_text(source: &SourceFile, name: NodeId) -> Option<JsString> {
-    match &source.arena.node(name).data {
+    match source.arena.node(name).data() {
         NodeData::ComputedPropertyName(data) => data
             .expression
             .filter(|&expression| node_util::is_string_or_numeric_literal_like(source, expression))
@@ -1403,7 +1405,7 @@ fn is_static(source: &SourceFile, member: NodeId) -> bool {
 /// counting the `implements` clause tsgo's reparser adds from `@implements`
 /// tags (transform.go:2114, isClassExtendingNull 2153-2168).
 fn has_base_types(source: &SourceFile, class: NodeId) -> bool {
-    let heritage_clauses = match &source.arena.node(class).data {
+    let heritage_clauses = match source.arena.node(class).data() {
         NodeData::ClassDeclaration(data) => data.heritage_clauses,
         NodeData::ClassExpression(data) => data.heritage_clauses,
         _ => return false,
@@ -1419,7 +1421,7 @@ fn has_base_types(source: &SourceFile, class: NodeId) -> bool {
         return false;
     }
     let extends_null = clauses.iter().any(|&clause| {
-        let NodeData::HeritageClause(clause) = &source.arena.node(clause).data else {
+        let NodeData::HeritageClause(clause) = source.arena.node(clause).data() else {
             return false;
         };
         if clause.token != SyntaxKind::ExtendsKeyword {
@@ -1431,7 +1433,7 @@ fn has_base_types(source: &SourceFile, class: NodeId) -> bool {
             .unwrap_or_default();
         types.len() == 1
             && matches!(
-                &source.arena.node(types[0]).data,
+                source.arena.node(types[0]).data(),
                 NodeData::ExpressionWithTypeArguments(element)
                     if element.expression.is_some_and(|expression| {
                         source.arena.node(expression).kind == SyntaxKind::NullKeyword
@@ -1442,7 +1444,7 @@ fn has_base_types(source: &SourceFile, class: NodeId) -> bool {
 }
 
 fn class_members(source: &SourceFile, class: NodeId) -> Vec<NodeId> {
-    let members = match &source.arena.node(class).data {
+    let members = match source.arena.node(class).data() {
         NodeData::ClassDeclaration(data) => data.members,
         NodeData::ClassExpression(data) => data.members,
         _ => None,

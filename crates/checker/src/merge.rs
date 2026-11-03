@@ -420,7 +420,7 @@ impl<'a> CheckerState<'a> {
             );
             if is_class_element {
                 if let Some(name) = get_name_of_declaration(source, declaration) {
-                    if let NodeData::PrivateIdentifier(data) = &Published.node(name).data {
+                    if let NodeData::PrivateIdentifier(data) = Published.node(name).data() {
                         return JsString::from(data.text());
                     }
                 }
@@ -457,7 +457,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             };
             let is_early_computed = matches!(
-                Published.node(name_node).data,
+                Published.node(name_node).data(),
                 NodeData::ComputedPropertyName(_)
             ) && !self
                 .links
@@ -987,7 +987,7 @@ impl<'a> CheckerState<'a> {
             }
             let source = self.binder.source(index);
             let root = source.root;
-            let tsc_syntax::NodeData::SourceFile(data) = &Published.node(root).data else {
+            let tsc_syntax::NodeData::SourceFile(data) = Published.node(root).data() else {
                 continue;
             };
             let Some(statements) = data.statements else {
@@ -1189,7 +1189,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         };
         let name_text = match self.data_of(name) {
-            tsc_syntax::NodeData::StringLiteral(data) => data.text.clone(),
+            tsc_syntax::NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
             _ => return Ok(()),
         };
         // moduleName.parent.parent = the augmentation's container:
@@ -1311,18 +1311,18 @@ fn is_type_declaration(state: &CheckerState, node: NodeId) -> bool {
         | SyntaxKind::JSDocTypedefTag
         | SyntaxKind::JSDocCallbackTag => true,
         SyntaxKind::ImportClause => matches!(
-            &arena.node(node).data,
+            arena.node(node).data(),
             tsc_syntax::NodeData::ImportClause(data) if data.is_type_only
         ),
         SyntaxKind::ImportSpecifier => grandparent(arena, node).is_some_and(|clause| {
             matches!(
-                &arena.node(clause).data,
+                arena.node(clause).data(),
                 tsc_syntax::NodeData::ImportClause(data) if data.is_type_only
             )
         }),
         SyntaxKind::ExportSpecifier => grandparent(arena, node).is_some_and(|declaration| {
             matches!(
-                &arena.node(declaration).data,
+                arena.node(declaration).data(),
                 tsc_syntax::NodeData::ExportDeclaration(data) if data.is_type_only
             )
         }),

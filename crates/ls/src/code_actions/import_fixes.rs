@@ -539,7 +539,7 @@ fn get_symbol_names_to_import(
     let parent = source.arena.node(symbol_token).parent;
     let is_tag_name = parent.is_some_and(|parent| {
         jsx_opening_like_tag_name(source, parent).or_else(|| {
-            match &source.arena.node(parent).data {
+            match source.arena.node(parent).data() {
                 NodeData::JsxClosingElement(data) => data.tag_name,
                 _ => None,
             }
@@ -668,7 +668,7 @@ fn sort_fix_info(mut fixes: Vec<FixInfo>, view: &crate::autoimport::View<'_>) ->
 
 /// The tag name of a JSX opening or self-closing element.
 fn jsx_opening_like_tag_name(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::JsxOpeningElement(data) => data.tag_name,
         NodeData::JsxSelfClosingElement(data) => data.tag_name,
         _ => None,
@@ -680,7 +680,7 @@ fn is_jsx_tag_name(source: &SourceFile, node: NodeId) -> bool {
     let Some(parent) = source.arena.node(node).parent else {
         return false;
     };
-    let tag_name = match &source.arena.node(parent).data {
+    let tag_name = match source.arena.node(parent).data() {
         NodeData::JsxOpeningElement(data) => data.tag_name,
         NodeData::JsxClosingElement(data) => data.tag_name,
         NodeData::JsxSelfClosingElement(data) => data.tag_name,
@@ -691,7 +691,7 @@ fn is_jsx_tag_name(source: &SourceFile, node: NodeId) -> bool {
 
 /// An identifier's text (tsgo `Text()`).
 fn identifier_text(source: &SourceFile, node: NodeId) -> String {
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::Identifier(data) => data.text().to_owned(),
         _ => String::new(),
     }
@@ -699,7 +699,7 @@ fn identifier_text(source: &SourceFile, node: NodeId) -> String {
 
 /// An identifier's name as the binder keeps it.
 fn identifier_escaped_text(source: &SourceFile, node: NodeId) -> EscapedName {
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::Identifier(data) => data.escaped_text,
         _ => EscapedName::from_escaped_text(tsc_types::JsStr::from_str("")),
     }

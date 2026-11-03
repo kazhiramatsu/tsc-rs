@@ -27,7 +27,7 @@ fn jsdoc_reference_contexts_match_expression_classification() {
     let links = find_nodes(&source, SyntaxKind::JSDocLink);
     assert_eq!(links.len(), 2);
     for link in links {
-        let NodeData::JSDocLink(data) = &source.arena.node(link).data else {
+        let NodeData::JSDocLink(data) = &source.arena.node(link).data() else {
             unreachable!("kind/data agree");
         };
         let name = data.name.expect("parsed link name");
@@ -38,7 +38,7 @@ fn jsdoc_reference_contexts_match_expression_classification() {
         .into_iter()
         .next()
         .expect("parsed @see name reference");
-    let NodeData::JSDocNameReference(data) = &source.arena.node(name_reference).data else {
+    let NodeData::JSDocNameReference(data) = &source.arena.node(name_reference).data() else {
         unreachable!("kind/data agree");
     };
     assert!(crate::node_util::is_expression_node(
@@ -224,7 +224,7 @@ fn export_assignment_conflict_reports_2528_end_to_end() {
 fn export_default_identifier_keeps_current_flow() {
     let source = parse("export default x;\nconst x = 'x';\n");
     let export = find_nodes(&source, SyntaxKind::ExportAssignment)[0];
-    let expression = match &source.arena.node(export).data {
+    let expression = match &source.arena.node(export).data() {
         NodeData::ExportAssignment(data) => data.expression.expect("export expression"),
         _ => unreachable!(),
     };
@@ -472,7 +472,7 @@ fn labeled_statement_break_references_label() {
     let binder = bind(&source);
     let labels: Vec<_> = find_nodes(&source, SyntaxKind::LabeledStatement)
         .into_iter()
-        .filter_map(|statement| match &source.arena.node(statement).data {
+        .filter_map(|statement| match &source.arena.node(statement).data() {
             NodeData::LabeledStatement(data) => data.label,
             _ => None,
         })
@@ -488,7 +488,7 @@ fn labeled_statement_break_references_label() {
 fn statement_labels(source: &SourceFile) -> Vec<NodeId> {
     find_nodes(source, SyntaxKind::LabeledStatement)
         .into_iter()
-        .filter_map(|statement| match &source.arena.node(statement).data {
+        .filter_map(|statement| match &source.arena.node(statement).data() {
             NodeData::LabeledStatement(data) => data.label,
             _ => None,
         })
@@ -1021,11 +1021,11 @@ fn jsdoc_typedef_and_properties_bind_real_declaration_nodes() {
     assert_eq!(alias_symbol.declarations.len(), 1);
     let typedef = alias_symbol.declarations[0];
     assert_eq!(kind_of(&source, typedef), SyntaxKind::JSDocTypedefTag);
-    let type_expression = match &source.arena.node(typedef).data {
+    let type_expression = match &source.arena.node(typedef).data() {
         NodeData::JSDocTypedefTag(data) => data.type_expression.expect("type literal"),
         _ => unreachable!(),
     };
-    let type_literal = match &source.arena.node(type_expression).data {
+    let type_literal = match &source.arena.node(type_expression).data() {
         NodeData::JSDocTypeExpression(data) => data.r#type.expect("wrapped type literal"),
         _ => type_expression,
     };

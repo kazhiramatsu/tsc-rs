@@ -109,15 +109,19 @@ fn collect_package_names(state: &CheckerState<'_>, prepared: &PreparedProgram) -
             continue;
         }
         for import in collect_external_module_references(source).imports {
-            let tsc_syntax::NodeData::StringLiteral(literal) = &source.arena.node(import).data
+            let tsc_syntax::NodeData::StringLiteral(literal) = source.arena.node(import).data()
             else {
                 continue;
             };
-            let text = literal.text.to_string_lossy().into_owned();
+            let text = source
+                .arena
+                .text_js(literal.text)
+                .to_string_lossy()
+                .into_owned();
             let parent = source.arena.node(import).parent;
             if parent.is_some_and(|parent| {
                 tsc_syntax::utilities::is_source_phase_import(&source.arena, parent)
-            }) || is_external_module_name_relative(&literal.text)
+            }) || is_external_module_name_relative(source.arena.text_js(literal.text))
             {
                 continue;
             }

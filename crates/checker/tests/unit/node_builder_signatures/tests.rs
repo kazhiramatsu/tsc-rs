@@ -69,7 +69,7 @@ fn binding_name_clone_mounts_its_origin_and_remaps_children_to_another_source() 
                             arena.metadata(current).unwrap().flags(),
                             EmitFlags::SINGLE_LINE | EmitFlags::NO_ASCII_ESCAPING
                         );
-                        if let NodeData::BindingElement(data) = &record.data {
+                        if let NodeData::BindingElement(data) = record.data() {
                             assert!(data.initializer.is_none());
                         }
                         tsc_syntax::for_each_child(
@@ -161,7 +161,7 @@ fn binding_name_clones_keep_origins_without_mapping_parsed_child_ranges() {
                     EmitFlags::SINGLE_LINE | EmitFlags::NO_ASCII_ESCAPING
                 );
                 assert!(arena.parse_tree_resolver_node(current).unwrap().is_some());
-                if let NodeData::BindingElement(data) = &record.data {
+                if let NodeData::BindingElement(data) = record.data() {
                     assert!(data.initializer.is_none());
                 }
                 kinds.insert(record.kind);
@@ -287,16 +287,17 @@ fn index_parameter_names_are_synthesized_from_declaration_text() {
             let node = index_info_to_index_signature_declaration_helper(
                 checker, arena, target, &infos[0], context, None,
             )?;
-            let NodeData::IndexSignature(data) = &arena.node(node).map_err(factory_error)?.data
+            let NodeData::IndexSignature(data) = arena.node(node).map_err(factory_error)?.data()
             else {
                 panic!("index signature")
             };
             let parameters = emitted_array(arena, target, data.parameters.expect("parameters"));
-            let NodeData::Parameter(data) = &emitted_node(arena, target, parameters[0]).data else {
+            let NodeData::Parameter(data) = emitted_node(arena, target, parameters[0]).data()
+            else {
                 panic!("parameter")
             };
             let name = emitted_node(arena, target, data.name.expect("name"));
-            let NodeData::Identifier(data) = &name.data else {
+            let NodeData::Identifier(data) = name.data() else {
                 panic!("identifier")
             };
             assert_eq!(data.text(), r"\u0073lot");
@@ -330,7 +331,7 @@ fn signature_declaration_serializes_type_parameters_parameters_and_return_type()
                 context,
                 None,
             )?;
-            let NodeData::FunctionType(data) = &arena.node(node).map_err(factory_error)?.data
+            let NodeData::FunctionType(data) = arena.node(node).map_err(factory_error)?.data()
             else {
                 panic!("function type expected")
             };
@@ -341,7 +342,7 @@ fn signature_declaration_serializes_type_parameters_parameters_and_return_type()
             );
             assert_eq!(type_parameters.len(), 1);
             let NodeData::TypeParameter(type_parameter) =
-                &emitted_node(arena, target, type_parameters[0]).data
+                emitted_node(arena, target, type_parameters[0]).data()
             else {
                 panic!("type parameter expected")
             };
@@ -361,12 +362,12 @@ fn signature_declaration_serializes_type_parameters_parameters_and_return_type()
 
             let parameters = emitted_array(arena, target, data.parameters.expect("parameters"));
             assert_eq!(parameters.len(), 2);
-            let NodeData::Parameter(first) = &emitted_node(arena, target, parameters[0]).data
+            let NodeData::Parameter(first) = emitted_node(arena, target, parameters[0]).data()
             else {
                 panic!("parameter expected")
             };
             assert!(first.question_token.is_none());
-            let NodeData::Parameter(second) = &emitted_node(arena, target, parameters[1]).data
+            let NodeData::Parameter(second) = emitted_node(arena, target, parameters[1]).data()
             else {
                 panic!("parameter expected")
             };
@@ -412,7 +413,7 @@ fn signature_declaration_expands_tuple_typed_rest_parameters() {
                 context,
                 None,
             )?;
-            let NodeData::FunctionType(data) = &arena.node(node).map_err(factory_error)?.data
+            let NodeData::FunctionType(data) = arena.node(node).map_err(factory_error)?.data()
             else {
                 panic!("function type expected")
             };
@@ -420,12 +421,12 @@ fn signature_declaration_expands_tuple_typed_rest_parameters() {
             assert_eq!(parameters.len(), 2);
             for (index, expected_name) in ["name", "count"].into_iter().enumerate() {
                 let NodeData::Parameter(parameter) =
-                    &emitted_node(arena, target, parameters[index]).data
+                    emitted_node(arena, target, parameters[index]).data()
                 else {
                     panic!("parameter expected")
                 };
                 let NodeData::Identifier(name) =
-                    &emitted_node(arena, target, parameter.name.expect("parameter name")).data
+                    emitted_node(arena, target, parameter.name.expect("parameter name")).data()
                 else {
                     panic!("identifier expected")
                 };
@@ -458,7 +459,7 @@ fn type_predicate_helper_covers_identifier_asserts_and_this_shapes() {
                 context,
             )?;
             let NodeData::TypePredicate(data) =
-                &arena.node(identifier_node).map_err(factory_error)?.data
+                arena.node(identifier_node).map_err(factory_error)?.data()
             else {
                 panic!("predicate expected")
             };
@@ -486,7 +487,7 @@ fn type_predicate_helper_covers_identifier_asserts_and_this_shapes() {
                 context,
             )?;
             let NodeData::TypePredicate(data) =
-                &arena.node(asserts_node).map_err(factory_error)?.data
+                arena.node(asserts_node).map_err(factory_error)?.data()
             else {
                 panic!("asserts predicate expected")
             };

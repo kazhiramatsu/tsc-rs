@@ -305,7 +305,7 @@ fn template_for_node(
         // tsgo: a JavaScript `Object.defineProperty(exports, name, …)` call
         // reports at its name argument (diagnostics.go:200-215).
         SyntaxKind::CallExpression => {
-            let name = match &source.arena.node(node).data {
+            let name = match source.arena.node(node).data() {
                 NodeData::CallExpression(data) => data
                     .arguments
                     .and_then(|arguments| source.arena.node_array(arguments).nodes.get(1).copied()),
@@ -430,7 +430,7 @@ fn template_for_node(
         | SyntaxKind::JSDocTypedefTag
         | SyntaxKind::JSDocCallbackTag => {
             let (error, name) = if kind == SyntaxKind::TypeAliasDeclaration {
-                let NodeData::TypeAliasDeclaration(data) = &source.arena.node(node).data else {
+                let NodeData::TypeAliasDeclaration(data) = source.arena.node(node).data() else {
                     return Err(DeclarationTransformer::contract(
                         "type-alias diagnostic kind/data mismatch",
                     ));
@@ -663,7 +663,7 @@ fn heritage_template(
     let declaration_kind = source.arena.node(declaration).kind;
     let message = if declaration_kind == SyntaxKind::ClassDeclaration {
         if matches!(
-            &source.arena.node(clause).data,
+            source.arena.node(clause).data(),
             NodeData::HeritageClause(data) if data.token == SyntaxKind::ImplementsKeyword
         ) {
             &d::Implements_clause_of_exported_class_0_has_or_is_using_private_name_1
@@ -741,7 +741,7 @@ fn parent(source: &SourceFile, node: NodeId) -> Option<NodeId> {
             return Some(host);
         }
         let comment = source.arena.node(parent).parent?;
-        if let NodeData::JSDoc(data) = &source.arena.node(comment).data {
+        if let NodeData::JSDoc(data) = source.arena.node(comment).data() {
             let tags = data
                 .tags
                 .map_or(&[][..], |tags| source.arena.node_array(tags).nodes);
@@ -778,7 +778,7 @@ fn super_parent_kind(source: &SourceFile, node: NodeId) -> Option<SyntaxKind> {
 }
 
 fn modifiers(node: &Node) -> Option<tsc_syntax::NodeArrayId> {
-    match &node.data {
+    match node.data() {
         NodeData::TypeParameter(data) => data.modifiers,
         NodeData::Parameter(data) => data.modifiers,
         NodeData::PropertySignature(data) => data.modifiers,
@@ -878,7 +878,7 @@ fn parameter_is_private_property(source: &SourceFile, node: NodeId) -> bool {
 
 /// tsrs-native: declaration name projection used by diagnostic templates.
 pub(crate) fn name_of_declaration(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::Identifier(_) => Some(node),
         NodeData::VariableDeclaration(data) => data.name,
         NodeData::BindingElement(data) => data.name,
@@ -914,7 +914,7 @@ pub(crate) fn name_of_declaration(source: &SourceFile, node: NodeId) -> Option<N
 }
 
 fn direct_name_of_declaration(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::BindingElement(data) => data.name,
         NodeData::ClassDeclaration(data) => data.name,
         NodeData::ClassExpression(data) => data.name,
@@ -954,7 +954,7 @@ fn direct_name_of_declaration(source: &SourceFile, node: NodeId) -> Option<NodeI
 }
 
 fn access_expression_name(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::PropertyAccessExpression(data) => data.name,
         NodeData::ElementAccessExpression(data) => data.argument_expression,
         _ => None,
@@ -962,7 +962,7 @@ fn access_expression_name(source: &SourceFile, node: NodeId) -> Option<NodeId> {
 }
 
 fn jsdoc_type_expression(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    match &source.arena.node(node).data {
+    match source.arena.node(node).data() {
         NodeData::JSDocTypedefTag(data) => data.type_expression,
         NodeData::JSDocCallbackTag(data) => data.type_expression,
         _ => None,

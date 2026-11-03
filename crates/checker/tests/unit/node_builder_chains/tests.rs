@@ -81,13 +81,20 @@ fn property_name_nodes_retain_raw_symbol_and_name_type_values() {
                         checker, arena, target, context, symbol, enclosing,
                     )?;
                     let NodeData::StringLiteral(data) =
-                        &arena.node(name).map_err(factory_error)?.data
+                        arena.node(name).map_err(factory_error)?.data()
                     else {
                         panic!(
                             "non-identifier/non-numeric property values require a string literal"
                         );
                     };
-                    assert_eq!(data.text.to_utf16(), units, "nameType={use_name_type}");
+                    assert_eq!(
+                        arena
+                            .text_js(name.source(), data.text)
+                            .map_err(factory_error)?
+                            .to_utf16(),
+                        units,
+                        "nameType={use_name_type}"
+                    );
                     assert_eq!(
                         arena.literal_value(name).map_err(factory_error)?,
                         Some(value.as_js())
@@ -169,12 +176,13 @@ fn declaration_name_text(checker: &CheckerState<'_>, name: NodeId) -> Option<Str
     match checker.data_of(name) {
         NodeData::Identifier(data) => Some(data.text().to_owned()),
         NodeData::StringLiteral(data) => Some(
-            (data.text.clone())
+            checker
+                .text_js(data.text)
                 .as_str()
                 .expect("scalar value observation")
                 .to_owned(),
         ),
-        NodeData::NumericLiteral(data) => Some(data.text.clone()),
+        NodeData::NumericLiteral(data) => Some(checker.text_utf8(data.text).to_owned()),
         _ => None,
     }
 }
@@ -246,7 +254,7 @@ fn nested_namespace_chain_selects_parent_qualification_and_distinct_node_forms()
                 EmitSymbolMeaning::VALUE_EXPORT_VALUE,
             )?;
             let NodeData::PropertyAccessExpression(outer) =
-                &arena.node(expression).map_err(factory_error)?.data
+                arena.node(expression).map_err(factory_error)?.data()
             else {
                 panic!("property-access expression expected")
             };
@@ -284,7 +292,7 @@ fn qualified_type_reference_threads_override_arguments_and_parameter_declaration
                 EmitSymbolMeaning::TYPE,
                 Some(vec![argument]),
             )?;
-            let NodeData::TypeReference(data) = &arena.node(node).map_err(factory_error)?.data
+            let NodeData::TypeReference(data) = arena.node(node).map_err(factory_error)?.data()
             else {
                 panic!("type reference expected")
             };
@@ -306,7 +314,7 @@ fn qualified_type_reference_threads_override_arguments_and_parameter_declaration
             .expect("generic interface parameters");
             assert_eq!(declarations.len(), 1);
             let NodeData::TypeParameter(parameter) =
-                &arena.node(declarations[0]).map_err(factory_error)?.data
+                arena.node(declarations[0]).map_err(factory_error)?.data()
             else {
                 panic!("type parameter expected")
             };
@@ -351,7 +359,7 @@ fn external_symbol_uses_lane_h_relative_import_type_and_threads_arguments() {
                 EmitSymbolMeaning::TYPE,
                 Some(vec![argument]),
             )?;
-            let NodeData::ImportType(data) = &arena.node(node).map_err(factory_error)?.data else {
+            let NodeData::ImportType(data) = arena.node(node).map_err(factory_error)?.data() else {
                 panic!(
                     "import type expected, got {:?}",
                     arena.node(node).unwrap().kind
@@ -359,14 +367,15 @@ fn external_symbol_uses_lane_h_relative_import_type_and_threads_arguments() {
             };
             let literal_type = child(arena, node, data.argument);
             let NodeData::LiteralType(literal_type_data) =
-                &arena.node(literal_type).map_err(factory_error)?.data
+                arena.node(literal_type).map_err(factory_error)?.data()
             else {
                 panic!("literal import argument expected")
             };
             let literal = child(arena, literal_type, literal_type_data.literal);
             assert!(matches!(
-                &arena.node(literal).map_err(factory_error)?.data,
-                NodeData::StringLiteral(data) if data.text == "./lib"
+                arena.node(literal).map_err(factory_error)?.data(),
+                NodeData::StringLiteral(data)
+                    if arena.text_utf8(literal.source(), data.text).map_err(factory_error)? == "./lib"
             ));
             let qualifier = child(arena, node, data.qualifier);
             assert_eq!(
@@ -423,7 +432,7 @@ fn computed_entity_chain_and_write_computed_props_keep_computed_shapes() {
                 EmitSymbolMeaning::VALUE_EXPORT_VALUE,
             )?;
             let NodeData::ComputedPropertyName(data) =
-                &arena.node(computed).map_err(factory_error)?.data
+                arena.node(computed).map_err(factory_error)?.data()
             else {
                 panic!("computed property name expected")
             };
@@ -444,7 +453,7 @@ fn computed_entity_chain_and_write_computed_props_keep_computed_shapes() {
                 None,
             )?;
             let NodeData::IndexedAccessType(data) =
-                &arena.node(access).map_err(factory_error)?.data
+                arena.node(access).map_err(factory_error)?.data()
             else {
                 panic!("computed symbol access must be indexed")
             };
@@ -507,7 +516,7 @@ fn expression_worker_uses_string_and_numeric_element_access_literals() {
                 (numeric_access, SyntaxKind::NumericLiteral),
             ] {
                 let NodeData::ElementAccessExpression(data) =
-                    &arena.node(access).map_err(factory_error)?.data
+                    arena.node(access).map_err(factory_error)?.data()
                 else {
                     panic!("element access expected")
                 };

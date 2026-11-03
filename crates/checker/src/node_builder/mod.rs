@@ -789,7 +789,7 @@ pub(crate) fn late_bound_index_signatures(
                 for &component in components {
                     let source = checker.binder.source_of_node(component);
                     let name = tsc_binder::node_util::get_name_of_declaration(source, component);
-                    let expression = name.and_then(|name| match &Published.node(name).data {
+                    let expression = name.and_then(|name| match Published.node(name).data() {
                         NodeData::ComputedPropertyName(data) => data.expression,
                         _ => None,
                     });
@@ -824,7 +824,7 @@ pub(crate) fn late_bound_index_signatures(
                         let name =
                             tsc_binder::node_util::get_name_of_declaration(source, component)
                                 .expect("serializable component carries a computed name");
-                        let name_expression = match &Published.node(name).data {
+                        let name_expression = match Published.node(name).data() {
                             NodeData::ComputedPropertyName(data) => data
                                 .expression
                                 .expect("computed name carries an expression"),
@@ -839,7 +839,7 @@ pub(crate) fn late_bound_index_signatures(
                                 .source_of_node(first_identifier)
                                 .arena
                                 .node(first_identifier)
-                                .data
+                                .data()
                             {
                                 NodeData::Identifier(data) => data.escaped_text,
                                 _ => tsc_types::EscapedName::default(),
@@ -909,16 +909,16 @@ pub(crate) fn late_bound_index_signatures(
                             );
                         }
                         let has_question = matches!(
-                            &Published.node(component).data,
+                            Published.node(component).data(),
                             NodeData::PropertySignature(data) if data.question_token.is_some()
                         ) || matches!(
-                            &Published.node(component).data,
+                            Published.node(component).data(),
                             NodeData::PropertyDeclaration(data) if data.question_token.is_some()
                         ) || matches!(
-                            &Published.node(component).data,
+                            Published.node(component).data(),
                             NodeData::MethodSignature(data) if data.question_token.is_some()
                         ) || matches!(
-                            &Published.node(component).data,
+                            Published.node(component).data(),
                             NodeData::MethodDeclaration(data) if data.question_token.is_some()
                         );
                         let question_token = if has_question {

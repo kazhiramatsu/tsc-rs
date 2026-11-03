@@ -16,18 +16,18 @@ fn observe(case: &Value) -> Value {
     );
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, None);
-    let NodeData::SourceFile(file) = &arena.node(arena.root(source).unwrap()).unwrap().data else {
+    let NodeData::SourceFile(file) = arena.node(arena.root(source).unwrap()).unwrap().data() else {
         unreachable!()
     };
     let top = arena
         .node_array_ref(source, file.statements.unwrap())
         .unwrap();
     let mut function = TransformNode::new(source, arena.node_array(top).unwrap().nodes[0]);
-    let NodeData::FunctionDeclaration(data) = arena.node(function).unwrap().data.clone() else {
+    let NodeData::FunctionDeclaration(data) = arena.node(function).unwrap().data().clone() else {
         unreachable!()
     };
     let mut body = TransformNode::new(source, data.body.unwrap());
-    let NodeData::Block(block) = &arena.node(body).unwrap().data else {
+    let NodeData::Block(block) = arena.node(body).unwrap().data() else {
         unreachable!()
     };
     let original_array = arena

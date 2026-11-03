@@ -307,7 +307,7 @@ fn collect_linked_aliases_for_declaration(
 ) -> Result<(), EmitFailure> {
     let mut stack = vec![syntax.root];
     while let Some(node) = stack.pop() {
-        match &syntax.arena.node(node).data {
+        match syntax.arena.node(node).data() {
             NodeData::ExportAssignment(data) => {
                 if let Some(expression) = data.expression.filter(|expression| {
                     syntax.arena.node(*expression).kind == SyntaxKind::Identifier

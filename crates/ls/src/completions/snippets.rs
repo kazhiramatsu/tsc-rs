@@ -539,7 +539,7 @@ fn create_object_literal_method(
     name: TransformNode,
     is_snippet: bool,
 ) -> Result<Option<(TransformNode, tsc_emitter::TransformNodeArray)>, TransformError> {
-    let NodeData::FunctionType(function) = tracker.arena().node(type_node)?.data.clone() else {
+    let NodeData::FunctionType(function) = tracker.arena().node(type_node)?.data().clone() else {
         return Ok(None);
     };
     let type_parameters = function
@@ -550,7 +550,7 @@ fn create_object_literal_method(
         let ids = tracker.arena().node_array(list)?.nodes.to_vec();
         for id in ids {
             let parameter = TransformNode::new(type_node.source(), id);
-            let NodeData::Parameter(data) = tracker.arena().node(parameter)?.data.clone() else {
+            let NodeData::Parameter(data) = tracker.arena().node(parameter)?.data().clone() else {
                 continue;
             };
             let child =
@@ -620,7 +620,7 @@ fn transform_modifier_flags(tracker: &mut Tracker<'_>, node: TransformNode) -> M
     let Ok(record) = arena.node(node) else {
         return ModifierFlags::NONE;
     };
-    let Some(list) = node_util::modifiers_of_data(&record.data) else {
+    let Some(list) = node_util::modifiers_of_data(record.data()) else {
         return ModifierFlags::NONE;
     };
     let Ok(array) = arena.node_array(tsc_emitter::TransformNodeArray::new(node.source(), list))
@@ -919,7 +919,7 @@ fn type_node_to_expression(
 ) -> Result<Option<TransformNode>, TransformError> {
     let source = type_node.source();
     let child = |id: Option<NodeId>| id.map(|id| TransformNode::new(source, id));
-    match tracker.arena().node(type_node)?.data.clone() {
+    match tracker.arena().node(type_node)?.data().clone() {
         NodeData::TypeReference(reference) => match child(reference.type_name) {
             Some(name) => entity_name_to_expression(tracker, target, name).map(Some),
             None => Ok(None),
@@ -944,17 +944,29 @@ fn type_node_to_expression(
             let Some(literal) = child(literal.literal) else {
                 return Ok(None);
             };
-            match tracker.arena().node(literal)?.data.clone() {
-                NodeData::StringLiteral(text) => tracker
-                    .arena()
-                    .factory()
-                    .create_string_literal(target, text.text, single_quote)
-                    .map(Some),
-                NodeData::NumericLiteral(number) => tracker
-                    .arena()
-                    .factory()
-                    .create_numeric_literal(target, number.text)
-                    .map(Some),
+            match tracker.arena().node(literal)?.data().clone() {
+                NodeData::StringLiteral(text) => {
+                    let text = tracker
+                        .arena()
+                        .text_js(literal.source(), text.text)?
+                        .to_owned();
+                    tracker
+                        .arena()
+                        .factory()
+                        .create_string_literal(target, text, single_quote)
+                        .map(Some)
+                }
+                NodeData::NumericLiteral(number) => {
+                    let text = tracker
+                        .arena()
+                        .text_utf8(literal.source(), number.text)?
+                        .to_owned();
+                    tracker
+                        .arena()
+                        .factory()
+                        .create_numeric_literal(target, text)
+                        .map(Some)
+                }
                 _ => Ok(None),
             }
         }
@@ -990,7 +1002,7 @@ fn entity_name_to_expression(
     target: tsc_emitter::TransformSourceId,
     name: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    let NodeData::QualifiedName(qualified) = tracker.arena().node(name)?.data.clone() else {
+    let NodeData::QualifiedName(qualified) = tracker.arena().node(name)?.data().clone() else {
         return Ok(name);
     };
     let source = name.source();

@@ -524,7 +524,7 @@ fn assignment_lhs_rows(text: &str) -> Vec<(u32, u32, u32)> {
                 tsc_binder::node_util::kind_of(source, id) == SyntaxKind::Identifier
                     && tsc_binder::node_util::parent_of(source, id).is_some_and(|parent| {
                         matches!(
-                            &source.arena.node(parent).data,
+                            source.arena.node(parent).data(),
                             NodeData::BinaryExpression(data) if data.left == Some(id)
                         )
                     })

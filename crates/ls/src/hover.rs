@@ -1274,7 +1274,7 @@ impl<'a> Request<'_, 'a> {
             .declarations
             .iter()
             .find_map(
-                |&declaration| match &self.state.binder.node_record(declaration).data {
+                |&declaration| match self.state.binder.node_record(declaration).data() {
                     NodeData::ModuleDeclaration(data) => data.attributes,
                     _ => None,
                 },
@@ -1412,14 +1412,14 @@ impl<'a> Request<'_, 'a> {
         }
         let parent = self.state.binder.node_record(node).parent?;
         if let NodeData::PropertyAccessExpression(access) =
-            &self.state.binder.node_record(parent).data
+            self.state.binder.node_record(parent).data()
         {
             if access.name == Some(node) {
                 node = parent;
             }
         }
         let parent = self.state.binder.node_record(node).parent?;
-        match &self.state.binder.node_record(parent).data {
+        match self.state.binder.node_record(parent).data() {
             NodeData::CallExpression(call) if call.expression == Some(node) => Some(parent),
             NodeData::NewExpression(new) if new.expression == Some(node) => Some(parent),
             _ => None,
@@ -1432,7 +1432,7 @@ impl<'a> Request<'_, 'a> {
             return node;
         };
         let parent_record = self.state.binder.node_record(parent);
-        match &parent_record.data {
+        match parent_record.data() {
             NodeData::NewExpression(new) if self.pos(node) == parent_record.pos => {
                 if let Some(expression) = new.expression {
                     return Touching::Node(expression);
@@ -1546,7 +1546,7 @@ impl<'a> Request<'_, 'a> {
         let Touching::Node(mut id) = node else {
             return false;
         };
-        let is_this = match &self.state.binder.node_record(id).data {
+        let is_this = match self.state.binder.node_record(id).data() {
             NodeData::Identifier(identifier) => identifier.escaped_text.as_str() == Some("this"),
             _ => false,
         };
@@ -1557,7 +1557,7 @@ impl<'a> Request<'_, 'a> {
             let Some(parent) = self.state.binder.node_record(id).parent else {
                 return false;
             };
-            match &self.state.binder.node_record(parent).data {
+            match self.state.binder.node_record(parent).data() {
                 NodeData::QualifiedName(name) if name.left == Some(id) => id = parent,
                 _ => return self.node_kind(parent) == SyntaxKind::TypeQuery,
             }
@@ -1566,7 +1566,7 @@ impl<'a> Request<'_, 'a> {
 
     /// tsgo `ast.IsImportMeta`.
     pub(crate) fn is_import_meta(&self, node: NodeId) -> bool {
-        match &self.state.binder.node_record(node).data {
+        match self.state.binder.node_record(node).data() {
             NodeData::MetaProperty(meta) => {
                 meta.keyword_token == SyntaxKind::ImportKeyword
                     && meta.name.is_some_and(|name| {
@@ -1580,7 +1580,7 @@ impl<'a> Request<'_, 'a> {
 
     /// tsgo `ast.IsConstTypeReference`.
     fn is_const_type_reference(&self, node: NodeId) -> bool {
-        let NodeData::TypeReference(reference) = &self.state.binder.node_record(node).data else {
+        let NodeData::TypeReference(reference) = self.state.binder.node_record(node).data() else {
             return false;
         };
         let no_arguments = reference
@@ -1599,7 +1599,7 @@ impl<'a> Request<'_, 'a> {
         let Some(parent) = self.state.binder.node_record(node).parent else {
             return false;
         };
-        match &self.state.binder.node_record(parent).data {
+        match self.state.binder.node_record(parent).data() {
             NodeData::LabeledStatement(statement) => statement.label == Some(node),
             NodeData::BreakStatement(statement) => statement.label == Some(node),
             NodeData::ContinueStatement(statement) => statement.label == Some(node),

@@ -77,7 +77,7 @@ pub(crate) fn is_external_module(checker: &CheckerState<'_>, symbol: SymbolId) -
 /// tsgo `IsModuleWithStringLiteralName`.
 fn is_module_with_string_literal_name(source: &SourceFile, node: NodeId) -> bool {
     matches!(
-        &source.arena.node(node).data,
+        source.arena.node(node).data(),
         NodeData::ModuleDeclaration(data)
             if data.name.is_some_and(|name| source.arena.node(name).kind == SyntaxKind::StringLiteral)
     )
@@ -85,8 +85,12 @@ fn is_module_with_string_literal_name(source: &SourceFile, node: NodeId) -> bool
 
 /// The text of a string literal or identifier name.
 fn name_text(source: &SourceFile, node: NodeId) -> String {
-    match &source.arena.node(node).data {
-        NodeData::StringLiteral(data) => data.text.to_string_lossy().into_owned(),
+    match source.arena.node(node).data() {
+        NodeData::StringLiteral(data) => source
+            .arena
+            .text_js(data.text)
+            .to_string_lossy()
+            .into_owned(),
         NodeData::Identifier(data) => data.text().to_owned(),
         _ => String::new(),
     }
@@ -119,7 +123,7 @@ pub(crate) fn try_get_module_id_and_file_name_of_module_symbol(
         return Some((ModuleId::File(path_of(&file_name)), file_name));
     }
     if is_module_with_string_literal_name(source, declaration) {
-        let NodeData::ModuleDeclaration(data) = &source.arena.node(declaration).data else {
+        let NodeData::ModuleDeclaration(data) = source.arena.node(declaration).data() else {
             unreachable!("a module declaration");
         };
         let name = name_text(source, data.name.expect("a module name"));
@@ -307,7 +311,7 @@ impl Extractor<'_, '_> {
             if is_module_with_string_literal_name(source, statement)
                 && self.is_non_pattern_ambient_module_declaration(file, statement)
             {
-                let NodeData::ModuleDeclaration(data) = &source.arena.node(statement).data else {
+                let NodeData::ModuleDeclaration(data) = source.arena.node(statement).data() else {
                     continue;
                 };
                 let name = name_text(source, data.name.expect("a module name"));
@@ -360,7 +364,7 @@ impl Extractor<'_, '_> {
             .filter(|&declaration| !node_util::is_global_scope_augmentation(source, declaration))
             .collect();
         for declaration in augmentations {
-            let NodeData::ModuleDeclaration(data) = &source.arena.node(declaration).data else {
+            let NodeData::ModuleDeclaration(data) = source.arena.node(declaration).data() else {
                 continue;
             };
             let name = name_text(source, data.name.expect("a module name"));
@@ -540,13 +544,13 @@ impl Extractor<'_, '_> {
         } else if syntax == ExportSyntax::CommonJsModuleExports {
             let declaration = self.checker.binder.symbol(symbol).declarations[0];
             let source = self.checker.binder.source_of_node(declaration);
-            let NodeData::BinaryExpression(binary) = &source.arena.node(declaration).data else {
+            let NodeData::BinaryExpression(binary) = source.arena.node(declaration).data() else {
                 return Ok(());
             };
             let Some(expression) = binary.right else {
                 return Ok(());
             };
-            let NodeData::ObjectLiteralExpression(object) = &source.arena.node(expression).data
+            let NodeData::ObjectLiteralExpression(object) = source.arena.node(expression).data()
             else {
                 return Ok(());
             };
@@ -562,7 +566,7 @@ impl Extractor<'_, '_> {
             };
             let members = Arc::clone(self.checker.binder.symbol(object_symbol).members());
             for property in properties {
-                let name_node = match &source.arena.node(property).data {
+                let name_node = match source.arena.node(property).data() {
                     NodeData::ShorthandPropertyAssignment(data) => data.name,
                     NodeData::PropertyAssignment(data)
                         if data.name.is_some_and(|name| {
@@ -812,13 +816,13 @@ impl Extractor<'_, '_> {
                         .and_then(|exports| source.arena.node(exports).parent)
                         .is_some_and(|export_declaration| {
                             matches!(
-                                &source.arena.node(export_declaration).data,
+                                source.arena.node(export_declaration).data(),
                                 NodeData::ExportDeclaration(data) if data.module_specifier.is_some()
                             )
                         });
                     if !has_module_specifier {
                         if let NodeData::ExportSpecifier(data) =
-                            &source.arena.node(declaration).data
+                            source.arena.node(declaration).data()
                         {
                             if let Some(name) = data.name.or(data.property_name) {
                                 if source.arena.node(name).kind == SyntaxKind::Identifier {
@@ -838,7 +842,8 @@ impl Extractor<'_, '_> {
                     declaration_of_kind(self.checker, symbol, SyntaxKind::ExportAssignment)
                 {
                     let source = self.checker.binder.source_of_node(declaration);
-                    if let NodeData::ExportAssignment(data) = &source.arena.node(declaration).data {
+                    if let NodeData::ExportAssignment(data) = source.arena.node(declaration).data()
+                    {
                         if let Some(expression) = data.expression {
                             if source.arena.node(expression).kind == SyntaxKind::Identifier {
                                 location = Some((expression, name_text(source, expression)));
@@ -915,7 +920,7 @@ fn declaration_of_kind(
 fn get_syntax(checker: &CheckerState<'_>, symbol: SymbolId) -> ExportSyntax {
     for &declaration in checker.binder.symbol(symbol).declarations.iter() {
         let source = checker.binder.source_of_node(declaration);
-        match &source.arena.node(declaration).data {
+        match source.arena.node(declaration).data() {
             NodeData::ExportSpecifier(_) => return ExportSyntax::Named,
             NodeData::ExportAssignment(data) => {
                 return if data.is_export_equals == Some(true) {
@@ -966,7 +971,7 @@ pub(super) fn get_default_like_export_name_from_declaration(
 ) -> String {
     for &declaration in checker.binder.symbol(symbol).declarations.iter() {
         let source = checker.binder.source_of_node(declaration);
-        match &source.arena.node(declaration).data {
+        match source.arena.node(declaration).data() {
             // "export default" in this case. See `ExportAssignment`for more details.
             NodeData::ExportAssignment(data) => {
                 if let Some(expression) = data.expression {
@@ -1128,13 +1133,13 @@ fn resolve_local_name(
                 }
             }
         }
-        if let NodeData::ExportSpecifier(data) = &record.data {
+        if let NodeData::ExportSpecifier(data) = record.data() {
             if last.is_some() && last == data.property_name {
                 let declaration = record
                     .parent
                     .and_then(|exports| source.arena.node(exports).parent);
                 if declaration.is_some_and(|declaration| {
-                    matches!(&source.arena.node(declaration).data, NodeData::ExportDeclaration(data) if data.module_specifier.is_some())
+                    matches!(source.arena.node(declaration).data(), NodeData::ExportDeclaration(data) if data.module_specifier.is_some())
                 }) {
                     last = declaration;
                     current = declaration.and_then(|declaration| source.arena.node(declaration).parent);

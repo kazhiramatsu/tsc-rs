@@ -1,7 +1,8 @@
 use crate::for_each_child::{for_each_child, NodeLookup};
-use crate::nodes::{Node, NodeArray, NodeArrayId, NodeArrayRecord, NodeData, NodeId};
+use crate::nodes::{Node, NodeArray, NodeArrayId, NodeArrayRecord, NodeData, NodeId, TextId};
 use crate::relocate::{collect_node_data_ids, relocate_node_data, remap_node_data_ids};
 use crate::SyntaxKind;
+use tsc_store::texts::TextWord;
 use tsc_store::StoreVec;
 use tsc_types::{IdentityError, IdentityLease, IdentityRange, IdentitySpace, NodeFlags};
 
@@ -11,6 +12,7 @@ pub struct SyntaxLeases {
     pub nodes: IdentityLease,
     pub arrays: IdentityLease,
     pub array_items: IdentityLease,
+    pub texts: IdentityLease,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -21,6 +23,9 @@ pub struct NodeArena {
     /// `items..items + len` positions of this store, counted from
     /// `item_base`.
     array_items: StoreVec<NodeId>,
+    /// The tree's literal texts (see `tsc_store::texts`): a text's identity is
+    /// its length word's position, counted from `text_base`.
+    texts: StoreVec<TextWord>,
     /// tsc Node.transformFlags per node slot, written only on an emit
     /// session's copy of a tree (the emitter's transform-flag classifier and
     /// factory); a parsed arena keeps none, so its node records carry no
@@ -36,6 +41,7 @@ pub struct NodeArena {
     node_base: u32,
     array_base: u32,
     item_base: u32,
+    text_base: u32,
     leases: Option<SyntaxLeases>,
     /// tsc `identifierCount`: the identifier nodes allocated so far.
     identifier_count: u32,
@@ -50,6 +56,8 @@ impl PartialEq for NodeArena {
             && self.node_base == other.node_base
             && self.array_base == other.array_base
             && self.array_items == other.array_items
+            && self.text_base == other.text_base
+            && self.texts == other.texts
             && self.arrays.len() == other.arrays.len()
             && self.arrays.iter().zip(other.arrays.iter()).all(|(a, b)| {
                 a.items - self.item_base == b.items - other.item_base
@@ -67,6 +75,8 @@ pub(crate) struct SyntaxIdentityRelocation {
     new_arrays: IdentityRange,
     old_items: IdentityRange,
     new_items: IdentityRange,
+    old_texts: IdentityRange,
+    new_texts: IdentityRange,
 }
 
 /// Reusable dense scratch state for immutable old-subtree copies.
@@ -191,7 +201,7 @@ impl SubtreeCopier {
                 let node = old.node(id);
                 self.old_nodes.push(id);
                 collect_node_data_ids(
-                    &node.data,
+                    node.data(),
                     &mut self.pending_nodes,
                     &mut self.pending_arrays,
                 );
@@ -219,7 +229,7 @@ impl SubtreeCopier {
             let old_node = old.node(*old_id);
             let id = destination.push_node(
                 old_node.kind,
-                old_node.data.clone(),
+                old_node.data().clone(),
                 shifted_position(old_node.pos, position_delta) as usize,
                 shifted_position(old_node.end, position_delta) as usize,
                 NodeFlags::from_bits(old_node.flags),
@@ -247,9 +257,10 @@ impl SubtreeCopier {
 
         for (old_id, new_id) in &self.node_lineage {
             let old_node = old.node(*old_id);
-            let node = destination.node_mut(*new_id);
+            // The copy's texts move into this tree's text store.
+            let mut data = destination.node(*new_id).data().clone();
             remap_node_data_ids(
-                &mut node.data,
+                &mut data,
                 |id| {
                     let index = (id.index() - self.old_node_base) as usize;
                     debug_assert_eq!(self.node_marks[index], self.generation);
@@ -260,7 +271,16 @@ impl SubtreeCopier {
                     debug_assert_eq!(self.array_marks[index], self.generation);
                     self.array_map[index]
                 },
+                |id| {
+                    if id == TextId::EMPTY {
+                        id
+                    } else {
+                        destination.push_text(old.text(id))
+                    }
+                },
             );
+            let node = destination.node_mut(*new_id);
+            node.set_data(data);
             node.parent = None;
             node.js_doc = old_node.js_doc.map(|id| {
                 let index = self.array_index(id);
@@ -304,6 +324,20 @@ impl SyntaxIdentityRelocation {
             self.old_arrays,
             self.new_arrays,
         )?);
+        Ok(())
+    }
+
+    /// A literal text's identity in the leased range (the empty text takes
+    /// no words and keeps its identity).
+    pub(crate) fn text(&self, id: &mut TextId) -> Result<(), IdentityError> {
+        if *id != TextId::EMPTY {
+            *id = TextId::new(relocate_raw(
+                id.index(),
+                IdentitySpace::NodeText,
+                self.old_texts,
+                self.new_texts,
+            )?);
+        }
         Ok(())
     }
 }
@@ -373,34 +407,24 @@ impl NodeArena {
             + self.array_transform_flags.capacity() * std::mem::size_of::<i32>();
         usage.array_items += self.array_items.len();
         usage.array_item_bytes += self.array_items.capacity() * std::mem::size_of::<NodeId>();
+        // Literal texts live in the tree's text store, counted as one row.
+        usage.string_bytes += self.texts.capacity() * std::mem::size_of::<TextWord>();
         for node in &self.nodes {
             *usage.kinds.entry(node.kind).or_default() += 1;
-            let mut string = |bytes: usize| {
-                usage.string_nodes += 1;
-                usage.string_bytes += bytes;
-            };
-            match &node.data {
+            match node.data() {
                 // Identifier names are interned: the name table reports their text.
                 NodeData::Identifier(_) => usage.identifiers += 1,
-                NodeData::PrivateIdentifier(_) => string(0),
-                NodeData::StringLiteral(data) => string(data.text.heap_bytes()),
-                NodeData::NumericLiteral(data) => string(data.text.capacity()),
-                NodeData::BigIntLiteral(data) => string(data.text.capacity()),
-                NodeData::RegularExpressionLiteral(data) => string(data.text.capacity()),
-                NodeData::JsxText(data) => string(data.text.capacity()),
-                NodeData::JSDocText(data) => string(data.text.capacity()),
-                NodeData::NoSubstitutionTemplateLiteral(data) => string(
-                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
-                ),
-                NodeData::TemplateHead(data) => string(
-                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
-                ),
-                NodeData::TemplateMiddle(data) => string(
-                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
-                ),
-                NodeData::TemplateTail(data) => string(
-                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
-                ),
+                NodeData::PrivateIdentifier(_)
+                | NodeData::StringLiteral(_)
+                | NodeData::NumericLiteral(_)
+                | NodeData::BigIntLiteral(_)
+                | NodeData::RegularExpressionLiteral(_)
+                | NodeData::JsxText(_)
+                | NodeData::JSDocText(_)
+                | NodeData::NoSubstitutionTemplateLiteral(_)
+                | NodeData::TemplateHead(_)
+                | NodeData::TemplateMiddle(_)
+                | NodeData::TemplateTail(_) => usage.string_nodes += 1,
                 _ => {}
             }
         }
@@ -466,6 +490,54 @@ impl NodeArena {
         self.nodes.reserve(text_len / 5);
         self.arrays.reserve(text_len / 40);
         self.array_items.reserve(text_len / 20);
+        self.texts.reserve(text_len / 16);
+    }
+
+    /// Store `bytes` as a literal text of this tree (canonical WTF-8).
+    pub fn push_text(&mut self, bytes: &[u8]) -> TextId {
+        let index = tsc_store::texts::push_text(&mut self.texts, bytes);
+        TextId::new(
+            self.text_base
+                .checked_add(u32::try_from(index).expect("text store exceeds u32"))
+                .expect("text identity space exhausted"),
+        )
+    }
+
+    /// The bytes of this tree's literal text `id`.
+    pub fn text(&self, id: TextId) -> &[u8] {
+        if id == TextId::EMPTY {
+            return &[];
+        }
+        tsc_store::texts::text_in(&self.texts, (id.index() - self.text_base) as usize)
+    }
+
+    /// This tree's literal text `id` as a `str`, unless its bytes are not
+    /// UTF-8.
+    pub fn text_str(&self, id: TextId) -> Option<&str> {
+        if id == TextId::EMPTY {
+            return Some("");
+        }
+        tsc_store::texts::text_str_in(&self.texts, (id.index() - self.text_base) as usize)
+    }
+
+    /// This tree's literal text `id` as a JavaScript string view.
+    pub fn text_js(&self, id: TextId) -> tsc_types::JsStr<'_> {
+        tsc_types::JsStr::from_canonical_bytes(self.text(id))
+    }
+
+    /// This tree's literal text `id`, UTF-8 by construction (every text field
+    /// but a string literal's or template's value).
+    pub fn text_utf8(&self, id: TextId) -> &str {
+        self.text_str(id).expect("a UTF-8 literal text")
+    }
+
+    /// The words of the tree's text store.
+    pub fn text_word_count(&self) -> usize {
+        self.texts.len()
+    }
+
+    fn text_word_count_u32(&self) -> u32 {
+        u32::try_from(self.texts.len()).expect("text store exceeds u32")
     }
 
     pub fn node_base(&self) -> u32 {
@@ -744,8 +816,16 @@ impl NodeArena {
             self.item_base,
             self.item_base + item_count,
         )?;
+        let text_words = self.text_word_count_u32();
+        validate_lease(
+            &leases.texts,
+            IdentitySpace::NodeText,
+            self.text_base,
+            self.text_base + text_words,
+        )?;
         if !leases.nodes.same_domain(&leases.arrays)
             || !leases.nodes.same_domain(&leases.array_items)
+            || !leases.nodes.same_domain(&leases.texts)
         {
             return Err(IdentityError::InvalidLease {
                 space: IdentitySpace::Node,
@@ -759,6 +839,8 @@ impl NodeArena {
             new_arrays: leases.arrays.range(),
             old_items: IdentityRange::new(self.item_base, self.item_base + item_count),
             new_items: leases.array_items.range(),
+            old_texts: IdentityRange::new(self.text_base, self.text_base + text_words),
+            new_texts: leases.texts.range(),
         })
     }
 
@@ -776,7 +858,7 @@ impl NodeArena {
             if let Some(js_doc) = &mut node.js_doc {
                 relocation.node_array(js_doc)?;
             }
-            relocate_node_data(&mut node.data, &relocation)?;
+            relocate_node_data(node.data_mut(), &relocation)?;
         }
         for node in &mut self.array_items {
             relocation.node(node)?;
@@ -788,9 +870,11 @@ impl NodeArena {
         self.node_base = relocation.new_nodes.start();
         self.array_base = relocation.new_arrays.start();
         self.item_base = relocation.new_items.start();
+        self.text_base = relocation.new_texts.start();
         self.nodes.publish(relocation.new_nodes.start() + 1);
         self.arrays.publish(relocation.new_arrays.start() + 1);
         self.array_items.publish(relocation.new_items.start());
+        self.texts.publish(relocation.new_texts.start() + 1);
         self.leases = Some(leases);
         Ok(())
     }
@@ -895,16 +979,8 @@ impl NodeArena {
                 .expect("node identity space exhausted"),
         );
         self.identifier_count += u32::from(kind == SyntaxKind::Identifier);
-        self.nodes.push(Node {
-            kind,
-            literal_flags: 0,
-            flags: flags.bits(),
-            pos: pos as u32,
-            end: end as u32,
-            parent: None,
-            js_doc: None,
-            data,
-        });
+        self.nodes
+            .push(Node::new(kind, data, pos as u32, end as u32, flags.bits()));
         id
     }
 
@@ -1066,6 +1142,14 @@ impl NodeLookup for NodeArena {
 
     fn node_array(&self, id: NodeArrayId) -> NodeArray<'_> {
         self.node_array(id)
+    }
+
+    fn text(&self, id: TextId) -> &[u8] {
+        self.text(id)
+    }
+
+    fn text_str(&self, id: TextId) -> Option<&str> {
+        self.text_str(id)
     }
 }
 

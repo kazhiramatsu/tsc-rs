@@ -1923,8 +1923,10 @@ impl Completions<'_, '_, '_> {
             }
         }
         match self.data(node) {
-            NodeData::StringLiteral(data) => data.text.is_empty(),
-            NodeData::NoSubstitutionTemplateLiteral(data) => data.text.is_empty(),
+            NodeData::StringLiteral(data) => tsc_syntax::published_text(data.text).is_empty(),
+            NodeData::NoSubstitutionTemplateLiteral(data) => {
+                tsc_syntax::published_text(data.text).is_empty()
+            }
             _ => true,
         }
     }
@@ -2003,7 +2005,7 @@ impl Completions<'_, '_, '_> {
 
 /// tsgo `getLeftMostName`: `a` of `a.b.c`.
 fn left_most_name(source: &tsc_syntax::SourceFile, expression: NodeId) -> Option<NodeId> {
-    match &source.arena.node(expression).data {
+    match source.arena.node(expression).data() {
         NodeData::Identifier(_) => Some(expression),
         NodeData::PropertyAccessExpression(data) => left_most_name(source, data.expression?),
         _ => None,
