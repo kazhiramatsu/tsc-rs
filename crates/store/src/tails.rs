@@ -143,6 +143,21 @@ impl Tails {
         }
     }
 
+    /// The words of the tail at `position`, which this owner pushed with
+    /// `len` words, for rewriting in place (see [`rewrite`](Self::rewrite)).
+    pub fn words_mut(&mut self, position: u32, len: u32) -> &mut [u32] {
+        assert!(
+            self.owns(position, len),
+            "a tail rewritten by a tree that does not own it"
+        );
+        // SAFETY: the slots lie in a chunk of this owner (checked above), and
+        // `&mut self` stands for the tree's exclusive use; `TailWord` is a
+        // transparent `u32`.
+        unsafe {
+            std::slice::from_raw_parts_mut(address::<TailWord>(position) as *mut u32, len as usize)
+        }
+    }
+
     fn owns(&self, position: u32, len: u32) -> bool {
         self.chunks.iter().any(|&(start, class)| {
             position >= start

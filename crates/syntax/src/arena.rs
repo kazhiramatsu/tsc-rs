@@ -1,6 +1,6 @@
 use crate::for_each_child::{for_each_child, NodeLookup};
 use crate::nodes::{Node, NodeArray, NodeArrayId, NodeArrayRecord, NodeData, NodeId, TextId};
-use crate::relocate::{collect_node_data_ids, relocate_node_data, remap_node_data_ids};
+use crate::relocate::{collect_node_data_ids, remap_node_data_ids};
 use crate::SyntaxKind;
 use tsc_store::tails::Tails;
 use tsc_store::texts::TextWord;
@@ -348,28 +348,20 @@ impl SyntaxIdentityRelocation {
         Ok(())
     }
 
-    pub(crate) fn node_array(&self, id: &mut NodeArrayId) -> Result<(), IdentityError> {
-        *id = NodeArrayId::new(relocate_raw(
-            id.index(),
-            IdentitySpace::NodeArray,
-            self.old_arrays,
-            self.new_arrays,
-        )?);
-        Ok(())
-    }
-
-    /// A literal text's identity in the leased range (the empty text takes
-    /// no words and keeps its identity).
-    pub(crate) fn text(&self, id: &mut TextId) -> Result<(), IdentityError> {
-        if *id != TextId::EMPTY {
-            *id = TextId::new(relocate_raw(
-                id.index(),
-                IdentitySpace::NodeText,
-                self.old_texts,
-                self.new_texts,
-            )?);
-        }
-        Ok(())
+    /// A record's identity word of `space` (`nodes::SPACE_*`; a word is the
+    /// identity's position) in the leased ranges.
+    pub(crate) fn word(&self, space: u8, word: u32) -> Result<u32, IdentityError> {
+        let (identity_space, old, new) = match space {
+            crate::nodes::SPACE_NODE => (IdentitySpace::Node, self.old_nodes, self.new_nodes),
+            crate::nodes::SPACE_ARRAY => {
+                (IdentitySpace::NodeArray, self.old_arrays, self.new_arrays)
+            }
+            crate::nodes::SPACE_TEXT if word != TextId::EMPTY.position() => {
+                (IdentitySpace::NodeText, self.old_texts, self.new_texts)
+            }
+            _ => return Ok(word),
+        };
+        Ok(relocate_raw(word - 1, identity_space, old, new)? + 1)
     }
 }
 
@@ -927,14 +919,8 @@ impl NodeArena {
             if let Some(parent) = &mut node.parent {
                 relocation.node(parent)?;
             }
-            let mut js_doc = node.js_doc();
-            if let Some(js_doc) = &mut js_doc {
-                relocation.node_array(js_doc)?;
-            }
-            let mut data = node.data();
-            relocate_node_data(&mut data, &relocation)?;
             // The tree is not shared yet: its tails are rewritten in place.
-            node.encode(&data, js_doc, &mut self.tails, true);
+            node.map_identity_words(&mut self.tails, |space, word| relocation.word(space, word))?;
         }
         for node in &mut self.array_items {
             relocation.node(node)?;

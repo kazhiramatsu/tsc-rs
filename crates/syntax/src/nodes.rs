@@ -107,6 +107,12 @@ pub enum NodePayload {
 /// attachment and a JSDoc comment, and words 1-2 hold the first two slots.
 const HAS_TAIL: u16 = 1 << 15;
 
+/// The identity spaces of payload slots (see `slot_spaces`).
+pub(crate) const SPACE_NONE: u8 = 0;
+pub(crate) const SPACE_NODE: u8 = 1;
+pub(crate) const SPACE_ARRAY: u8 = 2;
+pub(crate) const SPACE_TEXT: u8 = 3;
+
 /// Word 2 of a record of a kind whose payload has no fields (EmptyStatement,
 /// JSDocAllType, ...): the payload is that kind's, not `Token` (the parser
 /// and the factory build some of them as tokens, and readers tell them
@@ -438,11 +444,63 @@ impl Node {
 
     /// This record with another payload, its tail (if any) in `tails`: a
     /// probe for the emitter's flag classifier, read while `tails` lives.
+    /// A record decodes by its kind, so a payload of another kind (a class
+    /// declaration's update into a class expression) gives the probe that
+    /// kind; the classifier reads the kind itself only for optional chains,
+    /// JSX, type syntax and tokens, which no such update involves.
     pub fn with_data(&self, data: &NodeData, tails: &mut tsc_store::tails::Tails) -> Node {
         let mut probe = *self;
+        probe.kind = data.kind().unwrap_or(self.kind);
         probe.literal_flags &= !HAS_TAIL;
         probe.encode(data, self.js_doc(), tails, false);
         probe
+    }
+
+    /// Map each identity word of the record (its payload's node, array and
+    /// text slots, its JSDoc attachment, a JSDoc comment's id) through `map`
+    /// (`space`, word) in place, a tail's in `tails`, the owner's: the
+    /// relocation of a tree to its leased identities, without decoding.
+    pub(crate) fn map_identity_words<E>(
+        &mut self,
+        tails: &mut tsc_store::tails::Tails,
+        mut map: impl FnMut(u8, u32) -> Result<u32, E>,
+    ) -> Result<(), E> {
+        let spaces = slot_spaces(self.kind);
+        let (count, has_comment) = payload_shape(self.kind);
+        let mut each = |space: u8, word: &mut u32| -> Result<(), E> {
+            if space != SPACE_NONE && *word != 0 {
+                *word = map(space, *word)?;
+            }
+            Ok(())
+        };
+        if self.literal_flags & HAS_TAIL == 0 {
+            for (index, &space) in spaces.iter().enumerate().take(3) {
+                each(space, &mut self.words[index])?;
+            }
+            if count < 3 {
+                each(SPACE_ARRAY, &mut self.words[count])?;
+            }
+            return Ok(());
+        }
+        for (index, &space) in spaces.iter().enumerate().take(2) {
+            each(space, &mut self.words[index + 1])?;
+        }
+        let at = count.saturating_sub(2);
+        let len = at + 1 + if has_comment { 4 } else { 0 };
+        let tail = tails.words_mut(self.words[0], len as u32);
+        for (index, &space) in spaces.iter().enumerate().skip(2) {
+            each(space, &mut tail[index - 2])?;
+        }
+        each(SPACE_ARRAY, &mut tail[at])?;
+        if has_comment {
+            // A text's id, or an array's after a zero word (`JSDocComment::words`).
+            if tail[at + 1] != 0 {
+                each(SPACE_TEXT, &mut tail[at + 1])?;
+            } else {
+                each(SPACE_ARRAY, &mut tail[at + 2])?;
+            }
+        }
+        Ok(())
     }
 
     /// Give the record a copy of its tail in `tails` (a tree's copy owns
@@ -4656,6 +4714,279 @@ pub(crate) const fn payload_shape(kind: SyntaxKind) -> (usize, bool) {
         SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression => (7, false),
         SyntaxKind::MethodDeclaration => (9, false),
         _ => (0, false),
+    }
+}
+
+/// The identity space of each payload slot of `kind`, in record order (`SPACE_*`).
+pub(crate) const fn slot_spaces(kind: SyntaxKind) -> &'static [u8] {
+    match kind {
+        SyntaxKind::ArrayBindingPattern
+        | SyntaxKind::ArrayLiteralExpression
+        | SyntaxKind::Block
+        | SyntaxKind::CaseBlock
+        | SyntaxKind::CommaListExpression
+        | SyntaxKind::DefaultClause
+        | SyntaxKind::IntersectionType
+        | SyntaxKind::JSDoc
+        | SyntaxKind::JsxAttributes
+        | SyntaxKind::MissingDeclaration
+        | SyntaxKind::ModuleBlock
+        | SyntaxKind::NamedExports
+        | SyntaxKind::NamedImports
+        | SyntaxKind::ObjectBindingPattern
+        | SyntaxKind::ObjectLiteralExpression
+        | SyntaxKind::TupleType
+        | SyntaxKind::TypeLiteral
+        | SyntaxKind::UnionType
+        | SyntaxKind::VariableDeclarationList => &[SPACE_ARRAY],
+        SyntaxKind::CallSignature | SyntaxKind::ConstructSignature | SyntaxKind::JSDocSignature => {
+            &[SPACE_ARRAY, SPACE_ARRAY, SPACE_NODE]
+        }
+        SyntaxKind::FunctionType => &[SPACE_ARRAY, SPACE_ARRAY, SPACE_NODE, SPACE_ARRAY],
+        SyntaxKind::ExpressionWithTypeArguments
+        | SyntaxKind::SourceFile
+        | SyntaxKind::TypeQuery
+        | SyntaxKind::TypeReference
+        | SyntaxKind::VariableStatement => &[SPACE_ARRAY, SPACE_NODE],
+        SyntaxKind::ConstructorType | SyntaxKind::IndexSignature => {
+            &[SPACE_ARRAY, SPACE_NODE, SPACE_ARRAY, SPACE_ARRAY]
+        }
+        SyntaxKind::Constructor => &[
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+        ],
+        SyntaxKind::FunctionExpression => &[
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_NODE,
+        ],
+        SyntaxKind::ArrowFunction => &[
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_ARRAY,
+        ],
+        SyntaxKind::ExportAssignment => &[SPACE_ARRAY, SPACE_NODE, SPACE_NONE],
+        SyntaxKind::HeritageClause
+        | SyntaxKind::ImportAttributes
+        | SyntaxKind::JSDocTypeLiteral => &[SPACE_ARRAY, SPACE_NONE],
+        SyntaxKind::ArrayType
+        | SyntaxKind::AwaitExpression
+        | SyntaxKind::BreakStatement
+        | SyntaxKind::ComputedPropertyName
+        | SyntaxKind::ContinueStatement
+        | SyntaxKind::Decorator
+        | SyntaxKind::DeleteExpression
+        | SyntaxKind::ExpressionStatement
+        | SyntaxKind::ExternalModuleReference
+        | SyntaxKind::ImportTypeAssertionContainer
+        | SyntaxKind::InferType
+        | SyntaxKind::JSDocAuthorTag
+        | SyntaxKind::JSDocClassTag
+        | SyntaxKind::JSDocDeprecatedTag
+        | SyntaxKind::JSDocNameReference
+        | SyntaxKind::JSDocNamepathType
+        | SyntaxKind::JSDocOptionalType
+        | SyntaxKind::JSDocOverrideTag
+        | SyntaxKind::JSDocPrivateTag
+        | SyntaxKind::JSDocProtectedTag
+        | SyntaxKind::JSDocPublicTag
+        | SyntaxKind::JSDocReadonlyTag
+        | SyntaxKind::JSDocTag
+        | SyntaxKind::JSDocTypeExpression
+        | SyntaxKind::JSDocVariadicType
+        | SyntaxKind::JsxClosingElement
+        | SyntaxKind::JsxSpreadAttribute
+        | SyntaxKind::LiteralType
+        | SyntaxKind::NamespaceExport
+        | SyntaxKind::NamespaceImport
+        | SyntaxKind::NonNullExpression
+        | SyntaxKind::OptionalType
+        | SyntaxKind::ParenthesizedExpression
+        | SyntaxKind::ParenthesizedType
+        | SyntaxKind::PartiallyEmittedExpression
+        | SyntaxKind::RestType
+        | SyntaxKind::ReturnStatement
+        | SyntaxKind::SpreadAssignment
+        | SyntaxKind::SpreadElement
+        | SyntaxKind::ThrowStatement
+        | SyntaxKind::TypeOfExpression
+        | SyntaxKind::VoidExpression => &[SPACE_NODE],
+        SyntaxKind::CaseClause
+        | SyntaxKind::ClassStaticBlockDeclaration
+        | SyntaxKind::NamespaceExportDeclaration
+        | SyntaxKind::TemplateExpression
+        | SyntaxKind::TemplateLiteralType => &[SPACE_NODE, SPACE_ARRAY],
+        SyntaxKind::EnumDeclaration => &[SPACE_NODE, SPACE_ARRAY, SPACE_ARRAY],
+        SyntaxKind::ClassDeclaration
+        | SyntaxKind::ClassExpression
+        | SyntaxKind::InterfaceDeclaration => &[
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_ARRAY,
+            SPACE_ARRAY,
+            SPACE_ARRAY,
+        ],
+        SyntaxKind::CallExpression | SyntaxKind::JSDocFunctionType | SyntaxKind::NewExpression => {
+            &[SPACE_NODE, SPACE_ARRAY, SPACE_ARRAY, SPACE_NODE]
+        }
+        SyntaxKind::JsxElement
+        | SyntaxKind::JsxFragment
+        | SyntaxKind::JsxOpeningElement
+        | SyntaxKind::JsxSelfClosingElement => &[SPACE_NODE, SPACE_ARRAY, SPACE_NODE],
+        SyntaxKind::TypeAliasDeclaration => &[SPACE_NODE, SPACE_ARRAY, SPACE_NODE, SPACE_ARRAY],
+        SyntaxKind::GetAccessor | SyntaxKind::MethodSignature | SyntaxKind::SetAccessor => &[
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_ARRAY,
+        ],
+        SyntaxKind::FunctionDeclaration => &[
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_NODE,
+            SPACE_ARRAY,
+        ],
+        SyntaxKind::MethodDeclaration => &[
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_NODE,
+            SPACE_NODE,
+            SPACE_NODE,
+            SPACE_ARRAY,
+        ],
+        SyntaxKind::ModuleDeclaration | SyntaxKind::TaggedTemplateExpression => {
+            &[SPACE_NODE, SPACE_ARRAY, SPACE_NODE, SPACE_NODE]
+        }
+        SyntaxKind::Parameter | SyntaxKind::PropertyDeclaration => &[
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_NODE,
+            SPACE_NODE,
+            SPACE_NODE,
+        ],
+        SyntaxKind::ImportEqualsDeclaration => &[SPACE_NODE, SPACE_ARRAY, SPACE_NODE, SPACE_NONE],
+        SyntaxKind::AsExpression
+        | SyntaxKind::CatchClause
+        | SyntaxKind::DoStatement
+        | SyntaxKind::EnumMember
+        | SyntaxKind::ImportAttribute
+        | SyntaxKind::IndexedAccessType
+        | SyntaxKind::JSDocAugmentsTag
+        | SyntaxKind::JSDocEnumTag
+        | SyntaxKind::JSDocImplementsTag
+        | SyntaxKind::JSDocMemberName
+        | SyntaxKind::JSDocOverloadTag
+        | SyntaxKind::JSDocReturnTag
+        | SyntaxKind::JSDocSatisfiesTag
+        | SyntaxKind::JSDocSeeTag
+        | SyntaxKind::JSDocThisTag
+        | SyntaxKind::JSDocThrowsTag
+        | SyntaxKind::JSDocTypeTag
+        | SyntaxKind::JsxAttribute
+        | SyntaxKind::JsxExpression
+        | SyntaxKind::JsxNamespacedName
+        | SyntaxKind::LabeledStatement
+        | SyntaxKind::QualifiedName
+        | SyntaxKind::SatisfiesExpression
+        | SyntaxKind::SwitchStatement
+        | SyntaxKind::TemplateLiteralTypeSpan
+        | SyntaxKind::TemplateSpan
+        | SyntaxKind::TypeAssertionExpression
+        | SyntaxKind::WhileStatement
+        | SyntaxKind::WithStatement
+        | SyntaxKind::YieldExpression => &[SPACE_NODE, SPACE_NODE],
+        SyntaxKind::JSDocTemplateTag => &[SPACE_NODE, SPACE_NODE, SPACE_ARRAY],
+        SyntaxKind::PropertyAssignment => {
+            &[SPACE_NODE, SPACE_NODE, SPACE_ARRAY, SPACE_NODE, SPACE_NODE]
+        }
+        SyntaxKind::MappedType => &[
+            SPACE_NODE,
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_NODE,
+            SPACE_NODE,
+        ],
+        SyntaxKind::BinaryExpression
+        | SyntaxKind::ElementAccessExpression
+        | SyntaxKind::ForInStatement
+        | SyntaxKind::IfStatement
+        | SyntaxKind::PropertyAccessExpression
+        | SyntaxKind::TryStatement
+        | SyntaxKind::TypePredicate => &[SPACE_NODE, SPACE_NODE, SPACE_NODE],
+        SyntaxKind::ImportDeclaration => &[SPACE_NODE, SPACE_NODE, SPACE_NODE, SPACE_ARRAY],
+        SyntaxKind::PropertySignature | SyntaxKind::TypeParameter => {
+            &[SPACE_NODE, SPACE_NODE, SPACE_NODE, SPACE_ARRAY, SPACE_NODE]
+        }
+        SyntaxKind::ShorthandPropertyAssignment => &[
+            SPACE_NODE,
+            SPACE_NODE,
+            SPACE_NODE,
+            SPACE_ARRAY,
+            SPACE_NODE,
+            SPACE_NODE,
+        ],
+        SyntaxKind::BindingElement
+        | SyntaxKind::ConditionalType
+        | SyntaxKind::ForOfStatement
+        | SyntaxKind::ForStatement
+        | SyntaxKind::JSDocCallbackTag
+        | SyntaxKind::JSDocImportTag
+        | SyntaxKind::JSDocTypedefTag
+        | SyntaxKind::NamedTupleMember
+        | SyntaxKind::VariableDeclaration => &[SPACE_NODE, SPACE_NODE, SPACE_NODE, SPACE_NODE],
+        SyntaxKind::ConditionalExpression => {
+            &[SPACE_NODE, SPACE_NODE, SPACE_NODE, SPACE_NODE, SPACE_NODE]
+        }
+        SyntaxKind::JSDocPropertyTag => &[SPACE_NODE, SPACE_NODE, SPACE_NODE, SPACE_NONE],
+        SyntaxKind::ExportSpecifier | SyntaxKind::ImportClause | SyntaxKind::ImportSpecifier => {
+            &[SPACE_NODE, SPACE_NODE, SPACE_NONE]
+        }
+        SyntaxKind::ExportDeclaration | SyntaxKind::ImportType => {
+            &[SPACE_NODE, SPACE_NODE, SPACE_NONE, SPACE_ARRAY, SPACE_NODE]
+        }
+        SyntaxKind::JSDocParameterTag => &[SPACE_NODE, SPACE_NODE, SPACE_NONE, SPACE_NODE],
+        SyntaxKind::JSDocNonNullableType
+        | SyntaxKind::JSDocNullableType
+        | SyntaxKind::MetaProperty
+        | SyntaxKind::PostfixUnaryExpression
+        | SyntaxKind::PrefixUnaryExpression
+        | SyntaxKind::TypeOperator => &[SPACE_NODE, SPACE_NONE],
+        SyntaxKind::JSDocLink | SyntaxKind::JSDocLinkCode | SyntaxKind::JSDocLinkPlain => {
+            &[SPACE_NODE, SPACE_TEXT]
+        }
+        SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier => &[SPACE_NONE],
+        SyntaxKind::BigIntLiteral
+        | SyntaxKind::JSDocText
+        | SyntaxKind::NumericLiteral
+        | SyntaxKind::RegularExpressionLiteral
+        | SyntaxKind::StringLiteral => &[SPACE_TEXT],
+        SyntaxKind::JsxText => &[SPACE_TEXT, SPACE_NONE],
+        SyntaxKind::NoSubstitutionTemplateLiteral
+        | SyntaxKind::TemplateHead
+        | SyntaxKind::TemplateMiddle
+        | SyntaxKind::TemplateTail => &[SPACE_TEXT, SPACE_TEXT],
+        _ => &[],
     }
 }
 

@@ -384,6 +384,12 @@ pub enum NodePayload {
 /// attachment and a JSDoc comment, and words 1-2 hold the first two slots.
 const HAS_TAIL: u16 = 1 << 15;
 
+/// The identity spaces of payload slots (see `slot_spaces`).
+pub(crate) const SPACE_NONE: u8 = 0;
+pub(crate) const SPACE_NODE: u8 = 1;
+pub(crate) const SPACE_ARRAY: u8 = 2;
+pub(crate) const SPACE_TEXT: u8 = 3;
+
 /// Word 2 of a record of a kind whose payload has no fields (EmptyStatement,
 /// JSDocAllType, ...): the payload is that kind's, not `Token` (the parser
 /// and the factory build some of them as tokens, and readers tell them
@@ -713,11 +719,63 @@ impl Node {
 
     /// This record with another payload, its tail (if any) in `tails`: a
     /// probe for the emitter's flag classifier, read while `tails` lives.
+    /// A record decodes by its kind, so a payload of another kind (a class
+    /// declaration's update into a class expression) gives the probe that
+    /// kind; the classifier reads the kind itself only for optional chains,
+    /// JSX, type syntax and tokens, which no such update involves.
     pub fn with_data(&self, data: &NodeData, tails: &mut tsc_store::tails::Tails) -> Node {
         let mut probe = *self;
+        probe.kind = data.kind().unwrap_or(self.kind);
         probe.literal_flags &= !HAS_TAIL;
         probe.encode(data, self.js_doc(), tails, false);
         probe
+    }
+
+    /// Map each identity word of the record (its payload's node, array and
+    /// text slots, its JSDoc attachment, a JSDoc comment's id) through `map`
+    /// (`space`, word) in place, a tail's in `tails`, the owner's: the
+    /// relocation of a tree to its leased identities, without decoding.
+    pub(crate) fn map_identity_words<E>(
+        &mut self,
+        tails: &mut tsc_store::tails::Tails,
+        mut map: impl FnMut(u8, u32) -> Result<u32, E>,
+    ) -> Result<(), E> {
+        let spaces = slot_spaces(self.kind);
+        let (count, has_comment) = payload_shape(self.kind);
+        let mut each = |space: u8, word: &mut u32| -> Result<(), E> {
+            if space != SPACE_NONE && *word != 0 {
+                *word = map(space, *word)?;
+            }
+            Ok(())
+        };
+        if self.literal_flags & HAS_TAIL == 0 {
+            for (index, &space) in spaces.iter().enumerate().take(3) {
+                each(space, &mut self.words[index])?;
+            }
+            if count < 3 {
+                each(SPACE_ARRAY, &mut self.words[count])?;
+            }
+            return Ok(());
+        }
+        for (index, &space) in spaces.iter().enumerate().take(2) {
+            each(space, &mut self.words[index + 1])?;
+        }
+        let at = count.saturating_sub(2);
+        let len = at + 1 + if has_comment { 4 } else { 0 };
+        let tail = tails.words_mut(self.words[0], len as u32);
+        for (index, &space) in spaces.iter().enumerate().skip(2) {
+            each(space, &mut tail[index - 2])?;
+        }
+        each(SPACE_ARRAY, &mut tail[at])?;
+        if has_comment {
+            // A text's id, or an array's after a zero word (`JSDocComment::words`).
+            if tail[at + 1] != 0 {
+                each(SPACE_TEXT, &mut tail[at + 1])?;
+            } else {
+                each(SPACE_ARRAY, &mut tail[at + 2])?;
+            }
+        }
+        Ok(())
     }
 
     /// Give the record a copy of its tail in `tails` (a tree's copy owns
@@ -899,6 +957,15 @@ def decode_field(kind, field, slot_index, scalars_index):
     return DECODE_WORD[(field.walk_type(), field.rust_optional)].format(f"s[{slot_index}]")
 
 
+def slot_space(slot):
+    """A slot's identity space: what the relocation adds its delta to."""
+    if slot is SCALARS:
+        return "SPACE_NONE"
+    return {"Node": "SPACE_NODE", "NodeArray": "SPACE_ARRAY", "Text": "SPACE_TEXT"}.get(
+        slot.walk_type(), "SPACE_NONE"
+    )
+
+
 def render_payload_codec(kinds):
     """`payload_shape`, `encode_slots` and `Node::data`: a kind's slots in
     record order (`Kind.slots`), its JSDoc comment in the tail."""
@@ -926,6 +993,18 @@ def render_payload_codec(kinds):
         out.append(f"{arms} => ({count}, {'true' if comment else 'false'}),")
     out += ["_ => (0, false),", "}", "}", ""]
 
+    out.append("/// The identity space of each payload slot of `kind`, in record order (`SPACE_*`).")
+    out.append("pub(crate) const fn slot_spaces(kind: SyntaxKind) -> &'static [u8] {")
+    out.append("match kind {")
+    spaces = {}
+    for kind in kinds:
+        row = tuple(slot_space(slot) for slot in kind.slots())
+        if any(row):
+            spaces.setdefault(row, []).append(kind.name)
+    for row, names in sorted(spaces.items()):
+        arms = " | ".join(f"SyntaxKind::{name}" for name in names)
+        out.append(f"{arms} => &[{', '.join(row)}],")
+    out += ["_ => &[],", "}", "}", ""]
     out.append("/// The slot words and the comment words of a payload.")
     out.append("fn encode_slots(data: &NodeData) -> ([u32; MAX_SLOTS], [u32; 4]) {")
     out.append("let mut s = [0u32; MAX_SLOTS];")
@@ -1413,9 +1492,7 @@ def render_for_each_child_rs(kinds):
 # ---------------------------------------------------------------------------
 # relocate.rs
 
-RELOCATE_PRELUDE = r'''use crate::arena::SyntaxIdentityRelocation;
-use crate::nodes::{JSDocComment, NodeArrayId, NodeData, NodeId, TextId};
-use tsc_types::IdentityError;
+RELOCATE_PRELUDE = r'''use crate::nodes::{JSDocComment, NodeArrayId, NodeData, NodeId, TextId};
 '''
 
 EQUALITY_HELPERS = r'''fn optional_node_equal<N>(left: Option<NodeId>, right: Option<NodeId>, node: &mut N) -> bool
@@ -1488,21 +1565,7 @@ where
 '''
 
 # Per identity-field statements: (type, Rust optional) -> template over the
-# field's Rust name, for relocation, collection and remapping.
-RELOCATE_FIELD = {
-    ("Text", True): "if let Some(id) = &mut data.{0} {{ relocation.text(id)?; }}",
-    ("Text", False): "relocation.text(&mut data.{0})?;",
-    ("Node", True): "if let Some(id) = &mut data.{0} {{ relocation.node(id)?; }}",
-    ("Node", False): "relocation.node(&mut data.{0})?;",
-    ("NodeArray", True): "if let Some(id) = &mut data.{0} {{ relocation.node_array(id)?; }}",
-    ("NodeArray", False): "relocation.node_array(&mut data.{0})?;",
-    ("JSDocComment", True):
-        "match &mut data.{0} {{ Some(JSDocComment::Nodes(id)) => relocation.node_array(id)?, "
-        "Some(JSDocComment::Text {{ text, .. }}) => relocation.text(text)?, None => {{}} }}",
-    ("JSDocComment", False):
-        "match &mut data.{0} {{ JSDocComment::Nodes(id) => relocation.node_array(id)?, "
-        "JSDocComment::Text {{ text, .. }} => relocation.text(text)?, }}",
-}
+# field's Rust name, for collection and remapping.
 COLLECT_FIELD = {
     ("Text", True): "",
     ("Text", False): "",
@@ -1557,14 +1620,6 @@ def render_identity_walk(kinds, out, templates, finish):
 
 def render_relocate_rs(kinds):
     out = [HEADER, "", RELOCATE_PRELUDE]
-    out.append(
-        "pub(crate) fn relocate_node_data(data: &mut NodeData, relocation: &SyntaxIdentityRelocation) "
-        "-> Result<(), IdentityError> {"
-    )
-    out += ["match data {", "NodeData::Token => Ok(()),"]
-    render_identity_walk(kinds, out, RELOCATE_FIELD, ["Ok(())"])
-    out += ["}", "}", ""]
-
     out.append(
         "pub(crate) fn collect_node_data_ids(data: &NodeData, nodes: &mut Vec<NodeId>, "
         "arrays: &mut Vec<NodeArrayId>) {"
