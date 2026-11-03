@@ -287,9 +287,7 @@ pub fn compare_types(
             if text1 != text2 {
                 // tsgo `strings.Compare` of the Go strings: the byte order of
                 // the canonical WTF-8 text (code point order), not UTF-16.
-                let c = tables
-                    .literal_text(text1)
-                    .cmp(&tables.literal_text(text2));
+                let c = tables.literal_text(text1).cmp(&tables.literal_text(text2));
                 if c != Ordering::Equal {
                     return c;
                 }
