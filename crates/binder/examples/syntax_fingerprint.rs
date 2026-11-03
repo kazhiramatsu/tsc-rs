@@ -365,7 +365,7 @@ impl<'a> Tree<'a> {
             let this = tree.order.len() as u32 - 1;
             let node = source.arena.node(id);
             children.clear();
-            if let Some(docs) = node.js_doc {
+            if let Some(docs) = node.js_doc() {
                 children.extend_from_slice(source.arena.node_array(docs).nodes);
             }
             for_each_child(&source.arena, node, |child| {
@@ -430,13 +430,13 @@ impl<'a> Tree<'a> {
             hash.u32(node.pos);
             hash.u32(node.end);
             hash.i32(node.flags);
-            hash.u16(node.literal_flags);
+            hash.u16(node.literal_flags());
             hash.u16(node.data().kind().map_or(u16::MAX, |kind| kind as u16));
             // The recorded parent, and whether it is the walk's parent.
             let parent = self.opt_node_ref(node.parent);
             hash.u32(parent);
             hash.bool(parent == self.walk_parent[walk_index]);
-            match node.js_doc {
+            match node.js_doc() {
                 Some(docs) => {
                     hash.u8(1);
                     self.array(&mut hash, docs);
@@ -468,7 +468,7 @@ impl<'a> Tree<'a> {
                     }
                 }
             });
-            if let Some(kind) = syntax_kind_field(node.data()) {
+            if let Some(kind) = syntax_kind_field(&node.data()) {
                 hash.u8(b'K');
                 hash.u16(kind as u16);
             }
@@ -477,7 +477,7 @@ impl<'a> Tree<'a> {
                 pos,
                 end,
                 text_end,
-            }) = jsdoc_comment(node.data())
+            }) = jsdoc_comment(&node.data())
             {
                 hash.u8(b'C');
                 hash.str(source.arena.text_utf8(*text));
