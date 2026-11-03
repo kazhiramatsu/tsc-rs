@@ -65,11 +65,11 @@ fn decode(raw: &[u8]) -> String {
     match raw {
         [0xff, 0xfe, rest @ ..] | [0xfe, 0xff, rest @ ..] => {
             let little = raw[0] == 0xff;
-            let units = rest.chunks_exact(2).map(|pair| {
+            let units = rest.as_chunks::<2>().0.iter().map(|&pair| {
                 if little {
-                    u16::from_le_bytes([pair[0], pair[1]])
+                    u16::from_le_bytes(pair)
                 } else {
-                    u16::from_be_bytes([pair[0], pair[1]])
+                    u16::from_be_bytes(pair)
                 }
             });
             char::decode_utf16(units)
