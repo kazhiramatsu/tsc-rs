@@ -2342,10 +2342,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isNonGenericTopLevelType @6.0.3
     /// tsc-hash: 9a8529c79d22d005a3e0866a1e80befc1fdd042ea2a2bab0d5dd5659f758d565
     /// tsc-span: _tsc.js:68344-68350
+    ///
+    /// tsgo (checker.go isNonGenericTopLevelType) tests
+    /// `len(t.alias.typeArguments) == 0`: an empty list counts as none. An
+    /// imported all-defaults alias written without arguments keeps an empty
+    /// list (getTypeArgumentsFromNode), and stays non-generic.
     fn is_non_generic_top_level_type(&self, ty: TypeId) -> bool {
-        if let (Some(alias_symbol), None) = (
+        if let (Some(alias_symbol), true) = (
             self.tables.alias_symbol(ty),
-            self.tables.alias_type_argument_list(ty),
+            self.tables
+                .alias_type_arguments(ty)
+                .is_none_or(<[TypeId]>::is_empty),
         ) {
             // tsgo: a type alias declaration, else the reparsed
             // `@typedef` / `@callback` (its JSTypeAliasDeclaration).
