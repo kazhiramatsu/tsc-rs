@@ -134,6 +134,7 @@ pub fn base_file_name<'p>(path: impl Into<JsStr<'p>>) -> JsString {
 /// `getDirectoryPath`: trim one trailing separator, then retain the prefix
 /// through the last component boundary without truncating a disk/URL root.
 pub fn directory_name(path: JsStr<'_>) -> JsString {
+    crate::loader_counters::path("directory_name", path, None, false);
     // The loader asks per module request; an already-slashed path (every
     // canonical path) skips the normalizing copy.
     let normalized;
@@ -145,7 +146,7 @@ pub fn directory_name(path: JsStr<'_>) -> JsString {
     };
     let root_length = root_end_byte(slashed);
     if root_length == slashed.as_bytes().len() {
-        return slashed.to_owned();
+        return crate::loader_counters::js_owned("path.directory", slashed);
     }
     let trimmed = slashed.strip_suffix("/").unwrap_or(slashed);
     let last_separator = trimmed
@@ -153,13 +154,16 @@ pub fn directory_name(path: JsStr<'_>) -> JsString {
         .iter()
         .rposition(|byte| *byte == b'/')
         .unwrap_or(0);
-    prefix(trimmed, root_length.max(last_separator)).to_owned()
+    crate::loader_counters::js_owned(
+        "path.directory",
+        prefix(trimmed, root_length.max(last_separator)),
+    )
 }
 
 fn replace_scalar(text: JsStr<'_>, separator: &str, replacement: &str) -> JsString {
     debug_assert!(!separator.is_empty());
     let mut rest = text;
-    let mut result = JsString::with_capacity(text.as_bytes().len());
+    let mut result = crate::loader_counters::js_capacity("path.replace", text.as_bytes().len());
     while let Some((before, after)) = rest.split_once(separator) {
         result.push_js(before);
         result.push_str(replacement);
@@ -169,8 +173,40 @@ fn replace_scalar(text: JsStr<'_>, separator: &str, replacement: &str) -> JsStri
     result
 }
 
+/// A pure path operation can retain its input until a changed spelling or
+/// the public owned-returning boundary actually needs storage.
+pub(crate) enum PathText<'p> {
+    Borrowed(JsStr<'p>),
+    Owned(JsString),
+}
+
+impl<'p> PathText<'p> {
+    pub(crate) fn slashed(path: JsStr<'p>) -> Self {
+        crate::loader_counters::path("normalize_slashes", path, None, false);
+        if path.as_bytes().contains(&b'\\') {
+            Self::Owned(replace_scalar(path, "\\", "/"))
+        } else {
+            Self::Borrowed(path)
+        }
+    }
+
+    pub(crate) fn as_js(&self) -> JsStr<'_> {
+        match self {
+            Self::Borrowed(path) => *path,
+            Self::Owned(path) => path.as_js(),
+        }
+    }
+
+    fn into_owned(self) -> JsString {
+        match self {
+            Self::Borrowed(path) => crate::loader_counters::js_owned("path.owned", path),
+            Self::Owned(path) => path,
+        }
+    }
+}
+
 pub fn normalize_slashes(path: JsStr<'_>) -> JsString {
-    replace_scalar(path, "\\", "/")
+    PathText::slashed(path).into_owned()
 }
 
 /// The existing host's TypeScript filename case profile, applied to a JS
@@ -207,12 +243,12 @@ pub(crate) fn uppercase(value: JsStr<'_>) -> JsString {
 
 /// combinePaths, _tsc.js:5474–5487; root recognition precedes concatenation.
 pub fn combine_paths(parent: JsStr<'_>, child: JsStr<'_>) -> JsString {
-    let child = normalize_slashes(child);
+    let child = PathText::slashed(child);
     if parent.is_empty() || root_end_byte(child.as_js()) != 0 {
-        return child;
+        return child.into_owned();
     }
     let mut combined = normalize_slashes(parent);
-    if !child.is_empty() {
+    if !child.as_js().is_empty() {
         if !combined.ends_with("/") {
             combined.push('/');
         }
@@ -230,16 +266,28 @@ fn has_relative_segment(path: JsStr<'_>) -> bool {
             .any(|segment| segment == b"." || segment == b"..")
 }
 
-fn simple_normalize(path: JsStr<'_>) -> Option<JsString> {
-    if !has_relative_segment(path) {
-        return Some(path.to_owned());
+fn simple_normalize(path: PathText<'_>) -> Result<PathText<'_>, PathText<'_>> {
+    let text = path.as_js();
+    crate::loader_counters::path("simple_normalize", text, None, false);
+    if !has_relative_segment(text) {
+        return Ok(path);
     }
-    let simplified = replace_scalar(path, "/./", "/");
+    if !text.contains("/./") && !text.starts_with("./") {
+        return Err(path);
+    }
+    let simplified = replace_scalar(text, "/./", "/");
     let simplified = simplified
         .as_js()
         .strip_prefix("./")
         .unwrap_or(simplified.as_js());
-    (simplified != path && !has_relative_segment(simplified)).then(|| simplified.to_owned())
+    if simplified != text && !has_relative_segment(simplified) {
+        Ok(PathText::Owned(crate::loader_counters::js_owned(
+            "path.simple",
+            simplified,
+        )))
+    } else {
+        Err(path)
+    }
 }
 
 fn remove_trailing_separator_once(mut path: JsString, root_length: usize) -> JsString {
@@ -255,19 +303,43 @@ fn remove_trailing_separator_once(mut path: JsString, root_length: usize) -> JsS
 /// copied without scalar projection.
 /// tspath `GetNormalizedAbsolutePath`.
 pub fn normalized_absolute_path(path: JsStr<'_>, current_directory: JsStr<'_>) -> JsString {
+    crate::loader_counters::path(
+        "normalized_absolute_path",
+        path,
+        Some(current_directory),
+        false,
+    );
     let mut root_length = root_end_byte(path);
     let path = if root_length == 0 && !current_directory.is_empty() {
         let combined = combine_paths(current_directory, path);
         root_length = root_end_byte(combined.as_js());
-        combined
+        PathText::Owned(combined)
     } else {
-        normalize_slashes(path)
+        PathText::slashed(path)
     };
-    let path = path.as_js();
+    normalized_absolute_path_worker(path, root_length)
+}
+
+/// The resolver already normalized separators while validating roots and
+/// joining. Consume that exact spelling without a second slash pass.
+pub(crate) fn normalized_slashed_absolute_path(path: PathText<'_>) -> JsString {
+    crate::loader_counters::path(
+        "normalized_absolute_path",
+        path.as_js(),
+        Some("".into()),
+        false,
+    );
+    let root_length = root_end_byte(path.as_js());
+    normalized_absolute_path_worker(path, root_length)
+}
+
+fn normalized_absolute_path_worker(path: PathText<'_>, root_length: usize) -> JsString {
+    let path_text = match simple_normalize(path) {
+        Ok(simple) => return remove_trailing_separator_once(simple.into_owned(), root_length),
+        Err(path) => path,
+    };
+    let path = path_text.as_js();
     let root = prefix(path, root_length);
-    if let Some(simple) = simple_normalize(path) {
-        return remove_trailing_separator_once(simple, root_length);
-    }
     let bytes = path.as_bytes();
     let mut normalized = None::<JsString>;
     let mut index = root_length;
@@ -343,13 +415,21 @@ pub fn normalized_absolute_path(path: JsStr<'_>, current_directory: JsStr<'_>) -
         }
         index = segment_end + 1;
     }
-    normalized.unwrap_or_else(|| remove_trailing_separator_once(path.to_owned(), root_length))
+    normalized
+        .unwrap_or_else(|| remove_trailing_separator_once(path_text.into_owned(), root_length))
 }
 
 pub(crate) fn normalized_config_dir_value_path<'b>(
     value: JsStr<'_>,
     config_base_path: impl Into<JsStr<'b>>,
 ) -> Option<JsString> {
+    let config_base_path = config_base_path.into();
+    crate::loader_counters::path(
+        "normalized_config_dir_value_path",
+        value,
+        Some(config_base_path),
+        false,
+    );
     if !starts_with_ignore_case(value, CONFIG_DIR_TEMPLATE) {
         return None;
     }
@@ -365,7 +445,7 @@ pub(crate) fn normalized_config_dir_value_path<'b>(
     };
     Some(normalized_absolute_path(
         substituted.as_js(),
-        config_base_path.into(),
+        config_base_path,
     ))
 }
 
@@ -373,10 +453,14 @@ pub(crate) fn normalized_config_value_path<'b>(
     value: JsStr<'_>,
     base_path: impl Into<JsStr<'b>>,
 ) -> JsString {
-    normalized_absolute_path(
-        if value.is_empty() { ".".into() } else { value },
-        base_path.into(),
-    )
+    let base_path = base_path.into();
+    crate::loader_counters::path(
+        "normalized_config_value_path",
+        value,
+        Some(base_path),
+        false,
+    );
+    normalized_absolute_path(if value.is_empty() { ".".into() } else { value }, base_path)
 }
 
 const CONFIG_DIR_TEMPLATE: &str = "${configDir}";
@@ -421,12 +505,15 @@ mod tests;
 /// TypeScript normalizePath (_tsc.js:5568-5576), including relative names
 /// and the caller's trailing directory separator. No host or case folding.
 pub fn normalize_path(path: JsStr<'_>) -> JsString {
-    let path = normalize_slashes(path);
-    if let Some(simple) = simple_normalize(path.as_js()) {
-        return simple;
-    }
-    let mut normalized = normalized_absolute_path(path.as_js(), JsStr::from_str(""));
-    if !normalized.is_empty() && path.ends_with("/") && !normalized.ends_with("/") {
+    crate::loader_counters::path("normalize_path", path, None, false);
+    let path = match simple_normalize(PathText::slashed(path)) {
+        Ok(simple) => return simple.into_owned(),
+        Err(path) => path,
+    };
+    let trailing = path.as_js().ends_with("/");
+    let root_length = root_end_byte(path.as_js());
+    let mut normalized = normalized_absolute_path_worker(path, root_length);
+    if !normalized.is_empty() && trailing && !normalized.ends_with("/") {
         normalized.push('/');
     }
     normalized
@@ -707,3 +794,7 @@ pub fn try_get_js_extension_for_file<'p>(
         _ => None,
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/js_path/legacy.rs"]
+mod legacy;
