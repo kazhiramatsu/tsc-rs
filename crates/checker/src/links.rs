@@ -1032,12 +1032,9 @@ pub struct UnionKeyProperty {
     pub constituent_map: Option<rustc_hash::FxHashMap<TypeId, TypeId>>,
 }
 
-type SpeculativeTypeOnlyAliasWrite = (u32, SymbolId, Option<NodeId>);
-
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct SpeculativeLinksMarks {
     resolved_signatures: usize,
-    type_only_aliases: usize,
 }
 
 impl<K, T> PagedTable<K, T> {
@@ -1239,6 +1236,18 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
 
     #[inline]
     fn page_mut(&mut self, page_index: usize) -> &mut [u32; PAGE_IDS] {
+        // Only dense pages grow `index`; existing slots use checked reads.
+        if page_index < self.index.len() && self.index[page_index].is_some() {
+            return self.index[page_index]
+                .as_deref_mut()
+                .expect("the existing page was just checked");
+        }
+        self.create_page(page_index)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn create_page(&mut self, page_index: usize) -> &mut [u32; PAGE_IDS] {
         if page_index < DENSE_PAGES {
             if page_index >= self.index.len() {
                 self.index.resize_with(page_index + 1, || None);
@@ -1319,9 +1328,6 @@ pub struct LinksTables {
     /// entry state; the enclosing non-speculative call frame owns the
     /// permanent call-node publication.
     speculative_resolved_signature_writes: Vec<(u32, NodeId, LinkSlot<crate::state::SignatureId>)>,
-    /// Trial-local type-only alias protocol state. The declaration
-    /// sentinel and export-star name are restored together.
-    speculative_type_only_alias_writes: Vec<SpeculativeTypeOnlyAliasWrite>,
     /// tsc unionType.propertyCache / propertyCacheWithoutObjectFunctionPropertyAugment
     /// (getUnionOrIntersectionProperty 59246) — a monotone cache, not a
     /// one-write slot; only successful synthesis is cached, like tsc.
@@ -1605,22 +1611,6 @@ impl LinksTables {
         let mut value = slot.get();
         Self::write_slot(&mut value, next);
         *slot = value.into();
-    }
-
-    fn journal_type_only_alias(&mut self, speculation_depth: u32, id: SymbolId) {
-        if speculation_depth == 0 {
-            return;
-        }
-        if self
-            .speculative_type_only_alias_writes
-            .iter()
-            .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
-        {
-            return;
-        }
-        let declaration = *self.symbol_cold.type_only_declaration.get(id);
-        self.speculative_type_only_alias_writes
-            .push((speculation_depth, id, declaration));
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -1959,22 +1949,16 @@ impl LinksTables {
         self.speculative_resolved_signature_writes.len()
     }
 
-    /// tsrs-native: capture the type-only alias journal position.
-    pub fn speculative_type_only_alias_mark(&self) -> usize {
-        self.speculative_type_only_alias_writes.len()
-    }
-
     /// tsrs-native: capture every LinksTables speculation journal mark.
     pub(crate) fn speculative_marks(&self) -> SpeculativeLinksMarks {
         SpeculativeLinksMarks {
             resolved_signatures: self.speculative_resolved_signature_mark(),
-            type_only_aliases: self.speculative_type_only_alias_mark(),
         }
     }
 
     /// tsrs-native: commit one selected overload-candidate transaction.
     ///
-    /// Close the remaining call-resolution and type-only alias journals
+    /// Close the remaining call-resolution journal
     /// through the same restore walker used on rollback.
     pub(crate) fn commit_speculative_writes(
         &mut self,
@@ -1987,7 +1971,6 @@ impl LinksTables {
     /// tsrs-native: restore every LinksTables journal to its marks.
     pub(crate) fn restore_speculative_writes(&mut self, marks: SpeculativeLinksMarks) {
         self.restore_speculative_resolved_signatures(marks.resolved_signatures);
-        self.restore_speculative_type_only_aliases(marks.type_only_aliases);
     }
 
     /// tsrs-native: speculation-transaction unwind for call caches.
@@ -2007,20 +1990,6 @@ impl LinksTables {
                 note_resolving_transition(true, previous.is_resolving());
                 *slot = previous.into();
             }
-        }
-    }
-
-    /// tsrs-native: speculation-transaction unwind for type-only alias
-    /// sentinel/final state.
-    pub fn restore_speculative_type_only_aliases(&mut self, mark: usize) {
-        while self.speculative_type_only_alias_writes.len() > mark {
-            let (_, symbol, declaration) = self
-                .speculative_type_only_alias_writes
-                .pop()
-                .expect("length checked");
-            self.symbol_cold
-                .type_only_declaration
-                .set(symbol, declaration);
         }
     }
 
@@ -2052,19 +2021,10 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn or_node_check_flags(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         bits: tsc_types::NodeCheckFlags,
     ) {
-        if speculation_depth != 0
-            && !bits.intersects(
-                tsc_types::NodeCheckFlags::IN_CHECK_IDENTIFIER
-                    | tsc_types::NodeCheckFlags::ASSIGNMENTS_MARKED
-                    | tsc_types::NodeCheckFlags::CONTEXT_CHECKED,
-            )
-        {
-            return;
-        }
         let links = self.node.slot(id);
         links.check_flags =
             tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
@@ -3362,11 +3322,10 @@ impl LinksTables {
     /// raw store.
     pub fn set_symbol_type_only_declaration(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: SymbolId,
         value: NodeId,
     ) {
-        self.journal_type_only_alias(speculation_depth, id);
         self.symbol_cold.type_only_declaration.set(id, Some(value));
     }
 
@@ -3514,13 +3473,6 @@ impl LinksTables {
     pub fn set_type_base_types_resolved(&mut self, speculation_depth: u32, id: TypeId) {
         let _ = speculation_depth;
         self.type_cold.base_types_resolved.set(id, true);
-    }
-
-    /// tsrs-native: remove the temporary base-type publication used
-    /// while a rollback-capable candidate computes a cold base list.
-    pub fn clear_speculative_type_base_types(&mut self, id: TypeId) {
-        self.type_cold.resolved_base_types.clear(id);
-        self.type_cold.base_types_resolved.clear(id);
     }
 
     /// getWriteTypeOfAccessors' links.writeType stamp (56800).

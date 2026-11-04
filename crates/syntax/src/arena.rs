@@ -1044,11 +1044,66 @@ impl NodeArena {
         Ok(())
     }
 
-    /// Set every reachable node's parent and fold parse errors upward.
-    ///
-    /// One downward pass with an explicit stack (deep trees, left-leaning
-    /// binary chains, overflow a recursive walk) sets `parent`. The error
-    /// aggregate then starts from the nodes the parser flagged
+    /// tsgo finishNode's parent pass: `owner`'s public children
+    /// (`for_each_child`) get `owner` as their parent, over an earlier
+    /// owner's (a node the parse moved). The parser calls it as each node
+    /// finishes, so a parsed tree needs no walk to set its parents; `scratch`
+    /// is the caller's buffer for the child list.
+    pub fn attach_children(&mut self, owner: NodeId, scratch: &mut Vec<NodeId>) {
+        scratch.clear();
+        for_each_child(&*self, self.node(owner), |child| {
+            scratch.push(child);
+            false
+        });
+        for &child in scratch.iter() {
+            let index = self.node_index(child);
+            self.nodes[index].parent = Some(owner);
+        }
+    }
+
+    /// The JSDoc roots attached to `host` get `host` as their parent (tsgo
+    /// sets `parsed.Parent` when it attaches a host's JSDoc).
+    pub fn attach_js_doc(&mut self, host: NodeId) {
+        let Some(js_doc) = self.node(host).js_doc() else {
+            return;
+        };
+        let items = self.item_range(&self.arrays[self.array_index(js_doc)]);
+        for item in items {
+            let index = self.node_index(self.array_items[item]);
+            self.nodes[index].parent = Some(host);
+        }
+    }
+
+    /// Which nodes the tree under `root` reaches through public children and
+    /// JSDoc attachments, indexed from the arena's base. The arena also keeps
+    /// the nodes a parse discarded (a failed speculation, a statement parsed
+    /// again for a top-level `await`), whose parents can name other
+    /// discarded nodes: a scan of the whole arena asks this, not `parent`.
+    pub fn reachable_mask(&self, root: NodeId) -> Vec<bool> {
+        let mut reachable = vec![false; self.nodes.len()];
+        let mut stack = vec![root];
+        while let Some(id) = stack.pop() {
+            let index = self.node_index(id);
+            if reachable[index] {
+                continue;
+            }
+            reachable[index] = true;
+            let node = self.node(id);
+            for_each_child(self, node, |child| {
+                stack.push(child);
+                false
+            });
+            if let Some(js_doc) = node.js_doc() {
+                stack.extend_from_slice(self.node_array(js_doc).nodes);
+            }
+        }
+        reachable
+    }
+
+    /// Close a parsed tree: the root's children get their parent (every other
+    /// node got its own when the parser finished its owner, see
+    /// `attach_children`, or attached its JSDoc), and parse errors fold
+    /// upward. The error aggregate starts from the nodes the parser flagged
     /// (`error_nodes`, rare) and climbs their parent chains. tsc's lazy
     /// aggregateChildData follows public forEachChild, which excludes
     /// node.jsDoc: a JSDoc node neither aggregates nor receives, and no
@@ -1057,17 +1112,7 @@ impl NodeArena {
     pub fn finalize_tree(&mut self, root: NodeId, error_nodes: &[NodeId]) {
         #[cfg(debug_assertions)]
         let reference = self.finalize_reference(root);
-        let mut stack = vec![root];
-        let mut children: Vec<NodeId> = Vec::new();
-        while let Some(id) = stack.pop() {
-            children.clear();
-            self.collect_children_including_js_doc(id, &mut children);
-            for &child in children.iter().rev() {
-                let index = self.node_index(child);
-                self.nodes[index].parent = Some(id);
-                stack.push(child);
-            }
-        }
+        self.attach_children(root, &mut Vec::new());
         for &error in error_nodes {
             let mut current = error;
             loop {
@@ -1171,8 +1216,9 @@ impl NodeArena {
         id
     }
 
-    /// The two-phase reference walk `finalize_tree` replaced; debug builds
-    /// still run it to check the one-pass finalization.
+    /// The two-phase reference walk that parents at finish replaced; debug
+    /// builds still run it on a copy to check every reachable node's parent
+    /// and error aggregate.
     ///
     /// Explicit two-phase stack: deep trees (left-leaning binary
     /// chains) overflow a recursive walk.
@@ -1254,6 +1300,7 @@ impl NodeArena {
     /// caller's scratch buffer in visit order.
     /// Returns how many of the appended children came through public
     /// forEachChild edges; the rest are the node's JSDoc attachments.
+    #[cfg(debug_assertions)]
     fn collect_children_including_js_doc(&self, id: NodeId, children: &mut Vec<NodeId>) -> usize {
         for_each_child(self, self.node(id), |child| {
             children.push(child);
@@ -1327,6 +1374,7 @@ impl NodeLookup for NodeArena {
         self.node(id)
     }
 
+    #[inline]
     fn node_array(&self, id: NodeArrayId) -> NodeArray<'_> {
         self.node_array(id)
     }

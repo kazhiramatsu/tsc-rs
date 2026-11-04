@@ -47,6 +47,87 @@ fn relation_caches_are_per_relation() {
 }
 
 #[test]
+fn relation_cache_preserves_full_keys_and_replacement_verdicts() {
+    let mut caches = RelationCaches::default();
+    let cache = caches.cache_mut(RelationKind::Assignable);
+    let mut reference = rustc_hash::FxHashMap::default();
+    assert!(cache.is_empty());
+    // Exercise every bit of each Pair field, including signed intersection
+    // states, and Generic texts that resemble Pair spellings.
+    let mut keys = vec![RelationKey::Pair {
+        source: 0,
+        target: 0,
+        intersection: 0,
+    }];
+    for bit in 0..32 {
+        keys.extend([
+            RelationKey::Pair {
+                source: 1 << bit,
+                target: 0,
+                intersection: 0,
+            },
+            RelationKey::Pair {
+                source: 0,
+                target: 1 << bit,
+                intersection: 0,
+            },
+            RelationKey::Pair {
+                source: 0,
+                target: 0,
+                intersection: (1u32 << bit) as i32,
+            },
+        ]);
+    }
+    keys.extend([
+        RelationKey::Pair {
+            source: u32::MAX,
+            target: u32::MAX,
+            intersection: -1,
+        },
+        RelationKey::Generic("0,0".into()),
+        RelationKey::Generic("*0,0".into()),
+        RelationKey::Generic("0,0:2".into()),
+        RelationKey::Generic("0=0,1=0".into()),
+        RelationKey::Generic("*0=0,1=0".into()),
+    ]);
+    for (index, key) in keys.iter().enumerate() {
+        let verdict = if index % 2 == 0 {
+            RelationComparisonResult::SUCCEEDED
+        } else {
+            RelationComparisonResult::FAILED
+        };
+        assert_eq!(
+            cache.insert(key.clone(), verdict),
+            reference.insert(key.clone(), verdict)
+        );
+    }
+    assert_eq!(cache.len(), keys.len());
+    assert!(!cache.is_empty());
+    for key in &keys {
+        assert_eq!(cache.get(key), reference.get(key));
+        assert!(cache.contains_key(key));
+        assert_eq!(
+            cache.insert(key.clone(), RelationComparisonResult::SUCCEEDED),
+            reference.insert(key.clone(), RelationComparisonResult::SUCCEEDED)
+        );
+        assert_eq!(cache.get(key), reference.get(key));
+    }
+    assert_eq!(cache.len(), reference.len());
+    assert_eq!(cache.values().count(), reference.len());
+    for missing in [
+        RelationKey::Pair {
+            source: u32::MAX,
+            target: u32::MAX,
+            intersection: 0,
+        },
+        RelationKey::Generic("*0,0:2".into()),
+    ] {
+        assert_eq!(cache.get(&missing), reference.get(&missing));
+        assert!(!cache.contains_key(&missing));
+    }
+}
+
+#[test]
 fn relation_keys_swap_ids_for_identity_only() {
     with_state(|state| {
         let string = state.tables.intrinsics.string;
