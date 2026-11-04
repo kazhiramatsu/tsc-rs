@@ -5477,15 +5477,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(Vec::new());
         }
-        let speculative_cold =
-            self.speculation_depth != 0 && !*self.links.type_cold().base_types_resolved.get(ty);
-        let mut owns_resolution = false;
         if !*self.links.type_cold().base_types_resolved.get(ty) {
             if self.push_type_resolution(
                 crate::state::ResolutionTarget::Type(ty),
                 tsc_types::TypeSystemPropertyName::RESOLVED_BASE_TYPES,
             ) {
-                owns_resolution = true;
                 let resolved = (|state: &mut Self| -> CheckResult<()> {
                     if state
                         .tables
@@ -5520,9 +5516,6 @@ impl<'a> CheckerState<'a> {
                 })(self);
                 if let Err(err) = resolved {
                     self.pop_type_resolution();
-                    if speculative_cold && owns_resolution {
-                        self.links.clear_speculative_type_base_types(ty);
-                    }
                     return Err(err);
                 }
                 if !self.pop_type_resolution() {
@@ -5543,17 +5536,13 @@ impl<'a> CheckerState<'a> {
             self.links
                 .set_type_base_types_resolved(self.speculation_depth, ty);
         }
-        let result = self
+        Ok(self
             .links
             .type_cold()
             .resolved_base_types
             .get(ty)
             .clone()
-            .unwrap_or_default();
-        if speculative_cold && owns_resolution {
-            self.links.clear_speculative_type_base_types(ty);
-        }
-        Ok(result)
+            .unwrap_or_default())
     }
 
     /// tsc-port: getTupleBaseType @6.0.3
