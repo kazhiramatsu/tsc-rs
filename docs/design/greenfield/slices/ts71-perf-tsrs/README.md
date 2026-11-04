@@ -839,7 +839,7 @@ label `p2main`）の binary と比べた（1 thread、通常 build、各 1 回�
   `perf-counters` feature の counter 32 本（collection の長さ分布、GST の比較回数、`compare_types` の outer/recursive、search の
   hit/miss）。test：全長さの hit/insert 順位、Go の probe trace 9 本、旧 pipeline との全 vector 比較、外部の Go 1.27.1 ↔ Rust の
   sort trace 180 本（比較 59,874 回）。予想は credit なし（fidelity の slice）、実測は VS Code −0.6%、他 −0.6〜−3.3%：上振れ。
-  ID 順の二分探索と途中挿入（要素の移動）を append と 1 回の sort に替えた分と見る（counter で追える）。
+  ID 順の二分探索と途中挿入（要素の移動）を append と 1 回の sort に替えた分と見る（counter で追える）。steps 4〜7 は計測で退行したので止めた（台帳の行、原因は symbol の順序 id の側表）。
 - **M4 の小さな切り口**（#872、branch `perf/ts71-m4-cuts-p2`、instruction audit の rows 6・8〜12・15・16）：`FlowQuery` が
   flow arena の借用を file index と並べて 1 回で検証、`visit_nodes` と NodeArena の array view の入口を inline、`page_mut` の成長
   tail を `#[cold]` の `create_page` に、resolver の snapshot 複製・suggestion・診断を cold に、`advance_walk` の JSDoc 遷移を分離、
@@ -906,6 +906,13 @@ checker の data 層の書き直しを決めた。範囲・record ごとの契�
 [checker-data-layer-plan.md](checker-data-layer-plan.md)。C-0 / C-1 の memo は停止（C-0 step 2 は branch `perf/ts71-c0-step2`
 のまま、PR なし）。
 
+PR [#871](https://github.com/kazhiramatsu/tsc-rs/pull/871) → merge `43a78fc08`（2026-11-04。hosted run
+[41762963850](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41762963850) 全 job pass。local：lane の types test 57・checker 1,837、
+`--checkers 4` が main の報告と 15,339 構成一致、8 case で出力一致、serial は上の表）。
+PR [#873](https://github.com/kazhiramatsu/tsc-rs/pull/873) → merge `fcdd24e5b`（2026-11-04。hosted run
+[41769776478](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41769776478) 全 job pass。local：lane の checker test 1,839、3 段の A/B（3b の emit の修正を含む）、
+`--checkers 4` が main の報告と 15,339 構成一致、8 case で出力一致、serial は上の表）。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
@@ -923,12 +930,15 @@ memo の shadow 計測、checker の store の形）。
 | byte scanner（A-1b）と同時期の下準備（node 生成器・census・B-5 1〜2） | #856〜#864 | P2 0〜4.15 G（microbench 0.375× の移転は未計測なので下限 0）、他は 0 | 143.37 → 138.39 G（−4.98 G、−3.5%）、peak 同じ | 帯の上端を超えた：scanner の microbench は whole-program に移った |
 | A-1a part 1（accessor と literal text の id） | #866 | 0（下準備） | 138.39 → 138.79 G（+0.3%）、peak 同じ | 予想どおり |
 | A-1a part 2（32 byte の node record） | #867 | P1 0 G（符号は未計測）、memory −256 MiB | 138.57 → 141.97 G（**+3.40 G、+2.5%**）、peak 3,893 → 3,624 MB（−269） | memory は予想どおり、命令数は帯の外（費用）。A-1c + A-1d の帯（3.39〜5.02 G）がこれを取り返す前提：A-1c 完了時に再判定 |
-| A-1c C1（NodeArray の modifier flags） | #870 | P3 の一部（A-1c 全体で 3.39〜3.63 G。n5 の modifier 群 157 対 14 ms ≈ 2.0 G 相当） | −1.04 G（−0.7%）、peak 同じ（Opus の計測） | 見積の半分。原因（Opus の c1a profile）：157 ms は part 2 前の n5 の値で、part 2 の slot 読み（`modifiers_field()`）が dispatch の半分（`modifiers_of_data` 38 ms の大半）を既に取っていた。残る群（symbol write 経由の `get_declaration_modifier_flags` 66 ms、`modifiers_of::<Published>` 51、`combined_modifier_flags` 28 ほか ≈ 80〜100 ms）は C1 の対象外。改善案（未着手、要予想）：同じ value declaration の combined flag の per-symbol memo（≲ 0.8 G）。A-1c 完了後に判断 |
-| A-1c C7+C8（parent を finish 時に付ける） | — | Opus の予想 −0.6〜−0.9 G（c1a の finish 時の parent walk 77 ms ≈ 1.21 G を消し、finish での付与が一部戻る）。v2.1 の parent 行 0.94〜1.19 G より下 | 計測待ち | — |
+| A-1c C1（NodeArray の modifier flags） | #870 → 5ed9e073c | P3 の一部（A-1c 全体で 3.39〜3.63 G。n5 の modifier 群 157 対 14 ms ≈ 2.0 G 相当） | −1.04 G（−0.7%）、peak 同じ（Opus の計測） | 見積の半分。原因（Opus の c1a profile）：157 ms は part 2 前の n5 の値で、part 2 の slot 読み（`modifiers_field()`）が dispatch の半分（`modifiers_of_data` 38 ms の大半）を既に取っていた。残る群（symbol write 経由の `get_declaration_modifier_flags` 66 ms、`modifiers_of::<Published>` 51、`combined_modifier_flags` 28 ほか ≈ 80〜100 ms）は C1 の対象外。改善案（未着手、要予想）：同じ value declaration の combined flag の per-symbol memo（≲ 0.8 G）。A-1c 完了後に判断 |
+| A-1c C7+C8（parent を finish 時に付ける） | #874 | Opus の予想 −0.6〜−0.9 G（c1a の finish 時の parent walk 77 ms ≈ 1.21 G を消し、finish での付与が一部戻る）。v2.1 の parent 行 0.94〜1.19 G より下 | 最初の版 +0.1%、token 以下の kind を attach しない修正（c8b）で VS Code −0.38 G（−0.27%、静かな 3 round の中央値）、他 −0.6〜−2.7%、peak 不変 | VS Code は帯の下、他 7 は帯の上。原因：node ごとの attach の dispatch + scratch + bounds check（profile で 62 ms）。c8b として着地（Opus の判断）。node 種類ごとの直接 attach を別 slice で試し **+0.98 G（悪化）→ 中止**（生成した visitor が for_each_child と同じく payload を全部 decode する） |
 | C-0 step 1（flow memo の帳簿） | #868 | 費用 <0.3%（hook map §5） | VS Code +0.3%、他 −1.7〜+1.5% | 帯の端。step 2 の shadow 計測が gate |
 | R29 1〜3（union builder の入力と二分探索） | #871 | credit なし（fidelity） | VS Code −0.6%、他 −0.6〜−3.3% | 上振れ |
 | M4 の小さな切り口（rows 6・8〜12・15・16） | #872 | P11 0〜0.81 G + P8 0〜0.05 G（≤0.6%） | VS Code −1.8%、peak −30 MB、他 −1.1〜−2.7% | 3 倍の上振れ（memory は row 16） |
 | B-5 3a〜3c（journal 3 本の削除） | #873 | ≈0 | VS Code −0.4%、他 −0.5〜−2.1% | 予想どおり（やや上） |
+| D1（publication の relocation を差分で、map と publish の融合。Opus） | #875 | −1.0〜−1.3 G（profile の relocation 91 ms + memmove 42 ms を平均の命令率で換算） | VS Code −0.25 G（−0.2%、3 round の中央値）、他 −0.7〜−2.4%、peak と memory 行は不変 | **帯の外（大きく下）**。原因：memory 帯域に縛られる streaming で、word あたり ≈10 命令 × 3,000 万 word ≈ 0.3 G が実体、memcpy は帯域の費用（≈0.02 G）。教訓を §0 の予想の作法に追加（CPU 時間か word あたりの命令数で見積もる）。8 project で改善なので計測値のまま着地 |
+| R29 4〜7（残りの sort site の Go の履歴、symbol の順序 id） | なし（branch `perf/ts71-r29b-p2` deb3eeeab） | credit なし（fidelity） | VS Code **+3.6%**（150.27 対 145.00 G）、peak **+342 MB**（3,962）；zod +5.3%、effect +5.5%、hono +4.7%、next +3.9% / +34 MB（同じ run。1〜3 単独は −1.2%）。出力は main と一致 | **止めた**。原因：`SymbolOrderIds` が `Mutex<FxHashMap<SymbolId, u64>>` で、value link を読むたびに `touch_links`（mutex + hash、symbol あたり ≈40 B）。tsgo は id を `ast.Symbol` の field に持つ。改善案は data 層の書き直しの S1/S2（順序 id を checker ごとの dense な表に）に吸収 |
+| C-0 step 2 + memo on（flow memo。step 2 = 鍵・表・lookup/store・shadow 検証、memo off；step 3 = on） | なし（branch `perf/ts71-c0-step2` 6dd36c387） | P9：VS Code 0〜2.2% | memo on で出力は main と一致（4-checker 15,339、8 project）。命令数：TypeScript compiler **−10.2%**、playwright −3.8%、vue −2.4%、Next.js −0.7〜−2.0%、zod −1.3%、hono −1.5%、effect ±0、**VS Code ±0**（表を 1<<14・1<<16 にしても同じ。hit 率は 36%：1,577 万 lookup / 568 万 hit / 1,245 万 store）。shadow 実行で VS Code に不一致 1 件（型は同じ、frame flag の bit 違い） | VS Code は帯の下端。tsrs の R17 は VS Code では移らない（飛ばせる walk が短く lookup/store と相殺）。不一致の修正と eligibility の実験を lane に出した直後、利用者が data 層の書き直しを決めたので **停止**（memo を戻すなら新しい data 層の上で） |
 
 **合算（2026-11-04 時点）。** 静かな計測の main `1a05993fb` は 141.97 G。4 つの checker/types の branch が全部入ると ≈ −2.5%
 （加算できれば ≈ 138.4 G。merge 後に静かな machine で測り直す）。A-1c の残り + A-1d + A-3 の帯（3.39〜3.63 + 0〜1.39 + 3.36〜7.66 G）を
