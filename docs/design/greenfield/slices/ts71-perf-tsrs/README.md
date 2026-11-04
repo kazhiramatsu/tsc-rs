@@ -970,6 +970,34 @@ relocation が届く 8 crate の test（store 17・syntax 269・binder 80・api 
 fmt・clippy・4 つの生成器の `--check`、fingerprint 143,190 行 差分 0、8 case で出力が main と一致（checker は変えていないので
 `--checkers 4` はなし）、計測は上の通り。
 
+## A-1c C2+C3：parser の list を 1 本の element stack で作る（branch `perf/ts71-list-stack`）
+
+A-1c（戦略 v2 §4.1、parser inventory 報告 §1.2〜§1.5・§5.2 の C2・C3）。parser は list ごとに一時の `Vec<NodeId>` に要素を集めてから
+arena の item store に写していた（VS Code で 3.1 M array・5.4 M item、一時領域の確保に約 31 ms。tsrs の stack は約 1 ms）。tsrs と同じく
+parser が `node_stack` を 1 本持ち、list は stack の長さを mark に取り（`start_node_list`）、完成した要素を積み、`stack[mark..]` から
+従来の `alloc_array` で array を作って（item store への copy は 1 回）mark まで戻す（`finish_node_list` / `truncate_node_list`）。入れ子の
+list は外側の要素の上の suffix を使い、戻る前に解放する。C2 は `parse_list` と `parse_delimited_list_worker`（先読みの parameter 解析が
+失敗したら `parsing_context` を戻してから mark まで切る）、C3 は残りの producer（modifier と decorator、2 種の template span、union /
+intersection、JSX の子（並べ替えた子は新しい frame で作り item store は縮めない）、JSON の回復 list、top-level await の置き換え文、host の
+JSDoc root、JSDoc の全 list）。JSDoc の root の comment part と root tag は重なる（part を持ったまま tag を足し、comment の array が先に
+終わる）ので、root tag だけは parser が持つ再利用の scratch `Vec` に置く。debug build は list が順に閉じて mark に戻ることを検査する。
+出力（array・確保順・範囲・trailing comma・missing list・modifier flags・回復・診断）は変わらない。`crates/syntax/examples/parse_bench.rs`
+（parse だけの corpus benchmark）を足した。実装は Codex の lane（隔離した clone、SPEC は `codex/SPEC-list-stack.md`）で、4 つの patch を
+そのまま commit にし、lane の計測用 cargo feature（`parser-list-metrics`）は最後の commit で外した（数値は PR に記録）。
+
+**計測**（1 thread、通常 build、静かな machine（17:27〜17:29）、`serial.py` の warm-up 1 回 + 3 回を交互に測った中央値。base = main の
+code `ed001ed92`（`m5main`）、本 PR = `5088a7078`（`ls1`））：VS Code 141.93 → 141.53 G（−0.28%）、TypeScript compiler −0.25%、Next.js
+−0.21%、zod −0.32%、effect −0.26%、hono −0.45%、vue −0.13%、playwright −0.81%、peak footprint は ±4 MB。lane の parse_bench（VS Code
+の source 9,482 file、3 回の中央値）は 882.6 → 833.8 ms（−5.5%）、stack の最大長 11,159、同時に開いた list は最大 23。
+**予想との差**：予想（計測前）は VS Code −0.4〜−0.8 G、footprint ±0、他は parse の比率で −0.3〜−1%。VS Code は −0.40 G で下端、他は
+下半分。−49 ms を parse の平均命令率で換算すると少し多めに出る（一時領域の費用の一部は memory の待ちと重なる allocator の時間）。lane の
+負荷の下で測った最初の run は VS Code −0.54% と出たが、その負荷では 1 回ごとに ±0.6 G ばらつくので記録は静かな run だけ。
+
+**記録。** PR [#879](https://github.com/kazhiramatsu/tsc-rs/pull/879) → merge `26afd2d30`（2026-11-04。lane の 4 commit `cd536e7e1`〜`cb4b176bd` と
+`5088a7078`、最終 head `ff4fda9aa`）。hosted run [41844366290](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41844366290)：全 job pass。local（hosted が
+しないことだけ、`5088a7078`）：syntax の test 271、fmt・clippy・4 つの生成器の `--check`、fingerprint 143,190 行 差分 0、8 case で出力が main と
+一致（checker は変えていないので `--checkers 4` はなし）、計測は上の通り。
+
 ## checker の data 層の書き直し（利用者の決定 2026-11-04）
 
 計測台帳の結果（front end と memo では VS Code の差が縮まらず、差は checker の 1 操作の費用と record の形にある）を受けて、利用者が
