@@ -105,49 +105,9 @@ fn detached_arena_preserves_ids_without_extending_published_leases() {
     assert!(source.arena.has_identity_leases());
 }
 
-#[test]
-fn generated_relocation_matches_a_direct_forced_nonzero_parse() {
-    let text = r#"
-/** @typedef {{ value: string }} Alias */
-export class Box { #value = 1; method<T>(arg: T) { return [arg, this.#value]; } }
-"#;
-    let mut local = parse_source_file("forced.ts", text, ParseOptions::default(), None);
-    let domain = IdentityDomain::new();
-    // Leases ahead of the tree keep its bases away from the start of the
-    // spaces in a fresh process.
-    let node_gap = domain.lease(IdentitySpace::Node, 11).unwrap();
-    let array_gap = domain.lease(IdentitySpace::NodeArray, 7).unwrap();
-
-    local.relocate_into_identity_domain(&domain).unwrap();
-    assert!(local.identity_owned_by(&domain));
-    let leases = local.arena.identity_leases().unwrap();
-    assert_eq!(leases.nodes.range().start(), local.arena.node_base());
-    assert_eq!(leases.arrays.range().start(), local.arena.array_base());
-    let nodes = leases.nodes.watch();
-
-    let direct = parse_source_file(
-        "forced.ts",
-        text,
-        ParseOptions {
-            node_id_base: local.arena.node_base(),
-            node_array_id_base: local.arena.array_base(),
-            ..ParseOptions::default()
-        },
-        None,
-    );
-    assert_eq!(local, direct);
-    assert!(local
-        .arena
-        .node_ids()
-        .all(|id| local.arena.contains_node(id)));
-
-    drop(local);
-    assert!(!nodes.is_held());
-    let gap = node_gap.watch();
-    drop(node_gap);
-    drop(array_gap);
-    assert!(!gap.is_held());
-}
+// Identities are process-wide, so a test here that compares a relocated tree
+// with a direct parse sees where the tests beside it leased: that comparison
+// runs in a process of its own (`tests/relocation_direct_parse.rs`).
 
 /// The relocation moves each identity by its space's delta and checks once,
 /// after the pass, that every identity it moved was the tree's own.

@@ -1141,6 +1141,37 @@ peak footprint はすべて ±1 MB 以内。
 - `--checkers 4` は既知の 4 件のみ。最新の 4-checker 報告とは 15,339 構成すべて一致
 - 計測は上の通り
 
+## syntax の relocation test を独自の process で走らせる（branch `test/ts71-relocation-own-process`、#885 の hosted run で出た flake）
+
+#885 の最初の hosted rust job（run 41863955264）が `tsc-rs-syntax --lib` の `generated_relocation_matches_a_direct_forced_nonzero_parse`
+で失敗した。#885 の変更（checker のみ）とは関係がなく、この test は隣で別の test が走るときだけ失敗する。
+
+**原因**
+- identity は process 全体で共有される。`IdentityDomain::new` はすべて一つの状態から割り当てる。
+- c3a8e2ded（11-02）で、この test は node・array・item について木の置き場所に依存しなくなった。
+- #866（A-1a step 2）が NodeText の空間を加えた。`NodeArena` の等価性は texts の base と node の text identity を絶対値で比べ、直接
+  parse した木の texts は常に 0 から始まる。隣の test が NodeText 空間の先頭を持っていると、relocate した木の texts が後ろにずれ、比較が
+  失敗する。
+- hosted の log は、同時に走った `detached_arena_preserves_ids_without_extending_published_leases`（`const value = 1;`）一つでちょうど
+  説明できる：node_base 18 = 7 + 11、array_base 9 = 2 + 7、text_base 2 対 0。
+
+test 専用の domain（`IdentityDomain::with_limits`）は修正にならない。relocation は固定番地の store に木を公開するので、その domain の
+identity は process の生きた木と衝突する。
+
+**修正**：test を独自の integration binary（`crates/syntax/tests/relocation_direct_parse.rs`）に移し、独自の process で走らせる。前提
+（texts が空間の先頭から始まる）は assert で確かめる。`src/` は変わらない。
+
+**確認**
+- 2 word の NodeText lease を先に持たせる一時的な変更で、hosted と同じ diff を再現した。前提の assert があれば、失敗は 1 行になる。
+- lib の test binary を `--test-threads=8` で 100 回走らせた。移す前は 35 回失敗し（40 回の標本では失敗 13 回すべてがこの test）、移した
+  後は 0 回。
+
+**記録。** PR [#887](https://github.com/kazhiramatsu/tsc-rs/pull/887) → merge `37a326f94`（2026-11-05。`16629932c`、最終 head `42865efb1`）。hosted run
+[41913026714](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41913026714)：全 job pass。local（`16629932c`）：
+- `cargo test -p tsc-rs-syntax`：lib 248（移す前は 249）、`relocation_direct_parse` 1、他の integration binary 11 本と doc test がすべて pass
+- 再現と、並列 100 回の前後比較は上の通り。fmt
+- `src/` に変更がないので、release build・8 project の出力比較・計測は対象外
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
