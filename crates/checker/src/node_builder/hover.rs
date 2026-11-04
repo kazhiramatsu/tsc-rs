@@ -1577,23 +1577,10 @@ fn transform_modifier_flags(
     let Some(modifiers) = modifiers_of(arena, node)? else {
         return Ok(ModifierFlags::NONE);
     };
-    let mut flags = ModifierFlags::NONE;
-    for modifier in arena
+    Ok(arena
         .node_array(TransformNodeArray::new(node.source(), modifiers))
         .map_err(factory_error)?
-        .nodes
-        .to_vec()
-    {
-        let kind = arena
-            .node_ref(node.source(), modifier)
-            .map(|modifier| arena.node(modifier).map(|record| record.kind))
-            .transpose()
-            .map_err(factory_error)?;
-        if let Some(kind) = kind {
-            flags |= node_util::modifier_to_flag(kind);
-        }
-    }
-    Ok(flags)
+        .modifier_flags)
 }
 
 fn modifiers_of(

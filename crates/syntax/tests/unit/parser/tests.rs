@@ -267,6 +267,58 @@ fn import_clause_stores_phase_modifier_and_derives_is_type_only() {
     );
 }
 
+/// tsgo `ModifierList.ModifierFlags`: an array keeps the flags of its
+/// modifiers and decorators from its allocation.
+#[test]
+fn arrays_keep_the_modifier_flags_of_their_elements() {
+    use tsc_types::ModifierFlags;
+    let source = parse_ts(concat!(
+        "@dec export default abstract class C<in out T, const U> {\n",
+        "    public static readonly a = 1;\n",
+        "    protected override accessor b = 2;\n",
+        "    private async m() {}\n",
+        "    constructor(private readonly p: number) {}\n",
+        "}\n",
+        "export declare const enum E { A }\n",
+        "const f = async () => {};\n",
+    ));
+    let mut seen = ModifierFlags::NONE;
+    for index in 0..source.arena.node_arrays().len() as u32 {
+        let array = source.arena.node_array(crate::NodeArrayId::new(index));
+        let mut written = ModifierFlags::NONE;
+        for &node in array.nodes {
+            written |= crate::utilities::modifier_to_flag(source.arena.node(node).kind);
+        }
+        assert_eq!(array.modifier_flags, written);
+        seen |= written;
+    }
+    assert_eq!(seen, ModifierFlags::SYNTACTIC_MODIFIERS);
+    let modifiers_of = |kind| {
+        let node = nodes_of_kind(&source, kind)[0];
+        let list = source
+            .arena
+            .node(node)
+            .modifiers_field()
+            .expect("modifiers");
+        source.arena.node_array(list).modifier_flags
+    };
+    assert_eq!(
+        modifiers_of(SyntaxKind::ClassDeclaration),
+        ModifierFlags::DECORATOR
+            | ModifierFlags::EXPORT
+            | ModifierFlags::DEFAULT
+            | ModifierFlags::ABSTRACT
+    );
+    assert_eq!(
+        modifiers_of(SyntaxKind::EnumDeclaration),
+        ModifierFlags::EXPORT | ModifierFlags::AMBIENT | ModifierFlags::CONST
+    );
+    assert_eq!(
+        modifiers_of(SyntaxKind::Parameter),
+        ModifierFlags::PRIVATE | ModifierFlags::READONLY
+    );
+}
+
 fn parse_ts(text: &str) -> SourceFile {
     parse_source_file(
         "a.ts".into(),

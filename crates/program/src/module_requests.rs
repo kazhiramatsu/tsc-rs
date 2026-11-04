@@ -1239,11 +1239,8 @@ fn collect_static_module_reference_statements(
                     parsed
                         .arena
                         .node_array(modifiers)
-                        .nodes
-                        .iter()
-                        .any(|&modifier| {
-                            parsed.arena.node(modifier).kind == SyntaxKind::DeclareKeyword
-                        })
+                        .modifier_flags
+                        .intersects(tsc_types::ModifierFlags::AMBIENT)
                 });
                 if !is_ambient_module
                     || !(in_ambient_module || has_declare_modifier || parsed.is_declaration_file)

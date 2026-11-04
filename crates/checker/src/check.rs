@@ -745,9 +745,11 @@ impl<'a> CheckerState<'a> {
                         if accessors.len() >= 2 && node == accessors[1] {
                             let first_source = self.binder.source_of_node(accessors[0]);
                             let first_has_decorators = self
-                                .nodes_of(node_util::modifiers_of(first_source, accessors[0]))
-                                .iter()
-                                .any(|&m| self.kind_of(m) == SyntaxKind::Decorator);
+                                .modifier_flags_of(node_util::modifiers_of(
+                                    first_source,
+                                    accessors[0],
+                                ))
+                                .intersects(ModifierFlags::DECORATOR);
                             if first_has_decorators {
                                 return self.grammar_error_on_first_token(
                                     node,
