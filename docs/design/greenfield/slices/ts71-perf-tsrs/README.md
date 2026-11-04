@@ -863,6 +863,42 @@ label `p2main`）の binary と比べた（1 thread、通常 build、各 1 回�
 checker test 1,850 pass、release build、`--checkers 4` が main `1a05993fb` の新しい 4-checker 報告と 15,339 構成一致、8 case で出力が
 main の binary と一致、serial は上の表）。
 
+## A-1c C1：array が要素の modifier flags を持つ（branch `perf/ts71-modifier-flags`）
+
+A-1c（戦略 v2 §4.1、`a1c-parser-inventory-report.md` §3）の最初の step。tsgo の `ModifierList` は作るときに
+`ModifiersToFlags(nodes)` を一度だけ計算して持つ（internal/ast/ast.go:160-166）。同じことを node array でする。
+
+1. **record**：`NodeArrayRecord` の空いていた 2 byte に `modifier_flags: u16`（20 byte のまま）。要素の modifier と decorator の
+   flag（`ModifierFlags::SYNTACTIC_MODIFIERS` の bit 0〜15）の OR で、view（`NodeArray::modifier_flags`）は `ModifierFlags` に
+   0 拡張して返す。array を作る唯一の口 `NodeArena::alloc_array`（parser・JSDoc parser・emitter の factory・API の decoder・
+   synthetic file）が全 array について計算するので、あとで `modifiers` field に入る array はどれも正しい値を持つ（VS Code で
+   3.1 M array・5.4 M 要素の kind 読み）。incremental parse の subtree copy は要素がまだ古い tree の id なので、古い array の値を
+   写す。clone・relocation・publish は record ごと写す。`modifier_to_flag` は `tsc_syntax::utilities` に移した（tsgo
+   `ast.ModifierToFlag`、binder は re-export）。
+2. **読み手**：`node_util::modifiers_to_flags`（`get_syntactic_modifier_flags`・`get_effective_modifier_flags`・
+   `get_combined_modifier_flags` の下）は要素を歩かず array の値を読む。debug build では歩いた値と比べる assert を置いたので、
+   宣言の modifier flags を問う全 test が保存値を検査する。checker の単一 modifier の判定（`has_static_modifier`、abstract の
+   class と constructor type、`has_readonly_modifier`、static scope、decorator の有無）、parser の `modifiers_contain` と外部
+   module 判定、recovery と module request の `declare` 判定、hover・snippets・JavaScript の宣言 emit の transform node 用
+   helper も値を読む。modifier の node そのものが要る箇所（grammar の検査、decorator の式、印字、範囲）はそのまま。
+   API decoder の kind 替え（`reshape`）は debug build で modifier flag が変わらないことを assert する。
+
+**計測**（1 thread、通常 build 同士、各 1 回、静かな machine。part 2 = main `8e587f401` のコードの `q52f`、C1 = `9bb9e1b10`（`8ae334593` + main の docs））：
+命令数 VS Code 144.58 → 143.54 G（−0.7%）、TypeScript compiler −0.3%、Next.js −1.5%、zod −2.2%、effect −0.7%、hono −2.1%、vue −0.6%、
+playwright −1.7%。peak footprint は変わらない（VS Code 3,611 → 3,620 MB、他は同じ）。CPU 時間も減（VS Code 9.74 → 9.41 s）。絶対値は #867 の
+静かな計測より約 1.8% 高い（止めた process が memory を持ったまま）。比は同じ session の値。array record は 20 byte のまま（VS Code 59.5 MiB）。
+**予想との差**：見込みは n5 の modifier 群（157 対 tsrs 14 ms、≈2.0 G 相当）だったが、実測は VS Code −1.04 G。原因：157 ms は part 2 より
+前の n5 の値で、part 2 の slot 読み（`modifiers_field()`）が `modifiers_of_data` の分（38 ms）を既に除いていた。C1 が除けたのは要素の walk だけ。
+c1a の profile（`perf11/prof-c1/vs-c1a.json.gz`、9,153 ms）には残りがある：checker の `get_declaration_modifier_flags_from_symbol_write`
+66 ms、`modifiers_of::<Published>` 51、`combined_modifier_flags` 28、binder の `get_combined_modifier_flags` 22（いずれも包含）。同じ値宣言の
+combined flags を繰り返し計算する分で、A-1c の完了後に別の見込みを立てて扱う。
+
+**記録。** PR [#870](https://github.com/kazhiramatsu/tsc-rs/pull/870) → merge `5ed9e073c`（2026-11-04。`d7d9e4eed`・`8ae334593`、main の
+取り込み 2 回（#867 の記録、#868））。hosted run [41756034323](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41756034323)（`7c9acc395`）：
+全 job pass。local（hosted がしないことだけ、`9bb9e1b10`）：変えた・通る 7 crate の test（syntax 268・binder 80・api 332・program 684・emitter 352・
+ls 256・checker 1,837、0 failed）、fmt・clippy・4 つの生成器の `--check`、fingerprint 143,190 行 差分 0、8 case で出力が main と一致、
+`--checkers 4` は既知の 4 件（15,335 一致）、serial は上の通り。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
