@@ -1855,6 +1855,8 @@ impl TypeTables {
         origin: Option<TypeId>,
     ) -> TypeId {
         let mut type_set: Vec<TypeId> = Vec::new();
+        #[cfg(feature = "perf-counters")]
+        crate::perf::union_collection(crate::perf::UnionCollectionSite::Tables, types.len());
         let includes = self.add_types_to_union(order, &mut type_set, 0, types);
         if reduction != UnionReduction::None {
             if includes & TypeFlags::ANY_OR_UNKNOWN.bits() != 0 {
@@ -2002,8 +2004,8 @@ impl TypeTables {
     /// tsc-hash: 2e2421304f1c9d829df070f06f76534b25526f5f8fa4995ca8c903b4fd8e2bad
     /// tsc-span: _tsc.js:61338-61357
     ///
-    /// stableTypeOrdering is off: insertion keyed by type id with the
-    /// append fast path (61350).
+    /// A single insertion uses content order when requested; explicit ID
+    /// ordering keeps the append fast path (61350).
     pub fn add_type_to_union(
         &mut self,
         order: TypeOrder<'_>,
@@ -2011,65 +2013,69 @@ impl TypeTables {
         mut includes: i32,
         ty: TypeId,
     ) -> i32 {
-        let flags = self.flags_of(ty).bits();
-        if flags & TypeFlags::NEVER.bits() == 0 {
-            includes |= flags & TypeFlags::INCLUDES_MASK.bits();
-            if flags & TypeFlags::INSTANTIABLE.bits() != 0 {
-                includes |= TypeFlags::INCLUDES_INSTANTIABLE.bits();
-            }
-            if flags & TypeFlags::INTERSECTION.bits() != 0
-                && self
-                    .object_flags_of(ty)
-                    .intersects(ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE)
-            {
-                includes |= TypeFlags::INCLUDES_CONSTRAINED_TYPE_VARIABLE.bits();
-            }
-            if ty == self.intrinsics.wildcard {
-                includes |= TypeFlags::INCLUDES_WILDCARD.bits();
-            }
-            if self.is_error_type(ty) {
-                includes |= TypeFlags::INCLUDES_ERROR.bits();
-            }
-            if !self.strict_null_checks && flags & TypeFlags::NULLABLE.bits() != 0 {
-                if !self
-                    .object_flags_of(ty)
-                    .intersects(ObjectFlags::CONTAINS_WIDENING_TYPE)
-                {
-                    includes |= TypeFlags::INCLUDES_NON_WIDENING_TYPE.bits();
-                }
-            } else {
-                match order {
-                    None => match type_set.last() {
-                        Some(&last) if ty.index() > last.index() => type_set.push(ty),
-                        _ => {
-                            if let Err(index) = type_set.binary_search(&ty) {
-                                type_set.insert(index, ty);
-                            }
-                        }
-                    },
-                    Some(ctx) => {
-                        if let Err(index) = type_set.binary_search_by(|&candidate| {
-                            crate::type_order::compare_types(self, ctx, candidate, ty)
-                        }) {
+        if self.include_type_in_union(&mut includes, ty) {
+            match order {
+                None => match type_set.last() {
+                    Some(&last) if ty.index() > last.index() => type_set.push(ty),
+                    _ => {
+                        if let Err(index) = type_set.binary_search(&ty) {
                             type_set.insert(index, ty);
                         }
                     }
+                },
+                Some(_) => {
+                    crate::type_order::insert_type(self, order, type_set, ty);
                 }
             }
         }
         includes
     }
 
+    /// Go's `addTypesToUnion.addType` flags and filtering, shared by bulk
+    /// append collection and single insertion. Whether to store this member
+    /// is separate from its contribution to `includes`.
+    fn include_type_in_union(&self, includes: &mut i32, ty: TypeId) -> bool {
+        let flags = self.flags_of(ty).bits();
+        if flags & TypeFlags::NEVER.bits() == 0 {
+            *includes |= flags & TypeFlags::INCLUDES_MASK.bits();
+            if flags & TypeFlags::INSTANTIABLE.bits() != 0 {
+                *includes |= TypeFlags::INCLUDES_INSTANTIABLE.bits();
+            }
+            if flags & TypeFlags::INTERSECTION.bits() != 0
+                && self
+                    .object_flags_of(ty)
+                    .intersects(ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE)
+            {
+                *includes |= TypeFlags::INCLUDES_CONSTRAINED_TYPE_VARIABLE.bits();
+            }
+            if ty == self.intrinsics.wildcard {
+                *includes |= TypeFlags::INCLUDES_WILDCARD.bits();
+            }
+            if self.is_error_type(ty) {
+                *includes |= TypeFlags::INCLUDES_ERROR.bits();
+            }
+            if !self.strict_null_checks && flags & TypeFlags::NULLABLE.bits() != 0 {
+                if !self
+                    .object_flags_of(ty)
+                    .intersects(ObjectFlags::CONTAINS_WIDENING_TYPE)
+                {
+                    *includes |= TypeFlags::INCLUDES_NON_WIDENING_TYPE.bits();
+                }
+            } else {
+                return true;
+            }
+        }
+        false
+    }
+
     /// tsc-port: addTypesToUnion @6.0.3
     /// tsc-hash: 14b6eea2a85c949d2f78fa0e81a934b7a2168d3e5c42fb693dbcbdee0e65192c
     /// tsc-span: _tsc.js:61358-61367
     ///
-    /// With stable ordering the members are collected first and sorted
-    /// once, as tsgo's `addTypesToUnion` does (`slices.SortStableFunc` then
-    /// a dedupe): the set is the same as tsc's one-by-one `insertType`,
-    /// whose comparator is a total order with the type id as its last key,
-    /// but a flattened union of sorted members costs a near-linear sort
-    /// instead of a binary search per member.
+    /// With content ordering, append filtered members in source traversal
+    /// order, keeping duplicate occurrences until after Go's stable sort
+    /// (`checker.go:addTypesToUnion`). Explicit ID ordering retains the
+    /// one-by-one ID insertion path.
     pub fn add_types_to_union(
         &mut self,
         order: TypeOrder<'_>,
@@ -2080,17 +2086,20 @@ impl TypeTables {
         let Some(ctx) = order else {
             return self.add_types_to_union_in_place(order, type_set, includes, types);
         };
-        let includes = self.add_types_to_union_in_place(None, type_set, includes, types);
-        crate::type_order::sort_types_like_tsgo(type_set, |a, b| {
+        let includes = self.add_types_to_union_in_place(order, type_set, includes, types);
+        #[cfg(feature = "perf-counters")]
+        let sort_length = type_set.len();
+        crate::goslices::sort_types_like_tsgo(type_set, |a, b| {
+            #[cfg(feature = "perf-counters")]
+            crate::perf::union_sort_comparison(sort_length);
             crate::type_order::compare_types(self, ctx, a, b) == Ordering::Less
         });
         type_set.dedup();
         includes
     }
 
-    /// The one-by-one `addTypesToUnion` (61358-61367): each member is
-    /// inserted at its place (`order` on) or appended / inserted by id
-    /// (`order` off).
+    /// Flatten in source order, suppressing adjacent identical source types.
+    /// Content-ordered collection appends; ID-ordered collection inserts.
     fn add_types_to_union_in_place(
         &mut self,
         order: TypeOrder<'_>,
@@ -2104,14 +2113,24 @@ impl TypeTables {
                 includes = if self.flags_of(ty).intersects(TypeFlags::UNION) {
                     let named = self.is_named_union_type(ty);
                     let members = self.members_of(ty).to_vec();
+                    #[cfg(feature = "perf-counters")]
+                    crate::perf::union_collection(
+                        crate::perf::UnionCollectionSite::Recursive,
+                        members.len(),
+                    );
                     self.add_types_to_union_in_place(
                         order,
                         type_set,
                         includes | (if named { TypeFlags::UNION.bits() } else { 0 }),
                         &members,
                     )
+                } else if order.is_some() {
+                    if self.include_type_in_union(&mut includes, ty) {
+                        type_set.push(ty);
+                    }
+                    includes
                 } else {
-                    self.add_type_to_union(order, type_set, includes, ty)
+                    self.add_type_to_union(None, type_set, includes, ty)
                 };
                 last_type = Some(ty);
             }

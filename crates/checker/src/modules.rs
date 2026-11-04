@@ -1472,11 +1472,9 @@ impl<'a> CheckerState<'a> {
         if self.options.emit_decorator_metadata != Some(true) {
             return Ok(());
         }
-        let modifiers = node_util::modifiers_of(&Published, location);
         let has_decorator = self
-            .nodes_of(modifiers)
-            .into_iter()
-            .any(|modifier| self.kind_of(modifier) == SyntaxKind::Decorator);
+            .modifier_flags_of(node_util::modifiers_of(&Published, location))
+            .intersects(ModifierFlags::DECORATOR);
         if !tsc_binder::node_util::can_have_decorators(self.kind_of(location))
             || !has_decorator
             || !self.node_can_be_decorated(

@@ -1,11 +1,14 @@
 use crate::for_each_child::{for_each_child, NodeLookup};
 use crate::nodes::{Node, NodeArray, NodeArrayId, NodeArrayRecord, NodeData, NodeId, TextId};
 use crate::relocate::{collect_node_data_ids, remap_node_data_ids};
+use crate::utilities::modifier_to_flag;
 use crate::SyntaxKind;
 use tsc_store::tails::Tails;
 use tsc_store::texts::TextWord;
 use tsc_store::StoreVec;
-use tsc_types::{IdentityError, IdentityLease, IdentityRange, IdentitySpace, NodeFlags};
+use tsc_types::{
+    IdentityError, IdentityLease, IdentityRange, IdentitySpace, ModifierFlags, NodeFlags,
+};
 
 /// The identity ranges one tree is published to.
 #[derive(Clone, Debug)]
@@ -93,6 +96,7 @@ impl PartialEq for NodeArena {
                 a.items - self.item_base == b.items - other.item_base
                     && (a.len, a.pos, a.end, a.has_trailing_comma, a.is_missing_list)
                         == (b.len, b.pos, b.end, b.has_trailing_comma, b.is_missing_list)
+                    && a.modifier_flags == b.modifier_flags
             })
     }
 }
@@ -275,11 +279,14 @@ impl SubtreeCopier {
 
         for old_id in &self.old_arrays {
             let old_array = old.node_array(*old_id);
-            let id = destination.alloc_array(
+            // The elements are the old tree's ids until they are remapped
+            // below; their kinds, and so the modifier flags, do not change.
+            let id = destination.push_array(
                 old_array.nodes,
                 shifted_position(old_array.pos, position_delta) as usize,
                 shifted_position(old_array.end, position_delta) as usize,
                 old_array.has_trailing_comma,
+                old_array.modifier_flags,
             );
             let destination_index = destination.array_index(id);
             destination.arrays[destination_index].is_missing_list = old_array.is_missing_list;
@@ -642,6 +649,9 @@ impl NodeArena {
         self.push_node(kind, NodeData::missing(kind), pos, pos, NodeFlags::NONE)
     }
 
+    /// Allocate an array of this tree's `nodes`. Like tsgo's `ModifierList`,
+    /// the array keeps the modifier flags of its elements, so that a
+    /// declaration's syntactic modifier flags are one read.
     pub fn alloc_array(
         &mut self,
         nodes: &[NodeId],
@@ -649,6 +659,22 @@ impl NodeArena {
         end: usize,
         has_trailing_comma: bool,
     ) -> NodeArrayId {
+        let mut modifier_flags = ModifierFlags::NONE;
+        for &node in nodes {
+            modifier_flags |= modifier_to_flag(self.node(node).kind);
+        }
+        self.push_array(nodes, pos, end, has_trailing_comma, modifier_flags)
+    }
+
+    fn push_array(
+        &mut self,
+        nodes: &[NodeId],
+        pos: usize,
+        end: usize,
+        has_trailing_comma: bool,
+        modifier_flags: ModifierFlags,
+    ) -> NodeArrayId {
+        debug_assert!(ModifierFlags::SYNTACTIC_MODIFIERS.contains(modifier_flags));
         let offset = u32::try_from(self.arrays.len()).expect("node-array arena length exceeds u32");
         let id = NodeArrayId::new(
             self.array_base
@@ -670,6 +696,7 @@ impl NodeArena {
             end: end as u32,
             has_trailing_comma,
             is_missing_list: false,
+            modifier_flags: modifier_flags.bits() as u16,
         });
         id
     }
@@ -758,6 +785,11 @@ impl NodeArena {
     /// tsgo's nodes into tsc's), keeping its JSDoc attachment.
     pub fn reshape(&mut self, id: NodeId, kind: SyntaxKind, data: NodeData) {
         let index = self.node_index(id);
+        // The arrays that hold the node keep its modifier flag.
+        debug_assert_eq!(
+            modifier_to_flag(self.nodes[index].kind),
+            modifier_to_flag(kind)
+        );
         let js_doc = self.nodes[index].js_doc();
         self.nodes[index].kind = kind;
         self.nodes[index].encode(&data, js_doc, &mut self.tails, false);
@@ -793,6 +825,7 @@ impl NodeArena {
             end: record.end,
             has_trailing_comma: record.has_trailing_comma,
             is_missing_list: record.is_missing_list,
+            modifier_flags: record.modifier_flags(),
         }
     }
 

@@ -620,22 +620,12 @@ fn transform_modifier_flags(tracker: &mut Tracker<'_>, node: TransformNode) -> M
     let Ok(record) = arena.node(node) else {
         return ModifierFlags::NONE;
     };
-    let Some(list) = node_util::modifiers_of_data(&record.data()) else {
+    let Some(list) = record.modifiers_field() else {
         return ModifierFlags::NONE;
     };
-    let Ok(array) = arena.node_array(tsc_emitter::TransformNodeArray::new(node.source(), list))
-    else {
-        return ModifierFlags::NONE;
-    };
-    let mut flags = ModifierFlags::NONE;
-    for &modifier in array.nodes {
-        if let Some(modifier) = arena.node_ref(node.source(), modifier) {
-            if let Ok(record) = arena.node(modifier) {
-                flags |= node_util::modifier_to_flag(record.kind);
-            }
-        }
-    }
-    flags
+    arena
+        .node_array(tsc_emitter::TransformNodeArray::new(node.source(), list))
+        .map_or(ModifierFlags::NONE, |array| array.modifier_flags)
 }
 
 /// tsgo `ast.ReplaceModifiers(node, createModifierList(flags, decorators))`:

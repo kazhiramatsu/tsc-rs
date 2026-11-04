@@ -110,6 +110,14 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// The modifier flags a modifiers array keeps (tsgo
+    /// `ModifierList.ModifierFlags`).
+    pub(crate) fn modifier_flags_of(&self, array: Option<NodeArrayId>) -> ModifierFlags {
+        array.map_or(ModifierFlags::NONE, |array| {
+            self.binder.node_array(array).modifier_flags
+        })
+    }
+
     /// tsrs-native: typed Identifier projection for tsc's direct
     /// `escapedText` property access.
     pub(crate) fn identifier_text(&self, node: NodeId) -> Option<&str> {
@@ -5446,9 +5454,8 @@ impl<'a> CheckerState<'a> {
             NodeData::SetAccessor(data) => data.modifiers,
             _ => None,
         };
-        self.nodes_of(modifiers)
-            .iter()
-            .any(|&modifier| self.kind_of(modifier) == SyntaxKind::StaticKeyword)
+        self.modifier_flags_of(modifiers)
+            .intersects(ModifierFlags::STATIC)
     }
 
     // ---- base types ----
@@ -5472,15 +5479,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(Vec::new());
         }
-        let speculative_cold =
-            self.speculation_depth != 0 && !*self.links.type_cold().base_types_resolved.get(ty);
-        let mut owns_resolution = false;
         if !*self.links.type_cold().base_types_resolved.get(ty) {
             if self.push_type_resolution(
                 crate::state::ResolutionTarget::Type(ty),
                 tsc_types::TypeSystemPropertyName::RESOLVED_BASE_TYPES,
             ) {
-                owns_resolution = true;
                 let resolved = (|state: &mut Self| -> CheckResult<()> {
                     if state
                         .tables
@@ -5515,9 +5518,6 @@ impl<'a> CheckerState<'a> {
                 })(self);
                 if let Err(err) = resolved {
                     self.pop_type_resolution();
-                    if speculative_cold && owns_resolution {
-                        self.links.clear_speculative_type_base_types(ty);
-                    }
                     return Err(err);
                 }
                 if !self.pop_type_resolution() {
@@ -5538,17 +5538,13 @@ impl<'a> CheckerState<'a> {
             self.links
                 .set_type_base_types_resolved(self.speculation_depth, ty);
         }
-        let result = self
+        Ok(self
             .links
             .type_cold()
             .resolved_base_types
             .get(ty)
             .clone()
-            .unwrap_or_default();
-        if speculative_cold && owns_resolution {
-            self.links.clear_speculative_type_base_types(ty);
-        }
-        Ok(result)
+            .unwrap_or_default())
     }
 
     /// tsc-port: getTupleBaseType @6.0.3
@@ -6428,9 +6424,8 @@ impl<'a> CheckerState<'a> {
                 NodeData::ClassExpression(data) => data.modifiers,
                 _ => None,
             };
-            self.nodes_of(modifiers)
-                .iter()
-                .any(|&modifier| self.kind_of(modifier) == SyntaxKind::AbstractKeyword)
+            self.modifier_flags_of(modifiers)
+                .intersects(ModifierFlags::ABSTRACT)
         });
         let local_type_parameters: Option<Vec<TypeId>> = match &self.tables.type_of(class_type).data
         {
@@ -7740,9 +7735,8 @@ impl<'a> CheckerState<'a> {
     }
 
     fn has_readonly_modifier(&self, modifiers: Option<NodeArrayId>) -> bool {
-        self.nodes_of(modifiers)
-            .iter()
-            .any(|&modifier| self.kind_of(modifier) == SyntaxKind::ReadonlyKeyword)
+        self.modifier_flags_of(modifiers)
+            .intersects(ModifierFlags::READONLY)
     }
 
     // ---- symbol types ----
@@ -10343,9 +10337,8 @@ impl<'a> CheckerState<'a> {
         // their own modifier; constructor declarations borrow the
         // containing class's.
         let is_abstract = if self.kind_of(declaration) == SyntaxKind::ConstructorType {
-            self.nodes_of(modifiers)
-                .iter()
-                .any(|&modifier| self.kind_of(modifier) == SyntaxKind::AbstractKeyword)
+            self.modifier_flags_of(modifiers)
+                .intersects(ModifierFlags::ABSTRACT)
         } else if self.kind_of(declaration) == SyntaxKind::Constructor {
             let class = self
                 .parent_of(declaration)
@@ -10355,9 +10348,8 @@ impl<'a> CheckerState<'a> {
                 NodeData::ClassExpression(data) => data.modifiers,
                 _ => None,
             };
-            self.nodes_of(class_modifiers)
-                .iter()
-                .any(|&modifier| self.kind_of(modifier) == SyntaxKind::AbstractKeyword)
+            self.modifier_flags_of(class_modifiers)
+                .intersects(ModifierFlags::ABSTRACT)
         } else {
             false
         };
