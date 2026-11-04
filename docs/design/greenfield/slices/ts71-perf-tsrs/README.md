@@ -899,6 +899,39 @@ combined flags を繰り返し計算する分で、A-1c の完了後に別の見
 ls 256・checker 1,837、0 failed）、fmt・clippy・4 つの生成器の `--check`、fingerprint 143,190 行 差分 0、8 case で出力が main と一致、
 `--checkers 4` は既知の 4 件（15,335 一致）、serial は上の通り。
 
+## A-1c C7+C8：parent を finish 時に付ける（branch `perf/ts71-parents-at-finish`）
+
+A-1c（戦略 v2 §4.1、`a1c-parser-inventory-report.md` §2）の parent の step。tsgo の `finishNode` と同じく、node を作り終えた時点で
+その子に parent を付け、完成した tree を歩き直す pass（`finalize_tree` の parent walk）をやめた。
+
+1. **finish 時**：`Parser::finish_node_at` の最後で `NodeArena::attach_children`（`LastToken` より上の kind だけ。token・identifier・
+   literal には子が無く、`for_each_child` にもその arm が無い）。子の parent は上書きする（parse が node を動かしたとき、tsgo と同じ）。
+   finish を通らずに node を作る・変える箇所は自分で付ける：`T?` を包み直す optional の tuple 要素、finish 後に modifier を受け取る
+   `MissingDeclaration` 2 か所、host に JSDoc を付けたとき（`attach_js_doc`、tsgo の `parsed.Parent`）、incremental parse が古い tree
+   から写した node（subtree copier そのものは parent なしの契約のまま）。`finalize_tree` は root の子と error の集約（印の付いた node から
+   上へ）だけになった。debug build は従来の 2 段の reference walk を copy に走らせ、到達する全 node の parent と error 集約を比べる。
+2. **到達性**：失敗した先読みの node も finish されるので、その中で parent を持つ。arena 全体を走査して `parent.is_some()` を「tree の中」
+   の意味に使っていた 3 か所（module specifier 生成の module name literal、宣言 emit の可視性、ES module 変換の import-equals /
+   `export =` の入れ子判定）は `NodeArena::reachable_mask(root)` を聞く。他の parent の読み手は tree の node だけを読む。
+
+**計測**（1 thread、通常 build、静かな machine、同じ run。C1 = `c1a`、最初の版 = `ccb9fb179`（全 finish で付ける）、本 PR = `2991eed8c`
+（token を飛ばす））：VS Code（3 回の中央値）142.36 → 141.98 G（−0.3%、最初の版は 142.51）。他の 7 project は 2 回目の静かな窓（16:45）で
+3 回を交互に測った中央値で TypeScript compiler −0.05%、Next.js −0.21%、zod −0.28%、effect −0.26%、hono −0.33%、vue −0.18%、playwright −0.26%
+（最初に PR に書いた 1 回測定の −0.6〜−2.7% は、base を先に走らせたため base が各 project の cold start を負った分の水増し。serial.py は
+warm-up と 3 回の中央値に直した）。peak footprint は変わらない。
+**予想との差**：予想は VS Code −0.6〜−0.9 G（C1 の profile で walk が 77 ms ≈ 1.2 G、finish で付ける分が一部戻る）。最初の版は +0.1%：
+VS Code の 17.2 M node のうち約 10 M が子の無い token で、その全部に呼び出し・scratch・`for_each_child` の dispatch を払い、失敗した先読みの
+node にも付けていた（旧 walk は tree だけを歩いた）。token を飛ばして −0.38 G だが、VS Code では予想を下回る（他の 7 project は 0.05〜0.33%
+減）：composite node ごとの付与は walk と同じ子ごとの仕事（dispatch、array の子の訪問、境界検査付きの書き込み）をするので、消えたのは
+token の分と walk の stack だけ（`perf11/prof-c8/vs-c8b.json.gz`）。kind ごとの子の slot を生成して parent を直接書く案（`c8c`）は
+VS Code +0.98 G の悪化で中止した（生成した visitor も payload を全部 decode する）。
+
+**記録。** PR [#874](https://github.com/kazhiramatsu/tsc-rs/pull/874) → merge `4199f017e`（2026-11-04。code `ccb9fb179`・`2991eed8c`、最終 head `30ae5b558`）。
+hosted run [41810437491](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41810437491)：全 job pass。local（hosted がしないことだけ、`c3bd12f8f`）：test
+（`ccb9fb179` で syntax 269・binder 80・api 332・program 684・emitter 352・ls 256・checker 1,837、`2991eed8c` で syntax 269、0 failed）、
+fmt・clippy・4 つの生成器の `--check`、fingerprint 143,190 行 差分 0（両方の byte）、8 case で出力が C1 と一致、`--checkers 4` は既知の 4 件
+（15,335 一致）、計測は上の通り。
+
 ## checker の data 層の書き直し（利用者の決定 2026-11-04）
 
 計測台帳の結果（front end と memo では VS Code の差が縮まらず、差は checker の 1 操作の費用と record の形にある）を受けて、利用者が
