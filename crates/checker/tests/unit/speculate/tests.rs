@@ -1,7 +1,9 @@
 use tsc_binder::flow::FlowId;
 use tsc_diagnostics::{gen as diagnostics, RelatedInfo};
+use tsc_syntax::SyntaxKind;
 use tsc_types::{
-    CompilerOptions, NodeCheckFlags, SymbolFlags, TypeData, TypeFlags, TypeSystemPropertyName,
+    CheckMode, CompilerOptions, NodeCheckFlags, SymbolFlags, TypeData, TypeFlags,
+    TypeSystemPropertyName,
 };
 
 use super::SpeculationOutcome;
@@ -16,6 +18,214 @@ fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
         &CompilerOptions::default(),
         run,
     )
+}
+
+#[test]
+fn overload_argument_retains_transitive_type_only_alias_facts() {
+    let text = "import { Alias } from './bridge';\n\
+                declare function take(x: number): void;\n\
+                declare function take(x: { new(): { value: number } }): void;\n\
+                take(Alias);\n\
+                Alias;\n";
+    with_program_state(
+        &[
+            ("/a.ts", text),
+            ("/bridge.ts", "export type { Base as Alias } from './base';"),
+            ("/base.ts", "export class Base { value: number; }"),
+        ],
+        &CompilerOptions::default(),
+        |state| {
+            let nodes = state.binder.source(0).arena.node_ids().collect::<Vec<_>>();
+            let import = nodes
+                .iter()
+                .copied()
+                .find(|&node| state.kind_of(node) == SyntaxKind::ImportSpecifier)
+                .expect("import specifier");
+            let alias = state.get_symbol_of_declaration(import).expect("alias");
+            assert!(state
+                .links
+                .symbol_cold()
+                .type_only_declaration
+                .get(alias)
+                .is_none());
+            let call = nodes
+                .iter()
+                .copied()
+                .find(|&node| state.kind_of(node) == SyntaxKind::CallExpression)
+                .expect("overloaded call");
+            let selected = state
+                .get_resolved_signature(call, None, CheckMode::NORMAL)
+                .expect("second overload applies");
+            let second = nodes
+                .iter()
+                .copied()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::FunctionDeclaration)
+                .nth(1)
+                .expect("second overload");
+            assert_eq!(state.signature_of(selected).declaration, Some(second));
+            // tsgo resolveIndirectionAlias keeps this fact with the target
+            // through both the rejected and the selected candidate.
+            assert!(state
+                .links
+                .symbol_cold()
+                .type_only_declaration
+                .get(alias)
+                .is_some());
+            let later_use = nodes
+                .into_iter()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::Identifier)
+                .max_by_key(|&node| state.pos_of(node))
+                .expect("later Alias reference");
+            state
+                .check_expression(later_use, CheckMode::NORMAL)
+                .expect("later use");
+            let diagnostic = state.diagnostics.last().expect("type-only value error");
+            assert_eq!(diagnostic.code(), 1362);
+            assert_eq!(diagnostic.start, Some(text.rfind("Alias").unwrap() as u32));
+        },
+    );
+}
+
+#[test]
+fn overload_arguments_retain_capture_private_and_super_flags() {
+    let text = "interface IArguments { length: number; }\n\
+                declare function takeFunction(x: () => string): 1;\n\
+                declare function takeFunction(x: () => number): 2;\n\
+                takeFunction(function named() { return arguments.length; });\n\
+                declare class Base { static value: number; }\n\
+                declare function takeClass(x: { new(): object; owner: object; value: string }): 1;\n\
+                declare function takeClass(x: { new(): object; owner: object; value: number }): 2;\n\
+                takeClass(class Named extends Base {\n\
+                    #value = 1;\n\
+                    static value = super.value;\n\
+                    static owner = Named;\n\
+                    read() { return this.#value; }\n\
+                });\n";
+    with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions {
+            target: Some(2), // ES2015: private fields and static super need downlevel emit.
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let nodes = state.binder.source(0).arena.node_ids().collect::<Vec<_>>();
+            let calls = nodes
+                .iter()
+                .copied()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::CallExpression)
+                .collect::<Vec<_>>();
+            for (index, call) in calls.into_iter().enumerate() {
+                let selected = state
+                    .get_resolved_signature(call, None, CheckMode::NORMAL)
+                    .expect("second overload applies");
+                let second = nodes
+                    .iter()
+                    .copied()
+                    .filter(|&node| state.kind_of(node) == SyntaxKind::FunctionDeclaration)
+                    .nth(index * 2 + 1)
+                    .expect("second overload");
+                assert_eq!(state.signature_of(selected).declaration, Some(second));
+            }
+            // Inspect before deferred body checking can rediscover the
+            // emit facts first reached under a rejected overload candidate.
+            let function = nodes
+                .iter()
+                .copied()
+                .find(|&node| state.kind_of(node) == SyntaxKind::FunctionExpression)
+                .expect("named function argument");
+            assert!(state
+                .links
+                .node(function)
+                .check_flags
+                .intersects(NodeCheckFlags::CAPTURE_ARGUMENTS));
+            let class = nodes
+                .iter()
+                .copied()
+                .find(|&node| state.kind_of(node) == SyntaxKind::ClassExpression)
+                .expect("named class argument");
+            assert!(state
+                .links
+                .node(class)
+                .check_flags
+                .intersects(NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE));
+            let super_reference = nodes
+                .into_iter()
+                .find(|&node| state.kind_of(node) == SyntaxKind::SuperKeyword)
+                .expect("static super reference");
+            assert!(state
+                .links
+                .node(super_reference)
+                .check_flags
+                .intersects(NodeCheckFlags::SUPER_STATIC));
+            // Member checks are normally deferred. Exercise that worker
+            // explicitly in a completed rejected scope so its private-name
+            // placement fact has the same persistence as the eager flags.
+            state
+                .speculate(|state| {
+                    state.check_class_expression_deferred(class)?;
+                    Ok(SpeculationOutcome::Reject(()))
+                })
+                .expect("completed class member check");
+            assert!(state
+                .links
+                .node(state.binder.source(0).root)
+                .check_flags
+                .intersects(NodeCheckFlags::CONTAINS_CLASS_WITH_PRIVATE_IDENTIFIERS));
+        },
+    );
+}
+
+#[test]
+fn overload_argument_retains_completed_class_and_interface_base_types() {
+    for declarations in [
+        "class Parent<T> { value: T; } class Child extends Parent<number> {}",
+        "interface Parent<T> { value: T; } interface Child extends Parent<number> {}",
+    ] {
+        let text = format!(
+            "{declarations}\n\
+             declare function take(x: Parent<string>): 1;\n\
+             declare function take(x: Parent<number>): 2;\n\
+             declare const value: Child;\n\
+             take(value);\n"
+        );
+        with_program_state(&[("a.ts", &text)], &CompilerOptions::default(), |state| {
+            let symbol = state
+                .resolve_file_scope_name("Child", SymbolFlags::CLASS | SymbolFlags::INTERFACE)
+                .expect("Child symbol");
+            let child = state
+                .get_declared_type_of_symbol(symbol)
+                .expect("Child type");
+            assert!(!*state.links.type_cold().base_types_resolved.get(child));
+            let nodes = state.binder.source(0).arena.node_ids().collect::<Vec<_>>();
+            let call = nodes
+                .iter()
+                .copied()
+                .find(|&node| state.kind_of(node) == SyntaxKind::CallExpression)
+                .expect("overloaded call");
+            let selected = state
+                .get_resolved_signature(call, None, CheckMode::NORMAL)
+                .expect("second overload applies");
+            let second = nodes
+                .into_iter()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::FunctionDeclaration)
+                .nth(1)
+                .expect("second overload");
+            assert_eq!(state.signature_of(selected).declaration, Some(second));
+            assert!(*state.links.type_cold().base_types_resolved.get(child));
+            let bases = state.get_base_types(child).expect("completed bases");
+            assert_eq!(bases.len(), 1);
+            assert_eq!(
+                state
+                    .get_type_arguments(bases[0])
+                    .expect("Parent arguments"),
+                vec![state.tables.intrinsics.number]
+            );
+            assert_eq!(
+                state.get_base_types(child).expect("repeated base query"),
+                bases
+            );
+        });
+    }
 }
 
 /// The node's nonExistentPropCheckCache keys (empty when none was ever

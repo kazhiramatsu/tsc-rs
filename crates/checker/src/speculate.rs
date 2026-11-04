@@ -28,8 +28,7 @@
 //!   latch even in tsc — left alone.
 //! - C (permanent-truth caches, links, interners): completed results
 //!   persist at either boundary. Call resolvedSignature slots still
-//!   journal their entry state for cleanup of unresolved sentinels;
-//!   type-only alias declarations still restore their entry values.
+//!   journal their entry state for cleanup of unresolved sentinels.
 //!   Fresh semantic objects and structurally keyed type interners remain
 //!   monotone and candidate-independent, as in tsc.
 //! - D (diagnostics sinks): diagnostics and partial-check records persist
