@@ -621,3 +621,81 @@ fn keyof_takes_the_getter_visibility_of_an_accessor_pair() {
     .collect::<Vec<_>>();
     assert!(rows.is_empty(), "{rows:?}");
 }
+
+/// tsgo getLiteralTypeFromProperties (checker.go:27267-27294) makes the
+/// `keyof t` origin whenever `t` has an alias, even when its caller asked for
+/// no origin: the relation of a key with `keyof T` relates it with
+/// `keyof C` for the constraint C (relater.go:3546, `NoReducibleCheck`, no
+/// origin asked), so the elaboration names `keyof C` when C is an alias and
+/// the union when it is an interface. tsgo `aa814927` over these two files
+/// (`--singleThreaded --extendedDiagnostics`, `strict`, `noLib`, `types: []`)
+/// reports the two errors below and `Types: 96`. tsc-rs counts one type
+/// fewer in every program: tsgo's `resolvingDefaultType` singleton is the
+/// checker's in-progress set here, not a type. The result is cached per
+/// (type, include, includeOrigin), so the origin is made once although the
+/// elaboration relates the key again.
+#[test]
+fn an_aliased_constraint_keeps_its_keyof_origin_without_an_origin_request() {
+    let globals = concat!(
+        "interface IArguments { length: number; callee: Function; }\n",
+        "interface Array<T> { length: number; [index: number]: T; }\n",
+        "interface Object {}\n",
+        "interface Function {}\n",
+        "interface CallableFunction extends Function {}\n",
+        "interface NewableFunction extends Function {}\n",
+        "interface String {}\n",
+        "interface Number {}\n",
+        "interface Boolean {}\n",
+        "interface RegExp {}\n",
+    );
+    let main = concat!(
+        "type C = { a: 1; b: 2 };\n",
+        "function f<T extends C>(k: \"c\") {\n",
+        "    const x: keyof T = k;\n",
+        "}\n",
+        "interface I { a: 1; b: 2 }\n",
+        "function g<T extends I>(k: \"c\") {\n",
+        "    const y: keyof T = k;\n",
+        "}\n",
+    );
+    let result = check_program(
+        &[
+            InputFile::new("/globals.d.ts".to_owned(), globals.to_owned()),
+            InputFile::new("/a.ts".to_owned(), main.to_owned()),
+        ],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+    );
+    // The unused-local suggestions (6133) are not part of tsgo's output.
+    let rows: Vec<_> = result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 2322)
+        .map(|diagnostic| {
+            (
+                diagnostic.start,
+                diagnostic.code(),
+                tsc_diagnostics::flattened_message(&diagnostic.message, "\n", None)
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
+            )
+        })
+        .collect();
+    let elaboration = |target: &str| {
+        format!(
+            "Type 'string' is not assignable to type 'keyof T'.\n  \
+             Type '\"c\"' is not assignable to type '{target}'."
+        )
+    };
+    assert_eq!(
+        rows,
+        [
+            (Some(69), 2322, elaboration("keyof C")),
+            (Some(158), 2322, elaboration("\"a\" | \"b\"")),
+        ]
+    );
+    assert_eq!(result.work_counters.types(), 96 - 1);
+}
