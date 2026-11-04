@@ -117,9 +117,11 @@ impl ParseRecovery {
                     || statement_data.declaration_list != Some(id)
                     || source.positions().byte_to_utf16(record.pos) != Some(statement_start)
                     || statement_data.modifiers.is_some_and(|array| {
-                        source.arena.node_array(array).nodes.iter().any(|modifier| {
-                            source.arena.node(*modifier).kind == SyntaxKind::DeclareKeyword
-                        })
+                        source
+                            .arena
+                            .node_array(array)
+                            .modifier_flags
+                            .intersects(tsc_types::ModifierFlags::AMBIENT)
                     })
                 {
                     return None;

@@ -2435,13 +2435,8 @@ impl<'a> CheckerState<'a> {
         };
         let contains = initializer_range.0 <= this_pos && this_pos <= initializer_range.1;
         let parent_has_decorators = self.parent_of(container).is_some_and(|class| {
-            node_util::modifiers_of(&Published, class)
-                .map(|modifiers| {
-                    self.nodes_of(Some(modifiers))
-                        .iter()
-                        .any(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
-                })
-                .unwrap_or(false)
+            self.modifier_flags_of(node_util::modifiers_of(&Published, class))
+                .intersects(ModifierFlags::DECORATOR)
         });
         if contains && parent_has_decorators {
             self.error_at(

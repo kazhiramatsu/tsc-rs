@@ -2,6 +2,32 @@
 //! parsed tree.
 
 use crate::{NodeArena, NodeData, NodeId, SyntaxKind};
+use tsc_types::ModifierFlags;
+
+/// tsgo `ast.ModifierToFlag` (internal/ast/utilities.go): the flag of a
+/// modifier token or a decorator, none for any other kind.
+#[inline]
+pub const fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
+    match token {
+        SyntaxKind::StaticKeyword => ModifierFlags::STATIC,
+        SyntaxKind::PublicKeyword => ModifierFlags::PUBLIC,
+        SyntaxKind::ProtectedKeyword => ModifierFlags::PROTECTED,
+        SyntaxKind::PrivateKeyword => ModifierFlags::PRIVATE,
+        SyntaxKind::AbstractKeyword => ModifierFlags::ABSTRACT,
+        SyntaxKind::AccessorKeyword => ModifierFlags::ACCESSOR,
+        SyntaxKind::ExportKeyword => ModifierFlags::EXPORT,
+        SyntaxKind::DeclareKeyword => ModifierFlags::AMBIENT,
+        SyntaxKind::ConstKeyword => ModifierFlags::CONST,
+        SyntaxKind::DefaultKeyword => ModifierFlags::DEFAULT,
+        SyntaxKind::AsyncKeyword => ModifierFlags::ASYNC,
+        SyntaxKind::ReadonlyKeyword => ModifierFlags::READONLY,
+        SyntaxKind::OverrideKeyword => ModifierFlags::OVERRIDE,
+        SyntaxKind::InKeyword => ModifierFlags::IN,
+        SyntaxKind::OutKeyword => ModifierFlags::OUT,
+        SyntaxKind::Decorator => ModifierFlags::DECORATOR,
+        _ => ModifierFlags::NONE,
+    }
+}
 
 /// tsgo `ast.IsImportCall`: `import(...)`, `import.defer(...)` or
 /// `import.source(...)`.

@@ -925,9 +925,8 @@ impl CheckerState<'_> {
                     _ => None,
                 }
                 .is_some_and(|modifiers| {
-                    self.nodes_of(modifiers)
-                        .iter()
-                        .any(|&modifier| self.kind_of(modifier) == SyntaxKind::StaticKeyword)
+                    self.modifier_flags_of(modifiers)
+                        .intersects(tsc_types::ModifierFlags::STATIC)
                 });
             last_location = Some(node);
             current = self.parent_of(node);
