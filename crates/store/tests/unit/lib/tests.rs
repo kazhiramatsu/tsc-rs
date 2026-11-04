@@ -69,6 +69,31 @@ fn a_large_dropped_range_reads_as_zeros_up_to_both_edges() {
         .all(|&value| value == 0));
 }
 
+/// A mapped publication writes each record through `map` into the slots;
+/// committed, the list is published there.
+#[test]
+fn a_mapped_publication_publishes_the_mapped_records_on_commit() {
+    let mut list = StoreVec::<u32>::new();
+    list.resize(5, 7);
+    list[1] = 8;
+    list.publish_mapped(9_000_000, |value| value * 10).commit();
+    assert!(list.is_published());
+    assert_eq!(slice::<u32>(9_000_000, 5), &[70, 80, 70, 70, 70]);
+    assert_eq!(&list[..], &[70, 80, 70, 70, 70]);
+}
+
+/// Dropped without a commit, a mapped publication scrubs the slots it wrote
+/// and leaves the list as it was.
+#[test]
+fn an_uncommitted_mapped_publication_scrubs_its_slots() {
+    let mut list = StoreVec::<u32>::new();
+    list.resize(4, 3);
+    drop(list.publish_mapped(9_000_100, |value| value + 1));
+    assert!(!list.is_published());
+    assert_eq!(&list[..], &[3, 3, 3, 3]);
+    assert!(slice::<u32>(9_000_100, 4).iter().all(|&value| value == 0));
+}
+
 /// The tests of one binary run in parallel and share each region: these
 /// rooms lie above the 786,432 slots the large-range test publishes from
 /// position 3, which it fills with 9 while it runs (a claim finds its slots

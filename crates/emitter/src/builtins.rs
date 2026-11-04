@@ -1649,19 +1649,29 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
     fn has_nested_module_elements(&self) -> Result<bool, TransformError> {
         let syntax = self.context.arena().source(self.source)?.syntax();
         let arena = &syntax.arena;
-        let nested = |node: &tsc_syntax::nodes::Node| {
-            node.parent
-                .is_some_and(|parent| arena.node(parent).kind != SyntaxKind::SourceFile)
-        };
-        Ok(arena.nodes().iter().any(|node| match node.data() {
-            NodeData::ImportEqualsDeclaration(data) => {
-                data.module_reference.is_some_and(|reference| {
-                    arena.node(reference).kind == SyntaxKind::ExternalModuleReference
-                }) && nested(node)
+        // The arena also holds the nodes the parse discarded; only nodes the
+        // tree reaches count (asked once a candidate is found).
+        let mut reachable = None::<Vec<bool>>;
+        for (index, node) in arena.nodes().iter().enumerate() {
+            let candidate = match node.data() {
+                NodeData::ImportEqualsDeclaration(data) => {
+                    data.module_reference.is_some_and(|reference| {
+                        arena.node(reference).kind == SyntaxKind::ExternalModuleReference
+                    })
+                }
+                NodeData::ExportAssignment(data) => data.is_export_equals == Some(true),
+                _ => false,
+            };
+            if candidate
+                && reachable.get_or_insert_with(|| arena.reachable_mask(syntax.root))[index]
+                && node
+                    .parent
+                    .is_some_and(|parent| arena.node(parent).kind != SyntaxKind::SourceFile)
+            {
+                return Ok(true);
             }
-            NodeData::ExportAssignment(data) => data.is_export_equals == Some(true) && nested(node),
-            _ => false,
-        }))
+        }
+        Ok(false)
     }
 
     /// The statements a nested import-equals declaration or `export =`
