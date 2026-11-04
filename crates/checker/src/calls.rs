@@ -2660,15 +2660,22 @@ impl<'a> CheckerState<'a> {
                 Some(type_argument),
                 /*need_apparent_type*/ false,
             )?;
-            if !self.is_type_assignable_to(type_argument, target)? {
-                if report_errors {
-                    let span = self.diag_span_of_node(type_argument_node);
-                    let diagnostic = self.build_relation_error_with_head(
-                        type_argument,
-                        target,
-                        &span,
-                        &diagnostics::Type_0_does_not_satisfy_the_constraint_1,
-                    )?;
+            // tsgo checker.go:9467 enters checkTypeAssignableToEx directly.
+            let (related, diagnostic) = if report_errors {
+                self.capture_type_assignable_to_diagnostic(
+                    type_argument,
+                    target,
+                    type_argument_node,
+                    &diagnostics::Type_0_does_not_satisfy_the_constraint_1,
+                )?
+            } else {
+                (
+                    self.check_type_related_to(type_argument, target, RelationKind::Assignable)?,
+                    None,
+                )
+            };
+            if !related {
+                if let Some(diagnostic) = diagnostic {
                     self.push_error_diagnostic(diagnostic);
                 }
                 return Ok(None);
@@ -3655,21 +3662,43 @@ impl<'a> CheckerState<'a> {
             if this_type != self.tables.intrinsics.void && !is_new && !is_super_property_call {
                 let this_argument_node = self.get_this_argument_of_call(node);
                 let this_argument_type = self.get_this_argument_type(this_argument_node)?;
-                if !self.is_type_related_to(this_argument_type, this_type, relation)? {
+                let head = &diagnostics::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1;
+                // tsgo checker.go:9501 calls checkTypeRelatedToEx directly,
+                // including selection passes with no error node.
+                let (related, output) = if mode == ApplicabilityMode::Silent {
+                    (
+                        self.check_type_related_to(this_argument_type, this_type, relation)?,
+                        None,
+                    )
+                } else {
+                    self.check_relation_with_error_output_at(
+                        this_argument_type,
+                        this_type,
+                        relation,
+                        Some(head),
+                        containing_message_chain.clone(),
+                        Some(this_argument_node.unwrap_or(node)),
+                    )?
+                };
+                if !related {
                     if mode == ApplicabilityMode::Silent {
                         return Ok(Some(Vec::new()));
                     }
                     let span = self.diag_span_of_node(this_argument_node.unwrap_or(node));
                     let diagnostic = match mode {
-                        ApplicabilityMode::Report => Some(
+                        ApplicabilityMode::Report => Some(if let Some(output) = output {
+                            let mut diagnostic = self.diagnostic_at_span(&span, output.message);
+                            diagnostic.related = output.related;
+                            diagnostic
+                        } else {
                             self.build_relation_error_with_head_and_containing_chain(
                                 this_argument_type,
                                 this_type,
                                 &span,
-                                &diagnostics::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
+                                head,
                                 containing_message_chain,
-                            )?,
-                        ),
+                            )?
+                        }),
                         _ => None,
                     };
                     let related = diagnostic
@@ -3815,7 +3844,34 @@ impl<'a> CheckerState<'a> {
                 /*inference_context*/ None,
                 check_mode,
             )?;
-            if !self.is_type_related_to(spread_type, rest_type, relation)? {
+            // tsgo checker.go:9549 uses the same direct checker route for
+            // the spread tuple, rather than an isTypeRelatedTo probe.
+            let (related, output) = if mode == ApplicabilityMode::Silent {
+                (
+                    self.check_type_related_to(spread_type, rest_type, relation)?,
+                    None,
+                )
+            } else {
+                let error_node = match args.len() - arg_count {
+                    0 => Some(node),
+                    1 => match args[arg_count] {
+                        EffectiveArg::Node(arg_node) => {
+                            Some(self.get_effective_check_node(arg_node))
+                        }
+                        EffectiveArg::Synthetic { .. } => None,
+                    },
+                    _ => None,
+                };
+                self.check_relation_with_error_output_at(
+                    spread_type,
+                    rest_type,
+                    relation,
+                    Some(head),
+                    None,
+                    error_node,
+                )?
+            };
+            if !related {
                 if mode == ApplicabilityMode::Silent {
                     return Ok(Some(Vec::new()));
                 }
@@ -3844,12 +3900,18 @@ impl<'a> CheckerState<'a> {
                 }
                 let diagnostic = match mode {
                     ApplicabilityMode::Report => {
-                        let mut diagnostic = self.build_relation_error_with_head(
-                            spread_type,
-                            rest_type,
-                            &span,
-                            head,
-                        )?;
+                        let mut diagnostic = if let Some(output) = output {
+                            let mut diagnostic = self.diagnostic_at_span(&span, output.message);
+                            diagnostic.related = output.related;
+                            diagnostic
+                        } else {
+                            self.build_relation_error_with_head(
+                                spread_type,
+                                rest_type,
+                                &span,
+                                head,
+                            )?
+                        };
                         diagnostic.related.extend(related);
                         related = diagnostic.related.clone();
                         Some(diagnostic)

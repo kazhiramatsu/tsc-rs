@@ -2141,10 +2141,17 @@ impl<'a> CheckerState<'a> {
                 let _ = self.check_resolved_block_scoped_variable(export_or_local, error_location);
             }
         }
-        if self
-            .binder
-            .is_external_or_common_js_module_of_node(error_location)
+        // tsgo checker.go:1867,1886: only a lookup ending at the
+        // external source file can reference a UMD global.
+        let is_in_external_module = last_location.is_some_and(|location| {
+            self.kind_of(location) == SyntaxKind::SourceFile
+                && self
+                    .binder
+                    .is_external_or_common_js_module_of_node(location)
+        });
+        if is_in_external_module
             && meaning.contains(SymbolFlags::VALUE)
+            && self.node_flags(error_location) & NodeFlags::JS_DOC.bits() == 0
         {
             let merged = self.get_merged_symbol(result);
             let declarations = self.binder.symbol(merged).declarations.clone();

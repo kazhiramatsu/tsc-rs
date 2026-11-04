@@ -4412,7 +4412,16 @@ impl<'a> CheckerState<'a> {
         head_message: &'static DiagnosticMessage,
     ) -> CheckResult<(bool, Option<Diagnostic>)> {
         let Some(error_node) = error_node else {
-            return Ok((self.is_type_assignable_to(source, target)?, None));
+            // tsgo relater.go:339-340 enters the checker even without an
+            // error node; isTypeRelatedTo is a separate query route.
+            return Ok((
+                self.check_type_related_to(
+                    source,
+                    target,
+                    crate::relate::RelationKind::Assignable,
+                )?,
+                None,
+            ));
         };
         let generic_head = std::ptr::eq(
             head_message,
