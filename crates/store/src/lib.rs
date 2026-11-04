@@ -21,6 +21,11 @@
 //! - [`texts`], the literal texts of a tree, stored as words.
 //! - [`tails`], the cold words of large node payloads, at fixed positions.
 //!
+//! New data-layer owners use owner-scoped reads: [`claimed::ClaimedRecords`]
+//! for permanent headers, [`frozen::FrozenSpans`] for immutable lists, and
+//! [`recycle::RecyclableArena`] for scratch. These never return bare static
+//! payload views. Legacy get/slice retain their existing caller contract.
+//!
 //! [`SmallList`] is the list a stored record can hold.
 //!
 //! **Contract.** A range is published by the one holder of its identity lease
@@ -45,6 +50,13 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::Once;
 
+pub mod claimed;
+pub mod frozen;
+pub mod recycle;
+mod rooms;
+
+pub use rooms::{allocator_stats, AllocatorStats, RegionStats, StorageStats};
+
 pub mod names;
 pub mod tails;
 pub mod texts;
@@ -61,8 +73,10 @@ const REGION_BYTES: usize = 1 << 38;
 /// The regions the reservation holds. A record type names its region with
 /// [`StoreRecord::REGION`]; regions 8 and 9 hold the name table
 /// ([`names`]), region 12 the trees' literal texts ([`texts`]), region 13 the
-/// node records' tails ([`tails`]).
-const REGIONS: usize = 14;
+/// node records' tails ([`tails`]). Region 14 holds frozen elements; 15..37
+/// are B-3's typed records and scratch words (see [`claimed`], [`recycle`]).
+/// Two further regions belong only to the store unit-test binary.
+const REGIONS: usize = claimed::RECORD_REGION_END + 2 * cfg!(test) as usize;
 
 /// The size of the pages the kernel hands out, which covers both 4 KiB and
 /// 16 KiB systems: only whole multiples of it are returned to the kernel.
