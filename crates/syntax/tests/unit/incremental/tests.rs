@@ -27,6 +27,7 @@ struct CanonicalArray {
     end: u32,
     has_trailing_comma: bool,
     is_missing_list: bool,
+    modifier_flags: tsc_types::ModifierFlags,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -146,6 +147,7 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
                 end: array.end,
                 has_trailing_comma: array.has_trailing_comma,
                 is_missing_list: array.is_missing_list,
+                modifier_flags: array.modifier_flags,
             }
         })
         .collect();

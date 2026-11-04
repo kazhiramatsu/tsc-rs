@@ -110,6 +110,14 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// The modifier flags a modifiers array keeps (tsgo
+    /// `ModifierList.ModifierFlags`).
+    pub(crate) fn modifier_flags_of(&self, array: Option<NodeArrayId>) -> ModifierFlags {
+        array.map_or(ModifierFlags::NONE, |array| {
+            self.binder.node_array(array).modifier_flags
+        })
+    }
+
     /// tsrs-native: typed Identifier projection for tsc's direct
     /// `escapedText` property access.
     pub(crate) fn identifier_text(&self, node: NodeId) -> Option<&str> {
@@ -5446,9 +5454,8 @@ impl<'a> CheckerState<'a> {
             NodeData::SetAccessor(data) => data.modifiers,
             _ => None,
         };
-        self.nodes_of(modifiers)
-            .iter()
-            .any(|&modifier| self.kind_of(modifier) == SyntaxKind::StaticKeyword)
+        self.modifier_flags_of(modifiers)
+            .intersects(ModifierFlags::STATIC)
     }
 
     // ---- base types ----
@@ -6417,9 +6424,8 @@ impl<'a> CheckerState<'a> {
                 NodeData::ClassExpression(data) => data.modifiers,
                 _ => None,
             };
-            self.nodes_of(modifiers)
-                .iter()
-                .any(|&modifier| self.kind_of(modifier) == SyntaxKind::AbstractKeyword)
+            self.modifier_flags_of(modifiers)
+                .intersects(ModifierFlags::ABSTRACT)
         });
         let local_type_parameters: Option<Vec<TypeId>> = match &self.tables.type_of(class_type).data
         {
@@ -7729,9 +7735,8 @@ impl<'a> CheckerState<'a> {
     }
 
     fn has_readonly_modifier(&self, modifiers: Option<NodeArrayId>) -> bool {
-        self.nodes_of(modifiers)
-            .iter()
-            .any(|&modifier| self.kind_of(modifier) == SyntaxKind::ReadonlyKeyword)
+        self.modifier_flags_of(modifiers)
+            .intersects(ModifierFlags::READONLY)
     }
 
     // ---- symbol types ----
@@ -10332,9 +10337,8 @@ impl<'a> CheckerState<'a> {
         // their own modifier; constructor declarations borrow the
         // containing class's.
         let is_abstract = if self.kind_of(declaration) == SyntaxKind::ConstructorType {
-            self.nodes_of(modifiers)
-                .iter()
-                .any(|&modifier| self.kind_of(modifier) == SyntaxKind::AbstractKeyword)
+            self.modifier_flags_of(modifiers)
+                .intersects(ModifierFlags::ABSTRACT)
         } else if self.kind_of(declaration) == SyntaxKind::Constructor {
             let class = self
                 .parent_of(declaration)
@@ -10344,9 +10348,8 @@ impl<'a> CheckerState<'a> {
                 NodeData::ClassExpression(data) => data.modifiers,
                 _ => None,
             };
-            self.nodes_of(class_modifiers)
-                .iter()
-                .any(|&modifier| self.kind_of(modifier) == SyntaxKind::AbstractKeyword)
+            self.modifier_flags_of(class_modifiers)
+                .intersects(ModifierFlags::ABSTRACT)
         } else {
             false
         };
