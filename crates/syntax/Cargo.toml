@@ -12,10 +12,6 @@ dev-profile-opt-level = 3
 name = "tsc_syntax"
 path = "src/lib.rs"
 
-[features]
-# Corpus measurement only; no counters in the default release parser.
-parser-list-metrics = []
-
 [dependencies]
 memchr = "2"
 rustc-hash.workspace = true

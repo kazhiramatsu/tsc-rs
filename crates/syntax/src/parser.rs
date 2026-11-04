@@ -229,7 +229,8 @@ struct Parser<'text> {
     /// Root JSDoc tags overlap comment parts, whose array finishes first.
     /// Keep their reusable scratch separate so both arrays copy only once.
     jsdoc_tags: Vec<NodeId>,
-    #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+    /// The open lists' marks, to check that they close in order.
+    #[cfg(debug_assertions)]
     node_list_marks: Vec<usize>,
     file_name: JsString,
     language_variant: LanguageVariant,
@@ -267,20 +268,6 @@ struct Parser<'text> {
     subtree_copier: Option<SubtreeCopier>,
     incremental_options: IncrementalParseOptions,
     incremental_stats: IncrementalParseStats,
-}
-
-#[cfg(feature = "parser-list-metrics")]
-std::thread_local! {
-    static LIST_STACK_METRICS: std::cell::Cell<(usize, usize)> = const {
-        std::cell::Cell::new((0, 0))
-    };
-}
-
-/// Peak retained elements and open list marks on this thread since the last
-/// call. Available only in the corpus measurement build.
-#[cfg(feature = "parser-list-metrics")]
-pub fn take_parser_list_stack_metrics() -> (usize, usize) {
-    LIST_STACK_METRICS.with(|metrics| metrics.replace((0, 0)))
 }
 
 /// tsc Tristate: the arrow-function lookahead verdict.
@@ -951,7 +938,7 @@ impl<'text> Parser<'text> {
             arena: NodeArena::new(),
             node_stack: Vec::new(),
             jsdoc_tags: Vec::new(),
-            #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+            #[cfg(debug_assertions)]
             node_list_marks: Vec::new(),
             file_name,
             language_variant,
@@ -1694,30 +1681,18 @@ impl<'text> Parser<'text> {
 
     fn start_node_list(&mut self) -> usize {
         let mark = self.node_stack.len();
-        #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+        #[cfg(debug_assertions)]
         self.node_list_marks.push(mark);
-        #[cfg(feature = "parser-list-metrics")]
-        LIST_STACK_METRICS.with(|metrics| {
-            let (length, marks) = metrics.get();
-            metrics.set((length, marks.max(self.node_list_marks.len())));
-        });
         mark
     }
 
     fn truncate_node_list(&mut self, mark: usize) {
         debug_assert!(self.node_stack.len() >= mark);
-        #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+        #[cfg(debug_assertions)]
         {
             let last = self.node_list_marks.pop();
             debug_assert_eq!(last, Some(mark), "list frames must close in order");
         }
-        // Every stack shrink goes through here, so its length before shrinking
-        // captures the high-water mark without instrumenting each push.
-        #[cfg(feature = "parser-list-metrics")]
-        LIST_STACK_METRICS.with(|metrics| {
-            let (length, marks) = metrics.get();
-            metrics.set((length.max(self.node_stack.len()), marks));
-        });
         self.node_stack.truncate(mark);
         debug_assert_eq!(self.node_stack.len(), mark);
     }
@@ -10173,7 +10148,7 @@ impl<'text> Parser<'text> {
     ) -> FinishedParse {
         debug_assert!(self.node_stack.is_empty());
         debug_assert!(self.jsdoc_tags.is_empty());
-        #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+        #[cfg(debug_assertions)]
         debug_assert!(self.node_list_marks.is_empty());
         let eof_end = self.arena.node(end_of_file_token).end as usize;
         // tsc createSourceFile2 (29214) passes sourceFlags: the root

@@ -6,8 +6,6 @@
 //! parse_source_file (including snapshot construction), excluding file IO and
 //! tree destruction. Process instructions include loading and destruction.
 //! Script kinds come from file names; all other parse options are defaults.
-//! Build with `--features parser-list-metrics` for stack high-water counters;
-//! use a separate default release build for timing comparisons.
 #![forbid(unsafe_code)]
 
 use std::path::{Path, PathBuf};
@@ -100,10 +98,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         arrays,
         elapsed.as_nanos()
     );
-    #[cfg(feature = "parser-list-metrics")]
-    {
-        let (length, marks) = tsc_syntax::take_parser_list_stack_metrics();
-        println!("peak_stack_length={length} peak_open_marks={marks}");
-    }
     Ok(())
 }

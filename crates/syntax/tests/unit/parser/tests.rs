@@ -2556,7 +2556,7 @@ fn failed_parameter_list_releases_nested_lists_and_restores_its_outer_frame() {
     assert!(parameters.is_none());
     assert_eq!(parser.parsing_context, ParsingContext::SourceElements.bit());
     assert_eq!(parser.node_stack, [retained]);
-    #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+    #[cfg(debug_assertions)]
     assert_eq!(parser.node_list_marks, [outer]);
     assert_eq!(parser.token(), SyntaxKind::CloseParenToken);
     // The completed nested arrays survive; the failed parameter array is
@@ -3976,7 +3976,7 @@ fn jsdoc_overlapping_parts_and_tags_keep_array_order_and_reuse_root_scratch() {
     for iteration in 0..2 {
         let parsed = jsdoc::parse_jsdoc_comment(&mut parser, 0, text.len(), NodeFlags::NONE);
         assert_eq!(parser.node_stack, [retained]);
-        #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+        #[cfg(debug_assertions)]
         assert_eq!(parser.node_list_marks, [outer]);
         assert!(parser.jsdoc_tags.is_empty());
         if iteration == 0 {
