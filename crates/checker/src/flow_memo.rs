@@ -14,7 +14,7 @@ use crate::flow::{FlowQuery, FlowType, SharedFlow};
 use crate::state::CheckerState;
 
 pub(crate) const FLOW_DEPTH_LIMIT: u32 = 2000;
-const TABLE_SLOTS: usize = 1 << 12;
+const TABLE_SLOTS: usize = 1 << 16;
 /// Step 3 owns enabling replacement. There is no runtime mode switch.
 const MEMO_ENABLED: bool = true;
 pub(crate) const MEMO_TRACKED: bool = MEMO_ENABLED || cfg!(feature = "flow-memo-shadow");
