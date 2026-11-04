@@ -1161,7 +1161,10 @@ impl<'a> CheckerState<'a> {
         let mut subtype_reduction = false;
         let mut seen_incomplete = false;
         let mut bypass_flow: Option<FlowId> = None;
-        for &antecedent in self.flow_label_antecedents_in(query.file, query.arena, flow).iter() {
+        for &antecedent in self
+            .flow_label_antecedents_in(query.file, query.arena, flow)
+            .iter()
+        {
             if bypass_flow.is_none() && self.is_empty_switch_clause_flow(query, antecedent) {
                 bypass_flow = Some(antecedent);
                 continue;
@@ -1272,7 +1275,10 @@ impl<'a> CheckerState<'a> {
         let mut antecedent_types: Vec<TypeId> = Vec::new();
         let mut subtype_reduction = false;
         let mut first_antecedent_type: Option<FlowType> = None;
-        for &antecedent in self.flow_label_antecedents_in(query.file, query.arena, flow).iter() {
+        for &antecedent in self
+            .flow_label_antecedents_in(query.file, query.arena, flow)
+            .iter()
+        {
             let flow_type = if first_antecedent_type.is_none() {
                 let first = self.get_type_at_flow_node(query, antecedent)?;
                 first_antecedent_type = Some(first);
