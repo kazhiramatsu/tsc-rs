@@ -899,6 +899,13 @@ combined flags を繰り返し計算する分で、A-1c の完了後に別の見
 ls 256・checker 1,837、0 failed）、fmt・clippy・4 つの生成器の `--check`、fingerprint 143,190 行 差分 0、8 case で出力が main と一致、
 `--checkers 4` は既知の 4 件（15,335 一致）、serial は上の通り。
 
+## checker の data 層の書き直し（利用者の決定 2026-11-04）
+
+計測台帳の結果（front end と memo では VS Code の差が縮まらず、差は checker の 1 操作の費用と record の形にある）を受けて、利用者が
+checker の data 層の書き直しを決めた。範囲・record ごとの契約・順序・予想・gate は
+[checker-data-layer-plan.md](checker-data-layer-plan.md)。C-0 / C-1 の memo は停止（C-0 step 2 は branch `perf/ts71-c0-step2`
+のまま、PR なし）。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
