@@ -43,9 +43,11 @@ struct JSDocParser<'parser, 'text> {
 
 impl<'parser, 'text> JSDocParser<'parser, 'text> {
     fn new(parser: &'parser mut Parser<'text>) -> Self {
+        debug_assert!(parser.jsdoc_tags.is_empty());
+        let tags = std::mem::take(&mut parser.jsdoc_tags);
         Self {
             parser,
-            tags: Vec::new(),
+            tags,
             tags_pos: None,
             tags_end: None,
             has_deprecated_tag: false,
@@ -196,8 +198,8 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         self.finish(data, pos, self.node_pos())
     }
 
-    fn alloc_array(&mut self, nodes: Vec<NodeId>, pos: usize, end: usize) -> crate::NodeArrayId {
-        self.parser.arena.alloc_array(&nodes, pos, end, false)
+    fn finish_node_list(&mut self, mark: usize, pos: usize, end: usize) -> crate::NodeArrayId {
+        self.parser.finish_node_list(mark, pos, end, false)
     }
 
     /// tsgo parseJSDocIdentifierName (jsdoc.go:1341-1355): a missing name is
@@ -337,15 +339,19 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     /// `text_end` ends TypeScript 7.1's JSDocText of a text comment.
     fn comment_value(
         &mut self,
-        parts: Vec<NodeId>,
+        parts_mark: usize,
         text: String,
         pos: usize,
         end: usize,
         text_end: usize,
     ) -> Option<JSDocComment> {
-        if !parts.is_empty() {
-            Some(JSDocComment::Nodes(self.alloc_array(parts, pos, end)))
-        } else if !text.is_empty() {
+        if self.parser.node_stack.len() != parts_mark {
+            return Some(JSDocComment::Nodes(
+                self.finish_node_list(parts_mark, pos, end),
+            ));
+        }
+        self.parser.truncate_node_list(parts_mark);
+        if !text.is_empty() {
             Some(JSDocComment::Text {
                 text: self.parser.arena.push_text(text.as_bytes()),
                 pos: pos as u32,
@@ -388,7 +394,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             .map_or(0, |index| index + 1);
         let mut indent = Self::text_len(&self.parser.source_text[line_start..start]) + 4;
         let mut comments = Vec::<Cow<'text, str>>::new();
-        let mut parts = Vec::<NodeId>::new();
+        let parts_mark = self.parser.start_node_list();
         let mut link_end: Option<usize> = None;
         let mut comments_pos: Option<usize> = None;
 
@@ -496,12 +502,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                         }
                         let text = comments.join("");
                         let text = self.parser.arena.push_text(text.as_bytes());
-                        parts.push(self.finish(
+                        let part = self.finish(
                             NodeData::JSDocText(JSDocTextData { text }),
                             link_end.unwrap_or(start),
                             comment_end,
-                        ));
-                        parts.push(link);
+                        );
+                        self.parser.node_stack.push(part);
+                        self.parser.node_stack.push(link);
                         comments.clear();
                         link_end = Some(self.token_end());
                     } else {
@@ -535,16 +542,17 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             Self::truncate_piece(last, trimmed);
         }
         let trimmed_comments = comments.join("");
-        if !parts.is_empty() && !trimmed_comments.is_empty() {
+        if self.parser.node_stack.len() != parts_mark && !trimmed_comments.is_empty() {
             let text = self.parser.arena.push_text(trimmed_comments.as_bytes());
-            parts.push(self.finish(
+            let part = self.finish(
                 NodeData::JSDocText(JSDocTextData { text }),
                 link_end.unwrap_or(start),
                 comments_pos.unwrap_or(scan_end),
-            ));
+            );
+            self.parser.node_stack.push(part);
         }
         let comment = self.comment_value(
-            parts,
+            parts_mark,
             trimmed_comments,
             start,
             comments_pos.unwrap_or(scan_end),
@@ -553,12 +561,14 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let tags = if self.tags.is_empty() {
             None
         } else {
-            let tags = std::mem::take(&mut self.tags);
-            Some(self.alloc_array(
-                tags,
+            let tags = self.parser.arena.alloc_array(
+                &self.tags,
                 self.tags_pos.unwrap_or(start),
                 self.tags_end.unwrap_or(end),
-            ))
+                false,
+            );
+            self.tags.clear();
+            Some(tags)
         };
         self.finish(NodeData::JSDoc(JSDocData { tags, comment }), start, end)
     }
@@ -570,7 +580,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     ) -> Option<JSDocComment> {
         let comments_pos = self.node_pos();
         let mut comments = Vec::<Cow<'text, str>>::new();
-        let mut parts = Vec::<NodeId>::new();
+        let parts_mark = self.parser.start_node_list();
         let mut link_end = None;
         let mut state = CommentState::BeginningOfLine;
         let mut margin: Option<usize> = None;
@@ -644,12 +654,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     let link_start = self.token_end().saturating_sub(1);
                     if let Some(link) = self.try_parse_jsdoc_link(link_start) {
                         let text = self.parser.arena.push_text(comments.join("").as_bytes());
-                        parts.push(self.finish(
+                        let part = self.finish(
                             NodeData::JSDocText(JSDocTextData { text }),
                             link_end.unwrap_or(comments_pos),
                             comment_end,
-                        ));
-                        parts.push(link);
+                        );
+                        self.parser.node_stack.push(part);
+                        self.parser.node_stack.push(link);
                         comments.clear();
                         link_end = Some(self.token_end());
                     } else {
@@ -700,16 +711,23 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         Self::remove_leading_newlines(&mut comments);
         let joined_comments = comments.join("");
         let trimmed = Self::trim_end(&joined_comments).to_owned();
-        if !parts.is_empty() && !trimmed.is_empty() {
+        if self.parser.node_stack.len() != parts_mark && !trimmed.is_empty() {
             let text = self.parser.arena.push_text(trimmed.as_bytes());
-            parts.push(self.finish(
+            let part = self.finish(
                 NodeData::JSDocText(JSDocTextData { text }),
                 link_end.unwrap_or(comments_pos),
                 self.node_pos(),
-            ));
+            );
+            self.parser.node_stack.push(part);
         }
         let text_end = self.node_pos();
-        self.comment_value(parts, trimmed, comments_pos, self.token_end(), text_end)
+        self.comment_value(
+            parts_mark,
+            trimmed,
+            comments_pos,
+            self.token_end(),
+            text_end,
+        )
     }
 
     fn parse_trailing_tag_comments(
@@ -1140,13 +1158,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             return None;
         }
         let pos = self.node_pos();
-        let mut children = Vec::new();
+        let mark = self.parser.start_node_list();
         while let Some(child) =
             self.parse_child_parameter_or_property_tag(target, indent, Some(name))
         {
             match self.parser.arena.node(child).kind {
                 SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocPropertyTag => {
-                    children.push(child)
+                    self.parser.node_stack.push(child)
                 }
                 SyntaxKind::JSDocTemplateTag => self.parser.parse_error_at_range(
                     self.tag_name_of(child).unwrap_or(child),
@@ -1156,11 +1174,12 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 _ => {}
             }
         }
-        if children.is_empty() {
+        if self.parser.node_stack.len() == mark {
+            self.parser.truncate_node_list(mark);
             return None;
         }
         let end = self.node_pos();
-        let array = self.parser.arena.alloc_synthetic_array(&children);
+        let array = self.finish_node_list(mark, u32::MAX as usize, u32::MAX as usize);
         let literal = self.finish(
             NodeData::JSDocTypeLiteral(JSDocTypeLiteralData {
                 js_doc_property_tags: Some(array),
@@ -1629,7 +1648,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             .is_none_or(|r#type| self.is_object_or_object_array_type_reference(r#type));
         if may_have_children {
             let mut child_type_tag: Option<NodeId> = None;
-            let mut property_tags = Vec::new();
+            let mark = self.parser.start_node_list();
             let mut has_children = false;
             while let Some(child) =
                 self.parse_child_parameter_or_property_tag(TARGET_PROPERTY, indent, None)
@@ -1659,7 +1678,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                         child_type_tag = Some(child);
                     }
                 } else {
-                    property_tags.push(child);
+                    self.parser.node_stack.push(child);
                 }
             }
             if has_children {
@@ -1680,17 +1699,19 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                             })
                     });
                 type_expression = if replacement.is_some() {
+                    self.parser.truncate_node_list(mark);
                     replacement
                 } else {
                     // tsgo starts the literal at its first property tag.
-                    let literal_start = property_tags
+                    let literal_start = self.parser.node_stack[mark..]
                         .first()
                         .map_or(start, |&tag| self.parser.arena.node(tag).pos as usize);
                     let end = self.node_pos();
-                    let properties = if property_tags.is_empty() {
+                    let properties = if self.parser.node_stack.len() == mark {
+                        self.parser.truncate_node_list(mark);
                         None
                     } else {
-                        Some(self.parser.arena.alloc_synthetic_array(&property_tags))
+                        Some(self.finish_node_list(mark, u32::MAX as usize, u32::MAX as usize))
                     };
                     Some(self.finish(
                         NodeData::JSDocTypeLiteral(JSDocTypeLiteralData {
@@ -1703,6 +1724,8 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 };
                 explicit_end =
                     type_expression.map(|node| self.parser.arena.node(node).end as usize);
+            } else {
+                self.parser.truncate_node_list(mark);
             }
         }
 
@@ -1742,7 +1765,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
 
     fn parse_jsdoc_signature(&mut self, start: usize, indent: usize) -> NodeId {
         let parameters_pos = self.node_pos();
-        let mut parameters = Vec::new();
+        let mark = self.parser.start_node_list();
         // tsgo parseCallbackTagParameters (TypeScript 7.1, parser/jsdoc.go:1102-1118):
         // a `@template` among the parameters is TS8039 and is skipped.
         while let Some(child) =
@@ -1751,10 +1774,10 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             if self.parser.arena.node(child).kind == SyntaxKind::JSDocTemplateTag {
                 self.report_template_after_alias(child);
             } else {
-                parameters.push(child);
+                self.parser.node_stack.push(child);
             }
         }
-        let parameters = self.alloc_array(parameters, parameters_pos, self.node_pos());
+        let parameters = self.finish_node_list(mark, parameters_pos, self.node_pos());
         let state = self.parser.scanner.save();
         let diagnostics = self.parser.parse_diagnostics.len();
         let recovery_checkpoint = self.parser.parse_recovery.checkpoint();
@@ -1903,18 +1926,18 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let constraint = (self.token() == SyntaxKind::OpenBraceToken)
             .then(|| self.parse_jsdoc_type_expression(false));
         let parameters_pos = self.node_pos();
-        let mut type_parameters = Vec::new();
+        let mark = self.parser.start_node_list();
         loop {
             self.skip_whitespace();
             if let Some(parameter) = self.parse_template_type_parameter() {
-                type_parameters.push(parameter);
+                self.parser.node_stack.push(parameter);
             }
             self.skip_whitespace_or_asterisk();
             if !self.parse_optional(SyntaxKind::CommaToken) {
                 break;
             }
         }
-        let type_parameters = self.alloc_array(type_parameters, parameters_pos, self.node_pos());
+        let type_parameters = self.finish_node_list(mark, parameters_pos, self.node_pos());
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), indent, indent_text);
         self.finish_current(
             NodeData::JSDocTemplateTag(JSDocTemplateTagData {
@@ -1990,7 +2013,10 @@ pub(super) fn parse_jsdoc_comment(
     let mut worker = JSDocParser::new(parser);
     let node = worker.parse_comment_worker(start, end);
     let deprecated = worker.has_deprecated_tag;
+    debug_assert!(worker.tags.is_empty());
+    let tags = std::mem::take(&mut worker.tags);
     drop(worker);
+    parser.jsdoc_tags = tags;
 
     if parser.javascript_file {
         parser.js_doc_diagnostics.extend(

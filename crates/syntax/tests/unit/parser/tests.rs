@@ -3960,6 +3960,89 @@ fn missing_semicolon_reports_spelling_suggestions() {
 }
 
 #[test]
+fn jsdoc_overlapping_parts_and_tags_keep_array_order_and_reuse_root_scratch() {
+    let text = concat!(
+        "/** root {@link Root} tail\n",
+        " * @param {Object} options param {@link Option} done\n",
+        " * @param {string} options.name nested {@link Name} done\n",
+        " * @returns {number} value {@link Value} done\n",
+        " */",
+    );
+    let mut parser = Parser::new("a.js".into(), text, LanguageVariant::Jsx, true);
+    let outer = parser.start_node_list();
+    let retained = parser.create_missing_node(SyntaxKind::Identifier, false, None, &[]);
+    parser.node_stack.push(retained);
+    let mut capacity = 0;
+    for iteration in 0..2 {
+        let parsed = jsdoc::parse_jsdoc_comment(&mut parser, 0, text.len(), NodeFlags::NONE);
+        assert_eq!(parser.node_stack, [retained]);
+        #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+        assert_eq!(parser.node_list_marks, [outer]);
+        assert!(parser.jsdoc_tags.is_empty());
+        if iteration == 0 {
+            capacity = parser.jsdoc_tags.capacity();
+            assert!(capacity >= 2);
+        } else {
+            assert_eq!(parser.jsdoc_tags.capacity(), capacity);
+        }
+        let doc = parser.arena.node(parsed.node).data().as_js_doc().unwrap();
+        let Some(crate::JSDocComment::Nodes(parts)) = doc.comment else {
+            panic!("root comment parts");
+        };
+        let tags = doc.tags.unwrap();
+        let tag_nodes = parser.arena.node_array(tags).nodes;
+        assert_eq!(tag_nodes.len(), 2);
+        assert_eq!(
+            parser.arena.node(tag_nodes[0]).kind,
+            SyntaxKind::JSDocParameterTag
+        );
+        assert_eq!(
+            parser.arena.node(tag_nodes[1]).kind,
+            SyntaxKind::JSDocReturnTag
+        );
+        let kinds: Vec<_> = parser
+            .arena
+            .node_array(parts)
+            .nodes
+            .iter()
+            .map(|&node| parser.arena.node(node).kind)
+            .collect();
+        assert_eq!(
+            kinds,
+            [
+                SyntaxKind::JSDocText,
+                SyntaxKind::JSDocLink,
+                SyntaxKind::JSDocText
+            ]
+        );
+        // Tag comment parts and the synthetic nested-property list precede
+        // root comment parts; root tags must still be allocated last.
+        assert_eq!(parts.index(), iteration * 6 + 4);
+        assert_eq!(tags.index(), iteration * 6 + 5);
+        let properties = parser
+            .arena
+            .node_array(crate::NodeArrayId::new(iteration * 6 + 2));
+        assert_eq!((properties.pos, properties.end), (u32::MAX, u32::MAX));
+        assert_eq!(properties.nodes.len(), 1);
+        assert_eq!(
+            parser.arena.node_arrays().len(),
+            (iteration as usize + 1) * 6
+        );
+        assert!(parser.js_doc_diagnostics.is_empty());
+    }
+    // Both stored roots remain intact after the reusable buffers are cleared.
+    assert_eq!(
+        parser
+            .arena
+            .node_array(crate::NodeArrayId::new(4))
+            .nodes
+            .len(),
+        3
+    );
+    parser.truncate_node_list(outer);
+}
+
+#[test]
 fn jsdoc_typedef_properties_and_satisfies_are_arena_nodes() {
     let text = "/**\r\n\
                 * 😀 description\r\n\

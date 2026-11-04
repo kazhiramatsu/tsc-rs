@@ -226,6 +226,9 @@ struct Parser<'text> {
     /// Completed siblings of active lists. Each nested list releases its
     /// suffix before its result is pushed by the enclosing list.
     node_stack: Vec<NodeId>,
+    /// Root JSDoc tags overlap comment parts, whose array finishes first.
+    /// Keep their reusable scratch separate so both arrays copy only once.
+    jsdoc_tags: Vec<NodeId>,
     #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
     node_list_marks: Vec<usize>,
     file_name: JsString,
@@ -947,6 +950,7 @@ impl<'text> Parser<'text> {
             source_text: text,
             arena: NodeArena::new(),
             node_stack: Vec::new(),
+            jsdoc_tags: Vec::new(),
             #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
             node_list_marks: Vec::new(),
             file_name,
@@ -10168,6 +10172,7 @@ impl<'text> Parser<'text> {
         process_pragmas: bool,
     ) -> FinishedParse {
         debug_assert!(self.node_stack.is_empty());
+        debug_assert!(self.jsdoc_tags.is_empty());
         #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
         debug_assert!(self.node_list_marks.is_empty());
         let eof_end = self.arena.node(end_of_file_token).end as usize;
