@@ -804,6 +804,96 @@ zod −0.2%、hono −0.7%。peak footprint は 8 case すべて減（VS Code 3,
 syntax・emitter・ls は part 1 の最後の修正を取り込んだ `51ee6e123` で再実行）、fmt・clippy・4 つの生成器の `--check`、fingerprint
 143,190 行 差分 0、8 case で出力が part 1 と一致、serial は上の通り。
 
+## checker と types の最初の slice 群：B-5 3a〜3c・C-0 step 1・R29 1〜3・M4 の小さな切り口（PR #868・#871・#872・#873）と PGO の workflow（#869）
+
+Opus が A-1（front end）を書く間、Fable 5.1 の session が Codex（`gpt-6.1-sol`）の lane で checker と types 側の slice を並行して
+進めた。lane は隔離した clone で実装し（`cargo -j 1`、`--test-threads=1`、一度に 1 つ）、Fable が主張を再実行してから（lane の
+test と A/B の確認、A-1a part 2 の上への rebase、release build、`--checkers 4` の報告を main の新しい 4-checker 報告と比較、
+`diffout.py` で 8 case の出力を main の binary と比較）PR にした。4 つの branch は同じ `serial.py` の run で main（`1a05993fb`、
+label `p2main`）の binary と比べた（1 thread、通常 build、各 1 回、10:36〜10:38。lane の test が 1 本走っていたので絶対値は
+静かな計測より +1.2%。差は同じ run の中の比）。
+
+| case | main | C-0 step 1 | R29 1〜3 | M4 cuts | B-5 3a〜3c |
+|---|---:|---:|---:|---:|---:|
+| VS Code | 143.66 G / 3,618 MB | +0.3% / 3,618 | −0.6% / 3,618 | **−1.8%** / **3,588** | −0.4% / 3,615 |
+| TypeScript compiler noEmit | 9.95 G / 176 MB | +1.5% | −0.6% | −1.1% / 173 | −0.5% |
+| Next.js noEmit | 29.99 G / 776 MB | −0.9% | −1.4% | −2.6% / 755 | −1.8% |
+| zod | 20.10 G / 737 MB | −1.7% | −1.9% | −2.7% / 726 | −2.1% |
+| effect | 16.47 G / 531 MB | −0.2% | −0.8% | −1.6% / 526 | −0.7% |
+| hono | 2.90 G / 113 MB | −1.4% | −2.0% | −2.5% / 112 | −2.0% |
+| vue | 16.05 G / 319 MB | −0.2% | −1.9% | −1.6% / 305 | −0.7% |
+| playwright | 13.83 G / 414 MB | −0.9% | −3.3% | −2.3% / 409 | −1.7% |
+
+（peak footprint は変化のある cell だけ書いた。生 data は `serial-p2.jsonl`。）
+
+- **C-0 step 1**（#868、branch `perf/ts71-c0-step1-p2`）：flow memo（tsrs R17、hook map
+  `target/claude-tools/handover/perf-tsrs/flow-memo-hook-map-report.md`）の帳簿だけ。`crates/checker/src/flow_memo.rs` の frame
+  register・serial・epoch と taint（hook 3〜11：shared cache の出自、loop の fixpoint、resolution target、signature の `resolving`、
+  未解決 member、walk の位置、inline/reduce の上限）。memo の key・表・lookup・checkpoint は step 2（lane、build 時の
+  `flow-memo-shadow` feature の裏で tsgo と同じ答えを shadow で検証）。unit test 13。予想は費用 <0.3%、実測は VS Code +0.3%
+  （他 7 case は −1.7〜+1.5% で配置の揺れの中）：帯の端。step 2 の shadow 計測で memo の純益が出なければ step 3（既定 on）には
+  進まない。
+- **R29 steps 1〜3**（#871、branch `perf/ts71-r29-p2`、C2 監査 §3・§7.1）：union builder の入力を tsgo と同じに（traversal 順に
+  append、重複は stable sort まで保持、隣接の同一性で除去。`addTypeToUnion`/`removeDuplicateTypes` の形）し、content の
+  contains/insert を Go の lower-bound search（`crates/types/src/goslices.rs`。GST/GQ の移設先、最後の等価比較まで同じ）に。
+  `perf-counters` feature の counter 32 本（collection の長さ分布、GST の比較回数、`compare_types` の outer/recursive、search の
+  hit/miss）。test：全長さの hit/insert 順位、Go の probe trace 9 本、旧 pipeline との全 vector 比較、外部の Go 1.27.1 ↔ Rust の
+  sort trace 180 本（比較 59,874 回）。予想は credit なし（fidelity の slice）、実測は VS Code −0.6%、他 −0.6〜−3.3%：上振れ。
+  ID 順の二分探索と途中挿入（要素の移動）を append と 1 回の sort に替えた分と見る（counter で追える）。
+- **M4 の小さな切り口**（#872、branch `perf/ts71-m4-cuts-p2`、instruction audit の rows 6・8〜12・15・16）：`FlowQuery` が
+  flow arena の借用を file index と並べて 1 回で検証、`visit_nodes` と NodeArena の array view の入口を inline、`page_mut` の成長
+  tail を `#[cold]` の `create_page` に、resolver の snapshot 複製・suggestion・診断を cold に、`advance_walk` の JSDoc 遷移を分離、
+  `is_matching_reference` の This/Super/終端を worker の前で判定、inference の alias 腕を `#[inline(never)]` に、`RelationCache` を
+  `Pair (u32, u32, i32)` の表と `Generic Box<str>` の表に（旧 mixed-key map との全 bit の回帰 test）。予想は P11 0〜0.81 G + P8
+  0〜0.05 G（≤0.6%）、実測は VS Code −1.8%（141.09 G）と peak −30 MB、他 −1.1〜−2.7%（peak も next −21、zod −11、vue −14 MB）：
+  3 倍の上振れ。memory の分は row 16（文字列 key と整数 key の表の分離）。
+- **B-5 steps 3a〜3c**（#873、branch `perf/ts71-b5-steps-3abc-p2`、transaction 監査 §5.1）：overload 候補の transaction から、
+  tsgo が候補をまたいで保持する 3 種の完了事実（type-only alias、node check flag、base type の cache）の journal・mark・restore を
+  削除し、直接公開。3b は fidelity の修正を含む：overload 引数の class expression の static initializer が自分の class を参照する
+  場合の emit が `_a.owner = _a`（tsgo と同じ。保持される `CONSTRUCTOR_REFERENCE` flag）になる（以前は `_a.owner = Named`）。
+  conformance corpus は覆わないので unit test で固定（3 本追加）。16 か所の `or_node_check_flags` の呼び手は lane の記録で分類
+  （once-state・emit state・scoped latch。tsgo はどれも巻き戻さない）。予想 ≈0、実測は VS Code −0.4%、他 −0.5〜−2.1%。
+- **PGO / 命令数の workflow**（#869、branch `ci/pgo-workflow`、設計 `pgo-ci-design-report.md`）：`.github/workflows/pgo.yml`。
+  PR の label `perf:instructions`（通常 build の命令数）/ `perf:pgo`（instrumented build → 学習 → PGO build）か手動起動で、
+  hosted runner が main と PR の両側を測って artifact に報告する（build 300 分・measure 150 分の cap）。repository variable
+  `PGO_CI_ENABLED` が `true` になるまで inert（利用者の決定 2026-11-04：runner の支出は要求時のみ）。action は SHA で固定。
+
+**記録。** PR [#868](https://github.com/kazhiramatsu/tsc-rs/pull/868) → merge `a4663d27e`（2026-11-04。hosted run
+[41748881477](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41748881477) 全 job pass。local（hosted がしないことだけ）：lane の
+checker test 1,850 pass、release build、`--checkers 4` が main `1a05993fb` の新しい 4-checker 報告と 15,339 構成一致、8 case で出力が
+main の binary と一致、serial は上の表）。
+
+## 計測台帳：予想と実測
+
+利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
+以後、slice ごとに着地前の予想（戦略 v2.1 の再見積もり
+`target/claude-tools/handover/perf-tsrs/strategy-rebaseline-2026-11-04.md` §3.1 の credit P0〜P11、または slice の設計報告・
+profile から出した帯）と着地後の `serial.py` の実測（VS Code 1 thread、通常 build、命令数と peak footprint）をここに並べる。帯を
+下回った項目は後続の lane を始めず、profile の差で原因を書き、計画を変えるか止める。節目の帯：M1（front end）126.55〜136.63 G、
+M2（checker の data 層）124.57〜136.63 G。通常 build で tsrs（87.3 G）に明確に勝つ（0.90× = 78.6 G）には **M2 の時点で
+87.3 G 以下**が必要（§3.3）で、現在の credit ではそこに届かない：差を埋めるのは値段のついていない項目（A-1 の実測、C-0/C-1 の
+memo の shadow 計測、checker の store の形）。
+
+| 項目 | PR | 予想（VS Code 1 thread） | 実測 | 判定 |
+|---|---|---|---|---|
+| toolchain 1.99.1 | #859 | （P0 の anchor） | 145.33 → 143.37 G（−1.4%）、peak 同じ | 着地 |
+| byte scanner（A-1b）と同時期の下準備（node 生成器・census・B-5 1〜2） | #856〜#864 | P2 0〜4.15 G（microbench 0.375× の移転は未計測なので下限 0）、他は 0 | 143.37 → 138.39 G（−4.98 G、−3.5%）、peak 同じ | 帯の上端を超えた：scanner の microbench は whole-program に移った |
+| A-1a part 1（accessor と literal text の id） | #866 | 0（下準備） | 138.39 → 138.79 G（+0.3%）、peak 同じ | 予想どおり |
+| A-1a part 2（32 byte の node record） | #867 | P1 0 G（符号は未計測）、memory −256 MiB | 138.57 → 141.97 G（**+3.40 G、+2.5%**）、peak 3,893 → 3,624 MB（−269） | memory は予想どおり、命令数は帯の外（費用）。A-1c + A-1d の帯（3.39〜5.02 G）がこれを取り返す前提：A-1c 完了時に再判定 |
+| A-1c C1（NodeArray の modifier flags） | #870 | P3 の一部（A-1c 全体で 3.39〜3.63 G。n5 の modifier 群 157 対 14 ms ≈ 2.0 G 相当） | −1.04 G（−0.7%）、peak 同じ（Opus の計測） | 見積の半分。原因（Opus の c1a profile）：157 ms は part 2 前の n5 の値で、part 2 の slot 読み（`modifiers_field()`）が dispatch の半分（`modifiers_of_data` 38 ms の大半）を既に取っていた。残る群（symbol write 経由の `get_declaration_modifier_flags` 66 ms、`modifiers_of::<Published>` 51、`combined_modifier_flags` 28 ほか ≈ 80〜100 ms）は C1 の対象外。改善案（未着手、要予想）：同じ value declaration の combined flag の per-symbol memo（≲ 0.8 G）。A-1c 完了後に判断 |
+| A-1c C7+C8（parent を finish 時に付ける） | — | Opus の予想 −0.6〜−0.9 G（c1a の finish 時の parent walk 77 ms ≈ 1.21 G を消し、finish での付与が一部戻る）。v2.1 の parent 行 0.94〜1.19 G より下 | 計測待ち | — |
+| C-0 step 1（flow memo の帳簿） | #868 | 費用 <0.3%（hook map §5） | VS Code +0.3%、他 −1.7〜+1.5% | 帯の端。step 2 の shadow 計測が gate |
+| R29 1〜3（union builder の入力と二分探索） | #871 | credit なし（fidelity） | VS Code −0.6%、他 −0.6〜−3.3% | 上振れ |
+| M4 の小さな切り口（rows 6・8〜12・15・16） | #872 | P11 0〜0.81 G + P8 0〜0.05 G（≤0.6%） | VS Code −1.8%、peak −30 MB、他 −1.1〜−2.7% | 3 倍の上振れ（memory は row 16） |
+| B-5 3a〜3c（journal 3 本の削除） | #873 | ≈0 | VS Code −0.4%、他 −0.5〜−2.1% | 予想どおり（やや上） |
+
+**合算（2026-11-04 時点）。** 静かな計測の main `1a05993fb` は 141.97 G。4 つの checker/types の branch が全部入ると ≈ −2.5%
+（加算できれば ≈ 138.4 G。merge 後に静かな machine で測り直す）。A-1c の残り + A-1d + A-3 の帯（3.39〜3.63 + 0〜1.39 + 3.36〜7.66 G）を
+引くと M1 は ≈ 126〜132 G で v2.1 の帯（126.55〜136.63）の中：part 2 の +3.4 G を scanner の上振れ（−5.0 G）と checker 側の
+上振れ（−2.8%）が埋めている形で、front end 単独では v2.1 の見積を下回っている。勝敗を決める I_M2 ≤ 87.3 G には、この帯の
+どこに着地しても届かない：次の判断材料は C-0 step 2 の shadow 計測（memo の hit 率と純益）、C-1 の shadow、B-3/B-4 の store の
+形の設計の実測。
+
 ## 次の候補（効果の大きい順の見込み）
 
 利用者の指示（2026-11-02）：「arena の改造が必要な気がします。やはり間接参照が入る分遅くなる気がします」「JsString と JsStr の
