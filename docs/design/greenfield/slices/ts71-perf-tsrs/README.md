@@ -977,6 +977,10 @@ scheduling の層（直列区間 = loader の finish/publish・identity の relo
 relocation、id 再現可能；tsgo/tsrs：file ごとの symbol、checker ごとに global merge）は 11/11 の checkpoint で 4 thread の直列区間の wall 比率で
 決める（< 10% で維持、> 20% で代替案に価格を付ける）。M6（前線）は D1 に前倒し：`handover/perf-tsrs/frontier.sh`（既定・4 thread・1 worker で
 checker 1/4/8 = 重複を命令数で、tsrs 既定・`--singleThreaded`・4 thread の knob）。WASM は単 thread なので 1 thread の効率は製品価値のまま。
+利用者の追加（21:25）：**WASM 用に single thread の行**（worker 1・checker 1 対 tsrs `--singleThreaded`、wall と peak）も製品指標に入れる。
+WASM は溢れる core がなく wasm32 の linear memory が peak を縛る（VS Code の 1 thread peak は今 ≈ 3.6 GB 対 tsrs ≈ 2 GB）ので、1 thread の wall と
+peak は機構の台帳ではなく製品値。packet の表は project ごとに single・4 thread・既定の 3 行。tsrs 側の knob は patch 不要（Opus の確認：
+`RAYON_NUM_THREADS=N` が worker pool、`--checkers N` が checker 数、既定は pool 10・checker 4）。
 
 PR [#871](https://github.com/kazhiramatsu/tsc-rs/pull/871) → merge `43a78fc08`（2026-11-04。hosted run
 [41762963850](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41762963850) 全 job pass。local：lane の types test 57・checker 1,837、
