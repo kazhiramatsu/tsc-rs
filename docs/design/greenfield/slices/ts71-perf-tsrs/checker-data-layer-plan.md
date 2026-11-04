@@ -69,7 +69,7 @@ memory の圧縮は CPU を少し払う——命令数は **routing・複製・c
 | S6 | **ResolvedMembers 48 B、PropertiesView、IndexInfo 20 B** | symbols span + 名前 index + properties（AllMembers / Mask32 / List）+ calls / constructs / index_infos の span。member entry は `(SymbolId, EscapedName)` で名前を並べて probe（audit row 3）。 | b3 §3.4、audit |
 | S7 | **TypeMapper 12 B、InferenceContext 48 B、InferenceInfo 56 B、scratch の recycle** | 3 word の mapper（kind は下位 bit、ESCAPED bit）、連続した info block、inline の候補 2 個、walk buffer の pool、候補ごとの allocation log の reset。 | b3 §3.3–3.7、§5 |
 | S8 | **list と複製** | 保存した list を返す（properties / signatures / index infos、tsrs R18）、`to_vec` 149 か所を range に、TypeListId を cache の plumbing に通す、per-expression の String と node list の複製を消す。 | allocations §8、audit rows 5・7 |
-| S9 | **文字列** | 文字列 literal 型の鍵を `JsText` に（3 重保持を 1 つに）、名前表を store 内の平らな表（flag bit つき）、known-name 定数、薄い不変 `JsString` + builder。 | strings §8 |
+| S9 | **文字列（残り）** | strings 報告の大半（名前表の平らな region、scalar 検証の flag、literal 表の重複除去）は slice 12/13 で着地済み（VS Code：literal 表 3.9 MiB、名前 6.7 MiB）。残り：名前の flag bit 5 種（`__`・`___`・late-bound・数値名・`#`）で呼び出しごとの判定を置換、known-name 定数、literal 型の `JsText` id（順序は今の canonical WTF-8 byte 順のまま。UTF-16 単位ではない：tsgo pin あり）。 | strings §2.5・§3.4・§6、strings lane 記録 |
 | S10 | **flow node 16 B + pool、global な flow id** | per-document の antecedent pool、query ごとの `(file, FlowId)` 鍵と label の `to_vec` を消す。 | links-routing §7.3 |
 | S11 | **leaf の解放（CLI）** | check 済み leaf の parse / bind 出力（source text、per-node 表、locals）を document 単位で返す。読み graph の 9 条項 + 本 port 固有の 3 経路（undefined_properties cache、recovery resolver、…）を閉じてから。 | leaf-freeing §0–§4 |
 
@@ -92,7 +92,7 @@ Codex lane（checker 側の store）の 2 本**、Fable が統合・検証・台
 | 2 | S6 members 48 + PropertiesView + IndexInfo 20 + 名前つき entry | lane | −60〜−100 / −0.3〜−0.6% | b3 §3.4, audit row 3 |
 | 3 | S7 mapper 12 / context 48 / info 56 + recycle | lane | −110〜−170 / 0 ± 0.5% | b3 §3.3–3.7, §6 |
 | 3 | S8 list と複製（R18、`to_vec`、TypeListId） | lane | −10〜−20 / −2〜−3% | allocations §8, tsrs R18 −1.6% |
-| 4 | S9 文字列 | lane | −60〜−70 / −0.6〜−1.9% | strings §8 |
+| 4 | S9 文字列（残り） | lane | ≈ 0 / −0.5〜−1.5%（baseline を取り直して再予想） | strings lane 記録（2026-11-04：最初の lane は古い報告の前提で止まった） |
 | 4 | S10 flow 16 B + global id | Opus | −69 / −0.2〜−0.5% | links-routing §7.3 |
 | 5 | S11 leaf の解放 | lane | peak −280〜−380 / ≈ 0 | leaf-freeing §0 |
 | 5 | 後始末：C-0 step 1 の register（memo 停止で不要、+0.3%）の削除、残る `LinkSlot` 8 B の cold map、`generic_object_flags` を型の bit に | lane | 小 / −0.3% | links-routing §7.7 |
