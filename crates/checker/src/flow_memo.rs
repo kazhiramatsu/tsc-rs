@@ -16,7 +16,7 @@ use crate::state::CheckerState;
 pub(crate) const FLOW_DEPTH_LIMIT: u32 = 2000;
 const TABLE_SLOTS: usize = 1 << 12;
 /// Step 3 owns enabling replacement. There is no runtime mode switch.
-const MEMO_ENABLED: bool = false;
+const MEMO_ENABLED: bool = true;
 pub(crate) const MEMO_TRACKED: bool = MEMO_ENABLED || cfg!(feature = "flow-memo-shadow");
 pub(crate) const UNTAINTED: u32 = u32::MAX;
 /// Instantiated, began under an active mapper, or created an identity.
