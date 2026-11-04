@@ -325,11 +325,9 @@ impl<'a> CheckerState<'a> {
                 let source_symbol = self.binder.symbol(source);
                 let source_value_declaration = source_symbol.value_declaration;
                 let source_declarations = source_symbol.declaration_list();
-                let target_symbol = self.binder.symbol_mut(target);
-                target_symbol.flags |= source_flags;
-                for declaration in source_declarations {
-                    target_symbol.push_declaration(declaration);
-                }
+                self.binder.symbol_mut(target).flags |= source_flags;
+                self.binder
+                    .extend_declarations(target, &source_declarations);
                 if let Some(value_declaration) = source_value_declaration {
                     self.set_value_declaration(target, value_declaration);
                 }

@@ -5691,9 +5691,9 @@ impl<'a> CheckerState<'a> {
                 .and_then(|symbol| self.binder.symbol(symbol).parent),
             _ => None,
         };
+        self.binder.set_declarations_from(result, &declarations);
         {
             let symbol = self.binder.symbol_mut(result);
-            symbol.set_declarations(declarations.into());
             if !has_non_uniform_value_declaration {
                 symbol.value_declaration = first_value_declaration;
                 if parent.is_some() {

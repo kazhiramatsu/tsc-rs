@@ -5244,7 +5244,7 @@ impl<'a> CheckerState<'a> {
                 .extras()
                 .is_replaceable_by_method
         {
-            self.binder.symbol_mut(late_symbol).push_declaration(member);
+            self.binder.push_declaration(late_symbol, member);
         }
         if symbol_flags.intersects(SymbolFlags::VALUE)
             && self.binder.symbol(late_symbol).value_declaration.is_none()
@@ -5310,7 +5310,7 @@ impl<'a> CheckerState<'a> {
                 .extras()
                 .is_replaceable_by_method
         {
-            self.binder.symbol_mut(index_symbol).push_declaration(decl);
+            self.binder.push_declaration(index_symbol, decl);
         }
         Ok(())
     }
@@ -10252,9 +10252,8 @@ impl<'a> CheckerState<'a> {
                     }
                 };
                 if let Some(declaration) = declaration {
-                    let record = self.binder.symbol_mut(symbol);
-                    record.push_declaration(declaration);
-                    record.value_declaration = Some(declaration);
+                    self.binder.push_declaration(symbol, declaration);
+                    self.binder.symbol_mut(symbol).value_declaration = Some(declaration);
                 }
                 self.links
                     .set_fresh_symbol_type(symbol, LinkSlot::Resolved(ty));

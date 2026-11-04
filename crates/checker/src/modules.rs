@@ -2823,8 +2823,8 @@ impl<'a> CheckerState<'a> {
         }
         let flags = value.flags | self.binder.symbol(type_symbol).flags;
         let escaped_name = value.escaped_name;
-        let mut declarations = value.declaration_list();
-        for declaration in self.binder.symbol(type_symbol).declaration_list() {
+        let mut declarations = value.declarations().to_vec();
+        for &declaration in self.binder.symbol(type_symbol).declarations() {
             if !declarations.contains(&declaration) {
                 declarations.push(declaration);
             }
@@ -2834,8 +2834,8 @@ impl<'a> CheckerState<'a> {
         let members = self.binder.symbol(type_symbol).members().clone();
         let exports = self.binder.symbol(value_symbol).exports().clone();
         let result = self.binder.create_symbol(flags, escaped_name);
+        self.binder.set_declarations_from(result, &declarations);
         let symbol = self.binder.symbol_mut(result);
-        symbol.set_declarations(declarations);
         symbol.parent = parent;
         symbol.value_declaration = value_declaration;
         *symbol.members_mut() = members;

@@ -24,7 +24,7 @@ mod table;
 pub use table::{EscapedNameSet, NameKey, SymbolTable};
 
 mod declarations;
-pub use declarations::Declarations;
+pub use declarations::{DeclarationItem, DeclarationPool, Declarations};
 
 /// core-interfaces §2 (tsc Symbol, D6533). tsc creates `members`/
 /// `exports` lazily on first insertion; here an empty table means
@@ -49,7 +49,7 @@ pub struct Symbol {
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Symbol>() == 40);
+const _: () = assert!(std::mem::size_of::<Symbol>() == 32);
 
 /// The [`Symbol`] fields most symbols leave empty: the member, export and UMD
 /// global-export tables, the JS assignment-declaration members and two
@@ -112,18 +112,13 @@ impl Symbol {
     /// The declaration list itself, for a symbol that carries the same
     /// declarations as this one (tsgo copies the slice header).
     pub fn declaration_list(&self) -> Declarations {
-        self.declarations.clone()
+        self.declarations
     }
 
-    /// Give the symbol its whole declaration list.
+    /// Give the symbol a declaration list its arena's pool issued (or one
+    /// another symbol of a live arena carries).
     pub fn set_declarations(&mut self, declarations: Declarations) {
         self.declarations = declarations;
-    }
-
-    /// Append one declaration (addDeclarationToSymbol and the checker's
-    /// symbols built one declaration at a time).
-    pub fn push_declaration(&mut self, declaration: NodeId) {
-        self.declarations.push(declaration);
     }
 
     /// The fields few symbols set; their defaults when none was written.
@@ -206,11 +201,46 @@ impl Symbol {
 /// allocating SymbolId from a per-file base (the checker binds file N
 /// with the base continuing where file N-1 ended, then allocates its
 /// own transient symbols above all files). Single-file paths keep 0.
-#[derive(Clone, Debug, Default)]
+#[derive(Debug)]
 pub struct SymbolArena {
     symbols: StoreVec<Symbol>,
     base: u32,
     lease: Option<IdentityLease>,
+    /// The symbols' declaration lists.
+    declarations: DeclarationPool,
+}
+
+/// Items per declaration room: a document's binder lists are a few hundred
+/// items, so small rooms let documents share pages; a checker's are many.
+fn declaration_chunk(base: u32) -> u32 {
+    if base >= TRANSIENT_SYMBOL_BIT {
+        4096
+    } else {
+        128
+    }
+}
+
+impl Default for SymbolArena {
+    fn default() -> Self {
+        Self::with_base(0)
+    }
+}
+
+/// A copy owns its declaration lists: they are issued again in its own pool.
+impl Clone for SymbolArena {
+    fn clone(&self) -> Self {
+        let mut declarations = DeclarationPool::with_chunk_capacity(declaration_chunk(self.base));
+        let mut symbols = self.symbols.clone();
+        for symbol in symbols.iter_mut() {
+            symbol.declarations = declarations.alloc(&symbol.declarations);
+        }
+        Self {
+            symbols,
+            base: self.base,
+            lease: self.lease.clone(),
+            declarations,
+        }
+    }
 }
 
 impl tsc_store::StoreRecord for Symbol {
@@ -285,16 +315,16 @@ impl std::fmt::Display for SymbolArenaExhausted {
 impl std::error::Error for SymbolArenaExhausted {}
 
 impl SymbolArena {
-    /// Symbol count, the arena's bytes, and the heap bytes of the symbols'
-    /// names and declaration lists; `tables` collects each distinct
-    /// member/export table once (they are shared between symbols).
+    /// Symbol count, the arena's bytes, and the bytes of the symbols' names
+    /// and declaration lists; `tables` collects each distinct member/export
+    /// table once (they are shared between symbols).
     pub fn memory_usage(
         &self,
         tables: &mut rustc_hash::FxHashMap<*const SymbolTable, usize>,
     ) -> (usize, usize, usize) {
-        let mut owned = 0;
+        let mut owned = self.declarations.live_bytes();
         for symbol in &self.symbols {
-            owned += symbol.escaped_name.heap_bytes() + symbol.declarations.heap_bytes();
+            owned += symbol.escaped_name.heap_bytes();
             for table in symbol.tables() {
                 tables
                     .entry(std::sync::Arc::as_ptr(table))
@@ -323,6 +353,7 @@ impl SymbolArena {
             symbols: StoreVec::with_capacity(capacity),
             base,
             lease: None,
+            declarations: DeclarationPool::with_chunk_capacity(declaration_chunk(base)),
         }
     }
 
@@ -336,7 +367,33 @@ impl SymbolArena {
             symbols: StoreVec::claim_room(base + 1, room),
             base,
             lease: None,
+            declarations: DeclarationPool::with_chunk_capacity(declaration_chunk(base)),
         }
+    }
+
+    /// A declaration list of `nodes` for a symbol of this arena.
+    pub fn declarations_from(&mut self, nodes: &[NodeId]) -> Declarations {
+        self.declarations.alloc(nodes)
+    }
+
+    /// Give `symbol` the declaration list `nodes`.
+    pub fn set_declarations_from(&mut self, symbol: SymbolId, nodes: &[NodeId]) {
+        let declarations = self.declarations.alloc(nodes);
+        self.symbol_mut(symbol).declarations = declarations;
+    }
+
+    /// Append `declaration` to `symbol`'s list (addDeclarationToSymbol).
+    pub fn push_declaration(&mut self, symbol: SymbolId, declaration: NodeId) {
+        let list = self.symbol(symbol).declarations;
+        let declarations = self.declarations.append(list, declaration);
+        self.symbol_mut(symbol).declarations = declarations;
+    }
+
+    /// Append `declarations` to `symbol`'s list (mergeSymbol).
+    pub fn extend_declarations(&mut self, symbol: SymbolId, declarations: &[NodeId]) {
+        let list = self.symbol(symbol).declarations;
+        let joined = self.declarations.extend(list, declarations);
+        self.symbol_mut(symbol).declarations = joined;
     }
 
     /// Room for `additional` more symbols without moving the arena: a

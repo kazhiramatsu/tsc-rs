@@ -1927,11 +1927,8 @@ impl<'a> CheckerState<'a> {
                         left_prop,
                         right_prop,
                     );
-                    let mut declarations = left_declarations;
-                    declarations.extend(right_declarations);
-                    self.binder
-                        .symbol_mut(result)
-                        .set_declarations(declarations);
+                    let declarations = [&left_declarations[..], &right_declarations[..]].concat();
+                    self.binder.set_declarations_from(result, &declarations);
                     let name_type = self.links.symbol(left_prop).name_type;
                     self.links
                         .set_symbol_name_type(self.speculation_depth, result, name_type);

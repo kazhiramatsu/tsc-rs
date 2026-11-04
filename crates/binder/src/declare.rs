@@ -859,7 +859,7 @@ impl<'a> BinderWorker<'a> {
         self.node_symbol.insert(node, symbol);
         // appendIfUnique
         if !self.symbols.symbol(symbol).declarations().contains(&node) {
-            self.symbols.symbol_mut(symbol).push_declaration(node);
+            self.symbols.push_declaration(symbol, node);
         }
         let sym = self.symbols.symbol_mut(symbol);
         if sym.extras().const_enum_only_module == Some(true)

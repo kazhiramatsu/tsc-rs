@@ -1272,6 +1272,39 @@ impl<'a> ProgramBinder<'a> {
         }
     }
 
+    /// A declaration list of `nodes` for a checker symbol (issued by the
+    /// transient arena's pool, which lives as long as the checker's symbols).
+    pub fn declarations_from(&mut self, nodes: &[NodeId]) -> tsc_binder::Declarations {
+        self.transient.declarations_from(nodes)
+    }
+
+    /// Give the checker symbol `symbol` the declaration list `nodes`.
+    pub fn set_declarations_from(&mut self, symbol: SymbolId, nodes: &[NodeId]) {
+        debug_assert!(
+            self.owner_of_symbol(symbol).is_err(),
+            "{symbol:?} is a file symbol"
+        );
+        self.transient.set_declarations_from(symbol, nodes);
+    }
+
+    /// Append `declaration` to the checker symbol `symbol`'s list.
+    pub fn push_declaration(&mut self, symbol: SymbolId, declaration: NodeId) {
+        debug_assert!(
+            self.owner_of_symbol(symbol).is_err(),
+            "{symbol:?} is a file symbol"
+        );
+        self.transient.push_declaration(symbol, declaration);
+    }
+
+    /// Append `declarations` to the checker symbol `symbol`'s list.
+    pub fn extend_declarations(&mut self, symbol: SymbolId, declarations: &[NodeId]) {
+        debug_assert!(
+            self.owner_of_symbol(symbol).is_err(),
+            "{symbol:?} is a file symbol"
+        );
+        self.transient.extend_declarations(symbol, declarations);
+    }
+
     /// tsrs-native: size the transient arena for `additional` symbols up
     /// front (an allocation hint; no identity depends on it).
     pub fn reserve_transient_symbols(&mut self, additional: usize) {

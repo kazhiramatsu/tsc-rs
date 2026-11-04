@@ -867,10 +867,8 @@ impl CheckerState<'_> {
             SymbolFlags::PROPERTY,
             tsc_types::EscapedName::internal(tsc_types::InternalSymbolName::INDEX),
         );
+        self.binder.set_declarations_from(symbol, &declarations);
         let record = self.binder.symbol_mut(symbol);
-        for &declaration in &declarations {
-            record.push_declaration(declaration);
-        }
         record.value_declaration = Some(declarations[0]);
         record.parent = parent;
         self.links.set_symbol_type(
