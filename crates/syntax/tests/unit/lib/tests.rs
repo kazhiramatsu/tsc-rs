@@ -74,6 +74,21 @@ fn identifier_count_matches_tsgo() {
     }
 }
 
+/// tsgo's ScannerState carries the comment directives: a speculation that is
+/// rewound (here a failed parenthesized-arrow parse, and the async-arrow
+/// lookahead of 6.0.3 that read a whole function body) leaves each directive
+/// once.
+#[test]
+fn rewound_speculation_leaves_each_comment_directive_once() {
+    for text in [
+        "let v = (a,\n// @ts-expect-error\nb);\n",
+        "const f = (o: X) => async function () {\n// @ts-ignore\na\n}\n",
+    ] {
+        let source = parse_source_file("a.ts", text, ParseOptions::default(), None);
+        assert_eq!(source.comment_directives.len(), 1, "{text:?}");
+    }
+}
+
 #[test]
 fn snapshot_entry_preserves_text_and_position_owner_identity() {
     let snapshot = TextSnapshot::new("const value = '😀';\n", DocumentVersion::new("host-v1"));
