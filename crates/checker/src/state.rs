@@ -480,6 +480,10 @@ pub(crate) struct InProgressMappedType {
 
 /// One deferred report (tsgo `addDeferredDiagnostic`).
 pub(crate) enum DeferredDiagnostic {
+    /// Generated-code collisions read the completed private/super flags
+    /// when the common callback queue is produced (checker.go:10774,10808).
+    WeakMapSetCollision(NodeId),
+    ReflectCollision(NodeId),
     /// `reportNonexistentProperty` of an access to a missing property
     /// (checker.go:11547-11550).
     NonexistentProperty {
@@ -878,19 +882,11 @@ pub struct CheckerState<'a> {
     /// index iteration over the IndexSet.
     pub(crate) deferred_nodes: rustc_hash::FxHashMap<NodeId, indexmap::IndexSet<NodeId>>,
 
-    // ---- M4 5.8a: checkSourceFileWorker's per-file accumulators ----
-    // tsc potential*Collisions + potentialUnusedRenamedBindingElements
-    // InTypes (47436-47440): cleared at worker entry, drained at the
-    // worker tail. Deliberately ABSENT from UnwindSnapshot: they are
-    // per-FILE accumulators that legitimately grow across elements
-    // (same class as widening_contexts), not transient per-element
-    // stacks.
-    pub(crate) potential_weak_map_set_collisions: Vec<NodeId>,
-    pub(crate) potential_reflect_collisions: Vec<NodeId>,
-    /// tsgo `deferredDiagnosticCallbacks` (checker/checker.go:904,
-    /// 14209-14218): the reports whose type names are printed at the end of
-    /// the file check, in the order they were queued, because printing the
-    /// type earlier can resolve a type that is still being resolved.
+    // Deferred reports and renamed bindings survive candidate rejection;
+    // these accumulators are not transient per-element stacks.
+    /// tsgo `deferredDiagnosticCallbacks`: reports produced in discovery
+    /// order at the file tail or global-diagnostic getter. Type display
+    /// waits for resolution to finish; collisions read completed flags.
     pub(crate) deferred_diagnostics: Vec<DeferredDiagnostic>,
     /// tsgo `declarationFileLinks.aliasesMarked` (emitresolver.go:236-246):
     /// the source files whose export assignments and export specifiers
@@ -1088,10 +1084,6 @@ pub struct CheckerState<'a> {
     /// diagnostic-compatible UTF-16 coordinates. Oracle-crash aborts
     /// are range-only and deliberately do not create these records.
     pub(crate) partial_check_records: Vec<crate::PartialCheck>,
-    /// Literal operands whose `satisfies` elaboration already emitted
-    /// an inner diagnostic. Re-checks must not add the outer 1360.
-    pub(crate) elaborated_satisfies_expressions: rustc_hash::FxHashSet<NodeId>,
-
     // ---- M4 5.0: the global environment (initializeTypeChecker) ----
     /// tsc `globals` (46488): non-module file locals merged in program
     /// order.
@@ -1814,8 +1806,6 @@ impl<'a> CheckerState<'a> {
             line_profile: crate::line_profile::LineProfiler::new(),
             profile_ops: [0; crate::line_profile::OPS],
             deferred_nodes: rustc_hash::FxHashMap::default(),
-            potential_weak_map_set_collisions: Vec::new(),
-            potential_reflect_collisions: Vec::new(),
             deferred_diagnostics: Vec::new(),
             declaration_emit_aliases_marked: rustc_hash::FxHashSet::default(),
             deferred_ambient_module_symbols: Vec::new(),
@@ -1862,7 +1852,6 @@ impl<'a> CheckerState<'a> {
             partially_checked_ranges: rustc_hash::FxHashMap::default(),
             contained_call_resolutions: rustc_hash::FxHashSet::default(),
             partial_check_records: Vec::new(),
-            elaborated_satisfies_expressions: rustc_hash::FxHashSet::default(),
             globals: std::sync::Arc::default(),
             undefined_symbol,
             global_this_symbol,

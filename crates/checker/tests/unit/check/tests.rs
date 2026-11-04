@@ -11255,3 +11255,152 @@ fn a_pair_inferred_contravariantly_is_inferred_again_covariantly() {
         "Type 'HookMap<Hook<A | [A] | [C], B>>' is not assignable to type 'HookMap<Shape<[A], B>>'."
     );
 }
+
+#[test]
+fn deferred_diagnostics_follow_tsgo_discovery_order() {
+    let text = r#"export {};
+declare const value: {};
+value.missing;
+declare const union: { first: string } | { tag: number };
+for (const x of union) {}
+const Reflect = 1;
+declare class Base { static value: number; }
+class Derived extends Base { static value = super.value; #x = 1; }
+const WeakSet = 1;
+for (const y of value) {}
+declare const broken: { [Symbol.iterator](): number };
+for (const brokenItem of broken) {}
+const WeakMap = 1;
+async function iterate() { for await (const z of value) {} }
+"#;
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        ..CompilerOptions::default()
+    };
+    let lib = r#"interface SymbolConstructor { readonly iterator: unique symbol; readonly asyncIterator: unique symbol; }
+declare var Symbol: SymbolConstructor;
+interface Array<T> { [n: number]: T; length: number; }
+interface Iterator<T, TReturn = any, TNext = any> { next(): any; }
+interface Iterable<T, TReturn = any, TNext = any> { [Symbol.iterator](): Iterator<T, TReturn, TNext>; }
+"#;
+    with_program_state(&[("lib.d.ts", lib), ("a.ts", text)], &options, |state| {
+        state.check_source_file(1);
+        let rows = state
+            .diagnostics
+            .iter()
+            .filter(|d| matches!(d.code(), 2339 | 2488 | 2504 | 2818 | 18027))
+            .map(|d| (d.code(), d.start.unwrap()))
+            .collect::<Vec<_>>();
+        let at = |needle: &str| text.find(needle).unwrap() as u32;
+        // The two iteration registration sites (union and slow lookup),
+        // missing property and both collision callbacks share one FIFO.
+        // The async function body is discovered in checkDeferredNodes.
+        assert_eq!(
+            rows,
+            [
+                (2339, at("missing")),
+                (2488, at("union)")),
+                (2818, at("Reflect =")),
+                (18027, at("WeakSet =")),
+                (2488, at("value)")),
+                (2488, at("broken)")),
+                (18027, at("WeakMap =")),
+                (2504, text.rfind("value)").unwrap() as u32),
+            ]
+        );
+        let broken = state
+            .diagnostics
+            .iter()
+            .find(|d| d.start == Some(at("broken)")))
+            .unwrap();
+        assert!(
+            !broken.related.is_empty(),
+            "slow-lookup related information"
+        );
+        assert!(state.deferred_diagnostics.is_empty());
+        let before = state.diagnostics.to_vec();
+        state.produce_deferred_diagnostics();
+        assert_eq!(&*state.diagnostics, &before);
+    });
+}
+
+#[test]
+fn rejected_candidate_retains_renamed_signature_binding_registration() {
+    let text = "declare function f({ value: number });";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let binding = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&n| state.kind_of(n) == SyntaxKind::BindingElement)
+            .unwrap();
+        state
+            .speculate(|state| {
+                state.check_source_element(Some(binding));
+                Ok(crate::speculate::SpeculationOutcome::Reject(()))
+            })
+            .unwrap();
+        assert_eq!(
+            state.potential_unused_renamed_binding_elements_in_types,
+            [binding]
+        );
+        state.check_potential_unchecked_renamed_binding_elements_in_types();
+        let diagnostic = state
+            .diagnostics
+            .iter()
+            .find(|d| d.file_name.is_some())
+            .expect("unused renaming");
+        assert_eq!(diagnostic.code(), 2842);
+        assert_eq!(diagnostic.related.len(), 1);
+        assert_eq!(
+            diagnostic.related[0].start,
+            Some(text.find(')').unwrap() as u32)
+        );
+    });
+}
+
+#[test]
+fn rejected_candidate_retains_collision_reports_until_flags_are_complete() {
+    let text = "export {};\nfunction probe() {\nconst WeakMap = 1; const WeakSet = 1; const Reflect = 1;\nclass Base { static value = 1; }\nclass Derived extends Base { #value = 1; static value = super.value; }\n}\n";
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        ..CompilerOptions::default()
+    };
+    with_program_state(&[("a.ts", text)], &options, |state| {
+        let root = state.binder.source(0).root;
+        let body = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&n| state.kind_of(n) == SyntaxKind::Block)
+            .unwrap();
+        state
+            .speculate(|state| {
+                state.check_source_element(Some(body));
+                state.check_deferred_nodes(root);
+                Ok(crate::speculate::SpeculationOutcome::Reject(()))
+            })
+            .unwrap();
+        assert_eq!(state.deferred_diagnostics.len(), 3);
+        assert!(!state
+            .diagnostics
+            .iter()
+            .any(|d| matches!(d.code(), 18027 | 2818)));
+        state.produce_deferred_diagnostics();
+        let rows = state
+            .diagnostics
+            .iter()
+            .filter(|d| matches!(d.code(), 18027 | 2818))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rows.iter().map(|d| d.code()).collect::<Vec<_>>(),
+            [18027, 18027, 2818]
+        );
+        assert!(rows
+            .iter()
+            .all(|d| d.skipped_on_no_emit && d.related.is_empty()));
+        assert!(state.deferred_diagnostics.is_empty());
+    });
+}
