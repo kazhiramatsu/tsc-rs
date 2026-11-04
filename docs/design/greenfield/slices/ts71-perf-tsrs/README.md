@@ -913,6 +913,11 @@ PR [#873](https://github.com/kazhiramatsu/tsc-rs/pull/873) → merge `fcdd24e5b`
 [41769776478](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41769776478) 全 job pass。local：lane の checker test 1,839、3 段の A/B（3b の emit の修正を含む）、
 `--checkers 4` が main の報告と 15,339 構成一致、8 case で出力一致、serial は上の表）。
 
+PR [#872](https://github.com/kazhiramatsu/tsc-rs/pull/872) → merge `15d095c97`（2026-11-04。hosted run
+[41777167903](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41777167903) 全 job pass。#868 の flow.rs と衝突したので local で解決
+（両方の追加を残す。`cargo check` と flow の test 9 件で確認）。local：lane の checker test 1,838・syntax 260、`--checkers 4` が main の
+報告と 15,339 構成一致、8 case で出力一致、serial は上の表）。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
@@ -939,6 +944,9 @@ memo の shadow 計測、checker の store の形）。
 | D1（publication の relocation を差分で、map と publish の融合。Opus） | #875 | −1.0〜−1.3 G（profile の relocation 91 ms + memmove 42 ms を平均の命令率で換算） | VS Code −0.25 G（−0.2%、3 round の中央値）、他 −0.7〜−2.4%、peak と memory 行は不変 | **帯の外（大きく下）**。原因：memory 帯域に縛られる streaming で、word あたり ≈10 命令 × 3,000 万 word ≈ 0.3 G が実体、memcpy は帯域の費用（≈0.02 G）。教訓を §0 の予想の作法に追加（CPU 時間か word あたりの命令数で見積もる）。8 project で改善なので計測値のまま着地 |
 | R29 4〜7（残りの sort site の Go の履歴、symbol の順序 id） | なし（branch `perf/ts71-r29b-p2` deb3eeeab） | credit なし（fidelity） | VS Code **+3.6%**（150.27 対 145.00 G）、peak **+342 MB**（3,962）；zod +5.3%、effect +5.5%、hono +4.7%、next +3.9% / +34 MB（同じ run。1〜3 単独は −1.2%）。出力は main と一致 | **止めた**。原因：`SymbolOrderIds` が `Mutex<FxHashMap<SymbolId, u64>>` で、value link を読むたびに `touch_links`（mutex + hash、symbol あたり ≈40 B）。tsgo は id を `ast.Symbol` の field に持つ。改善案は data 層の書き直しの S1/S2（順序 id を checker ごとの dense な表に）に吸収 |
 | C-0 step 2 + memo on（flow memo。step 2 = 鍵・表・lookup/store・shadow 検証、memo off；step 3 = on） | なし（branch `perf/ts71-c0-step2` 6dd36c387） | P9：VS Code 0〜2.2% | memo on で出力は main と一致（4-checker 15,339、8 project）。命令数：TypeScript compiler **−10.2%**、playwright −3.8%、vue −2.4%、Next.js −0.7〜−2.0%、zod −1.3%、hono −1.5%、effect ±0、**VS Code ±0**（表を 1<<14・1<<16 にしても同じ。hit 率は 36%：1,577 万 lookup / 568 万 hit / 1,245 万 store）。shadow 実行で VS Code に不一致 1 件（型は同じ、frame flag の bit 違い） | VS Code は帯の下端。tsrs の R17 は VS Code では移らない（飛ばせる walk が短く lookup/store と相殺）。不一致の修正と eligibility の実験を lane に出した直後、利用者が data 層の書き直しを決めたので **停止**（memo を戻すなら新しい data 層の上で） |
+| call routes を tsgo と同じに（census の差の行：alias の gate、relation/signature の callback、index lookup、apparent type の cache、resolver の経路） | #876 | fidelity、≈ 0〜−1% | VS Code +0.2%（noise）、ts −0.4%、next −1.9%、zod −2.6%、effect −0.9%、hono −1.9%、vue −4.3%、playwright −2.3%；peak 不変；出力一致（c4 15,339、8 project） | VS Code は中立、他 7 は帯の上 |
+| copy census の切り口 5 件（inference visited map の key 単位の clear、symbol 表の成長、JsString の一括 span、flow antecedent の snapshot、member sort の key/range buffer） | #877 | census の見積（walk / call ごとの確保数。G では未価格） | VS Code −0.9%、playwright −4.0%、zod −3.2%、hono −2.6%、vue −2.3%、next −1.5%、effect −0.7%、ts ±0；peak 不変；出力一致 | 上振れ |
+| S10 flow node 16 B + antecedent の span + global な flow id（Opus、予想行） | — | Opus の census（10,270 file、flow node 239 万、file あたり中央値 73・p90 565・最大 17,232；32 record の chunk で端数 2.88 MiB）：record 72.9 → 36.5 MiB、list 10.6 → 3.8 MiB、net ≈ −40 MiB live；命令数 −0.2〜−0.5% | 着地待ち | — |
 
 **合算（2026-11-04 時点）。** 静かな計測の main `1a05993fb` は 141.97 G。4 つの checker/types の branch が全部入ると ≈ −2.5%
 （加算できれば ≈ 138.4 G。merge 後に静かな machine で測り直す）。A-1c の残り + A-1d + A-3 の帯（3.39〜3.63 + 0〜1.39 + 3.36〜7.66 G）を
