@@ -1093,6 +1093,54 @@ hosted run [41836928888](https://github.com/kazhiramatsu/tsc-rs/actions/runs/418
 fingerprint 143,190 行 差分 0、8 case で出力と統計行（Files〜Instantiations）が main と一致、`--checkers 4` は既知の 4 件（15,335 一致）で
 C8 の 4-checker 報告とは 15,339 すべて一致、計測は上の通り。
 
+## M2 の fidelity 修正 2：型引数の list が空の alias は non-generic（branch `perf/ts71-nongeneric-empty-alias`、tsgo isNonGenericTopLevelType）
+
+M2 の item 1b。#885 の後も vue の instantiation は tsgo より 19,725 多かった。両方の engine で数え方を比べて原因を特定した（`m2/vue-instantiations.md`
+の「Item 1b」）。
+
+**比べ方**
+- 最上位の instantiation の入口は一致していた（123,204 対 123,611）。差は展開の中にある。
+- 各 property の展開を比べると、差は二つの property に集中していた：`__asyncResolved?: ConcreteComponent`（tsgo は 1 回の使用につき 1、
+  tsc-rs は 8）と `components?: LC & Record<string, Component>`。
+
+**原因**：vue は type parameter がすべて default を持つ generic alias（`ConcreteComponent`・`Component`）を import し、型引数なしで書く。
+- tsgo は alias を `{symbol, []}` にする（getTypeArgumentsFromNode）。isNonGenericTopLevelType は `len(alias.typeArguments) == 0` なので
+  non-generic と判定し、instantiate しない。
+- tsc-rs も alias を `Some(vec![])` で作るが、`is_non_generic_top_level_type` は `None` だけを見ていた。そのため毎回 union とその member を
+  instantiate していた。
+
+修正は 1 行で、tsgo と同じく空かどうかを見る。
+
+**統計行**（親 main `22c755af5` 比、1 thread）
+- vue −32,627。#885 の上では 569,481 → 548,963（tsgo 549,756）。getTypeOfInstantiatedSymbol・getInferredType・createMarkerType などが
+  tsgo と完全に一致する。
+- zod −459・next −42・hono −7。変わった property はすべて tsgo と一致するか、tsgo に近づく。
+- 他は 0。出力は 8 project とも一致。
+
+**退けた案**：型引数を書かない場合に list を持たない表現にすると、vue は同じく一致する。しかし playwright で tsgo が行う 5,856 の
+instantiation が消える。原因は型の順序付け（`type_order.rs:497`）で、tsgo の compareTypeNames は list を常に比べるのに、tsc-rs は
+最初の型が list を持つときだけ比べる。None と空を区別する読み手の監査は別の項目にした。
+
+**計測**：1 thread、通常 build、静かな machine（02:30〜02:32）。`serial.py` の warm-up 1 回 + 3 回の中央値。
+
+| project | 命令数 | 備考 |
+|---|---:|---|
+| vue | **−0.65%**（15.17 → 15.07 G） | 3 回とも同じ |
+| 他の 7 project | −0.02〜+0.03% | |
+
+peak footprint はすべて ±1 MB 以内。
+
+**予想との差**：予想は vue −0.2〜−0.4%（N = 32,627 × c = 1〜2 K 命令）だった。実測は良い側に外れ、1 個あたり約 3 K になった。展開を
+省くと、型と symbol を作る仕事も消える（vue の Types −906、Symbols −2,755）。この仕事は instantiation の数には入っていなかった。
+
+**記録。** PR [#886](https://github.com/kazhiramatsu/tsc-rs/pull/886) → merge `75019a7e2`（2026-11-05。`970d0c301`、最終 head `69dd90377`）。hosted run
+[41900857035](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41900857035)：全 job pass。local（hosted がしないことだけ、`970d0c301`）：
+- tsgo に合わせた unit test（修正なしでは 11 対 9 で失敗）
+- checker の test 1,863 + 1、fmt、release build
+- 8 case で出力（exit code・stdout・stderr）が main と一致
+- `--checkers 4` は既知の 4 件のみ。最新の 4-checker 報告とは 15,339 構成すべて一致
+- 計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
