@@ -1,0 +1,672 @@
+# DRAFT — reviewed locally as text only; no hosted run has been performed.
+# Inert until the owner sets the repository variable PGO_CI_ENABLED=true.
+# Before activation: pin the new actions below to reviewed full commit SHAs,
+# run the hosted smoke/calibration described in REPORT.md, and approve cost.
+# No push/synchronize trigger, secrets, release upload, or required-check wiring.
+name: DRAFT on-demand PGO and instruction counts
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Open same-repository PR number (snapshot its base and head)
+        required: true
+        type: string
+      build_kind:
+        description: Compare PGO builds, or normal builds for small code changes
+        required: true
+        type: choice
+        options: [pgo, normal]
+        default: pgo
+      cachegrind:
+        description: Count instructions twice per binary and project (slow)
+        type: boolean
+        default: true
+  pull_request:
+    types: [labeled] # Add/re-add perf:pgo or perf:instructions to request a run.
+
+permissions:
+  contents: read
+
+concurrency:
+  # An unrelated label must not cancel an expensive requested run.
+  group: pgo-${{ (github.event_name == 'workflow_dispatch' && inputs.pr_number) || ((github.event.label.name == 'perf:pgo' || github.event.label.name == 'perf:instructions') && github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  RECIPE: ci-pgo-v1
+  TOOLCHAIN: 1.99.1
+  PROFILE: 7.1.0-dev-aa814927
+  UPSTREAM_SHA: aa8149273b23401f0a79a5f0384c42de51888693
+  HONO_SHA: 8dcd52b92beada28962e818bdca8a137a6beb656
+  TYPESCRIPT_SHA: 050880ce59e30b356b686bd3144efe24f875ebc8
+  CARGO_BUILD_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+  RUSTC_WRAPPER: ""
+  LC_ALL: C
+  TZ: UTC
+
+jobs:
+  request:
+    if: >-
+      vars.PGO_CI_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.label.name == 'perf:pgo' ||
+       github.event.label.name == 'perf:instructions')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      pr: ${{ steps.snapshot.outputs.pr }}
+      base: ${{ steps.snapshot.outputs.base }}
+      head: ${{ steps.snapshot.outputs.head }}
+      kind: ${{ steps.snapshot.outputs.kind }}
+      counts: ${{ steps.snapshot.outputs.counts }}
+      matrix: ${{ steps.snapshot.outputs.matrix }}
+    steps:
+      - id: snapshot
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          REQUESTED_PR: ${{ inputs.pr_number }}
+          REQUESTED_KIND: ${{ inputs.build_kind }}
+          REQUESTED_COUNTS: ${{ inputs.cachegrind }}
+        with:
+          script: |
+            const manual = context.eventName === 'workflow_dispatch';
+            const text = manual ? process.env.REQUESTED_PR : String(context.payload.number);
+            if (!/^[1-9][0-9]*$/.test(text)) throw new Error('Expected a PR number');
+            const number = Number(text);
+            if (!Number.isSafeInteger(number)) throw new Error('Invalid PR number');
+            const pr = manual
+              ? (await github.rest.pulls.get({...context.repo, pull_number: number})).data
+              : context.payload.pull_request;
+            const repository = `${context.repo.owner}/${context.repo.repo}`;
+            if (pr.state !== 'open' || pr.base.repo.full_name !== repository ||
+                pr.head.repo?.full_name !== repository) {
+              throw new Error('Draft supports open same-repository PRs only');
+            }
+            const kind = manual ? process.env.REQUESTED_KIND
+              : context.payload.label.name === 'perf:instructions' ? 'normal' : 'pgo';
+            if (!['normal', 'pgo'].includes(kind)) throw new Error('Invalid build kind');
+            for (const sha of [pr.base.sha, pr.head.sha]) {
+              if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error('Expected immutable source SHA');
+            }
+            core.setOutput('pr', String(number));
+            core.setOutput('base', pr.base.sha);
+            core.setOutput('head', pr.head.sha);
+            core.setOutput('kind', kind);
+            core.setOutput('counts', manual ? process.env.REQUESTED_COUNTS : 'true');
+            core.setOutput('matrix', JSON.stringify({include: [
+              {side: 'base', sha: pr.base.sha}, {side: 'head', sha: pr.head.sha}
+            ]}));
+            core.info(`PR #${number}: ${pr.base.sha} -> ${pr.head.sha}; ${kind}`);
+
+  corpus:
+    needs: request
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Pinned hono production sources and configuration
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # Same SHA as ci.yml.
+        with:
+          repository: honojs/hono
+          ref: ${{ env.HONO_SHA }}
+          path: corpora/hono
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /src/
+            /package.json
+            /tsconfig*.json
+      - name: Pinned TypeScript 6.0.3 sources (not the current Go-only main)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: microsoft/TypeScript
+          ref: ${{ env.TYPESCRIPT_SHA }}
+          path: corpora/typescript
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /src/
+            /package.json
+            /package-lock.json
+      - name: Freeze the minimal declaration dependencies and noEmit inputs
+        timeout-minutes: 8
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, io, json, os, shutil, subprocess, tarfile, tempfile
+          import urllib.request
+          from pathlib import Path
+          root = Path('corpora')
+          for name, pin in [('hono', os.environ['HONO_SHA']),
+                            ('typescript', os.environ['TYPESCRIPT_SHA'])]:
+              actual = subprocess.check_output(['git', '-C', str(root/name),
+                                                'rev-parse', 'HEAD'], text=True).strip()
+              if actual != pin:
+                  raise SystemExit(f'{name}: checkout SHA mismatch')
+          lock = json.loads((root/'typescript/package-lock.json').read_text())
+          dependencies = {}
+          # Both projects use this same closure. No npm/pnpm install, ranges,
+          # lifecycle scripts, generated upstream compiler, or ambient typings.
+          for name, version in [('@types/node', '25.3.3'), ('undici-types', '7.18.2')]:
+              item = lock['packages']['node_modules/' + name]
+              assert item['version'] == version
+              assert item['resolved'].startswith('https://registry.npmjs.org/')
+              assert item['integrity'].startswith('sha512-')
+              with urllib.request.urlopen(item['resolved'], timeout=90) as response:
+                  data = response.read()
+              actual = base64.b64encode(hashlib.sha512(data).digest()).decode()
+              assert 'sha512-' + actual == item['integrity'], name
+              destination = root/'types/node_modules'/name
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              with tempfile.TemporaryDirectory() as temporary:
+                  with tarfile.open(fileobj=io.BytesIO(data), mode='r:gz') as archive:
+                      archive.extractall(temporary, filter='data')
+                  entries = list(Path(temporary).iterdir())
+                  assert len(entries) == 1 and entries[0].is_dir()
+                  shutil.move(str(entries[0]), destination)
+              dependencies[name] = {k: item[k] for k in ['version', 'resolved', 'integrity']}
+          for project in ['hono', 'typescript']:
+              (root/project/'node_modules').symlink_to('../types/node_modules')
+          common = dict(composite=False, incremental=False, noEmit=True,
+                        declaration=False, declarationMap=False, sourceMap=False)
+          configs = {
+              'hono/tsconfig.ci-pgo.json': {
+                  'extends': './tsconfig.build.json', 'compilerOptions': common},
+              'typescript/src/compiler/tsconfig.ci-pgo.json': {
+                  'extends': './tsconfig.json',
+                  'compilerOptions': dict(common, emitDeclarationOnly=False,
+                                          isolatedDeclarations=False, rootDir='.'),
+                  'exclude': ['dist-bench.noindex']}}
+          for name, config in configs.items():
+              (root/name).write_text(json.dumps(config, indent=2) + '\n')
+          manifest = dict(recipe=os.environ['RECIPE'], hono=os.environ['HONO_SHA'],
+                          typescript=os.environ['TYPESCRIPT_SHA'], dependencies=dependencies,
+                          configs={name: hashlib.sha256((root/name).read_bytes()).hexdigest()
+                                   for name in configs})
+          (root/'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          print(json.dumps(manifest, indent=2))
+          PY
+          tar --exclude=.git -czf corpus.tar.gz corpora
+          sha256sum corpus.tar.gz
+          du -sh corpora
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: corpus
+          path: corpus.tar.gz
+          retention-days: 14
+          if-no-files-found: error
+
+  build:
+    needs: [request, corpus]
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.request.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300 # Separate per-side cap; existing rust/conformance limits stay unchanged.
+    env:
+      SIDE: ${{ matrix.side }}
+      SOURCE_SHA: ${{ matrix.sha }}
+      BUILD_KIND: ${{ needs.request.outputs.kind }}
+      WORKFLOW_SHA: ${{ github.workflow_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ matrix.sha }}
+          path: source
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: corpus
+      - name: Validate the source/toolchain/profile contract
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          tar -xzf corpus.tar.gz
+          python3 - <<'PY'
+          import json, os, tomllib
+          from pathlib import Path
+          toolchain = tomllib.loads(Path('source/rust-toolchain.toml').read_text())
+          assert toolchain['toolchain']['channel'] == os.environ['TOOLCHAIN']
+          manifest = json.loads((Path('source/vendor/typescript-native') /
+                                 os.environ['PROFILE'] / 'manifest.json').read_text())
+          assert manifest['commit'] == os.environ['UPSTREAM_SHA']
+          PY
+          rustup toolchain install "$TOOLCHAIN" --profile minimal --component llvm-tools
+          echo "RUNNER_IMAGE_VERSION=${ImageVersion:-unknown}" >> "$GITHUB_ENV"
+          cd source
+          rustc -vV
+          python3 - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+          sysroot = Path(subprocess.check_output(['rustc', '--print', 'sysroot'], text=True).strip())
+          host = next(line.split(': ', 1)[1] for line in
+                      subprocess.check_output(['rustc', '-vV'], text=True).splitlines()
+                      if line.startswith('host: '))
+          tool = sysroot/'lib/rustlib'/host/'bin/llvm-profdata'
+          assert tool.is_file()
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'PROFDATA={tool}\n')
+          subprocess.run([str(tool), '--version'], check=True)
+          PY
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: pgo-registry-${{ runner.os }}-${{ runner.arch }}-${{ env.TOOLCHAIN }}-${{ hashFiles('source/Cargo.lock') }}
+      - id: target_cache
+        if: vars.PGO_TARGET_CACHE == 'true'
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4 # Opt-in: large uploads; exact key, no fallback.
+        with:
+          path: source/target/pgo/${{ needs.request.outputs.kind == 'pgo' && 'instrumented' || 'normal' }}
+          key: pgo-target-${{ runner.os }}-${{ runner.arch }}-${{ env.RUNNER_IMAGE_VERSION }}-${{ env.TOOLCHAIN }}-${{ github.workflow_sha }}-${{ env.BUILD_KIND }}-${{ matrix.sha }}-${{ hashFiles('source/Cargo.lock') }}
+      - name: Instrumented build of CLI and the two in-process runners
+        if: needs.request.outputs.kind == 'pgo'
+        timeout-minutes: 80
+        working-directory: source
+        shell: bash
+        run: |
+          unset CARGO_ENCODED_RUSTFLAGS LLVM_PROFILE_FILE
+          mkdir -p target/pgo/profiles target/pgo/logs
+          export CARGO_TARGET_DIR="$PWD/target/pgo/instrumented"
+          export RUSTFLAGS="-Cprofile-generate=$PWD/target/pgo/profiles"
+          cargo build --locked --release -j 2 -p tsc-rs-cli -p tsc-rs-conformance \
+            --bin tsc-rs --bin conformance-ts71 --bin suites-ts71
+          # Discard build-script/proc-macro profiles even after a target cache hit.
+          find target/pgo/profiles -name '*.profraw' -delete
+      - name: Save instrumented objects before training, when target caching is enabled
+        if: >-
+          vars.PGO_TARGET_CACHE == 'true' && needs.request.outputs.kind == 'pgo' &&
+          steps.target_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: source/target/pgo/instrumented
+          key: ${{ steps.target_cache.outputs.cache-primary-key }}
+      - name: Train conformance in fixed serial batches, then suites and projects
+        if: needs.request.outputs.kind == 'pgo'
+        timeout-minutes: 100
+        working-directory: source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          root = Path.cwd()
+          out = root/'target/pgo'
+          binary = out/'instrumented/release'
+          env = dict(os.environ, TSRS_WORKERS='1', TSRS_CHECKERS='1')
+          profile = os.environ['PROFILE']
+          cases = sorted(subprocess.check_output(
+              [str(binary/'conformance-ts71'), '--profile', profile, '--list'],
+              text=True).splitlines())
+          assert len(cases) >= 12000, 'Unexpectedly small conformance corpus'
+          # Cases execute in-process through run_worker, not one CLI per test.
+          # Bound accumulated arena state and retain earlier batches on failure.
+          # Never silently skip/retry a crashing batch: that changes the profile.
+          for index, start in enumerate(range(0, len(cases), 128)):
+              name = f'conformance-{index:04d}'
+              listing = out/'logs'/f'{name}.cases'
+              listing.write_text(''.join(case + '\n' for case in cases[start:start+128]))
+              current = dict(env, LLVM_PROFILE_FILE=str(out/'profiles'/f'train-{name}-%p-%m.profraw'))
+              with (out/'logs'/f'{name}.log').open('w') as log:
+                  subprocess.run([str(binary/'conformance-ts71'), '--profile', profile,
+                                  '--checkers', '1', '--worker', str(listing)],
+                                 env=current, stdout=log, stderr=subprocess.STDOUT,
+                                 timeout=300, check=True)
+              if not list((out/'profiles').glob(f'train-{name}-*.profraw')):
+                  raise SystemExit(f'{name}: no training profile')
+              print(f'{name}: {min(128, len(cases)-start)} cases', flush=True)
+          current = dict(env, LLVM_PROFILE_FILE=str(out/'profiles/train-suites-%p-%m.profraw'))
+          with (out/'logs/suites.log').open('w') as log:
+              subprocess.run([str(binary/'suites-ts71'), '--profile', profile, '--no-report'],
+                             env=current, stdout=log, stderr=subprocess.STDOUT,
+                             timeout=900, check=True)
+          projects = [('hono', root.parent/'corpora/hono'),
+                      ('typescript', root.parent/'corpora/typescript/src/compiler')]
+          for name, directory in projects:
+              assert (directory/'tsconfig.ci-pgo.json').is_file()
+              current = dict(env, LLVM_PROFILE_FILE=str(out/'profiles'/f'train-{name}-%p-%m.profraw'))
+              with (out/'logs'/f'{name}.log').open('w') as log:
+                  result = subprocess.run([str(binary/'tsc-rs'), '-p', 'tsconfig.ci-pgo.json',
+                                           '--noEmit', '--pretty', 'false'], cwd=directory,
+                                          env=current, stdout=log, stderr=subprocess.STDOUT,
+                                          timeout=300)
+              print(f'{name}: exit {result.returncode}', flush=True)
+              if result.returncode not in (0, 1, 2):
+                  raise SystemExit(f'{name}: abnormal compiler termination')
+          for name in ['suites', 'hono', 'typescript']:
+              assert list((out/'profiles').glob(f'train-{name}-*.profraw')), name
+          (out/'logs/training.json').write_text(json.dumps(
+              dict(cases=len(cases), batch_size=128, checkers=1, workers=1,
+                   passes=dict(conformance=1, suites=1, hono=1, typescript=1)), indent=2))
+          PY
+      - name: Merge only this run's training profiles with rustc's LLVM
+        if: needs.request.outputs.kind == 'pgo'
+        timeout-minutes: 5
+        working-directory: source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+          out = Path('target/pgo')
+          raw = sorted((out/'profiles').glob('train-*.profraw'))
+          assert raw and all(p.stat().st_size > 0 for p in raw)
+          subprocess.run([os.environ['PROFDATA'], 'merge', '-o', str(out/'merged.profdata'),
+                          *map(str, raw)], check=True)
+          with (out/'logs/profile-summary.txt').open('w') as log:
+              subprocess.run([os.environ['PROFDATA'], 'show', str(out/'merged.profdata')],
+                             stdout=log, check=True)
+          print(f'{len(raw)} profiles; {sum(p.stat().st_size for p in raw)} raw bytes')
+          PY
+          # Do not keep two fat-LTO target trees on a small hosted disk.
+          # The optional instrumented cache was saved above; profiles are separate.
+          rm -rf target/pgo/instrumented
+      - name: Optimized build (or the requested normal build)
+        timeout-minutes: 80
+        working-directory: source
+        shell: bash
+        run: |
+          unset CARGO_ENCODED_RUSTFLAGS LLVM_PROFILE_FILE
+          mkdir -p target/pgo/logs
+          if [ "$BUILD_KIND" = pgo ]; then
+            export CARGO_TARGET_DIR="$PWD/target/pgo/optimized"
+            export RUSTFLAGS="-Cprofile-use=$PWD/target/pgo/merged.profdata -Cllvm-args=-pgo-warn-missing-function"
+          else
+            export CARGO_TARGET_DIR="$PWD/target/pgo/normal"
+            export RUSTFLAGS=""
+          fi
+          cargo build --locked --release -j 2 -p tsc-rs-cli
+          cp "$CARGO_TARGET_DIR/release/tsc-rs" target/pgo/tsc-rs
+          python3 - <<'PY'
+          import hashlib, json, os, platform, shutil, subprocess
+          from pathlib import Path
+          out = Path('target/pgo')
+          shutil.copy2('../corpora/manifest.json', out/'corpus-manifest.json')
+          meta = dict(source=os.environ['SOURCE_SHA'], side=os.environ['SIDE'],
+                      kind=os.environ['BUILD_KIND'], recipe=os.environ['RECIPE'],
+                      workflow=os.environ['WORKFLOW_SHA'], profile=os.environ['PROFILE'],
+                      rustc=subprocess.check_output(['rustc', '-vV'], text=True),
+                      profdata_version=subprocess.check_output([os.environ['PROFDATA'], '--version'], text=True),
+                      rustflags=os.environ['RUSTFLAGS'], system=platform.platform(),
+                      image=os.environ.get('ImageVersion'),
+                      cargo_lock_sha256=hashlib.sha256(Path('Cargo.lock').read_bytes()).hexdigest(),
+                      corpus_sha256=hashlib.sha256((out/'corpus-manifest.json').read_bytes()).hexdigest(),
+                      vendor_manifest_sha256=hashlib.sha256((Path('vendor/typescript-native') /
+                          os.environ['PROFILE'] / 'manifest.json').read_bytes()).hexdigest(),
+                      binary_sha256=hashlib.sha256((out/'tsc-rs').read_bytes()).hexdigest())
+          if (out/'merged.profdata').is_file():
+              meta['profdata_sha256'] = hashlib.sha256((out/'merged.profdata').read_bytes()).hexdigest()
+          (out/'metadata.json').write_text(json.dumps(meta, indent=2) + '\n')
+          PY
+          # Preserve the executable mode across artifact upload/download.
+          tar -czf "../build-$SIDE.tar.gz" -C target/pgo tsc-rs metadata.json corpus-manifest.json
+          df -h .
+      - name: Save normal objects when target caching is enabled
+        if: >-
+          vars.PGO_TARGET_CACHE == 'true' && needs.request.outputs.kind == 'normal' &&
+          steps.target_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: source/target/pgo/normal
+          key: ${{ steps.target_cache.outputs.cache-primary-key }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: build-${{ matrix.side }}
+          path: build-${{ matrix.side }}.tar.gz
+          retention-days: 14
+          if-no-files-found: error
+      - name: Keep merged profdata and training provenance (also on failures)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: training-${{ matrix.side }}
+          path: |
+            source/target/pgo/merged.profdata
+            source/target/pgo/logs
+            source/target/pgo/metadata.json
+            source/target/pgo/corpus-manifest.json
+          retention-days: 14
+          if-no-files-found: warn
+
+  measure:
+    needs: [request, corpus, build]
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        project: [hono, typescript]
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      PROJECT: ${{ matrix.project }}
+      COUNT_INSTRUCTIONS: ${{ needs.request.outputs.counts }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: build-*
+          merge-multiple: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: corpus
+      - name: Prepare binaries, GNU time, and Cachegrind
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          tar -xzf corpus.tar.gz
+          for side in base head; do
+            mkdir -p "binaries/$side"
+            tar -xzf "build-$side.tar.gz" -C "binaries/$side"
+          done
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends time valgrind
+          valgrind --version
+          /usr/bin/time --version
+          mkdir -p results
+          { uname -a; lscpu; cat /etc/os-release; valgrind --version; /usr/bin/time --version; } > results/runner.txt
+      - name: Native measurements and exact one-thread I refs, interleaved base/head
+        timeout-minutes: 125
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, re, statistics, subprocess, time
+          from pathlib import Path
+          root = Path.cwd()
+          out = root/'results'
+          project = os.environ['PROJECT']
+          directory = root/'corpora'/project
+          if project == 'typescript':
+              directory /= 'src/compiler'
+          base_env = dict(os.environ)
+          for key in ['LLVM_PROFILE_FILE', 'TSRS_WORKERS', 'TSRS_CHECKERS', 'TSRS_MEMORY_REPORT']:
+              base_env.pop(key, None)
+          env_1t = dict(base_env, TSRS_WORKERS='1', TSRS_CHECKERS='1')
+          records, outputs, metadata = [], {}, {}
+          for side in ['base', 'head']:
+              metadata[side] = json.loads((root/'binaries'/side/'metadata.json').read_text())
+              binary = root/'binaries'/side/'tsc-rs'
+              assert hashlib.sha256(binary.read_bytes()).hexdigest() == metadata[side]['binary_sha256']
+          corpus = json.loads((root/'corpora/manifest.json').read_text())
+          for side in ['base', 'head']:
+              assert json.loads((root/'binaries'/side/'corpus-manifest.json').read_text()) == corpus
+          assert metadata['base']['kind'] == metadata['head']['kind']
+          assert metadata['base']['rustc'] == metadata['head']['rustc']
+          assert metadata['base']['recipe'] == metadata['head']['recipe']
+          assert metadata['base']['image'] and metadata['base']['image'] == metadata['head']['image']
+          assert metadata['base']['workflow'] == metadata['head']['workflow']
+          assert metadata['base']['profdata_version'] == metadata['head']['profdata_version']
+          assert metadata['base']['corpus_sha256'] == metadata['head']['corpus_sha256']
+          assert metadata['base']['vendor_manifest_sha256'] == metadata['head']['vendor_manifest_sha256']
+          assert metadata['base']['rustflags'] == metadata['head']['rustflags']
+          def run(side, mode, iteration):
+              binary = root/'binaries'/side/'tsc-rs'
+              prefix = out/f'{side}-{mode}-{iteration}'
+              command = [str(binary), '-p', 'tsconfig.ci-pgo.json', '--noEmit', '--pretty', 'false']
+              env = base_env if mode == 'default' else env_1t
+              if mode == 'count':
+                  command = ['valgrind', '--tool=cachegrind', '--cache-sim=no',
+                             '--branch-sim=no', '--trace-children=no',
+                             f'--cachegrind-out-file={prefix}.cg', f'--log-file={prefix}.valgrind',
+                             *command]
+              else:
+                  command = ['/usr/bin/time', '-v', '-o', f'{prefix}.time', *command]
+              started = time.perf_counter()
+              with Path(f'{prefix}.stdout').open('wb') as stdout, Path(f'{prefix}.stderr').open('wb') as stderr:
+                  result = subprocess.run(command, cwd=directory, env=env, stdout=stdout,
+                                          stderr=stderr, timeout=1800 if mode == 'count' else 180)
+              elapsed = time.perf_counter() - started
+              if result.returncode not in (0, 1, 2):
+                  raise RuntimeError(f'{side}/{mode}: abnormal exit {result.returncode}')
+              identity = (result.returncode, Path(f'{prefix}.stdout').read_bytes(),
+                          Path(f'{prefix}.stderr').read_bytes())
+              # Includes equality across native serial/default and Cachegrind,
+              # and across base/head. Do not publish a speedup of changed output.
+              if outputs and identity != next(iter(outputs.values())):
+                  raise RuntimeError(f'{side}/{mode}: diagnostic/exit identity changed')
+              outputs[side, mode, iteration] = identity
+              if re.search(rb'TS(?:18003|5058|5083|6053)\b', identity[1] + identity[2]):
+                  raise RuntimeError('Missing input/configuration; invalid measurement')
+              row = dict(side=side, mode=mode, iteration=iteration, exit=result.returncode,
+                         wall_seconds=elapsed)
+              if mode == 'count':
+                  lines = Path(f'{prefix}.cg').read_text().splitlines()
+                  events = next(line.split()[1:] for line in lines if line.startswith('events:'))
+                  summary = next(line.split()[1:] for line in lines if line.startswith('summary:'))
+                  row['ir'] = int(summary[events.index('Ir')])
+                  log = Path(f'{prefix}.valgrind').read_text()
+                  human = re.search(r'I\s+refs:\s*([0-9,]+)', log)
+                  assert human and int(human[1].replace(',', '')) == row['ir']
+                  print(f'{side}/{project}: I refs: {row["ir"]:,}', flush=True)
+              else:
+                  log = Path(f'{prefix}.time').read_text()
+                  row['rss_kib'] = int(re.search(r'Maximum resident set size \(kbytes\):\s*(\d+)', log)[1])
+              records.append(row)
+              (out/'samples.json').write_text(json.dumps(records, indent=2) + '\n')
+          # Warm both binaries outside the reported sample; then interleave.
+          for mode in ['serial', 'default']:
+              for iteration in range(4):
+                  for side in ['base', 'head']:
+                      run(side, mode, iteration)
+          if os.environ['COUNT_INSTRUCTIONS'] == 'true':
+              for iteration in range(2):
+                  for side in ['base', 'head']:
+                      run(side, 'count', iteration)
+          summary = dict(project=project, metadata=metadata, corpus=corpus, sides={}, valid=True,
+                         runner_image=os.environ.get('ImageVersion'),
+                         valgrind=subprocess.check_output(['valgrind', '--version'], text=True).strip())
+          for side in ['base', 'head']:
+              data = {}
+              for mode in ['serial', 'default']:
+                  selected = [r for r in records if r['side'] == side and r['mode'] == mode and r['iteration'] > 0]
+                  data[mode+'_wall_ms'] = statistics.median(r['wall_seconds'] for r in selected) * 1000
+                  data[mode+'_rss_kib'] = max(r['rss_kib'] for r in selected)
+              counts = [r['ir'] for r in records if r['side'] == side and r['mode'] == 'count']
+              data['ir_samples'] = counts
+              data['ir'] = counts[0] if counts and len(set(counts)) == 1 else None
+              if counts and len(set(counts)) != 1:
+                  summary['valid'] = False
+              summary['sides'][side] = data
+          (out/'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          print(json.dumps(summary, indent=2), flush=True)
+          if not summary['valid']:
+              raise SystemExit('Repeated I refs differ: retained raw samples; no sub-1% conclusion')
+          PY
+      - name: Retain measurements and partial failure logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: measure-${{ matrix.project }}
+          path: results
+          retention-days: 14
+          if-no-files-found: warn
+
+  report:
+    needs: [request, build, measure]
+    if: always() && needs.request.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write # Only this job can comment; it never executes PR code/binaries.
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        continue-on-error: true # A failed build may have no measurements.
+        with:
+          pattern: measure-*
+          path: measurements
+      - name: Render the same bounded numeric table for logs, summary and PR
+        env:
+          PR: ${{ needs.request.outputs.pr }}
+          BASE: ${{ needs.request.outputs.base }}
+          HEAD: ${{ needs.request.outputs.head }}
+          KIND: ${{ needs.request.outputs.kind }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          MEASURE_RESULT: ${{ needs.measure.result }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, math, os
+          from pathlib import Path
+          def number(value, scale=1):
+              if value is None:
+                  return 'not measured / unstable'
+              if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                  raise ValueError('Invalid numeric result')
+              return f'{value/scale:,.2f}'
+          def instructions(value):
+              if value is None:
+                  return 'not measured / unstable'
+              assert type(value) is int and value > 0
+              return f'{value:,}'
+          run = f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+          lines = ['<!-- ci-pgo-v1 -->', f"DRAFT on-demand **{os.environ['KIND']} vs {os.environ['KIND']}**; PR #{os.environ['PR']}.",
+                   f"Base `{os.environ['BASE']}` → head `{os.environ['HEAD']}`. [Run / raw artifacts]({run}).",
+                   f"Build: {os.environ['BUILD_RESULT']}; measurement: {os.environ['MEASURE_RESULT']}.", '',
+                   '| Project | Side | I refs (1 thread, exact) | Native RSS (1 thread, MiB) | Default wall median (ms) | Default RSS (MiB) |',
+                   '| --- | --- | ---: | ---: | ---: | ---: |']
+          for project in ['hono', 'typescript']:
+              path = Path('measurements')/f'measure-{project}'/'summary.json'
+              if not path.is_file():
+                  lines.append(f'| {project} | incomplete | — | — | — | — |')
+                  continue
+              data = json.loads(path.read_text())
+              assert data['project'] == project
+              for side, sha in [('base', os.environ['BASE']), ('head', os.environ['HEAD'])]:
+                  assert data['metadata'][side]['source'] == sha
+                  assert data['metadata'][side]['kind'] == os.environ['KIND']
+                  row = data['sides'][side]
+                  lines.append(f"| {project} | {side} | {instructions(row['ir'])} | {number(row['serial_rss_kib'], 1024)} | {number(row['default_wall_ms'])} | {number(row['default_rss_kib'], 1024)} |")
+              a, b = data['sides']['base']['ir'], data['sides']['head']['ir']
+              if data['valid'] and a and b:
+                  lines.append(f'| {project} | head/base I refs | {((b/a)-1)*100:+.4f}% | | | |')
+              else:
+                  lines.append(f'| {project} | I refs unavailable or repeats unstable | — | | | |')
+          lines += ['', 'I refs: Cachegrind Ir, two identical serial repeats required; exact integers are in samples.json.',
+                    'RSS: native /usr/bin/time -v, maximum of 3 samples; wall: 3-sample median after warmup, default worker/checker settings.',
+                    'Generic x86-64; training recipe ci-pgo-v1, pinned hono/TypeScript + Node declarations. Runner/LLVM/profile/binary identities are artifacts.',
+                    'Hosted wall is advisory; these Linux counts are separate from the published macOS hardware counts. PGO profiles are independently trained per side.',
+                    'Failures and unstable counts are not evidence of a performance improvement. Ordinary ci/gates remain the merge checks.']
+          text = '\n'.join(lines) + '\n'
+          Path('summary.md').write_text(text)
+          print(text)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+              output.write(text)
+          PY
+      - name: Comment on the requested PR using only the generated text
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          PR_NUMBER: ${{ needs.request.outputs.pr }}
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('summary.md', 'utf8');
+            await github.rest.issues.createComment({
+              ...context.repo, issue_number: Number(process.env.PR_NUMBER), body
+            });

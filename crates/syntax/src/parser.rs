@@ -260,6 +260,8 @@ struct Parser<'text> {
     /// starting points of the error aggregate in `finalize_tree` (a
     /// rolled-back speculation truncates the list with its candidates).
     error_nodes: Vec<NodeId>,
+    /// The child list `NodeArena::attach_children` fills as a node finishes.
+    child_scratch: Vec<NodeId>,
     /// Full-start positions whose ordinary scanner token carried
     /// TokenFlags.PrecedingJSDocComment.
     jsdoc_positions: rustc_hash::FxHashSet<usize>,
@@ -956,6 +958,7 @@ impl<'text> Parser<'text> {
             not_parenthesized_arrow: rustc_hash::FxHashSet::default(),
             jsdoc_candidates: Vec::new(),
             error_nodes: Vec::new(),
+            child_scratch: Vec::new(),
             jsdoc_positions: rustc_hash::FxHashSet::default(),
             has_jsdoc_comments: memchr::memmem::find(text.as_bytes(), b"/**").is_some(),
             syntax_cursor: None,
@@ -1548,6 +1551,7 @@ impl<'text> Parser<'text> {
         debug_assert_eq!(self.arena.node(root).pos, candidate.adjusted_pos);
         debug_assert_eq!(self.arena.node(root).end, candidate.adjusted_end);
         self.incremental_stats.reused_roots.push(root);
+        let copied = self.incremental_stats.reused_new_nodes.len();
         self.incremental_stats
             .reused_new_nodes
             .extend(copier.node_lineage().iter().map(|(_, new)| *new));
@@ -1573,6 +1577,14 @@ impl<'text> Parser<'text> {
                             new_node: *new_node,
                         }),
                 );
+        }
+        // The copy comes without parents: its nodes get theirs as finished
+        // nodes do, and the copied root gets its own when its new owner
+        // finishes.
+        for index in copied..self.incremental_stats.reused_new_nodes.len() {
+            let node = self.incremental_stats.reused_new_nodes[index];
+            self.attach_children(node);
+            self.arena.attach_js_doc(node);
         }
         self.scanner
             .reset_token_state(self.arena.node(root).end as usize);
@@ -2698,6 +2710,7 @@ impl<'text> Parser<'text> {
             data.modifiers = modifiers;
             self.arena
                 .set_data(missing, NodeData::MissingDeclaration(data));
+            self.attach_children(missing);
         }
         missing
     }
@@ -6349,6 +6362,7 @@ impl<'text> Parser<'text> {
             data.modifiers = modifiers;
             self.arena
                 .set_data(missing, NodeData::MissingDeclaration(data));
+            self.attach_children(missing);
         }
         missing
     }
@@ -8287,7 +8301,9 @@ impl<'text> Parser<'text> {
             let node = self.arena.node(r#type);
             let (node_pos, node_end, node_flags) =
                 (node.pos as usize, node.end as usize, node.flags);
-            return self.arena.alloc_node(
+            // Not finished again (it keeps the nullable type's range and
+            // flags), but its inner type moves to it (tsgo sets the parent).
+            let optional = self.arena.alloc_node(
                 NodeData::OptionalType(OptionalTypeData {
                     r#type: Some(inner),
                 }),
@@ -8295,6 +8311,8 @@ impl<'text> Parser<'text> {
                 node_end,
                 NodeFlags::from_bits(node_flags),
             );
+            self.attach_children(optional);
+            return optional;
         }
         r#type
     }
@@ -10130,6 +10148,7 @@ impl<'text> Parser<'text> {
                 .end as usize;
             let js_doc = self.finish_node_list(mark, array_start, array_end, false);
             self.arena.set_js_doc(host, js_doc);
+            self.arena.attach_js_doc(host);
             if deprecated {
                 self.arena.node_mut(host).flags |= NodeFlags::DEPRECATED.bits();
             }
@@ -10270,7 +10289,7 @@ impl<'text> Parser<'text> {
     }
 
     fn finish_node_at(&mut self, id: NodeId, pos: usize, end: usize) -> NodeId {
-        let is_jsdoc_candidate = {
+        let (is_jsdoc_candidate, kind) = {
             let node = self.arena.node_mut(id);
             node.pos = pos as u32;
             node.end = end as u32;
@@ -10282,15 +10301,29 @@ impl<'text> Parser<'text> {
                 node.flags |= NodeFlags::THIS_NODE_HAS_ERROR.bits();
                 self.error_nodes.push(id);
             }
-            self.has_jsdoc_comments
-                && self.jsdoc_positions.contains(&pos)
-                && !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
-                && parser_calls_with_jsdoc_for_kind(node.kind)
+            (
+                self.has_jsdoc_comments
+                    && self.jsdoc_positions.contains(&pos)
+                    && !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
+                    && parser_calls_with_jsdoc_for_kind(node.kind),
+                node.kind,
+            )
         };
         if is_jsdoc_candidate {
             self.jsdoc_candidates.push(id);
         }
+        // A token (identifiers and literals included) has no children.
+        if kind.value() > SyntaxKind::LastToken.value() {
+            self.attach_children(id);
+        }
         id
+    }
+
+    /// tsgo finishNode: the node's children get it as their parent.
+    fn attach_children(&mut self, id: NodeId) {
+        let mut scratch = std::mem::take(&mut self.child_scratch);
+        self.arena.attach_children(id, &mut scratch);
+        self.child_scratch = scratch;
     }
 
     fn push_parse_diagnostic(

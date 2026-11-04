@@ -319,6 +319,42 @@ fn arrays_keep_the_modifier_flags_of_their_elements() {
     );
 }
 
+/// Parents are set as nodes finish (tsgo finishNode): every node of the
+/// tree has the parent whose children it is, and the nodes a failed
+/// speculation left in the arena (here the parameters of the arrow function
+/// `(a, b)` turned out not to be) can have parents among themselves, so the
+/// tree's reachability, not `parent`, tells which nodes are in the tree.
+#[test]
+fn parents_are_set_as_nodes_finish_and_reachability_excludes_discarded_nodes() {
+    let source = parse_ts("let x = (a, b) + c;\n");
+    let reachable = source.arena.reachable_mask(source.root);
+    let base = source.arena.node_base();
+    let mut discarded_with_parent = 0;
+    for (index, &in_tree) in reachable.iter().enumerate() {
+        let id = NodeId::new(base + index as u32);
+        let parent = source.arena.node(id).parent;
+        if !in_tree {
+            discarded_with_parent += usize::from(parent.is_some());
+            continue;
+        }
+        if id == source.root {
+            assert_eq!(parent, None);
+            continue;
+        }
+        let parent = parent.expect("a node of the tree has a parent");
+        let mut children = Vec::new();
+        for_each_child(&source.arena, source.arena.node(parent), |child| {
+            children.push(child);
+            false
+        });
+        assert!(children.contains(&id), "{id:?} is a child of its parent");
+    }
+    assert!(discarded_with_parent > 0);
+    assert!(nodes_of_kind(&source, SyntaxKind::Parameter)
+        .iter()
+        .all(|parameter| !reachable[(parameter.index() - base) as usize]));
+}
+
 fn parse_ts(text: &str) -> SourceFile {
     parse_source_file(
         "a.ts".into(),

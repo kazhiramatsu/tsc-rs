@@ -608,7 +608,7 @@ impl<'a> BinderWorker<'a> {
                 false,
                 false,
             );
-            self.symbols.symbol_mut(local).export_symbol = Some(exported);
+            self.symbols.symbol_mut(local).set_export_symbol(exported);
             self.node_local_symbol.insert(node, local);
             local
         } else {

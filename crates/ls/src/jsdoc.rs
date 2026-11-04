@@ -320,7 +320,7 @@ impl Request<'_, '_> {
             return Ok(String::new());
         }
         let mut candidates = vec![aliased];
-        if let Some(export) = self.state.binder.symbol(aliased).export_symbol {
+        if let Some(export) = self.state.binder.symbol(aliased).export_symbol() {
             candidates.push(export);
         }
         for candidate in candidates {
