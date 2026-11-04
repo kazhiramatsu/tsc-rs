@@ -1167,7 +1167,7 @@ impl<'a> CheckerState<'a> {
             }
             let property = self.get_property_of_type_full(object_type, property_name)?;
             if let Some(property) = property {
-                let declarations = self.binder.symbol(property).declarations.clone();
+                let declarations = self.binder.symbol(property).declaration_list();
                 let deprecated_access_node = match access_node {
                     Some(access_node)
                         if access_flags.intersects(AccessFlags::REPORT_DEPRECATED)

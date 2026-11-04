@@ -61,7 +61,7 @@ impl MissingMemberFixer<'_, '_, '_> {
         preserve_optional: u8,
         is_abstract: bool,
     ) -> FixResult<Vec<TransformNode>> {
-        let declarations = checker.binder.symbol(symbol).declarations.to_vec();
+        let declarations = checker.binder.symbol(symbol).declarations().to_vec();
         let declaration = declarations.first().copied();
         let quote_preference = get_quote_preference(self.file, self.preferences);
         let ambient = NodeFlags::from_bits(self.file.arena.node(enclosing_declaration).flags)

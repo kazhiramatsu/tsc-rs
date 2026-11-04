@@ -505,7 +505,7 @@ impl<'a> CheckerState<'a> {
                 && self
                     .binder
                     .symbol(prop)
-                    .declarations
+                    .declarations()
                     .iter()
                     .copied()
                     .any(|declaration| self.is_class_instance_property(declaration))
@@ -845,7 +845,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_class_like_declaration_of_symbol(&self, symbol: SymbolId) -> Option<NodeId> {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| {
@@ -1530,7 +1530,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:47634-47640
     pub(crate) fn is_deprecated_symbol(&self, symbol: SymbolId) -> bool {
         let symbol = self.get_merged_symbol(symbol);
-        let declarations = &self.binder.symbol(symbol).declarations;
+        let declarations = self.binder.symbol(symbol).declarations();
         if let Some(parent) = self.get_parent_of_symbol(symbol) {
             if declarations.len() > 1 {
                 if self
@@ -1872,7 +1872,7 @@ impl<'a> CheckerState<'a> {
             return Ok(self
                 .binder
                 .symbol(symbol)
-                .declarations
+                .declarations()
                 .iter()
                 .all(|&declaration| {
                     !node_util::is_function_like_kind(self.kind_of(declaration))
@@ -1937,7 +1937,7 @@ impl<'a> CheckerState<'a> {
             if target == target_symbol {
                 break;
             }
-            let declarations = self.binder.symbol(target).declarations.clone();
+            let declarations = self.binder.symbol(target).declaration_list();
             if declarations.is_empty() {
                 break;
             }
@@ -2148,7 +2148,7 @@ impl<'a> CheckerState<'a> {
             {
                 if let Some(candidate) = self.effective_global_this_export(right_text)? {
                     let flags = self.binder.symbol(candidate).flags;
-                    let declarations = &self.binder.symbol(candidate).declarations;
+                    let declarations = self.binder.symbol(candidate).declarations();
                     let ambient_module_only = flags.intersects(SymbolFlags::VALUE_MODULE)
                         && !declarations.is_empty()
                         && declarations.iter().all(|&declaration| {
@@ -2170,7 +2170,7 @@ impl<'a> CheckerState<'a> {
             if self.is_deprecated_symbol(target_prop_symbol)
                 && self.is_uncalled_function_reference(node, target_prop_symbol)?
             {
-                let declarations = self.binder.symbol(target_prop_symbol).declarations.clone();
+                let declarations = self.binder.symbol(target_prop_symbol).declaration_list();
                 if !declarations.is_empty() {
                     let deprecated_entity =
                         tsc_syntax::unescape_leading_underscores(right_text).to_owned();
@@ -4175,7 +4175,7 @@ impl<'a> CheckerState<'a> {
         let declaration_source_module =
             self.binder
                 .symbol(symbol)
-                .declarations
+                .declarations()
                 .first()
                 .and_then(|&declaration| {
                     let source = self.binder.source_of_node(declaration);
@@ -4191,7 +4191,7 @@ impl<'a> CheckerState<'a> {
             }
             let data = self.binder.symbol(symbol);
             let source_root = data
-                .declarations
+                .declarations()
                 .iter()
                 .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
             if source_root {
@@ -4214,7 +4214,7 @@ impl<'a> CheckerState<'a> {
                 break;
             }
             let data = self.binder.symbol(symbol);
-            for &declaration in &data.declarations {
+            for &declaration in data.declarations() {
                 let source = self.binder.source_of_node(declaration).file_name.clone();
                 if !sources.contains(&source) {
                     sources.push(source);

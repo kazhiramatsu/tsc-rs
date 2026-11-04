@@ -425,7 +425,7 @@ fn is_umd_export_symbol(checker: &CheckerState<'_>, symbol: SymbolId) -> bool {
     checker
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .first()
         .is_some_and(|&declaration| {
             checker.binder.node_record(declaration).kind == SyntaxKind::NamespaceExportDeclaration
@@ -637,7 +637,7 @@ fn needs_jsx_namespace_fix(
     else {
         return Ok(true);
     };
-    let declarations = checker.binder.symbol(namespace_symbol).declarations.clone();
+    let declarations = checker.binder.symbol(namespace_symbol).declaration_list();
     if declarations
         .iter()
         .any(|&declaration| checker.is_type_only_import_or_export_declaration(declaration))

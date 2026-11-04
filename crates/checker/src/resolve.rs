@@ -526,7 +526,7 @@ impl<'a> CheckerState<'a> {
                                 let is_jsdoc_type_alias = self
                                     .binder
                                     .symbol(found)
-                                    .declarations
+                                    .declarations()
                                     .iter()
                                     .copied()
                                     .any(|declaration| self.is_jsdoc_type_alias(declaration));
@@ -1243,7 +1243,7 @@ impl<'a> CheckerState<'a> {
     ) -> bool {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .any(|&declaration| {
                 if self.kind_of(declaration) != SyntaxKind::TypeParameter {
@@ -1280,11 +1280,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:17195-17198
     pub fn local_symbol_for_export_default(&self, symbol: SymbolId) -> Option<SymbolId> {
         let data = self.binder.symbol(symbol);
-        let first = *data.declarations.first()?;
+        let first = *data.declarations().first()?;
         if !has_syntactic_modifier(&tsc_syntax::Published, first, ModifierFlags::DEFAULT) {
             return None;
         }
-        data.declarations.iter().find_map(|&declaration| {
+        data.declarations().iter().find_map(|&declaration| {
             let binder = self
                 .binder
                 .file(self.binder.file_index_of_node(declaration));
@@ -1384,7 +1384,7 @@ impl<'a> CheckerState<'a> {
         };
         let suggestion = self.binder.symbol(suggestion_id);
         let declaration_file = suggestion
-            .declarations
+            .declarations()
             .first()
             .map(|&declaration| self.binder.source_of_node(declaration));
         if declaration_file.is_some_and(|declaration_file| {
@@ -2205,7 +2205,7 @@ impl<'a> CheckerState<'a> {
             && meaning.contains(SymbolFlags::VALUE)
         {
             let merged = self.get_merged_symbol(result);
-            let declarations = self.binder.symbol(merged).declarations.clone();
+            let declarations = self.binder.symbol(merged).declaration_list();
             let name = self.binder.symbol(merged).escaped_name;
             let is_umd_global = !declarations.is_empty()
                 && declarations.iter().all(|&declaration| {
@@ -2348,7 +2348,7 @@ impl<'a> CheckerState<'a> {
                             let import = self
                                 .binder
                                 .symbol(non_value)
-                                .declarations
+                                .declarations()
                                 .iter()
                                 .copied()
                                 .find(|&declaration| {
@@ -2400,7 +2400,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(());
         }
-        let declarations = self.binder.symbol(result).declarations.clone();
+        let declarations = self.binder.symbol(result).declaration_list();
         let declaration = declarations.into_iter().find(|&declaration| {
             node_util::is_block_or_catch_scoped(&Published, declaration)
                 || matches!(
@@ -3205,7 +3205,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn declaration_of_kind(&self, symbol: SymbolId, kind: SyntaxKind) -> Option<NodeId> {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| self.kind_of(declaration) == kind)

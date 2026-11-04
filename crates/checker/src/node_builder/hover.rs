@@ -131,7 +131,7 @@ fn simplify_class_declaration(
     let original = checker
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .find(|&declaration| is_class_like(checker, declaration));
@@ -171,7 +171,7 @@ fn simplify_modifiers(
     let modifiers = checker
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .find(|&declaration| checker.kind_of(declaration) == kind)
@@ -321,7 +321,7 @@ fn enum_member_declaration(checker: &CheckerState<'_>, member: SymbolId) -> Opti
     checker
         .binder
         .symbol(member)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .find(|&declaration| checker.kind_of(declaration) == SyntaxKind::EnumMember)
@@ -368,7 +368,7 @@ fn expand_class_declaration(
     let class_like_declarations = checker
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .filter(|&declaration| is_class_like(checker, declaration))
@@ -676,7 +676,7 @@ fn expand_interface_declaration(
     let interface_declarations = checker
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .filter(|&declaration| checker.kind_of(declaration) == SyntaxKind::InterfaceDeclaration)
@@ -1401,7 +1401,7 @@ fn expand_module_declaration(
     let attributes = checker
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .find_map(|&declaration| match checker.data_of(declaration) {
             NodeData::ModuleDeclaration(data) => data.attributes,

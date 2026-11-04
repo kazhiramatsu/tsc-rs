@@ -869,7 +869,7 @@ impl CheckerState<'_> {
         );
         let record = self.binder.symbol_mut(symbol);
         for &declaration in &declarations {
-            record.declarations.push(declaration);
+            record.push_declaration(declaration);
         }
         record.value_declaration = Some(declarations[0]);
         record.parent = parent;

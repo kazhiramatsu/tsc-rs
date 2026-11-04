@@ -1638,7 +1638,7 @@ impl<'a> CheckerState<'a> {
     ) -> Option<NodeId> {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| self.kind_of(declaration) == kind)
@@ -1690,7 +1690,7 @@ impl<'a> CheckerState<'a> {
         if first_declaration != Some(node) {
             return Ok(());
         }
-        let declarations = self.binder.symbol(enum_symbol).declarations.clone();
+        let declarations = self.binder.symbol(enum_symbol).declaration_list();
         if declarations.len() > 1 {
             let enum_is_const = self.is_enum_const(node);
             for &declaration in &declarations {

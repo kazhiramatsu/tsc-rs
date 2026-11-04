@@ -843,7 +843,7 @@ impl CheckerState<'_> {
                         .filter(|&export| {
                             let data = self.binder.symbol(export);
                             data.escaped_name != tsc_types::InternalSymbolName::DEFAULT
-                                && !data.declarations.iter().any(|&declaration| {
+                                && !data.declarations().iter().any(|&declaration| {
                                     matches!(
                                         self.kind_of(declaration),
                                         SyntaxKind::ExportSpecifier | SyntaxKind::NamespaceExport
@@ -961,7 +961,7 @@ impl CheckerState<'_> {
         for symbol in source {
             let data = self.binder.symbol(symbol);
             let mut flags = data.flags;
-            if let Some(export_symbol) = data.export_symbol {
+            if let Some(export_symbol) = data.export_symbol() {
                 flags |= self.binder.symbol(export_symbol).flags;
             }
             if flags.intersects(meaning) && symbols.get(&self.binder, data.escaped_name).is_none() {
@@ -983,7 +983,7 @@ impl CheckerState<'_> {
 
     /// tsgo `GetExportSymbolOfSymbol` (services.go:472-474).
     pub fn get_export_symbol_of_symbol(&self, symbol: SymbolId) -> SymbolId {
-        let export_symbol = self.binder.symbol(symbol).export_symbol;
+        let export_symbol = self.binder.symbol(symbol).export_symbol();
         self.get_merged_symbol(export_symbol.unwrap_or(symbol))
     }
 

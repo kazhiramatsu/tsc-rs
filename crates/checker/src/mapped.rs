@@ -653,8 +653,10 @@ impl<'a> CheckerState<'a> {
                     modifiers_prop,
                 );
                 if should_link_prop_declarations {
-                    self.binder.symbol_mut(property).declarations =
-                        self.binder.symbol(modifiers_prop).declarations.clone();
+                    let declarations = self.binder.symbol(modifiers_prop).declaration_list();
+                    self.binder
+                        .symbol_mut(property)
+                        .set_declarations(declarations);
                 }
             }
             members.insert(prop_name, property);

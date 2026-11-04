@@ -369,7 +369,7 @@ impl CheckerState<'_> {
         let getter = self
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| self.kind_of(declaration) == SyntaxKind::GetAccessor);
@@ -572,7 +572,7 @@ impl CheckerState<'_> {
                 continue;
             }
             let merged = self.get_merged_symbol(exported);
-            let declarations = self.binder.symbol(merged).declarations.clone();
+            let declarations = self.binder.symbol(merged).declaration_list();
             if declarations
                 .into_iter()
                 .any(|declaration| self.binder.source_of_node(declaration).root == import_target)
@@ -636,7 +636,7 @@ impl CheckerState<'_> {
             .is_some_and(|right| self.kind_of(right) == SyntaxKind::Identifier)
             && self
                 .node_symbol(node)
-                .is_some_and(|symbol| self.binder.symbol(symbol).declarations.len() == 1)
+                .is_some_and(|symbol| self.binder.symbol(symbol).declarations().len() == 1)
     }
 
     /// The declarations of a source file's `export=` symbol (tsgo
@@ -650,7 +650,7 @@ impl CheckerState<'_> {
             .symbol(file_symbol)
             .exports()
             .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
-            .map(|&symbol| self.binder.symbol(symbol).declarations.to_vec())
+            .map(|&symbol| self.binder.symbol(symbol).declarations().to_vec())
             .unwrap_or_default()
     }
 
@@ -1004,7 +1004,7 @@ impl CheckerState<'_> {
         should_compute_aliases_to_make_visible: bool,
     ) -> CheckResult<Option<EmitSymbolAccessibilityResult>> {
         let symbol_flags = self.binder.symbol(symbol).flags;
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         let mut aliases_to_make_visible = Vec::new();
         for declaration in declarations {
             if self.kind_of(declaration) == SyntaxKind::Identifier {
@@ -1268,7 +1268,7 @@ impl CheckerState<'_> {
             let mut files = self
                 .binder
                 .symbol(symbol)
-                .declarations
+                .declarations()
                 .iter()
                 .map(|&node| self.binder.file_index_of_node(node))
                 .collect::<std::collections::BTreeSet<_>>();
@@ -1426,7 +1426,7 @@ impl CheckerState<'_> {
                 && self
                     .binder
                     .symbol(symbol)
-                    .declarations
+                    .declarations()
                     .iter()
                     .copied()
                     .any(|declaration| {
@@ -1540,7 +1540,7 @@ impl CheckerState<'_> {
             return Ok(result);
         }
 
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         let mut symbol_external_module = None;
         for declaration in declarations {
             if let Some(container) = self.get_external_module_container(declaration)? {
@@ -1939,7 +1939,7 @@ impl CheckerState<'_> {
         let mut visited = HashSet::default();
         visited.insert(export_symbol);
         let mut result = None;
-        let declarations = self.binder.symbol(export_symbol).declarations.clone();
+        let declarations = self.binder.symbol(export_symbol).declaration_list();
         self.build_visible_node_list(&declarations, set_visibility, &mut visited, &mut result)?;
         Ok(result)
     }
@@ -1990,7 +1990,7 @@ impl CheckerState<'_> {
             )?;
             if let Some(import_symbol) = import_symbol {
                 if visited.insert(import_symbol) {
-                    let declarations = self.binder.symbol(import_symbol).declarations.clone();
+                    let declarations = self.binder.symbol(import_symbol).declaration_list();
                     self.build_visible_node_list(&declarations, set_visibility, visited, result)?;
                 }
             }

@@ -150,7 +150,7 @@ fn end_to_end_bind_declares_top_level_symbols() {
     let locals = binder.locals.get(&source.root).expect("file locals");
     // Overloads merged into one symbol.
     let f = locals["f"];
-    assert_eq!(binder.symbols.symbol(f).declarations.len(), 2);
+    assert_eq!(binder.symbols.symbol(f).declarations().len(), 2);
     // Class exports carry the synthetic prototype symbol.
     let class_symbol = locals["C"];
     assert!(binder
@@ -246,7 +246,7 @@ fn external_module_file_symbol_and_export_links() {
     // Local side of the exported function is linked.
     let locals = binder.locals.get(&source.root).expect("locals");
     let local_f = locals["f"];
-    assert!(binder.symbols.symbol(local_f).export_symbol.is_some());
+    assert!(binder.symbols.symbol(local_f).export_symbol().is_some());
     assert!(locals.contains_key("local"));
 }
 
@@ -579,7 +579,7 @@ fn declaration_file_root_gets_export_context_and_implicit_exports() {
     let file_symbol = binder.node_symbol[&source.root];
     let named = binder.symbols.symbol(file_symbol).exports()["Named"];
     let named = binder.symbols.symbol(named);
-    assert_eq!(named.declarations.len(), 2);
+    assert_eq!(named.declarations().len(), 2);
     assert!(named.flags.intersects(tsc_types::SymbolFlags::TYPE_ALIAS));
     assert!(named
         .flags
@@ -1018,8 +1018,8 @@ fn jsdoc_typedef_and_properties_bind_real_declaration_nodes() {
     let alias = binder.locals[&source.root]["Required"];
     let alias_symbol = binder.symbols.symbol(alias);
     assert!(alias_symbol.flags.intersects(SymbolFlags::TYPE_ALIAS));
-    assert_eq!(alias_symbol.declarations.len(), 1);
-    let typedef = alias_symbol.declarations[0];
+    assert_eq!(alias_symbol.declarations().len(), 1);
+    let typedef = alias_symbol.declarations()[0];
     assert_eq!(kind_of(&source, typedef), SyntaxKind::JSDocTypedefTag);
     let type_expression = match &source.arena.node(typedef).data() {
         NodeData::JSDocTypedefTag(data) => data.type_expression.expect("type literal"),
@@ -1034,9 +1034,9 @@ fn jsdoc_typedef_and_properties_bind_real_declaration_nodes() {
     let property = binder.symbols.symbol(type_symbol).members()["required"];
     let property_symbol = binder.symbols.symbol(property);
     assert!(property_symbol.flags.intersects(SymbolFlags::PROPERTY));
-    assert_eq!(property_symbol.declarations.len(), 1);
+    assert_eq!(property_symbol.declarations().len(), 1);
     assert_eq!(
-        kind_of(&source, property_symbol.declarations[0]),
+        kind_of(&source, property_symbol.declarations()[0]),
         SyntaxKind::JSDocPropertyTag
     );
 }
@@ -1054,7 +1054,7 @@ fn host_parameter_jsdoc_tag_does_not_redeclare_the_parameter() {
     let tag = find_nodes(&source, SyntaxKind::JSDocParameterTag)[0];
     let symbol = binder.locals[&function]["value"];
 
-    assert_eq!(binder.symbols.symbol(symbol).declarations, [parameter]);
+    assert_eq!(binder.symbols.symbol(symbol).declarations(), [parameter]);
     assert!(!binder.node_symbol.contains_key(&tag));
 }
 
@@ -1073,9 +1073,9 @@ fn dotted_jsdoc_typedef_binds_namespace_then_leaf_alias() {
     let count = binder.symbols.symbol(count);
 
     assert!(count.flags.intersects(SymbolFlags::TYPE_ALIAS));
-    assert_eq!(count.declarations.len(), 1);
+    assert_eq!(count.declarations().len(), 1);
     assert_eq!(
-        kind_of(&source, count.declarations[0]),
+        kind_of(&source, count.declarations()[0]),
         SyntaxKind::JSDocTypedefTag
     );
 }
@@ -1104,7 +1104,7 @@ fn dotted_jsdoc_typedef_on_a_returning_function_merges_with_the_file_variable() 
     assert!(types.flags.intersects(SymbolFlags::NAMESPACE_MODULE));
     assert_eq!(
         types
-            .declarations
+            .declarations()
             .iter()
             .map(|&declaration| kind_of(&source, declaration))
             .collect::<Vec<_>>(),
@@ -1138,11 +1138,11 @@ fn dotted_jsdoc_typedef_merges_namespace_face_into_explicit_export_alias() {
     assert!(exported.flags.intersects(SymbolFlags::ALIAS));
     assert!(exported.flags.intersects(SymbolFlags::NAMESPACE_MODULE));
     assert!(exported
-        .declarations
+        .declarations()
         .iter()
         .any(|&declaration| kind_of(&source, declaration) == SyntaxKind::ExportSpecifier));
     assert!(exported
-        .declarations
+        .declarations()
         .iter()
         .any(|&declaration| kind_of(&source, declaration) == SyntaxKind::ModuleDeclaration));
 }

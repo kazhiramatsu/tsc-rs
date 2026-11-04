@@ -234,7 +234,7 @@ fn constructor_property_method_accessor_function_or_var_kind(
         } else if state
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .any(|&declaration| {
                 block_scope_kind(variable_list_flags(state, declaration)) == NodeFlags::LET
@@ -311,7 +311,7 @@ fn combined_local_and_export_symbol_flags(
     symbol: SymbolId,
 ) -> SymbolFlags {
     let data = state.binder.symbol(symbol);
-    match data.export_symbol {
+    match data.export_symbol() {
         Some(export) => data.flags | state.binder.symbol(export).flags,
         None => data.flags,
     }
@@ -325,7 +325,7 @@ fn declaration_of_kind(
     state
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .find(|&declaration| kind_of(state, declaration) == kind)
@@ -349,7 +349,7 @@ fn block_scope_kind(flags: NodeFlags) -> NodeFlags {
 /// tsgo `isFirstDeclarationOfSymbolParameter`: the first declaration is a
 /// parameter or inside a parameter's binding pattern.
 fn is_first_declaration_of_symbol_parameter(state: &CheckerState<'_>, symbol: SymbolId) -> bool {
-    let mut node = state.binder.symbol(symbol).declarations.first().copied();
+    let mut node = state.binder.symbol(symbol).declarations().first().copied();
     while let Some(current) = node {
         match kind_of(state, current) {
             SyntaxKind::Parameter => return true,
@@ -370,7 +370,7 @@ fn is_local_variable_or_function(state: &CheckerState<'_>, symbol: SymbolId) -> 
         // An exported symbol.
         return false;
     }
-    for &declaration in data.declarations.iter() {
+    for &declaration in data.declarations().iter() {
         match kind_of(state, declaration) {
             // A function expression is local.
             SyntaxKind::FunctionExpression => return true,
@@ -426,7 +426,7 @@ fn normalized_symbol_modifiers(
     state: &CheckerState<'_>,
     symbol: SymbolId,
 ) -> ScriptElementKindModifier {
-    let declarations = &state.binder.symbol(symbol).declarations;
+    let declarations = state.binder.symbol(symbol).declarations();
     let Some((&declaration, rest)) = declarations.split_first() else {
         return ScriptElementKindModifier::NONE;
     };

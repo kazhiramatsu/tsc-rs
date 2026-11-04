@@ -435,7 +435,7 @@ impl<'a> CheckerState<'a> {
         let has_explicit_type_only_declaration = self
             .binder
             .symbol(root_symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .any(|declaration| self.is_type_only_import_or_export_declaration(declaration));
@@ -448,7 +448,7 @@ impl<'a> CheckerState<'a> {
             let related = self
                 .binder
                 .symbol(root_symbol)
-                .declarations
+                .declarations()
                 .iter()
                 .copied()
                 .find(|declaration| self.is_alias_symbol_declaration(*declaration))
@@ -4323,7 +4323,7 @@ impl<'a> CheckerState<'a> {
                     let Some(symbol) = state.node_symbol(declaration) else {
                         return Ok(None);
                     };
-                    state.binder.symbol(symbol).declarations.to_vec()
+                    state.binder.symbol(symbol).declarations().to_vec()
                 }
             };
             if declarations.len() <= 1 {

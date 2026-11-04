@@ -326,7 +326,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         if self.kind_of(node) == SyntaxKind::InterfaceDeclaration {
             let node_symbol = self.get_symbol_of_declaration(node)?;
-            let declarations = &self.binder.symbol(node_symbol).declarations;
+            let declarations = self.binder.symbol(node_symbol).declarations();
             if declarations.first().copied() != Some(node) {
                 return Ok(());
             }
@@ -339,7 +339,7 @@ impl<'a> CheckerState<'a> {
         let Some(index_symbol) = index_symbol else {
             return Ok(());
         };
-        let declarations = self.binder.symbol(index_symbol).declarations.clone();
+        let declarations = self.binder.symbol(index_symbol).declaration_list();
         // entry identity is the TYPE id (getTypeId keying); insertion
         // order preserved for the per-entry declaration lists.
         let mut map: indexmap::IndexMap<TypeId, (TypeId, Vec<NodeId>)> = indexmap::IndexMap::new();
@@ -499,7 +499,7 @@ impl<'a> CheckerState<'a> {
         instance_names: &mut rustc_hash::FxHashMap<EscapedName, u8>,
         static_names: &mut rustc_hash::FxHashMap<EscapedName, u8>,
     ) -> CheckResult<()> {
-        if self.binder.symbol(symbol).declarations.len() <= 1 {
+        if self.binder.symbol(symbol).declarations().len() <= 1 {
             return Ok(());
         }
         let name = self.binder.symbol(symbol).escaped_name;
@@ -1351,7 +1351,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<()> {
-        if self.binder.symbol(symbol).declarations.len() == 1 {
+        if self.binder.symbol(symbol).declarations().len() == 1 {
             return Ok(());
         }
         if *self.links.symbol_cold().type_parameters_checked.get(symbol) {
@@ -1464,7 +1464,7 @@ impl<'a> CheckerState<'a> {
     fn get_class_or_interface_declarations_of_symbol(&self, symbol: SymbolId) -> Vec<NodeId> {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .filter(|&declaration| {
@@ -1892,7 +1892,7 @@ impl<'a> CheckerState<'a> {
                         return Ok(MemberOverrideStatus::HasInvalidOverride);
                     }
                 } else if let (Some(_), Some(base_prop)) = (prop, base_prop) {
-                    let base_declarations = self.binder.symbol(base_prop).declarations.clone();
+                    let base_declarations = self.binder.symbol(base_prop).declaration_list();
                     if !base_declarations.is_empty()
                         && self.options.no_implicit_override == Some(true)
                         && !node_in_ambient_context
@@ -2194,7 +2194,7 @@ impl<'a> CheckerState<'a> {
                     SymbolFlags::from_bits(derived_flags.bits() & property_or_accessor.bits());
                 if !base_property_flags.is_empty() && !derived_property_flags.is_empty() {
                     let base_check_flags = self.links.read_symbol(base, |links| links.check_flags);
-                    let base_declarations = self.binder.symbol(base).declarations.clone();
+                    let base_declarations = self.binder.symbol(base).declaration_list();
                     let abstract_or_interface_everywhere =
                         if base_check_flags.intersects(tsc_types::CheckFlags::SYNTHETIC) {
                             base_declarations.iter().any(|&declaration| {
@@ -2251,7 +2251,7 @@ impl<'a> CheckerState<'a> {
                             ],
                         );
                     } else if self.options.use_define_for_class_fields_effective() {
-                        let derived_declarations = self.binder.symbol(derived).declarations.clone();
+                        let derived_declarations = self.binder.symbol(derived).declaration_list();
                         let uninitialized =
                             derived_declarations.iter().copied().find(|&declaration| {
                                 matches!(self.data_of(declaration),

@@ -1100,7 +1100,7 @@ impl Completions<'_, '_, '_> {
         }
         let symbol_data = self.request.state.binder.symbol(symbol);
         let value_declaration = symbol_data.value_declaration;
-        let first_declaration = symbol_data.declarations.first().copied();
+        let first_declaration = symbol_data.declarations().first().copied();
         let symbol_parent = symbol_data.parent;
         // Not a variable in its own initializer: `const a = /* no 'a' */`.
         if let Some(closest) = closest_symbol_declaration {
@@ -1206,7 +1206,7 @@ impl Completions<'_, '_, '_> {
     /// tsgo `Symbol.CombinedLocalAndExportSymbolFlags`.
     fn combined_local_and_export_symbol_flags(&self, symbol: SymbolId) -> SymbolFlags {
         let data = self.request.state.binder.symbol(symbol);
-        match data.export_symbol {
+        match data.export_symbol() {
             Some(export) => data.flags | self.request.state.binder.symbol(export).flags,
             None => data.flags,
         }

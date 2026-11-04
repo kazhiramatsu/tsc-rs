@@ -1166,7 +1166,7 @@ impl Completions<'_, '_, '_> {
             .filter(|&property| {
                 let data = self.request.state.binder.symbol(property);
                 !existing_names.contains(&self.symbol_name(property))
-                    && !data.declarations.is_empty()
+                    && !data.declarations().is_empty()
                     && !self
                         .request
                         .state

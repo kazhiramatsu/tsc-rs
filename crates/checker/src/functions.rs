@@ -2532,7 +2532,7 @@ impl<'a> CheckerState<'a> {
             let first_declaration = self
                 .binder
                 .symbol(local_symbol)
-                .declarations
+                .declarations()
                 .iter()
                 .copied()
                 .find(|&declaration| {
@@ -3258,7 +3258,7 @@ impl<'a> CheckerState<'a> {
         let mut body_declaration: Option<NodeId> = None;
         let mut last_seen_non_ambient: Option<NodeId> = None;
         let mut previous_declaration: Option<NodeId> = None;
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         let is_constructor = self
             .binder
             .symbol(symbol)
@@ -3745,7 +3745,7 @@ impl<'a> CheckerState<'a> {
             Some(local) => local,
             None => {
                 let symbol = self.get_symbol_of_declaration(node)?;
-                if self.binder.symbol(symbol).export_symbol.is_none() {
+                if self.binder.symbol(symbol).export_symbol().is_none() {
                     return Ok(());
                 }
                 symbol
@@ -3757,7 +3757,7 @@ impl<'a> CheckerState<'a> {
         let mut exported_spaces = 0u32;
         let mut non_exported_spaces = 0u32;
         let mut default_exported_spaces = 0u32;
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         let export_default = tsc_types::ModifierFlags::from_bits(
             tsc_types::ModifierFlags::EXPORT.bits() | tsc_types::ModifierFlags::DEFAULT.bits(),
         );
@@ -3872,7 +3872,7 @@ impl<'a> CheckerState<'a> {
     fn declaration_spaces_of_alias_target(&mut self, d: NodeId) -> CheckResult<u32> {
         let symbol = self.get_symbol_of_declaration(d)?;
         let target = self.resolve_alias(symbol)?;
-        let declarations = self.binder.symbol(target).declarations.clone();
+        let declarations = self.binder.symbol(target).declaration_list();
         let mut result = 0u32;
         for declaration in declarations {
             result |= self.get_declaration_spaces(declaration)?;

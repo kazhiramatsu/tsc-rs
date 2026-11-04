@@ -199,13 +199,13 @@ fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
                 // declaration parents already match the literal node.
                 let flags = original.flags;
                 let escaped_name = original.escaped_name;
-                let declarations = original.declarations.clone();
+                let declarations = original.declaration_list();
                 let parent = original.parent;
                 let members = original.members().clone();
                 let clone = state.binder.create_symbol(flags, escaped_name);
                 let clone_data = state.binder.symbol_mut(clone);
                 clone_data.value_declaration = declarations.first().copied();
-                clone_data.declarations = declarations;
+                clone_data.set_declarations(declarations);
                 clone_data.parent = parent;
                 *clone_data.members_mut() = members;
                 state.tables.type_mut(ty).symbol = Some(clone);

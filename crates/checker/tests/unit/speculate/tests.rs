@@ -714,7 +714,7 @@ fn declaration_signatures_persist_through_nested_rollback() {
                 let symbol = state
                     .resolve_file_scope_name(name, SymbolFlags::FUNCTION)
                     .expect("function resolves");
-                state.binder.symbol(symbol).declarations[0]
+                state.binder.symbol(symbol).declarations()[0]
             };
             let f = declaration(state, "f");
             let g = declaration(state, "g");

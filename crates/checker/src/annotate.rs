@@ -2208,7 +2208,7 @@ impl<'a> CheckerState<'a> {
             };
             if data.parent.is_none()
                 && data
-                    .declarations
+                    .declarations()
                     .iter()
                     .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile)
             {
@@ -2433,7 +2433,7 @@ impl<'a> CheckerState<'a> {
         let Some(immediate) = self.resolve_external_module_symbol(Some(module), true)? else {
             return Ok(None);
         };
-        let declarations = self.binder.symbol(immediate).declarations.clone();
+        let declarations = self.binder.symbol(immediate).declaration_list();
         let is_module_exports = declarations.iter().any(|&declaration| {
             tsc_binder::assignment::get_assignment_declaration_kind(&Published, declaration)
                 == tsc_binder::assignment::AssignmentDeclarationKind::ModuleExports
@@ -3385,7 +3385,7 @@ impl<'a> CheckerState<'a> {
         let declaration = self
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| {
@@ -3790,7 +3790,7 @@ impl<'a> CheckerState<'a> {
         let declaration = self
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| {
@@ -3996,7 +3996,7 @@ impl<'a> CheckerState<'a> {
         }
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| {
@@ -4022,7 +4022,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
     ) -> Vec<TypeId> {
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         let mut result: Vec<TypeId> = Vec::new();
         for node in declarations {
             if matches!(
@@ -4048,7 +4048,7 @@ impl<'a> CheckerState<'a> {
     /// A base whose declared type is being computed (cyclic heritage)
     /// reads as its published shell: no thisType yet — the check passes.
     fn is_thisless_interface(&mut self, symbol: SymbolId) -> CheckResult<bool> {
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         for declaration in declarations {
             if self.kind_of(declaration) != SyntaxKind::InterfaceDeclaration {
                 continue;
@@ -4320,7 +4320,10 @@ impl<'a> CheckerState<'a> {
                 state
                     .links
                     .set_symbol_check_flags(state.speculation_depth, inferred, check_flags);
-                state.binder.symbol_mut(inferred).declarations = source_symbol.declarations.clone();
+                state
+                    .binder
+                    .symbol_mut(inferred)
+                    .set_declarations(source_symbol.declaration_list());
 
                 let property_type = state.get_type_of_symbol(property)?;
                 let mut mapped_type = reverse.mapped_type;
@@ -4835,7 +4838,7 @@ impl<'a> CheckerState<'a> {
                        freshly_bound: &mut Vec<NodeId>|
          -> CheckResult<Arc<tsc_binder::SymbolTable>> {
             let mut late = tsc_binder::SymbolTable::default();
-            let declarations = state.binder.symbol(symbol).declarations.clone();
+            let declarations = state.binder.symbol(symbol).declaration_list();
             for declaration in declarations {
                 for member in state.members_of_declaration(declaration) {
                     if is_static != state.has_static_modifier(member) {
@@ -4940,7 +4943,7 @@ impl<'a> CheckerState<'a> {
                     .get(symbol)
                     .is_some()
             {
-                for declaration in state.binder.symbol(symbol).declarations.clone() {
+                for declaration in state.binder.symbol(symbol).declaration_list() {
                     let Some(original) = state.binder.node_symbol(declaration) else {
                         continue;
                     };
@@ -5151,10 +5154,10 @@ impl<'a> CheckerState<'a> {
         // TS2718).
         if self.binder.symbol(late_symbol).flags.intersects(excluded) {
             let declarations: Vec<NodeId> = early_symbol
-                .map(|s| self.binder.symbol(s).declarations.clone())
+                .map(|s| self.binder.symbol(s).declaration_list())
                 .unwrap_or_default()
                 .into_iter()
-                .chain(self.binder.symbol(late_symbol).declarations.clone())
+                .chain(self.binder.symbol(late_symbol).declaration_list())
                 .collect();
             let display = if !self
                 .tables
@@ -5234,17 +5237,14 @@ impl<'a> CheckerState<'a> {
         self.binder.symbol_mut(late_symbol).flags |= symbol_flags;
         self.links
             .set_symbol_late_symbol(self.speculation_depth, member_symbol, late_symbol);
-        if self.binder.symbol(late_symbol).declarations.is_empty()
+        if self.binder.symbol(late_symbol).declarations().is_empty()
             || !self
                 .binder
                 .symbol(member_symbol)
                 .extras()
                 .is_replaceable_by_method
         {
-            self.binder
-                .symbol_mut(late_symbol)
-                .declarations
-                .push(member);
+            self.binder.symbol_mut(late_symbol).push_declaration(member);
         }
         if symbol_flags.intersects(SymbolFlags::VALUE)
             && self.binder.symbol(late_symbol).value_declaration.is_none()
@@ -5303,14 +5303,14 @@ impl<'a> CheckerState<'a> {
         let declaration_symbol = self
             .node_symbol(decl)
             .expect("late-bound index declaration has a symbol");
-        if self.binder.symbol(index_symbol).declarations.is_empty()
+        if self.binder.symbol(index_symbol).declarations().is_empty()
             || !self
                 .binder
                 .symbol(declaration_symbol)
                 .extras()
                 .is_replaceable_by_method
         {
-            self.binder.symbol_mut(index_symbol).declarations.push(decl);
+            self.binder.symbol_mut(index_symbol).push_declaration(decl);
         }
         Ok(())
     }
@@ -5523,7 +5523,7 @@ impl<'a> CheckerState<'a> {
                 if !self.pop_type_resolution() {
                     let symbol = self.tables.type_of(ty).symbol;
                     let declarations = symbol
-                        .map(|symbol| self.binder.symbol(symbol).declarations.clone())
+                        .map(|symbol| self.binder.symbol(symbol).declaration_list())
                         .unwrap_or_default();
                     for declaration in declarations {
                         if matches!(
@@ -5593,7 +5593,7 @@ impl<'a> CheckerState<'a> {
             .unwrap_or_default();
         self.links
             .set_type_resolved_base_types(self.speculation_depth, ty, resolved.clone());
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         for declaration in declarations {
             if self.kind_of(declaration) != SyntaxKind::InterfaceDeclaration {
                 continue;
@@ -6011,7 +6011,7 @@ impl<'a> CheckerState<'a> {
                         .type_of(base_constructor_type)
                         .symbol
                         .expect("type parameters carry their symbol");
-                    if let Some(&declaration) = state.binder.symbol(symbol).declarations.first() {
+                    if let Some(&declaration) = state.binder.symbol(symbol).declarations().first() {
                         let symbol_text = state.symbol_display_name(symbol);
                         let return_text = state.type_to_string(ctor_return)?;
                         related.push(state.related_info_for_node_js(
@@ -6528,7 +6528,7 @@ impl<'a> CheckerState<'a> {
     fn class_like_declaration_of_symbol(&self, symbol: SymbolId) -> Option<NodeId> {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| {
@@ -6681,7 +6681,7 @@ impl<'a> CheckerState<'a> {
         let accessor = self
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| {
@@ -7026,7 +7026,7 @@ impl<'a> CheckerState<'a> {
     /// tsgo-port: isThisless @7.1 (checker.go:21206-21221): a parameter
     /// or a class or interface member free of `this` references.
     pub(crate) fn is_thisless(&self, symbol: SymbolId) -> bool {
-        let declarations = &self.binder.symbol(symbol).declarations;
+        let declarations = self.binder.symbol(symbol).declarations();
         if declarations.len() != 1 {
             return false;
         }
@@ -7262,7 +7262,7 @@ impl<'a> CheckerState<'a> {
                     let mut vars_only = MemberTable::with_capacity(members.len());
                     for &member in members.symbols() {
                         let member_flags = state.symbol_flags(member);
-                        let declarations = &state.binder.symbol(member).declarations;
+                        let declarations = state.binder.symbol(member).declarations();
                         let ambient_module_only = member_flags
                             .intersects(SymbolFlags::VALUE_MODULE)
                             && !declarations.is_empty()
@@ -7558,7 +7558,7 @@ impl<'a> CheckerState<'a> {
                 None => None,
             },
         };
-        let declarations = self.binder.symbol(index_symbol).declarations.clone();
+        let declarations = self.binder.symbol(index_symbol).declaration_list();
         let mut index_infos: Vec<IndexInfo> = Vec::new();
         let mut has_computed_number_property = false;
         let mut readonly_computed_number_property = true;
@@ -9008,7 +9008,7 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         if ty.is_none() {
-            let declarations = self.binder.symbol(symbol).declarations.clone();
+            let declarations = self.binder.symbol(symbol).declaration_list();
             let declaration_count = declarations.len();
             let mut types: Vec<TypeId> = Vec::new();
             for (index, declaration) in declarations.into_iter().enumerate() {
@@ -9090,7 +9090,7 @@ impl<'a> CheckerState<'a> {
             return Ok(none);
         }
         let mut type_annotation = None;
-        for declaration in self.binder.symbol(symbol).declarations.clone() {
+        for declaration in self.binder.symbol(symbol).declaration_list() {
             let Some(data) = self.record_of(declaration).as_binary_expression() else {
                 return Ok(none);
             };
@@ -9129,7 +9129,7 @@ impl<'a> CheckerState<'a> {
     fn declaring_class_constructor(&self, symbol: SymbolId) -> Option<NodeId> {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .find_map(|&declaration| {
                 node_util::get_this_container(&Published, declaration, false)
@@ -9374,7 +9374,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_declaring_constructor(&self, symbol: SymbolId) -> Option<NodeId> {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find_map(|declaration| self.assignment_constructor_container(declaration))
@@ -9413,7 +9413,7 @@ impl<'a> CheckerState<'a> {
 
         let computed = (|| -> CheckResult<bool> {
             let mut result = self.get_declaring_constructor(symbol).is_some();
-            let declarations = self.binder.symbol(symbol).declarations.clone();
+            let declarations = self.binder.symbol(symbol).declaration_list();
             for declaration in declarations {
                 if !result || self.kind_of(declaration) != SyntaxKind::BinaryExpression {
                     result = false;
@@ -9646,7 +9646,7 @@ impl<'a> CheckerState<'a> {
             return Ok(declared);
         }
         let mut member_type_list: Vec<TypeId> = Vec::new();
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         for declaration in declarations {
             let Some(data) = self.record_of(declaration).as_enum_declaration() else {
                 continue;
@@ -9835,7 +9835,7 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = symbol else {
             return Ok(Vec::new());
         };
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         let mut result = Vec::new();
         for (i, &declaration) in declarations.iter().enumerate() {
             if !node_util::is_function_like_kind(self.kind_of(declaration)) {
@@ -10253,7 +10253,7 @@ impl<'a> CheckerState<'a> {
                 };
                 if let Some(declaration) = declaration {
                     let record = self.binder.symbol_mut(symbol);
-                    record.declarations.push(declaration);
+                    record.push_declaration(declaration);
                     record.value_declaration = Some(declaration);
                 }
                 self.links
@@ -10279,7 +10279,7 @@ impl<'a> CheckerState<'a> {
             let other = self
                 .binder
                 .symbol(symbol)
-                .declarations
+                .declarations()
                 .iter()
                 .copied()
                 .find(|&d| self.kind_of(d) == other_kind);

@@ -2440,12 +2440,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if !self.flags(source).intersects(TypeFlags::TYPE_PARAMETER) {
             return Ok(());
         }
-        let declaration = self
-            .st
-            .tables
-            .type_of(source)
-            .symbol
-            .and_then(|symbol| self.st.binder.symbol(symbol).declarations.first().copied());
+        let declaration = self.st.tables.type_of(source).symbol.and_then(|symbol| {
+            self.st
+                .binder
+                .symbol(symbol)
+                .declarations()
+                .first()
+                .copied()
+        });
         let Some(declaration) = declaration else {
             return Ok(());
         };
@@ -2835,12 +2837,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 },
             });
         }
-        let object_literal_declaration = self
-            .st
-            .tables
-            .type_of(source)
-            .symbol
-            .and_then(|symbol| self.st.binder.symbol(symbol).declarations.first().copied());
+        let object_literal_declaration = self.st.tables.type_of(source).symbol.and_then(|symbol| {
+            self.st
+                .binder
+                .symbol(symbol)
+                .declarations()
+                .first()
+                .copied()
+        });
         let mut report_node = error_node;
         let mut suggestion = None;
         if let (Some(prop_declaration), Some(object_literal_declaration)) =

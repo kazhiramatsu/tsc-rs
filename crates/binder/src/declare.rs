@@ -858,8 +858,8 @@ impl<'a> BinderWorker<'a> {
         sym.flags |= symbol_flags;
         self.node_symbol.insert(node, symbol);
         // appendIfUnique
-        if !self.symbols.symbol(symbol).declarations.contains(&node) {
-            self.symbols.symbol_mut(symbol).declarations.push(node);
+        if !self.symbols.symbol(symbol).declarations().contains(&node) {
+            self.symbols.symbol_mut(symbol).push_declaration(node);
         }
         let sym = self.symbols.symbol_mut(symbol);
         if sym.extras().const_enum_only_module == Some(true)
@@ -1089,7 +1089,7 @@ impl<'a> BinderWorker<'a> {
         }
 
         let mut multiple_default_exports = false;
-        if !self.symbols.symbol(existing).declarations.is_empty() {
+        if !self.symbols.symbol(existing).declarations().is_empty() {
             let is_unnamed_default = kind_of(self.source, node) == SyntaxKind::ExportAssignment
                 && !matches!(
                     &self.source.arena.node(node).data(),
@@ -1130,7 +1130,7 @@ impl<'a> BinderWorker<'a> {
         }
 
         let declaration_name_node = get_name_of_declaration(self.source, node).unwrap_or(node);
-        let prior_declarations = self.symbols.symbol(existing).declarations.clone();
+        let prior_declarations = self.symbols.symbol(existing).declaration_list();
         for (index, &declaration) in prior_declarations.iter().enumerate() {
             let decl = get_name_of_declaration(self.source, declaration).unwrap_or(declaration);
             let mut diag = if message_needs_name {

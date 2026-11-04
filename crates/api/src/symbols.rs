@@ -266,7 +266,7 @@ impl<'d> FileSymbols<'d> {
             flags: record_flags(data),
             check_flags: 0,
             declarations: data
-                .declarations
+                .declarations()
                 .iter()
                 .map(|&declaration| self.node_handle(declaration))
                 .collect(),
@@ -275,7 +275,7 @@ impl<'d> FileSymbols<'d> {
                 .map(|declaration| self.node_handle(declaration))
                 .unwrap_or_default(),
             parent: self.compact(data.parent),
-            export_symbol: self.compact(data.export_symbol),
+            export_symbol: self.compact(data.export_symbol()),
         }
     }
 
@@ -290,7 +290,7 @@ impl<'d> FileSymbols<'d> {
         symbols.sort_by(|&left, &right| {
             let (left_data, right_data) = (self.record(left), self.record(right));
             let position = |data: &Symbol| {
-                data.declarations
+                data.declarations()
                     .first()
                     .map(|&declaration| self.source.arena.node(declaration).pos)
             };

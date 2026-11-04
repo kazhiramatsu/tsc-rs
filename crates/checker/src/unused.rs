@@ -401,7 +401,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsgo-port: allDeclarationsInSameSourceFile @7.1 (utilities.go:1633-1645)
     fn all_declarations_in_same_source_file(&self, symbol: tsc_types::SymbolId) -> bool {
-        let declarations = &self.binder.symbol(symbol).declarations;
+        let declarations = self.binder.symbol(symbol).declarations();
         let mut first: Option<&tsc_syntax::SourceFile> = None;
         for &declaration in declarations.iter() {
             let source = self.binder.source_of_node(declaration);
@@ -457,13 +457,13 @@ impl<'a> CheckerState<'a> {
                     || reference_kinds.intersects(SymbolFlags::VARIABLE)
             } else {
                 !reference_kinds.is_empty()
-                    || symbol.export_symbol.is_some()
+                    || symbol.export_symbol().is_some()
                     || symbol.flags.intersects(SymbolFlags::MODULE_EXPORTS)
             };
             if used {
                 continue;
             }
-            let declarations = symbol.declarations.clone();
+            let declarations = symbol.declaration_list();
             for declaration in declarations {
                 match self.kind_of(declaration) {
                     SyntaxKind::VariableDeclaration

@@ -465,7 +465,7 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            let declarations = self.binder.symbol(symbol).declarations.clone();
+            let declarations = self.binder.symbol(symbol).declaration_list();
             if declarations.len() > 1
                 && declarations.iter().any(|&d| {
                     d != node

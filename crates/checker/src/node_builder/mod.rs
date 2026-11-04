@@ -219,7 +219,7 @@ fn tracker_accessor_declarations(
     };
     let accessor_name = name(node);
     let accessor_static = checker.has_static_modifier(node);
-    for &member in &checker.binder.symbol(symbol).declarations {
+    for &member in checker.binder.symbol(symbol).declarations() {
         let member_kind = checker.kind_of(member);
         if matches!(
             member_kind,
@@ -679,7 +679,7 @@ impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
         };
         let data = self.checker.binder.symbol(symbol);
         let declarations: Vec<_> = data
-            .declarations
+            .declarations()
             .iter()
             .take(8)
             .map(|&declaration| {
@@ -696,7 +696,7 @@ impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
             .collect();
         tsc_emitter::EmitTrackerSymbolDescription {
             escaped_name: data.escaped_name.as_js().to_owned(),
-            declaration_count: u32::try_from(data.declarations.len()).unwrap_or(u32::MAX),
+            declaration_count: u32::try_from(data.declarations().len()).unwrap_or(u32::MAX),
             declarations,
         }
     }

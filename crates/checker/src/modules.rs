@@ -510,7 +510,7 @@ impl<'a> CheckerState<'a> {
             let export_symbol = self
                 .binder
                 .symbol(symbol)
-                .export_symbol
+                .export_symbol()
                 .map(|symbol| self.get_merged_symbol(symbol))
                 .unwrap_or(symbol);
             let export_flags = self.binder.symbol(export_symbol).flags;
@@ -735,7 +735,7 @@ impl<'a> CheckerState<'a> {
         Ok(self
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .filter(|declaration| {
@@ -780,7 +780,7 @@ impl<'a> CheckerState<'a> {
             if let Some(root_symbol) =
                 self.resolve_entity_name_ex(root, SymbolFlags::VALUE, true, Some(location), true)?
             {
-                let declarations = &self.binder.symbol(root_symbol).declarations;
+                let declarations = self.binder.symbol(root_symbol).declarations();
                 is_type_only = !declarations.is_empty()
                     && declarations.iter().all(|declaration| {
                         self.is_type_only_import_or_export_declaration(*declaration)
@@ -1761,7 +1761,7 @@ impl<'a> CheckerState<'a> {
                 || self
                     .binder
                     .symbol(symbol)
-                    .declarations
+                    .declarations()
                     .first()
                     .copied()
                     .and_then(|declaration| self.get_enclosing_block_scope_container(declaration))
@@ -1837,7 +1837,7 @@ impl<'a> CheckerState<'a> {
     /// `export default`, the name of `export as namespace`), otherwise its
     /// symbol name (`export=` for `export = <expression>`).
     fn alias_name_as_written(&self, symbol: SymbolId) -> tsc_types::JsString {
-        for &declaration in self.binder.symbol(symbol).declarations.iter() {
+        for &declaration in self.binder.symbol(symbol).declarations().iter() {
             let source = self.binder.source_of_node(declaration);
             if let Some(name) = node_util::get_name_of_declaration(source, declaration) {
                 return tsc_types::JsString::from(node_util::declaration_name_to_string(
@@ -2395,11 +2395,7 @@ impl<'a> CheckerState<'a> {
                 /*dont_resolve_alias*/ true,
             )?;
             if let Some(default_export_symbol) = default_export_symbol {
-                let declarations = self
-                    .binder
-                    .symbol(default_export_symbol)
-                    .declarations
-                    .clone();
+                let declarations = self.binder.symbol(default_export_symbol).declaration_list();
                 if declarations
                     .iter()
                     .any(|&declaration| self.is_syntactic_default(declaration))
@@ -2527,12 +2523,13 @@ impl<'a> CheckerState<'a> {
                 return Ok(Some(target));
             }
             let alias_symbol = self.binder.symbol(alias);
-            let (name, declarations) =
-                (alias_symbol.escaped_name, alias_symbol.declarations.clone());
+            let (name, declarations) = (alias_symbol.escaped_name, alias_symbol.declaration_list());
             let symbol = self
                 .binder
                 .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, name);
-            self.binder.symbol_mut(symbol).declarations = declarations;
+            self.binder
+                .symbol_mut(symbol)
+                .set_declarations(declarations);
             let module_source = self.get_global_abstract_module_source_type()?;
             self.links
                 .set_fresh_symbol_type(symbol, LinkSlot::Resolved(module_source));
@@ -2733,7 +2730,7 @@ impl<'a> CheckerState<'a> {
             .copied();
         let mut related = Vec::new();
         if let Some(export_star) = export_star {
-            let declarations = self.binder.symbol(export_star).declarations.clone();
+            let declarations = self.binder.symbol(export_star).declaration_list();
             for declaration in declarations {
                 let specifier = match self.data_of(declaration) {
                     NodeData::ExportDeclaration(data) => data.module_specifier,
@@ -2826,8 +2823,8 @@ impl<'a> CheckerState<'a> {
         }
         let flags = value.flags | self.binder.symbol(type_symbol).flags;
         let escaped_name = value.escaped_name;
-        let mut declarations = value.declarations.clone();
-        for declaration in self.binder.symbol(type_symbol).declarations.clone() {
+        let mut declarations = value.declaration_list();
+        for declaration in self.binder.symbol(type_symbol).declaration_list() {
             if !declarations.contains(&declaration) {
                 declarations.push(declaration);
             }
@@ -2838,7 +2835,7 @@ impl<'a> CheckerState<'a> {
         let exports = self.binder.symbol(value_symbol).exports().clone();
         let result = self.binder.create_symbol(flags, escaped_name);
         let symbol = self.binder.symbol_mut(result);
-        symbol.declarations = declarations;
+        symbol.set_declarations(declarations);
         symbol.parent = parent;
         symbol.value_declaration = value_declaration;
         *symbol.members_mut() = members;
@@ -3223,8 +3220,7 @@ impl<'a> CheckerState<'a> {
         for (index, declaration) in self
             .binder
             .symbol(local_symbol)
-            .declarations
-            .clone()
+            .declaration_list()
             .into_iter()
             .enumerate()
         {
@@ -4036,7 +4032,7 @@ impl<'a> CheckerState<'a> {
     ) -> Option<JsString> {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .find_map(|&declaration| match self.data_of(declaration) {
                 NodeData::ModuleDeclaration(data) => {
@@ -4138,7 +4134,7 @@ impl<'a> CheckerState<'a> {
         let attributes = self
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .find_map(|&declaration| match self.data_of(declaration) {
                 NodeData::ModuleDeclaration(data)
@@ -8164,8 +8160,10 @@ impl<'a> CheckerState<'a> {
             // tsgo: the wrapper's symbol carries the module's declarations
             // (`anonymousSymbol.SetDeclarations(originalSymbol.Declarations())`),
             // which a type definition of the imported module's value reaches.
-            let declarations = self.binder.symbol(original_symbol).declarations.clone();
-            self.binder.symbol_mut(anonymous_symbol).declarations = declarations;
+            let declarations = self.binder.symbol(original_symbol).declaration_list();
+            self.binder
+                .symbol_mut(anonymous_symbol)
+                .set_declarations(declarations);
             let default_containing_object = self.create_default_property_wrapper_for_module(
                 symbol,
                 Some(original_symbol),
@@ -8210,7 +8208,7 @@ impl<'a> CheckerState<'a> {
         let original = self.binder.symbol(symbol);
         let flags = original.flags;
         let escaped_name = original.escaped_name;
-        let declarations = original.declarations.clone();
+        let declarations = original.declaration_list();
         let parent = original.parent;
         let value_declaration = original.value_declaration;
         let const_enum_only_module = original.extras().const_enum_only_module;
@@ -8218,7 +8216,7 @@ impl<'a> CheckerState<'a> {
         let exports = original.exports().clone();
         let result = self.binder.create_symbol(flags, escaped_name);
         let cloned = self.binder.symbol_mut(result);
-        cloned.declarations = declarations;
+        cloned.set_declarations(declarations);
         cloned.parent = parent;
         cloned.value_declaration = value_declaration;
         if const_enum_only_module == Some(true) {
@@ -8422,7 +8420,7 @@ impl<'a> CheckerState<'a> {
             // IndexMap so the 2308 emission order matches tsc's Map
             // iteration.
             let mut lookup_table: ExportLookupTable = ExportLookupTable::new();
-            for node in self.binder.symbol(export_stars).declarations.clone() {
+            for node in self.binder.symbol(export_stars).declaration_list() {
                 let specifier = match self.data_of(node) {
                     NodeData::ExportDeclaration(data) => data.module_specifier,
                     _ => None,
@@ -8622,7 +8620,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn source_file_index_of_symbol(&self, symbol: SymbolId) -> Option<usize> {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .find(|&&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile)
             .map(|&declaration| self.binder.file_index_of_node(declaration))
@@ -8771,7 +8769,7 @@ impl<'a> CheckerState<'a> {
                     &[option_name.into()],
                 );
             }
-            if self.binder.symbol(symbol).declarations.len() > 1 {
+            if self.binder.symbol(symbol).declarations().len() > 1 {
                 let first_non_ambient =
                     self.get_first_non_ambient_class_or_function_declaration(symbol);
                 if let Some(first_non_ambient) = first_non_ambient {
@@ -8801,7 +8799,7 @@ impl<'a> CheckerState<'a> {
                 let merged_class = self
                     .binder
                     .symbol(symbol)
-                    .declarations
+                    .declarations()
                     .iter()
                     .copied()
                     .find(|&declaration| self.kind_of(declaration) == SyntaxKind::ClassDeclaration);
@@ -8928,7 +8926,7 @@ impl<'a> CheckerState<'a> {
     ) -> Option<NodeId> {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| {
@@ -9352,7 +9350,7 @@ impl<'a> CheckerState<'a> {
                 .get_symbol_flags_of(target)?
                 .intersects(SymbolFlags::VALUE);
         if checked_js_type_alias && !self.is_type_only_import_or_export_declaration(node) {
-            let export_symbol = self.binder.symbol(symbol).export_symbol.unwrap_or(symbol);
+            let export_symbol = self.binder.symbol(symbol).export_symbol().unwrap_or(symbol);
             let symbol = self.get_merged_symbol(export_symbol);
             let error_node = match self.data_of(node) {
                 NodeData::ImportSpecifier(data) => data.property_name.or(data.name),
@@ -9424,7 +9422,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         let target_flags = self.get_symbol_flags_of(target)?;
-        let export_symbol = self.binder.symbol(symbol).export_symbol.unwrap_or(symbol);
+        let export_symbol = self.binder.symbol(symbol).export_symbol().unwrap_or(symbol);
         let symbol = self.get_merged_symbol(export_symbol);
         let symbol_flags = self.binder.symbol(symbol).flags;
         let mut excluded_meanings = SymbolFlags::NONE;
@@ -9658,7 +9656,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) == SyntaxKind::ImportSpecifier {
             let target_symbol = self.resolve_alias_with_deprecation_check(symbol, node)?;
             if self.is_deprecated_symbol(target_symbol) {
-                let declarations = self.binder.symbol(target_symbol).declarations.clone();
+                let declarations = self.binder.symbol(target_symbol).declaration_list();
                 if !declarations.is_empty() {
                     let name = self.binder.symbol(target_symbol).escaped_name;
                     self.add_deprecated_suggestion(node, &declarations, name);
@@ -9696,7 +9694,7 @@ impl<'a> CheckerState<'a> {
         let exporting_declaration = self
             .binder
             .symbol(already_exported)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| {
@@ -10609,7 +10607,7 @@ impl<'a> CheckerState<'a> {
                     && self
                         .binder
                         .symbol(symbol)
-                        .declarations
+                        .declarations()
                         .first()
                         .copied()
                         .and_then(|declaration| {
@@ -10945,7 +10943,7 @@ impl<'a> CheckerState<'a> {
             if flags.intersects(SymbolFlags::NAMESPACE | SymbolFlags::ENUM) {
                 continue;
             }
-            let declarations = self.binder.symbol(export_symbol).declarations.clone();
+            let declarations = self.binder.symbol(export_symbol).declaration_list();
             let exported_declarations_count = declarations
                 .iter()
                 .filter(|&&declaration| {

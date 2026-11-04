@@ -2154,7 +2154,7 @@ fn type_parameter_has_default(checker: &CheckerState<'_>, type_parameter: TypeId
     checker
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .any(|&declaration| {
             matches!(

@@ -544,7 +544,7 @@ impl<'a> CheckerState<'a> {
                         .type_of(ty)
                         .symbol
                         .and_then(|symbol| self.binder.symbol(symbol).value_declaration);
-                    let declarations = self.binder.symbol(p).declarations.clone();
+                    let declarations = self.binder.symbol(p).declaration_list();
                     let value_declaration = declarations.into_iter().find(|&d| {
                         self.binder
                             .node_symbol(d)

@@ -381,7 +381,7 @@ impl Completions<'_, '_, '_> {
             .state
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .first()
             .copied()
         else {
