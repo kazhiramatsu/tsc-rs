@@ -1243,6 +1243,19 @@ pub trait NodeLookup {
 }
 '''
 
+CHILD_EDGE_PRELUDE = r'''/// A public child edge of a node as its payload holds it: a child node, or
+/// an array of children.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ChildEdge {
+    Node(NodeId),
+    Nodes(NodeArrayId),
+}
+
+/// The node's public child edges (`for_each_child`'s children, in schema
+/// order rather than its visit order, read from the record without a
+/// lookup): the parser's attaching of parents at finish writes through them.
+'''
+
 CHILD_VISITOR_TRAIT = r'''/// Fallible, replacement-aware counterpart to `for_each_child` used by
 /// emit-session transforms. Parsed syntax remains immutable; callers map a
 /// cloned `NodeData` value and install it through their own node factory.
@@ -1535,6 +1548,35 @@ def render_for_each_child_rs(kinds):
                 )
         out += ["None", "}"]
     out += ["_ => None,", "}", "}", ""]
+
+    out.append(CHILD_EDGE_PRELUDE)
+    out.append("pub(crate) fn for_each_child_edge<F>(node: &Node, mut cb: F)")
+    out += ["where", "F: FnMut(ChildEdge),", "{", "match node.kind {"]
+    for kind in kinds:
+        if not kind.children:
+            continue
+        out.append(f"SyntaxKind::{kind.name} => {{")
+        out.append(f"let data = node.decode_{snake_case(kind.name)}();")
+        for field, array in kind.child_fields():
+            name = field.rust_name
+            if field.ty == "JSDocComment":
+                if field.rust_optional:
+                    out.append(
+                        f"if let Some(JSDocComment::Nodes(id)) = data.{name}.as_ref() "
+                        "{ cb(ChildEdge::Nodes(*id)); }"
+                    )
+                else:
+                    out.append(
+                        f"if let JSDocComment::Nodes(id) = &data.{name} {{ cb(ChildEdge::Nodes(*id)); }}"
+                    )
+                continue
+            edge = "Nodes" if array else "Node"
+            if field.rust_optional:
+                out.append(f"if let Some(id) = data.{name} {{ cb(ChildEdge::{edge}(id)); }}")
+            else:
+                out.append(f"cb(ChildEdge::{edge}(data.{name}));")
+        out.append("}")
+    out += ["_ => {}", "}", "}", ""]
 
     out.append(CHILD_VISITOR_TRAIT)
     out.append("pub fn try_visit_each_child<V>(data: &mut NodeData, visitor: &mut V) -> Result<(), V::Error>")

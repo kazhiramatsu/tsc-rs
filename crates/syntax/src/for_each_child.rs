@@ -3207,6 +3207,1857 @@ where
     }
 }
 
+/// A public child edge of a node as its payload holds it: a child node, or
+/// an array of children.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ChildEdge {
+    Node(NodeId),
+    Nodes(NodeArrayId),
+}
+
+/// The node's public child edges (`for_each_child`'s children, in schema
+/// order rather than its visit order, read from the record without a
+/// lookup): the parser's attaching of parents at finish writes through them.
+
+pub(crate) fn for_each_child_edge<F>(node: &Node, mut cb: F)
+where
+    F: FnMut(ChildEdge),
+{
+    match node.kind {
+        SyntaxKind::ArrayBindingPattern => {
+            let data = node.decode_array_binding_pattern();
+            if let Some(id) = data.elements {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::ArrayLiteralExpression => {
+            let data = node.decode_array_literal_expression();
+            if let Some(id) = data.elements {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::ArrayType => {
+            let data = node.decode_array_type();
+            if let Some(id) = data.element_type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ArrowFunction => {
+            let data = node.decode_arrow_function();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.equals_greater_than_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.body {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::AsExpression => {
+            let data = node.decode_as_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::AwaitExpression => {
+            let data = node.decode_await_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::BinaryExpression => {
+            let data = node.decode_binary_expression();
+            if let Some(id) = data.left {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.operator_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.right {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::BindingElement => {
+            let data = node.decode_binding_element();
+            if let Some(id) = data.dot_dot_dot_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.property_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.initializer {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::Block => {
+            let data = node.decode_block();
+            if let Some(id) = data.statements {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::BreakStatement => {
+            let data = node.decode_break_statement();
+            if let Some(id) = data.label {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::CallExpression => {
+            let data = node.decode_call_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_dot_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_arguments {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.arguments {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::CallSignature => {
+            let data = node.decode_call_signature();
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::CaseBlock => {
+            let data = node.decode_case_block();
+            if let Some(id) = data.clauses {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::CaseClause => {
+            let data = node.decode_case_clause();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.statements {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::CatchClause => {
+            let data = node.decode_catch_clause();
+            if let Some(id) = data.variable_declaration {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.block {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ClassDeclaration => {
+            let data = node.decode_class_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.heritage_clauses {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.members {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::ClassExpression => {
+            let data = node.decode_class_expression();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.heritage_clauses {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.members {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::ClassStaticBlockDeclaration => {
+            let data = node.decode_class_static_block_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.body {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::CommaListExpression => {
+            let data = node.decode_comma_list_expression();
+            if let Some(id) = data.elements {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::ComputedPropertyName => {
+            let data = node.decode_computed_property_name();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ConditionalExpression => {
+            let data = node.decode_conditional_expression();
+            if let Some(id) = data.condition {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.when_true {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.colon_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.when_false {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ConditionalType => {
+            let data = node.decode_conditional_type();
+            if let Some(id) = data.check_type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.extends_type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.true_type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.false_type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ConstructSignature => {
+            let data = node.decode_construct_signature();
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::Constructor => {
+            let data = node.decode_constructor();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.body {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ConstructorType => {
+            let data = node.decode_constructor_type();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ContinueStatement => {
+            let data = node.decode_continue_statement();
+            if let Some(id) = data.label {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::Decorator => {
+            let data = node.decode_decorator();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::DefaultClause => {
+            let data = node.decode_default_clause();
+            if let Some(id) = data.statements {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::DeleteExpression => {
+            let data = node.decode_delete_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::DoStatement => {
+            let data = node.decode_do_statement();
+            if let Some(id) = data.statement {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ElementAccessExpression => {
+            let data = node.decode_element_access_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_dot_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.argument_expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::EnumDeclaration => {
+            let data = node.decode_enum_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.members {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::EnumMember => {
+            let data = node.decode_enum_member();
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.initializer {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ExportAssignment => {
+            let data = node.decode_export_assignment();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ExportDeclaration => {
+            let data = node.decode_export_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.export_clause {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.module_specifier {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.attributes {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ExportSpecifier => {
+            let data = node.decode_export_specifier();
+            if let Some(id) = data.property_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ExpressionStatement => {
+            let data = node.decode_expression_statement();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ExpressionWithTypeArguments => {
+            let data = node.decode_expression_with_type_arguments();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_arguments {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::ExternalModuleReference => {
+            let data = node.decode_external_module_reference();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ForInStatement => {
+            let data = node.decode_for_in_statement();
+            if let Some(id) = data.initializer {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.statement {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ForOfStatement => {
+            let data = node.decode_for_of_statement();
+            if let Some(id) = data.await_modifier {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.initializer {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.statement {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ForStatement => {
+            let data = node.decode_for_statement();
+            if let Some(id) = data.initializer {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.condition {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.incrementor {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.statement {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::FunctionDeclaration => {
+            let data = node.decode_function_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.asterisk_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.body {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::FunctionExpression => {
+            let data = node.decode_function_expression();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.asterisk_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.body {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::FunctionType => {
+            let data = node.decode_function_type();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::GetAccessor => {
+            let data = node.decode_get_accessor();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.body {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::HeritageClause => {
+            let data = node.decode_heritage_clause();
+            if let Some(id) = data.types {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::IfStatement => {
+            let data = node.decode_if_statement();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.then_statement {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.else_statement {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ImportAttribute => {
+            let data = node.decode_import_attribute();
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.value {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ImportAttributes => {
+            let data = node.decode_import_attributes();
+            if let Some(id) = data.elements {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::ImportClause => {
+            let data = node.decode_import_clause();
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.named_bindings {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ImportDeclaration => {
+            let data = node.decode_import_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.import_clause {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.module_specifier {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.attributes {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ImportEqualsDeclaration => {
+            let data = node.decode_import_equals_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.module_reference {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ImportSpecifier => {
+            let data = node.decode_import_specifier();
+            if let Some(id) = data.property_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ImportType => {
+            let data = node.decode_import_type();
+            if let Some(id) = data.argument {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.attributes {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.qualifier {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_arguments {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::ImportTypeAssertionContainer => {
+            let data = node.decode_import_type_assertion_container();
+            if let Some(id) = data.assert_clause {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::IndexSignature => {
+            let data = node.decode_index_signature();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::IndexedAccessType => {
+            let data = node.decode_indexed_access_type();
+            if let Some(id) = data.object_type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.index_type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::InferType => {
+            let data = node.decode_infer_type();
+            if let Some(id) = data.type_parameter {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::InterfaceDeclaration => {
+            let data = node.decode_interface_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.heritage_clauses {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.members {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::IntersectionType => {
+            let data = node.decode_intersection_type();
+            if let Some(id) = data.types {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::JSDoc => {
+            let data = node.decode_js_doc();
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+            if let Some(id) = data.tags {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::JSDocAugmentsTag => {
+            let data = node.decode_js_doc_augments_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.class {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocAuthorTag => {
+            let data = node.decode_js_doc_author_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocCallbackTag => {
+            let data = node.decode_js_doc_callback_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.full_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocClassTag => {
+            let data = node.decode_js_doc_class_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocDeprecatedTag => {
+            let data = node.decode_js_doc_deprecated_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocEnumTag => {
+            let data = node.decode_js_doc_enum_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocFunctionType => {
+            let data = node.decode_js_doc_function_type();
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JSDocImplementsTag => {
+            let data = node.decode_js_doc_implements_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.class {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocImportTag => {
+            let data = node.decode_js_doc_import_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.import_clause {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.module_specifier {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.attributes {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocLink => {
+            let data = node.decode_js_doc_link();
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JSDocLinkCode => {
+            let data = node.decode_js_doc_link_code();
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JSDocLinkPlain => {
+            let data = node.decode_js_doc_link_plain();
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JSDocMemberName => {
+            let data = node.decode_js_doc_member_name();
+            if let Some(id) = data.left {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.right {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JSDocNameReference => {
+            let data = node.decode_js_doc_name_reference();
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JSDocNonNullableType => {
+            let data = node.decode_js_doc_non_nullable_type();
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JSDocNullableType => {
+            let data = node.decode_js_doc_nullable_type();
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JSDocOptionalType => {
+            let data = node.decode_js_doc_optional_type();
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JSDocOverloadTag => {
+            let data = node.decode_js_doc_overload_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocOverrideTag => {
+            let data = node.decode_js_doc_override_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocParameterTag => {
+            let data = node.decode_js_doc_parameter_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocPrivateTag => {
+            let data = node.decode_js_doc_private_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocPropertyTag => {
+            let data = node.decode_js_doc_property_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocProtectedTag => {
+            let data = node.decode_js_doc_protected_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocPublicTag => {
+            let data = node.decode_js_doc_public_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocReadonlyTag => {
+            let data = node.decode_js_doc_readonly_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocReturnTag => {
+            let data = node.decode_js_doc_return_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocSatisfiesTag => {
+            let data = node.decode_js_doc_satisfies_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocSeeTag => {
+            let data = node.decode_js_doc_see_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocSignature => {
+            let data = node.decode_js_doc_signature();
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JSDocTag => {
+            let data = node.decode_js_doc_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocTemplateTag => {
+            let data = node.decode_js_doc_template_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.constraint {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocThisTag => {
+            let data = node.decode_js_doc_this_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocThrowsTag => {
+            let data = node.decode_js_doc_throws_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocTypeExpression => {
+            let data = node.decode_js_doc_type_expression();
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JSDocTypeLiteral => {
+            let data = node.decode_js_doc_type_literal();
+            if let Some(id) = data.js_doc_property_tags {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::JSDocTypeTag => {
+            let data = node.decode_js_doc_type_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocTypedefTag => {
+            let data = node.decode_js_doc_typedef_tag();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.full_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                cb(ChildEdge::Nodes(*id));
+            }
+        }
+        SyntaxKind::JSDocVariadicType => {
+            let data = node.decode_js_doc_variadic_type();
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JsxAttribute => {
+            let data = node.decode_jsx_attribute();
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.initializer {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JsxAttributes => {
+            let data = node.decode_jsx_attributes();
+            if let Some(id) = data.properties {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::JsxClosingElement => {
+            let data = node.decode_jsx_closing_element();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JsxElement => {
+            let data = node.decode_jsx_element();
+            if let Some(id) = data.opening_element {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.children {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.closing_element {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JsxExpression => {
+            let data = node.decode_jsx_expression();
+            if let Some(id) = data.dot_dot_dot_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JsxFragment => {
+            let data = node.decode_jsx_fragment();
+            if let Some(id) = data.opening_fragment {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.children {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.closing_fragment {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JsxNamespacedName => {
+            let data = node.decode_jsx_namespaced_name();
+            if let Some(id) = data.namespace {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JsxOpeningElement => {
+            let data = node.decode_jsx_opening_element();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_arguments {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.attributes {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JsxSelfClosingElement => {
+            let data = node.decode_jsx_self_closing_element();
+            if let Some(id) = data.tag_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_arguments {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.attributes {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::JsxSpreadAttribute => {
+            let data = node.decode_jsx_spread_attribute();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::LabeledStatement => {
+            let data = node.decode_labeled_statement();
+            if let Some(id) = data.label {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.statement {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::LiteralType => {
+            let data = node.decode_literal_type();
+            if let Some(id) = data.literal {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::MappedType => {
+            let data = node.decode_mapped_type();
+            if let Some(id) = data.readonly_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameter {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name_type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.members {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::MetaProperty => {
+            let data = node.decode_meta_property();
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::MethodDeclaration => {
+            let data = node.decode_method_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.asterisk_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.exclamation_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.body {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::MethodSignature => {
+            let data = node.decode_method_signature();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::MissingDeclaration => {
+            let data = node.decode_missing_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::ModuleBlock => {
+            let data = node.decode_module_block();
+            if let Some(id) = data.statements {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::ModuleDeclaration => {
+            let data = node.decode_module_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.attributes {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.body {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::NamedExports => {
+            let data = node.decode_named_exports();
+            if let Some(id) = data.elements {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::NamedImports => {
+            let data = node.decode_named_imports();
+            if let Some(id) = data.elements {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::NamedTupleMember => {
+            let data = node.decode_named_tuple_member();
+            if let Some(id) = data.dot_dot_dot_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::NamespaceExport => {
+            let data = node.decode_namespace_export();
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::NamespaceExportDeclaration => {
+            let data = node.decode_namespace_export_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::NamespaceImport => {
+            let data = node.decode_namespace_import();
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::NewExpression => {
+            let data = node.decode_new_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_dot_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_arguments {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.arguments {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::NonNullExpression => {
+            let data = node.decode_non_null_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ObjectBindingPattern => {
+            let data = node.decode_object_binding_pattern();
+            if let Some(id) = data.elements {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::ObjectLiteralExpression => {
+            let data = node.decode_object_literal_expression();
+            if let Some(id) = data.properties {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::OptionalType => {
+            let data = node.decode_optional_type();
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::Parameter => {
+            let data = node.decode_parameter();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.dot_dot_dot_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.initializer {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ParenthesizedExpression => {
+            let data = node.decode_parenthesized_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ParenthesizedType => {
+            let data = node.decode_parenthesized_type();
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::PartiallyEmittedExpression => {
+            let data = node.decode_partially_emitted_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::PostfixUnaryExpression => {
+            let data = node.decode_postfix_unary_expression();
+            if let Some(id) = data.operand {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::PrefixUnaryExpression => {
+            let data = node.decode_prefix_unary_expression();
+            if let Some(id) = data.operand {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::PropertyAccessExpression => {
+            let data = node.decode_property_access_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_dot_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::PropertyAssignment => {
+            let data = node.decode_property_assignment();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.exclamation_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.initializer {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::PropertyDeclaration => {
+            let data = node.decode_property_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.exclamation_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.initializer {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::PropertySignature => {
+            let data = node.decode_property_signature();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.initializer {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::QualifiedName => {
+            let data = node.decode_qualified_name();
+            if let Some(id) = data.left {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.right {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::RestType => {
+            let data = node.decode_rest_type();
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ReturnStatement => {
+            let data = node.decode_return_statement();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::SatisfiesExpression => {
+            let data = node.decode_satisfies_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::SetAccessor => {
+            let data = node.decode_set_accessor();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.body {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ShorthandPropertyAssignment => {
+            let data = node.decode_shorthand_property_assignment();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.exclamation_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.equals_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.object_assignment_initializer {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::SourceFile => {
+            let data = node.decode_source_file();
+            if let Some(id) = data.statements {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.end_of_file_token {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::SpreadAssignment => {
+            let data = node.decode_spread_assignment();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::SpreadElement => {
+            let data = node.decode_spread_element();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::SwitchStatement => {
+            let data = node.decode_switch_statement();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.case_block {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::TaggedTemplateExpression => {
+            let data = node.decode_tagged_template_expression();
+            if let Some(id) = data.tag {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.question_dot_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_arguments {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.template {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::TemplateExpression => {
+            let data = node.decode_template_expression();
+            if let Some(id) = data.head {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.template_spans {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::TemplateLiteralType => {
+            let data = node.decode_template_literal_type();
+            if let Some(id) = data.head {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.template_spans {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::TemplateLiteralTypeSpan => {
+            let data = node.decode_template_literal_type_span();
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.literal {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::TemplateSpan => {
+            let data = node.decode_template_span();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.literal {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::ThrowStatement => {
+            let data = node.decode_throw_statement();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::TryStatement => {
+            let data = node.decode_try_statement();
+            if let Some(id) = data.try_block {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.catch_clause {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.finally_block {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::TupleType => {
+            let data = node.decode_tuple_type();
+            if let Some(id) = data.elements {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::TypeAliasDeclaration => {
+            let data = node.decode_type_alias_declaration();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_parameters {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::TypeAssertionExpression => {
+            let data = node.decode_type_assertion_expression();
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::TypeLiteral => {
+            let data = node.decode_type_literal();
+            if let Some(id) = data.members {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::TypeOfExpression => {
+            let data = node.decode_type_of_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::TypeOperator => {
+            let data = node.decode_type_operator();
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::TypeParameter => {
+            let data = node.decode_type_parameter();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.constraint {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.r#default {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::TypePredicate => {
+            let data = node.decode_type_predicate();
+            if let Some(id) = data.asserts_modifier {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.parameter_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::TypeQuery => {
+            let data = node.decode_type_query();
+            if let Some(id) = data.expr_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_arguments {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::TypeReference => {
+            let data = node.decode_type_reference();
+            if let Some(id) = data.type_name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.type_arguments {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::UnionType => {
+            let data = node.decode_union_type();
+            if let Some(id) = data.types {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::VariableDeclaration => {
+            let data = node.decode_variable_declaration();
+            if let Some(id) = data.name {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.exclamation_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.r#type {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.initializer {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::VariableDeclarationList => {
+            let data = node.decode_variable_declaration_list();
+            if let Some(id) = data.declarations {
+                cb(ChildEdge::Nodes(id));
+            }
+        }
+        SyntaxKind::VariableStatement => {
+            let data = node.decode_variable_statement();
+            if let Some(id) = data.modifiers {
+                cb(ChildEdge::Nodes(id));
+            }
+            if let Some(id) = data.declaration_list {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::VoidExpression => {
+            let data = node.decode_void_expression();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::WhileStatement => {
+            let data = node.decode_while_statement();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.statement {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::WithStatement => {
+            let data = node.decode_with_statement();
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.statement {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        SyntaxKind::YieldExpression => {
+            let data = node.decode_yield_expression();
+            if let Some(id) = data.asterisk_token {
+                cb(ChildEdge::Node(id));
+            }
+            if let Some(id) = data.expression {
+                cb(ChildEdge::Node(id));
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Fallible, replacement-aware counterpart to `for_each_child` used by
 /// emit-session transforms. Parsed syntax remains immutable; callers map a
 /// cloned `NodeData` value and install it through their own node factory.

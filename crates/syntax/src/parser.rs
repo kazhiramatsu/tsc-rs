@@ -251,8 +251,6 @@ struct Parser<'text> {
     /// starting points of the error aggregate in `finalize_tree` (a
     /// rolled-back speculation truncates the list with its candidates).
     error_nodes: Vec<NodeId>,
-    /// The child list `NodeArena::attach_children` fills as a node finishes.
-    child_scratch: Vec<NodeId>,
     /// Full-start positions whose ordinary scanner token carried
     /// TokenFlags.PrecedingJSDocComment.
     jsdoc_positions: rustc_hash::FxHashSet<usize>,
@@ -945,7 +943,6 @@ impl<'text> Parser<'text> {
             not_parenthesized_arrow: rustc_hash::FxHashSet::default(),
             jsdoc_candidates: Vec::new(),
             error_nodes: Vec::new(),
-            child_scratch: Vec::new(),
             jsdoc_positions: rustc_hash::FxHashSet::default(),
             has_jsdoc_comments: memchr::memmem::find(text.as_bytes(), b"/**").is_some(),
             syntax_cursor: None,
@@ -10272,9 +10269,7 @@ impl<'text> Parser<'text> {
 
     /// tsgo finishNode: the node's children get it as their parent.
     fn attach_children(&mut self, id: NodeId) {
-        let mut scratch = std::mem::take(&mut self.child_scratch);
-        self.arena.attach_children(id, &mut scratch);
-        self.child_scratch = scratch;
+        self.arena.attach_children(id);
     }
 
     fn push_parse_diagnostic(

@@ -975,20 +975,27 @@ impl NodeArena {
     }
 
     /// tsgo finishNode's parent pass: `owner`'s public children
-    /// (`for_each_child`) get `owner` as their parent, over an earlier
+    /// (`for_each_child`'s) get `owner` as their parent, over an earlier
     /// owner's (a node the parse moved). The parser calls it as each node
-    /// finishes, so a parsed tree needs no walk to set its parents; `scratch`
-    /// is the caller's buffer for the child list.
-    pub fn attach_children(&mut self, owner: NodeId, scratch: &mut Vec<NodeId>) {
-        scratch.clear();
-        for_each_child(&*self, self.node(owner), |child| {
-            scratch.push(child);
-            false
+    /// finishes, so a parsed tree needs no walk to set its parents. The
+    /// payload's child fields are read from the record and the parents
+    /// written directly (`for_each_child_edge`): no visitor, no list.
+    pub fn attach_children(&mut self, owner: NodeId) {
+        let node = self.nodes[self.node_index(owner)];
+        let (node_base, array_base, item_base) = (self.node_base, self.array_base, self.item_base);
+        let (nodes, arrays, items) = (&mut self.nodes, &self.arrays, &self.array_items);
+        let mut attach =
+            |child: NodeId| nodes[(child.index() - node_base) as usize].parent = Some(owner);
+        crate::for_each_child::for_each_child_edge(&node, |edge| match edge {
+            crate::for_each_child::ChildEdge::Node(child) => attach(child),
+            crate::for_each_child::ChildEdge::Nodes(array) => {
+                let record = &arrays[(array.index() - array_base) as usize];
+                let start = (record.items - item_base) as usize;
+                for &child in &items[start..start + record.len as usize] {
+                    attach(child);
+                }
+            }
         });
-        for &child in scratch.iter() {
-            let index = self.node_index(child);
-            self.nodes[index].parent = Some(owner);
-        }
     }
 
     /// The JSDoc roots attached to `host` get `host` as their parent (tsgo
@@ -1042,7 +1049,7 @@ impl NodeArena {
     pub fn finalize_tree(&mut self, root: NodeId, error_nodes: &[NodeId]) {
         #[cfg(debug_assertions)]
         let reference = self.finalize_reference(root);
-        self.attach_children(root, &mut Vec::new());
+        self.attach_children(root);
         for &error in error_nodes {
             let mut current = error;
             loop {
