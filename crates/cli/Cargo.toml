@@ -13,11 +13,15 @@ role = "cli"
 name = "tsc-rs"
 path = "src/main.rs"
 
+[features]
+flow-memo-shadow = ["tsc-checker/flow-memo-shadow"]
+
 [dependencies]
 libc.workspace = true
 libmimalloc-sys = { version = "0.1", features = ["extended"] }
 mimalloc = "0.1"
 tsc-api.workspace = true
+tsc-checker.workspace = true
 tsc-compiler.workspace = true
 tsc-lsp.workspace = true
 tsc-program.workspace = true

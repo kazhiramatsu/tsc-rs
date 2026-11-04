@@ -40,7 +40,7 @@ use tsc_types::{
     TypeFlags, TypeId,
 };
 
-use crate::flow_memo::UNTAINTED;
+use crate::flow_memo::{memo_shared_node, MemoKey, FLOW_DEPTH_LIMIT, MEMO_TRACKED, UNTAINTED};
 use crate::state::{CheckResult, CheckerState};
 
 /// tsc FlowType = Type | IncompleteType (checker-key §4.1). The
@@ -93,6 +93,10 @@ pub(crate) struct FlowQuery {
     pub(crate) walk_floor: u32,
     pub(crate) impure_shared: u32,
     pub(crate) reduce_depth: u32,
+    pub(crate) memo_key: Option<MemoKey>,
+    pub(crate) memo_used: bool,
+    pub(crate) memo_aborted: bool,
+    pub(crate) memo_faithful: bool,
     /// tsc `key`/`isKeySet` (70395-70396): the lazily computed flow
     /// cache key — outer None = not computed yet (isKeySet false),
     /// Some(None) = computed, reference has no key.
@@ -312,6 +316,10 @@ impl<'a> CheckerState<'a> {
             walk_floor: self.flow_memo.next_serial(),
             impure_shared: 0,
             reduce_depth: 0,
+            memo_key: None,
+            memo_used: false,
+            memo_aborted: false,
+            memo_faithful: false,
             key: None,
             synthetic_props: None,
             synthetic_this_root: false,
@@ -391,13 +399,30 @@ impl<'a> CheckerState<'a> {
             walk_floor: self.flow_memo.next_serial(),
             impure_shared: 0,
             reduce_depth: 0,
+            memo_key: None,
+            memo_used: false,
+            memo_aborted: false,
+            memo_faithful: false,
             key: None,
             synthetic_props,
             synthetic_this_root,
         };
+        if MEMO_TRACKED {
+            query.memo_key = self.flow_memo_key(&query);
+        }
         let frame_depth = self.flow_memo.frame_depth();
         let saved_height = self.flow_memo.save_height();
-        let walk = self.get_type_at_flow_node(&mut query, flow_node);
+        let mut walk = self.get_type_at_flow_node(&mut query, flow_node);
+        if query.memo_aborted {
+            // A replacement can omit shared entries and make a later branch
+            // deeper. Replay the whole walk faithfully before reporting TS2563.
+            self.shared_flow.truncate(shared_flow_start);
+            query.impure_shared = 0;
+            query.memo_used = false;
+            query.memo_aborted = false;
+            query.memo_faithful = true;
+            walk = self.get_type_at_flow_node(&mut query, flow_node);
+        }
         self.flow_memo.restore_height(saved_height);
         debug_assert_eq!(self.flow_memo.frame_depth(), frame_depth);
         debug_assert_eq!(query.reduce_depth, 0);
@@ -537,8 +562,16 @@ impl<'a> CheckerState<'a> {
         query: &mut FlowQuery,
         flow: FlowId,
     ) -> CheckResult<FlowType> {
+        if MEMO_TRACKED && query.memo_aborted {
+            return Ok(FlowType::Type(self.tables.intrinsics.error));
+        }
+        let entry_flow = flow;
         let mut flow = flow;
-        if query.flow_depth == 2000 {
+        if query.flow_depth == FLOW_DEPTH_LIMIT {
+            if query.memo_used {
+                query.memo_aborted = true;
+                return Ok(FlowType::Type(self.tables.intrinsics.error));
+            }
             let depth = query.flow_depth;
             self.trace_instant("getTypeAtFlowNode_DepthLimit", || {
                 tsc_types::tracing::Args::new().with("depth", depth)
@@ -549,10 +582,13 @@ impl<'a> CheckerState<'a> {
             return Ok(FlowType::Type(self.tables.intrinsics.error));
         }
         self.flow_frame_begin();
+        let memo = self.flow_frame_memo(query);
         query.flow_depth += 1;
         let mut shared: Option<FlowId> = None;
         let mut shared_height = None;
+        let mut steps = 0;
         let walk = (|| loop {
+            steps += 1;
             let flags = self.flow_flags_of(query.file, flow);
             if flags.intersects(FlowFlags::SHARED) {
                 // The shared-flow cache is scoped to THIS
@@ -568,6 +604,17 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 shared = Some(flow);
+            }
+            if let Some(memo) = memo.as_ref() {
+                if let Some((ty, ends_iteration)) =
+                    self.flow_memo_at_node(query, memo, entry_flow, flow, flags, shared)
+                {
+                    query.memo_used = true;
+                    // Go records the last shared node of the entire
+                    // iteration, which a checkpoint hit cannot know.
+                    shared = memo_shared_node(ends_iteration, shared);
+                    return Ok(ty);
+                }
             }
             let ty: FlowType;
             if flags.intersects(FlowFlags::ASSIGNMENT) {
@@ -689,7 +736,24 @@ impl<'a> CheckerState<'a> {
             Some(height) => (self.flow_frame_end_with(height), height),
             None => self.flow_frame_end(),
         };
-        if let (Ok(ty), Some(shared_node)) = (&walk, shared) {
+        if let Some(memo) = memo {
+            self.flow_memo_finish(
+                query,
+                memo,
+                entry_flow,
+                flow,
+                &walk,
+                taint,
+                height,
+                steps,
+                shared,
+                shared_height.is_some(),
+            );
+        }
+        if let (Ok(ty), Some(shared_node)) = (
+            &walk,
+            shared.filter(|_| !MEMO_TRACKED || !query.memo_aborted),
+        ) {
             if taint.transient != UNTAINTED {
                 query.impure_shared += 1;
             }
@@ -736,6 +800,9 @@ impl<'a> CheckerState<'a> {
             if self.get_assignment_target_kind(node) == crate::expr::AssignmentKind::Compound {
                 let antecedent = self.flow_antecedent(query.file, flow);
                 let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+                if MEMO_TRACKED && query.memo_aborted {
+                    return Ok(Some(flow_type));
+                }
                 let base = self.get_base_type_of_literal_type(flow_type.get_type())?;
                 return Ok(Some(self.create_flow_type(base, flow_type.is_incomplete())));
             }
@@ -808,6 +875,9 @@ impl<'a> CheckerState<'a> {
                         {
                             let antecedent = self.flow_antecedent(query.file, flow);
                             let walked = self.get_type_at_flow_node(query, antecedent)?;
+                            if MEMO_TRACKED && query.memo_aborted {
+                                return Ok(Some(walked));
+                            }
                             let finalized = self.finalize_evolving_array_type(walked.get_type())?;
                             return Ok(Some(FlowType::Type(
                                 self.get_non_nullable_type_if_needed(finalized)?,
@@ -849,6 +919,9 @@ impl<'a> CheckerState<'a> {
             ) {
                 let antecedent = self.flow_antecedent(query.file, flow);
                 let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+                if MEMO_TRACKED && query.memo_aborted {
+                    return Ok(Some(flow_type));
+                }
                 let ty = self.finalize_evolving_array_type(flow_type.get_type())?;
                 let narrowed_type = if predicate.ty.is_some() {
                     self.narrow_type_by_type_predicate(query, ty, &predicate, node, true)?
@@ -905,6 +978,9 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<FlowType> {
         let antecedent = self.flow_antecedent(query.file, flow);
         let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+        if MEMO_TRACKED && query.memo_aborted {
+            return Ok(flow_type);
+        }
         let ty = flow_type.get_type();
         if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) {
             return Ok(flow_type);
@@ -952,6 +1028,9 @@ impl<'a> CheckerState<'a> {
         };
         let antecedent = self.flow_antecedent(query.file, flow);
         let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+        if MEMO_TRACKED && query.memo_aborted {
+            return Ok(flow_type);
+        }
         let mut ty = flow_type.get_type();
         let Some(switch_expression) = switch_expression else {
             // The parser normally supplies a missing expression node.
@@ -1111,6 +1190,9 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+            if MEMO_TRACKED && query.memo_aborted {
+                return Ok(flow_type);
+            }
             let ty = flow_type.get_type();
             if ty == query.declared_type && query.declared_type == query.initial_type {
                 return Ok(FlowType::Type(ty));
@@ -1129,6 +1211,9 @@ impl<'a> CheckerState<'a> {
             // The default/no-match path of a non-exhaustive switch
             // rejoins here.
             let flow_type = self.get_type_at_flow_node(query, bypass)?;
+            if MEMO_TRACKED && query.memo_aborted {
+                return Ok(flow_type);
+            }
             let ty = flow_type.get_type();
             let switch_statement = match self.binder.file(query.file).flow.flow(bypass).payload {
                 FlowPayload::SwitchClause {
@@ -1219,6 +1304,9 @@ impl<'a> CheckerState<'a> {
         for antecedent in self.flow_label_antecedents(query.file, flow) {
             let flow_type = if first_antecedent_type.is_none() {
                 let first = self.get_type_at_flow_node(query, antecedent)?;
+                if MEMO_TRACKED && query.memo_aborted {
+                    return Ok(first);
+                }
                 first_antecedent_type = Some(first);
                 first
             } else {
@@ -1240,6 +1328,9 @@ impl<'a> CheckerState<'a> {
                 self.restore_flow_type_cache(save_flow_type_cache);
                 self.flow_loop_stack.pop();
                 let flow_type = walked?;
+                if MEMO_TRACKED && query.memo_aborted {
+                    return Ok(flow_type);
+                }
                 // The fixpoint may have been finalized during the
                 // recursive walk (a nested query completed it).
                 if let Some(cache) = self.flow_loop_caches.get(&(query.file, flow)) {
@@ -1597,6 +1688,9 @@ impl<'a> CheckerState<'a> {
         }
         let antecedent = self.flow_antecedent(query.file, flow);
         let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+        if MEMO_TRACKED && query.memo_aborted {
+            return Ok(Some(flow_type));
+        }
         let ty = flow_type.get_type();
         if !self
             .tables
