@@ -56,10 +56,87 @@ impl RelationKind {
     }
 }
 
-/// One relation's verdict cache: getRelationKey string →
-/// RelationComparisonResult (Succeeded/Failed + Reports*/Overflow
-/// bits).
-pub type RelationCache = HashMap<RelationKey, RelationComparisonResult>;
+/// One relation's verdict cache (Succeeded/Failed + Reports*/Overflow bits).
+/// The existing Pair and Generic key representations use separate typed
+/// tables behind the same lookup/insert API.
+#[derive(Debug, Default)]
+pub struct RelationCache {
+    pairs: HashMap<(u32, u32, i32), RelationComparisonResult>,
+    generics: HashMap<Box<str>, RelationComparisonResult>,
+}
+
+impl RelationCache {
+    #[inline]
+    pub fn get(&self, key: &RelationKey) -> Option<&RelationComparisonResult> {
+        match key {
+            RelationKey::Pair {
+                source,
+                target,
+                intersection,
+            } => self.pairs.get(&(*source, *target, *intersection)),
+            RelationKey::Generic(text) => self.get_generic(text),
+        }
+    }
+
+    // Keep string hashing/equality and its frame off the integer-pair hit.
+    #[inline(never)]
+    fn get_generic(&self, text: &str) -> Option<&RelationComparisonResult> {
+        self.generics.get(text)
+    }
+
+    #[inline]
+    pub fn insert(
+        &mut self,
+        key: RelationKey,
+        value: RelationComparisonResult,
+    ) -> Option<RelationComparisonResult> {
+        match key {
+            RelationKey::Pair {
+                source,
+                target,
+                intersection,
+            } => self.pairs.insert((source, target, intersection), value),
+            RelationKey::Generic(text) => self.insert_generic(text, value),
+        }
+    }
+
+    #[inline(never)]
+    fn insert_generic(
+        &mut self,
+        text: Box<str>,
+        value: RelationComparisonResult,
+    ) -> Option<RelationComparisonResult> {
+        self.generics.insert(text, value)
+    }
+
+    pub fn contains_key(&self, key: &RelationKey) -> bool {
+        self.get(key).is_some()
+    }
+
+    pub fn len(&self) -> usize {
+        self.pairs.len() + self.generics.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.pairs.is_empty() && self.generics.is_empty()
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &RelationComparisonResult> {
+        self.pairs.values().chain(self.generics.values())
+    }
+
+    fn memory_usage(&self) -> usize {
+        self.pairs.capacity()
+            * (std::mem::size_of::<((u32, u32, i32), RelationComparisonResult)>() + 1)
+            * 8
+            / 7
+            + self.generics.capacity()
+                * (std::mem::size_of::<(Box<str>, RelationComparisonResult)>() + 1)
+                * 8
+                / 7
+            + self.generics.keys().map(|text| text.len()).sum::<usize>()
+    }
+}
 
 /// tsc-port: getRelationKey @6.0.3 (the cache key). Ordinary types key by
 /// their id pair and intersection state without allocating (tsc builds the
@@ -168,17 +245,7 @@ impl RelationCaches {
                 .sum::<usize>();
         for cache in &self.per_relation {
             entries += cache.len();
-            bytes += cache.capacity()
-                * (std::mem::size_of::<(RelationKey, RelationComparisonResult)>() + 1)
-                * 8
-                / 7;
-            bytes += cache
-                .keys()
-                .map(|key| match key {
-                    RelationKey::Generic(text) => text.len(),
-                    RelationKey::Pair { .. } => 0,
-                })
-                .sum::<usize>();
+            bytes += cache.memory_usage();
         }
         (entries, bytes)
     }
