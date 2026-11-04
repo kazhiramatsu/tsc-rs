@@ -3762,15 +3762,14 @@ fn byte_path_slice<'p>(
 /// tsc-hash: d53c3e92f0b97072b15fe2ed30c413ab7f33522619f88528f818eef207535163
 /// tsc-span: _tsc.js:5452-5454
 pub(crate) fn normalized_slashes<'p>(path: impl Into<JsStr<'p>>) -> JsString {
-    let path = path.into();
+    let mut path = path.into();
     let mut result = JsString::with_capacity(path.as_bytes().len());
-    for unit in path.code_units() {
-        result.push_code_unit(if unit == b'\\' as u16 {
-            b'/' as u16
-        } else {
-            unit
-        });
+    while let Some((span, rest)) = path.split_once("\\") {
+        result.push_js(span);
+        result.push('/');
+        path = rest;
     }
+    result.push_js(path);
     result
 }
 
