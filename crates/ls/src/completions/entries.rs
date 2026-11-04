@@ -1206,7 +1206,7 @@ impl Completions<'_, '_, '_> {
     /// tsgo `Symbol.CombinedLocalAndExportSymbolFlags`.
     fn combined_local_and_export_symbol_flags(&self, symbol: SymbolId) -> SymbolFlags {
         let data = self.request.state.binder.symbol(symbol);
-        match data.export_symbol {
+        match data.export_symbol() {
             Some(export) => data.flags | self.request.state.binder.symbol(export).flags,
             None => data.flags,
         }

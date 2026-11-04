@@ -457,7 +457,7 @@ impl<'a> CheckerState<'a> {
                     || reference_kinds.intersects(SymbolFlags::VARIABLE)
             } else {
                 !reference_kinds.is_empty()
-                    || symbol.export_symbol.is_some()
+                    || symbol.export_symbol().is_some()
                     || symbol.flags.intersects(SymbolFlags::MODULE_EXPORTS)
             };
             if used {

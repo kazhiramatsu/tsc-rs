@@ -142,37 +142,35 @@ fn format_message_value<A: DiagnosticArgument>(template: &str, args: &[A]) -> Js
     }
 
     let mut output = JsString::with_capacity(template.len());
-    let mut chars = template.char_indices().peekable();
-    while let Some((start, ch)) = chars.next() {
-        if ch != '{' {
-            output.push(ch);
+    let bytes = template.as_bytes();
+    let mut literal_start = 0;
+    let mut cursor = 0;
+    while cursor < bytes.len() {
+        if bytes[cursor] != b'{' {
+            cursor += 1;
             continue;
         }
-
-        let mut end = start + ch.len_utf8();
-        let mut number = String::new();
-        while let Some((next_index, next_ch)) = chars.peek().copied() {
-            if next_ch.is_ascii_digit() {
-                number.push(next_ch);
-                end = next_index + next_ch.len_utf8();
-                chars.next();
-            } else {
-                break;
-            }
+        let start = cursor;
+        cursor += 1;
+        let number_start = cursor;
+        while bytes.get(cursor).is_some_and(u8::is_ascii_digit) {
+            cursor += 1;
         }
-
-        if !number.is_empty() && chars.peek().is_some_and(|(_, next_ch)| *next_ch == '}') {
-            chars.next();
-            let index: usize = number.parse().expect("ASCII digits parse as usize");
+        if cursor > number_start && bytes.get(cursor) == Some(&b'}') {
+            output.push_str(&template[literal_start..start]);
+            let index: usize = template[number_start..cursor]
+                .parse()
+                .expect("ASCII digits parse as usize");
             output.push_js(
                 args.get(index)
                     .expect("diagnostic format argument is defined")
                     .diagnostic_value(),
             );
-        } else {
-            output.push_str(&template[start..end]);
+            cursor += 1;
+            literal_start = cursor;
         }
     }
+    output.push_str(&template[literal_start..]);
 
     output
 }

@@ -887,7 +887,7 @@ fn combined_local_and_export_symbol_flags(
     symbol: SymbolId,
 ) -> SymbolFlags {
     let data = checker.binder.symbol(symbol);
-    match data.export_symbol {
+    match data.export_symbol() {
         Some(export) => data.flags | checker.binder.symbol(export).flags,
         None => data.flags,
     }

@@ -1001,7 +1001,10 @@ impl<'a> CheckerState<'a> {
             }
             return self.arguments_symbol_type();
         }
-        if self.should_mark_identifier_alias_referenced(node) {
+        if symbol != self.unknown_symbol
+            && self.can_collect_linked_references(node)
+            && self.should_mark_identifier_alias_referenced(node)
+        {
             self.mark_alias_referenced(symbol, node)?;
         }
         let local_or_export_symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
@@ -1426,7 +1429,7 @@ impl<'a> CheckerState<'a> {
     ) -> SymbolId {
         let data = self.binder.symbol(symbol);
         let target = if data.flags.intersects(SymbolFlags::EXPORT_VALUE) {
-            data.export_symbol.unwrap_or(symbol)
+            data.export_symbol().unwrap_or(symbol)
         } else {
             symbol
         };

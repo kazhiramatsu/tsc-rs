@@ -30,9 +30,12 @@ short user guide.
   baseline). The workspace tests, the one-checker conformance run and the
   suites are the hosted `ci`'s job (same scripts, same ratchets); do not
   repeat them locally. After a checker change, run locally
-  `scripts/conformance_ts71.py --workers 1 --checkers 4 --check` and
-  compare its mismatches with the known ones recorded in the packet. Change
-  `ratchets/ts71/` only with `--update` at the final bytes.
+  `scripts/conformance_ts71.py --workers 1 --checkers 4` (the script refuses
+  `--check` together with `--checkers`), then compare its
+  `checkers-4/report.json` with the one-checker report using
+  `scripts/conformance_ts71_compare.py`; the known four differing
+  configurations are recorded in the packet. Change `ratchets/ts71/` only
+  with `--update` at the final bytes.
 - Keep the machine's load low: one heavy job at a time, `nice -n 20`,
   `cargo -j 2`, one or two workers. No per-slice performance measurement
   for now.
