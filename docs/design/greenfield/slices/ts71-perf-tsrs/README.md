@@ -939,6 +939,37 @@ hosted run [41810437491](https://github.com/kazhiramatsu/tsc-rs/actions/runs/418
 fmt・clippy・4 つの生成器の `--check`、fingerprint 143,190 行 差分 0（両方の byte）、8 case で出力が C1 と一致、`--checkers 4` は既知の 4 件
 （15,335 一致）、計測は上の通り。
 
+## A-1d D1：identity を差分で動かし、node record を写しながら store に置く（branch `perf/ts71-relocation-deltas`）
+
+A-1d（戦略 v2 §4.1、`a1d-relocation-design-report.md` §2.1・§2.5）の最初の step。loader が parse した tree を program 順の lease に
+移す relocation を軽くした。
+
+1. **差分**：`identity_relocation` が lease ごとに space の数を確かめているので、identity は space ごとの始点の差だけ動く。
+   `RelocationShift` が 3 つの差を持ち、各 word は `new + (word − old)`（wrapping 演算）、元の範囲に入っているかの検査は flag を 1 本
+   落とすだけ。node と item を移し終えてから flag を見て、外れていれば従来と同じ `InvalidLease` を返す。それまでは word ごとに
+   space の `match`・checked な引き算と足し算・失敗時の error 構築を `?` で返していた。`Node::map_identity_words` は失敗しない mapper で
+   呼ぶので `?` は消える。
+2. **写しながら置く**：`StoreVec::publish_mapped`（store、`unsafe` はここだけ）が record を 1 つずつ読み、`map` を通して store の slot に
+   書く。node record は以前、buffer の中で書き換えてから store へ memcpy していた（各 record を 2 回読み書き）。結果は commit する
+   まで公開されず、範囲外の identity があれば `PendingPublish` が書いた slot を scrub して tree はそのまま（従来どおり error のあと tree は
+   使われない）。array と item は量が小さいので従来の書き換え + publish。
+
+**計測**（1 thread、通常 build、静かな machine。base = main `cf50870c1`（`m870`）、本 PR = `9f760804d`（`d1b`））：VS Code（3 回の
+中央値）144.43 → 144.18 G（−0.2%）、peak footprint 3,617 → 3,623 MB、memory report は同一（node record 533.4 MiB、syntax 641.4、binder
+458.2、checker 1,519.8 MiB）。他の 7 project は 2 回目の静かな窓（16:45）で 3 回を交互に測った中央値で TypeScript compiler −0.10%、
+Next.js −0.05%、zod −0.08%、effect −0.18%、hono −0.29%、vue −0.01%、playwright −0.12%（最初に PR に書いた 1 回測定の −0.7〜−2.4% は、
+base を先に走らせたため base が各 project の cold start を負った分の水増し。serial.py は warm-up と 3 回の中央値に直した）。
+**予想との差**：予想は VS Code −1.0〜−1.3 G。C1 の profile の relocation の時間（self 91 ms + `memmove` 42 ms）を program 平均の命令率で
+命令数に換算したが、この仕事は memory を流す。word ごとの写像の単純化で消えるのは約 30 M の identity word × 約 10 命令（≈ 0.3 G、
+VS Code で見えた分）で、融合した publish が消す 533 MiB の copy の費用は memory の転送であって命令ではない（vectorize された copy は
+≈ 0.02 G）。以後、memory を流す仕事の予想は CPU 時間か word あたりの命令数で出す（計測台帳の規則）。
+
+**記録。** PR [#875](https://github.com/kazhiramatsu/tsc-rs/pull/875) → merge `5c1ed6230`（2026-11-04。code `9f760804d`、最終 head `fcdc0d171`）。
+hosted run [41814981400](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41814981400)：全 job pass。local（hosted がしないことだけ、`9f760804d`）：
+relocation が届く 8 crate の test（store 17・syntax 269・binder 80・api 332・program 684・emitter 352・ls 256・checker 1,850、0 failed）、
+fmt・clippy・4 つの生成器の `--check`、fingerprint 143,190 行 差分 0、8 case で出力が main と一致（checker は変えていないので
+`--checkers 4` はなし）、計測は上の通り。
+
 ## checker の data 層の書き直し（利用者の決定 2026-11-04）
 
 計測台帳の結果（front end と memo では VS Code の差が縮まらず、差は checker の 1 操作の費用と record の形にある）を受けて、利用者が
