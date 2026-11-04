@@ -119,6 +119,39 @@ pub enum PerfCounter {
     CheckerReplayContextualSignature,
     CheckerReplayUnionIndexInfos,
     CheckerReplayIntersectionLast,
+    // ---- R29 union collection and content searches ----
+    UnionCollectionTables01,
+    UnionCollectionTables2To8,
+    UnionCollectionTables9To12,
+    UnionCollectionTables13To20,
+    UnionCollectionTables21To64,
+    UnionCollectionTables65To256,
+    UnionCollectionTables257Plus,
+    UnionCollectionChecker01,
+    UnionCollectionChecker2To8,
+    UnionCollectionChecker9To12,
+    UnionCollectionChecker13To20,
+    UnionCollectionChecker21To64,
+    UnionCollectionChecker65To256,
+    UnionCollectionChecker257Plus,
+    UnionCollectionRecursive01,
+    UnionCollectionRecursive2To8,
+    UnionCollectionRecursive9To12,
+    UnionCollectionRecursive13To20,
+    UnionCollectionRecursive21To64,
+    UnionCollectionRecursive65To256,
+    UnionCollectionRecursive257Plus,
+    TypeCompareOuterCalls,
+    TypeCompareRecursiveCalls,
+    UnionSortComparisons01,
+    UnionSortComparisons2To8,
+    UnionSortComparisons9To12,
+    UnionSortComparisons13To20,
+    UnionSortComparisons21To64,
+    UnionSortComparisons65To256,
+    UnionSortComparisons257Plus,
+    ContentSearchHits,
+    ContentSearchMisses,
     // ---- the name table ----
     NamesInternCalls,
     NamesInternInserts,
@@ -210,6 +243,38 @@ pub const WIRED: [bool; COUNT] = [
     true,  // checker_replay.contextual_signature
     true,  // checker_replay.union_index_infos
     true,  // checker_replay.intersection_last
+    true,  // union_collect.tables.len_0_1
+    true,  // union_collect.tables.len_2_8
+    true,  // union_collect.tables.len_9_12
+    true,  // union_collect.tables.len_13_20
+    true,  // union_collect.tables.len_21_64
+    true,  // union_collect.tables.len_65_256
+    true,  // union_collect.tables.len_257_plus
+    true,  // union_collect.checker.len_0_1
+    true,  // union_collect.checker.len_2_8
+    true,  // union_collect.checker.len_9_12
+    true,  // union_collect.checker.len_13_20
+    true,  // union_collect.checker.len_21_64
+    true,  // union_collect.checker.len_65_256
+    true,  // union_collect.checker.len_257_plus
+    true,  // union_collect.recursive.len_0_1
+    true,  // union_collect.recursive.len_2_8
+    true,  // union_collect.recursive.len_9_12
+    true,  // union_collect.recursive.len_13_20
+    true,  // union_collect.recursive.len_21_64
+    true,  // union_collect.recursive.len_65_256
+    true,  // union_collect.recursive.len_257_plus
+    true,  // compare_types.outer_calls
+    true,  // compare_types.recursive_calls
+    true,  // union_sort.comparisons.len_0_1
+    true,  // union_sort.comparisons.len_2_8
+    true,  // union_sort.comparisons.len_9_12
+    true,  // union_sort.comparisons.len_13_20
+    true,  // union_sort.comparisons.len_21_64
+    true,  // union_sort.comparisons.len_65_256
+    true,  // union_sort.comparisons.len_257_plus
+    true,  // type_search.content.hits
+    true,  // type_search.content.misses
     true,  // names.intern.calls
     true,  // names.intern.inserts
     true,  // names.text.reads
@@ -294,6 +359,38 @@ pub const NAMES: [&str; COUNT] = [
     "checker_replay.contextual_signature",
     "checker_replay.union_index_infos",
     "checker_replay.intersection_last",
+    "union_collect.tables.len_0_1",
+    "union_collect.tables.len_2_8",
+    "union_collect.tables.len_9_12",
+    "union_collect.tables.len_13_20",
+    "union_collect.tables.len_21_64",
+    "union_collect.tables.len_65_256",
+    "union_collect.tables.len_257_plus",
+    "union_collect.checker.len_0_1",
+    "union_collect.checker.len_2_8",
+    "union_collect.checker.len_9_12",
+    "union_collect.checker.len_13_20",
+    "union_collect.checker.len_21_64",
+    "union_collect.checker.len_65_256",
+    "union_collect.checker.len_257_plus",
+    "union_collect.recursive.len_0_1",
+    "union_collect.recursive.len_2_8",
+    "union_collect.recursive.len_9_12",
+    "union_collect.recursive.len_13_20",
+    "union_collect.recursive.len_21_64",
+    "union_collect.recursive.len_65_256",
+    "union_collect.recursive.len_257_plus",
+    "compare_types.outer_calls",
+    "compare_types.recursive_calls",
+    "union_sort.comparisons.len_0_1",
+    "union_sort.comparisons.len_2_8",
+    "union_sort.comparisons.len_9_12",
+    "union_sort.comparisons.len_13_20",
+    "union_sort.comparisons.len_21_64",
+    "union_sort.comparisons.len_65_256",
+    "union_sort.comparisons.len_257_plus",
+    "type_search.content.hits",
+    "type_search.content.misses",
     "names.intern.calls",
     "names.intern.inserts",
     "names.text.reads",
@@ -379,6 +476,111 @@ pub fn name_sites() -> Vec<(String, u64)> {
     {
         Vec::new()
     }
+}
+
+/// The two production entry sites and recursive union expansion. Only
+/// measurement builds classify calls or update the length histograms.
+#[cfg(feature = "perf-counters")]
+#[derive(Clone, Copy)]
+pub enum UnionCollectionSite {
+    Tables,
+    Checker,
+    Recursive,
+}
+
+/// Count source-slice lengths at the two outer collection sites; recursive
+/// calls count the expanded union's member-slice length, without being
+/// counted again as outer calls. Sum a site's buckets for its call count.
+#[cfg(feature = "perf-counters")]
+pub fn union_collection(site: UnionCollectionSite, length: usize) {
+    use PerfCounter::*;
+    let counters = match site {
+        UnionCollectionSite::Tables => [
+            UnionCollectionTables01,
+            UnionCollectionTables2To8,
+            UnionCollectionTables9To12,
+            UnionCollectionTables13To20,
+            UnionCollectionTables21To64,
+            UnionCollectionTables65To256,
+            UnionCollectionTables257Plus,
+        ],
+        UnionCollectionSite::Checker => [
+            UnionCollectionChecker01,
+            UnionCollectionChecker2To8,
+            UnionCollectionChecker9To12,
+            UnionCollectionChecker13To20,
+            UnionCollectionChecker21To64,
+            UnionCollectionChecker65To256,
+            UnionCollectionChecker257Plus,
+        ],
+        UnionCollectionSite::Recursive => [
+            UnionCollectionRecursive01,
+            UnionCollectionRecursive2To8,
+            UnionCollectionRecursive9To12,
+            UnionCollectionRecursive13To20,
+            UnionCollectionRecursive21To64,
+            UnionCollectionRecursive65To256,
+            UnionCollectionRecursive257Plus,
+        ],
+    };
+    let bucket = match length {
+        0..=1 => 0,
+        2..=8 => 1,
+        9..=12 => 2,
+        13..=20 => 3,
+        21..=64 => 4,
+        65..=256 => 5,
+        _ => 6,
+    };
+    bump(counters[bucket]);
+}
+
+/// Count outer GST comparisons by the number of flattened members supplied
+/// to the sort, including duplicate occurrences and identity comparisons.
+#[cfg(feature = "perf-counters")]
+pub(crate) fn union_sort_comparison(length: usize) {
+    use PerfCounter::*;
+    bump(match length {
+        0..=1 => UnionSortComparisons01,
+        2..=8 => UnionSortComparisons2To8,
+        9..=12 => UnionSortComparisons9To12,
+        13..=20 => UnionSortComparisons13To20,
+        21..=64 => UnionSortComparisons21To64,
+        65..=256 => UnionSortComparisons65To256,
+        _ => UnionSortComparisons257Plus,
+    });
+}
+
+#[cfg(feature = "perf-counters")]
+std::thread_local! {
+    static TYPE_COMPARE_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// A measurement-only scope spanning comparator recursion, including calls
+/// back through the checker-owned mapper comparison.
+#[cfg(feature = "perf-counters")]
+pub(crate) struct TypeComparisonScope;
+
+#[cfg(feature = "perf-counters")]
+impl Drop for TypeComparisonScope {
+    fn drop(&mut self) {
+        TYPE_COMPARE_DEPTH.with(|depth| depth.set(depth.get() - 1));
+    }
+}
+
+#[cfg(feature = "perf-counters")]
+pub(crate) fn type_comparison_scope() -> TypeComparisonScope {
+    let recursive = TYPE_COMPARE_DEPTH.with(|depth| {
+        let previous = depth.get();
+        depth.set(previous + 1);
+        previous != 0
+    });
+    bump(if recursive {
+        PerfCounter::TypeCompareRecursiveCalls
+    } else {
+        PerfCounter::TypeCompareOuterCalls
+    });
+    TypeComparisonScope
 }
 
 /// Whether counters are compiled in.

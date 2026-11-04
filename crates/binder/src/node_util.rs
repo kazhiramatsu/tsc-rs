@@ -690,42 +690,26 @@ pub fn modifiers_of_data(data: &NodeData) -> Option<NodeArrayId> {
     }
 }
 
-/// tsc-port: modifierToFlag @6.0.3
-/// tsc-hash: 770fd67655828664335271fc87c68ad1ef1aea9f151a86d5d826eb087cb2bfa0
-/// tsc-span: _tsc.js:17035-17073
-pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
-    match token {
-        SyntaxKind::StaticKeyword => ModifierFlags::STATIC,
-        SyntaxKind::PublicKeyword => ModifierFlags::PUBLIC,
-        SyntaxKind::ProtectedKeyword => ModifierFlags::PROTECTED,
-        SyntaxKind::PrivateKeyword => ModifierFlags::PRIVATE,
-        SyntaxKind::AbstractKeyword => ModifierFlags::ABSTRACT,
-        SyntaxKind::AccessorKeyword => ModifierFlags::ACCESSOR,
-        SyntaxKind::ExportKeyword => ModifierFlags::EXPORT,
-        SyntaxKind::DeclareKeyword => ModifierFlags::AMBIENT,
-        SyntaxKind::ConstKeyword => ModifierFlags::CONST,
-        SyntaxKind::DefaultKeyword => ModifierFlags::DEFAULT,
-        SyntaxKind::AsyncKeyword => ModifierFlags::ASYNC,
-        SyntaxKind::ReadonlyKeyword => ModifierFlags::READONLY,
-        SyntaxKind::OverrideKeyword => ModifierFlags::OVERRIDE,
-        SyntaxKind::InKeyword => ModifierFlags::IN,
-        SyntaxKind::OutKeyword => ModifierFlags::OUT,
-        SyntaxKind::Decorator => ModifierFlags::DECORATOR,
-        _ => ModifierFlags::NONE,
-    }
-}
+pub use tsc_syntax::utilities::modifier_to_flag;
 
-/// tsc-port: modifiersToFlags @6.0.3
-/// tsc-hash: 61423bd0b76ca73e8f19fde199b31e595db0c92cc24ca6fafa079d5a98e596cc
-/// tsc-span: _tsc.js:17026-17034
+/// tsgo `ModifierList.ModifierFlags`: the flags `ast.ModifiersToFlags`
+/// computes, which every array keeps from its allocation.
+#[inline]
 pub fn modifiers_to_flags(tree: &impl NodeLookup, modifiers: Option<NodeArrayId>) -> ModifierFlags {
-    let mut flags = ModifierFlags::NONE;
-    if let Some(modifiers) = modifiers {
-        for &modifier in tree.node_array(modifiers).nodes {
-            flags |= modifier_to_flag(tree.node(modifier).kind);
+    match modifiers {
+        Some(modifiers) => {
+            let flags = tree.node_array(modifiers).modifier_flags;
+            debug_assert_eq!(flags, {
+                let mut written = ModifierFlags::NONE;
+                for &modifier in tree.node_array(modifiers).nodes {
+                    written |= modifier_to_flag(tree.node(modifier).kind);
+                }
+                written
+            });
+            flags
         }
+        None => ModifierFlags::NONE,
     }
-    flags
 }
 
 /// tsc-port: getSyntacticModifierFlagsNoCache @6.0.3

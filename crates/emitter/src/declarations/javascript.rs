@@ -1115,12 +1115,7 @@ impl DeclarationTransformer<'_> {
         let written_flags = {
             let syntax = cx.arena().source(source)?.syntax();
             written.map_or(ModifierFlags::NONE, |list| {
-                let mut flags = ModifierFlags::NONE;
-                for &modifier in syntax.arena.node_array(list.array()).nodes {
-                    flags |=
-                        tsc_binder::node_util::modifier_to_flag(syntax.arena.node(modifier).kind);
-                }
-                flags
+                syntax.arena.node_array(list.array()).modifier_flags
             })
         };
         let ensured = self.ensure_modifier_flags_of(cx, host, written_flags)?;

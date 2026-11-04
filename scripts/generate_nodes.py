@@ -347,6 +347,9 @@ pub struct NodeArray<'a> {
     pub has_trailing_comma: bool,
     /// tsc createMissingList's isMissingList marker.
     pub is_missing_list: bool,
+    /// tsgo `ModifierList.ModifierFlags`: the flags of the elements that are
+    /// modifiers or decorators (`modifier_to_flag`), as any array stores them.
+    pub modifier_flags: tsc_types::ModifierFlags,
 }
 
 /// The stored form of a tsc NodeArray: its elements are the `len` ids at
@@ -362,6 +365,18 @@ pub struct NodeArrayRecord {
     pub has_trailing_comma: bool,
     /// tsc createMissingList's isMissingList marker.
     pub is_missing_list: bool,
+    /// The syntactic modifier flags of the elements (tsgo's
+    /// `ModifierList.ModifierFlags`), computed once when the array is
+    /// allocated; they fit in 16 bits (`ModifierFlags::SYNTACTIC_MODIFIERS`).
+    pub(crate) modifier_flags: u16,
+}
+
+impl NodeArrayRecord {
+    /// The array's [`NodeArray::modifier_flags`].
+    #[inline]
+    pub fn modifier_flags(&self) -> tsc_types::ModifierFlags {
+        tsc_types::ModifierFlags::from_bits(i32::from(self.modifier_flags))
+    }
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -545,6 +560,7 @@ pub fn published_node_array(id: NodeArrayId) -> NodeArray<'static> {
         end: record.end,
         has_trailing_comma: record.has_trailing_comma,
         is_missing_list: record.is_missing_list,
+        modifier_flags: record.modifier_flags(),
     }
 }
 
