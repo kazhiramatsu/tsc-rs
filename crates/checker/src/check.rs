@@ -8201,7 +8201,7 @@ impl<'a> CheckerState<'a> {
         // the symbol (the EXPORT_VALUE locals of containers.rs:566-591)
         // yields the bare [symbol].
         if let Some(export_symbol) =
-            direct.and_then(|direct| self.binder.symbol(direct).export_symbol)
+            direct.and_then(|direct| self.binder.symbol(direct).export_symbol())
         {
             let merged = self.get_merged_symbol(export_symbol);
             if self.symbol_chain_is_accessible(

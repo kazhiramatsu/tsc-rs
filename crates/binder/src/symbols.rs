@@ -42,15 +42,13 @@ pub struct Symbol {
     /// addDeclarationToSymbol: FIRST value declaration wins.
     pub value_declaration: Option<NodeId>,
     pub parent: Option<SymbolId>,
-    /// local ↔ export link installed by declareModuleMember.
-    pub export_symbol: Option<SymbolId>,
-    /// The member and export tables and the fields few symbols set; see
-    /// [`Symbol::members`] and [`Symbol::extras`].
+    /// The member and export tables, the local ↔ export link and the fields
+    /// few symbols set; see [`Symbol::members`] and [`Symbol::extras`].
     extras: Option<Box<SymbolExtras>>,
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Symbol>() == 48);
+const _: () = assert!(std::mem::size_of::<Symbol>() == 40);
 
 /// The [`Symbol`] fields most symbols leave empty: the member, export and UMD
 /// global-export tables, the JS assignment-declaration members and two
@@ -67,6 +65,9 @@ pub struct SymbolExtras {
     pub exports: Arc<SymbolTable>,
     /// tsc Symbol.globalExports (bindNamespaceExportDeclaration).
     pub global_exports: Arc<SymbolTable>,
+    /// tsc Symbol.exportSymbol: the local ↔ export link installed by
+    /// declareModuleMember (about 2% of a program's symbols).
+    pub export_symbol: Option<SymbolId>,
     pub const_enum_only_module: Option<bool>,
     pub is_replaceable_by_method: bool,
     /// tsc Symbol.assignmentDeclarationMembers: dynamically named JS
@@ -81,6 +82,7 @@ impl Default for SymbolExtras {
             members: empty_symbol_table(),
             exports: empty_symbol_table(),
             global_exports: empty_symbol_table(),
+            export_symbol: None,
             const_enum_only_module: None,
             is_replaceable_by_method: false,
             assignment_declaration_members: IndexMap::new(),
@@ -96,7 +98,6 @@ impl Symbol {
             declarations: Declarations::new(),
             value_declaration: None,
             parent: None,
-            export_symbol: None,
             extras: None,
         }
     }
@@ -124,6 +125,19 @@ impl Symbol {
     /// tsc Symbol.exports: a module's or namespace's exports.
     pub fn exports(&self) -> &Arc<SymbolTable> {
         &self.extras().exports
+    }
+
+    /// tsc Symbol.exportSymbol: the export a local symbol stands for.
+    #[inline]
+    pub fn export_symbol(&self) -> Option<SymbolId> {
+        self.extras
+            .as_deref()
+            .and_then(|extras| extras.export_symbol)
+    }
+
+    /// Link a local symbol to its export (declareModuleMember).
+    pub fn set_export_symbol(&mut self, export: SymbolId) {
+        self.extras_mut().export_symbol = Some(export);
     }
 
     /// The members table for writing; allocated with the extras on first use.
@@ -414,7 +428,11 @@ impl SymbolArena {
             if let Some(parent) = &mut symbol.parent {
                 relocation.symbol(parent)?;
             }
-            if let Some(export_symbol) = &mut symbol.export_symbol {
+            if let Some(export_symbol) = symbol
+                .extras
+                .as_deref_mut()
+                .and_then(|extras| extras.export_symbol.as_mut())
+            {
                 relocation.symbol(export_symbol)?;
             }
         }

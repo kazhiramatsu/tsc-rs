@@ -246,7 +246,7 @@ fn external_module_file_symbol_and_export_links() {
     // Local side of the exported function is linked.
     let locals = binder.locals.get(&source.root).expect("locals");
     let local_f = locals["f"];
-    assert!(binder.symbols.symbol(local_f).export_symbol.is_some());
+    assert!(binder.symbols.symbol(local_f).export_symbol().is_some());
     assert!(locals.contains_key("local"));
 }
 
