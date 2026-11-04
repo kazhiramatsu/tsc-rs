@@ -354,21 +354,70 @@ impl SyntaxIdentityRelocation {
         )?);
         Ok(())
     }
+}
 
-    /// A record's identity word of `space` (`nodes::SPACE_*`; a word is the
-    /// identity's position) in the leased ranges.
-    pub(crate) fn word(&self, space: u8, word: u32) -> Result<u32, IdentityError> {
-        let (identity_space, old, new) = match space {
-            crate::nodes::SPACE_NODE => (IdentitySpace::Node, self.old_nodes, self.new_nodes),
-            crate::nodes::SPACE_ARRAY => {
-                (IdentitySpace::NodeArray, self.old_arrays, self.new_arrays)
-            }
+/// The deltas of a validated relocation: an identity of a space moves from
+/// its old range to the new one by the difference of their starts.
+#[derive(Clone, Copy)]
+struct RelocationShift {
+    nodes: Shift,
+    arrays: Shift,
+    texts: Shift,
+}
+
+#[derive(Clone, Copy)]
+struct Shift {
+    old: u32,
+    len: u32,
+    new: u32,
+}
+
+impl Shift {
+    fn new(old: IdentityRange, new: IdentityRange) -> Self {
+        debug_assert_eq!(old.len(), new.len());
+        Self {
+            old: old.start(),
+            len: old.len(),
+            new: new.start(),
+        }
+    }
+
+    /// `index` moved to the new range; `inside` is cleared if it was not in
+    /// the old one.
+    #[inline(always)]
+    fn index(self, index: u32, inside: &mut bool) -> u32 {
+        let offset = index.wrapping_sub(self.old);
+        *inside &= offset < self.len;
+        self.new.wrapping_add(offset)
+    }
+}
+
+impl RelocationShift {
+    fn new(relocation: &SyntaxIdentityRelocation) -> Self {
+        Self {
+            nodes: Shift::new(relocation.old_nodes, relocation.new_nodes),
+            arrays: Shift::new(relocation.old_arrays, relocation.new_arrays),
+            texts: Shift::new(relocation.old_texts, relocation.new_texts),
+        }
+    }
+
+    #[inline(always)]
+    fn node(&self, id: NodeId, inside: &mut bool) -> NodeId {
+        NodeId::new(self.nodes.index(id.index(), inside))
+    }
+
+    /// A record's identity word of `space` (`nodes::SPACE_*`; a nonzero word
+    /// is the identity's position, its index plus one).
+    #[inline(always)]
+    fn word(&self, space: u8, word: u32, inside: &mut bool) -> u32 {
+        match space {
+            crate::nodes::SPACE_NODE => self.nodes.index(word - 1, inside) + 1,
+            crate::nodes::SPACE_ARRAY => self.arrays.index(word - 1, inside) + 1,
             crate::nodes::SPACE_TEXT if word != TextId::EMPTY.position() => {
-                (IdentitySpace::NodeText, self.old_texts, self.new_texts)
+                self.texts.index(word - 1, inside) + 1
             }
-            _ => return Ok(word),
-        };
-        Ok(relocate_raw(word - 1, identity_space, old, new)? + 1)
+            _ => word,
+        }
     }
 }
 
@@ -948,16 +997,38 @@ impl NodeArena {
         relocation: SyntaxIdentityRelocation,
         leases: SyntaxLeases,
     ) -> Result<(), IdentityError> {
-        for node in self.nodes.iter_mut() {
-            if let Some(parent) = &mut node.parent {
-                relocation.node(parent)?;
-            }
-            // The tree is not shared yet: its tails are rewritten in place.
-            node.map_identity_words(&mut self.tails, |space, word| relocation.word(space, word))?;
-        }
+        // Each lease has its space's count (`identity_relocation`), so an
+        // identity moves by its space's delta. Whether every word named an
+        // identity of this tree is checked once, after the pass.
+        let shift = RelocationShift::new(&relocation);
+        let mut inside = true;
+        // The records are mapped on their way to the store (one read and one
+        // write each); the tree is not shared yet, so its tails are rewritten
+        // in place.
+        let tails = &mut self.tails;
+        let nodes = self
+            .nodes
+            .publish_mapped(relocation.new_nodes.start() + 1, |mut node| {
+                if let Some(parent) = &mut node.parent {
+                    *parent = shift.node(*parent, &mut inside);
+                }
+                let Ok(()) = node.map_identity_words(tails, |space, word| {
+                    Ok::<u32, std::convert::Infallible>(shift.word(space, word, &mut inside))
+                });
+                node
+            });
         for node in &mut self.array_items {
-            relocation.node(node)?;
+            *node = shift.node(*node, &mut inside);
         }
+        if !inside {
+            // `nodes` drops unpublished: the store slots are scrubbed and the
+            // tree keeps its records.
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "relocated id is outside its source arena",
+            });
+        }
+        nodes.commit();
         for record in &mut self.arrays {
             record.items =
                 record.items - relocation.old_items.start() + relocation.new_items.start();
@@ -966,7 +1037,6 @@ impl NodeArena {
         self.array_base = relocation.new_arrays.start();
         self.item_base = relocation.new_items.start();
         self.text_base = relocation.new_texts.start();
-        self.nodes.publish(relocation.new_nodes.start() + 1);
         self.arrays.publish(relocation.new_arrays.start() + 1);
         self.array_items.publish(relocation.new_items.start());
         self.texts.publish(relocation.new_texts.start() + 1);
