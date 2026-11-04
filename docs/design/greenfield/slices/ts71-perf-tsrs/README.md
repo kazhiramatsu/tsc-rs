@@ -1013,6 +1013,17 @@ WASM は溢れる core がなく wasm32 の linear memory が peak を縛る（V
 peak は機構の台帳ではなく製品値。packet の表は project ごとに single・4 thread・既定の 3 行。tsrs 側の knob は patch 不要（Opus の確認：
 `RAYON_NUM_THREADS=N` が worker pool、`--checkers N` が checker 数、既定は pool 10・checker 4）。
 
+**scheduler の決定（2026-11-04 23:35）。** 利用者：「rayon 級の scheduler を自前で書く方針でいいです。Mac 寄りに特化した内容を入れるのは賛成です。
+そもそも tsc は Mac 環境で動くのが多いでしょうし」。経緯：tsrs の並列は parse+resolve が rayon の pool（`RAYON_NUM_THREADS`）、checker は自前 thread +
+親和性つきの work stealing（sticky thieves）、tsc-rs は std の thread と自前の queue で stealing も親和性もない。tokio は async I/O の runtime で CPU-bound
+な compile には向かず、rayon は配置（P/E core）・idle 方針・親和性・単 thread/WASM の面で足りない。方針：自前の work-stealing scheduler（card **SCHED-1**、
+要件と段階は `target/claude-tools/handover/perf-tsrs/SCHED-1-brief.md`）：fork-join の scope/join と動的 DAG 用の queue、thread ごとの deque + injector、
+親和性優先の steal、P core 数（`hw.perflevel0.physicalcpu`）を既定にした配置と QoS、bounded spin → park の idle 方針、予算 1 では inline 実行（WASM の
+mode）、実行順に依らない決定的な merge、worker ごとの busy/idle/steal の counter。deque の primitive は crossbeam-deque を借り policy 層を自前で書く
+（deque まで自前なら loom の検証を工程に入れる）。段階：loader（動的 DAG）→ checker の file 配分（親和性で重複削減）→ 配置と idle → 直列区間は M6 の
+比率次第。予想式は phase ごとの (max − mean busy) − steal の overhead + 重複の削減で、M6（D1）の数字が順序と予想を決める。設計書は M6 の後（D2）に
+Codex（軽作業）、Opus と Fable が review、実装は Codex lane 2〜3 日、各段階を B0 上で計測。
+
 PR [#871](https://github.com/kazhiramatsu/tsc-rs/pull/871) → merge `43a78fc08`（2026-11-04。hosted run
 [41762963850](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41762963850) 全 job pass。local：lane の types test 57・checker 1,837、
 `--checkers 4` が main の報告と 15,339 構成一致、8 case で出力一致、serial は上の表）。
