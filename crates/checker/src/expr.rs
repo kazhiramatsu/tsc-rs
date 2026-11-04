@@ -1426,7 +1426,7 @@ impl<'a> CheckerState<'a> {
     ) -> SymbolId {
         let data = self.binder.symbol(symbol);
         let target = if data.flags.intersects(SymbolFlags::EXPORT_VALUE) {
-            data.export_symbol.unwrap_or(symbol)
+            data.export_symbol().unwrap_or(symbol)
         } else {
             symbol
         };
