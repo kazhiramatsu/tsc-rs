@@ -121,12 +121,6 @@ pub struct SpeculationCheckpoint {
     variance_stack: usize,
     variance_type_parameter: Option<TypeId>,
     is_inference_partially_blocked: bool,
-
-    // ---- D: diagnostics sinks ----
-    elaborated_satisfies_expressions: HashSet<NodeId>,
-    potential_weak_map_set_collisions: usize,
-    potential_reflect_collisions: usize,
-    potential_unused_renamed_binding_elements_in_types: usize,
 }
 
 impl Drop for SpeculationCheckpoint {
@@ -191,12 +185,6 @@ impl CheckerState<'_> {
             variance_stack: self.variance_stack.len(),
             variance_type_parameter: self.variance_type_parameter,
             is_inference_partially_blocked: self.is_inference_partially_blocked,
-            elaborated_satisfies_expressions: self.elaborated_satisfies_expressions.clone(),
-            potential_weak_map_set_collisions: self.potential_weak_map_set_collisions.len(),
-            potential_reflect_collisions: self.potential_reflect_collisions.len(),
-            potential_unused_renamed_binding_elements_in_types: self
-                .potential_unused_renamed_binding_elements_in_types
-                .len(),
         }
     }
 
@@ -398,17 +386,6 @@ impl CheckerState<'_> {
         self.variance_stack.truncate(checkpoint.variance_stack);
         self.variance_type_parameter = checkpoint.variance_type_parameter;
         self.is_inference_partially_blocked = checkpoint.is_inference_partially_blocked;
-
-        // D: diagnostic sinks and partial-check records persist with the
-        // completed node results they describe.
-        self.elaborated_satisfies_expressions =
-            std::mem::take(&mut checkpoint.elaborated_satisfies_expressions);
-        self.potential_weak_map_set_collisions
-            .truncate(checkpoint.potential_weak_map_set_collisions);
-        self.potential_reflect_collisions
-            .truncate(checkpoint.potential_reflect_collisions);
-        self.potential_unused_renamed_binding_elements_in_types
-            .truncate(checkpoint.potential_unused_renamed_binding_elements_in_types);
     }
 
     /// tsrs-native: the 7.0t scoped-transaction wrapper — no tsc

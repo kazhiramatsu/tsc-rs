@@ -78,11 +78,6 @@ impl<'program> CheckerSession<'program> {
         self
     }
 
-    /// Observe the initialized checker's current file-less diagnostic bucket.
-    /// This does not schedule source checking or declaration transforms.
-    /// tsrs-native: observes the current file-less bucket with sort/dedupe WITHOUT tsc
-    /// checker.getGlobalDiagnostics' ensurePendingDiagnosticWorkComplete (87133-87136);
-    /// cite that difference
     /// Whether the checker reported a file-less row after the first `start`.
     pub(crate) fn reported_global_rows_since(&self, start: usize) -> bool {
         self.lock_state().diagnostics[start..]
@@ -90,8 +85,12 @@ impl<'program> CheckerSession<'program> {
             .any(|diagnostic| diagnostic.file_name.is_none())
     }
 
+    /// Produce pending deferred reports before observing the file-less
+    /// bucket, as tsgo GetGlobalDiagnostics does (checker.go:14241-14245).
     pub fn get_global_diagnostics(&self) -> DiagnosticList {
-        let mut diagnostics = self.lock_state().visible_global_diagnostics.clone();
+        let mut state = self.lock_state();
+        state.produce_deferred_diagnostics();
+        let mut diagnostics = state.visible_global_diagnostics.clone();
         tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
         diagnostics
     }
