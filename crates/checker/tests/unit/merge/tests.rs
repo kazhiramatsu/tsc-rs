@@ -247,7 +247,7 @@ fn cross_file_interfaces_merge_declarations_and_members() {
             let symbol = state
                 .resolve_file_scope_name("I", SymbolFlags::TYPE)
                 .expect("merged interface resolves");
-            assert_eq!(state.binder.symbol(symbol).declarations.len(), 2);
+            assert_eq!(state.binder.symbol(symbol).declarations().len(), 2);
             // The merged global is a checker-side clone (the file-a
             // original was not transient), and both originals chase
             // to it.

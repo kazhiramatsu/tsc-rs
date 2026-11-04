@@ -347,7 +347,7 @@ impl Completions<'_, '_, '_> {
         if !data.flags.intersects(SymbolFlags::CLASS) {
             return false;
         }
-        let declaration = data.declarations.iter().copied().find(|&declaration| {
+        let declaration = data.declarations().iter().copied().find(|&declaration| {
             let source = self.request.state.binder.source_of_node(declaration);
             is_class_like(source.arena.node(declaration).kind)
         });

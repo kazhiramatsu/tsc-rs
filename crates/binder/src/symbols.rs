@@ -38,7 +38,8 @@ pub struct Symbol {
     /// are inserted verbatim, which is exactly why user `__call`
     /// escapes to `___call` and cannot collide.
     pub escaped_name: EscapedName,
-    pub declarations: Declarations,
+    /// tsc Symbol.declarations; read through [`Symbol::declarations`].
+    declarations: Declarations,
     /// addDeclarationToSymbol: FIRST value declaration wins.
     pub value_declaration: Option<NodeId>,
     pub parent: Option<SymbolId>,
@@ -100,6 +101,29 @@ impl Symbol {
             parent: None,
             extras: None,
         }
+    }
+
+    /// tsc Symbol.declarations, in declaration order.
+    #[inline]
+    pub fn declarations(&self) -> &[NodeId] {
+        &self.declarations
+    }
+
+    /// The declaration list itself, for a symbol that carries the same
+    /// declarations as this one (tsgo copies the slice header).
+    pub fn declaration_list(&self) -> Declarations {
+        self.declarations.clone()
+    }
+
+    /// Give the symbol its whole declaration list.
+    pub fn set_declarations(&mut self, declarations: Declarations) {
+        self.declarations = declarations;
+    }
+
+    /// Append one declaration (addDeclarationToSymbol and the checker's
+    /// symbols built one declaration at a time).
+    pub fn push_declaration(&mut self, declaration: NodeId) {
+        self.declarations.push(declaration);
     }
 
     /// The fields few symbols set; their defaults when none was written.

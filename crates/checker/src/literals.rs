@@ -526,7 +526,7 @@ impl<'a> CheckerState<'a> {
         if crate::indexed::is_numeric_literal_name(self.binder.symbol(symbol).escaped_name) {
             return Ok(true);
         }
-        let Some(first_decl) = self.binder.symbol(symbol).declarations.first().copied() else {
+        let Some(first_decl) = self.binder.symbol(symbol).declarations().first().copied() else {
             return Ok(false);
         };
         match self.name_of_named_declaration(first_decl) {
@@ -549,7 +549,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(true);
         }
-        let Some(first_decl) = self.binder.symbol(symbol).declarations.first().copied() else {
+        let Some(first_decl) = self.binder.symbol(symbol).declarations().first().copied() else {
             return Ok(false);
         };
         let Some(name) = self.name_of_named_declaration(first_decl) else {
@@ -566,7 +566,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 07d5fc9d3c094c8199150039808dee0fc58b029acbc3517ebfe727516b919a86
     /// tsc-span: _tsc.js:74093-74097
     fn is_symbol_with_computed_name(&self, symbol: SymbolId) -> bool {
-        let Some(first_decl) = self.binder.symbol(symbol).declarations.first().copied() else {
+        let Some(first_decl) = self.binder.symbol(symbol).declarations().first().copied() else {
             return false;
         };
         self.name_of_named_declaration(first_decl)
@@ -601,7 +601,7 @@ impl<'a> CheckerState<'a> {
             if selected {
                 prop_types.push(self.get_type_of_symbol(prop)?);
                 if self.is_symbol_with_computed_name(prop) {
-                    if let Some(&decl) = self.binder.symbol(prop).declarations.first() {
+                    if let Some(&decl) = self.binder.symbol(prop).declarations().first() {
                         components.get_or_insert_with(Vec::new).push(decl);
                     }
                 }
@@ -1225,12 +1225,12 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 }
-                let declarations = self.binder.symbol(member_sym).declarations.clone();
+                let declarations = self.binder.symbol(member_sym).declaration_list();
                 let parent = self.binder.symbol(member_sym).parent;
                 let value_declaration = self.binder.symbol(member_sym).value_declaration;
                 {
                     let prop_symbol = self.binder.symbol_mut(prop);
-                    prop_symbol.declarations = declarations;
+                    prop_symbol.set_declarations(declarations);
                     prop_symbol.parent = parent;
                     if let Some(value_declaration) = value_declaration {
                         prop_symbol.value_declaration = Some(value_declaration);
@@ -1669,8 +1669,10 @@ impl<'a> CheckerState<'a> {
                 };
                 self.links
                     .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
-                let declarations = self.binder.symbol(prop).declarations.clone();
-                self.binder.symbol_mut(result).declarations = declarations;
+                let declarations = self.binder.symbol(prop).declaration_list();
+                self.binder
+                    .symbol_mut(result)
+                    .set_declarations(declarations);
                 let name_type = self.links.symbol(prop).name_type;
                 self.links
                     .set_symbol_name_type(self.speculation_depth, result, name_type);
@@ -1897,8 +1899,8 @@ impl<'a> CheckerState<'a> {
                     .flags
                     .intersects(SymbolFlags::OPTIONAL)
                 {
-                    let left_declarations = self.binder.symbol(left_prop).declarations.clone();
-                    let right_declarations = self.binder.symbol(right_prop).declarations.clone();
+                    let left_declarations = self.binder.symbol(left_prop).declaration_list();
+                    let right_declarations = self.binder.symbol(right_prop).declaration_list();
                     let flags = SymbolFlags::PROPERTY
                         | (self.binder.symbol(left_prop).flags & SymbolFlags::OPTIONAL);
                     let result = self.binder.create_symbol(flags, name);
@@ -1927,7 +1929,9 @@ impl<'a> CheckerState<'a> {
                     );
                     let mut declarations = left_declarations;
                     declarations.extend(right_declarations);
-                    self.binder.symbol_mut(result).declarations = declarations;
+                    self.binder
+                        .symbol_mut(result)
+                        .set_declarations(declarations);
                     let name_type = self.links.symbol(left_prop).name_type;
                     self.links
                         .set_symbol_name_type(self.speculation_depth, result, name_type);
@@ -1962,7 +1966,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:63040-63043
     pub(crate) fn is_spreadable_property(&self, prop: SymbolId) -> bool {
         let symbol = self.binder.symbol(prop);
-        let has_private_identifier = symbol.declarations.iter().any(|&decl| {
+        let has_private_identifier = symbol.declarations().iter().any(|&decl| {
             // isPrivateIdentifierClassElementDeclaration (16472):
             // a class-element declaration named by a PrivateIdentifier.
             self.name_of_named_declaration(decl)
@@ -1983,7 +1987,7 @@ impl<'a> CheckerState<'a> {
         {
             return true;
         }
-        !symbol.declarations.iter().any(|&decl| {
+        !symbol.declarations().iter().any(|&decl| {
             self.parent_of(decl).is_some_and(|parent| {
                 matches!(
                     self.kind_of(parent),
@@ -2028,8 +2032,10 @@ impl<'a> CheckerState<'a> {
         };
         self.links
             .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
-        let declarations = self.binder.symbol(prop).declarations.clone();
-        self.binder.symbol_mut(result).declarations = declarations;
+        let declarations = self.binder.symbol(prop).declaration_list();
+        self.binder
+            .symbol_mut(result)
+            .set_declarations(declarations);
         let name_type = self.links.symbol(prop).name_type;
         self.links
             .set_symbol_name_type(self.speculation_depth, result, name_type);

@@ -51,7 +51,7 @@ fn unique_symbol_types_are_per_declaration_memoized_and_widen() {
             assert_ne!(u_name, v_name);
             // The per-declaration memo: re-resolving the same
             // declaration answers the SAME TypeId.
-            let u_decl = state.binder.symbol(u).declarations[0];
+            let u_decl = state.binder.symbol(u).declarations()[0];
             let first = state
                 .get_es_symbol_like_type_for_node(u_decl)
                 .expect("resolves");
@@ -63,7 +63,7 @@ fn unique_symbol_types_are_per_declaration_memoized_and_widen() {
             // An INVALID position (a `let`) answers the plain
             // `symbol` intrinsic, not a unique type.
             let l = sym(state, "l");
-            let l_decl = state.binder.symbol(l).declarations[0];
+            let l_decl = state.binder.symbol(l).declarations()[0];
             let l_type = state
                 .get_es_symbol_like_type_for_node(l_decl)
                 .expect("resolves");

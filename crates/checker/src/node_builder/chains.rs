@@ -286,7 +286,7 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
         };
         let data = self.checker.binder.symbol(symbol);
         let declarations = data
-            .declarations
+            .declarations()
             .iter()
             .take(8)
             .map(|&node| EmitTrackerNodeDescription {
@@ -296,7 +296,7 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
             .collect();
         EmitTrackerSymbolDescription {
             escaped_name: data.escaped_name.as_js().to_owned(),
-            declaration_count: u32::try_from(data.declarations.len()).unwrap_or(u32::MAX),
+            declaration_count: u32::try_from(data.declarations().len()).unwrap_or(u32::MAX),
             declarations,
         }
     }
@@ -1917,21 +1917,19 @@ fn create_access_from_symbol_chain(
     };
 
     if symbol_name.is_none() {
-        let computed_expression =
-            checker
-                .binder
-                .symbol(symbol)
-                .declarations
-                .iter()
-                .find_map(|&declaration| {
-                    let name =
-                        node_util::get_name_of_declaration(&tsc_syntax::Published, declaration)?;
-                    let NodeData::ComputedPropertyName(data) = checker.data_of(name) else {
-                        return None;
-                    };
-                    data.expression
-                        .filter(|&expression| parse_node_is_entity_name(checker, expression))
-                });
+        let computed_expression = checker
+            .binder
+            .symbol(symbol)
+            .declarations()
+            .iter()
+            .find_map(|&declaration| {
+                let name = node_util::get_name_of_declaration(&tsc_syntax::Published, declaration)?;
+                let NodeData::ComputedPropertyName(data) = checker.data_of(name) else {
+                    return None;
+                };
+                data.expression
+                    .filter(|&expression| parse_node_is_entity_name(checker, expression))
+            });
         if let (Some(expression), Some(previous)) = (computed_expression, index.checked_sub(1)) {
             let lhs = create_access_from_symbol_chain(
                 checker,
@@ -2063,7 +2061,7 @@ fn module_source_root(checker: &CheckerState<'_>, symbol: SymbolId) -> Option<No
     checker
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .find(|&declaration| checker.kind_of(declaration) == SyntaxKind::SourceFile)
@@ -2071,7 +2069,7 @@ fn module_source_root(checker: &CheckerState<'_>, symbol: SymbolId) -> Option<No
             checker
                 .binder
                 .symbol(symbol)
-                .declarations
+                .declarations()
                 .first()
                 .map(|&declaration| checker.binder.source_of_node(declaration).root)
         })
@@ -2410,7 +2408,12 @@ pub(crate) fn type_parameter_to_name(
     if arena.node(result).map_err(factory_error)?.kind != SyntaxKind::Identifier {
         return create_identifier(arena, target, "(Missing type parameter)");
     }
-    let declaration = checker.binder.symbol(symbol).declarations.first().copied();
+    let declaration = checker
+        .binder
+        .symbol(symbol)
+        .declarations()
+        .first()
+        .copied();
     if let Some(NodeData::TypeParameter(data)) = declaration.map(|node| checker.data_of(node)) {
         if let Some(name) = data.name {
             if let Some(location) = project_parse_node(checker, arena, name)? {
@@ -2771,7 +2774,7 @@ pub(crate) fn chains_get_property_name_node_for_symbol(
     if let Some(name) = cloned_hash_private_name(checker, arena, symbol)? {
         return Ok(name);
     }
-    let declarations = checker.binder.symbol(symbol).declarations.clone();
+    let declarations = checker.binder.symbol(symbol).declaration_list();
     let name_type = checker.links.symbol(symbol).name_type;
     let name_type_flags = name_type.map(|name_type| checker.tables.flags_of(name_type));
     let string_named = !declarations.is_empty()

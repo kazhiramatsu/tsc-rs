@@ -1127,13 +1127,7 @@ impl<'a> Request<'_, 'a> {
     }
 
     pub(crate) fn declarations_of(&self, symbol: SymbolId) -> Vec<NodeId> {
-        self.state
-            .binder
-            .symbol(symbol)
-            .declarations
-            .iter()
-            .copied()
-            .collect()
+        self.state.binder.symbol(symbol).declarations().to_vec()
     }
 
     pub(crate) fn name_of(&self, node: NodeId) -> Option<NodeId> {

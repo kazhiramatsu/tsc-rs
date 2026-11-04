@@ -39,7 +39,7 @@ fn late_binding_merges_early_late_collisions_idempotently() {
             assert_eq!(first.get("x").copied(), second.get("x").copied());
             let merged = first.get("x").copied().expect("x survives the merge");
             assert_eq!(
-                state.binder.symbol(merged).declarations.len(),
+                state.binder.symbol(merged).declarations().len(),
                 2,
                 "the merged member carries the early AND late declarations"
             );

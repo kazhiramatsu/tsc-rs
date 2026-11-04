@@ -380,16 +380,17 @@ impl Completions<'_, '_, '_> {
     /// that is no augmentation, else the symbol's name without its quotes.
     fn ambient_module_name(&self, symbol: SymbolId) -> String {
         let binder = &self.request.state.binder;
-        let declaration = binder
-            .symbol(symbol)
-            .declarations
-            .iter()
-            .copied()
-            .find(|&declaration| {
-                !self.is_external_module_augmentation(declaration)
-                    && !NodeFlags::from_bits(binder.node_record(declaration).flags)
-                        .contains(NodeFlags::GLOBAL_AUGMENTATION)
-            });
+        let declaration =
+            binder
+                .symbol(symbol)
+                .declarations()
+                .iter()
+                .copied()
+                .find(|&declaration| {
+                    !self.is_external_module_augmentation(declaration)
+                        && !NodeFlags::from_bits(binder.node_record(declaration).flags)
+                            .contains(NodeFlags::GLOBAL_AUGMENTATION)
+                });
         if let Some(declaration) = declaration {
             if let NodeData::ModuleDeclaration(module) = self.data(declaration) {
                 if let Some(name) = module.name {

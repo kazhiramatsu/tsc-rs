@@ -228,7 +228,7 @@ fn write_type_or_symbol(
         SymbolFormatFlags::ALLOW_ANY_NODE_KIND,
     ))?;
     symbol_string.push_str(&name.to_string_lossy());
-    let declarations = state.binder.symbol(symbol).declarations.clone();
+    let declarations = state.binder.symbol(symbol).declaration_list();
     for (count, &declaration) in declarations.iter().enumerate() {
         if count >= 5 {
             symbol_string.push_str(&format!(" ... and {} more", declarations.len() - count));

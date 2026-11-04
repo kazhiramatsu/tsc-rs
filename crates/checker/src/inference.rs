@@ -748,10 +748,10 @@ impl<'a> CheckerState<'a> {
                 LinkSlot::Resolved(self.tables.intrinsics.any),
             );
             if let Some(symbol) = self.tables.type_of(t).symbol {
-                let declarations = self.binder.symbol(symbol).declarations.clone();
+                let declarations = self.binder.symbol(symbol).declaration_list();
                 let value_declaration = self.binder.symbol(symbol).value_declaration;
                 let prop = self.binder.symbol_mut(literal_prop);
-                prop.declarations = declarations;
+                prop.set_declarations(declarations);
                 prop.value_declaration = value_declaration;
             }
             self.members[members_id.index() as usize]
@@ -820,7 +820,7 @@ impl<'a> CheckerState<'a> {
         self.tables.type_of(ty).symbol.is_some_and(|symbol| {
             self.binder
                 .symbol(symbol)
-                .declarations
+                .declarations()
                 .iter()
                 .any(|&declaration| self.has_skip_direct_inference_flag(declaration))
         })
@@ -3614,8 +3614,7 @@ impl InferTypesWalker<'_, '_> {
                 .st
                 .binder
                 .symbol(source_prop)
-                .declarations
-                .clone()
+                .declaration_list()
                 .into_iter()
                 .any(|declaration| self.st.has_skip_direct_inference_flag(declaration));
             if skipped {

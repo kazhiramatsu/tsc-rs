@@ -1039,7 +1039,7 @@ impl EmitResolver for CheckerSession<'_> {
                 Ok(state
                     .binder
                     .symbol(symbol)
-                    .declarations
+                    .declarations()
                     .iter()
                     .copied()
                     .any(has_body))
@@ -1064,7 +1064,7 @@ impl EmitResolver for CheckerSession<'_> {
                 Ok(state
                     .binder
                     .symbol(symbol)
-                    .declarations
+                    .declarations()
                     .first()
                     .is_none_or(|&first| first == node))
             },

@@ -713,7 +713,7 @@ impl<'a> BinderWorker<'a> {
             .get("prototype")
             .copied();
         if let Some(existing) = existing_export {
-            if let Some(&first) = self.symbols.symbol(existing).declarations.first() {
+            if let Some(&first) = self.symbols.symbol(existing).declarations().first() {
                 let diag = self.diagnostic_for_node(
                     first,
                     &diagnostics::Duplicate_identifier_0,
@@ -1031,13 +1031,15 @@ impl<'a> BinderWorker<'a> {
             .chain(export_symbol)
             .chain(local_symbol)
         {
-            let mut declarations = self.symbols.symbol(symbol).declarations.to_vec();
+            let mut declarations = self.symbols.symbol(symbol).declarations().to_vec();
             let index = declarations
                 .iter()
                 .position(|&declaration| declaration == node)
                 .unwrap_or(declarations.len());
             declarations.splice(index..index, names.iter().copied());
-            self.symbols.symbol_mut(symbol).declarations = declarations.into();
+            self.symbols
+                .symbol_mut(symbol)
+                .set_declarations(declarations.into());
         }
     }
 
@@ -1558,7 +1560,7 @@ impl<'a> BinderWorker<'a> {
         );
         {
             let data = self.symbols.symbol_mut(symbol);
-            data.declarations.push(root);
+            data.push_declaration(root);
             data.value_declaration = Some(root);
         }
         if name == "module" {
@@ -1569,7 +1571,7 @@ impl<'a> BinderWorker<'a> {
             );
             {
                 let data = self.symbols.symbol_mut(exports);
-                data.declarations.push(root);
+                data.push_declaration(root);
                 data.value_declaration = Some(root);
                 data.parent = Some(symbol);
             }
