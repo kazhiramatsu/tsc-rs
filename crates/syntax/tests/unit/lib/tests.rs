@@ -149,6 +149,21 @@ export class Box { #value = 1; method<T>(arg: T) { return [arg, this.#value]; } 
     assert!(!gap.is_held());
 }
 
+/// The relocation moves each identity by its space's delta and checks once,
+/// after the pass, that every identity it moved was the tree's own.
+#[test]
+fn relocation_rejects_an_identity_outside_the_tree() {
+    let mut local = parse_source_file("outside.ts", "let x = 1;", ParseOptions::default(), None);
+    let stray = NodeId::new(local.arena.node_end() + 5);
+    let first = local.arena.node_ids().next().expect("a parsed node");
+    local.arena.node_mut(first).parent = Some(stray);
+    let domain = IdentityDomain::new();
+    assert!(matches!(
+        local.relocate_into_identity_domain(&domain),
+        Err(IdentityError::InvalidLease { .. })
+    ));
+}
+
 #[test]
 fn source_clones_retain_leases_and_ephemeral_parse_seals_exact_counts() {
     let reclaiming = IdentityDomain::new();

@@ -1543,11 +1543,7 @@ impl<'a> CheckerState<'a> {
             resolved = self.get_intended_type_from_jsdoc_type_reference(node)?;
         }
         if resolved.is_none() {
-            let resolved_symbol = self.resolve_type_reference_name(
-                node,
-                SymbolFlags::TYPE,
-                /*ignore_errors*/ false,
-            )?;
+            let resolved_symbol = self.get_symbol_from_type_reference(node)?;
             symbol = Some(resolved_symbol);
             let reference_type = self.get_type_reference_type(node, resolved_symbol)?;
             resolved = Some(self.get_distributed_type_parameter(node, reference_type)?);
@@ -1591,22 +1587,9 @@ impl<'a> CheckerState<'a> {
             if let Some(data) = self.record_of(ancestor).as_conditional_type() {
                 if let Some(check_type) = data.check_type {
                     if self.is_simple_identifier_type_reference(check_type) {
-                        // tsgo getSymbolFromTypeReference caches the symbol on
-                        // the node; the conditional type resolves its check
-                        // type first, so its links usually hold it already.
-                        // Otherwise the check type's own resolution reports
-                        // its errors.
-                        let cached = self
-                            .links
-                            .read_node(check_type, |links| links.resolved_symbol.resolved());
-                        let check_symbol = match cached {
-                            Some(check_symbol) => check_symbol,
-                            None => self.resolve_type_reference_name(
-                                check_type,
-                                SymbolFlags::TYPE,
-                                /*ignore_errors*/ true,
-                            )?,
-                        };
+                        // tsgo checker.go:23517 consults the symbol cache even
+                        // while a reference's full type is still resolving.
+                        let check_symbol = self.get_symbol_from_type_reference(check_type)?;
                         if Some(check_symbol) == symbol {
                             return Ok(self.get_distributed_type_from_type_parameter(ty));
                         }
@@ -1871,6 +1854,21 @@ impl<'a> CheckerState<'a> {
         }
         parts.reverse();
         parts.join(".")
+    }
+
+    /// tsgo checker.go:23606-23613: cache the symbol before computing
+    /// the reference type, including ancestor conditional-type probes.
+    fn get_symbol_from_type_reference(&mut self, node: NodeId) -> CheckResult<SymbolId> {
+        if let Some(symbol) = self
+            .links
+            .read_node(node, |links| links.resolved_symbol.resolved())
+        {
+            return Ok(symbol);
+        }
+        let symbol = self.resolve_type_reference_name(node, SymbolFlags::TYPE, false)?;
+        self.links
+            .set_node_resolved_symbol(self.speculation_depth, node, symbol);
+        Ok(symbol)
     }
 
     /// tsc-port: resolveTypeReferenceName @6.0.3
