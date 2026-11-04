@@ -635,3 +635,21 @@ fn node_module_package_path_matches_tsgo() {
     );
     assert_eq!(package("/p/src/index.ts"), None);
 }
+
+#[test]
+fn normalized_slash_spans_preserve_wtf8() {
+    use tsc_types::JsString;
+    for units in [
+        vec![],
+        vec![0x5c, 0x5c, 0x61, 0x5c],
+        vec![0xD800, 0x5c, 0xDC00, 0x5c, 0xD83D, 0xDE00, 0x754C],
+        vec![0xD800, 0xDC00, 0xD800],
+    ] {
+        let input = JsString::from_code_units(&units);
+        let expected: Vec<u16> = units
+            .iter()
+            .map(|&unit| if unit == 0x5c { 0x2f } else { unit })
+            .collect();
+        assert_eq!(super::normalized_slashes(&input).to_utf16(), expected);
+    }
+}

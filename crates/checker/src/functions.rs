@@ -3745,7 +3745,7 @@ impl<'a> CheckerState<'a> {
             Some(local) => local,
             None => {
                 let symbol = self.get_symbol_of_declaration(node)?;
-                if self.binder.symbol(symbol).export_symbol.is_none() {
+                if self.binder.symbol(symbol).export_symbol().is_none() {
                     return Ok(());
                 }
                 symbol

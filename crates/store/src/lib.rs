@@ -21,6 +21,11 @@
 //! - [`texts`], the literal texts of a tree, stored as words.
 //! - [`tails`], the cold words of large node payloads, at fixed positions.
 //!
+//! New data-layer owners use owner-scoped reads: [`claimed::ClaimedRecords`]
+//! for permanent headers, [`frozen::FrozenSpans`] for immutable lists, and
+//! [`recycle::RecyclableArena`] for scratch. These never return bare static
+//! payload views. Legacy get/slice retain their existing caller contract.
+//!
 //! [`SmallList`] is the list a stored record can hold.
 //!
 //! **Contract.** A range is published by the one holder of its identity lease
@@ -45,6 +50,13 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::Once;
 
+pub mod claimed;
+pub mod frozen;
+pub mod recycle;
+mod rooms;
+
+pub use rooms::{allocator_stats, AllocatorStats, RegionStats, StorageStats};
+
 pub mod names;
 pub mod tails;
 pub mod texts;
@@ -61,8 +73,11 @@ const REGION_BYTES: usize = 1 << 38;
 /// The regions the reservation holds. A record type names its region with
 /// [`StoreRecord::REGION`]; regions 8 and 9 hold the name table
 /// ([`names`]), region 12 the trees' literal texts ([`texts`]), region 13 the
-/// node records' tails ([`tails`]).
-const REGIONS: usize = 14;
+/// node records' tails ([`tails`]). Region 14 holds frozen elements; 15..40
+/// are B-3's typed records and scratch words (see [`claimed`], [`recycle`]),
+/// 37..40 the declaration items and the flow nodes and items.
+/// Two further regions belong only to the store unit-test binary.
+const REGIONS: usize = claimed::RECORD_REGION_END + 2 * cfg!(test) as usize;
 
 /// The size of the pages the kernel hands out, which covers both 4 KiB and
 /// 16 KiB systems: only whole multiples of it are returned to the kernel.
@@ -621,6 +636,85 @@ impl<T: StoreRecord> StoreVec<T> {
         }
         self.capacity = self.len;
         self.placement = Placement::Published;
+    }
+
+    /// [`publish`](Self::publish) with each record passed through `map` on
+    /// its way to the slots from `position`: one read and one write per
+    /// record, where mapping the buffer in place and then copying it reads
+    /// and writes each twice. The list stays as it was until the returned
+    /// [`PendingPublish`] is committed; dropped (or aborted), it scrubs the
+    /// slots it wrote, so a caller can still refuse what `map` produced.
+    pub fn publish_mapped(
+        &mut self,
+        position: u32,
+        mut map: impl FnMut(T) -> T,
+    ) -> PendingPublish<'_, T>
+    where
+        T: Copy,
+    {
+        assert!(
+            self.placement != Placement::Published && self.placement != Placement::Claimed,
+            "a mapped publication moves a private list"
+        );
+        reserve();
+        let len = u32::try_from(self.len).expect("a store list exceeds u32");
+        assert!(
+            u64::from(position) + u64::from(len) <= 1 << 32,
+            "a store range past the end of its region"
+        );
+        let slots = address::<T>(position) as *mut T;
+        system::commit(slots as usize, self.len * std::mem::size_of::<T>());
+        let mut pending = PendingPublish {
+            list: self,
+            slots,
+            written: 0,
+        };
+        let source = pending.list.records.as_ptr();
+        for index in 0..pending.list.len {
+            // SAFETY: `index` is below the list's length, so the source read is
+            // of an initialized record of its own buffer; the lease gives this
+            // list the exclusive use of the mapped slots, which do not overlap
+            // the buffer (see `publish`). `written` counts the slots to scrub
+            // should `map` unwind.
+            unsafe {
+                let record = map(source.add(index).read());
+                slots.add(index).write(record);
+            }
+            pending.written = index + 1;
+        }
+        pending
+    }
+}
+
+/// A list mapped into its slots by [`StoreVec::publish_mapped`] and not yet
+/// published there: [`commit`](Self::commit) publishes it, dropping it
+/// scrubs the slots and leaves the list as it was.
+pub struct PendingPublish<'a, T: StoreRecord> {
+    list: &'a mut StoreVec<T>,
+    slots: *mut T,
+    written: usize,
+}
+
+impl<T: StoreRecord> PendingPublish<'_, T> {
+    /// Publish the mapped records: the list's buffer is freed and the list
+    /// is the slots' from here on, as after [`StoreVec::publish`].
+    pub fn commit(mut self) {
+        debug_assert_eq!(self.written, self.list.len);
+        self.list.release_buffer();
+        // SAFETY: the slots hold the list's `len` mapped records (written
+        // above), and the address in the reservation is not null.
+        self.list.records = unsafe { NonNull::new_unchecked(self.slots) };
+        self.list.capacity = self.list.len;
+        self.list.placement = Placement::Published;
+        self.written = 0;
+    }
+}
+
+impl<T: StoreRecord> Drop for PendingPublish<'_, T> {
+    fn drop(&mut self) {
+        if self.written > 0 {
+            scrub(self.slots as usize, self.written * std::mem::size_of::<T>());
+        }
     }
 }
 

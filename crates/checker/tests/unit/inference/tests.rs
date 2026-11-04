@@ -2454,3 +2454,131 @@ fn valid_big_int_string_gates() {
         },
     );
 }
+
+/// tsgo #64553 (inference.go:82-87, 228-230): inference between two types
+/// from the same generic alias, and between two references to the same
+/// generic type, runs through invokeOnce, once per (source, target,
+/// priority, variance) key in a walk. An imported alias keeps its written
+/// type arguments, so every visit of the pair fills the defaults again
+/// (fresh mappers: no instantiation cache hits); three properties of one
+/// pair filled and instantiated them three times. Pinned to tsgo aa814927
+/// over the same three files (`tsc --singleThreaded --extendedDiagnostics`,
+/// `strict`, `noLib`, `types: []`): the one TS2322 below (P is inferred as
+/// `Id`) and `Instantiations: 100` (108 before the port).
+#[test]
+fn repeated_alias_pairs_infer_once_per_walk() {
+    let globals = concat!(
+        "interface IArguments { length: number; callee: Function; }\n",
+        "interface Array<T> { length: number; [index: number]: T; }\n",
+        "interface Object {}\n",
+        "interface Function {}\n",
+        "interface CallableFunction extends Function {}\n",
+        "interface NewableFunction extends Function {}\n",
+        "interface String {}\n",
+        "interface Number {}\n",
+        "interface Boolean {}\n",
+        "interface RegExp {}\n",
+    );
+    let options = concat!(
+        "export type Options<P, E = { emit(event: string): void }, S = { slots: P }> = ",
+        "{ props: P; emits: E; setup: S };\n",
+    );
+    let main = concat!(
+        "import type { Options } from \"./a\";\n",
+        "interface Id { id: number }\n",
+        "interface Registry<P> { first: Options<P>; second: Options<P>; third: Options<P> }\n",
+        "declare function define<P>(registry: Registry<P>): P;\n",
+        "declare const registry: { first: Options<Id>; second: Options<Id>; third: Options<Id> };\n",
+        "export const props = define(registry);\n",
+        "export const id: string = props;\n",
+    );
+    let result = crate::check_program(
+        &[
+            crate::InputFile::new("/globals.d.ts".to_owned(), globals.to_owned()),
+            crate::InputFile::new("/a.ts".to_owned(), options.to_owned()),
+            crate::InputFile::new("/b.ts".to_owned(), main.to_owned()),
+        ],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+    );
+    let rows: Vec<_> = result
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            (
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|name| name.as_js().as_str().expect("scalar name").to_owned()),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.code(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        rows,
+        [(
+            Some("/b.ts".to_owned()),
+            Some(342),
+            Some(2),
+            2322,
+            "Type 'Id' is not assignable to type 'string'.".to_owned(),
+        )]
+    );
+    assert_eq!(result.work_counters.instantiations(), 100);
+}
+
+#[test]
+fn visited_clear_preserves_capacity_and_resets_sparse_and_dense_walks() {
+    use super::{clear_inference_visited, InferenceKey, InferenceVisited};
+    let keys: Vec<InferenceKey> = (0..8)
+        .map(|index| InferenceKey {
+            source: TypeId::new(index),
+            target: TypeId::new(9),
+            priority: InferencePriority::NONE,
+            contravariant: index % 2 != 0,
+            bivariant: index % 3 != 0,
+        })
+        .collect();
+    let touched: [InferenceKey; 4] = keys[..4].try_into().unwrap();
+    for capacity in [0, 7, 896, 1792, 28672] {
+        let mut visited = InferenceVisited::default();
+        visited.reserve(capacity);
+        for count in [0, 1, 4, 5, 8, 1, 4] {
+            for &key in &keys[..count] {
+                visited.insert(key, InferencePriority::CIRCULARITY);
+                visited.insert(key, InferencePriority::NONE);
+            }
+            let retained = visited.capacity();
+            clear_inference_visited(&mut visited, &touched);
+            assert!(visited.is_empty());
+            assert_eq!(visited.capacity(), retained);
+            for key in &keys {
+                assert_eq!(visited.get(key), None);
+            }
+        }
+    }
+}
+
+#[test]
+fn inference_walk_records_touched_keys_in_a_retained_large_map() {
+    with_program_state(
+        &[("a.ts", "declare function f<T>(x: {p: T}): T; const n: string = f({p: 1}); const s: number = f({p: 's'});\n")],
+        &CompilerOptions::default(),
+        |state| {
+            state.inference_visited.reserve(1792);
+            state.check_source_file(0);
+            assert!(state.inference_visited.is_empty());
+            assert!(state.inference_visited.capacity() >= 1792);
+            assert_eq!(state.diagnostics.iter().filter(|diagnostic| diagnostic.code() == 2322).count(), 2);
+        },
+    );
+}

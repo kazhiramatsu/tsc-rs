@@ -10130,3 +10130,130 @@ fn type_references_use_the_module_features_without_widening_explicit_modes() {
         }
     }
 }
+
+#[test]
+fn repeated_lexical_hits_keep_both_root_dirs_passes_and_late_host_failures() {
+    let watched = PathBuf::from("/work/src/app/value.ts");
+    let paths = ProgramOptions::default().with_root_dirs(vec![
+        program_path("/work/src"),
+        program_path("/work/src"),
+        program_path("/work/gen"),
+    ]);
+    for kind in [3, 99, 100] {
+        let failure = HostError::new(
+            HostErrorKind::PermissionDenied,
+            HostOperation::FileExists,
+            Some(watched.clone()),
+            "third request's second original rootDirs probe",
+        );
+        let host = NthFileExistsFailureHost {
+            inner: MemoryCompilerHost::builder("/work")
+                .file("/work/src/app/main.ts", b"export {};".to_vec())
+                .file("/work/gen/app/.keep", Vec::new())
+                .build()
+                .unwrap(),
+            watched_path: watched.clone(),
+            fail_on: 6,
+            calls: RefCell::new(Vec::new()),
+            failure: failure.clone(),
+        };
+        let options = CompilerOptions {
+            module_resolution: Some(kind),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &paths).unwrap();
+        for _ in 0..2 {
+            assert!(matches!(
+                resolver
+                    .resolve("/work/src/app/main.ts", "./value", ResolutionMode::CommonJs)
+                    .unwrap(),
+                ResolutionOutcome::NotFound
+            ));
+        }
+        assert_eq!(
+            resolver
+                .resolve("/work/src/app/main.ts", "./value", ResolutionMode::CommonJs)
+                .unwrap_err(),
+            ResolutionError::Host(failure)
+        );
+        let ts = host
+            .calls
+            .borrow()
+            .iter()
+            .filter(|p| p.file_name().is_some_and(|p| p == "value.ts"))
+            .cloned()
+            .collect::<Vec<_>>();
+        let sequence = [
+            watched.clone(),
+            PathBuf::from("/work/gen/app/value.ts"),
+            watched.clone(),
+        ];
+        assert_eq!(
+            ts,
+            sequence
+                .iter()
+                .cloned()
+                .cycle()
+                .take(sequence.len() * 3)
+                .collect::<Vec<_>>(),
+            "kind {kind}: lexical hits cannot suppress original/alternate/original probes"
+        );
+    }
+}
+
+#[test]
+fn warm_file_contexts_keep_override_calls_and_exact_display_directories() {
+    #[derive(Default)]
+    struct Override(
+        std::sync::Mutex<
+            Vec<(
+                tsc_diagnostics::JsString,
+                tsc_diagnostics::JsString,
+                ResolutionMode,
+            )>,
+        >,
+    );
+    impl tsc_program::ModuleResolutionOverride for Override {
+        fn resolve(
+            &self,
+            specifier: tsc_diagnostics::JsStr<'_>,
+            directory: tsc_diagnostics::JsStr<'_>,
+            mode: ResolutionMode,
+        ) -> tsc_program::OverriddenResolution {
+            self.0
+                .lock()
+                .unwrap()
+                .push((specifier.to_owned(), directory.to_owned(), mode));
+            tsc_program::OverriddenResolution::Unresolved
+        }
+    }
+    let host = MemoryCompilerHost::builder("/work").build().unwrap();
+    let callbacks = std::sync::Arc::new(Override::default());
+    let programs = ProgramOptions::default().with_module_resolution_override(
+        tsc_program::ModuleResolutionOverrideHandle(callbacks.clone()),
+    );
+    let options = CompilerOptions::default();
+    let mut resolver =
+        ModuleResolver::new_with_program_options(&host, &options, &programs).unwrap();
+    for file in ["/work/src/./main.ts", "/work/SRC/main.ts"] {
+        for _ in 0..3 {
+            assert!(matches!(
+                resolver
+                    .resolve(file, "./missing", ResolutionMode::CommonJs)
+                    .unwrap(),
+                ResolutionOutcome::NotFound
+            ));
+        }
+    }
+    let calls = callbacks.0.lock().unwrap();
+    assert_eq!(calls.len(), 6);
+    for (index, (specifier, directory, mode)) in calls.iter().enumerate() {
+        assert_eq!(specifier.as_js(), "./missing");
+        assert_eq!(
+            directory.as_js(),
+            if index < 3 { "/work/src" } else { "/work/SRC" }
+        );
+        assert_eq!(*mode, ResolutionMode::CommonJs);
+    }
+}

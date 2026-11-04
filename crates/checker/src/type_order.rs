@@ -387,6 +387,14 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
     }
 }
 
+/// Scratch belongs to one checker. A call takes both vectors out before
+/// building keys, so a nested call can only take empty, independent buffers.
+#[derive(Default)]
+pub(crate) struct NamedMemberOrderBuffers {
+    keys: Vec<(bool, SymbolKey)>,
+    ranges: Vec<(u32, u32)>,
+}
+
 impl<'a> CheckerState<'a> {
     /// tsc-port: sortSymbolsIfTSGoCompat @6.0.3
     /// tsc-span: _tsc.js:90575-90580
@@ -423,15 +431,18 @@ impl<'a> CheckerState<'a> {
         // getNamedMembers' `isDeclarationContainedBy` (50178-50188): the
         // symbol's value declaration lies within one of the container's
         // declarations (positions compared as tsc does, without a file check).
-        let container_ranges: Vec<(u32, u32)> = class_or_interface
-            .map(|container| {
-                let declarations: &[NodeId] = &self.binder.symbol(container).declarations;
+        let NamedMemberOrderBuffers {
+            mut keys,
+            ranges: mut container_ranges,
+        } = self.named_member_order_buffers.take();
+        if let Some(container) = class_or_interface {
+            let declarations: &[NodeId] = &self.binder.symbol(container).declarations;
+            container_ranges.extend(
                 declarations
                     .iter()
-                    .map(|&declaration| (self.pos_of(declaration), self.end_of(declaration)))
-                    .collect()
-            })
-            .unwrap_or_default();
+                    .map(|&declaration| (self.pos_of(declaration), self.end_of(declaration))),
+            );
+        }
         let outside_container = |symbol: SymbolId| -> bool {
             if container_ranges.is_empty() {
                 return false;
@@ -444,14 +455,22 @@ impl<'a> CheckerState<'a> {
                 .iter()
                 .any(|&(start, stop)| start <= pos && stop >= end)
         };
-        let mut keys: Vec<(bool, SymbolKey)> = members
-            .iter()
-            .map(|&symbol| (outside_container(symbol), ctx.symbol_key(symbol)))
-            .collect();
+        keys.extend(
+            members
+                .iter()
+                .map(|&symbol| (outside_container(symbol), ctx.symbol_key(symbol))),
+        );
         keys.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| ctx.compare_keys(&a.1, &b.1)));
         for (slot, key) in members.iter_mut().zip(&keys) {
             *slot = key.1.symbol;
         }
+        keys.clear();
+        container_ranges.clear();
+        self.named_member_order_buffers
+            .set(NamedMemberOrderBuffers {
+                keys,
+                ranges: container_ranges,
+            });
     }
 
     // ---- table twins that take this checker's order ----

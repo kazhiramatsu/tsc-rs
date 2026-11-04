@@ -275,7 +275,7 @@ impl<'d> FileSymbols<'d> {
                 .map(|declaration| self.node_handle(declaration))
                 .unwrap_or_default(),
             parent: self.compact(data.parent),
-            export_symbol: self.compact(data.export_symbol),
+            export_symbol: self.compact(data.export_symbol()),
         }
     }
 

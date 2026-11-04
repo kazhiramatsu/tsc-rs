@@ -354,21 +354,70 @@ impl SyntaxIdentityRelocation {
         )?);
         Ok(())
     }
+}
 
-    /// A record's identity word of `space` (`nodes::SPACE_*`; a word is the
-    /// identity's position) in the leased ranges.
-    pub(crate) fn word(&self, space: u8, word: u32) -> Result<u32, IdentityError> {
-        let (identity_space, old, new) = match space {
-            crate::nodes::SPACE_NODE => (IdentitySpace::Node, self.old_nodes, self.new_nodes),
-            crate::nodes::SPACE_ARRAY => {
-                (IdentitySpace::NodeArray, self.old_arrays, self.new_arrays)
-            }
+/// The deltas of a validated relocation: an identity of a space moves from
+/// its old range to the new one by the difference of their starts.
+#[derive(Clone, Copy)]
+struct RelocationShift {
+    nodes: Shift,
+    arrays: Shift,
+    texts: Shift,
+}
+
+#[derive(Clone, Copy)]
+struct Shift {
+    old: u32,
+    len: u32,
+    new: u32,
+}
+
+impl Shift {
+    fn new(old: IdentityRange, new: IdentityRange) -> Self {
+        debug_assert_eq!(old.len(), new.len());
+        Self {
+            old: old.start(),
+            len: old.len(),
+            new: new.start(),
+        }
+    }
+
+    /// `index` moved to the new range; `inside` is cleared if it was not in
+    /// the old one.
+    #[inline(always)]
+    fn index(self, index: u32, inside: &mut bool) -> u32 {
+        let offset = index.wrapping_sub(self.old);
+        *inside &= offset < self.len;
+        self.new.wrapping_add(offset)
+    }
+}
+
+impl RelocationShift {
+    fn new(relocation: &SyntaxIdentityRelocation) -> Self {
+        Self {
+            nodes: Shift::new(relocation.old_nodes, relocation.new_nodes),
+            arrays: Shift::new(relocation.old_arrays, relocation.new_arrays),
+            texts: Shift::new(relocation.old_texts, relocation.new_texts),
+        }
+    }
+
+    #[inline(always)]
+    fn node(&self, id: NodeId, inside: &mut bool) -> NodeId {
+        NodeId::new(self.nodes.index(id.index(), inside))
+    }
+
+    /// A record's identity word of `space` (`nodes::SPACE_*`; a nonzero word
+    /// is the identity's position, its index plus one).
+    #[inline(always)]
+    fn word(&self, space: u8, word: u32, inside: &mut bool) -> u32 {
+        match space {
+            crate::nodes::SPACE_NODE => self.nodes.index(word - 1, inside) + 1,
+            crate::nodes::SPACE_ARRAY => self.arrays.index(word - 1, inside) + 1,
             crate::nodes::SPACE_TEXT if word != TextId::EMPTY.position() => {
-                (IdentitySpace::NodeText, self.old_texts, self.new_texts)
+                self.texts.index(word - 1, inside) + 1
             }
-            _ => return Ok(word),
-        };
-        Ok(relocate_raw(word - 1, identity_space, old, new)? + 1)
+            _ => word,
+        }
     }
 }
 
@@ -958,16 +1007,38 @@ impl NodeArena {
         relocation: SyntaxIdentityRelocation,
         leases: SyntaxLeases,
     ) -> Result<(), IdentityError> {
-        for node in self.nodes.iter_mut() {
-            if let Some(parent) = &mut node.parent {
-                relocation.node(parent)?;
-            }
-            // The tree is not shared yet: its tails are rewritten in place.
-            node.map_identity_words(&mut self.tails, |space, word| relocation.word(space, word))?;
-        }
+        // Each lease has its space's count (`identity_relocation`), so an
+        // identity moves by its space's delta. Whether every word named an
+        // identity of this tree is checked once, after the pass.
+        let shift = RelocationShift::new(&relocation);
+        let mut inside = true;
+        // The records are mapped on their way to the store (one read and one
+        // write each); the tree is not shared yet, so its tails are rewritten
+        // in place.
+        let tails = &mut self.tails;
+        let nodes = self
+            .nodes
+            .publish_mapped(relocation.new_nodes.start() + 1, |mut node| {
+                if let Some(parent) = &mut node.parent {
+                    *parent = shift.node(*parent, &mut inside);
+                }
+                let Ok(()) = node.map_identity_words(tails, |space, word| {
+                    Ok::<u32, std::convert::Infallible>(shift.word(space, word, &mut inside))
+                });
+                node
+            });
         for node in &mut self.array_items {
-            relocation.node(node)?;
+            *node = shift.node(*node, &mut inside);
         }
+        if !inside {
+            // `nodes` drops unpublished: the store slots are scrubbed and the
+            // tree keeps its records.
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "relocated id is outside its source arena",
+            });
+        }
+        nodes.commit();
         for record in &mut self.arrays {
             record.items =
                 record.items - relocation.old_items.start() + relocation.new_items.start();
@@ -976,7 +1047,6 @@ impl NodeArena {
         self.array_base = relocation.new_arrays.start();
         self.item_base = relocation.new_items.start();
         self.text_base = relocation.new_texts.start();
-        self.nodes.publish(relocation.new_nodes.start() + 1);
         self.arrays.publish(relocation.new_arrays.start() + 1);
         self.array_items.publish(relocation.new_items.start());
         self.texts.publish(relocation.new_texts.start() + 1);
@@ -984,11 +1054,66 @@ impl NodeArena {
         Ok(())
     }
 
-    /// Set every reachable node's parent and fold parse errors upward.
-    ///
-    /// One downward pass with an explicit stack (deep trees, left-leaning
-    /// binary chains, overflow a recursive walk) sets `parent`. The error
-    /// aggregate then starts from the nodes the parser flagged
+    /// tsgo finishNode's parent pass: `owner`'s public children
+    /// (`for_each_child`) get `owner` as their parent, over an earlier
+    /// owner's (a node the parse moved). The parser calls it as each node
+    /// finishes, so a parsed tree needs no walk to set its parents; `scratch`
+    /// is the caller's buffer for the child list.
+    pub fn attach_children(&mut self, owner: NodeId, scratch: &mut Vec<NodeId>) {
+        scratch.clear();
+        for_each_child(&*self, self.node(owner), |child| {
+            scratch.push(child);
+            false
+        });
+        for &child in scratch.iter() {
+            let index = self.node_index(child);
+            self.nodes[index].parent = Some(owner);
+        }
+    }
+
+    /// The JSDoc roots attached to `host` get `host` as their parent (tsgo
+    /// sets `parsed.Parent` when it attaches a host's JSDoc).
+    pub fn attach_js_doc(&mut self, host: NodeId) {
+        let Some(js_doc) = self.node(host).js_doc() else {
+            return;
+        };
+        let items = self.item_range(&self.arrays[self.array_index(js_doc)]);
+        for item in items {
+            let index = self.node_index(self.array_items[item]);
+            self.nodes[index].parent = Some(host);
+        }
+    }
+
+    /// Which nodes the tree under `root` reaches through public children and
+    /// JSDoc attachments, indexed from the arena's base. The arena also keeps
+    /// the nodes a parse discarded (a failed speculation, a statement parsed
+    /// again for a top-level `await`), whose parents can name other
+    /// discarded nodes: a scan of the whole arena asks this, not `parent`.
+    pub fn reachable_mask(&self, root: NodeId) -> Vec<bool> {
+        let mut reachable = vec![false; self.nodes.len()];
+        let mut stack = vec![root];
+        while let Some(id) = stack.pop() {
+            let index = self.node_index(id);
+            if reachable[index] {
+                continue;
+            }
+            reachable[index] = true;
+            let node = self.node(id);
+            for_each_child(self, node, |child| {
+                stack.push(child);
+                false
+            });
+            if let Some(js_doc) = node.js_doc() {
+                stack.extend_from_slice(self.node_array(js_doc).nodes);
+            }
+        }
+        reachable
+    }
+
+    /// Close a parsed tree: the root's children get their parent (every other
+    /// node got its own when the parser finished its owner, see
+    /// `attach_children`, or attached its JSDoc), and parse errors fold
+    /// upward. The error aggregate starts from the nodes the parser flagged
     /// (`error_nodes`, rare) and climbs their parent chains. tsc's lazy
     /// aggregateChildData follows public forEachChild, which excludes
     /// node.jsDoc: a JSDoc node neither aggregates nor receives, and no
@@ -997,17 +1122,7 @@ impl NodeArena {
     pub fn finalize_tree(&mut self, root: NodeId, error_nodes: &[NodeId]) {
         #[cfg(debug_assertions)]
         let reference = self.finalize_reference(root);
-        let mut stack = vec![root];
-        let mut children: Vec<NodeId> = Vec::new();
-        while let Some(id) = stack.pop() {
-            children.clear();
-            self.collect_children_including_js_doc(id, &mut children);
-            for &child in children.iter().rev() {
-                let index = self.node_index(child);
-                self.nodes[index].parent = Some(id);
-                stack.push(child);
-            }
-        }
+        self.attach_children(root, &mut Vec::new());
         for &error in error_nodes {
             let mut current = error;
             loop {
@@ -1111,8 +1226,9 @@ impl NodeArena {
         id
     }
 
-    /// The two-phase reference walk `finalize_tree` replaced; debug builds
-    /// still run it to check the one-pass finalization.
+    /// The two-phase reference walk that parents at finish replaced; debug
+    /// builds still run it on a copy to check every reachable node's parent
+    /// and error aggregate.
     ///
     /// Explicit two-phase stack: deep trees (left-leaning binary
     /// chains) overflow a recursive walk.
@@ -1194,6 +1310,7 @@ impl NodeArena {
     /// caller's scratch buffer in visit order.
     /// Returns how many of the appended children came through public
     /// forEachChild edges; the rest are the node's JSDoc attachments.
+    #[cfg(debug_assertions)]
     fn collect_children_including_js_doc(&self, id: NodeId, children: &mut Vec<NodeId>) -> usize {
         for_each_child(self, self.node(id), |child| {
             children.push(child);

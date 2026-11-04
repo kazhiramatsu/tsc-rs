@@ -1194,3 +1194,241 @@ fn or_left_function_condition_reports_both_2774() {
     rows.sort_unstable_by_key(|&(_, start, _)| start);
     assert_eq!(rows, [(2774, 76, 1), (2774, 81, 1)]);
 }
+
+#[test]
+fn satisfies_excess_property_is_stable_after_repeated_queries() {
+    let text = "declare function take(x: { value: string }): 1;\ndeclare function take(x: { value: number }): 2;\nconst result = take(({ value: 1, extra: true } satisfies { value: number }));\n";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        let rows = state
+            .diagnostics
+            .iter()
+            .filter(|d| d.file_name.is_some())
+            .collect::<Vec<_>>();
+        assert_eq!(rows.len(), 2, "{rows:?}");
+        assert_eq!(rows[0].code(), 2353);
+        assert_eq!(rows[0].start, Some(text.find("extra").unwrap() as u32));
+        assert!(rows[0].message.next.is_empty());
+        assert!(rows[0].related.is_empty());
+        assert_eq!(rows[1].code(), 2769);
+        assert_eq!(rows[1].start, rows[0].start);
+        assert_eq!(rows[1].message.next.len(), 1);
+        let chain = &rows[1].message.next[0];
+        assert_eq!(chain.code, 2770);
+        assert_eq!(chain.next.len(), 1);
+        assert_eq!(chain.next[0].code, 2353);
+        assert_eq!(chain.next[0].text, rows[0].message.text);
+        assert_eq!(rows[1].related.len(), 1);
+        assert_eq!(rows[1].related[0].message.code, 2771);
+        assert_eq!(
+            rows[1].related[0].start,
+            Some(text.match_indices("take(").nth(1).unwrap().0 as u32)
+        );
+        let node = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&n| state.kind_of(n) == SyntaxKind::SatisfiesExpression)
+            .unwrap();
+        let before = state.diagnostics.to_vec();
+        state
+            .check_expression(node, tsc_types::CheckMode::NORMAL)
+            .unwrap();
+        state
+            .check_expression(node, tsc_types::CheckMode::NORMAL)
+            .unwrap();
+        assert_eq!(&*state.diagnostics, &before);
+    });
+}
+
+#[test]
+fn satisfies_nested_elaboration_preserves_related_information_across_candidates() {
+    let text = r#"declare const item: { inner: string };
+declare function take(x: { nested: { value: { inner: boolean } } }): 1;
+declare function take(x: { nested: { value: { inner: string } } }): 2;
+const result = take(({ nested: { value: item } } satisfies { nested: { value: { inner: number } } }));
+"#;
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let nodes = state.binder.source(0).arena.node_ids().collect::<Vec<_>>();
+        let call = nodes
+            .iter()
+            .copied()
+            .find(|&n| state.kind_of(n) == SyntaxKind::CallExpression)
+            .unwrap();
+        let selected = state
+            .get_resolved_signature(call, None, tsc_types::CheckMode::NORMAL)
+            .unwrap();
+        let second = nodes
+            .iter()
+            .copied()
+            .filter(|&n| state.kind_of(n) == SyntaxKind::FunctionDeclaration)
+            .nth(1)
+            .unwrap();
+        assert_eq!(state.signature_of(selected).declaration, Some(second));
+        state.check_source_file(0);
+        let rows = state
+            .diagnostics
+            .iter()
+            .filter(|d| d.file_name.is_some())
+            .collect::<Vec<_>>();
+        assert_eq!(rows.len(), 1, "{rows:?}");
+        let diagnostic = rows[0];
+        assert_eq!(diagnostic.code(), 2322);
+        assert_eq!(
+            diagnostic.start,
+            Some(text.find("value: item").unwrap() as u32)
+        );
+        assert_eq!(
+            diagnostic.message.text,
+            "Type '{ inner: string; }' is not assignable to type '{ inner: number; }'."
+        );
+        assert_eq!(diagnostic.message.next.len(), 1);
+        let chain = &diagnostic.message.next[0];
+        assert_eq!(chain.text, "Types of property 'inner' are incompatible.");
+        assert_eq!(chain.next.len(), 1);
+        assert_eq!(
+            chain.next[0].text,
+            "Type 'string' is not assignable to type 'number'."
+        );
+        assert!(chain.next[0].next.is_empty());
+        assert_eq!(diagnostic.related.len(), 1);
+        let related = &diagnostic.related[0];
+        assert_eq!(
+            related.start,
+            Some(text.rfind("value: { inner: number }").unwrap() as u32)
+        );
+        assert_eq!(related.message.text, "The expected type comes from property 'value' which is declared here on type '{ value: { inner: number; }; }'");
+        assert!(related.message.next.is_empty());
+        let node = nodes
+            .into_iter()
+            .find(|&n| state.kind_of(n) == SyntaxKind::SatisfiesExpression)
+            .unwrap();
+        let before = state.diagnostics.to_vec();
+        for _ in 0..2 {
+            state
+                .check_expression(node, tsc_types::CheckMode::NORMAL)
+                .unwrap();
+        }
+        assert_eq!(&*state.diagnostics, &before);
+    });
+}
+
+#[test]
+fn satisfies_literal_operand_error_does_not_suppress_an_independent_relation() {
+    let text = "1 satisfies string;\n({ value: missing } satisfies { required: number });\n({ nested: ({ value: 1 } satisfies { value: string }), other: \"bad\" } satisfies { nested: { value: number }, other: number });\n";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        let rows = state
+            .diagnostics
+            .iter()
+            .filter(|d| d.file_name.is_some())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rows.iter().map(|d| d.code()).collect::<Vec<_>>(),
+            [1360, 2304, 2353, 2322, 2322],
+            "{rows:?}"
+        );
+        assert_eq!(
+            rows[0].message.text,
+            "Type 'number' does not satisfy the expected type 'string'."
+        );
+        assert_eq!(rows[1].start, Some(text.find("missing").unwrap() as u32));
+        assert!(rows[2].message.next.is_empty());
+        assert_eq!(rows[2].message.text, "Object literal may only specify known properties, and 'value' does not exist in type '{ required: number; }'.");
+        assert_eq!(rows[3].start, Some(text.rfind("value: 1").unwrap() as u32));
+        assert_eq!(
+            rows[4].start,
+            Some(text.find("other: \"bad\"").unwrap() as u32)
+        );
+        let before = state.diagnostics.to_vec();
+        let nodes = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .filter(|&n| state.kind_of(n) == SyntaxKind::SatisfiesExpression)
+            .collect::<Vec<_>>();
+        for node in nodes {
+            state
+                .check_expression(node, tsc_types::CheckMode::NORMAL)
+                .unwrap();
+        }
+        assert_eq!(&*state.diagnostics, &before);
+    });
+}
+
+#[test]
+fn satisfies_array_literal_keeps_nested_related_information_on_recheck() {
+    let text = "interface Array<T> { [n: number]: T; length: number; }\n([{ value: \"bad\" }] satisfies [{ value: number }]);\n";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        let rows = state
+            .diagnostics
+            .iter()
+            .filter(|d| d.file_name.is_some())
+            .collect::<Vec<_>>();
+        assert_eq!(rows.len(), 1, "{rows:?}");
+        assert_eq!(rows[0].code(), 2322);
+        assert_eq!(
+            rows[0].start,
+            Some(text.find("value: \"bad\"").unwrap() as u32)
+        );
+        assert_eq!(rows[0].related.len(), 1);
+        assert_eq!(
+            rows[0].related[0].start,
+            Some(text.rfind("value: number").unwrap() as u32)
+        );
+        let before = state.diagnostics.to_vec();
+        let node = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&n| state.kind_of(n) == SyntaxKind::SatisfiesExpression)
+            .unwrap();
+        for _ in 0..2 {
+            state
+                .check_expression(node, tsc_types::CheckMode::NORMAL)
+                .unwrap();
+        }
+        assert_eq!(&*state.diagnostics, &before);
+    });
+}
+
+#[test]
+fn satisfies_unrelated_operand_error_keeps_missing_property_related_information() {
+    let text = "({ value: missing } satisfies { value: number; required: number });\n";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        let rows = state
+            .diagnostics
+            .iter()
+            .filter(|d| d.file_name.is_some())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rows.iter().map(|d| d.code()).collect::<Vec<_>>(),
+            [2304, 2741],
+            "{rows:?}"
+        );
+        assert!(rows[1].message.next.is_empty());
+        assert_eq!(rows[1].message.text, "Property 'required' is missing in type '{ value: any; }' but required in type '{ value: number; required: number; }'.");
+        assert_eq!(rows[1].related.len(), 1);
+        assert_eq!(
+            rows[1].related[0].start,
+            Some(text.find("required").unwrap() as u32)
+        );
+        let before = state.diagnostics.to_vec();
+        let node = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&n| state.kind_of(n) == SyntaxKind::SatisfiesExpression)
+            .unwrap();
+        state
+            .check_expression(node, tsc_types::CheckMode::NORMAL)
+            .unwrap();
+        assert_eq!(&*state.diagnostics, &before);
+    });
+}
