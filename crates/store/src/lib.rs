@@ -73,8 +73,9 @@ const REGION_BYTES: usize = 1 << 38;
 /// The regions the reservation holds. A record type names its region with
 /// [`StoreRecord::REGION`]; regions 8 and 9 hold the name table
 /// ([`names`]), region 12 the trees' literal texts ([`texts`]), region 13 the
-/// node records' tails ([`tails`]). Region 14 holds frozen elements; 15..37
-/// are B-3's typed records and scratch words (see [`claimed`], [`recycle`]).
+/// node records' tails ([`tails`]). Region 14 holds frozen elements; 15..40
+/// are B-3's typed records and scratch words (see [`claimed`], [`recycle`]),
+/// 37..40 the declaration items and the flow nodes and items.
 /// Two further regions belong only to the store unit-test binary.
 const REGIONS: usize = claimed::RECORD_REGION_END + 2 * cfg!(test) as usize;
 
