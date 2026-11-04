@@ -865,6 +865,13 @@ impl<'a> CheckerState<'a> {
             propagation_type: None,
             inference_priority: InferencePriority::MAX_VALUE,
             visited,
+            visited_touched: [InferenceKey {
+                source: original_source,
+                target: original_target,
+                priority,
+                contravariant,
+                bivariant: false,
+            }; 4],
             source_stack,
             target_stack,
             expanding_flags: ExpandingFlags::NONE,
@@ -872,12 +879,13 @@ impl<'a> CheckerState<'a> {
         let result = walker.infer_from_types(original_source, original_target);
         let InferTypesWalker {
             mut visited,
+            visited_touched,
             inferences: mut slots,
             mut source_stack,
             mut target_stack,
             ..
         } = walker;
-        visited.clear();
+        clear_inference_visited(&mut visited, &visited_touched);
         self.inference_visited = visited;
         slots.clear();
         source_stack.clear();
@@ -1861,6 +1869,8 @@ struct InferTypesWalker<'r, 'a> {
     /// `new SyncBailHook(["parserOptions"])` lost the `[ParserOptions]`
     /// candidates its `tap` callback contributes.
     visited: InferenceVisited,
+    /// The first four distinct keys, recorded only on their initial insertion.
+    visited_touched: [InferenceKey; 4],
     source_stack: Vec<TypeId>,
     target_stack: Vec<TypeId>,
     expanding_flags: ExpandingFlags,
@@ -1869,6 +1879,20 @@ struct InferTypesWalker<'r, 'a> {
 /// tsgo invokeOnce's visited map (inference.go:11-17): one per inference
 /// walk, keyed by [`InferenceKey`].
 pub(crate) type InferenceVisited = HashMap<InferenceKey, InferencePriority>;
+
+/// Remove a short walk's keys individually when clearing would zero a large
+/// retained table. Dense walks and small tables keep HashMap's bulk clear.
+fn clear_inference_visited(visited: &mut InferenceVisited, touched: &[InferenceKey; 4]) {
+    let len = visited.len();
+    if len <= touched.len() && visited.capacity() >= 1024 {
+        for key in &touched[..len] {
+            visited.remove(key);
+        }
+    } else {
+        visited.clear();
+    }
+    debug_assert!(visited.is_empty());
+}
 
 /// tsgo InferenceKey (inference.go:11-17): what one invokeOnce visit is
 /// identified by.
@@ -2514,6 +2538,9 @@ impl InferTypesWalker<'_, '_> {
         if let Some(&status) = self.visited.get(&key) {
             self.inference_priority = self.inference_priority.min(status);
             return Ok(());
+        }
+        if self.visited.len() < self.visited_touched.len() {
+            self.visited_touched[self.visited.len()] = key;
         }
         self.visited.insert(key, InferencePriority::CIRCULARITY);
         let save_inference_priority = self.inference_priority;

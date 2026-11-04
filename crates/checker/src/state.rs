@@ -541,6 +541,8 @@ pub struct CheckerState<'a> {
     pub(crate) signature_instantiations:
         rustc_hash::FxHashMap<(SignatureId, tsc_types::TypeListId), SignatureId>,
     pub members: Vec<ResolvedMembers>,
+    pub(crate) named_member_order_buffers:
+        std::cell::Cell<crate::type_order::NamedMemberOrderBuffers>,
     /// checker-key §1.5: five per-relation caches + enumRelation.
     pub relations: RelationCaches,
     /// tsc subtypeReductionCache (47000), list-id keyed.
@@ -1713,6 +1715,7 @@ impl<'a> CheckerState<'a> {
             signatures: Vec::new(),
             signature_instantiations: rustc_hash::FxHashMap::default(),
             members: Vec::new(),
+            named_member_order_buffers: Default::default(),
             relations: RelationCaches::default(),
             subtype_reduction_cache: rustc_hash::FxHashMap::default(),
             inference_visited: Default::default(),

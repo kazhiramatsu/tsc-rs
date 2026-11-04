@@ -2454,3 +2454,50 @@ fn valid_big_int_string_gates() {
         },
     );
 }
+
+#[test]
+fn visited_clear_preserves_capacity_and_resets_sparse_and_dense_walks() {
+    use super::{clear_inference_visited, InferenceKey, InferenceVisited};
+    let keys: Vec<InferenceKey> = (0..8)
+        .map(|index| InferenceKey {
+            source: TypeId::new(index),
+            target: TypeId::new(9),
+            priority: InferencePriority::NONE,
+            contravariant: index % 2 != 0,
+            bivariant: index % 3 != 0,
+        })
+        .collect();
+    let touched: [InferenceKey; 4] = keys[..4].try_into().unwrap();
+    for capacity in [0, 7, 896, 1792, 28672] {
+        let mut visited = InferenceVisited::default();
+        visited.reserve(capacity);
+        for count in [0, 1, 4, 5, 8, 1, 4] {
+            for &key in &keys[..count] {
+                visited.insert(key, InferencePriority::CIRCULARITY);
+                visited.insert(key, InferencePriority::NONE);
+            }
+            let retained = visited.capacity();
+            clear_inference_visited(&mut visited, &touched);
+            assert!(visited.is_empty());
+            assert_eq!(visited.capacity(), retained);
+            for key in &keys {
+                assert_eq!(visited.get(key), None);
+            }
+        }
+    }
+}
+
+#[test]
+fn inference_walk_records_touched_keys_in_a_retained_large_map() {
+    with_program_state(
+        &[("a.ts", "declare function f<T>(x: {p: T}): T; const n: string = f({p: 1}); const s: number = f({p: 's'});\n")],
+        &CompilerOptions::default(),
+        |state| {
+            state.inference_visited.reserve(1792);
+            state.check_source_file(0);
+            assert!(state.inference_visited.is_empty());
+            assert!(state.inference_visited.capacity() >= 1792);
+            assert_eq!(state.diagnostics.iter().filter(|diagnostic| diagnostic.code() == 2322).count(), 2);
+        },
+    );
+}
