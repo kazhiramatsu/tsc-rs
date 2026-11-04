@@ -2454,3 +2454,84 @@ fn valid_big_int_string_gates() {
         },
     );
 }
+
+/// tsgo #64553 (inference.go:82-87, 228-230): inference between two types
+/// from the same generic alias, and between two references to the same
+/// generic type, runs through invokeOnce, once per (source, target,
+/// priority, variance) key in a walk. An imported alias keeps its written
+/// type arguments, so every visit of the pair fills the defaults again
+/// (fresh mappers: no instantiation cache hits); three properties of one
+/// pair filled and instantiated them three times. Pinned to tsgo aa814927
+/// over the same three files (`tsc --singleThreaded --extendedDiagnostics`,
+/// `strict`, `noLib`, `types: []`): the one TS2322 below (P is inferred as
+/// `Id`) and `Instantiations: 100` (108 before the port).
+#[test]
+fn repeated_alias_pairs_infer_once_per_walk() {
+    let globals = concat!(
+        "interface IArguments { length: number; callee: Function; }\n",
+        "interface Array<T> { length: number; [index: number]: T; }\n",
+        "interface Object {}\n",
+        "interface Function {}\n",
+        "interface CallableFunction extends Function {}\n",
+        "interface NewableFunction extends Function {}\n",
+        "interface String {}\n",
+        "interface Number {}\n",
+        "interface Boolean {}\n",
+        "interface RegExp {}\n",
+    );
+    let options = concat!(
+        "export type Options<P, E = { emit(event: string): void }, S = { slots: P }> = ",
+        "{ props: P; emits: E; setup: S };\n",
+    );
+    let main = concat!(
+        "import type { Options } from \"./a\";\n",
+        "interface Id { id: number }\n",
+        "interface Registry<P> { first: Options<P>; second: Options<P>; third: Options<P> }\n",
+        "declare function define<P>(registry: Registry<P>): P;\n",
+        "declare const registry: { first: Options<Id>; second: Options<Id>; third: Options<Id> };\n",
+        "export const props = define(registry);\n",
+        "export const id: string = props;\n",
+    );
+    let result = crate::check_program(
+        &[
+            crate::InputFile::new("/globals.d.ts".to_owned(), globals.to_owned()),
+            crate::InputFile::new("/a.ts".to_owned(), options.to_owned()),
+            crate::InputFile::new("/b.ts".to_owned(), main.to_owned()),
+        ],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+    );
+    let rows: Vec<_> = result
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            (
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|name| name.as_js().as_str().expect("scalar name").to_owned()),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.code(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        rows,
+        [(
+            Some("/b.ts".to_owned()),
+            Some(342),
+            Some(2),
+            2322,
+            "Type 'Id' is not assignable to type 'string'.".to_owned(),
+        )]
+    );
+    assert_eq!(result.work_counters.instantiations(), 100);
+}
