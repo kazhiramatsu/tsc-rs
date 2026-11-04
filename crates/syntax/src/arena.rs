@@ -460,9 +460,19 @@ impl NodeArena {
             }
         }
     }
-    /// tsc `identifierCount`: the identifier nodes of this tree.
+    /// tsgo `IdentifierCount`: the identifiers the parser created for this
+    /// tree, including those of discarded speculative parses (tsgo's rewind
+    /// does not restore the count).
     pub fn identifier_count(&self) -> usize {
         self.identifier_count as usize
+    }
+
+    /// Count an identifier tsgo creates and drops without it reaching the
+    /// tree: `parseElementAccessExpressionRest` (parser.go:5527) makes a
+    /// missing identifier before it parses the argument, and an argument
+    /// replaces it.
+    pub(crate) fn count_dropped_identifier(&mut self) {
+        self.identifier_count += 1;
     }
 
     pub fn new() -> Self {

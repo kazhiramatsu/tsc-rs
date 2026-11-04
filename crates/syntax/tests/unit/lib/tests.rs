@@ -47,6 +47,33 @@ fn parse_source_file_creates_root_and_eof_nodes() {
     assert_eq!(source.arena.node(eof).parent, Some(source.root));
 }
 
+/// tsgo `IdentifierCount` (tsc 7.1.0-dev `aa814927`, `--extendedDiagnostics`
+/// on each text alone): an arrow function whose body is an `async function`
+/// expression is parsed once (nextIsUnParenthesizedAsyncArrowFunction reads
+/// tokens only), and every element access with an argument counts the missing
+/// identifier tsgo creates before parsing the argument.
+#[test]
+fn identifier_count_matches_tsgo() {
+    for (text, count) in [
+        (
+            "const f = (options: X): Y => async function g(c, next) { a1; a2; a3; a4 }\n",
+            12,
+        ),
+        (
+            "const f = (options: X) => async function g(c, next) { a1; a2; a3; a4 }\n",
+            10,
+        ),
+        ("const f = async x => x\n", 3),
+        ("x[y]\n", 3),
+        ("a[0] as T\n", 3),
+        ("const m = this.x[method] as Matcher<T>\n", 6),
+        ("x[]\n", 2),
+    ] {
+        let source = parse_source_file("a.ts", text, ParseOptions::default(), None);
+        assert_eq!(source.identifier_count(), count, "{text:?}");
+    }
+}
+
 #[test]
 fn snapshot_entry_preserves_text_and_position_owner_identity() {
     let snapshot = TextSnapshot::new("const value = '😀';\n", DocumentVersion::new("host-v1"));
