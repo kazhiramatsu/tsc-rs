@@ -150,6 +150,44 @@ fn with_builder_files(
     });
 }
 
+#[test]
+fn cached_expression_type_arguments_preserve_go_symbol_id_history() {
+    with_builder_files(
+        &[("a.ts", "")],
+        0,
+        EmitNodeBuilderFlags(WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME),
+        EmitInternalNodeBuilderFlags::NONE,
+        |checker, arena, target, context| {
+            let first = checker
+                .binder
+                .create_symbol(SymbolFlags::PROPERTY, tsc_types::known_name!("same"));
+            let second = checker
+                .binder
+                .create_symbol(SymbolFlags::PROPERTY, tsc_types::known_name!("same"));
+            context.type_parameter_symbol_list = Some([first].into_iter().collect());
+            assert!(lookup_expression_chain_type_argument_nodes(
+                checker,
+                arena,
+                target,
+                &[first, second],
+                0,
+                context,
+            )?
+            .is_none());
+            // Go requests the ID even when the cached symbol list returns
+            // immediately. A later reversed comparison must see that ID.
+            let order = crate::type_order::order_ctx!(checker);
+            assert!(tsc_types::TypeOrderContext::compare_symbols(
+                &order,
+                Some(second),
+                Some(first),
+            )
+            .is_gt());
+            Ok(())
+        },
+    );
+}
+
 fn declaration_symbol(
     checker: &CheckerState<'_>,
     file_index: usize,
@@ -572,6 +610,119 @@ fn set_text_range2_replaces_provenance_before_copying_the_range() {
                 Some(enclosing_resolver_node(checker, names[0]))
             );
             Ok(())
+        },
+    );
+}
+
+#[test]
+fn parent_sort_matches_go_symmerge_above_twenty_mixed_parents() {
+    let fixtures: &[(usize, &[usize])] = &[
+        (
+            21,
+            &[
+                0, 4, 9, 10, 13, 1, 14, 2, 3, 17, 5, 6, 15, 16, 18, 19, 7, 20, 8, 11, 12,
+            ],
+        ),
+        (
+            41,
+            &[
+                0, 3, 6, 9, 12, 24, 34, 10, 22, 20, 17, 27, 37, 13, 23, 29, 30, 40, 5, 15, 16, 25,
+                1, 32, 8, 18, 28, 4, 19, 35, 11, 26, 2, 21, 31, 7, 33, 36, 38, 14, 39,
+            ],
+        ),
+    ];
+    for &(n, expected) in fixtures {
+        let text = (0..n)
+            .map(|i| format!("const p{i} = 0;\n"))
+            .collect::<String>();
+        with_program_state(&[("a.ts", &text)], &CompilerOptions::default(), |state| {
+            let symbols: Vec<_> = (0..n)
+                .map(|i| {
+                    state
+                        .resolve_file_scope_name(&format!("p{i}"), SymbolFlags::VALUE)
+                        .unwrap()
+                })
+                .collect();
+            let input: Vec<_> = (0..n).map(|i| i * 17 % n).collect();
+            let parents: Vec<_> = input.iter().map(|&i| symbols[i]).collect();
+            let specifiers: Vec<_> = input
+                .iter()
+                .map(|&i| match i % 3 {
+                    0 => None,
+                    relative => Some(
+                        format!(
+                            "{}m{}",
+                            if relative == 2 { "./" } else { "" },
+                            "/a".repeat(i * 7 % 4)
+                        )
+                        .into(),
+                    ),
+                })
+                .collect();
+            let actual: Vec<_> = sort_parent_symbols(state, &parents, &specifiers)
+                .iter()
+                .map(|&i| input[i])
+                .collect();
+            assert_eq!(actual, expected, "pinned Go GST, length {n}");
+            let order = crate::type_order::order_ctx!(state);
+            let mut insertion: Vec<_> = (0..n).collect();
+            for sorted in 1..n {
+                let mut at = sorted;
+                while at > 0
+                    && compare_parent_symbols(
+                        &order,
+                        &parents,
+                        &specifiers,
+                        insertion[at],
+                        insertion[at - 1],
+                    )
+                    .is_lt()
+                {
+                    insertion.swap(at, at - 1);
+                    at -= 1;
+                }
+            }
+            assert_ne!(
+                actual,
+                insertion.iter().map(|&i| input[i]).collect::<Vec<_>>()
+            );
+            // At 21 elements Rust returns a different permutation. At 41
+            // this cyclic comparator makes Rust's standard sort panic;
+            // the Go port still has a pinned, non-panicking result.
+            if n == 21 {
+                let mut rust: Vec<_> = (0..n).collect();
+                rust.sort_by(|&a, &b| compare_parent_symbols(&order, &parents, &specifiers, a, b));
+                assert_ne!(actual, rust.iter().map(|&i| input[i]).collect::<Vec<_>>());
+            }
+        });
+    }
+}
+
+#[test]
+fn display_parents_share_the_current_relative_and_symbol_fallback_comparer() {
+    with_program_state(
+        &[("a.ts", "const a=0; const b=0; const c=0;")],
+        &CompilerOptions::default(),
+        |state| {
+            let parents: Vec<_> = ["c", "b", "a"]
+                .iter()
+                .map(|name| {
+                    state
+                        .resolve_file_scope_name(name, SymbolFlags::VALUE)
+                        .unwrap()
+                })
+                .collect();
+            // Missing or empty specifiers use compareSymbols, rather than Equal.
+            assert_eq!(
+                sort_parent_symbols(state, &parents, &[None, Some("".into()), None]),
+                [2, 1, 0]
+            );
+            let specifiers = [
+                Some("./near".into()),
+                Some("package/deep/path".into()),
+                Some(".\\near".into()),
+            ];
+            assert_eq!(sort_parent_symbols(state, &parents, &specifiers), [1, 0, 2]);
         },
     );
 }

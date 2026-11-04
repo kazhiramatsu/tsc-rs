@@ -6852,11 +6852,11 @@ fn unique_symbol_missing_property_prints_qualified_computed_faces() {
 }
 
 #[test]
-fn unique_symbol_member_uses_the_value_with_the_matching_declared_type() {
-    // getContainersOfSymbol's firstVariableMatch: the unique
-    // symbol member belongs to the TYPE-only SymbolConstructor,
-    // but its Value expression qualifies through the in-scope
-    // `Symbol` value whose type is exactly SymbolConstructor.
+fn unique_symbol_member_uses_go_parent_symbol_order() {
+    // tsgo aa814927: sortByBestName compares non-module parents by
+    // compareSymbols, so the earlier interface declaration is selected
+    // ahead of the matching Symbol value. The old TypeScript 6 display
+    // comparator treated them as ties and kept Symbol first.
     let messages = checked_diags(
         "interface SymbolConstructor { readonly iterator: unique symbol; }\n\
              declare var Symbol: SymbolConstructor;\n\
@@ -6869,7 +6869,7 @@ fn unique_symbol_member_uses_the_value_with_the_matching_declared_type() {
     .collect::<Vec<_>>();
     assert_eq!(
         messages,
-        ["Type '{ [Symbol.iterator]?(): string; }' is not assignable to type 'number'."]
+        ["Type '{ [SymbolConstructor.iterator]?(): string; }' is not assignable to type 'number'."]
     );
 }
 

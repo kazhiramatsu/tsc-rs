@@ -464,7 +464,7 @@ impl<'a> CheckerState<'a> {
                 .read_symbol(symbol, |links| links.check_flags)
                 .intersects(tsc_types::CheckFlags::LATE);
             if is_early_computed {
-                if let Some(name_type) = self.links.symbol(symbol).name_type {
+                if let Some(name_type) = self.links.value_symbol(symbol).name_type {
                     let flags = self.tables.flags_of(name_type);
                     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
                         let name = match &self.tables.type_of(name_type).data {

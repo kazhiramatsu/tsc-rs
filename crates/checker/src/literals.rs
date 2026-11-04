@@ -1671,7 +1671,7 @@ impl<'a> CheckerState<'a> {
                     .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
                 let declarations = self.binder.symbol(prop).declarations.clone();
                 self.binder.symbol_mut(result).declarations = declarations;
-                let name_type = self.links.symbol(prop).name_type;
+                let name_type = self.links.value_symbol(prop).name_type;
                 self.links
                     .set_symbol_name_type(self.speculation_depth, result, name_type);
                 self.links
@@ -1928,7 +1928,7 @@ impl<'a> CheckerState<'a> {
                     let mut declarations = left_declarations;
                     declarations.extend(right_declarations);
                     self.binder.symbol_mut(result).declarations = declarations;
-                    let name_type = self.links.symbol(left_prop).name_type;
+                    let name_type = self.links.value_symbol(left_prop).name_type;
                     self.links
                         .set_symbol_name_type(self.speculation_depth, result, name_type);
                     members.insert(name, result);
@@ -2030,7 +2030,7 @@ impl<'a> CheckerState<'a> {
             .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
         let declarations = self.binder.symbol(prop).declarations.clone();
         self.binder.symbol_mut(result).declarations = declarations;
-        let name_type = self.links.symbol(prop).name_type;
+        let name_type = self.links.value_symbol(prop).name_type;
         self.links
             .set_symbol_name_type(self.speculation_depth, result, name_type);
         self.links

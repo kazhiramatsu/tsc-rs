@@ -702,7 +702,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_type_of_mapped_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             return Ok(cached);
         }
@@ -763,7 +763,7 @@ impl<'a> CheckerState<'a> {
             computed = self.tables.intrinsics.error;
             if self
                 .links
-                .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+                .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
                 .is_none()
             {
                 self.links.set_symbol_type(
@@ -782,7 +782,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(cached) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             return Ok(cached);
         }

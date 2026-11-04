@@ -3235,9 +3235,9 @@ fn visit_and_transform_type(
             conditional.root,
         ))
     } else {
-        type_data
-            .symbol
-            .map(|symbol| super::context::CompositeSymbolIdentity::Symbol {
+        type_data.symbol.map(|symbol| {
+            checker.links.symbol_order_ids().get(symbol);
+            super::context::CompositeSymbolIdentity::Symbol {
                 is_constructor_object: type_data.object_flags.intersects(ObjectFlags::ANONYMOUS)
                     && checker
                         .binder
@@ -3245,7 +3245,8 @@ fn visit_and_transform_type(
                         .flags
                         .intersects(SymbolFlags::CLASS),
                 symbol,
-            })
+            }
+        })
     };
     let depth = composite.map(|identity| {
         let old = context
@@ -4639,7 +4640,7 @@ pub(super) fn add_property_to_element_list(
         if !checker.tables.is_error_type(property_type) && !checker.tables.is_error_type(write_type)
         {
             let symbol = checker.binder.symbol(property);
-            let mapper = checker.links.symbol(property).mapper;
+            let mapper = checker.links.value_symbol(property).mapper;
             let property_declaration =
                 checker.get_declaration_of_kind(property, SyntaxKind::PropertyDeclaration);
             let parent_is_class = symbol

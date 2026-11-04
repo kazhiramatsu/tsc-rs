@@ -356,7 +356,7 @@ impl<'a> CheckerState<'a> {
         if non_public {
             return Ok(self.tables.intrinsics.never);
         }
-        let name_type = self.links.symbol(property).name_type;
+        let name_type = self.links.value_symbol(property).name_type;
         let ty = match name_type {
             Some(name_type) => Some(name_type),
             None => {

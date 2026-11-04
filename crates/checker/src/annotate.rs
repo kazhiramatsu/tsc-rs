@@ -1355,6 +1355,7 @@ impl<'a> CheckerState<'a> {
                 let mut escaped_text =
                     tsc_types::JsString::from(tsc_types::InternalSymbolName::LATE_BOUND_PREFIX);
                 escaped_text.push_js(self.binder.symbol(symbol).escaped_name.as_js());
+                self.links.symbol_order_ids().get(symbol);
                 escaped_text.push_str(&format!("@{}", symbol.index()));
                 let escaped_name = tsc_types::EscapedName::from_escaped_value(escaped_text);
                 let ty = self
@@ -3339,6 +3340,9 @@ impl<'a> CheckerState<'a> {
             .expect("getTypeAliasInstantiation callers gate on typeParameters");
         // getTypeListId + getAliasId as one value (equal lists and aliases
         // intern to equal keys, as they format to equal strings).
+        if let Some(symbol) = alias_symbol {
+            self.links.symbol_order_ids().get(symbol);
+        }
         let id_key = self.tables.instantiation_key(
             type_arguments.unwrap_or(&[]),
             alias_symbol,
@@ -4350,7 +4354,7 @@ impl<'a> CheckerState<'a> {
                 state.links.set_symbol_reverse_mapped_links(
                     state.speculation_depth,
                     inferred,
-                    state.links.symbol(property).name_type,
+                    state.links.value_symbol(property).name_type,
                     property_type,
                     mapped_type,
                     constraint_type,
@@ -6666,7 +6670,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_type_of_accessors(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
@@ -6837,7 +6841,7 @@ impl<'a> CheckerState<'a> {
         };
         if self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
             .is_none()
         {
             self.links.set_symbol_type_once(
@@ -6848,7 +6852,7 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
             .expect("just filled"))
     }
 
@@ -7766,9 +7770,12 @@ impl<'a> CheckerState<'a> {
         // CommonJS `require` (tsgo getTypeOfVariableOrParameterOrPropertyWorker,
         // checker.go:16903): the synthetic require symbol is `any`.
         if symbol == self.require_symbol {
+            self.links.symbol_order_ids().touch_links(symbol);
             return Ok(self.tables.intrinsics.any);
         }
         perf::bump(PerfCounter::TypeOfSymbolQueries);
+        // Go's dispatcher does not request value links for type-only symbols.
+        // A cached value already received its ID when the slot was written.
         if let Some(resolved) = self
             .links
             .read_symbol(symbol, |links| links.type_of_symbol.resolved())
@@ -7833,7 +7840,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<TypeId> {
-        if let Some(ty) = self.links.symbol(symbol).type_of_symbol.resolved() {
+        if let Some(ty) = self.links.value_symbol(symbol).type_of_symbol.resolved() {
             return Ok(ty);
         }
         let cold = self.links.symbol_cold();
@@ -7862,7 +7869,7 @@ impl<'a> CheckerState<'a> {
     fn get_type_of_reverse_mapped_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
@@ -7883,7 +7890,7 @@ impl<'a> CheckerState<'a> {
             .unwrap_or(self.tables.intrinsics.unknown);
         if let Some(cached) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
@@ -7899,16 +7906,16 @@ impl<'a> CheckerState<'a> {
     fn get_type_of_instantiated_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
         }
         let target = self
             .links
-            .read_symbol(symbol, |links| links.target)
+            .read_value_symbol(symbol, |links| links.target)
             .expect("Instantiated check flag implies links.target");
-        let mapper = self.links.read_symbol(symbol, |links| links.mapper);
+        let mapper = self.links.read_value_symbol(symbol, |links| links.mapper);
         let target_type = self.get_type_of_symbol(target)?;
         let instantiated = self.instantiate_type(target_type, mapper)?;
         // tsc `links.type || (links.type = ...)` assigns AFTER the RHS
@@ -7918,7 +7925,7 @@ impl<'a> CheckerState<'a> {
         // genuinely diverging recomputation.
         if let Some(already) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(already);
@@ -7956,7 +7963,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
@@ -7968,7 +7975,7 @@ impl<'a> CheckerState<'a> {
             let resolved = self.get_type_of_prototype_property(symbol)?;
             if let Some(already) = self
                 .links
-                .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+                .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
             {
                 perf::bump(PerfCounter::TypeOfSymbolHits);
                 return Ok(already);
@@ -8265,7 +8272,7 @@ impl<'a> CheckerState<'a> {
         // ITS OWN computation (`return type`, not the slot).
         if self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
             .is_none()
             && !self.is_parameter_of_context_sensitive_signature(symbol)?
         {
@@ -8890,7 +8897,7 @@ impl<'a> CheckerState<'a> {
             let symbol = self.get_symbol_of_declaration(node)?;
             if let Some(cached) = self
                 .links
-                .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+                .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
             {
                 perf::bump(PerfCounter::TypeOfSymbolHits);
                 return Ok(Some(cached));
@@ -9526,7 +9533,7 @@ impl<'a> CheckerState<'a> {
     fn get_type_of_func_class_enum_module(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
@@ -9781,7 +9788,7 @@ impl<'a> CheckerState<'a> {
     fn get_type_of_enum_member(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
@@ -9789,7 +9796,7 @@ impl<'a> CheckerState<'a> {
         let declared = self.get_declared_type_of_enum_member(symbol)?;
         if let Some(cached) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);

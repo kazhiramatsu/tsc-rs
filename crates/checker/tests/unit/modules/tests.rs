@@ -3873,3 +3873,32 @@ fn node_core_module_lists_are_sorted_and_found() {
         assert!(!is_node_core_module(name), "{name:?}");
     }
 }
+
+#[test]
+fn combining_value_and_type_symbols_compacts_only_adjacent_declarations() {
+    use tsc_types::{known_name, SymbolFlags};
+    with_program_state(
+        &[("a.ts", "const a=0; const b=0; const c=0;")],
+        &CompilerOptions::default(),
+        |state| {
+            let declarations: Vec<_> = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .filter(|&id| state.kind_of(id) == SyntaxKind::VariableDeclaration)
+                .collect();
+            let (a, b, c) = (declarations[0], declarations[1], declarations[2]);
+            let value = state
+                .binder
+                .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, known_name!("value"));
+            state.binder.symbol_mut(value).declarations = vec![a, a, b].into();
+            let ty = state
+                .binder
+                .create_symbol(SymbolFlags::INTERFACE, known_name!("type"));
+            state.binder.symbol_mut(ty).declarations = vec![b, a, c, c].into();
+            let combined = state.combine_value_and_type_symbols(value, ty);
+            assert_eq!(state.binder.symbol(combined).declarations, [a, b, a, c]);
+        },
+    );
+}

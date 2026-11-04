@@ -125,7 +125,7 @@ impl CheckerState<'_> {
                 let symbol = self.get_symbol_of_declaration(current)?;
                 let previous = self
                     .links
-                    .read_symbol(symbol, |links| links.type_of_symbol.get());
+                    .read_value_symbol(symbol, |links| links.type_of_symbol.get());
                 self.links
                     .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Vacant);
                 types.push((symbol, previous));
@@ -221,21 +221,28 @@ impl CheckerState<'_> {
         None
     }
 
-    /// tsgo `GetAmbientModules`: the ambient modules of the global scope and
-    /// the pattern ambient modules, each once.
+    /// tsgo `GetAmbientModules`: cache the global scope's ambient modules,
+    /// then previously unseen merged pattern modules, in enumeration order.
     pub fn get_ambient_modules(&self) -> Vec<SymbolId> {
-        let mut ambient = Vec::new();
-        for (name, &symbol) in self.globals.iter() {
-            if name.starts_with("\"") {
-                ambient.push(symbol);
-            }
-        }
-        for (_, _, symbol) in &self.pattern_ambient_modules {
-            ambient.push(self.get_merged_symbol(*symbol));
-        }
-        ambient.sort_unstable();
-        ambient.dedup();
-        ambient
+        self.ambient_modules
+            .get_or_init(|| {
+                let mut ambient = Vec::new();
+                let mut seen = rustc_hash::FxHashSet::default();
+                for (name, &symbol) in self.globals.iter() {
+                    if name.starts_with("\"") {
+                        ambient.push(symbol);
+                        seen.insert(symbol);
+                    }
+                }
+                for (_, _, symbol) in &self.pattern_ambient_modules {
+                    let symbol = self.get_merged_symbol(*symbol);
+                    if seen.insert(symbol) {
+                        ambient.push(symbol);
+                    }
+                }
+                ambient
+            })
+            .clone()
     }
 
     /// tsgo `modulespecifiers.GetAllowedEndingsInPreferredOrder` with no
@@ -491,7 +498,7 @@ impl CheckerState<'_> {
     /// tsgo `GetNameTypeOfSymbol`: the name type of a mapped or late-bound
     /// symbol, if any.
     pub fn get_name_type_of_symbol(&self, symbol: SymbolId) -> Option<TypeId> {
-        self.links.symbol(symbol).name_type
+        self.links.value_symbol(symbol).name_type
     }
 
     /// tsgo `module.TryGetJSExtensionForFile`: the JavaScript extension a
@@ -559,7 +566,7 @@ impl CheckerState<'_> {
     fn try_get_target(&self, symbol: SymbolId) -> Option<SymbolId> {
         let mut target = None;
         let mut next = symbol;
-        while let Some(found) = self.links.read_symbol(next, |links| links.target) {
+        while let Some(found) = self.links.read_value_symbol(next, |links| links.target) {
             target = Some(found);
             next = found;
         }

@@ -574,6 +574,7 @@ fn declaration_type_for_serialization(
             None => Ok(checker.tables.intrinsics.error),
         };
     };
+    checker.links.symbol_order_ids().get(symbol);
     if let Some(&r#type) = context.enclosing_symbol_types.get(&symbol) {
         return Ok(r#type);
     }
@@ -729,7 +730,10 @@ pub(super) fn serialize_type_for_declaration_in_context(
                             .object_flags_of(r#type)
                             .intersects(ObjectFlags::REQUIRES_WIDENING)))
         }) {
-            let restore = symbol.map(|symbol| add_symbol_type_to_context(context, symbol, r#type));
+            let restore = symbol.map(|symbol| {
+                checker.links.symbol_order_ids().get(symbol);
+                add_symbol_type_to_context(context, symbol, r#type)
+            });
             let reused = (|| {
                 let mut pseudo = {
                     let pseudochecker = PseudoChecker::new(checker);
@@ -908,6 +912,7 @@ pub(super) fn serialize_return_type_for_signature_in_context(
                 let symbol = checker
                     .get_symbol_of_declaration(declaration)
                     .map_err(|abort| checker_abort_error(checker, context, abort))?;
+                checker.links.symbol_order_ids().get(symbol);
                 match context.enclosing_symbol_types.get(&symbol).copied() {
                     Some(return_type) => return_type,
                     None => {
@@ -939,6 +944,7 @@ pub(super) fn serialize_return_type_for_signature_in_context(
                 let declaration_symbol = checker
                     .get_symbol_of_declaration(declaration)
                     .map_err(|abort| checker_abort_error(checker, context, abort))?;
+                checker.links.symbol_order_ids().get(declaration_symbol);
                 let restore = add_symbol_type_to_context(context, declaration_symbol, return_type);
                 let reused = (|| {
                     let pseudo =

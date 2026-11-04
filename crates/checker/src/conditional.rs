@@ -451,6 +451,9 @@ impl<'a> CheckerState<'a> {
             type_arguments.push(self.get_mapped_type(parameter, mapper)?);
         }
         // tsc's "C" prefix, getTypeListId and getAliasId as one value.
+        if let Some(symbol) = alias_symbol {
+            self.links.symbol_order_ids().get(symbol);
+        }
         let key = self.tables.instantiation_key(
             &type_arguments,
             alias_symbol,

@@ -1936,6 +1936,7 @@ impl CheckerState<'_> {
         let Some(export_symbol) = export_symbol else {
             return Ok(None);
         };
+        self.links.symbol_order_ids().get(export_symbol);
         let mut visited = HashSet::default();
         visited.insert(export_symbol);
         let mut result = None;

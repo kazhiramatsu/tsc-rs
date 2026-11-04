@@ -234,6 +234,44 @@ impl<K, V> SparseLinks<K, V> {
     }
 }
 
+/// A sparse symbol link read allocates the same lazy identity as Go's
+/// symbolLinkStore.Get/TryGet, even when the field has never been written.
+#[derive(Debug)]
+pub struct SymbolLinksField<V> {
+    field: SparseLinks<SymbolId, V>,
+    order_ids: Arc<crate::type_order::SymbolOrderIds>,
+}
+
+impl<V: Default> SymbolLinksField<V> {
+    fn new(order_ids: Arc<crate::type_order::SymbolOrderIds>) -> Self {
+        Self {
+            field: SparseLinks::default(),
+            order_ids,
+        }
+    }
+
+    pub fn get(&self, symbol: SymbolId) -> &V {
+        self.order_ids.touch_links(symbol);
+        self.field.get(symbol)
+    }
+
+    fn slot(&mut self, symbol: SymbolId) -> &mut V {
+        self.order_ids.touch_links(symbol);
+        self.field.slot(symbol)
+    }
+
+    fn memory_usage(&self) -> (usize, usize) {
+        self.field.memory_usage()
+    }
+}
+
+impl<V: Default + PartialEq> SymbolLinksField<V> {
+    fn set(&mut self, symbol: SymbolId, value: V) {
+        self.order_ids.touch_links(symbol);
+        self.field.set(symbol, value);
+    }
+}
+
 /// Sum the memory accounting of a cold struct's sparse fields.
 fn sparse_memory_usage<const N: usize>(fields: [(usize, usize); N]) -> (usize, usize) {
     fields
@@ -500,10 +538,11 @@ pub type ModuleSpecifierCache = std::collections::BTreeMap<JsString, (JsString, 
 
 /// The SymbolLinks fields few symbols set, one sparse map per field (see
 /// [`SparseLinks`]).
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct SymbolLinksCold {
+    order_ids: Arc<crate::type_order::SymbolOrderIds>,
     /// tsc links.containingType for synthetic properties.
-    pub containing_type: SparseLinks<SymbolId, Option<TypeId>>,
+    pub containing_type: SymbolLinksField<Option<TypeId>>,
     /// tsc links.mappedType for CheckFlags::MAPPED property symbols
     /// synthesized by resolveMappedTypeMembers (58549), and for
     /// CheckFlags::REVERSE_MAPPED properties (58446/58449).
@@ -556,7 +595,7 @@ pub struct SymbolLinksCold {
     pub late_symbol: SparseLinks<SymbolId, Option<SymbolId>>,
     /// tsc links.writeType (getWriteTypeOfAccessors 56787) — the
     /// setter-side type; the WriteType resolution property.
-    pub write_type: SparseLinks<SymbolId, LinkSlot<TypeId>>,
+    pub write_type: SymbolLinksField<LinkSlot<TypeId>>,
     /// tsc links.resolvedExports (getResolvedMembersOrExportsOfSymbol
     /// 57712, the static resolutionKind) — equal to `symbol.exports`
     /// while no late-bindable static member exists.
@@ -652,9 +691,56 @@ pub struct SymbolLinksCold {
     pub immediate_target: SparseLinks<SymbolId, Option<Option<SymbolId>>>,
 }
 
+impl Default for SymbolLinksCold {
+    fn default() -> Self {
+        let order_ids = Arc::new(crate::type_order::SymbolOrderIds::default());
+        Self {
+            containing_type: SymbolLinksField::new(Arc::clone(&order_ids)),
+            mapped_type: SparseLinks::default(),
+            key_type: SparseLinks::default(),
+            synthetic_origin: SparseLinks::default(),
+            inferred_class_symbols: SparseLinks::default(),
+            specifier_cache: SparseLinks::default(),
+            extended_containers_by_file: SparseLinks::default(),
+            extended_containers: SparseLinks::default(),
+            alias_referenced: SparseLinks::default(),
+            type_parameters: SparseLinks::default(),
+            resolved_members: SparseLinks::default(),
+            late_symbol: SparseLinks::default(),
+            write_type: SymbolLinksField::new(Arc::clone(&order_ids)),
+            resolved_exports: SparseLinks::default(),
+            last_assignment_pos: SparseLinks::default(),
+            alias_target: SparseLinks::default(),
+            type_only_declaration: SparseLinks::default(),
+            deferral_parent: SparseLinks::default(),
+            deferral_constituents: SparseLinks::default(),
+            deferral_write_constituents: SparseLinks::default(),
+            is_discriminant_property: SparseLinks::default(),
+            is_declaration_with_colliding_name: SparseLinks::default(),
+            is_constructor_declared_property: SparseLinks::default(),
+            property_type: SparseLinks::default(),
+            constraint_type: SparseLinks::default(),
+            tuple_label_declaration: SparseLinks::default(),
+            unique_es_symbol_type: SparseLinks::default(),
+            variances: SparseLinks::default(),
+            originating_import: SparseLinks::default(),
+            fabricated_declaration_parent: SparseLinks::default(),
+            left_spread: SparseLinks::default(),
+            right_spread: SparseLinks::default(),
+            type_parameters_checked: SparseLinks::default(),
+            type_only_export_star_map: SparseLinks::default(),
+            exports_checked: SparseLinks::default(),
+            cjs_export_merged: SparseLinks::default(),
+            immediate_target: SparseLinks::default(),
+            order_ids,
+        }
+    }
+}
+
 impl SymbolLinksCold {
     fn memory_usage(&self) -> (usize, usize) {
         let Self {
+            order_ids: _,
             containing_type,
             mapped_type,
             key_type,
@@ -1055,6 +1141,10 @@ impl<K, T> PagedTable<K, T> {
 }
 
 impl LinksTables {
+    pub(crate) fn symbol_order_ids(&self) -> &crate::type_order::SymbolOrderIds {
+        &self.symbol_cold.order_ids
+    }
+
     /// The node, symbol and type link records and their sparse fields, by
     /// entries and bytes (memory accounting).
     pub(crate) fn memory_usage(&self) -> [(&'static str, usize, usize); 7] {
@@ -1360,6 +1450,22 @@ impl LinksTables {
         }
     }
 
+    /// Go valueSymbolLinks.Get (the other symbol link stores use pointers
+    /// and do not allocate IDs). Keep the raw snapshot API side-effect free.
+    pub(crate) fn value_symbol(&self, id: SymbolId) -> SymbolLinks {
+        self.symbol_order_ids().touch_links(id);
+        self.symbol(id)
+    }
+
+    pub(crate) fn read_value_symbol<R>(
+        &self,
+        id: SymbolId,
+        read: impl FnOnce(&SymbolLinks) -> R,
+    ) -> R {
+        self.symbol_order_ids().touch_links(id);
+        self.read_symbol(id, read)
+    }
+
     /// Number of symbol records this table holds (trace evidence).
     pub(crate) fn symbol_len(&self) -> usize {
         self.persistent_symbols.len + self.transient_symbols.len()
@@ -1461,6 +1567,7 @@ impl LinksTables {
     /// `links.type` of any symbol, for writing.
     #[inline]
     fn symbol_type_mut(&mut self, id: SymbolId) -> &mut IdSlot<TypeId> {
+        self.symbol_order_ids().touch_links(id);
         if transient_index(id).is_some() {
             &mut self.transient_symbol_mut(id).type_of_symbol
         } else {
@@ -2468,6 +2575,7 @@ impl LinksTables {
         id: SymbolId,
         name_type: Option<TypeId>,
     ) {
+        self.symbol_order_ids().touch_links(id);
         let _ = speculation_depth;
         self.transient_symbol_mut(id).name_type = name_type;
     }
@@ -2527,6 +2635,7 @@ impl LinksTables {
         name_type: TypeId,
         key_type: TypeId,
     ) {
+        self.symbol_order_ids().touch_links(id);
         let _ = speculation_depth;
         self.transient_symbol_mut(id).name_type = Some(name_type);
         let cold = &mut self.symbol_cold;
@@ -2549,6 +2658,7 @@ impl LinksTables {
         mapped_type: TypeId,
         constraint_type: TypeId,
     ) {
+        self.symbol_order_ids().touch_links(id);
         let _ = speculation_depth;
         self.transient_symbol_mut(id).name_type = name_type;
         let cold = &mut self.symbol_cold;
@@ -2572,6 +2682,7 @@ impl LinksTables {
         name_type: TypeId,
         key_type: TypeId,
     ) {
+        self.symbol_order_ids().touch_links(id);
         assert!(
             self.symbol_cold.mapped_type.get(id).is_some(),
             "only mapped symbols merge name/key links"
@@ -2580,11 +2691,24 @@ impl LinksTables {
         self.symbol_cold.key_type.set(id, Some(key_type));
     }
 
+    /// Go checker.go:16123-16125: pointer-keyed exportTypeLinks.target.
+    pub(crate) fn set_symbol_export_target(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        target: SymbolId,
+    ) {
+        // Go exportTypeLinks is pointer-keyed, unlike valueSymbolLinks.
+        let _ = speculation_depth;
+        self.transient_symbol_mut(id).target = Some(target);
+    }
+
     /// `links.target = ...` (checkObjectLiteral 74209 — the object
     /// literal member's source symbol, not the instantiation target).
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_target(&mut self, speculation_depth: u32, id: SymbolId, target: SymbolId) {
+        self.symbol_order_ids().touch_links(id);
         let _ = speculation_depth;
         self.transient_symbol_mut(id).target = Some(target);
     }
@@ -3184,6 +3308,7 @@ impl LinksTables {
         mapper: MapperId,
         name_type: Option<TypeId>,
     ) {
+        self.symbol_order_ids().touch_links(id);
         let _ = speculation_depth;
         let links = self.transient_symbol_mut(id);
         assert!(

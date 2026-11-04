@@ -5588,12 +5588,13 @@ impl<'a> CheckerState<'a> {
                     .intersects(SymbolFlags::TRANSIENT);
                 let links_type = if transient {
                     self.links
-                        .read_symbol(single_prop, |links| links.type_of_symbol.resolved())
+                        .read_value_symbol(single_prop, |links| links.type_of_symbol.resolved())
                 } else {
                     None
                 };
                 let links_mapper = if transient {
-                    self.links.read_symbol(single_prop, |links| links.mapper)
+                    self.links
+                        .read_value_symbol(single_prop, |links| links.mapper)
                 } else {
                     None
                 };
@@ -5653,7 +5654,7 @@ impl<'a> CheckerState<'a> {
             if first_type.is_none() {
                 first_type = Some(ty);
                 // 59206: nameType rides the FIRST member.
-                name_type = self.links.symbol(prop).name_type;
+                name_type = self.links.value_symbol(prop).name_type;
             }
             // 59209-59213: writeTypes materializes (seeded with the
             // read types so far) as soon as any member's write type
@@ -5978,7 +5979,7 @@ impl<'a> CheckerState<'a> {
             .intersects(CheckFlags::INSTANTIATED)
         {
             self.links
-                .read_symbol(symbol, |links| links.target)
+                .read_value_symbol(symbol, |links| links.target)
                 .expect("Instantiated check flag implies links.target")
         } else {
             symbol
@@ -6574,7 +6575,7 @@ impl<'a> CheckerState<'a> {
                 clone.value_declaration = value_declaration;
             }
         }
-        if let Some(name_type) = self.links.symbol(source).name_type {
+        if let Some(name_type) = self.links.value_symbol(source).name_type {
             self.links
                 .set_symbol_name_type(self.speculation_depth, symbol, Some(name_type));
         }
