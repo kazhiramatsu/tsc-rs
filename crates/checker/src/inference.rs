@@ -1940,6 +1940,79 @@ impl InferTypesWalker<'_, '_> {
         }
     }
 
+    /// The shared-alias arm of inferFromTypes (68658-68663). Keep its
+    /// argument copies, filling and variance setup off the dispatch spine.
+    #[inline(never)]
+    fn infer_from_alias_types(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        alias: tsc_binder::SymbolId,
+    ) -> CheckResult<()> {
+        if let Some(source_args) = self
+            .st
+            .tables
+            .alias_type_arguments(source)
+            .map(<[TypeId]>::to_vec)
+        {
+            // 68658-68663: infer between the (filled) alias
+            // argument lists under the alias' measured
+            // variances.
+            let target_args = self
+                .st
+                .tables
+                .alias_type_arguments(target)
+                .map(<[TypeId]>::to_vec);
+            let params = self
+                .st
+                .links
+                .symbol_cold()
+                .type_parameters
+                .get(alias)
+                .clone();
+            let min_params = self.st.get_min_type_argument_count(params.as_deref());
+            let in_js = self
+                .st
+                .binder
+                .symbol(alias)
+                .value_declaration
+                .is_some_and(|declaration| self.st.is_in_js_file(declaration));
+            let source_types = self
+                .st
+                .fill_missing_type_arguments(
+                    Some(&source_args),
+                    params.as_deref(),
+                    min_params,
+                    in_js,
+                )?
+                .expect("present arguments fill to a present list (68660)");
+            // A None fill (min_params > 0 with an absent
+            // target list) is the shape tsc TypeErrors on one
+            // call later (68877 targetTypes.length) —
+            // unreachable: bare generic-alias references
+            // become errorType and carry no aliasSymbol, so
+            // the expect is crash-equivalent transcription,
+            // not a deviation.
+            let target_types = self
+                .st
+                .fill_missing_type_arguments(
+                    target_args.as_deref(),
+                    params.as_deref(),
+                    min_params,
+                    in_js,
+                )?
+                .expect("shared alias symbol implies argument lists (68661)");
+            let variances = match self.st.get_alias_variances(alias)? {
+                VariancesResult::Known(variances) => variances,
+                // No variance information: the arguments infer
+                // covariantly (inferFromTypeArguments' default).
+                VariancesResult::Empty => crate::state::SharedList::new(),
+            };
+            self.infer_from_type_arguments(&source_types, &target_types, &variances)?;
+        }
+        Ok(())
+    }
+
     /// tsc-port: inferFromTypes @6.0.3
     /// tsc-hash: 48b6e375e3eb768298b7554c55ba6f7b45710573f07bb56e9ff78ff819b48328
     /// tsc-span: _tsc.js:68646-68814
@@ -1980,68 +2053,7 @@ impl InferTypesWalker<'_, '_> {
         }
         if let Some(alias) = self.st.tables.alias_symbol(source) {
             if Some(alias) == self.st.tables.alias_symbol(target) {
-                if let Some(source_args) = self
-                    .st
-                    .tables
-                    .alias_type_arguments(source)
-                    .map(<[TypeId]>::to_vec)
-                {
-                    // 68658-68663: infer between the (filled) alias
-                    // argument lists under the alias' measured
-                    // variances.
-                    let target_args = self
-                        .st
-                        .tables
-                        .alias_type_arguments(target)
-                        .map(<[TypeId]>::to_vec);
-                    let params = self
-                        .st
-                        .links
-                        .symbol_cold()
-                        .type_parameters
-                        .get(alias)
-                        .clone();
-                    let min_params = self.st.get_min_type_argument_count(params.as_deref());
-                    let in_js = self
-                        .st
-                        .binder
-                        .symbol(alias)
-                        .value_declaration
-                        .is_some_and(|declaration| self.st.is_in_js_file(declaration));
-                    let source_types = self
-                        .st
-                        .fill_missing_type_arguments(
-                            Some(&source_args),
-                            params.as_deref(),
-                            min_params,
-                            in_js,
-                        )?
-                        .expect("present arguments fill to a present list (68660)");
-                    // A None fill (min_params > 0 with an absent
-                    // target list) is the shape tsc TypeErrors on one
-                    // call later (68877 targetTypes.length) —
-                    // unreachable: bare generic-alias references
-                    // become errorType and carry no aliasSymbol, so
-                    // the expect is crash-equivalent transcription,
-                    // not a deviation.
-                    let target_types = self
-                        .st
-                        .fill_missing_type_arguments(
-                            target_args.as_deref(),
-                            params.as_deref(),
-                            min_params,
-                            in_js,
-                        )?
-                        .expect("shared alias symbol implies argument lists (68661)");
-                    let variances = match self.st.get_alias_variances(alias)? {
-                        VariancesResult::Known(variances) => variances,
-                        // No variance information: the arguments infer
-                        // covariantly (inferFromTypeArguments' default).
-                        VariancesResult::Empty => crate::state::SharedList::new(),
-                    };
-                    self.infer_from_type_arguments(&source_types, &target_types, &variances)?;
-                }
-                return Ok(());
+                return self.infer_from_alias_types(source, target, alias);
             }
         }
         if source == target

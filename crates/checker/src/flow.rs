@@ -31,7 +31,7 @@
 //! outer containment boundary. Successful walks always return their
 //! computed answer and participate in the same loop cache as tsc.
 
-use tsc_binder::flow::{FlowId, FlowPayload};
+use tsc_binder::flow::{FlowArena, FlowId, FlowNode, FlowPayload};
 use tsc_binder::{node_util, SymbolId};
 use tsc_diagnostics::gen as diagnostics;
 use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
@@ -79,14 +79,18 @@ impl FlowType {
 /// reference bindings plus `flowDepth` (reset per query — NOT checker
 /// state), this query's window into the shared-flow cache, and the
 /// loop-label cache `key`/`isKeySet` memo pair (70395/70413).
-pub(crate) struct FlowQuery {
+pub(crate) struct FlowQuery<'a> {
     pub(crate) reference: NodeId,
     pub(crate) declared_type: TypeId,
     pub(crate) initial_type: TypeId,
     pub(crate) flow_container: Option<NodeId>,
-    /// Owning file of the reference's flow graph (FlowIds are
+    /// Owning file of this flow graph (FlowIds are
     /// per-file; the walk never leaves it).
-    pub(crate) file: usize,
+    file: usize,
+    /// Validated together with `file` at query entry. Neither field changes:
+    /// every antecedent and Start-container resume stays in this file, and
+    /// recursive queries carry their own graph. FlowId bounds stay checked.
+    arena: &'a FlowArena,
     pub(crate) flow_depth: u32,
     pub(crate) shared_flow_start: usize,
     /// Reference-specific reads taint frames younger than this walk.
@@ -116,6 +120,33 @@ pub(crate) struct FlowQuery {
     /// matchers test ThisKeyword kind like tsc's isMatchingReference
     /// this arm (69462-69463) instead of node matching.
     pub(crate) synthetic_this_root: bool,
+}
+
+impl FlowQuery<'_> {
+    #[inline]
+    fn flow(&self, flow: FlowId) -> &FlowNode {
+        self.arena.flow(flow)
+    }
+
+    #[inline]
+    fn antecedent(&self, flow: FlowId) -> FlowId {
+        plain_flow_antecedent(self.flow(flow))
+    }
+
+    #[inline]
+    fn payload_node(&self, flow: FlowId) -> Option<NodeId> {
+        match self.flow(flow).payload {
+            FlowPayload::Node(node) => Some(node),
+            _ => None,
+        }
+    }
+}
+
+fn plain_flow_antecedent(flow: &FlowNode) -> FlowId {
+    *flow.antecedents().first().expect(
+        "plain flow kinds (Assignment/Call/Condition/SwitchClause/ArrayMutation/ReduceLabel) \
+         are constructed with exactly one antecedent",
+    )
 }
 
 /// A per-query shared answer and the dependencies of its original walk.
@@ -212,17 +243,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: per-file FlowArena antecedent read; plain kinds
     /// store exactly one antecedent (binder flow.rs shape).
     pub(crate) fn flow_antecedent(&self, file: usize, flow: FlowId) -> FlowId {
-        *self
-            .binder
-            .file(file)
-            .flow
-            .flow(flow)
-            .antecedents()
-            .first()
-            .expect(
-            "plain flow kinds (Assignment/Call/Condition/SwitchClause/ArrayMutation/ReduceLabel) \
-             are constructed with exactly one antecedent",
-        )
+        plain_flow_antecedent(self.binder.file(file).flow.flow(flow))
     }
 
     /// A LABEL's antecedent list, override-aware: a ReduceLabel arm in
@@ -232,10 +253,19 @@ impl<'a> CheckerState<'a> {
     /// in `reduce_label_overrides` and every label read consults it.
     /// tsrs-native: override-map view over the binder arena.
     pub(crate) fn flow_label_antecedents(&self, file: usize, flow: FlowId) -> FlowAntecedents {
+        self.flow_label_antecedents_in(file, &self.binder.file(file).flow, flow)
+    }
+
+    fn flow_label_antecedents_in(
+        &self,
+        file: usize,
+        arena: &FlowArena,
+        flow: FlowId,
+    ) -> FlowAntecedents {
         if let Some(overridden) = self.reduce_label_overrides.get(&(file, flow)) {
             return FlowAntecedents::new(overridden);
         }
-        FlowAntecedents::new(self.binder.file(file).flow.flow(flow).antecedents())
+        FlowAntecedents::new(arena.flow(flow).antecedents())
     }
 
     fn flow_payload_node(&self, file: usize, flow: FlowId) -> Option<NodeId> {
@@ -329,12 +359,14 @@ impl<'a> CheckerState<'a> {
         }
         self.flow_invocation_count += 1;
         let shared_flow_start = self.shared_flow.len();
+        let file = self.binder.file_index_of_node(reference);
         let mut query = FlowQuery {
             reference,
             declared_type,
             initial_type,
             flow_container,
-            file: self.binder.file_index_of_node(reference),
+            file,
+            arena: self.binder.flow_arena(file),
             flow_depth: 0,
             shared_flow_start,
             walk_floor: self.flow_memo.next_serial(),
@@ -414,6 +446,7 @@ impl<'a> CheckerState<'a> {
             initial_type,
             flow_container,
             file: flow_file,
+            arena: self.binder.flow_arena(flow_file),
             flow_depth: 0,
             shared_flow_start,
             walk_floor: self.flow_memo.next_serial(),
@@ -581,7 +614,7 @@ impl<'a> CheckerState<'a> {
         let mut shared: Option<FlowId> = None;
         let mut shared_height = None;
         let walk = (|| loop {
-            let flags = self.flow_flags_of(query.file, flow);
+            let flags = query.flow(flow).flags;
             if flags.intersects(FlowFlags::SHARED) {
                 // The shared-flow cache is scoped to THIS
                 // getFlowTypeOfReference invocation (sharedFlowStart..).
@@ -602,7 +635,7 @@ impl<'a> CheckerState<'a> {
                 match self.get_type_at_flow_assignment(query, flow)? {
                     Some(t) => ty = t,
                     None => {
-                        flow = self.flow_antecedent(query.file, flow);
+                        flow = query.antecedent(flow);
                         continue;
                     }
                 }
@@ -610,7 +643,7 @@ impl<'a> CheckerState<'a> {
                 match self.get_type_at_flow_call(query, flow)? {
                     Some(t) => ty = t,
                     None => {
-                        flow = self.flow_antecedent(query.file, flow);
+                        flow = query.antecedent(flow);
                         continue;
                     }
                 }
@@ -619,7 +652,7 @@ impl<'a> CheckerState<'a> {
             } else if flags.intersects(FlowFlags::SWITCH_CLAUSE) {
                 ty = self.get_type_at_switch_clause(query, flow)?;
             } else if flags.intersects(FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL) {
-                let antecedents = self.flow_label_antecedents(query.file, flow);
+                let antecedents = self.flow_label_antecedents_in(query.file, query.arena, flow);
                 if antecedents.len() == 1 {
                     flow = antecedents[0];
                     continue;
@@ -638,7 +671,7 @@ impl<'a> CheckerState<'a> {
                 match self.get_type_at_flow_array_mutation(query, flow)? {
                     Some(t) => ty = t,
                     None => {
-                        flow = self.flow_antecedent(query.file, flow);
+                        flow = query.antecedent(flow);
                         continue;
                     }
                 }
@@ -647,14 +680,12 @@ impl<'a> CheckerState<'a> {
                 // label's antecedents temporarily swapped (tsc mutates
                 // target.antecedent in place; the override map is the
                 // immutable-arena equivalent, restored ALSO on unwind).
-                let FlowPayload::ReduceLabel(ref reduce) =
-                    self.binder.file(query.file).flow.flow(flow).payload
-                else {
+                let FlowPayload::ReduceLabel(ref reduce) = query.flow(flow).payload else {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
                 let (target, antecedents) = (reduce.target, &reduce.antecedents);
                 let swapped = antecedents.clone();
-                let antecedent = self.flow_antecedent(query.file, flow);
+                let antecedent = query.antecedent(flow);
                 let saved = self
                     .reduce_label_overrides
                     .insert((query.file, target), swapped);
@@ -677,7 +708,7 @@ impl<'a> CheckerState<'a> {
                 // declared outside the current flow container resumes
                 // in the OUTER container's flow (funcexpr/arrow
                 // capture); accesses and non-arrow `this` do not.
-                if let Some(container) = self.flow_payload_node(query.file, flow) {
+                if let Some(container) = query.payload_node(flow) {
                     // A synthetic destructuring reference (6.4b) IS an
                     // element access — accesses never resume outward.
                     let reference_kind = if query.synthetic_props.is_some() {
@@ -752,8 +783,8 @@ impl<'a> CheckerState<'a> {
         query: &mut FlowQuery,
         flow: FlowId,
     ) -> CheckResult<Option<FlowType>> {
-        let node = self
-            .flow_payload_node(query.file, flow)
+        let node = query
+            .payload_node(flow)
             .expect("ASSIGNMENT flow nodes carry a node payload (binder flow.rs)");
         if self.is_matching_query_reference(query, node)? {
             if !self.is_reachable_flow_node(query.file, flow)? {
@@ -762,7 +793,7 @@ impl<'a> CheckerState<'a> {
                 )));
             }
             if self.get_assignment_target_kind(node) == crate::expr::AssignmentKind::Compound {
-                let antecedent = self.flow_antecedent(query.file, flow);
+                let antecedent = query.antecedent(flow);
                 let flow_type = self.get_type_at_flow_node(query, antecedent)?;
                 let base = self.get_base_type_of_literal_type(flow_type.get_type())?;
                 return Ok(Some(self.create_flow_type(base, flow_type.is_incomplete())));
@@ -814,7 +845,7 @@ impl<'a> CheckerState<'a> {
                         SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
                     )
                 }) {
-                    let antecedent = self.flow_antecedent(query.file, flow);
+                    let antecedent = query.antecedent(flow);
                     return Ok(Some(self.get_type_at_flow_node(query, antecedent)?));
                 }
             }
@@ -834,7 +865,7 @@ impl<'a> CheckerState<'a> {
                         if self.is_matching_query_reference(query, expression)?
                             || self.optional_chain_contains_query_reference(expression, query)?
                         {
-                            let antecedent = self.flow_antecedent(query.file, flow);
+                            let antecedent = query.antecedent(flow);
                             let walked = self.get_type_at_flow_node(query, antecedent)?;
                             let finalized = self.finalize_evolving_array_type(walked.get_type())?;
                             return Ok(Some(FlowType::Type(
@@ -862,8 +893,8 @@ impl<'a> CheckerState<'a> {
         query: &mut FlowQuery,
         flow: FlowId,
     ) -> CheckResult<Option<FlowType>> {
-        let node = self
-            .flow_payload_node(query.file, flow)
+        let node = query
+            .payload_node(flow)
             .expect("CALL flow nodes carry a node payload (binder flow.rs)");
         let Some(signature) = self.get_effects_signature(node)? else {
             return Ok(None);
@@ -875,7 +906,7 @@ impl<'a> CheckerState<'a> {
                 crate::narrow::TypePredicateKind::AssertsThis
                     | crate::narrow::TypePredicateKind::AssertsIdentifier
             ) {
-                let antecedent = self.flow_antecedent(query.file, flow);
+                let antecedent = query.antecedent(flow);
                 let flow_type = self.get_type_at_flow_node(query, antecedent)?;
                 let ty = self.finalize_evolving_array_type(flow_type.get_type())?;
                 let narrowed_type = if predicate.ty.is_some() {
@@ -931,18 +962,16 @@ impl<'a> CheckerState<'a> {
         query: &mut FlowQuery,
         flow: FlowId,
     ) -> CheckResult<FlowType> {
-        let antecedent = self.flow_antecedent(query.file, flow);
+        let antecedent = query.antecedent(flow);
         let flow_type = self.get_type_at_flow_node(query, antecedent)?;
         let ty = flow_type.get_type();
         if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) {
             return Ok(flow_type);
         }
-        let assume_true = self
-            .flow_flags_of(query.file, flow)
-            .intersects(FlowFlags::TRUE_CONDITION);
+        let assume_true = query.flow(flow).flags.intersects(FlowFlags::TRUE_CONDITION);
         let non_evolving_type = self.finalize_evolving_array_type(ty)?;
-        let node = self
-            .flow_payload_node(query.file, flow)
+        let node = query
+            .payload_node(flow)
             .expect("Condition flows carry their expression payload (binder createFlowCondition)");
         let narrowed_type = self.narrow_type(query, non_evolving_type, node, assume_true)?;
         if narrowed_type == non_evolving_type {
@@ -969,7 +998,7 @@ impl<'a> CheckerState<'a> {
             switch_statement,
             clause_start,
             clause_end,
-        } = self.binder.file(query.file).flow.flow(flow).payload
+        } = query.flow(flow).payload
         else {
             unreachable!("SWITCH_CLAUSE flag implies SwitchClause payload");
         };
@@ -978,7 +1007,7 @@ impl<'a> CheckerState<'a> {
             NodeData::SwitchStatement(data) => data.expression,
             _ => None,
         };
-        let antecedent = self.flow_antecedent(query.file, flow);
+        let antecedent = query.antecedent(flow);
         let flow_type = self.get_type_at_flow_node(query, antecedent)?;
         let mut ty = flow_type.get_type();
         let Some(switch_expression) = switch_expression else {
@@ -1085,11 +1114,10 @@ impl<'a> CheckerState<'a> {
     /// deferred as the branch label's bypassFlow.
     /// tsrs-native: the inline antecedent test of
     /// getTypeAtFlowBranchLabel (70659).
-    fn is_empty_switch_clause_flow(&self, file: usize, flow: FlowId) -> bool {
-        self.flow_flags_of(file, flow)
-            .intersects(FlowFlags::SWITCH_CLAUSE)
+    fn is_empty_switch_clause_flow(&self, query: &FlowQuery, flow: FlowId) -> bool {
+        query.flow(flow).flags.intersects(FlowFlags::SWITCH_CLAUSE)
             && matches!(
-                self.binder.file(file).flow.flow(flow).payload,
+                query.flow(flow).payload,
                 FlowPayload::SwitchClause {
                     clause_start,
                     clause_end,
@@ -1133,8 +1161,8 @@ impl<'a> CheckerState<'a> {
         let mut subtype_reduction = false;
         let mut seen_incomplete = false;
         let mut bypass_flow: Option<FlowId> = None;
-        for &antecedent in self.flow_label_antecedents(query.file, flow).iter() {
-            if bypass_flow.is_none() && self.is_empty_switch_clause_flow(query.file, antecedent) {
+        for &antecedent in self.flow_label_antecedents_in(query.file, query.arena, flow).iter() {
+            if bypass_flow.is_none() && self.is_empty_switch_clause_flow(query, antecedent) {
                 bypass_flow = Some(antecedent);
                 continue;
             }
@@ -1158,7 +1186,7 @@ impl<'a> CheckerState<'a> {
             // rejoins here.
             let flow_type = self.get_type_at_flow_node(query, bypass)?;
             let ty = flow_type.get_type();
-            let switch_statement = match self.binder.file(query.file).flow.flow(bypass).payload {
+            let switch_statement = match query.flow(bypass).payload {
                 FlowPayload::SwitchClause {
                     switch_statement, ..
                 } => Some(switch_statement),
@@ -1244,7 +1272,7 @@ impl<'a> CheckerState<'a> {
         let mut antecedent_types: Vec<TypeId> = Vec::new();
         let mut subtype_reduction = false;
         let mut first_antecedent_type: Option<FlowType> = None;
-        for &antecedent in self.flow_label_antecedents(query.file, flow).iter() {
+        for &antecedent in self.flow_label_antecedents_in(query.file, query.arena, flow).iter() {
             let flow_type = if first_antecedent_type.is_none() {
                 let first = self.get_type_at_flow_node(query, antecedent)?;
                 first_antecedent_type = Some(first);
@@ -1595,8 +1623,8 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
-        let node = self
-            .flow_payload_node(query.file, flow)
+        let node = query
+            .payload_node(flow)
             .expect("ARRAY_MUTATION flow nodes carry a node payload (binder flow.rs)");
         // CallExpression: `a.push(...)`/`a.unshift(...)` — the
         // receiver is node.expression.expression; otherwise the
@@ -1623,7 +1651,7 @@ impl<'a> CheckerState<'a> {
         if !self.is_matching_query_reference(query, candidate)? {
             return Ok(None);
         }
-        let antecedent = self.flow_antecedent(query.file, flow);
+        let antecedent = query.antecedent(flow);
         let flow_type = self.get_type_at_flow_node(query, antecedent)?;
         let ty = flow_type.get_type();
         if !self
@@ -3701,6 +3729,34 @@ impl<'a> CheckerState<'a> {
             _ => {}
         }
         match self.kind_of(source) {
+            SyntaxKind::ThisKeyword => Ok(self.kind_of(target) == SyntaxKind::ThisKeyword),
+            SyntaxKind::SuperKeyword => Ok(self.kind_of(target) == SyntaxKind::SuperKeyword),
+            source_kind @ (SyntaxKind::MetaProperty
+            | SyntaxKind::Identifier
+            | SyntaxKind::PrivateIdentifier
+            | SyntaxKind::NonNullExpression
+            | SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::SatisfiesExpression
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::QualifiedName
+            | SyntaxKind::BinaryExpression) => {
+                self.is_matching_reference_worker(source, target, source_kind)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// Property/symbol work after the target-first normalization and the
+    /// cheap terminal cases. Recursive probes re-enter the same matcher.
+    #[inline(never)]
+    fn is_matching_reference_worker(
+        &mut self,
+        source: NodeId,
+        target: NodeId,
+        source_kind: SyntaxKind,
+    ) -> CheckResult<bool> {
+        match source_kind {
             SyntaxKind::MetaProperty => {
                 if self.kind_of(target) != SyntaxKind::MetaProperty {
                     return Ok(false);
@@ -3745,8 +3801,6 @@ impl<'a> CheckerState<'a> {
                 }
                 Ok(false)
             }
-            SyntaxKind::ThisKeyword => Ok(self.kind_of(target) == SyntaxKind::ThisKeyword),
-            SyntaxKind::SuperKeyword => Ok(self.kind_of(target) == SyntaxKind::SuperKeyword),
             SyntaxKind::NonNullExpression
             | SyntaxKind::ParenthesizedExpression
             | SyntaxKind::SatisfiesExpression => {
