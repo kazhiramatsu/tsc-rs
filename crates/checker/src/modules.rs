@@ -510,7 +510,7 @@ impl<'a> CheckerState<'a> {
             let export_symbol = self
                 .binder
                 .symbol(symbol)
-                .export_symbol
+                .export_symbol()
                 .map(|symbol| self.get_merged_symbol(symbol))
                 .unwrap_or(symbol);
             let export_flags = self.binder.symbol(export_symbol).flags;
@@ -9355,7 +9355,7 @@ impl<'a> CheckerState<'a> {
                 .get_symbol_flags_of(target)?
                 .intersects(SymbolFlags::VALUE);
         if checked_js_type_alias && !self.is_type_only_import_or_export_declaration(node) {
-            let export_symbol = self.binder.symbol(symbol).export_symbol.unwrap_or(symbol);
+            let export_symbol = self.binder.symbol(symbol).export_symbol().unwrap_or(symbol);
             let symbol = self.get_merged_symbol(export_symbol);
             let error_node = match self.data_of(node) {
                 NodeData::ImportSpecifier(data) => data.property_name.or(data.name),
@@ -9427,7 +9427,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         let target_flags = self.get_symbol_flags_of(target)?;
-        let export_symbol = self.binder.symbol(symbol).export_symbol.unwrap_or(symbol);
+        let export_symbol = self.binder.symbol(symbol).export_symbol().unwrap_or(symbol);
         let symbol = self.get_merged_symbol(export_symbol);
         let symbol_flags = self.binder.symbol(symbol).flags;
         let mut excluded_meanings = SymbolFlags::NONE;

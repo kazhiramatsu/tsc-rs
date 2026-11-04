@@ -425,9 +425,12 @@ fn mutate_everything(state: &mut CheckerState) {
     state.visible_global_diagnostics.push(diagnostic.clone());
     state.push_error_diagnostic(diagnostic);
     state.mark_partially_checked_node(root, "7.0t rollback test");
-    state.elaborated_satisfies_expressions.insert(root);
-    state.potential_weak_map_set_collisions.push(root);
-    state.potential_reflect_collisions.push(root);
+    state
+        .deferred_diagnostics
+        .push(crate::state::DeferredDiagnostic::WeakMapSetCollision(root));
+    state
+        .deferred_diagnostics
+        .push(crate::state::DeferredDiagnostic::ReflectCollision(root));
     state
         .potential_unused_renamed_binding_elements_in_types
         .push(root);
@@ -467,14 +470,12 @@ struct Observed {
     visible_global_diagnostics: usize,
     partial_check_records: usize,
     partially_checked_files: usize,
-    elaborated_satisfies_expressions: usize,
-    potential_weak_map_set_collisions: usize,
-    potential_reflect_collisions: usize,
+    deferred_diagnostics: usize,
     potential_unused_renamed_binding_elements_in_types: usize,
 }
 
 /// The observation after one `mutate_everything` trial unwound: the sinks
-/// keep what the trial reported (tsc semantics), everything else returns
+/// keep reports and deferred registrations (tsgo semantics); transient state returns
 /// to its entry value.
 fn reported_once(before: Observed) -> Observed {
     Observed {
@@ -482,6 +483,10 @@ fn reported_once(before: Observed) -> Observed {
         visible_global_diagnostics: before.visible_global_diagnostics + 1,
         partial_check_records: before.partial_check_records + 1,
         partially_checked_files: before.partially_checked_files.max(1),
+        deferred_diagnostics: before.deferred_diagnostics + 2,
+        potential_unused_renamed_binding_elements_in_types: before
+            .potential_unused_renamed_binding_elements_in_types
+            + 1,
         ..before
     }
 }
@@ -515,9 +520,7 @@ fn observe(state: &CheckerState) -> Observed {
         visible_global_diagnostics: state.visible_global_diagnostics.len(),
         partial_check_records: state.partial_check_records.len(),
         partially_checked_files: state.partially_checked_ranges.len(),
-        elaborated_satisfies_expressions: state.elaborated_satisfies_expressions.len(),
-        potential_weak_map_set_collisions: state.potential_weak_map_set_collisions.len(),
-        potential_reflect_collisions: state.potential_reflect_collisions.len(),
+        deferred_diagnostics: state.deferred_diagnostics.len(),
         potential_unused_renamed_binding_elements_in_types: state
             .potential_unused_renamed_binding_elements_in_types
             .len(),

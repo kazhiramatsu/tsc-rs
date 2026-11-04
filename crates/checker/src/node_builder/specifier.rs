@@ -4467,15 +4467,17 @@ pub(super) fn module_name_literals(
     let mut static_imports = Vec::<NodeId>::new();
     let mut dynamic_imports = Vec::<NodeId>::new();
     let mut augmentations = Vec::<NodeId>::new();
+    // The arena also holds the nodes a parse discarded (a failed
+    // speculation, a statement parsed again once the file turned out to have
+    // a top-level `await`). They are in no tree and the program collected no
+    // module name from them.
+    let reachable = source.arena.reachable_mask(source.root);
+    let base = source.arena.node_base();
     for node in source.arena.node_ids() {
-        let record = Published.node(node);
-        // The arena also holds the nodes a reparse discarded (a statement
-        // parsed again once the file turned out to have a top-level
-        // `await`). They are in no tree and the program collected no module
-        // name from them.
-        if record.parent.is_none() {
+        if !reachable[(node.index() - base) as usize] {
             continue;
         }
+        let record = Published.node(node);
         match record.data() {
             NodeData::ImportDeclaration(data) => {
                 if let Some(literal) = string_literal_like(state, data.module_specifier)

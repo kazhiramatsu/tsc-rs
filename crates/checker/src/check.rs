@@ -204,8 +204,6 @@ impl<'a> CheckerState<'a> {
         self.check_grammar_source_file(root);
         // 87010-87014: the per-file accumulators clear at worker entry
         // (the PartiallyTypeChecked restore stays elided).
-        self.potential_weak_map_set_collisions.clear();
-        self.potential_reflect_collisions.clear();
         self.potential_unused_renamed_binding_elements_in_types
             .clear();
         let Some(data) = self.record_of(root).as_source_file() else {
@@ -259,54 +257,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // 87042-87058: the collision drains IN ORDER (tsgo has no
-        // this/newTarget capture checks); each clears its vector like tsc's
-        // clear() tail.
-        let weak_map_set_collisions = std::mem::take(&mut self.potential_weak_map_set_collisions);
-        for node in weak_map_set_collisions {
-            self.check_weak_map_set_collision(node);
-        }
-        let reflect_collisions = std::mem::take(&mut self.potential_reflect_collisions);
-        for node in reflect_collisions {
-            self.check_reflect_collision(node);
-        }
-        // tsgo produceDeferredDiagnostics (checker.go:14213-14218): the
-        // reports deferred while checking the file, in the order they were
-        // queued.
-        let deferred = std::mem::take(&mut self.deferred_diagnostics);
-        for entry in deferred {
-            match entry {
-                crate::state::DeferredDiagnostic::NonexistentProperty {
-                    prop_node,
-                    containing_type,
-                    is_unchecked_js,
-                } => {
-                    if let Err(err) = self.report_nonexistent_property(
-                        prop_node,
-                        containing_type,
-                        is_unchecked_js,
-                    ) {
-                        self.mark_oracle_crash_range(prop_node, err);
-                    }
-                }
-                crate::state::DeferredDiagnostic::TypeNotIterable {
-                    target,
-                    ty,
-                    allow_async_iterables,
-                    related,
-                } => {
-                    self.report_deferred_type_not_iterable(
-                        target,
-                        ty,
-                        allow_async_iterables,
-                        related,
-                    );
-                }
-            }
-        }
-        // Reports queued while producing these (printing a type can check
-        // more expressions) are dropped, as tsgo resets its callback list.
-        self.deferred_diagnostics.clear();
+        self.produce_deferred_diagnostics();
         // File-boundary unwind invariant: between files every
         // transient stack is EMPTY (not merely restored) and no
         // Resolving sentinel is open — the per-element guards bound
@@ -355,6 +306,52 @@ impl<'a> CheckerState<'a> {
         }
         self.links
             .or_node_check_flags(self.speculation_depth, root, NodeCheckFlags::TYPE_CHECKED);
+    }
+
+    /// tsgo produceDeferredDiagnostics (checker.go:14251-14255): visit the
+    /// initial callback list in discovery order, then drop any callbacks
+    /// registered while producing it (for example by type display).
+    pub(crate) fn produce_deferred_diagnostics(&mut self) {
+        let deferred = std::mem::take(&mut self.deferred_diagnostics);
+        for entry in deferred {
+            match entry {
+                crate::state::DeferredDiagnostic::WeakMapSetCollision(node) => {
+                    self.check_weak_map_set_collision(node);
+                }
+                crate::state::DeferredDiagnostic::ReflectCollision(node) => {
+                    self.check_reflect_collision(node);
+                }
+                crate::state::DeferredDiagnostic::NonexistentProperty {
+                    prop_node,
+                    containing_type,
+                    is_unchecked_js,
+                } => {
+                    if let Err(err) = self.report_nonexistent_property(
+                        prop_node,
+                        containing_type,
+                        is_unchecked_js,
+                    ) {
+                        self.mark_oracle_crash_range(prop_node, err);
+                    }
+                }
+                crate::state::DeferredDiagnostic::TypeNotIterable {
+                    target,
+                    ty,
+                    allow_async_iterables,
+                    related,
+                } => {
+                    self.report_deferred_type_not_iterable(
+                        target,
+                        ty,
+                        allow_async_iterables,
+                        related,
+                    );
+                }
+            }
+        }
+        // Reports queued while producing these (printing a type can check
+        // more expressions) are dropped, as tsgo resets its callback list.
+        self.deferred_diagnostics.clear();
     }
 
     /// tsc-port: calculateNodeCheckFlagWorker @6.0.3
@@ -8213,7 +8210,7 @@ impl<'a> CheckerState<'a> {
         // the symbol (the EXPORT_VALUE locals of containers.rs:566-591)
         // yields the bare [symbol].
         if let Some(export_symbol) =
-            direct.and_then(|direct| self.binder.symbol(direct).export_symbol)
+            direct.and_then(|direct| self.binder.symbol(direct).export_symbol())
         {
             let merged = self.get_merged_symbol(export_symbol);
             if self.symbol_chain_is_accessible(

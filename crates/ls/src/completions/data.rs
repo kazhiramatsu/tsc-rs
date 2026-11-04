@@ -1659,7 +1659,7 @@ impl Completions<'_, '_, '_> {
             .state
             .binder
             .symbol(symbol)
-            .export_symbol
+            .export_symbol()
             .unwrap_or(symbol);
         let target = self.request.state.skip_alias(export_symbol)?;
         self.non_alias_can_be_referenced_at_type_location(target, seen_modules)
