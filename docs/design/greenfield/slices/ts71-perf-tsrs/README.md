@@ -959,6 +959,14 @@ Q7 → H1、writer は最大 2。Opus の訂正 3 点（F10 = S10 の option b�
 `PLAN-codex-2026-11-04-addendum.md`。利用者の決定待ち：目標の再設定の時期（今か 11/18 の gate か）、writer を 2 本に戻すか（S3 と S1b-1 の
 lane は patch を保存して中断）、FE4（identity の rewrite）の方針、merge queue。
 
+**利用者の決定（2026-11-04 20:20、「OKです」）。** 計画を採用：writer は Codex lane 1 本 + Opus（統合は Fable）、S3 lane は手渡し（patch 01〜04）で終了、
+S1b-1 lane は中断して working tree を patch に保存（`target/claude-tools/handover/perf-tsrs/s1b-1-parked/`、Y2 の入力）、M0〜M8 は 11/5 から。
+parity は 11/18 の gate（判断 packet 15:00、決定 18:00 JST；≤ 132 G / ≤ 3,100 MiB、最低 < 135 G）まで研究目標として残す。merge queue か
+2 card の train を採用（GitHub の merge queue は ruleset の作成が要り、利用者の操作；それまでは 2 card の train）。FE4 は引き続き利用者の明示の
+方針決定が要る（M2/M8 で残る pass の価格を付けてから提示）。Opus の M1 の seam の review は `m1-mapping-review-opus.md`：parse は request
+planning の worker の中で走る（scope は worker 内の parse 呼び出しに）、tsrs は「parallel parse + resolve」1 行 + job ごとの sub-row、bind は
+走った場所から取る。
+
 PR [#871](https://github.com/kazhiramatsu/tsc-rs/pull/871) → merge `43a78fc08`（2026-11-04。hosted run
 [41762963850](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41762963850) 全 job pass。local：lane の types test 57・checker 1,837、
 `--checkers 4` が main の報告と 15,339 構成一致、8 case で出力一致、serial は上の表）。
