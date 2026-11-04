@@ -1,4 +1,5 @@
 use crate::js_string_ops::types_package_name;
+use crate::lexical_path_cache::{LexicalPath, PurePathCache};
 use rustc_hash::{FxHashMap, FxHashSet as HashSet};
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -1824,7 +1825,7 @@ struct ParallelReadAhead<'a> {
     retained_bytes: AtomicUsize,
     stopped: AtomicBool,
     queued: Sharded<CanonicalPath, ()>,
-    resolutions: Sharded<(JsString, JsString, ResolutionMode), HostModuleResolution>,
+    resolutions: Sharded<(LexicalPath, JsString, ResolutionMode), HostModuleResolution>,
     resolved: AtomicUsize,
     reused: AtomicUsize,
 }
@@ -2033,7 +2034,7 @@ impl ParallelReadAhead<'_> {
         // The output of a referenced project resolves with its project's
         // options on the walk, not with the read-ahead's resolver.
         if self.references.project_for_resolution(canonical).is_none() {
-            let directory = crate::js_path::directory_name(containing_file);
+            let directory = resolver.lexical_paths().directory(containing_file);
             resolutions.reserve(plan.module_requests().len());
             for (key, loads_source) in plan.module_requests_with_loadability() {
                 let directory_key = (directory.clone(), key.specifier().to_owned(), key.mode());
@@ -2075,6 +2076,7 @@ impl ParallelReadAhead<'_> {
                 if let Some(target) = path_reference_target(
                     containing_file,
                     reference,
+                    resolver.lexical_paths(),
                     self.case_sensitive,
                     self.options,
                 ) {
@@ -2112,9 +2114,12 @@ impl ParallelReadAhead<'_> {
                     let Some(file_name) = catalog.reference_file_name(&lib_name) else {
                         continue;
                     };
-                    if let Ok(path) =
-                        catalog_library_path_in(directory, file_name, self.case_sensitive)
-                    {
+                    if let Ok(path) = catalog_library_path_in(
+                        resolver.lexical_paths(),
+                        directory,
+                        file_name,
+                        self.case_sensitive,
+                    ) {
                         self.queue(&path, spawned);
                     }
                 }
@@ -2492,7 +2497,7 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// Hashed, never iterated: an ordered map compared the directory strings
     /// of every lookup (VS Code: 112k lookups of 60-byte paths).
     directory_resolutions:
-        rustc_hash::FxHashMap<(JsString, JsString, ResolutionMode), HostModuleResolution>,
+        rustc_hash::FxHashMap<(LexicalPath, JsString, ResolutionMode), HostModuleResolution>,
     directory_resolution_hits: usize,
     /// One resolver per referenced project whose output is in the program
     /// (tsgo GetCompilerOptionsWithRedirect: the module names of such an
@@ -3310,6 +3315,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         path_reference_target(
             containing_file,
             reference,
+            self.resolver.lexical_paths(),
             self.resolver.path_context().use_case_sensitive_file_names(),
             self.compiler_options,
         )
@@ -3370,13 +3376,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         requests: Vec<(JsString, ResolutionKey, bool)>,
     ) -> Vec<(ResolutionKey, bool, Option<HostModuleResolution>)> {
         let mut unique: Vec<(JsString, ResolutionKey, bool)> = Vec::new();
-        let mut by_directory: BTreeMap<(JsString, JsString, ResolutionMode), usize> =
+        let mut by_directory: BTreeMap<(LexicalPath, JsString, ResolutionMode), usize> =
             BTreeMap::new();
         let mut planned: Vec<(ResolutionKey, bool, Result<HostModuleResolution, usize>)> =
             Vec::with_capacity(requests.len());
         for (containing_file, key, loads_source) in requests {
             let directory_key = (
-                crate::js_path::directory_name(containing_file.as_js()),
+                self.resolver
+                    .lexical_paths()
+                    .directory(containing_file.as_js()),
                 key.specifier().to_owned(),
                 key.mode(),
             );
@@ -3812,7 +3820,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.enforce_limit(
             ProgramLoadOperation::DiscoverAutomaticTypes,
             ProgramLoadLimit::RequestEdges,
-            Some(containing_file.display().to_owned()),
+            Some(containing_file.display()),
             self.limits.max_request_edges,
             request_edges,
         )?;
@@ -3972,19 +3980,22 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     }
 
     fn automatic_types_containing_file(&self) -> Result<ProgramPath, ProgramLoadError> {
-        let normalized = crate::module_resolution::normalize_absolute_js_path(
-            INFERRED_TYPES_CONTAINING_FILE.into(),
-            Some(self.resolver.type_root_base_directory()),
-            true,
-        )
-        .map_err(|error| {
-            ProgramLoadError::resolution_js(
-                ProgramLoadOperation::DiscoverAutomaticTypes,
-                None,
-                None,
-                error,
+        let normalized = self
+            .resolver
+            .lexical_paths()
+            .normalize(
+                INFERRED_TYPES_CONTAINING_FILE.into(),
+                Some(self.resolver.type_root_base_directory()),
+                true,
             )
-        })?;
+            .map_err(|error| {
+                ProgramLoadError::resolution_js(
+                    ProgramLoadOperation::DiscoverAutomaticTypes,
+                    None,
+                    None,
+                    error,
+                )
+            })?;
         make_program_path(
             &normalized,
             self.resolver.path_context().use_case_sensitive_file_names(),
@@ -3992,7 +4003,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         .map_err(|error| {
             ProgramLoadError::resolution_js(
                 ProgramLoadOperation::DiscoverAutomaticTypes,
-                Some(normalized),
+                Some(normalized.into_owned()),
                 None,
                 error,
             )
@@ -4985,7 +4996,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.enforce_limit(
             ProgramLoadOperation::ReadSource,
             ProgramLoadLimit::SourceDepth,
-            Some(path.display().to_owned()),
+            Some(path.display()),
             self.limits.max_source_depth.min(MAX_RECURSIVE_SOURCE_DEPTH),
             tree_depth,
         )?;
@@ -4993,14 +5004,14 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.enforce_limit(
             ProgramLoadOperation::ReadSource,
             ProgramLoadLimit::SourceFiles,
-            Some(path.display().to_owned()),
+            Some(path.display()),
             self.limits.max_source_files,
             source_count,
         )?;
         self.enforce_limit(
             ProgramLoadOperation::ReadSource,
             ProgramLoadLimit::SourceFileBytes,
-            Some(path.display().to_owned()),
+            Some(path.display()),
             self.limits.max_source_file_bytes,
             byte_len,
         )?;
@@ -5008,7 +5019,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.enforce_limit(
             ProgramLoadOperation::ReadSource,
             ProgramLoadLimit::TotalSourceBytes,
-            Some(path.display().to_owned()),
+            Some(path.display()),
             self.limits.max_total_source_bytes,
             total_source_bytes,
         )?;
@@ -5229,7 +5240,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             prepared =
                 prepared.with_package_scope(package_scope.package_json().canonical().clone());
         }
-        let plan = if is_json_source(path.canonical()) {
+        let mut plan = if is_json_source(path.canonical()) {
             None
         } else {
             let planned = match prefetched_plan {
@@ -5263,21 +5274,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         );
         prepared = prepared
             .with_is_external_module(plan.as_ref().is_some_and(|plan| plan.is_external_module()));
-        let path_references = plan
-            .as_ref()
-            .map_or_else(Vec::new, |plan| plan.path_references().to_vec());
-        let type_reference_directives = plan
-            .as_ref()
-            .map_or_else(Vec::new, |plan| plan.type_reference_directives().to_vec());
-        let lib_reference_directives = plan
-            .as_ref()
-            .map_or_else(Vec::new, |plan| plan.lib_reference_directives().to_vec());
-        let module_request_order = plan
-            .as_ref()
-            .map_or_else(Vec::new, |plan| plan.module_request_order().to_vec());
-        let module_request_occurrences = plan
-            .as_ref()
-            .map_or_else(Vec::new, |plan| plan.module_request_occurrences().to_vec());
+        let crate::module_requests::AdmissionPlanParts {
+            path_references,
+            type_reference_directives,
+            lib_reference_directives,
+            module_request_order,
+            module_request_occurrences,
+        } = plan
+            .as_mut()
+            .map_or_else(Default::default, SourceRequestPlan::take_admission_parts);
         // A resolution the read-ahead computed for a request (by its index
         // when this is its plan, else by key) is the same pure host
         // observation the resolver would make at the request's turn.
@@ -5299,7 +5304,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.enforce_limit(
             ProgramLoadOperation::PlanSourceRequests,
             ProgramLoadLimit::RequestEdges,
-            Some(path.display().to_owned()),
+            Some(path.display()),
             self.limits.max_request_edges,
             request_edges,
         )?;
@@ -5626,6 +5631,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
 
     fn catalog_library_path(&self, file_name: &str) -> Result<ProgramPath, ProgramLoadError> {
         catalog_library_path_in(
+            self.resolver.lexical_paths(),
             self.library_directory
                 .as_ref()
                 .expect("library-enabled graph has a normalized catalog directory"),
@@ -5662,19 +5668,18 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 |config| crate::js_path::directory_name(config.display()),
             );
             let synthetic_name = format!("__lib_node_modules_lookup_{file_name}__.ts");
-            let resolve_from = crate::module_resolution::normalize_absolute_js_path(
-                synthetic_name.as_str().into(),
-                Some(base.as_js()),
-                true,
-            )
-            .map_err(|error| {
-                ProgramLoadError::resolution_js(
-                    ProgramLoadOperation::ResolveLibrary,
-                    Some(base.clone()),
-                    Some((replacement_package_name(file_name)).into()),
-                    error,
-                )
-            })?;
+            let resolve_from = self
+                .resolver
+                .lexical_paths()
+                .normalize(synthetic_name.as_str().into(), Some(base.as_js()), true)
+                .map_err(|error| {
+                    ProgramLoadError::resolution_js(
+                        ProgramLoadOperation::ResolveLibrary,
+                        Some(base.clone()),
+                        Some((replacement_package_name(file_name)).into()),
+                        error,
+                    )
+                })?;
             let package_name = replacement_package_name(file_name);
             // tsgo `resolveLibrary`: the program's resolver, CommonJS mode; its
             // trace is replayed after every file's (filesparser.go:553-562).
@@ -5706,7 +5711,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .map_err(|error| {
                     ProgramLoadError::resolution_js(
                         ProgramLoadOperation::ResolveLibrary,
-                        Some(resolve_from.clone()),
+                        Some(resolve_from.clone().into_owned()),
                         Some((package_name.clone()).into()),
                         error,
                     )
@@ -5794,19 +5799,17 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     ) -> Result<bool, ProgramLoadError> {
         let current_directory = self.resolver.path_context().current_directory().display();
         let normalize = |path: &ProgramPath| {
-            crate::module_resolution::normalize_absolute_js_path(
-                path.display(),
-                Some(current_directory),
-                true,
-            )
-            .map_err(|error| {
-                ProgramLoadError::resolution_js(
-                    ProgramLoadOperation::ReadSource,
-                    Some(path.display().to_owned()),
-                    None,
-                    error,
-                )
-            })
+            self.resolver
+                .lexical_paths()
+                .normalize(path.display(), Some(current_directory), true)
+                .map_err(|error| {
+                    ProgramLoadError::resolution_js(
+                        ProgramLoadOperation::ReadSource,
+                        Some(path.display().to_owned()),
+                        None,
+                        error,
+                    )
+                })
         };
         Ok(normalize(left)? == normalize(right)?)
     }
@@ -5836,19 +5839,17 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let normalized = if reference.file_name().is_empty() {
             base.clone()
         } else {
-            crate::module_resolution::normalize_absolute_js_path(
-                reference.file_name(),
-                Some(base.as_js()),
-                true,
-            )
-            .map_err(|error| {
-                ProgramLoadError::resolution_js(
-                    ProgramLoadOperation::NormalizeReference,
-                    Some(source_path.display().to_owned()),
-                    Some(reference.file_name().to_owned()),
-                    error,
-                )
-            })?
+            self.resolver
+                .lexical_paths()
+                .normalize_owned(reference.file_name(), Some(base.as_js()), true)
+                .map_err(|error| {
+                    ProgramLoadError::resolution_js(
+                        ProgramLoadOperation::NormalizeReference,
+                        Some(source_path.display().to_owned()),
+                        Some(reference.file_name().to_owned()),
+                        error,
+                    )
+                })?
         };
         // tsgo names the reference as written in its diagnostics
         // (`diagnosticFileName`, compiler/fileloader.go:697), where tsc 6.0
@@ -6242,7 +6243,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     }
                     None => {
                         let directory_key = (
-                            crate::js_path::directory_name(containing_file.as_js()),
+                            self.resolver
+                                .lexical_paths()
+                                .directory(containing_file.as_js()),
                             key.specifier().to_owned(),
                             key.mode(),
                         );
@@ -6464,13 +6467,14 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         &self,
         operation: ProgramLoadOperation,
         limit: ProgramLoadLimit,
-        path: Option<JsString>,
+        path: Option<JsStr<'_>>,
         maximum: usize,
         observed: usize,
     ) -> Result<(), ProgramLoadError> {
         if observed <= maximum {
             return Ok(());
         }
+        let path = path.map(|path| crate::loader_counters::js_owned("limit.path", path));
         Err(ProgramLoadError::LimitExceeded {
             operation,
             exceeded: ProgramLoadLimitExceeded {
@@ -7016,19 +7020,17 @@ fn read_ahead_elides_target(
 fn path_reference_target(
     containing_file: JsStr<'_>,
     reference: &PlannedPathReference,
+    paths: &PurePathCache,
     case_sensitive: bool,
     options: &CompilerOptions,
 ) -> Option<ProgramPath> {
     if reference.file_name().is_empty() {
         return None;
     }
-    let base = crate::js_path::directory_name(containing_file);
-    let normalized = crate::module_resolution::normalize_absolute_js_path(
-        reference.file_name(),
-        Some(base.as_js()),
-        true,
-    )
-    .ok()?;
+    let base = paths.directory(containing_file);
+    let normalized = paths
+        .normalize(reference.file_name(), Some(base.as_js()), true)
+        .ok()?;
     let reference_path = crate::js_path::normalize_slashes(reference.file_name());
     let has_extension = reference_path
         .as_js()
@@ -7046,23 +7048,21 @@ fn path_reference_target(
 
 /// A library file of the catalog, by its file name.
 fn catalog_library_path_in(
+    paths: &PurePathCache,
     directory: &ProgramPath,
     file_name: &str,
     case_sensitive: bool,
 ) -> Result<ProgramPath, ProgramLoadError> {
-    let normalized = crate::module_resolution::normalize_absolute_js_path(
-        file_name.into(),
-        Some(directory.display()),
-        true,
-    )
-    .map_err(|error| {
-        ProgramLoadError::resolution_js(
-            ProgramLoadOperation::NormalizeReference,
-            Some(directory.display().to_owned()),
-            Some((file_name.to_owned()).into()),
-            error,
-        )
-    })?;
+    let normalized = paths
+        .normalize(file_name.into(), Some(directory.display()), true)
+        .map_err(|error| {
+            ProgramLoadError::resolution_js(
+                ProgramLoadOperation::NormalizeReference,
+                Some(directory.display().to_owned()),
+                Some((file_name.to_owned()).into()),
+                error,
+            )
+        })?;
     make_program_path(&normalized, case_sensitive).map_err(|error| {
         ProgramLoadError::resolution_js(
             ProgramLoadOperation::NormalizeReference,
@@ -7100,7 +7100,7 @@ fn publish_program(
     builder = builder.with_dependency_symlinks(dependency_symlinks);
     // The package.json files every resolver of the load probed, each once.
     let mut package_json_probes = BTreeMap::new();
-    for probe in staged.package_json_probes.iter().cloned() {
+    for probe in std::mem::take(&mut staged.package_json_probes) {
         package_json_probes
             .entry(crate::js_path::file_name_key(
                 probe.path.as_js(),
@@ -7109,8 +7109,9 @@ fn publish_program(
             .or_insert(probe);
     }
     builder = builder.with_package_json_probes(package_json_probes.into_values().collect());
-    builder = builder.with_resolution_trace(staged.resolution_trace.clone());
-    builder = builder.with_import_extension_files(staged.import_extension_files.clone());
+    builder = builder.with_resolution_trace(std::mem::take(&mut staged.resolution_trace));
+    builder =
+        builder.with_import_extension_files(std::mem::take(&mut staged.import_extension_files));
     builder = builder.with_build_info_emit_blocked(staged.build_info_emit_blocked);
     let config_file = program_options.config_file().cloned();
     let config_diagnostics = program_options.config_parsing_diagnostics().to_vec();
@@ -7289,8 +7290,6 @@ fn publish_program(
         source_by_canonical.get(redirected.canonical()).copied()
     };
     for resolution in staged.module_resolutions {
-        let key_path = resolution.key.source().as_js().to_owned();
-        let specifier = resolution.key.specifier().to_owned();
         let bound = bind_module_resolution(
             resolution.host,
             &source_by_canonical,
@@ -7303,8 +7302,14 @@ fn publish_program(
         .map_err(|error| {
             ProgramLoadError::resolution_js(
                 ProgramLoadOperation::BindResolutions,
-                Some(key_path),
-                Some(specifier),
+                Some(crate::loader_counters::js_owned(
+                    "bind.error",
+                    resolution.key.source().as_js(),
+                )),
+                Some(crate::loader_counters::js_owned(
+                    "bind.error",
+                    resolution.key.specifier(),
+                )),
                 error,
             )
         })?;
@@ -7316,14 +7321,18 @@ fn publish_program(
     }
 
     for resolution in staged.type_resolutions {
-        let key_path = resolution.key.origin().canonical_path().as_js().to_owned();
-        let specifier = resolution.key.specifier().to_owned();
         let bound = bind_type_resolution(resolution.host, &source_by_canonical, &redirected_source)
             .map_err(|error| {
                 ProgramLoadError::resolution_js(
                     ProgramLoadOperation::BindResolutions,
-                    Some(key_path),
-                    Some(specifier),
+                    Some(crate::loader_counters::js_owned(
+                        "bind.error",
+                        resolution.key.origin().canonical_path().as_js(),
+                    )),
+                    Some(crate::loader_counters::js_owned(
+                        "bind.error",
+                        resolution.key.specifier(),
+                    )),
                     error,
                 )
             })?;
