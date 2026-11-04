@@ -1002,24 +1002,33 @@ impl NodeArena {
         // identity of this tree is checked once, after the pass.
         let shift = RelocationShift::new(&relocation);
         let mut inside = true;
-        for node in self.nodes.iter_mut() {
-            if let Some(parent) = &mut node.parent {
-                *parent = shift.node(*parent, &mut inside);
-            }
-            // The tree is not shared yet: its tails are rewritten in place.
-            let Ok(()) = node.map_identity_words(&mut self.tails, |space, word| {
-                Ok::<u32, std::convert::Infallible>(shift.word(space, word, &mut inside))
+        // The records are mapped on their way to the store (one read and one
+        // write each); the tree is not shared yet, so its tails are rewritten
+        // in place.
+        let tails = &mut self.tails;
+        let nodes = self
+            .nodes
+            .publish_mapped(relocation.new_nodes.start() + 1, |mut node| {
+                if let Some(parent) = &mut node.parent {
+                    *parent = shift.node(*parent, &mut inside);
+                }
+                let Ok(()) = node.map_identity_words(tails, |space, word| {
+                    Ok::<u32, std::convert::Infallible>(shift.word(space, word, &mut inside))
+                });
+                node
             });
-        }
         for node in &mut self.array_items {
             *node = shift.node(*node, &mut inside);
         }
         if !inside {
+            // `nodes` drops unpublished: the store slots are scrubbed and the
+            // tree keeps its records.
             return Err(IdentityError::InvalidLease {
                 space: IdentitySpace::Node,
                 detail: "relocated id is outside its source arena",
             });
         }
+        nodes.commit();
         for record in &mut self.arrays {
             record.items =
                 record.items - relocation.old_items.start() + relocation.new_items.start();
@@ -1028,7 +1037,6 @@ impl NodeArena {
         self.array_base = relocation.new_arrays.start();
         self.item_base = relocation.new_items.start();
         self.text_base = relocation.new_texts.start();
-        self.nodes.publish(relocation.new_nodes.start() + 1);
         self.arrays.publish(relocation.new_arrays.start() + 1);
         self.array_items.publish(relocation.new_items.start());
         self.texts.publish(relocation.new_texts.start() + 1);
