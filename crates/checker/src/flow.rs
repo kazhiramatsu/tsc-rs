@@ -173,6 +173,39 @@ pub(crate) struct FlowLoopEntry {
     pub(crate) serial: u32,
 }
 
+/// An owned, override-aware snapshot. Most labels have only a few incoming
+/// edges; larger joins keep the same heap-backed snapshot as before.
+pub(crate) enum FlowAntecedents {
+    Inline { len: usize, flows: [FlowId; 4] },
+    Heap(Vec<FlowId>),
+}
+
+impl FlowAntecedents {
+    fn new(antecedents: &[FlowId]) -> Self {
+        if antecedents.len() <= 4 {
+            let mut flows = [FlowId::new(0); 4];
+            flows[..antecedents.len()].copy_from_slice(antecedents);
+            Self::Inline {
+                len: antecedents.len(),
+                flows,
+            }
+        } else {
+            Self::Heap(antecedents.to_vec())
+        }
+    }
+}
+
+impl std::ops::Deref for FlowAntecedents {
+    type Target = [FlowId];
+
+    fn deref(&self) -> &[FlowId] {
+        match self {
+            Self::Inline { len, flows } => &flows[..*len],
+            Self::Heap(flows) => flows,
+        }
+    }
+}
+
 impl<'a> CheckerState<'a> {
     /// tsc-port: createFlowType @6.0.3
     /// tsc-hash: 6c62e978ce2e99049bfa9f92da21d61691a7fd53aea3085dd19d06425de9526b
@@ -219,7 +252,7 @@ impl<'a> CheckerState<'a> {
     /// the binder graph is immutable to the checker, so the swap lives
     /// in `reduce_label_overrides` and every label read consults it.
     /// tsrs-native: override-map view over the binder arena.
-    pub(crate) fn flow_label_antecedents(&self, file: usize, flow: FlowId) -> Vec<FlowId> {
+    pub(crate) fn flow_label_antecedents(&self, file: usize, flow: FlowId) -> FlowAntecedents {
         self.flow_label_antecedents_in(file, &self.binder.file(file).flow, flow)
     }
 
@@ -228,11 +261,11 @@ impl<'a> CheckerState<'a> {
         file: usize,
         arena: &FlowArena,
         flow: FlowId,
-    ) -> Vec<FlowId> {
+    ) -> FlowAntecedents {
         if let Some(overridden) = self.reduce_label_overrides.get(&(file, flow)) {
-            return overridden.clone();
+            return FlowAntecedents::new(overridden);
         }
-        arena.flow(flow).antecedents().to_vec()
+        FlowAntecedents::new(arena.flow(flow).antecedents())
     }
 
     fn flow_payload_node(&self, file: usize, flow: FlowId) -> Option<NodeId> {
@@ -1128,7 +1161,10 @@ impl<'a> CheckerState<'a> {
         let mut subtype_reduction = false;
         let mut seen_incomplete = false;
         let mut bypass_flow: Option<FlowId> = None;
-        for antecedent in self.flow_label_antecedents_in(query.file, query.arena, flow) {
+        for &antecedent in self
+            .flow_label_antecedents_in(query.file, query.arena, flow)
+            .iter()
+        {
             if bypass_flow.is_none() && self.is_empty_switch_clause_flow(query, antecedent) {
                 bypass_flow = Some(antecedent);
                 continue;
@@ -1239,7 +1275,10 @@ impl<'a> CheckerState<'a> {
         let mut antecedent_types: Vec<TypeId> = Vec::new();
         let mut subtype_reduction = false;
         let mut first_antecedent_type: Option<FlowType> = None;
-        for antecedent in self.flow_label_antecedents_in(query.file, query.arena, flow) {
+        for &antecedent in self
+            .flow_label_antecedents_in(query.file, query.arena, flow)
+            .iter()
+        {
             let flow_type = if first_antecedent_type.is_none() {
                 let first = self.get_type_at_flow_node(query, antecedent)?;
                 first_antecedent_type = Some(first);
@@ -1792,7 +1831,7 @@ impl<'a> CheckerState<'a> {
                 }
                 flow = self.flow_antecedent(file, flow);
             } else if flags.intersects(FlowFlags::BRANCH_LABEL) {
-                for antecedent in self.flow_label_antecedents(file, flow) {
+                for &antecedent in self.flow_label_antecedents(file, flow).iter() {
                     if self.is_reachable_flow_node_worker(file, antecedent, false)? {
                         return Ok(true);
                     }
@@ -1897,7 +1936,7 @@ impl<'a> CheckerState<'a> {
                 }
                 flow = self.flow_antecedent(file, flow);
             } else if flags.intersects(FlowFlags::BRANCH_LABEL) {
-                for antecedent in self.flow_label_antecedents(file, flow) {
+                for &antecedent in self.flow_label_antecedents(file, flow).iter() {
                     if !self.is_post_super_flow_node(file, antecedent, false) {
                         return false;
                     }

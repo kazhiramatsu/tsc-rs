@@ -1,3 +1,4 @@
+use crate::lexical_path_cache::{LexicalPath, PurePathCache};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -739,6 +740,7 @@ struct InputResolutionRequest {
 /// One resolver owns a per-run `package.json` cache. Host methods remain
 /// fallible and are never translated into ordinary lookup misses.
 pub struct ModuleResolver<'a> {
+    lexical_paths: PurePathCache,
     host: &'a dyn CompilerHost,
     /// tsgo `extraExtensions`: the program's content mapper extensions, which
     /// a fully specified import resolves to as they are.
@@ -922,6 +924,7 @@ impl<'a> ModuleResolver<'a> {
         let trace =
             (options.trace_resolution == Some(true)).then(|| std::cell::RefCell::new(Vec::new()));
         Ok(Self {
+            lexical_paths: PurePathCache::default(),
             host,
             extra_extensions: Vec::new(),
             options,
@@ -961,6 +964,7 @@ impl<'a> ModuleResolver<'a> {
         validate_path_context(host, &path_context)?;
         let current_directory = path_context.current_directory().display();
         Ok(Self {
+            lexical_paths: PurePathCache::default(),
             host,
             extra_extensions: Vec::new(),
             options: std::borrow::Cow::Borrowed(options),
@@ -989,6 +993,10 @@ impl<'a> ModuleResolver<'a> {
             module_resolution_override: None,
             typings_location: None,
         })
+    }
+
+    pub(crate) fn lexical_paths(&self) -> &PurePathCache {
+        &self.lexical_paths
     }
 
     pub fn path_context(&self) -> &PathContext {
@@ -1370,8 +1378,12 @@ impl<'a> ModuleResolver<'a> {
         for (name, value) in fields {
             match value {
                 Some(value) => {
-                    let path = normalize_legacy_package_target(package, value.as_js())
-                        .unwrap_or_else(|_| value.clone());
+                    let path = normalize_legacy_package_target(
+                        &self.lexical_paths,
+                        package,
+                        value.as_js(),
+                    )
+                    .unwrap_or_else(|_| value.clone());
                     trace!(
                         self,
                         gen::package_json_has_0_field_1_that_references_2,
@@ -1456,9 +1468,9 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<Option<PackageMetadata>, ResolutionError> {
         let file = file.into();
         let current_directory = self.current_directory_text();
-        let file = normalize_absolute_js_path(file, Some(current_directory), true)?;
+        let context = self.lexical_paths.file_context(file, current_directory)?;
         Ok(self
-            .find_nearest_package_scope(&crate::js_path::directory_name(file.as_js()))?
+            .find_nearest_package_scope(&context.directory)?
             .map(|package| package.metadata.as_ref().clone()))
     }
 
@@ -1515,9 +1527,10 @@ impl<'a> ModuleResolver<'a> {
         let specifier = specifier.into();
         self.validate_common_configuration()?;
         let current_directory = self.current_directory_text();
-        let containing_file =
-            normalize_absolute_js_path(containing_file, Some(current_directory), true)?;
-        let containing_directory = js_directory_name(&containing_file);
+        let context = self
+            .lexical_paths
+            .file_context(containing_file, current_directory)?;
+        let containing_directory = context.directory;
         if is_relative_specifier(specifier) {
             return self.resolve_relative_with_passes(
                 &containing_directory,
@@ -1598,9 +1611,11 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<HostModuleResolution, ResolutionError> {
         let containing_file = containing_file.into();
         let specifier = specifier.into();
-        let containing_file =
-            normalize_absolute_js_path(containing_file, Some(self.current_directory_text()), true)?;
-        let containing_directory = js_directory_name(&containing_file);
+        let context = self
+            .lexical_paths
+            .file_context(containing_file, self.current_directory_text())?;
+        let containing_file = context.file;
+        let containing_directory = context.directory;
         if let Some(resolution) = &self.module_resolution_override {
             match resolution.resolve(specifier, containing_directory.as_js(), mode) {
                 OverriddenResolution::Program => {}
@@ -1625,7 +1640,7 @@ impl<'a> ModuleResolver<'a> {
         specifier: impl Into<JsStr<'j1>>,
         mode: ResolutionMode,
     ) -> Result<HostModuleResolution, ResolutionError> {
-        let directory = normalize_absolute_js_path(
+        let directory = self.lexical_paths.normalize(
             containing_directory.into(),
             Some(self.current_directory_text()),
             true,
@@ -1917,7 +1932,11 @@ impl<'a> ModuleResolver<'a> {
                         .as_deref()
                         .expect("paths mappings have an effective base directory");
                     (
-                        normalize_optional_candidate(expanded, base_directory)?,
+                        normalize_optional_candidate(
+                            &self.lexical_paths,
+                            expanded,
+                            base_directory,
+                        )?,
                         recognized_module_extension(substitution),
                     )
                 };
@@ -2005,7 +2024,8 @@ impl<'a> ModuleResolver<'a> {
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
         let candidate = preserve_trailing_directory_separator(
-            normalize_absolute_js_path(specifier, Some(containing_directory), true)?,
+            self.lexical_paths
+                .normalize(specifier, Some(containing_directory), true)?,
             specifier,
         );
         let candidates = {
@@ -2067,7 +2087,7 @@ impl<'a> ModuleResolver<'a> {
                     continue;
                 }
                 let candidate = preserve_trailing_directory_separator(
-                    normalize_absolute_js_path(
+                    self.lexical_paths.normalize(
                         JsStr::from(&join_normalized(root_dir, &suffix)),
                         None,
                         true,
@@ -2327,7 +2347,7 @@ impl<'a> ModuleResolver<'a> {
         // parseNodeModuleFromPath normalizes the selected file before locating
         // its last node_modules package, while withPackageId still slices the
         // resolver's raw selected spelling for submoduleName.
-        let normalized_lexical_path = normalize_absolute_js_path(
+        let normalized_lexical_path = self.lexical_paths.normalize(
             JsStr::from(&lexical_path),
             Some(self.current_directory_text()),
             true,
@@ -2452,7 +2472,7 @@ impl<'a> ModuleResolver<'a> {
         self.validate_supported_type_reference_configuration(mode)?;
 
         let current_directory = self.current_directory_text().to_owned();
-        let containing_file = normalize_absolute_js_path(
+        let containing_file = self.lexical_paths.normalize(
             containing_file,
             Some(JsStr::from(&current_directory)),
             true,
@@ -2514,7 +2534,9 @@ impl<'a> ModuleResolver<'a> {
         trace!(
             self,
             gen::Looking_up_in_node_modules_folder_initial_location_0,
-            js_directory_name(&containing_file).as_js()
+            self.lexical_paths
+                .directory(containing_file.as_js())
+                .as_js()
         );
 
         let outcome = if is_relative_specifier(specifier) {
@@ -2524,7 +2546,7 @@ impl<'a> ModuleResolver<'a> {
                 return Ok(ResolutionOutcome::NotFound);
             };
             let outcome = self.resolve_type_reference_from_node_modules(
-                &js_directory_name(&containing_file),
+                &self.lexical_paths.directory(containing_file.as_js()),
                 &request,
                 mode,
                 self.module_exports_feature_enabled(),
@@ -2559,7 +2581,7 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
-        let containing_directory = normalize_absolute_js_path(
+        let containing_directory = self.lexical_paths.normalize(
             containing_directory,
             Some(self.current_directory_text()),
             true,
@@ -2696,7 +2718,7 @@ impl<'a> ModuleResolver<'a> {
                     specifier,
                 } => {
                     self.trace_resolution_mode(context.mode);
-                    let containing_directory = normalize_absolute_js_path(
+                    let containing_directory = self.lexical_paths.normalize_owned(
                         JsStr::from(&containing_directory),
                         Some(self.current_directory_text()),
                         true,
@@ -2902,7 +2924,8 @@ impl<'a> ModuleResolver<'a> {
                                 continue;
                             };
                             let candidate =
-                                normalize_absolute_js_path(JsStr::from(&target), None, true)?;
+                                self.lexical_paths
+                                    .normalize(JsStr::from(&target), None, true)?;
                             if !path_is_within(&candidate, &package.root) {
                                 self.trace_invalid_package_map_target(&package, specifier.as_js());
                                 ImportsTargetState::Result(Search::Continue)
@@ -3593,7 +3616,7 @@ impl<'a> ModuleResolver<'a> {
             return Ok(Search::Continue);
         }
         let Some(package) = self.find_nearest_package_scope(containing_directory)? else {
-            let directory_path = normalize_absolute_js_path(
+            let directory_path = self.lexical_paths.normalize(
                 containing_directory,
                 Some(self.current_directory_text()),
                 true,
@@ -3999,7 +4022,7 @@ impl<'a> ModuleResolver<'a> {
         let mut root_package_loaded = false;
         let candidate = rest
             .map(|rest| {
-                normalize_absolute_js_path(
+                self.lexical_paths.normalize_owned(
                     JsStr::from(&join_normalized(package_root, rest)),
                     None,
                     true,
@@ -4163,8 +4186,11 @@ impl<'a> ModuleResolver<'a> {
     }
 
     fn normalized_type_root(&self, root: &ProgramPath) -> Result<JsString, ResolutionError> {
-        let normalized =
-            normalize_absolute_js_path(root.display(), Some(self.current_directory_text()), true)?;
+        let normalized = self.lexical_paths.normalize_owned(
+            root.display(),
+            Some(self.current_directory_text()),
+            true,
+        )?;
         let expected = canonical_text(
             &normalized,
             self.path_context.use_case_sensitive_file_names(),
@@ -4386,7 +4412,7 @@ impl<'a> ModuleResolver<'a> {
         let specifier = specifier.into();
         let directory_spelling = has_node_directory_spelling(specifier);
         let target = preserve_node_directory_spelling(
-            normalize_absolute_js_path(
+            self.lexical_paths.normalize(
                 specifier,
                 Some(JsStr::from(&js_directory_name(containing_file))),
                 true,
@@ -4509,7 +4535,8 @@ impl<'a> ModuleResolver<'a> {
         let specifier = specifier.into();
         let directory_spelling = has_node_directory_spelling(specifier);
         let target = preserve_node_directory_spelling(
-            normalize_absolute_js_path(specifier, Some(containing_directory), true)?,
+            self.lexical_paths
+                .normalize(specifier, Some(containing_directory), true)?,
             directory_spelling,
         );
         let external = path_contains_node_modules(&target);
@@ -4746,7 +4773,7 @@ impl<'a> ModuleResolver<'a> {
             }
             let candidate = match root_directory_spelling {
                 Some(candidate) => candidate.to_owned(),
-                None => normalize_package_subpath(package, rest)?,
+                None => normalize_package_subpath(&self.lexical_paths, package, rest)?,
             };
             return self.probe_package_subpath_path(package, &candidate, probe_pass, mode, context);
         }
@@ -4828,7 +4855,7 @@ impl<'a> ModuleResolver<'a> {
             .then(|| selected_package_entry_field(package, probe_pass))
             .flatten();
         let package_field_candidate = package_field
-            .map(|field| normalize_legacy_package_target(package, field))
+            .map(|field| normalize_legacy_package_target(&self.lexical_paths, package, field))
             .transpose()?;
         let package_field_parent_exists = package_field_candidate
             .as_ref()
@@ -4999,7 +5026,11 @@ impl<'a> ModuleResolver<'a> {
                 _ => JsString::new(),
             };
             let expanded = replace_first_star(substitution.as_js(), capture.as_js());
-            let candidate = normalize_legacy_target_from_directory(base_directory, &expanded)?;
+            let candidate = normalize_legacy_target_from_directory(
+                &self.lexical_paths,
+                base_directory,
+                &expanded,
+            )?;
             trace!(
                 self,
                 gen::Trying_substitution_0_candidate_module_location_1,
@@ -5730,9 +5761,11 @@ impl<'a> ModuleResolver<'a> {
             return Ok(PeerDependencyLookup::default());
         }
         let real_directory = match self.host.realpath_js(package_directory)? {
-            Some(real) => {
-                normalize_absolute_js_path(real.as_js(), Some(self.current_directory_text()), true)?
-            }
+            Some(real) => self.lexical_paths.normalize_owned(
+                real.as_js(),
+                Some(self.current_directory_text()),
+                true,
+            )?,
             None => package_directory.to_owned(),
         };
         // `strings.LastIndex(packageDirectory, "/node_modules")`: the text up
@@ -5979,7 +6012,9 @@ impl<'a> ModuleResolver<'a> {
                     self.trace_invalid_package_map_target(package, module_name);
                     return Ok(Search::Continue);
                 };
-                let candidate = normalize_absolute_js_path(JsStr::from(&target), None, true)?;
+                let candidate = self
+                    .lexical_paths
+                    .normalize(JsStr::from(&target), None, true)?;
                 if !path_is_within(&candidate, &package.root) {
                     self.trace_invalid_package_map_target(package, module_name);
                     return Ok(Search::Continue);
@@ -6183,7 +6218,10 @@ impl<'a> ModuleResolver<'a> {
             .map(JsString::as_js)
             .filter(|dir| !dir.is_empty())
         {
-            Some(root_dir) => normalize_absolute_js_path(root_dir, Some(JsStr::from(&cwd)), true)?,
+            Some(root_dir) => {
+                self.lexical_paths
+                    .normalize_owned(root_dir, Some(JsStr::from(&cwd)), true)?
+            }
             None => match &self.config_file_path {
                 Some(config) => js_directory_name(config.display()),
                 None => {
@@ -6236,7 +6274,7 @@ impl<'a> ModuleResolver<'a> {
             self.effective_module_probe_pass(ExtensionProbePass::All)
         };
         for dir in directories {
-            let candidate_dir = normalize_absolute_js_path(
+            let candidate_dir = self.lexical_paths.normalize(
                 JsStr::from(&combine_paths_spelling(&base, dir)?),
                 Some(JsStr::from(&cwd)),
                 true,
@@ -6645,7 +6683,7 @@ impl<'a> ModuleResolver<'a> {
                 lexical_path.to_string_lossy()
             )));
         };
-        let normalized_real_path = normalize_absolute_js_path(
+        let normalized_real_path = self.lexical_paths.normalize(
             real_path.as_js(),
             Some(self.current_directory_text()),
             true,
@@ -6686,8 +6724,11 @@ impl<'a> ModuleResolver<'a> {
         selected_path: impl Into<JsStr<'p>>,
     ) -> Result<ProgramPath, ResolutionError> {
         let selected_path = selected_path.into();
-        let normalized =
-            normalize_absolute_js_path(selected_path, Some(self.current_directory_text()), true)?;
+        let normalized = self.lexical_paths.normalize(
+            selected_path,
+            Some(self.current_directory_text()),
+            true,
+        )?;
         let canonical = canonical_text(
             &normalized,
             self.path_context.use_case_sensitive_file_names(),
@@ -6736,6 +6777,7 @@ fn validate_and_clone_root_dirs(
 }
 
 fn normalize_optional_candidate<'c, 'b>(
+    paths: &PurePathCache,
     candidate: impl Into<JsStr<'c>>,
     base_directory: impl Into<JsStr<'b>>,
 ) -> Result<JsString, ResolutionError> {
@@ -6749,7 +6791,7 @@ fn normalize_optional_candidate<'c, 'b>(
         "optional resolution candidate",
         /* allow_empty */ true,
     )?;
-    let mut normalized = normalize_absolute_js_path(candidate, Some(base_directory), true)?;
+    let mut normalized = paths.normalize_owned(candidate, Some(base_directory), true)?;
     if (candidate.ends_with("/") || candidate.ends_with("\\")) && !normalized.ends_with("/") {
         normalized.push('/');
     }
@@ -6757,24 +6799,18 @@ fn normalize_optional_candidate<'c, 'b>(
 }
 
 fn preserve_trailing_directory_separator<'p>(
-    mut normalized: JsString,
+    normalized: LexicalPath,
     source: impl Into<JsStr<'p>>,
-) -> JsString {
+) -> LexicalPath {
     let source = source.into();
-    if (source.ends_with("/") || source.ends_with("\\")) && !normalized.ends_with("/") {
-        normalized.push('/');
-    }
-    normalized
+    normalized.with_trailing_separator(source.ends_with("/") || source.ends_with("\\"))
 }
 
 fn preserve_node_directory_spelling(
-    mut normalized: JsString,
+    normalized: LexicalPath,
     directory_spelling: bool,
-) -> JsString {
-    if directory_spelling && !normalized.ends_with("/") {
-        normalized.push('/');
-    }
-    normalized
+) -> LexicalPath {
+    normalized.with_trailing_separator(directory_spelling)
 }
 
 fn combine_paths_spelling<'p, 'c>(
@@ -6898,13 +6934,15 @@ fn package_subpath<'p>(
 }
 
 fn normalize_legacy_package_target<'t>(
+    paths: &PurePathCache,
     package: &CachedPackage,
     target: impl Into<JsStr<'t>>,
 ) -> Result<JsString, ResolutionError> {
-    normalize_legacy_target_from_directory(&package.root, target)
+    normalize_legacy_target_from_directory(paths, &package.root, target)
 }
 
 fn normalize_legacy_target_from_directory<'b, 't>(
+    paths: &PurePathCache,
     base_directory: impl Into<JsStr<'b>>,
     target: impl Into<JsStr<'t>>,
 ) -> Result<JsString, ResolutionError> {
@@ -6913,7 +6951,7 @@ fn normalize_legacy_target_from_directory<'b, 't>(
     if target.is_empty() {
         return Ok(base_directory.to_owned());
     }
-    let mut candidate = normalize_absolute_js_path(target, Some(base_directory), true)?;
+    let mut candidate = paths.normalize_owned(target, Some(base_directory), true)?;
     if (target.ends_with("/") || target.ends_with("\\")) && !candidate.ends_with("/") {
         candidate.push('/');
     }
@@ -6921,6 +6959,7 @@ fn normalize_legacy_target_from_directory<'b, 't>(
 }
 
 fn normalize_package_subpath<'p>(
+    paths: &PurePathCache,
     package: &CachedPackage,
     target: impl Into<JsStr<'p>>,
 ) -> Result<JsString, ResolutionError> {
@@ -6938,7 +6977,7 @@ fn normalize_package_subpath<'p>(
         )));
     }
     let candidate =
-        normalize_absolute_js_path(join_normalized(&package.root, target).as_js(), None, true)?;
+        paths.normalize_owned(join_normalized(&package.root, target).as_js(), None, true)?;
     if !path_is_within(&candidate, &package.root) {
         return Err(ResolutionError::invalid_data(format!(
             "package target {} escapes package {}",
@@ -8142,13 +8181,14 @@ pub(crate) fn normalize_absolute_js_path(
     base: Option<JsStr<'_>>,
     reject_nul: bool,
 ) -> Result<JsString, ResolutionError> {
+    crate::loader_counters::path("absolute", text, base, reject_nul);
     if text.is_empty() || (reject_nul && text.contains("\0")) {
         return Err(ResolutionError::canonicalization_js(
             Some(text),
             "path is empty or contains a NUL byte",
         ));
     }
-    let slashed = crate::js_path::normalize_slashes(text);
+    let slashed = crate::js_path::PathText::slashed(text);
     let absolute = if crate::js_path::root_parts(slashed.as_js()).is_some() {
         slashed
     } else {
@@ -8161,10 +8201,10 @@ pub(crate) fn normalize_absolute_js_path(
                 "path base contains a NUL byte",
             ));
         }
-        join_normalized_js(
-            crate::js_path::normalize_slashes(base).as_js(),
+        crate::js_path::PathText::Owned(join_normalized_js(
+            crate::js_path::PathText::slashed(base).as_js(),
             slashed.as_js(),
-        )
+        ))
     };
     if crate::js_path::root_parts(absolute.as_js()).is_none() {
         return Err(ResolutionError::canonicalization_js(
@@ -8172,10 +8212,7 @@ pub(crate) fn normalize_absolute_js_path(
             "path has no supported absolute root",
         ));
     }
-    Ok(crate::js_path::normalized_absolute_path(
-        absolute.as_js(),
-        "".into(),
-    ))
+    Ok(crate::js_path::normalized_slashed_absolute_path(absolute))
 }
 
 fn join_normalized<'p, 'c>(parent: impl Into<JsStr<'p>>, child: impl Into<JsStr<'c>>) -> JsString {
@@ -8189,7 +8226,7 @@ fn join_normalized_js(parent: JsStr<'_>, mut child: JsStr<'_>) -> JsString {
     while let Some(tail) = child.strip_prefix("/") {
         child = tail;
     }
-    let mut result = parent.to_owned();
+    let mut result = crate::loader_counters::js_owned("path.join", parent);
     if !result.ends_with("/") {
         result.push('/');
     }

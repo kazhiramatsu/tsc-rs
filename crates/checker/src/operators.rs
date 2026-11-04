@@ -2524,7 +2524,6 @@ impl<'a> CheckerState<'a> {
         expression: NodeId,
         target: NodeId,
     ) -> CheckResult<TypeId> {
-        let diagnostics_before_expression = self.diagnostics.len();
         let expr_type = self.check_expression(expression, CheckMode::NORMAL)?;
         let target_type = self.get_type_from_type_node(target)?;
         // isErrorType: an unresolved name's aliased error type too.
@@ -2544,30 +2543,6 @@ impl<'a> CheckerState<'a> {
             }
             None
         });
-        // Contextual literal checking can already have emitted the
-        // elementwise row before the shared optional-elaboration entry
-        // is reached. Keep that existing de-duplication boundary, then
-        // let the generic dependency own every elaboration arm and the
-        // ordinary normalized relation fallback.
-        if self.elaborated_satisfies_expressions.contains(&expression) {
-            return Ok(expr_type);
-        }
-        let mut operand = expression;
-        while let Some(data) = self.record_of(operand).as_parenthesized_expression() {
-            match data.expression {
-                Some(inner) => operand = inner,
-                None => break,
-            }
-        }
-        if self.literal_operand_reported_since(operand, diagnostics_before_expression)
-            && matches!(
-                self.data_of(operand),
-                NodeData::ObjectLiteralExpression(_) | NodeData::ArrayLiteralExpression(_)
-            )
-        {
-            self.elaborated_satisfies_expressions.insert(expression);
-            return Ok(expr_type);
-        }
         self.check_type_assignable_to_and_optionally_elaborate(
             expr_type,
             target_type,
@@ -2576,30 +2551,6 @@ impl<'a> CheckerState<'a> {
             &tsc_diagnostics::gen::Type_0_does_not_satisfy_the_expected_type_1,
         )?;
         Ok(expr_type)
-    }
-
-    /// Whether contextual checking already emitted a diagnostic inside
-    /// this literal operand. Relation probes may lazily emit file-less
-    /// missing-global diagnostics, so a raw diagnostic-count comparison
-    /// would incorrectly treat those as successful literal elaboration.
-    fn literal_operand_reported_since(&self, operand: NodeId, before: usize) -> bool {
-        let source = self.binder.source_of_node(operand);
-        let node = Published.node(operand);
-        let start_byte = tsc_syntax::skip_trivia(source.text(), node.pos as usize);
-        let to_utf16 = |byte: usize| -> u32 {
-            source
-                .positions()
-                .byte_to_utf16((byte) as u32)
-                .unwrap_or(byte as u32)
-        };
-        let start = to_utf16(start_byte);
-        let end = to_utf16(node.end as usize);
-        self.diagnostics[before..].iter().any(|diagnostic| {
-            diagnostic.file_name.as_ref() == Some(&source.file_name)
-                && diagnostic.start.is_some_and(|diagnostic_start| {
-                    start <= diagnostic_start && diagnostic_start < end
-                })
-        })
     }
 
     /// tsc-port: checkExpressionWithTypeArguments @6.0.3

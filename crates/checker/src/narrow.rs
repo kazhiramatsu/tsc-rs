@@ -978,6 +978,17 @@ impl<'a> CheckerState<'a> {
                     return Ok(self.tables.intrinsics.non_primitive);
                 }
             }
+            // tsgo flow.go:589-594: a primitive member of a uniform union
+            // can be selected without testing every constituent.
+            if !double_equals
+                && value_flags.intersects(TypeFlags::PRIMITIVE)
+                && self.is_uniform_union_type(ty)
+            {
+                let regular_type = self.regular_type_of_literal_type(value_type);
+                if self.union_contains_type(ty, regular_type, false) {
+                    return Ok(regular_type);
+                }
+            }
             let filtered = self.filter_type_with(ty, |state, t| {
                 if state.are_types_comparable(t, value_type)? {
                     return Ok(true);
@@ -2075,10 +2086,29 @@ impl<'a> CheckerState<'a> {
         {
             never
         } else {
-            let filtered = self.filter_type_with(ty, |state, t| {
-                state.are_types_comparable(discriminant_type, t)
-            })?;
-            self.replace_primitives_with_literals(filtered, discriminant_type)?
+            let mut case_type = None;
+            // tsgo flow.go:1125-1133 avoids the comparable filter when a
+            // single primitive case has an unambiguous union member.
+            if self
+                .tables
+                .flags_of(discriminant_type)
+                .intersects(TypeFlags::PRIMITIVE)
+                && self.is_uniform_union_type(ty)
+            {
+                let regular_type = self.regular_type_of_literal_type(discriminant_type);
+                if self.union_contains_type(ty, regular_type, false) {
+                    case_type = Some(regular_type);
+                }
+            }
+            match case_type {
+                Some(case_type) => case_type,
+                None => {
+                    let filtered = self.filter_type_with(ty, |state, t| {
+                        state.are_types_comparable(discriminant_type, t)
+                    })?;
+                    self.replace_primitives_with_literals(filtered, discriminant_type)?
+                }
+            }
         };
         if !has_default_clause {
             return Ok(case_type);
@@ -2111,6 +2141,85 @@ impl<'a> CheckerState<'a> {
                 tsc_types::UnionReduction::Literal,
             )
         }
+    }
+
+    /// tsgo checker.go:28359-28396. The arena's union flags are immutable
+    /// here, so the computed uniformity bit lives in the checker's links.
+    fn is_uniform_union_type(&mut self, ty: TypeId) -> bool {
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(tsc_types::ObjectFlags::PRIMITIVE_UNION)
+        {
+            return false;
+        }
+        if let Some(cached) = self.links.type_cold().uniform_union_type.get(ty).resolved() {
+            return cached;
+        }
+        let result = self.compute_is_uniform_union_type(self.tables.members_of(ty));
+        self.links.set_uniform_union_type(ty, result);
+        result
+    }
+
+    fn compute_is_uniform_union_type(&self, types: &[TypeId]) -> bool {
+        let mut enum_symbol = None;
+        let mut has_string_or_number_literal = false;
+        for &ty in types {
+            let flags = self.tables.flags_of(ty);
+            if flags.intersects(TypeFlags::ENUM_LIKE) {
+                if has_string_or_number_literal {
+                    return false;
+                }
+                let parent = self
+                    .tables
+                    .type_of(ty)
+                    .symbol
+                    .and_then(|symbol| self.get_parent_of_symbol(symbol));
+                if enum_symbol.is_none() {
+                    enum_symbol = parent;
+                } else if enum_symbol != parent {
+                    return false;
+                }
+            } else if flags.intersects(TypeFlags::STRING_OR_NUMBER_LITERAL) {
+                if enum_symbol.is_some() {
+                    return false;
+                }
+                has_string_or_number_literal = true;
+            }
+        }
+        true
+    }
+
+    /// tsgo checker.go:26944-26968, including missing/undefined and the
+    /// primitive counterpart of a literal. Union construction is unchanged.
+    fn union_contains_type(&self, union: TypeId, ty: TypeId, match_symbol: bool) -> bool {
+        let ctx = crate::type_order::order_ctx!(self);
+        let types = self.tables.members_of(union);
+        let contains =
+            |ty| tsc_types::type_order::contains_type(&self.tables, ctx.order(), types, ty);
+        if contains(ty) {
+            return true;
+        }
+        let intrinsics = &self.tables.intrinsics;
+        if ty == intrinsics.missing {
+            return contains(intrinsics.undefined);
+        }
+        if ty == intrinsics.undefined {
+            return contains(intrinsics.missing);
+        }
+        let flags = self.tables.flags_of(ty);
+        let primitive = if flags.intersects(TypeFlags::STRING_LITERAL) {
+            Some(intrinsics.string)
+        } else if flags.intersects(TypeFlags::ENUM | TypeFlags::NUMBER_LITERAL) {
+            Some(intrinsics.number)
+        } else if flags.intersects(TypeFlags::BIG_INT_LITERAL) {
+            Some(intrinsics.bigint)
+        } else if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) && match_symbol {
+            Some(intrinsics.es_symbol)
+        } else {
+            None
+        };
+        primitive.is_some_and(contains)
     }
 
     /// tsc-port: extractUnitType @6.0.3

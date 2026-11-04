@@ -452,3 +452,16 @@ fn diagnostics_differing_only_by_related_information_merge_like_tsgo() {
         ]
     );
 }
+
+#[test]
+fn diagnostic_format_literal_spans_keep_unicode_and_malformed_placeholders() {
+    let values = args(&["arg"]);
+    for (template, expected) in [
+        ("α😀 prefix {0} suffix 界", "α😀 prefix arg suffix 界"),
+        ("{} {x} {12x} {0", "{} {x} {12x} {0"),
+        ("{{0}} {00}{0} {", "{arg} argarg {"),
+        ("{1x{0}🙂", "{1xarg🙂"),
+    ] {
+        assert_eq!(format_message(template, &values), expected);
+    }
+}

@@ -806,6 +806,11 @@ pub struct TypeLinksCold {
     /// tsc MappedType.resolvedApparentType
     /// (getApparentTypeOfMappedType 59071).
     pub mapped_apparent_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    /// tsgo IntersectionType.resolvedApparentType (checker.go:22229).
+    pub intersection_apparent_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    /// tsgo isUniformUnionType (checker.go:28359): whether primitive
+    /// union literals have disjoint values, including their enum parents.
+    pub uniform_union_type: SparseLinks<TypeId, LinkSlot<bool>>,
     /// tsc ConditionalType resolved arm/constraint caches. They are
     /// checker-owned because conditional types are immutable in the
     /// types arena. `Resolved(None)` is the stored false sentinel for
@@ -942,6 +947,8 @@ impl TypeLinksCold {
             mapped_modifiers_type,
             mapped_contains_error,
             mapped_apparent_type,
+            intersection_apparent_type,
+            uniform_union_type,
             conditional_true_type,
             conditional_false_type,
             conditional_inferred_true_type,
@@ -984,6 +991,8 @@ impl TypeLinksCold {
             mapped_modifiers_type.memory_usage(),
             mapped_contains_error.memory_usage(),
             mapped_apparent_type.memory_usage(),
+            intersection_apparent_type.memory_usage(),
+            uniform_union_type.memory_usage(),
             conditional_true_type.memory_usage(),
             conditional_false_type.memory_usage(),
             conditional_inferred_true_type.memory_usage(),
@@ -2902,6 +2911,20 @@ impl LinksTables {
     pub fn set_mapped_apparent_type(&mut self, id: TypeId, value: TypeId) {
         Self::write_slot(
             self.type_cold.mapped_apparent_type.slot(id),
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    pub fn set_intersection_apparent_type(&mut self, id: TypeId, value: TypeId) {
+        // Go assigns after computation, including re-entrant completion.
+        self.type_cold
+            .intersection_apparent_type
+            .set(id, LinkSlot::Resolved(value));
+    }
+
+    pub fn set_uniform_union_type(&mut self, id: TypeId, value: bool) {
+        Self::write_slot(
+            self.type_cold.uniform_union_type.slot(id),
             LinkSlot::Resolved(value),
         );
     }
