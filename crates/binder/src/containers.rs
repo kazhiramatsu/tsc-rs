@@ -213,6 +213,35 @@ impl<'a> BinderWorker<'a> {
         }
     }
 
+    /// Each syntax member can add at most one table entry. Merged names,
+    /// accessors, index signatures and spreads can add fewer; later merged
+    /// declarations reserve only their own additional bound.
+    fn reserve_container_members(&mut self, node: NodeId) {
+        let (members, exports) = match &self.source.arena.node(node).data() {
+            NodeData::TypeLiteral(data) => (data.members, false),
+            NodeData::InterfaceDeclaration(data) => (data.members, false),
+            NodeData::ObjectLiteralExpression(data) => (data.properties, false),
+            NodeData::EnumDeclaration(data) => (data.members, true),
+            _ => return,
+        };
+        let count = members.map_or(0, |members| {
+            self.source.arena.node_array(members).nodes.len()
+        });
+        if count == 0 {
+            return;
+        }
+        let Some(&symbol) = self.node_symbol.get(&node) else {
+            return;
+        };
+        let symbol = self.symbols.symbol_mut(symbol);
+        let table = if exports {
+            symbol.exports_mut()
+        } else {
+            symbol.members_mut()
+        };
+        std::sync::Arc::make_mut(table).reserve(count);
+    }
+
     /// tsc-port: bindContainer @6.0.3
     /// tsc-hash: fef772b3e91e50f62414b2e5b26c7432798feb04e6372869308938583e7923b7
     /// tsc-span: _tsc.js:42734-42829
@@ -234,6 +263,7 @@ impl<'a> BinderWorker<'a> {
             }
             self.container = Some(node);
             self.block_scope_container = Some(node);
+            self.reserve_container_members(node);
             if container_flags.intersects(ContainerFlags::HAS_LOCALS) {
                 self.locals.insert(node, SymbolTable::default());
                 self.set_has_locals(node, true);
@@ -608,7 +638,7 @@ impl<'a> BinderWorker<'a> {
                 false,
                 false,
             );
-            self.symbols.symbol_mut(local).export_symbol = Some(exported);
+            self.symbols.symbol_mut(local).set_export_symbol(exported);
             self.node_local_symbol.insert(node, local);
             local
         } else {

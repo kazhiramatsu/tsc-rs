@@ -214,3 +214,38 @@ fn exhaustive_switch_query_may_open_candidate_trials_while_computing() {
                 export const n: number = g('');\n";
     assert_eq!(strict_rows(text), []);
 }
+
+#[test]
+fn antecedent_snapshot_survives_nested_reduce_label_overrides() {
+    use tsc_binder::flow::FlowId;
+    with_program_state(
+        &[("a.ts", "let value = 1;\n")],
+        &CompilerOptions::default(),
+        |state| {
+            let label = FlowId::new(0);
+            let original = state.flow_label_antecedents(0, label).to_vec();
+            for count in [0, 1, 4, 5, 9] {
+                let outer: Vec<FlowId> = (1..=count).map(FlowId::new).collect();
+                state
+                    .reduce_label_overrides
+                    .insert((0, label), outer.clone());
+                let snapshot = state.flow_label_antecedents(0, label);
+                let saved = state
+                    .reduce_label_overrides
+                    .insert((0, label), vec![FlowId::new(99)]);
+                assert_eq!(&*snapshot, outer.as_slice());
+                assert_eq!(&*state.flow_label_antecedents(0, label), &[FlowId::new(99)]);
+                state
+                    .reduce_label_overrides
+                    .insert((0, label), saved.unwrap());
+                assert_eq!(&*state.flow_label_antecedents(0, label), outer.as_slice());
+                state.reduce_label_overrides.remove(&(0, label));
+                assert_eq!(&*snapshot, outer.as_slice());
+                assert_eq!(
+                    &*state.flow_label_antecedents(0, label),
+                    original.as_slice()
+                );
+            }
+        },
+    );
+}

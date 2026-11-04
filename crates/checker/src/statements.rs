@@ -1511,7 +1511,8 @@ impl<'a> CheckerState<'a> {
                 tsc_types::known_name!("WeakSet"),
             ))
         {
-            self.potential_weak_map_set_collisions.push(node);
+            self.deferred_diagnostics
+                .push(crate::state::DeferredDiagnostic::WeakMapSetCollision(node));
         }
     }
 
@@ -1561,7 +1562,8 @@ impl<'a> CheckerState<'a> {
                 tsc_types::known_name!("Reflect"),
             )
         {
-            self.potential_reflect_collisions.push(node);
+            self.deferred_diagnostics
+                .push(crate::state::DeferredDiagnostic::ReflectCollision(node));
         }
     }
 

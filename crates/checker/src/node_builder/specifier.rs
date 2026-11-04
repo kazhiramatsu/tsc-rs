@@ -3762,15 +3762,14 @@ fn byte_path_slice<'p>(
 /// tsc-hash: d53c3e92f0b97072b15fe2ed30c413ab7f33522619f88528f818eef207535163
 /// tsc-span: _tsc.js:5452-5454
 pub(crate) fn normalized_slashes<'p>(path: impl Into<JsStr<'p>>) -> JsString {
-    let path = path.into();
+    let mut path = path.into();
     let mut result = JsString::with_capacity(path.as_bytes().len());
-    for unit in path.code_units() {
-        result.push_code_unit(if unit == b'\\' as u16 {
-            b'/' as u16
-        } else {
-            unit
-        });
+    while let Some((span, rest)) = path.split_once("\\") {
+        result.push_js(span);
+        result.push('/');
+        path = rest;
     }
+    result.push_js(path);
     result
 }
 
@@ -4467,15 +4466,17 @@ pub(super) fn module_name_literals(
     let mut static_imports = Vec::<NodeId>::new();
     let mut dynamic_imports = Vec::<NodeId>::new();
     let mut augmentations = Vec::<NodeId>::new();
+    // The arena also holds the nodes a parse discarded (a failed
+    // speculation, a statement parsed again once the file turned out to have
+    // a top-level `await`). They are in no tree and the program collected no
+    // module name from them.
+    let reachable = source.arena.reachable_mask(source.root);
+    let base = source.arena.node_base();
     for node in source.arena.node_ids() {
-        let record = Published.node(node);
-        // The arena also holds the nodes a reparse discarded (a statement
-        // parsed again once the file turned out to have a top-level
-        // `await`). They are in no tree and the program collected no module
-        // name from them.
-        if record.parent.is_none() {
+        if !reachable[(node.index() - base) as usize] {
             continue;
         }
+        let record = Published.node(node);
         match record.data() {
             NodeData::ImportDeclaration(data) => {
                 if let Some(literal) = string_literal_like(state, data.module_specifier)

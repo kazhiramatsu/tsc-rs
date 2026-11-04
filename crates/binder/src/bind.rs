@@ -1021,7 +1021,7 @@ impl<'a> BinderWorker<'a> {
         // An exported function's local symbol declares the overloads too
         // (tsgo binds each reparsed overload like the host: the local and
         // the export symbol), which completions in the module read.
-        let export_symbol = self.symbols.symbol(symbol).export_symbol;
+        let export_symbol = self.symbols.symbol(symbol).export_symbol();
         let local_symbol = self
             .node_local_symbol
             .get(&node)
@@ -1355,7 +1355,7 @@ impl<'a> BinderWorker<'a> {
             .get(&container)
             .and_then(|locals| locals.get(name))
         {
-            return Some(self.symbols.symbol(local).export_symbol.unwrap_or(local));
+            return Some(self.symbols.symbol(local).export_symbol().unwrap_or(local));
         }
         let container_symbol = self.node_symbol.get(&container).copied()?;
         self.symbols

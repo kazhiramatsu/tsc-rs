@@ -1680,3 +1680,51 @@ fn common_js_esmodule_marker_resolver_reads_the_exact_binder_fact() {
         );
     });
 }
+
+#[test]
+fn global_diagnostics_produces_pending_reports_from_expression_queries() {
+    let options = CompilerOptions::default();
+    let domain = IdentityDomain::new();
+    let source = Arc::new(
+        tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+            "a.ts".to_owned(),
+            TextSnapshot::new(
+                "declare const value: {}; value.missing;".to_owned(),
+                DocumentVersion::new("1"),
+            ),
+            ParseOptions::default(),
+            None,
+            &domain,
+        )
+        .unwrap(),
+    );
+    let worker = BinderWorker::bind_in_identity_domain(&source, &domain).unwrap();
+    let access = source
+        .arena
+        .node_ids()
+        .find(|&n| source.arena.node(n).kind == SyntaxKind::PropertyAccessExpression)
+        .unwrap();
+    let snapshot = ProgramSnapshot::new(
+        vec![Arc::new(BoundDocument::new(
+            Arc::new(ParsedDocument::new(Arc::clone(&source))),
+            worker.into_bind_data(),
+        ))],
+        0,
+    )
+    .unwrap();
+    let session = CheckerSession::from_snapshot(&snapshot, &options);
+    {
+        let mut state = session.lock_state();
+        state
+            .check_expression(access, tsc_types::CheckMode::NORMAL)
+            .unwrap();
+        assert_eq!(state.deferred_diagnostics.len(), 1);
+        assert!(!state.diagnostics.iter().any(|d| d.code() == 2339));
+    }
+    let globals = session.get_global_diagnostics();
+    assert!(session.lock_state().deferred_diagnostics.is_empty());
+    let rows = session.lock_state().diagnostics.to_vec();
+    assert!(rows.iter().any(|d| d.code() == 2339));
+    assert_eq!(session.get_global_diagnostics(), globals);
+    assert_eq!(&*session.lock_state().diagnostics, &rows);
+}
