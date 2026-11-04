@@ -308,7 +308,7 @@ impl<'t> DeclarationSymbolTracker<'t> {
                 .source_file(parse.source())
                 .and_then(|file| file.syntax())
             {
-                if let NodeData::SetAccessor(setter) = source.arena.node(parse.node()).data() {
+                if let Some(setter) = source.arena.node(parse.node()).as_set_accessor() {
                     if let Some(parameter) = setter
                         .parameters
                         .and_then(|parameters| source.arena.node_array(parameters).nodes.first())
@@ -909,7 +909,7 @@ fn with_anchor<R>(
 
 pub(crate) fn text_of_node(source: &SourceFile, node: NodeId) -> tsc_types::JsString {
     let node = source.arena.node(node);
-    if let NodeData::Identifier(identifier) = node.data() {
+    if let Some(identifier) = node.as_identifier() {
         return identifier.text().to_owned().into();
     }
     let start = tsc_syntax::skip_trivia(source.text(), node.pos as usize);
@@ -931,7 +931,7 @@ fn declaration_name_to_string(
         name_of_declaration(source, node)
     };
     let Some(name) = name else {
-        if let NodeData::ExportAssignment(export) = source.arena.node(node).data() {
+        if let Some(export) = source.arena.node(node).as_export_assignment() {
             return if export.is_export_equals == Some(true) {
                 "export=".into()
             } else {

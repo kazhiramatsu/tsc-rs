@@ -716,7 +716,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
         checker: &mut CheckerState<'_>,
         default_export: NodeId,
     ) -> Description {
-        let NodeData::ExportAssignment(data) = self.data(default_export).clone() else {
+        let NodeData::ExportAssignment(data) = self.data(default_export) else {
             return Ok(None);
         };
         if data.is_export_equals == Some(true) {
@@ -775,9 +775,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
         else {
             return Ok(None);
         };
-        let NodeData::ExpressionWithTypeArguments(heritage) =
-            self.data(heritage_expression).clone()
-        else {
+        let NodeData::ExpressionWithTypeArguments(heritage) = self.data(heritage_expression) else {
             return Ok(None);
         };
         let expression = heritage
@@ -846,8 +844,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
         else {
             return Ok(None);
         };
-        let NodeData::VariableDeclaration(variable) =
-            self.data(enclosing_variable_declaration).clone()
+        let NodeData::VariableDeclaration(variable) = self.data(enclosing_variable_declaration)
         else {
             return Ok(None);
         };
@@ -887,15 +884,13 @@ impl<'f, 'a> Fixer<'f, 'a> {
             return Ok(None);
         }
         // If the enclosing variable statement has multiple declarations, preserve the non-destructuring ones
-        let NodeData::VariableStatement(statement) =
-            self.data(enclosing_variable_statement).clone()
-        else {
+        let NodeData::VariableStatement(statement) = self.data(enclosing_variable_statement) else {
             return Ok(None);
         };
         let declaration_list = statement
             .declaration_list
             .ok_or("a variable statement's list")?;
-        let NodeData::VariableDeclarationList(list) = self.data(declaration_list).clone() else {
+        let NodeData::VariableDeclarationList(list) = self.data(declaration_list) else {
             return Ok(None);
         };
         let declarations = list
@@ -968,7 +963,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
             if self.kind(element) == SyntaxKind::OmittedExpression {
                 continue;
             }
-            let NodeData::BindingElement(binding) = self.data(element).clone() else {
+            let NodeData::BindingElement(binding) = self.data(element) else {
                 continue;
             };
             let Some(name) = binding.name else {
@@ -982,8 +977,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
                         if self.kind(property_name) == SyntaxKind::ComputedPropertyName =>
                     {
                         // Handle computed property names: create a temp variable for the computed expression
-                        let NodeData::ComputedPropertyName(computed) =
-                            self.data(property_name).clone()
+                        let NodeData::ComputedPropertyName(computed) = self.data(property_name)
                         else {
                             continue;
                         };
@@ -1561,7 +1555,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
     /// tsgo `relativeType`: `typeof X` for an entity name, a literal with
     /// spreads split into variables, the union of a conditional's branches.
     fn relative_type(&mut self, node: NodeId) -> FixResult<Option<TransformNode>> {
-        match self.data(node).clone() {
+        match self.data(node) {
             NodeData::Parameter(_) => Ok(None),
             NodeData::ShorthandPropertyAssignment(data) => {
                 let name = self.existing(data.name.ok_or("a shorthand property's name")?)?;
@@ -1661,7 +1655,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
             .map_err(transform_error)?
             .data()
         {
-            NodeData::TypeReference(data) => Some(data.clone()),
+            NodeData::TypeReference(data) => Some(*data),
             _ => None,
         };
         if let Some(reference) = type_reference.filter(|_| {
@@ -1802,7 +1796,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
             .unwrap_or_default();
         // Walk the source file's import declarations to find the one importing from the same module
         for statement in statements {
-            let NodeData::ImportDeclaration(import) = self.data(statement).clone() else {
+            let NodeData::ImportDeclaration(import) = self.data(statement) else {
                 continue;
             };
             let Some(import_clause) = import.import_clause else {
@@ -1822,7 +1816,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
                 continue;
             }
             // Found the matching import - add the symbol to named imports
-            let NodeData::ImportClause(clause) = self.data(import_clause).clone() else {
+            let NodeData::ImportClause(clause) = self.data(import_clause) else {
                 return Ok(());
             };
             if let Some(named_bindings) = clause
@@ -1830,8 +1824,7 @@ impl<'f, 'a> Fixer<'f, 'a> {
                 .filter(|&bindings| self.kind(bindings) == SyntaxKind::NamedImports)
             {
                 // Add to existing named imports
-                let NodeData::NamedImports(named_imports) = self.data(named_bindings).clone()
-                else {
+                let NodeData::NamedImports(named_imports) = self.data(named_bindings) else {
                     return Ok(());
                 };
                 let mut elements = named_imports
@@ -1936,7 +1929,8 @@ impl<'f, 'a> Fixer<'f, 'a> {
         self.file.arena.node(node).kind
     }
 
-    fn data(&self, node: NodeId) -> &'a NodeData {
+    #[inline(always)]
+    fn data(&self, node: NodeId) -> NodeData {
         self.file.arena.node(node).data()
     }
 
@@ -2219,7 +2213,7 @@ fn find_expando_function(
     };
     let mut assignment_target = expando_declaration;
     // Some late bound expando members use the whole expression as the declaration.
-    if let NodeData::BinaryExpression(binary) = file.arena.node(assignment_target).data() {
+    if let Some(binary) = file.arena.node(assignment_target).as_binary_expression() {
         let Some(left) = binary
             .left
             .filter(|&left| is_expando_property_declaration_for_fix(file.arena.node(left).kind))
@@ -2476,7 +2470,7 @@ fn walk_up_parenthesized_expressions(file: &SourceFile, mut node: NodeId) -> Nod
 /// tsgo `getIdentifierNameForNode`: a property access's name, else
 /// `newLocal`.
 fn get_identifier_name_for_node(file: &SourceFile, node: NodeId) -> String {
-    if let NodeData::PropertyAccessExpression(data) = file.arena.node(node).data() {
+    if let Some(data) = file.arena.node(node).as_property_access_expression() {
         if let Some(NodeData::Identifier(name)) = data.name.map(|name| file.arena.node(name).data())
         {
             if tsc_syntax::identifier_to_keyword_kind(name.text()).is_none() {

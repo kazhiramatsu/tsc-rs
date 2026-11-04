@@ -110,7 +110,8 @@ impl<'a> Outlining<'a> {
         self.source.arena.node(node).kind
     }
 
-    fn data(&self, node: NodeId) -> &'a NodeData {
+    #[inline(always)]
+    fn data(&self, node: NodeId) -> NodeData {
         self.source.arena.node(node).data()
     }
 
@@ -251,7 +252,7 @@ impl<'a> Outlining<'a> {
         {
             return false;
         }
-        let Some(js_doc) = self.source.arena.node(statement).js_doc else {
+        let Some(js_doc) = self.source.arena.node(statement).js_doc() else {
             return false;
         };
         self.source

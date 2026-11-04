@@ -736,7 +736,7 @@ pub fn node_data_type(kind: u32) -> u32 {
 
 /// The child properties tsgo's encoder visits on `node`, in visitor order
 /// (`getChildrenPropertyMask`'s bits); a node with none calls nothing.
-pub fn for_each_property<'a>(node: &'a Node, mut f: impl FnMut(Property<'a>)) {
+pub fn for_each_property(node: &Node, mut f: impl FnMut(Property)) {
     match node.data() {
         NodeData::QualifiedName(d) => {
             f(Property::Node(d.left));
@@ -1362,7 +1362,7 @@ pub fn for_each_property<'a>(node: &'a Node, mut f: impl FnMut(Property<'a>)) {
             f(Property::Node(d.r#type));
         }
         NodeData::JSDoc(d) => {
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
             f(Property::List(d.tags));
         }
         NodeData::JSDocTypeLiteral(d) => {
@@ -1384,113 +1384,113 @@ pub fn for_each_property<'a>(node: &'a Node, mut f: impl FnMut(Property<'a>)) {
         }
         NodeData::JSDocTag(d) => {
             f(Property::Node(d.tag_name));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocAugmentsTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.class));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocImplementsTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.class));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocDeprecatedTag(d) => {
             f(Property::Node(d.tag_name));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocPublicTag(d) => {
             f(Property::Node(d.tag_name));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocPrivateTag(d) => {
             f(Property::Node(d.tag_name));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocProtectedTag(d) => {
             f(Property::Node(d.tag_name));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocReadonlyTag(d) => {
             f(Property::Node(d.tag_name));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocOverrideTag(d) => {
             f(Property::Node(d.tag_name));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocCallbackTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.type_expression));
             f(Property::Node(d.full_name));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocOverloadTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.type_expression));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocParameterTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.name));
             f(Property::Node(d.type_expression));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocReturnTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.type_expression));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocThisTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.type_expression));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocTypeTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.type_expression));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocTemplateTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.constraint));
             f(Property::List(d.type_parameters));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocTypedefTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.type_expression));
             f(Property::Node(d.full_name));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocSeeTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.name));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocPropertyTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.name));
             f(Property::Node(d.type_expression));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocThrowsTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.type_expression));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocSatisfiesTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.type_expression));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::JSDocImportTag(d) => {
             f(Property::Node(d.tag_name));
             f(Property::Node(d.import_clause));
             f(Property::Node(d.module_specifier));
             f(Property::Node(d.attributes));
-            f(Property::Comment(&d.comment));
+            f(Property::Comment(d.comment));
         }
         NodeData::SyntaxList(_) => {
             f(Property::Node(None));

@@ -149,11 +149,11 @@ fn assign_positions_to_node(
     let mut modifiers = Vec::new();
     for &(old, new) in &copy.nodes {
         let key = PositionKey::Node(TransformNode::new(node.source(), old));
+        copy.arena.replace_js_doc(new, None);
         let record = copy.arena.node_mut(new);
         record.pos = positions.pos(key) as u32;
         record.end = positions.end(key) as u32;
-        record.js_doc = None;
-        modifiers.extend(node_util::modifiers_of_data(record.data()));
+        modifiers.extend(node_util::modifiers_of_data(&record.data()));
     }
     for &(old, new) in &copy.arrays {
         let (pos, end) = if modifiers.contains(&new) {

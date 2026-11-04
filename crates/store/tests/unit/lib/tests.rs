@@ -241,3 +241,35 @@ fn texts_read_back_from_their_words_and_the_store() {
     assert_eq!(text_in(&words, start), surrogate);
     assert_eq!(text_str_in(&words, start), None);
 }
+
+#[test]
+fn tails_read_back_by_position_and_return_their_chunks() {
+    let mut tails = tails::Tails::new();
+    let first = tails.push(&[1, 2, 3]);
+    let second = tails.push(&[4, 5]);
+    assert_ne!(first, 0);
+    assert_eq!(second, first + 3);
+    assert_eq!(tails::tail(first, 3), &[1, 2, 3]);
+    assert_eq!(tails::tail(second, 2), &[4, 5]);
+    tails.rewrite(second, &[6, 7]);
+    assert_eq!(tails::tail(second, 2), &[6, 7]);
+    // A chunk fills up and the next one doubles.
+    let words = tails.chunk_words();
+    for value in 0..words as u32 {
+        tails.push(&[value]);
+    }
+    assert!(tails.chunk_words() >= 3 * words);
+    // Dropping the owner gives its chunks back (zeroed; another test may
+    // take them at once, so this test does not read them again).
+    drop(tails);
+}
+
+#[test]
+#[should_panic(expected = "does not own")]
+fn a_tail_is_rewritten_only_by_its_owner() {
+    let mut owner = tails::Tails::new();
+    let position = owner.push(&[1]);
+    let mut other = tails::Tails::new();
+    other.push(&[2]);
+    other.rewrite(position, &[3]);
+}

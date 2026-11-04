@@ -1100,7 +1100,7 @@ impl<'a> Request<'_, 'a> {
 
     /// tsgo `ast.IsAssignmentExpression(node, false)`.
     fn is_assignment_expression(&self, node: NodeId) -> bool {
-        let NodeData::BinaryExpression(binary) = self.state.binder.node_record(node).data() else {
+        let Some(binary) = self.state.binder.node_record(node).as_binary_expression() else {
             return false;
         };
         let (Some(operator), Some(left)) = (binary.operator_token, binary.left) else {
@@ -1218,7 +1218,7 @@ pub(crate) fn context_node(source: &SourceFile, node: NodeId) -> Option<NodeId> 
     match record.kind {
         SyntaxKind::VariableDeclaration => {
             let parent = parent?;
-            let NodeData::VariableDeclarationList(list) = source.arena.node(parent).data() else {
+            let Some(list) = source.arena.node(parent).as_variable_declaration_list() else {
                 return Some(node);
             };
             let count = list

@@ -322,7 +322,7 @@ fn emit_helper_name_distinguishes_user_calls_and_survives_factory_updates() {
         .is_call_to_emit_helper(parsed_call, EmitHelperName::RunInitializers)
         .expect("classify parsed same-spelling user call"));
 
-    let helper_data = arena.node(helper).expect("helper node").data().clone();
+    let helper_data = arena.node(helper).expect("helper node").data();
     let (cloned_call, updated_call) = {
         let mut factory = NodeFactory::new(&mut arena);
         let cloned = factory.clone_node(helper).expect("clone helper identifier");
@@ -363,16 +363,14 @@ fn factory_private_expression_flags_distinguish_declarations_property_access_and
         let declaration = factory
             .create_node(
                 source,
-                NodeData::PropertyDeclaration(Box::new(
-                    tsc_syntax::nodes::PropertyDeclarationData {
-                        name: Some(private_name.node()),
-                        modifiers: None,
-                        question_token: None,
-                        exclamation_token: None,
-                        r#type: None,
-                        initializer: None,
-                    },
-                )),
+                NodeData::PropertyDeclaration(tsc_syntax::nodes::PropertyDeclarationData {
+                    name: Some(private_name.node()),
+                    modifiers: None,
+                    question_token: None,
+                    exclamation_token: None,
+                    r#type: None,
+                    initializer: None,
+                }),
                 TransformFlags::NONE,
             )
             .expect("create private declaration");

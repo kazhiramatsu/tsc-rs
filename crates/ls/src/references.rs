@@ -64,7 +64,7 @@ fn for_each_reparsed_import_tag(file: &SourceFile, node: NodeId, found: &mut dyn
             for_each_reparsed_import_tag(file, child, found);
         }
     }
-    for tag in jsdoc_tags(file, record.js_doc) {
+    for tag in jsdoc_tags(file, record.js_doc()) {
         if file.arena.node(tag).kind == SyntaxKind::JSDocImportTag {
             found(tag);
         }
@@ -78,7 +78,7 @@ fn jsdoc_tags(file: &SourceFile, js_doc: Option<NodeArrayId>) -> Vec<NodeId> {
         .map(|list| file.arena.node_array(list).nodes)
         .unwrap_or_default()
     {
-        if let NodeData::JSDoc(data) = file.arena.node(comment).data() {
+        if let Some(data) = file.arena.node(comment).as_js_doc() {
             tags.extend(
                 data.tags
                     .map(|list| file.arena.node_array(list).nodes)
@@ -91,18 +91,18 @@ fn jsdoc_tags(file: &SourceFile, js_doc: Option<NodeArrayId>) -> Vec<NodeId> {
 
 /// The tags of the comments before the end of the file.
 fn end_of_file_tags(file: &SourceFile) -> Vec<NodeId> {
-    let NodeData::SourceFile(data) = file.arena.node(file.root).data() else {
+    let Some(data) = file.arena.node(file.root).as_source_file() else {
         return Vec::new();
     };
     data.end_of_file_token
-        .map(|token| jsdoc_tags(file, file.arena.node(token).js_doc))
+        .map(|token| jsdoc_tags(file, file.arena.node(token).js_doc()))
         .unwrap_or_default()
 }
 
 /// tsgo `collectModuleReferences` of a reparsed `@import` declaration: its
 /// module specifier, when the tag imports something.
 fn collect_import_tag_reference(file: &SourceFile, tag: NodeId, references: &mut ModuleReferences) {
-    let NodeData::JSDocImportTag(data) = file.arena.node(tag).data() else {
+    let Some(data) = file.arena.node(tag).as_js_doc_import_tag() else {
         return;
     };
     if data.import_clause.is_none() {
@@ -171,7 +171,7 @@ fn collect_module_references(
         }
         return;
     }
-    let NodeData::ModuleDeclaration(declaration) = node.data() else {
+    let Some(declaration) = node.as_module_declaration() else {
         return;
     };
     let flags = NodeFlags::from_bits(node.flags);
@@ -259,7 +259,7 @@ fn for_each_dynamic_import_or_require_call(file: &SourceFile, mut found: impl Fn
             NodeData::ImportType(import) => {
                 // ast.IsLiteralImportTypeNode.
                 if let Some(argument) = import.argument {
-                    if let NodeData::LiteralType(literal) = file.arena.node(argument).data() {
+                    if let Some(literal) = file.arena.node(argument).as_literal_type() {
                         if let Some(literal) = literal.literal {
                             if file.arena.node(literal).kind == SyntaxKind::StringLiteral {
                                 found(literal);
@@ -309,7 +309,7 @@ fn node_at_position(file: &SourceFile, position: u32, include_js_doc: bool) -> N
         let node = file.arena.node(current);
         let mut child = None;
         if include_js_doc {
-            if let Some(js_doc) = node.js_doc {
+            if let Some(js_doc) = node.js_doc() {
                 child = file
                     .arena
                     .node_array(js_doc)
@@ -341,7 +341,7 @@ fn node_at_position(file: &SourceFile, position: u32, include_js_doc: bool) -> N
                 | Property::Slice(list)
                 | Property::HeritageTypes(list) => elements(list, &mut visit),
                 Property::Comment(Some(JSDocComment::Nodes(nodes))) => {
-                    elements(Some(*nodes), &mut visit)
+                    elements(Some(nodes), &mut visit)
                 }
                 _ => {}
             });

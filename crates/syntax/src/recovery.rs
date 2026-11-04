@@ -658,7 +658,7 @@ impl ParseRecovery {
                     if let NodeData::VariableDeclarationList(data) = &node.data() {
                         data.declarations
                     } else {
-                        Self::statement_array(node.data())
+                        Self::statement_array(&node.data())
                     }
                 });
                 let Some(array) = array else {
@@ -974,7 +974,7 @@ impl ParseRecovery {
             let Some(owner) = parents[&statement] else {
                 continue;
             };
-            let Some(statements) = Self::statement_array(source.arena.node(owner).data()) else {
+            let Some(statements) = Self::statement_array(&source.arena.node(owner).data()) else {
                 continue;
             };
             let statements = &source.arena.node_array(statements).nodes;

@@ -378,8 +378,7 @@ impl Transformer for SharedClassMemberArrayTransformer {
     ) -> Result<TransformRoot, TransformError> {
         let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
-        let NodeData::SourceFile(mut root_data) = context.arena().node(root_node)?.data().clone()
-        else {
+        let NodeData::SourceFile(mut root_data) = context.arena().node(root_node)?.data() else {
             unreachable!("source-file transform root owns SourceFileData")
         };
         let statement_array = root_data
@@ -402,8 +401,7 @@ impl Transformer for SharedClassMemberArrayTransformer {
             NodeData::ClassDeclaration(data) => data.members.expect("first class members"),
             _ => panic!("first statement must be a class declaration"),
         };
-        let NodeData::ClassDeclaration(mut second_data) =
-            context.arena().node(second)?.data().clone()
+        let NodeData::ClassDeclaration(mut second_data) = context.arena().node(second)?.data()
         else {
             panic!("second statement must be a class declaration")
         };
@@ -687,14 +685,14 @@ impl Transformer for SyntheticArrowTokenOriginalTransformer {
         )?;
         let arrow = context.factory()?.create_node(
             source,
-            NodeData::ArrowFunction(Box::new(ArrowFunctionData {
+            NodeData::ArrowFunction(ArrowFunctionData {
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
                 equals_greater_than_token: Some(arrow_token.node()),
-            })),
+            }),
             TransformFlags::NONE,
         )?;
         let statement = context.factory()?.create_node(

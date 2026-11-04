@@ -44,7 +44,7 @@ fn reference_walk(
     let node = arena
         .node_ref(source, id)
         .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, id)))?;
-    let record = arena.node(node)?.clone();
+    let record = *arena.node(node)?;
     let syntax = arena.source(source)?.syntax();
     let mut children = Vec::new();
     for_each_child(&syntax.arena, &record, |child| {
@@ -284,13 +284,12 @@ fn explicit_walk_matches_the_reference_with_shared_children_and_a_back_edge() {
             none,
         );
         let outer_array = syntax.alloc_array(&[shared, shared, inner], 0, 0, false);
-        syntax
-            .node_mut(parent)
-            .set_data(NodeData::ArrayLiteralExpression(
-                ArrayLiteralExpressionData {
-                    elements: Some(outer_array),
-                },
-            ));
+        syntax.set_data(
+            parent,
+            NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
+                elements: Some(outer_array),
+            }),
+        );
         (parent, inner, shared, leaf, outer_array, inner_array)
     };
     let mut explicit = TransformArena::new();

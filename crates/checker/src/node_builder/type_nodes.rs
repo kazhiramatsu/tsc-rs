@@ -1635,14 +1635,10 @@ fn type_to_type_node_worker(
                 let literal = create_node(
                     arena,
                     target,
-                    NodeData::StringLiteral(Box::new(StringLiteralData { text })),
+                    NodeData::StringLiteral(StringLiteralData { text }),
                 )?;
                 let literal = create_literal_type_node(arena, target, literal)?;
-                let parent_data = arena
-                    .node(parent_name)
-                    .map_err(factory_error)?
-                    .data()
-                    .clone();
+                let parent_data = arena.node(parent_name).map_err(factory_error)?.data();
                 let object = match parent_data {
                     NodeData::TypeReference(data) => create_node(
                         arena,
@@ -1722,7 +1718,7 @@ fn type_to_type_node_worker(
         let literal = create_node(
             arena,
             target,
-            NodeData::NumericLiteral(Box::new(NumericLiteralData { text })),
+            NodeData::NumericLiteral(NumericLiteralData { text }),
         )?;
         let literal = if value < 0.0 {
             create_node(
@@ -1750,7 +1746,7 @@ fn type_to_type_node_worker(
         let literal = create_node(
             arena,
             target,
-            NodeData::BigIntLiteral(Box::new(BigIntLiteralData { text })),
+            NodeData::BigIntLiteral(BigIntLiteralData { text }),
         )?;
         return create_literal_type_node(arena, target, literal).map(Some);
     }
@@ -2278,9 +2274,7 @@ fn resolver_node(checker: &CheckerState<'_>, context: &NodeBuilderContext<'_>) -
 }
 
 fn identifier_text(arena: &TransformArena, node: TransformNode) -> Option<&str> {
-    let NodeData::Identifier(data) = arena.node(node).ok()?.data() else {
-        return None;
-    };
+    let data = arena.node(node).ok()?.as_identifier()?;
     Some(data.text())
 }
 
@@ -2375,8 +2369,7 @@ fn conditional_type_to_type_node(
         let Some(extends) = extends? else {
             return Ok(None);
         };
-        let NodeData::ConditionalType(root_node) = checker.data_of(NodeId::new(root.node)).clone()
-        else {
+        let NodeData::ConditionalType(root_node) = checker.data_of(NodeId::new(root.node)) else {
             context.encountered_error = true;
             return Ok(None);
         };
@@ -2565,7 +2558,7 @@ fn create_mapped_type_node_from_type(
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<TransformNode> {
     let declaration = checker.mapped_type_declaration(r#type);
-    let NodeData::MappedType(declaration_data) = checker.data_of(declaration).clone() else {
+    let NodeData::MappedType(declaration_data) = checker.data_of(declaration) else {
         unreachable!("mapped type declaration has MappedType data")
     };
     let readonly_token = match declaration_data.readonly_token {
@@ -2725,14 +2718,14 @@ fn create_mapped_type_node_from_type(
     let node = create_node(
         arena,
         target,
-        NodeData::MappedType(Box::new(MappedTypeData {
+        NodeData::MappedType(MappedTypeData {
             readonly_token: readonly_token.map(TransformNode::node),
             type_parameter: Some(parameter_node.node()),
             name_type: name_type.map(TransformNode::node),
             question_token: question_token.map(TransformNode::node),
             r#type: template.map(TransformNode::node),
             members: None,
-        })),
+        }),
     )?;
     add_approximate_length(context, 10);
     let result = set_single_line(arena, node);
@@ -3950,7 +3943,7 @@ fn append_reference_to_type(
         NodeData::TypeReference(data) => data.type_arguments,
         _ => None,
     };
-    let root_data = arena.node(root).map_err(factory_error)?.data().clone();
+    let root_data = arena.node(root).map_err(factory_error)?.data();
     let data = match root_data {
         // tsgo: an instantiated qualifier becomes an instantiation
         // expression, `f<string>.C`.
@@ -4051,7 +4044,11 @@ fn get_access_stack(
     arena: &TransformArena,
     reference: TransformNode,
 ) -> BuildResult<Vec<TransformNode>> {
-    let NodeData::TypeReference(data) = arena.node(reference).map_err(factory_error)?.data() else {
+    let Some(data) = arena
+        .node(reference)
+        .map_err(factory_error)?
+        .as_type_reference()
+    else {
         return Ok(Vec::new());
     };
     let mut state = data.type_name;
@@ -4963,7 +4960,7 @@ pub(super) fn js_doc_comment_text(
         Some(tsc_syntax::nodes::JSDocComment::Nodes(nodes)) => {
             let mut text = String::new();
             for node in checker.nodes_of(Some(*nodes)) {
-                let (kind, name, link_text) = match checker.data_of(node).clone() {
+                let (kind, name, link_text) = match checker.data_of(node) {
                     NodeData::JSDocText(data) => {
                         text.push_str(crate::annotate::published_text_utf8(data.text));
                         continue;

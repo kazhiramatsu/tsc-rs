@@ -582,19 +582,19 @@ pub(crate) fn signature_to_signature_declaration_helper(
             SyntaxKind::MethodSignature => create_node(
                 arena,
                 target,
-                NodeData::MethodSignature(Box::new(MethodSignatureData {
+                NodeData::MethodSignature(MethodSignatureData {
                     name,
                     type_parameters,
                     parameters,
                     r#type: return_id,
                     question_token,
                     modifiers,
-                })),
+                }),
             )?,
             SyntaxKind::MethodDeclaration => create_node(
                 arena,
                 target,
-                NodeData::MethodDeclaration(Box::new(MethodDeclarationData {
+                NodeData::MethodDeclaration(MethodDeclarationData {
                     name,
                     type_parameters,
                     parameters,
@@ -604,43 +604,43 @@ pub(crate) fn signature_to_signature_declaration_helper(
                     exclamation_token: None,
                     body: None,
                     modifiers,
-                })),
+                }),
             )?,
             SyntaxKind::Constructor => create_node(
                 arena,
                 target,
-                NodeData::Constructor(Box::new(ConstructorData {
+                NodeData::Constructor(ConstructorData {
                     name: None,
                     type_parameters: None,
                     parameters,
                     r#type: None,
                     body: None,
                     modifiers,
-                })),
+                }),
             )?,
             SyntaxKind::GetAccessor => create_node(
                 arena,
                 target,
-                NodeData::GetAccessor(Box::new(GetAccessorData {
+                NodeData::GetAccessor(GetAccessorData {
                     name,
                     type_parameters: None,
                     parameters,
                     r#type: return_id,
                     body: None,
                     modifiers,
-                })),
+                }),
             )?,
             SyntaxKind::SetAccessor => create_node(
                 arena,
                 target,
-                NodeData::SetAccessor(Box::new(SetAccessorData {
+                NodeData::SetAccessor(SetAccessorData {
                     name,
                     type_parameters: None,
                     parameters,
                     r#type: None,
                     body: None,
                     modifiers,
-                })),
+                }),
             )?,
             SyntaxKind::IndexSignature => create_node(
                 arena,
@@ -713,7 +713,7 @@ pub(crate) fn signature_to_signature_declaration_helper(
             SyntaxKind::FunctionDeclaration => create_node(
                 arena,
                 target,
-                NodeData::FunctionDeclaration(Box::new(FunctionDeclarationData {
+                NodeData::FunctionDeclaration(FunctionDeclarationData {
                     name,
                     type_parameters,
                     parameters,
@@ -721,14 +721,14 @@ pub(crate) fn signature_to_signature_declaration_helper(
                     asterisk_token: None,
                     body: None,
                     modifiers,
-                })),
+                }),
             )?,
             SyntaxKind::FunctionExpression => {
                 let body = empty_block(arena, target)?;
                 create_node(
                     arena,
                     target,
-                    NodeData::FunctionExpression(Box::new(FunctionExpressionData {
+                    NodeData::FunctionExpression(FunctionExpressionData {
                         name,
                         type_parameters,
                         parameters,
@@ -736,7 +736,7 @@ pub(crate) fn signature_to_signature_declaration_helper(
                         asterisk_token: None,
                         body: Some(body.node()),
                         modifiers,
-                    })),
+                    }),
                 )?
             }
             SyntaxKind::ArrowFunction => {
@@ -744,14 +744,14 @@ pub(crate) fn signature_to_signature_declaration_helper(
                 create_node(
                     arena,
                     target,
-                    NodeData::ArrowFunction(Box::new(ArrowFunctionData {
+                    NodeData::ArrowFunction(ArrowFunctionData {
                         type_parameters,
                         parameters,
                         r#type: return_id,
                         body: Some(body.node()),
                         modifiers,
                         equals_greater_than_token: None,
-                    })),
+                    }),
                 )?
             }
             // tsgo writes no JSDoc function type (nodebuilderimpl.go:1950-1952).
@@ -1148,14 +1148,14 @@ fn try_get_this_parameter_declaration(
                     return create_node(
                         arena,
                         target,
-                        NodeData::Parameter(Box::new(ParameterData {
+                        NodeData::Parameter(ParameterData {
                             name: Some(name.node()),
                             modifiers: None,
                             dot_dot_dot_token: None,
                             question_token: None,
                             r#type: Some(type_node.node()),
                             initializer: None,
-                        })),
+                        }),
                     )
                     .map(Some);
                 }
@@ -1428,14 +1428,14 @@ pub(crate) fn symbol_to_parameter_declaration(
     let node = create_node(
         arena,
         target,
-        NodeData::Parameter(Box::new(ParameterData {
+        NodeData::Parameter(ParameterData {
             name: Some(name.node()),
             modifiers,
             dot_dot_dot_token: dot_dot_dot_token.map(TransformNode::node),
             question_token: question_token.map(TransformNode::node),
             r#type: type_node.map(TransformNode::node),
             initializer: None,
-        })),
+        }),
     )?;
     add_approximate_length(context, source_name_length(checker, parameter) + 3);
     Ok(node)
@@ -1649,12 +1649,7 @@ impl BindingNameVisitor<'_, '_, '_> {
     }
 
     fn visit(&mut self, original: TransformNode) -> BuildResult<TransformNode> {
-        let mut data = self
-            .arena
-            .node(original)
-            .map_err(factory_error)?
-            .data()
-            .clone();
+        let mut data = self.arena.node(original).map_err(factory_error)?.data();
         if self.context.tracker.can_track_symbol
             && matches!(data, NodeData::ComputedPropertyName(_))
         {
@@ -1681,12 +1676,8 @@ impl BindingNameVisitor<'_, '_, '_> {
             other => update_factory_node(self.arena, original, other)?,
         };
         // TypeScript visits the initializer before eliding it.
-        if let NodeData::BindingElement(mut binding) = self
-            .arena
-            .node(visited)
-            .map_err(factory_error)?
-            .data()
-            .clone()
+        if let NodeData::BindingElement(mut binding) =
+            self.arena.node(visited).map_err(factory_error)?.data()
         {
             binding.initializer = None;
             visited = update_factory_node(self.arena, visited, NodeData::BindingElement(binding))?;
@@ -1827,14 +1818,14 @@ pub(crate) fn index_info_to_index_signature_declaration_helper(
     let parameter = create_node(
         arena,
         target,
-        NodeData::Parameter(Box::new(ParameterData {
+        NodeData::Parameter(ParameterData {
             name: Some(name.node()),
             modifiers: None,
             dot_dot_dot_token: None,
             question_token: None,
             r#type: Some(indexer_type.node()),
             initializer: None,
-        })),
+        }),
     )?;
     let type_node = match type_node {
         Some(type_node) => type_node,

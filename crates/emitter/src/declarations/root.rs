@@ -1,7 +1,7 @@
 use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_program::SourceFileId;
-use tsc_syntax::{FileReference, NodeData, SourceFile, TypeReferenceDirective};
+use tsc_syntax::{FileReference, SourceFile, TypeReferenceDirective};
 
 use crate::{
     source_map::paths::get_relative_path_to_directory_or_url, EmitHost, TransformArena,
@@ -347,7 +347,7 @@ pub(super) fn source_statement_array(
     arena: &TransformArena,
     root: TransformNode,
 ) -> Result<Option<crate::TransformNodeArray>, TransformError> {
-    let NodeData::SourceFile(data) = arena.node(root)?.data() else {
+    let Some(data) = arena.node(root)?.as_source_file() else {
         return Err(TransformError::RootKindExpected {
             actual: arena.node(root)?.kind,
         });

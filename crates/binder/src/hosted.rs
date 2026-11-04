@@ -79,7 +79,7 @@ pub fn typedef_type_parameter_range(source: &SourceFile, tag: NodeId) -> Option<
     let mut range: Option<(u32, u32)> = None;
     for &candidate in source.arena.node_array(document.tags?).nodes {
         let node = source.arena.node(candidate);
-        if matches!(node.data(), NodeData::JSDocTemplateTag(_)) {
+        if node.kind == SyntaxKind::JSDocTemplateTag {
             range = Some((range.map_or(node.pos, |(pos, _)| pos), node.end));
         }
     }
@@ -175,7 +175,7 @@ fn compute(source: &SourceFile) -> JsDocHosted {
             .arena
             .nodes()
             .iter()
-            .any(|node| node.js_doc.is_some())
+            .any(|node| node.js_doc().is_some())
     {
         return hosted;
     }
@@ -196,7 +196,7 @@ fn compute(source: &SourceFile) -> JsDocHosted {
             if is_object_literal {
                 object_literals -= 1;
             }
-            if source.arena.node(node).js_doc.is_some() {
+            if source.arena.node(node).js_doc().is_some() {
                 reparser.reparse_tags(node, object_literals > 0);
             }
             continue;
@@ -225,7 +225,8 @@ impl Reparser<'_, '_> {
         kind_of(self.source, node)
     }
 
-    fn data(&self, node: NodeId) -> &NodeData {
+    #[inline(always)]
+    fn data(&self, node: NodeId) -> NodeData {
         self.source.arena.node(node).data()
     }
 
@@ -235,7 +236,7 @@ impl Reparser<'_, '_> {
 
     /// reparseTags: the hosted tags come from the last JSDoc comment only.
     fn reparse_tags(&mut self, host: NodeId, in_object_literal: bool) {
-        let Some(js_doc) = self.source.arena.node(host).js_doc else {
+        let Some(js_doc) = self.source.arena.node(host).js_doc() else {
             return;
         };
         let Some(&last) = self.source.arena.node_array(js_doc).nodes.last() else {

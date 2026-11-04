@@ -117,7 +117,7 @@ impl<'a> CheckerState<'a> {
     /// recovery tree may instead omit one of the slots, so consumers
     /// choose the recovery result appropriate to their return type.
     fn binary_parts(&self, node: NodeId) -> Option<(NodeId, NodeId, NodeId)> {
-        let NodeData::BinaryExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_binary_expression() else {
             unreachable!("kind/data agree");
         };
         match (data.left, data.operator_token, data.right) {
@@ -2553,7 +2553,7 @@ impl<'a> CheckerState<'a> {
             return Ok(expr_type);
         }
         let mut operand = expression;
-        while let NodeData::ParenthesizedExpression(data) = self.data_of(operand) {
+        while let Some(data) = self.record_of(operand).as_parenthesized_expression() {
             match data.expression {
                 Some(inner) => operand = inner,
                 None => break,
@@ -3222,7 +3222,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let NodeData::ConditionalExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_conditional_expression() else {
             unreachable!("kind/data agree");
         };
         let (condition, when_true, when_false) =
@@ -3250,7 +3250,7 @@ impl<'a> CheckerState<'a> {
     /// through to the contextual arms instead of returning the fresh
     /// literal.
     pub(crate) fn check_template_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let NodeData::TemplateExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_template_expression() else {
             unreachable!("kind/data agree");
         };
         let Some(head) = data.head else {
@@ -3369,7 +3369,7 @@ impl<'a> CheckerState<'a> {
     /// The fresh-literal negation arms run FIRST (before the operator
     /// switch): -numeric, +numeric, -bigint — there is NO +bigint arm.
     pub(crate) fn check_prefix_unary_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let NodeData::PrefixUnaryExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_prefix_unary_expression() else {
             unreachable!("kind/data agree");
         };
         let operator = data.operator;
@@ -3486,7 +3486,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4dc8a03f4704bc2594e5fbf7558593fe7d3760e79b9523ea96c16038dad68e7b
     /// tsc-span: _tsc.js:79482-79500
     pub(crate) fn check_postfix_unary_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let NodeData::PostfixUnaryExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_postfix_unary_expression() else {
             unreachable!("kind/data agree");
         };
         let Some(operand) = data.operand else {
@@ -3832,7 +3832,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             SyntaxKind::ConditionalExpression => {
-                let NodeData::ConditionalExpression(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_conditional_expression() else {
                     unreachable!("kind/data agree");
                 };
                 let (when_true, when_false) = match (data.when_true, data.when_false) {
@@ -3968,7 +3968,7 @@ impl<'a> CheckerState<'a> {
         let node = self.skip_outer_expressions(node, OuterExpressionKinds::ALL);
         Ok(match self.kind_of(node) {
             SyntaxKind::NumericLiteral => {
-                let NodeData::NumericLiteral(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_numeric_literal() else {
                     unreachable!("kind/data agree");
                 };
                 if self.text_utf8(data.text) == "0" || self.text_utf8(data.text) == "1" {
@@ -4002,7 +4002,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             SyntaxKind::ConditionalExpression => {
-                let NodeData::ConditionalExpression(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_conditional_expression() else {
                     unreachable!("kind/data agree");
                 };
                 let (when_true, when_false) = match (data.when_true, data.when_false) {
@@ -4106,7 +4106,7 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(ty).intersects(TypeFlags::ENUM_LITERAL)
             && self.kind_of(location) == SyntaxKind::PropertyAccessExpression
         {
-            let NodeData::PropertyAccessExpression(data) = self.data_of(location) else {
+            let Some(data) = self.record_of(location).as_property_access_expression() else {
                 unreachable!("kind/data agree");
             };
             let receiver = data

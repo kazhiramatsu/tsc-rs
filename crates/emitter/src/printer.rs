@@ -3118,25 +3118,17 @@ impl Printer {
     ) -> Option<TransformNode> {
         let arena = transformation.arena();
         let source = statement.source();
-        let NodeData::ExpressionStatement(data) = arena.node(statement).ok()?.data() else {
-            return None;
-        };
+        let data = arena.node(statement).ok()?.as_expression_statement()?;
         let call = arena.node_ref(source, data.expression?)?;
-        let NodeData::CallExpression(data) = arena.node(call).ok()?.data() else {
-            return None;
-        };
+        let data = arena.node(call).ok()?.as_call_expression()?;
         let access = arena.node_ref(source, data.expression?)?;
         let arguments = arena
             .node_array(arena.node_array_ref(source, data.arguments?)?)
             .ok()?;
         let function = arena.node_ref(source, *arguments.nodes.last()?)?;
-        let NodeData::FunctionExpression(function) = arena.node(function).ok()?.data() else {
-            return None;
-        };
+        let function = arena.node(function).ok()?.as_function_expression()?;
         let body = arena.node_ref(source, function.body?)?;
-        let NodeData::PropertyAccessExpression(data) = arena.node(access).ok()?.data() else {
-            return None;
-        };
+        let data = arena.node(access).ok()?.as_property_access_expression()?;
         let expression = arena.node(arena.node_ref(source, data.expression?)?).ok()?;
         let name = arena.node(arena.node_ref(source, data.name?)?).ok()?;
         (matches!(expression.data(), NodeData::Identifier(data) if data.text() == "System")
@@ -3363,7 +3355,7 @@ impl Printer {
                 return Ok(());
             }
         }
-        let record = transformation.arena().node(node)?.clone();
+        let record = *transformation.arena().node(node)?;
         let changed = self.node_is_changed(transformation, node)?;
         let multi_line = record.multi_line() == Some(true);
         let declaration_source = transformation
@@ -3395,7 +3387,7 @@ impl Printer {
 
         let unterminated = record.is_unterminated() == Some(true);
         let decoded_parse_node = Self::is_decoded_parse_node(&record);
-        match record.data().clone() {
+        match record.data() {
             // Both statement and expression hints use this worker after the
             // ordinary comment/map phases. Upstream emits no token for this
             // recovery node, while preserving those surrounding observations.
@@ -4030,7 +4022,7 @@ impl Printer {
                             );
                             return Ok(());
                         }
-                        if let NodeData::NumericLiteral(numeric) = source_record.data() {
+                        if let Some(numeric) = source_record.as_numeric_literal() {
                             // getLiteralTextOfNode: a numeric text source
                             // contributes its cooked text
                             // (`textSourceNode.text`), quoted and escaped like
@@ -9669,7 +9661,7 @@ impl Printer {
         let Ok(record) = transformation.arena().node(statement) else {
             return false;
         };
-        let NodeData::ExpressionStatement(data) = record.data() else {
+        let Some(data) = record.as_expression_statement() else {
             return false;
         };
         data.expression
@@ -9679,7 +9671,7 @@ impl Printer {
                     .node_ref(statement.source(), expression)
             })
             .and_then(|expression| transformation.arena().node(expression).ok())
-            .is_some_and(|expression| matches!(expression.data(), NodeData::StringLiteral(_)))
+            .is_some_and(|expression| expression.kind == SyntaxKind::StringLiteral)
     }
 
     fn emit_helpers(
@@ -10801,7 +10793,7 @@ impl Printer {
         loop {
             let arena = transformation.arena();
             let record = arena.node(node)?;
-            let NodeData::ParenthesizedExpression(data) = record.data() else {
+            let Some(data) = record.as_parenthesized_expression() else {
                 return Ok(node);
             };
             if Self::own_original_range(transformation, node)?.is_some() {
@@ -13360,8 +13352,7 @@ impl Printer {
             .arena()
             .node_ref(parent.source(), type_parameter)
             .ok_or(PrinterError::UnknownStatement(type_parameter.index()))?;
-        let NodeData::TypeParameter(data) = transformation.arena().node(parameter)?.data().clone()
-        else {
+        let Some(data) = transformation.arena().node(parameter)?.as_type_parameter() else {
             return Err(PrinterError::UnsupportedTransformedSyntax {
                 node: parameter,
                 kind: transformation.arena().node(parameter)?.kind,
@@ -13590,8 +13581,7 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        let NodeData::ImportAttributes(data) =
-            transformation.arena().node(attributes_node)?.data().clone()
+        let NodeData::ImportAttributes(data) = transformation.arena().node(attributes_node)?.data()
         else {
             return Err(PrinterError::UnsupportedTransformedSyntax {
                 node: attributes_node,
@@ -13909,8 +13899,8 @@ impl Printer {
                 .arena()
                 .node_ref(node.source(), body_id)
                 .ok_or(PrinterError::UnknownStatement(body_id.index()))?;
-            let record = transformation.arena().node(body)?.clone();
-            let NodeData::ModuleDeclaration(nested) = record.data() else {
+            let record = *transformation.arena().node(body)?;
+            let Some(nested) = record.as_module_declaration() else {
                 writer.write_space(" ");
                 self.emit_node_id_with_context(
                     transformation,
@@ -15720,7 +15710,7 @@ impl Printer {
         expression: TransformNode,
     ) -> Result<bool, PrinterError> {
         let emitted = self.skip_partially_emitted_expressions(transformation, expression)?;
-        if let NodeData::CallExpression(data) = transformation.arena().node(emitted)?.data() {
+        if let Some(data) = transformation.arena().node(emitted)?.as_call_expression() {
             if let Some(callee) = data
                 .expression
                 .and_then(|callee| transformation.arena().node_ref(emitted.source(), callee))
@@ -15791,7 +15781,7 @@ impl Printer {
     ) -> Result<bool, PrinterError> {
         let expression = self.skip_partially_emitted_expressions(transformation, expression)?;
         let record = transformation.arena().node(expression)?;
-        if let NodeData::NumericLiteral(data) = record.data() {
+        if let Some(data) = record.as_numeric_literal() {
             if TokenFlags::from_bits(i32::from(record.numeric_literal_flags()))
                 .intersects(TokenFlags::WITH_SPECIFIER)
             {
@@ -16472,7 +16462,7 @@ impl Printer {
             return Ok(true);
         }
 
-        let NodeData::PartiallyEmittedExpression(data) = record.data() else {
+        let Some(data) = record.as_partially_emitted_expression() else {
             return Ok(false);
         };
         let Some(inner) = data

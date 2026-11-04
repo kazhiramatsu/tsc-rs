@@ -1878,7 +1878,6 @@ impl RefState<'_, '_, '_, '_> {
             .binder
             .node_record(export_specifier)
             .data()
-            .clone()
         else {
             return Ok(());
         };
@@ -2812,7 +2811,7 @@ fn is_second_argument_of_bindable_object_define_property_call(
     let Some(call) = request.state.binder.node_record(node).parent else {
         return false;
     };
-    let NodeData::CallExpression(data) = request.state.binder.node_record(call).data() else {
+    let Some(data) = request.state.binder.node_record(call).as_call_expression() else {
         return false;
     };
     let source = request.state.binder.source_of_node(call);
@@ -3339,9 +3338,11 @@ fn try_get_class_by_extending_identifier(
         return None;
     }
     let clause = request.state.binder.node_record(element).parent?;
-    let NodeData::HeritageClause(data) = request.state.binder.node_record(clause).data() else {
-        return None;
-    };
+    let data = request
+        .state
+        .binder
+        .node_record(clause)
+        .as_heritage_clause()?;
     let class = request.state.binder.node_record(clause).parent?;
     (is_class_like(request.node_kind(class)) && data.token != SyntaxKind::ImplementsKeyword)
         .then_some(class)

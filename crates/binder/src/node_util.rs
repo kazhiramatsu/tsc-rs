@@ -117,7 +117,7 @@ pub fn jsdoc_statement_host(tree: &impl NodeLookup, host: NodeId) -> NodeId {
 pub fn get_jsdoc_host(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
     let js_doc = get_jsdoc_root(tree, node)?;
     let host = parent_of(tree, js_doc)?;
-    let docs = tree.node(host).js_doc?;
+    let docs = tree.node(host).js_doc()?;
     (tree.node_array(docs).nodes.last().copied() == Some(js_doc)).then_some(host)
 }
 
@@ -342,7 +342,7 @@ fn visit_owned_jsdoc_tags(
         _ => None,
     };
     if initializer
-        .and_then(|initializer| tree.node(initializer).js_doc)
+        .and_then(|initializer| tree.node(initializer).js_doc())
         .is_some_and(|docs| visit_owned_jsdoc_tags_from_attachment(tree, host, docs, &mut visitor))
     {
         return;
@@ -350,7 +350,7 @@ fn visit_owned_jsdoc_tags(
 
     let mut location = Some(host);
     while let Some(node) = location {
-        if tree.node(node).js_doc.is_some_and(|docs| {
+        if tree.node(node).js_doc().is_some_and(|docs| {
             visit_owned_jsdoc_tags_from_attachment(tree, host, docs, &mut visitor)
         }) {
             return;
@@ -506,7 +506,28 @@ pub fn is_jsdoc_type_assertion(source: &SourceFile, node: NodeId) -> bool {
 /// tsrs-native: typed AST projection for tsc's direct declaration `type`
 /// property access.
 pub fn type_annotation_of(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    type_annotation_of_data(tree.node(node).data())
+    let node = tree.node(node);
+    match node.kind {
+        SyntaxKind::FunctionDeclaration
+        | SyntaxKind::FunctionExpression
+        | SyntaxKind::ArrowFunction
+        | SyntaxKind::MethodDeclaration
+        | SyntaxKind::GetAccessor
+        | SyntaxKind::SetAccessor
+        | SyntaxKind::CallSignature
+        | SyntaxKind::ConstructSignature
+        | SyntaxKind::MethodSignature
+        | SyntaxKind::FunctionType
+        | SyntaxKind::ConstructorType
+        | SyntaxKind::Constructor
+        | SyntaxKind::PropertyDeclaration
+        | SyntaxKind::PropertySignature
+        | SyntaxKind::Parameter
+        | SyntaxKind::VariableDeclaration
+        | SyntaxKind::IndexSignature
+        | SyntaxKind::TypeAssertionExpression => node.type_field(),
+        _ => None,
+    }
 }
 
 /// [`type_annotation_of`] of a node's data.
@@ -628,7 +649,7 @@ pub fn is_modifier_kind(kind: SyntaxKind) -> bool {
 /// that can carry one (canHaveModifiers proxy — exactly the generated
 /// Data structs with a modifiers field).
 pub fn modifiers_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeArrayId> {
-    modifiers_of_data(tree.node(id).data())
+    tree.node(id).modifiers_field()
 }
 
 /// [`modifiers_of`] of a node's data.
@@ -848,48 +869,16 @@ pub fn get_combined_syntactic_modifier_flags(tree: &impl NodeLookup, id: NodeId)
 /// tsc `declaration.name` dynamic access: the name field of any kind
 /// that has one (the getNonAssignedNameOfDeclaration default arm).
 pub fn name_field_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
-    match &tree.node(id).data() {
-        NodeData::BindingElement(data) => data.name,
-        NodeData::ClassDeclaration(data) => data.name,
-        NodeData::ClassExpression(data) => data.name,
-        NodeData::Constructor(data) => data.name,
-        NodeData::EnumDeclaration(data) => data.name,
-        NodeData::EnumMember(data) => data.name,
-        NodeData::ExportSpecifier(data) => data.name,
-        NodeData::FunctionDeclaration(data) => data.name,
-        NodeData::FunctionExpression(data) => data.name,
-        NodeData::GetAccessor(data) => data.name,
-        NodeData::ImportAttribute(data) => data.name,
-        NodeData::ImportClause(data) => data.name,
-        NodeData::ImportEqualsDeclaration(data) => data.name,
-        NodeData::ImportSpecifier(data) => data.name,
-        NodeData::InterfaceDeclaration(data) => data.name,
-        NodeData::JSDocCallbackTag(data) => data.name,
-        NodeData::JSDocFunctionType(data) => data.name,
-        NodeData::JSDocParameterTag(data) => data.name,
-        NodeData::JSDocPropertyTag(data) => data.name,
-        NodeData::JSDocTypedefTag(data) => data.name,
-        NodeData::JsxAttribute(data) => data.name,
-        NodeData::JsxNamespacedName(data) => data.name,
-        NodeData::MetaProperty(data) => data.name,
-        NodeData::MethodDeclaration(data) => data.name,
-        NodeData::MethodSignature(data) => data.name,
-        NodeData::ModuleDeclaration(data) => data.name,
-        NodeData::NamedTupleMember(data) => data.name,
-        NodeData::NamespaceExport(data) => data.name,
-        NodeData::NamespaceExportDeclaration(data) => data.name,
-        NodeData::NamespaceImport(data) => data.name,
-        NodeData::Parameter(data) => data.name,
-        NodeData::PropertyAccessExpression(data) => data.name,
-        NodeData::PropertyAssignment(data) => data.name,
-        NodeData::PropertyDeclaration(data) => data.name,
-        NodeData::PropertySignature(data) => data.name,
-        NodeData::SetAccessor(data) => data.name,
-        NodeData::ShorthandPropertyAssignment(data) => data.name,
-        NodeData::TypeAliasDeclaration(data) => data.name,
-        NodeData::TypeParameter(data) => data.name,
-        NodeData::VariableDeclaration(data) => data.name,
-        _ => None,
+    let node = tree.node(id);
+    match node.kind {
+        // The JSDoc link and name-reference kinds keep their `name` out of
+        // this projection.
+        SyntaxKind::JSDocLink
+        | SyntaxKind::JSDocLinkCode
+        | SyntaxKind::JSDocLinkPlain
+        | SyntaxKind::JSDocNameReference
+        | SyntaxKind::JSDocSeeTag => None,
+        _ => node.name_field(),
     }
 }
 
@@ -1861,18 +1850,7 @@ pub fn get_immediately_invoked_function_expression(
 /// tsc `node.body` dynamic access for the container kinds bindContainer
 /// inspects.
 pub fn body_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
-    match &tree.node(id).data() {
-        NodeData::FunctionDeclaration(data) => data.body,
-        NodeData::FunctionExpression(data) => data.body,
-        NodeData::ArrowFunction(data) => data.body,
-        NodeData::MethodDeclaration(data) => data.body,
-        NodeData::Constructor(data) => data.body,
-        NodeData::GetAccessor(data) => data.body,
-        NodeData::SetAccessor(data) => data.body,
-        NodeData::ClassStaticBlockDeclaration(data) => data.body,
-        NodeData::ModuleDeclaration(data) => data.body,
-        _ => None,
-    }
+    tree.node(id).body_field()
 }
 
 /// tsgo `ast.IsArrayLiteralOrObjectLiteralDestructuringPattern`: an array
@@ -1976,51 +1954,29 @@ pub fn get_container_node_at_or_above(
 
 /// tsgo `Node.Initializer()`.
 pub fn initializer_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
-    match &tree.node(id).data() {
-        NodeData::VariableDeclaration(data) => data.initializer,
-        NodeData::Parameter(data) => data.initializer,
-        NodeData::BindingElement(data) => data.initializer,
-        NodeData::PropertyDeclaration(data) => data.initializer,
-        NodeData::PropertySignature(data) => data.initializer,
-        NodeData::PropertyAssignment(data) => data.initializer,
-        NodeData::EnumMember(data) => data.initializer,
-        NodeData::ForStatement(data) => data.initializer,
-        NodeData::ForInStatement(data) => data.initializer,
-        NodeData::ForOfStatement(data) => data.initializer,
-        NodeData::JsxAttribute(data) => data.initializer,
-        _ => None,
-    }
+    tree.node(id).initializer_field()
 }
 
 /// tsgo `Node.Members()` of a class, interface or type literal.
 pub fn members_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeArrayId> {
-    match &tree.node(id).data() {
-        NodeData::ClassDeclaration(data) => data.members,
-        NodeData::ClassExpression(data) => data.members,
-        NodeData::InterfaceDeclaration(data) => data.members,
-        NodeData::TypeLiteral(data) => data.members,
-        _ => None,
+    let node = tree.node(id);
+    match node.kind {
+        SyntaxKind::EnumDeclaration | SyntaxKind::MappedType => None,
+        _ => node.members_field(),
     }
 }
 
 /// tsc `node.asteriskToken` access (bindContainer's IIFE test).
 pub fn asterisk_token_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
-    match &tree.node(id).data() {
-        NodeData::FunctionDeclaration(data) => data.asterisk_token,
-        NodeData::FunctionExpression(data) => data.asterisk_token,
-        NodeData::MethodDeclaration(data) => data.asterisk_token,
-        NodeData::YieldExpression(data) => data.asterisk_token,
-        _ => None,
-    }
+    tree.node(id).asterisk_token_field()
 }
 
 /// tsc `.statements` of SourceFile/Block/ModuleBlock.
 pub fn statements_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeArrayId> {
-    match &tree.node(id).data() {
-        NodeData::SourceFile(data) => data.statements,
-        NodeData::Block(data) => data.statements,
-        NodeData::ModuleBlock(data) => data.statements,
-        _ => None,
+    let node = tree.node(id);
+    match node.kind {
+        SyntaxKind::CaseClause | SyntaxKind::DefaultClause => None,
+        _ => node.statements_field(),
     }
 }
 
@@ -2867,17 +2823,18 @@ pub fn is_boolean_literal(tree: &impl NodeLookup, node: NodeId) -> bool {
 
 /// The `.expression` of expression-carrying kinds used in the flow walk.
 pub fn expression_of(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    match &tree.node(node).data() {
-        NodeData::PropertyAccessExpression(data) => data.expression,
-        NodeData::ElementAccessExpression(data) => data.expression,
-        NodeData::CallExpression(data) => data.expression,
-        NodeData::NonNullExpression(data) => data.expression,
-        NodeData::ParenthesizedExpression(data) => data.expression,
-        NodeData::ExpressionStatement(data) => data.expression,
-        NodeData::TypeOfExpression(data) => data.expression,
-        NodeData::DeleteExpression(data) => data.expression,
-        NodeData::SpreadElement(data) => data.expression,
-        NodeData::SpreadAssignment(data) => data.expression,
+    let node = tree.node(node);
+    match node.kind {
+        SyntaxKind::PropertyAccessExpression
+        | SyntaxKind::ElementAccessExpression
+        | SyntaxKind::CallExpression
+        | SyntaxKind::NonNullExpression
+        | SyntaxKind::ParenthesizedExpression
+        | SyntaxKind::ExpressionStatement
+        | SyntaxKind::TypeOfExpression
+        | SyntaxKind::DeleteExpression
+        | SyntaxKind::SpreadElement
+        | SyntaxKind::SpreadAssignment => node.expression_field(),
         _ => None,
     }
 }

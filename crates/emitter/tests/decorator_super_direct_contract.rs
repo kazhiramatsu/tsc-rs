@@ -99,7 +99,6 @@ impl Site<'_> {
             .node(self.node(id))
             .expect("node record")
             .data()
-            .clone()
     }
 
     fn flags(&self, id: NodeId) -> TransformFlags {

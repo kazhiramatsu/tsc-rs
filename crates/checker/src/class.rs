@@ -589,7 +589,7 @@ impl<'a> CheckerState<'a> {
     /// the option). M7 registers the class after its members so the
     /// unused worker observes every reference mark.
     pub(crate) fn check_class_declaration(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::ClassDeclaration(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_class_declaration() else {
             unreachable!("kind/data agree");
         };
         let (modifiers, name, members) = (data.modifiers, data.name, data.members);
@@ -864,7 +864,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a08eeee9ff34a3e1ebf619a911642f1265f37dfcb5e7523fdd112d4d2f4794d7
     /// tsc-span: _tsc.js:84978-84981
     pub(crate) fn check_class_expression_deferred(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::ClassExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_class_expression() else {
             unreachable!("kind/data agree");
         };
         for member in self.nodes_of(data.members) {
@@ -1223,7 +1223,7 @@ impl<'a> CheckerState<'a> {
         };
         if !self.check_grammar_modifiers(node) {
             for clause in self.nodes_of(heritage_clauses) {
-                let NodeData::HeritageClause(clause_data) = self.data_of(clause) else {
+                let Some(clause_data) = self.record_of(clause).as_heritage_clause() else {
                     continue;
                 };
                 let types = clause_data.types;
@@ -1302,7 +1302,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 47db57db2fd94b03c829f384efc76d2428e9e6af083822e9bf61d5e6f5a61156
     /// tsc-span: _tsc.js:89546-89556
     fn check_grammar_heritage_clause(&mut self, node: NodeId) -> bool {
-        let NodeData::HeritageClause(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_heritage_clause() else {
             return false;
         };
         let types = data.types;
@@ -1416,7 +1416,7 @@ impl<'a> CheckerState<'a> {
             }
             for (i, &source) in source_parameters.iter().enumerate() {
                 let target = target_parameters[i];
-                let NodeData::TypeParameter(source_data) = self.data_of(source) else {
+                let Some(source_data) = self.record_of(source).as_type_parameter() else {
                     continue;
                 };
                 let source_name = source_data.name;
@@ -1546,9 +1546,7 @@ impl<'a> CheckerState<'a> {
                 tsc_binder::node_util::get_escaped_text_of_identifier_or_literal(&Published, name)
             }
             SyntaxKind::ComputedPropertyName => {
-                let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
-                    return None;
-                };
+                let data = self.record_of(name).as_computed_property_name()?;
                 let expression = data.expression?;
                 if tsc_binder::node_util::is_string_or_numeric_literal_like(&Published, expression)
                 {
@@ -1557,7 +1555,7 @@ impl<'a> CheckerState<'a> {
                     );
                 }
                 if tsc_binder::node_util::is_signed_numeric_literal(&Published, expression) {
-                    if let NodeData::PrefixUnaryExpression(unary) = self.data_of(expression) {
+                    if let Some(unary) = self.record_of(expression).as_prefix_unary_expression() {
                         let operand_text =
                             unary
                                 .operand
@@ -1594,7 +1592,7 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(text));
         }
         if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
-            let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
+            let Some(data) = self.record_of(name).as_computed_property_name() else {
                 return Ok(None);
             };
             let Some(expression) = data.expression else {

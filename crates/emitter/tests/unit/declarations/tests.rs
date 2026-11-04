@@ -142,10 +142,10 @@ impl Transformer for ProbeTransformer<'_> {
                     .enclosing_declaration
                     .map(TransformNode::node);
                 observation.diagnostic_context = Some(self.declaration.tracker.diagnostic_context);
-                observation.original_js_doc = cx.arena().node(input)?.js_doc;
+                observation.original_js_doc = cx.arena().node(input)?.js_doc();
                 observation.original_comment_range = comment_range(cx.arena(), input)?;
                 if let Some(output) = output {
-                    observation.output_js_doc = cx.arena().node(output)?.js_doc;
+                    observation.output_js_doc = cx.arena().node(output)?.js_doc();
                     observation.output_comment_range = cx
                         .arena()
                         .metadata(output)

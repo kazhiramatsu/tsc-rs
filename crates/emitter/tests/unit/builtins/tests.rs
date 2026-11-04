@@ -5080,14 +5080,14 @@ fn updated_class_expression_transform_flags_match_typescript_owned_bits() {
                 else {
                     panic!()
                 };
-                classes.insert(name.escaped_text.identifier_text(), (id, data.clone()));
+                classes.insert(name.escaped_text.identifier_text(), (id, data));
             }
             for_each_child(&parsed.arena, node, |child| {
                 stack.push(child);
                 false
             });
         }
-        let (original, mut data) = classes[case["original_name"].as_str().unwrap()].clone();
+        let (original, mut data) = classes[case["original_name"].as_str().unwrap()];
         data.members = classes[case["members_from"].as_str().unwrap()].1.members;
         let flags = super::flags_after_update(
             &arena,

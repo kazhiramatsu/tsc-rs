@@ -813,7 +813,7 @@ impl CheckerState<'_> {
         let mut last_location: Option<NodeId> = None;
         let mut current = Some(location);
         while let Some(node) = current {
-            if let NodeData::ModuleDeclaration(data) = self.data_of(node) {
+            if let Some(data) = self.record_of(node).as_module_declaration() {
                 // A module declaration is not in scope inside its attributes.
                 if data.attributes.is_some() && last_location == data.attributes {
                     last_location = Some(node);
@@ -1043,7 +1043,7 @@ impl CheckerState<'_> {
         &mut self,
         location: NodeId,
     ) -> CheckResult<Option<SymbolId>> {
-        let NodeData::ShorthandPropertyAssignment(assignment) = self.data_of(location) else {
+        let Some(assignment) = self.record_of(location).as_shorthand_property_assignment() else {
             return Ok(None);
         };
         let Some(name) = assignment.name else {

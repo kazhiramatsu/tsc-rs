@@ -314,7 +314,7 @@ fn delete_default_import<'a>(
     file: &'a SourceFile,
     import_clause: NodeId,
 ) {
-    let NodeData::ImportClause(clause) = file.arena.node(import_clause).data() else {
+    let Some(clause) = file.arena.node(import_clause).as_import_clause() else {
         return;
     };
     let declaration = file.arena.node(import_clause).parent;
@@ -580,6 +580,6 @@ pub(super) fn positions_are_on_same_line(file: &SourceFile, first: usize, second
 fn has_jsdoc_nodes(file: &SourceFile, node: NodeId) -> bool {
     file.arena
         .node(node)
-        .js_doc
+        .js_doc()
         .is_some_and(|list| !file.arena.node_array(list).nodes.is_empty())
 }

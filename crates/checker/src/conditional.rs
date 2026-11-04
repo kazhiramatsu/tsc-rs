@@ -64,7 +64,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:62640-62642
     fn is_simple_tuple_type_node(&self, node: NodeId) -> bool {
         let node = self.skip_type_parentheses(node);
-        let NodeData::TupleType(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_tuple_type() else {
             return false;
         };
         let elements = self.nodes_of(data.elements);
@@ -72,7 +72,7 @@ impl<'a> CheckerState<'a> {
             && !elements.iter().any(|&element| match self.kind_of(element) {
                 SyntaxKind::OptionalType | SyntaxKind::RestType => true,
                 SyntaxKind::NamedTupleMember => {
-                    let NodeData::NamedTupleMember(data) = self.data_of(element) else {
+                    let Some(data) = self.record_of(element).as_named_tuple_member() else {
                         unreachable!("NamedTupleMember kind implies payload");
                     };
                     data.question_token.is_some() || data.dot_dot_dot_token.is_some()
@@ -83,7 +83,7 @@ impl<'a> CheckerState<'a> {
 
     fn skip_type_parentheses(&self, node: NodeId) -> NodeId {
         let mut node = node;
-        while let NodeData::ParenthesizedType(data) = self.data_of(node) {
+        while let Some(data) = self.record_of(node).as_parenthesized_type() {
             let Some(inner) = data.r#type else {
                 break;
             };
@@ -152,7 +152,9 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.tables.intrinsics.wildcard);
             }
 
-            let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root_data.node)).clone()
+            let Some(node) = self
+                .record_of(NodeId::new(root_data.node))
+                .as_conditional_type()
             else {
                 unreachable!("conditional root points at a ConditionalType node");
             };
@@ -411,7 +413,7 @@ impl<'a> CheckerState<'a> {
         if !root.is_distributive {
             return Ok(false);
         }
-        let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root.node)).clone() else {
+        let Some(node) = self.record_of(NodeId::new(root.node)).as_conditional_type() else {
             unreachable!("conditional root points at a ConditionalType node");
         };
         let true_node = node
@@ -722,7 +724,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("Conditional flag implies conditional data");
         };
         let root = self.tables.conditional_root(data.root).clone();
-        let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root.node)) else {
+        let Some(node) = self.record_of(NodeId::new(root.node)).as_conditional_type() else {
             unreachable!("conditional root points at a ConditionalType node");
         };
         let true_node = node
@@ -755,7 +757,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("Conditional flag implies conditional data");
         };
         let root = self.tables.conditional_root(data.root).clone();
-        let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root.node)) else {
+        let Some(node) = self.record_of(NodeId::new(root.node)).as_conditional_type() else {
             unreachable!("conditional root points at a ConditionalType node");
         };
         let false_node = node
@@ -789,7 +791,7 @@ impl<'a> CheckerState<'a> {
         };
         let resolved = if let Some(mapper) = data.combined_mapper {
             let root = self.tables.conditional_root(data.root).clone();
-            let NodeData::ConditionalType(node) = self.data_of(NodeId::new(root.node)) else {
+            let Some(node) = self.record_of(NodeId::new(root.node)).as_conditional_type() else {
                 unreachable!("conditional root points at a ConditionalType node");
             };
             let true_node = node

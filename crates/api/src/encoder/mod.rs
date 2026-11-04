@@ -509,7 +509,7 @@ impl Encoder<'_> {
             }
             View::HeritageTypeReference(id) => {
                 let node = self.tree.node(id);
-                let NodeData::ExpressionWithTypeArguments(element) = node.data() else {
+                let Some(element) = node.as_expression_with_type_arguments() else {
                     unreachable!("a heritage element")
                 };
                 let mask = 1 | u32::from(element.type_arguments.is_some()) << 1;
@@ -553,7 +553,7 @@ impl Encoder<'_> {
             }
             View::JSDoc(id, pos) => {
                 let node = self.tree.node(id);
-                let NodeData::JSDoc(js_doc) = node.data() else {
+                let Some(js_doc) = node.as_js_doc() else {
                     unreachable!("a JSDoc comment")
                 };
                 // The comment list is always there.
@@ -582,16 +582,16 @@ impl Encoder<'_> {
                 };
                 let kind = tsgo_kind(SyntaxKind::JSDocText).unwrap();
                 let string = self.strings.add(
-                    self.file.arena.text(*text),
+                    self.file.arena.text(text),
                     kind,
-                    *pos as usize,
-                    *text_end as usize,
+                    pos as usize,
+                    text_end as usize,
                 );
                 let flags = self.tree.comment_flags(owner);
                 [
                     kind,
-                    utf16(self, *pos),
-                    utf16(self, *text_end),
+                    utf16(self, pos),
+                    utf16(self, text_end),
                     0,
                     parent,
                     NODE_DATA_TYPE_STRING | string,
@@ -656,9 +656,9 @@ impl Encoder<'_> {
                 let (pos, end, count, last_end) = match self.tree.comment(owner) {
                     Some(JSDocComment::Text {
                         pos, end, text_end, ..
-                    }) => (*pos, *end, 1, Some(*text_end)),
+                    }) => (pos, end, 1, Some(text_end)),
                     Some(JSDocComment::Nodes(list)) => {
-                        let array = self.tree.arena.node_array(*list);
+                        let array = self.tree.arena.node_array(list);
                         let trailing = self.tree.trailing_comment_text(owner);
                         let last_end = trailing
                             .map(|(_, end)| end)

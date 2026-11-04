@@ -1318,9 +1318,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             self.nodes.insert(id, transformed);
             return Ok(transformed);
         }
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
         let kind = record.kind;
-        let transformed = match record.data().clone() {
+        let transformed = match record.data() {
             NodeData::ClassDeclaration(data) => Some(self.visit_class_declaration(original, data)?),
             NodeData::ClassExpression(data) => Some(self.visit_class_expression(original, data)?),
             NodeData::PropertyAssignment(data) => {
@@ -1376,7 +1376,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     value_use,
                 )?)
             }
-            NodeData::Parameter(data) => Some(self.visit_parameter(original, *data)?),
+            NodeData::Parameter(data) => Some(self.visit_parameter(original, data)?),
             NodeData::FunctionDeclaration(data) => Some(self.visit_function_scope(
                 original,
                 NodeData::FunctionDeclaration(data),
@@ -1894,7 +1894,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         data: tsc_syntax::nodes::ParameterData,
     ) -> Result<NodeId, TransformError> {
         if self.parameters_in_enclosing_environment {
-            return self.update_generic(original, NodeData::Parameter(Box::new(data)));
+            return self.update_generic(original, NodeData::Parameter(data));
         }
         let was_in_parameters = self
             .context
@@ -1902,7 +1902,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .contains(LexicalEnvironmentFlags::IN_PARAMETERS);
         self.context
             .set_lexical_environment_flags(LexicalEnvironmentFlags::IN_PARAMETERS, true)?;
-        let transformed = self.update_generic(original, NodeData::Parameter(Box::new(data)));
+        let transformed = self.update_generic(original, NodeData::Parameter(data));
         let restored = self.context.set_lexical_environment_flags(
             LexicalEnvironmentFlags::IN_PARAMETERS,
             was_in_parameters,
@@ -1915,7 +1915,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         function: TransformNode,
     ) -> Result<NodeId, TransformError> {
-        let record = self.context.arena().node(function)?.clone();
+        let record = *self.context.arena().node(function)?;
         let parameters = match record.data() {
             NodeData::FunctionDeclaration(data) => data.parameters,
             NodeData::FunctionExpression(data) => data.parameters,
@@ -1945,7 +1945,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .factory()?
             .update_node_array(original_parameters, lowered)?
             .array();
-        let data = match record.data().clone() {
+        let data = match record.data() {
             NodeData::FunctionDeclaration(mut data) => {
                 data.parameters = Some(parameters);
                 NodeData::FunctionDeclaration(data)
@@ -1988,8 +1988,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         parameter: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data().clone()
-        else {
+        let Some(mut data) = self.context.arena().node(parameter)?.as_parameter() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Parameter,
                 field: "parameter data",
@@ -2161,7 +2160,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         body: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let arena = self.context.arena();
-        let NodeData::ParenthesizedExpression(data) = arena.node(body)?.data() else {
+        let Some(data) = arena.node(body)?.as_parenthesized_expression() else {
             return Ok(body);
         };
         let original = arena.get_original_node(function);
@@ -2195,7 +2194,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         if bindings.is_empty() && initialization_statements.is_empty() {
             return Ok(function);
         }
-        let record = self.context.arena().node(function)?.clone();
+        let record = *self.context.arena().node(function)?;
         let body = match record.data() {
             NodeData::FunctionDeclaration(data) => data.body,
             NodeData::FunctionExpression(data) => data.body,
@@ -2248,7 +2247,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 field: "block function body for generated bindings",
             });
         };
-        let data = match record.data().clone() {
+        let data = match record.data() {
             NodeData::FunctionDeclaration(mut data) => {
                 data.body = Some(body.node());
                 NodeData::FunctionDeclaration(data)
@@ -2463,7 +2462,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let flags = flags_after_update(
             self.context.arena(),
             original,
-            &NodeData::ClassDeclaration(data.clone()),
+            &NodeData::ClassDeclaration(data),
         )?;
         let class = self.context.factory()?.update_node(
             original,
@@ -2712,7 +2711,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let flags = flags_after_update(
             self.context.arena(),
             original,
-            &NodeData::ClassExpression(data.clone()),
+            &NodeData::ClassExpression(data),
         )?;
         let class = self.context.factory()?.update_node(
             original,
@@ -2847,8 +2846,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         for statement in
             self.materialize_static_operations(&binding, operations.static_, &emit_environment)?
         {
-            let NodeData::ExpressionStatement(data) =
-                self.context.arena().node(statement)?.data().clone()
+            let NodeData::ExpressionStatement(data) = self.context.arena().node(statement)?.data()
             else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::ClassExpression,
@@ -2966,7 +2964,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         members: Option<NodeArrayId>,
     ) -> Result<bool, TransformError> {
         for member in self.array_nodes(members)? {
-            if let NodeData::PropertyDeclaration(data) = self.context.arena().node(member)?.data() {
+            if let Some(data) = self.context.arena().node(member)?.as_property_declaration() {
                 if self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
                     && self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)?
                 {
@@ -3021,7 +3019,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     ) -> Result<Option<String>, TransformError> {
         let arena = self.context.arena();
         let record = arena.node(class)?;
-        let NodeData::ClassExpression(data) = record.data() else {
+        let Some(data) = record.as_class_expression() else {
             return Ok(None);
         };
         let mut name = data.name;
@@ -3052,7 +3050,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let Some(assigned_name) = arena.metadata(class).and_then(|data| data.assigned_name) else {
             return Ok(None);
         };
-        let NodeData::StringLiteral(data) = arena.node(assigned_name)?.data() else {
+        let Some(data) = arena.node(assigned_name)?.as_string_literal() else {
             return Ok(None);
         };
         if let Some(name) = arena
@@ -3326,7 +3324,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 current = parent;
                 continue;
             }
-            if let NodeData::BinaryExpression(data) = record.data() {
+            if let Some(data) = record.as_binary_expression() {
                 let operator = data
                     .operator_token
                     .and_then(|operator| self.context.arena().node_ref(self.source, operator))
@@ -3337,7 +3335,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     continue;
                 }
             }
-            let NodeData::VariableDeclaration(data) = record.data() else {
+            let Some(data) = record.as_variable_declaration() else {
                 return Ok(None);
             };
             if data.initializer != Some(current) {
@@ -3502,15 +3500,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             let Some(name) = name.map(|name| self.node(name)) else {
                 continue;
             };
-            if let NodeData::PrivateIdentifier(data) = self.context.arena().node(name)?.data() {
+            if let Some(data) = self.context.arena().node(name)?.as_private_identifier() {
                 used_private_names.insert(data.text().trim_start_matches('#').to_owned());
             }
         }
 
         let mut expanded = Vec::with_capacity(original_members.len() + 4);
         for member in original_members {
-            let NodeData::PropertyDeclaration(data) =
-                self.context.arena().node(member)?.data().clone()
+            let NodeData::PropertyDeclaration(data) = self.context.arena().node(member)?.data()
             else {
                 expanded.push(member);
                 continue;
@@ -3559,16 +3556,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             let modifiers = self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
             let backing = self.context.factory()?.create_node(
                 self.source,
-                NodeData::PropertyDeclaration(Box::new(
-                    tsc_syntax::nodes::PropertyDeclarationData {
-                        name: Some(storage.node()),
-                        modifiers,
-                        question_token: None,
-                        exclamation_token: None,
-                        r#type: None,
-                        initializer: data.initializer,
-                    },
-                )),
+                NodeData::PropertyDeclaration(tsc_syntax::nodes::PropertyDeclarationData {
+                    name: Some(storage.node()),
+                    modifiers,
+                    question_token: None,
+                    exclamation_token: None,
+                    r#type: None,
+                    initializer: data.initializer,
+                }),
                 TransformFlags::CONTAINS_CLASS_FIELDS,
             )?;
             self.generated_auto_accessor_backings.insert(backing.node());
@@ -3688,7 +3683,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     ) -> Result<(NodeId, NodeId), TransformError> {
         let original = self.node(name);
         let NodeData::ComputedPropertyName(mut getter_data) =
-            self.context.arena().node(original)?.data().clone()
+            self.context.arena().node(original)?.data()
         else {
             return Ok((name, name));
         };
@@ -3703,7 +3698,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok((name, name));
         }
 
-        let mut setter_data = getter_data.clone();
+        let mut setter_data = getter_data;
         if let Some(cached) = self.find_computed_property_name_cache(expression)? {
             setter_data.expression = Some(cached.node());
             let setter_name = self.update_computed_property_name(original, setter_data)?;
@@ -3775,7 +3770,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         mut expression: TransformNode,
     ) -> Result<Option<TransformNode>, TransformError> {
         loop {
-            match self.context.arena().node(expression)?.data().clone() {
+            match self.context.arena().node(expression)?.data() {
                 NodeData::ParenthesizedExpression(data) => {
                     let Some(inner) = data.expression else {
                         return Ok(None);
@@ -3879,14 +3874,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .create_node_array(self.source, Vec::new())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::GetAccessor(Box::new(tsc_syntax::nodes::GetAccessorData {
+            NodeData::GetAccessor(tsc_syntax::nodes::GetAccessorData {
                 name: Some(name),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers,
-            })),
+            }),
             TransformFlags::NONE,
         )
     }
@@ -3900,14 +3895,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let value = self.create_identifier("value")?;
         let parameter = self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
                 name: Some(value.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            })),
+            }),
             TransformFlags::NONE,
         )?;
         let parameters = self
@@ -3920,14 +3915,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let body = self.create_block(vec![statement], false)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
                 name: Some(name),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers,
-            })),
+            }),
             TransformFlags::NONE,
         )
     }
@@ -4075,7 +4070,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     self.resolver_node(member)?,
                     NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE.bits() as u32,
                 )?;
-            } else if let NodeData::PropertyDeclaration(data) = record.data() {
+            } else if let Some(data) = record.as_property_declaration() {
                 contains_public_instance_fields = true;
                 contains_initialized_public_instance_fields |= data.initializer.is_some();
             }
@@ -4946,7 +4941,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         plan: &mut DestructuringAssignmentPlan,
     ) -> Result<TransformNode, TransformError> {
         let original = self.node(id);
-        match self.context.arena().node(original)?.data().clone() {
+        match self.context.arena().node(original)?.data() {
             NodeData::ObjectLiteralExpression(mut data) => {
                 data.properties = self.visit_object_assignment_elements(data.properties, plan)?;
                 self.update_contextual_node(original, NodeData::ObjectLiteralExpression(data))
@@ -5028,7 +5023,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let mut visited = Vec::with_capacity(ids.len());
         for id in ids {
             let node = self.node(id);
-            let element = match self.context.arena().node(node)?.data().clone() {
+            let element = match self.context.arena().node(node)?.data() {
                 NodeData::PropertyAssignment(mut data) => {
                     data.name = self.visit_optional_node(data.name)?;
                     data.initializer = Some(
@@ -5088,7 +5083,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let mut visited = Vec::with_capacity(ids.len());
         for id in ids {
             let node = self.node(id);
-            let element = match self.context.arena().node(node)?.data().clone() {
+            let element = match self.context.arena().node(node)?.data() {
                 NodeData::SpreadElement(mut data) => {
                     data.expression = Some(
                         self.visit_destructuring_assignment_target(
@@ -5163,8 +5158,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         plan: &mut DestructuringAssignmentPlan,
     ) -> Result<TransformNode, TransformError> {
         let original = self.node(id);
-        let NodeData::BinaryExpression(mut data) =
-            self.context.arena().node(original)?.data().clone()
+        let NodeData::BinaryExpression(mut data) = self.context.arena().node(original)?.data()
         else {
             return self.visit_destructuring_assignment_target(id, plan);
         };
@@ -5266,14 +5260,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let parameter_name = self.create_binding_identifier(value_binding)?;
         let parameter = self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
                 name: Some(parameter_name.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            })),
+            }),
             TransformFlags::NONE,
         )?;
         let parameters = self
@@ -5285,14 +5279,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let accessor_name = self.create_identifier("value")?;
         let setter = self.context.factory()?.create_node(
             self.source,
-            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
                 name: Some(accessor_name.node()),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            })),
+            }),
             TransformFlags::NONE,
         )?;
         let object = self.create_object_literal(vec![setter], false)?;
@@ -5364,7 +5358,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             let flags = flags_after_update(
                 self.context.arena(),
                 original,
-                &NodeData::CallExpression(data.clone()),
+                &NodeData::CallExpression(data),
             )?;
             return Ok(self
                 .context
@@ -5395,7 +5389,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let flags = flags_after_update(
             self.context.arena(),
             original,
-            &NodeData::CallExpression(data.clone()),
+            &NodeData::CallExpression(data),
         )?;
         let call =
             self.context
@@ -5459,7 +5453,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             let flags = flags_after_update(
                 self.context.arena(),
                 original,
-                &NodeData::TaggedTemplateExpression(data.clone()),
+                &NodeData::TaggedTemplateExpression(data),
             )?;
             return self
                 .context
@@ -5484,7 +5478,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let flags = flags_after_update(
             self.context.arena(),
             original,
-            &NodeData::TaggedTemplateExpression(data.clone()),
+            &NodeData::TaggedTemplateExpression(data),
         )?;
         self.context
             .factory()?
@@ -5622,7 +5616,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         expression: TransformNode,
     ) -> Result<Option<StaticSuperAccessResolution>, TransformError> {
-        let access = match self.context.arena().node(expression)?.data().clone() {
+        let access = match self.context.arena().node(expression)?.data() {
             NodeData::PropertyAccessExpression(data)
                 if self.property_receiver_is_super(data.expression)? =>
             {
@@ -5632,8 +5626,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         field: "name",
                     },
                 )?;
-                let NodeData::Identifier(name) = self.context.arena().node(name)?.data().clone()
-                else {
+                let Some(name) = self.context.arena().node(name)?.as_identifier() else {
                     return Ok(None);
                 };
                 Some((Some(name.text().to_owned()), None))
@@ -5884,7 +5877,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(None);
         };
         let NodeData::PropertyAccessExpression(access) =
-            self.context.arena().node(self.node(target))?.data().clone()
+            self.context.arena().node(self.node(target))?.data()
         else {
             return Ok(None);
         };
@@ -6119,8 +6112,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             generated_auto_accessor_storages,
         );
         for member in self.array_nodes(members)? {
-            let record = self.context.arena().node(member)?.clone();
-            match record.data().clone() {
+            let record = *self.context.arena().node(member)?;
+            match record.data() {
                 NodeData::PropertyDeclaration(mut data)
                     if self.name_is_private(data.name)?
                         && !self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
@@ -6207,7 +6200,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         });
                     };
                     let function =
-                        self.create_private_method_function(member, *data, method_name)?;
+                        self.create_private_method_function(member, data, method_name)?;
                     operations
                         .pending
                         .append_private_definition(PrivateDefinition {
@@ -6250,10 +6243,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         .contains(&member.node())
                     {
                         self.with_static_auto_accessor_bindings(|visitor| {
-                            visitor.create_private_getter_function(member, *data, function_name)
+                            visitor.create_private_getter_function(member, data, function_name)
                         })?
                     } else {
-                        self.create_private_getter_function(member, *data, function_name)?
+                        self.create_private_getter_function(member, data, function_name)?
                     };
                     operations
                         .pending
@@ -6297,10 +6290,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         .contains(&member.node())
                     {
                         self.with_static_auto_accessor_bindings(|visitor| {
-                            visitor.create_private_setter_function(member, *data, function_name)
+                            visitor.create_private_setter_function(member, data, function_name)
                         })?
                     } else {
-                        self.create_private_setter_function(member, *data, function_name)?
+                        self.create_private_setter_function(member, data, function_name)?
                     };
                     operations
                         .pending
@@ -6449,8 +6442,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         .and_then(|metadata| metadata.assigned_name)
                         .is_some()
                     {
-                        let NodeData::Block(body_data) =
-                            self.context.arena().node(body)?.data().clone()
+                        let NodeData::Block(body_data) = self.context.arena().node(body)?.data()
                         else {
                             return Err(TransformError::RequiredChildRemoved {
                                 parent: SyntaxKind::ClassStaticBlockDeclaration,
@@ -6465,7 +6457,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             });
                         };
                         let NodeData::ExpressionStatement(statement_data) =
-                            self.context.arena().node(*statement)?.data().clone()
+                            self.context.arena().node(*statement)?.data()
                         else {
                             return Err(TransformError::RequiredChildRemoved {
                                 parent: SyntaxKind::ClassStaticBlockDeclaration,
@@ -6530,7 +6522,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         member: TransformNode,
         pending: &mut ClassPendingPlan,
     ) -> Result<TransformNode, TransformError> {
-        let mut member_data = self.context.arena().node(member)?.data().clone();
+        let mut member_data = self.context.arena().node(member)?.data();
         let name = match &member_data {
             NodeData::PropertyDeclaration(data) => data.name,
             NodeData::MethodDeclaration(data) => data.name,
@@ -6541,8 +6533,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let Some(name) = name.map(|name| self.node(name)) else {
             return Ok(member);
         };
-        let NodeData::ComputedPropertyName(mut computed) =
-            self.context.arena().node(name)?.data().clone()
+        let NodeData::ComputedPropertyName(mut computed) = self.context.arena().node(name)?.data()
         else {
             return Ok(member);
         };
@@ -6559,7 +6550,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(member);
         }
         let injected = if let NodeData::ParenthesizedExpression(mut parenthesized) =
-            self.context.arena().node(expression)?.data().clone()
+            self.context.arena().node(expression)?.data()
         {
             let inner = parenthesized
                 .expression
@@ -6626,7 +6617,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         expression: TransformNode,
         expressions: &mut Vec<TransformNode>,
     ) -> Result<(), TransformError> {
-        let record = self.context.arena().node(expression)?.clone();
+        let record = *self.context.arena().node(expression)?;
         match record.data() {
             NodeData::ParenthesizedExpression(data)
                 if self.context.arena().metadata(expression).is_none()
@@ -6874,7 +6865,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let modifiers = self.visit_function_modifiers(modifiers)?;
         let function = self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
                 name: Some(name.node()),
                 type_parameters,
                 parameters,
@@ -6882,7 +6873,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 asterisk_token,
                 body,
                 modifiers,
-            })),
+            }),
             TransformFlags::NONE,
         )?;
         // Later Rust transforms project resolver queries back into the
@@ -7419,7 +7410,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         original: TransformNode,
     ) -> Result<(TransformNode, AssignedClassName), TransformError> {
         let NodeData::ComputedPropertyName(mut computed) =
-            self.context.arena().node(original)?.data().clone()
+            self.context.arena().node(original)?.data()
         else {
             let assigned_name = self.literal_assigned_name(original.node()).ok_or(
                 TransformError::RequiredChildRemoved {
@@ -7510,8 +7501,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         should_capture: bool,
     ) -> Result<PlannedPropertyName, TransformError> {
         let original = self.node(name);
-        let NodeData::ComputedPropertyName(mut data) =
-            self.context.arena().node(original)?.data().clone()
+        let NodeData::ComputedPropertyName(mut data) = self.context.arena().node(original)?.data()
         else {
             let assigned_class_name = self.literal_assigned_name(name);
             let name = self.visit_required(Some(name), SyntaxKind::PropertyDeclaration, "name")?;
@@ -8220,7 +8210,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     ) -> Result<Option<SourceMapRange>, TransformError> {
         let original = self.context.arena().get_original_node(property);
         let record = self.context.arena().node(original)?;
-        let NodeData::PropertyDeclaration(data) = record.data() else {
+        let Some(data) = record.as_property_declaration() else {
             return Ok(None);
         };
         let Some(name) = data
@@ -8486,7 +8476,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     /// tsc-span: _tsc.js:97501-97575
     fn property_key_expression(&mut self, name: NodeId) -> Result<TransformNode, TransformError> {
         let name = self.node(name);
-        match self.context.arena().node(name)?.data().clone() {
+        match self.context.arena().node(name)?.data() {
             NodeData::Identifier(data) => self.create_string_literal(data.text()),
             NodeData::PrivateIdentifier(data) => {
                 self.create_string_literal(data.text().trim_start_matches('#'))
@@ -8509,51 +8499,50 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         name: NodeId,
     ) -> Result<TransformNode, TransformError> {
         let name_node = self.node(name);
-        let (access, no_nested_source_maps) =
-            match self.context.arena().node(name_node)?.data().clone() {
-                NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => (
-                    self.context.factory()?.create_node(
-                        self.source,
-                        NodeData::PropertyAccessExpression(
-                            tsc_syntax::nodes::PropertyAccessExpressionData {
-                                expression: Some(receiver.node()),
-                                question_dot_token: None,
-                                name: Some(name),
-                            },
-                        ),
-                        TransformFlags::NONE,
-                    )?,
-                    true,
-                ),
-                NodeData::ComputedPropertyName(data) => (
-                    self.context.factory()?.create_node(
-                        self.source,
-                        NodeData::ElementAccessExpression(
-                            tsc_syntax::nodes::ElementAccessExpressionData {
-                                expression: Some(receiver.node()),
-                                question_dot_token: None,
-                                argument_expression: data.expression,
-                            },
-                        ),
-                        TransformFlags::NONE,
-                    )?,
-                    false,
-                ),
-                _ => (
-                    self.context.factory()?.create_node(
-                        self.source,
-                        NodeData::ElementAccessExpression(
-                            tsc_syntax::nodes::ElementAccessExpressionData {
-                                expression: Some(receiver.node()),
-                                question_dot_token: None,
-                                argument_expression: Some(name),
-                            },
-                        ),
-                        TransformFlags::NONE,
-                    )?,
-                    true,
-                ),
-            };
+        let (access, no_nested_source_maps) = match self.context.arena().node(name_node)?.data() {
+            NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => (
+                self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::PropertyAccessExpression(
+                        tsc_syntax::nodes::PropertyAccessExpressionData {
+                            expression: Some(receiver.node()),
+                            question_dot_token: None,
+                            name: Some(name),
+                        },
+                    ),
+                    TransformFlags::NONE,
+                )?,
+                true,
+            ),
+            NodeData::ComputedPropertyName(data) => (
+                self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::ElementAccessExpression(
+                        tsc_syntax::nodes::ElementAccessExpressionData {
+                            expression: Some(receiver.node()),
+                            question_dot_token: None,
+                            argument_expression: data.expression,
+                        },
+                    ),
+                    TransformFlags::NONE,
+                )?,
+                false,
+            ),
+            _ => (
+                self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::ElementAccessExpression(
+                        tsc_syntax::nodes::ElementAccessExpressionData {
+                            expression: Some(receiver.node()),
+                            question_dot_token: None,
+                            argument_expression: Some(name),
+                        },
+                    ),
+                    TransformFlags::NONE,
+                )?,
+                true,
+            ),
+        };
         // tsc's createMemberAccessForPropertyName gives the generated access
         // the member-name range. NoLeadingComments then establishes that
         // range start as the nested comment-container boundary, while the
@@ -8576,9 +8565,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         constructor: TransformNode,
         initializers: &[TransformNode],
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Constructor(mut data) =
-            self.context.arena().node(constructor)?.data().clone()
-        else {
+        let Some(mut data) = self.context.arena().node(constructor)?.as_constructor() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::ClassDeclaration,
                 field: "constructor",
@@ -8591,9 +8578,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 parent: SyntaxKind::Constructor,
                 field: "body",
             })?;
-        let body_record = self.context.arena().node(body)?.clone();
+        let body_record = *self.context.arena().node(body)?;
         let original_multi_line = body_record.multi_line();
-        let NodeData::Block(mut block) = body_record.data().clone() else {
+        let Some(mut block) = body_record.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Constructor,
                 field: "body block",
@@ -8636,8 +8623,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .create_node_array(self.source, statements)?
         };
         block.statements = Some(array.array());
-        let flags =
-            flags_after_update(self.context.arena(), body, &NodeData::Block(block.clone()))?;
+        let flags = flags_after_update(self.context.arena(), body, &NodeData::Block(block))?;
         let body = self
             .context
             .factory()?
@@ -8652,7 +8638,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let flags = flags_after_update(
             self.context.arena(),
             constructor,
-            &NodeData::Constructor(data.clone()),
+            &NodeData::Constructor(data),
         )?;
         self.context
             .factory()?
@@ -8668,7 +8654,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             if self.statement_is_super_call(*statement)? {
                 return Ok(Some(SuperStatementPath(vec![index])));
             }
-            let NodeData::TryStatement(data) = self.context.arena().node(*statement)?.data() else {
+            let Some(data) = self.context.arena().node(*statement)?.as_try_statement() else {
                 continue;
             };
             let Some(try_block) = data
@@ -8677,7 +8663,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             else {
                 continue;
             };
-            let NodeData::Block(block) = self.context.arena().node(try_block)?.data() else {
+            let Some(block) = self.context.arena().node(try_block)?.as_block() else {
                 continue;
             };
             let nested = self.array_nodes(block.statements)?;
@@ -8725,7 +8711,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 field: "super statement path index",
             })?;
         let NodeData::TryStatement(mut try_statement) =
-            self.context.arena().node(statement)?.data().clone()
+            self.context.arena().node(statement)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Constructor,
@@ -8739,8 +8725,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 parent: SyntaxKind::TryStatement,
                 field: "try_block on super path",
             })?;
-        let NodeData::Block(mut block) = self.context.arena().node(try_block)?.data().clone()
-        else {
+        let Some(mut block) = self.context.arena().node(try_block)?.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::TryStatement,
                 field: "try block on super path",
@@ -8763,11 +8748,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .create_node_array(self.source, nested)?
         };
         block.statements = Some(nested.array());
-        let flags = flags_after_update(
-            self.context.arena(),
-            try_block,
-            &NodeData::Block(block.clone()),
-        )?;
+        let flags = flags_after_update(self.context.arena(), try_block, &NodeData::Block(block))?;
         let try_block =
             self.context
                 .factory()?
@@ -8776,7 +8757,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let flags = flags_after_update(
             self.context.arena(),
             statement,
-            &NodeData::TryStatement(try_statement.clone()),
+            &NodeData::TryStatement(try_statement),
         )?;
         statements[index] = self.context.factory()?.update_node(
             statement,
@@ -8861,14 +8842,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .create_node_array(self.source, Vec::new())?;
         let constructor = self.context.factory()?.create_node(
             self.source,
-            NodeData::Constructor(Box::new(tsc_syntax::nodes::ConstructorData {
+            NodeData::Constructor(tsc_syntax::nodes::ConstructorData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            })),
+            }),
             TransformFlags::NONE,
         )?;
         let constructor = self.context.factory()?.set_text_range(constructor, class)?;
@@ -8893,7 +8874,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         if bindings.is_empty() {
             return Ok(root);
         }
-        let NodeData::SourceFile(mut data) = self.context.arena().node(root)?.data().clone() else {
+        let Some(mut data) = self.context.arena().node(root)?.as_source_file() else {
             return Err(TransformError::RootKindExpected {
                 actual: self.context.arena().node(root)?.kind,
             });
@@ -8933,11 +8914,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .create_node_array(self.source, statements)?
         };
         data.statements = Some(array.array());
-        let flags = flags_after_update(
-            self.context.arena(),
-            root,
-            &NodeData::SourceFile(data.clone()),
-        )?;
+        let flags = flags_after_update(self.context.arena(), root, &NodeData::SourceFile(data))?;
         self.context
             .factory()?
             .update_node(root, NodeData::SourceFile(data), flags)
@@ -8974,7 +8951,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         if bindings.is_empty() && initialization_statements.is_empty() {
             return Ok(block);
         }
-        let NodeData::Block(mut data) = self.context.arena().node(block)?.data().clone() else {
+        let Some(mut data) = self.context.arena().node(block)?.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(block)?.kind,
                 field: "block for generated bindings",
@@ -9046,8 +9023,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .create_node_array(self.source, statements)?
         };
         data.statements = Some(array.array());
-        let flags =
-            flags_after_update(self.context.arena(), block, &NodeData::Block(data.clone()))?;
+        let flags = flags_after_update(self.context.arena(), block, &NodeData::Block(data))?;
         self.context
             .factory()?
             .update_node(block, NodeData::Block(data), flags)
@@ -9095,7 +9071,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         bindings: Vec<TargetBinding>,
     ) -> Result<TransformNode, TransformError> {
         let declaration = self.create_binding_variable_statement(&bindings, NodeFlags::LET)?;
-        if let NodeData::Block(mut data) = self.context.arena().node(statement)?.data().clone() {
+        if let Some(mut data) = self.context.arena().node(statement)?.as_block() {
             let original = data
                 .statements
                 .and_then(|array| self.context.arena().node_array_ref(self.source, array));
@@ -9310,7 +9286,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(None);
         }
         for clause in self.array_nodes(heritage)? {
-            let NodeData::HeritageClause(clause) = self.context.arena().node(clause)?.data() else {
+            let Some(clause) = self.context.arena().node(clause)?.as_heritage_clause() else {
                 continue;
             };
             if clause.token != SyntaxKind::ExtendsKeyword {
@@ -9343,7 +9319,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let mut clauses = self.array_nodes(Some(heritage))?;
         for clause in &mut clauses {
             let NodeData::HeritageClause(mut clause_data) =
-                self.context.arena().node(*clause)?.data().clone()
+                self.context.arena().node(*clause)?.data()
             else {
                 continue;
             };
@@ -9359,7 +9335,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 continue;
             };
             let NodeData::ExpressionWithTypeArguments(mut type_data) =
-                self.context.arena().node(*first_type)?.data().clone()
+                self.context.arena().node(*first_type)?.data()
             else {
                 continue;
             };
@@ -9377,7 +9353,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             let type_flags = flags_after_update(
                 self.context.arena(),
                 *first_type,
-                &NodeData::ExpressionWithTypeArguments(type_data.clone()),
+                &NodeData::ExpressionWithTypeArguments(type_data),
             )?;
             *first_type = self.context.factory()?.update_node(
                 *first_type,
@@ -9392,7 +9368,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             let clause_flags = flags_after_update(
                 self.context.arena(),
                 *clause,
-                &NodeData::HeritageClause(clause_data.clone()),
+                &NodeData::HeritageClause(clause_data),
             )?;
             *clause = self.context.factory()?.update_node(
                 *clause,
@@ -9422,7 +9398,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         heritage: Option<NodeArrayId>,
     ) -> Result<ClassHeritageSemantics, TransformError> {
         for clause in self.array_nodes(heritage)? {
-            let NodeData::HeritageClause(data) = self.context.arena().node(clause)?.data() else {
+            let Some(data) = self.context.arena().node(clause)?.as_heritage_clause() else {
                 continue;
             };
             if data.token != SyntaxKind::ExtendsKeyword {
@@ -9495,7 +9471,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(false);
         };
         let expression = self.skip_runtime_transparent_outer_expressions(self.node(expression))?;
-        let NodeData::CallExpression(data) = self.context.arena().node(expression)?.data() else {
+        let Some(data) = self.context.arena().node(expression)?.as_call_expression() else {
             return Ok(false);
         };
         Ok(data.expression.is_some_and(|expression| {
@@ -9515,7 +9491,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             self.context
                 .arena()
                 .node(self.node(expression))
-                .is_ok_and(|node| matches!(node.data(), NodeData::StringLiteral(_)))
+                .is_ok_and(|node| node.kind == SyntaxKind::StringLiteral)
         }))
     }
 
@@ -9550,7 +9526,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         if !self.is_custom_prologue(statement) {
             return Ok(false);
         }
-        let NodeData::VariableStatement(data) = self.context.arena().node(statement)?.data() else {
+        let Some(data) = self
+            .context
+            .arena()
+            .node(statement)?
+            .as_variable_statement()
+        else {
             return Ok(false);
         };
         let Some(list) = data.declaration_list else {
@@ -9597,7 +9578,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         property: TransformNode,
     ) -> Result<Option<TransformNode>, TransformError> {
         let original = self.context.arena().get_original_node(property);
-        let NodeData::Parameter(data) = self.context.arena().node(original)?.data() else {
+        let Some(data) = self.context.arena().node(original)?.as_parameter() else {
             return Ok(None);
         };
         let Some(name) = data
@@ -9663,7 +9644,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData { text })),
+            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData { text }),
             TransformFlags::NONE,
         )
     }
@@ -9705,7 +9686,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let text = self.context.factory()?.push_text(self.source, b"0")?;
         let zero = self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
+            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData { text }),
             TransformFlags::NONE,
         )?;
         self.context.factory()?.create_node(
@@ -10022,14 +10003,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         )?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::ArrowFunction(Box::new(tsc_syntax::nodes::ArrowFunctionData {
+            NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
                 equals_greater_than_token: Some(arrow.node()),
-            })),
+            }),
             TransformFlags::CONTAINS_LEXICAL_THIS,
         )
     }

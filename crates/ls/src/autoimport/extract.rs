@@ -123,7 +123,7 @@ pub(crate) fn try_get_module_id_and_file_name_of_module_symbol(
         return Some((ModuleId::File(path_of(&file_name)), file_name));
     }
     if is_module_with_string_literal_name(source, declaration) {
-        let NodeData::ModuleDeclaration(data) = source.arena.node(declaration).data() else {
+        let Some(data) = source.arena.node(declaration).as_module_declaration() else {
             unreachable!("a module declaration");
         };
         let name = name_text(source, data.name.expect("a module name"));
@@ -311,7 +311,7 @@ impl Extractor<'_, '_> {
             if is_module_with_string_literal_name(source, statement)
                 && self.is_non_pattern_ambient_module_declaration(file, statement)
             {
-                let NodeData::ModuleDeclaration(data) = source.arena.node(statement).data() else {
+                let Some(data) = source.arena.node(statement).as_module_declaration() else {
                     continue;
                 };
                 let name = name_text(source, data.name.expect("a module name"));
@@ -364,7 +364,7 @@ impl Extractor<'_, '_> {
             .filter(|&declaration| !node_util::is_global_scope_augmentation(source, declaration))
             .collect();
         for declaration in augmentations {
-            let NodeData::ModuleDeclaration(data) = source.arena.node(declaration).data() else {
+            let Some(data) = source.arena.node(declaration).as_module_declaration() else {
                 continue;
             };
             let name = name_text(source, data.name.expect("a module name"));
@@ -544,7 +544,7 @@ impl Extractor<'_, '_> {
         } else if syntax == ExportSyntax::CommonJsModuleExports {
             let declaration = self.checker.binder.symbol(symbol).declarations[0];
             let source = self.checker.binder.source_of_node(declaration);
-            let NodeData::BinaryExpression(binary) = source.arena.node(declaration).data() else {
+            let Some(binary) = source.arena.node(declaration).as_binary_expression() else {
                 return Ok(());
             };
             let Some(expression) = binary.right else {
@@ -1133,7 +1133,7 @@ fn resolve_local_name(
                 }
             }
         }
-        if let NodeData::ExportSpecifier(data) = record.data() {
+        if let Some(data) = record.as_export_specifier() {
             if last.is_some() && last == data.property_name {
                 let declaration = record
                     .parent

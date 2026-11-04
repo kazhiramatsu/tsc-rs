@@ -37,11 +37,11 @@ impl Transformer for FlagTransformer {
         let statement = arena
             .node_ref(source, arena.node_array(statements)?.nodes[0])
             .unwrap();
-        if let NodeData::FunctionDeclaration(mut function) = arena.node(statement)?.data().clone() {
+        if let NodeData::FunctionDeclaration(mut function) = arena.node(statement)?.data() {
             let mut statement = statement;
             let mut body = arena.node_ref(source, function.body.unwrap()).unwrap();
             if let Some((keep_start, keep_end)) = self.body_range {
-                let NodeData::Block(mut block) = arena.node(body)?.data().clone() else {
+                let NodeData::Block(mut block) = arena.node(body)?.data() else {
                     unreachable!()
                 };
                 let original = arena
@@ -60,7 +60,7 @@ impl Transformer for FlagTransformer {
                     .iter()
                     .map(|&n| arena.node_ref(source, n).unwrap())
                     .collect();
-                let mut file = file.clone();
+                let mut file = file;
                 let body_flags = arena.transform_flags(body);
                 let function_flags = arena.transform_flags(statement);
                 let file_flags = arena.transform_flags(root_node);
@@ -126,7 +126,7 @@ impl Transformer for FlagTransformer {
             .filter_map(|&id| {
                 let node = arena.node_ref(source, id).unwrap();
                 if let NodeData::VariableDeclaration(data) = arena.node(node).unwrap().data() {
-                    Some((node, data.clone()))
+                    Some((node, data))
                 } else {
                     None
                 }

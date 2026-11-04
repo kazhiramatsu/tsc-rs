@@ -211,7 +211,7 @@ fn collect_module_references(source: &SourceFile, javascript: bool) -> ModuleRef
                     let Some(argument) = import_type.argument else {
                         continue;
                     };
-                    if let NodeData::LiteralType(literal_type) = Published.node(argument).data() {
+                    if let Some(literal_type) = Published.node(argument).as_literal_type() {
                         if let Some(literal) = literal_type.literal {
                             if Published.node(literal).kind == SyntaxKind::StringLiteral {
                                 references.imports.push(literal);
@@ -249,7 +249,7 @@ fn collect_module_reference(
     };
     if let Some(module_name) = module_name {
         if let Some(name) = module_name {
-            if let NodeData::StringLiteral(literal) = Published.node(name).data() {
+            if let Some(literal) = Published.node(name).as_string_literal() {
                 if !crate::annotate::published_text_js(literal.text).is_empty()
                     && (!in_ambient_module
                         || !CheckerState::is_external_module_name_relative(

@@ -76,7 +76,7 @@ impl CheckerState<'_> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<bool> {
-        let NodeData::PropertyAccessExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_property_access_expression() else {
             return Ok(false);
         };
         let Some(name) = data.name else {
@@ -143,7 +143,7 @@ impl CheckerState<'_> {
         if self.has_question_token(node) || self.is_optional_declaration(node) {
             return Ok(true);
         }
-        let NodeData::Parameter(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_parameter() else {
             return Ok(false);
         };
         let Some(parent) = self.parent_of(node) else {
@@ -629,7 +629,7 @@ impl CheckerState<'_> {
 
     /// tsgo isCommonJSAliasExport (transform.go:1564-1571).
     pub(crate) fn emit_is_common_js_alias_export(&self, node: NodeId) -> bool {
-        let NodeData::BinaryExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_binary_expression() else {
             return false;
         };
         data.right
@@ -1860,11 +1860,11 @@ impl CheckerState<'_> {
             }
         }
         if self.binder.is_common_js_module_of_node(file) {
-            let NodeData::SourceFile(data) = self.data_of(file) else {
+            let Some(data) = self.record_of(file).as_source_file() else {
                 return Ok(());
             };
             for statement in self.nodes_of(data.statements) {
-                let NodeData::ExpressionStatement(data) = self.data_of(statement) else {
+                let Some(data) = self.record_of(statement).as_expression_statement() else {
                     continue;
                 };
                 let Some(expression) = data.expression else {

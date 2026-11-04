@@ -805,7 +805,7 @@ impl Request<'_, '_> {
             }
             return Ok(());
         }
-        let data = self.state.binder.node_record(node).data().clone();
+        let data = self.state.binder.node_record(node).data();
         match self.node_kind(node) {
             // do not descend into nodes that cannot contain callable nodes
             SyntaxKind::Identifier

@@ -964,7 +964,7 @@ impl<'a> CheckerState<'a> {
             match self.kind_of(node) {
                 SyntaxKind::YieldExpression => {
                     out.push(node);
-                    if let NodeData::YieldExpression(data) = self.data_of(node) {
+                    if let Some(data) = self.record_of(node).as_yield_expression() {
                         if let Some(operand) = data.expression {
                             worklist.push(operand);
                         }
@@ -978,7 +978,8 @@ impl<'a> CheckerState<'a> {
                     if node_util::is_function_like_kind(self.kind_of(node)) {
                         if let Some(name) = self.name_of_node(node) {
                             if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
-                                if let NodeData::ComputedPropertyName(data) = self.data_of(name) {
+                                if let Some(data) = self.record_of(name).as_computed_property_name()
+                                {
                                     if let Some(expression) = data.expression {
                                         worklist.push(expression);
                                     }
@@ -1055,7 +1056,7 @@ impl<'a> CheckerState<'a> {
             if function_flags & FUNCTION_FLAGS_ASYNC != 0
                 && self.kind_of(expr) == SyntaxKind::AwaitExpression
             {
-                if let NodeData::AwaitExpression(data) = self.data_of(expr) {
+                if let Some(data) = self.record_of(expr).as_await_expression() {
                     if let Some(operand) = data.expression {
                         expr = self.skip_parentheses_excluding_jsdoc_type_assertions(operand);
                     }
@@ -1887,7 +1888,7 @@ impl<'a> CheckerState<'a> {
                     return initializer == Some(node) || incrementor == Some(node);
                 }
                 SyntaxKind::BinaryExpression => {
-                    let NodeData::BinaryExpression(data) = self.data_of(parent) else {
+                    let Some(data) = self.record_of(parent).as_binary_expression() else {
                         return false;
                     };
                     let is_comma = data
@@ -4351,7 +4352,7 @@ impl<'a> CheckerState<'a> {
         // node.parent.members[0] — reachable only through parse
         // recovery of `{ [K in T]: ... }` inside a class/interface.
         if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
-            if let NodeData::ComputedPropertyName(data) = self.data_of(name) {
+            if let Some(data) = self.record_of(name).as_computed_property_name() {
                 if let Some(expression) = data.expression {
                     if self.kind_of(expression) == SyntaxKind::BinaryExpression {
                         let is_in = matches!(
@@ -4898,7 +4899,7 @@ impl<'a> CheckerState<'a> {
         let mut seen_optional_parameter = false;
         let parameter_count = parameters.len();
         for (i, &parameter) in parameters.iter().enumerate() {
-            let NodeData::Parameter(data) = self.data_of(parameter) else {
+            let Some(data) = self.record_of(parameter).as_parameter() else {
                 continue;
             };
             if let Some(dot_dot_dot) = data.dot_dot_dot_token {
@@ -4965,7 +4966,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) != SyntaxKind::ArrowFunction {
             return false;
         }
-        let NodeData::ArrowFunction(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_arrow_function() else {
             return false;
         };
         if let Some(type_parameters) = data.type_parameters {
@@ -5096,23 +5097,17 @@ impl<'a> CheckerState<'a> {
     /// findUseStrictPrologue (89439-89445): leading ExpressionStatement
     /// string-literal prologue scan.
     fn find_use_strict_prologue(&self, body: NodeId) -> Option<NodeId> {
-        let NodeData::Block(data) = self.data_of(body) else {
-            return None;
-        };
+        let data = self.record_of(body).as_block()?;
         for statement in self.nodes_of(data.statements) {
             if self.kind_of(statement) != SyntaxKind::ExpressionStatement {
                 return None;
             }
-            let NodeData::ExpressionStatement(statement_data) = self.data_of(statement) else {
-                return None;
-            };
+            let statement_data = self.record_of(statement).as_expression_statement()?;
             let expression = statement_data.expression?;
             if self.kind_of(expression) != SyntaxKind::StringLiteral {
                 return None;
             }
-            let NodeData::StringLiteral(literal) = self.data_of(expression) else {
-                return None;
-            };
+            let literal = self.record_of(expression).as_string_literal()?;
             if self.text_js(literal.text) == "use strict" {
                 return Some(statement);
             }
@@ -5128,7 +5123,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 48ca97d514d3167e7f6ad934bb144fdf907c4bca4f09b790587d13a4fc2faeeb
     /// tsc-span: _tsc.js:16768-16770
     pub(crate) fn effective_return_type_node(&self, node: NodeId) -> Option<NodeId> {
-        if let NodeData::JSDocSignature(data) = self.data_of(node) {
+        if let Some(data) = self.record_of(node).as_js_doc_signature() {
             return data.r#type.and_then(|tag| match self.data_of(tag) {
                 NodeData::JSDocReturnTag(data) => {
                     self.jsdoc_type_expression_type(data.type_expression)
@@ -5441,7 +5436,7 @@ impl<'a> CheckerState<'a> {
         }
         let ty;
         if self.kind_of(pattern) == SyntaxKind::ObjectBindingPattern {
-            let NodeData::BindingElement(data) = self.data_of(declaration) else {
+            let Some(data) = self.record_of(declaration).as_binding_element() else {
                 return Ok(self.tables.intrinsics.error);
             };
             if data.dot_dot_dot_token.is_some() {
@@ -5465,7 +5460,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let mut literal_members = Vec::new();
                 for element in self.nodes_of(elements) {
-                    let NodeData::BindingElement(element_data) = self.data_of(element) else {
+                    let Some(element_data) = self.record_of(element).as_binding_element() else {
                         continue;
                     };
                     if element_data.dot_dot_dot_token.is_none() {
@@ -5502,7 +5497,7 @@ impl<'a> CheckerState<'a> {
         } else {
             // 55984-55996: the array-pattern arm — Destructuring use,
             // PossiblyOutOfBounds only for non-rest elements.
-            let NodeData::BindingElement(data) = self.data_of(declaration) else {
+            let Some(data) = self.record_of(declaration).as_binding_element() else {
                 return Ok(self.tables.intrinsics.error);
             };
             let use_ = if data.dot_dot_dot_token.is_some() {

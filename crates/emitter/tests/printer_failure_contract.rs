@@ -252,7 +252,7 @@ fn build_targets(
         _ if id.contains("/cursor-array") => {
             let s0 = statement(arena, sources[0], 0);
             let call = expression_of(arena, s0);
-            let NodeData::CallExpression(data) = arena.node(call).unwrap().data().clone() else {
+            let NodeData::CallExpression(data) = arena.node(call).unwrap().data() else {
                 panic!("call")
             };
             let arguments = arena

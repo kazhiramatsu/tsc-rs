@@ -599,7 +599,7 @@ pub(crate) fn transform_top_level_declaration(
                         continue;
                     }
                     let member_data = match context.arena().node(member)?.data() {
-                        NodeData::EnumMember(data) => data.clone(),
+                        NodeData::EnumMember(data) => data,
                         _ => {
                             return Err(DeclarationTransformer::contract(
                                 "enum declaration contains a non-enum member",
@@ -942,7 +942,7 @@ fn first_constructor_with_body(
     class: TransformNode,
 ) -> Result<Option<TransformNode>, TransformError> {
     for member in source_array(context, class.source(), class_data(context, class)?.members)? {
-        if let NodeData::Constructor(data) = context.arena().node(member)?.data() {
+        if let Some(data) = context.arena().node(member)?.as_constructor() {
             if let Some(body) = data.body {
                 let body = context
                     .arena()
@@ -980,7 +980,7 @@ fn parameter_properties(
             continue;
         }
         let data = match context.arena().node(parameter)?.data() {
-            NodeData::Parameter(data) => data.clone(),
+            NodeData::Parameter(data) => data,
             _ => continue,
         };
         let Some(name) = data
@@ -1115,7 +1115,7 @@ pub(crate) fn has_any_binding_initializers(
         _ => None,
     };
     for element in source_array(context, pattern.source(), elements)? {
-        let NodeData::BindingElement(data) = context.arena().node(element)?.data() else {
+        let Some(data) = context.arena().node(element)?.as_binding_element() else {
             continue;
         };
         if data.initializer.is_some() {
@@ -1234,7 +1234,7 @@ pub(crate) fn update_module_declaration_and_keyword(
         let mut factory = context.factory()?;
         factory.update_module_declaration(node, modifiers, name, attributes, body)?
     };
-    let record = context.arena().node(updated)?.clone();
+    let record = *context.arena().node(updated)?;
     let flags = NodeFlags::from_bits(record.flags);
     let is_ambient_module = context.arena().node(name)?.kind == SyntaxKind::StringLiteral
         || flags.contains(NodeFlags::GLOBAL_AUGMENTATION);
@@ -1485,7 +1485,7 @@ fn transform_heritage_clauses_with_base(
         for type_node in candidates {
             if data.token == SyntaxKind::ExtendsKeyword {
                 let NodeData::ExpressionWithTypeArguments(type_data) =
-                    context.arena().node(type_node)?.data().clone()
+                    context.arena().node(type_node)?.data()
                 else {
                     return Err(DeclarationTransformer::contract(
                         "heritage clause contains a non-expression type",
@@ -2266,7 +2266,7 @@ fn export_declaration_data(
     node: TransformNode,
 ) -> Result<ExportDeclarationData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::ExportDeclaration(data) => Ok(data.clone()),
+        NodeData::ExportDeclaration(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::ExportDeclaration,
             actual: context.arena().node(node)?.kind,
@@ -2279,7 +2279,7 @@ fn export_assignment_data(
     node: TransformNode,
 ) -> Result<ExportAssignmentData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::ExportAssignment(data) => Ok(data.clone()),
+        NodeData::ExportAssignment(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::ExportAssignment,
             actual: context.arena().node(node)?.kind,
@@ -2292,7 +2292,7 @@ fn type_alias_data(
     node: TransformNode,
 ) -> Result<TypeAliasDeclarationData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::TypeAliasDeclaration(data) => Ok(data.clone()),
+        NodeData::TypeAliasDeclaration(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::TypeAliasDeclaration,
             actual: context.arena().node(node)?.kind,
@@ -2305,7 +2305,7 @@ fn interface_data(
     node: TransformNode,
 ) -> Result<InterfaceDeclarationData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::InterfaceDeclaration(data) => Ok(data.clone()),
+        NodeData::InterfaceDeclaration(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::InterfaceDeclaration,
             actual: context.arena().node(node)?.kind,
@@ -2318,7 +2318,7 @@ fn function_data(
     node: TransformNode,
 ) -> Result<FunctionDeclarationData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::FunctionDeclaration(data) => Ok((**data).clone()),
+        NodeData::FunctionDeclaration(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::FunctionDeclaration,
             actual: context.arena().node(node)?.kind,
@@ -2331,7 +2331,7 @@ fn module_data(
     node: TransformNode,
 ) -> Result<ModuleDeclarationData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::ModuleDeclaration(data) => Ok(data.clone()),
+        NodeData::ModuleDeclaration(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::ModuleDeclaration,
             actual: context.arena().node(node)?.kind,
@@ -2344,7 +2344,7 @@ fn module_block_data(
     node: TransformNode,
 ) -> Result<ModuleBlockData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::ModuleBlock(data) => Ok(data.clone()),
+        NodeData::ModuleBlock(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::ModuleBlock,
             actual: context.arena().node(node)?.kind,
@@ -2434,7 +2434,7 @@ pub(crate) fn class_data(
     node: TransformNode,
 ) -> Result<ClassDeclarationData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::ClassDeclaration(data) => Ok(data.clone()),
+        NodeData::ClassDeclaration(data) => Ok(data),
         NodeData::ClassExpression(data) => Ok(ClassDeclarationData {
             name: data.name,
             type_parameters: data.type_parameters,
@@ -2454,7 +2454,7 @@ fn enum_data(
     node: TransformNode,
 ) -> Result<EnumDeclarationData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::EnumDeclaration(data) => Ok(data.clone()),
+        NodeData::EnumDeclaration(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::EnumDeclaration,
             actual: context.arena().node(node)?.kind,
@@ -2467,7 +2467,7 @@ fn variable_statement_data(
     node: TransformNode,
 ) -> Result<VariableStatementData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::VariableStatement(data) => Ok(data.clone()),
+        NodeData::VariableStatement(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::VariableStatement,
             actual: context.arena().node(node)?.kind,
@@ -2480,7 +2480,7 @@ fn variable_declaration_list_data(
     node: TransformNode,
 ) -> Result<VariableDeclarationListData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::VariableDeclarationList(data) => Ok(data.clone()),
+        NodeData::VariableDeclarationList(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::VariableDeclarationList,
             actual: context.arena().node(node)?.kind,
@@ -2493,7 +2493,7 @@ fn binding_element_data(
     node: TransformNode,
 ) -> Result<BindingElementData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::BindingElement(data) => Ok(data.clone()),
+        NodeData::BindingElement(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::BindingElement,
             actual: context.arena().node(node)?.kind,
@@ -2506,7 +2506,7 @@ fn import_equals_data(
     node: TransformNode,
 ) -> Result<ImportEqualsDeclarationData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::ImportEqualsDeclaration(data) => Ok(data.clone()),
+        NodeData::ImportEqualsDeclaration(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::ImportEqualsDeclaration,
             actual: context.arena().node(node)?.kind,
@@ -2519,7 +2519,7 @@ fn external_module_reference_data(
     node: TransformNode,
 ) -> Result<ExternalModuleReferenceData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::ExternalModuleReference(data) => Ok(data.clone()),
+        NodeData::ExternalModuleReference(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::ExternalModuleReference,
             actual: context.arena().node(node)?.kind,
@@ -2532,7 +2532,7 @@ fn import_declaration_data(
     node: TransformNode,
 ) -> Result<ImportDeclarationData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::ImportDeclaration(data) => Ok(data.clone()),
+        NodeData::ImportDeclaration(data) => Ok(data),
         // tsgo's reparser turns an `@import` tag into an import declaration
         // with the tag's clause, specifier and attributes (reparser.go:124-137).
         NodeData::JSDocImportTag(data) => Ok(ImportDeclarationData {
@@ -2553,7 +2553,7 @@ fn import_clause_data(
     node: TransformNode,
 ) -> Result<ImportClauseData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::ImportClause(data) => Ok(data.clone()),
+        NodeData::ImportClause(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::ImportClause,
             actual: context.arena().node(node)?.kind,
@@ -2566,7 +2566,7 @@ fn named_imports_data(
     node: TransformNode,
 ) -> Result<NamedImportsData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::NamedImports(data) => Ok(data.clone()),
+        NodeData::NamedImports(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::NamedImports,
             actual: context.arena().node(node)?.kind,
@@ -2579,7 +2579,7 @@ fn heritage_clause_data(
     node: TransformNode,
 ) -> Result<HeritageClauseData, TransformError> {
     match context.arena().node(node)?.data() {
-        NodeData::HeritageClause(data) => Ok(data.clone()),
+        NodeData::HeritageClause(data) => Ok(data),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::HeritageClause,
             actual: context.arena().node(node)?.kind,
@@ -2604,7 +2604,7 @@ fn is_external_module_augmentation(
         node: crate::TransformNode,
     ) -> Result<bool, TransformError> {
         let record = context.arena().node(node)?;
-        let NodeData::ModuleDeclaration(data) = record.data() else {
+        let Some(data) = record.as_module_declaration() else {
             return Ok(false);
         };
         Ok(

@@ -899,7 +899,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         {
             return Ok(Some(id));
         }
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
         if !mode_sensitive {
             if let Some(mapped) = self.nodes.get(&id) {
                 self.audit_memo_hit(id)?;
@@ -907,7 +907,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }
             self.audit_memo_first_visit(original)?;
         }
-        let transformed = match record.data().clone() {
+        let transformed = match record.data() {
             // tsc-port: isNamedEvaluation(node, isAnonymousClassNeedingAssignedName)
             // @6.0.3 — the visitor's named-evaluation sources record the
             // assigned name for an anonymous decorated class expression
@@ -916,7 +916,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 self.record_named_evaluation_of_identifier(data.name, data.initializer, true)?;
                 Some(self.update_generic(original, NodeData::VariableDeclaration(data))?)
             }
-            NodeData::Parameter(data) => Some(self.visit_parameter_declaration(original, *data)?),
+            NodeData::Parameter(data) => Some(self.visit_parameter_declaration(original, data)?),
             NodeData::BindingElement(data) => {
                 self.record_named_evaluation_of_identifier(
                     data.name,
@@ -1123,7 +1123,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             return Ok(false);
         };
         let inner = self.skip_outer_expressions(self.node(expression))?;
-        let NodeData::ClassExpression(data) = self.context.arena().node(inner)?.data() else {
+        let Some(data) = self.context.arena().node(inner)?.as_class_expression() else {
             return Ok(false);
         };
         if data.name.is_some() || !self.decorator_expressions(data.modifiers)?.is_empty() {
@@ -1157,7 +1157,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             return Ok(None);
         };
         let class = self.skip_outer_expressions(self.node(initializer))?;
-        let NodeData::ClassExpression(data) = self.context.arena().node(class)?.data() else {
+        let Some(data) = self.context.arena().node(class)?.as_class_expression() else {
             return Ok(None);
         };
         if data.name.is_some() || self.explicitly_assigned_class_name(class)?.is_some() {
@@ -1222,7 +1222,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let Some(class) = self.anonymous_class_needing_assigned_name(data.initializer)? else {
             return Ok(());
         };
-        let record = self.context.arena().node(name)?.data().clone();
+        let record = self.context.arena().node(name)?.data();
         if !matches!(record, NodeData::ComputedPropertyName(_))
             && self
                 .property_name_literal_text(name)?
@@ -1391,8 +1391,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             self.record_named_evaluation_source(data.initializer, name_node)?;
             return Ok(PropertyNamedEvaluation::NotRewritten);
         }
-        let NodeData::ComputedPropertyName(computed) =
-            self.context.arena().node(name_node)?.data().clone()
+        let NodeData::ComputedPropertyName(computed) = self.context.arena().node(name_node)?.data()
         else {
             return Ok(PropertyNamedEvaluation::NotRewritten);
         };
@@ -1445,8 +1444,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
             return Ok(expanded.iter().copied().map(|id| self.node(id)).collect());
         }
         let original = self.node(id);
-        let record = self.context.arena().node(original)?.clone();
-        let NodeData::ClassDeclaration(mut data) = record.data().clone() else {
+        let record = *self.context.arena().node(original)?;
+        let Some(mut data) = record.as_class_declaration() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: record.kind,
                 field: "class declaration",
@@ -1763,7 +1762,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let mut used_private = self.collect_private_names(data.members)?;
         used_private.extend(enclosing_private_generated_names.iter().cloned());
         for member in &original_members {
-            match self.context.arena().node(*member)?.data().clone() {
+            match self.context.arena().node(*member)?.data() {
                 NodeData::PropertyDeclaration(member_data) => {
                     let decorators = self.decorator_expressions(member_data.modifiers)?;
                     if decorators.is_empty() {
@@ -1815,7 +1814,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     });
                     plans.push(PropertyPlan {
                         original: *member,
-                        data: *member_data,
+                        data: member_data,
                         name,
                         is_static,
                         is_private,
@@ -2114,7 +2113,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             if Some(member) == named_evaluation_member {
                 continue;
             }
-            let member_data = self.context.arena().node(member)?.data().clone();
+            let member_data = self.context.arena().node(member)?.data();
             if matches!(member_data, NodeData::Constructor(_)) {
                 constructor_slots.push((transformed_members.len(), member));
                 transformed_members.push(member);
@@ -2319,7 +2318,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let flags = flags_after_update(
             self.context.arena(),
             original,
-            &NodeData::ClassExpression(data.clone()),
+            &NodeData::ClassExpression(data),
         )?;
         let class = self.context.factory()?.create_node(
             self.source,
@@ -2471,7 +2470,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         for clause in &mut clauses {
             let clause_node = *clause;
             let NodeData::HeritageClause(mut clause_data) =
-                self.context.arena().node(clause_node)?.data().clone()
+                self.context.arena().node(clause_node)?.data()
             else {
                 continue;
             };
@@ -2482,7 +2481,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 continue;
             };
             let NodeData::ExpressionWithTypeArguments(mut extends_data) =
-                self.context.arena().node(extends_type)?.data().clone()
+                self.context.arena().node(extends_type)?.data()
             else {
                 continue;
             };
@@ -2523,7 +2522,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             let flags = flags_after_update(
                 self.context.arena(),
                 extends_type,
-                &NodeData::ExpressionWithTypeArguments(extends_data.clone()),
+                &NodeData::ExpressionWithTypeArguments(extends_data),
             )?;
             let extends_type = self.context.factory()?.update_node(
                 extends_type,
@@ -2538,7 +2537,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             let flags = flags_after_update(
                 self.context.arena(),
                 clause_node,
-                &NodeData::HeritageClause(clause_data.clone()),
+                &NodeData::HeritageClause(clause_data),
             )?;
             *clause = self.context.factory()?.update_node(
                 clause_node,
@@ -2843,7 +2842,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 let flags = flags_after_update(
                     self.context.arena(),
                     original_name,
-                    &NodeData::ComputedPropertyName(data.clone()),
+                    &NodeData::ComputedPropertyName(data),
                 )?;
                 let updated = self.context.factory()?.update_node(
                     original_name,
@@ -2899,7 +2898,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         }
         let mut expressions = std::mem::take(&mut self.pending_expressions);
         if let NodeData::ParenthesizedExpression(mut data) =
-            self.context.arena().node(expression)?.data().clone()
+            self.context.arena().node(expression)?.data()
         {
             let inner = data
                 .expression
@@ -2914,7 +2913,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             let flags = flags_after_update(
                 self.context.arena(),
                 expression,
-                &NodeData::ParenthesizedExpression(data.clone()),
+                &NodeData::ParenthesizedExpression(data),
             )?;
             return self.context.factory()?.update_node(
                 expression,
@@ -2999,7 +2998,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         &mut self,
         expression: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let data = self.context.arena().node(expression)?.data().clone();
+        let data = self.context.arena().node(expression)?.data();
         let (target, receiver) = match data {
             NodeData::ParenthesizedExpression(mut data) => {
                 let inner = data
@@ -3056,7 +3055,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     let flags = flags_after_update(
                         self.context.arena(),
                         expression,
-                        &NodeData::PropertyAccessExpression(data.clone()),
+                        &NodeData::PropertyAccessExpression(data),
                     )?;
                     self.context.factory()?.update_node(
                         expression,
@@ -3091,7 +3090,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     let flags = flags_after_update(
                         self.context.arena(),
                         expression,
-                        &NodeData::ElementAccessExpression(data.clone()),
+                        &NodeData::ElementAccessExpression(data),
                     )?;
                     self.context.factory()?.update_node(
                         expression,
@@ -3401,7 +3400,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         &mut self,
         plan: &MethodPlan,
     ) -> Result<TransformNode, TransformError> {
-        let data = self.context.arena().node(plan.original)?.data().clone();
+        let data = self.context.arena().node(plan.original)?.data();
         let (parameters, body, asterisk_token, modifiers) = match data {
             NodeData::MethodDeclaration(data) => (
                 self.visit_optional_nodes(data.parameters)?,
@@ -3582,7 +3581,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         &mut self,
         plan: &MethodPlan,
     ) -> Result<TransformNode, TransformError> {
-        let data = self.context.arena().node(plan.original)?.data().clone();
+        let data = self.context.arena().node(plan.original)?.data();
         let (name, original_modifiers) = match &data {
             NodeData::MethodDeclaration(data) => (data.name, data.modifiers),
             NodeData::GetAccessor(data) => (data.name, data.modifiers),
@@ -3640,14 +3639,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 .create_node_array(self.source, vec![value])?;
             self.context.factory()?.create_node(
                 self.source,
-                NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
+                NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
                     name: Some(name),
                     type_parameters: None,
                     parameters: Some(parameters.array()),
                     r#type: None,
                     body: Some(body.node()),
                     modifiers,
-                })),
+                }),
                 TransformFlags::NONE,
             )?
         } else {
@@ -3657,14 +3656,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 .create_node_array(self.source, Vec::new())?;
             self.context.factory()?.create_node(
                 self.source,
-                NodeData::GetAccessor(Box::new(tsc_syntax::nodes::GetAccessorData {
+                NodeData::GetAccessor(tsc_syntax::nodes::GetAccessorData {
                     name: Some(name),
                     type_parameters: None,
                     parameters: Some(parameters.array()),
                     r#type: None,
                     body: Some(body.node()),
                     modifiers,
-                })),
+                }),
                 TransformFlags::NONE,
             )?
         };
@@ -3673,7 +3672,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     fn update_public_method(&mut self, plan: &MethodPlan) -> Result<TransformNode, TransformError> {
-        let data = self.context.arena().node(plan.original)?.data().clone();
+        let data = self.context.arena().node(plan.original)?.data();
         let modifiers = self.declaration_modifiers(plan.original)?;
         let data = match data {
             NodeData::MethodDeclaration(mut data) => {
@@ -4099,7 +4098,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let mut expressions = self.materialize_pending_initializer_expressions(pending)?;
         if let Some(expression) = expression {
             if let NodeData::ParenthesizedExpression(mut data) =
-                self.context.arena().node(expression)?.data().clone()
+                self.context.arena().node(expression)?.data()
             {
                 let inner = data
                     .expression
@@ -4114,7 +4113,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 let flags = flags_after_update(
                     self.context.arena(),
                     expression,
-                    &NodeData::ParenthesizedExpression(data.clone()),
+                    &NodeData::ParenthesizedExpression(data),
                 )?;
                 let updated = self.context.factory()?.update_node(
                     expression,
@@ -4136,8 +4135,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         if pending.is_empty() {
             return Ok(property);
         }
-        let NodeData::PropertyDeclaration(mut data) =
-            self.context.arena().node(property)?.data().clone()
+        let NodeData::PropertyDeclaration(mut data) = self.context.arena().node(property)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::ClassExpression,
@@ -4153,7 +4151,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let flags = flags_after_update(
             self.context.arena(),
             property,
-            &NodeData::PropertyDeclaration(data.clone()),
+            &NodeData::PropertyDeclaration(data),
         )?;
         // Use the visited property as the immediate original. In particular,
         // this keeps a synthetic parameter-property's Property -> Parameter
@@ -4234,7 +4232,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         plan: &PropertyPlan,
         initializer: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let mut data = plan.data.clone();
+        let mut data = plan.data;
         data.name = self.visit_optional_node(data.name)?;
         data.modifiers = self.strip_decorators(data.modifiers)?;
         self.mark_transformed_member_name(true, data.modifiers, data.name)?;
@@ -4242,11 +4240,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let flags = flags_after_update(
             self.context.arena(),
             plan.original,
-            &NodeData::PropertyDeclaration(Box::new(data.clone())),
+            &NodeData::PropertyDeclaration(data),
         )?;
         let updated = self.context.factory()?.update_node(
             plan.original,
-            NodeData::PropertyDeclaration(Box::new(data)),
+            NodeData::PropertyDeclaration(data),
             flags,
         )?;
         self.set_source_map_range_past_decorators(updated, plan.original, plan.data.modifiers)
@@ -4277,14 +4275,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         })?;
         let field = self.context.factory()?.create_node(
             self.source,
-            NodeData::PropertyDeclaration(Box::new(tsc_syntax::nodes::PropertyDeclarationData {
+            NodeData::PropertyDeclaration(tsc_syntax::nodes::PropertyDeclarationData {
                 name: Some(backing.node()),
                 modifiers,
                 question_token: None,
                 exclamation_token: None,
                 r#type: None,
                 initializer: Some(initializer.node()),
-            })),
+            }),
             TransformFlags::CONTAINS_CLASS_FIELDS,
         )?;
         self.set_original_and_range(field, plan.original)?;
@@ -4375,14 +4373,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .create_node_array(self.source, Vec::new())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::GetAccessor(Box::new(tsc_syntax::nodes::GetAccessorData {
+            NodeData::GetAccessor(tsc_syntax::nodes::GetAccessorData {
                 name: Some(name),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers,
-            })),
+            }),
             TransformFlags::NONE,
         )
     }
@@ -4421,14 +4419,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let body = self.create_block(vec![statement], false)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
                 name: Some(name),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers,
-            })),
+            }),
             TransformFlags::NONE,
         )
     }
@@ -4644,14 +4642,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let body = self.create_block(statements, true)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::Constructor(Box::new(tsc_syntax::nodes::ConstructorData {
+            NodeData::Constructor(tsc_syntax::nodes::ConstructorData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            })),
+            }),
             TransformFlags::NONE,
         )
     }
@@ -4672,9 +4670,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         constructor: TransformNode,
         statement: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Constructor(mut data) =
-            self.context.arena().node(constructor)?.data().clone()
-        else {
+        let Some(mut data) = self.context.arena().node(constructor)?.as_constructor() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::ClassExpression,
                 field: "constructor",
@@ -4687,7 +4683,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 parent: SyntaxKind::Constructor,
                 field: "body",
             })?;
-        let NodeData::Block(block) = self.context.arena().node(body)?.data().clone() else {
+        let Some(block) = self.context.arena().node(body)?.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Constructor,
                 field: "body block",
@@ -4737,7 +4733,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let flags = flags_after_update(
             self.context.arena(),
             constructor,
-            &NodeData::Constructor(data.clone()),
+            &NodeData::Constructor(data),
         )?;
         self.context
             .factory()?
@@ -4755,7 +4751,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     statement_indices: vec![index],
                 }));
             }
-            let NodeData::TryStatement(data) = self.context.arena().node(*statement)?.data() else {
+            let Some(data) = self.context.arena().node(*statement)?.as_try_statement() else {
                 continue;
             };
             let Some(try_block) = data
@@ -4764,7 +4760,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             else {
                 continue;
             };
-            let NodeData::Block(block) = self.context.arena().node(try_block)?.data() else {
+            let Some(block) = self.context.arena().node(try_block)?.as_block() else {
                 continue;
             };
             let nested_statements = self.array_nodes(block.statements)?;
@@ -4809,7 +4805,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 field: "super statement path index",
             })?;
         let NodeData::TryStatement(mut try_statement) =
-            self.context.arena().node(statement)?.data().clone()
+            self.context.arena().node(statement)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Constructor,
@@ -4823,8 +4819,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 parent: SyntaxKind::TryStatement,
                 field: "try_block on super path",
             })?;
-        let NodeData::Block(mut block) = self.context.arena().node(try_block)?.data().clone()
-        else {
+        let Some(mut block) = self.context.arena().node(try_block)?.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::TryStatement,
                 field: "try block on super path",
@@ -4847,11 +4842,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     .create_node_array(self.source, nested_statements)?
             };
         block.statements = Some(nested_statements.array());
-        let flags = flags_after_update(
-            self.context.arena(),
-            try_block,
-            &NodeData::Block(block.clone()),
-        )?;
+        let flags = flags_after_update(self.context.arena(), try_block, &NodeData::Block(block))?;
         let try_block =
             self.context
                 .factory()?
@@ -4860,7 +4851,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let flags = flags_after_update(
             self.context.arena(),
             statement,
-            &NodeData::TryStatement(try_statement.clone()),
+            &NodeData::TryStatement(try_statement),
         )?;
         statements[index] = self.context.factory()?.update_node(
             statement,
@@ -4879,7 +4870,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             return Ok(false);
         };
         let expression = self.skip_parenthesized_expression(self.node(expression))?;
-        let NodeData::CallExpression(data) = self.context.arena().node(expression)?.data() else {
+        let Some(data) = self.context.arena().node(expression)?.as_call_expression() else {
             return Ok(false);
         };
         Ok(data.expression.is_some_and(|expression| {
@@ -5054,7 +5045,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(Box::new(tsc_syntax::nodes::StringLiteralData { text })),
+            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData { text }),
             TransformFlags::NONE,
         )
     }
@@ -5066,7 +5057,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .push_text(self.source, text.as_bytes())?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
+            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData { text }),
             TransformFlags::NONE,
         )
     }
@@ -5339,14 +5330,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let name = self.create_identifier(name)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
                 name: Some(name.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            })),
+            }),
             TransformFlags::NONE,
         )
     }
@@ -5367,14 +5358,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         )?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::ArrowFunction(Box::new(tsc_syntax::nodes::ArrowFunctionData {
+            NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
                 equals_greater_than_token: Some(arrow.node()),
-            })),
+            }),
             TransformFlags::NONE,
         )
     }
@@ -5388,7 +5379,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     ) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
                 name: None,
                 type_parameters: None,
                 parameters,
@@ -5396,7 +5387,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 asterisk_token,
                 body: Some(body.node()),
                 modifiers,
-            })),
+            }),
             TransformFlags::NONE,
         )
     }
@@ -5517,9 +5508,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let NodeData::Identifier(identifier) = self.context.arena().node(name).ok()?.data() else {
-            return None;
-        };
+        let identifier = self.context.arena().node(name).ok()?.as_identifier()?;
         Some(TargetBinding::from_existing(
             id,
             identifier.text().to_owned(),
@@ -5845,7 +5834,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             });
         };
         let body = self.node(body);
-        let block = if matches!(self.context.arena().node(body)?.data(), NodeData::Block(_)) {
+        let block = if self.context.arena().node(body)?.kind == SyntaxKind::Block {
             body
         } else {
             // VisitFunctionBody: the concise body writes no comments of its
@@ -5912,7 +5901,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         data.r#type = None;
         data.initializer = self.visit_optional_node(data.initializer)?;
         let name = data.name;
-        let updated = self.update_data(original, NodeData::Parameter(Box::new(data)))?;
+        let updated = self.update_data(original, NodeData::Parameter(data))?;
         if updated != original.node() {
             let updated_node = self.node(updated);
             let record = self.context.arena().node(original)?;
@@ -6035,7 +6024,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         &mut self,
         parameter: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data().clone() else {
+        let Some(data) = self.context.arena().node(parameter)?.as_parameter() else {
             return Ok(parameter);
         };
         if data.dot_dot_dot_token.is_some() {
@@ -6049,10 +6038,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             name_kind,
             SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
         ) {
-            self.add_default_value_assignment_for_binding_pattern(parameter, *data, name)
+            self.add_default_value_assignment_for_binding_pattern(parameter, data, name)
         } else if let Some(initializer) = data.initializer.map(|initializer| self.node(initializer))
         {
-            self.add_default_value_assignment_for_initializer(parameter, *data, name, initializer)
+            self.add_default_value_assignment_for_initializer(parameter, data, name, initializer)
         } else {
             Ok(parameter)
         }
@@ -6106,7 +6095,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let if_statement = self.create_if_statement(condition, block)?;
         self.add_initialization_statement(if_statement)?;
         data.initializer = None;
-        let updated = NodeData::Parameter(Box::new(data));
+        let updated = NodeData::Parameter(data);
         let flags = flags_after_update(self.context.arena(), parameter, &updated)?;
         self.context
             .factory()?
@@ -6148,7 +6137,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         self.add_initialization_statement(statement)?;
         data.name = Some(self.create_binding_identifier(&alias)?.node());
         data.initializer = None;
-        let updated = NodeData::Parameter(Box::new(data));
+        let updated = NodeData::Parameter(data);
         let flags = flags_after_update(self.context.arena(), parameter, &updated)?;
         self.context
             .factory()?
@@ -6221,7 +6210,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     ) -> Result<Vec<TransformNode>, TransformError> {
         let mut decorators = Vec::new();
         for modifier in self.array_nodes(modifiers)? {
-            let NodeData::Decorator(data) = self.context.arena().node(modifier)?.data() else {
+            let Some(data) = self.context.arena().node(modifier)?.as_decorator() else {
                 continue;
             };
             let expression = data
@@ -6790,8 +6779,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             return Ok(root);
         };
         let root_node = self.node(root);
-        let NodeData::SourceFile(mut data) = self.context.arena().node(root_node)?.data().clone()
-        else {
+        let Some(mut data) = self.context.arena().node(root_node)?.as_source_file() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::SourceFile,
                 field: "source file for hoisted temporaries",
@@ -6810,11 +6798,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 .create_node_array(self.source, statements)?
         };
         data.statements = Some(statements.array());
-        let flags = flags_after_update(
-            self.context.arena(),
-            root_node,
-            &NodeData::SourceFile(data.clone()),
-        )?;
+        let flags =
+            flags_after_update(self.context.arena(), root_node, &NodeData::SourceFile(data))?;
         Ok(self
             .context
             .factory()?
@@ -6853,7 +6838,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     /// tsc-span: _tsc.js:14161-14163
     fn is_prologue_directive(&self, node: TransformNode) -> Result<bool, TransformError> {
         let arena = self.context.arena();
-        if let NodeData::ExpressionStatement(data) = arena.node(node)?.data() {
+        if let Some(data) = arena.node(node)?.as_expression_statement() {
             if let Some(expression) = data.expression {
                 return Ok(matches!(
                     arena.node(self.node(expression))?.data(),
@@ -6894,7 +6879,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         if !self.is_custom_prologue(node) {
             return Ok(false);
         }
-        let NodeData::VariableStatement(statement) = self.context.arena().node(node)?.data() else {
+        let Some(statement) = self.context.arena().node(node)?.as_variable_statement() else {
             return Ok(false);
         };
         let Some(list) = statement.declaration_list else {
@@ -6954,7 +6939,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         if declaration.is_none() && initialization_statements.is_empty() {
             return Ok(body);
         }
-        let NodeData::Block(mut data) = self.context.arena().node(body)?.data().clone() else {
+        let Some(mut data) = self.context.arena().node(body)?.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Block,
                 field: "block body for hoisted temporaries",
@@ -6982,7 +6967,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 .create_node_array(self.source, statements)?
         };
         data.statements = Some(statements.array());
-        let flags = flags_after_update(self.context.arena(), body, &NodeData::Block(data.clone()))?;
+        let flags = flags_after_update(self.context.arena(), body, &NodeData::Block(data))?;
         self.context
             .factory()?
             .update_node(body, NodeData::Block(data), flags)
@@ -7050,7 +7035,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         };
         let name = self.node(name);
         let record = self.context.arena().node(name)?;
-        if !matches!(record.data(), NodeData::PrivateIdentifier(_))
+        if record.kind != SyntaxKind::PrivateIdentifier
             || record.parent.is_none()
             || record.pos == u32::MAX
             || record.end == u32::MAX
@@ -7281,7 +7266,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         declaration: TransformNode,
         modifiers: Option<NodeArrayId>,
     ) -> Result<TransformNode, TransformError> {
-        let declaration_record = self.context.arena().node(declaration)?.clone();
+        let declaration_record = *self.context.arena().node(declaration)?;
         let last_decorator = self
             .array_nodes(modifiers)?
             .into_iter()
@@ -7363,7 +7348,7 @@ impl<'visitor, 'context> DecoratorLexicalThisRewriter<'visitor, 'context> {
             return Ok(Some(*rewritten));
         }
         let original = self.visitor.node(id);
-        let record = self.visitor.context.arena().node(original)?.clone();
+        let record = *self.visitor.context.arena().node(original)?;
         let rewritten = if record.kind == SyntaxKind::ThisKeyword {
             let binding = match self.bindings.outer_this.as_ref() {
                 Some(binding) => binding.clone(),
@@ -7383,7 +7368,7 @@ impl<'visitor, 'context> DecoratorLexicalThisRewriter<'visitor, 'context> {
         {
             original.node()
         } else {
-            let mut data = record.data().clone();
+            let mut data = record.data();
             try_visit_transform_children(&mut data, self)?;
             let flags = flags_after_update(self.visitor.context.arena(), original, &data)?;
             self.visitor
@@ -7467,7 +7452,7 @@ impl<'visitor, 'context> DecoratorClassThisRewriter<'visitor, 'context> {
             return Ok(Some(*rewritten));
         }
         let original = self.visitor.node(id);
-        let record = self.visitor.context.arena().node(original)?.clone();
+        let record = *self.visitor.context.arena().node(original)?;
         let rewritten = if record.kind == SyntaxKind::ThisKeyword {
             let flags = self
                 .visitor
@@ -7507,7 +7492,7 @@ impl<'visitor, 'context> DecoratorClassThisRewriter<'visitor, 'context> {
         {
             original.node()
         } else {
-            let mut data = record.data().clone();
+            let mut data = record.data();
             try_visit_transform_children(&mut data, self)?;
             let flags = flags_after_update(self.visitor.context.arena(), original, &data)?;
             self.visitor
@@ -7918,7 +7903,7 @@ impl StandardDecoratorVisitor<'_> {
         let flags = flags_after_update(
             self.context.arena(),
             original,
-            &NodeData::ClassExpression(data.clone()),
+            &NodeData::ClassExpression(data),
         )?;
         Ok(self
             .context
@@ -7947,7 +7932,7 @@ impl StandardDecoratorVisitor<'_> {
         let flags = flags_after_update(
             self.context.arena(),
             original,
-            &NodeData::ClassDeclaration(data.clone()),
+            &NodeData::ClassDeclaration(data),
         )?;
         Ok(self
             .context
@@ -7972,7 +7957,7 @@ impl StandardDecoratorVisitor<'_> {
         for member in nodes {
             let member = self.node(member);
             let property = match self.context.arena().node(member)?.data() {
-                NodeData::PropertyDeclaration(data) => Some(data.clone()),
+                NodeData::PropertyDeclaration(data) => Some(data),
                 _ => None,
             };
             self.enter_receiver_class_element(member)?;
@@ -8059,7 +8044,7 @@ impl StandardDecoratorVisitor<'_> {
         }
         let visited_name = self.node(visited);
         let NodeData::ComputedPropertyName(mut data) =
-            self.context.arena().node(visited_name)?.data().clone()
+            self.context.arena().node(visited_name)?.data()
         else {
             return Ok(());
         };
@@ -8078,7 +8063,7 @@ impl StandardDecoratorVisitor<'_> {
         let flags = flags_after_update(
             self.context.arena(),
             visited_name,
-            &NodeData::ComputedPropertyName(data.clone()),
+            &NodeData::ComputedPropertyName(data),
         )?;
         let updated = self.context.factory()?.update_node(
             visited_name,
@@ -8102,8 +8087,8 @@ impl StandardDecoratorVisitor<'_> {
         if let Some(Some(mapped)) = self.nodes.get(&member.node()).copied() {
             return Ok(self.node(mapped));
         }
-        let record = self.context.arena().node(member)?.clone();
-        let (data, finish_modifiers) = match record.data().clone() {
+        let record = *self.context.arena().node(member)?;
+        let (data, finish_modifiers) = match record.data() {
             NodeData::PropertyDeclaration(mut data) => {
                 let modifiers = data.modifiers;
                 data.modifiers = self.strip_decorators(data.modifiers)?;
@@ -8238,7 +8223,7 @@ impl StandardDecoratorVisitor<'_> {
         &mut self,
         access: TransformNode,
     ) -> Result<Option<TransformNode>, TransformError> {
-        match self.context.arena().node(access)?.data().clone() {
+        match self.context.arena().node(access)?.data() {
             NodeData::ElementAccessExpression(data) => Ok(Some(self.visit_required(
                 data.argument_expression,
                 SyntaxKind::ElementAccessExpression,
@@ -8913,7 +8898,7 @@ impl StandardDecoratorVisitor<'_> {
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        match self.context.arena().node(node)?.data().clone() {
+        match self.context.arena().node(node)?.data() {
             NodeData::ArrayLiteralExpression(mut data) => {
                 if let Some(elements) = data.elements {
                     let original_elements = self.array(elements);
@@ -8971,7 +8956,7 @@ impl StandardDecoratorVisitor<'_> {
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        match self.context.arena().node(node)?.data().clone() {
+        match self.context.arena().node(node)?.data() {
             NodeData::SpreadElement(data) => self.visit_assignment_rest_element(node, data),
             NodeData::OmittedExpression(_) => self.visit_required(
                 Some(node.node()),
@@ -8989,9 +8974,7 @@ impl StandardDecoratorVisitor<'_> {
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        if let NodeData::BinaryExpression(mut data) =
-            self.context.arena().node(node)?.data().clone()
-        {
+        if let Some(mut data) = self.context.arena().node(node)?.as_binary_expression() {
             if self.token_kind(data.operator_token)? == Some(SyntaxKind::EqualsToken) {
                 if let Some(left) = data.left {
                     let left = self.node(left);
@@ -9057,14 +9040,14 @@ impl StandardDecoratorVisitor<'_> {
         let parameter_name = self.create_binding_identifier(parameter)?;
         let parameter = self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
                 name: Some(parameter_name.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            })),
+            }),
             TransformFlags::NONE,
         )?;
         let parameters = self
@@ -9076,14 +9059,14 @@ impl StandardDecoratorVisitor<'_> {
         let accessor_name = self.create_identifier("value")?;
         let setter = self.context.factory()?.create_node(
             self.source,
-            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
                 name: Some(accessor_name.node()),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            })),
+            }),
             TransformFlags::NONE,
         )?;
         let object = self.create_object_literal(vec![setter], false)?;
@@ -9121,7 +9104,7 @@ impl StandardDecoratorVisitor<'_> {
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        match self.context.arena().node(node)?.data().clone() {
+        match self.context.arena().node(node)?.data() {
             NodeData::SpreadAssignment(mut data) => {
                 if let Some(expression) = data.expression.map(|expression| self.node(expression)) {
                     if self.is_left_hand_side_expression(expression)? {

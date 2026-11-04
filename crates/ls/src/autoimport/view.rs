@@ -616,7 +616,7 @@ impl<'r> View<'r> {
             ) {
                 continue;
             }
-            let NodeData::ImportClause(clause_data) = source.arena.node(clause).data() else {
+            let Some(clause_data) = source.arena.node(clause).as_import_clause() else {
                 continue;
             };
             if clause_data.phase_modifier == Some(SyntaxKind::SourceKeyword) {
@@ -1272,7 +1272,7 @@ pub(super) fn is_variable_declaration_initialized_to_require(
     if !is_source_file_js(source) {
         return false;
     }
-    let NodeData::VariableDeclaration(data) = source.arena.node(node).data() else {
+    let Some(data) = source.arena.node(node).as_variable_declaration() else {
         return false;
     };
     data.initializer
@@ -1427,9 +1427,7 @@ fn should_use_uri_style_node_core_modules(source: &SourceFile) -> Option<bool> {
         .imports
         .into_iter()
         .find_map(|import| {
-            let NodeData::StringLiteral(literal) = source.arena.node(import).data() else {
-                return None;
-            };
+            let literal = source.arena.node(import).as_string_literal()?;
             let text = source.arena.text_js(literal.text).to_string_lossy();
             match text.strip_prefix("node:") {
                 Some(name) => unprefixed.contains(&name).then_some(true),

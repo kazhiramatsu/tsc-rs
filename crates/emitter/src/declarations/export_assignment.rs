@@ -71,7 +71,7 @@ fn unwrap_parenthesized_expression(
     cx: &TransformationContext,
     mut node: TransformNode,
 ) -> Result<Option<TransformNode>, TransformError> {
-    while let NodeData::ParenthesizedExpression(data) = cx.arena().node(node)?.data() {
+    while let Some(data) = cx.arena().node(node)?.as_parenthesized_expression() {
         let Some(expression) = data.expression else {
             break;
         };
@@ -89,7 +89,7 @@ pub(crate) fn unwrap_parentheses(
     cx: &TransformationContext,
     mut node: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    while let NodeData::ParenthesizedExpression(data) = cx.arena().node(node)?.data() {
+    while let Some(data) = cx.arena().node(node)?.as_parenthesized_expression() {
         let Some(expression) = data.expression else {
             break;
         };

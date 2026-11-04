@@ -23,7 +23,7 @@ fn observe(case: &Value) -> Value {
         .node_array_ref(source, file.statements.unwrap())
         .unwrap();
     let mut function = TransformNode::new(source, arena.node_array(top).unwrap().nodes[0]);
-    let NodeData::FunctionDeclaration(data) = arena.node(function).unwrap().data().clone() else {
+    let NodeData::FunctionDeclaration(data) = arena.node(function).unwrap().data() else {
         unreachable!()
     };
     let mut body = TransformNode::new(source, data.body.unwrap());

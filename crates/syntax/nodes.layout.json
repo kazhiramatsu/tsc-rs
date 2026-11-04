@@ -6,43 +6,10 @@
     "observable_fields.rs. Every entry carries a one-line reason ('why')."
   ],
   "record": {
-    "nodeBytes": 48,
-    "nodeDataBytes": 24,
-    "inlinePayloadBytes": 20,
-    "why": "Node = 24 B header + 24 B NodeData (1 B tag, payload at offset 4); a payload over 20 B or with 8-byte alignment is boxed"
+    "nodeBytes": 32,
+    "payloadWords": 3,
+    "why": "Node = 20 B header (kind, literal_flags with HAS_TAIL in bit 15, flags, pos, end, parent) + three payload words; a payload of more words keeps its hot slots inline and spills the rest, the JSDoc attachment and a JSDoc comment to a tail (tsc_store::tails) when one of them is present"
   },
-  "boxed": [
-    {
-      "why": "a JSDocComment (est. 40 B) or a text (24 B) does not fit the 20 B inline payload",
-      "kinds": [
-        "JSDoc", "JSDocAugmentsTag", "JSDocAuthorTag", "JSDocCallbackTag", "JSDocClassTag", "JSDocDeprecatedTag",
-        "JSDocEnumTag", "JSDocImplementsTag", "JSDocImportTag", "JSDocLink", "JSDocLinkCode", "JSDocLinkPlain",
-        "JSDocOverloadTag", "JSDocOverrideTag", "JSDocParameterTag", "JSDocPrivateTag", "JSDocPropertyTag",
-        "JSDocProtectedTag", "JSDocPublicTag", "JSDocReadonlyTag", "JSDocReturnTag", "JSDocSatisfiesTag",
-        "JSDocSeeTag", "JSDocTag", "JSDocTemplateTag", "JSDocText", "JSDocThisTag", "JSDocThrowsTag",
-        "JSDocTypeTag", "JSDocTypedefTag"
-      ]
-    },
-    {
-      "why": "a literal's text (24 B, 8-byte aligned) does not fit the 20 B inline payload",
-      "kinds": [
-        "BigIntLiteral", "JsxText", "NoSubstitutionTemplateLiteral", "NumericLiteral", "RegularExpressionLiteral",
-        "StringLiteral", "TemplateHead", "TemplateMiddle", "TemplateTail"
-      ]
-    },
-    {
-      "why": "six or more child slots (24 B or more) do not fit the 20 B inline payload",
-      "kinds": [
-        "ArrowFunction", "Constructor", "FunctionDeclaration", "FunctionExpression", "GetAccessor", "MappedType",
-        "MethodDeclaration", "MethodSignature", "Parameter", "PropertyDeclaration", "SetAccessor",
-        "ShorthandPropertyAssignment"
-      ]
-    },
-    {
-      "why": "boxed with the text literals by f6fde16e6; the payload is zero-sized, so the Box never allocates",
-      "kinds": ["NotEmittedStatement"]
-    }
-  ],
   "stringTypes": {
     "JsString": {
       "why": "string literal values hold arbitrary UTF-16 (lone surrogates); numeric, raw and identifier texts stay UTF-8",
@@ -96,5 +63,53 @@
       "TypeScript 7.1's import attributes type of an ambient module",
       "(`declare module \"*.css\" with { type: \"css\" }`): a TypeLiteral."
     ]
+  },
+  "hotSlots": {
+    "why": "node-layout-report.md's M1 rule: the required slots first in schema order, then the optional ones by their presence on VS Code; '@scalars' is the word of the kind's booleans and SyntaxKind",
+    "kinds": {
+      "ArrowFunction": ["parameters", "body", "equalsGreaterThanToken"],
+      "BindingElement": ["name", "propertyName", "dotDotDotToken"],
+      "CallExpression": ["expression", "typeArguments", "arguments"],
+      "ClassDeclaration": ["name", "heritageClauses", "members"],
+      "ClassExpression": ["name", "heritageClauses", "members"],
+      "ConditionalExpression": ["condition", "questionToken", "whenTrue"],
+      "ConditionalType": ["checkType", "extendsType", "trueType"],
+      "Constructor": ["parameters", "body", "modifiers"],
+      "ConstructorType": ["parameters", "type", "modifiers"],
+      "ExportDeclaration": ["exportClause", "moduleSpecifier", "@scalars"],
+      "ForOfStatement": ["statement", "initializer", "expression"],
+      "ForStatement": ["statement", "condition", "incrementor"],
+      "FunctionDeclaration": ["name", "parameters", "type"],
+      "FunctionExpression": ["parameters", "body", "modifiers"],
+      "FunctionType": ["typeParameters", "parameters", "type"],
+      "GetAccessor": ["name", "parameters", "body"],
+      "ImportDeclaration": ["importClause", "moduleSpecifier", "attributes"],
+      "ImportEqualsDeclaration": ["name", "modifiers", "moduleReference"],
+      "ImportType": ["argument", "qualifier", "@scalars"],
+      "IndexSignature": ["parameters", "type", "modifiers"],
+      "InterfaceDeclaration": ["name", "modifiers", "members"],
+      "JSDocCallbackTag": ["tagName", "name", "typeExpression"],
+      "JSDocFunctionType": ["name", "typeParameters", "parameters"],
+      "JSDocImportTag": ["tagName", "importClause", "moduleSpecifier"],
+      "JSDocParameterTag": ["tagName", "name", "@scalars"],
+      "JSDocPropertyTag": ["tagName", "name", "typeExpression"],
+      "JSDocTypedefTag": ["tagName", "name", "fullName"],
+      "MappedType": ["typeParameter", "type", "members"],
+      "MethodDeclaration": ["name", "parameters", "body"],
+      "MethodSignature": ["name", "parameters", "type"],
+      "ModuleDeclaration": ["name", "modifiers", "body"],
+      "NamedTupleMember": ["name", "questionToken", "type"],
+      "NewExpression": ["expression", "typeArguments", "arguments"],
+      "Parameter": ["name", "modifiers", "type"],
+      "PropertyAssignment": ["name", "initializer", "modifiers"],
+      "PropertyDeclaration": ["name", "modifiers", "initializer"],
+      "PropertySignature": ["name", "questionToken", "type"],
+      "SetAccessor": ["name", "parameters", "body"],
+      "ShorthandPropertyAssignment": ["name", "equalsToken", "objectAssignmentInitializer"],
+      "TaggedTemplateExpression": ["tag", "typeArguments", "template"],
+      "TypeAliasDeclaration": ["name", "modifiers", "type"],
+      "TypeParameter": ["name", "constraint", "default"],
+      "VariableDeclaration": ["name", "type", "initializer"]
+    }
   }
 }

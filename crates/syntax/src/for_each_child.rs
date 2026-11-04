@@ -33,27 +33,30 @@ where
     L: NodeLookup,
     F: FnMut(NodeId) -> bool,
 {
-    match node.data() {
-        NodeData::Token => None,
-        NodeData::ArrayBindingPattern(data) => {
+    match node.kind {
+        SyntaxKind::ArrayBindingPattern => {
+            let data = node.decode_array_binding_pattern();
             if let Some(result) = visit_optional_nodes(lookup, data.elements, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ArrayLiteralExpression(data) => {
+        SyntaxKind::ArrayLiteralExpression => {
+            let data = node.decode_array_literal_expression();
             if let Some(result) = visit_optional_nodes(lookup, data.elements, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ArrayType(data) => {
+        SyntaxKind::ArrayType => {
+            let data = node.decode_array_type();
             if let Some(result) = visit_optional_node(data.element_type, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ArrowFunction(data) => {
+        SyntaxKind::ArrowFunction => {
+            let data = node.decode_arrow_function();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -74,7 +77,8 @@ where
             }
             None
         }
-        NodeData::AsExpression(data) => {
+        SyntaxKind::AsExpression => {
+            let data = node.decode_as_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
@@ -83,14 +87,15 @@ where
             }
             None
         }
-        NodeData::AwaitExpression(data) => {
+        SyntaxKind::AwaitExpression => {
+            let data = node.decode_await_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::BigIntLiteral(_data) => None,
-        NodeData::BinaryExpression(data) => {
+        SyntaxKind::BinaryExpression => {
+            let data = node.decode_binary_expression();
             if let Some(result) = visit_optional_node(data.left, &mut cb) {
                 return Some(result);
             }
@@ -102,7 +107,8 @@ where
             }
             None
         }
-        NodeData::BindingElement(data) => {
+        SyntaxKind::BindingElement => {
+            let data = node.decode_binding_element();
             if let Some(result) = visit_optional_node(data.dot_dot_dot_token, &mut cb) {
                 return Some(result);
             }
@@ -117,19 +123,22 @@ where
             }
             None
         }
-        NodeData::Block(data) => {
+        SyntaxKind::Block => {
+            let data = node.decode_block();
             if let Some(result) = visit_optional_nodes(lookup, data.statements, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::BreakStatement(data) => {
+        SyntaxKind::BreakStatement => {
+            let data = node.decode_break_statement();
             if let Some(result) = visit_optional_node(data.label, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::CallExpression(data) => {
+        SyntaxKind::CallExpression => {
+            let data = node.decode_call_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
@@ -144,7 +153,8 @@ where
             }
             None
         }
-        NodeData::CallSignature(data) => {
+        SyntaxKind::CallSignature => {
+            let data = node.decode_call_signature();
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
@@ -156,13 +166,15 @@ where
             }
             None
         }
-        NodeData::CaseBlock(data) => {
+        SyntaxKind::CaseBlock => {
+            let data = node.decode_case_block();
             if let Some(result) = visit_optional_nodes(lookup, data.clauses, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::CaseClause(data) => {
+        SyntaxKind::CaseClause => {
+            let data = node.decode_case_clause();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
@@ -171,7 +183,8 @@ where
             }
             None
         }
-        NodeData::CatchClause(data) => {
+        SyntaxKind::CatchClause => {
+            let data = node.decode_catch_clause();
             if let Some(result) = visit_optional_node(data.variable_declaration, &mut cb) {
                 return Some(result);
             }
@@ -180,7 +193,8 @@ where
             }
             None
         }
-        NodeData::ClassDeclaration(data) => {
+        SyntaxKind::ClassDeclaration => {
+            let data = node.decode_class_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -198,7 +212,8 @@ where
             }
             None
         }
-        NodeData::ClassExpression(data) => {
+        SyntaxKind::ClassExpression => {
+            let data = node.decode_class_expression();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -216,7 +231,8 @@ where
             }
             None
         }
-        NodeData::ClassStaticBlockDeclaration(data) => {
+        SyntaxKind::ClassStaticBlockDeclaration => {
+            let data = node.decode_class_static_block_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -225,19 +241,22 @@ where
             }
             None
         }
-        NodeData::CommaListExpression(data) => {
+        SyntaxKind::CommaListExpression => {
+            let data = node.decode_comma_list_expression();
             if let Some(result) = visit_optional_nodes(lookup, data.elements, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ComputedPropertyName(data) => {
+        SyntaxKind::ComputedPropertyName => {
+            let data = node.decode_computed_property_name();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ConditionalExpression(data) => {
+        SyntaxKind::ConditionalExpression => {
+            let data = node.decode_conditional_expression();
             if let Some(result) = visit_optional_node(data.condition, &mut cb) {
                 return Some(result);
             }
@@ -255,7 +274,8 @@ where
             }
             None
         }
-        NodeData::ConditionalType(data) => {
+        SyntaxKind::ConditionalType => {
+            let data = node.decode_conditional_type();
             if let Some(result) = visit_optional_node(data.check_type, &mut cb) {
                 return Some(result);
             }
@@ -270,7 +290,8 @@ where
             }
             None
         }
-        NodeData::ConstructSignature(data) => {
+        SyntaxKind::ConstructSignature => {
+            let data = node.decode_construct_signature();
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
@@ -282,7 +303,8 @@ where
             }
             None
         }
-        NodeData::Constructor(data) => {
+        SyntaxKind::Constructor => {
+            let data = node.decode_constructor();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -303,7 +325,8 @@ where
             }
             None
         }
-        NodeData::ConstructorType(data) => {
+        SyntaxKind::ConstructorType => {
+            let data = node.decode_constructor_type();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -318,32 +341,36 @@ where
             }
             None
         }
-        NodeData::ContinueStatement(data) => {
+        SyntaxKind::ContinueStatement => {
+            let data = node.decode_continue_statement();
             if let Some(result) = visit_optional_node(data.label, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::DebuggerStatement(_data) => None,
-        NodeData::Decorator(data) => {
+        SyntaxKind::Decorator => {
+            let data = node.decode_decorator();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::DefaultClause(data) => {
+        SyntaxKind::DefaultClause => {
+            let data = node.decode_default_clause();
             if let Some(result) = visit_optional_nodes(lookup, data.statements, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::DeleteExpression(data) => {
+        SyntaxKind::DeleteExpression => {
+            let data = node.decode_delete_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::DoStatement(data) => {
+        SyntaxKind::DoStatement => {
+            let data = node.decode_do_statement();
             if let Some(result) = visit_optional_node(data.statement, &mut cb) {
                 return Some(result);
             }
@@ -352,7 +379,8 @@ where
             }
             None
         }
-        NodeData::ElementAccessExpression(data) => {
+        SyntaxKind::ElementAccessExpression => {
+            let data = node.decode_element_access_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
@@ -364,8 +392,8 @@ where
             }
             None
         }
-        NodeData::EmptyStatement(_data) => None,
-        NodeData::EnumDeclaration(data) => {
+        SyntaxKind::EnumDeclaration => {
+            let data = node.decode_enum_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -377,7 +405,8 @@ where
             }
             None
         }
-        NodeData::EnumMember(data) => {
+        SyntaxKind::EnumMember => {
+            let data = node.decode_enum_member();
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
@@ -386,7 +415,8 @@ where
             }
             None
         }
-        NodeData::ExportAssignment(data) => {
+        SyntaxKind::ExportAssignment => {
+            let data = node.decode_export_assignment();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -395,7 +425,8 @@ where
             }
             None
         }
-        NodeData::ExportDeclaration(data) => {
+        SyntaxKind::ExportDeclaration => {
+            let data = node.decode_export_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -410,7 +441,8 @@ where
             }
             None
         }
-        NodeData::ExportSpecifier(data) => {
+        SyntaxKind::ExportSpecifier => {
+            let data = node.decode_export_specifier();
             if let Some(result) = visit_optional_node(data.property_name, &mut cb) {
                 return Some(result);
             }
@@ -419,13 +451,15 @@ where
             }
             None
         }
-        NodeData::ExpressionStatement(data) => {
+        SyntaxKind::ExpressionStatement => {
+            let data = node.decode_expression_statement();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ExpressionWithTypeArguments(data) => {
+        SyntaxKind::ExpressionWithTypeArguments => {
+            let data = node.decode_expression_with_type_arguments();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
@@ -434,13 +468,15 @@ where
             }
             None
         }
-        NodeData::ExternalModuleReference(data) => {
+        SyntaxKind::ExternalModuleReference => {
+            let data = node.decode_external_module_reference();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ForInStatement(data) => {
+        SyntaxKind::ForInStatement => {
+            let data = node.decode_for_in_statement();
             if let Some(result) = visit_optional_node(data.initializer, &mut cb) {
                 return Some(result);
             }
@@ -452,7 +488,8 @@ where
             }
             None
         }
-        NodeData::ForOfStatement(data) => {
+        SyntaxKind::ForOfStatement => {
+            let data = node.decode_for_of_statement();
             if let Some(result) = visit_optional_node(data.await_modifier, &mut cb) {
                 return Some(result);
             }
@@ -467,7 +504,8 @@ where
             }
             None
         }
-        NodeData::ForStatement(data) => {
+        SyntaxKind::ForStatement => {
+            let data = node.decode_for_statement();
             if let Some(result) = visit_optional_node(data.initializer, &mut cb) {
                 return Some(result);
             }
@@ -482,7 +520,8 @@ where
             }
             None
         }
-        NodeData::FunctionDeclaration(data) => {
+        SyntaxKind::FunctionDeclaration => {
+            let data = node.decode_function_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -506,7 +545,8 @@ where
             }
             None
         }
-        NodeData::FunctionExpression(data) => {
+        SyntaxKind::FunctionExpression => {
+            let data = node.decode_function_expression();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -530,7 +570,8 @@ where
             }
             None
         }
-        NodeData::FunctionType(data) => {
+        SyntaxKind::FunctionType => {
+            let data = node.decode_function_type();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -545,7 +586,8 @@ where
             }
             None
         }
-        NodeData::GetAccessor(data) => {
+        SyntaxKind::GetAccessor => {
+            let data = node.decode_get_accessor();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -566,14 +608,15 @@ where
             }
             None
         }
-        NodeData::HeritageClause(data) => {
+        SyntaxKind::HeritageClause => {
+            let data = node.decode_heritage_clause();
             if let Some(result) = visit_optional_nodes(lookup, data.types, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::Identifier(_data) => None,
-        NodeData::IfStatement(data) => {
+        SyntaxKind::IfStatement => {
+            let data = node.decode_if_statement();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
@@ -585,7 +628,8 @@ where
             }
             None
         }
-        NodeData::ImportAttribute(data) => {
+        SyntaxKind::ImportAttribute => {
+            let data = node.decode_import_attribute();
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
@@ -594,13 +638,15 @@ where
             }
             None
         }
-        NodeData::ImportAttributes(data) => {
+        SyntaxKind::ImportAttributes => {
+            let data = node.decode_import_attributes();
             if let Some(result) = visit_optional_nodes(lookup, data.elements, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ImportClause(data) => {
+        SyntaxKind::ImportClause => {
+            let data = node.decode_import_clause();
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
@@ -609,7 +655,8 @@ where
             }
             None
         }
-        NodeData::ImportDeclaration(data) => {
+        SyntaxKind::ImportDeclaration => {
+            let data = node.decode_import_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -624,7 +671,8 @@ where
             }
             None
         }
-        NodeData::ImportEqualsDeclaration(data) => {
+        SyntaxKind::ImportEqualsDeclaration => {
+            let data = node.decode_import_equals_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -636,7 +684,8 @@ where
             }
             None
         }
-        NodeData::ImportSpecifier(data) => {
+        SyntaxKind::ImportSpecifier => {
+            let data = node.decode_import_specifier();
             if let Some(result) = visit_optional_node(data.property_name, &mut cb) {
                 return Some(result);
             }
@@ -645,7 +694,8 @@ where
             }
             None
         }
-        NodeData::ImportType(data) => {
+        SyntaxKind::ImportType => {
+            let data = node.decode_import_type();
             if let Some(result) = visit_optional_node(data.argument, &mut cb) {
                 return Some(result);
             }
@@ -660,13 +710,15 @@ where
             }
             None
         }
-        NodeData::ImportTypeAssertionContainer(data) => {
+        SyntaxKind::ImportTypeAssertionContainer => {
+            let data = node.decode_import_type_assertion_container();
             if let Some(result) = visit_optional_node(data.assert_clause, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::IndexSignature(data) => {
+        SyntaxKind::IndexSignature => {
+            let data = node.decode_index_signature();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -681,7 +733,8 @@ where
             }
             None
         }
-        NodeData::IndexedAccessType(data) => {
+        SyntaxKind::IndexedAccessType => {
+            let data = node.decode_indexed_access_type();
             if let Some(result) = visit_optional_node(data.object_type, &mut cb) {
                 return Some(result);
             }
@@ -690,13 +743,15 @@ where
             }
             None
         }
-        NodeData::InferType(data) => {
+        SyntaxKind::InferType => {
+            let data = node.decode_infer_type();
             if let Some(result) = visit_optional_node(data.type_parameter, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::InterfaceDeclaration(data) => {
+        SyntaxKind::InterfaceDeclaration => {
+            let data = node.decode_interface_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -714,13 +769,15 @@ where
             }
             None
         }
-        NodeData::IntersectionType(data) => {
+        SyntaxKind::IntersectionType => {
+            let data = node.decode_intersection_type();
             if let Some(result) = visit_optional_nodes(lookup, data.types, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JSDoc(data) => {
+        SyntaxKind::JSDoc => {
+            let data = node.decode_js_doc();
             if let Some(result) =
                 visit_optional_jsdoc_comment(lookup, data.comment.as_ref(), &mut cb)
             {
@@ -731,8 +788,8 @@ where
             }
             None
         }
-        NodeData::JSDocAllType(_data) => None,
-        NodeData::JSDocAugmentsTag(data) => {
+        SyntaxKind::JSDocAugmentsTag => {
+            let data = node.decode_js_doc_augments_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -746,7 +803,8 @@ where
             }
             None
         }
-        NodeData::JSDocAuthorTag(data) => {
+        SyntaxKind::JSDocAuthorTag => {
+            let data = node.decode_js_doc_author_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -757,7 +815,8 @@ where
             }
             None
         }
-        NodeData::JSDocCallbackTag(data) => {
+        SyntaxKind::JSDocCallbackTag => {
+            let data = node.decode_js_doc_callback_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -774,7 +833,8 @@ where
             }
             None
         }
-        NodeData::JSDocClassTag(data) => {
+        SyntaxKind::JSDocClassTag => {
+            let data = node.decode_js_doc_class_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -785,7 +845,8 @@ where
             }
             None
         }
-        NodeData::JSDocDeprecatedTag(data) => {
+        SyntaxKind::JSDocDeprecatedTag => {
+            let data = node.decode_js_doc_deprecated_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -796,7 +857,8 @@ where
             }
             None
         }
-        NodeData::JSDocEnumTag(data) => {
+        SyntaxKind::JSDocEnumTag => {
+            let data = node.decode_js_doc_enum_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -810,7 +872,8 @@ where
             }
             None
         }
-        NodeData::JSDocFunctionType(data) => {
+        SyntaxKind::JSDocFunctionType => {
+            let data = node.decode_js_doc_function_type();
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
                 return Some(result);
             }
@@ -819,7 +882,8 @@ where
             }
             None
         }
-        NodeData::JSDocImplementsTag(data) => {
+        SyntaxKind::JSDocImplementsTag => {
+            let data = node.decode_js_doc_implements_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -833,7 +897,8 @@ where
             }
             None
         }
-        NodeData::JSDocImportTag(data) => {
+        SyntaxKind::JSDocImportTag => {
+            let data = node.decode_js_doc_import_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -853,25 +918,29 @@ where
             }
             None
         }
-        NodeData::JSDocLink(data) => {
+        SyntaxKind::JSDocLink => {
+            let data = node.decode_js_doc_link();
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JSDocLinkCode(data) => {
+        SyntaxKind::JSDocLinkCode => {
+            let data = node.decode_js_doc_link_code();
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JSDocLinkPlain(data) => {
+        SyntaxKind::JSDocLinkPlain => {
+            let data = node.decode_js_doc_link_plain();
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JSDocMemberName(data) => {
+        SyntaxKind::JSDocMemberName => {
+            let data = node.decode_js_doc_member_name();
             if let Some(result) = visit_optional_node(data.left, &mut cb) {
                 return Some(result);
             }
@@ -880,32 +949,36 @@ where
             }
             None
         }
-        NodeData::JSDocNameReference(data) => {
+        SyntaxKind::JSDocNameReference => {
+            let data = node.decode_js_doc_name_reference();
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JSDocNamepathType(_data) => None,
-        NodeData::JSDocNonNullableType(data) => {
+        SyntaxKind::JSDocNonNullableType => {
+            let data = node.decode_js_doc_non_nullable_type();
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JSDocNullableType(data) => {
+        SyntaxKind::JSDocNullableType => {
+            let data = node.decode_js_doc_nullable_type();
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JSDocOptionalType(data) => {
+        SyntaxKind::JSDocOptionalType => {
+            let data = node.decode_js_doc_optional_type();
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JSDocOverloadTag(data) => {
+        SyntaxKind::JSDocOverloadTag => {
+            let data = node.decode_js_doc_overload_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -919,7 +992,8 @@ where
             }
             None
         }
-        NodeData::JSDocOverrideTag(data) => {
+        SyntaxKind::JSDocOverrideTag => {
+            let data = node.decode_js_doc_override_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -930,7 +1004,8 @@ where
             }
             None
         }
-        NodeData::JSDocParameterTag(data) => {
+        SyntaxKind::JSDocParameterTag => {
+            let data = node.decode_js_doc_parameter_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -956,7 +1031,8 @@ where
             }
             None
         }
-        NodeData::JSDocPrivateTag(data) => {
+        SyntaxKind::JSDocPrivateTag => {
+            let data = node.decode_js_doc_private_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -967,7 +1043,8 @@ where
             }
             None
         }
-        NodeData::JSDocPropertyTag(data) => {
+        SyntaxKind::JSDocPropertyTag => {
+            let data = node.decode_js_doc_property_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -993,7 +1070,8 @@ where
             }
             None
         }
-        NodeData::JSDocProtectedTag(data) => {
+        SyntaxKind::JSDocProtectedTag => {
+            let data = node.decode_js_doc_protected_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1004,7 +1082,8 @@ where
             }
             None
         }
-        NodeData::JSDocPublicTag(data) => {
+        SyntaxKind::JSDocPublicTag => {
+            let data = node.decode_js_doc_public_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1015,7 +1094,8 @@ where
             }
             None
         }
-        NodeData::JSDocReadonlyTag(data) => {
+        SyntaxKind::JSDocReadonlyTag => {
+            let data = node.decode_js_doc_readonly_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1026,21 +1106,8 @@ where
             }
             None
         }
-        NodeData::JSDocReturnTag(data) => {
-            if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
-                return Some(result);
-            }
-            if let Some(result) = visit_optional_node(data.type_expression, &mut cb) {
-                return Some(result);
-            }
-            if let Some(result) =
-                visit_optional_jsdoc_comment(lookup, data.comment.as_ref(), &mut cb)
-            {
-                return Some(result);
-            }
-            None
-        }
-        NodeData::JSDocSatisfiesTag(data) => {
+        SyntaxKind::JSDocReturnTag => {
+            let data = node.decode_js_doc_return_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1054,7 +1121,23 @@ where
             }
             None
         }
-        NodeData::JSDocSeeTag(data) => {
+        SyntaxKind::JSDocSatisfiesTag => {
+            let data = node.decode_js_doc_satisfies_tag();
+            if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.type_expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocSeeTag => {
+            let data = node.decode_js_doc_see_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1068,7 +1151,8 @@ where
             }
             None
         }
-        NodeData::JSDocSignature(data) => {
+        SyntaxKind::JSDocSignature => {
+            let data = node.decode_js_doc_signature();
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
@@ -1080,7 +1164,8 @@ where
             }
             None
         }
-        NodeData::JSDocTag(data) => {
+        SyntaxKind::JSDocTag => {
+            let data = node.decode_js_doc_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1091,7 +1176,8 @@ where
             }
             None
         }
-        NodeData::JSDocTemplateTag(data) => {
+        SyntaxKind::JSDocTemplateTag => {
+            let data = node.decode_js_doc_template_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1108,8 +1194,8 @@ where
             }
             None
         }
-        NodeData::JSDocText(_data) => None,
-        NodeData::JSDocThisTag(data) => {
+        SyntaxKind::JSDocThisTag => {
+            let data = node.decode_js_doc_this_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1123,7 +1209,8 @@ where
             }
             None
         }
-        NodeData::JSDocThrowsTag(data) => {
+        SyntaxKind::JSDocThrowsTag => {
+            let data = node.decode_js_doc_throws_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1137,19 +1224,22 @@ where
             }
             None
         }
-        NodeData::JSDocTypeExpression(data) => {
+        SyntaxKind::JSDocTypeExpression => {
+            let data = node.decode_js_doc_type_expression();
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JSDocTypeLiteral(data) => {
+        SyntaxKind::JSDocTypeLiteral => {
+            let data = node.decode_js_doc_type_literal();
             if let Some(result) = visit_optional_nodes(lookup, data.js_doc_property_tags, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JSDocTypeTag(data) => {
+        SyntaxKind::JSDocTypeTag => {
+            let data = node.decode_js_doc_type_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1163,7 +1253,8 @@ where
             }
             None
         }
-        NodeData::JSDocTypedefTag(data) => {
+        SyntaxKind::JSDocTypedefTag => {
+            let data = node.decode_js_doc_typedef_tag();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1192,14 +1283,15 @@ where
             }
             None
         }
-        NodeData::JSDocUnknownType(_data) => None,
-        NodeData::JSDocVariadicType(data) => {
+        SyntaxKind::JSDocVariadicType => {
+            let data = node.decode_js_doc_variadic_type();
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JsxAttribute(data) => {
+        SyntaxKind::JsxAttribute => {
+            let data = node.decode_jsx_attribute();
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
@@ -1208,19 +1300,22 @@ where
             }
             None
         }
-        NodeData::JsxAttributes(data) => {
+        SyntaxKind::JsxAttributes => {
+            let data = node.decode_jsx_attributes();
             if let Some(result) = visit_optional_nodes(lookup, data.properties, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JsxClosingElement(data) => {
+        SyntaxKind::JsxClosingElement => {
+            let data = node.decode_jsx_closing_element();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JsxElement(data) => {
+        SyntaxKind::JsxElement => {
+            let data = node.decode_jsx_element();
             if let Some(result) = visit_optional_node(data.opening_element, &mut cb) {
                 return Some(result);
             }
@@ -1232,7 +1327,8 @@ where
             }
             None
         }
-        NodeData::JsxExpression(data) => {
+        SyntaxKind::JsxExpression => {
+            let data = node.decode_jsx_expression();
             if let Some(result) = visit_optional_node(data.dot_dot_dot_token, &mut cb) {
                 return Some(result);
             }
@@ -1241,7 +1337,8 @@ where
             }
             None
         }
-        NodeData::JsxFragment(data) => {
+        SyntaxKind::JsxFragment => {
+            let data = node.decode_jsx_fragment();
             if let Some(result) = visit_optional_node(data.opening_fragment, &mut cb) {
                 return Some(result);
             }
@@ -1253,7 +1350,8 @@ where
             }
             None
         }
-        NodeData::JsxNamespacedName(data) => {
+        SyntaxKind::JsxNamespacedName => {
+            let data = node.decode_jsx_namespaced_name();
             if let Some(result) = visit_optional_node(data.namespace, &mut cb) {
                 return Some(result);
             }
@@ -1262,7 +1360,8 @@ where
             }
             None
         }
-        NodeData::JsxOpeningElement(data) => {
+        SyntaxKind::JsxOpeningElement => {
+            let data = node.decode_jsx_opening_element();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1274,7 +1373,8 @@ where
             }
             None
         }
-        NodeData::JsxSelfClosingElement(data) => {
+        SyntaxKind::JsxSelfClosingElement => {
+            let data = node.decode_jsx_self_closing_element();
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);
             }
@@ -1286,14 +1386,15 @@ where
             }
             None
         }
-        NodeData::JsxSpreadAttribute(data) => {
+        SyntaxKind::JsxSpreadAttribute => {
+            let data = node.decode_jsx_spread_attribute();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::JsxText(_data) => None,
-        NodeData::LabeledStatement(data) => {
+        SyntaxKind::LabeledStatement => {
+            let data = node.decode_labeled_statement();
             if let Some(result) = visit_optional_node(data.label, &mut cb) {
                 return Some(result);
             }
@@ -1302,13 +1403,15 @@ where
             }
             None
         }
-        NodeData::LiteralType(data) => {
+        SyntaxKind::LiteralType => {
+            let data = node.decode_literal_type();
             if let Some(result) = visit_optional_node(data.literal, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::MappedType(data) => {
+        SyntaxKind::MappedType => {
+            let data = node.decode_mapped_type();
             if let Some(result) = visit_optional_node(data.readonly_token, &mut cb) {
                 return Some(result);
             }
@@ -1329,13 +1432,15 @@ where
             }
             None
         }
-        NodeData::MetaProperty(data) => {
+        SyntaxKind::MetaProperty => {
+            let data = node.decode_meta_property();
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::MethodDeclaration(data) => {
+        SyntaxKind::MethodDeclaration => {
+            let data = node.decode_method_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1365,7 +1470,8 @@ where
             }
             None
         }
-        NodeData::MethodSignature(data) => {
+        SyntaxKind::MethodSignature => {
+            let data = node.decode_method_signature();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1386,19 +1492,22 @@ where
             }
             None
         }
-        NodeData::MissingDeclaration(data) => {
+        SyntaxKind::MissingDeclaration => {
+            let data = node.decode_missing_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ModuleBlock(data) => {
+        SyntaxKind::ModuleBlock => {
+            let data = node.decode_module_block();
             if let Some(result) = visit_optional_nodes(lookup, data.statements, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ModuleDeclaration(data) => {
+        SyntaxKind::ModuleDeclaration => {
+            let data = node.decode_module_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1413,19 +1522,22 @@ where
             }
             None
         }
-        NodeData::NamedExports(data) => {
+        SyntaxKind::NamedExports => {
+            let data = node.decode_named_exports();
             if let Some(result) = visit_optional_nodes(lookup, data.elements, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::NamedImports(data) => {
+        SyntaxKind::NamedImports => {
+            let data = node.decode_named_imports();
             if let Some(result) = visit_optional_nodes(lookup, data.elements, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::NamedTupleMember(data) => {
+        SyntaxKind::NamedTupleMember => {
+            let data = node.decode_named_tuple_member();
             if let Some(result) = visit_optional_node(data.dot_dot_dot_token, &mut cb) {
                 return Some(result);
             }
@@ -1440,13 +1552,15 @@ where
             }
             None
         }
-        NodeData::NamespaceExport(data) => {
+        SyntaxKind::NamespaceExport => {
+            let data = node.decode_namespace_export();
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::NamespaceExportDeclaration(data) => {
+        SyntaxKind::NamespaceExportDeclaration => {
+            let data = node.decode_namespace_export_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1455,13 +1569,15 @@ where
             }
             None
         }
-        NodeData::NamespaceImport(data) => {
+        SyntaxKind::NamespaceImport => {
+            let data = node.decode_namespace_import();
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::NewExpression(data) => {
+        SyntaxKind::NewExpression => {
+            let data = node.decode_new_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
@@ -1476,35 +1592,36 @@ where
             }
             None
         }
-        NodeData::NoSubstitutionTemplateLiteral(_data) => None,
-        NodeData::NonNullExpression(data) => {
+        SyntaxKind::NonNullExpression => {
+            let data = node.decode_non_null_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::NotEmittedStatement(_data) => None,
-        NodeData::NumericLiteral(_data) => None,
-        NodeData::ObjectBindingPattern(data) => {
+        SyntaxKind::ObjectBindingPattern => {
+            let data = node.decode_object_binding_pattern();
             if let Some(result) = visit_optional_nodes(lookup, data.elements, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ObjectLiteralExpression(data) => {
+        SyntaxKind::ObjectLiteralExpression => {
+            let data = node.decode_object_literal_expression();
             if let Some(result) = visit_optional_nodes(lookup, data.properties, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::OmittedExpression(_data) => None,
-        NodeData::OptionalType(data) => {
+        SyntaxKind::OptionalType => {
+            let data = node.decode_optional_type();
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::Parameter(data) => {
+        SyntaxKind::Parameter => {
+            let data = node.decode_parameter();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1525,38 +1642,43 @@ where
             }
             None
         }
-        NodeData::ParenthesizedExpression(data) => {
+        SyntaxKind::ParenthesizedExpression => {
+            let data = node.decode_parenthesized_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ParenthesizedType(data) => {
+        SyntaxKind::ParenthesizedType => {
+            let data = node.decode_parenthesized_type();
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::PartiallyEmittedExpression(data) => {
+        SyntaxKind::PartiallyEmittedExpression => {
+            let data = node.decode_partially_emitted_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::PostfixUnaryExpression(data) => {
+        SyntaxKind::PostfixUnaryExpression => {
+            let data = node.decode_postfix_unary_expression();
             if let Some(result) = visit_optional_node(data.operand, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::PrefixUnaryExpression(data) => {
+        SyntaxKind::PrefixUnaryExpression => {
+            let data = node.decode_prefix_unary_expression();
             if let Some(result) = visit_optional_node(data.operand, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::PrivateIdentifier(_data) => None,
-        NodeData::PropertyAccessExpression(data) => {
+        SyntaxKind::PropertyAccessExpression => {
+            let data = node.decode_property_access_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
@@ -1568,7 +1690,8 @@ where
             }
             None
         }
-        NodeData::PropertyAssignment(data) => {
+        SyntaxKind::PropertyAssignment => {
+            let data = node.decode_property_assignment();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1586,7 +1709,8 @@ where
             }
             None
         }
-        NodeData::PropertyDeclaration(data) => {
+        SyntaxKind::PropertyDeclaration => {
+            let data = node.decode_property_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1607,7 +1731,8 @@ where
             }
             None
         }
-        NodeData::PropertySignature(data) => {
+        SyntaxKind::PropertySignature => {
+            let data = node.decode_property_signature();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1625,7 +1750,8 @@ where
             }
             None
         }
-        NodeData::QualifiedName(data) => {
+        SyntaxKind::QualifiedName => {
+            let data = node.decode_qualified_name();
             if let Some(result) = visit_optional_node(data.left, &mut cb) {
                 return Some(result);
             }
@@ -1634,20 +1760,22 @@ where
             }
             None
         }
-        NodeData::RegularExpressionLiteral(_data) => None,
-        NodeData::RestType(data) => {
+        SyntaxKind::RestType => {
+            let data = node.decode_rest_type();
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::ReturnStatement(data) => {
+        SyntaxKind::ReturnStatement => {
+            let data = node.decode_return_statement();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::SatisfiesExpression(data) => {
+        SyntaxKind::SatisfiesExpression => {
+            let data = node.decode_satisfies_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
@@ -1656,7 +1784,8 @@ where
             }
             None
         }
-        NodeData::SetAccessor(data) => {
+        SyntaxKind::SetAccessor => {
+            let data = node.decode_set_accessor();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1677,7 +1806,8 @@ where
             }
             None
         }
-        NodeData::ShorthandPropertyAssignment(data) => {
+        SyntaxKind::ShorthandPropertyAssignment => {
+            let data = node.decode_shorthand_property_assignment();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1698,7 +1828,8 @@ where
             }
             None
         }
-        NodeData::SourceFile(data) => {
+        SyntaxKind::SourceFile => {
+            let data = node.decode_source_file();
             if let Some(result) = visit_optional_nodes(lookup, data.statements, &mut cb) {
                 return Some(result);
             }
@@ -1707,20 +1838,22 @@ where
             }
             None
         }
-        NodeData::SpreadAssignment(data) => {
+        SyntaxKind::SpreadAssignment => {
+            let data = node.decode_spread_assignment();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::SpreadElement(data) => {
+        SyntaxKind::SpreadElement => {
+            let data = node.decode_spread_element();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::StringLiteral(_data) => None,
-        NodeData::SwitchStatement(data) => {
+        SyntaxKind::SwitchStatement => {
+            let data = node.decode_switch_statement();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
@@ -1729,8 +1862,8 @@ where
             }
             None
         }
-        NodeData::SyntaxList(_data) => None,
-        NodeData::TaggedTemplateExpression(data) => {
+        SyntaxKind::TaggedTemplateExpression => {
+            let data = node.decode_tagged_template_expression();
             if let Some(result) = visit_optional_node(data.tag, &mut cb) {
                 return Some(result);
             }
@@ -1745,7 +1878,8 @@ where
             }
             None
         }
-        NodeData::TemplateExpression(data) => {
+        SyntaxKind::TemplateExpression => {
+            let data = node.decode_template_expression();
             if let Some(result) = visit_optional_node(data.head, &mut cb) {
                 return Some(result);
             }
@@ -1754,8 +1888,8 @@ where
             }
             None
         }
-        NodeData::TemplateHead(_data) => None,
-        NodeData::TemplateLiteralType(data) => {
+        SyntaxKind::TemplateLiteralType => {
+            let data = node.decode_template_literal_type();
             if let Some(result) = visit_optional_node(data.head, &mut cb) {
                 return Some(result);
             }
@@ -1764,7 +1898,8 @@ where
             }
             None
         }
-        NodeData::TemplateLiteralTypeSpan(data) => {
+        SyntaxKind::TemplateLiteralTypeSpan => {
+            let data = node.decode_template_literal_type_span();
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
@@ -1773,8 +1908,8 @@ where
             }
             None
         }
-        NodeData::TemplateMiddle(_data) => None,
-        NodeData::TemplateSpan(data) => {
+        SyntaxKind::TemplateSpan => {
+            let data = node.decode_template_span();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
@@ -1783,14 +1918,15 @@ where
             }
             None
         }
-        NodeData::TemplateTail(_data) => None,
-        NodeData::ThrowStatement(data) => {
+        SyntaxKind::ThrowStatement => {
+            let data = node.decode_throw_statement();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::TryStatement(data) => {
+        SyntaxKind::TryStatement => {
+            let data = node.decode_try_statement();
             if let Some(result) = visit_optional_node(data.try_block, &mut cb) {
                 return Some(result);
             }
@@ -1802,13 +1938,15 @@ where
             }
             None
         }
-        NodeData::TupleType(data) => {
+        SyntaxKind::TupleType => {
+            let data = node.decode_tuple_type();
             if let Some(result) = visit_optional_nodes(lookup, data.elements, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::TypeAliasDeclaration(data) => {
+        SyntaxKind::TypeAliasDeclaration => {
+            let data = node.decode_type_alias_declaration();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1823,7 +1961,8 @@ where
             }
             None
         }
-        NodeData::TypeAssertionExpression(data) => {
+        SyntaxKind::TypeAssertionExpression => {
+            let data = node.decode_type_assertion_expression();
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
@@ -1832,25 +1971,29 @@ where
             }
             None
         }
-        NodeData::TypeLiteral(data) => {
+        SyntaxKind::TypeLiteral => {
+            let data = node.decode_type_literal();
             if let Some(result) = visit_optional_nodes(lookup, data.members, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::TypeOfExpression(data) => {
+        SyntaxKind::TypeOfExpression => {
+            let data = node.decode_type_of_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::TypeOperator(data) => {
+        SyntaxKind::TypeOperator => {
+            let data = node.decode_type_operator();
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::TypeParameter(data) => {
+        SyntaxKind::TypeParameter => {
+            let data = node.decode_type_parameter();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1868,7 +2011,8 @@ where
             }
             None
         }
-        NodeData::TypePredicate(data) => {
+        SyntaxKind::TypePredicate => {
+            let data = node.decode_type_predicate();
             if let Some(result) = visit_optional_node(data.asserts_modifier, &mut cb) {
                 return Some(result);
             }
@@ -1880,7 +2024,8 @@ where
             }
             None
         }
-        NodeData::TypeQuery(data) => {
+        SyntaxKind::TypeQuery => {
+            let data = node.decode_type_query();
             if let Some(result) = visit_optional_node(data.expr_name, &mut cb) {
                 return Some(result);
             }
@@ -1889,7 +2034,8 @@ where
             }
             None
         }
-        NodeData::TypeReference(data) => {
+        SyntaxKind::TypeReference => {
+            let data = node.decode_type_reference();
             if let Some(result) = visit_optional_node(data.type_name, &mut cb) {
                 return Some(result);
             }
@@ -1898,13 +2044,15 @@ where
             }
             None
         }
-        NodeData::UnionType(data) => {
+        SyntaxKind::UnionType => {
+            let data = node.decode_union_type();
             if let Some(result) = visit_optional_nodes(lookup, data.types, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::VariableDeclaration(data) => {
+        SyntaxKind::VariableDeclaration => {
+            let data = node.decode_variable_declaration();
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
@@ -1919,13 +2067,15 @@ where
             }
             None
         }
-        NodeData::VariableDeclarationList(data) => {
+        SyntaxKind::VariableDeclarationList => {
+            let data = node.decode_variable_declaration_list();
             if let Some(result) = visit_optional_nodes(lookup, data.declarations, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::VariableStatement(data) => {
+        SyntaxKind::VariableStatement => {
+            let data = node.decode_variable_statement();
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
@@ -1934,22 +2084,15 @@ where
             }
             None
         }
-        NodeData::VoidExpression(data) => {
+        SyntaxKind::VoidExpression => {
+            let data = node.decode_void_expression();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
             None
         }
-        NodeData::WhileStatement(data) => {
-            if let Some(result) = visit_optional_node(data.expression, &mut cb) {
-                return Some(result);
-            }
-            if let Some(result) = visit_optional_node(data.statement, &mut cb) {
-                return Some(result);
-            }
-            None
-        }
-        NodeData::WithStatement(data) => {
+        SyntaxKind::WhileStatement => {
+            let data = node.decode_while_statement();
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
             }
@@ -1958,7 +2101,18 @@ where
             }
             None
         }
-        NodeData::YieldExpression(data) => {
+        SyntaxKind::WithStatement => {
+            let data = node.decode_with_statement();
+            if let Some(result) = visit_optional_node(data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.statement, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::YieldExpression => {
+            let data = node.decode_yield_expression();
             if let Some(result) = visit_optional_node(data.asterisk_token, &mut cb) {
                 return Some(result);
             }
@@ -1967,6 +2121,7 @@ where
             }
             None
         }
+        _ => None,
     }
 }
 
@@ -1974,9 +2129,9 @@ pub fn for_each_child_array<F>(node: &Node, mut cb: F) -> Option<NodeArrayId>
 where
     F: FnMut(NodeArrayId) -> bool,
 {
-    match node.data() {
-        NodeData::Token => None,
-        NodeData::ArrayBindingPattern(data) => {
+    match node.kind {
+        SyntaxKind::ArrayBindingPattern => {
+            let data = node.decode_array_binding_pattern();
             if let Some(id) = data.elements {
                 if cb(id) {
                     return Some(id);
@@ -1984,7 +2139,8 @@ where
             }
             None
         }
-        NodeData::ArrayLiteralExpression(data) => {
+        SyntaxKind::ArrayLiteralExpression => {
+            let data = node.decode_array_literal_expression();
             if let Some(id) = data.elements {
                 if cb(id) {
                     return Some(id);
@@ -1992,8 +2148,8 @@ where
             }
             None
         }
-        NodeData::ArrayType(_data) => None,
-        NodeData::ArrowFunction(data) => {
+        SyntaxKind::ArrowFunction => {
+            let data = node.decode_arrow_function();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2011,12 +2167,8 @@ where
             }
             None
         }
-        NodeData::AsExpression(_data) => None,
-        NodeData::AwaitExpression(_data) => None,
-        NodeData::BigIntLiteral(_data) => None,
-        NodeData::BinaryExpression(_data) => None,
-        NodeData::BindingElement(_data) => None,
-        NodeData::Block(data) => {
+        SyntaxKind::Block => {
+            let data = node.decode_block();
             if let Some(id) = data.statements {
                 if cb(id) {
                     return Some(id);
@@ -2024,8 +2176,8 @@ where
             }
             None
         }
-        NodeData::BreakStatement(_data) => None,
-        NodeData::CallExpression(data) => {
+        SyntaxKind::CallExpression => {
+            let data = node.decode_call_expression();
             if let Some(id) = data.type_arguments {
                 if cb(id) {
                     return Some(id);
@@ -2038,7 +2190,8 @@ where
             }
             None
         }
-        NodeData::CallSignature(data) => {
+        SyntaxKind::CallSignature => {
+            let data = node.decode_call_signature();
             if let Some(id) = data.type_parameters {
                 if cb(id) {
                     return Some(id);
@@ -2051,7 +2204,8 @@ where
             }
             None
         }
-        NodeData::CaseBlock(data) => {
+        SyntaxKind::CaseBlock => {
+            let data = node.decode_case_block();
             if let Some(id) = data.clauses {
                 if cb(id) {
                     return Some(id);
@@ -2059,7 +2213,8 @@ where
             }
             None
         }
-        NodeData::CaseClause(data) => {
+        SyntaxKind::CaseClause => {
+            let data = node.decode_case_clause();
             if let Some(id) = data.statements {
                 if cb(id) {
                     return Some(id);
@@ -2067,8 +2222,8 @@ where
             }
             None
         }
-        NodeData::CatchClause(_data) => None,
-        NodeData::ClassDeclaration(data) => {
+        SyntaxKind::ClassDeclaration => {
+            let data = node.decode_class_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2091,7 +2246,8 @@ where
             }
             None
         }
-        NodeData::ClassExpression(data) => {
+        SyntaxKind::ClassExpression => {
+            let data = node.decode_class_expression();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2114,7 +2270,8 @@ where
             }
             None
         }
-        NodeData::ClassStaticBlockDeclaration(data) => {
+        SyntaxKind::ClassStaticBlockDeclaration => {
+            let data = node.decode_class_static_block_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2122,7 +2279,8 @@ where
             }
             None
         }
-        NodeData::CommaListExpression(data) => {
+        SyntaxKind::CommaListExpression => {
+            let data = node.decode_comma_list_expression();
             if let Some(id) = data.elements {
                 if cb(id) {
                     return Some(id);
@@ -2130,10 +2288,8 @@ where
             }
             None
         }
-        NodeData::ComputedPropertyName(_data) => None,
-        NodeData::ConditionalExpression(_data) => None,
-        NodeData::ConditionalType(_data) => None,
-        NodeData::ConstructSignature(data) => {
+        SyntaxKind::ConstructSignature => {
+            let data = node.decode_construct_signature();
             if let Some(id) = data.type_parameters {
                 if cb(id) {
                     return Some(id);
@@ -2146,7 +2302,8 @@ where
             }
             None
         }
-        NodeData::Constructor(data) => {
+        SyntaxKind::Constructor => {
+            let data = node.decode_constructor();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2164,7 +2321,8 @@ where
             }
             None
         }
-        NodeData::ConstructorType(data) => {
+        SyntaxKind::ConstructorType => {
+            let data = node.decode_constructor_type();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2182,10 +2340,8 @@ where
             }
             None
         }
-        NodeData::ContinueStatement(_data) => None,
-        NodeData::DebuggerStatement(_data) => None,
-        NodeData::Decorator(_data) => None,
-        NodeData::DefaultClause(data) => {
+        SyntaxKind::DefaultClause => {
+            let data = node.decode_default_clause();
             if let Some(id) = data.statements {
                 if cb(id) {
                     return Some(id);
@@ -2193,11 +2349,8 @@ where
             }
             None
         }
-        NodeData::DeleteExpression(_data) => None,
-        NodeData::DoStatement(_data) => None,
-        NodeData::ElementAccessExpression(_data) => None,
-        NodeData::EmptyStatement(_data) => None,
-        NodeData::EnumDeclaration(data) => {
+        SyntaxKind::EnumDeclaration => {
+            let data = node.decode_enum_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2210,8 +2363,8 @@ where
             }
             None
         }
-        NodeData::EnumMember(_data) => None,
-        NodeData::ExportAssignment(data) => {
+        SyntaxKind::ExportAssignment => {
+            let data = node.decode_export_assignment();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2219,7 +2372,8 @@ where
             }
             None
         }
-        NodeData::ExportDeclaration(data) => {
+        SyntaxKind::ExportDeclaration => {
+            let data = node.decode_export_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2227,9 +2381,8 @@ where
             }
             None
         }
-        NodeData::ExportSpecifier(_data) => None,
-        NodeData::ExpressionStatement(_data) => None,
-        NodeData::ExpressionWithTypeArguments(data) => {
+        SyntaxKind::ExpressionWithTypeArguments => {
+            let data = node.decode_expression_with_type_arguments();
             if let Some(id) = data.type_arguments {
                 if cb(id) {
                     return Some(id);
@@ -2237,11 +2390,8 @@ where
             }
             None
         }
-        NodeData::ExternalModuleReference(_data) => None,
-        NodeData::ForInStatement(_data) => None,
-        NodeData::ForOfStatement(_data) => None,
-        NodeData::ForStatement(_data) => None,
-        NodeData::FunctionDeclaration(data) => {
+        SyntaxKind::FunctionDeclaration => {
+            let data = node.decode_function_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2259,7 +2409,8 @@ where
             }
             None
         }
-        NodeData::FunctionExpression(data) => {
+        SyntaxKind::FunctionExpression => {
+            let data = node.decode_function_expression();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2277,7 +2428,8 @@ where
             }
             None
         }
-        NodeData::FunctionType(data) => {
+        SyntaxKind::FunctionType => {
+            let data = node.decode_function_type();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2295,7 +2447,8 @@ where
             }
             None
         }
-        NodeData::GetAccessor(data) => {
+        SyntaxKind::GetAccessor => {
+            let data = node.decode_get_accessor();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2313,7 +2466,8 @@ where
             }
             None
         }
-        NodeData::HeritageClause(data) => {
+        SyntaxKind::HeritageClause => {
+            let data = node.decode_heritage_clause();
             if let Some(id) = data.types {
                 if cb(id) {
                     return Some(id);
@@ -2321,10 +2475,8 @@ where
             }
             None
         }
-        NodeData::Identifier(_data) => None,
-        NodeData::IfStatement(_data) => None,
-        NodeData::ImportAttribute(_data) => None,
-        NodeData::ImportAttributes(data) => {
+        SyntaxKind::ImportAttributes => {
+            let data = node.decode_import_attributes();
             if let Some(id) = data.elements {
                 if cb(id) {
                     return Some(id);
@@ -2332,8 +2484,8 @@ where
             }
             None
         }
-        NodeData::ImportClause(_data) => None,
-        NodeData::ImportDeclaration(data) => {
+        SyntaxKind::ImportDeclaration => {
+            let data = node.decode_import_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2341,7 +2493,8 @@ where
             }
             None
         }
-        NodeData::ImportEqualsDeclaration(data) => {
+        SyntaxKind::ImportEqualsDeclaration => {
+            let data = node.decode_import_equals_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2349,8 +2502,8 @@ where
             }
             None
         }
-        NodeData::ImportSpecifier(_data) => None,
-        NodeData::ImportType(data) => {
+        SyntaxKind::ImportType => {
+            let data = node.decode_import_type();
             if let Some(id) = data.type_arguments {
                 if cb(id) {
                     return Some(id);
@@ -2358,8 +2511,8 @@ where
             }
             None
         }
-        NodeData::ImportTypeAssertionContainer(_data) => None,
-        NodeData::IndexSignature(data) => {
+        SyntaxKind::IndexSignature => {
+            let data = node.decode_index_signature();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2377,9 +2530,8 @@ where
             }
             None
         }
-        NodeData::IndexedAccessType(_data) => None,
-        NodeData::InferType(_data) => None,
-        NodeData::InterfaceDeclaration(data) => {
+        SyntaxKind::InterfaceDeclaration => {
+            let data = node.decode_interface_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2402,7 +2554,8 @@ where
             }
             None
         }
-        NodeData::IntersectionType(data) => {
+        SyntaxKind::IntersectionType => {
+            let data = node.decode_intersection_type();
             if let Some(id) = data.types {
                 if cb(id) {
                     return Some(id);
@@ -2410,7 +2563,8 @@ where
             }
             None
         }
-        NodeData::JSDoc(data) => {
+        SyntaxKind::JSDoc => {
+            let data = node.decode_js_doc();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2423,8 +2577,8 @@ where
             }
             None
         }
-        NodeData::JSDocAllType(_data) => None,
-        NodeData::JSDocAugmentsTag(data) => {
+        SyntaxKind::JSDocAugmentsTag => {
+            let data = node.decode_js_doc_augments_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2432,7 +2586,8 @@ where
             }
             None
         }
-        NodeData::JSDocAuthorTag(data) => {
+        SyntaxKind::JSDocAuthorTag => {
+            let data = node.decode_js_doc_author_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2440,7 +2595,8 @@ where
             }
             None
         }
-        NodeData::JSDocCallbackTag(data) => {
+        SyntaxKind::JSDocCallbackTag => {
+            let data = node.decode_js_doc_callback_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2448,7 +2604,8 @@ where
             }
             None
         }
-        NodeData::JSDocClassTag(data) => {
+        SyntaxKind::JSDocClassTag => {
+            let data = node.decode_js_doc_class_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2456,7 +2613,8 @@ where
             }
             None
         }
-        NodeData::JSDocDeprecatedTag(data) => {
+        SyntaxKind::JSDocDeprecatedTag => {
+            let data = node.decode_js_doc_deprecated_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2464,7 +2622,8 @@ where
             }
             None
         }
-        NodeData::JSDocEnumTag(data) => {
+        SyntaxKind::JSDocEnumTag => {
+            let data = node.decode_js_doc_enum_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2472,7 +2631,8 @@ where
             }
             None
         }
-        NodeData::JSDocFunctionType(data) => {
+        SyntaxKind::JSDocFunctionType => {
+            let data = node.decode_js_doc_function_type();
             if let Some(id) = data.parameters {
                 if cb(id) {
                     return Some(id);
@@ -2480,7 +2640,8 @@ where
             }
             None
         }
-        NodeData::JSDocImplementsTag(data) => {
+        SyntaxKind::JSDocImplementsTag => {
+            let data = node.decode_js_doc_implements_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2488,7 +2649,8 @@ where
             }
             None
         }
-        NodeData::JSDocImportTag(data) => {
+        SyntaxKind::JSDocImportTag => {
+            let data = node.decode_js_doc_import_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2496,16 +2658,8 @@ where
             }
             None
         }
-        NodeData::JSDocLink(_data) => None,
-        NodeData::JSDocLinkCode(_data) => None,
-        NodeData::JSDocLinkPlain(_data) => None,
-        NodeData::JSDocMemberName(_data) => None,
-        NodeData::JSDocNameReference(_data) => None,
-        NodeData::JSDocNamepathType(_data) => None,
-        NodeData::JSDocNonNullableType(_data) => None,
-        NodeData::JSDocNullableType(_data) => None,
-        NodeData::JSDocOptionalType(_data) => None,
-        NodeData::JSDocOverloadTag(data) => {
+        SyntaxKind::JSDocOverloadTag => {
+            let data = node.decode_js_doc_overload_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2513,7 +2667,8 @@ where
             }
             None
         }
-        NodeData::JSDocOverrideTag(data) => {
+        SyntaxKind::JSDocOverrideTag => {
+            let data = node.decode_js_doc_override_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2521,7 +2676,8 @@ where
             }
             None
         }
-        NodeData::JSDocParameterTag(data) => {
+        SyntaxKind::JSDocParameterTag => {
+            let data = node.decode_js_doc_parameter_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2529,7 +2685,8 @@ where
             }
             None
         }
-        NodeData::JSDocPrivateTag(data) => {
+        SyntaxKind::JSDocPrivateTag => {
+            let data = node.decode_js_doc_private_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2537,7 +2694,8 @@ where
             }
             None
         }
-        NodeData::JSDocPropertyTag(data) => {
+        SyntaxKind::JSDocPropertyTag => {
+            let data = node.decode_js_doc_property_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2545,7 +2703,8 @@ where
             }
             None
         }
-        NodeData::JSDocProtectedTag(data) => {
+        SyntaxKind::JSDocProtectedTag => {
+            let data = node.decode_js_doc_protected_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2553,7 +2712,8 @@ where
             }
             None
         }
-        NodeData::JSDocPublicTag(data) => {
+        SyntaxKind::JSDocPublicTag => {
+            let data = node.decode_js_doc_public_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2561,7 +2721,8 @@ where
             }
             None
         }
-        NodeData::JSDocReadonlyTag(data) => {
+        SyntaxKind::JSDocReadonlyTag => {
+            let data = node.decode_js_doc_readonly_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2569,7 +2730,8 @@ where
             }
             None
         }
-        NodeData::JSDocReturnTag(data) => {
+        SyntaxKind::JSDocReturnTag => {
+            let data = node.decode_js_doc_return_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2577,7 +2739,8 @@ where
             }
             None
         }
-        NodeData::JSDocSatisfiesTag(data) => {
+        SyntaxKind::JSDocSatisfiesTag => {
+            let data = node.decode_js_doc_satisfies_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2585,7 +2748,8 @@ where
             }
             None
         }
-        NodeData::JSDocSeeTag(data) => {
+        SyntaxKind::JSDocSeeTag => {
+            let data = node.decode_js_doc_see_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2593,7 +2757,8 @@ where
             }
             None
         }
-        NodeData::JSDocSignature(data) => {
+        SyntaxKind::JSDocSignature => {
+            let data = node.decode_js_doc_signature();
             if let Some(id) = data.type_parameters {
                 if cb(id) {
                     return Some(id);
@@ -2606,7 +2771,8 @@ where
             }
             None
         }
-        NodeData::JSDocTag(data) => {
+        SyntaxKind::JSDocTag => {
+            let data = node.decode_js_doc_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2614,7 +2780,8 @@ where
             }
             None
         }
-        NodeData::JSDocTemplateTag(data) => {
+        SyntaxKind::JSDocTemplateTag => {
+            let data = node.decode_js_doc_template_tag();
             if let Some(id) = data.type_parameters {
                 if cb(id) {
                     return Some(id);
@@ -2627,8 +2794,8 @@ where
             }
             None
         }
-        NodeData::JSDocText(_data) => None,
-        NodeData::JSDocThisTag(data) => {
+        SyntaxKind::JSDocThisTag => {
+            let data = node.decode_js_doc_this_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2636,7 +2803,8 @@ where
             }
             None
         }
-        NodeData::JSDocThrowsTag(data) => {
+        SyntaxKind::JSDocThrowsTag => {
+            let data = node.decode_js_doc_throws_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2644,8 +2812,8 @@ where
             }
             None
         }
-        NodeData::JSDocTypeExpression(_data) => None,
-        NodeData::JSDocTypeLiteral(data) => {
+        SyntaxKind::JSDocTypeLiteral => {
+            let data = node.decode_js_doc_type_literal();
             if let Some(id) = data.js_doc_property_tags {
                 if cb(id) {
                     return Some(id);
@@ -2653,7 +2821,8 @@ where
             }
             None
         }
-        NodeData::JSDocTypeTag(data) => {
+        SyntaxKind::JSDocTypeTag => {
+            let data = node.decode_js_doc_type_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2661,7 +2830,8 @@ where
             }
             None
         }
-        NodeData::JSDocTypedefTag(data) => {
+        SyntaxKind::JSDocTypedefTag => {
+            let data = node.decode_js_doc_typedef_tag();
             if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
                 if cb(*id) {
                     return Some(*id);
@@ -2669,10 +2839,8 @@ where
             }
             None
         }
-        NodeData::JSDocUnknownType(_data) => None,
-        NodeData::JSDocVariadicType(_data) => None,
-        NodeData::JsxAttribute(_data) => None,
-        NodeData::JsxAttributes(data) => {
+        SyntaxKind::JsxAttributes => {
+            let data = node.decode_jsx_attributes();
             if let Some(id) = data.properties {
                 if cb(id) {
                     return Some(id);
@@ -2680,8 +2848,8 @@ where
             }
             None
         }
-        NodeData::JsxClosingElement(_data) => None,
-        NodeData::JsxElement(data) => {
+        SyntaxKind::JsxElement => {
+            let data = node.decode_jsx_element();
             if let Some(id) = data.children {
                 if cb(id) {
                     return Some(id);
@@ -2689,8 +2857,8 @@ where
             }
             None
         }
-        NodeData::JsxExpression(_data) => None,
-        NodeData::JsxFragment(data) => {
+        SyntaxKind::JsxFragment => {
+            let data = node.decode_jsx_fragment();
             if let Some(id) = data.children {
                 if cb(id) {
                     return Some(id);
@@ -2698,8 +2866,8 @@ where
             }
             None
         }
-        NodeData::JsxNamespacedName(_data) => None,
-        NodeData::JsxOpeningElement(data) => {
+        SyntaxKind::JsxOpeningElement => {
+            let data = node.decode_jsx_opening_element();
             if let Some(id) = data.type_arguments {
                 if cb(id) {
                     return Some(id);
@@ -2707,7 +2875,8 @@ where
             }
             None
         }
-        NodeData::JsxSelfClosingElement(data) => {
+        SyntaxKind::JsxSelfClosingElement => {
+            let data = node.decode_jsx_self_closing_element();
             if let Some(id) = data.type_arguments {
                 if cb(id) {
                     return Some(id);
@@ -2715,11 +2884,8 @@ where
             }
             None
         }
-        NodeData::JsxSpreadAttribute(_data) => None,
-        NodeData::JsxText(_data) => None,
-        NodeData::LabeledStatement(_data) => None,
-        NodeData::LiteralType(_data) => None,
-        NodeData::MappedType(data) => {
+        SyntaxKind::MappedType => {
+            let data = node.decode_mapped_type();
             if let Some(id) = data.members {
                 if cb(id) {
                     return Some(id);
@@ -2727,8 +2893,8 @@ where
             }
             None
         }
-        NodeData::MetaProperty(_data) => None,
-        NodeData::MethodDeclaration(data) => {
+        SyntaxKind::MethodDeclaration => {
+            let data = node.decode_method_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2746,7 +2912,8 @@ where
             }
             None
         }
-        NodeData::MethodSignature(data) => {
+        SyntaxKind::MethodSignature => {
+            let data = node.decode_method_signature();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2764,7 +2931,8 @@ where
             }
             None
         }
-        NodeData::MissingDeclaration(data) => {
+        SyntaxKind::MissingDeclaration => {
+            let data = node.decode_missing_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2772,7 +2940,8 @@ where
             }
             None
         }
-        NodeData::ModuleBlock(data) => {
+        SyntaxKind::ModuleBlock => {
+            let data = node.decode_module_block();
             if let Some(id) = data.statements {
                 if cb(id) {
                     return Some(id);
@@ -2780,7 +2949,8 @@ where
             }
             None
         }
-        NodeData::ModuleDeclaration(data) => {
+        SyntaxKind::ModuleDeclaration => {
+            let data = node.decode_module_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2788,7 +2958,8 @@ where
             }
             None
         }
-        NodeData::NamedExports(data) => {
+        SyntaxKind::NamedExports => {
+            let data = node.decode_named_exports();
             if let Some(id) = data.elements {
                 if cb(id) {
                     return Some(id);
@@ -2796,7 +2967,8 @@ where
             }
             None
         }
-        NodeData::NamedImports(data) => {
+        SyntaxKind::NamedImports => {
+            let data = node.decode_named_imports();
             if let Some(id) = data.elements {
                 if cb(id) {
                     return Some(id);
@@ -2804,9 +2976,8 @@ where
             }
             None
         }
-        NodeData::NamedTupleMember(_data) => None,
-        NodeData::NamespaceExport(_data) => None,
-        NodeData::NamespaceExportDeclaration(data) => {
+        SyntaxKind::NamespaceExportDeclaration => {
+            let data = node.decode_namespace_export_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2814,8 +2985,8 @@ where
             }
             None
         }
-        NodeData::NamespaceImport(_data) => None,
-        NodeData::NewExpression(data) => {
+        SyntaxKind::NewExpression => {
+            let data = node.decode_new_expression();
             if let Some(id) = data.type_arguments {
                 if cb(id) {
                     return Some(id);
@@ -2828,11 +2999,8 @@ where
             }
             None
         }
-        NodeData::NoSubstitutionTemplateLiteral(_data) => None,
-        NodeData::NonNullExpression(_data) => None,
-        NodeData::NotEmittedStatement(_data) => None,
-        NodeData::NumericLiteral(_data) => None,
-        NodeData::ObjectBindingPattern(data) => {
+        SyntaxKind::ObjectBindingPattern => {
+            let data = node.decode_object_binding_pattern();
             if let Some(id) = data.elements {
                 if cb(id) {
                     return Some(id);
@@ -2840,7 +3008,8 @@ where
             }
             None
         }
-        NodeData::ObjectLiteralExpression(data) => {
+        SyntaxKind::ObjectLiteralExpression => {
+            let data = node.decode_object_literal_expression();
             if let Some(id) = data.properties {
                 if cb(id) {
                     return Some(id);
@@ -2848,9 +3017,8 @@ where
             }
             None
         }
-        NodeData::OmittedExpression(_data) => None,
-        NodeData::OptionalType(_data) => None,
-        NodeData::Parameter(data) => {
+        SyntaxKind::Parameter => {
+            let data = node.decode_parameter();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2858,14 +3026,8 @@ where
             }
             None
         }
-        NodeData::ParenthesizedExpression(_data) => None,
-        NodeData::ParenthesizedType(_data) => None,
-        NodeData::PartiallyEmittedExpression(_data) => None,
-        NodeData::PostfixUnaryExpression(_data) => None,
-        NodeData::PrefixUnaryExpression(_data) => None,
-        NodeData::PrivateIdentifier(_data) => None,
-        NodeData::PropertyAccessExpression(_data) => None,
-        NodeData::PropertyAssignment(data) => {
+        SyntaxKind::PropertyAssignment => {
+            let data = node.decode_property_assignment();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2873,7 +3035,8 @@ where
             }
             None
         }
-        NodeData::PropertyDeclaration(data) => {
+        SyntaxKind::PropertyDeclaration => {
+            let data = node.decode_property_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2881,7 +3044,8 @@ where
             }
             None
         }
-        NodeData::PropertySignature(data) => {
+        SyntaxKind::PropertySignature => {
+            let data = node.decode_property_signature();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2889,12 +3053,8 @@ where
             }
             None
         }
-        NodeData::QualifiedName(_data) => None,
-        NodeData::RegularExpressionLiteral(_data) => None,
-        NodeData::RestType(_data) => None,
-        NodeData::ReturnStatement(_data) => None,
-        NodeData::SatisfiesExpression(_data) => None,
-        NodeData::SetAccessor(data) => {
+        SyntaxKind::SetAccessor => {
+            let data = node.decode_set_accessor();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2912,7 +3072,8 @@ where
             }
             None
         }
-        NodeData::ShorthandPropertyAssignment(data) => {
+        SyntaxKind::ShorthandPropertyAssignment => {
+            let data = node.decode_shorthand_property_assignment();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2920,7 +3081,8 @@ where
             }
             None
         }
-        NodeData::SourceFile(data) => {
+        SyntaxKind::SourceFile => {
+            let data = node.decode_source_file();
             if let Some(id) = data.statements {
                 if cb(id) {
                     return Some(id);
@@ -2928,12 +3090,8 @@ where
             }
             None
         }
-        NodeData::SpreadAssignment(_data) => None,
-        NodeData::SpreadElement(_data) => None,
-        NodeData::StringLiteral(_data) => None,
-        NodeData::SwitchStatement(_data) => None,
-        NodeData::SyntaxList(_data) => None,
-        NodeData::TaggedTemplateExpression(data) => {
+        SyntaxKind::TaggedTemplateExpression => {
+            let data = node.decode_tagged_template_expression();
             if let Some(id) = data.type_arguments {
                 if cb(id) {
                     return Some(id);
@@ -2941,7 +3099,8 @@ where
             }
             None
         }
-        NodeData::TemplateExpression(data) => {
+        SyntaxKind::TemplateExpression => {
+            let data = node.decode_template_expression();
             if let Some(id) = data.template_spans {
                 if cb(id) {
                     return Some(id);
@@ -2949,8 +3108,8 @@ where
             }
             None
         }
-        NodeData::TemplateHead(_data) => None,
-        NodeData::TemplateLiteralType(data) => {
+        SyntaxKind::TemplateLiteralType => {
+            let data = node.decode_template_literal_type();
             if let Some(id) = data.template_spans {
                 if cb(id) {
                     return Some(id);
@@ -2958,13 +3117,8 @@ where
             }
             None
         }
-        NodeData::TemplateLiteralTypeSpan(_data) => None,
-        NodeData::TemplateMiddle(_data) => None,
-        NodeData::TemplateSpan(_data) => None,
-        NodeData::TemplateTail(_data) => None,
-        NodeData::ThrowStatement(_data) => None,
-        NodeData::TryStatement(_data) => None,
-        NodeData::TupleType(data) => {
+        SyntaxKind::TupleType => {
+            let data = node.decode_tuple_type();
             if let Some(id) = data.elements {
                 if cb(id) {
                     return Some(id);
@@ -2972,7 +3126,8 @@ where
             }
             None
         }
-        NodeData::TypeAliasDeclaration(data) => {
+        SyntaxKind::TypeAliasDeclaration => {
+            let data = node.decode_type_alias_declaration();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -2985,8 +3140,8 @@ where
             }
             None
         }
-        NodeData::TypeAssertionExpression(_data) => None,
-        NodeData::TypeLiteral(data) => {
+        SyntaxKind::TypeLiteral => {
+            let data = node.decode_type_literal();
             if let Some(id) = data.members {
                 if cb(id) {
                     return Some(id);
@@ -2994,9 +3149,8 @@ where
             }
             None
         }
-        NodeData::TypeOfExpression(_data) => None,
-        NodeData::TypeOperator(_data) => None,
-        NodeData::TypeParameter(data) => {
+        SyntaxKind::TypeParameter => {
+            let data = node.decode_type_parameter();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -3004,8 +3158,8 @@ where
             }
             None
         }
-        NodeData::TypePredicate(_data) => None,
-        NodeData::TypeQuery(data) => {
+        SyntaxKind::TypeQuery => {
+            let data = node.decode_type_query();
             if let Some(id) = data.type_arguments {
                 if cb(id) {
                     return Some(id);
@@ -3013,7 +3167,8 @@ where
             }
             None
         }
-        NodeData::TypeReference(data) => {
+        SyntaxKind::TypeReference => {
+            let data = node.decode_type_reference();
             if let Some(id) = data.type_arguments {
                 if cb(id) {
                     return Some(id);
@@ -3021,7 +3176,8 @@ where
             }
             None
         }
-        NodeData::UnionType(data) => {
+        SyntaxKind::UnionType => {
+            let data = node.decode_union_type();
             if let Some(id) = data.types {
                 if cb(id) {
                     return Some(id);
@@ -3029,8 +3185,8 @@ where
             }
             None
         }
-        NodeData::VariableDeclaration(_data) => None,
-        NodeData::VariableDeclarationList(data) => {
+        SyntaxKind::VariableDeclarationList => {
+            let data = node.decode_variable_declaration_list();
             if let Some(id) = data.declarations {
                 if cb(id) {
                     return Some(id);
@@ -3038,7 +3194,8 @@ where
             }
             None
         }
-        NodeData::VariableStatement(data) => {
+        SyntaxKind::VariableStatement => {
+            let data = node.decode_variable_statement();
             if let Some(id) = data.modifiers {
                 if cb(id) {
                     return Some(id);
@@ -3046,10 +3203,7 @@ where
             }
             None
         }
-        NodeData::VoidExpression(_data) => None,
-        NodeData::WhileStatement(_data) => None,
-        NodeData::WithStatement(_data) => None,
-        NodeData::YieldExpression(_data) => None,
+        _ => None,
     }
 }
 

@@ -60,9 +60,7 @@ impl<'a> CheckerState<'a> {
                 {
                     data.constraint.or_else(|| {
                         let parent = self.parent_of(declaration)?;
-                        let NodeData::JSDocTemplateTag(template) = self.data_of(parent) else {
-                            return None;
-                        };
+                        let template = self.record_of(parent).as_js_doc_template_tag()?;
                         // tsgo's reparser gives the tag's first type parameter
                         // the type inside the constraint's braces
                         // (gatherTypeParameters clones `constraint.Type()`):
@@ -191,7 +189,7 @@ impl<'a> CheckerState<'a> {
                 else {
                     continue;
                 };
-                let NodeData::TypeReference(reference) = self.data_of(grand_parent) else {
+                let Some(reference) = self.record_of(grand_parent).as_type_reference() else {
                     unreachable!("TypeReference kind implies payload");
                 };
                 let arguments = self.nodes_of(reference.type_arguments);
@@ -243,12 +241,12 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             if self.kind_of(grand_parent) == SyntaxKind::MappedType {
-                let NodeData::MappedType(mapped) = self.data_of(grand_parent) else {
+                let Some(mapped) = self.record_of(grand_parent).as_mapped_type() else {
                     unreachable!("MappedType kind implies payload");
                 };
                 let mapped_type = mapped.r#type.map(|node| {
                     let mut node = node;
-                    while let NodeData::ParenthesizedType(data) = self.data_of(node) {
+                    while let Some(data) = self.record_of(node).as_parenthesized_type() {
                         let Some(inner) = data.r#type else {
                             break;
                         };
@@ -259,7 +257,8 @@ impl<'a> CheckerState<'a> {
                 let Some(conditional_node) = self.parent_of(grand_parent) else {
                     continue;
                 };
-                let NodeData::ConditionalType(conditional) = self.data_of(conditional_node) else {
+                let Some(conditional) = self.record_of(conditional_node).as_conditional_type()
+                else {
                     continue;
                 };
                 if mapped_type != Some(infer_node) || conditional.extends_type != Some(grand_parent)
@@ -269,7 +268,7 @@ impl<'a> CheckerState<'a> {
                 let Some(check_mapped_node) = conditional.check_type else {
                     continue;
                 };
-                let NodeData::MappedType(check_mapped) = self.data_of(check_mapped_node) else {
+                let Some(check_mapped) = self.record_of(check_mapped_node).as_mapped_type() else {
                     continue;
                 };
                 let (Some(check_template_node), Some(check_parameter_node)) =

@@ -3305,7 +3305,7 @@ impl<'a> CheckerState<'a> {
         }
         let parameters = self.parameters_of_function(func);
         for (i, &param) in parameters.iter().enumerate() {
-            let NodeData::Parameter(data) = self.data_of(param) else {
+            let Some(data) = self.record_of(param).as_parameter() else {
                 continue;
             };
             let (name, is_rest) = (data.name, data.dot_dot_dot_token.is_some());

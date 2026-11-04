@@ -487,8 +487,7 @@ struct AutoImportableReference<'v, 'c> {
 
 impl AutoImportableReference<'_, '_> {
     fn visit(&mut self, node: TransformNode) -> Result<TransformNode, TransformError> {
-        if let NodeData::ImportType(data) = self.arena.node(node)?.data() {
-            let data = data.clone();
+        if let Some(data) = self.arena.node(node)?.as_import_type() {
             if let (Some(qualifier), true) =
                 (data.qualifier, self.is_literal_argument(data.argument)?)
             {
@@ -520,8 +519,8 @@ impl AutoImportableReference<'_, '_> {
                 // it can't refer to reserved internal symbol names and such
             }
         }
-        let mut data = self.arena.node(node)?.data().clone();
-        let original = data.clone();
+        let mut data = self.arena.node(node)?.data();
+        let original = data;
         tsc_syntax::try_visit_each_child(&mut data, self)?;
         if data == original {
             return Ok(node);
@@ -543,7 +542,7 @@ impl AutoImportableReference<'_, '_> {
             return Ok(false);
         };
         let argument = self.node_ref(argument)?;
-        let NodeData::LiteralType(literal) = self.arena.node(argument)?.data() else {
+        let Some(literal) = self.arena.node(argument)?.as_literal_type() else {
             return Ok(false);
         };
         let Some(literal) = literal.literal else {
@@ -576,7 +575,7 @@ impl AutoImportableReference<'_, '_> {
         name: TransformNode,
         new_identifier: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let NodeData::QualifiedName(data) = self.arena.node(name)?.data().clone() else {
+        let Some(data) = self.arena.node(name)?.as_qualified_name() else {
             return Ok(new_identifier);
         };
         let left = match data.left {

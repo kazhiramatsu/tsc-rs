@@ -570,7 +570,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::NumericLiteral => {
                 self.check_grammar_numeric_literal(node)?;
-                let NodeData::NumericLiteral(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_numeric_literal() else {
                     unreachable!("kind/data agree");
                 };
                 let value = crate::annotate::parse_numeric_literal_text(self.text_utf8(data.text))?;
@@ -579,7 +579,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::BigIntLiteral => {
                 self.check_grammar_big_int_literal(node);
-                let NodeData::BigIntLiteral(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_big_int_literal() else {
                     unreachable!("kind/data agree");
                 };
                 let value = parse_pseudo_big_int(self.text_utf8(data.text))?;
@@ -686,7 +686,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let NodeData::ParenthesizedExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_parenthesized_expression() else {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
@@ -731,9 +731,7 @@ impl<'a> CheckerState<'a> {
     /// The type of a JavaScript `/** @type {T} */ (expr)` assertion: tsgo's
     /// reparser makes the operand `expr as T` (reparser.go:382-391).
     pub(crate) fn jsdoc_type_assertion_type_node(&self, host: NodeId) -> Option<NodeId> {
-        let NodeData::ParenthesizedExpression(data) = self.data_of(host) else {
-            return None;
-        };
+        let data = self.record_of(host).as_parenthesized_expression()?;
         self.reparsed_cast(data.expression?)
             .filter(|cast| cast.is_assertion)
             .map(|cast| cast.type_node)
@@ -958,7 +956,7 @@ impl<'a> CheckerState<'a> {
         }
         let mut node = node;
         while let Some(parent) = self.parent_of(node) {
-            let NodeData::QualifiedName(data) = self.data_of(parent) else {
+            let Some(data) = self.record_of(parent).as_qualified_name() else {
                 break;
             };
             if data.left != Some(node) {
@@ -1938,7 +1936,7 @@ impl<'a> CheckerState<'a> {
         let Some(target) = self.get_assignment_target(node) else {
             return false;
         };
-        let NodeData::BinaryExpression(data) = self.data_of(target) else {
+        let Some(data) = self.record_of(target).as_binary_expression() else {
             return false;
         };
         let operator = data
@@ -1952,7 +1950,7 @@ impl<'a> CheckerState<'a> {
             return false;
         };
         let right = node_util::skip_parentheses_pub(&Published, right);
-        let NodeData::BinaryExpression(right_data) = self.data_of(right) else {
+        let Some(right_data) = self.record_of(right).as_binary_expression() else {
             return false;
         };
         let right_operator = right_data
@@ -2327,9 +2325,7 @@ impl<'a> CheckerState<'a> {
             _ => return None,
         };
         let first = self.nodes_of(parameters).first().copied()?;
-        let NodeData::Parameter(data) = self.data_of(first) else {
-            return None;
-        };
+        let data = self.record_of(first).as_parameter()?;
         let name = data.name?;
         self.is_this_identifier(name).then_some(first)
     }
@@ -2360,7 +2356,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             if self.kind_of(n) == SyntaxKind::BindingElement {
-                if let NodeData::BindingElement(data) = self.data_of(n) {
+                if let Some(data) = self.record_of(n).as_binding_element() {
                     if data.initializer == Some(child) {
                         in_binding_initializer = true;
                     }
@@ -2412,7 +2408,7 @@ impl<'a> CheckerState<'a> {
         {
             return;
         }
-        let NodeData::PropertyDeclaration(data) = self.data_of(container) else {
+        let Some(data) = self.record_of(container).as_property_declaration() else {
             return;
         };
         let Some(initializer) = data.initializer else {
@@ -2779,7 +2775,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b41e256afa2f300fde4b285ca2d74af5a00128c1b8de59c4dbfb532ba07014ff
     /// tsc-span: _tsc.js:79330-79333
     fn check_type_of_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let NodeData::TypeOfExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_type_of_expression() else {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
@@ -2805,7 +2801,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let NodeData::SpreadElement(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_spread_element() else {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
@@ -2830,7 +2826,7 @@ impl<'a> CheckerState<'a> {
     /// whose arms escape first; the facts-classifier escape below is
     /// therefore unreachable until 5.5d un-stubs them together.
     fn check_delete_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let NodeData::DeleteExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_delete_expression() else {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
@@ -2850,7 +2846,7 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(self.tables.intrinsics.boolean);
         }
-        if let NodeData::PropertyAccessExpression(data) = self.data_of(expr) {
+        if let Some(data) = self.record_of(expr).as_property_access_expression() {
             if data
                 .name
                 .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier)
@@ -3190,7 +3186,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         e: NodeId,
     ) -> CheckResult<Option<tsc_types::EscapedName>> {
-        let NodeData::BindingElement(data) = self.data_of(e) else {
+        let Some(data) = self.record_of(e).as_binding_element() else {
             return Ok(None);
         };
         let Some(name) = data.property_name.or(data.name) else {
@@ -3411,7 +3407,7 @@ impl<'a> CheckerState<'a> {
             }
         });
         import_call.is_some_and(|call| {
-            let NodeData::CallExpression(data) = self.data_of(call) else {
+            let Some(data) = self.record_of(call).as_call_expression() else {
                 return false;
             };
             self.nodes_of(data.arguments)
@@ -3443,7 +3439,7 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         if let NodeData::PropertyAssignment(assignment) = parent_data {
-            if self.is_inline_import_attributes(node, parent, assignment) {
+            if self.is_inline_import_attributes(node, parent, &assignment) {
                 return Ok(true);
             }
         }
@@ -3489,7 +3485,7 @@ impl<'a> CheckerState<'a> {
                 _ => Ok(false),
             },
             SyntaxKind::PrefixUnaryExpression => {
-                let NodeData::PrefixUnaryExpression(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_prefix_unary_expression() else {
                     return Ok(false);
                 };
                 let Some(operand) = data.operand else {

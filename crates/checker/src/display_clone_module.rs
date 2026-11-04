@@ -65,7 +65,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn module_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ModuleDeclaration(data) = self.state.data_of(node).clone() else {
+        let NodeData::ModuleDeclaration(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(mut text) = self.modifiers(data.modifiers)? else {
@@ -95,7 +95,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
             return Ok(Some(text));
         };
         while self.state.kind_of(body) == SyntaxKind::ModuleDeclaration {
-            let NodeData::ModuleDeclaration(nested) = self.state.data_of(body).clone() else {
+            let NodeData::ModuleDeclaration(nested) = self.state.data_of(body) else {
                 return Ok(None);
             };
             let Some(name) = nested.name else {
@@ -125,7 +125,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn module_block(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ModuleBlock(data) = self.state.data_of(node).clone() else {
+        let NodeData::ModuleBlock(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let statements = self.nodes(data.statements);
@@ -175,7 +175,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn import_equals_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ImportEqualsDeclaration(data) = self.state.data_of(node).clone() else {
+        let NodeData::ImportEqualsDeclaration(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(mut text) = self.modifiers(data.modifiers)? else {
@@ -202,7 +202,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn import_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ImportDeclaration(data) = self.state.data_of(node).clone() else {
+        let NodeData::ImportDeclaration(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(mut text) = self.modifiers(data.modifiers)? else {
@@ -235,7 +235,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn import_clause(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ImportClause(data) = self.state.data_of(node).clone() else {
+        let NodeData::ImportClause(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let mut text = JsString::new();
@@ -265,7 +265,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn namespace_import(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::NamespaceImport(data) = self.state.data_of(node).clone() else {
+        let NodeData::NamespaceImport(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(name) = data.name.and_then(|name| self.identifier(name)) else {
@@ -275,21 +275,21 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn named_imports(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::NamedImports(data) = self.state.data_of(node).clone() else {
+        let NodeData::NamedImports(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         self.named_imports_or_exports(data.elements, SyntaxKind::ImportSpecifier)
     }
 
     fn import_specifier(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ImportSpecifier(data) = self.state.data_of(node).clone() else {
+        let NodeData::ImportSpecifier(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         self.import_or_export_specifier(data.is_type_only, data.property_name, data.name)
     }
 
     fn export_assignment(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ExportAssignment(data) = self.state.data_of(node).clone() else {
+        let NodeData::ExportAssignment(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {
@@ -317,7 +317,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn export_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ExportDeclaration(data) = self.state.data_of(node).clone() else {
+        let NodeData::ExportDeclaration(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(mut text) = self.modifiers(data.modifiers)? else {
@@ -354,7 +354,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn namespace_export(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::NamespaceExport(data) = self.state.data_of(node).clone() else {
+        let NodeData::NamespaceExport(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(name) = data.name else {
@@ -367,21 +367,21 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn named_exports(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::NamedExports(data) = self.state.data_of(node).clone() else {
+        let NodeData::NamedExports(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         self.named_imports_or_exports(data.elements, SyntaxKind::ExportSpecifier)
     }
 
     fn export_specifier(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ExportSpecifier(data) = self.state.data_of(node).clone() else {
+        let NodeData::ExportSpecifier(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         self.import_or_export_specifier(data.is_type_only, data.property_name, data.name)
     }
 
     fn namespace_export_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::NamespaceExportDeclaration(data) = self.state.data_of(node).clone() else {
+        let NodeData::NamespaceExportDeclaration(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(name) = data.name.and_then(|name| self.identifier(name)) else {
@@ -449,7 +449,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn import_attributes(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ImportAttributes(data) = self.state.data_of(node).clone() else {
+        let NodeData::ImportAttributes(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(keyword) = tsc_syntax::tokens::token_to_string(data.token) else {
@@ -511,7 +511,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn import_attribute(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ImportAttribute(data) = self.state.data_of(node).clone() else {
+        let NodeData::ImportAttribute(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(name) = data.name else {
@@ -530,7 +530,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     }
 
     fn external_module_reference(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
-        let NodeData::ExternalModuleReference(data) = self.state.data_of(node).clone() else {
+        let NodeData::ExternalModuleReference(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         let Some(expression) = data.expression else {

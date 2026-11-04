@@ -9,7 +9,7 @@ fn finalizes_parent_links_and_error_aggregation() {
     let mut arena = NodeArena::new();
     let text = arena.push_text(b"x");
     let stmt = arena.alloc_node(
-        NodeData::StringLiteral(Box::new(StringLiteralData { text })),
+        NodeData::StringLiteral(StringLiteralData { text }),
         0,
         1,
         NodeFlags::THIS_NODE_HAS_ERROR,
@@ -60,7 +60,7 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
     );
     let description = arena.push_text(b"description");
     let comment_text = arena.alloc_node(
-        NodeData::JSDocText(Box::new(JSDocTextData { text: description })),
+        NodeData::JSDocText(JSDocTextData { text: description }),
         17,
         28,
         NodeFlags::JS_DOC,
@@ -72,14 +72,14 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
         (false, vec![tag_name, type_expression, name, comment_text]),
     ] {
         let parameter = arena.alloc_node(
-            NodeData::JSDocParameterTag(Box::new(JSDocParameterTagData {
+            NodeData::JSDocParameterTag(JSDocParameterTagData {
                 tag_name: Some(tag_name),
                 comment: Some(JSDocComment::Nodes(comments)),
                 name: Some(name),
                 type_expression: Some(type_expression),
                 is_name_first,
                 is_bracketed: false,
-            })),
+            }),
             0,
             28,
             NodeFlags::JS_DOC,
@@ -95,7 +95,7 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
     let full_name = identifier(&mut arena, "Alias", 29);
     let plain = arena.push_text(b"plain");
     let typedef = arena.alloc_node(
-        NodeData::JSDocTypedefTag(Box::new(JSDocTypedefTagData {
+        NodeData::JSDocTypedefTag(JSDocTypedefTagData {
             tag_name: Some(tag_name),
             comment: Some(JSDocComment::Text {
                 text: plain,
@@ -106,7 +106,7 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
             name: Some(full_name),
             full_name: Some(full_name),
             type_expression: Some(type_expression),
-        })),
+        }),
         29,
         40,
         NodeFlags::JS_DOC,
@@ -129,13 +129,13 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
         NodeFlags::JS_DOC,
     );
     let typedef = arena.alloc_node(
-        NodeData::JSDocTypedefTag(Box::new(JSDocTypedefTagData {
+        NodeData::JSDocTypedefTag(JSDocTypedefTagData {
             tag_name: Some(tag_name),
             comment: None,
             name: Some(full_name),
             full_name: Some(full_name),
             type_expression: Some(type_literal),
-        })),
+        }),
         41,
         42,
         NodeFlags::JS_DOC,

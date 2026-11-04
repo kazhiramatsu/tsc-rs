@@ -2651,10 +2651,11 @@ impl<'text> Parser<'text> {
             Some(&gen::Declaration_expected),
             &[],
         );
-        let node = self.arena.node_mut(missing);
-        node.pos = pos as u32;
-        if let NodeData::MissingDeclaration(data) = node.data_mut() {
+        self.arena.node_mut(missing).pos = pos as u32;
+        if let Some(mut data) = self.arena.node(missing).as_missing_declaration() {
             data.modifiers = modifiers;
+            self.arena
+                .set_data(missing, NodeData::MissingDeclaration(data));
         }
         missing
     }
@@ -2693,7 +2694,7 @@ impl<'text> Parser<'text> {
         );
         self.set_await_context(saved_await_context);
         self.finish_node_data(
-            NodeData::FunctionDeclaration(Box::new(FunctionDeclarationData {
+            NodeData::FunctionDeclaration(FunctionDeclarationData {
                 modifiers,
                 asterisk_token,
                 name,
@@ -2701,7 +2702,7 @@ impl<'text> Parser<'text> {
                 type_parameters,
                 parameters: Some(parameters),
                 body,
-            })),
+            }),
             pos,
         )
     }
@@ -2743,14 +2744,14 @@ impl<'text> Parser<'text> {
                 Some(&gen::or_expected),
             );
             Some(parser.finish_node_data(
-                NodeData::Constructor(Box::new(ConstructorData {
+                NodeData::Constructor(ConstructorData {
                     modifiers,
                     name: None,
                     r#type,
                     type_parameters,
                     parameters: Some(parameters),
                     body,
-                })),
+                }),
                 pos,
             ))
         })
@@ -2781,14 +2782,14 @@ impl<'text> Parser<'text> {
         );
         self.parse_semicolon_after_property_name(name, r#type, initializer);
         self.finish_node_data(
-            NodeData::PropertyDeclaration(Box::new(PropertyDeclarationData {
+            NodeData::PropertyDeclaration(PropertyDeclarationData {
                 modifiers,
                 name: Some(name),
                 question_token,
                 exclamation_token,
                 r#type,
                 initializer,
-            })),
+            }),
             pos,
         )
     }
@@ -5096,14 +5097,14 @@ impl<'text> Parser<'text> {
         }
 
         Some(self.finish_node_data(
-            NodeData::ArrowFunction(Box::new(ArrowFunctionData {
+            NodeData::ArrowFunction(ArrowFunctionData {
                 modifiers,
                 r#type,
                 type_parameters,
                 parameters: Some(parameters),
                 equals_greater_than_token: Some(equals_greater_than_token),
                 body: Some(body),
-            })),
+            }),
             pos,
         ))
     }
@@ -5118,14 +5119,14 @@ impl<'text> Parser<'text> {
         debug_assert_eq!(self.token(), SyntaxKind::EqualsGreaterThanToken);
         let identifier_pos = self.arena.node(identifier).pos as usize;
         let parameter = self.finish_node_data(
-            NodeData::Parameter(Box::new(ParameterData {
+            NodeData::Parameter(ParameterData {
                 modifiers: None,
                 dot_dot_dot_token: None,
                 name: Some(identifier),
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            })),
+            }),
             identifier_pos,
         );
         let parameter_node = self.arena.node(parameter);
@@ -5141,14 +5142,14 @@ impl<'text> Parser<'text> {
             allow_return_type_in_arrow_function,
         );
         self.finish_node_data(
-            NodeData::ArrowFunction(Box::new(ArrowFunctionData {
+            NodeData::ArrowFunction(ArrowFunctionData {
                 modifiers: async_modifier,
                 r#type: None,
                 type_parameters: None,
                 parameters: Some(parameters),
                 equals_greater_than_token: Some(equals_greater_than_token),
                 body: Some(body),
-            })),
+            }),
             pos,
         )
     }
@@ -5685,10 +5686,10 @@ impl<'text> Parser<'text> {
         let contains_only_trivia_white_spaces = self.token() == SyntaxKind::JsxTextAllWhiteSpaces;
         self.scan_jsx_text();
         self.finish_node_data(
-            NodeData::JsxText(Box::new(JsxTextData {
+            NodeData::JsxText(JsxTextData {
                 text,
                 contains_only_trivia_white_spaces,
-            })),
+            }),
             pos,
         )
     }
@@ -6301,10 +6302,11 @@ impl<'text> Parser<'text> {
             Some(&gen::Expression_expected),
             &[],
         );
-        let node = self.arena.node_mut(missing);
-        node.pos = pos as u32;
-        if let NodeData::MissingDeclaration(data) = node.data_mut() {
+        self.arena.node_mut(missing).pos = pos as u32;
+        if let Some(mut data) = self.arena.node(missing).as_missing_declaration() {
             data.modifiers = modifiers;
+            self.arena
+                .set_data(missing, NodeData::MissingDeclaration(data));
         }
         missing
     }
@@ -7026,14 +7028,14 @@ impl<'text> Parser<'text> {
                 None
             };
             return self.finish_node_data(
-                NodeData::ShorthandPropertyAssignment(Box::new(ShorthandPropertyAssignmentData {
+                NodeData::ShorthandPropertyAssignment(ShorthandPropertyAssignmentData {
                     modifiers,
                     name: Some(name),
                     question_token,
                     exclamation_token,
                     equals_token,
                     object_assignment_initializer,
-                })),
+                }),
                 pos,
             );
         }
@@ -7101,7 +7103,7 @@ impl<'text> Parser<'text> {
             diagnostic_message,
         );
         self.finish_node_data(
-            NodeData::MethodDeclaration(Box::new(MethodDeclarationData {
+            NodeData::MethodDeclaration(MethodDeclarationData {
                 modifiers,
                 asterisk_token,
                 name: Some(name),
@@ -7111,7 +7113,7 @@ impl<'text> Parser<'text> {
                 type_parameters,
                 parameters: Some(parameters),
                 body,
-            })),
+            }),
             pos,
         )
     }
@@ -7176,14 +7178,14 @@ impl<'text> Parser<'text> {
                 }
             }
             return Some(self.finish_node_data(
-                NodeData::Parameter(Box::new(ParameterData {
+                NodeData::Parameter(ParameterData {
                     modifiers,
                     dot_dot_dot_token: None,
                     name: Some(name),
                     question_token: None,
                     r#type,
                     initializer: None,
-                })),
+                }),
                 pos,
             ));
         }
@@ -7197,14 +7199,14 @@ impl<'text> Parser<'text> {
         let r#type = self.parse_type_annotation();
         let initializer = self.parse_initializer();
         Some(self.finish_node_data(
-            NodeData::Parameter(Box::new(ParameterData {
+            NodeData::Parameter(ParameterData {
                 modifiers,
                 dot_dot_dot_token,
                 name: Some(name),
                 question_token,
                 r#type,
                 initializer,
-            })),
+            }),
             pos,
         ))
     }
@@ -7342,7 +7344,7 @@ impl<'text> Parser<'text> {
         let body = Some(self.parse_function_block(is_generator, is_async, false, None));
         self.set_decorator_context(saved_decorator_context);
         self.finish_node_data(
-            NodeData::FunctionExpression(Box::new(FunctionExpressionData {
+            NodeData::FunctionExpression(FunctionExpressionData {
                 modifiers,
                 asterisk_token,
                 name,
@@ -7350,7 +7352,7 @@ impl<'text> Parser<'text> {
                 type_parameters,
                 parameters: Some(parameters),
                 body,
-            })),
+            }),
             pos,
         )
     }
@@ -7463,15 +7465,11 @@ impl<'text> Parser<'text> {
         let raw_text = self.template_literal_raw_text(kind);
         let raw_text = Some(self.arena.push_text(raw_text.as_bytes()));
         let data = match kind {
-            SyntaxKind::TemplateHead => {
-                NodeData::TemplateHead(Box::new(TemplateHeadData { text, raw_text }))
-            }
+            SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData { text, raw_text }),
             SyntaxKind::TemplateMiddle => {
-                NodeData::TemplateMiddle(Box::new(TemplateMiddleData { text, raw_text }))
+                NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
             }
-            SyntaxKind::TemplateTail => {
-                NodeData::TemplateTail(Box::new(TemplateTailData { text, raw_text }))
-            }
+            SyntaxKind::TemplateTail => NodeData::TemplateTail(TemplateTailData { text, raw_text }),
             _ => unreachable!("template fragment kind"),
         };
         let id = self.arena.alloc_node(data, pos, end, NodeFlags::NONE);
@@ -7491,7 +7489,7 @@ impl<'text> Parser<'text> {
         let text = self.arena.push_text(self.scanner.token_value().as_bytes());
         let has_extended_unicode_escape = self.scanner.has_extended_unicode_escape();
         let id = self.arena.alloc_node(
-            NodeData::StringLiteral(Box::new(StringLiteralData { text })),
+            NodeData::StringLiteral(StringLiteralData { text }),
             pos,
             end,
             NodeFlags::NONE,
@@ -7510,7 +7508,7 @@ impl<'text> Parser<'text> {
         let text = self.arena.push_text(text.as_bytes());
         let numeric_literal_flags = self.scanner.numeric_literal_flags();
         let id = self.arena.alloc_node(
-            NodeData::NumericLiteral(Box::new(NumericLiteralData { text })),
+            NodeData::NumericLiteral(NumericLiteralData { text }),
             pos,
             end,
             NodeFlags::NONE,
@@ -7528,7 +7526,7 @@ impl<'text> Parser<'text> {
         let text = self.current_token_text();
         let text = self.arena.push_text(text.as_bytes());
         let id = self.arena.alloc_node(
-            NodeData::BigIntLiteral(Box::new(BigIntLiteralData { text })),
+            NodeData::BigIntLiteral(BigIntLiteralData { text }),
             pos,
             end,
             NodeFlags::NONE,
@@ -7544,7 +7542,7 @@ impl<'text> Parser<'text> {
         let text = self.arena.push_text(text.as_bytes());
         let is_unterminated = self.scanner.is_unterminated().then_some(true);
         let id = self.arena.alloc_node(
-            NodeData::RegularExpressionLiteral(Box::new(RegularExpressionLiteralData { text })),
+            NodeData::RegularExpressionLiteral(RegularExpressionLiteralData { text }),
             pos,
             end,
             NodeFlags::NONE,
@@ -7562,10 +7560,10 @@ impl<'text> Parser<'text> {
         let raw_text = self.template_literal_raw_text(SyntaxKind::NoSubstitutionTemplateLiteral);
         let raw_text = self.arena.push_text(raw_text.as_bytes());
         let id = self.arena.alloc_node(
-            NodeData::NoSubstitutionTemplateLiteral(Box::new(NoSubstitutionTemplateLiteralData {
+            NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
                 text,
                 raw_text: Some(raw_text),
-            })),
+            }),
             pos,
             end,
             NodeFlags::NONE,
@@ -8000,14 +7998,14 @@ impl<'text> Parser<'text> {
             let type_parameters = self.parse_type_parameters();
             let parameters = self.parse_parameters(false, false);
             let r#type = self.parse_return_type(SyntaxKind::ColonToken, true);
-            NodeData::MethodSignature(Box::new(MethodSignatureData {
+            NodeData::MethodSignature(MethodSignatureData {
                 modifiers,
                 name: Some(name),
                 question_token,
                 r#type,
                 type_parameters,
                 parameters: Some(parameters),
-            }))
+            })
         } else {
             let r#type = self.parse_type_annotation();
             // An initializer is a grammar error the checker reports; the
@@ -8077,23 +8075,23 @@ impl<'text> Parser<'text> {
         let r#type = self.parse_return_type(SyntaxKind::ColonToken, false);
         let body = self.parse_function_block_or_semicolon(false, false, in_type_member, None);
         let data = if kind == SyntaxKind::GetAccessor {
-            NodeData::GetAccessor(Box::new(GetAccessorData {
+            NodeData::GetAccessor(GetAccessorData {
                 modifiers,
                 name: Some(name),
                 r#type,
                 type_parameters,
                 parameters: Some(parameters),
                 body,
-            }))
+            })
         } else {
-            NodeData::SetAccessor(Box::new(SetAccessorData {
+            NodeData::SetAccessor(SetAccessorData {
                 modifiers,
                 name: Some(name),
                 r#type,
                 type_parameters,
                 parameters: Some(parameters),
                 body,
-            }))
+            })
         };
         self.finish_node_data(data, pos)
     }
@@ -8217,14 +8215,14 @@ impl<'text> Parser<'text> {
         });
         self.parse_expected(SyntaxKind::CloseBraceToken, None);
         self.finish_node_data(
-            NodeData::MappedType(Box::new(MappedTypeData {
+            NodeData::MappedType(MappedTypeData {
                 readonly_token,
                 type_parameter: Some(type_parameter),
                 r#type,
                 name_type,
                 question_token,
                 members: Some(members),
-            })),
+            }),
             pos,
         )
     }

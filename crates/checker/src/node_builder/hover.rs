@@ -143,8 +143,7 @@ fn simplify_class_declaration(
     if original
         .is_some_and(|declaration| checker.kind_of(declaration) == SyntaxKind::ClassExpression)
     {
-        let NodeData::ClassDeclaration(mut data) =
-            arena.node(class).map_err(factory_error)?.data().clone()
+        let NodeData::ClassDeclaration(mut data) = arena.node(class).map_err(factory_error)?.data()
         else {
             unreachable!("a class expansion is a class declaration");
         };
@@ -608,12 +607,7 @@ fn type_elements_to_class_elements(
     let mut result = Vec::with_capacity(members.len());
     for member in members {
         let source = member.node.source();
-        let node = match arena
-            .node(member.node)
-            .map_err(factory_error)?
-            .data()
-            .clone()
-        {
+        let node = match arena.node(member.node).map_err(factory_error)?.data() {
             NodeData::PropertySignature(data) => {
                 let modifiers = data
                     .modifiers

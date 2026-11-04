@@ -184,7 +184,7 @@ fn source_file_is_effectively_strict(
     if syntax.external_module_indicator.is_some() {
         return Ok(true);
     }
-    let NodeData::SourceFile(data) = context.arena().node(root)?.data() else {
+    let Some(data) = context.arena().node(root)?.as_source_file() else {
         return Ok(false);
     };
     let Some(statements) = data
@@ -207,7 +207,7 @@ fn source_file_is_effectively_strict(
         else {
             break;
         };
-        let NodeData::StringLiteral(literal) = context.arena().node(expression)?.data() else {
+        let Some(literal) = context.arena().node(expression)?.as_string_literal() else {
             break;
         };
         if context.arena().text(expression.source(), literal.text)? == b"use strict" {
@@ -280,9 +280,9 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return Ok(*mapped);
         }
         let original = self.node(id);
-        let record = self.context.arena().node(original)?.clone();
+        let record = *self.context.arena().node(original)?;
 
-        if matches!(record.data(), NodeData::Identifier(_))
+        if record.kind == SyntaxKind::Identifier
             && self.lexical_arguments_binding.is_some()
             && self
                 .resolver
@@ -316,7 +316,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return Ok(Some(id));
         }
 
-        let transformed = match record.data().clone() {
+        let transformed = match record.data() {
             NodeData::CallExpression(data) if self.call_expression_targets_super(&data)? => {
                 Some(self.visit_captured_super_call(original, data)?.node())
             }
@@ -354,31 +354,33 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             }
             NodeData::FunctionDeclaration(data) => {
                 Some(self.with_non_top_level_context(|visitor| {
-                    visitor.visit_function_declaration(original, *data)
+                    visitor.visit_function_declaration(original, data)
                 })?)
             }
             NodeData::FunctionExpression(data) => {
                 Some(self.with_non_top_level_context(|visitor| {
-                    visitor.visit_function_expression(original, *data)
+                    visitor.visit_function_expression(original, data)
                 })?)
             }
             NodeData::ArrowFunction(data) => Some(self.with_non_top_level_context(|visitor| {
-                visitor.visit_arrow_function(original, *data)
+                visitor.visit_arrow_function(original, data)
             })?),
             NodeData::MethodDeclaration(data) => {
                 Some(self.with_non_top_level_context(|visitor| {
-                    visitor.visit_method_declaration(original, *data)
+                    visitor.visit_method_declaration(original, data)
                 })?)
             }
             NodeData::GetAccessor(data) => Some(self.with_non_top_level_context(|visitor| {
-                visitor.visit_get_accessor(original, *data)
+                visitor.visit_get_accessor(original, data)
             })?),
             NodeData::SetAccessor(data) => Some(self.with_non_top_level_context(|visitor| {
-                visitor.visit_set_accessor(original, *data)
+                visitor.visit_set_accessor(original, data)
             })?),
-            NodeData::Constructor(data) => Some(self.with_non_top_level_context(|visitor| {
-                visitor.visit_constructor(original, *data)
-            })?),
+            NodeData::Constructor(data) => {
+                Some(self.with_non_top_level_context(|visitor| {
+                    visitor.visit_constructor(original, data)
+                })?)
+            }
             NodeData::ClassDeclaration(data) => {
                 Some(self.with_non_top_level_context(|visitor| {
                     visitor.visit_class_boundary(original, NodeData::ClassDeclaration(data))
@@ -458,10 +460,10 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         };
         match self.context.arena().node(expression)?.data() {
             NodeData::PropertyAccessExpression(property) => {
-                self.property_access_targets_super(property)
+                self.property_access_targets_super(&property)
             }
             NodeData::ElementAccessExpression(element) => {
-                self.element_access_targets_super(element)
+                self.element_access_targets_super(&element)
             }
             _ => Ok(false),
         }
@@ -469,9 +471,9 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
 
     fn node_is_direct_super_use(&self, node: TransformNode) -> Result<bool, TransformError> {
         match self.context.arena().node(node)?.data() {
-            NodeData::PropertyAccessExpression(data) => self.property_access_targets_super(data),
-            NodeData::ElementAccessExpression(data) => self.element_access_targets_super(data),
-            NodeData::CallExpression(data) => self.call_expression_targets_super(data),
+            NodeData::PropertyAccessExpression(data) => self.property_access_targets_super(&data),
+            NodeData::ElementAccessExpression(data) => self.element_access_targets_super(&data),
+            NodeData::CallExpression(data) => self.call_expression_targets_super(&data),
             _ => Ok(false),
         }
     }
@@ -554,7 +556,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         properties: &mut Vec<CapturedSuperProperty>,
         has_element_access: &mut bool,
     ) -> Result<(), TransformError> {
-        let record = self.context.arena().node(node)?.clone();
+        let record = *self.context.arena().node(node)?;
         let owns_access = if matches!(
             record.kind,
             SyntaxKind::ClassDeclaration
@@ -699,7 +701,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 field: "expression",
             },
         )?;
-        let access = match self.context.arena().node(callee)?.data().clone() {
+        let access = match self.context.arena().node(callee)?.data() {
             NodeData::PropertyAccessExpression(property) => {
                 self.visit_captured_super_property(callee, property)?
             }
@@ -835,7 +837,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return Ok(false);
         };
         let record = self.context.arena().node(list)?;
-        let NodeData::VariableDeclarationList(data) = record.data() else {
+        let Some(data) = record.as_variable_declaration_list() else {
             return Ok(false);
         };
         if NodeFlags::from_bits(record.flags).intersects(NodeFlags::BLOCK_SCOPED) {
@@ -867,9 +869,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
         let metadata = self.context.arena().metadata(name)?;
         let id = metadata.generated_binding_id()?;
-        let NodeData::Identifier(identifier) = self.context.arena().node(name).ok()?.data() else {
-            return None;
-        };
+        let identifier = self.context.arena().node(name).ok()?.as_identifier()?;
         Some(TargetBinding::from_existing(
             id,
             identifier.text().to_owned(),
@@ -1009,8 +1009,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                     parent,
                     field: "variable declaration list",
                 })?;
-        let NodeData::VariableDeclarationList(data) =
-            self.context.arena().node(list)?.data().clone()
+        let NodeData::VariableDeclarationList(data) = self.context.arena().node(list)?.data()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent,
@@ -1020,7 +1019,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let declarations = self.array_nodes(data.declarations)?;
         for declaration in &declarations {
             let NodeData::VariableDeclaration(data) =
-                self.context.arena().node(*declaration)?.data().clone()
+                self.context.arena().node(*declaration)?.data()
             else {
                 continue;
             };
@@ -1031,7 +1030,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let mut assignments = Vec::new();
         for declaration in &declarations {
             let NodeData::VariableDeclaration(data) =
-                self.context.arena().node(*declaration)?.data().clone()
+                self.context.arena().node(*declaration)?.data()
             else {
                 continue;
             };
@@ -1073,8 +1072,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                         parent,
                         field: "receiver declaration",
                     })?;
-            let NodeData::VariableDeclaration(data) =
-                self.context.arena().node(first)?.data().clone()
+            let NodeData::VariableDeclaration(data) = self.context.arena().node(first)?.data()
             else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent,
@@ -1114,7 +1112,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         if let Some(binding) = self.generated_binding_for_identifier(name) {
             return self.create_generated_identifier(&binding);
         }
-        match self.context.arena().node(name)?.data().clone() {
+        match self.context.arena().node(name)?.data() {
             NodeData::Identifier(identifier) => self.create_identifier(identifier.text()),
             // Binding-pattern conversion is structural. Keeping it here makes
             // the collision plan explicit and leaves object-rest flattening to
@@ -1123,7 +1121,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 let mut properties = Vec::new();
                 for element in self.array_nodes(data.elements)? {
                     let NodeData::BindingElement(element_data) =
-                        self.context.arena().node(element)?.data().clone()
+                        self.context.arena().node(element)?.data()
                     else {
                         continue;
                     };
@@ -1171,7 +1169,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                         continue;
                     }
                     let NodeData::BindingElement(element_data) =
-                        self.context.arena().node(element)?.data().clone()
+                        self.context.arena().node(element)?.data()
                     else {
                         continue;
                     };
@@ -1311,7 +1309,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         data.asterisk_token = transformed.asterisk_token;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::FunctionDeclaration(Box::new(data)))
+        self.update_without_visit(original, NodeData::FunctionDeclaration(data))
     }
 
     fn visit_function_expression(
@@ -1335,7 +1333,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         data.asterisk_token = transformed.asterisk_token;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::FunctionExpression(Box::new(data)))
+        self.update_without_visit(original, NodeData::FunctionExpression(data))
     }
 
     fn visit_arrow_function(
@@ -1359,7 +1357,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         data.modifiers = transformed.modifiers;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::ArrowFunction(Box::new(data)))
+        self.update_without_visit(original, NodeData::ArrowFunction(data))
     }
 
     fn visit_method_declaration(
@@ -1386,7 +1384,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         data.asterisk_token = transformed.asterisk_token;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::MethodDeclaration(Box::new(data)))
+        self.update_without_visit(original, NodeData::MethodDeclaration(data))
     }
 
     fn visit_get_accessor(
@@ -1410,7 +1408,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         data.modifiers = transformed.modifiers;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::GetAccessor(Box::new(data)))
+        self.update_without_visit(original, NodeData::GetAccessor(data))
     }
 
     fn visit_set_accessor(
@@ -1434,7 +1432,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         data.modifiers = transformed.modifiers;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::SetAccessor(Box::new(data)))
+        self.update_without_visit(original, NodeData::SetAccessor(data))
     }
 
     fn visit_constructor(
@@ -1457,7 +1455,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         data.modifiers = transformed.modifiers;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::Constructor(Box::new(data)))
+        self.update_without_visit(original, NodeData::Constructor(data))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1570,7 +1568,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return Ok(body);
         }
         let body_node = self.node(body);
-        let NodeData::Block(mut data) = self.context.arena().node(body_node)?.data().clone() else {
+        let Some(mut data) = self.context.arena().node(body_node)?.as_block() else {
             return Ok(body);
         };
         let mut existing = self.array_nodes(data.statements)?;
@@ -1592,11 +1590,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 .create_node_array(self.source, existing)?
         };
         data.statements = Some(statements.array());
-        let flags = flags_after_update(
-            self.context.arena(),
-            body_node,
-            &NodeData::Block(data.clone()),
-        )?;
+        let flags = flags_after_update(self.context.arena(), body_node, &NodeData::Block(data))?;
         let updated =
             self.context
                 .factory()?
@@ -1722,7 +1716,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let mut outer = Vec::new();
         let mut forwarded_arguments = Vec::new();
         for parameter in self.array_nodes(Some(parameters))? {
-            let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() else {
+            let Some(data) = self.context.arena().node(parameter)?.as_parameter() else {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::Parameter,
                     field: "parameter",
@@ -1790,7 +1784,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         &self,
         parameter: TransformNode,
     ) -> Result<AsyncParameterFact, TransformError> {
-        let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() else {
+        let Some(data) = self.context.arena().node(parameter)?.as_parameter() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Parameter,
                 field: "parameter",
@@ -1839,7 +1833,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     ) -> Result<BTreeSet<String>, TransformError> {
         let mut names = BTreeSet::new();
         for parameter in self.array_nodes(parameters)? {
-            if let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data() {
+            if let Some(data) = self.context.arena().node(parameter)?.as_parameter() {
                 if let Some(name) = data.name {
                     self.collect_binding_names(self.node(name), &mut names)?;
                 }
@@ -1928,7 +1922,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         &mut self,
         name: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        match self.context.arena().node(name)?.data().clone() {
+        match self.context.arena().node(name)?.data() {
             NodeData::QualifiedName(data) => {
                 let left = data
                     .left
@@ -1983,7 +1977,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             | self.context.arena().propagate_child_flags(body)?;
         let generator = self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
@@ -1991,7 +1985,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 asterisk_token: Some(asterisk.node()),
                 body: Some(body.node()),
                 modifiers: None,
-            })),
+            }),
             flags,
         )?;
         self.context
@@ -2073,14 +2067,14 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let flags = self.child_flags(&children)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
                 name: Some(name.node()),
                 modifiers: None,
                 dot_dot_dot_token: dot_dot_dot_token.map(TransformNode::node),
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            })),
+            }),
             flags,
         )
     }
@@ -2377,7 +2371,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         if lexical_environment.is_empty() {
             return Ok(body);
         }
-        let NodeData::Block(mut data) = self.context.arena().node(body)?.data().clone() else {
+        let Some(mut data) = self.context.arena().node(body)?.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::FunctionExpression,
                 field: "generator block",
@@ -2437,7 +2431,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 .create_node_array(self.source, statements)?
         };
         data.statements = Some(statements.array());
-        let flags = flags_after_update(self.context.arena(), body, &NodeData::Block(data.clone()))?;
+        let flags = flags_after_update(self.context.arena(), body, &NodeData::Block(data))?;
         self.context
             .factory()?
             .update_node(body, NodeData::Block(data), flags)
@@ -2453,7 +2447,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             self.context
                 .arena()
                 .node(self.node(expression))
-                .is_ok_and(|expression| matches!(expression.data(), NodeData::StringLiteral(_)))
+                .is_ok_and(|expression| expression.kind == SyntaxKind::StringLiteral)
         })
     }
 
@@ -2472,7 +2466,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         data: NodeData,
     ) -> Result<NodeId, TransformError> {
         let arena = self.context.arena();
-        if arena.same_payload(original.source(), arena.node(original)?.data(), &data) {
+        if arena.same_payload(original.source(), &arena.node(original)?.data(), &data) {
             return Ok(original.node());
         }
         let flags = flags_after_update(self.context.arena(), original, &data)?;
@@ -2625,7 +2619,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let flags = self.child_flags(&children)? | TransformFlags::CONTAINS_ES_2015;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::ShorthandPropertyAssignment(Box::new(
+            NodeData::ShorthandPropertyAssignment(
                 tsc_syntax::nodes::ShorthandPropertyAssignmentData {
                     name: Some(name.node()),
                     equals_token: None,
@@ -2635,7 +2629,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                     question_token: None,
                     exclamation_token: None,
                 },
-            )),
+            ),
             flags,
         )
     }
@@ -2698,14 +2692,14 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let flags = self.context.arena().propagate_child_flags(name)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::Parameter(Box::new(tsc_syntax::nodes::ParameterData {
+            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
                 name: Some(name.node()),
                 modifiers: None,
                 dot_dot_dot_token: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
-            })),
+            }),
             flags,
         )
     }
@@ -2728,14 +2722,14 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             | self.context.arena().propagate_child_flags(body)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::ArrowFunction(Box::new(tsc_syntax::nodes::ArrowFunctionData {
+            NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
                 equals_greater_than_token: Some(arrow.node()),
-            })),
+            }),
             flags,
         )
     }
@@ -2753,7 +2747,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             | self.context.arena().propagate_child_flags(body)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
@@ -2761,7 +2755,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 asterisk_token: None,
                 body: Some(body.node()),
                 modifiers: None,
-            })),
+            }),
             flags,
         )
     }
@@ -2780,14 +2774,14 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             | self.context.arena().propagate_child_flags(body)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::GetAccessor(Box::new(tsc_syntax::nodes::GetAccessorData {
+            NodeData::GetAccessor(tsc_syntax::nodes::GetAccessorData {
                 name: Some(name.node()),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            })),
+            }),
             flags,
         )
     }
@@ -2809,14 +2803,14 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             | self.context.arena().propagate_child_flags(body)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::SetAccessor(Box::new(tsc_syntax::nodes::SetAccessorData {
+            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
                 name: Some(name.node()),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
                 r#type: None,
                 body: Some(body.node()),
                 modifiers: None,
-            })),
+            }),
             flags,
         )
     }
@@ -2914,7 +2908,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         let text = self.context.factory()?.push_text(self.source, b"0")?;
         let zero = self.context.factory()?.create_node(
             self.source,
-            NodeData::NumericLiteral(Box::new(tsc_syntax::nodes::NumericLiteralData { text })),
+            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData { text }),
             TransformFlags::NONE,
         )?;
         let flags = self.context.arena().propagate_child_flags(zero)?;

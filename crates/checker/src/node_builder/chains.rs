@@ -1600,7 +1600,7 @@ fn create_string_literal<'t>(
     let literal = create_node(
         arena,
         target,
-        NodeData::StringLiteral(Box::new(StringLiteralData { text })),
+        NodeData::StringLiteral(StringLiteralData { text }),
     )?;
     arena
         .literal_properties_mut(literal)
@@ -2216,7 +2216,7 @@ pub(crate) fn chains_symbol_to_type_node(
         }
         let split = get_topmost_indexed_access_type(arena, non_root.expect("non-entity access"))?;
         let NodeData::IndexedAccessType(split_data) =
-            arena.node(split).map_err(factory_error)?.data().clone()
+            arena.node(split).map_err(factory_error)?.data()
         else {
             unreachable!("non-entity access from a symbol chain is indexed access")
         };
@@ -2258,12 +2258,7 @@ pub(crate) fn chains_symbol_to_type_node(
         context,
         type_arguments.as_deref(),
     )?;
-    match arena
-        .node(access.node)
-        .map_err(factory_error)?
-        .data()
-        .clone()
-    {
+    match arena.node(access.node).map_err(factory_error)?.data() {
         NodeData::IndexedAccessType(_) => Ok(access.node),
         _ if is_entity_name(arena, access.node)? => {
             if is_type_of {
@@ -2292,7 +2287,7 @@ pub(super) fn create_access_expression(
     target: TransformSourceId,
     node: TransformNode,
 ) -> BuildResult<TransformNode> {
-    match arena.node(node).map_err(factory_error)?.data().clone() {
+    match arena.node(node).map_err(factory_error)?.data() {
         NodeData::QualifiedName(data) => {
             let left = data
                 .left

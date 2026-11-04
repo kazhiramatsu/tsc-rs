@@ -1317,7 +1317,7 @@ impl<'a> CheckerState<'a> {
                 Ok(Some(JsString::from(key)))
             }
             SyntaxKind::NonNullExpression => {
-                let NodeData::NonNullExpression(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_non_null_expression() else {
                     return Ok(None);
                 };
                 match data.expression {
@@ -1331,7 +1331,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             SyntaxKind::ParenthesizedExpression => {
-                let NodeData::ParenthesizedExpression(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_parenthesized_expression() else {
                     return Ok(None);
                 };
                 match data.expression {
@@ -1345,7 +1345,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             SyntaxKind::QualifiedName => {
-                let NodeData::QualifiedName(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_qualified_name() else {
                     return Ok(None);
                 };
                 let (Some(left), Some(right)) = (data.left, data.right) else {
@@ -1605,7 +1605,7 @@ impl<'a> CheckerState<'a> {
         match self.kind_of(node) {
             SyntaxKind::FalseKeyword => true,
             SyntaxKind::BinaryExpression => {
-                let NodeData::BinaryExpression(data) = self.data_of(node) else {
+                let Some(data) = self.record_of(node).as_binary_expression() else {
                     return false;
                 };
                 let (Some(left), Some(operator), Some(right)) =
@@ -2798,7 +2798,7 @@ impl<'a> CheckerState<'a> {
         let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
             return false;
         };
-        let NodeData::PropertyDeclaration(data) = self.data_of(declaration) else {
+        let Some(data) = self.record_of(declaration).as_property_declaration() else {
             return false;
         };
         self.effective_type_annotation_node(declaration).is_none()
@@ -3227,7 +3227,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             SyntaxKind::BinaryExpression => {
-                if let NodeData::BinaryExpression(data) = self.data_of(target) {
+                if let Some(data) = self.record_of(target).as_binary_expression() {
                     let (left, right, operator) = (data.left, data.right, data.operator_token);
                     if let (Some(left), Some(operator)) = (left, operator) {
                         if node_util::is_assignment_operator(self.kind_of(operator))
@@ -3287,7 +3287,7 @@ impl<'a> CheckerState<'a> {
                 })
             }
             SyntaxKind::BinaryExpression => {
-                let NodeData::BinaryExpression(data) = self.data_of(target) else {
+                let Some(data) = self.record_of(target).as_binary_expression() else {
                     return false;
                 };
                 let (left, right, operator) = (data.left, data.right, data.operator_token);
@@ -3565,7 +3565,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             }
             SyntaxKind::BinaryExpression => {
-                if let NodeData::BinaryExpression(data) = self.data_of(target) {
+                if let Some(data) = self.record_of(target).as_binary_expression() {
                     let (left, right, operator) = (data.left, data.right, data.operator_token);
                     if let (Some(left), Some(operator)) = (left, operator) {
                         if node_util::is_assignment_operator(self.kind_of(operator))
@@ -3723,7 +3723,7 @@ impl<'a> CheckerState<'a> {
                 ) {
                     return Ok(false);
                 }
-                let NodeData::QualifiedName(data) = self.data_of(source) else {
+                let Some(data) = self.record_of(source).as_qualified_name() else {
                     return Ok(false);
                 };
                 let (left, right) = (data.left, data.right);
@@ -3743,7 +3743,7 @@ impl<'a> CheckerState<'a> {
                 self.is_matching_reference(left, target_expression)
             }
             SyntaxKind::BinaryExpression => {
-                let NodeData::BinaryExpression(data) = self.data_of(source) else {
+                let Some(data) = self.record_of(source).as_binary_expression() else {
                     return Ok(false);
                 };
                 let (right, operator) = (data.right, data.operator_token);
@@ -3808,7 +3808,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<EscapedName>> {
         match self.kind_of(access) {
             SyntaxKind::PropertyAccessExpression => {
-                let NodeData::PropertyAccessExpression(data) = self.data_of(access) else {
+                let Some(data) = self.record_of(access).as_property_access_expression() else {
                     return Ok(None);
                 };
                 Ok(data.name.and_then(|name| self.identifier_name_of(name)))
@@ -3959,7 +3959,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.try_get_name_from_type(initializer_type));
             }
             if self.kind_of(declaration) == SyntaxKind::EnumMember {
-                let NodeData::EnumMember(data) = self.data_of(declaration) else {
+                let Some(data) = self.record_of(declaration).as_enum_member() else {
                     return Ok(None);
                 };
                 let Some(name) = data.name else {
@@ -3981,7 +3981,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) == SyntaxKind::BindingElement
             && self.kind_of(parent) == SyntaxKind::ObjectBindingPattern
         {
-            let NodeData::BindingElement(data) = self.data_of(node) else {
+            let Some(data) = self.record_of(node).as_binding_element() else {
                 return Ok(None);
             };
             let Some(name) = data.property_name.or(data.name) else {
@@ -4328,7 +4328,7 @@ impl<'a> CheckerState<'a> {
     /// ("assigned somewhere unknowable").
     /// tsrs-native: extracted arm of mark_node_assignments (same span).
     fn mark_export_specifier_assignment(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::ExportSpecifier(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_export_specifier() else {
             return Ok(());
         };
         if data.is_type_only {
@@ -4343,7 +4343,7 @@ impl<'a> CheckerState<'a> {
         else {
             return Ok(());
         };
-        let NodeData::ExportDeclaration(export_data) = self.data_of(export_declaration) else {
+        let Some(export_data) = self.record_of(export_declaration).as_export_declaration() else {
             return Ok(());
         };
         if export_data.is_type_only || export_data.module_specifier.is_some() {
@@ -4459,7 +4459,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if self.kind_of(declaration) == SyntaxKind::Parameter {
-            let NodeData::Parameter(data) = self.data_of(declaration) else {
+            let Some(data) = self.record_of(declaration).as_parameter() else {
                 return Ok(ty);
             };
             if data.r#type.is_none()
@@ -4576,7 +4576,7 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
         location: NodeId,
     ) -> CheckResult<Option<TypeId>> {
-        let NodeData::BindingElement(data) = self.data_of(declaration) else {
+        let Some(data) = self.record_of(declaration).as_binding_element() else {
             return Ok(None);
         };
         if data.initializer.is_some() || data.dot_dot_dot_token.is_some() {

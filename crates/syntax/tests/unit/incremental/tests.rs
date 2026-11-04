@@ -52,8 +52,8 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
             let node = source.arena.node(nodes[node_index]);
             let mut child_nodes = Vec::new();
             let mut child_arrays = Vec::new();
-            collect_node_data_ids(node.data(), &mut child_nodes, &mut child_arrays);
-            if let Some(js_doc) = node.js_doc {
+            collect_node_data_ids(&node.data(), &mut child_nodes, &mut child_arrays);
+            if let Some(js_doc) = node.js_doc() {
                 child_arrays.push(js_doc);
             }
             for child in child_nodes {
@@ -91,7 +91,7 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
         .iter()
         .map(|id| {
             let node = source.arena.node(*id);
-            let mut data = node.data().clone();
+            let mut data = node.data();
             remap_node_data_ids(
                 &mut data,
                 |id| *node_map.get(&id).expect("canonical node reference"),
@@ -119,7 +119,7 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
                         .get(&id)
                         .expect("canonical parent belongs to the root graph")
                 }),
-                js_doc: node.js_doc.map(|id| {
+                js_doc: node.js_doc().map(|id| {
                     *array_map
                         .get(&id)
                         .expect("canonical JSDoc array belongs to the root graph")

@@ -113,14 +113,12 @@ impl<'a> CheckerState<'a> {
         &self,
         element: NodeId,
     ) -> Option<tsc_syntax::NodeArrayId> {
-        let NodeData::ExpressionWithTypeArguments(data) = self.data_of(element) else {
-            return None;
-        };
+        let data = self
+            .record_of(element)
+            .as_expression_with_type_arguments()?;
         data.type_arguments.or_else(|| {
             let tag = self.hosted_jsdoc(element).augments_tag_of(element)?;
-            let NodeData::JSDocAugmentsTag(tag) = self.data_of(tag) else {
-                return None;
-            };
+            let tag = self.record_of(tag).as_js_doc_augments_tag()?;
             match self.data_of(tag.class?) {
                 NodeData::ExpressionWithTypeArguments(class) => class.type_arguments,
                 _ => None,
@@ -221,7 +219,7 @@ impl<'a> CheckerState<'a> {
         let mut current = Some(node);
         while let Some(location) = current {
             if let Some(&last) = self.direct_jsdoc_documents(location).last() {
-                if let NodeData::JSDoc(data) = self.data_of(last) {
+                if let Some(data) = self.record_of(last).as_js_doc() {
                     if data.tags.is_some() {
                         return self.nodes_of(data.tags).to_vec();
                     }
@@ -261,7 +259,7 @@ impl<'a> CheckerState<'a> {
             .source_of_node(node)
             .arena
             .node(node)
-            .js_doc
+            .js_doc()
             .is_some()
             || self.jsdoc_tag_cache.borrow().contains_key(&node)
     }
@@ -272,7 +270,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn has_jsdoc_nodes(&self, node: NodeId) -> bool {
         Published
             .node(node)
-            .js_doc
+            .js_doc()
             .is_some_and(|docs| !Published.node_array(docs).nodes.is_empty())
     }
 
@@ -281,7 +279,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn direct_jsdoc_documents(&self, node: NodeId) -> Vec<NodeId> {
         Published
             .node(node)
-            .js_doc
+            .js_doc()
             .map(|docs| Published.node_array(docs).nodes.to_vec())
             .unwrap_or_default()
     }
@@ -321,7 +319,7 @@ impl<'a> CheckerState<'a> {
         };
         let mut tags = Vec::new();
         for &document in documents {
-            let NodeData::JSDoc(data) = self.data_of(document) else {
+            let Some(data) = self.record_of(document).as_js_doc() else {
                 continue;
             };
             for tag in self.nodes_of(data.tags) {
@@ -341,13 +339,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 318a699709d8ba4125a2ebf93d36a24e35aaa5401c283d507581e58631d93052
     /// tsc-span: _tsc.js:15327-15329
     pub(crate) fn single_variable_of_variable_statement(&self, node: NodeId) -> Option<NodeId> {
-        let NodeData::VariableStatement(statement) = self.data_of(node) else {
-            return None;
-        };
+        let statement = self.record_of(node).as_variable_statement()?;
         let list = statement.declaration_list?;
-        let NodeData::VariableDeclarationList(list) = self.data_of(list) else {
-            return None;
-        };
+        let list = self.record_of(list).as_variable_declaration_list()?;
         self.nodes_of(list.declarations).first().copied()
     }
 
@@ -366,17 +360,13 @@ impl<'a> CheckerState<'a> {
     }
 
     fn nested_module_declaration(&self, node: NodeId) -> Option<NodeId> {
-        let NodeData::ModuleDeclaration(data) = self.data_of(node) else {
-            return None;
-        };
+        let data = self.record_of(node).as_module_declaration()?;
         data.body
             .filter(|&body| self.kind_of(body) == SyntaxKind::ModuleDeclaration)
     }
 
     fn source_of_assignment(&self, node: NodeId) -> Option<NodeId> {
-        let NodeData::ExpressionStatement(statement) = self.data_of(node) else {
-            return None;
-        };
+        let statement = self.record_of(node).as_expression_statement()?;
         let expression = statement.expression?;
         if !node_util::is_assignment_expression_simple(&Published, expression) {
             return None;
@@ -387,9 +377,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn source_of_defaulted_assignment(&self, node: NodeId) -> Option<NodeId> {
-        let NodeData::ExpressionStatement(statement) = self.data_of(node) else {
-            return None;
-        };
+        let statement = self.record_of(node).as_expression_statement()?;
         let expression = statement.expression?;
         let source = self.binder.source_of_node(expression);
         if tsc_binder::get_assignment_declaration_kind(source, expression)
@@ -397,13 +385,9 @@ impl<'a> CheckerState<'a> {
         {
             return None;
         }
-        let NodeData::BinaryExpression(assignment) = self.data_of(expression) else {
-            return None;
-        };
+        let assignment = self.record_of(expression).as_binary_expression()?;
         let right = assignment.right?;
-        let NodeData::BinaryExpression(defaulted) = self.data_of(right) else {
-            return None;
-        };
+        let defaulted = self.record_of(right).as_binary_expression()?;
         let is_defaulting_operator = defaulted.operator_token.is_some_and(|operator| {
             matches!(
                 self.kind_of(operator),
@@ -414,7 +398,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn is_assignment_expression(&self, node: NodeId) -> bool {
-        let NodeData::BinaryExpression(data) = self.data_of(node) else {
+        let Some(data) = self.record_of(node).as_binary_expression() else {
             return false;
         };
         data.operator_token
@@ -483,7 +467,7 @@ impl<'a> CheckerState<'a> {
             return tags
                 .into_iter()
                 .filter(|&tag| {
-                    let NodeData::JSDocParameterTag(data) = self.data_of(tag) else {
+                    let Some(data) = self.record_of(tag).as_js_doc_parameter_tag() else {
                         return false;
                     };
                     data.name
@@ -519,7 +503,7 @@ impl<'a> CheckerState<'a> {
         self.get_jsdoc_tags(parent)
             .into_iter()
             .filter(|&tag| {
-                let NodeData::JSDocTemplateTag(data) = self.data_of(tag) else {
+                let Some(data) = self.record_of(tag).as_js_doc_template_tag() else {
                     return false;
                 };
                 self.nodes_of(data.type_parameters)
@@ -540,14 +524,10 @@ impl<'a> CheckerState<'a> {
         &self,
         node: NodeId,
     ) -> Option<NodeId> {
-        let NodeData::TypeParameter(data) = self.data_of(node) else {
-            return None;
-        };
+        let data = self.record_of(node).as_type_parameter()?;
         data.constraint.or_else(|| {
             let parent = self.parent_of(node)?;
-            let NodeData::JSDocTemplateTag(template) = self.data_of(parent) else {
-                return None;
-            };
+            let template = self.record_of(parent).as_js_doc_template_tag()?;
             (self.nodes_of(template.type_parameters).first().copied() == Some(node))
                 .then_some(template.constraint)
                 .flatten()
@@ -700,9 +680,7 @@ impl<'a> CheckerState<'a> {
     /// `typeExpression && typeExpression.type` reads.
     pub(crate) fn jsdoc_type_expression_type(&self, expression: Option<NodeId>) -> Option<NodeId> {
         let expression = expression?;
-        let NodeData::JSDocTypeExpression(data) = self.data_of(expression) else {
-            return None;
-        };
+        let data = self.record_of(expression).as_js_doc_type_expression()?;
         data.r#type
     }
 
@@ -771,7 +749,7 @@ impl<'a> CheckerState<'a> {
     /// initializer is no host.
     pub(crate) fn get_host_signature_from_jsdoc(&self, node: NodeId) -> Option<NodeId> {
         let host = self.parent_of(self.get_jsdoc_root(node)?)?;
-        if let NodeData::PropertySignature(data) = self.data_of(host) {
+        if let Some(data) = self.record_of(host).as_property_signature() {
             if let Some(ty) = data.r#type {
                 if node_util::is_function_like_kind(self.kind_of(ty)) {
                     return Some(ty);
@@ -818,7 +796,7 @@ impl<'a> CheckerState<'a> {
     /// overloads have them (the binder's table of that comment).
     pub(crate) fn effective_container_for_jsdoc_template_tag(&self, tag: NodeId) -> Option<NodeId> {
         if let Some(document) = self.parent_of(tag) {
-            if let NodeData::JSDoc(data) = self.data_of(document) {
+            if let Some(data) = self.record_of(document).as_js_doc() {
                 if let Some(alias) = self
                     .nodes_of(data.tags)
                     .into_iter()

@@ -624,7 +624,8 @@ impl<'a> TemplateFile<'a> {
         self.source.arena.node(node).kind
     }
 
-    fn data(&self, node: NodeId) -> &'a NodeData {
+    #[inline(always)]
+    fn data(&self, node: NodeId) -> NodeData {
         self.source.arena.node(node).data()
     }
 
@@ -761,7 +762,7 @@ impl<'a> TemplateFile<'a> {
         self.source
             .arena
             .node(node)
-            .js_doc
+            .js_doc()
             .and_then(|docs| self.source.arena.node_array(docs).nodes.last().copied())
     }
 

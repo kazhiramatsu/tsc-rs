@@ -2462,7 +2462,7 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
             .require_parse_tree_resolver_node(node)
             .map_err(factory_error)?
             .node();
-        let data = arena.node(node).map_err(factory_error)?.data().clone();
+        let data = arena.node(node).map_err(factory_error)?.data();
         if parse == leftmost {
             let type_parameter = symbol.filter(|&symbol| {
                 self.checker

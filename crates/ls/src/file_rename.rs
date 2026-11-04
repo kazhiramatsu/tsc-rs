@@ -341,7 +341,7 @@ fn try_update_config_string<'t>(
     tracker: &mut Tracker<'t>,
     updater: &PathUpdater,
 ) -> bool {
-    let NodeData::StringLiteral(literal) = config_file.arena.node(element).data() else {
+    let Some(literal) = config_file.arena.node(element).as_string_literal() else {
         return false;
     };
     let element_file_name = resolve_path(
@@ -362,17 +362,16 @@ fn try_update_config_string<'t>(
 /// tsgo `getTsConfigObjectLiteralExpression`: the object of the config's
 /// first statement.
 fn config_object_literal(config_file: &SourceFile) -> Option<NodeId> {
-    let NodeData::SourceFile(data) = config_file.arena.node(config_file.root).data() else {
-        return None;
-    };
+    let data = config_file.arena.node(config_file.root).as_source_file()?;
     let &statement = config_file
         .arena
         .node_array(data.statements?)
         .nodes
         .first()?;
-    let NodeData::ExpressionStatement(statement) = config_file.arena.node(statement).data() else {
-        return None;
-    };
+    let statement = config_file
+        .arena
+        .node(statement)
+        .as_expression_statement()?;
     let expression = statement.expression?;
     (config_file.arena.node(expression).kind == SyntaxKind::ObjectLiteralExpression)
         .then_some(expression)
@@ -381,7 +380,11 @@ fn config_object_literal(config_file: &SourceFile) -> Option<NodeId> {
 /// tsgo `forEachObjectProperty`: the object's property assignments with a
 /// name text, and their initializers.
 fn object_properties(config_file: &SourceFile, object: NodeId) -> Vec<(String, NodeId)> {
-    let NodeData::ObjectLiteralExpression(data) = config_file.arena.node(object).data() else {
+    let Some(data) = config_file
+        .arena
+        .node(object)
+        .as_object_literal_expression()
+    else {
         return Vec::new();
     };
     data.properties

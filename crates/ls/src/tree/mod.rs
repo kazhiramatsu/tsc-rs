@@ -27,7 +27,7 @@ pub const NODE_DATA_STRING_INDEX_MASK: u32 = 0x00ff_ffff;
 pub const SYNTAX_KIND_NODE_LIST: u32 = u32::MAX;
 
 /// A child property of a node, in tsgo's visitor order (`generated.rs`).
-pub enum Property<'a> {
+pub enum Property {
     Node(Option<NodeId>),
     /// A NodeList, encoded when present, even empty.
     List(Option<NodeArrayId>),
@@ -36,7 +36,7 @@ pub enum Property<'a> {
     /// A plain slice: each element is a direct child.
     Slice(Option<NodeArrayId>),
     /// A JSDoc tag's comment: tsgo's NodeList of JSDocText and JSDocLink nodes.
-    Comment(&'a Option<JSDocComment>),
+    Comment(Option<JSDocComment>),
     /// The implicit `export` modifier list of a nested namespace declaration.
     ImplicitModifiers,
     /// The elements of a type heritage clause (tsgo's TypeReferences).
@@ -131,14 +131,14 @@ impl<'a> Tree<'a> {
     }
 
     /// `node`'s child properties as tsgo's tree has them.
-    pub fn properties(&self, node: &'a Node, mut f: impl FnMut(Property<'a>)) {
+    pub fn properties(&self, node: &'a Node, mut f: impl FnMut(Property)) {
         // A JSDoc namespace name keeps tsgo's NestedNamespace flag instead.
         let flags = NodeFlags::from_bits(node.flags);
         let nested_namespace = node.kind == SyntaxKind::ModuleDeclaration
             && flags.contains(NodeFlags::NESTED_NAMESPACE)
             && !flags.contains(NodeFlags::JS_DOC);
         // tsgo writes a JSDoc link's `A#b` as a QualifiedName.
-        if let NodeData::JSDocMemberName(member) = node.data() {
+        if let Some(member) = node.as_js_doc_member_name() {
             f(Property::Node(member.left));
             f(Property::Node(member.right));
             return;
@@ -159,7 +159,7 @@ impl<'a> Tree<'a> {
     /// tsgo isTypeHeritageClause: an interface's `extends` or a class's
     /// `implements`.
     pub fn is_type_heritage_clause(&self, node: &Node) -> bool {
-        let NodeData::HeritageClause(clause) = node.data() else {
+        let Some(clause) = node.as_heritage_clause() else {
             return false;
         };
         let Some(parent) = node.parent else {
@@ -244,7 +244,7 @@ impl<'a> Tree<'a> {
         }
         // A property access in such a reference's expression.
         let mut current = id;
-        while let NodeData::PropertyAccessExpression(_) = self.node(current).data() {
+        while self.node(current).as_property_access_expression().is_some() {
             let Some(parent) = self.node(current).parent else {
                 break;
             };
@@ -288,21 +288,21 @@ impl<'a> Tree<'a> {
     /// Whether tsgo attaches `node`'s JSDoc comments: it never attaches
     /// them to a type parameter.
     pub fn js_doc(&self, node: &Node) -> Option<NodeArrayId> {
-        node.js_doc
+        node.js_doc()
             .filter(|_| node.kind != SyntaxKind::TypeParameter)
             .filter(|&js_doc| !self.arena.node_array(js_doc).nodes.is_empty())
     }
 
     /// The comment of a JSDoc comment or tag.
-    pub fn comment(&self, owner: NodeId) -> Option<&'a JSDocComment> {
+    pub fn comment(&self, owner: NodeId) -> Option<JSDocComment> {
         let mut comment = None;
         let node = self.node(owner);
-        if let NodeData::JSDoc(js_doc) = node.data() {
-            return js_doc.comment.as_ref();
+        if let Some(js_doc) = node.as_js_doc() {
+            return js_doc.comment;
         }
         for_each_property(node, |property| {
             if let Property::Comment(value) = property {
-                comment = value.as_ref();
+                comment = value;
             }
         });
         comment
@@ -312,9 +312,7 @@ impl<'a> Tree<'a> {
     /// with: tsgo keeps the white space after the last link as a part (its
     /// text trimmed away), unless a tag follows and drops it first.
     pub fn trailing_comment_text(&self, owner: NodeId) -> Option<(u32, u32)> {
-        let NodeData::JSDoc(js_doc) = self.node(owner).data() else {
-            return None;
-        };
+        let js_doc = self.node(owner).as_js_doc()?;
         let Some(JSDocComment::Nodes(list)) = &js_doc.comment else {
             return None;
         };
@@ -345,7 +343,7 @@ impl<'a> Tree<'a> {
         let node = self.node(id);
         let eager = node
             .parent
-            .and_then(|host| self.node(host).js_doc)
+            .and_then(|host| self.node(host).js_doc())
             .is_some_and(|js_doc| {
                 self.js_doc_texts_have_tag(js_doc, &["see", "link", "linkcode", "linkplain"])
             });
@@ -360,7 +358,7 @@ impl<'a> Tree<'a> {
     /// or before the closing `*/`.
     pub fn js_doc_comments_end(&self, id: NodeId) -> u32 {
         let node = self.node(id);
-        let NodeData::JSDoc(js_doc) = node.data() else {
+        let Some(js_doc) = node.as_js_doc() else {
             unreachable!("a JSDoc comment")
         };
         js_doc
@@ -422,15 +420,15 @@ impl<'a> Tree<'a> {
                 (array.pos, array.end)
             }
             View::Comment(owner) => match self.comment(owner) {
-                Some(JSDocComment::Text { pos, end, .. }) => (*pos, *end),
+                Some(JSDocComment::Text { pos, end, .. }) => (pos, end),
                 Some(JSDocComment::Nodes(list)) => {
-                    let array = self.arena.node_array(*list);
+                    let array = self.arena.node_array(list);
                     (array.pos, array.end)
                 }
                 None => (self.node(owner).pos, self.js_doc_comments_end(owner)),
             },
             View::CommentText(owner) => match self.comment(owner) {
-                Some(JSDocComment::Text { pos, text_end, .. }) => (*pos, *text_end),
+                Some(JSDocComment::Text { pos, text_end, .. }) => (pos, text_end),
                 _ => unreachable!("a text comment"),
             },
             View::TrailingCommentText(owner) => {
@@ -474,7 +472,7 @@ impl<'a> Tree<'a> {
                 self.js_doc_views(id, out);
             }
             View::HeritageTypeReference(id) => {
-                let NodeData::ExpressionWithTypeArguments(element) = self.node(id).data() else {
+                let Some(element) = self.node(id).as_expression_with_type_arguments() else {
                     unreachable!("a heritage element")
                 };
                 out.push(
@@ -485,7 +483,7 @@ impl<'a> Tree<'a> {
                 }
             }
             View::QualifiedName(id) => {
-                let NodeData::PropertyAccessExpression(access) = self.node(id).data() else {
+                let Some(access) = self.node(id).as_property_access_expression() else {
                     unreachable!("a property access")
                 };
                 out.push(self.entity_name(access.expression.expect("a valid heritage expression")));
@@ -495,7 +493,7 @@ impl<'a> Tree<'a> {
             }
             View::JSDoc(id, _) => {
                 out.push(View::Comment(id));
-                if let NodeData::JSDoc(js_doc) = self.node(id).data() {
+                if let Some(js_doc) = self.node(id).as_js_doc() {
                     if let Some(tags) = js_doc.tags {
                         out.push(View::List(tags, Elements::Plain));
                     }
@@ -506,7 +504,7 @@ impl<'a> Tree<'a> {
                 Some(JSDocComment::Nodes(list)) => {
                     out.extend(
                         self.arena
-                            .node_array(*list)
+                            .node_array(list)
                             .nodes
                             .iter()
                             .map(|&id| View::Node(id)),
@@ -786,7 +784,7 @@ impl Tree<'_> {
                             }
                             current = ancestor.parent;
                         };
-                        host.and_then(|host| self.node(host).js_doc)
+                        host.and_then(|host| self.node(host).js_doc())
                             .is_some_and(|js_doc| {
                                 self.js_doc_texts_have_tag(
                                     js_doc,

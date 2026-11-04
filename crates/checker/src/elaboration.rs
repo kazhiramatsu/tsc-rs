@@ -1156,11 +1156,10 @@ impl<'a> CheckerState<'a> {
         let report_mark = sink.mark();
         match self.data_of(expression) {
             NodeData::ArrowFunction(data) => {
-                let data = data.clone();
                 let Some(body) = data.body else {
                     return Ok(ElaborationOutcome::Declined);
                 };
-                if matches!(self.data_of(body), NodeData::Block(_)) {
+                if self.kind_of(body) == SyntaxKind::Block {
                     return Ok(ElaborationOutcome::Declined);
                 }
                 let any_annotated = self.nodes_of(data.parameters).iter().any(|&parameter| {

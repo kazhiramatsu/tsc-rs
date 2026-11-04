@@ -433,7 +433,7 @@ fn a_rebuilt_union_keeps_its_constituents_unparenthesized() {
     let flags = arena.transform_flags(union) | TransformFlags::CONTAINS_ES_2015;
 
     let mut factory = arena.factory();
-    let data = factory.arena.node(union).unwrap().data().clone();
+    let data = factory.arena.node(union).unwrap().data();
     let reflagged = factory.update_node(union, data, flags).unwrap();
     assert_eq!(members(factory.arena, reflagged), parsed_members);
 
@@ -874,14 +874,14 @@ fn access_parenthesization_matches_typescript_kind_and_range_boundaries() {
     let arrow = factory
         .create_node(
             source,
-            NodeData::ArrowFunction(Box::new(ArrowFunctionData {
+            NodeData::ArrowFunction(ArrowFunctionData {
                 type_parameters: None,
                 parameters: Some(empty.array()),
                 r#type: None,
                 body: Some(value.node()),
                 modifiers: None,
                 equals_greater_than_token: Some(arrow_token.node()),
-            })),
+            }),
             TransformFlags::NONE,
         )
         .unwrap();

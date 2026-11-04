@@ -476,7 +476,7 @@ impl<'a> Request<'_, 'a> {
         let Some(clause) = self.parent_of(id) else {
             return false;
         };
-        let NodeData::ImportClause(data) = self.state.binder.node_record(clause).data() else {
+        let Some(data) = self.state.binder.node_record(clause).as_import_clause() else {
             return false;
         };
         data.name == Some(id)

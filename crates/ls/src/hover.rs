@@ -1580,7 +1580,7 @@ impl<'a> Request<'_, 'a> {
 
     /// tsgo `ast.IsConstTypeReference`.
     fn is_const_type_reference(&self, node: NodeId) -> bool {
-        let NodeData::TypeReference(reference) = self.state.binder.node_record(node).data() else {
+        let Some(reference) = self.state.binder.node_record(node).as_type_reference() else {
             return false;
         };
         let no_arguments = reference

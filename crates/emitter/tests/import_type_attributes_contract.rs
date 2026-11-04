@@ -138,13 +138,12 @@ fn import_type_attributes_matches_typescript() {
                     panic!("type alias")
                 };
                 let original_type = arena.node_ref(source, data.r#type.unwrap()).unwrap();
-                let NodeData::ImportType(data) = arena.node(original_type).unwrap().data().clone()
-                else {
+                let NodeData::ImportType(data) = arena.node(original_type).unwrap().data() else {
                     panic!("import type")
                 };
                 let original = arena.node_ref(source, data.attributes.unwrap()).unwrap();
                 let NodeData::ImportAttributes(attributes_data) =
-                    arena.node(original).unwrap().data().clone()
+                    arena.node(original).unwrap().data()
                 else {
                     panic!("attributes")
                 };
