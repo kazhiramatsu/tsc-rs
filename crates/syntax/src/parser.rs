@@ -10240,7 +10240,7 @@ impl<'text> Parser<'text> {
     }
 
     fn finish_node_at(&mut self, id: NodeId, pos: usize, end: usize) -> NodeId {
-        let is_jsdoc_candidate = {
+        let (is_jsdoc_candidate, kind) = {
             let node = self.arena.node_mut(id);
             node.pos = pos as u32;
             node.end = end as u32;
@@ -10252,15 +10252,21 @@ impl<'text> Parser<'text> {
                 node.flags |= NodeFlags::THIS_NODE_HAS_ERROR.bits();
                 self.error_nodes.push(id);
             }
-            self.has_jsdoc_comments
-                && self.jsdoc_positions.contains(&pos)
-                && !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
-                && parser_calls_with_jsdoc_for_kind(node.kind)
+            (
+                self.has_jsdoc_comments
+                    && self.jsdoc_positions.contains(&pos)
+                    && !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
+                    && parser_calls_with_jsdoc_for_kind(node.kind),
+                node.kind,
+            )
         };
         if is_jsdoc_candidate {
             self.jsdoc_candidates.push(id);
         }
-        self.attach_children(id);
+        // A token (identifiers and literals included) has no children.
+        if kind.value() > SyntaxKind::LastToken.value() {
+            self.attach_children(id);
+        }
         id
     }
 
