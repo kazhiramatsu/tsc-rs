@@ -217,7 +217,7 @@ impl<'a> BinderWorker<'a> {
     /// accessors, index signatures and spreads can add fewer; later merged
     /// declarations reserve only their own additional bound.
     fn reserve_container_members(&mut self, node: NodeId) {
-        let (members, exports) = match &self.source.arena.node(node).data {
+        let (members, exports) = match &self.source.arena.node(node).data() {
             NodeData::TypeLiteral(data) => (data.members, false),
             NodeData::InterfaceDeclaration(data) => (data.members, false),
             NodeData::ObjectLiteralExpression(data) => (data.properties, false),
