@@ -27,7 +27,35 @@ use crate::{StorageStats, StoreRecord, StoreVec};
 
 /// B-3's typed region range, immediately after the frozen element room.
 pub const FIRST_RECORD_REGION: usize = crate::frozen::ELEMENT_REGION + 1;
-pub const RECORD_REGION_END: usize = FIRST_RECORD_REGION + 22;
+/// A symbol's declaration list (S1a-2): `Tagged<NodeId, 37>` spans.
+pub const DECLARATION_ITEM_REGION: usize = FIRST_RECORD_REGION + 22;
+/// Flow nodes (S10), 16-byte records in 32-record chunks.
+pub const FLOW_NODE_REGION: usize = FIRST_RECORD_REGION + 23;
+/// A flow label's antecedents (S10): `Tagged<FlowId, 39>` spans.
+pub const FLOW_ITEM_REGION: usize = FIRST_RECORD_REGION + 24;
+pub const RECORD_REGION_END: usize = FIRST_RECORD_REGION + 25;
+
+/// A `T` stored in region `R` as well as (or instead of) its own: a second
+/// list of the same zero-valid record type, read back as `&[T]` through
+/// [`slice_tagged`]. `repr(transparent)`, so its bytes are a `T`'s.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct Tagged<T, const R: usize>(pub T);
+
+impl<T: StoreRecord, const R: usize> StoreRecord for Tagged<T, R> {
+    const REGION: usize = R;
+}
+
+/// The `len` records of region `R` from `position`, as `T`s. The contract of
+/// [`crate::slice`]: the positions were issued by a live owner (a span of
+/// [`ClaimedRecords::push_slice`]); unissued slots read as zeros.
+#[inline(always)]
+pub fn slice_tagged<T: StoreRecord, const R: usize>(position: u32, len: u32) -> &'static [T] {
+    let tagged = crate::slice::<Tagged<T, R>>(position, len);
+    // SAFETY: Tagged<T, R> is repr(transparent) over T: a slice of it is a
+    // slice of T with the same address, length and validity.
+    unsafe { std::slice::from_raw_parts(tagged.as_ptr().cast::<T>(), tagged.len()) }
+}
 
 /// An empty final-placement StoreVec room and its actual identity lease.
 /// StoreVec's existing claim/lease preconditions apply. The owner consumes
@@ -53,7 +81,7 @@ impl<T: StoreRecord> LeasedRoom<T> {
         let offset = (records.records.as_ptr() as usize)
             .checked_sub(crate::base::<T>())
             .expect("room outside its region");
-        assert!(offset % size == 0, "misaligned record position");
+        assert!(offset.is_multiple_of(size), "misaligned record position");
         let start = u32::try_from(offset / size).expect("room position exceeds u32");
         Self {
             records,
@@ -105,6 +133,28 @@ impl<T: StoreRecord + Copy> RecordRoom<T> {
                     "a final room cannot grow"
                 );
                 room.records.push(record);
+            }
+        }
+    }
+    fn push_slice(&mut self, offset: u32, records: &[T]) {
+        let end = offset + records.len() as u32;
+        match self {
+            Self::Allocated(room) => {
+                room.initialize_through(end);
+                // SAFETY: [offset, end) are the next unexposed slots, below
+                // capacity (initialize_through asserts end <= capacity).
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        records.as_ptr(),
+                        room.pointer(offset),
+                        records.len(),
+                    );
+                }
+            }
+            Self::Leased(_) => {
+                for (index, &record) in records.iter().enumerate() {
+                    self.push(offset + index as u32, record);
+                }
             }
         }
     }
@@ -176,22 +226,7 @@ impl<T: StoreRecord + Copy> ClaimedRecords<T> {
             .last()
             .is_none_or(|chunk| chunk.len == chunk.room.capacity())
         {
-            let room = if let Some(source) = &mut self.source {
-                RecordRoom::Leased(source(self.chunk_capacity))
-            } else {
-                RecordRoom::Allocated(Room::new(self.chunk_capacity))
-            };
-            let start = room.start();
-            let end = u64::from(start) + u64::from(room.capacity());
-            assert!(
-                self.chunks
-                    .iter()
-                    .all(|chunk| end <= u64::from(chunk.room.start())
-                        || u64::from(start)
-                            >= u64::from(chunk.room.start()) + u64::from(chunk.room.capacity())),
-                "overlapping record rooms"
-            );
-            self.chunks.push(Chunk { room, len: 0 });
+            self.add_room(self.chunk_capacity);
         }
         let chunk = self.chunks.last_mut().unwrap();
         let position = chunk.room.start() + chunk.len;
@@ -199,6 +234,51 @@ impl<T: StoreRecord + Copy> ClaimedRecords<T> {
         chunk.len += 1;
         self.len += 1;
         position
+    }
+
+    /// Initialize `records` at consecutive global positions of one room and
+    /// return the first, so that [`crate::slice`] (or [`slice_tagged`]) reads
+    /// them back as one slice. A room that cannot hold all of them is left
+    /// with its tail unused and the next room starts; a slice longer than the
+    /// chunk capacity gets a room of its own size. An empty slice claims
+    /// nothing and returns 0, which no room issues.
+    pub fn push_slice(&mut self, records: &[T]) -> u32 {
+        let len = u32::try_from(records.len()).expect("record slice length exceeds u32");
+        if len == 0 {
+            return 0;
+        }
+        if self
+            .chunks
+            .last()
+            .is_none_or(|chunk| chunk.room.capacity() - chunk.len < len)
+        {
+            self.add_room(self.chunk_capacity.max(len));
+        }
+        let chunk = self.chunks.last_mut().unwrap();
+        let position = chunk.room.start() + chunk.len;
+        chunk.room.push_slice(chunk.len, records);
+        chunk.len += len;
+        self.len += records.len();
+        position
+    }
+
+    fn add_room(&mut self, capacity: u32) {
+        let room = if let Some(source) = &mut self.source {
+            RecordRoom::Leased(source(capacity))
+        } else {
+            RecordRoom::Allocated(Room::new(capacity))
+        };
+        let start = room.start();
+        let end = u64::from(start) + u64::from(room.capacity());
+        assert!(
+            self.chunks
+                .iter()
+                .all(|chunk| end <= u64::from(chunk.room.start())
+                    || u64::from(start)
+                        >= u64::from(chunk.room.start()) + u64::from(chunk.room.capacity())),
+            "overlapping record rooms"
+        );
+        self.chunks.push(Chunk { room, len: 0 });
     }
 
     /// Prove initialization/ownership once, in all builds. The resulting
@@ -330,6 +410,35 @@ mod tests {
         assert!(size_of::<Header>() == 8);
         assert!(std::mem::offset_of!(Header, target) == 4);
     };
+
+    /// A slice lands on consecutive positions of one room: one that does not
+    /// fit the current room starts the next, one longer than the chunk
+    /// capacity gets a room of its own, and the tagged read returns the
+    /// inner records.
+    #[test]
+    fn a_pushed_slice_is_contiguous_and_reads_back_through_its_tag() {
+        type Item = Tagged<Header, DECLARATION_ITEM_REGION>;
+        let item = |flags| Tagged(Header { flags, target: 0 });
+        let mut owner = ClaimedRecords::<Item>::with_chunk_capacity(4);
+        assert_eq!(owner.push_slice(&[]), 0);
+        let first = owner.push_slice(&[item(1), item(2), item(3)]);
+        let second = owner.push_slice(&[item(4), item(5)]);
+        let long: Vec<Item> = (10..20).map(item).collect();
+        let third = owner.push_slice(&long);
+        let fourth = owner.push_slice(&[item(6)]);
+        assert_eq!(owner.stats().rooms, 4);
+        let flags = |start, len| -> Vec<u32> {
+            slice_tagged::<Header, DECLARATION_ITEM_REGION>(start, len)
+                .iter()
+                .map(|header| header.flags)
+                .collect()
+        };
+        assert_eq!(flags(first, 3), [1, 2, 3]);
+        assert_eq!(flags(second, 2), [4, 5]);
+        assert_eq!(flags(third, 10), (10..20).collect::<Vec<_>>());
+        assert_eq!(flags(fourth, 1), [6]);
+        assert_eq!(owner.get(second + 1).unwrap().0.flags, 5);
+    }
 
     #[test]
     fn final_placement_grows_without_moving_or_publishing() {
