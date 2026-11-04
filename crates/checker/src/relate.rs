@@ -428,6 +428,8 @@ impl<'a> CheckerState<'a> {
                 return Ok(EnumRelationOutcome::Unrelated(None));
             }
         }
+        self.links.symbol_order_ids().get(source_symbol);
+        self.links.symbol_order_ids().get(target_symbol);
         let id = format!("{},{}", source_symbol.index(), target_symbol.index());
         if let Some(&entry) = self.relations.enum_relation.get(&id) {
             if !(collect_error && entry.intersects(RelationComparisonResult::FAILED)) {

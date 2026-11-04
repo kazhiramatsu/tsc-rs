@@ -1628,7 +1628,7 @@ impl<'a> CheckerState<'a> {
         self.get_check_flags(symbol).intersects(CheckFlags::MAPPED)
             && self
                 .links
-                .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+                .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
                 .is_none()
             && self
                 .find_resolution_cycle_start_index(
@@ -1720,7 +1720,7 @@ impl<'a> CheckerState<'a> {
         if self.has_bindable_name(element)? {
             let symbol = self.get_symbol_of_declaration(element)?;
             let name = self.binder.symbol(symbol).escaped_name;
-            let name_type = self.links.symbol(symbol).name_type;
+            let name_type = self.links.value_symbol(symbol).name_type;
             return self.get_type_of_property_of_contextual_type(ty, name, name_type);
         }
         if let Some(name) = self.name_of_node(element) {

@@ -837,9 +837,8 @@ pub(super) fn lookup_symbol_chain_worker(
 /// tsc-span: _tsc.js:53001-53015
 ///
 /// `CheckerState::symbol_chain` keeps getContainersOfSymbol's
-/// no-enclosing view (no reexportContainers) and ranks module parents by a
-/// host-rooted separator count because its display callers have no
-/// module-specifier host. The declaration emitter does: this channel appends
+/// no-enclosing view (no reexportContainers). The declaration emitter's
+/// channel appends
 /// the enclosing file's re-export containers (getAlternativeContainingModules,
 /// _tsc.js:50023-50047) at EVERY level of the recursion — a namespace's
 /// module parent as much as the leaf's — and sorts the parents with
@@ -920,41 +919,7 @@ fn symbol_chain_with_reexport_containers(
             // (`typeof import("./f")`) rather than through the container
             // (`typeof M.d`). tsc 6.0 returned 0 for such a pair and kept the
             // container first.
-            let mut order: Vec<usize> = (0..parents.len()).collect();
-            {
-                let symbol_order = crate::type_order::order_ctx!(checker);
-                let by_best_name = |a: usize, b: usize| match (&specifiers[a], &specifiers[b]) {
-                    (Some(specifier_a), Some(specifier_b)) => {
-                        let relative_a = module_specifier_is_relative(specifier_a);
-                        let relative_b = module_specifier_is_relative(specifier_b);
-                        if relative_a == relative_b {
-                            super::specifier::count_path_components(specifier_a.as_js()).cmp(
-                                &super::specifier::count_path_components(specifier_b.as_js()),
-                            )
-                        } else if relative_b {
-                            std::cmp::Ordering::Less
-                        } else {
-                            std::cmp::Ordering::Greater
-                        }
-                    }
-                    _ => tsc_types::TypeOrderContext::compare_symbols(
-                        &symbol_order,
-                        Some(parents[a]),
-                        Some(parents[b]),
-                    ),
-                };
-                // The comparison is not a total order (specifiers for some
-                // pairs, declarations for others), so the result depends on
-                // the algorithm: slices.SortStableFunc's insertion sort, which
-                // covers every list of up to 20 parents.
-                for sorted in 1..order.len() {
-                    let mut at = sorted;
-                    while at > 0 && by_best_name(order[at], order[at - 1]).is_lt() {
-                        order.swap(at, at - 1);
-                        at -= 1;
-                    }
-                }
-            }
+            let order = sort_parent_symbols(checker, &parents, &specifiers);
             for index in order {
                 let parent = parents[index];
                 let Some(parent_chain) = symbol_chain_with_reexport_containers(
@@ -1223,11 +1188,40 @@ fn alias_for_symbol_in_module(
     Ok(None)
 }
 
-fn module_specifier_is_relative(specifier: &tsc_types::JsString) -> bool {
-    specifier == "."
-        || specifier == ".."
-        || specifier.starts_with("./")
-        || specifier.starts_with("../")
+/// tsgo nodebuilderimpl.go:1103-1109/1154-1170. Both callers evaluate
+/// specifiers in parent traversal order before entering this shared sort.
+/// The mixed specifier/symbol order can cycle, so full GST is required.
+pub(crate) fn sort_parent_symbols(
+    checker: &CheckerState<'_>,
+    parents: &[SymbolId],
+    specifiers: &[Option<JsString>],
+) -> Vec<usize> {
+    let symbol_order = crate::type_order::order_ctx!(checker);
+    let mut order: Vec<usize> = (0..parents.len()).collect();
+    tsc_types::goslices::sort_types_like_tsgo(&mut order, |a, b| {
+        compare_parent_symbols(&symbol_order, parents, specifiers, a, b).is_lt()
+    });
+    order
+}
+
+fn compare_parent_symbols(
+    order: &impl tsc_types::TypeOrderContext,
+    parents: &[SymbolId],
+    specifiers: &[Option<JsString>],
+    a: usize,
+    b: usize,
+) -> std::cmp::Ordering {
+    match (specifiers[a].as_ref(), specifiers[b].as_ref()) {
+        (Some(a), Some(b)) if !a.is_empty() && !b.is_empty() => {
+            super::specifier::path_is_relative(a)
+                .cmp(&super::specifier::path_is_relative(b))
+                .then_with(|| {
+                    super::specifier::count_path_components(a)
+                        .cmp(&super::specifier::count_path_components(b))
+                })
+        }
+        _ => order.compare_symbols(Some(parents[a]), Some(parents[b])),
+    }
 }
 
 /// tsc-port: typeParametersToTypeParameterDeclarations @6.0.3
@@ -1284,6 +1278,7 @@ fn lookup_type_parameter_nodes(
 ) -> BuildResult<Option<Vec<TransformNode>>> {
     debug_assert!(index < chain.len());
     let symbol = chain[index];
+    checker.links.symbol_order_ids().get(symbol);
     if context
         .type_parameter_symbol_list
         .as_ref()
@@ -1360,7 +1355,7 @@ fn lookup_instantiated_type_argument_nodes(
         .unwrap_or_default();
     parameters
         .extend(checker.get_local_type_parameters_of_class_or_interface_or_type_alias(parent));
-    if let Some(mapper) = checker.links.symbol(next).mapper {
+    if let Some(mapper) = checker.links.value_symbol(next).mapper {
         for parameter in &mut parameters {
             *parameter = checker
                 .get_mapped_type(*parameter, mapper)
@@ -1384,6 +1379,7 @@ fn lookup_expression_chain_type_argument_nodes(
         return Ok(None);
     }
     let symbol = chain[index];
+    checker.links.symbol_order_ids().get(symbol);
     if context
         .type_parameter_symbol_list
         .as_ref()
@@ -2483,6 +2479,7 @@ fn get_name_of_symbol_as_written(
     symbol: SymbolId,
     in_initial_entity_name: bool,
 ) -> tsc_types::JsString {
+    checker.links.symbol_order_ids().get(symbol);
     let written = checker.entity_symbol_name_as_written(
         symbol,
         in_initial_entity_name,
@@ -2767,7 +2764,7 @@ pub(crate) fn chains_get_property_name_node_for_symbol(
         return Ok(name);
     }
     let declarations = checker.binder.symbol(symbol).declarations.clone();
-    let name_type = checker.links.symbol(symbol).name_type;
+    let name_type = checker.links.value_symbol(symbol).name_type;
     let name_type_flags = name_type.map(|name_type| checker.tables.flags_of(name_type));
     let string_named = !declarations.is_empty()
         && declarations
@@ -2819,7 +2816,7 @@ fn get_property_name_node_for_symbol_from_name_type(
     string_named: bool,
     is_method: bool,
 ) -> BuildResult<Option<TransformNode>> {
-    let Some(name_type) = checker.links.symbol(symbol).name_type else {
+    let Some(name_type) = checker.links.value_symbol(symbol).name_type else {
         return Ok(None);
     };
     let flags = checker.tables.flags_of(name_type);
@@ -3150,7 +3147,7 @@ pub(crate) fn symbol_to_node(
                 }
             }
         }
-        if let Some(name_type) = checker.links.symbol(symbol).name_type {
+        if let Some(name_type) = checker.links.value_symbol(symbol).name_type {
             if checker
                 .tables
                 .flags_of(name_type)

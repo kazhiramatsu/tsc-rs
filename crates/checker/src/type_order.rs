@@ -9,6 +9,9 @@
 //! the order while the state's type tables are borrowed mutably.
 
 use std::cmp::Ordering;
+use std::sync::{Mutex, PoisonError};
+
+use rustc_hash::FxHashMap;
 
 use tsc_syntax::{NodeData, NodeId};
 use tsc_types::tables::TypeTables;
@@ -19,6 +22,52 @@ use crate::instantiate::TypeMapper;
 use crate::links::LinksTables;
 use crate::program::ProgramBinder;
 use crate::state::CheckerState;
+
+/// Go's lazy symbol order, shared by this checker's value-link and direct
+/// ID requests. The last-resort comparison requests the left ID before
+/// the right. Arena identities still key caches; they do not break ties.
+#[derive(Debug, Default)]
+pub(crate) struct SymbolOrderIds(Mutex<SymbolOrderIdState>);
+
+#[derive(Debug, Default)]
+struct SymbolOrderIdState {
+    ids: FxHashMap<SymbolId, u64>,
+    next_direct: u64,
+    next_link: u64,
+}
+
+impl SymbolOrderIds {
+    /// Go's symbolLinkStore uses SymbolIdGenerator, whose IDs are above
+    /// BlockIdOffset. Direct ast.GetSymbolId calls use the low namespace.
+    /// A symbol keeps whichever identity was assigned first.
+    #[inline(never)]
+    pub(crate) fn touch_links(&self, symbol: SymbolId) {
+        let mut state = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        if !state.ids.contains_key(&symbol) {
+            let id = 0x1_0000_0000_0000 + state.next_link;
+            state.next_link += 1;
+            state.ids.insert(symbol, id);
+        }
+    }
+
+    #[inline(never)]
+    pub(crate) fn get(&self, symbol: SymbolId) -> u64 {
+        let mut state = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(&id) = state.ids.get(&symbol) {
+            return id;
+        }
+        state.next_direct += 1;
+        let id = state.next_direct;
+        state.ids.insert(symbol, id);
+        id
+    }
+
+    fn compare(&self, a: SymbolId, b: SymbolId) -> Ordering {
+        let a = self.get(a);
+        let b = self.get(b);
+        a.cmp(&b)
+    }
+}
 
 /// The order context of one checker state. [`OrderCtx::order`] is `None`
 /// with the option off (tsc's type-id order), so the table methods keep
@@ -136,7 +185,7 @@ impl<'s, 'a> OrderCtx<'s, 'a> {
     }
 
     /// `compareSymbols` on two precomputed keys: the declaration position,
-    /// then the name (UTF-16 code units) and the arena index on ties, as
+    /// then the name (Go string byte order) and lazy IDs on ties, as
     /// [`TypeOrderContext::compare_symbols`] decides them.
     fn compare_keys(&self, a: &SymbolKey, b: &SymbolKey) -> Ordering {
         if a.symbol == b.symbol {
@@ -147,7 +196,7 @@ impl<'s, 'a> OrderCtx<'s, 'a> {
             .then(a.file.cmp(&b.file))
             .then(a.pos.cmp(&b.pos))
             .then_with(|| self.compare_symbol_names(a.symbol, b.symbol))
-            .then_with(|| a.symbol.index().cmp(&b.symbol.index()))
+            .then_with(|| self.links.symbol_order_ids().compare(a.symbol, b.symbol))
     }
 
     /// Sort `symbols` by `compareSymbols`. The declaration position of each
@@ -163,10 +212,30 @@ impl<'s, 'a> OrderCtx<'s, 'a> {
             .iter()
             .map(|&symbol| self.symbol_key(symbol))
             .collect();
-        keys.sort_by(|a, b| self.compare_keys(a, b));
+        tsc_types::goslices::sort_func_like_go(&mut keys, |a, b| self.compare_keys(a, b));
         for (slot, key) in symbols.iter_mut().zip(&keys) {
             *slot = key.symbol;
         }
+    }
+
+    /// tsgo checker.go:24339: preserve pdqsort's comparison history even
+    /// when compareTypes reaches the lazy symbol-ID fallback.
+    pub(crate) fn sort_types(&self, tables: &TypeTables, types: &mut [TypeId]) {
+        tsc_types::goslices::sort_func_like_go(types, |&a, &b| compare_types(tables, self, a, b));
+    }
+
+    /// tsgo symbolaccessibility.go:646/657. A linear minimum would allocate
+    /// tie IDs in a different order from sorting all candidate chains.
+    pub(crate) fn sort_symbol_chains(&self, chains: &mut [Vec<SymbolId>]) {
+        tsc_types::goslices::sort_stable_func_like_go(chains, |a, b| {
+            a.len().cmp(&b.len()).then_with(|| {
+                a.iter()
+                    .zip(b)
+                    .map(|(&a, &b)| self.compare_symbols(Some(a), Some(b)))
+                    .find(|order| order.is_ne())
+                    .unwrap_or(Ordering::Equal)
+            })
+        });
     }
 }
 
@@ -215,10 +284,7 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
                 return c;
             }
         }
-        // tsc falls back to getSymbolId, assigned on first use; the arena
-        // index is the creation order instead (transient symbols after the
-        // program's). Two same-named declaration-less symbols are rare.
-        s1.index().cmp(&s2.index())
+        self.links.symbol_order_ids().compare(s1, s2)
     }
 
     fn compare_symbol_names(&self, s1: SymbolId, s2: SymbolId) -> Ordering {
@@ -402,9 +468,9 @@ impl<'a> CheckerState<'a> {
     /// `compareSymbols`. With the option off the list is left in its
     /// insertion order, as tsc's default path returns it.
     ///
-    /// One sort over keys that carry the group as their first component is
-    /// the two sorted groups concatenated; the container's declaration
-    /// ranges are read once rather than once per member.
+    /// Contained members then other members, each with its own Go sort
+    /// (checker.go:22535-22536). Combining them into one sort changes lazy
+    /// tie-ID assignment. Range extraction and partitioning are read-only.
     pub(crate) fn order_named_members_if_stable(
         &self,
         members: &mut [SymbolId],
@@ -434,7 +500,7 @@ impl<'a> CheckerState<'a> {
             .unwrap_or_default();
         let outside_container = |symbol: SymbolId| -> bool {
             if container_ranges.is_empty() {
-                return false;
+                return true;
             }
             let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
                 return true;
@@ -444,14 +510,20 @@ impl<'a> CheckerState<'a> {
                 .iter()
                 .any(|&(start, stop)| start <= pos && stop >= end)
         };
-        let mut keys: Vec<(bool, SymbolKey)> = members
-            .iter()
-            .map(|&symbol| (outside_container(symbol), ctx.symbol_key(symbol)))
-            .collect();
-        keys.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| ctx.compare_keys(&a.1, &b.1)));
-        for (slot, key) in members.iter_mut().zip(&keys) {
-            *slot = key.1.symbol;
+        let mut contained = Vec::with_capacity(members.len());
+        let mut other = Vec::new();
+        for &symbol in members.iter() {
+            if class_or_interface.is_some() && !outside_container(symbol) {
+                contained.push(symbol);
+            } else {
+                other.push(symbol);
+            }
         }
+        ctx.sort_symbols(&mut contained);
+        ctx.sort_symbols(&mut other);
+        let contained_count = contained.len();
+        members[..contained_count].copy_from_slice(&contained);
+        members[contained_count..].copy_from_slice(&other);
     }
 
     // ---- table twins that take this checker's order ----

@@ -2828,19 +2828,18 @@ impl<'a> CheckerState<'a> {
         }
         let flags = value.flags | self.binder.symbol(type_symbol).flags;
         let escaped_name = value.escaped_name;
-        let mut declarations = value.declarations.clone();
-        for declaration in self.binder.symbol(type_symbol).declarations.clone() {
-            if !declarations.contains(&declaration) {
-                declarations.push(declaration);
-            }
-        }
+        let mut declarations = value.declarations.to_vec();
+        declarations.extend_from_slice(&self.binder.symbol(type_symbol).declarations);
+        // tsgo checker.go:15081: Compact the entire concatenation. Repeated
+        // nonadjacent declarations survive; adjacent value-prefix repeats do not.
+        declarations.dedup();
         let parent = value.parent.or(self.binder.symbol(type_symbol).parent);
         let value_declaration = value.value_declaration;
         let members = self.binder.symbol(type_symbol).members().clone();
         let exports = self.binder.symbol(value_symbol).exports().clone();
         let result = self.binder.create_symbol(flags, escaped_name);
         let symbol = self.binder.symbol_mut(result);
-        symbol.declarations = declarations;
+        symbol.declarations = declarations.into();
         symbol.parent = parent;
         symbol.value_declaration = value_declaration;
         *symbol.members_mut() = members;
@@ -3739,7 +3738,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_type_of_alias(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             return Ok(cached);
         }
@@ -3786,7 +3785,7 @@ impl<'a> CheckerState<'a> {
         };
         if let Some(already) = self
             .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(symbol, |links| links.type_of_symbol.resolved())
         {
             return Ok(already);
         }
@@ -8228,10 +8227,13 @@ impl<'a> CheckerState<'a> {
         *cloned.members_mut() = members;
         *cloned.exports_mut() = exports;
         self.links
-            .set_symbol_target(self.speculation_depth, result, symbol);
+            .set_symbol_export_target(self.speculation_depth, result, symbol);
         self.links
             .set_symbol_originating_import(self.speculation_depth, result, reference_parent);
         let members_id = self.resolve_structured_type_members(module_type)?;
+        // Go evaluates the value-link assignment receiver before sorting
+        // the new anonymous type's named members (checker.go:16127).
+        self.links.symbol_order_ids().touch_links(result);
         let resolved = self.members_of(members_id);
         let member_table = resolved.members.clone();
         let index_infos = resolved.index_infos().to_vec();

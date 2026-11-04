@@ -5876,7 +5876,7 @@ impl<'a> CheckerState<'a> {
         use_alias_defined_outside_current_scope: bool,
         enclosing: Option<NodeId>,
     ) -> Option<JsString> {
-        let name_type = self.links.symbol(symbol).name_type?;
+        let name_type = self.links.value_symbol(symbol).name_type?;
         let flags = self.tables.flags_of(name_type);
         if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
             let name = match self.tables.literal_value(name_type) {
@@ -7858,10 +7858,8 @@ impl<'a> CheckerState<'a> {
             let walk_from = accessible.as_ref().map_or(symbol, |chain| chain[0]);
             let parents = self.containers_of_symbol(walk_from, enclosing, meaning)?;
             if !parents.is_empty() {
-                // 52964-52969: parents sort by specifier shape
-                // (sortByBestName) — module parents key their
-                // specifier, namespace parents ride as ties (the
-                // missing-specifier `return 0`, 53014).
+                // Map specifiers in traversal order, then use the same
+                // sortByBestName/GST as the NodeBuilder channel.
                 let mut specifiers: Vec<Option<JsString>> = Vec::with_capacity(parents.len());
                 for &parent in &parents {
                     if self.symbol_has_external_module_declaration(parent) {
@@ -7881,22 +7879,8 @@ impl<'a> CheckerState<'a> {
                         specifiers.push(None);
                     }
                 }
-                let mut order: Vec<usize> = (0..parents.len()).collect();
-                order.sort_by(|&a, &b| match (&specifiers[a], &specifiers[b]) {
-                    // pathIsRelative (5314) is false for both the
-                    // host-rooted absolute paths and ambient names
-                    // (standalone relative ambient modules are a 2436
-                    // parse-band reject), so sortByBestName reduces to
-                    // countPathComponents (45645): the separator
-                    // count.
-                    (Some(a), Some(b)) => {
-                        let count = |s: &JsString| {
-                            s.as_bytes().iter().filter(|&&byte| byte == b'/').count()
-                        };
-                        count(a).cmp(&count(b))
-                    }
-                    _ => std::cmp::Ordering::Equal,
-                });
+                let order =
+                    crate::node_builder::chains::sort_parent_symbols(self, &parents, &specifiers);
                 for index in order {
                     let parent = parents[index];
                     let Some(parent_chain) = self.symbol_chain(
@@ -8142,6 +8126,15 @@ impl<'a> CheckerState<'a> {
         enclosing: Option<NodeId>,
         use_only_external_aliasing: bool,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
+        match table_key {
+            ScopeTableKey::Exports(owner)
+            | ScopeTableKey::ResolvedExports(owner)
+            | ScopeTableKey::Members(owner) => {
+                self.links.symbol_order_ids().get(owner);
+            }
+            ScopeTableKey::Globals | ScopeTableKey::Locals(_) => {}
+        }
+        self.links.symbol_order_ids().get(symbol);
         if visited.contains(&table_key) {
             return Ok(None);
         }
@@ -8263,28 +8256,9 @@ impl<'a> CheckerState<'a> {
             }
         }
         if !candidates.is_empty() {
-            // "pick first, shortest": a stable sort's first element is the
-            // first minimum.
             let order = crate::type_order::order_ctx!(self);
-            let best = candidates
-                .into_iter()
-                .min_by(|a, b| {
-                    a.len().cmp(&b.len()).then_with(|| {
-                        a.iter()
-                            .zip(b)
-                            .map(|(&a, &b)| {
-                                tsc_types::TypeOrderContext::compare_symbols(
-                                    &order,
-                                    Some(a),
-                                    Some(b),
-                                )
-                            })
-                            .find(|ordering| ordering.is_ne())
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                    })
-                })
-                .expect("candidates is not empty");
-            return Ok(Some(best));
+            order.sort_symbol_chains(&mut candidates);
+            return Ok(candidates.into_iter().next());
         }
         if table_key == ScopeTableKey::Globals {
             return self.candidate_list_for_symbol(
@@ -8851,22 +8825,24 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let mut matches: Vec<(SymbolId, JsString)> = Vec::new();
+        // Go nodebuilderimpl.go:779-790 collects names by symbol identity
+        // (the last name wins), then GQ-sorts all matching symbols. A linear
+        // minimum changes first-use tie IDs when names/declarations tie.
+        let mut matches = indexmap::IndexMap::new();
         for (name, &exported) in exports.iter() {
             if usable(*name) && self.symbol_if_same_reference(exported, symbol)? {
-                matches.push((
+                matches.insert(
                     exported,
                     tsc_binder::unescape_leading_underscores(name).to_owned(),
-                ));
+                );
             }
         }
         let order = crate::type_order::order_ctx!(self);
-        Ok(matches
-            .into_iter()
-            .min_by(|(a, _), (b, _)| {
-                tsc_types::TypeOrderContext::compare_symbols(&order, Some(*a), Some(*b))
-            })
-            .map(|(_, name)| name))
+        let mut matches: Vec<_> = matches.into_iter().collect();
+        tsc_types::goslices::sort_func_like_go(&mut matches, |(a, _), (b, _)| {
+            tsc_types::TypeOrderContext::compare_symbols(&order, Some(*a), Some(*b))
+        });
+        Ok(matches.into_iter().next().map(|(_, name)| name))
     }
 
     /// tsc-port: createAccessFromSymbolChain @6.0.3 (below-root naming)
@@ -9591,7 +9567,8 @@ impl<'a> CheckerState<'a> {
                     // 52274-52297: the diverging pair prints one
                     // signature face per present accessor declaration,
                     // instantiated under the symbol links mapper.
-                    let symbol_mapper = self.links.read_symbol(property, |links| links.mapper);
+                    let symbol_mapper =
+                        self.links.read_value_symbol(property, |links| links.mapper);
                     let declarations = self.binder.symbol(property).declarations.clone();
                     let getter = declarations
                         .iter()
@@ -13805,7 +13782,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         let declarations = self.binder.symbol(property).declarations.clone();
-        let name_type = self.links.symbol(property).name_type;
+        let name_type = self.links.value_symbol(property).name_type;
         let name_type_flags = name_type.map(|name_type| self.tables.flags_of(name_type));
         let string_named = !declarations.is_empty()
             && declarations

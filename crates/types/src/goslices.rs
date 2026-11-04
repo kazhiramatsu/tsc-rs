@@ -42,6 +42,28 @@ pub fn sort_func_like_go<T>(data: &mut [T], mut cmp: impl FnMut(&T, &T) -> Order
     pdqsort_go(data, 0, n, limit, &mut cmp);
 }
 
+/// Fallible Go sort. After the first error no further comparisons are
+/// evaluated; the local slice's order on error is unspecified.
+pub fn try_sort_func_like_go<T, E>(
+    data: &mut [T],
+    mut cmp: impl FnMut(&T, &T) -> Result<Ordering, E>,
+) -> Result<(), E> {
+    let mut error = None;
+    sort_func_like_go(data, |a, b| {
+        if error.is_some() {
+            return Ordering::Equal;
+        }
+        match cmp(a, b) {
+            Ok(order) => order,
+            Err(abort) => {
+                error = Some(abort);
+                Ordering::Equal
+            }
+        }
+    });
+    error.map_or(Ok(()), Err)
+}
+
 /// Go's `cmp(data[i], data[j]) < 0`.
 fn go_less<T>(data: &[T], i: usize, j: usize, cmp: &mut impl FnMut(&T, &T) -> Ordering) -> bool {
     cmp(&data[i], &data[j]) == Ordering::Less
@@ -388,6 +410,19 @@ fn median_go<T>(
 /// same order as tsgo where a different stable sort could not, and never
 /// panics on an inconsistent comparison as the standard sorts may.
 pub fn sort_types_like_tsgo<T: Copy>(data: &mut [T], mut less: impl FnMut(T, T) -> bool) {
+    sort_stable_func_like_go(data, |a, b| {
+        if less(*a, *b) {
+            Ordering::Less
+        } else {
+            Ordering::Equal
+        }
+    });
+}
+
+/// Go stable sort for arbitrary payloads, with the same comparison and swap
+/// sequence as the Copy/less adapter above.
+pub fn sort_stable_func_like_go<T>(data: &mut [T], mut cmp: impl FnMut(&T, &T) -> Ordering) {
+    let mut less = |a: &T, b: &T| cmp(a, b).is_lt();
     let n = data.len();
     let mut block = 20;
     let (mut a, mut b) = (0, block);
@@ -412,34 +447,29 @@ pub fn sort_types_like_tsgo<T: Copy>(data: &mut [T], mut less: impl FnMut(T, T) 
     }
 }
 
-fn insertion_sort<T: Copy>(
-    data: &mut [T],
-    a: usize,
-    b: usize,
-    less: &mut impl FnMut(T, T) -> bool,
-) {
+fn insertion_sort<T>(data: &mut [T], a: usize, b: usize, less: &mut impl FnMut(&T, &T) -> bool) {
     for i in a + 1..b {
         let mut j = i;
-        while j > a && less(data[j], data[j - 1]) {
+        while j > a && less(&data[j], &data[j - 1]) {
             data.swap(j, j - 1);
             j -= 1;
         }
     }
 }
 
-fn sym_merge<T: Copy>(
+fn sym_merge<T>(
     data: &mut [T],
     a: usize,
     m: usize,
     b: usize,
-    less: &mut impl FnMut(T, T) -> bool,
+    less: &mut impl FnMut(&T, &T) -> bool,
 ) {
     if m - a == 1 {
         // Insert data[a] into data[m..b]: the lowest i with data[i] >= data[a].
         let (mut i, mut j) = (m, b);
         while i < j {
             let h = (i + j) >> 1;
-            if less(data[h], data[a]) {
+            if less(&data[h], &data[a]) {
                 i = h + 1;
             } else {
                 j = h;
@@ -455,7 +485,7 @@ fn sym_merge<T: Copy>(
         let (mut i, mut j) = (a, m);
         while i < j {
             let h = (i + j) >> 1;
-            if !less(data[m], data[h]) {
+            if !less(&data[m], &data[h]) {
                 i = h + 1;
             } else {
                 j = h;
@@ -474,7 +504,7 @@ fn sym_merge<T: Copy>(
     let p = n - 1;
     while start < r {
         let c = (start + r) >> 1;
-        if !less(data[p - c], data[c]) {
+        if !less(&data[p - c], &data[c]) {
             start = c + 1;
         } else {
             r = c;
@@ -492,7 +522,7 @@ fn sym_merge<T: Copy>(
     }
 }
 
-fn rotate<T: Copy>(data: &mut [T], a: usize, m: usize, b: usize) {
+fn rotate<T>(data: &mut [T], a: usize, m: usize, b: usize) {
     let (mut i, mut j) = (m - a, b - m);
     while i != j {
         if i > j {
@@ -506,7 +536,7 @@ fn rotate<T: Copy>(data: &mut [T], a: usize, m: usize, b: usize) {
     swap_range(data, m - i, m, i);
 }
 
-fn swap_range<T: Copy>(data: &mut [T], a: usize, b: usize, n: usize) {
+fn swap_range<T>(data: &mut [T], a: usize, b: usize, n: usize) {
     for i in 0..n {
         data.swap(a + i, b + i);
     }

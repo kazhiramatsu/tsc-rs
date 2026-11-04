@@ -635,3 +635,107 @@ fn node_module_package_path_matches_tsgo() {
     );
     assert_eq!(package("/p/src/index.ts"), None);
 }
+
+#[test]
+fn module_path_ties_use_the_host_path_comparison() {
+    let mut surrogate = JsString::from("^/~ts-uri~/foo/host/");
+    surrogate.push_code_unit(0xD800);
+    let mut replacement = JsString::from("^/~ts-uri~/foo/host/");
+    replacement.push('\u{FFFD}');
+    assert_eq!(
+        compare_module_paths(surrogate.as_js(), replacement.as_js(), false),
+        Ordering::Less,
+        "encoded dynamic paths compare raw bytes even on an insensitive host"
+    );
+    assert_eq!(
+        compare_module_paths(
+            "^/~ts-uri~/foo/host".into(),
+            "^/~ts-uri~/foo/host/".into(),
+            false
+        ),
+        Ordering::Equal
+    );
+    let path = |text: &str, is_redirect| ModulePath {
+        path: text.into(),
+        is_redirect,
+        is_in_node_modules: false,
+    };
+    for (a, b, sensitive, expected) in [
+        ("/p/z.ts", "/p/a.ts", true, Ordering::Greater),
+        ("/p/Z.ts", "/p/a.ts", true, Ordering::Less),
+        ("/p/Z.ts", "/p/a.ts", false, Ordering::Greater),
+        ("C:/p/a.ts", "c:/p/a.ts", true, Ordering::Equal),
+        ("/p/A.ts", "/p/a.ts", false, Ordering::Equal),
+        ("/p/İ.ts", "/p/i.ts", false, Ordering::Equal),
+        ("/p/\u{10000}.ts", "/p/\u{FFFF}.ts", true, Ordering::Greater),
+    ] {
+        assert_eq!(
+            compare_paths_by_redirect_and_number_of_directory_separators(
+                &path(a, false),
+                &path(b, false),
+                sensitive
+            ),
+            expected,
+            "{a} vs {b}, sensitive={sensitive}"
+        );
+    }
+    assert_eq!(
+        compare_paths_by_redirect_and_number_of_directory_separators(
+            &path("/deep/path/z.ts", true),
+            &path("/a.ts", false),
+            true
+        ),
+        Ordering::Less
+    );
+    assert_eq!(
+        compare_paths_by_redirect_and_number_of_directory_separators(
+            &path("/a/z.ts", false),
+            &path("/a/b/a.ts", false),
+            true
+        ),
+        Ordering::Less
+    );
+}
+
+#[test]
+fn module_path_case_insensitive_ties_keep_go_pdqsort_payload_order() {
+    let paths: Vec<_> = (0..100)
+        .map(|i| {
+            let letters: String = "abcd"
+                .chars()
+                .enumerate()
+                .map(|(bit, ch)| {
+                    if (i / 10) & (1 << bit) != 0 {
+                        ch.to_ascii_uppercase()
+                    } else {
+                        ch
+                    }
+                })
+                .collect();
+            ModulePath {
+                path: format!("/p/{letters}{}.ts", (i * 37) % 10).into(),
+                is_redirect: false,
+                is_in_node_modules: false,
+            }
+        })
+        .collect();
+    let mut order: Vec<usize> = (0..100).collect();
+    tsc_types::goslices::sort_func_like_go(&mut order, |&a, &b| {
+        compare_paths_by_redirect_and_number_of_directory_separators(&paths[a], &paths[b], false)
+    });
+    assert_eq!(
+        order,
+        [
+            10, 80, 0, 30, 60, 20, 40, 70, 90, 50, 93, 33, 63, 13, 3, 83, 73, 43, 53, 23, 66, 86,
+            96, 36, 76, 56, 26, 16, 46, 6, 29, 79, 99, 89, 69, 9, 19, 59, 49, 39, 72, 62, 42, 2,
+            92, 32, 12, 82, 52, 22, 25, 15, 95, 75, 85, 55, 45, 35, 65, 5, 8, 28, 38, 18, 78, 58,
+            98, 88, 68, 48, 41, 51, 31, 11, 1, 71, 91, 61, 81, 21, 4, 64, 94, 44, 84, 54, 14, 24,
+            74, 34, 37, 87, 7, 17, 77, 27, 67, 97, 57, 47,
+        ]
+    );
+    let mut stable: Vec<usize> = (0..100).collect();
+    stable.sort_by(|&a, &b| {
+        compare_paths_by_redirect_and_number_of_directory_separators(&paths[a], &paths[b], false)
+    });
+    assert_ne!(order, stable);
+}

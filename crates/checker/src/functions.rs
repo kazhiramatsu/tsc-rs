@@ -546,7 +546,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         if self
             .links
-            .read_symbol(parameter, |links| links.type_of_symbol.resolved())
+            .read_value_symbol(parameter, |links| links.type_of_symbol.resolved())
             .is_some()
         {
             // `assignParameterType` in tsc is guarded by the presence of
@@ -3261,6 +3261,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<()> {
+        self.links.symbol_order_ids().touch_links(symbol);
         let flags_to_check = tsc_types::ModifierFlags::from_bits(
             tsc_types::ModifierFlags::EXPORT.bits()
                 | tsc_types::ModifierFlags::AMBIENT.bits()

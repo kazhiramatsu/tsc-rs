@@ -1151,6 +1151,7 @@ pub struct CheckerState<'a> {
     pub(crate) error_types: rustc_hash::FxHashMap<String, TypeId>,
     /// tsc patternAmbientModules (initializeTypeChecker 88754-88756).
     pub pattern_ambient_modules: Vec<(tsc_types::JsString, tsc_types::JsString, SymbolId)>,
+    pub(crate) ambient_modules: std::sync::OnceLock<Vec<SymbolId>>,
     /// tsc patternAmbientModuleAugmentations (mergeModuleAugmentation
     /// 47865): augmentation name → the unidirectionally-merged symbol.
     pub pattern_ambient_module_augmentations: rustc_hash::FxHashMap<tsc_types::JsString, SymbolId>,
@@ -1902,6 +1903,7 @@ impl<'a> CheckerState<'a> {
             unresolved_symbols: rustc_hash::FxHashMap::default(),
             error_types: rustc_hash::FxHashMap::default(),
             pattern_ambient_modules: Vec::new(),
+            ambient_modules: std::sync::OnceLock::new(),
             pattern_ambient_module_augmentations: rustc_hash::FxHashMap::default(),
             pattern_ambient_module_augmentation_targets: rustc_hash::FxHashMap::default(),
             module_import_attributes_types: rustc_hash::FxHashMap::default(),
@@ -2424,7 +2426,7 @@ impl<'a> CheckerState<'a> {
                 let ResolutionTarget::Symbol(symbol) = target else {
                     unreachable!("Type resolution targets are symbols");
                 };
-                self.links.read_symbol(symbol, |links| links.type_of_symbol.resolved()).is_some()
+                self.links.read_value_symbol(symbol, |links| links.type_of_symbol.resolved()).is_some()
             }
             TypeSystemPropertyName::DECLARED_TYPE => {
                 let ResolutionTarget::Symbol(symbol) = target else {

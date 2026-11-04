@@ -2397,9 +2397,9 @@ impl<'a> CheckerState<'a> {
                 }
                 let target = self
                     .links
-                    .read_symbol(symbol, |links| links.target)
+                    .read_value_symbol(symbol, |links| links.target)
                     .expect("Instantiated check flag implies links.target");
-                let mapper = self.links.read_symbol(symbol, |links| links.mapper);
+                let mapper = self.links.read_value_symbol(symbol, |links| links.mapper);
                 let target_write = self.get_write_type_of_symbol(target)?;
                 let instantiated = self.instantiate_type(target_write, mapper)?;
                 if let crate::links::LinkSlot::Resolved(already) =
@@ -2932,7 +2932,7 @@ impl<'a> CheckerState<'a> {
             .intersects(tsc_types::CheckFlags::INSTANTIATED)
         {
             self.links
-                .read_symbol(prop, |links| links.target)
+                .read_value_symbol(prop, |links| links.target)
                 .expect("Instantiated check flag implies links.target")
         } else {
             prop

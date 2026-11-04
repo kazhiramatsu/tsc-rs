@@ -1781,16 +1781,66 @@ pub(crate) fn count_path_components<'path>(path: impl Into<JsStr<'path>>) -> usi
         .count()
 }
 
-/// tsc-port: comparePathsByRedirectAndNumberOfDirectorySeparators @6.0.3
-/// tsc-hash: b50457fb89d1c0a196bec15eb60415805944a12ba415b7baa9f23f7e51b2be82
-/// tsc-span: _tsc.js:45652-45654
+/// tsgo modulespecifiers/util.go:30-45: redirect, separator count, then
+/// the host's rooted path comparison. The last key determines the chosen
+/// specifier when redirect paths have the same number of components.
 pub(crate) fn compare_paths_by_redirect_and_number_of_directory_separators(
     a: &ModulePath,
     b: &ModulePath,
+    case_sensitive: bool,
 ) -> Ordering {
     b.is_redirect
         .cmp(&a.is_redirect)
         .then_with(|| count_directory_separators(&a.path).cmp(&count_directory_separators(&b.path)))
+        .then_with(|| compare_module_paths(a.path.as_js(), b.path.as_js(), case_sensitive))
+}
+
+fn compare_module_paths(a: JsStr<'_>, b: JsStr<'_>, case_sensitive: bool) -> Ordering {
+    if a == b {
+        return Ordering::Equal;
+    }
+    if a.starts_with(tsc_program::DYNAMIC_URI_FILE_NAME_PREFIX)
+        || b.starts_with(tsc_program::DYNAMIC_URI_FILE_NAME_PREFIX)
+    {
+        let canonical = |path: JsStr<'_>| {
+            let mut path = path.to_owned();
+            if path.starts_with(tsc_program::DYNAMIC_URI_FILE_NAME_PREFIX)
+                && tsc_program::path_root_parts(path.as_js())
+                    .is_some_and(|(_, rest)| rest.is_empty())
+                && !path.ends_with("/")
+            {
+                path.push('/');
+            }
+            path
+        };
+        return canonical(a).cmp(&canonical(b));
+    }
+    let root_parts =
+        |path| tsc_program::path_root_parts(path).unwrap_or((JsStr::from_str(""), path));
+    let (root_a, rest_a) = root_parts(a);
+    let (root_b, rest_b) = root_parts(b);
+    compare_path_text_ignore_case(root_a, root_b).then_with(|| {
+        if case_sensitive {
+            rest_a.cmp(&rest_b)
+        } else {
+            compare_path_text_ignore_case(rest_a, rest_b)
+        }
+    })
+}
+
+/// Go stringutil.CompareStringsCaseInsensitive uses one-rune lowercase,
+/// rather than the compiler's special filename-key lowercase profile.
+fn compare_path_text_ignore_case(a: JsStr<'_>, b: JsStr<'_>) -> Ordering {
+    fn lower(text: JsStr<'_>) -> impl Iterator<Item = char> + '_ {
+        char::decode_utf16(text.code_units())
+            .flat_map(|point| match point {
+                Ok(ch) => [Some(ch.to_lowercase().next().unwrap()), None, None],
+                // A WTF-8 surrogate is three invalid UTF-8 bytes to Go's decoder.
+                Err(_) => [Some('\u{FFFD}'); 3],
+            })
+            .flatten()
+    }
+    lower(a).cmp(lower(b))
 }
 
 /// tsc-port: getNearestAncestorDirectoryWithPackageJson @6.0.3
@@ -1992,8 +2042,13 @@ pub(crate) fn get_all_module_paths_worker<'path>(
                 })
                 .collect();
             if paths_in_directory.len() > 1 {
-                paths_in_directory
-                    .sort_by(compare_paths_by_redirect_and_number_of_directory_separators);
+                tsc_types::goslices::sort_func_like_go(&mut paths_in_directory, |a, b| {
+                    compare_paths_by_redirect_and_number_of_directory_separators(
+                        a,
+                        b,
+                        info.case_sensitive,
+                    )
+                });
             }
             sorted_paths.extend(paths_in_directory);
         }
@@ -2012,7 +2067,13 @@ pub(crate) fn get_all_module_paths_worker<'path>(
             })
             .collect();
         if remaining_paths.len() > 1 {
-            remaining_paths.sort_by(compare_paths_by_redirect_and_number_of_directory_separators);
+            tsc_types::goslices::sort_func_like_go(&mut remaining_paths, |a, b| {
+                compare_paths_by_redirect_and_number_of_directory_separators(
+                    a,
+                    b,
+                    info.case_sensitive,
+                )
+            });
         }
         sorted_paths.extend(remaining_paths);
     }

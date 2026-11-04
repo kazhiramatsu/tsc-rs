@@ -2455,3 +2455,76 @@ fn valid_big_int_string_gates() {
         },
     );
 }
+
+#[test]
+fn depth_sort_does_not_force_a_single_deferred_target() {
+    with_program_state(
+        &[("a.ts", "interface I<T> {} declare var v: I<string>;")],
+        &CompilerOptions::default(),
+        |state| {
+            let node = annotation_of_var(state, "v");
+            let reference = state.get_type_from_type_node(node).unwrap();
+            let target = state.tables.reference_target(reference);
+            let deferred = state
+                .create_deferred_type_reference(target, node, None, None, None)
+                .unwrap();
+            assert!(state.tables.try_type_arguments(deferred).is_none());
+            state.sort_types_by_depth(&mut [deferred]).unwrap();
+            assert!(
+                state.tables.try_type_arguments(deferred).is_none(),
+                "Go's zero-comparison singleton sort does not evaluate depth"
+            );
+            let plain = state.tables.intrinsics.string;
+            let mut targets = [plain, deferred];
+            state.sort_types_by_depth(&mut targets).unwrap();
+            assert_eq!(targets, [deferred, plain]);
+            assert_eq!(
+                state.tables.try_type_arguments(deferred),
+                Some(&[plain][..])
+            );
+        },
+    );
+}
+
+#[test]
+fn depth_comparison_resolves_left_then_right_in_go_probe_order() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "interface I<T> {} declare var a: I<\"first\">; declare var b: I<\"second\">;",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let symbol = state
+                .resolve_file_scope_name("I", SymbolFlags::TYPE)
+                .unwrap();
+            let target = state.get_declared_type_of_symbol(symbol).unwrap();
+            let a = state
+                .create_deferred_type_reference(
+                    target,
+                    annotation_of_var(state, "a"),
+                    None,
+                    None,
+                    None,
+                )
+                .unwrap();
+            let b = state
+                .create_deferred_type_reference(
+                    target,
+                    annotation_of_var(state, "b"),
+                    None,
+                    None,
+                    None,
+                )
+                .unwrap();
+            assert!(state.tables.try_type_arguments(a).is_none());
+            assert!(state.tables.try_type_arguments(b).is_none());
+            let mut targets = [a, b];
+            state.sort_types_by_depth(&mut targets).unwrap();
+            let first = state.tables.type_arguments(a)[0];
+            let second = state.tables.type_arguments(b)[0];
+            assert!(second.index() < first.index(), "Go's first insertion comparison is b,a; eager depth keys would create first before second");
+            assert_eq!(targets, [a, b]);
+        },
+    );
+}

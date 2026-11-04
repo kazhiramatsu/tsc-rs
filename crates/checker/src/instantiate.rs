@@ -706,7 +706,7 @@ impl<'a> CheckerState<'a> {
         if self.maps_this_only(mapper) && self.is_thisless(symbol) {
             return symbol;
         }
-        let links = self.links.symbol(symbol);
+        let links = self.links.value_symbol(symbol);
         if let Some(cached_type) = links.type_of_symbol.resolved() {
             if !self.could_contain_type_variables(cached_type) {
                 if !self
@@ -725,7 +725,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let links = self.links.symbol(symbol);
+        let links = self.links.value_symbol(symbol);
         if links.check_flags.intersects(CheckFlags::INSTANTIATED) {
             let target = links
                 .target
@@ -751,7 +751,7 @@ impl<'a> CheckerState<'a> {
                         | CheckFlags::REST_PARAMETER)
                         .bits(),
             );
-        let name_type = self.links.symbol(symbol).name_type;
+        let name_type = self.links.value_symbol(symbol).name_type;
         let result = self.binder.create_symbol(source_flags, escaped_name);
         self.links
             .set_symbol_check_flags(self.speculation_depth, result, check_flags);
@@ -957,6 +957,9 @@ impl<'a> CheckerState<'a> {
                 None => None,
             }
         };
+        if let Some(symbol) = new_alias_symbol {
+            self.links.symbol_order_ids().get(symbol);
+        }
         let id_key = self.tables.instantiation_key(
             &type_arguments,
             new_alias_symbol,
@@ -2690,8 +2693,7 @@ impl<'a> CheckerState<'a> {
         // type parameters by name; the order reaches the instantiation
         // mappers that order deferred references in a union.
         let order = crate::type_order::order_ctx!(self);
-        let tables = &self.tables;
-        result.sort_by(|a, b| tsc_types::type_order::compare_types(tables, &order, *a, *b));
+        order.sort_types(&self.tables, &mut result);
         result
     }
 

@@ -630,6 +630,19 @@ impl<'a> CheckerState<'a> {
         Ok(0)
     }
 
+    /// tsgo inference.go:402/421: depth queries may resolve type arguments,
+    /// so evaluate the left then the right operand in Go's comparison order.
+    pub(crate) fn sort_types_by_depth(&mut self, types: &mut [TypeId]) -> CheckResult<()> {
+        tsc_types::goslices::try_sort_func_like_go(types, |&a, &b| {
+            let depth_a = self.get_type_depth(a, 3)?;
+            let depth_b = self.get_type_depth(b, 3)?;
+            Ok(depth_b.cmp(&depth_a).then_with(|| {
+                let order = crate::type_order::order_ctx!(self);
+                tsc_types::type_order::compare_types(&self.tables, &order, a, b)
+            }))
+        })
+    }
+
     fn get_type_list_depth(&mut self, types: &[TypeId], max_depth: usize) -> CheckResult<usize> {
         let mut depth = 0;
         for &ty in types {
@@ -2579,21 +2592,8 @@ impl InferTypesWalker<'_, '_> {
             }
         }
         if sort {
-            let mut by_depth: Vec<(usize, TypeId)> = Vec::with_capacity(matched_targets.len());
+            self.st.sort_types_by_depth(&mut matched_targets)?;
             for &t in &matched_targets {
-                by_depth.push((self.st.get_type_depth(t, 3)?, t));
-            }
-            {
-                let order = crate::type_order::order_ctx!(self.st);
-                let tables = &self.st.tables;
-                // compareTypesAndDepth: the largest depth sorts first.
-                by_depth.sort_by(|a, b| {
-                    b.0.cmp(&a.0).then_with(|| {
-                        tsc_types::type_order::compare_types(tables, &order, a.1, b.1)
-                    })
-                });
-            }
-            for &(_, t) in &by_depth {
                 for &s in &matched_sources {
                     if self.matches_pair(s, t, matcher)? {
                         self.infer_from_types(s, t)?;

@@ -406,3 +406,54 @@ fn content_search_and_single_insertion_share_the_go_lower_bound() {
         ids.binary_search(&c)
     );
 }
+
+/// Fallible depth comparisons must keep Go's pdqsort history and stop
+/// evaluating the checker as soon as a depth query aborts.
+#[test]
+fn fallible_go_sort_preserves_history_and_short_circuits_errors() {
+    use crate::goslices::try_sort_func_like_go;
+    let mut ids = std::collections::HashMap::new();
+    let mut values: Vec<usize> = (0..13).collect();
+    try_sort_func_like_go(&mut values, |&a, &b| -> Result<_, ()> {
+        if a == b {
+            return Ok(std::cmp::Ordering::Equal);
+        }
+        let next = ids.len();
+        let a = *ids.entry(a).or_insert(next);
+        let next = ids.len();
+        let b = *ids.entry(b).or_insert(next);
+        Ok(a.cmp(&b))
+    })
+    .unwrap();
+    // Go 1.27.1 SortFunc, assigning tied keys left then right on first use.
+    assert_eq!(values, [6, 3, 9, 1, 12, 11, 10, 8, 7, 2, 5, 4, 0]);
+    let mut calls = Vec::new();
+    let error = try_sort_func_like_go(&mut values, |a, b| {
+        calls.push((*a, *b));
+        Err::<std::cmp::Ordering, _>("depth abort")
+    });
+    assert_eq!(error, Err("depth abort"));
+    assert_eq!(calls.len(), 1);
+}
+
+#[test]
+fn go_stable_sort_supports_owned_payloads_with_the_copy_adapter_history() {
+    use crate::goslices::sort_stable_func_like_go;
+    for n in [0, 1, 20, 21, 39, 40, 41, 100] {
+        let mut copy: Vec<usize> = (0..n).map(|i| (i * 17) % n).collect();
+        let mut owned: Vec<String> = copy.iter().map(usize::to_string).collect();
+        let mut copy_trace = Vec::new();
+        sort_types_like_tsgo(&mut copy, |a, b| {
+            copy_trace.push((a, b));
+            (a % 3) < (b % 3)
+        });
+        let mut owned_trace = Vec::new();
+        sort_stable_func_like_go(&mut owned, |a, b| {
+            let (a, b) = (a.parse::<usize>().unwrap(), b.parse::<usize>().unwrap());
+            owned_trace.push((a, b));
+            (a % 3).cmp(&(b % 3))
+        });
+        assert_eq!(copy_trace, owned_trace, "length {n}");
+        assert_eq!(owned, copy.iter().map(usize::to_string).collect::<Vec<_>>());
+    }
+}
