@@ -582,7 +582,7 @@ impl<'a> Tree<'a> {
             }
             hash.u32(self.opt_node_ref(symbol.value_declaration));
             hash.opt_u32(symbol.parent.map(|parent| symbols.get(parent)));
-            hash.opt_u32(symbol.export_symbol.map(|export| symbols.get(export)));
+            hash.opt_u32(symbol.export_symbol().map(|export| symbols.get(export)));
             hash_table(&mut hash, symbol.members(), &symbols);
             hash_table(&mut hash, symbol.exports(), &symbols);
             let extras = symbol.extras();
@@ -668,7 +668,10 @@ fn hash_table(hash: &mut Fnv, table: &SymbolTable, symbols: &Numbering<SymbolId>
 /// Number the symbols `symbol` links to: its parent, export symbol and table
 /// entries.
 fn number_symbol_links(symbol: &Symbol, symbols: &mut Numbering<SymbolId>) {
-    for linked in [symbol.parent, symbol.export_symbol].into_iter().flatten() {
+    for linked in [symbol.parent, symbol.export_symbol()]
+        .into_iter()
+        .flatten()
+    {
         symbols.number(linked);
     }
     for table in [

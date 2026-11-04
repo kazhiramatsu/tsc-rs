@@ -1136,7 +1136,7 @@ impl Session {
                         json(&data.parent.map(|symbol| symbols.response(symbol)))
                     }
                     "getExportSymbolOfSymbol" => {
-                        json(&data.export_symbol.map(|symbol| symbols.response(symbol)))
+                        json(&data.export_symbol().map(|symbol| symbols.response(symbol)))
                     }
                     "getMembersOfSymbol" => table(data.members()),
                     _ => table(data.exports()),
@@ -1158,7 +1158,7 @@ impl Session {
                             let result = if method == "getParentOfSymbol" {
                                 data.parent
                             } else {
-                                data.export_symbol
+                                data.export_symbol()
                             };
                             Ok(json(&result.map(|symbol| query.symbol_response(symbol))))
                         }
@@ -1376,7 +1376,7 @@ impl Query<'_, '_> {
         let declarations = data.declarations.to_vec();
         let value_declaration = data.value_declaration;
         let parent = data.parent;
-        let export_symbol = data.export_symbol;
+        let export_symbol = data.export_symbol();
         let name = escape_symbol_name(&data.escaped_name.as_js().to_string_lossy());
         let flags = record_flags(data);
         let check_flags = check_flags(self.state.get_check_flags(symbol));

@@ -950,7 +950,7 @@ fn get_export(
             ExportKind::Named
         }
     };
-    if let Some(export_symbol) = request.state.binder.symbol(symbol).export_symbol {
+    if let Some(export_symbol) = request.state.binder.symbol(symbol).export_symbol() {
         if request.state.binder.node_record(parent).kind == SyntaxKind::PropertyAccessExpression {
             // When accessing an export of a JS module, there's no alias. The symbol will still be flagged as an export even though we're at the use.
             // So check that we are at the declaration.
