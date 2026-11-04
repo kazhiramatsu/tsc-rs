@@ -13,6 +13,9 @@ mod name_table;
 pub mod nodes;
 pub mod observable_fields;
 mod parser;
+#[cfg(feature = "parser-list-metrics")]
+#[doc(hidden)]
+pub use parser::take_parser_list_stack_metrics;
 mod recovery;
 pub mod regex;
 mod regex_unicode;

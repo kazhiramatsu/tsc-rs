@@ -2477,6 +2477,95 @@ fn expected_optional_context_and_speculation_restore_parser_state() {
 }
 
 #[test]
+fn nested_lists_release_their_elements_above_retained_outer_siblings() {
+    let mut parser = Parser::new(
+        "a.ts".into(),
+        "f(a, g(b, c), d); h(e,);",
+        LanguageVariant::Standard,
+        false,
+    );
+    parser.next_token();
+    let outer = parser.start_node_list();
+    let retained = parser.create_missing_node(SyntaxKind::Identifier, false, None, &[]);
+    parser.node_stack.push(retained);
+    let statements = parser.parse_list(ParsingContext::SourceElements, |parser| {
+        Some(parser.parse_source_element())
+    });
+    assert_eq!(parser.node_stack, [retained]);
+    assert_eq!(parser.arena.node_array(statements).nodes.len(), 2);
+    // Inner g's arguments finish first; each array contains only its own
+    // suffix, and source statements are allocated last.
+    let arrays = parser.arena.node_arrays();
+    assert_eq!(arrays.len(), 4);
+    let kinds: Vec<_> = (0..4)
+        .map(|index| {
+            parser
+                .arena
+                .node_array(crate::NodeArrayId::new(index))
+                .nodes
+                .iter()
+                .map(|&node| parser.arena.node(node).kind)
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        [
+            vec![SyntaxKind::Identifier, SyntaxKind::Identifier],
+            vec![
+                SyntaxKind::Identifier,
+                SyntaxKind::CallExpression,
+                SyntaxKind::Identifier
+            ],
+            vec![SyntaxKind::Identifier],
+            vec![
+                SyntaxKind::ExpressionStatement,
+                SyntaxKind::ExpressionStatement
+            ],
+        ]
+    );
+    assert!(
+        parser
+            .arena
+            .node_array(crate::NodeArrayId::new(2))
+            .has_trailing_comma
+    );
+    parser.truncate_node_list(outer);
+    assert!(parser.node_stack.is_empty());
+}
+
+#[test]
+fn failed_parameter_list_releases_nested_lists_and_restores_its_outer_frame() {
+    let mut parser = Parser::new(
+        "a.ts".into(),
+        "a = f(b, c), @dec() )",
+        LanguageVariant::Standard,
+        false,
+    );
+    parser.next_token();
+    let outer = parser.start_node_list();
+    let retained = parser.create_missing_node(SyntaxKind::Identifier, false, None, &[]);
+    parser.node_stack.push(retained);
+    parser.parsing_context = ParsingContext::SourceElements.bit();
+    let arrays_before = parser.arena.node_arrays().len();
+    let parameters = parser.parse_delimited_list_worker(
+        ParsingContext::Parameters,
+        |parser| parser.parse_parameter_for_speculation(false),
+        false,
+    );
+    assert!(parameters.is_none());
+    assert_eq!(parser.parsing_context, ParsingContext::SourceElements.bit());
+    assert_eq!(parser.node_stack, [retained]);
+    #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+    assert_eq!(parser.node_list_marks, [outer]);
+    assert_eq!(parser.token(), SyntaxKind::CloseParenToken);
+    // The completed nested arrays survive; the failed parameter array is
+    // never allocated. This step changes temporary ownership only.
+    assert_eq!(parser.arena.node_arrays().len() - arrays_before, 3);
+    parser.truncate_node_list(outer);
+}
+
+#[test]
 fn delimited_list_tracks_trailing_comma() {
     let mut parser = Parser::new("a.ts".into(), "this,)", LanguageVariant::Standard, false);
     parser.next_token();

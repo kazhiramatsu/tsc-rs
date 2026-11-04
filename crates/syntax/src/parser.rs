@@ -223,6 +223,11 @@ struct Parser<'text> {
     scanner: Scanner<'text>,
     source_text: &'text str,
     arena: NodeArena,
+    /// Completed siblings of active lists. Each nested list releases its
+    /// suffix before its result is pushed by the enclosing list.
+    node_stack: Vec<NodeId>,
+    #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+    node_list_marks: Vec<usize>,
     file_name: JsString,
     language_variant: LanguageVariant,
     javascript_file: bool,
@@ -259,6 +264,20 @@ struct Parser<'text> {
     subtree_copier: Option<SubtreeCopier>,
     incremental_options: IncrementalParseOptions,
     incremental_stats: IncrementalParseStats,
+}
+
+#[cfg(feature = "parser-list-metrics")]
+std::thread_local! {
+    static LIST_STACK_METRICS: std::cell::Cell<(usize, usize)> = const {
+        std::cell::Cell::new((0, 0))
+    };
+}
+
+/// Peak retained elements and open list marks on this thread since the last
+/// call. Available only in the corpus measurement build.
+#[cfg(feature = "parser-list-metrics")]
+pub fn take_parser_list_stack_metrics() -> (usize, usize) {
+    LIST_STACK_METRICS.with(|metrics| metrics.replace((0, 0)))
 }
 
 /// tsc Tristate: the arrow-function lookahead verdict.
@@ -927,6 +946,9 @@ impl<'text> Parser<'text> {
             scanner: Scanner::new(text, language_variant),
             source_text: text,
             arena: NodeArena::new(),
+            node_stack: Vec::new(),
+            #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+            node_list_marks: Vec::new(),
             file_name,
             language_variant,
             javascript_file,
@@ -1666,6 +1688,50 @@ impl<'text> Parser<'text> {
         }
     }
 
+    fn start_node_list(&mut self) -> usize {
+        let mark = self.node_stack.len();
+        #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+        self.node_list_marks.push(mark);
+        #[cfg(feature = "parser-list-metrics")]
+        LIST_STACK_METRICS.with(|metrics| {
+            let (length, marks) = metrics.get();
+            metrics.set((length, marks.max(self.node_list_marks.len())));
+        });
+        mark
+    }
+
+    fn truncate_node_list(&mut self, mark: usize) {
+        debug_assert!(self.node_stack.len() >= mark);
+        #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+        {
+            let last = self.node_list_marks.pop();
+            debug_assert_eq!(last, Some(mark), "list frames must close in order");
+        }
+        // Every stack shrink goes through here, so its length before shrinking
+        // captures the high-water mark without instrumenting each push.
+        #[cfg(feature = "parser-list-metrics")]
+        LIST_STACK_METRICS.with(|metrics| {
+            let (length, marks) = metrics.get();
+            metrics.set((length.max(self.node_stack.len()), marks));
+        });
+        self.node_stack.truncate(mark);
+        debug_assert_eq!(self.node_stack.len(), mark);
+    }
+
+    fn finish_node_list(
+        &mut self,
+        mark: usize,
+        pos: usize,
+        end: usize,
+        has_trailing_comma: bool,
+    ) -> crate::NodeArrayId {
+        let array = self
+            .arena
+            .alloc_array(&self.node_stack[mark..], pos, end, has_trailing_comma);
+        self.truncate_node_list(mark);
+        array
+    }
+
     fn parse_list(
         &mut self,
         context: ParsingContext,
@@ -1673,7 +1739,7 @@ impl<'text> Parser<'text> {
     ) -> crate::NodeArrayId {
         let saved_context = self.parsing_context;
         self.parsing_context |= context.bit();
-        let mut list = Vec::new();
+        let mark = self.start_node_list();
         let list_pos = self.node_pos();
 
         while !self.is_list_terminator(context) {
@@ -1684,7 +1750,7 @@ impl<'text> Parser<'text> {
                     .map(|node| self.consume_node(node))
                     .or_else(|| parse_element(self));
                 if let Some(element) = element {
-                    list.push(element);
+                    self.node_stack.push(element);
                     if start_pos == self.scanner.full_start_pos() {
                         self.record_token_skip(ParseTokenSkipSite::ListNoProgress);
                         self.next_token();
@@ -1698,8 +1764,7 @@ impl<'text> Parser<'text> {
         }
 
         self.parsing_context = saved_context;
-        self.arena
-            .alloc_array(&list, list_pos, self.node_pos(), false)
+        self.finish_node_list(mark, list_pos, self.node_pos(), false)
     }
 
     fn parse_delimited_list(
@@ -1722,7 +1787,7 @@ impl<'text> Parser<'text> {
     ) -> Option<crate::NodeArrayId> {
         let saved_context = self.parsing_context;
         self.parsing_context |= context.bit();
-        let mut list = Vec::new();
+        let mark = self.start_node_list();
         let list_pos = self.node_pos();
 
         loop {
@@ -1734,9 +1799,10 @@ impl<'text> Parser<'text> {
                     .or_else(|| parse_element(self));
                 let Some(element) = element else {
                     self.parsing_context = saved_context;
+                    self.truncate_node_list(mark);
                     return None;
                 };
-                list.push(element);
+                self.node_stack.push(element);
 
                 if self.parse_optional(SyntaxKind::CommaToken) {
                     continue;
@@ -1778,13 +1844,10 @@ impl<'text> Parser<'text> {
         // consumed in its place, such as a semicolon between object literal
         // members.
         let end = self.node_pos();
-        let has_trailing_comma = list
+        let has_trailing_comma = self.node_stack[mark..]
             .last()
             .is_some_and(|&last| (self.arena.node(last).end as usize) < end);
-        Some(
-            self.arena
-                .alloc_array(&list, list_pos, end, has_trailing_comma),
-        )
+        Some(self.finish_node_list(mark, list_pos, end, has_trailing_comma))
     }
 
     fn is_list_terminator(&mut self, context: ParsingContext) -> bool {
@@ -10101,6 +10164,9 @@ impl<'text> Parser<'text> {
         end_of_file_token: NodeId,
         process_pragmas: bool,
     ) -> FinishedParse {
+        debug_assert!(self.node_stack.is_empty());
+        #[cfg(any(debug_assertions, feature = "parser-list-metrics"))]
+        debug_assert!(self.node_list_marks.is_empty());
         let eof_end = self.arena.node(end_of_file_token).end as usize;
         // tsc createSourceFile2 (29214) passes sourceFlags: the root
         // carries Ambient/JavaScriptFile like every other node (the
