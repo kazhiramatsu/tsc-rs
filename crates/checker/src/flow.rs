@@ -40,6 +40,7 @@ use tsc_types::{
     TypeFlags, TypeId,
 };
 
+use crate::flow_memo::UNTAINTED;
 use crate::state::{CheckResult, CheckerState};
 
 /// tsc FlowType = Type | IncompleteType (checker-key §4.1). The
@@ -88,6 +89,10 @@ pub(crate) struct FlowQuery {
     pub(crate) file: usize,
     pub(crate) flow_depth: u32,
     pub(crate) shared_flow_start: usize,
+    /// Reference-specific reads taint frames younger than this walk.
+    pub(crate) walk_floor: u32,
+    pub(crate) impure_shared: u32,
+    pub(crate) reduce_depth: u32,
     /// tsc `key`/`isKeySet` (70395-70396): the lazily computed flow
     /// cache key — outer None = not computed yet (isKeySet false),
     /// Some(None) = computed, reference has no key.
@@ -113,6 +118,17 @@ pub(crate) struct FlowQuery {
     pub(crate) synthetic_this_root: bool,
 }
 
+/// A per-query shared answer and the dependencies of its original walk.
+#[derive(Clone, Copy)]
+pub(crate) struct SharedFlow {
+    pub(crate) flow: FlowId,
+    pub(crate) flow_type: FlowType,
+    pub(crate) transient: u32,
+    pub(crate) reference: u32,
+    pub(crate) height: u16,
+    pub(crate) flags: u8,
+}
+
 /// One in-progress loop-label fixpoint frame: tsc's parallel
 /// flowLoopNodes[i]/flowLoopKeys[i]/flowLoopTypes[i] entry at index
 /// i < flowLoopCount (the Vec length here). Published before a
@@ -123,6 +139,7 @@ pub(crate) struct FlowLoopEntry {
     pub(crate) flow: FlowId,
     pub(crate) key: JsString,
     pub(crate) types: Vec<TypeId>,
+    pub(crate) serial: u32,
 }
 
 impl<'a> CheckerState<'a> {
@@ -292,11 +309,19 @@ impl<'a> CheckerState<'a> {
             file: self.binder.file_index_of_node(reference),
             flow_depth: 0,
             shared_flow_start,
+            walk_floor: self.flow_memo.next_serial(),
+            impure_shared: 0,
+            reduce_depth: 0,
             key: None,
             synthetic_props: None,
             synthetic_this_root: false,
         };
+        let frame_depth = self.flow_memo.frame_depth();
+        let saved_height = self.flow_memo.save_height();
         let walk = self.synthetic_condition_walk(&mut query, antecedent, condition, assume_true);
+        self.flow_memo.restore_height(saved_height);
+        debug_assert_eq!(self.flow_memo.frame_depth(), frame_depth);
+        debug_assert_eq!(query.reduce_depth, 0);
         self.shared_flow.truncate(shared_flow_start);
         walk.and_then(|flow_type| self.flow_query_postlude(&query, flow_type.get_type()))
     }
@@ -363,11 +388,19 @@ impl<'a> CheckerState<'a> {
             file: flow_file,
             flow_depth: 0,
             shared_flow_start,
+            walk_floor: self.flow_memo.next_serial(),
+            impure_shared: 0,
+            reduce_depth: 0,
             key: None,
             synthetic_props,
             synthetic_this_root,
         };
+        let frame_depth = self.flow_memo.frame_depth();
+        let saved_height = self.flow_memo.save_height();
         let walk = self.get_type_at_flow_node(&mut query, flow_node);
+        self.flow_memo.restore_height(saved_height);
+        debug_assert_eq!(self.flow_memo.frame_depth(), frame_depth);
+        debug_assert_eq!(query.reduce_depth, 0);
         // sharedFlowCount = sharedFlowStart — restored BEFORE the `?`
         // so a CheckAbort unwind leaves no shared-cache residue (the
         // unwind invariant).
@@ -510,21 +543,28 @@ impl<'a> CheckerState<'a> {
             self.trace_instant("getTypeAtFlowNode_DepthLimit", || {
                 tsc_types::tracing::Args::new().with("depth", depth)
             });
+            self.flow_memo.taint(0);
             self.flow_analysis_disabled = true;
             self.report_flow_control_error(query.reference);
             return Ok(FlowType::Type(self.tables.intrinsics.error));
         }
+        self.flow_frame_begin();
         query.flow_depth += 1;
         let mut shared: Option<FlowId> = None;
-        loop {
+        let mut shared_height = None;
+        let walk = (|| loop {
             let flags = self.flow_flags_of(query.file, flow);
             if flags.intersects(FlowFlags::SHARED) {
                 // The shared-flow cache is scoped to THIS
                 // getFlowTypeOfReference invocation (sharedFlowStart..).
                 for index in query.shared_flow_start..self.shared_flow.len() {
-                    if self.shared_flow[index].0 == flow {
-                        query.flow_depth -= 1;
-                        return Ok(self.shared_flow[index].1);
+                    if self.shared_flow[index].flow == flow {
+                        let cached = self.shared_flow[index];
+                        self.flow_memo_consume(cached.transient, cached.reference);
+                        self.flow_memo.add_flags(cached.flags);
+                        shared_height = Some(cached.height);
+                        shared = None;
+                        return Ok(cached.flow_type);
                     }
                 }
                 shared = Some(flow);
@@ -590,7 +630,10 @@ impl<'a> CheckerState<'a> {
                 let saved = self
                     .reduce_label_overrides
                     .insert((query.file, target), swapped);
+                self.flow_memo.taint(0);
+                query.reduce_depth += 1;
                 let result = self.get_type_at_flow_node(query, antecedent);
+                query.reduce_depth -= 1;
                 match saved {
                     Some(previous) => {
                         self.reduce_label_overrides
@@ -639,12 +682,27 @@ impl<'a> CheckerState<'a> {
                 // Unreachable terminus.
                 ty = FlowType::Type(self.convert_auto_to_any(query.declared_type)?);
             }
-            if let Some(shared_node) = shared {
-                self.shared_flow.push((shared_node, ty));
-            }
-            query.flow_depth -= 1;
             return Ok(ty);
+        })();
+        query.flow_depth -= 1;
+        let (taint, height) = match shared_height {
+            Some(height) => (self.flow_frame_end_with(height), height),
+            None => self.flow_frame_end(),
+        };
+        if let (Ok(ty), Some(shared_node)) = (&walk, shared) {
+            if taint.transient != UNTAINTED {
+                query.impure_shared += 1;
+            }
+            self.shared_flow.push(SharedFlow {
+                flow: shared_node,
+                flow_type: *ty,
+                transient: taint.transient,
+                reference: taint.reference,
+                height,
+                flags: taint.flags,
+            });
         }
+        walk
     }
 
     // ---- the arms (assignment + array mutation live since 6.2,
@@ -1145,6 +1203,8 @@ impl<'a> CheckerState<'a> {
                 && !entry.types.is_empty()
             {
                 let types = entry.types.clone();
+                let serial = entry.serial;
+                self.flow_memo.taint(serial);
                 let union = self.get_union_or_evolving_array_type(
                     query,
                     &types,
@@ -1167,15 +1227,17 @@ impl<'a> CheckerState<'a> {
                 // are lower bounds and must not be cached (the first
                 // non-negotiable). Pop + restore BEFORE `?` so an
                 // abort unwind leaves no frame behind.
+                let serial = self.flow_memo.next_serial();
                 self.flow_loop_stack.push(FlowLoopEntry {
                     file: query.file,
                     flow,
                     key: key.clone(),
                     types: antecedent_types.clone(),
+                    serial,
                 });
-                let save_flow_type_cache = self.flow_type_cache.take();
+                let save_flow_type_cache = self.take_flow_type_cache();
                 let walked = self.get_type_at_flow_node(query, antecedent);
-                self.flow_type_cache = save_flow_type_cache;
+                self.restore_flow_type_cache(save_flow_type_cache);
                 self.flow_loop_stack.pop();
                 let flow_type = walked?;
                 // The fixpoint may have been finalized during the
@@ -1876,7 +1938,27 @@ impl<'a> CheckerState<'a> {
             // `ty`.
             return Ok(ty);
         }
-        self.get_narrowable_type_for_reference(ty, query.reference, CheckMode::NORMAL)
+        let (narrowable, position_read) = self.get_narrowable_type_for_reference_with_position(
+            ty,
+            query.reference,
+            CheckMode::NORMAL,
+        )?;
+        if position_read {
+            self.flow_memo.taint_reference(query.walk_floor);
+        }
+        Ok(narrowable)
+    }
+
+    /// Property-symbol reads depend on this reference node, beyond the
+    /// structure that a later memo key can describe.
+    pub(crate) fn is_constant_reference_of_walk(&mut self, query: &FlowQuery) -> CheckResult<bool> {
+        if matches!(
+            self.kind_of(query.reference),
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+        ) {
+            self.flow_memo.taint_reference(query.walk_floor);
+        }
+        self.is_constant_reference(query.reference)
     }
 
     /// tsc-port: getInitialType @6.0.3
