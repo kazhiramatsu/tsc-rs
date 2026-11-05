@@ -188,7 +188,7 @@ impl<'a> BinderWorker<'a> {
     /// JS file carries it (parser context flags); the root carries
     /// sourceFlags, so the file-level question reads the root (once, when
     /// the binder is made: the binder never changes the flag).
-    #[inline]
+    #[inline(always)]
     pub(crate) fn is_in_js_file(&self) -> bool {
         self.in_js_file
     }

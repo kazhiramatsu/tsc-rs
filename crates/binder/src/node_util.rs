@@ -1004,6 +1004,7 @@ pub fn is_declaration(tree: &impl NodeLookup, node: NodeId) -> bool {
 /// JS assignment declarations reuse the binder's authoritative
 /// assignment-kind classifier. This became a checker prerequisite when
 /// M7 activated unused-local diagnostics for function owners.
+#[inline(always)]
 pub fn get_non_assigned_name_of_declaration(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
     match kind_of(tree, id) {
         // An identifier names no declaration (tsgo has no case for one), but
@@ -3092,6 +3093,7 @@ pub fn is_push_or_unshift_identifier(tree: &impl NodeLookup, node: NodeId) -> bo
 }
 
 /// tsc canHaveFlowNode (15333).
+#[inline(always)]
 pub fn can_have_flow_node(tree: &impl NodeLookup, node: NodeId) -> bool {
     let kind = kind_of(tree, node);
     if kind as u16 >= SyntaxKind::FirstStatement as u16

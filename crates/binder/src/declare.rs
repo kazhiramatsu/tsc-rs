@@ -312,6 +312,7 @@ impl BindData {
 
     /// The binder's view of tsc node.flags for `node` of `arena`, this
     /// document's syntax.
+    #[inline(always)]
     pub fn flags_of(&self, node: NodeId, arena: &NodeArena) -> NodeFlags {
         let index = (node.index() - arena.node_base()) as usize;
         self.node_flags_mut.get(index, arena.nodes()[index].flags)
@@ -431,11 +432,13 @@ impl<'a> BinderWorker<'a> {
     }
 
     /// `node`'s locals table, created (with its bit) on first use.
+    #[inline(always)]
     pub(crate) fn locals_entry(&mut self, node: NodeId) -> &mut SymbolTable {
         self.set_has_locals(node, true);
         self.locals.entry(node).or_default()
     }
 
+    #[inline(always)]
     pub fn set_flags_of(&mut self, node: NodeId, flags: NodeFlags) {
         let index = (node.index() - self.source.arena.node_base()) as usize;
         debug_assert_eq!(
@@ -848,6 +851,7 @@ impl<'a> BinderWorker<'a> {
     ///
     /// The members/exports table-creation arms are existence-only in
     /// tsc (tables here always exist, see symbols.rs).
+    #[inline(always)]
     pub fn add_declaration_to_symbol(
         &mut self,
         symbol: SymbolId,
@@ -904,6 +908,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:42534-42598
     ///
     /// JS-only: the BinaryExpression module.exports arm.
+    #[inline(always)]
     pub fn get_declaration_name(&mut self, node: NodeId) -> Option<EscapedName> {
         if kind_of(self.source, node) == SyntaxKind::ExportAssignment {
             let is_export_equals = match &self.source.arena.node(node).data() {
