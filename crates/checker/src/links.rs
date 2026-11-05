@@ -434,27 +434,25 @@ impl NodeLinksCold {
     }
 }
 
-/// tsc SymbolLinks — the fields a large share of symbol records set.
+/// tsc SymbolLinks — the fields a large share of symbol records set: a
+/// transient symbol's record, and the view [`LinksTables::symbol`] gives of
+/// any symbol.
 ///
-/// Declared symbols mostly carry their type and reference meaning;
-/// instantiated symbols, the bulk of the records on a large program, carry
-/// their check flags, target and mapper. The other SymbolLinks fields, except
-/// the name type most symbol reads consult, live in [`SymbolLinksCold`].
+/// Instantiated symbols, the bulk of the records on a large program, carry
+/// their check flags, target and mapper. A declared type and a reference
+/// meaning are a persistent symbol's (its paged record) and almost never a
+/// transient one's (VS Code: 450 and 163 of 5.9 M), so they are read through
+/// [`LinksTables::symbol_declared_type`] and
+/// [`LinksTables::symbol_is_referenced`]. The other SymbolLinks fields,
+/// except the name type most symbol reads consult, live in
+/// [`SymbolLinksCold`].
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SymbolLinks {
-    /// tsc links.declaredType (getDeclaredTypeOfClassOrInterface 57381).
-    pub declared_type: IdSlot<TypeId>,
     /// tsc links.type (getTypeOfVariableOrParameterOrProperty 56633).
     pub type_of_symbol: IdSlot<TypeId>,
     /// tsc TransientSymbol links.checkFlags (synthetic union/
     /// intersection properties, createUnionOrIntersectionProperty).
     pub check_flags: tsc_types::CheckFlags,
-    /// tsc symbol.isReferenced — a SymbolFlags meaning mask, not a
-    /// boolean. resolveName ORs the requested meaning into this field;
-    /// the JSX/private-property direct markers write SymbolFlags::All.
-    /// Unused type parameters and value declarations consume different
-    /// bits of the same merged symbol.
-    pub is_referenced: tsc_types::SymbolFlags,
     /// tsc links.target for CheckFlags::INSTANTIATED symbols
     /// (instantiateSymbol 63455).
     pub target: Option<SymbolId>,
@@ -466,7 +464,7 @@ pub struct SymbolLinks {
     pub name_type: Option<TypeId>,
 }
 
-const _: () = assert!(std::mem::size_of::<SymbolLinks>() == 28);
+const _: () = assert!(std::mem::size_of::<SymbolLinks>() == 20);
 
 /// The SymbolLinks of a persistent (binder) symbol: the fields tsc writes on
 /// any symbol. Check flags, target, mapper and name type exist only on
@@ -474,8 +472,14 @@ const _: () = assert!(std::mem::size_of::<SymbolLinks>() == 28);
 /// reads them as unset, as `getCheckFlags` answers 0 for it.
 #[derive(Clone, Copy, Debug, Default)]
 struct PersistentSymbolLinks {
+    /// tsc links.declaredType (getDeclaredTypeOfClassOrInterface 57381).
     declared_type: IdSlot<TypeId>,
     type_of_symbol: IdSlot<TypeId>,
+    /// tsc symbol.isReferenced — a SymbolFlags meaning mask, not a
+    /// boolean. resolveName ORs the requested meaning into this field;
+    /// the JSX/private-property direct markers write SymbolFlags::All.
+    /// Unused type parameters and value declarations consume different
+    /// bits of the same merged symbol.
     is_referenced: tsc_types::SymbolFlags,
 }
 
@@ -539,7 +543,7 @@ pub struct SymbolLinksCold {
     pub extended_containers: SparseLinks<SymbolId, Option<Vec<Vec<SymbolId>>>>,
     /// tsc SymbolLinks.referenced (markAliasSymbolAsReferenced 71930)
     /// — alias accessibility/emit bookkeeping. This is deliberately
-    /// distinct from Symbol.isReferenced ([`SymbolLinks::is_referenced`]):
+    /// distinct from Symbol.isReferenced ([`LinksTables::symbol_is_referenced`]):
     /// unused locals consume the latter, while alias visibility consumers
     /// read this bit.
     pub alias_referenced: SparseLinks<SymbolId, bool>,
@@ -1070,7 +1074,15 @@ impl LinksTables {
         // tail is address space, so they count by length.
         let transient = (
             self.transient_symbols.len(),
-            self.transient_symbols.len() * std::mem::size_of::<SymbolLinks>(),
+            self.transient_symbols.len() * std::mem::size_of::<SymbolLinks>()
+                + self.transient_declared_types.capacity()
+                    * (std::mem::size_of::<(u32, IdSlot<TypeId>)>() + 1)
+                    * 8
+                    / 7
+                + self.transient_is_referenced.capacity()
+                    * (std::mem::size_of::<(u32, tsc_types::SymbolFlags)>() + 1)
+                    * 8
+                    / 7,
         );
         let ty = self.ty.memory_usage();
         let node_cold = self.node_cold.memory_usage();
@@ -1317,6 +1329,10 @@ pub struct LinksTables {
     /// transient symbol gets links, so the table is dense; it grows on the
     /// first write past its end (an unwritten record reads as unset).
     transient_symbols: Vec<SymbolLinks>,
+    /// The declared types and reference meanings of the few transient
+    /// symbols that have one, by their dense position.
+    transient_declared_types: FxHashMap<u32, IdSlot<TypeId>>,
+    transient_is_referenced: FxHashMap<u32, tsc_types::SymbolFlags>,
     /// A checker's type ids are dense from zero: a read is a bounds check
     /// and a load (see [`DenseLinks`]).
     ty: DenseLinks<TypeLinks>,
@@ -1434,13 +1450,44 @@ impl LinksTables {
                 .unwrap_or_default(),
             None => match self.persistent_symbols.get(PersistentSymbol(id)) {
                 Some(links) => SymbolLinks {
-                    declared_type: links.declared_type,
                     type_of_symbol: links.type_of_symbol,
-                    is_referenced: links.is_referenced,
                     ..SymbolLinks::default()
                 },
                 None => SymbolLinks::default(),
             },
+        }
+    }
+
+    /// tsc `links.declaredType` of any symbol, once resolved.
+    #[inline]
+    pub(crate) fn symbol_declared_type(&self, id: SymbolId) -> Option<TypeId> {
+        perf::bump(PerfCounter::LinksSymbolReads);
+        match transient_index(id) {
+            Some(index) => self
+                .transient_declared_types
+                .get(&(index as u32))
+                .and_then(|slot| slot.resolved()),
+            None => self
+                .persistent_symbols
+                .get(PersistentSymbol(id))
+                .and_then(|links| links.declared_type.resolved()),
+        }
+    }
+
+    /// tsc `symbol.isReferenced` of any symbol.
+    #[inline]
+    pub(crate) fn symbol_is_referenced(&self, id: SymbolId) -> tsc_types::SymbolFlags {
+        perf::bump(PerfCounter::LinksSymbolReads);
+        match transient_index(id) {
+            Some(index) => self
+                .transient_is_referenced
+                .get(&(index as u32))
+                .copied()
+                .unwrap_or_default(),
+            None => self
+                .persistent_symbols
+                .get(PersistentSymbol(id))
+                .map_or_else(Default::default, |links| links.is_referenced),
         }
     }
 
@@ -1463,8 +1510,13 @@ impl LinksTables {
     /// `links.declaredType` of any symbol, for writing.
     #[inline]
     fn symbol_declared_type_mut(&mut self, id: SymbolId) -> &mut IdSlot<TypeId> {
-        if transient_index(id).is_some() {
-            &mut self.transient_symbol_mut(id).declared_type
+        if let Some(index) = transient_index(id) {
+            // The record exists for every written transient symbol, as before
+            // these fields left it (the trace counts records).
+            self.transient_symbol_mut(id);
+            self.transient_declared_types
+                .entry(index as u32)
+                .or_default()
         } else {
             &mut self
                 .persistent_symbols
@@ -1489,8 +1541,11 @@ impl LinksTables {
     /// `symbol.isReferenced` of any symbol, for writing.
     #[inline]
     fn symbol_is_referenced_mut(&mut self, id: SymbolId) -> &mut tsc_types::SymbolFlags {
-        if transient_index(id).is_some() {
-            &mut self.transient_symbol_mut(id).is_referenced
+        if let Some(index) = transient_index(id) {
+            self.transient_symbol_mut(id);
+            self.transient_is_referenced
+                .entry(index as u32)
+                .or_default()
         } else {
             &mut self
                 .persistent_symbols

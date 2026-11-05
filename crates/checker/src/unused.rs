@@ -236,10 +236,7 @@ impl<'a> CheckerState<'a> {
                         .combined_modifier_flags(member)
                         .intersects(ModifierFlags::PRIVATE)
                         || self.kind_of(name) == SyntaxKind::PrivateIdentifier;
-                    if self
-                        .links
-                        .read_symbol(symbol, |links| links.is_referenced)
-                        .is_empty()
+                    if self.links.symbol_is_referenced(symbol).is_empty()
                         && private
                         && !NodeFlags::from_bits(self.node_flags(member))
                             .intersects(NodeFlags::AMBIENT)
@@ -261,10 +258,7 @@ impl<'a> CheckerState<'a> {
                     };
                     for parameter in self.nodes_of(parameters) {
                         let symbol = self.get_symbol_of_declaration(parameter)?;
-                        if !self
-                            .links
-                            .read_symbol(symbol, |links| links.is_referenced)
-                            .is_empty()
+                        if !self.links.symbol_is_referenced(symbol).is_empty()
                             || !node_util::has_syntactic_modifier(
                                 &Published,
                                 parameter,
@@ -430,7 +424,7 @@ impl<'a> CheckerState<'a> {
         let symbol = self.get_symbol_of_declaration(type_parameter)?;
         Ok(!self
             .links
-            .read_symbol(symbol, |links| links.is_referenced)
+            .symbol_is_referenced(symbol)
             .intersects(SymbolFlags::TYPE_PARAMETER)
             && !self.identifier_starts_with_underscore(name))
     }
@@ -451,7 +445,7 @@ impl<'a> CheckerState<'a> {
         let mut import_clauses = Vec::<(NodeId, Vec<NodeId>)>::new();
         for local in locals {
             let symbol = self.binder.symbol(local);
-            let reference_kinds = self.links.read_symbol(local, |links| links.is_referenced);
+            let reference_kinds = self.links.symbol_is_referenced(local);
             let used = if symbol.flags.intersects(SymbolFlags::TYPE_PARAMETER) {
                 !symbol.flags.intersects(SymbolFlags::VARIABLE)
                     || reference_kinds.intersects(SymbolFlags::VARIABLE)
@@ -612,7 +606,7 @@ impl<'a> CheckerState<'a> {
         if let Some(symbol) = self.get_symbol_of_declaration_opt(node) {
             if self
                 .links
-                .read_symbol(symbol, |links| links.is_referenced)
+                .symbol_is_referenced(symbol)
                 .intersects(SymbolFlags::VARIABLE)
             {
                 return Ok(false);

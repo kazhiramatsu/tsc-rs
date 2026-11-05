@@ -3772,10 +3772,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_symbol(symbol, |links| links.declared_type.resolved())
-        {
+        if let Some(cached) = self.links.symbol_declared_type(symbol) {
             perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(cached);
         }
@@ -3904,10 +3901,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_symbol(symbol, |links| links.declared_type.resolved())
-        {
+        if let Some(cached) = self.links.symbol_declared_type(symbol) {
             perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(cached);
         }
@@ -6281,19 +6275,13 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(SymbolFlags::ALIAS) {
             // getDeclaredTypeOfAlias (57498-57501): declaredType memo
             // over the alias target's declared type.
-            if let Some(declared) = self
-                .links
-                .read_symbol(symbol, |links| links.declared_type.resolved())
-            {
+            if let Some(declared) = self.links.symbol_declared_type(symbol) {
                 perf::bump(PerfCounter::DeclaredTypeHits);
                 return Ok(declared);
             }
             let target = self.resolve_alias(symbol)?;
             let declared = self.get_declared_type_of_symbol(target)?;
-            if let Some(already) = self
-                .links
-                .read_symbol(symbol, |links| links.declared_type.resolved())
-            {
+            if let Some(already) = self.links.symbol_declared_type(symbol) {
                 perf::bump(PerfCounter::DeclaredTypeHits);
                 return Ok(already);
             }
@@ -9659,10 +9647,7 @@ impl<'a> CheckerState<'a> {
     /// enums that redeclare a member would make tsc's LAST write win where
     /// ours keeps the FIRST — those fixtures are 2300-family errors.
     pub(crate) fn get_declared_type_of_enum(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
-        if let Some(declared) = self
-            .links
-            .read_symbol(symbol, |links| links.declared_type.resolved())
-        {
+        if let Some(declared) = self.links.symbol_declared_type(symbol) {
             perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(declared);
         }
@@ -9696,11 +9681,7 @@ impl<'a> CheckerState<'a> {
                     None => self.tables.create_computed_enum_type(member_symbol),
                 };
                 let member_type = self.tables.get_fresh_type_of_literal_type(base);
-                if self
-                    .links
-                    .read_symbol(member_symbol, |links| links.declared_type.resolved())
-                    .is_none()
-                {
+                if self.links.symbol_declared_type(member_symbol).is_none() {
                     self.links.set_symbol_declared_type(
                         self.speculation_depth,
                         member_symbol,
@@ -9731,10 +9712,7 @@ impl<'a> CheckerState<'a> {
         } else {
             self.tables.create_computed_enum_type(symbol)
         };
-        if let Some(declared) = self
-            .links
-            .read_symbol(symbol, |links| links.declared_type.resolved())
-        {
+        if let Some(declared) = self.links.symbol_declared_type(symbol) {
             perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(declared);
         }
@@ -9757,10 +9735,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<TypeId> {
-        if let Some(declared) = self
-            .links
-            .read_symbol(symbol, |links| links.declared_type.resolved())
-        {
+        if let Some(declared) = self.links.symbol_declared_type(symbol) {
             perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(declared);
         }
@@ -9768,10 +9743,7 @@ impl<'a> CheckerState<'a> {
             .get_parent_of_symbol(symbol)
             .expect("enum member symbols have enum parents");
         let enum_type = self.get_declared_type_of_enum(parent)?;
-        if let Some(declared) = self
-            .links
-            .read_symbol(symbol, |links| links.declared_type.resolved())
-        {
+        if let Some(declared) = self.links.symbol_declared_type(symbol) {
             perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(declared);
         }
