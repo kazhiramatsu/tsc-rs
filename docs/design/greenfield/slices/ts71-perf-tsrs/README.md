@@ -1670,6 +1670,49 @@ release は `fe1266e1b`＝test 以外同じ。`2bbefe4e5` は debug_assert! の�
   （6.0.3 との差は両方とも同じ 81 例）
 - 計測は上の通り
 
+## parser が identifier の名前を、parse の間だけ持つ名前の cache で引く（branch `perf/ts71-parser-name-cache`、gate を通った 2 枚目）
+
+parser が作る identifier はそれぞれ escape した text を intern する（`current_token_name` → `EscapedName::escape`）。
+その経路は毎回 `names::intern` を通っていた：Fx hash、thread-local の access、`RefCell` の borrow、32 byte の slot の
+copy、当たりの前の `memcmp` の呼び出し（vscode/src で名前あたり ≈ 177 命令、うち cache の当たりの経路だけで ≈ 156）。
+tsgo と tsrs は parse では source の slice を持ち、名前は後で hash する。
+
+**修正**：thread ごとに escape した名前の cache を持ち、parse はそれを parse の間だけ持つ（`names::HeldNameCache`：
+parser を作る時に thread から取り、捨てる時に返す。別の parse が持っている間に始まった parse は新しい cache を得る）。
+16 byte 以下の名前は長さと重なり合う 2 つの little-endian word で正確に key になり、当たりは乗算 1 つと word の比較
+3 つで、thread-local の access も borrow も呼び出しもない。長い名前は hash・長さ・text で引く。外れは今まで通り共有の
+表で intern する（`EscapedName::escape` と共有する `escaped_id`）ので、id はすべて変わらない。memory は parse する
+thread あたり 512 KiB。
+
+**gate**：
+- micro-batch（vscode/src の identifier token 2,775,905 個、11 round の合計、3 rep）：`escape` は 1 呼び出し ≈ 177。
+  `escape` と全く同じ id を返す prototype（5,551,810 呼び出しで確認）の節約は、thread-local・RefCell・copy を除くだけ
+  なら 31.7、この設計の key・hash・比較で **78.5**。
+- 独立した判定：A 0.46 G（0.38〜0.53）、B 0.47 G（0.35〜0.56。参照の 2 engine も後で払う仕事は identifier あたり
+  ≈ 20〜30 命令だけ）、C（反証役）は ≈ 0.40 G に弱める（0.30〜0.50。cache を file ごとに 1 回取ることが条件：
+  呼び出しごとの thread-local の access なら ≈ 0.28 G で gate を通らない）。
+- 予想（branch の前に台帳に記入）：VS Code −0.40〜−0.47 G（帯 −0.30〜−0.53）。この設計の CLI の pilot：low mode の
+  median −527 M、同じ mode の組 −515〜−608 M（7 組）。
+
+**計測**：1 thread、静かな machine（16:52〜16:55、M7 lane を止めて）、親 `d4d9d0364` 比。VS Code は 9 回で、run は
+low mode とそれより ≈ 0.9 G 高い mode に分かれる（親は low 6・high 3、この PR は low 5・high 4。`perf11/modes.py`）。
+| project | 命令数 |
+|---|---:|
+| VS Code | **−0.40%**（low mode の median −535 M、high mode −560 M、同じ mode の組 −537 / −515 / −565 / −522 M。全 run の median は mode の混ざり方で −633 M と読める） |
+| playwright / hono / ts / zod / effect | −0.46% / −0.43% / −0.42% / −0.40% / −0.39% |
+| next / vue | −0.31% / −0.22% |
+
+予想（−0.40〜−0.47 G、帯 −0.30〜−0.53）の帯の上端。CLI の pilot（−527 M）と一致。footprint は ±4 MiB。
+
+**記録。** PR [#897](https://github.com/kazhiramatsu/tsc-rs/pull/897) → merge `2508f2c5c`（2026-11-05。`e8ee6147e` の上、最終 head `d74d3374e`）。hosted run
+[41990745045](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41990745045)：全 job pass。local（hosted がしないことだけ、`d74d3374e`）：
+- unit test（cache が `escape` と同じ名前を返す：1〜40 byte の全長と各位置の 1 byte 違い、`__` の名前、空、multi-byte、衝突する 150,000 の text を 2 round、parse の中の parse）
+- types の test 60、syntax の test 277、fmt、clippy（`-D warnings`）、release build
+- 8 case で出力（exit code・stdout・stderr）が親と一致。Identifiers・Symbols・Types・Instantiations も 8 project とも一致
+- fingerprint oracle：`main-d4d9d0364.tsv` に対して 143,190 行のうち差は 0
+- gate の記録：`gate-card11/VERDICTS.md`、CLI の pilot `gate-card11/cli/`
+- 計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
