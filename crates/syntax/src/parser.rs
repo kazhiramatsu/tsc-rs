@@ -10326,6 +10326,11 @@ impl<'text> Parser<'text> {
 
     /// tsgo finishNode: the node's children get it as their parent.
     fn attach_children(&mut self, id: NodeId) {
+        // M8 PILOT (never merged): parents are not attached, to price the attachment in the parse batch.
+        if true {
+            let _ = id;
+            return;
+        }
         let mut scratch = std::mem::take(&mut self.child_scratch);
         self.arena.attach_children(id, &mut scratch);
         self.child_scratch = scratch;
