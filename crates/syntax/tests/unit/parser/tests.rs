@@ -778,6 +778,26 @@ fn source_flags_stamp_the_source_file_root() {
         .intersects(NodeFlags::JAVA_SCRIPT_FILE));
 }
 
+/// tsgo marks a module's top-level statement for the Await-context reparse
+/// whenever the statement creates an `await` identifier outside the
+/// constructs that restore its flag (parser.go:499 parseToplevelStatement,
+/// newIdentifier), a name after a dot included, and the reparse creates the
+/// statement's identifiers again. tsgo `aa814927 --extendedDiagnostics` on
+/// these two files: Identifiers 12 with `a.await`, 9 with `a.b`.
+#[test]
+fn a_top_level_await_property_name_marks_its_statement_for_the_reparse() {
+    let identifiers = |statement: &str| {
+        let text = format!(
+            "declare const a: {{ await: number; b: number }};\n{statement}\nexport const y = a.b;\n"
+        );
+        let source = parse_source_file("m.ts".into(), text, ParseOptions::default(), None);
+        assert!(source.parse_diagnostics.is_empty(), "{statement}");
+        source.identifier_count()
+    };
+    assert_eq!(identifiers("export const x = a.await;"), 12);
+    assert_eq!(identifiers("export const x = a.b;"), 9);
+}
+
 #[test]
 fn forced_external_module_uses_the_root_indicator_and_reparses_await() {
     let source = parse_source_file(
