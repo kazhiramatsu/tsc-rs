@@ -1780,21 +1780,23 @@ impl StoreRecord for NodeSlot<SymbolId> {
     const REGION: usize = 4;
 }
 
-impl StoreRecord for NodeSlot<crate::flow::FlowId> {
-    const REGION: usize = 5;
-}
-
 /// tsc `node.symbol` of a published, bound node.
 #[inline(always)]
 pub fn published_node_symbol(node: NodeId) -> Option<SymbolId> {
     tsc_store::get::<NodeSlot<SymbolId>>(node.position()).0
 }
 
-/// tsc `node.flowNode` of a published, bound node.
+/// tsc `node.flowNode` of a published, bound node, from its slot alone:
+/// `Err(FlowInOverflow)` when the flow is kept in the file's
+/// [`NodeFlowMap`] overflow instead (see [`NodeFlowSlot`]).
 #[inline(always)]
-pub fn published_node_flow(node: NodeId) -> Option<crate::flow::FlowId> {
-    tsc_store::get::<NodeSlot<crate::flow::FlowId>>(node.position()).0
+pub fn published_node_flow(node: NodeId) -> Result<Option<crate::flow::FlowId>, FlowInOverflow> {
+    tsc_store::get::<NodeFlowSlot>(node.position()).flow()
 }
+
+/// A [`NodeFlowSlot`] whose flow is kept in the file's overflow map.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FlowInOverflow;
 
 /// tsc `node.symbol`: the declaring symbol of a node.
 pub type NodeSymbolMap = DenseNodeMap<SymbolId>;
@@ -1803,7 +1805,131 @@ pub type NodeSymbolMap = DenseNodeMap<SymbolId>;
 /// or function expression was bound. Roughly every identifier in a flow
 /// container carries one, so the dense form also replaces the largest of
 /// the binder's per-file hash maps.
-pub type NodeFlowMap = DenseNodeMap<crate::flow::FlowId>;
+///
+/// One two-byte slot per node of the file (in the store at the node's
+/// position for a published tree). A file's flow ids are its own, so a slot
+/// holds the flow's position whenever the file has fewer than
+/// `NodeFlowSlot::OVERFLOW` flow nodes; a later flow of a larger file is
+/// kept in `overflow` and its slot says so.
+#[derive(Clone, Debug, Default)]
+pub struct NodeFlowMap {
+    base: u32,
+    slots: StoreVec<NodeFlowSlot>,
+    overflow: FxHashMap<NodeId, crate::flow::FlowId>,
+}
+
+/// One node's entry of a [`NodeFlowMap`]: 0 for no flow node, the flow's
+/// position (`FlowId::position`) below `OVERFLOW`, or `OVERFLOW` for a flow
+/// kept in the map's overflow.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(transparent)]
+pub struct NodeFlowSlot(u16);
+
+impl StoreRecord for NodeFlowSlot {
+    const REGION: usize = 5;
+}
+
+impl NodeFlowSlot {
+    const OVERFLOW: u16 = u16::MAX;
+
+    #[inline(always)]
+    fn flow(self) -> Result<Option<crate::flow::FlowId>, FlowInOverflow> {
+        match self.0 {
+            Self::OVERFLOW => Err(FlowInOverflow),
+            position => Ok(crate::flow::FlowId::from_position(u32::from(position))),
+        }
+    }
+}
+
+impl NodeFlowMap {
+    /// The empty map of `arena`'s nodes: in the store at their positions for
+    /// a published tree, where a Program reads it.
+    pub fn for_tree(arena: &NodeArena) -> Self {
+        Self {
+            base: arena.node_base(),
+            slots: if arena.is_published() {
+                StoreVec::claim(arena.node_base() + 1, arena.len() as u32)
+            } else {
+                let mut slots = StoreVec::with_capacity(arena.len());
+                slots.resize(arena.len(), NodeFlowSlot::default());
+                slots
+            },
+            overflow: FxHashMap::default(),
+        }
+    }
+
+    /// Bytes this map owns, for memory accounting.
+    pub fn heap_bytes(&self) -> usize {
+        self.slots.capacity() * std::mem::size_of::<NodeFlowSlot>()
+            + self.overflow.capacity() * (std::mem::size_of::<(NodeId, crate::flow::FlowId)>() + 1)
+    }
+
+    fn slot(&self, node: &NodeId) -> Option<usize> {
+        node.index()
+            .checked_sub(self.base)
+            .map(|offset| offset as usize)
+    }
+
+    pub fn get(&self, node: &NodeId) -> Option<crate::flow::FlowId> {
+        let slot = *self.slots.get(self.slot(node)?)?;
+        slot.flow()
+            .unwrap_or_else(|FlowInOverflow| self.overflow.get(node).copied())
+    }
+
+    /// Set `node`'s flow node, replacing any it had.
+    pub fn insert(&mut self, node: NodeId, flow: crate::flow::FlowId) {
+        let index = self
+            .slot(&node)
+            .expect("a bound node belongs to the bind's own arena");
+        if index >= self.slots.len() {
+            self.slots.resize(index + 1, NodeFlowSlot::default());
+        }
+        self.slots[index] = match u16::try_from(flow.position()) {
+            Ok(position) if position < NodeFlowSlot::OVERFLOW => {
+                // The overflow holds exactly the nodes whose slot says so.
+                if !self.overflow.is_empty() {
+                    self.overflow.remove(&node);
+                }
+                NodeFlowSlot(position)
+            }
+            _ => {
+                self.overflow.insert(node, flow);
+                NodeFlowSlot(NodeFlowSlot::OVERFLOW)
+            }
+        };
+    }
+
+    pub fn remove(&mut self, node: &NodeId) -> Option<crate::flow::FlowId> {
+        let index = self.slot(node)?;
+        let slot = std::mem::take(self.slots.get_mut(index)?);
+        slot.flow()
+            .unwrap_or_else(|FlowInOverflow| self.overflow.remove(node))
+    }
+
+    pub fn contains_key(&self, node: &NodeId) -> bool {
+        self.get(node).is_some()
+    }
+
+    /// The nodes with a flow node and their flows, in node order.
+    pub fn iter(&self) -> impl Iterator<Item = (NodeId, crate::flow::FlowId)> + '_ {
+        self.slots
+            .iter()
+            .enumerate()
+            .filter(|(_, slot)| slot.0 != 0)
+            .map(move |(index, _)| {
+                let node = NodeId::new(self.base + index as u32);
+                (node, self.get(&node).expect("a filled slot has a flow"))
+            })
+    }
+}
+
+/// Two maps are equal when they hold the same node → flow entries for the
+/// same arena base; unused trailing slots do not count.
+impl PartialEq for NodeFlowMap {
+    fn eq(&self, other: &Self) -> bool {
+        self.base == other.base && self.iter().eq(other.iter())
+    }
+}
 
 impl<V: Copy> DenseNodeMap<V>
 where

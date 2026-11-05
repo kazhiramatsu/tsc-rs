@@ -692,7 +692,7 @@ fn number_symbol_links(symbol: &Symbol, symbols: &mut Numbering<SymbolId>) {
 /// node, end, return, when-true, when-false and fallthrough flow.
 fn node_flows(binder: &Binder<'_>, id: NodeId) -> [Option<FlowId>; 6] {
     [
-        binder.node_flow.get(&id).copied(),
+        binder.node_flow.get(&id),
         binder.node_end_flow.get(&id).copied(),
         binder.node_return_flow.get(&id).copied(),
         binder.node_flow_when_true.get(&id).copied(),
