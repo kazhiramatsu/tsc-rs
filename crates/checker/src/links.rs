@@ -1375,6 +1375,31 @@ impl LinksTables {
         }
     }
 
+    /// Observation only (m8 links census, never merged): over the transient symbols' records, the number with each
+    /// field set: declared_type, type_of_symbol, check_flags, is_referenced, target, mapper, name_type, then the
+    /// records with INSTANTIATED in their check flags, those with no field set, and the record count.
+    pub(crate) fn transient_links_census(&self) -> [usize; 10] {
+        let mut counts = [0usize; 10];
+        for links in &self.transient_symbols {
+            let set = [
+                links.declared_type.raw != 0,
+                links.type_of_symbol.raw != 0,
+                !links.check_flags.is_empty(),
+                !links.is_referenced.is_empty(),
+                links.target.is_some(),
+                links.mapper.is_some(),
+                links.name_type.is_some(),
+            ];
+            for (count, set) in counts.iter_mut().zip(set) {
+                *count += usize::from(set);
+            }
+            counts[7] += usize::from(links.check_flags.intersects(tsc_types::CheckFlags::INSTANTIATED));
+            counts[8] += usize::from(!set.iter().any(|set| *set));
+        }
+        counts[9] = self.transient_symbols.len();
+        counts
+    }
+
     /// Number of symbol records this table holds (trace evidence).
     pub(crate) fn symbol_len(&self) -> usize {
         self.persistent_symbols.len + self.transient_symbols.len()

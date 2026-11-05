@@ -4988,6 +4988,9 @@ fn check_snapshot_serially(
         &checked_program_file_ids,
         &mut global_checker_diagnostics_by_file,
     );
+    if std::env::var_os("TSRS_LINKS_CENSUS").is_some() {
+        eprintln!("[links census] transient: {:?}", state.links.transient_links_census());
+    }
     if tsc_types::trace::enabled() {
         tsc_types::trace::mark(
             &format!(
