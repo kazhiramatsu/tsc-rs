@@ -501,11 +501,24 @@ impl<'a> BinderWorker<'a> {
         );
         binder.bind_source_file();
         if let Ok(mut log) = ROOM_LOG.lock() {
+            use crate::node_util::{get_syntactic_modifier_flags, kind_of, parent_of};
+            use tsc_syntax::SyntaxKind as K;
             let javascript = binder.is_in_js_file();
             let mut declarations = 0u32;
-            for node in source.arena.nodes() {
-                use tsc_syntax::SyntaxKind as K;
-                declarations += match node.kind {
+            // c0: an upper bound from parse-time facts only (kind, the node's own modifiers,
+            // the enclosing variable statement's modifiers, the Ambient context flag).
+            let mut upper = 0u32;
+            let mut parameter_properties = 0u32;
+            let mut function_types = 0u32;
+            let exported_or_ambient = |node: NodeId| -> u32 {
+                u32::from(
+                    get_syntactic_modifier_flags(source, node).intersects(ModifierFlags::EXPORT)
+                        || binder.flags_of(node).intersects(NodeFlags::AMBIENT),
+                )
+            };
+            for id in source.arena.node_ids() {
+                let kind = kind_of(source, id);
+                declarations += match kind {
                     K::ClassDeclaration | K::ClassExpression => 2,
                     K::BinaryExpression | K::CallExpression => u32::from(javascript),
                     K::TypeParameter | K::Parameter | K::VariableDeclaration | K::BindingElement
@@ -524,8 +537,73 @@ impl<'a> BinderWorker<'a> {
                     | K::InferType => 1,
                     _ => 0,
                 };
+                if matches!(kind, K::FunctionType | K::ConstructorType) {
+                    function_types += 1;
+                }
+                if kind == K::Parameter
+                    && parent_of(source, id).is_some_and(|parent| {
+                        crate::node_util::is_parameter_property_declaration(source, id, parent)
+                    })
+                {
+                    parameter_properties += 1;
+                }
+                upper += match kind {
+                    K::ClassDeclaration => 2 + exported_or_ambient(id),
+                    K::ClassExpression => 2,
+                    K::FunctionType | K::ConstructorType | K::JSDocFunctionType | K::JSDocSignature => 2,
+                    K::JSDocTypedefTag | K::JSDocCallbackTag => 2,
+                    K::Parameter => {
+                        1 + u32::from(
+                            get_syntactic_modifier_flags(source, id)
+                                .intersects(ModifierFlags::PARAMETER_PROPERTY_MODIFIER),
+                        )
+                    }
+                    K::VariableDeclaration => {
+                        let statement = parent_of(source, id)
+                            .filter(|list| kind_of(source, *list) == K::VariableDeclarationList)
+                            .and_then(|list| parent_of(source, list))
+                            .filter(|statement| kind_of(source, *statement) == K::VariableStatement);
+                        1 + match statement {
+                            Some(statement) => exported_or_ambient(statement),
+                            None => u32::from(binder.flags_of(id).intersects(NodeFlags::AMBIENT)),
+                        }
+                    }
+                    K::FunctionDeclaration | K::InterfaceDeclaration | K::TypeAliasDeclaration
+                    | K::EnumDeclaration | K::ModuleDeclaration => 1 + exported_or_ambient(id),
+                    K::InferType => 0,
+                    K::BinaryExpression | K::CallExpression => u32::from(javascript),
+                    K::TypeParameter | K::BindingElement | K::PropertyDeclaration | K::PropertySignature
+                    | K::PropertyAssignment | K::ShorthandPropertyAssignment | K::EnumMember | K::CallSignature
+                    | K::ConstructSignature | K::IndexSignature | K::MethodDeclaration | K::MethodSignature
+                    | K::Constructor | K::GetAccessor | K::SetAccessor | K::TypeLiteral
+                    | K::JSDocTypeLiteral | K::MappedType | K::ObjectLiteralExpression | K::FunctionExpression
+                    | K::ArrowFunction | K::ImportEqualsDeclaration | K::NamespaceImport | K::ImportSpecifier
+                    | K::ExportSpecifier | K::NamespaceExportDeclaration | K::ImportClause | K::ExportDeclaration
+                    | K::ExportAssignment | K::JsxAttributes | K::JsxAttribute | K::JSDocEnumTag
+                    | K::ClassStaticBlockDeclaration | K::SourceFile | K::JSDocParameterTag | K::JSDocPropertyTag
+                    | K::NamespaceExport => 1,
+                    _ => 0,
+                };
             }
-            log.push((room_base, room_len, binder.symbols.len() as u32, declarations));
+            let pairs = binder
+                .symbols
+                .symbols()
+                .iter()
+                .filter(|symbol| symbol.export_symbol().is_some())
+                .count() as u32;
+            log.push((
+                vec![
+                    room_base,
+                    room_len,
+                    binder.symbols.len() as u32,
+                    declarations,
+                    upper,
+                    pairs,
+                    parameter_properties,
+                    function_types,
+                ],
+                source.file_name.to_string_lossy().into_owned(),
+            ));
         }
         binder
     }
@@ -1925,4 +2003,4 @@ where
 
 /// Observation (never merged): each bound source's reserved symbol room
 /// (base, length) and the symbols it bound, in binding order.
-pub static ROOM_LOG: std::sync::Mutex<Vec<(u32, u32, u32, u32)>> = std::sync::Mutex::new(Vec::new());
+pub static ROOM_LOG: std::sync::Mutex<Vec<(Vec<u32>, String)>> = std::sync::Mutex::new(Vec::new());

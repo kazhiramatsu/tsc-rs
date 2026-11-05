@@ -608,7 +608,14 @@ fn run<'a>(
         rooms_path.push(".rooms");
         let rooms = tsc_binder::declare::ROOM_LOG
             .lock()
-            .map(|log| log.iter().map(|(base, room, used, declarations)| format!("{base} {room} {used} {declarations}\n")).collect::<String>())
+            .map(|log| {
+                log.iter()
+                    .map(|(values, name)| {
+                        let values = values.iter().map(u32::to_string).collect::<Vec<_>>().join(" ");
+                        format!("{values} {name}\n")
+                    })
+                    .collect::<String>()
+            })
             .unwrap_or_default();
         let _ = std::fs::write(rooms_path, rooms);
     }
