@@ -1366,6 +1366,39 @@ peak footprint は ±3 MB 以内。
 - `--checkers 4` は既知の 4 件のみ。直前の 4-checker 報告とは 15,339 構成すべて一致
 - 数え上げの build で N を測った（`m2/card3-counting-hooks.diff`）。計測は上の通り
 
+## M2 の fidelity 修正 4：同じ alias の variance 経路は source に型引数があるときだけ（branch `perf/ts71-alias-variance-nonempty`、tsgo relater.go:3424）
+
+None と空 list を区別する読み手の監査で見つかった出力の差。tsgo は同じ alias どうしの比較で variance の近道を
+`len(source.alias.typeArguments) != 0` のときだけ使う。tsc-rs は空の list でも使っていた。空の list は、default をすべて持つ
+generic alias を import して型引数なしで書いたときにできる（#886 が前提にしている表現）。そのため tsc-rs は default を埋めて
+variance で比べていた。tsgo はここで型を構造的に比べる。
+
+**差の出方**：import した `type Box<T = string> = { value: T }` を型引数なしで書いた `Box` を `Box<number>` に代入すると、tsgo は
+`Types of property 'value' are incompatible.` を挟んで説明する。tsc-rs はこの行を落とし、型引数の組に直接進んでいた。さらに
+tsgo が測らない `Box` の variance を測っていた（tsgo Types 83・Instantiations 5、tsc-rs 84・11）。
+
+**修正**：tsgo と同じ条件 `!source_arguments.is_empty()` を足す 1 行。unit test は 3 行の説明、`Types` 83 − 1（CP-1）、
+`Instantiations` 5 を固定する。
+
+**統計行**（B0 比）：vue Instantiations −46、next −10（Types −2・Symbols −2）、ts −5、hono +4。他の 4 project は同じ。B0 と
+この PR の数え上げ build で、呼び出し元ごとにすべて説明できる。
+- 減ったもの：空の list の default 埋め（ts −61、`Visitor` の比較 61 回に 1 回ずつ）、alias の variance 測定とその marker の
+  instantiate（vue −45 など。next の Types −2・Symbols −2 はこの marker の型と symbol）、型引数の variance 比較（vue −1）。
+- 増えたもの：構造的な比較での member の instantiate（ts +39 +39、hono +2 +2 など）。
+構造的な経路に移った比較は ts 61・vue 8・hono 5・next 3・VS Code 3・playwright 1・zod と effect 0。出力は 8 project とも一致し、
+`--checkers 4` は既知の 4 件のみ。
+
+**計測**：1 thread、静かな machine（M1 lane を止めて 08:39〜08:42、next は 09:03 に 5 回で再計測）。8 project とも noise の幅
+（−0.02〜+0.03%、next −0.01%）。予想（0 ± 0.05%、vue の Instantiations が少し減る）の通り。価値は fidelity にある。
+
+**記録。** PR [#889](https://github.com/kazhiramatsu/tsc-rs/pull/889) → merge `e4f0e8f02`（2026-11-05。`4690e7169`、最終 head `995bee118`）。hosted run
+[41946302576](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41946302576)：全 job pass。local（hosted がしないことだけ、`4690e7169`）：
+- tsgo に合わせた unit test（修正前は 2 行の説明、Types 84・Instantiations 11）
+- checker の test 1,868 + 1、fmt、release build
+- 8 case で出力（exit code・stdout・stderr）が B0 と一致
+- `--checkers 4` は既知の 4 件のみ。直前の 4-checker 報告とは 15,339 構成すべて一致
+- B0 とこの PR の数え上げ build（`m2/card4-counting-hooks-B0-tree.diff`）。計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
