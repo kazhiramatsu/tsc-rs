@@ -1291,6 +1291,57 @@ stack の走査が 0.83 M → 1.33 M 歩に増え、1 歩ごとに recursion ide
 - `--checkers 4` は既知の 4 件のみ。最新の 4-checker 報告とは 15,339 構成すべて一致
 - 計測は上の通り
 
+## M2 の fidelity 修正 3：getLiteralTypeFromProperties を tsgo の形に（branch `perf/ts71-properties-types-cache`、propertiesTypes の cache と alias の origin）
+
+M2 の item 2 で、tsc-rs の型の数が tsgo より多い主な原因は Index（`keyof`）型だとわかった（zod +4,699、next +9,015、VS Code +8,371）。
+tsgo の getLiteralTypeFromProperties（checker.go:27267-27294）は結果を (type, include, includeOrigin) ごとに `propertiesTypes` に
+cache する。tsc-rs は cache のない 6.0.3 の形のままだった。
+
+**移植で見つかった出力の差**：tsgo の origin の条件は `includeOrigin && classOrRef || t.alias != nil` で、Go では `&&` が先に結び
+つく。そのため alias を持つ型は、呼び出し側が origin を求めなくても `keyof t` の origin を持つ。6.0.3 と tsc-rs は括弧で
+`includeOrigin && (classOrRef || alias)` にしていた。origin を求めない呼び出し（relater.go:3546 の `keyof T` を制約で比べる経路
+など）で差が出る。alias の制約では tsgo が `Type '"c"' is not assignable to type 'keyof C'.` と書くところを、tsc-rs は
+`'"a" | "b"'` と書いていた。
+
+**修正**：関数を tsgo の通りに移植した。cache（`properties_types`）、tsgo の条件、含まれない index info を飛ばす処理。unit test は
+二つの文面と、`Types` を tsgo の 96 − 1 で固定する（−1 は counting point CP-1：tsgo の `resolvingDefaultType` は型で、tsc-rs は
+進行中の集合で持つ）。
+
+**統計行**（B0 比、1 thread）：動くのは `Types` だけ。next −9,009、VS Code −8,376、zod −4,685、playwright −2,139、effect −2,076、
+vue −1,187、ts −129、hono −115。どれも「cache が答えるようになった呼び出しで B0 が作っていた origin」から「alias に新しく作る
+origin」を引いた差と、それが新しく作る union の残差で説明できる。origin の Index 型は zod（885）と next（1,269）で tsgo と一致する。
+出力は 8 project とも一致し、`--checkers 4` は既知の 4 件のみ。
+
+**計測**：1 thread、通常 build、静かな machine（M1 lane を止めて 07:43〜07:45、VS Code は 5 回で再計測）。
+
+| project | 命令数 |
+|---|---:|
+| next | **−2.79%**（−0.81 G） |
+| zod | **−2.69%**（−0.52 G） |
+| playwright | −0.99% |
+| vue・effect | −0.67%・−0.66% |
+| VS Code | −0.26%（−0.36 G、5 回とも ±0.02 G 以内） |
+| ts・hono | −0.27%・−0.06% |
+
+peak footprint は ±3 MB 以内。
+
+**予想との差**：予想は zod・next −0.03〜−0.15% で、実測はその 1 桁上（良い側）に外れた。数えた結果：
+- N の下限は origin を作る繰り返し（≒ Index の超過）として見積もった。この値は正しかった（next 9,034、zod 4,711、VS Code 8,380）。
+  しかし cache は無名型で origin を求める呼び出しと、origin を求めない呼び出しにも答える。実際の N は hit 全体で、next・zod・
+  VS Code では下限の 1.5〜1.9 倍、effect・vue では約 7 倍。
+- c は 1 回 1〜5 K 命令と見積もった。実測では大きな型への hit が多く（hit 1 回あたり property 22〜38 個）、1 hit で 24〜58 K
+  命令になる。property 1 個あたり約 1.2〜2.1 K 命令。
+
+仕組みは card の通りで、母集団の見積もりが小さく、1 回の呼び出しの重さを大きく見誤った。
+
+**記録。** PR [#888](https://github.com/kazhiramatsu/tsc-rs/pull/888) → merge `449869d64`（2026-11-05。`e551de338`、最終 head `a9a8b7088`）。hosted run
+[41938861822](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41938861822)：全 job pass。local（hosted がしないことだけ、`e551de338`）：
+- tsgo に合わせた unit test（修正前は alias の文面が union になる）
+- checker の test 1,868 + 1、fmt、release build
+- 8 case で出力（exit code・stdout・stderr）が B0 と一致
+- `--checkers 4` は既知の 4 件のみ。直前の 4-checker 報告とは 15,339 構成すべて一致
+- 数え上げの build で N を測った（`m2/card3-counting-hooks.diff`）。計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
