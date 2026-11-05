@@ -276,9 +276,11 @@ impl<'a> CheckerState<'a> {
         created
     }
 
-    /// tsc-port: getLiteralTypeFromProperties @6.0.3
-    /// tsc-hash: 6a5c07650014a8132dd7320001039548749a26888d4f112fe898f13f8388e793
-    /// tsc-span: _tsc.js:61999-62012
+    /// tsgo-port: Checker.getLiteralTypeFromProperties @7.1 (checker/checker.go:
+    /// 27267-27294): the result is cached per (type, include, includeOrigin)
+    /// in `properties_types`. The origin, `keyof t`, is made when it is asked
+    /// for and `t` is a class, interface or reference, and whenever `t` has an
+    /// alias: tsgo's condition reads `includeOrigin && ... || t.alias != nil`.
     ///
     /// The `info !== enumNumberIndexInfo` exclusion keeps the enum
     /// reverse-mapping `[number]: string` row out of `keyof typeof E`
@@ -290,12 +292,16 @@ impl<'a> CheckerState<'a> {
         include: TypeFlags,
         include_origin: bool,
     ) -> CheckResult<TypeId> {
-        let origin = if include_origin
-            && (self
+        let key = (ty, include, include_origin);
+        if let Some(&cached) = self.properties_types.get(&key) {
+            return Ok(cached);
+        }
+        let origin = if (include_origin
+            && self
                 .tables
                 .object_flags_of(ty)
-                .intersects(ObjectFlags::CLASS_OR_INTERFACE | ObjectFlags::REFERENCE)
-                || self.tables.alias_symbol(ty).is_some())
+                .intersects(ObjectFlags::CLASS_OR_INTERFACE | ObjectFlags::REFERENCE))
+            || self.tables.alias_symbol(ty).is_some()
         {
             Some(self.tables.create_type(
                 TypeFlags::INDEX,
@@ -315,21 +321,28 @@ impl<'a> CheckerState<'a> {
             )?);
         }
         for info in self.get_index_infos_of_type(ty)? {
-            let included = !info.is_enum_number_index_info
-                && self.is_key_type_included(info.key_type, include);
-            key_types.push(if included {
-                if info.key_type == self.tables.intrinsics.string
-                    && include.intersects(TypeFlags::NUMBER)
-                {
-                    self.tables.intrinsics.string_or_number
-                } else {
-                    info.key_type
-                }
-            } else {
-                self.tables.intrinsics.never
-            });
+            if !info.is_enum_number_index_info && self.is_key_type_included(info.key_type, include)
+            {
+                key_types.push(
+                    if info.key_type == self.tables.intrinsics.string
+                        && include.intersects(TypeFlags::NUMBER)
+                    {
+                        self.tables.intrinsics.string_or_number
+                    } else {
+                        info.key_type
+                    },
+                );
+            }
         }
-        self.get_union_type_ex_with_origin(&key_types, UnionReduction::Literal, None, None, origin)
+        let result = self.get_union_type_ex_with_origin(
+            &key_types,
+            UnionReduction::Literal,
+            None,
+            None,
+            origin,
+        )?;
+        self.properties_types.insert(key, result);
+        Ok(result)
     }
 
     /// tsc-port: getLiteralTypeFromProperty @6.0.3

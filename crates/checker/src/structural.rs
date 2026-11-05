@@ -513,7 +513,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 return Ok(Ternary::FALSE);
             }
         }
-        // 66081-66094: the same-alias variance fast path.
+        // 66081-66094: the same-alias variance fast path. tsgo (relater.go:
+        // 3424) takes it only when the source's alias has type arguments
+        // (`len(source.alias.typeArguments) != 0`): an imported all-defaults
+        // alias written without arguments keeps an empty list, and relates
+        // structurally.
         if source_flags.intersects(TypeFlags::from_bits(
             TypeFlags::OBJECT.bits() | TypeFlags::CONDITIONAL.bits(),
         )) {
@@ -527,7 +531,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if let (Some(alias_symbol), Some(source_arguments)) =
                 (source_alias, source_alias_arguments)
             {
-                if Some(alias_symbol) == target_alias
+                if !source_arguments.is_empty()
+                    && Some(alias_symbol) == target_alias
                     && !(self.st.is_marker_type(source) || self.st.is_marker_type(target))
                 {
                     match self.st.get_alias_variances(alias_symbol)? {
