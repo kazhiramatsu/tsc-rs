@@ -1471,6 +1471,39 @@ sub-scope を足した ledger build を 2 つ作って中身を分けた（`m1-t
 - `--checkers 4` は既知の 4 件のみ。直前の 4-checker 報告とは 15,339 構成すべて一致
 - 計測は上の通り
 
+## loader の request の計画は tsgo と同じ条件でだけ file 全体を歩く（branch `perf/ts71-request-walk`、M1 の request collection 行）
+
+M1 の phase ledger で、tsc-rs の module-request collection は VS Code で 1,975 M 命令、tsrs は 193 M だった。
+`plan_module_requests_worker` は dynamic import を探す file 全体の walk を、tsgo の条件に加えて、本文に `/**` か `require`
+という文字列があるだけの file でも行っていた。tsgo の条件は、parser が見た `PossiblyContainsDynamicImport` か JavaScript の
+file（parser/references.go:16）。VS Code ではほぼすべての file に JSDoc がある。walk した 5,062 file（99.3 MB）のうち、
+4,843 file（89.8 MB）は何も見つからない walk だった。
+
+loader の計画（expanded）では、TypeScript の file の walk は tsgo の条件の外で何も記録しない。TypeScript では JSDoc に
+降りず、require() は JavaScript でだけ request になる。修正では、二つの文字列の目印を static-import slice（`!expanded`）
+にだけ残す。この slice は JSDoc の import と require 呼び出しで fail closed する。request は一つも変わらない。8 project の
+`--traceResolution` の出力は byte 単位で同一だった（VS Code は 922,795 行）。contract test は、TypeScript の JSDoc
+`@import` と `require()` が request にならないこと（tsgo と同じ）と、static slice が fail closed のままであることを固定する。
+
+**計測**：1 thread、静かな machine（M4 lane を止めて 11:36〜11:40）、親 `03623ed12` 比。
+| project | 命令数 | 無駄に歩いた本文 |
+|---|---:|---:|
+| VS Code | **−0.85%**（−1.17 G、5 回） | 89.8 MB |
+| playwright・hono・ts | −1.20%・−1.10%・−1.03% | 15.1・2.4・7.0 MB |
+| effect・zod | −0.86%・−0.75% | 15.3・14.5 MB |
+| vue・next | −0.49%・−0.47% | 8.3・14.1 MB |
+
+予想（c は VS Code の M1 行から 16 M/MB、±30%）に対し、VS Code・ts・hono は帯の中。effect・zod・next・playwright・vue は
+35〜44% 下に外れた。1 MB あたりの walk の命令数が codebase で違うため（実測 9〜13 M/MB。byte あたりの node の数が
+異なる）。教訓：walk の費用の予想では、c をその project 自身の ledger の行から取り、VS Code だけから取らない。
+
+**記録。** PR [#891](https://github.com/kazhiramatsu/tsc-rs/pull/891) → merge `589fc4e81`（2026-11-05。`7a003d671`、最終 head `7a003d671`）。hosted run
+[41957895758](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41957895758)：全 job pass。local（hosted がしないことだけ、`7a003d671`）：
+- contract test と program の test 691、fmt、release build
+- 8 case で出力（exit code・stdout・stderr）が親と一致。`--traceResolution` の出力は 8 project とも byte 単位で同一
+- `--checkers 4` は既知の 4 件のみ。直前の 4-checker 報告とは 15,339 構成すべて一致
+- 計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
