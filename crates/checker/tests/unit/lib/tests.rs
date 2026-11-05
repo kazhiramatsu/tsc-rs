@@ -7811,14 +7811,13 @@ fn content_mapper_directives_drop_diagnostics_in_their_ranges_and_report_unused_
     );
 }
 
-/// The command's one-checker no-emit check leaves its checker state and its
-/// program's documents to the process exit when the budget leaks states (a
-/// one-shot `tsc` exits right after reporting), as the sharded driver does,
-/// and drops them otherwise (watch, API and traced sessions). The program's
-/// document and the checker state's binder retain the source's text
-/// snapshot, so the snapshot's count tells.
-#[test]
-fn the_serial_command_check_leaks_its_program_only_on_a_leaking_budget() {
+/// Checks one source that imports nothing with the one-checker command
+/// check, through the no-emit entry or, `with_operation`, through the entry
+/// with an emit operation (the declaration-diagnostics route), and returns
+/// the count of the source's text snapshot afterwards. The program's
+/// document and the checker state's binder retain the snapshot, so the
+/// count tells what the check left.
+fn text_count_after_serial_check(leak_at_end: bool, with_operation: bool) -> usize {
     struct NeverProvider;
 
     impl AuthoritativeModuleProvider for NeverProvider {
@@ -7830,29 +7829,47 @@ fn the_serial_command_check_leaks_its_program_only_on_a_leaking_budget() {
         }
     }
 
-    let run = |leak_at_end: bool| {
-        let text = TextSnapshot::new(
-            "export const value: number = 1;\n",
-            DocumentVersion::default(),
-        );
-        let files = [InputFile::from_snapshot("/a.ts", Arc::clone(&text))];
-        let metadata = [AuthoritativeSourceMetadata {
-            token: AuthoritativeSourceToken(1),
-            file_name: files[0].name.clone(),
-            may_be_emitted: true,
-            implied_node_format: None,
-            implied_node_format_for_emit: None,
-            project_reference: None,
-        }];
-        let result = check_program_with_authoritative_modules_at_with_workers_gated(
+    let text = TextSnapshot::new(
+        "export const value: number = 1;\n",
+        DocumentVersion::default(),
+    );
+    let files = [InputFile::from_snapshot("/a.ts", Arc::clone(&text))];
+    let metadata = [AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(1),
+        file_name: files[0].name.clone(),
+        may_be_emitted: true,
+        implied_node_format: None,
+        implied_node_format_for_emit: None,
+        project_reference: None,
+    }];
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        ..CompilerOptions::default()
+    };
+    let result = if with_operation {
+        let mut operations = 0;
+        let result = check_program_with_authoritative_modules_at_for_emit_with_workers(
             &[],
             &files,
             &[],
             &metadata,
-            &CompilerOptions {
-                no_emit: Some(true),
-                ..CompilerOptions::default()
-            },
+            &options,
+            "/",
+            &NeverProvider,
+            tsc_program::WorkerBudget::serial(),
+            crate::IncrementalRequest::NONE,
+            leak_at_end,
+            |_, _, _| operations += 1,
+        );
+        assert_eq!(operations, 1, "the operation runs once, after the check");
+        result
+    } else {
+        check_program_with_authoritative_modules_at_with_workers_gated(
+            &[],
+            &files,
+            &[],
+            &metadata,
+            &options,
             "/",
             &NeverProvider,
             tsc_program::WorkerBudget::serial(),
@@ -7860,15 +7877,45 @@ fn the_serial_command_check_leaks_its_program_only_on_a_leaking_budget() {
             crate::IncrementalRequest::NONE,
             leak_at_end,
         )
-        .expect("serial command check");
-        assert!(result.semantic_diagnostics.is_empty());
-        drop(result);
-        drop(files);
-        Arc::strong_count(&text)
-    };
-    assert_eq!(run(false), 1, "dropped: only the caller's snapshot remains");
+    }
+    .expect("serial command check");
+    assert!(result.semantic_diagnostics.is_empty());
+    drop(result);
+    drop(files);
+    Arc::strong_count(&text)
+}
+
+/// The command's one-checker no-emit check leaves its checker state and its
+/// program's documents to the process exit when the budget leaks states (a
+/// one-shot `tsc` exits right after reporting), as the sharded driver does,
+/// and drops them otherwise (watch, API and traced sessions).
+#[test]
+fn the_serial_command_check_leaks_its_program_only_on_a_leaking_budget() {
+    assert_eq!(
+        text_count_after_serial_check(false, false),
+        1,
+        "dropped: only the caller's snapshot remains"
+    );
     assert!(
-        run(true) > 1,
+        text_count_after_serial_check(true, false) > 1,
         "leaked: the program's document and the checker state keep the text"
+    );
+}
+
+/// The one-checker check with an emit operation (the command's
+/// declaration-diagnostics route) leaves what the no-emit check leaves on a
+/// leaking budget, the checker state and the program's documents, and drops
+/// both otherwise.
+#[test]
+fn the_serial_check_with_an_operation_leaks_what_the_no_emit_check_leaks() {
+    assert_eq!(
+        text_count_after_serial_check(false, true),
+        1,
+        "dropped: only the caller's snapshot remains"
+    );
+    assert_eq!(
+        text_count_after_serial_check(true, true),
+        text_count_after_serial_check(true, false),
+        "leaked: the document and the checker state keep the text, as on the no-emit route"
     );
 }

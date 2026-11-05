@@ -3708,7 +3708,7 @@ impl ProgramSession {
                     planner: incremental_facts_requested
                         .then_some(&mut planner as &mut IncrementalPlanner<'_>),
                 },
-                false,
+                self.checker_budget.leaks_states(),
                 &mut operation,
             )
         } else if declaration_getter {
