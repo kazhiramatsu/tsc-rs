@@ -21,9 +21,9 @@ pub use declare::{
 pub use declare::{BindData, Binder, BinderMemory, BinderWorker, TableRef};
 pub use hosted::jsdoc_hosted;
 pub use symbols::{
-    escape_leading_underscores, published_symbol, unescape_leading_underscores, Declarations,
-    InternalSymbolName, NameKey, Symbol, SymbolArena, SymbolArenaExhausted, SymbolExtras, SymbolId,
-    SymbolTable,
+    escape_leading_underscores, published_symbol, unescape_leading_underscores,
+    AssignmentDeclarationMembers, Declarations, InternalSymbolName, NameKey, Symbol, SymbolArena,
+    SymbolArenaExhausted, SymbolExtras, SymbolId, SymbolTable,
 };
 
 /// tsc bindSourceFile (42408): runs the binder over one parsed file and
