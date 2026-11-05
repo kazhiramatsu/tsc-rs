@@ -822,6 +822,10 @@ pub struct CheckerState<'a> {
     /// regular twin. Object types carry no fresh/regular words; only the
     /// freshable and union records do.
     pub(crate) regular_object_literal_types: rustc_hash::FxHashMap<TypeId, TypeId>,
+    /// tsgo propertiesTypes (getLiteralTypeFromProperties, checker.go:
+    /// 27267-27294): the union of a type's property and index key types, by
+    /// (type, include, includeOrigin).
+    pub(crate) properties_types: rustc_hash::FxHashMap<(TypeId, TypeFlags, bool), TypeId>,
     /// tsc flowLoopCaches (47428): per-loop-label finalized-fixpoint
     /// memo, `getFlowNodeId(flow)` → (flow-cache-key → type). FlowIds
     /// are per-file arena indices here, so (file, FlowId) is the
@@ -1404,10 +1408,12 @@ impl<'a> CheckerState<'a> {
             "cached/error types, unresolved",
             self.cached_types.len()
                 + self.regular_object_literal_types.len()
+                + self.properties_types.len()
                 + self.error_types.len()
                 + self.unresolved_symbols.len(),
             map_bytes(&self.cached_types)
                 + map_bytes(&self.regular_object_literal_types)
+                + map_bytes(&self.properties_types)
                 + self
                     .cached_types
                     .keys()
@@ -1798,6 +1804,7 @@ impl<'a> CheckerState<'a> {
             generic_object_flags: rustc_hash::FxHashMap::default(),
             final_array_types: rustc_hash::FxHashMap::default(),
             regular_object_literal_types: rustc_hash::FxHashMap::default(),
+            properties_types: rustc_hash::FxHashMap::default(),
             flow_loop_caches: rustc_hash::FxHashMap::default(),
             last_flow_node: None,
             last_flow_node_reachable: false,
