@@ -1020,15 +1020,23 @@ impl NodeArena {
         // write each); the tree is not shared yet, so its tails are rewritten
         // in place.
         let tails = &mut self.tails;
+        let shifts = [
+            (0, 0, 0),
+            (shift.nodes.old, shift.nodes.len, shift.nodes.new),
+            (shift.arrays.old, shift.arrays.len, shift.arrays.new),
+            (shift.texts.old, shift.texts.len, shift.texts.new),
+        ];
         let nodes = self
             .nodes
             .publish_mapped(relocation.new_nodes.start() + 1, |mut node| {
                 if let Some(parent) = &mut node.parent {
                     *parent = shift.node(*parent, &mut inside);
                 }
-                let Ok(()) = node.map_identity_words(tails, |space, word| {
-                    Ok::<u32, std::convert::Infallible>(shift.word(space, word, &mut inside))
-                });
+                if !node.map_inline_identity_words(&shifts, &mut inside) {
+                    let Ok(()) = node.map_identity_words(tails, |space, word| {
+                        Ok::<u32, std::convert::Infallible>(shift.word(space, word, &mut inside))
+                    });
+                }
                 node
             });
         for node in &mut self.array_items {

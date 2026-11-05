@@ -516,6 +516,33 @@ impl Node {
         probe
     }
 
+    /// Pilot: the relocation of a record without a tail, through its kind's
+    /// inline layout (`INLINE_IDENTITY_LAYOUTS`) and a per-space shift
+    /// (`shifts[space] = (old start, length, new start)`): each identity word
+    /// moves by its space's delta, and `inside` is cleared if one was not in
+    /// its old range. Returns false for a record with a tail (the caller maps
+    /// it with `map_identity_words`).
+    #[inline(always)]
+    pub(crate) fn map_inline_identity_words(&mut self, shifts: &[(u32, u32, u32); 4], inside: &mut bool) -> bool {
+        if self.literal_flags & HAS_TAIL != 0 {
+            return false;
+        }
+        let layout = INLINE_IDENTITY_LAYOUTS[self.kind.value() as usize];
+        let mut index = 0;
+        while index < 3 {
+            let space = (layout >> (2 * index)) & 3;
+            let word = self.words[index];
+            if space != SPACE_NONE && word != 0 && !(space == SPACE_TEXT && word == TextId::EMPTY.position()) {
+                let (old, len, new) = shifts[space as usize];
+                let offset = (word - 1).wrapping_sub(old);
+                *inside &= offset < len;
+                self.words[index] = new.wrapping_add(offset) + 1;
+            }
+            index += 1;
+        }
+        true
+    }
+
     /// Map each identity word of the record (its payload's node, array and
     /// text slots, its JSDoc attachment, a JSDoc comment's id) through `map`
     /// (`space`, word) in place, a tail's in `tails`, the owner's: the
@@ -11332,3 +11359,36 @@ impl Node {
 #[cfg(test)]
 #[path = "../tests/unit/nodes/tests.rs"]
 mod tests;
+
+/// Pilot: for each kind, the identity space (`SPACE_*`, 2 bits) of each of a
+/// tail-less record's three inline words: its payload slots in order, then
+/// the JSDoc attachment (an array) at `words[count]` when the payload has
+/// fewer than three slots, as `Node::map_identity_words` walks them.
+const fn inline_identity_layouts() -> [u8; SyntaxKind::Count as usize] {
+    let mut table = [0u8; SyntaxKind::Count as usize];
+    let mut value = 0;
+    while value < SyntaxKind::Count as usize {
+        if let Some(kind) = SyntaxKind::from_u16(value as u16) {
+            let spaces = slot_spaces(kind);
+            let (count, _) = payload_shape(kind);
+            let mut layout = 0u8;
+            let mut index = 0;
+            while index < 3 {
+                let space = if index < spaces.len() {
+                    spaces[index]
+                } else if index == count && count < 3 {
+                    SPACE_ARRAY
+                } else {
+                    SPACE_NONE
+                };
+                layout |= space << (2 * index);
+                index += 1;
+            }
+            table[value] = layout;
+        }
+        value += 1;
+    }
+    table
+}
+
+pub(crate) static INLINE_IDENTITY_LAYOUTS: [u8; SyntaxKind::Count as usize] = inline_identity_layouts();
