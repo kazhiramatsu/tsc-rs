@@ -5567,14 +5567,19 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                     checked.program_semantic_diagnostics.clone(),
                 );
                 operation(&snapshot, &session, &checked);
+                // As the eager path: the snapshot (every document) is left
+                // to the process exit with the state.
                 if leak_at_end {
                     std::mem::forget(session);
+                    std::mem::forget(snapshot);
                 }
             } else if leak_at_end {
                 std::mem::forget(state);
+                std::mem::forget(snapshot);
             }
         } else if leak_at_end {
             std::mem::forget(state);
+            std::mem::forget(snapshot);
         }
     } else if authoritative_run.is_some_and(|run| run.incremental_facts) {
         // tsgo writes the build info of an incremental program without
