@@ -1843,6 +1843,87 @@ low 8・high 1。`perf11/modes.py`）。
 - gate の記録：`gate-bind/VERDICTS.md`
 - 計測は上の通り
 
+## symbol の部屋を parser が数えた上限で予約する（branch `perf/ts71-symbol-rooms`、gate を通った 5 枚目、memory の 1 枚目）
+
+checker は bind の前に、source ごとの symbol の id を Program の順に予約する。source はその番地へ並列に、store に直接
+bind される。部屋の大きさは source の node 数で、bind する symbol の約 7.4 倍あった。そのため source ごとの symbol が
+それぞれ別の store の page から始まり、VS Code では 69 MiB の symbol に 178 MiB の dirty page を使っていた。
+
+いまは parser が、bind が宣言しうる symbol の上限を木を作りながら数える（`NodeArena::symbol_bound`）。
+- node ごとに kind の重み（`alloc_node` の中。parser の呼び出し箇所では定数に畳まれる）を足す。
+- kind だけでは決まらないものは parser が足す：
+  - export された宣言と ambient な宣言の export の片割れ（declareModuleMember の local と export）
+  - parameter property の member
+  - TypeScript で entity の member への代入（`f.a = …`）の expando member
+  - JavaScript の代入と呼び出し
+  - file ごとの 3 つ（JSON の `export=`、CommonJS の `module`・`module.exports`・`exports`）
+- 数えないものがある：JavaScript の `@overload`（2 回 bind される）と、ドットを含む JSDoc typedef の名前空間。これらを
+  持つ bind は、既存の relocation の経路で動く。
+- 別の木から subtree を写した木（incremental parse。本番ではまだ使わない）は、従来どおり node 数を予約する。
+- tsgo は binder ごとに symbol を確保し、予約しない。この変更が変えるのは tsc-rs の symbol の置き場所だけ。
+
+**gate**：
+- **計測した上限**：
+  - region 3（binder の symbol）は、ピーク時点の `mincore` で 178.4 MiB が dirty だった。
+  - source ごとの部屋の log から page の touch を数える model が、この値をそのまま再現した。部屋を正確に取れば
+    69.3 MiB になる。
+  - 最初の数え方が足りなかった file は、3 つの源ですべて説明がついた：export の片割れ 48,811、parameter property
+    19,717、関数型と constructor 型 13,675。
+- **pilot**（`58ac74f04`）、VS Code 1 thread、9 回：
+  - footprint −117.2 MiB。
+  - 命令数は −47 M（low mode。並べ替え検定 p = 0.0013）。
+  - relocation は 7 project で 0、vue で 1（TypeScript の expando）。
+  - 出力は 8 project で同じ。
+- **独立した判定**（データとコードを渡し、結論は渡さない）：
+  - A（件数 × 費用）：GO WITH CONDITIONS。model は −114.4 MiB：region 3 が −103.3、symbol の id の幅で大きさが決まる表
+    （persistent symbol の links の index page、merge の bitset、DenseOwners）が −11.1。命令数は −29〜−47 M。
+  - B（静的な網羅）：SOUND。symbol を確保するすべての箇所を、それを数える node に対応させた。overflow の経路も正しい。
+  - C（反証役）：STANDS WITH FIXES。隣り合う部屋の false sharing は否定（10,209 の境界のうち 128 B の line を共有する
+    のは 1）。
+- **修正 3 つ**：TypeScript の expando を数える、写した subtree を持つ木は node 数を予約する、それらと overflow の
+  relocation の test。
+- **予想**（branch の前に台帳へ）：VS Code −110〜−117 MiB、命令数 −10〜−60 M。
+
+**計測**：静かな machine（22:27〜22:36、他の lane は停止）、VS Code、`d613e1bb8` 比。
+
+| | 基準 | この PR |
+|---|---:|---:|
+| footprint、1 thread（serial 2、9 回の median） | 3,449.9 MiB | 3,333.4 MiB（**−116.5 MiB**） |
+| footprint、4 thread（7 回） | 3,886.4 MiB | 3,760.7 MiB（**−125.7 MiB**） |
+| wall、4 thread | 2.95 s（最小 2.82） | 2.96 s（最小 2.81） |
+
+- 1 thread の footprint：
+  - 範囲は重ならない。
+  - page reclaim は 7,455 減った。16 KiB の page で −116.5 MiB にあたる。
+- 1 thread の命令数（serial 2、両 binary とも low 8・high 1）：
+  - low mode の median は −33 M、high mode は −72 M。
+  - 同じ mode の組は −9〜−71 M の 7 組。
+- serial 1 は mode が混ざった：この PR は 6 回が high mode に入り、mode の間の run も 3 回あった。
+  - modes.py の low mode の median は −5 M、同じ mode の組は −58 / +368 / +316 / −64 / −18 M。正の 2 組は、どちらも
+    mode の間の run を含む。
+  - mode の中心にある run だけで比べると −35 M（low）と −55 M（high）。
+- 4 thread の命令数は +2 M、CPU 時間は 10.51 → 10.57 s。
+
+relocation は 8 project とも 0。出力は 8 project で同じで、統計も同じ。`full` 構成（JS・宣言・map）の出力の木も、
+hono（748 file）と effect（1,984 file）で byte 単位で同じ。予想の帯の中で、C の決着の基準をすべて満たした。
+
+**記録。** PR [#901](https://github.com/kazhiramatsu/tsc-rs/pull/901) → merge `2164a93d9`（2026-11-05。`dfea63ac6` の上、最終 head `ac1d0a007`）。hosted run
+[42037193177](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42037193177)：全 job pass。local（hosted がしないことだけ、`ac1d0a007`）：
+- unit test 3 つ：
+  - 上限は 6 つの宣言の形でちょうど symbol + 3 になる（関数と const の arrow function の expando を含む）。
+  - 2 symbol の部屋に 7 symbol を bind すると relocation され、同じ番地への直接の bind と一致する。
+  - subtree を写した incremental parse の木は node 数を予約する。
+- syntax の test 278、binder 83、checker 1,873、fmt、clippy（`-D warnings`）、release build。
+- 8 case で出力（exit code・stdout・stderr）が基準と一致。Identifiers・Symbols・Types・Instantiations も 8 project とも一致。
+- `full` 構成の出力の木：hono（748 file）と effect（1,984 file）で byte 単位で一致。
+- fingerprint oracle：`main-d4d9d0364.tsv` に対して 143,190 行のうち差は 0。
+- conformance（4 checker）：12,829 case、harness error は 0。
+  - 前回の 4 checker の report に対して 15,339 の構成すべてが同じ。
+  - 1 checker の report に対しては、記録済みの 4 構成だけが違う。
+- relocation の trace：8 project とも 0。
+- gate の記録：`gate-rooms/VERDICTS.md`。
+- 計測は上の通り。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
