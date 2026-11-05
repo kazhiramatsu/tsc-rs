@@ -395,6 +395,53 @@ fn local_bind_with_in_order_relocation_matches_direct_binding_at_the_same_bases(
 }
 
 #[test]
+fn a_reserved_bind_that_outgrows_its_room_relocates_to_a_direct_binds_symbols() {
+    // A room of two symbols for a bind of seven (the file's symbol, `f` and
+    // its export twin, and `f`'s four expando members).
+    let domain = IdentityDomain::new();
+    let source = parse_in_domain(
+        "/expando.ts",
+        "export function f() {}\nf.a = 0;\nf.b = 0;\nf.c = 0;\nf.d = 0;\n",
+        &domain,
+    );
+    let room = 2;
+    let symbol_lease = domain.lease(IdentitySpace::Symbol, room).unwrap();
+    let serial_lease = domain
+        .lease(
+            IdentitySpace::PrivateNameSerial,
+            u32::try_from(source.arena.nodes().len()).unwrap(),
+        )
+        .unwrap();
+    let mut reserved =
+        Binder::bind_reserved(&source, symbol_lease.range(), serial_lease.range().start());
+    assert_eq!(reserved.symbols.symbols().len(), 7);
+    // As the checker does: the reservations stay held until the relocation.
+    assert!(!reserved
+        .attach_reserved_leases(&domain, symbol_lease.clone(), serial_lease.clone())
+        .unwrap());
+    reserved.relocate_into_identity_domain(&domain).unwrap();
+    let symbol_base = reserved.symbols.identity_lease().unwrap().range().start();
+    let serial_base = reserved
+        .private_name_serial_lease()
+        .unwrap()
+        .range()
+        .start();
+    assert!(symbol_base >= symbol_lease.range().end());
+    let expected = BindData::from_binder(&reserved);
+    // A published tree is bound once at a time: the direct bind follows.
+    drop(reserved);
+
+    let mut direct = Binder::with_bases(&source, serial_base, symbol_base);
+    direct.bind_source_file();
+    assert_eq!(expected.symbols, direct.symbols);
+    assert_eq!(expected.node_symbol, direct.node_symbol);
+    assert_eq!(expected.node_local_symbol, direct.node_local_symbol);
+    assert_eq!(expected.locals, direct.locals);
+    assert_eq!(expected.assigned_symbol_ids, direct.assigned_symbol_ids);
+    assert_eq!(expected.next_symbol_id, direct.next_symbol_id);
+}
+
+#[test]
 #[should_panic(expected = "a published tree is bound once at a time")]
 fn a_published_tree_is_bound_once_at_a_time() {
     let domain = IdentityDomain::new();
