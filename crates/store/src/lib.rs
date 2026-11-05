@@ -168,6 +168,18 @@ fn reserve() {
 /// now and at most, with their count.
 static MAPPED: [std::sync::atomic::AtomicI64; 4] = [const { std::sync::atomic::AtomicI64::new(0) }; 4];
 
+/// Observation: the element type and size of every private mapping of at
+/// least 64 MiB, in the order made.
+static BIG_MAPS: std::sync::Mutex<Vec<(&'static str, usize, usize)>> = std::sync::Mutex::new(Vec::new());
+
+pub(crate) fn note_big_map(type_name: &'static str, bytes: usize, len: usize) {
+    if bytes >= 64 << 20 {
+        if let Ok(mut maps) = BIG_MAPS.lock() {
+            maps.push((type_name, bytes, len));
+        }
+    }
+}
+
 pub(crate) fn note_map(bytes: usize, sign: i64) {
     use std::sync::atomic::Ordering::Relaxed;
     let now = MAPPED[0].fetch_add(sign * bytes as i64, Relaxed) + sign * bytes as i64;
@@ -202,6 +214,11 @@ pub fn store_report() -> String {
         MAPPED[2].load(Relaxed),
         MAPPED[3].load(Relaxed),
     ));
+    if let Ok(maps) = BIG_MAPS.lock() {
+        for (type_name, bytes, len) in maps.iter() {
+            report.push_str(&format!("big mapping: {type_name} mib {} len_when_grown {len}\n", bytes >> 20));
+        }
+    }
     if !reserved() {
         return report;
     }
@@ -629,6 +646,7 @@ impl<T: StoreRecord> StoreVec<T> {
             .expect("a store list exceeds usize");
         let (records, capacity, placement) = if bytes >= MAPPED_THRESHOLD {
             let bytes = bytes.next_multiple_of(RETURN_GRANULE);
+            note_big_map(std::any::type_name::<T>(), bytes, self.len);
             (
                 system::map(bytes).cast::<T>(),
                 bytes / std::mem::size_of::<T>(),
