@@ -543,6 +543,52 @@ impl Node {
         true
     }
 
+    /// Pilot v2: the relocation of a record with a tail through its kind's
+    /// slot layout (`SLOT_IDENTITY_LAYOUTS`: 2-bit spaces of every payload
+    /// slot, the slot count and the comment flag), in `map_identity_words`'s
+    /// order: slots 0 and 1 inline, the rest in the tail, then the JSDoc
+    /// attachment and a comment's text or array.
+    #[inline(always)]
+    pub(crate) fn map_tail_identity_words(
+        &mut self,
+        tails: &mut tsc_store::tails::Tails,
+        shifts: &[(u32, u32, u32); 4],
+        inside: &mut bool,
+    ) {
+        #[inline(always)]
+        fn shift_word(word: &mut u32, space: u32, shifts: &[(u32, u32, u32); 4], inside: &mut bool) {
+            let value = *word;
+            if space != SPACE_NONE as u32 && value != 0 && !(space == SPACE_TEXT as u32 && value == TextId::EMPTY.position()) {
+                let (old, len, new) = shifts[space as usize];
+                let offset = (value - 1).wrapping_sub(old);
+                *inside &= offset < len;
+                *word = new.wrapping_add(offset) + 1;
+            }
+        }
+        let (spaces, count, has_comment) = SLOT_IDENTITY_LAYOUTS[self.kind.value() as usize];
+        let count = count as usize;
+        let mut index = 0;
+        while index < 2 && index < count {
+            shift_word(&mut self.words[index + 1], (spaces >> (2 * index)) & 3, shifts, inside);
+            index += 1;
+        }
+        let at = count.saturating_sub(2);
+        let len = at + 1 + if has_comment { 4 } else { 0 };
+        let tail = tails.words_mut(self.words[0], len as u32);
+        while index < count {
+            shift_word(&mut tail[index - 2], (spaces >> (2 * index)) & 3, shifts, inside);
+            index += 1;
+        }
+        shift_word(&mut tail[at], SPACE_ARRAY as u32, shifts, inside);
+        if has_comment {
+            if tail[at + 1] != 0 {
+                shift_word(&mut tail[at + 1], SPACE_TEXT as u32, shifts, inside);
+            } else {
+                shift_word(&mut tail[at + 2], SPACE_ARRAY as u32, shifts, inside);
+            }
+        }
+    }
+
     /// Map each identity word of the record (its payload's node, array and
     /// text slots, its JSDoc attachment, a JSDoc comment's id) through `map`
     /// (`space`, word) in place, a tail's in `tails`, the owner's: the
@@ -11392,3 +11438,29 @@ const fn inline_identity_layouts() -> [u8; SyntaxKind::Count as usize] {
 }
 
 pub(crate) static INLINE_IDENTITY_LAYOUTS: [u8; SyntaxKind::Count as usize] = inline_identity_layouts();
+
+/// Pilot v2: for each kind, the 2-bit identity space of every payload slot
+/// (slot `i` at bits `2i`), the slot count and whether the payload has a
+/// JSDoc comment.
+const fn slot_identity_layouts() -> [(u32, u8, bool); SyntaxKind::Count as usize] {
+    let mut table = [(0u32, 0u8, false); SyntaxKind::Count as usize];
+    let mut value = 0;
+    while value < SyntaxKind::Count as usize {
+        if let Some(kind) = SyntaxKind::from_u16(value as u16) {
+            let spaces = slot_spaces(kind);
+            let (count, has_comment) = payload_shape(kind);
+            assert!(count <= 16, "a payload of more than 16 slots");
+            let mut layout = 0u32;
+            let mut index = 0;
+            while index < spaces.len() {
+                layout |= (spaces[index] as u32) << (2 * index);
+                index += 1;
+            }
+            table[value] = (layout, count as u8, has_comment);
+        }
+        value += 1;
+    }
+    table
+}
+
+pub(crate) static SLOT_IDENTITY_LAYOUTS: [(u32, u8, bool); SyntaxKind::Count as usize] = slot_identity_layouts();

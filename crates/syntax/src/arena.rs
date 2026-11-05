@@ -1033,9 +1033,7 @@ impl NodeArena {
                     *parent = shift.node(*parent, &mut inside);
                 }
                 if !node.map_inline_identity_words(&shifts, &mut inside) {
-                    let Ok(()) = node.map_identity_words(tails, |space, word| {
-                        Ok::<u32, std::convert::Infallible>(shift.word(space, word, &mut inside))
-                    });
+                    node.map_tail_identity_words(tails, &shifts, &mut inside);
                 }
                 node
             });
