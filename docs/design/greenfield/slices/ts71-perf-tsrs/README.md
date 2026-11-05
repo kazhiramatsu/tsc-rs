@@ -2003,6 +2003,17 @@ memo の shadow 計測、checker の store の形）。
 （−30）、ts −0.65%、next −0.16%、zod −0.79%、effect −0.89%、hono −0.27%、vue −1.94%、playwright −2.44%。1 回測りの行を足すと VS Code ≈ −3%
 に見えていたが、実体は −0.6%。memory-bound な code の予想は CPU 時間か word あたりの命令数で（D1 の教訓）、小さな差は静音窓の中央値で。
 
+**計測の作法の訂正 2（2026-11-06、Opus の発見、統合役が採用）。**
+- **mode の場所**：VS Code の命令数の ≈ 0.9 G の mode は、compiler の code ではなく、config と parse の file system の仕事にある。
+  - 診断 build（phase の mark ごとに process の retired instructions を出す。merge しない）の 32 run で、高い mode の run はどれも
+    「config: file names」が +0.18 G（1.25 対 1.07 G）、「load: parse tasks」が ≈ +0.7 G（20.2 対 19.5 G）。低い mode の run は両方
+    低い。
+  - check の区間の幅は 25〜41 M しかない。
+- **温めの実験**：計測の直前に config の file（`--listFilesOnly` の 10,196 file）を読んで温めた。low の水準は ≈ 0.1 G 下がるが、重い
+  job の直後の 1〜2 process は温めても高い。
+- **規則**：以後、VS Code の serial は warm-up を 2 回にする（`serial.py --warmup 2`）。記録は
+  `target/claude-tools/handover/perf-tsrs/gate-nodeflow/README.md`。
+
 | 項目 | PR | 予想（VS Code 1 thread） | 実測 | 判定 |
 |---|---|---|---|---|
 | toolchain 1.99.1 | #859 | （P0 の anchor） | 145.33 → 143.37 G（−1.4%）、peak 同じ | 着地 |
