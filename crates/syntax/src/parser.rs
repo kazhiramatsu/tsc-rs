@@ -219,7 +219,20 @@ impl ParserTruthy for SyntaxKind {
     }
 }
 
+/// Pilot: the thread's name cache, held for one parse and given back when
+/// the parser is dropped.
+struct NameCacheGuard(Option<tsc_types::names::NameCache>);
+
+impl Drop for NameCacheGuard {
+    fn drop(&mut self) {
+        if let Some(cache) = self.0.take() {
+            tsc_types::names::return_name_cache(cache);
+        }
+    }
+}
+
 struct Parser<'text> {
+    names: NameCacheGuard,
     scanner: Scanner<'text>,
     source_text: &'text str,
     arena: NodeArena,
@@ -945,6 +958,7 @@ impl<'text> Parser<'text> {
             scanner: Scanner::new(text, language_variant),
             source_text: text,
             arena: NodeArena::new(),
+            names: NameCacheGuard(Some(tsc_types::names::take_name_cache())),
             node_stack: Vec::new(),
             jsdoc_tags: Vec::new(),
             #[cfg(debug_assertions)]
@@ -9585,12 +9599,13 @@ impl<'text> Parser<'text> {
     // Diagnostic arguments use current_token_value instead, including literals.
     /// The escaped name of the current identifier token (tsc factory
     /// createIdentifier: escapedText is the ESCAPED form; idText stays raw).
-    fn current_token_name(&self) -> tsc_types::EscapedName {
+    fn current_token_name(&mut self) -> tsc_types::EscapedName {
         let value = self.scanner.token_value();
         if value.is_empty() {
             return tsc_types::EscapedName::escape(token_to_string(self.token()).as_str().into());
         }
-        tsc_types::EscapedName::escape(value)
+        let cache = self.names.0.as_mut().expect("the parser holds its name cache");
+        tsc_types::EscapedName::escape_cached(cache, value)
     }
 
     fn current_token_text(&self) -> String {

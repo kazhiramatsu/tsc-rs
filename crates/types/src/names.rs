@@ -153,3 +153,128 @@ fn intern_shared(text: JsStr<'_>, hash: u64) -> u32 {
 pub fn interned_names() -> (usize, usize) {
     tsc_store::names::usage()
 }
+
+/// Pilot (never merged): a thread's cache of the identifier names its parser
+/// interns, taken by the parser once per file ([`take_name_cache`]) and given
+/// back when the parse ends ([`return_name_cache`]), so a lookup reaches it
+/// without a thread-local access. A name of at most 16 bytes is keyed exactly
+/// by its length and two overlapping little-endian words; a longer one by its
+/// hash, its length and its text. A miss goes through `EscapedName::escape`.
+pub struct NameCache {
+    short: Box<[ShortSlot]>,
+    long: Box<[LongSlot]>,
+}
+
+const SHORT_BITS: u32 = 13;
+const LONG_BITS: u32 = 13;
+
+#[derive(Clone, Copy)]
+struct ShortSlot {
+    a: u64,
+    b: u64,
+    len: u32,
+    id: u32,
+}
+
+#[derive(Clone, Copy)]
+struct LongSlot {
+    hash: u64,
+    id: u32,
+    len: u32,
+    text: [u8; 24],
+}
+
+/// The exact key of a name of at most 16 bytes: two overlapping
+/// little-endian words (or bytes) that together cover every byte.
+#[inline(always)]
+fn short_key(bytes: &[u8]) -> (u64, u64) {
+    let len = bytes.len();
+    if len >= 8 {
+        (
+            u64::from_le_bytes(bytes[..8].try_into().expect("eight bytes")),
+            u64::from_le_bytes(bytes[len - 8..].try_into().expect("eight bytes")),
+        )
+    } else if len >= 4 {
+        (
+            u64::from(u32::from_le_bytes(bytes[..4].try_into().expect("four bytes"))),
+            u64::from(u32::from_le_bytes(bytes[len - 4..].try_into().expect("four bytes"))),
+        )
+    } else if len > 0 {
+        (
+            u64::from(bytes[0]) | u64::from(bytes[len / 2]) << 8 | u64::from(bytes[len - 1]) << 16,
+            0,
+        )
+    } else {
+        (0, 0)
+    }
+}
+
+impl NameCache {
+    fn new() -> Self {
+        let short = ShortSlot { a: 0, b: 0, len: u32::MAX, id: u32::MAX };
+        let long = LongSlot { hash: 0, id: u32::MAX, len: u32::MAX, text: [0; 24] };
+        Self {
+            short: vec![short; 1 << SHORT_BITS].into_boxed_slice(),
+            long: vec![long; 1 << LONG_BITS].into_boxed_slice(),
+        }
+    }
+
+    /// The id of `raw` escaped (`EscapedName::escape`).
+    #[inline]
+    pub(crate) fn escape(&mut self, raw: JsStr<'_>) -> u32 {
+        let bytes = raw.as_bytes();
+        if bytes.len() <= 16 {
+            let (a, b) = short_key(bytes);
+            let hash = (a ^ b.rotate_left(29) ^ (bytes.len() as u64) << 59)
+                .wrapping_mul(0x9E37_79B9_7F4A_7C15);
+            let index = (hash >> (64 - SHORT_BITS)) as usize;
+            let slot = &mut self.short[index];
+            if slot.len as usize == bytes.len() && slot.a == a && slot.b == b {
+                return slot.id;
+            }
+            let id = crate::EscapedName::escape(raw).index();
+            // A name the escape changes (a leading "__") is not cached.
+            if !bytes.starts_with(b"__") {
+                *slot = ShortSlot { a, b, len: bytes.len() as u32, id };
+            }
+            id
+        } else {
+            let hash = hash_bytes(bytes);
+            let slot = &mut self.long[hash as usize & ((1 << LONG_BITS) - 1)];
+            if slot.hash == hash
+                && slot.len as usize == bytes.len()
+                && if bytes.len() <= 24 {
+                    slot.text[..bytes.len()] == *bytes
+                } else {
+                    tsc_store::names::text(slot.id) == bytes
+                }
+            {
+                return slot.id;
+            }
+            let id = crate::EscapedName::escape(raw).index();
+            if !bytes.starts_with(b"__") {
+                slot.hash = hash;
+                slot.id = id;
+                slot.len = bytes.len() as u32;
+                if bytes.len() <= 24 {
+                    slot.text[..bytes.len()].copy_from_slice(bytes);
+                }
+            }
+            id
+        }
+    }
+}
+
+thread_local! {
+    static NAME_CACHE: std::cell::Cell<Option<NameCache>> = const { std::cell::Cell::new(None) };
+}
+
+/// The thread's name cache for a parse; a new one when the thread has none.
+pub fn take_name_cache() -> NameCache {
+    NAME_CACHE.with(|cell| cell.take()).unwrap_or_else(NameCache::new)
+}
+
+/// Give a parse's name cache back to its thread.
+pub fn return_name_cache(cache: NameCache) {
+    NAME_CACHE.with(|cell| cell.set(Some(cache)));
+}

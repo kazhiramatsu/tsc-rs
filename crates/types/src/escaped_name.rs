@@ -61,6 +61,12 @@ impl EscapedName {
         }
     }
 
+    /// [`escape`](Self::escape) through a parser's name cache (pilot).
+    #[inline]
+    pub fn escape_cached(cache: &mut crate::names::NameCache, raw: JsStr<'_>) -> Self {
+        Self(cache.escape(raw))
+    }
+
     /// InternalSymbolName constants are inserted verbatim, without escaping.
     #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn internal(name: &'static str) -> Self {
