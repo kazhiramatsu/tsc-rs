@@ -1753,6 +1753,52 @@ inline されて利得が小さい可能性があり、製品側の残る risk �
 - gate の記録：`gate-inline/VERDICTS.md`（pilot の値、3 つの判定、CLI の pilot）
 - 計測は上の通り
 
+## 名前は名前のまま：定数の key は場所ごとに 1 回だけ intern し、union の合成は持っている名前を渡す（branch `perf/ts71-names-stay-names`、gate を通った 3 枚目）
+
+text で引く symbol table は、引くたびにその text を intern する（`&str`・`JsStr` などの `NameKey`：
+`EscapedName::from_escaped_text`）。VS Code（1 thread）では 4.41 M 回（`names.key.text_lookups`）、1 回 ≈ 166 命令で、
+一度 intern した名前で引けば ≈ 25 命令。
+
+**修正**：
+- `InternalSymbolName` の定数を key にする lookup（module の解決ごとの `export=`、`__index`、`__call`、`__new`、
+  `__constructor`、`export*`、`default`：26 箇所）と、literal の key を渡す helper の呼び出し（`"then"`・`"length"`・
+  `"0"`・`"prototype"`・`"value"` など 16 箇所）を `known_name!` にした。場所ごとに定数を 1 回だけ intern する。
+  `known_name!` は定数の text（literal か定数の path）を受け、まず `const` に束ねるので、変数を渡すと compile error。
+- union・intersection の property の合成（`create_union_or_intersection_property`）は名前を text で受け取り、構成型ごとの
+  property の lookup、index info の lookup で intern し直し、新しい symbol の名前には `String` も作っていた。2 つの呼び
+  出し元はどちらも `EscapedName` を持っているので、それを受け取るようにした。
+- id は変わらない（`known_name!` は text の lookup が intern していたのと同じ text を intern する。定数ごとに test で固定）。
+
+**gate**：
+- 上限：text の lookup 4,413,088 × c 141.5（micro-batch で実測：text 166.0、`known_name!` 24.5）＝ 0.62 G。
+- 呼び出し元の特定：`SymbolTable` の lookup と汎用の `impl NameKey` helper に counting build でだけ `track_caller` を
+  付けた（per-site の file は 1 回の lookup を 2 回数えると判定 B が見つけたので半分にした）。定数の key 2,341,148 回
+  ＝ 0.33 G、union の合成が持っている名前を intern し直す分 1,177,333 回 ＝ +0.17 G。
+- 独立した判定：A 0.37 G（union の修正込みで +0.14）、B 0.26 G（helper の呼び出し元を特定する前）、C ≈ 0.34 G
+  （union の修正込みで ≈ 0.47）。予想（branch の前に台帳へ）：VS Code −0.45〜−0.50 G（帯 −0.35〜−0.60）。
+
+**計測**：1 thread、静かな machine（17:57〜18:01）、親 `d4d9d0364` 比。VS Code は 9 回（親は low 7・high 2、この PR は
+low 8・high 1）。
+| project | 命令数 |
+|---|---:|
+| VS Code | **−0.36%**（low mode の median −478 M、high mode −496 M、同じ mode の組 −458〜−505 M の 6 組） |
+| vue | −1.26%（−186 M） |
+| playwright / zod / next | −0.70% / −0.63% / −0.60% |
+| hono / ts / effect | −0.41% / −0.32% / −0.27% |
+
+予想の帯の中。footprint は ±3 MiB。checker の変更なので 4 checker の conformance も回した：前回の 4 checker の
+report と比べて 15,339 の構成すべてが同じ。
+
+**記録。** PR [#898](https://github.com/kazhiramatsu/tsc-rs/pull/898) → merge `26042a78d`（2026-11-05。`065e00f39` の上、最終 head `754dfdf5d`）。hosted run
+[42000714432](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42000714432)：全 job pass。local（hosted がしないことだけ、`754dfdf5d`）：
+- unit test（`known_name!` が定数ごとに `from_escaped_text`・`internal` と同じ名前を返す）
+- types の test 58、binder の test 80、checker の test 1,873、fmt、clippy（`-D warnings`）、release build
+- 8 case で出力（exit code・stdout・stderr）が親と一致。Identifiers・Symbols・Types・Instantiations も 8 project とも一致
+- fingerprint oracle：`main-d4d9d0364.tsv` に対して 143,190 行のうち差は 0
+- conformance（4 checker、`--workers 1 --checkers 4`）：前回の 4 checker の report に対して 15,339 の構成すべてが同じ
+- gate の記録：`textkey/VERDICTS.md`
+- 計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
