@@ -1585,6 +1585,7 @@ impl BinderWorker<'_> {
         } = self;
         let mut flow = flow;
         flow.freeze();
+        flow.rehome();
         BindData {
             common_js_module_indicator,
             symbols,

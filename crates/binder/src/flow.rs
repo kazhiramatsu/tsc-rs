@@ -378,6 +378,16 @@ impl FlowArena {
         self.frozen = true;
     }
 
+    /// Move the frozen nodes and pool into fresh allocations of their exact
+    /// sizes: a Program's binds are published after every file is bound, when
+    /// the bind workers' temporaries are gone, so the long-lived lists no
+    /// longer sit among them in the allocator's pages.
+    pub fn rehome(&mut self) {
+        debug_assert!(self.frozen);
+        self.nodes = self.nodes.as_slice().to_vec();
+        self.pool = self.pool.to_vec().into_boxed_slice();
+    }
+
     /// A frozen copy, for a bind result taken while the worker lives on.
     pub fn frozen(&self) -> Self {
         let mut copy = self.clone();
