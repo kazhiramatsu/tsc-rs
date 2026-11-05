@@ -162,9 +162,67 @@ fn reserve() {
     });
 }
 
+/// Observation (never merged): per region, the dropped ranges' count, the
+/// bytes zeroed in place and the bytes returned by page resets.
+static SCRUBS: [[std::sync::atomic::AtomicU64; 3]; REGIONS] =
+    [const { [const { std::sync::atomic::AtomicU64::new(0) }; 3] }; REGIONS];
+
+fn note_scrub(start: usize, in_place: usize, reset: usize) {
+    use std::sync::atomic::Ordering::Relaxed;
+    let region = (start - FIRST_REGION) / REGION_BYTES;
+    if region < REGIONS {
+        SCRUBS[region][0].fetch_add(1, Relaxed);
+        SCRUBS[region][1].fetch_add(in_place as u64, Relaxed);
+        SCRUBS[region][2].fetch_add(reset as u64, Relaxed);
+    }
+}
+
+/// Observation (never merged): per region, its scrub counters and its
+/// resident and dirty pages (`mincore` from the region's start in 64 MiB
+/// chunks until 1 GiB passes with nothing resident), one line each.
+pub fn store_report() -> String {
+    use std::sync::atomic::Ordering::Relaxed;
+    let mut report = String::new();
+    if !reserved() {
+        return report;
+    }
+    let page = 16384usize;
+    let chunk = 64usize << 20;
+    let mut vec = vec![0u8; chunk / page];
+    for region in 0..REGIONS {
+        let base = FIRST_REGION + region * REGION_BYTES;
+        let (mut resident, mut dirty, mut empty, mut offset, mut extent) = (0usize, 0usize, 0usize, 0usize, 0usize);
+        while offset < REGION_BYTES && empty < 16 {
+            // SAFETY: the range lies in the store's reservation; mincore only
+            // reports page residency into `vec`.
+            let rc = unsafe { libc::mincore((base + offset) as *mut libc::c_void, chunk, vec.as_mut_ptr().cast()) };
+            if rc != 0 {
+                break;
+            }
+            let here = vec.iter().filter(|&&v| v & 1 != 0).count();
+            dirty += vec.iter().filter(|&&v| v & 4 != 0).count();
+            resident += here;
+            if here == 0 { empty += 1 } else { empty = 0; extent = offset + chunk }
+            offset += chunk;
+        }
+        let scrubs = &SCRUBS[region];
+        report.push_str(&format!(
+            "region {region} resident_mib {:.1} dirty_mib {:.1} extent_mib {} scrub_drops {} scrub_in_place_mib {:.1} scrub_reset_mib {:.1}\n",
+            (resident * page) as f64 / 1048576.0,
+            (dirty * page) as f64 / 1048576.0,
+            extent >> 20,
+            scrubs[0].load(Relaxed),
+            scrubs[1].load(Relaxed) as f64 / 1048576.0,
+            scrubs[2].load(Relaxed) as f64 / 1048576.0,
+        ));
+    }
+    report
+}
+
 /// Return the bytes of a dropped range to the zeroed state.
 fn scrub(start: usize, bytes: usize) {
     if bytes < RETURN_THRESHOLD {
+        note_scrub(start, bytes, 0);
         // SAFETY: the caller owned this published range and dropped its
         // records; the store's memory is writable.
         unsafe { std::ptr::write_bytes(start as *mut u8, 0, bytes) };
@@ -172,6 +230,7 @@ fn scrub(start: usize, bytes: usize) {
     }
     let first = start.next_multiple_of(RETURN_GRANULE);
     let last = (start + bytes) / RETURN_GRANULE * RETURN_GRANULE;
+    note_scrub(start, bytes - (last - first), last - first);
     // SAFETY: as above, for the partial pages at both ends of the range.
     unsafe {
         std::ptr::write_bytes(start as *mut u8, 0, first - start);

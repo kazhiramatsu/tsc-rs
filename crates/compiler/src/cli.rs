@@ -601,6 +601,9 @@ fn run<'a>(
         let mut sites_path = path.clone();
         sites_path.push(".sites");
         let _ = std::fs::write(sites_path, sites);
+        let mut store_path = path.clone();
+        store_path.push(".store");
+        let _ = std::fs::write(store_path, tsc_store::store_report());
     }
     match result {
         Ok(output) => {
