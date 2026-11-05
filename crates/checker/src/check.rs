@@ -2925,10 +2925,17 @@ impl<'a> CheckerState<'a> {
         self.check_exports_on_merged_declarations(node)?;
         let symbol = self.get_symbol_of_declaration(node)?;
         self.check_type_parameter_lists_identical(symbol)?;
-        let first_interface_declaration =
-            self.get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration);
-        if first_interface_declaration == Some(node) {
-            if let Some(name) = name {
+        // tsgo checkInterfaceDeclaration: once per checker, anchored at
+        // the first declaration even when this checker visits another first.
+        if !*self.links.symbol_cold().interface_checked.get(symbol) {
+            self.links.set_symbol_interface_checked(symbol);
+            let first_interface_declaration =
+                self.get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration);
+            if let Some(name) = first_interface_declaration.and_then(|first| {
+                self.record_of(first)
+                    .as_interface_declaration()
+                    .and_then(|data| data.name)
+            }) {
                 let ty = self.get_declared_type_of_symbol(symbol)?;
                 let type_with_this = self.get_type_with_this_argument(ty, None, false)?;
                 if self.check_inherited_properties_are_identical(ty, name)? {

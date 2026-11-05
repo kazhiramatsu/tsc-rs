@@ -47,6 +47,32 @@ fn parse_source_file_creates_root_and_eof_nodes() {
     assert_eq!(source.arena.node(eof).parent, Some(source.root));
 }
 
+#[test]
+fn checker_weight_counts_nodes_before_lazy_typescript_jsdoc() {
+    // aa814927 parser.finishSourceFile includes eager @link JSDoc and
+    // discarded element-access identifiers, excluding lazy plain JSDoc.
+    for (text, expected) in [
+        ("const x = 1;", 7),
+        ("/** plain */\nconst x = 1;", 7),
+        ("/** {@link X} */\nconst x = 1;", 12),
+        ("x[y];", 7),
+        ("interface I extends X {}", 8),
+        ("interface I extends N.X {}", 11),
+        ("class C implements X {}", 8),
+        ("class C extends X {}", 7),
+        ("namespace a.b {}", 8),
+        ("namespace a.b.c {}", 11),
+        ("class C { \"x\"() {} }", 7),
+        ("class C { \"constructor\"() {} }", 6),
+        ("/** @see X\n * @param [x=0] */\nfunction f() {}", 15),
+    ] {
+        let source = parse_source_file("a.ts", text, ParseOptions::default(), None);
+        assert_eq!(source.arena.parse_node_count(), expected, "{text}");
+        let clone = source.clone();
+        assert_eq!(clone.arena.parse_node_count(), expected);
+    }
+}
+
 /// tsgo `IdentifierCount` (tsc 7.1.0-dev `aa814927`, `--extendedDiagnostics`
 /// on each text alone): an arrow function whose body is an `async function`
 /// expression is parsed once (nextIsUnParenthesizedAsyncArrowFunction reads

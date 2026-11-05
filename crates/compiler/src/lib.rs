@@ -1086,6 +1086,42 @@ impl<P: std::borrow::Borrow<PreparedProgram>> PreparedModuleProvider<P> {
 impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
     for PreparedModuleProvider<P>
 {
+    fn checker_association_imports(
+        &self,
+    ) -> Vec<(
+        AuthoritativeSourceToken,
+        usize,
+        Vec<AuthoritativeSourceToken>,
+    )> {
+        let prepared = self.prepared();
+        let mut files = prepared
+            .source_files()
+            .iter()
+            .enumerate()
+            .map(|(index, source)| {
+                let imports = source.import_count().unwrap_or_else(|| {
+                    plan_source_requests(source, prepared.compiler_options())
+                        .map_or(0, |plan| plan.import_count())
+                });
+                (AuthoritativeSourceToken(index as u32), imports, Vec::new())
+            })
+            .collect::<Vec<_>>();
+        for (key, resolution) in prepared.resolutions().modules() {
+            let Some(source) = prepared.source_id(key.source()) else {
+                continue;
+            };
+            let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+                continue;
+            };
+            if let Some(target) = module.target().source() {
+                files[source.index()]
+                    .2
+                    .push(AuthoritativeSourceToken(target.raw()));
+            }
+        }
+        files
+    }
+
     fn common_source_directory(&self) -> Option<JsString> {
         Some(self.prepared().common_source_directory())
     }

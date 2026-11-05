@@ -233,6 +233,8 @@ pub struct PreparedSourceFile {
     implied_node_format: Option<ResolutionMode>,
     implied_node_format_for_emit: Option<ResolutionMode>,
     is_external_module: Option<bool>,
+    /// Parser Imports() length, including repeated imports, excluding synthesized requests.
+    import_count: Option<usize>,
     package_scope: Option<CanonicalPath>,
     /// tsgo `sourceFilesFoundSearchingNodeModules`: the file came into the
     /// program only through resolutions that searched `node_modules`.
@@ -360,6 +362,7 @@ impl PreparedSourceFile {
             implied_node_format: None,
             implied_node_format_for_emit: None,
             is_external_module: None,
+            import_count: None,
             package_scope: None,
             found_searching_node_modules: false,
             preparsed_syntax: PreparsedSyntax::empty(),
@@ -367,6 +370,15 @@ impl PreparedSourceFile {
             content_mapped: None,
             script_kind: None,
         }
+    }
+
+    pub fn with_import_count(mut self, count: usize) -> Self {
+        self.import_count = Some(count);
+        self
+    }
+
+    pub fn import_count(&self) -> Option<usize> {
+        self.import_count
     }
 
     /// The source with the script kind of its file handle (an open
@@ -402,6 +414,7 @@ impl PreparedSourceFile {
     pub fn with_snapshot(&self, snapshot: Arc<TextSnapshot>) -> Self {
         Self {
             snapshot,
+            import_count: None,
             preparsed_syntax: PreparsedSyntax::empty(),
             ..self.clone()
         }

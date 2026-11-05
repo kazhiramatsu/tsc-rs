@@ -2,8 +2,9 @@
 
 tsc-rs is a native executable that parses, binds and checks a program on
 several threads and writes its output files in parallel. By default it runs
-one checker thread per hardware thread, up to eight, and one and a half
-times as many when it writes declaration files. The standard library
+four checker threads, matching tsgo, with deterministic weighted import-graph
+association. The historical measurements below used the checker counts of
+the recorded binaries. The standard library
 declarations are embedded, so a run has no JavaScript runtime start-up. The
 measurements below compare its compile time, CPU time and memory use with
 `tsgo`, the native TypeScript 7.1 compiler that tsc-rs follows, on real
@@ -152,8 +153,9 @@ Compilation with output files, in MiB:
 
 tsc-rs used 0.71 to 1.10 times as much memory as tsgo: less on every
 project but hono, where it used 1.01 to 1.10 times as much. Each checker
-thread keeps its own type tables, and tsc-rs runs up to eight checkers by
-default (twelve when writing declaration files) against tsgo's four. Where
+thread keeps its own type tables, and the recorded tsc-rs binary ran up to
+eight checkers by default (twelve when writing declaration files) against
+tsgo's four. Where
 memory matters more than speed, lower `--checkers`.
 
 ## Output comparison

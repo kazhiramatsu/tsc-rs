@@ -636,6 +636,13 @@ pub struct SymbolLinksCold {
     /// 84876) — the once-latch on multi-declaration class/interface
     /// symbols.
     pub type_parameters_checked: SparseLinks<SymbolId, bool>,
+    /// tsgo declaredTypeLinks: once per checker, regardless of which
+    /// declaration of a merged interface this checker visits first.
+    pub interface_checked: SparseLinks<SymbolId, bool>,
+    pub index_signatures_checked: SparseLinks<SymbolId, bool>,
+    pub enum_checked: SparseLinks<SymbolId, bool>,
+    /// tsgo valueSymbolLinks.functionOrConstructorChecked, per checker.
+    pub function_or_constructor_checked: SparseLinks<SymbolId, bool>,
     /// tsc links.typeOnlyExportStarMap (getExportsOfModule 49841):
     /// written WITH the module-flavor resolved_exports; names whose
     /// only path in is a type-only `export type *` declaration.
@@ -688,6 +695,10 @@ impl SymbolLinksCold {
             left_spread,
             right_spread,
             type_parameters_checked,
+            interface_checked,
+            index_signatures_checked,
+            enum_checked,
+            function_or_constructor_checked,
             type_only_export_star_map,
             exports_checked,
             cjs_export_merged,
@@ -727,6 +738,10 @@ impl SymbolLinksCold {
             left_spread.memory_usage(),
             right_spread.memory_usage(),
             type_parameters_checked.memory_usage(),
+            interface_checked.memory_usage(),
+            index_signatures_checked.memory_usage(),
+            enum_checked.memory_usage(),
+            function_or_constructor_checked.memory_usage(),
             type_only_export_star_map.memory_usage(),
             exports_checked.memory_usage(),
             cjs_export_merged.memory_usage(),
@@ -2185,6 +2200,24 @@ impl LinksTables {
     /// declared-type forcing sees the latch and skips.
     pub fn set_symbol_type_parameters_checked(&mut self, id: SymbolId) {
         self.symbol_cold.type_parameters_checked.set(id, true);
+    }
+
+    pub fn set_symbol_interface_checked(&mut self, id: SymbolId) {
+        self.symbol_cold.interface_checked.set(id, true);
+    }
+
+    pub fn set_symbol_index_signatures_checked(&mut self, id: SymbolId) {
+        self.symbol_cold.index_signatures_checked.set(id, true);
+    }
+
+    pub fn set_symbol_enum_checked(&mut self, id: SymbolId) {
+        self.symbol_cold.enum_checked.set(id, true);
+    }
+
+    pub fn set_symbol_function_or_constructor_checked(&mut self, id: SymbolId) {
+        self.symbol_cold
+            .function_or_constructor_checked
+            .set(id, true);
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable

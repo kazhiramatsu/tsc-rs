@@ -157,9 +157,9 @@ fn whole_program_semantic_getter_reassembles_cross_file_diagnostic_owners() {
     };
 
     let checked = run(Some(false));
-    // The fixture getter remains the exact driver.mjs observation.
+    // Go checks merged interfaces once per checker, then filters by file owner.
     assert_eq!(diagnostic_owners(&checked, 2300), ["/main.ts"]);
-    assert!(diagnostic_owners(&checked, 2374).is_empty());
+    assert_eq!(diagnostic_owners(&checked, 2374), ["/main.ts", "/main.ts"]);
     let mut duplicate_owners = checked
         .program_semantic_diagnostics
         .as_ref()
@@ -228,12 +228,15 @@ fn whole_program_semantic_getter_reassembles_cross_file_diagnostic_owners() {
         .collect::<Vec<_>>();
     skipped_duplicate_owners.sort();
     assert_eq!(skipped_duplicate_owners, ["/main.ts"]);
-    assert!(skipped
+    let skipped_index_owners = skipped
         .program_semantic_diagnostics
         .as_ref()
         .expect("authoritative sessions publish the whole-Program getter")
         .iter()
-        .all(|diagnostic| diagnostic.code() != 2374));
+        .filter(|diagnostic| diagnostic.code() == 2374)
+        .map(|diagnostic| diagnostic.file_name.as_ref().unwrap().as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(skipped_index_owners, ["/main.ts", "/main.ts"]);
 }
 
 #[test]
@@ -264,7 +267,7 @@ fn authoritative_empty_program_publishes_an_empty_whole_program_semantic_getter(
 }
 
 #[test]
-fn source_file_getter_does_not_force_library_owned_merged_duplicate_indexers() {
+fn source_file_getter_returns_its_merged_duplicate_indexers() {
     let result = check_program_with_owned_libs_at(
         &[focused_default_library(
             "interface MergeProbe { [x: number]: string; }\n",
@@ -282,15 +285,13 @@ fn source_file_getter_does_not_force_library_owned_merged_duplicate_indexers() {
         "/",
     );
 
-    // TypeScript's per-source getter checks only `/main.ts`. The merged
-    // interface's canonical (first) declaration belongs to `/lib.d.ts`, so
-    // checkTypeForDuplicateIndexSignatures returns at the source declaration
-    // and the unqueried library producer publishes no rows.
-    assert!(diagnostic_owners(&result, 2374).is_empty());
+    // tsgo aa8149273's source getter checks the merged symbol even when its
+    // first declaration is library-owned; only the source-owned rows return.
+    assert_eq!(diagnostic_owners(&result, 2374), ["/main.ts", "/main.ts"]);
 }
 
 #[test]
-fn source_file_getter_does_not_force_library_owned_index_constraints() {
+fn source_file_getter_returns_its_merged_index_constraints() {
     let result = check_program_with_owned_libs_at(
         &[focused_default_library(
             "interface MergeProbe { fromLib: number; }\n",
@@ -303,7 +304,7 @@ fn source_file_getter_does_not_force_library_owned_index_constraints() {
         "/",
     );
 
-    assert!(diagnostic_owners(&result, 2411).is_empty());
+    assert_eq!(diagnostic_owners(&result, 2411), ["/main.ts"]);
 }
 
 #[test]
@@ -355,9 +356,15 @@ fn skip_default_lib_check_and_skip_lib_check_use_distinct_program_roles() {
         "/",
     );
 
-    assert!(diagnostic_owners(&checked, 2374).is_empty());
-    assert!(diagnostic_owners(&default_library_skipped, 2374).is_empty());
-    assert!(diagnostic_owners(&all_declarations_skipped, 2374).is_empty());
+    assert_eq!(diagnostic_owners(&checked, 2374), ["/main.ts", "/main.ts"]);
+    assert_eq!(
+        diagnostic_owners(&default_library_skipped, 2374),
+        ["/main.ts", "/main.ts"]
+    );
+    assert_eq!(
+        diagnostic_owners(&all_declarations_skipped, 2374),
+        ["/main.ts", "/main.ts"]
+    );
 
     let ordinary_declaration = InputFile::new(
         "/ordinary.d.ts",
@@ -6950,6 +6957,90 @@ fn library_related_information_follows_program_membership_across_entry_families(
             .map(|d| d.message.code)
             .collect::<Vec<_>>();
         assert_eq!(related, if default_library { vec![] } else { vec![6501] });
+    }
+}
+
+/// Pinned Go runs merged-symbol prechecks at each owner, including when
+/// the first declaration belongs to another checker (N1/2/3/4/8).
+#[test]
+fn sharded_checkers_check_merged_symbols_at_each_owner() {
+    struct Provider;
+    impl AuthoritativeModuleProvider for Provider {
+        fn resolve_module(
+            &self,
+            _: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            unreachable!("the fixture has no imports")
+        }
+    }
+    struct Factory;
+    impl AuthoritativeModuleProviderFactory for Factory {
+        fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_> {
+            Box::new(Provider)
+        }
+    }
+    let libs = [focused_default_library("")];
+    let metadata = |token, file: &InputFile, may_be_emitted| AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(token),
+        file_name: file.name.clone(),
+        may_be_emitted,
+        implied_node_format: None,
+        implied_node_format_for_emit: None,
+        project_reference: None,
+    };
+    let lib_metadata = [metadata(0, &libs[0], false)];
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        ..CompilerOptions::default()
+    };
+    let cases: &[(&str, &str, u32, &[&str])] = &[
+        (
+            "function f() {}\n",
+            "function f() {}\n",
+            2393,
+            &["/a.ts", "/b.ts"],
+        ),
+        ("enum E { A }\n", "enum E { B }\n", 2432, &["/b.ts"]),
+        (
+            "const enum E { A = 1 }\n",
+            "enum E { B = 2 }\n",
+            2567,
+            &["/a.ts", "/b.ts"],
+        ),
+    ];
+    for &(left, right, code, owners) in cases {
+        let files = [
+            InputFile::new("/a.ts", left),
+            InputFile::new("/b.ts", right),
+        ];
+        let file_metadata = [metadata(1, &files[0], true), metadata(2, &files[1], true)];
+        for count in [1, 2, 3, 4, 8] {
+            let checked = check_program_with_authoritative_modules_at_cache_mode_with_source(
+                &libs,
+                &files,
+                &lib_metadata,
+                &file_metadata,
+                &options,
+                "/",
+                AuthoritativeProviderSource::PerChecker(&Factory),
+                false,
+                None,
+                None,
+                crate::LibraryPrefixCompletion::Complete,
+                crate::DiagnosticSchedule::Eager,
+                tsc_program::WorkerBudget::serial(),
+                CheckerBudget::new(std::num::NonZeroUsize::new(count).unwrap()),
+                None,
+                crate::IncrementalRequest::NONE,
+                false,
+            )
+            .expect("check merged implementations");
+            assert_eq!(
+                diagnostic_owners(&checked, code),
+                owners,
+                "code={code}, checkers={count}"
+            );
+        }
     }
 }
 

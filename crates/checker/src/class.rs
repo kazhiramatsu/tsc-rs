@@ -324,14 +324,25 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<()> {
-        if self.kind_of(node) == SyntaxKind::InterfaceDeclaration {
-            let node_symbol = self.get_symbol_of_declaration(node)?;
-            let declarations = self.binder.symbol(node_symbol).declarations();
-            if declarations.first().copied() != Some(node) {
+        let symbol = self.get_symbol_of_declaration(node)?;
+        if matches!(
+            self.kind_of(node),
+            SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::ClassDeclaration
+                | SyntaxKind::ClassExpression
+        ) {
+            // tsgo checkClassOrInterfaceForDuplicateIndexSignatures: each
+            // checker must run this even if it owns a later declaration.
+            if *self
+                .links
+                .symbol_cold()
+                .index_signatures_checked
+                .get(symbol)
+            {
                 return Ok(());
             }
+            self.links.set_symbol_index_signatures_checked(symbol);
         }
-        let symbol = self.get_symbol_of_declaration(node)?;
         let index_symbol = self
             .get_members_of_symbol(symbol)?
             .get(tsc_types::known_name!(InternalSymbolName::INDEX))
