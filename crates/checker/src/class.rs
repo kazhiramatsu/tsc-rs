@@ -334,7 +334,7 @@ impl<'a> CheckerState<'a> {
         let symbol = self.get_symbol_of_declaration(node)?;
         let index_symbol = self
             .get_members_of_symbol(symbol)?
-            .get(InternalSymbolName::INDEX)
+            .get(tsc_types::known_name!(InternalSymbolName::INDEX))
             .copied();
         let Some(index_symbol) = index_symbol else {
             return Ok(());

@@ -1308,7 +1308,7 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         }
         let Some(prototype_property) =
-            self.get_property_of_type_full(identifier_type, "prototype")?
+            self.get_property_of_type_full(identifier_type, tsc_types::known_name!("prototype"))?
         else {
             return Ok(ty);
         };

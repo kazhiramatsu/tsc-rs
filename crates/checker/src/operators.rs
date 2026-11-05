@@ -4624,7 +4624,8 @@ impl<'a> CheckerState<'a> {
         )? {
             return Ok(false);
         }
-        let then_function = self.get_type_of_property_of_type(ty, "then")?;
+        let then_function =
+            self.get_type_of_property_of_type(ty, tsc_types::known_name!("then"))?;
         let Some(then_function) = then_function else {
             return Ok(false);
         };

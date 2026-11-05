@@ -4560,8 +4560,14 @@ impl<'a> CheckerState<'a> {
         // 5.9c late-bound index reads) observes the still-empty
         // signature/index lists instead of recursing. An Err unwind
         // retracts the parked table.
-        let call_symbol = members.get(&self.binder, InternalSymbolName::CALL);
-        let new_symbol = members.get(&self.binder, InternalSymbolName::NEW);
+        let call_symbol = members.get(
+            &self.binder,
+            tsc_types::known_name!(InternalSymbolName::CALL),
+        );
+        let new_symbol = members.get(
+            &self.binder,
+            tsc_types::known_name!(InternalSymbolName::NEW),
+        );
         let id = self.alloc_members(ResolvedMembers::new(
             members,
             properties,
@@ -4676,7 +4682,7 @@ impl<'a> CheckerState<'a> {
                 let mut table = MemberTable::from_symbols(&self.binder, &declared_properties);
                 let source_index = source_symbol.and_then(|symbol| {
                     self.symbol_members(symbol)
-                        .get(InternalSymbolName::INDEX)
+                        .get(tsc_types::known_name!(InternalSymbolName::INDEX))
                         .copied()
                 });
                 if let Some(index_symbol) = source_index {
@@ -5264,10 +5270,13 @@ impl<'a> CheckerState<'a> {
         late: &mut tsc_binder::SymbolTable,
         decl: NodeId,
     ) -> CheckResult<()> {
-        let index_symbol = match late.get(InternalSymbolName::INDEX) {
+        let index_symbol = match late.get(tsc_types::known_name!(InternalSymbolName::INDEX)) {
             Some(&existing) => existing,
             None => {
-                let created = match early.get(InternalSymbolName::INDEX).copied() {
+                let created = match early
+                    .get(tsc_types::known_name!(InternalSymbolName::INDEX))
+                    .copied()
+                {
                     Some(early_index) => {
                         let cloned = self.clone_symbol(early_index);
                         let check_flags = self.links.read_symbol(cloned, |links| links.check_flags);
@@ -7231,12 +7240,14 @@ impl<'a> CheckerState<'a> {
                 let members = state.member_table(&declared);
                 let container = state.tables.type_of(ty).symbol;
                 let properties = state.get_named_members(&members, container)?;
-                let call_signatures = state.get_signatures_of_symbol(
-                    members.get(&state.binder, InternalSymbolName::CALL),
-                )?;
-                let construct_signatures = state.get_signatures_of_symbol(
-                    members.get(&state.binder, InternalSymbolName::NEW),
-                )?;
+                let call_signatures = state.get_signatures_of_symbol(members.get(
+                    &state.binder,
+                    tsc_types::known_name!(InternalSymbolName::CALL),
+                ))?;
+                let construct_signatures = state.get_signatures_of_symbol(members.get(
+                    &state.binder,
+                    tsc_types::known_name!(InternalSymbolName::NEW),
+                ))?;
                 let index_infos = state.get_index_infos_of_symbol(symbol)?;
                 return Ok(ResolvedMembers::new(
                     members,
@@ -7306,9 +7317,10 @@ impl<'a> CheckerState<'a> {
                         // inherit the base's STATIC side.
                         let named = state.get_named_members(&members, Some(symbol))?;
                         let mut table = MemberTable::from_symbols(&state.binder, &named);
-                        if let Some(index_symbol) =
-                            members.get(&state.binder, InternalSymbolName::INDEX)
-                        {
+                        if let Some(index_symbol) = members.get(
+                            &state.binder,
+                            tsc_types::known_name!(InternalSymbolName::INDEX),
+                        ) {
                             table.insert(&state.binder, index_symbol);
                         }
                         members = table;
@@ -7327,7 +7339,10 @@ impl<'a> CheckerState<'a> {
                         });
                     }
                 }
-                let index_symbol = members.get(&state.binder, InternalSymbolName::INDEX);
+                let index_symbol = members.get(
+                    &state.binder,
+                    tsc_types::known_name!(InternalSymbolName::INDEX),
+                );
                 let index_infos = match index_symbol {
                     // 58366-58367: infos from the index symbol, with
                     // the member table as the sibling list (feeds the
@@ -7388,7 +7403,7 @@ impl<'a> CheckerState<'a> {
                     let class_type = state.get_declared_type_of_class_or_interface(symbol)?;
                     let constructor = state
                         .symbol_members(symbol)
-                        .get(InternalSymbolName::CONSTRUCTOR)
+                        .get(tsc_types::known_name!(InternalSymbolName::CONSTRUCTOR))
                         .copied();
                     construct_signatures = state.get_signatures_of_symbol(constructor)?;
                     if flags.intersects(SymbolFlags::FUNCTION) {
@@ -7518,7 +7533,9 @@ impl<'a> CheckerState<'a> {
         // table) — a computed-name index member surfaces here and the
         // declaration reader below keeps its honest escape.
         let members = self.get_members_of_symbol(symbol)?;
-        let index_symbol = members.get(InternalSymbolName::INDEX).copied();
+        let index_symbol = members
+            .get(tsc_types::known_name!(InternalSymbolName::INDEX))
+            .copied();
         match index_symbol {
             Some(index_symbol) => self.get_index_infos_of_index_symbol(
                 index_symbol,
@@ -9256,15 +9273,21 @@ impl<'a> CheckerState<'a> {
     /// parameter type, else `any`.
     fn get_type_from_property_descriptor(&mut self, descriptor: NodeId) -> CheckResult<TypeId> {
         let object_type = self.check_expression_cached(descriptor, CheckMode::NORMAL)?;
-        if let Some(value) = self.get_type_of_property_of_type(object_type, "value")? {
+        if let Some(value) =
+            self.get_type_of_property_of_type(object_type, tsc_types::known_name!("value"))?
+        {
             return Ok(value);
         }
-        if let Some(getter) = self.get_type_of_property_of_type(object_type, "get")? {
+        if let Some(getter) =
+            self.get_type_of_property_of_type(object_type, tsc_types::known_name!("get"))?
+        {
             if let Some(signature) = self.get_single_call_signature(getter)? {
                 return self.get_return_type_of_signature(signature);
             }
         }
-        if let Some(setter) = self.get_type_of_property_of_type(object_type, "set")? {
+        if let Some(setter) =
+            self.get_type_of_property_of_type(object_type, tsc_types::known_name!("set"))?
+        {
             if let Some(signature) = self.get_single_call_signature(setter)? {
                 return self.get_type_at_position(signature, 0);
             }

@@ -226,14 +226,17 @@ impl From<EscapedName> for JsStr<'static> {
     }
 }
 
-/// The name of a literal, interned once per use site: for comparisons and
-/// lookups on hot paths, where interning the text on every call would cost a
-/// hash and a shard lock.
+/// The name of a constant text (a literal or a constant such as an
+/// `InternalSymbolName`), interned once per use site: for comparisons and
+/// lookups on hot paths, where interning the text on every call (a symbol
+/// table looked up by text interns its key) would cost a hash and a cache
+/// probe. The text must be a constant: it is bound to a `const` first.
 #[macro_export]
 macro_rules! known_name {
-    ($text:literal) => {{
+    ($text:expr) => {{
+        const TEXT: &'static str = $text;
         static NAME: ::std::sync::OnceLock<$crate::EscapedName> = ::std::sync::OnceLock::new();
-        *NAME.get_or_init(|| $crate::EscapedName::internal($text))
+        *NAME.get_or_init(|| $crate::EscapedName::internal(TEXT))
     }};
 }
 

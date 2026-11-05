@@ -3567,7 +3567,8 @@ impl<'a> CheckerState<'a> {
         {
             return Ok((None, None));
         }
-        let then_function = self.get_type_of_property_of_type(ty, "then")?;
+        let then_function =
+            self.get_type_of_property_of_type(ty, tsc_types::known_name!("then"))?;
         if then_function.is_some_and(|then_function| {
             self.tables
                 .flags_of(then_function)

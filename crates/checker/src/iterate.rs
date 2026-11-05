@@ -1372,7 +1372,7 @@ impl<'a> CheckerState<'a> {
     /// 84327-84329 are the two kind-fixing wrappers, inlined at the
     /// filter sites.)
     fn is_iterator_result(&mut self, ty: TypeId, kind: IterationTypeKind) -> CheckResult<bool> {
-        let done_prop = self.get_property_of_type_full(ty, "done")?;
+        let done_prop = self.get_property_of_type_full(ty, tsc_types::known_name!("done"))?;
         let done_type = match done_prop {
             Some(prop) => self.get_type_of_symbol(prop)?,
             None => self.tables.intrinsics.false_fresh,
@@ -1412,7 +1412,10 @@ impl<'a> CheckerState<'a> {
             state.is_iterator_result(t, IterationTypeKind::YIELD)
         })?;
         let yield_type = if yield_iterator_result != self.tables.intrinsics.never {
-            let prop = self.get_property_of_type_full(yield_iterator_result, "value")?;
+            let prop = self.get_property_of_type_full(
+                yield_iterator_result,
+                tsc_types::known_name!("value"),
+            )?;
             match prop {
                 Some(prop) => Some(self.get_type_of_symbol(prop)?),
                 None => None,
@@ -1424,7 +1427,10 @@ impl<'a> CheckerState<'a> {
             state.is_iterator_result(t, IterationTypeKind::RETURN)
         })?;
         let return_type = if return_iterator_result != self.tables.intrinsics.never {
-            let prop = self.get_property_of_type_full(return_iterator_result, "value")?;
+            let prop = self.get_property_of_type_full(
+                return_iterator_result,
+                tsc_types::known_name!("value"),
+            )?;
             match prop {
                 Some(prop) => Some(self.get_type_of_symbol(prop)?),
                 None => None,

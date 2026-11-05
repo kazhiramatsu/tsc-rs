@@ -2307,7 +2307,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .symbol(module_symbol)
             .exports()
-            .get(InternalSymbolName::EXPORT_EQUALS)
+            .get(tsc_types::known_name!(InternalSymbolName::EXPORT_EQUALS))
             .copied();
         let export_symbol = match export_value {
             Some(export_value) => {
@@ -2729,7 +2729,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .symbol(module_symbol)
             .exports()
-            .get(InternalSymbolName::EXPORT_STAR)
+            .get(tsc_types::known_name!(InternalSymbolName::EXPORT_STAR))
             .copied();
         let mut related = Vec::new();
         if let Some(export_star) = export_star {
@@ -2748,7 +2748,7 @@ impl<'a> CheckerState<'a> {
                         .binder
                         .symbol(resolved)
                         .exports()
-                        .contains_key(InternalSymbolName::DEFAULT)
+                        .contains_key(tsc_types::known_name!(InternalSymbolName::DEFAULT))
                     {
                         related.push(self.related_info_for_node_js(
                             declaration,
@@ -2973,7 +2973,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .symbol(module_symbol)
             .exports()
-            .contains_key(InternalSymbolName::EXPORT_EQUALS)
+            .contains_key(tsc_types::known_name!(InternalSymbolName::EXPORT_EQUALS))
         {
             let ty = self.get_type_of_symbol(target_symbol)?;
             self.get_property_of_type_ex(
@@ -2990,7 +2990,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .symbol(module_symbol)
             .exports()
-            .contains_key(InternalSymbolName::EXPORT_EQUALS)
+            .contains_key(tsc_types::known_name!(InternalSymbolName::EXPORT_EQUALS))
         {
             module_symbol
         } else {
@@ -3094,7 +3094,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .symbol(module_symbol)
             .exports()
-            .contains_key(InternalSymbolName::DEFAULT)
+            .contains_key(tsc_types::known_name!(InternalSymbolName::DEFAULT))
         {
             self.error_at_js(
                 Some(name),
@@ -3181,7 +3181,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .symbol(module_symbol)
             .exports()
-            .get(InternalSymbolName::EXPORT_EQUALS)
+            .get(tsc_types::known_name!(InternalSymbolName::EXPORT_EQUALS))
             .copied();
         if let Some(exported_equals_symbol) = exported_equals_symbol {
             if self
@@ -7883,7 +7883,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .symbol(module_symbol)
             .exports()
-            .get(InternalSymbolName::EXPORT_EQUALS)
+            .get(tsc_types::known_name!(InternalSymbolName::EXPORT_EQUALS))
             .copied();
         let export_equals = self.resolve_symbol_ex(export_equals, dont_resolve_alias)?;
         Ok(Some(
@@ -8274,7 +8274,7 @@ impl<'a> CheckerState<'a> {
         self.binder
             .symbol(module_symbol)
             .exports()
-            .contains_key(InternalSymbolName::EXPORT_EQUALS)
+            .contains_key(tsc_types::known_name!(InternalSymbolName::EXPORT_EQUALS))
     }
 
     /// tsc-port: isShorthandAmbientModuleSymbol @6.0.3
@@ -8336,7 +8336,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .symbol(module_symbol)
             .exports()
-            .get(InternalSymbolName::EXPORT_EQUALS)
+            .get(tsc_types::known_name!(InternalSymbolName::EXPORT_EQUALS))
             .copied();
         let original_module = self
             .resolve_symbol_ex(export_equals, false)?
@@ -8416,7 +8416,9 @@ impl<'a> CheckerState<'a> {
         }
         visited.push(symbol);
         let mut symbols = (**self.binder.symbol(symbol).exports()).clone();
-        let export_stars = symbols.get(InternalSymbolName::EXPORT_STAR).copied();
+        let export_stars = symbols
+            .get(tsc_types::known_name!(InternalSymbolName::EXPORT_STAR))
+            .copied();
         if let Some(export_stars) = export_stars {
             let mut nested_symbols = SymbolTable::default();
             // (specifier text, exportsWithDuplicate) per name —
@@ -10917,7 +10919,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .symbol(module_symbol)
             .exports()
-            .get(InternalSymbolName::EXPORT_EQUALS)
+            .get(tsc_types::known_name!(InternalSymbolName::EXPORT_EQUALS))
             .copied();
         // tsgo checkExternalModuleExports (TypeScript 7.1, checker.go:5858-5870):
         // an `export=` is in error beside other VALUE exports, or when it
