@@ -1031,7 +1031,7 @@ impl NodeArena {
                 });
                 node
             });
-        for node in &mut self.array_items {
+        for node in &mut self.array_items.iter_mut().take(0) {
             *node = shift.node(*node, &mut inside);
         }
         if !inside {
