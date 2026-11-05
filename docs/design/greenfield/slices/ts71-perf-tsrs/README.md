@@ -1430,6 +1430,47 @@ load と出した。
 checker 1,854、0 failed）、fmt・clippy・4 つの生成器の `--check`、fingerprint 143,190 行 差分 0、8 case で出力と統計行が親と一致、
 `--checkers 4` は既知の 4 件（15,335 一致）で C8 の 4-checker 報告とは 15,339 すべて一致、計測は上の通り。
 
+## 1 checker の command check も checker state と program を process の終了に任せる（branch `perf/ts71-serial-leak`、M1 の finalization 行）
+
+M1 の phase ledger で、tsc-rs の diagnostics/render/emit/finalization 行は VS Code で 1,234 M 命令、tsrs は 27 M だった。
+sub-scope を足した ledger build を 2 つ作って中身を分けた（`m1-tsrs/finalization-split.md`）。大部分は後始末だった。
+- `check_snapshot_serially` の最後での `CheckerState` の drop：580.8 M（直接 scope で測った）
+- check から戻った後の `ProgramSnapshot`（全 tree と binder の record）と store の drop：約 342.6 M（他に大きな仕事のない
+  隙間から推定）
+
+**原因**：一度きりの command は program と checker state をわざと leak する（`with_leaked_program(!watch)`・
+`with_leaked_states(!watch)`。`--generateTrace` では state を drop して types file を書く）。sharded driver はこの budget
+に従い、state と snapshot を process の終了に任せる。1 checker の no-emit 入口は `leak_at_end = false` を渡していた。
+その eager な serial 経路も state に `false` を直書きし、snapshot を残さずに戻っていた。そのため 1 thread の run だけ、終了の
+直前に全部を drop していた。
+
+**修正**：入口に budget の leaked-states を渡し、eager な serial 経路はそれに従って state と snapshot を残す（sharded
+と同じ）。watch・API・trace の session は今まで通り drop する。出力・統計行は変わらない。unit test は text snapshot の Arc
+の数で leak と drop を見分ける（drop で 1、leak で 3）。
+
+**計測**：1 thread、静かな machine（M4 lane を止めて 11:04〜11:08）、親 `3f336c690` 比。
+| project | 命令数 |
+|---|---:|
+| VS Code | **−0.66%**（−0.91 G、5 回。wall 8.69 → 8.58 s） |
+| zod | **−0.91%**（−169 M） |
+| effect・hono・playwright | −0.75%・−0.75%・−0.70% |
+| next | −0.60%（−168 M） |
+| ts | −0.32% |
+| vue | 0.00% |
+
+予想（VS Code −0.92 G など）の通り。vue だけ 0 なのは、bench の config が declaration diagnostics を求め
+（`declaration: true` と `noEmit`）、declaration 診断の経路（`..._for_emit_with_checkers`、`leak_at_end = false` のまま）
+を通るため。これは別の follow-up にした。4 thread と既定の構成は sharded driver（すでに leak している）なので変わらない。
+1 thread（WASM）の構成はこの分をすべて得る。
+
+**記録。** PR [#890](https://github.com/kazhiramatsu/tsc-rs/pull/890) → merge `ad0fbe716`（2026-11-05。`67f853a38`、最終 head `7db7063cb`）。hosted run
+[41959000445](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41959000445)：全 job pass。local（hosted がしないことだけ、`67f853a38`）：
+- unit test（Arc の数で leak と drop を見分ける。修正なしでは失敗）
+- checker の test 1,870 + 1、compiler の test 54 + 188、fmt、release build
+- 8 case で出力（exit code・stdout・stderr）と統計行が親と一致
+- `--checkers 4` は既知の 4 件のみ。直前の 4-checker 報告とは 15,339 構成すべて一致
+- 計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
