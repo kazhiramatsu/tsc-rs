@@ -51,6 +51,22 @@ fn memory_sample() -> tsc_types::trace::MemorySample {
             &mut faults,
         );
     }
+    // Diagnostic: the process's instructions and cycles retired so far.
+    let mut usage = std::mem::MaybeUninit::<libc::rusage_info_v4>::zeroed();
+    // SAFETY: proc_pid_rusage writes one rusage_info_v4 for this process.
+    let rc = unsafe {
+        libc::proc_pid_rusage(
+            std::process::id() as i32,
+            libc::RUSAGE_INFO_V4,
+            usage.as_mut_ptr().cast(),
+        )
+    };
+    if rc == 0 {
+        // SAFETY: written above.
+        let usage = unsafe { usage.assume_init() };
+        sample.instructions = usage.ri_instructions;
+        sample.cycles = usage.ri_cycles;
+    }
     sample
 }
 
