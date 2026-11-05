@@ -53,6 +53,37 @@ vue 1.27（2.7、1.96）、playwright 1.21（2.1、1.75）、TypeScript compiler
 ≈ 6.5 core、tsrs が ≈ 3.9 core を使うため；tsrs の npm 配布 binary（PGO）はさらに ≈ 13% 速い。script：
 `target/claude-tools/handover/perf-tsrs/wallclock.sh`。
 
+**B0 の凍結と anchor（M0、2026-11-05 07:00、静音、nice 20、warm-up + 3 round 中央値）。** B0 = main `c3485397a`（#887 まで；#885 は queue の
+3 周目で後から着地）、binary の sha256 と環境の receipt は `target/claude-tools/perf-plan-20261104/`（`manifest.json`、`runs/`）。A/A（同じ B0 binary を
+2 つの label で）：命令数の差は 8 project すべてで ±0.03% 以内、peak ±4 MB — 雑音床。
+
+| project（1 thread） | B0 命令数 | tsrs | 比 | B0 peak | tsrs peak | 比 |
+|---|---:|---:|---:|---:|---:|---:|
+| VS Code | 138.24 G | 85.48 G | 1.62 | 3,522 MB | 2,008 MB | 1.75 |
+| TypeScript compiler | 9.72 | 4.89 | 1.99 | 172 | 110 | 1.56 |
+| Next.js | 29.06 | 17.27 | 1.68 | 744 | 453 | 1.64 |
+| zod | 19.14 | 13.20 | 1.45 | 716 | 440 | 1.63 |
+| Effect | 15.97 | 10.98 | 1.45 | 521 | 328 | 1.59 |
+| hono | 2.84 | 1.73 | 1.64 | 111 | 71 | 1.56 |
+| vue | 15.11 | 8.67 | 1.74 | 301 | 182 | 1.65 |
+| playwright | 13.08 | 7.54 | 1.73 | 404 | 249 | 1.62 |
+
+**製品指標の前線（同じ窓、`frontier.sh`、VS Code；wall / CPU / 使用 core / peak / 命令数）。**
+
+| 構成 | tsc-rs | tsrs |
+|---|---|---|
+| single thread（worker 1・checker 1 対 `--singleThreaded`） | 8.74 s / 8.77 s / 1.0 / 3,520 MB / 138.2 G | 5.65 s / 5.81 s / 1.0 / 2,005 MB / 85.5 G |
+| 4 thread 予算（`TSRS_WORKERS=4 TSRS_CHECKERS=4` 対 `RAYON_NUM_THREADS=4 --checkers 4`） | 2.95 s / 10.46 s / 3.5 / 3,973 MB / 148.4 G | 1.96 s / 6.64 s / 3.4 / 2,306 MB / 92.3 G |
+| 既定 | 2.22 s / 15.15 s / 6.8 / 4,313 MB / 155.0 G | 1.85 s / 7.40 s / 4.0 / 2,306 MB / 92.4 G |
+| checker 数別（worker 1）：1 / 4 / 8 | 138.2 / 147.5 / 153.6 G（+6.7% / +11.1%）、peak 3,520 / 4,082 / 4,394 MB | 1 / 4：85.5 / 92.3 G（+8.0%）、2,005 / 2,306 MB |
+
+読み：(1) **4 thread 予算での差 1.51 倍は 1 thread の差 1.55 倍と同じ**で、並列効率は両者とも同じ（85% 対 87%）。固定予算での負けは scheduler ではなく thread
+あたりの命令数と CPI の差。(2) 既定どうしの差が 1.20 倍と小さいのは tsc-rs が 6.8 core（E core へ溢れ、CPU +73%）を使うからで、tsrs は 4 core に留めている。
+(3) checker 間の重複は 4 checker で +6.7%、8 で +11.1%（tsrs は既定の 4 で +8.0%）で、tsrs と同程度。(4) 4 thread での直列・不均衡の wall 比率は ≈ 11%
+（tsrs ≈ 15%）で、symbol/bind model の分岐の規則（< 10% 維持、> 20% 代替案）では**維持**。(5) checker あたりの memory は ≈ +125〜140 MB（tsrs ≈ +100）。
+結論：並列の経路は命令数の差を迂回しない。4 thread で勝つには thread あたりの効率（record の形・確保・CPI）を詰める必要があり、SCHED-1 の利得は不均衡分
+（wall の 1 割前後）と既定での配置（E core の CPU）に限られる。
+
 ## slice 1：固定 address の store（branch `perf/ts71-fixed-stores`）
 
 **設計。** 新 crate `tsc-store`（`crates/store`、compiler で唯一 `unsafe` を持つ crate）が、process に一つの address 範囲を
@@ -998,6 +1029,43 @@ code `ed001ed92`（`m5main`）、本 PR = `5088a7078`（`ls1`））：VS Code 14
 しないことだけ、`5088a7078`）：syntax の test 271、fmt・clippy・4 つの生成器の `--check`、fingerprint 143,190 行 差分 0、8 case で出力が main と
 一致（checker は変えていないので `--checkers 4` はなし）、計測は上の通り。
 
+## tsgo 7.1 の async arrow の先読みと Identifiers の数え方、先読みの巻き戻しと comment directive（branch `perf/ts71-async-lookahead`）
+
+`--extendedDiagnostics` の `Identifiers` を tsgo（`aa814927`）と file ごとに比べて見つけた、7.1 の parser の振る舞いの 2 つの取り残し。
+どちらも tree は変えない。
+
+1. **async arrow の先読み**：tsgo の `nextIsUnParenthesizedAsyncArrowFunction`（parser.go:4594）は token だけを見る（`async`・
+   識別子・`=>` が同じ行）。6.0.3 の先読みは `async` の後ろの二項式を丸ごと parse していたので、`async function …` 式の本体を毎回
+   2 度 parse していた（hono の `method-override/index.ts` は識別子を 441 個作って tree に残るのは 241、tsgo は 254）。同じ commit で
+   tsgo の `parseElementAccessExpressionRest`（parser.go:5527）が引数の前に作って捨てる missing identifier を数に入れる（node は
+   作らない）。8 project のうち 7 で `Identifiers` が tsgo と一致し、effect だけ 293 少ない（7.1 の top-level await の印
+   `statementHasAwaitIdentifier`・`possibleAwaitSpans` が未移植。M2 の監査に入れた）。
+2. **巻き戻した先読みの comment directive**：tsgo の `ScannerState` は comment directive を持つので、巻き戻した先読みが読んだ
+   `// @ts-ignore` / `// @ts-expect-error` は残らない。`ScannerState` に directive の数を持たせ、restore で切る。以前は失敗した
+   括弧付き arrow の試行などで 1 つの directive が 2 回並んでいた（fingerprint の 40 input・41 個。tree は同一）。
+
+**計測**：1 thread、通常 build、静かな machine（M0 の窓、06:58〜）。`serial.py` の warm-up 1 回 + 交互 3 回の中央値。main の code
+（`m5main`）対この branch（`al2`）。生の行は `asynclookahead/serial.jsonl`。
+
+| project | 命令数 | 備考 |
+|---|---:|---|
+| VS Code | **−0.10%**（141.99 → 141.84 G、−0.15 G） | 3 回とも減る（−0.06〜−0.15%）。peak footprint 3,587 → 3,560 MB（−27） |
+| hono | −0.16%（2.84 G） | 3 回とも −0.16% |
+| 他の 6 project | +0.00〜+0.13% | noise の幅（playwright の +0.13% は 1 回だけの +0.17% による） |
+
+VS Code 以外の peak footprint は ±4 MB 以内。exit code と出力の大きさは 8 case とも同じ。
+
+**予想との差**：予想は VS Code −0.2〜−0.5 G（−0.15〜−0.35%）で、0.5〜0.8 M の node が 2 度 parse されなくなるという見積もり
+だった。実測の −0.15 G は帯の下に外れた。予想と同じ node あたりの命令数（0.4〜0.6 K）なら 0.24〜0.37 M node 分にあたる。VS Code の
+Identifiers は 77,967 減った（5,945,718 → 5,867,751、tsgo と同じ）。2 度目の parse は見積もりより小さかった。hono が他より大きく
+減るという予想は当たった。この slice の価値は fidelity にある（Identifiers が 7 project で tsgo と一致し、directive の重複が消える）。
+計測では命令数の増加はなく、VS Code はわずかに減る。
+
+**記録。** PR [#883](https://github.com/kazhiramatsu/tsc-rs/pull/883) → merge `55f65b0b6`（2026-11-05。`80849312f`・`cecdb2fa8`、最終 head `5823e1f1c`）。
+hosted run [41932861516](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41932861516)：全 job pass。local（hosted がしないことだけ、`cecdb2fa8`）：
+syntax の test 270、fmt・clippy・4 つの生成器の `--check`、fingerprint は 40 input・80 行が差分で全部が directive の重複の削除（tree の
+dump は同一）、8 case で出力が main と一致、`Identifiers` は 7 project で tsgo と一致、計測は上の通り。
+
 ## checker の data 層の書き直し（利用者の決定 2026-11-04）
 
 計測台帳の結果（front end と memo では VS Code の差が縮まらず、差は checker の 1 操作の費用と record の形にある）を受けて、利用者が
@@ -1172,6 +1240,55 @@ identity は process の生きた木と衝突する。
 - 再現と、並列 100 回の前後比較は上の通り。fmt
 - `src/` に変更がないので、release build・8 project の出力比較・計測は対象外
 
+## M2 の fidelity 修正：alias と reference の型引数からの推論を invokeOnce に通す（branch `perf/ts71-alias-inference-once`、tsgo #64553）
+
+M2（仕事量の監査）の最初の結果。vue の instantiation が tsgo より 10% 多い（605,322 対 549,756）。両方の engine で呼び出し元ごとに数えて、
+原因を特定した（`m2/vue-instantiations.md`）。tsgo `c8e9b7d25`（microsoft/TypeScript#64553、2026-09-30）は inferFromTypes の二つの腕を
+invokeOnce に通した。shared-alias の腕（inference.go:82-87）と matching-references の腕（228-230）である。tsc-rs はこの commit の
+InferenceKey（#841）だけを取り込み、二つの腕は 6.0.3 の形のままだった。import した generic alias は書かれたとおりの型引数を持つ。そのため
+同じ alias の組を訪れるたびに、default を新しい mapper で埋め直して instantiate していた。修正では二つの腕を `invoke_once` に通す
+（`InferAction::FromAliasTypeArguments`・`FromReferenceTypeArguments`）。alias の腕の条件は tsgo と同じく、どちらかの側に型引数があること
+（either-side）。inferFromObjectTypes の reference の場合は、tsgo と同じく同じ helper を直接呼ぶ。
+
+**統計行**（1 thread、`--extendedDiagnostics`）
+- vue：Instantiations 605,322 → 569,481（tsgo 549,756）、Types 205,054 → 204,175、Symbols 619,373 → 616,641。alias の default の fill は tsgo
+  と同じ数（5,438）。
+- ts +3・next +3・VS Code +5・zod +12：いずれも cache される getModifiersTypeFromMappedType での増加。depth guard は instantiated mapped type
+  の recursion identity を modifiers type から取るので、走査する stack が深くなると計算が増える。どれも tsgo に近づく方向。
+- hono 0。
+- effect −56・playwright −37：reference の腕から来る。どちらも元から tsgo より約 1 K 少ない。
+
+腕と条件を分けた build で、すべての増減の出どころを確かめた。vue の残り +19,725（union の member list で +13.7 K、
+getObjectTypeInstantiation の外側の型引数で +6.2 K）は別の原因で、M2 の次の項目。
+
+**計測**：1 thread、通常 build、静かな machine（00:55〜01:05）。`serial.py` の warm-up 1 回 + 3 回の中央値（VS Code と effect は 5 回）。
+base = main `6e20adc06`、本 PR = `907890feb`。
+
+| project | 命令数 | 備考 |
+|---|---:|---|
+| vue | −0.32%（15.61 → 15.56 G） | peak footprint −6 MB |
+| effect | **+0.46%** | |
+| VS Code | +0.06% | |
+| zod | +0.13% | |
+| playwright | +0.09% | |
+| ts | +0.01% | |
+| hono | −0.04% | |
+| next | −0.12% | 雑音 |
+
+**予想との差**：予想は vue −0.2〜−0.7%（N = 35,841 × c = 1〜3 K 命令）、他は 0 だった。vue は帯の中。effect などの増加は予想に
+入っていなかった。invokeOnce は alias と reference の組ごとに bookkeeping を足す。effect では呼び出しが 270 K → 389 K、depth guard の
+stack の走査が 0.83 M → 1.33 M 歩に増え、1 歩ごとに recursion identity を計算し直す。tsgo も同じ algorithm の費用を払っている。次の
+候補：stack の各要素の recursion identity を、最初に必要になった走査で覚えておく。計算される identity と modifiers type は変わらず、
+以前からある走査にも効く。
+
+**記録。** PR [#885](https://github.com/kazhiramatsu/tsc-rs/pull/885) → merge `ddd1bbaa3`（2026-11-05。`907890feb`、最終 head `0c2dbdf36`）。hosted run
+[41924151803](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41924151803)：全 job pass。local（hosted がしないことだけ、`907890feb`）：
+- tsgo に合わせた unit test（修正なしでは 108 対 100 で失敗）
+- checker の test 1,854 + 1、fmt、release build
+- 8 case で出力（exit code・stdout・stderr）が main と一致
+- `--checkers 4` は既知の 4 件のみ。最新の 4-checker 報告とは 15,339 構成すべて一致
+- 計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
@@ -1212,9 +1329,11 @@ memo の shadow 計測、checker の store の形）。
 | A-1c C2/C3 list-stack（parser の list を stack で、JSDoc 含む。Opus） | #879 | VS Code −0.4〜−0.8 G（parse_bench −5.5% の 49 ms を parse の命令率で換算）、peak ±0、他 −0.3〜−1% | 静音窓、3 round 中央値、main `ed001ed92` 比：VS Code 141.93 → 141.53 G（**−0.28%**）、peak −3 MB；ts −0.25%、next −0.21%、zod −0.32%、effect −0.26%、hono −0.45%、vue −0.13%、playwright −0.81% | 帯の下端（parse の費用の一部は allocator と memory stall の重なりで、命令数には出ない）。lane 稼働中の計測では −0.54% に見えた（負荷の影響） |
 | B-5 3d〜3e（deferred 診断の登録と satisfies の elaboration を候補をまたいで保持） | #880 | ≈0 | 出力一致（c4 15,339、8 project）；3 round 中央値（lane 稼働中、`1a05993fb` 比）VS Code −1.5%・peak −29 MB — 旧 base なので累積 −0.61% / −30 MB を含む；main 直接比較は静音窓で | 予想どおり以上（静音窓の値で確定） |
 | A-3 loader（module 解決の resolver-local cache・所有権の整理・counters feature。Opus の SPEC、lane 実装） | #882 | lane の操作回数ベース予想 ≈ 0.1〜0.2 G（wrapper と buffer の数のみ：VS Code で hit 414,911 / miss 77,285、scoped heap 構築 1,548,943 回減）；v2.1 の P6 3.36〜7.66 G | 3 round 中央値（lane 稼働中、main `ed001ed92` 比）：VS Code **−1.4%**（142.48 → 140.54 G）、hono −0.6%、next −0.5%、zod −0.5%、playwright −0.5%、effect −0.2%、ts・vue ±0；peak 不変；出力一致 | lane の予想の上、credit の下。lane の操作回数予想は cache の効果（解決の walk そのもの）を数え落とした。front end の比重（Opus 35〜45%）を支持する材料 |
-| tsgo 7.1 の async arrow の lookahead と identifier の数、巻き戻しで重複する comment directive の修正（Opus） | #883 | VS Code −0.2〜−0.5 G（−0.15〜−0.35%：二度 parse していた `async function …` 式 0.5〜0.8 M node × parse の ≈ 750 命令/node）。gate：Identifiers 行が 8 project で tsgo と一致 + fingerprint + diffout + syntax test | 着地待ち（静音窓で一括計測）。Identifiers は 7/8 で tsgo と一致（effect −293 = tsgo 7.1 の `statementHasAwaitIdentifier` 未移植、次の slice）。fingerprint が 2 つ目の fidelity bug を見つけた：`ScannerState` が comment directive を持たず（tsgo の Mark/Rewind は持つ）、巻き戻した speculation が `// @ts-ignore` を重複登録（40 入力で AST 一致、重複 41 件除去、unit test）。merge 後に fingerprint の baseline を更新（`main-39058c48c.tsv` → 新 main） | — |
+| tsgo 7.1 の async arrow の lookahead と identifier の数、巻き戻しで重複する comment directive の修正（Opus） | #883 | VS Code −0.2〜−0.5 G（−0.15〜−0.35%：二度 parse していた `async function …` 式 0.5〜0.8 M node × parse の ≈ 750 命令/node）。gate：Identifiers 行が 8 project で tsgo と一致 + fingerprint + diffout + syntax test | 静音（2026-11-05 07:00、main `ed001ed92` の code 対 `cecdb2fa8`、warm-up + 3 round 中央値）：VS Code 141.99 → 141.84 G（**−0.10%**、−0.15 G）、footprint 3,587 → 3,560 MB（−27）；ts +0.06%、next ±0、zod +0.03%、effect +0.05%、hono −0.16%（3 round とも、予想どおり）、vue +0.02%、playwright +0.13%（雑音の範囲）；exit と出力 size は全行一致。Identifiers は 7/8 で tsgo と一致（VS Code 5,945,718 → 5,867,751 = tsgo、−77,967；effect −293 = tsgo 7.1 の `statementHasAwaitIdentifier` 未移植、次の slice）。fingerprint が 2 つ目の fidelity bug を見つけた：`ScannerState` が comment directive を持たず（tsgo の Mark/Rewind は持つ）、巻き戻した speculation が `// @ts-ignore` を重複登録（40 入力で AST 一致、重複 41 件除去、unit test）。merge 後に fingerprint の baseline を更新 | 帯のすぐ下（−0.15 G は下端 −0.2 G の 4 分の 3）：予想の node あたり 0.4〜0.6 K 命令なら 0.24〜0.37 M node 分で、二度 parse していた node は見積の 0.5〜0.8 M より少なかった。価値は忠実性（Identifiers の一致、directive の重複除去）。VS Code では改善、他は中立 |
 | S1a-2 declarations を 8 B の span に（`ClaimedRecords<Tagged<NodeId,37>>` に `push_slice`、store の `slice_tagged` で読む。Symbol 40 → 32 B。Opus） | branch `perf/ts71-declaration-spans-2` | memo §7 の records −130.6 MB の残り半分 ≈ −63 MiB + declaration pool ≈ ±5 MB；命令数 ≈ 0〜−0.3%（間接参照 1 段が消える） | 単発・負荷あり（参考値）：binder Symbol 86.6 → 69.3 MiB、binder 合計 445.8 → 437.3、checker 合計 1,472.8 → 1,395.5（−77：8 B × 5.9 M + 3 件以上の宣言の heap clone が消えた）、peak 3,730 → 3,637 MB（−93）；diffout 8/8、fingerprint 0 | 着地待ち（focused test → battery → 静音窓の serial）。参考値は帯の上。S1b-1 と transient constructor + forwarding 4 本で衝突（Opus が両方の着地時に解く） |
 | S3 lane as built：node flag と `NodeLookup` で routing を消す（47 file）、`resolve_name` の locals bit、`NodeLinks` の 2 段表、cold id slot の 4 B 化ほか（Codex lane、base `43a78fc08`、patch 01〜04） | なし（`handover/perf-tsrs/s3-lane-record/`、N3 の入力） | lane の予想：step 1 −0.4〜−0.7%、2 −0.4〜−0.8%（+9 MB/snapshot）、3 −0.2〜−0.4%、4 小 | 静音、lane の基準 binary 対 最終 build、warm-up + 3 round 中央値：VS Code 143.57 → 142.27 G（**−0.91%**）、peak ±0；ts −0.80%、effect −0.67%、next −0.39%、hono −0.32%、vue −0.30%、playwright −0.10%、zod ±0；footprint は全 project で ±7 MB 以内 | 帯の下端（予想の合計 −1.0〜−1.9% に対し −0.9%）。出力は lane の 120 case + hono/zod で一致。B0 には入れず、価格つきの候補 card（N3 の枠）として rebase → 全 battery → B0 上で再計測 |
+| B0 anchor（M0、2026-11-05 07:00）：main `c3485397a` = 直前 9 本（#875・#878〜#882・#886・#887 + docs）の累積 | — | （予想なし：anchor） | 1 thread VS Code **138.24 G**（`1a05993fb` の 141.97 から −2.6%）、peak 3,522 MB（3,586 から −64）；tsrs 85.48 G / 2,008 MB → 命令数 1.62 倍、peak 1.75 倍。A/A ±0.03% | 以後の予想はこの anchor から |
+| tsgo の `getLiteralTypeFromProperties` の cache を移植（`propertiesTypes`：(type, include, includeOrigin) の key、speculation 区分 C、tsgo の origin 条件 `includeOrigin && classOrRef \|\| alias != nil`（Go の優先順位：alias 型は origin を必ず持つ）、含まれる index info だけを push。M2 item 2 の Index 型超過の原因；忠実性も：alias の `keyof` 表示が tsgo と同じに）（Opus、card 3） | #888 | origin を作る繰り返しだけを価格付け：N = next 9,034 / zod 4,711 / VS Code 8,380、c = 1〜5 K → zod/next −0.03〜−0.15% | 静音、B0 比：**next −2.79%**（−0.81 G）、**zod −2.69%**（−0.52 G）、playwright −0.99%、vue −0.67%、effect −0.66%、ts −0.27%、VS Code −0.26%（−0.36 G、5 round で ±0.02 G）、hono −0.06%；peak ±3 MB；出力 8/8 一致（stderr 含む）、c4 = 既知 4 件・15,339 一致；count は Types だけが動き（next −9,009、VS Code −8,376、zod −4,685）、origin の Index 型は zod 885・next 1,269 で tsgo と一致；unit test は tsgo の 2 文言と Types 96−1（tsgo だけが作る `resolvingDefaultType` の番兵：全 program で定数 −1） | **帯の外（良い側、1 桁上）**。原因は母集団と単価の両方：N は origin を作る繰り返しではなく cache hit の全部（next 16,354、zod 8,819、VS Code 12,380 = 1.5〜1.9 倍、effect/vue は ≈ 7 倍）、c は 1〜5 K ではなく大きな型で hit あたり 24〜58 K（property 1 つの走査 ≈ 1.2〜2.1 K；hit の型は next で平均 38 property）。計測 build の counter で確定（`m2/card3-counting-hooks.diff`） |
 | tsgo #64553 の移植：`inferFromTypes` の alias 分岐と matching-references 分岐を `invokeOnce` で（visited key の重複排除と循環の優先度、either-side 条件。tsgo `c8e9b7d25`「Cache inferences made from type arguments」の残り半分；#841 は InferenceKey だけだった。M2 の仕事量監査で発見：vue の Instantiations +10.1% のうち 64%）（Opus） | #885 | N = vue で 35,841 の instantiation 減、c = 1〜3 K 命令 → vue −0.2〜−0.7%、他 0 | 静音、親 `6e20adc06` 比、warm-up + 3 round（VS Code と effect は 5 round）：vue **−0.32%**（15.61 → 15.56 G、footprint −6 MB）、effect **+0.46%**（16.14 → 16.21 G）、VS Code +0.06%、zod +0.13%、playwright +0.09%、ts +0.01%、hono −0.04%、next −0.12%。count：vue Instantiations 605,322 → 569,481（tsgo 549,756）、診断 byte 一致、c4 = 既知 4 件・15,339 一致、diffout 8/8（stderr 含む） | vue は帯の中、effect は帯の外（費用）。原因：予想は消えた instantiation だけを価格付けし、`invokeOnce` の帳簿（effect で呼び出し 270 K → 389 K、深さ guard の stack step 0.83 M → 1.33 M、step ごとに再帰 identity を再計算）を数えていなかった。tsgo 自身の algorithm なので忠実性の価格として着地。follow-up の候補 card（価格つき、未着手）：inference stack の entry の再帰 identity を最初に必要な scan で lazy に cache（≈ 100 命令/step：effect −0.1 G、VS Code −0.1〜−0.2 G；relater の isDeeplyNestedType の stack も同形）。vue の残り +19.7K（union の member list +13.7K、outer 引数の mapping +6.2K）は次の M2 項目 |
 | `is_non_generic_top_level_type` を tsgo の空判定に（alias の型引数 list が空なら非 generic。tsc-rs は (Some, None) だけを見ていたので、引数を書かずに使う全既定の generic alias の union を使うたびに instantiate していた。M2 item 1b：vue の残り +19.7K の原因）（Opus） | #886 | N = 32,627 × c = 1〜2 K（#885 の vue の率）→ vue −0.2〜−0.4%、他 0 | 静音、親 `22c755af5` 比、warm-up + 3 round：vue **−0.65%**（15.17 → 15.07 G、全 round 同じ）、他 −0.02〜+0.03%、footprint ±1 MB。count：vue 569,481 → 548,963（tsgo 549,756）、zod −459、next −42、hono −7（変わった property は全部 tsgo と一致か tsgo 側へ）；出力 8/8 一致（stderr 含む）、c4 = 既知 4 件・15,339 一致 | 帯の外（良い側）：消えた expansion は型と symbol の生成も止める（vue Types −906、Symbols −2,755）ので instantiation あたり ≈ 3 K。監査の手がかり（別項目）：`type_order.rs:497` は先頭の型が alias 引数を持つ時だけ引数 list を比べるが tsgo の `compareTypeNames` は常に比べる → 「list なし」表現では union の member 順が tsgo から外れる（playwright −5,856 の説明） |
 
