@@ -1871,6 +1871,24 @@ impl ResolutionTable {
         self.modules.len()
     }
 
+    /// Observation only (m8 resolution census, never merged): module entries,
+    /// their inline bytes (key and value), and the heap bytes of their strings
+    /// split as in [`crate::resolution::resolution_entry_heap_bytes`].
+    pub fn module_census(&self) -> (usize, usize, [usize; 5]) {
+        let inline = self.modules.len()
+            * (std::mem::size_of::<ResolutionKey>() + std::mem::size_of::<ModuleResolution>());
+        let mut heap = [0usize; 5];
+        for (key, value) in &self.modules {
+            for (total, bytes) in heap
+                .iter_mut()
+                .zip(crate::resolution::resolution_entry_heap_bytes(key, value))
+            {
+                *total += bytes;
+            }
+        }
+        (self.modules.len(), inline, heap)
+    }
+
     pub fn type_reference_len(&self) -> usize {
         self.type_references.len()
     }

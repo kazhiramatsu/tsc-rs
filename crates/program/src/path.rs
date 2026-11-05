@@ -124,3 +124,17 @@ fn validate_js_path(path: JsStr<'_>, label: &str) -> Result<(), PreparationError
     }
     Ok(())
 }
+
+/// Observation only (m8 resolution census, never merged).
+impl CanonicalPath {
+    pub fn heap_bytes(&self) -> usize {
+        self.0.heap_bytes()
+    }
+}
+
+/// Observation only (m8 resolution census, never merged).
+impl ProgramPath {
+    pub fn heap_bytes(&self) -> usize {
+        self.display.heap_bytes() + self.canonical.heap_bytes()
+    }
+}

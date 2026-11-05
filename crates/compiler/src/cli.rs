@@ -1294,6 +1294,19 @@ fn run_config(
     tsc_types::trace::mark("load program", load_started);
     if let Ok(prepared) = &prepared {
         trace_loader_parses(tracing.as_ref(), prepared);
+        if std::env::var_os("TSRS_RESOLUTION_CENSUS").is_some() {
+            let (entries, inline, heap) = prepared.resolutions().module_census();
+            let mib = |bytes: usize| bytes as f64 / (1 << 20) as f64;
+            eprintln!(
+                "[resolution census] module entries {entries}; inline {:.1} MiB; heap strings: key source {:.1}, key specifier {:.1}, loaded targets {:.1}, unloaded targets {:.1}, other {:.1} MiB",
+                mib(inline),
+                mib(heap[0]),
+                mib(heap[1]),
+                mib(heap[2]),
+                mib(heap[3]),
+                mib(heap[4])
+            );
+        }
     }
     drop(create_program);
     let prepared = match prepared {
