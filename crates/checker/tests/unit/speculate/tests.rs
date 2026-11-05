@@ -1318,3 +1318,45 @@ fn order_guard_reasons_survive_speculation_rollback() {
         );
     });
 }
+
+#[test]
+fn a_transient_symbols_reference_meaning_and_declared_type_are_its_own() {
+    // A transient symbol's reference meaning and declared type live beside
+    // its links record (few have one); each symbol reads its own.
+    with_state(|state| {
+        let first = state.binder.create_symbol(
+            SymbolFlags::VARIABLE,
+            tsc_types::EscapedName::from_escaped_value(("first".to_owned()).into()),
+        );
+        let second = state.binder.create_symbol(
+            SymbolFlags::VARIABLE,
+            tsc_types::EscapedName::from_escaped_value(("second".to_owned()).into()),
+        );
+        let depth = state.speculation_depth;
+        assert!(state.links.symbol_is_referenced(first).is_empty());
+        state
+            .links
+            .add_symbol_reference_meaning(depth, first, SymbolFlags::VALUE);
+        state
+            .links
+            .add_symbol_reference_meaning(depth, first, SymbolFlags::TYPE);
+        assert_eq!(
+            state.links.symbol_is_referenced(first),
+            SymbolFlags::VALUE | SymbolFlags::TYPE
+        );
+        assert!(state.links.symbol_is_referenced(second).is_empty());
+        state.links.set_symbol_is_referenced(depth, second);
+        assert_eq!(state.links.symbol_is_referenced(second), SymbolFlags::ALL);
+        let ty = state
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::Object);
+        state
+            .links
+            .set_symbol_declared_type(depth, second, LinkSlot::Resolved(ty));
+        assert_eq!(state.links.symbol_declared_type(second), Some(ty));
+        assert_eq!(state.links.symbol_declared_type(first), None);
+        // The rest of each record is untouched.
+        assert!(state.links.symbol(first).check_flags.is_empty());
+        assert!(state.links.symbol(second).target.is_none());
+    });
+}
