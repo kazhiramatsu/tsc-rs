@@ -4803,8 +4803,7 @@ impl<'text> Parser<'text> {
         allow_return_type_in_arrow_function: bool,
     ) -> Option<NodeId> {
         if self.token() == SyntaxKind::AsyncKeyword
-            && self.look_ahead(|parser| parser.is_un_parenthesized_async_arrow_function_worker())
-                == Tristate::True
+            && self.look_ahead(|parser| parser.next_is_un_parenthesized_async_arrow_function())
         {
             let pos = self.node_pos();
             let async_modifier = self.parse_modifiers_for_arrow_function();
@@ -4819,23 +4818,27 @@ impl<'text> Parser<'text> {
         None
     }
 
-    fn is_un_parenthesized_async_arrow_function_worker(&mut self) -> Tristate {
-        if self.token() == SyntaxKind::AsyncKeyword {
-            self.next_token();
-            if self.scanner.has_preceding_line_break()
-                || self.token() == SyntaxKind::EqualsGreaterThanToken
-            {
-                return Tristate::False;
-            }
-            let expr = self.parse_binary_expression_or_higher(LOWEST_OPERATOR_PRECEDENCE);
-            if !self.scanner.has_preceding_line_break()
-                && self.arena.node(expr).kind == SyntaxKind::Identifier
-                && self.token() == SyntaxKind::EqualsGreaterThanToken
-            {
-                return Tristate::True;
-            }
+    /// tsgo nextIsUnParenthesizedAsyncArrowFunction (parser.go:4594): `async`
+    /// and an identifier on one line, then `=>` on the same line. It reads
+    /// tokens only; the 6.0.3 lookahead parsed a whole binary expression
+    /// after `async`, so the body of every `async function` expression was
+    /// parsed twice.
+    fn next_is_un_parenthesized_async_arrow_function(&mut self) -> bool {
+        if self.token() != SyntaxKind::AsyncKeyword {
+            return false;
         }
-        Tristate::False
+        self.next_token();
+        // `async =>` is a simple arrow function whose parameter is `async`,
+        // which parse_assignment_expression_or_higher parses.
+        if self.scanner.has_preceding_line_break()
+            || self.token() == SyntaxKind::EqualsGreaterThanToken
+            || !self.is_identifier()
+        {
+            return false;
+        }
+        self.next_token_without_check();
+        !self.scanner.has_preceding_line_break()
+            && self.token() == SyntaxKind::EqualsGreaterThanToken
     }
 
     /// tsc parseContextualModifier.
@@ -6617,6 +6620,8 @@ impl<'text> Parser<'text> {
                 &[],
             )
         } else {
+            // tsgo creates the missing identifier first and drops it here.
+            self.arena.count_dropped_identifier();
             self.allow_in(|parser| parser.parse_expression())
         };
         self.parse_expected(SyntaxKind::CloseBracketToken, None);
