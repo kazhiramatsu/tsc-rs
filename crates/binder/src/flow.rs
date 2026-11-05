@@ -3,7 +3,9 @@
 //! constructors and the narrowing predicates that gate them).
 //!
 //! tsc FlowNode (core-interfaces §5): `antecedent` holds one node for
-//! plain kinds and an array for labels; both live in one Vec here.
+//! plain kinds and an array for labels. Here a node is a 16-byte record and
+//! the arrays are spans of one pool per file (see [`FlowNode`] and
+//! [`FlowArena::freeze`]).
 //! NOTE (source fact, 43077-43149): createFlowNode does NOT mark its
 //! antecedent Referenced — each caller (addAntecedent,
 //! createFlowCondition/Mutation/Call/SwitchClause) does so explicitly.
@@ -57,11 +59,11 @@ pub enum FlowData<'a> {
 /// |---|---|---|
 /// | plain | the payload node (0 = none) | 0 |
 /// | SwitchClause | the switch statement | the list holding `clause_start, clause_end` |
-/// | BranchLabel / LoopLabel | the antecedent list | its length |
+/// | BranchLabel / LoopLabel | the antecedent list | its length (while binding: the list's last cell) |
 /// | ReduceLabel | the target flow | the antecedent list |
 ///
-/// A list is a staging index while the file is bound and a pool offset
-/// once the arena is frozen (see [`FlowArena::freeze`]).
+/// A list is a chain of cells (its first cell) while the file is bound and
+/// a pool offset once the arena is frozen (see [`FlowArena::freeze`]).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FlowNode {
     pub flags: FlowFlags,
@@ -194,6 +196,7 @@ impl FlowArena {
     /// A chain of cells holding `items`: (head, tail), each a cell index + 1
     /// (0, 0 for none).
     fn chain(&mut self, items: &[FlowId]) -> (u32, u32) {
+        debug_assert!(!self.frozen, "a frozen flow arena does not grow");
         let mut head = 0;
         let mut tail = 0;
         for &item in items {
@@ -253,7 +256,7 @@ impl FlowArena {
     pub fn antecedents(&self, id: FlowId) -> &[FlowId] {
         let node = self.flow(id);
         if node.is_label() {
-            assert!(
+            debug_assert!(
                 self.frozen,
                 "a label's list is read with label_items while binding"
             );
@@ -265,6 +268,7 @@ impl FlowArena {
 
     /// A label's antecedents, as a list.
     pub fn label_items(&self, label: FlowId) -> Vec<FlowId> {
+        debug_assert!(self.flow(label).is_label(), "label_items reads a label");
         if self.frozen {
             return self.antecedents(label).to_vec();
         }
@@ -273,6 +277,7 @@ impl FlowArena {
 
     /// Whether a label has no antecedents.
     pub fn label_is_empty(&self, label: FlowId) -> bool {
+        debug_assert!(self.flow(label).is_label(), "label_is_empty reads a label");
         if self.frozen {
             return self.antecedents(label).is_empty();
         }
@@ -284,7 +289,7 @@ impl FlowArena {
     pub fn payload(&self, id: FlowId) -> FlowData<'_> {
         let node = self.flow(id);
         if node.is_label() {
-            assert!(
+            debug_assert!(
                 self.frozen,
                 "a label's list is read once the arena is frozen"
             );
@@ -292,7 +297,7 @@ impl FlowArena {
                 antecedents: self.list(node.a, Some(node.c)),
             }
         } else if node.flags.intersects(FlowFlags::REDUCE_LABEL) {
-            assert!(
+            debug_assert!(
                 self.frozen,
                 "a reduce label's list is read once the arena is frozen"
             );
@@ -301,7 +306,7 @@ impl FlowArena {
                 antecedents: self.list(node.c, None),
             }
         } else if node.flags.intersects(FlowFlags::SWITCH_CLAUSE) {
-            assert!(
+            debug_assert!(
                 self.frozen,
                 "a switch clause's pair is read once the arena is frozen"
             );
@@ -360,11 +365,6 @@ impl FlowArena {
         let mut copy = self.clone();
         copy.freeze();
         copy
-    }
-
-    /// The file's flow ids in creation order.
-    pub fn ids(&self) -> impl Iterator<Item = FlowId> + '_ {
-        (0..self.nodes.len() as u32).map(FlowId::new)
     }
 
     pub fn len(&self) -> usize {
@@ -467,6 +467,10 @@ impl FlowArena {
     /// ⇒ COLLAPSES to it, several ⇒ the label itself.
     pub fn finish_flow_label(&mut self, flow: FlowId, unreachable: FlowId) -> FlowId {
         let node = *self.flow(flow);
+        debug_assert!(
+            node.is_label() && !self.frozen,
+            "finish_flow_label finishes a label while binding"
+        );
         if node.a == 0 {
             unreachable
         } else if node.a == node.c {
