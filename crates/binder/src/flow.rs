@@ -187,7 +187,7 @@ impl FlowArena {
     }
 
     fn push(&mut self, node: FlowNode) -> FlowId {
-        debug_assert!(!self.frozen, "a frozen flow arena does not grow");
+        assert!(!self.frozen, "a frozen flow arena does not grow");
         let id = FlowId::new(self.nodes.len() as u32);
         self.nodes.push(node);
         id
@@ -196,7 +196,7 @@ impl FlowArena {
     /// A chain of cells holding `items`: (head, tail), each a cell index + 1
     /// (0, 0 for none).
     fn chain(&mut self, items: &[FlowId]) -> (u32, u32) {
-        debug_assert!(!self.frozen, "a frozen flow arena does not grow");
+        assert!(!self.frozen, "a frozen flow arena does not grow");
         let mut head = 0;
         let mut tail = 0;
         for &item in items {
@@ -331,7 +331,24 @@ impl FlowArena {
         if self.frozen {
             return;
         }
-        let mut pool = Vec::new();
+        // The pool's exact size first, so it is allocated once (a grown and
+        // then shrunk list leaves the allocator a hole per file).
+        let size = self
+            .nodes
+            .iter()
+            .map(|node| {
+                if node.is_label() {
+                    self.walk(node.a).count()
+                } else if node.flags.intersects(FlowFlags::REDUCE_LABEL) {
+                    1 + self.walk(node.c).count()
+                } else if node.flags.intersects(FlowFlags::SWITCH_CLAUSE) {
+                    2
+                } else {
+                    0
+                }
+            })
+            .sum();
+        let mut pool = Vec::with_capacity(size);
         let mut nodes = std::mem::take(&mut self.nodes);
         for node in &mut nodes {
             if node.is_label() {
@@ -351,6 +368,7 @@ impl FlowArena {
                 node.c = start;
             }
         }
+        debug_assert_eq!(pool.len(), size);
         nodes.shrink_to_fit();
         self.nodes = nodes;
         self.pool = pool.into_boxed_slice();
