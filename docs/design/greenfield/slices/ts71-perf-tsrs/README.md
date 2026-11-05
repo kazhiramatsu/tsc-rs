@@ -1504,6 +1504,37 @@ loader の計画（expanded）では、TypeScript の file の walk は tsgo の
 - `--checkers 4` は既知の 4 件のみ。直前の 4-checker 報告とは 15,339 構成すべて一致
 - 計測は上の通り
 
+## 1 checker で emit operation を持つ check（declaration 診断の経路）も checker state と program を process の終了に任せる（branch `perf/ts71-declaration-route-leak`、#890 の follow-up）
+
+#890 の計測で vue だけ 0 だった。vue の bench の config は declaration diagnostics を求める（`declaration: true` と
+`noEmit`）ので、1 checker の declaration 診断の経路（`check_program_with_authoritative_modules_at_for_emit_with_workers`）
+を通る。この入口は `leak_at_end` を受け取るが、compiler は `false` を渡していた。driver の inline 経路も state や session は
+forget しても、snapshot は drop していた。
+
+**修正**：compiler はこの経路にも budget の `leaks_states()` を渡す（`--generateTrace` では false なので、trace の state は
+今まで通り drop して types file を書く）。driver の inline 経路は、state や session を forget する所で snapshot も forget する
+（eager 経路と sharded driver と同じ）。副作用：1 checker の CLI emit 経路はもともと `leak_program` で session を残していた。
+これからは snapshot も残す（hono の bench-full で出力 748 file が byte 単位で一致）。unit test は operation のある経路が
+no-emit の経路と同じだけ残すことを Arc の数で見る（driver の修正なしでは 2 と 3 で失敗）。
+
+**計測**：1 thread、静かな machine（12:45〜12:48）、親 `67f853a38`（#890 の head）比。
+| project | 命令数 |
+|---|---:|
+| vue | **−0.38%**（−56.7 M、5 回。3 回では −57.8 M） |
+| 他の 7 project | 0（中央値の差 ±2.8 M 以内） |
+
+予想（vue −66 M、帯 −53〜−77 M。#890 で測った、peak footprint 1 MB あたりの後始末 0.18〜0.26 M 命令から）の帯の中の
+下側。予想に書いた注意の通り、vue の peak には declaration 診断の一時的な memory も入っていて、それは state の一部ではない。
+
+**記録。** PR [#892](https://github.com/kazhiramatsu/tsc-rs/pull/892) → merge `468faebd0`（2026-11-05。`67f853a38` の上、最終 head `b43580fac`）。hosted run
+[41963996636](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41963996636)：全 job pass。local（hosted がしないことだけ、`b43580fac`）：
+- unit test（operation のある経路も no-emit の経路と同じだけ残す。driver の修正なしでは失敗）
+- checker の test 1,871 + 1、compiler の test 54 + 188、fmt、release build
+- 8 case で出力（exit code・stdout・stderr）が親と一致。vue の統計行も一致
+- 1 checker の CLI emit 経路：hono の bench-full で 748 file が byte 単位で一致
+- `--checkers 4` は既知の 4 件のみ。#890 の 4-checker 報告とは 15,339 構成すべて一致
+- 計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
