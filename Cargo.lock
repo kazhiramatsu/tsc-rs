@@ -852,6 +852,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "stats_alloc",
+ "tsc-rs-binder",
  "tsc-rs-checker",
  "tsc-rs-diagnostics",
  "tsc-rs-emitter",

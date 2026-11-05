@@ -501,7 +501,31 @@ impl<'a> BinderWorker<'a> {
         );
         binder.bind_source_file();
         if let Ok(mut log) = ROOM_LOG.lock() {
-            log.push((room_base, room_len, binder.symbols.len() as u32));
+            let javascript = binder.is_in_js_file();
+            let mut declarations = 0u32;
+            for node in source.arena.nodes() {
+                use tsc_syntax::SyntaxKind as K;
+                declarations += match node.kind {
+                    K::ClassDeclaration | K::ClassExpression => 2,
+                    K::BinaryExpression | K::CallExpression => u32::from(javascript),
+                    K::TypeParameter | K::Parameter | K::VariableDeclaration | K::BindingElement
+                    | K::PropertyDeclaration | K::PropertySignature | K::PropertyAssignment
+                    | K::ShorthandPropertyAssignment | K::EnumMember | K::CallSignature | K::ConstructSignature
+                    | K::IndexSignature | K::MethodDeclaration | K::MethodSignature | K::FunctionDeclaration
+                    | K::Constructor | K::GetAccessor | K::SetAccessor | K::FunctionType | K::ConstructorType
+                    | K::JSDocFunctionType | K::TypeLiteral | K::JSDocTypeLiteral | K::MappedType
+                    | K::ObjectLiteralExpression | K::FunctionExpression | K::ArrowFunction
+                    | K::InterfaceDeclaration | K::TypeAliasDeclaration | K::EnumDeclaration
+                    | K::ModuleDeclaration | K::ImportEqualsDeclaration | K::NamespaceImport | K::ImportSpecifier
+                    | K::ExportSpecifier | K::NamespaceExportDeclaration | K::ImportClause | K::ExportDeclaration
+                    | K::ExportAssignment | K::JsxAttributes | K::JsxAttribute | K::JSDocTypedefTag
+                    | K::JSDocCallbackTag | K::JSDocEnumTag | K::ClassStaticBlockDeclaration | K::SourceFile
+                    | K::JSDocSignature | K::JSDocParameterTag | K::JSDocPropertyTag | K::NamespaceExport
+                    | K::InferType => 1,
+                    _ => 0,
+                };
+            }
+            log.push((room_base, room_len, binder.symbols.len() as u32, declarations));
         }
         binder
     }
@@ -1901,4 +1925,4 @@ where
 
 /// Observation (never merged): each bound source's reserved symbol room
 /// (base, length) and the symbols it bound, in binding order.
-pub static ROOM_LOG: std::sync::Mutex<Vec<(u32, u32, u32)>> = std::sync::Mutex::new(Vec::new());
+pub static ROOM_LOG: std::sync::Mutex<Vec<(u32, u32, u32, u32)>> = std::sync::Mutex::new(Vec::new());
