@@ -339,12 +339,12 @@ impl<'a> CheckerState<'a> {
                     let attribute_symbol = self
                         .binder
                         .create_symbol(SymbolFlags::PROPERTY | member_flags, escaped_name);
-                    let declarations = self.binder.symbol(member).declarations.clone();
+                    let declarations = self.binder.symbol(member).declaration_list();
                     let parent = self.binder.symbol(member).parent;
                     let value_declaration = self.binder.symbol(member).value_declaration;
                     {
                         let symbol = self.binder.symbol_mut(attribute_symbol);
-                        symbol.declarations = declarations;
+                        symbol.set_declarations(declarations);
                         symbol.parent = parent;
                         if let Some(value_declaration) = value_declaration {
                             symbol.value_declaration = Some(value_declaration);
@@ -384,7 +384,7 @@ impl<'a> CheckerState<'a> {
                             {
                                 if self.is_deprecated_symbol(property) {
                                     let declarations =
-                                        self.binder.symbol(property).declarations.clone();
+                                        self.binder.symbol(property).declaration_list();
                                     if !declarations.is_empty() {
                                         let deprecated_entity = self
                                             .identifier_text_of(attribute_name)
@@ -2000,7 +2000,7 @@ impl<'a> CheckerState<'a> {
         let first_declaration = self
             .binder
             .symbol(container_sym)
-            .declarations
+            .declarations()
             .first()
             .copied();
         if let Some(declaration) = first_declaration {

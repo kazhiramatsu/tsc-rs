@@ -513,7 +513,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 return Ok(Ternary::FALSE);
             }
         }
-        // 66081-66094: the same-alias variance fast path.
+        // 66081-66094: the same-alias variance fast path. tsgo (relater.go:
+        // 3424) takes it only when the source's alias has type arguments
+        // (`len(source.alias.typeArguments) != 0`): an imported all-defaults
+        // alias written without arguments keeps an empty list, and relates
+        // structurally.
         if source_flags.intersects(TypeFlags::from_bits(
             TypeFlags::OBJECT.bits() | TypeFlags::CONDITIONAL.bits(),
         )) {
@@ -527,7 +531,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if let (Some(alias_symbol), Some(source_arguments)) =
                 (source_alias, source_alias_arguments)
             {
-                if Some(alias_symbol) == target_alias
+                if !source_arguments.is_empty()
+                    && Some(alias_symbol) == target_alias
                     && !(self.st.is_marker_type(source) || self.st.is_marker_type(target))
                 {
                     match self.st.get_alias_variances(alias_symbol)? {
@@ -2803,7 +2808,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .st
                 .binder
                 .symbol(unmatched_property)
-                .declarations
+                .declarations()
                 .first()
             {
                 let info = self.st.related_info_for_node_js(
@@ -5694,7 +5699,7 @@ impl<'a> CheckerState<'a> {
             // tsc 6.0 appended every constituent's list, which doubles per
             // level when the constituents are such properties themselves
             // (intersectionConstructorReductionCrash: 3 GB of them).
-            for &declaration in self.binder.symbol(prop).declarations.iter() {
+            for &declaration in self.binder.symbol(prop).declarations().iter() {
                 if !declarations.contains(&declaration) {
                     declarations.push(declaration);
                 }
@@ -5741,9 +5746,9 @@ impl<'a> CheckerState<'a> {
                 .and_then(|symbol| self.binder.symbol(symbol).parent),
             _ => None,
         };
+        self.binder.set_declarations_from(result, &declarations);
         {
             let symbol = self.binder.symbol_mut(result);
-            symbol.declarations = declarations.into();
             if !has_non_uniform_value_declaration {
                 symbol.value_declaration = first_value_declaration;
                 if parent.is_some() {
@@ -5852,7 +5857,7 @@ impl<'a> CheckerState<'a> {
     fn common_declarations_of_symbols(&self, symbols: &[SymbolId]) -> bool {
         let mut common: Option<Vec<tsc_syntax::NodeId>> = None;
         for &symbol in symbols {
-            let declarations = &self.binder.symbol(symbol).declarations;
+            let declarations = self.binder.symbol(symbol).declarations();
             if declarations.is_empty() {
                 return false;
             }
@@ -5940,7 +5945,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(SymbolFlags::ENUM_MEMBER) {
             return Ok(true);
         }
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         for declaration in declarations {
             if self.is_readonly_assignment_declaration(declaration)? {
                 return Ok(true);
@@ -6106,7 +6111,7 @@ impl<'a> CheckerState<'a> {
             let find_accessor = |kind: tsc_syntax::SyntaxKind| {
                 self.binder
                     .symbol(symbol)
-                    .declarations
+                    .declarations()
                     .iter()
                     .copied()
                     .find(|&declaration| self.kind_of(declaration) == kind)
@@ -6613,12 +6618,12 @@ impl<'a> CheckerState<'a> {
         }
         self.links
             .set_symbol_target(self.speculation_depth, symbol, source);
-        let declarations = self.binder.symbol(source).declarations.clone();
+        let declarations = self.binder.symbol(source).declaration_list();
         let parent = self.binder.symbol(source).parent;
         let value_declaration = self.binder.symbol(source).value_declaration;
         {
             let clone = self.binder.symbol_mut(symbol);
-            clone.declarations = declarations;
+            clone.set_declarations(declarations);
             clone.parent = parent;
             if value_declaration.is_some() {
                 clone.value_declaration = value_declaration;

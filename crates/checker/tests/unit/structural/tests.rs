@@ -2337,3 +2337,78 @@ fn defineproperty_readonly_call_guards_omit_the_descriptor_query() {
         );
     }
 }
+
+/// tsgo takes the same-alias variance path only when the source's alias has
+/// type arguments (relater.go:3424, `len(source.alias.typeArguments) != 0`).
+/// An imported all-defaults alias written without arguments keeps an empty
+/// list (getTypeArgumentsFromNode), so `Box` against `Box<number>` relates
+/// structurally and elaborates through the property. tsgo `aa814927` over
+/// these three files (`--singleThreaded --extendedDiagnostics`, `strict`,
+/// `noLib`, `types: []`, `module: esnext`, `moduleResolution: bundler`)
+/// reports the error below with `Types: 83` (tsc-rs counts one fewer, M2's
+/// counting point CP-1: tsgo's `resolvingDefaultType` is a type) and
+/// `Instantiations: 5`.
+#[test]
+fn an_alias_without_arguments_relates_structurally_to_its_instantiation() {
+    let globals = concat!(
+        "interface IArguments { length: number; callee: Function; }\n",
+        "interface Array<T> { length: number; [index: number]: T; }\n",
+        "interface Object {}\n",
+        "interface Function {}\n",
+        "interface CallableFunction extends Function {}\n",
+        "interface NewableFunction extends Function {}\n",
+        "interface String {}\n",
+        "interface Number {}\n",
+        "interface Boolean {}\n",
+        "interface RegExp {}\n",
+    );
+    let main = concat!(
+        "import type { Box } from \"./a\";\n",
+        "declare let x: Box;\n",
+        "declare let y: Box<number>;\n",
+        "y = x;\n",
+        "export {};\n",
+    );
+    let result = crate::check_program(
+        &[
+            crate::InputFile::new("/globals.d.ts".to_owned(), globals.to_owned()),
+            crate::InputFile::new(
+                "/a.ts".to_owned(),
+                "export type Box<T = string> = { value: T };\n".to_owned(),
+            ),
+            crate::InputFile::new("/b.ts".to_owned(), main.to_owned()),
+        ],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+    );
+    let rows: Vec<_> = result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 2322)
+        .map(|diagnostic| {
+            (
+                diagnostic.start,
+                tsc_diagnostics::flattened_message(&diagnostic.message, "\n", None)
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        rows,
+        [(
+            Some(80),
+            concat!(
+                "Type 'Box' is not assignable to type 'Box<number>'.\n",
+                "  Types of property 'value' are incompatible.\n",
+                "    Type 'string' is not assignable to type 'number'."
+            )
+            .to_owned()
+        )]
+    );
+    assert_eq!(result.work_counters.types(), 83 - 1);
+    assert_eq!(result.work_counters.instantiations(), 5);
+}

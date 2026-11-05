@@ -435,7 +435,7 @@ impl<'c, 'a> PseudoChecker<'c, 'a> {
         if let (Some(initializer), Some(symbol)) =
             (data.initializer, self.checker.node_symbol(declaration))
         {
-            let declarations = &self.checker.binder.symbol(symbol).declarations;
+            let declarations = self.checker.binder.symbol(symbol).declarations();
             let single_variable = declarations.len() == 1
                 || declarations
                     .iter()
@@ -1329,7 +1329,7 @@ impl<'c, 'a> PseudoChecker<'c, 'a> {
             self.checker
                 .binder
                 .symbol(symbol)
-                .declarations
+                .declarations()
                 .iter()
                 .copied()
                 .find(|&declaration| self.checker.kind_of(declaration) == other_kind)

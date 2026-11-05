@@ -192,7 +192,7 @@ impl LanguageService<'_> {
             let mut declaration_names = HashSet::new();
             for entry in &entries {
                 if let Some(symbol) = entry.definition.as_ref().and_then(|d| d.symbol) {
-                    for &declaration in &request.state.binder.symbol(symbol).declarations {
+                    for &declaration in request.state.binder.symbol(symbol).declarations() {
                         if let Some(name) = request.name_of(declaration) {
                             declaration_names.insert(name);
                         }
@@ -346,7 +346,7 @@ impl Request<'_, '_> {
                             self.state
                                 .binder
                                 .symbol(symbol)
-                                .declarations
+                                .declarations()
                                 .first()
                                 .copied()
                         })

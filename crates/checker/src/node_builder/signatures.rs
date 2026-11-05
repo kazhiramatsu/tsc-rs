@@ -1089,7 +1089,7 @@ pub(super) fn parameter_scope_symbols(
     let pattern = checker
         .binder
         .symbol(parameter)
-        .declarations
+        .declarations()
         .iter()
         .find_map(|&declaration| {
             let NodeData::Parameter(data) = checker.data_of(declaration) else {
@@ -1338,7 +1338,7 @@ pub(super) fn get_effective_parameter_declaration(
             checker
                 .binder
                 .symbol(parameter)
-                .declarations
+                .declarations()
                 .iter()
                 .copied()
                 .find(|&declaration| {

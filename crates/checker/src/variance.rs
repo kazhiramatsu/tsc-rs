@@ -415,7 +415,7 @@ impl<'a> CheckerState<'a> {
             return ModifierFlags::NONE;
         };
         let mut modifiers = 0;
-        for &declaration in &self.binder.symbol(symbol).declarations {
+        for &declaration in self.binder.symbol(symbol).declarations() {
             modifiers |= self.effective_modifier_flags(declaration).bits();
         }
         ModifierFlags::from_bits(

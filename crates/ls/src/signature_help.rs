@@ -597,7 +597,7 @@ impl Completions<'_, '_, '_> {
         if data.escaped_name.as_js() != InternalSymbolName::TYPE {
             return Some(symbol);
         }
-        for &declaration in &data.declarations {
+        for &declaration in data.declarations() {
             let kind = self.node_kind(declaration);
             if kind == SyntaxKind::FunctionType {
                 if let Some(parent) = self.parent_of(declaration) {

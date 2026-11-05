@@ -569,7 +569,7 @@ fn is_lib_symbol(checker: &CheckerState<'_>, symbol: tsc_types::SymbolId) -> boo
     checker
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .any(|&declaration| {
             let file = checker.binder.file_index_of_node(declaration);
@@ -604,7 +604,7 @@ pub(crate) fn is_lib_type(checker: &CheckerState<'_>, r#type: TypeId) -> bool {
             checker
                 .binder
                 .symbol(symbol)
-                .declarations
+                .declarations()
                 .iter()
                 .any(|&decl| {
                     let file = checker.binder.file_index_of_node(decl);

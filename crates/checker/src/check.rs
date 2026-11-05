@@ -729,7 +729,7 @@ impl<'a> CheckerState<'a> {
                         let accessors: Vec<NodeId> = self
                             .binder
                             .symbol(symbol)
-                            .declarations
+                            .declarations()
                             .iter()
                             .copied()
                             .filter(|&declaration| {
@@ -3129,7 +3129,7 @@ impl<'a> CheckerState<'a> {
         else {
             return;
         };
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         if declarations.iter().copied().any(|declaration| {
             self.is_type_declaration_for_deprecated_reference(declaration)
                 && self.is_deprecated_declaration(declaration)
@@ -3616,7 +3616,7 @@ impl<'a> CheckerState<'a> {
         self.check_source_element(type_parameter);
         if let Some(type_parameter) = type_parameter {
             let symbol = self.get_symbol_of_declaration(type_parameter)?;
-            if self.binder.symbol(symbol).declarations.len() > 1
+            if self.binder.symbol(symbol).declarations().len() > 1
                 && !*self.links.symbol_cold().type_parameters_checked.get(symbol)
             {
                 self.links.set_symbol_type_parameters_checked(symbol);
@@ -3624,7 +3624,7 @@ impl<'a> CheckerState<'a> {
                 let declarations: Vec<NodeId> = self
                     .binder
                     .symbol(symbol)
-                    .declarations
+                    .declarations()
                     .iter()
                     .copied()
                     .filter(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeParameter)
@@ -4179,7 +4179,7 @@ impl<'a> CheckerState<'a> {
         let Some(property) = self.get_property_of_type_full(contextual_type, text)? else {
             return Ok(());
         };
-        let declarations = self.binder.symbol(property).declarations.clone();
+        let declarations = self.binder.symbol(property).declaration_list();
         if !declarations.is_empty() && self.is_deprecated_symbol(property) {
             let entity = tsc_binder::unescape_leading_underscores(text).to_owned();
             self.add_deprecated_suggestion(name, &declarations, &entity);
@@ -5046,7 +5046,7 @@ impl<'a> CheckerState<'a> {
             // (relater.go:4394); tsc 6.0 asked for WriteComputedProps.
             // The related 2728 reuses the same string.
             let prop_name = self.missing_property_display_name(unmatched[0])?;
-            let declaration = self.binder.symbol(prop).declarations.first().copied();
+            let declaration = self.binder.symbol(prop).declarations().first().copied();
             let related = declaration
                 .map(|declaration| {
                     self.related_info_for_node_js(
@@ -5483,15 +5483,14 @@ impl<'a> CheckerState<'a> {
         }
         if self.links.symbol_cold().late_symbol.get(symbol).is_none()
             && data
-                .declarations
-                .clone()
+                .declaration_list()
                 .iter()
                 .any(|&declaration| self.has_late_bindable_ast_name(declaration))
         {
             let parent = data.parent;
             if let Some(parent) = parent {
                 let parent = self.get_merged_symbol(parent);
-                let source = self.binder.symbol(symbol).declarations.clone();
+                let source = self.binder.symbol(symbol).declaration_list();
                 let is_static = source.iter().any(|&declaration| {
                     tsc_binder::node_util::has_syntactic_modifier(
                         &Published,
@@ -5808,7 +5807,7 @@ impl<'a> CheckerState<'a> {
             name,
             anonymous: false,
         };
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         if self.binder.symbol(symbol).escaped_name == tsc_types::InternalSymbolName::DEFAULT
             && !use_alias_defined_outside_current_scope
             && (!in_initial_entity_name
@@ -5956,7 +5955,7 @@ impl<'a> CheckerState<'a> {
         let declaration = self
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeParameter)?;
@@ -7307,7 +7306,7 @@ impl<'a> CheckerState<'a> {
                     .flags
                     .intersects(SymbolFlags::TYPE_LITERAL)
                 {
-                    if let Some(&declaration) = self.binder.symbol(symbol).declarations.first() {
+                    if let Some(&declaration) = self.binder.symbol(symbol).declarations().first() {
                         let mut node = self.parent_of(declaration);
                         while node
                             .is_some_and(|node| self.kind_of(node) == SyntaxKind::ParenthesizedType)
@@ -7373,7 +7372,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let symbol_flags = self.binder.symbol(symbol).flags;
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         let is_static_method_symbol = if symbol_flags.intersects(SymbolFlags::METHOD) {
             let mut admitted = false;
             for declaration in &declarations {
@@ -8001,7 +8000,7 @@ impl<'a> CheckerState<'a> {
         enclosing: Option<NodeId>,
         use_only_external_aliasing: bool,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
-        let declarations = &self.binder.symbol(symbol).declarations;
+        let declarations = self.binder.symbol(symbol).declarations();
         if !declarations.is_empty()
             && declarations.iter().all(|&declaration| {
                 matches!(
@@ -8246,7 +8245,7 @@ impl<'a> CheckerState<'a> {
                 // Only an `import x = require()` alias names the symbol when
                 // the node builder asks for external aliasing only.
                 && (!use_only_external_aliasing
-                    || self.binder.symbol(entry).declarations.iter().any(|&declaration| {
+                    || self.binder.symbol(entry).declarations().iter().any(|&declaration| {
                         matches!(
                             self.data_of(declaration),
                             NodeData::ImportEqualsDeclaration(import)
@@ -8538,7 +8537,7 @@ impl<'a> CheckerState<'a> {
                 meaning,
             );
         }
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         let mut candidates = Vec::new();
         for declaration in declarations {
             if node_util::is_ambient_module(&Published, declaration) {
@@ -8630,7 +8629,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Vec<SymbolId>> {
         let mut additional = Vec::new();
         if let Some(parent_container) = parent_container {
-            let declarations = self.binder.symbol(container).declarations.clone();
+            let declarations = self.binder.symbol(container).declaration_list();
             for declaration in declarations {
                 if let Some(file_symbol) =
                     self.file_symbol_if_export_equals_container(declaration, parent_container)?
@@ -8716,7 +8715,7 @@ impl<'a> CheckerState<'a> {
         if !meaning.intersects(tsc_types::SymbolFlags::VALUE) {
             return Ok(None);
         }
-        let Some(first_declaration) = self.binder.symbol(symbol).declarations.first().copied()
+        let Some(first_declaration) = self.binder.symbol(symbol).declarations().first().copied()
         else {
             return Ok(None);
         };
@@ -8914,7 +8913,7 @@ impl<'a> CheckerState<'a> {
     fn symbol_has_declaration_of_kind(&self, symbol: SymbolId, kind: SyntaxKind) -> bool {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .any(|&declaration| self.kind_of(declaration) == kind)
     }
@@ -8930,7 +8929,7 @@ impl<'a> CheckerState<'a> {
     fn is_umd_export_symbol(&self, symbol: SymbolId) -> bool {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .first()
             .is_some_and(|&declaration| {
                 self.kind_of(declaration) == SyntaxKind::NamespaceExportDeclaration
@@ -8944,7 +8943,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn symbol_has_external_module_declaration(&self, symbol: SymbolId) -> bool {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .any(|&declaration| self.is_non_global_augmentation_external_module_node(declaration))
     }
@@ -8991,7 +8990,7 @@ impl<'a> CheckerState<'a> {
         // (an ambient module with import attributes has a unique internal
         // symbol name); the augmentation `declare module "react"` of a file's
         // export target does not name it.
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         let mut has_file = declarations
             .iter()
             .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
@@ -9020,7 +9019,7 @@ impl<'a> CheckerState<'a> {
             .filter(|name| !name.is_empty())
         {
             let source_file_module = data
-                .declarations
+                .declarations()
                 .iter()
                 .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
             if source_file_module {
@@ -9033,7 +9032,7 @@ impl<'a> CheckerState<'a> {
         }
         // tsc-port: getNonAugmentationDeclaration @6.0.3
         // tsc-span: _tsc.js:13749-13752
-        let declaration = data.declarations.iter().copied().find(|&declaration| {
+        let declaration = data.declarations().iter().copied().find(|&declaration| {
             let source = self.binder.source_of_node(declaration);
             let external_augmentation = node_util::is_ambient_module(&Published, declaration)
                 && node_util::is_module_augmentation_external(source, declaration);
@@ -9070,7 +9069,7 @@ impl<'a> CheckerState<'a> {
         let source_file_module = self
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
         let import_attributes_type = if source_file_module {
@@ -9136,7 +9135,7 @@ impl<'a> CheckerState<'a> {
         let source_file_module = self
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
         let specifier = self.specifier_for_module_symbol_display(symbol)?;
@@ -9589,7 +9588,7 @@ impl<'a> CheckerState<'a> {
                 let property_declaration = self
                     .binder
                     .symbol(property)
-                    .declarations
+                    .declarations()
                     .iter()
                     .copied()
                     .find(|&declaration| {
@@ -9600,7 +9599,7 @@ impl<'a> CheckerState<'a> {
                     // signature face per present accessor declaration,
                     // instantiated under the symbol links mapper.
                     let symbol_mapper = self.links.read_symbol(property, |links| links.mapper);
-                    let declarations = self.binder.symbol(property).declarations.clone();
+                    let declarations = self.binder.symbol(property).declaration_list();
                     let getter = declarations
                         .iter()
                         .copied()
@@ -10231,7 +10230,7 @@ impl<'a> CheckerState<'a> {
         let parameter_declaration = self
             .binder
             .symbol(parameter)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| self.kind_of(declaration) == SyntaxKind::Parameter);
@@ -10244,7 +10243,7 @@ impl<'a> CheckerState<'a> {
             .then(|| {
                 self.binder
                     .symbol(parameter)
-                    .declarations
+                    .declarations()
                     .iter()
                     .copied()
                     .find(|&declaration| self.kind_of(declaration) == SyntaxKind::JSDocParameterTag)
@@ -10902,7 +10901,7 @@ impl<'a> CheckerState<'a> {
             .expect("TypeParameter types carry their declaration symbol");
         let mut modifiers = JsString::new();
         {
-            let declarations = self.binder.symbol(symbol).declarations.clone();
+            let declarations = self.binder.symbol(symbol).declaration_list();
             let mut has_const = false;
             let mut has_in = false;
             let mut has_out = false;
@@ -12436,7 +12435,7 @@ impl<'a> CheckerState<'a> {
         let symbol_flags = self.binder.symbol(symbol).flags;
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .filter(|&declaration| self.kind_of(declaration) != SyntaxKind::Identifier)
@@ -13815,7 +13814,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let declarations = self.binder.symbol(property).declarations.clone();
+        let declarations = self.binder.symbol(property).declaration_list();
         let name_type = self.links.symbol(property).name_type;
         let name_type_flags = name_type.map(|name_type| self.tables.flags_of(name_type));
         let string_named = !declarations.is_empty()
@@ -14638,7 +14637,7 @@ impl<'a> CheckerState<'a> {
         }
         let (value_declaration, declarations) = {
             let data = self.binder.symbol(property);
-            (data.value_declaration, data.declarations.clone())
+            (data.value_declaration, data.declaration_list())
         };
         let Some(declaration) = value_declaration.or_else(|| declarations.first().copied()) else {
             return Ok(None);

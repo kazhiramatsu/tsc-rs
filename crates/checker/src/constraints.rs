@@ -51,7 +51,7 @@ impl<'a> CheckerState<'a> {
         let symbol = self.tables.type_of(ty).symbol?;
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find_map(|declaration| match self.data_of(declaration) {
@@ -162,7 +162,7 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = self.tables.type_of(type_parameter).symbol else {
             return Ok(None);
         };
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         let mut inferences = Vec::new();
         for declaration in declarations {
             let Some(infer_node) = self.parent_of(declaration) else {
@@ -307,7 +307,7 @@ impl<'a> CheckerState<'a> {
         };
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .any(|&declaration| {
                 self.parent_of(declaration)

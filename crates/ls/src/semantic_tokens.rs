@@ -286,7 +286,7 @@ impl Request<'_, '_> {
         token_type = self.reclassify_by_type(node, token_type)?;
         let record = self.state.binder.symbol(symbol);
         let value_declaration = record.value_declaration;
-        let declarations: Vec<NodeId> = record.declarations.iter().copied().collect();
+        let declarations: Vec<NodeId> = record.declarations().to_vec();
         if let Some(declaration) = value_declaration {
             let source = self.state.binder.source_of_node(declaration);
             let modifier_flags = node_util::get_combined_modifier_flags(source, declaration);
@@ -357,7 +357,7 @@ impl Request<'_, '_> {
         let record = self.state.binder.symbol(symbol);
         let mut declaration = record
             .value_declaration
-            .or_else(|| record.declarations.first().copied())?;
+            .or_else(|| record.declarations().first().copied())?;
         if self.node_kind(declaration) == SyntaxKind::BindingElement {
             declaration = self.declaration_for_binding_element(declaration);
         }

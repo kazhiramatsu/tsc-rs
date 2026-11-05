@@ -172,7 +172,7 @@ impl<'a> CheckerState<'a> {
         let original = self.binder.symbol(symbol);
         let flags = original.flags;
         let escaped_name = original.escaped_name;
-        let declarations = original.declarations.clone();
+        let declarations = original.declaration_list();
         let parent = original.parent;
         let value_declaration = original.value_declaration;
         let const_enum_only_module = original.extras().const_enum_only_module;
@@ -180,7 +180,7 @@ impl<'a> CheckerState<'a> {
         let exports = original.exports().clone();
         let result = self.binder.create_symbol(flags, escaped_name);
         let cloned = self.binder.symbol_mut(result);
-        cloned.declarations = declarations;
+        cloned.set_declarations(declarations);
         cloned.parent = parent;
         cloned.value_declaration = value_declaration;
         if const_enum_only_module == Some(true) {
@@ -267,7 +267,7 @@ impl<'a> CheckerState<'a> {
             Ok(Some(resolved)) => resolved,
             Ok(None) => symbol,
             Err(abort) => {
-                if let Some(&declaration) = self.binder.symbol(symbol).declarations.first() {
+                if let Some(&declaration) = self.binder.symbol(symbol).declarations().first() {
                     self.mark_oracle_crash_range(declaration, abort);
                 }
                 self.unknown_symbol
@@ -324,10 +324,10 @@ impl<'a> CheckerState<'a> {
             {
                 let source_symbol = self.binder.symbol(source);
                 let source_value_declaration = source_symbol.value_declaration;
-                let source_declarations = source_symbol.declarations.clone();
-                let target_symbol = self.binder.symbol_mut(target);
-                target_symbol.flags |= source_flags;
-                target_symbol.declarations.extend(source_declarations);
+                let source_declarations = source_symbol.declaration_list();
+                self.binder.symbol_mut(target).flags |= source_flags;
+                self.binder
+                    .extend_declarations(target, &source_declarations);
                 if let Some(value_declaration) = source_value_declaration {
                     self.set_value_declaration(target, value_declaration);
                 }
@@ -371,7 +371,7 @@ impl<'a> CheckerState<'a> {
                 let error_node =
                     self.binder
                         .symbol(source)
-                        .declarations
+                        .declarations()
                         .first()
                         .and_then(|&declaration| {
                             get_name_of_declaration(&tsc_syntax::Published, declaration)
@@ -441,7 +441,7 @@ impl<'a> CheckerState<'a> {
     /// written `[expression]` face. Quoted and non-canonical numeric
     /// declaration names likewise retain their exact source spelling.
     pub(crate) fn symbol_name_as_written(&self, symbol: SymbolId) -> JsString {
-        for &declaration in &self.binder.symbol(symbol).declarations {
+        for &declaration in self.binder.symbol(symbol).declarations() {
             let source = self.binder.source_of_node(declaration);
             // The `this` parameter tsgo's reparser makes of a function's
             // `@this` tag has a synthesized zero-width name
@@ -508,7 +508,7 @@ impl<'a> CheckerState<'a> {
         }
         // A nameless declaration: its variable's name, or an anonymous
         // class or function (tsgo nodebuilderimpl.go:1004-1018).
-        if let Some(&declaration) = self.binder.symbol(symbol).declarations.first() {
+        if let Some(&declaration) = self.binder.symbol(symbol).declarations().first() {
             let source = self.binder.source_of_node(declaration);
             // A reparsed `@type` literal's parent is its declaration.
             let parent = self
@@ -565,7 +565,7 @@ impl<'a> CheckerState<'a> {
             state
                 .binder
                 .symbol(symbol)
-                .declarations
+                .declarations()
                 .first()
                 .is_some_and(|&declaration| {
                     let source = state.binder.source_of_node(declaration);
@@ -615,8 +615,8 @@ impl<'a> CheckerState<'a> {
         source: SymbolId,
     ) {
         let symbol_name = symbol_name.name();
-        let declarations = self.binder.symbol(target).declarations.clone();
-        let related = self.binder.symbol(source).declarations.clone();
+        let declarations = self.binder.symbol(target).declaration_list();
+        let related = self.binder.symbol(source).declaration_list();
         for node in declarations {
             self.add_duplicate_declaration_error(node, message, symbol_name, &related);
         }
@@ -801,7 +801,7 @@ impl<'a> CheckerState<'a> {
         let name = self.binder.symbol(self.undefined_symbol).escaped_name;
         match self.globals.get(name).copied() {
             Some(target_symbol) => {
-                let declarations = self.binder.symbol(target_symbol).declarations.clone();
+                let declarations = self.binder.symbol(target_symbol).declaration_list();
                 for declaration in declarations {
                     if !is_type_declaration(self, declaration) {
                         let diagnostic = self.diagnostic_for_node_js(
@@ -857,8 +857,7 @@ impl<'a> CheckerState<'a> {
                     if let Some(&(_, file_global_this)) =
                         locals.iter().find(|(name, _)| name.as_js() == "globalThis")
                     {
-                        let declarations =
-                            self.binder.symbol(file_global_this).declarations.clone();
+                        let declarations = self.binder.symbol(file_global_this).declaration_list();
                         for declaration in declarations {
                             let diagnostic = self.diagnostic_for_node(
                                 declaration,
@@ -1009,7 +1008,7 @@ impl<'a> CheckerState<'a> {
             };
             // First-declaration guard (47833-47836): later merged
             // declarations ride the first one's merge.
-            if self.binder.symbol(symbol).declarations.first().copied() != Some(augmentation) {
+            if self.binder.symbol(symbol).declarations().first().copied() != Some(augmentation) {
                 continue;
             }
             let exports = self.binder.symbol(symbol).exports().clone();
@@ -1174,7 +1173,7 @@ impl<'a> CheckerState<'a> {
         if self
             .binder
             .symbol(augmentation_symbol)
-            .declarations
+            .declarations()
             .first()
             .copied()
             != Some(augmentation)

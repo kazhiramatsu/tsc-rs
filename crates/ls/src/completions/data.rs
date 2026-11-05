@@ -1532,10 +1532,8 @@ impl Completions<'_, '_, '_> {
             .state
             .binder
             .symbol(symbol)
-            .declarations
-            .iter()
-            .copied()
-            .collect()
+            .declarations()
+            .to_vec()
     }
 
     /// tsgo `ast.SymbolName`: a private name's text, else the name.

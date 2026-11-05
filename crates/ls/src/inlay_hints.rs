@@ -991,7 +991,7 @@ impl LabelParts<'_, '_, '_, '_, '_, '_> {
                             .state
                             .binder
                             .symbol(symbol)
-                            .declarations
+                            .declarations()
                             .first()?;
                         node_util::get_name_of_declaration(
                             self.hints.request.state.binder.source_of_node(first),

@@ -99,7 +99,7 @@ fn binder_names_match_independent_typescript_observations() {
             .map(|(name, symbol)| {
                 (
                     name.as_js().to_utf16(),
-                    binder.symbols.symbol(*symbol).declarations.len(),
+                    binder.symbols.symbol(*symbol).declarations().len(),
                 )
             })
             .collect::<Vec<_>>();

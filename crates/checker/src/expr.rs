@@ -1308,7 +1308,7 @@ impl<'a> CheckerState<'a> {
         if self.is_deprecated_symbol(target_symbol)
             && self.is_uncalled_function_reference(node, target_symbol)?
         {
-            let declarations = self.binder.symbol(target_symbol).declarations.clone();
+            let declarations = self.binder.symbol(target_symbol).declaration_list();
             if !declarations.is_empty() {
                 let deprecated_entity = self
                     .identifier_text_of(node)
@@ -1738,7 +1738,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// findLast over the declarations with isAliasSymbolDeclaration.
     pub(crate) fn get_declaration_of_alias_symbol(&self, symbol: SymbolId) -> Option<NodeId> {
-        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declaration_list();
         declarations
             .into_iter()
             .rev()
@@ -3579,7 +3579,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             let symbol = self.tables.type_of(ty).symbol;
             return Ok(symbol.is_some_and(|s| {
-                self.binder.symbol(s).declarations.iter().any(|&d| {
+                self.binder.symbol(s).declarations().iter().any(|&d| {
                     node_util::has_syntactic_modifier(&Published, d, ModifierFlags::CONST)
                 })
             }));

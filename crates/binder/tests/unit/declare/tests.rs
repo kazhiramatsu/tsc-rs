@@ -149,9 +149,9 @@ fn function_overloads_merge() {
     assert_eq!(symbols[0], symbols[1]);
     let symbol = binder.symbols.symbol(symbols[0]);
     assert!(symbol.flags.contains(SymbolFlags::FUNCTION));
-    assert_eq!(symbol.declarations.len(), 2);
+    assert_eq!(symbol.declarations().len(), 2);
     // setValueDeclaration: the FIRST value declaration wins.
-    assert_eq!(symbol.value_declaration, Some(symbol.declarations[0]));
+    assert_eq!(symbol.value_declaration, Some(symbol.declarations()[0]));
     assert!(binder.bind_diagnostics.is_empty());
     // Function is NOT in SymbolFlags.Classifiable.
     assert!(!binder.classifiable_names.contains("f"));
@@ -191,7 +191,7 @@ fn block_scoped_redeclaration_reports_2451_and_detaches_fresh_symbol() {
     assert_ne!(symbols[0], symbols[1]);
     let table = binder.locals.get(&source.root).expect("locals");
     assert_eq!(table.get("x"), Some(&symbols[0]));
-    assert_eq!(binder.symbols.symbol(symbols[0]).declarations.len(), 1);
+    assert_eq!(binder.symbols.symbol(symbols[0]).declarations().len(), 1);
 }
 
 #[test]

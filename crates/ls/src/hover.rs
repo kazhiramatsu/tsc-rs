@@ -299,7 +299,7 @@ pub(crate) fn classification_for_symbol(
     let data = state.binder.symbol(symbol);
     let flags = data.flags;
     if flags.intersects(SymbolFlags::VARIABLE) {
-        let parameter = data.declarations.first().is_some_and(|&declaration| {
+        let parameter = data.declarations().first().is_some_and(|&declaration| {
             state.binder.node_record(declaration).kind == SyntaxKind::Parameter
         });
         return if parameter {
@@ -1271,7 +1271,7 @@ impl<'a> Request<'_, 'a> {
             .state
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .find_map(
                 |&declaration| match self.state.binder.node_record(declaration).data() {

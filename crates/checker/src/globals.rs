@@ -395,7 +395,7 @@ impl<'a> CheckerState<'a> {
     fn global_type_declaration(&self, symbol: SymbolId) -> Option<NodeId> {
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .copied()
             .find(|&declaration| {
@@ -757,7 +757,7 @@ impl<'a> CheckerState<'a> {
             .as_ref()
             .map_or(0, Vec::len);
         if type_parameter_count != arity {
-            let declarations = self.binder.symbol(symbol).declarations.clone();
+            let declarations = self.binder.symbol(symbol).declaration_list();
             let decl = declarations
                 .into_iter()
                 .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration);

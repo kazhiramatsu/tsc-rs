@@ -226,7 +226,7 @@ impl CheckerState<'_> {
             descriptor.destructuring_pattern = self.trace_location(pattern);
         }
         if let Some(symbol) = named {
-            if let Some(&declaration) = self.binder.symbol(symbol).declarations.first() {
+            if let Some(&declaration) = self.binder.symbol(symbol).declarations().first() {
                 descriptor.first_declaration = self.trace_location(declaration);
             }
         }
