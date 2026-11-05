@@ -2048,6 +2048,66 @@ memory は予想どおり（同じ水準どうしで −32〜−33 MiB）。命�
 - 記録：`gate-nodeflow/`（README.md・窓の log・診断 build の log）。
 - 計測は上の通り。
 
+## transient symbol の links を 20 byte にし、declared type と参照の意味は持つ少数だけを疎な map に置く（branch `perf/ts71-transient-links-20`、gate を通った 7 枚目、memory の 4 枚目、Y1/S2）
+
+checker は transient（checker が作った）symbol ごとに links の記録を、transient の番号で密に持つ（VS Code で 5,885,636）。
+記録は 28 byte だった：declared type、型、check flags、参照の意味、target、mapper、name type。
+
+census（観測用 build で check の終わりに記録の field を数えた、VS Code 1 thread）：
+- `declared_type` を持つのは **450**、`is_referenced` は **163**。
+- `name_type` は 310,315、`type_of_symbol` は 1.94 M、`check_flags` は 4.80 M、`mapper` は 4.62 M、`target` は 5.40 M。
+
+いまは記録を **20 byte** にした。
+- transient symbol の declared type と参照の意味は、transient の番号を key とする疎な map に置く。
+- 読みは `LinksTables::symbol_declared_type` と `symbol_is_referenced`（17 箇所）。field は共有の view から外したので、
+  古い既定値を読む reader は作れない。
+- persistent symbol は従来どおり 12 byte の paged record に両方を持つ。
+- map は古くならない：transient symbol は追加だけで、speculation も切り詰めない（`speculate.rs` の category C）。
+  番号が 2 つの symbol を指すことはない。まれな書き込みは dense の記録も伸ばすので、記録の数（trace）は変わらない。
+- Y0/Y1 の memo の案（target と mapper を 32 byte の Symbol の末尾 2 語へ）は、binder と checker が `unsafe` を
+  禁じるので extras の id 化が先に要る。同じ 8 byte を、Symbol と binder に触れずに取った。
+
+**gate**（owner の 2026-11-05 15:25 の規則。台帳の行はこの branch より前に main へ）：
+- **pilot**（`main-681fc89fc` 比、VS Code 9 round、warm-up 2、1 つの静かな窓）：
+  - 20 byte（この PR）：footprint −45.9 MiB（水準を揃えて。中央値の比は −49.5）、命令数 +40 M（同じ mode の組 +29〜+87）
+  - 16 byte（name type も bit 付きの map へ）：−67.4 MiB、命令数 **+1,059 M** → 不採用
+- **独立した判定**：
+  - A（件数 × 費用）GO WITH CONDITIONS：≈ −45 MiB・+40 M で記帳。7 project の停止条件（命令数 > +0.15%、
+    VS Code の low mode > +0.1%、zod・next・effect の節約が予想の半分未満）。
+  - B（静的）SOUND：Resolving を読む reader はなく、writer はすべて map へ、記録の丸ごとの複写もない。
+    小修正 3 つ（doc link、memory 報告の bucket 係数、まれな書き込みで記録を伸ばす）を入れた。
+  - C（反証）STANDS WITH FIXES：複数 checker・speculation・Resolving・他 crate・panic の攻撃はすべて失敗。
+    footprint は水準を揃えて記帳。
+
+**計測**：朝（07:44〜07:50）、他の lane は止めていない。load ≈ 3.5、base と交互、`main-903` 比。
+
+| | 基準 | この PR |
+|---|---:|---:|
+| VS Code 1 thread の footprint（9 回の median） | 3,265.4 MiB | **3,215.9 MiB（−49.5）** |
+| 命令数（low mode の median） | 131.079 G | 131.096 G（**+18 M**） |
+| VS Code 4 thread の footprint | 3,664.1 MiB | **3,626.7 MiB（−37.4）** |
+| 4 thread の命令数 | 141.889 G | 142.123 G |
+
+- footprint は範囲が重ならない。binary ごとの 2 水準（≈ 3.5 MiB 差）を揃えると **≈ −46〜−49.5 MiB**
+  （pilot の low 同士 −45.9、census の上限 −44.9）。
+- 他 7 project：命令数 −0.03〜+0.07%、footprint next −7、zod −10、playwright −4、effect −10、vue −3、ts −1、hono −1 MiB。
+- 判定 A の停止条件はすべて満たした。
+
+予想（−45〜−50 MiB、+0.02〜+0.06 G）の帯の中。VS Code 1 thread は ≈ 3,216〜3,219 MiB になる。
+
+**記録。** PR [#904](https://github.com/kazhiramatsu/tsc-rs/pull/904) → merge `e97586d70`（2026-11-06。`4d0cee783` の上、最終 head `42b8ad8a5`）。hosted run
+[42124914961](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42124914961)：全 job pass。local（hosted がしないことだけ、`42b8ad8a5`）：
+- unit test：2 つの transient symbol で参照の意味は OR で積もり symbol ごとに分かれる、直接の印は `ALL`、declared type は片方だけ、
+  記録の他の field は変わらない。speculate と modules の test は新しい accessor を通る。
+- checker の test 1,875、api 332、fmt、clippy（`-D warnings`）、release build。
+- 8 case で出力（exit code・stdout・stderr）が基準と一致。Identifiers・Symbols・Types・Instantiations も 8 project とも一致。
+- `full` 構成の出力の木：hono（748 file）と effect（1,984 file）で byte 単位で一致。
+- conformance（4 checker）：12,829 case、harness error は 0。
+  - #903 の 4 checker の report に対して 15,339 の構成すべてが同じ。
+  - 1 checker の report に対しては、記録済みの 4 構成だけが違う。
+- gate の記録：`gate-links20/`（DOSSIER.md・判定・窓の log）。
+- 計測は上の通り。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
