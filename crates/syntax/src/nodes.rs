@@ -489,6 +489,7 @@ impl Node {
             tails.rewrite(self.words[0], &tail[..len]);
             self.words[0]
         } else {
+            tsc_types::perf::add(tsc_types::perf::PerfCounter::ParseTailWords, len as u64);
             tails.push(&tail[..len])
         };
         self.words = [

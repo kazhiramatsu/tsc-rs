@@ -265,6 +265,8 @@ struct Parser<'text> {
     /// Full-start positions whose ordinary scanner token carried
     /// TokenFlags.PrecedingJSDocComment.
     jsdoc_positions: rustc_hash::FxHashSet<usize>,
+    /// M8 observation: look_ahead / try_parse nesting.
+    speculation_depth: u32,
     has_jsdoc_comments: bool,
     syntax_cursor: Option<SyntaxCursor>,
     subtree_copier: Option<SubtreeCopier>,
@@ -960,6 +962,7 @@ impl<'text> Parser<'text> {
             error_nodes: Vec::new(),
             child_scratch: Vec::new(),
             jsdoc_positions: rustc_hash::FxHashSet::default(),
+            speculation_depth: 0,
             has_jsdoc_comments: memchr::memmem::find(text.as_bytes(), b"/**").is_some(),
             syntax_cursor: None,
             subtree_copier: None,
@@ -1165,6 +1168,10 @@ impl<'text> Parser<'text> {
     }
 
     fn next_token_without_check(&mut self) -> SyntaxKind {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseTokens);
+        if self.speculation_depth > 0 {
+            tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseTokensSpeculative);
+        }
         let token = self.scanner.scan();
         if self.scanner.has_preceding_jsdoc_comment() {
             self.jsdoc_positions.insert(self.scanner.full_start_pos());
@@ -1456,8 +1463,14 @@ impl<'text> Parser<'text> {
         let jsdoc_candidates_len = self.jsdoc_candidates.len();
         let error_nodes_len = self.error_nodes.len();
 
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseTryParses);
+        let nodes_before = self.arena.len();
+        self.speculation_depth += 1;
         let result = f(self);
+        self.speculation_depth -= 1;
         if !result.is_truthy() {
+            tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseTryParseRewinds);
+            tsc_types::perf::add(tsc_types::perf::PerfCounter::ParseNodesDiscarded, (self.arena.len() - nodes_before) as u64);
             self.scanner.restore(scanner_state);
             self.parse_diagnostics.truncate(diagnostics_len);
             self.parse_recovery.restore(recovery_checkpoint);
@@ -1479,7 +1492,12 @@ impl<'text> Parser<'text> {
         let parsing_context = self.parsing_context;
         let jsdoc_candidates_len = self.jsdoc_candidates.len();
         let error_nodes_len = self.error_nodes.len();
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseLookAheads);
+        let nodes_before = self.arena.len();
+        self.speculation_depth += 1;
         let result = f(self);
+        self.speculation_depth -= 1;
+        tsc_types::perf::add(tsc_types::perf::PerfCounter::ParseNodesDiscarded, (self.arena.len() - nodes_before) as u64);
         self.scanner.restore(scanner_state);
         self.parse_diagnostics.truncate(diagnostics_len);
         self.parse_recovery.restore(recovery_checkpoint);
@@ -1716,6 +1734,8 @@ impl<'text> Parser<'text> {
         end: usize,
         has_trailing_comma: bool,
     ) -> crate::NodeArrayId {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseLists);
+        tsc_types::perf::add(tsc_types::perf::PerfCounter::ParseListItems, (self.node_stack.len() - mark) as u64);
         let array = self
             .arena
             .alloc_array(&self.node_stack[mark..], pos, end, has_trailing_comma);
@@ -9512,6 +9532,7 @@ impl<'text> Parser<'text> {
     /// The escaped name of the current identifier token (tsc factory
     /// createIdentifier: escapedText is the ESCAPED form; idText stays raw).
     fn current_token_name(&self) -> tsc_types::EscapedName {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseIdentifierNames);
         let value = self.scanner.token_value();
         if value.is_empty() {
             return tsc_types::EscapedName::escape(token_to_string(self.token()).as_str().into());
@@ -10585,6 +10606,8 @@ fn parse_source_file_from_snapshot_worker(
     incremental_options: IncrementalParseOptions,
 ) -> (SourceFile, IncrementalParseStats) {
     let text = snapshot.text();
+    tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseFiles);
+    tsc_types::perf::add(tsc_types::perf::PerfCounter::ParseBytes, text.len() as u64);
     let mut parser = Parser::new_with_positions(
         file_name,
         text,

@@ -1951,12 +1951,14 @@ impl<'text> Scanner<'text> {
     #[cold]
     #[inline(never)]
     pub(crate) fn re_scan_template_token(&mut self, is_tagged_template: bool) -> SyntaxKind {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseRescans);
         self.pos = self.token_start;
         self.token = self.scan_template_and_set_token_value(!is_tagged_template);
         self.token
     }
 
     pub(crate) fn re_scan_greater_token(&mut self) -> SyntaxKind {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseRescans);
         if self.token == SyntaxKind::GreaterThanToken {
             if self.byte_at(self.pos) == Some(b'>') {
                 if self.byte_at(self.pos + 1) == Some(b'>') {
@@ -1990,6 +1992,7 @@ impl<'text> Scanner<'text> {
     #[cold]
     #[inline(never)]
     pub(crate) fn re_scan_slash_token(&mut self, _report_errors: bool) -> SyntaxKind {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseRescans);
         if !matches!(
             self.token,
             SyntaxKind::SlashToken | SyntaxKind::SlashEqualsToken
@@ -2121,6 +2124,7 @@ impl<'text> Scanner<'text> {
     #[cold]
     #[inline(never)]
     pub(crate) fn re_scan_less_than_token(&mut self) -> SyntaxKind {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseRescans);
         if self.token == SyntaxKind::LessThanLessThanToken {
             self.pos = self.token_start + 1;
             self.token = SyntaxKind::LessThanToken;
@@ -2133,6 +2137,7 @@ impl<'text> Scanner<'text> {
     #[cold]
     #[inline(never)]
     pub(crate) fn re_scan_asterisk_equals_token(&mut self) -> SyntaxKind {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseRescans);
         debug_assert_eq!(
             self.token,
             SyntaxKind::AsteriskEqualsToken,
@@ -2148,6 +2153,7 @@ impl<'text> Scanner<'text> {
     #[cold]
     #[inline(never)]
     pub(crate) fn re_scan_question_token(&mut self) -> SyntaxKind {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseRescans);
         debug_assert_eq!(
             self.token,
             SyntaxKind::QuestionQuestionToken,
@@ -2161,6 +2167,7 @@ impl<'text> Scanner<'text> {
     #[cold]
     #[inline(never)]
     pub(crate) fn re_scan_hash_token(&mut self) -> SyntaxKind {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseRescans);
         if self.token == SyntaxKind::PrivateIdentifier {
             self.pos = self.token_start + 1;
             self.token = SyntaxKind::HashToken;
@@ -2240,6 +2247,7 @@ impl<'text> Scanner<'text> {
     #[cold]
     #[inline(never)]
     pub(crate) fn re_scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) -> SyntaxKind {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseRescans);
         self.pos = self.full_start_pos;
         self.token_start = self.full_start_pos;
         self.scan_jsx_token(allow_multiline_jsx_text)
@@ -2275,6 +2283,7 @@ impl<'text> Scanner<'text> {
     #[cold]
     #[inline(never)]
     pub(crate) fn re_scan_jsx_attribute_value(&mut self) -> SyntaxKind {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseRescans);
         self.pos = self.full_start_pos;
         self.token_start = self.full_start_pos;
         self.scan_jsx_attribute_value()

@@ -1065,6 +1065,7 @@ impl NodeArena {
             scratch.push(child);
             false
         });
+        tsc_types::perf::add(tsc_types::perf::PerfCounter::ParseChildAttaches, scratch.len() as u64);
         for &child in scratch.iter() {
             let index = self.node_index(child);
             self.nodes[index].parent = Some(owner);
@@ -1199,6 +1200,7 @@ impl NodeArena {
                 .expect("node identity space exhausted"),
         );
         self.identifier_count += u32::from(kind == SyntaxKind::Identifier);
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseNodes);
         let mut node = Node::new(kind, pos as u32, end as u32, flags.bits());
         node.encode(&data, None, &mut self.tails, false);
         self.nodes.push(node);
@@ -1221,6 +1223,7 @@ impl NodeArena {
                 .expect("node identity space exhausted"),
         );
         self.identifier_count += u32::from(kind == SyntaxKind::Identifier);
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseNodes);
         self.nodes
             .push(Node::new(kind, pos as u32, end as u32, flags.bits()));
         id

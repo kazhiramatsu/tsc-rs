@@ -1998,6 +1998,7 @@ pub(super) fn parse_jsdoc_comment(
     end: usize,
     host_flags: NodeFlags,
 ) -> ParsedJSDoc {
+    tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseJsDocComments);
     let scanner_state = parser.scanner.save();
     let diagnostics_start = parser.parse_diagnostics.len();
     let recovery_checkpoint = parser.parse_recovery.checkpoint();

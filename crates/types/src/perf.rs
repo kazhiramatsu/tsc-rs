@@ -158,6 +158,23 @@ pub enum PerfCounter {
     NamesTextReads,
     NamesTextKeyLookups,
     NamesEscapeCalls,
+    // ---- the parser (M8 parse table; observation build only) ----
+    ParseFiles,
+    ParseBytes,
+    ParseTokens,
+    ParseTokensSpeculative,
+    ParseRescans,
+    ParseLookAheads,
+    ParseTryParses,
+    ParseTryParseRewinds,
+    ParseNodes,
+    ParseNodesDiscarded,
+    ParseTailWords,
+    ParseLists,
+    ParseListItems,
+    ParseChildAttaches,
+    ParseIdentifierNames,
+    ParseJsDocComments,
     /// Sentinel: number of counters (not a counter).
     Count,
 }
@@ -280,6 +297,22 @@ pub const WIRED: [bool; COUNT] = [
     true,  // names.text.reads
     true,  // names.key.text_lookups
     true,  // names.escape.calls
+    true,  // parse.files
+    true,  // parse.bytes
+    true,  // parse.tokens
+    true,  // parse.tokens.speculative
+    true,  // parse.rescans
+    true,  // parse.look_aheads
+    true,  // parse.try_parses
+    true,  // parse.try_parse.rewinds
+    true,  // parse.nodes
+    true,  // parse.nodes.discarded
+    true,  // parse.tail_words
+    true,  // parse.lists
+    true,  // parse.list_items
+    true,  // parse.child_attaches
+    true,  // parse.identifier_names
+    true,  // parse.jsdoc.comments
 ];
 
 /// Report names in variant order.
@@ -396,6 +429,22 @@ pub const NAMES: [&str; COUNT] = [
     "names.text.reads",
     "names.key.text_lookups",
     "names.escape.calls",
+    "parse.files",
+    "parse.bytes",
+    "parse.tokens",
+    "parse.tokens.speculative",
+    "parse.rescans",
+    "parse.look_aheads",
+    "parse.try_parses",
+    "parse.try_parse.rewinds",
+    "parse.nodes",
+    "parse.nodes.discarded",
+    "parse.tail_words",
+    "parse.lists",
+    "parse.list_items",
+    "parse.child_attaches",
+    "parse.identifier_names",
+    "parse.jsdoc.comments",
 ];
 
 #[cfg(feature = "perf-counters")]
