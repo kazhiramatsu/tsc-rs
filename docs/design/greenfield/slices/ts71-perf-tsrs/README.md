@@ -1575,6 +1575,46 @@ c を測る（対の batch か、命令で重みを付けた sample）。
 - fingerprint oracle（`main-b8a54e83a.tsv` 比）：143,190 行すべて一致、panic 0
 - 計測は上の通り
 
+## 終えた node の子に、node の payload から親を付ける（branch `perf/ts71-attach-from-data`、M8 の parse 表の 3 枚目）
+
+tsgo の `finishNode`（`aa814927` の parser.go:5994）は `overrideParentInImmediateChildren`（parser.go:6005）で node の
+`ForEachChild` の子に親を付ける。tsc-rs は node を格納した後に同じことをしていた：`attach_children` が格納した record を
+`for_each_child` で decode し、子を scratch の `Vec` に集め、二度目の pass で親を書く。
+
+**修正**：parser と JSDoc parser の finish（`finish_node_with_flags`、`finish_with_flags`）は `alloc_and_finish` を通る。
+node が受け取る id（`next_node_id`）を親にして、格納する前の payload を生成済みの `try_visit_each_child` で歩き
+（子は `for_each_child` と同じ：どちらも `scripts/generate_nodes.py` が同じ schema から生成。生成 code の変更なし）、
+子ごとに bounds check 一つで親を書いてから node を格納する。decode も scratch も二度目の pass もない。`unsafe` なし。
+root、missing node、直接 allocate する少数の node（ほとんど token）、incremental parse で複写した subtree は
+`attach_children` のまま。speculation（`try_parse`/`look_ahead`）は tsgo の `mark`/`rewind` と同じく親を戻さず、
+親を付ける時点（finish）と対象の子は前後で同じ。
+
+**親の一致の確かめ方**：debug build では `alloc_and_finish` で終えた node ごとに、格納した record を `for_each_child`
+で歩き直し、子の親がその node であることを assert する（release には入らない。syntax の test 276 で全 parse に掛かる）。
+fingerprint oracle は reach した各 node の親と、それが walk の親かを hash する（`syntax_fingerprint.rs:435–438`）：
+143,190 行のうち差は 0。8 project の出力・統計も一致。
+
+**計測**：1 thread、静かな machine（15:10〜15:13、M5 lane を止めて）、親 `167f488a8` 比。
+| project | 命令数 | 予想（帯） |
+|---|---:|---:|
+| VS Code | **−0.25%**（−333 M、7 回。今日の ≈ +0.9 G の雑音の 1 組を除く組は −263〜−409 M） | −350 M（−260〜−440）：帯の中央 |
+| playwright | −0.34%（−42.8 M） | −39 M：帯の中 |
+| ts | −0.25%（−24.0 M） | −22 M：帯の中 |
+| effect | −0.22%（−33.8 M） | −32 M：帯の中 |
+| next | −0.19%（−53.4 M） | −47 M：帯の中 |
+| zod / vue / hono | −28.8 M / −14.9 M / +1.0 M | −41 / −24 / −8 M：節約が 6〜12 M 小さい |
+
+予想は release build の前に書いた（N＝parse が allocate する node 数、VS Code 17,020,093。c は vscode/src の parse batch
+で経路の上で測った：attach 全体 81.3 命令/node、この card の正味 −20.5/node、足す側 ≈ 61 も新しい経路で測った＝
+#894 の教訓）。VS Code は帯の中央。footprint は ±3 MiB で不変。
+
+**記録。** PR [#895](https://github.com/kazhiramatsu/tsc-rs/pull/895) → merge `80c8629b8`（2026-11-05。`167f488a8` の上、最終 head `0538d5bf4`）。hosted run
+[41979180165](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41979180165)：全 job pass。local（hosted がしないことだけ、`0538d5bf4`）：
+- syntax の test 276（debug build の親の assert 付き）、fmt、clippy（`-p tsc-rs-syntax --all-targets -- -D warnings`）、release build
+- 8 case で出力（exit code・stdout・stderr）が親と一致。Identifiers・Symbols・Types・Instantiations も 8 project とも一致
+- fingerprint oracle：`main-b8a54e83a.tsv` に対して 143,190 行のうち差は 0（parse の hash は各 node の親を含む）
+- 計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
