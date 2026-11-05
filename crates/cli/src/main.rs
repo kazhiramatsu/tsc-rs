@@ -1,3 +1,4 @@
+mod heap_walk;
 /// The CLI binary uses mimalloc: the compiler allocates and frees many small
 /// arena/table records, and the system allocator's free path dominated the
 /// sampled self time. Library consumers keep their own global allocator; only
@@ -106,6 +107,7 @@ fn main() {
     // has no other preconditions.
     unsafe { libmimalloc_sys::mi_option_set(MI_OPTION_PURGE_DELAY, 10) };
     tsc_types::trace::set_memory_probe(memory_sample);
+    heap_walk::install();
     tsc_compiler::pprof::set_gc(collect_memory);
     // Every worker thread and checker shard starts with the same request;
     // the main thread reads, coordinates and runs the first shard itself.
