@@ -1535,6 +1535,46 @@ no-emit の経路と同じだけ残すことを Arc の数で見る（driver の
 - `--checkers 4` は既知の 4 件のみ。#890 の 4-checker 報告とは 15,339 構成すべて一致
 - 計測は上の通り
 
+## 式の中の型引数は tsgo と同じ所でだけ試す（branch `perf/ts71-type-args-precondition`、M8 の parse 表の最初の card）
+
+M8 の parse 表（`m8-parse/README.md`：VS Code、1 thread、engine ごとに 3 つの samply profile と観測用の counting build）
+で、parse 行は tsc-rs 16.0 G 命令、tsrs 8.4 G だった。token（22.13 M 対 21.96 M）・node（17.02 M 対 16.94 M）・
+identifier（5.87 M）の数は同じなので、差のほとんどは 1 個あたりの費用。speculation だけは逆で、1 回あたりの費用は
+ほぼ同じ（84 対 74 命令）だが、回数が 10.92 M 対 2.42 M だった。tsc-rs の `try_parse` 9.45 M 回のうち 8.54 M 回は
+1 か所で、その 8.50 M 回は tsgo の前提条件で外れる。
+
+**原因**：tsgo の `tryParseTypeArgumentsInExpression`（parser.go:5332、`aa814927`）は parser の状態を保存する前に
+安い前提条件を見る（JavaScript の file か、token が `<`・`<<` 以外なら mark/rewind せず nil）。tsc-rs は古い形のまま、
+member expression の終わり毎・call chain の `?.` の後・`super` では二重に、状態全体を保存して `<` の rescan で失敗する
+closure を試し、戻していた。
+
+**修正**：tsgo の形（前提条件を先に見てから speculation）にし、`super` からは直接呼ぶ（tsgo と同じ）。`re_scan_less_than_token`
+は `<<` 以外の token を変えないので、飛ばした speculation は必ず失敗して何も残さなかった：tree は変わらない。unit test は
+境界の 3 例（`<<` を分けた generic function type の型引数、`f<string>(g)`、JavaScript では関係演算子の連鎖）を tsgo の
+tree で固定する（`<<` の腕を消すと失敗）。fingerprint oracle は 143,190 行すべて一致。
+
+**計測**：1 thread、静かな machine（13:24〜13:28）、親 `c234075b2` 比。
+| project | 命令数 | 飛ばした呼び出し（N） | 1 回あたり |
+|---|---:|---:|---:|
+| VS Code | **−0.81%**（−1.10 G、5 回） | 8,495,809 | 129 |
+| ts | **−0.70%**（−67 M） | 512,610 | 131 |
+| playwright・effect・vue | −0.45%・−0.34%・−0.33% | 409 K・403 K・378 K | 138・131・129 |
+| zod・next・hono | −0.26%・−0.24%・−0.17% | 351 K・518 K・39 K | 133・127・124 |
+
+予想（N は counter で正確、c は profile から 80〜115 命令、VS Code −0.85 G・帯 −0.68〜−0.98 G）より 8 project すべてで
+節約が大きく、帯の外（有利側）。1 回あたりは 124〜138 命令でどの project も揃い、c だけが 4 分の 1 ほど小さく見積もら
+れていた。予想の c は profile の時間の割合を phase 平均の命令/sample で換算したもので、分岐の当たる直線的な保存・復元の
+code では命令数を少なく数える。**教訓**：時間の割合からの c は IPC の高い経路では下限。次の parse の値付けは、経路の上で
+c を測る（対の batch か、命令で重みを付けた sample）。
+
+**記録。** PR [#893](https://github.com/kazhiramatsu/tsc-rs/pull/893) → merge `9f38bba14`（2026-11-05。`c234075b2` の上、最終 head `1135109c2`）。hosted run
+[41968137800](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41968137800)：全 job pass。local（hosted がしないことだけ、`1135109c2`）：
+- unit test（境界の 3 例を tsgo の tree で固定。`<<` の腕を消すと失敗）
+- syntax の test 276、fmt、release build
+- 8 case で出力（exit code・stdout・stderr）が親と一致
+- fingerprint oracle（`main-b8a54e83a.tsv` 比）：143,190 行すべて一致、panic 0
+- 計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
