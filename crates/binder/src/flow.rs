@@ -3,7 +3,9 @@
 //! constructors and the narrowing predicates that gate them).
 //!
 //! tsc FlowNode (core-interfaces §5): `antecedent` holds one node for
-//! plain kinds and an array for labels; both live in one Vec here.
+//! plain kinds and an array for labels. Here a node is a 16-byte record and
+//! the arrays are spans of one pool per file (see [`FlowNode`] and
+//! [`FlowArena::freeze`]).
 //! NOTE (source fact, 43077-43149): createFlowNode does NOT mark its
 //! antecedent Referenced — each caller (addAntecedent,
 //! createFlowCondition/Mutation/Call/SwitchClause) does so explicitly.
@@ -13,12 +15,10 @@ use tsc_types::FlowFlags;
 
 tsc_types::id_type!(FlowId);
 
-/// tsc stores the payload in FlowNode.node: an AST node for most
-/// kinds, `{switchStatement, clauseStart, clauseEnd}` for SwitchClause
-/// and `{target, antecedents}` for ReduceLabel. A branch or loop label
-/// (tsc FlowLabel) keeps its antecedent list here, so that the millions of
-/// plain nodes carry one antecedent slot instead of a list.
-#[derive(Clone, Debug, Default, PartialEq)]
+/// What a plain flow node carries (tsc FlowNode.node): an AST node for most
+/// kinds, `{switchStatement, clauseStart, clauseEnd}` for SwitchClause.
+/// Labels and reduce labels are made by their own constructors.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum FlowPayload {
     #[default]
     None,
@@ -28,76 +28,131 @@ pub enum FlowPayload {
         clause_start: u32,
         clause_end: u32,
     },
-    /// Boxed: a try/finally creates a few, and inline the pair would size
-    /// every flow node.
-    ReduceLabel(Box<ReduceLabel>),
-    /// tsc FlowLabel.antecedents, collected by addAntecedent as the binder
-    /// walks (None until the first one).
+}
+
+/// A flow node's payload as the checker reads it: [`FlowPayload`]'s kinds,
+/// and a label's or a reduce label's antecedent list (tsc FlowLabel and
+/// ReduceLabel's `{target, antecedents}`, createReduceLabel 43095).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FlowData<'a> {
+    None,
+    Node(NodeId),
+    SwitchClause {
+        switch_statement: NodeId,
+        clause_start: u32,
+        clause_end: u32,
+    },
+    ReduceLabel {
+        target: FlowId,
+        antecedents: &'a [FlowId],
+    },
     Label {
-        antecedents: Vec<FlowId>,
+        antecedents: &'a [FlowId],
     },
 }
 
-/// tsc ReduceLabel's `{target, antecedents}` (createReduceLabel 43095).
-#[derive(Clone, Debug, PartialEq)]
-pub struct ReduceLabel {
-    pub target: FlowId,
-    pub antecedents: Vec<FlowId>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
+/// tsc FlowNode in 16 bytes. `antecedent` is the plain kinds' single
+/// antecedent (also a switch clause's and a reduce label's); `a` and `c`
+/// hold the rest by kind:
+///
+/// | kind | `a` | `c` |
+/// |---|---|---|
+/// | plain | the payload node (0 = none) | 0 |
+/// | SwitchClause | the switch statement | the list holding `clause_start, clause_end` |
+/// | BranchLabel / LoopLabel | the antecedent list | its length (while binding: the list's last cell) |
+/// | ReduceLabel | the target flow | the antecedent list |
+///
+/// A list is a chain of cells (its first cell) while the file is bound and
+/// a pool offset once the arena is frozen (see [`FlowArena::freeze`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FlowNode {
     pub flags: FlowFlags,
-    pub payload: FlowPayload,
-    /// tsc FlowNode.antecedent of the plain kinds; a label's list lives in
-    /// its payload (see [`FlowNode::antecedents`]).
+    a: u32,
     antecedent: Option<FlowId>,
+    c: u32,
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<FlowNode>() == 32);
+const _: () = assert!(std::mem::size_of::<FlowNode>() == 16);
 
 impl FlowNode {
-    /// The antecedents in tsc's order: a label's list, or the plain kinds'
-    /// single antecedent (none for the start and unreachable nodes).
-    pub fn antecedents(&self) -> &[FlowId] {
-        match &self.payload {
-            FlowPayload::Label { antecedents } => antecedents,
-            _ => self.antecedent.as_slice(),
+    /// tsc FlowNode.antecedent of the plain kinds (none for a label, the
+    /// start and the unreachable node).
+    #[inline(always)]
+    pub fn antecedent(&self) -> Option<FlowId> {
+        self.antecedent
+    }
+
+    /// The AST node a plain flow node carries (tsc FlowNode.node of an
+    /// assignment, condition, call or array mutation; a start node's
+    /// function): none for the other kinds. The checker's flow walk reads
+    /// it at every step, so it is one flags test and a word.
+    #[inline(always)]
+    pub fn payload_node(&self) -> Option<NodeId> {
+        if self.flags.intersects(
+            FlowFlags::BRANCH_LABEL
+                | FlowFlags::LOOP_LABEL
+                | FlowFlags::REDUCE_LABEL
+                | FlowFlags::SWITCH_CLAUSE,
+        ) || self.a == 0
+        {
+            None
+        } else {
+            Some(NodeId::new(self.a - 1))
         }
     }
 
-    fn label_antecedents_mut(&mut self) -> &mut Vec<FlowId> {
-        match &mut self.payload {
-            FlowPayload::Label { antecedents } => antecedents,
-            _ => unreachable!("only branch and loop labels collect antecedents"),
-        }
+    #[inline(always)]
+    fn is_label(&self) -> bool {
+        self.flags
+            .intersects(FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL)
     }
 }
 
+/// A label's antecedents while its file is bound: a cell of a linked list in
+/// per-thread scratch (tsgo's FlowList), so that no label owns a list
+/// allocation. `next` is the next cell's index + 1 (0 ends the list).
+#[derive(Clone, Copy, Debug)]
+struct ListCell {
+    item: FlowId,
+    next: u32,
+}
+
+thread_local! {
+    /// The cells of the binds on this thread, reused by the next file.
+    static FLOW_CELLS: std::cell::Cell<Option<Vec<ListCell>>> = const { std::cell::Cell::new(None) };
+}
+
+/// One file's flow graph. While the file is bound, a label's list is a chain
+/// of cells in per-thread scratch (`add_antecedent` appends,
+/// `set_label_antecedents` replaces); [`Self::freeze`], at the end of the
+/// bind, writes the lists once into one exact pool, in node order, and
+/// gives the cells back. A frozen arena does not grow.
 #[derive(Clone, Debug, Default)]
 pub struct FlowArena {
     nodes: Vec<FlowNode>,
+    cells: Vec<ListCell>,
+    pool: Box<[FlowId]>,
+    frozen: bool,
 }
 
 impl FlowArena {
+    /// An empty arena for a bind, its cells in this thread's scratch.
+    pub fn for_bind() -> Self {
+        Self {
+            cells: FLOW_CELLS.with(std::cell::Cell::take).unwrap_or_default(),
+            ..Self::default()
+        }
+    }
+
     /// Flow node count and the bytes the arena and its antecedent lists
     /// own on the heap, for memory accounting.
     pub fn memory_usage(&self) -> (usize, usize, usize) {
-        let antecedents = self
-            .nodes
-            .iter()
-            .map(|node| match &node.payload {
-                FlowPayload::Label { antecedents } => antecedents.capacity(),
-                FlowPayload::ReduceLabel(reduce) => reduce.antecedents.capacity(),
-                _ => 0,
-            })
-            .sum::<usize>()
-            * std::mem::size_of::<FlowId>();
         (
             self.nodes.len(),
             self.nodes.capacity() * std::mem::size_of::<FlowNode>(),
-            antecedents,
+            self.pool.len() * std::mem::size_of::<FlowId>()
+                + self.cells.capacity() * std::mem::size_of::<ListCell>(),
         )
     }
 
@@ -110,27 +165,234 @@ impl FlowArena {
         payload: FlowPayload,
         antecedent: Option<FlowId>,
     ) -> FlowId {
-        let id = FlowId::new(self.nodes.len() as u32);
-        self.nodes.push(FlowNode {
+        let (a, c) = match payload {
+            FlowPayload::None => (0, 0),
+            FlowPayload::Node(node) => (node.index() + 1, 0),
+            FlowPayload::SwitchClause {
+                switch_statement,
+                clause_start,
+                clause_end,
+            } => (
+                switch_statement.index() + 1,
+                self.chain(&[FlowId::new(clause_start), FlowId::new(clause_end)])
+                    .0,
+            ),
+        };
+        self.push(FlowNode {
             flags,
-            payload,
+            a,
             antecedent,
-        });
+            c,
+        })
+    }
+
+    fn push(&mut self, node: FlowNode) -> FlowId {
+        assert!(!self.frozen, "a frozen flow arena does not grow");
+        let id = FlowId::new(self.nodes.len() as u32);
+        self.nodes.push(node);
         id
     }
 
+    /// A chain of cells holding `items`: (head, tail), each a cell index + 1
+    /// (0, 0 for none).
+    fn chain(&mut self, items: &[FlowId]) -> (u32, u32) {
+        assert!(!self.frozen, "a frozen flow arena does not grow");
+        let mut head = 0;
+        let mut tail = 0;
+        for &item in items {
+            let cell = self.cells.len() as u32 + 1;
+            self.cells.push(ListCell { item, next: 0 });
+            if tail == 0 {
+                head = cell;
+            } else {
+                self.cells[tail as usize - 1].next = cell;
+            }
+            tail = cell;
+        }
+        (head, tail)
+    }
+
+    /// The items of the chain starting at `head`.
+    fn walk(&self, head: u32) -> impl Iterator<Item = FlowId> + '_ {
+        let mut cell = head;
+        std::iter::from_fn(move || {
+            if cell == 0 {
+                return None;
+            }
+            let ListCell { item, next } = self.cells[cell as usize - 1];
+            cell = next;
+            Some(item)
+        })
+    }
+
+    #[inline(always)]
     pub fn flow(&self, id: FlowId) -> &FlowNode {
         &self.nodes[id.index() as usize]
     }
 
-    /// Give back the room past the last node: a bound file's arena does not
-    /// grow again, and its doubling slack was a third of the flow memory.
-    pub fn shrink_to_fit(&mut self) {
-        self.nodes.shrink_to_fit();
+    fn flow_mut(&mut self, id: FlowId) -> &mut FlowNode {
+        &mut self.nodes[id.index() as usize]
     }
 
-    pub fn flow_mut(&mut self, id: FlowId) -> &mut FlowNode {
-        &mut self.nodes[id.index() as usize]
+    /// A frozen list: `len` items from `at`, or (`None`) a reduce label's
+    /// list, which carries its length first.
+    #[inline(always)]
+    fn list(&self, at: u32, len: Option<u32>) -> &[FlowId] {
+        let start = at as usize;
+        match len {
+            Some(len) => &self.pool[start..start + len as usize],
+            None => {
+                let len = self.pool[start].index() as usize;
+                &self.pool[start + 1..start + 1 + len]
+            }
+        }
+    }
+
+    /// The antecedents in tsc's order: a label's list, or the plain kinds'
+    /// single antecedent (none for the start and unreachable nodes). While
+    /// the file is bound a label's list is a chain: read it with
+    /// [`Self::label_items`].
+    #[inline(always)]
+    pub fn antecedents(&self, id: FlowId) -> &[FlowId] {
+        let node = self.flow(id);
+        if node.is_label() {
+            debug_assert!(
+                self.frozen,
+                "a label's list is read with label_items while binding"
+            );
+            self.list(node.a, Some(node.c))
+        } else {
+            node.antecedent.as_slice()
+        }
+    }
+
+    /// A label's antecedents, as a list.
+    pub fn label_items(&self, label: FlowId) -> Vec<FlowId> {
+        debug_assert!(self.flow(label).is_label(), "label_items reads a label");
+        if self.frozen {
+            return self.antecedents(label).to_vec();
+        }
+        self.walk(self.flow(label).a).collect()
+    }
+
+    /// Whether a label has no antecedents.
+    pub fn label_is_empty(&self, label: FlowId) -> bool {
+        debug_assert!(self.flow(label).is_label(), "label_is_empty reads a label");
+        if self.frozen {
+            return self.antecedents(label).is_empty();
+        }
+        self.flow(label).a == 0
+    }
+
+    /// tsc FlowNode.node, with a label's or a reduce label's list (of a
+    /// frozen arena).
+    pub fn payload(&self, id: FlowId) -> FlowData<'_> {
+        let node = self.flow(id);
+        if node.is_label() {
+            debug_assert!(
+                self.frozen,
+                "a label's list is read once the arena is frozen"
+            );
+            FlowData::Label {
+                antecedents: self.list(node.a, Some(node.c)),
+            }
+        } else if node.flags.intersects(FlowFlags::REDUCE_LABEL) {
+            debug_assert!(
+                self.frozen,
+                "a reduce label's list is read once the arena is frozen"
+            );
+            FlowData::ReduceLabel {
+                target: FlowId::new(node.a),
+                antecedents: self.list(node.c, None),
+            }
+        } else if node.flags.intersects(FlowFlags::SWITCH_CLAUSE) {
+            debug_assert!(
+                self.frozen,
+                "a switch clause's pair is read once the arena is frozen"
+            );
+            let clauses = self.list(node.c, Some(2));
+            FlowData::SwitchClause {
+                switch_statement: NodeId::new(node.a - 1),
+                clause_start: clauses[0].index(),
+                clause_end: clauses[1].index(),
+            }
+        } else if node.a == 0 {
+            FlowData::None
+        } else {
+            FlowData::Node(NodeId::new(node.a - 1))
+        }
+    }
+
+    /// Write the lists once into one exact pool, in node order (labels:
+    /// start and length; switch clauses: the clause pair; reduce labels: the
+    /// length, then the list), shrink the nodes to their count and give the
+    /// cells back to the thread. A bound file's arena does not grow again.
+    pub fn freeze(&mut self) {
+        if self.frozen {
+            return;
+        }
+        // The pool's exact size first, so it is allocated once (a grown and
+        // then shrunk list leaves the allocator a hole per file).
+        let size = self
+            .nodes
+            .iter()
+            .map(|node| {
+                if node.is_label() {
+                    self.walk(node.a).count()
+                } else if node.flags.intersects(FlowFlags::REDUCE_LABEL) {
+                    1 + self.walk(node.c).count()
+                } else if node.flags.intersects(FlowFlags::SWITCH_CLAUSE) {
+                    2
+                } else {
+                    0
+                }
+            })
+            .sum();
+        let mut pool = Vec::with_capacity(size);
+        let mut nodes = std::mem::take(&mut self.nodes);
+        for node in &mut nodes {
+            if node.is_label() {
+                let start = pool.len() as u32;
+                pool.extend(self.walk(node.a));
+                node.a = start;
+                node.c = pool.len() as u32 - start;
+            } else if node.flags.intersects(FlowFlags::REDUCE_LABEL) {
+                let start = pool.len();
+                pool.push(FlowId::new(0));
+                pool.extend(self.walk(node.c));
+                pool[start] = FlowId::new((pool.len() - start - 1) as u32);
+                node.c = start as u32;
+            } else if node.flags.intersects(FlowFlags::SWITCH_CLAUSE) {
+                let start = pool.len() as u32;
+                pool.extend(self.walk(node.c));
+                node.c = start;
+            }
+        }
+        debug_assert_eq!(pool.len(), size);
+        nodes.shrink_to_fit();
+        self.nodes = nodes;
+        self.pool = pool.into_boxed_slice();
+        let mut cells = std::mem::take(&mut self.cells);
+        cells.clear();
+        FLOW_CELLS.with(|slot| slot.set(Some(cells)));
+        self.frozen = true;
+    }
+
+    /// Move the frozen nodes and pool into fresh allocations of their exact
+    /// sizes: a Program's binds are published after every file is bound, when
+    /// the bind workers' temporaries are gone, so the long-lived lists no
+    /// longer sit among them in the allocator's pages.
+    pub fn rehome(&mut self) {
+        debug_assert!(self.frozen);
+        self.nodes = self.nodes.as_slice().to_vec();
+        self.pool = self.pool.to_vec().into_boxed_slice();
+    }
+
+    /// A frozen copy, for a bind result taken while the worker lives on.
+    pub fn frozen(&self) -> Self {
+        let mut copy = self.clone();
+        copy.freeze();
+        copy
     }
 
     pub fn len(&self) -> usize {
@@ -141,26 +403,23 @@ impl FlowArena {
         self.nodes.is_empty()
     }
 
+    fn create_label(&mut self, flags: FlowFlags) -> FlowId {
+        self.push(FlowNode {
+            flags,
+            a: 0,
+            antecedent: None,
+            c: 0,
+        })
+    }
+
     /// tsc createBranchLabel (43077).
     pub fn create_branch_label(&mut self) -> FlowId {
-        self.create_flow_node(
-            FlowFlags::BRANCH_LABEL,
-            FlowPayload::Label {
-                antecedents: Vec::new(),
-            },
-            None,
-        )
+        self.create_label(FlowFlags::BRANCH_LABEL)
     }
 
     /// tsc createLoopLabel (43086).
     pub fn create_loop_label(&mut self) -> FlowId {
-        self.create_flow_node(
-            FlowFlags::LOOP_LABEL,
-            FlowPayload::Label {
-                antecedents: Vec::new(),
-            },
-            None,
-        )
+        self.create_label(FlowFlags::LOOP_LABEL)
     }
 
     /// tsc createReduceLabel (43095).
@@ -170,20 +429,23 @@ impl FlowArena {
         antecedents: Vec<FlowId>,
         antecedent: FlowId,
     ) -> FlowId {
-        self.create_flow_node(
-            FlowFlags::REDUCE_LABEL,
-            FlowPayload::ReduceLabel(Box::new(ReduceLabel {
-                target,
-                antecedents,
-            })),
-            Some(antecedent),
-        )
+        let (head, _) = self.chain(&antecedents);
+        self.push(FlowNode {
+            flags: FlowFlags::REDUCE_LABEL,
+            a: target.index(),
+            antecedent: Some(antecedent),
+            c: head,
+        })
     }
 
     /// Replace a label's antecedent list (the finally label of a try
     /// statement takes the normal, exception and return exits at once).
     pub fn set_label_antecedents(&mut self, label: FlowId, antecedents: Vec<FlowId>) {
-        *self.flow_mut(label).label_antecedents_mut() = antecedents;
+        assert!(self.flow(label).is_label() && !self.frozen);
+        let (head, tail) = self.chain(&antecedents);
+        let node = self.flow_mut(label);
+        node.a = head;
+        node.c = tail;
     }
 
     /// tsc setFlowNodeReferenced (43098): the second reference marks
@@ -207,23 +469,42 @@ impl FlowArena {
         {
             return;
         }
-        if self.flow(label).antecedents().contains(&antecedent) {
+        let node = *self.flow(label);
+        assert!(
+            node.is_label() && !self.frozen,
+            "only branch and loop labels collect antecedents, while binding"
+        );
+        if self.walk(node.a).any(|item| item == antecedent) {
             return;
         }
-        self.flow_mut(label)
-            .label_antecedents_mut()
-            .push(antecedent);
+        let cell = self.cells.len() as u32 + 1;
+        self.cells.push(ListCell {
+            item: antecedent,
+            next: 0,
+        });
+        if node.c == 0 {
+            self.flow_mut(label).a = cell;
+        } else {
+            self.cells[node.c as usize - 1].next = cell;
+        }
+        self.flow_mut(label).c = cell;
         self.set_flow_node_referenced(antecedent);
     }
 
     /// tsc finishFlowLabel (43141): no antecedents ⇒ unreachable, one
     /// ⇒ COLLAPSES to it, several ⇒ the label itself.
     pub fn finish_flow_label(&mut self, flow: FlowId, unreachable: FlowId) -> FlowId {
-        let antecedents = self.flow(flow).antecedents();
-        match antecedents.len() {
-            0 => unreachable,
-            1 => antecedents[0],
-            _ => flow,
+        let node = *self.flow(flow);
+        debug_assert!(
+            node.is_label() && !self.frozen,
+            "finish_flow_label finishes a label while binding"
+        );
+        if node.a == 0 {
+            unreachable
+        } else if node.a == node.c {
+            self.cells[node.a as usize - 1].item
+        } else {
+            flow
         }
     }
 }
