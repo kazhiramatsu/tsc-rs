@@ -1411,6 +1411,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfPropertyOfContextualType @6.0.3
     /// tsc-hash: ec4d63f5248309d0acfd4a38b4b9e2e26840d7b409f04390cd5d3333d849d0cd
     /// tsc-span: _tsc.js:73112-73162
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     pub(crate) fn get_type_of_property_of_contextual_type(
         &mut self,
         ty: TypeId,

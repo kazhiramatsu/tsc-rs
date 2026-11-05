@@ -121,6 +121,7 @@ impl MemberTable {
         }
     }
 
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn get(&self, binder: &ProgramBinder<'_>, name: impl NameKey) -> Option<SymbolId> {
         let name = name.name();
         if self.linear() {

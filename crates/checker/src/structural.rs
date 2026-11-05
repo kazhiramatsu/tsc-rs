@@ -4812,6 +4812,7 @@ impl<'a> CheckerState<'a> {
     /// M3 slice: the function/object global augmentation fallbacks are
     /// empty in the noLib world; late-bound and type-only members are
     /// M4.
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn get_property_of_type_full(
         &mut self,
         ty: TypeId,
@@ -4837,6 +4838,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertyOfType @6.0.3
     /// tsc-hash: 39a7221f835629e1b6b6c3d3e53d7aec1032999299e682d96846922fa299498a
     /// tsc-span: _tsc.js:59348-59389
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn get_property_of_type_ex(
         &mut self,
         ty: TypeId,
@@ -8617,6 +8619,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getApplicableIndexInfoForName @6.0.3
     /// tsc-hash: f6b9b92223c2975ab3d55e4c1bc1acabbde0fdbf39ea15d47561f74bedf015b5
     /// tsc-span: _tsc.js:59479-59481
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     pub(crate) fn get_applicable_index_info_for_name_info(
         &mut self,
         ty: TypeId,

@@ -3951,6 +3951,7 @@ impl<'a> CheckerState<'a> {
     /// and manufactured a 2322 tsc never reports). The binder-flags
     /// VALUE re-filter is gone too: symbolIsValue already gates
     /// inside the property lookup.
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn get_type_of_property_of_type(
         &mut self,
         ty: TypeId,
