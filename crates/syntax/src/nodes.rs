@@ -11332,3 +11332,87 @@ impl Node {
 #[cfg(test)]
 #[path = "../tests/unit/nodes/tests.rs"]
 mod tests;
+
+/// Observation only (m8 node census, never merged): counts of the node record's fields over the files listed in
+/// `NODE_CENSUS_FILES`, for pricing a smaller record.
+#[cfg(test)]
+mod node_census {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    #[test]
+    #[ignore]
+    fn node_census() {
+        let Ok(list) = std::env::var("NODE_CENSUS_FILES") else {
+            return;
+        };
+        let mut nodes = 0u64;
+        let mut by_kind: BTreeMap<String, [u64; 8]> = BTreeMap::new();
+        let mut flag_bits = [0u64; 32];
+        let mut long_hist = [0u64; 4]; // len >= 2^16, 2^20, 2^24, ever > u16::MAX - 1
+        for line in std::fs::read_to_string(&list).unwrap().lines().filter(|l| !l.is_empty()) {
+            let Ok(raw) = std::fs::read(line) else { continue };
+            let text = String::from_utf8_lossy(&raw).into_owned();
+            let lower = line.to_ascii_lowercase();
+            let declaration = [".d.ts", ".d.mts", ".d.cts"].iter().any(|s| lower.ends_with(s))
+                || (lower.contains(".d.") && lower.ends_with(".ts"));
+            let module_extension = [".mts", ".cts", ".mjs", ".cjs"].iter().any(|s| lower.ends_with(s));
+            let options = crate::ParseOptions {
+                script_kind: crate::ScriptKind::from_file_name(line),
+                force_external_module: module_extension && !declaration,
+                ..crate::ParseOptions::default()
+            };
+            let source = crate::parse_source_file(line, &text, options, None);
+            for node in source.arena.nodes() {
+                nodes += 1;
+                let entry = by_kind.entry(format!("{:?}", node.kind)).or_default();
+                // 0 count, 1 len >= 0xFFFF, 2 literal facts != 0, 3 has tail, 4 facts != 0 and no free inline word,
+                // 5 js_doc present, 6 slots, 7 multiLine bits != 0
+                entry[0] += 1;
+                let len = node.end.saturating_sub(node.pos);
+                if len >= 0xFFFF {
+                    entry[1] += 1;
+                    long_hist[3] += 1;
+                }
+                if len >= 1 << 16 { long_hist[0] += 1; }
+                if len >= 1 << 20 { long_hist[1] += 1; }
+                if len >= 1 << 24 { long_hist[2] += 1; }
+                let facts = node.literal_flags();
+                let (slots, _) = payload_shape(node.kind);
+                entry[6] = slots as u64;
+                let has_tail = node.literal_flags & HAS_TAIL != 0;
+                let js_doc = node.js_doc().is_some();
+                if facts != 0 {
+                    entry[2] += 1;
+                    let used = slots + usize::from(js_doc);
+                    if has_tail || used >= 3 {
+                        entry[4] += 1;
+                    }
+                }
+                if facts & MULTI_LINE_BITS != 0 {
+                    entry[7] += 1;
+                }
+                if has_tail {
+                    entry[3] += 1;
+                }
+                if js_doc {
+                    entry[5] += 1;
+                }
+                for (bit, count) in flag_bits.iter_mut().enumerate() {
+                    if node.flags & (1 << bit) != 0 {
+                        *count += 1;
+                    }
+                }
+            }
+        }
+        println!("nodes {nodes}");
+        println!("len >= 2^16 {}, >= 2^20 {}, >= 2^24 {}, >= 0xFFFF {}", long_hist[0], long_hist[1], long_hist[2], long_hist[3]);
+        println!("flag bits used: {}", flag_bits.iter().enumerate().filter(|(_, c)| **c > 0).map(|(b, c)| format!("{b}:{c}")).collect::<Vec<_>>().join(" "));
+        println!("kind count long facts tail facts_no_room js_doc slots multiline");
+        for (kind, e) in &by_kind {
+            if e[1] + e[2] + e[3] + e[4] + e[7] > 0 || e[0] > 200_000 {
+                println!("{kind} {} {} {} {} {} {} {} {}", e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7]);
+            }
+        }
+    }
+}
