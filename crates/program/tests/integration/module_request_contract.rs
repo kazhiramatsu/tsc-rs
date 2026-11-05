@@ -1723,3 +1723,27 @@ fn utf16_text_at(text: &str, span: std::ops::Range<u32>) -> String {
 }
 
 use super::utf16_scalar_path::ScalarTestPath as _;
+
+/// tsgo collects a file's dynamic requests only when the parser saw a
+/// dynamic import or import type, or the file is JavaScript
+/// (parser/references.go:16): a TypeScript file's JSDoc `@import` and its
+/// `require(...)` call request no module, so the loader's plan needs no
+/// whole-file walk for them. The static-import slice still fails closed on
+/// the call.
+#[test]
+fn a_typescript_require_call_and_jsdoc_import_request_nothing_and_the_static_slice_fails_closed() {
+    let text = concat!(
+        "/** @import { Imported } from 'jsdoc-module' */\n",
+        "const loaded = require(\"required-module\");\n",
+        "export {};\n",
+    );
+    let typescript = source_at("/index.mts", text, Some(ResolutionMode::EsNext));
+    let plan = plan_source_requests(&typescript, &node_options())
+        .expect("the loader's plan of a TypeScript source");
+    assert!(
+        plan.module_requests().is_empty(),
+        "{:?}",
+        plan.module_requests()
+    );
+    assert!(plan_static_module_requests(&typescript, &node_options()).is_err());
+}
