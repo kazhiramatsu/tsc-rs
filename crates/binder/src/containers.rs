@@ -67,6 +67,7 @@ impl ModuleInstanceState {
 /// tsc-hash: 762f60f62494f6fa1a80f5b3464b7c4bc552f5cda69ebddff47c8847eaed9a81
 /// tsc-span: _tsc.js:45143-45201
 ///
+#[inline(always)]
 pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags {
     match kind_of(source, node) {
         SyntaxKind::ClassExpression
