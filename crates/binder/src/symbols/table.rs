@@ -135,6 +135,7 @@ impl SymbolMap {
                 let position = u32::try_from(self.entries.len()).expect("symbol table size");
                 slot.insert(position);
                 self.entries.push((name, value));
+                table_census::reached(self.entries.len());
                 None
             }
         }
@@ -392,5 +393,26 @@ impl<Q: NameKey> std::ops::Index<Q> for SymbolTable {
     type Output = SymbolId;
     fn index(&self, key: Q) -> &Self::Output {
         self.get(key).expect("symbol table key exists")
+    }
+}
+
+/// Observation only (m8 table census, never merged): how many symbol maps ever
+/// reached each size (index k counts maps that reached k + 1 entries; the last
+/// bucket counts those past 15), so maps of final size k are reached[k - 1] -
+/// reached[k] when maps only grow.
+pub mod table_census {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static REACHED: [AtomicUsize; 17] = [const { AtomicUsize::new(0) }; 17];
+
+    #[inline]
+    pub(super) fn reached(len: usize) {
+        if len <= 17 {
+            REACHED[len - 1].fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    pub fn snapshot() -> [usize; 17] {
+        std::array::from_fn(|index| REACHED[index].load(Ordering::Relaxed))
     }
 }

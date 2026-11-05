@@ -4989,6 +4989,12 @@ fn check_snapshot_serially(
         &mut global_checker_diagnostics_by_file,
     );
     tsc_types::trace::observe("after_check");
+    if std::env::var_os("TSRS_TABLE_CENSUS").is_some() {
+        eprintln!(
+            "[table census] after_check: maps reaching 1..=16, >16 entries: {:?}",
+            tsc_binder::table_census::snapshot()
+        );
+    }
     if tsc_types::trace::enabled() {
         tsc_types::trace::mark(
             &format!(
@@ -6441,6 +6447,12 @@ fn bind_sources_in_program_order(
         .map(tsc_binder::Binder::into_bind_data)
         .collect();
     tsc_types::trace::observe("after_bind");
+    if std::env::var_os("TSRS_TABLE_CENSUS").is_some() {
+        eprintln!(
+            "[table census] after_bind: maps reaching 1..=16, >16 entries: {:?}",
+            tsc_binder::table_census::snapshot()
+        );
+    }
     data
 }
 
