@@ -523,3 +523,80 @@ fn a_this_only_mapper_keeps_thisless_symbols() {
         },
     );
 }
+
+/// tsgo isNonGenericTopLevelType tests `len(t.alias.typeArguments) == 0`.
+/// An imported alias whose type parameters all have defaults, written
+/// without arguments, gets the alias with an empty argument list
+/// (getTypeArgumentsFromNode). It is a non-generic top-level type, so
+/// couldContainTypeVariables is false and instantiating the optional
+/// property's `Concrete | undefined` stops at the union. tsc-rs matched
+/// only an absent list and instantiated `Concrete` and its members as well.
+/// Pinned to tsgo aa814927 over the same three files
+/// (`tsc --singleThreaded --extendedDiagnostics`, `strict`, `noLib`,
+/// `types: []`): the one TS2322 below and `Instantiations: 9` (11 before).
+#[test]
+fn imported_all_defaults_alias_without_arguments_is_non_generic() {
+    let globals = concat!(
+        "interface IArguments { length: number; callee: Function; }\n",
+        "interface Array<T> { length: number; [index: number]: T; }\n",
+        "interface Object {}\n",
+        "interface Function {}\n",
+        "interface CallableFunction extends Function {}\n",
+        "interface NewableFunction extends Function {}\n",
+        "interface String {}\n",
+        "interface Number {}\n",
+        "interface Boolean {}\n",
+        "interface RegExp {}\n",
+    );
+    let alias = "export type Concrete<P = {}> = { setup(): void } | { props: P };\n";
+    let main = concat!(
+        "import type { Concrete } from \"./a\";\n",
+        "interface Options<T> { value: T; resolved?: Concrete }\n",
+        "declare function make<T>(value: T): Options<T>;\n",
+        "const options = make(1);\n",
+        "export const resolved = options.resolved;\n",
+        "export const check: string = options.value;\n",
+    );
+    let result = crate::check_program(
+        &[
+            crate::InputFile::new("/globals.d.ts".to_owned(), globals.to_owned()),
+            crate::InputFile::new("/a.ts".to_owned(), alias.to_owned()),
+            crate::InputFile::new("/b.ts".to_owned(), main.to_owned()),
+        ],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+    );
+    let rows: Vec<_> = result
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            (
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|name| name.as_js().as_str().expect("scalar name").to_owned()),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.code(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        rows,
+        [(
+            Some("/b.ts".to_owned()),
+            Some(220),
+            Some(5),
+            2322,
+            "Type 'number' is not assignable to type 'string'.".to_owned(),
+        )]
+    );
+    assert_eq!(result.work_counters.instantiations(), 9);
+}

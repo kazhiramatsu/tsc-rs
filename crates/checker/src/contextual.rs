@@ -1676,8 +1676,10 @@ impl<'a> CheckerState<'a> {
             Some(name_type) => name_type,
             None => self.tables.get_string_literal_type(name),
         };
+        // tsgo checker.go:31210 uses the structured getter directly.
+        let index_infos = self.get_index_infos_of_structured_type(ty)?;
         Ok(self
-            .get_applicable_index_info(ty, key_type)?
+            .find_applicable_index_info(index_infos, key_type)?
             .map(|info| info.value_type))
     }
 
@@ -1747,8 +1749,10 @@ impl<'a> CheckerState<'a> {
             return self.map_type(
                 ty,
                 &mut |state, t| {
+                    // tsgo checker.go:30504 skips apparent-type reduction.
+                    let index_infos = state.get_index_infos_of_structured_type(t)?;
                     Ok(state
-                        .get_applicable_index_info(t, name_type)?
+                        .find_applicable_index_info(index_infos, name_type)?
                         .map(|info| info.value_type))
                 },
                 true,

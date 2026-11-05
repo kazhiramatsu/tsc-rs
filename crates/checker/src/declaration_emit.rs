@@ -1832,8 +1832,8 @@ impl CheckerState<'_> {
     ///
     /// tsgo visits every node of the file. The export assignments and
     /// export specifiers are found here by a scan of the file's node
-    /// records (only nodes in the tree have a parent) and taken in source
-    /// order, which is the order of that visit.
+    /// records (those the tree reaches: a parse also left discarded nodes)
+    /// and taken in source order, which is the order of that visit.
     pub(crate) fn emit_precalculate_declaration_emit_visibility(
         &mut self,
         file: NodeId,
@@ -1843,11 +1843,13 @@ impl CheckerState<'_> {
         }
         let source = self.binder.source_of_node(file);
         let mut names: Vec<(u32, NodeId)> = Vec::new();
+        let reachable = source.arena.reachable_mask(source.root);
+        let base = source.arena.node_base();
         for id in source.arena.node_ids() {
-            let node = Published.node(id);
-            if node.parent.is_none() {
+            if !reachable[(id.index() - base) as usize] {
                 continue;
             }
+            let node = Published.node(id);
             let name = match node.data() {
                 NodeData::ExportAssignment(data) => data
                     .expression

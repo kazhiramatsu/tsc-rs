@@ -193,6 +193,9 @@ pub(crate) struct ScannerState {
     value_cooked: bool,
     token_flags: TokenFlags,
     error_len: usize,
+    /// tsgo's ScannerState carries the comment directives, so a rewound
+    /// speculation drops the directives it scanned.
+    comment_directives_len: usize,
 }
 
 #[derive(Default)]
@@ -713,6 +716,7 @@ impl<'text> Scanner<'text> {
             value_cooked: self.token_value.cooked,
             token_flags: self.token_flags,
             error_len: self.errors.len(),
+            comment_directives_len: self.comment_directives.len(),
         }
     }
 
@@ -729,6 +733,8 @@ impl<'text> Scanner<'text> {
         }
         self.token_flags = state.token_flags;
         self.errors.truncate(state.error_len);
+        self.comment_directives
+            .truncate(state.comment_directives_len);
     }
 
     #[cold]

@@ -11,6 +11,10 @@ role = "program"
 name = "tsc_program"
 path = "src/lib.rs"
 
+[features]
+# Measurement builds only; off in shipped binaries.
+loader-counters = []
+
 [dependencies]
 memchr = "2"
 rustc-hash.workspace = true

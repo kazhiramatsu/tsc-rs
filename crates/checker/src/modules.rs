@@ -1088,6 +1088,20 @@ impl<'a> CheckerState<'a> {
                 || !self.is_const_enum_or_const_enum_only_module_symbol(target)))
     }
 
+    /// tsgo markLinkedReferences (checker.go:28728-28737): reject locations
+    /// before requesting alias marking or resolving a property's receiver.
+    pub(crate) fn can_collect_linked_references(&self, location: NodeId) -> bool {
+        self.options.verbatim_module_syntax != Some(true)
+            && (!self
+                .binder
+                .flags_of(location)
+                .intersects(tsc_types::NodeFlags::AMBIENT)
+                || matches!(
+                    self.kind_of(location),
+                    SyntaxKind::PropertySignature | SyntaxKind::PropertyDeclaration
+                ))
+    }
+
     /// tsc-port: markAliasReferenced @6.0.3
     /// tsc-hash: 7eac8fd3c16dd740721e65064edee6867abb663438fdb669548decdaa2115012
     /// tsc-span: _tsc.js:71909-71929
@@ -1355,18 +1369,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         location: NodeId,
     ) -> CheckResult<()> {
-        if self.options.verbatim_module_syntax == Some(true) {
-            return Ok(());
-        }
-        if self
-            .binder
-            .flags_of(location)
-            .intersects(tsc_types::NodeFlags::AMBIENT)
-            && !matches!(
-                self.kind_of(location),
-                SyntaxKind::PropertySignature | SyntaxKind::PropertyDeclaration
-            )
-        {
+        if !self.can_collect_linked_references(location) {
             return Ok(());
         }
         let parent = self.parent_of(location);
@@ -10359,7 +10362,9 @@ impl<'a> CheckerState<'a> {
         let is_internal = self.is_internal_module_import_equals_declaration(node);
         if is_internal || self.check_external_import_or_export_declaration(node)? {
             self.check_import_binding(node)?;
-            self.mark_import_equals_alias_referenced(node)?;
+            if self.can_collect_linked_references(node) {
+                self.mark_import_equals_alias_referenced(node)?;
+            }
             let (is_type_only, module_reference) = match self.data_of(node) {
                 NodeData::ImportEqualsDeclaration(data) => {
                     (data.is_type_only, data.module_reference)
@@ -10626,7 +10631,9 @@ impl<'a> CheckerState<'a> {
                     );
                 }
             }
-            self.mark_export_specifier_alias_referenced(node)?;
+            if self.can_collect_linked_references(node) {
+                self.mark_export_specifier_alias_referenced(node)?;
+            }
         } else if property_name
             .or(name)
             .is_some_and(|name| self.module_export_name_text_unescaped(name) == "default")
@@ -10744,7 +10751,9 @@ impl<'a> CheckerState<'a> {
             )?;
             let sym = sym.map(|sym| self.get_export_symbol_of_value_symbol_if_exported(sym));
             if let Some(sym) = sym {
-                self.mark_export_assignment_alias_referenced(node)?;
+                if self.can_collect_linked_references(node) {
+                    self.mark_export_assignment_alias_referenced(node)?;
+                }
                 let type_only_declaration =
                     self.get_type_only_alias_declaration_ex(sym, SymbolFlags::VALUE)?;
                 let symbol_flags = self.get_symbol_flags_of(sym)?;

@@ -159,7 +159,64 @@ pub struct PlannedModuleRequest {
     pub spans: Vec<(u32, u32)>,
 }
 
+#[derive(Default)]
+pub(crate) struct AdmissionPlanParts {
+    pub path_references: Vec<PlannedPathReference>,
+    pub type_reference_directives: Vec<PlannedTypeReferenceDirective>,
+    pub lib_reference_directives: Vec<PlannedLibReferenceDirective>,
+    pub module_request_order: Vec<ResolutionKey>,
+    pub module_request_occurrences: Vec<u32>,
+}
+
 impl SourceRequestPlan {
+    /// Admission becomes the sole owner of these persistent file records.
+    /// The plan's module requests remain for the following consuming stage.
+    pub(crate) fn take_admission_parts(&mut self) -> AdmissionPlanParts {
+        AdmissionPlanParts {
+            path_references: std::mem::take(&mut self.path_references),
+            type_reference_directives: std::mem::take(&mut self.type_reference_directives),
+            lib_reference_directives: std::mem::take(&mut self.lib_reference_directives),
+            module_request_order: std::mem::take(&mut self.module_request_order),
+            module_request_occurrences: std::mem::take(&mut self.module_request_occurrences),
+        }
+    }
+
+    #[cfg(feature = "loader-counters")]
+    fn record_high_water(&self, file: JsStr<'_>) {
+        use crate::loader_counters as c;
+        c::maximum("plan.requests", self.module_requests.len());
+        c::maximum("plan.occurrences", self.module_request_occurrences.len());
+        c::maximum("plan.observed", self.observed_request_occurrence_count);
+        c::maximum("plan.path_references", self.path_references.len());
+        c::maximum("plan.type_directives", self.type_reference_directives.len());
+        c::maximum("plan.lib_directives", self.lib_reference_directives.len());
+        let bytes = self.path_references.capacity() * std::mem::size_of::<PlannedPathReference>()
+            + self.type_reference_directives.capacity()
+                * std::mem::size_of::<PlannedTypeReferenceDirective>()
+            + self.lib_reference_directives.capacity()
+                * std::mem::size_of::<PlannedLibReferenceDirective>()
+            + (self.module_requests.capacity() + self.module_request_order.capacity())
+                * std::mem::size_of::<ResolutionKey>()
+            + self.module_request_loads.capacity()
+            + self.module_request_spans.capacity() * std::mem::size_of::<Vec<(u32, u32)>>()
+            + self
+                .module_request_spans
+                .iter()
+                .map(|v| v.capacity() * std::mem::size_of::<(u32, u32)>())
+                .sum::<usize>()
+            + self.module_request_occurrences.capacity() * std::mem::size_of::<u32>();
+        c::maximum("plan.vector_capacity_bytes", bytes);
+        c::plan(
+            file,
+            [
+                self.module_requests.len(),
+                self.module_request_occurrences.len(),
+                self.observed_request_occurrence_count,
+                bytes,
+            ],
+        );
+    }
+
     /// tsgo `canReplaceFileInProgram`'s request half: the same module
     /// status and the same requests in the same order (imports and their
     /// modes, module augmentations, path, type and lib references),
@@ -991,6 +1048,8 @@ fn plan_module_requests_worker(
         observed_request_occurrence_count,
         synthetic_imports: has_synthetic_tslib || has_synthetic_jsx_runtime,
     };
+    #[cfg(feature = "loader-counters")]
+    plan.record_high_water(source.path().display());
     let parsed = match fresh {
         Some(fresh) => {
             PlanningParse::Parsed(Box::new(PreparsedSourceFile::new(parse_options, fresh)))

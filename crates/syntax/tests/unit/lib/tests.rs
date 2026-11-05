@@ -47,6 +47,48 @@ fn parse_source_file_creates_root_and_eof_nodes() {
     assert_eq!(source.arena.node(eof).parent, Some(source.root));
 }
 
+/// tsgo `IdentifierCount` (tsc 7.1.0-dev `aa814927`, `--extendedDiagnostics`
+/// on each text alone): an arrow function whose body is an `async function`
+/// expression is parsed once (nextIsUnParenthesizedAsyncArrowFunction reads
+/// tokens only), and every element access with an argument counts the missing
+/// identifier tsgo creates before parsing the argument.
+#[test]
+fn identifier_count_matches_tsgo() {
+    for (text, count) in [
+        (
+            "const f = (options: X): Y => async function g(c, next) { a1; a2; a3; a4 }\n",
+            12,
+        ),
+        (
+            "const f = (options: X) => async function g(c, next) { a1; a2; a3; a4 }\n",
+            10,
+        ),
+        ("const f = async x => x\n", 3),
+        ("x[y]\n", 3),
+        ("a[0] as T\n", 3),
+        ("const m = this.x[method] as Matcher<T>\n", 6),
+        ("x[]\n", 2),
+    ] {
+        let source = parse_source_file("a.ts", text, ParseOptions::default(), None);
+        assert_eq!(source.identifier_count(), count, "{text:?}");
+    }
+}
+
+/// tsgo's ScannerState carries the comment directives: a speculation that is
+/// rewound (here a failed parenthesized-arrow parse, and the async-arrow
+/// lookahead of 6.0.3 that read a whole function body) leaves each directive
+/// once.
+#[test]
+fn rewound_speculation_leaves_each_comment_directive_once() {
+    for text in [
+        "let v = (a,\n// @ts-expect-error\nb);\n",
+        "const f = (o: X) => async function () {\n// @ts-ignore\na\n}\n",
+    ] {
+        let source = parse_source_file("a.ts", text, ParseOptions::default(), None);
+        assert_eq!(source.comment_directives.len(), 1, "{text:?}");
+    }
+}
+
 #[test]
 fn snapshot_entry_preserves_text_and_position_owner_identity() {
     let snapshot = TextSnapshot::new("const value = '😀';\n", DocumentVersion::new("host-v1"));
@@ -105,48 +147,23 @@ fn detached_arena_preserves_ids_without_extending_published_leases() {
     assert!(source.arena.has_identity_leases());
 }
 
+// Identities are process-wide, so a test here that compares a relocated tree
+// with a direct parse sees where the tests beside it leased: that comparison
+// runs in a process of its own (`tests/relocation_direct_parse.rs`).
+
+/// The relocation moves each identity by its space's delta and checks once,
+/// after the pass, that every identity it moved was the tree's own.
 #[test]
-fn generated_relocation_matches_a_direct_forced_nonzero_parse() {
-    let text = r#"
-/** @typedef {{ value: string }} Alias */
-export class Box { #value = 1; method<T>(arg: T) { return [arg, this.#value]; } }
-"#;
-    let mut local = parse_source_file("forced.ts", text, ParseOptions::default(), None);
+fn relocation_rejects_an_identity_outside_the_tree() {
+    let mut local = parse_source_file("outside.ts", "let x = 1;", ParseOptions::default(), None);
+    let stray = NodeId::new(local.arena.node_end() + 5);
+    let first = local.arena.node_ids().next().expect("a parsed node");
+    local.arena.node_mut(first).parent = Some(stray);
     let domain = IdentityDomain::new();
-    // Leases ahead of the tree keep its bases away from the start of the
-    // spaces in a fresh process.
-    let node_gap = domain.lease(IdentitySpace::Node, 11).unwrap();
-    let array_gap = domain.lease(IdentitySpace::NodeArray, 7).unwrap();
-
-    local.relocate_into_identity_domain(&domain).unwrap();
-    assert!(local.identity_owned_by(&domain));
-    let leases = local.arena.identity_leases().unwrap();
-    assert_eq!(leases.nodes.range().start(), local.arena.node_base());
-    assert_eq!(leases.arrays.range().start(), local.arena.array_base());
-    let nodes = leases.nodes.watch();
-
-    let direct = parse_source_file(
-        "forced.ts",
-        text,
-        ParseOptions {
-            node_id_base: local.arena.node_base(),
-            node_array_id_base: local.arena.array_base(),
-            ..ParseOptions::default()
-        },
-        None,
-    );
-    assert_eq!(local, direct);
-    assert!(local
-        .arena
-        .node_ids()
-        .all(|id| local.arena.contains_node(id)));
-
-    drop(local);
-    assert!(!nodes.is_held());
-    let gap = node_gap.watch();
-    drop(node_gap);
-    drop(array_gap);
-    assert!(!gap.is_held());
+    assert!(matches!(
+        local.relocate_into_identity_domain(&domain),
+        Err(IdentityError::InvalidLease { .. })
+    ));
 }
 
 #[test]

@@ -107,8 +107,11 @@ pub use tsc_host::{is_encoded_dynamic_file_name, DYNAMIC_URI_FILE_NAME_PREFIX};
 mod js_string_ops;
 mod json;
 mod json_value;
+mod lexical_path_cache;
 mod library;
 mod loader;
+#[doc(hidden)]
+pub mod loader_counters;
 mod module_requests;
 mod module_resolution;
 mod option_validation;

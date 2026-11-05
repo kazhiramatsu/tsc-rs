@@ -223,6 +223,15 @@ struct Parser<'text> {
     scanner: Scanner<'text>,
     source_text: &'text str,
     arena: NodeArena,
+    /// Completed siblings of active lists. Each nested list releases its
+    /// suffix before its result is pushed by the enclosing list.
+    node_stack: Vec<NodeId>,
+    /// Root JSDoc tags overlap comment parts, whose array finishes first.
+    /// Keep their reusable scratch separate so both arrays copy only once.
+    jsdoc_tags: Vec<NodeId>,
+    /// The open lists' marks, to check that they close in order.
+    #[cfg(debug_assertions)]
+    node_list_marks: Vec<usize>,
     file_name: JsString,
     language_variant: LanguageVariant,
     javascript_file: bool,
@@ -251,6 +260,8 @@ struct Parser<'text> {
     /// starting points of the error aggregate in `finalize_tree` (a
     /// rolled-back speculation truncates the list with its candidates).
     error_nodes: Vec<NodeId>,
+    /// The child list `NodeArena::attach_children` fills as a node finishes.
+    child_scratch: Vec<NodeId>,
     /// Full-start positions whose ordinary scanner token carried
     /// TokenFlags.PrecedingJSDocComment.
     jsdoc_positions: rustc_hash::FxHashSet<usize>,
@@ -927,6 +938,10 @@ impl<'text> Parser<'text> {
             scanner: Scanner::new(text, language_variant),
             source_text: text,
             arena: NodeArena::new(),
+            node_stack: Vec::new(),
+            jsdoc_tags: Vec::new(),
+            #[cfg(debug_assertions)]
+            node_list_marks: Vec::new(),
             file_name,
             language_variant,
             javascript_file,
@@ -943,6 +958,7 @@ impl<'text> Parser<'text> {
             not_parenthesized_arrow: rustc_hash::FxHashSet::default(),
             jsdoc_candidates: Vec::new(),
             error_nodes: Vec::new(),
+            child_scratch: Vec::new(),
             jsdoc_positions: rustc_hash::FxHashSet::default(),
             has_jsdoc_comments: memchr::memmem::find(text.as_bytes(), b"/**").is_some(),
             syntax_cursor: None,
@@ -1535,6 +1551,7 @@ impl<'text> Parser<'text> {
         debug_assert_eq!(self.arena.node(root).pos, candidate.adjusted_pos);
         debug_assert_eq!(self.arena.node(root).end, candidate.adjusted_end);
         self.incremental_stats.reused_roots.push(root);
+        let copied = self.incremental_stats.reused_new_nodes.len();
         self.incremental_stats
             .reused_new_nodes
             .extend(copier.node_lineage().iter().map(|(_, new)| *new));
@@ -1560,6 +1577,14 @@ impl<'text> Parser<'text> {
                             new_node: *new_node,
                         }),
                 );
+        }
+        // The copy comes without parents: its nodes get theirs as finished
+        // nodes do, and the copied root gets its own when its new owner
+        // finishes.
+        for index in copied..self.incremental_stats.reused_new_nodes.len() {
+            let node = self.incremental_stats.reused_new_nodes[index];
+            self.attach_children(node);
+            self.arena.attach_js_doc(node);
         }
         self.scanner
             .reset_token_state(self.arena.node(root).end as usize);
@@ -1666,6 +1691,38 @@ impl<'text> Parser<'text> {
         }
     }
 
+    fn start_node_list(&mut self) -> usize {
+        let mark = self.node_stack.len();
+        #[cfg(debug_assertions)]
+        self.node_list_marks.push(mark);
+        mark
+    }
+
+    fn truncate_node_list(&mut self, mark: usize) {
+        debug_assert!(self.node_stack.len() >= mark);
+        #[cfg(debug_assertions)]
+        {
+            let last = self.node_list_marks.pop();
+            debug_assert_eq!(last, Some(mark), "list frames must close in order");
+        }
+        self.node_stack.truncate(mark);
+        debug_assert_eq!(self.node_stack.len(), mark);
+    }
+
+    fn finish_node_list(
+        &mut self,
+        mark: usize,
+        pos: usize,
+        end: usize,
+        has_trailing_comma: bool,
+    ) -> crate::NodeArrayId {
+        let array = self
+            .arena
+            .alloc_array(&self.node_stack[mark..], pos, end, has_trailing_comma);
+        self.truncate_node_list(mark);
+        array
+    }
+
     fn parse_list(
         &mut self,
         context: ParsingContext,
@@ -1673,7 +1730,7 @@ impl<'text> Parser<'text> {
     ) -> crate::NodeArrayId {
         let saved_context = self.parsing_context;
         self.parsing_context |= context.bit();
-        let mut list = Vec::new();
+        let mark = self.start_node_list();
         let list_pos = self.node_pos();
 
         while !self.is_list_terminator(context) {
@@ -1684,7 +1741,7 @@ impl<'text> Parser<'text> {
                     .map(|node| self.consume_node(node))
                     .or_else(|| parse_element(self));
                 if let Some(element) = element {
-                    list.push(element);
+                    self.node_stack.push(element);
                     if start_pos == self.scanner.full_start_pos() {
                         self.record_token_skip(ParseTokenSkipSite::ListNoProgress);
                         self.next_token();
@@ -1698,8 +1755,7 @@ impl<'text> Parser<'text> {
         }
 
         self.parsing_context = saved_context;
-        self.arena
-            .alloc_array(&list, list_pos, self.node_pos(), false)
+        self.finish_node_list(mark, list_pos, self.node_pos(), false)
     }
 
     fn parse_delimited_list(
@@ -1722,7 +1778,7 @@ impl<'text> Parser<'text> {
     ) -> Option<crate::NodeArrayId> {
         let saved_context = self.parsing_context;
         self.parsing_context |= context.bit();
-        let mut list = Vec::new();
+        let mark = self.start_node_list();
         let list_pos = self.node_pos();
 
         loop {
@@ -1734,9 +1790,10 @@ impl<'text> Parser<'text> {
                     .or_else(|| parse_element(self));
                 let Some(element) = element else {
                     self.parsing_context = saved_context;
+                    self.truncate_node_list(mark);
                     return None;
                 };
-                list.push(element);
+                self.node_stack.push(element);
 
                 if self.parse_optional(SyntaxKind::CommaToken) {
                     continue;
@@ -1778,13 +1835,10 @@ impl<'text> Parser<'text> {
         // consumed in its place, such as a semicolon between object literal
         // members.
         let end = self.node_pos();
-        let has_trailing_comma = list
+        let has_trailing_comma = self.node_stack[mark..]
             .last()
             .is_some_and(|&last| (self.arena.node(last).end as usize) < end);
-        Some(
-            self.arena
-                .alloc_array(&list, list_pos, end, has_trailing_comma),
-        )
+        Some(self.finish_node_list(mark, list_pos, end, has_trailing_comma))
     }
 
     fn is_list_terminator(&mut self, context: ParsingContext) -> bool {
@@ -2656,6 +2710,7 @@ impl<'text> Parser<'text> {
             data.modifiers = modifiers;
             self.arena
                 .set_data(missing, NodeData::MissingDeclaration(data));
+            self.attach_children(missing);
         }
         missing
     }
@@ -4748,8 +4803,7 @@ impl<'text> Parser<'text> {
         allow_return_type_in_arrow_function: bool,
     ) -> Option<NodeId> {
         if self.token() == SyntaxKind::AsyncKeyword
-            && self.look_ahead(|parser| parser.is_un_parenthesized_async_arrow_function_worker())
-                == Tristate::True
+            && self.look_ahead(|parser| parser.next_is_un_parenthesized_async_arrow_function())
         {
             let pos = self.node_pos();
             let async_modifier = self.parse_modifiers_for_arrow_function();
@@ -4764,23 +4818,27 @@ impl<'text> Parser<'text> {
         None
     }
 
-    fn is_un_parenthesized_async_arrow_function_worker(&mut self) -> Tristate {
-        if self.token() == SyntaxKind::AsyncKeyword {
-            self.next_token();
-            if self.scanner.has_preceding_line_break()
-                || self.token() == SyntaxKind::EqualsGreaterThanToken
-            {
-                return Tristate::False;
-            }
-            let expr = self.parse_binary_expression_or_higher(LOWEST_OPERATOR_PRECEDENCE);
-            if !self.scanner.has_preceding_line_break()
-                && self.arena.node(expr).kind == SyntaxKind::Identifier
-                && self.token() == SyntaxKind::EqualsGreaterThanToken
-            {
-                return Tristate::True;
-            }
+    /// tsgo nextIsUnParenthesizedAsyncArrowFunction (parser.go:4594): `async`
+    /// and an identifier on one line, then `=>` on the same line. It reads
+    /// tokens only; the 6.0.3 lookahead parsed a whole binary expression
+    /// after `async`, so the body of every `async function` expression was
+    /// parsed twice.
+    fn next_is_un_parenthesized_async_arrow_function(&mut self) -> bool {
+        if self.token() != SyntaxKind::AsyncKeyword {
+            return false;
         }
-        Tristate::False
+        self.next_token();
+        // `async =>` is a simple arrow function whose parameter is `async`,
+        // which parse_assignment_expression_or_higher parses.
+        if self.scanner.has_preceding_line_break()
+            || self.token() == SyntaxKind::EqualsGreaterThanToken
+            || !self.is_identifier()
+        {
+            return false;
+        }
+        self.next_token_without_check();
+        !self.scanner.has_preceding_line_break()
+            && self.token() == SyntaxKind::EqualsGreaterThanToken
     }
 
     /// tsc parseContextualModifier.
@@ -4965,14 +5023,14 @@ impl<'text> Parser<'text> {
         stop_on_start_of_class_static_block: bool,
     ) -> Option<crate::NodeArrayId> {
         let pos = self.node_pos();
-        let mut list = Vec::new();
+        let mark = self.start_node_list();
         let mut has_seen_static_modifier = false;
         let mut has_leading_modifier = false;
         let mut has_trailing_decorator = false;
 
         if allow_decorators && self.token() == SyntaxKind::AtToken {
             while let Some(decorator) = self.try_parse_decorator() {
-                list.push(decorator);
+                self.node_stack.push(decorator);
             }
         }
         while let Some(modifier) = self.try_parse_modifier(
@@ -4983,12 +5041,12 @@ impl<'text> Parser<'text> {
             if self.arena.node(modifier).kind == SyntaxKind::StaticKeyword {
                 has_seen_static_modifier = true;
             }
-            list.push(modifier);
+            self.node_stack.push(modifier);
             has_leading_modifier = true;
         }
         if has_leading_modifier && allow_decorators && self.token() == SyntaxKind::AtToken {
             while let Some(decorator) = self.try_parse_decorator() {
-                list.push(decorator);
+                self.node_stack.push(decorator);
                 has_trailing_decorator = true;
             }
         }
@@ -5001,13 +5059,14 @@ impl<'text> Parser<'text> {
                 if self.arena.node(modifier).kind == SyntaxKind::StaticKeyword {
                     has_seen_static_modifier = true;
                 }
-                list.push(modifier);
+                self.node_stack.push(modifier);
             }
         }
-        if list.is_empty() {
+        if self.node_stack.len() == mark {
+            self.truncate_node_list(mark);
             None
         } else {
-            Some(self.arena.alloc_array(&list, pos, self.node_pos(), false))
+            Some(self.finish_node_list(mark, pos, self.node_pos(), false))
         }
     }
 
@@ -5566,14 +5625,14 @@ impl<'text> Parser<'text> {
                     );
                     let new_last = self.finish_node_at(new_last, new_last_pos, end);
 
-                    let (mut nodes, children_pos) = {
-                        let array = self.arena.node_array(children);
-                        (array.nodes.to_vec(), array.pos as usize)
-                    };
-                    *nodes
+                    let mark = self.start_node_list();
+                    let array = self.arena.node_array(children);
+                    let children_pos = array.pos as usize;
+                    self.node_stack.extend_from_slice(array.nodes);
+                    *self.node_stack[mark..]
                         .last_mut()
                         .expect("rebalance only fires on a non-empty child list") = new_last;
-                    children = self.arena.alloc_array(&nodes, children_pos, end, false);
+                    children = self.finish_node_list(mark, children_pos, end, false);
                     closing_element = last_closing;
                 } else {
                     closing_element =
@@ -5738,7 +5797,7 @@ impl<'text> Parser<'text> {
 
     /// tsc parseJsxChildren.
     fn parse_jsx_children(&mut self, opening_tag: NodeId) -> crate::NodeArrayId {
-        let mut list = Vec::new();
+        let mark = self.start_node_list();
         let list_pos = self.node_pos();
         let save_parsing_context = self.parsing_context;
         self.parsing_context |= ParsingContext::JsxChildren.bit();
@@ -5747,7 +5806,7 @@ impl<'text> Parser<'text> {
             let Some(child) = self.parse_jsx_child(opening_tag, token) else {
                 break;
             };
-            list.push(child);
+            self.node_stack.push(child);
             if self.arena.node(opening_tag).kind == SyntaxKind::JsxOpeningElement {
                 if let Some((child_open_tag, child_close_tag)) = self.jsx_element_tag_names(child) {
                     let opening_tag_name = self.jsx_opening_element_tag_name(opening_tag);
@@ -5766,8 +5825,7 @@ impl<'text> Parser<'text> {
             }
         }
         self.parsing_context = save_parsing_context;
-        self.arena
-            .alloc_array(&list, list_pos, self.node_pos(), false)
+        self.finish_node_list(mark, list_pos, self.node_pos(), false)
     }
 
     /// tsc parseJsxAttributes.
@@ -6307,6 +6365,7 @@ impl<'text> Parser<'text> {
             data.modifiers = modifiers;
             self.arena
                 .set_data(missing, NodeData::MissingDeclaration(data));
+            self.attach_children(missing);
         }
         missing
     }
@@ -6561,6 +6620,8 @@ impl<'text> Parser<'text> {
                 &[],
             )
         } else {
+            // tsgo creates the missing identifier first and drops it here.
+            self.arena.count_dropped_identifier();
             self.allow_in(|parser| parser.parse_expression())
         };
         self.parse_expected(SyntaxKind::CloseBracketToken, None);
@@ -7368,7 +7429,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let head = self.parse_template_head(is_tagged_template);
         let spans_pos = self.node_pos();
-        let mut spans = Vec::new();
+        let mark = self.start_node_list();
         loop {
             let span = self.parse_template_span(is_tagged_template);
             let literal = self
@@ -7378,14 +7439,12 @@ impl<'text> Parser<'text> {
                 .as_template_span()
                 .and_then(|data| data.literal)
                 .map(|literal| self.arena.node(literal).kind);
-            spans.push(span);
+            self.node_stack.push(span);
             if literal != Some(SyntaxKind::TemplateMiddle) {
                 break;
             }
         }
-        let template_spans = self
-            .arena
-            .alloc_array(&spans, spans_pos, self.node_pos(), false);
+        let template_spans = self.finish_node_list(mark, spans_pos, self.node_pos(), false);
         self.finish_node_data(
             NodeData::TemplateExpression(TemplateExpressionData {
                 head: Some(head),
@@ -7630,7 +7689,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let head = self.parse_template_head(false);
         let spans_pos = self.node_pos();
-        let mut spans = Vec::new();
+        let mark = self.start_node_list();
         loop {
             let span = self.parse_template_type_span();
             let literal_kind = match &self.arena.node(span).data() {
@@ -7639,14 +7698,12 @@ impl<'text> Parser<'text> {
                 }
                 _ => None,
             };
-            spans.push(span);
+            self.node_stack.push(span);
             if literal_kind != Some(SyntaxKind::TemplateMiddle) {
                 break;
             }
         }
-        let template_spans = self
-            .arena
-            .alloc_array(&spans, spans_pos, self.node_pos(), false);
+        let template_spans = self.finish_node_list(mark, spans_pos, self.node_pos(), false);
         self.finish_node_data(
             NodeData::TemplateLiteralType(TemplateLiteralTypeData {
                 head: Some(head),
@@ -8249,7 +8306,9 @@ impl<'text> Parser<'text> {
             let node = self.arena.node(r#type);
             let (node_pos, node_end, node_flags) =
                 (node.pos as usize, node.end as usize, node.flags);
-            return self.arena.alloc_node(
+            // Not finished again (it keeps the nullable type's range and
+            // flags), but its inner type moves to it (tsgo sets the parent).
+            let optional = self.arena.alloc_node(
                 NodeData::OptionalType(OptionalTypeData {
                     r#type: Some(inner),
                 }),
@@ -8257,6 +8316,8 @@ impl<'text> Parser<'text> {
                 node_end,
                 NodeFlags::from_bits(node_flags),
             );
+            self.attach_children(optional);
+            return optional;
         }
         r#type
     }
@@ -8788,14 +8849,15 @@ impl<'text> Parser<'text> {
             parse_constituent_type(self)
         };
         if self.token() == operator || has_leading_operator {
-            let mut types = vec![r#type];
+            let mark = self.start_node_list();
+            self.node_stack.push(r#type);
             while self.parse_optional(operator) {
                 let next = self
                     .parse_function_or_constructor_type_to_error(is_union_type)
                     .unwrap_or_else(|| parse_constituent_type(self));
-                types.push(next);
+                self.node_stack.push(next);
             }
-            let array = self.arena.alloc_array(&types, pos, self.node_pos(), false);
+            let array = self.finish_node_list(mark, pos, self.node_pos(), false);
             r#type = self.finish_node_data(create_type_node(array), pos);
         }
         r#type
@@ -9894,13 +9956,14 @@ impl<'text> Parser<'text> {
         };
         let saved_diagnostics = std::mem::take(&mut self.parse_diagnostics);
         let saved_recovery = std::mem::take(&mut self.parse_recovery);
-        let mut statements: Vec<NodeId> = Vec::new();
+        let mark = self.start_node_list();
 
         let mut pos: Option<usize> = Some(0);
         let mut start = self.find_statement_with_await(&old_statements, 0);
         while let Some(run_start) = start {
             let keep_from = pos.expect("a run exists only while the cursor does");
-            statements.extend_from_slice(&old_statements[keep_from..run_start]);
+            self.node_stack
+                .extend_from_slice(&old_statements[keep_from..run_start]);
             pos = self.find_statement_without_await(&old_statements, run_start);
 
             // Keep the diagnostics of the untouched range.
@@ -9920,7 +9983,7 @@ impl<'text> Parser<'text> {
             while self.token() != SyntaxKind::EndOfFileToken {
                 let start_pos = self.scanner.full_start_pos();
                 let statement = self.parse_source_element();
-                statements.push(statement);
+                self.node_stack.push(statement);
                 if start_pos == self.scanner.full_start_pos() {
                     self.record_token_skip(ParseTokenSkipSite::TopLevelAwaitReparse);
                     self.next_token();
@@ -9948,13 +10011,13 @@ impl<'text> Parser<'text> {
             start = pos.and_then(|cursor| self.find_statement_with_await(&old_statements, cursor));
         }
         if let Some(keep_from) = pos {
-            statements.extend_from_slice(&old_statements[keep_from..]);
+            self.node_stack
+                .extend_from_slice(&old_statements[keep_from..]);
             let prev_pos = self.to_utf16(self.arena.node(old_statements[keep_from]).pos as usize);
             self.retain_reparse_recovery(&saved_diagnostics, &saved_recovery, prev_pos..u32::MAX);
         }
 
-        self.arena
-            .alloc_array(&statements, array_pos, array_end, false)
+        self.finish_node_list(mark, array_pos, array_end, false)
     }
 
     fn find_statement_with_await(&self, statements: &[NodeId], from: usize) -> Option<usize> {
@@ -10056,13 +10119,13 @@ impl<'text> Parser<'text> {
                 .entry((kind, pos))
                 .or_insert_with(|| jsdoc_comment_ranges(self.source_text, kind, pos))
                 .clone();
-            let mut docs = Vec::new();
+            let mark = self.start_node_list();
             let mut deprecated = false;
             let javascript = self.javascript_file;
             for (start, comment_end) in ranges {
                 if comment_end <= end {
                     let parsed = jsdoc::parse_jsdoc_comment(self, start, comment_end, flags);
-                    docs.push(parsed.node);
+                    self.node_stack.push(parsed.node);
                     // tsgo parses a TypeScript file's JSDoc lazily and marks
                     // a deprecated host from the scanner's text scan of the
                     // comment (a `@deprecated` followed by whitespace, `}`,
@@ -10075,16 +10138,22 @@ impl<'text> Parser<'text> {
                     };
                 }
             }
-            if docs.is_empty() {
+            if self.node_stack.len() == mark {
+                self.truncate_node_list(mark);
                 continue;
             }
-            let array_start = self.arena.node(docs[0]).pos as usize;
+            let array_start = self.arena.node(self.node_stack[mark]).pos as usize;
             let array_end = self
                 .arena
-                .node(*docs.last().expect("non-empty JSDoc list"))
+                .node(
+                    *self.node_stack[mark..]
+                        .last()
+                        .expect("non-empty JSDoc list"),
+                )
                 .end as usize;
-            let js_doc = self.arena.alloc_array(&docs, array_start, array_end, false);
+            let js_doc = self.finish_node_list(mark, array_start, array_end, false);
             self.arena.set_js_doc(host, js_doc);
+            self.arena.attach_js_doc(host);
             if deprecated {
                 self.arena.node_mut(host).flags |= NodeFlags::DEPRECATED.bits();
             }
@@ -10101,6 +10170,10 @@ impl<'text> Parser<'text> {
         end_of_file_token: NodeId,
         process_pragmas: bool,
     ) -> FinishedParse {
+        debug_assert!(self.node_stack.is_empty());
+        debug_assert!(self.jsdoc_tags.is_empty());
+        #[cfg(debug_assertions)]
+        debug_assert!(self.node_list_marks.is_empty());
         let eof_end = self.arena.node(end_of_file_token).end as usize;
         // tsc createSourceFile2 (29214) passes sourceFlags: the root
         // carries Ambient/JavaScriptFile like every other node (the
@@ -10221,7 +10294,7 @@ impl<'text> Parser<'text> {
     }
 
     fn finish_node_at(&mut self, id: NodeId, pos: usize, end: usize) -> NodeId {
-        let is_jsdoc_candidate = {
+        let (is_jsdoc_candidate, kind) = {
             let node = self.arena.node_mut(id);
             node.pos = pos as u32;
             node.end = end as u32;
@@ -10233,15 +10306,29 @@ impl<'text> Parser<'text> {
                 node.flags |= NodeFlags::THIS_NODE_HAS_ERROR.bits();
                 self.error_nodes.push(id);
             }
-            self.has_jsdoc_comments
-                && self.jsdoc_positions.contains(&pos)
-                && !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
-                && parser_calls_with_jsdoc_for_kind(node.kind)
+            (
+                self.has_jsdoc_comments
+                    && self.jsdoc_positions.contains(&pos)
+                    && !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
+                    && parser_calls_with_jsdoc_for_kind(node.kind),
+                node.kind,
+            )
         };
         if is_jsdoc_candidate {
             self.jsdoc_candidates.push(id);
         }
+        // A token (identifiers and literals included) has no children.
+        if kind.value() > SyntaxKind::LastToken.value() {
+            self.attach_children(id);
+        }
         id
+    }
+
+    /// tsgo finishNode: the node's children get it as their parent.
+    fn attach_children(&mut self, id: NodeId) {
+        let mut scratch = std::mem::take(&mut self.child_scratch);
+        self.arena.attach_children(id, &mut scratch);
+        self.child_scratch = scratch;
     }
 
     fn push_parse_diagnostic(
@@ -10651,11 +10738,11 @@ fn parse_json_text_with_options(
     let pos = parser.node_pos();
 
     let (statements, end_of_file_token) = if parser.token() == SyntaxKind::EndOfFileToken {
-        let statements = parser.arena.alloc_array(&Vec::new(), pos, pos, false);
+        let statements = parser.arena.alloc_array(&[], pos, pos, false);
         let end_of_file_token = parser.parse_token_node();
         (statements, end_of_file_token)
     } else {
-        let mut expressions = Vec::new();
+        let mark = parser.start_node_list();
         while parser.token() != SyntaxKind::EndOfFileToken {
             let expression = match parser.token() {
                 SyntaxKind::OpenBracketToken => parser.parse_array_literal_expression(),
@@ -10687,17 +10774,15 @@ fn parse_json_text_with_options(
                 _ => parser.parse_object_literal_expression(),
             };
 
-            if expressions.is_empty() && parser.token() != SyntaxKind::EndOfFileToken {
+            if parser.node_stack.len() == mark && parser.token() != SyntaxKind::EndOfFileToken {
                 parser.parse_error_at_current_token(&gen::Unexpected_token, &[]);
             }
-            expressions.push(expression);
+            parser.node_stack.push(expression);
         }
 
-        let expression = if expressions.len() > 1 {
+        let expression = if parser.node_stack.len() - mark > 1 {
             let expressions_end = parser.node_pos();
-            let elements = parser
-                .arena
-                .alloc_array(&expressions, pos, expressions_end, false);
+            let elements = parser.finish_node_list(mark, pos, expressions_end, false);
             parser.finish_node_data(
                 NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
                     elements: Some(elements),
@@ -10705,7 +10790,9 @@ fn parse_json_text_with_options(
                 pos,
             )
         } else {
-            expressions[0]
+            let expression = parser.node_stack[mark];
+            parser.truncate_node_list(mark);
+            expression
         };
         let statement = parser.finish_node_data(
             NodeData::ExpressionStatement(ExpressionStatementData {

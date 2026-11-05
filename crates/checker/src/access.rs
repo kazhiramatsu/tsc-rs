@@ -1529,7 +1529,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 186bd24a3ff7473b4fe7b156f5322ba22c7d16b30d959ed48bf8401401fb522c
     /// tsc-span: _tsc.js:47634-47640
     pub(crate) fn is_deprecated_symbol(&self, symbol: SymbolId) -> bool {
-        let symbol = self.get_merged_symbol(symbol);
+        // tsgo checker.go:14326 reads the supplied symbol directly.
         let declarations = self.binder.symbol(symbol).declarations();
         if let Some(parent) = self.get_parent_of_symbol(symbol) {
             if declarations.len() > 1 {
@@ -2118,7 +2118,9 @@ impl<'a> CheckerState<'a> {
             }
         } else {
             if is_any_like {
-                self.mark_property_alias_referenced(node, left, None, left_type)?;
+                if self.can_collect_linked_references(node) {
+                    self.mark_property_alias_referenced(node, left, None, left_type)?;
+                }
                 // tsgo isErrorType (see above).
                 return Ok(if self.tables.is_error_type(apparent_type) {
                     self.tables.intrinsics.error
@@ -2163,7 +2165,9 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        self.mark_property_alias_referenced(node, left, prop, left_type)?;
+        if self.can_collect_linked_references(node) {
+            self.mark_property_alias_referenced(node, left, prop, left_type)?;
+        }
         let prop_type: TypeId;
         if let Some(prop) = prop {
             let target_prop_symbol = self.resolve_alias_with_deprecation_check(prop, right)?;

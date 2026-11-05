@@ -865,6 +865,13 @@ impl<'a> CheckerState<'a> {
             propagation_type: None,
             inference_priority: InferencePriority::MAX_VALUE,
             visited,
+            visited_touched: [InferenceKey {
+                source: original_source,
+                target: original_target,
+                priority,
+                contravariant,
+                bivariant: false,
+            }; 4],
             source_stack,
             target_stack,
             expanding_flags: ExpandingFlags::NONE,
@@ -872,12 +879,13 @@ impl<'a> CheckerState<'a> {
         let result = walker.infer_from_types(original_source, original_target);
         let InferTypesWalker {
             mut visited,
+            visited_touched,
             inferences: mut slots,
             mut source_stack,
             mut target_stack,
             ..
         } = walker;
-        visited.clear();
+        clear_inference_visited(&mut visited, &visited_touched);
         self.inference_visited = visited;
         slots.clear();
         source_stack.clear();
@@ -1861,6 +1869,8 @@ struct InferTypesWalker<'r, 'a> {
     /// `new SyncBailHook(["parserOptions"])` lost the `[ParserOptions]`
     /// candidates its `tap` callback contributes.
     visited: InferenceVisited,
+    /// The first four distinct keys, recorded only on their initial insertion.
+    visited_touched: [InferenceKey; 4],
     source_stack: Vec<TypeId>,
     target_stack: Vec<TypeId>,
     expanding_flags: ExpandingFlags,
@@ -1869,6 +1879,20 @@ struct InferTypesWalker<'r, 'a> {
 /// tsgo invokeOnce's visited map (inference.go:11-17): one per inference
 /// walk, keyed by [`InferenceKey`].
 pub(crate) type InferenceVisited = HashMap<InferenceKey, InferencePriority>;
+
+/// Remove a short walk's keys individually when clearing would zero a large
+/// retained table. Dense walks and small tables keep HashMap's bulk clear.
+fn clear_inference_visited(visited: &mut InferenceVisited, touched: &[InferenceKey; 4]) {
+    let len = visited.len();
+    if len <= touched.len() && visited.capacity() >= 1024 {
+        for key in &touched[..len] {
+            visited.remove(key);
+        }
+    } else {
+        visited.clear();
+    }
+    debug_assert!(visited.is_empty());
+}
 
 /// tsgo InferenceKey (inference.go:11-17): what one invokeOnce visit is
 /// identified by.
@@ -1881,16 +1905,18 @@ pub(crate) struct InferenceKey {
     bivariant: bool,
 }
 
-/// The invokeOnce `action` parameter (68833): tsc passes one of three
-/// closure references — inferToConditionalType /
-/// inferFromGenericMappedTypes / inferFromObjectTypes; the port
-/// dispatches over the closed set (the TypeMatcher precedent). The
-/// mapped/object actions arrive at 7.2d.
+/// The invokeOnce `action` parameter (tsgo inference.go:346): one of
+/// inferToConditionalType / inferFromGenericMappedTypes /
+/// inferFromObjectTypes / inferFromAliasTypeArguments /
+/// inferFromReferenceTypeArguments; the port dispatches over the closed
+/// set (the TypeMatcher precedent).
 #[derive(Clone, Copy, Debug)]
 enum InferAction {
     ToConditionalType,
     FromGenericMappedTypes,
     FromObjectTypes,
+    FromAliasTypeArguments,
+    FromReferenceTypeArguments,
 }
 
 impl InferTypesWalker<'_, '_> {
@@ -1916,77 +1942,93 @@ impl InferTypesWalker<'_, '_> {
         }
     }
 
-    /// The shared-alias arm of inferFromTypes (68658-68663). Keep its
-    /// argument copies, filling and variance setup off the dispatch spine.
+    /// tsgo-port: Checker.inferFromAliasTypeArguments @7.1 (inference.go:280-288)
+    ///
+    /// Source and target come from the same generic type alias
+    /// declaration: infer between their alias type arguments, defaults
+    /// filled in, under the alias' measured variances. Reached through
+    /// invokeOnce, so a pair is inferred once per walk and key.
     #[inline(never)]
-    fn infer_from_alias_types(
+    fn infer_from_alias_type_arguments(
         &mut self,
         source: TypeId,
         target: TypeId,
-        alias: tsc_binder::SymbolId,
     ) -> CheckResult<()> {
-        if let Some(source_args) = self
+        let alias = self
+            .st
+            .tables
+            .alias_symbol(source)
+            .expect("the alias arm dispatches same-alias pairs");
+        let source_args = self
             .st
             .tables
             .alias_type_arguments(source)
-            .map(<[TypeId]>::to_vec)
-        {
-            // 68658-68663: infer between the (filled) alias
-            // argument lists under the alias' measured
-            // variances.
-            let target_args = self
-                .st
-                .tables
-                .alias_type_arguments(target)
-                .map(<[TypeId]>::to_vec);
-            let params = self
-                .st
-                .links
-                .symbol_cold()
-                .type_parameters
-                .get(alias)
-                .clone();
-            let min_params = self.st.get_min_type_argument_count(params.as_deref());
-            let in_js = self
-                .st
-                .binder
-                .symbol(alias)
-                .value_declaration
-                .is_some_and(|declaration| self.st.is_in_js_file(declaration));
-            let source_types = self
-                .st
-                .fill_missing_type_arguments(
-                    Some(&source_args),
-                    params.as_deref(),
-                    min_params,
-                    in_js,
-                )?
-                .expect("present arguments fill to a present list (68660)");
-            // A None fill (min_params > 0 with an absent
-            // target list) is the shape tsc TypeErrors on one
-            // call later (68877 targetTypes.length) —
-            // unreachable: bare generic-alias references
-            // become errorType and carry no aliasSymbol, so
-            // the expect is crash-equivalent transcription,
-            // not a deviation.
-            let target_types = self
-                .st
-                .fill_missing_type_arguments(
-                    target_args.as_deref(),
-                    params.as_deref(),
-                    min_params,
-                    in_js,
-                )?
-                .expect("shared alias symbol implies argument lists (68661)");
-            let variances = match self.st.get_alias_variances(alias)? {
-                VariancesResult::Known(variances) => variances,
-                // No variance information: the arguments infer
-                // covariantly (inferFromTypeArguments' default).
-                VariancesResult::Empty => crate::state::SharedList::new(),
-            };
-            self.infer_from_type_arguments(&source_types, &target_types, &variances)?;
-        }
-        Ok(())
+            .map(<[TypeId]>::to_vec);
+        let target_args = self
+            .st
+            .tables
+            .alias_type_arguments(target)
+            .map(<[TypeId]>::to_vec);
+        let params = self
+            .st
+            .links
+            .symbol_cold()
+            .type_parameters
+            .get(alias)
+            .clone();
+        let min_params = self.st.get_min_type_argument_count(params.as_deref());
+        let in_js = self
+            .st
+            .binder
+            .symbol(alias)
+            .value_declaration
+            .is_some_and(|declaration| self.st.is_in_js_file(declaration));
+        // A side without arguments fills to the defaults (or stays empty
+        // and infers nothing), as tsgo's nil list does.
+        let source_types = self
+            .st
+            .fill_missing_type_arguments(
+                source_args.as_deref(),
+                params.as_deref(),
+                min_params,
+                in_js,
+            )?
+            .unwrap_or_default();
+        let target_types = self
+            .st
+            .fill_missing_type_arguments(
+                target_args.as_deref(),
+                params.as_deref(),
+                min_params,
+                in_js,
+            )?
+            .unwrap_or_default();
+        let variances = match self.st.get_alias_variances(alias)? {
+            VariancesResult::Known(variances) => variances,
+            // No variance information: the arguments infer
+            // covariantly (inferFromTypeArguments' default).
+            VariancesResult::Empty => crate::state::SharedList::new(),
+        };
+        self.infer_from_type_arguments(&source_types, &target_types, &variances)
+    }
+
+    /// tsgo-port: Checker.inferFromReferenceTypeArguments @7.1 (inference.go:291-293)
+    ///
+    /// References to the same generic type (or two arrays) infer pairwise
+    /// under the target's measured variances.
+    fn infer_from_reference_type_arguments(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult<()> {
+        let source_arguments = self.st.get_type_arguments(source)?;
+        let target_arguments = self.st.get_type_arguments(target)?;
+        let reference_target = self.st.tables.reference_target(source);
+        let variances = match self.st.get_variances(reference_target)? {
+            VariancesResult::Known(variances) => variances,
+            VariancesResult::Empty => crate::state::SharedList::new(),
+        };
+        self.infer_from_type_arguments(&source_arguments, &target_arguments, &variances)
     }
 
     /// tsc-port: inferFromTypes @6.0.3
@@ -2029,7 +2071,20 @@ impl InferTypesWalker<'_, '_> {
         }
         if let Some(alias) = self.st.tables.alias_symbol(source) {
             if Some(alias) == self.st.tables.alias_symbol(target) {
-                return self.infer_from_alias_types(source, target, alias);
+                // tsgo inference.go:82-87: types from the same generic
+                // alias infer between their alias type arguments once per
+                // (source, target, priority, variance) key; without type
+                // arguments on either side the types must be the same.
+                let has_arguments = |ty| {
+                    self.st
+                        .tables
+                        .alias_type_arguments(ty)
+                        .is_some_and(|arguments| !arguments.is_empty())
+                };
+                if has_arguments(source) || has_arguments(target) {
+                    self.invoke_once(source, target, InferAction::FromAliasTypeArguments)?;
+                }
+                return Ok(());
             }
         }
         if source == target
@@ -2289,16 +2344,9 @@ impl InferTypesWalker<'_, '_> {
             && !(self.st.links.ty(source).deferred_node.is_some()
                 && self.st.links.ty(target).deferred_node.is_some());
         if matching_references {
-            // 68770-68771: matching references infer pairwise under the
-            // target's measured variances.
-            let source_arguments = self.st.get_type_arguments(source)?;
-            let target_arguments = self.st.get_type_arguments(target)?;
-            let reference_target = self.st.tables.reference_target(source);
-            let variances = match self.st.get_variances(reference_target)? {
-                VariancesResult::Known(variances) => variances,
-                VariancesResult::Empty => crate::state::SharedList::new(),
-            };
-            self.infer_from_type_arguments(&source_arguments, &target_arguments, &variances)?;
+            // tsgo inference.go:228-230: matching references infer between
+            // their type arguments once per key.
+            self.invoke_once(source, target, InferAction::FromReferenceTypeArguments)?;
         } else if source_flags.intersects(TypeFlags::INDEX)
             && target_flags.intersects(TypeFlags::INDEX)
         {
@@ -2515,6 +2563,9 @@ impl InferTypesWalker<'_, '_> {
             self.inference_priority = self.inference_priority.min(status);
             return Ok(());
         }
+        if self.visited.len() < self.visited_touched.len() {
+            self.visited_touched[self.visited.len()] = key;
+        }
         self.visited.insert(key, InferencePriority::CIRCULARITY);
         let save_inference_priority = self.inference_priority;
         self.inference_priority = InferencePriority::MAX_VALUE;
@@ -2540,6 +2591,12 @@ impl InferTypesWalker<'_, '_> {
                     self.infer_from_generic_mapped_types(source, target)?
                 }
                 InferAction::FromObjectTypes => self.infer_from_object_types(source, target)?,
+                InferAction::FromAliasTypeArguments => {
+                    self.infer_from_alias_type_arguments(source, target)?
+                }
+                InferAction::FromReferenceTypeArguments => {
+                    self.infer_from_reference_type_arguments(source, target)?
+                }
             }
         } else {
             self.inference_priority = InferencePriority::CIRCULARITY;
@@ -3314,17 +3371,10 @@ impl InferTypesWalker<'_, '_> {
             && (self.st.tables.reference_target(source) == self.st.tables.reference_target(target)
                 || self.st.is_array_type(source)? && self.st.is_array_type(target)?)
         {
-            // 69071-69074: pairwise under the target's variances (no
-            // deferred-node exclusion on this inner path).
-            let source_arguments = self.st.get_type_arguments(source)?;
-            let target_arguments = self.st.get_type_arguments(target)?;
-            let reference_target = self.st.tables.reference_target(source);
-            let variances = match self.st.get_variances(reference_target)? {
-                VariancesResult::Known(variances) => variances,
-                VariancesResult::Empty => crate::state::SharedList::new(),
-            };
-            self.infer_from_type_arguments(&source_arguments, &target_arguments, &variances)?;
-            return Ok(());
+            // tsgo inference.go:711-714: pairwise under the target's
+            // variances, directly (this path already runs under the
+            // object-tail invokeOnce; no deferred-node exclusion here).
+            return self.infer_from_reference_type_arguments(source, target);
         }
         if self.st.is_generic_mapped_type_state(source)?
             && self.st.is_generic_mapped_type_state(target)?

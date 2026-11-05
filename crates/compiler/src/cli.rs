@@ -570,7 +570,11 @@ fn run<'a>(
     // when they contain @see or @link, JS/JSX comments always.
     tsc_program::set_default_js_doc_parsing_mode(crate::JSDocParsingMode::ParseForTypeErrors);
     let execute_started = std::time::Instant::now();
+    #[cfg(feature = "loader-counters")]
+    tsc_program::loader_counters::reset();
     let result = execute(system, testing, args, watcher);
+    #[cfg(feature = "loader-counters")]
+    eprint!("{}", tsc_program::loader_counters::report());
     tsc_types::trace::mark("cli: execute", execute_started);
     // Measurement builds only (`perf-counters` feature): aggregate counters
     // are written to the sidecar file named by TSRS_PERF_COUNTERS (one
@@ -1676,24 +1680,25 @@ fn execute_prepared(
     // `getOptionsDiagnostics`, before global and semantic rows; appending
     // them after `into_diagnostics` would make TS5107 appear after semantic
     // diagnostics and would violate the command-line ordering contract.
-    let mut diagnostics = Vec::new();
-    diagnostics.extend(outcome.config_diagnostics().iter().cloned());
-    diagnostics.extend(outcome.syntactic_diagnostics().iter().cloned());
-    if outcome.syntactic_diagnostics().is_empty() {
-        diagnostics.extend(outcome.options_diagnostics().iter().cloned());
+    let config_count = outcome.config_diagnostics().len();
+    let syntax_is_empty = outcome.syntactic_diagnostics().is_empty();
+    let options_are_empty = outcome.options_diagnostics().is_empty();
+    let globals_are_empty = outcome.global_diagnostics().is_empty();
+    let mut diagnostics = std::mem::take(&mut outcome.config_diagnostics);
+    diagnostics.extend(std::mem::take(&mut outcome.syntactic_diagnostics));
+    if syntax_is_empty {
+        diagnostics.extend(std::mem::take(&mut outcome.options_diagnostics));
+        tsc_program::loader_counters::diagnostic_clones("cli.bucket", additional_diagnostics);
         diagnostics.extend(additional_diagnostics.iter().cloned());
-        diagnostics.extend(outcome.global_diagnostics().iter().cloned());
-        if outcome.options_diagnostics().is_empty()
-            && additional_diagnostics.is_empty()
-            && outcome.global_diagnostics().is_empty()
-        {
-            diagnostics.extend(outcome.semantic_diagnostics().iter().cloned());
+        diagnostics.extend(std::mem::take(&mut outcome.global_diagnostics));
+        if options_are_empty && additional_diagnostics.is_empty() && globals_are_empty {
+            diagnostics.extend(std::mem::take(&mut outcome.semantic_diagnostics));
         }
     }
-    // The command's own option rows (`additional_diagnostics`) close the
-    // declaration gate as well; the session could not see them.
-    if diagnostics.len() == outcome.config_diagnostics().len() {
-        diagnostics.extend(outcome.declaration_diagnostics().iter().cloned());
+    // The command's option rows close the declaration gate too. Use the
+    // original config count, captured before transferring its bucket.
+    if diagnostics.len() == config_count {
+        diagnostics.extend(std::mem::take(&mut outcome.declaration_diagnostics));
     }
     // tsgo emitBuildInfo: an incremental program's --noEmit command writes
     // its build info; the file joins the emitted-file listing, a failure to

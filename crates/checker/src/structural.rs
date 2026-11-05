@@ -3369,12 +3369,50 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         source: SignatureId,
         target: SignatureId,
     ) -> CheckResult<Ternary> {
-        self.compare_signatures_identical_ex(source, target, false, false, false)
+        self.compare_signatures_identical_ex(
+            source,
+            target,
+            false,
+            false,
+            false,
+            Self::compare_signature_identity_in_frame,
+        )
+    }
+
+    /// tsgo relater.go:2621-2623: the ambient signature-identity callback.
+    fn compare_signature_identity_in_frame(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult<Ternary> {
+        self.is_related_to(
+            source,
+            target,
+            RecursionFlags::BOTH,
+            false,
+            IntersectionState::NONE,
+        )
+    }
+
+    /// tsgo relater.go:2188-2190: standalone signature matching selects
+    /// compareTypesIdentical or compareTypesSubtypeOf, both query entries.
+    fn compare_signature_identity_using_query(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult<Ternary> {
+        Ok(
+            if self.st.is_type_related_to(source, target, self.relation)? {
+                Ternary::TRUE
+            } else {
+                Ternary::FALSE
+            },
+        )
     }
 
     /// The parametrized face (partialMatch / ignoreThisTypes /
     /// ignoreReturnTypes) used by the union-signature machinery; the
-    /// ambient relation supplies the compareTypes callback.
+    /// caller supplies the same query or frame callback as tsgo.
     /// tsc-port: compareSignaturesIdentical @6.0.3
     /// tsc-hash: ff64ccff2dd2fde3efc5b70fe05834b924d9044f53833479bf00443877912805
     /// tsc-span: _tsc.js:67574-67630
@@ -3385,6 +3423,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         partial_match: bool,
         ignore_this_types: bool,
         ignore_return_types: bool,
+        compare_types: fn(&mut Self, TypeId, TypeId) -> CheckResult<Ternary>,
     ) -> CheckResult<Ternary> {
         let mut source = source;
         if source == target {
@@ -3429,13 +3468,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .st
                     .get_constraint_from_type_parameter(t)?
                     .unwrap_or(unknown);
-                let related = self.is_related_to(
-                    source_constraint,
-                    target_constraint,
-                    RecursionFlags::BOTH,
-                    /*report_errors*/ false,
-                    IntersectionState::NONE,
-                )?;
+                let related = compare_types(self, source_constraint, target_constraint)?;
                 if !is_true(related) {
                     return Ok(Ternary::FALSE);
                 }
@@ -3448,13 +3481,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .st
                     .get_default_from_type_parameter(t)?
                     .unwrap_or(unknown);
-                let related = self.is_related_to(
-                    source_default,
-                    target_default,
-                    RecursionFlags::BOTH,
-                    /*report_errors*/ false,
-                    IntersectionState::NONE,
-                )?;
+                let related = compare_types(self, source_default, target_default)?;
                 if !is_true(related) {
                     return Ok(Ternary::FALSE);
                 }
@@ -3473,13 +3500,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         };
         if let Some(source_this) = source_this {
             if let Some(target_this) = self.st.get_this_type_of_signature(target)? {
-                let related = self.is_related_to(
-                    source_this,
-                    target_this,
-                    RecursionFlags::BOTH,
-                    /*report_errors*/ false,
-                    IntersectionState::NONE,
-                )?;
+                let related = compare_types(self, source_this, target_this)?;
                 if !is_true(related) {
                     return Ok(Ternary::FALSE);
                 }
@@ -3490,13 +3511,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         for i in 0..target_len {
             let s = self.st.get_type_at_position(source, i)?;
             let t = self.st.get_type_at_position(target, i)?;
-            let related = self.is_related_to(
-                t,
-                s,
-                RecursionFlags::BOTH,
-                /*report_errors*/ false,
-                IntersectionState::NONE,
-            )?;
+            let related = compare_types(self, t, s)?;
             if !is_true(related) {
                 return Ok(Ternary::FALSE);
             }
@@ -3528,17 +3543,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             self.compare_type_predicates_identical(
                 source_type_predicate.as_ref(),
                 target_type_predicate.as_ref(),
+                compare_types,
             )?
         } else {
             let source_return = self.st.get_return_type_of_signature(source)?;
             let target_return = self.st.get_return_type_of_signature(target)?;
-            self.is_related_to(
-                source_return,
-                target_return,
-                RecursionFlags::BOTH,
-                /*report_errors*/ false,
-                IntersectionState::NONE,
-            )?
+            compare_types(self, source_return, target_return)?
         };
         Ok(ternary_and(result, related))
     }
@@ -3550,12 +3560,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// typePredicateKindsMatch (61610-61612) inlined: kind AND
     /// parameterIndex equality. `source.type === target.type` covers
     /// the both-None cell (asserts-form pairs); a one-sided type is
-    /// False. compareTypes = the ambient relation's worker, exactly
-    /// like the sibling identical-path calls.
+    /// False. The caller's compareTypes callback also compares predicate types.
     fn compare_type_predicates_identical(
         &mut self,
         source: Option<&crate::narrow::TypePredicate>,
         target: Option<&crate::narrow::TypePredicate>,
+        compare_types: fn(&mut Self, TypeId, TypeId) -> CheckResult<Ternary>,
     ) -> CheckResult<Ternary> {
         let (Some(source), Some(target)) = (source, target) else {
             return Ok(Ternary::FALSE);
@@ -3567,15 +3577,36 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::TRUE);
         }
         if let (Some(source_type), Some(target_type)) = (source.ty, target.ty) {
-            return self.is_related_to(
-                source_type,
-                target_type,
-                RecursionFlags::BOTH,
-                /*report_errors*/ false,
-                IntersectionState::NONE,
-            );
+            return compare_types(self, source_type, target_type);
         }
         Ok(Ternary::FALSE)
+    }
+
+    /// The two Go signature-comparison callbacks enter different routines.
+    /// A standalone assignability comparison must not bypass isTypeRelatedTo
+    /// by entering this frame directly (relater.go:135-140,1487).
+    fn compare_signature_types(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        compare_types: CompareTypesFn,
+        report_errors: bool,
+        intersection_state: IntersectionState,
+    ) -> CheckResult<Ternary> {
+        match compare_types {
+            CompareTypesFn::Assignable => Ok(if self.st.is_type_assignable_to(source, target)? {
+                Ternary::TRUE
+            } else {
+                Ternary::FALSE
+            }),
+            CompareTypesFn::RelationFrame => self.is_related_to(
+                source,
+                target,
+                RecursionFlags::BOTH,
+                report_errors,
+                intersection_state,
+            ),
+        }
     }
 
     /// tsc-port: compareSignaturesRelated @6.0.3
@@ -3588,14 +3619,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// unreliable-marker instantiation is variance measurement
     /// (M4 5.3b). strictVariance keys on the target DECLARATION kind
     /// (method bivariance, core-interfaces §4 from_method).
-    /// `compare_types` is tsc's compareTypes parameter: the type
-    /// comparisons below run through the walker's own is_related_to
-    /// with the threaded intersectionState — exactly signatureRelated-
-    /// To's isRelatedToWorker closure (67070-67080) for the
-    /// RelationFrame producer, and the fresh-walker construction at
-    /// isImplementationCompatibleWithOverload models
-    /// compareTypesAssignable; the enum value additionally rides the
-    /// generic-source arm into iSICO's constraint clamp.
+    /// `compare_types` is tsgo's callback: RelationFrame uses the ambient
+    /// relation worker, while Assignable uses the checker's top-level query
+    /// (relater.go:135-140,1543-1653), including its early returns and cache.
     #[allow(clippy::too_many_arguments)] // tsc passes reporter closures plus compareTypes
     fn compare_signatures_related(
         &mut self,
@@ -3713,10 +3739,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if source_this_type != self.st.tables.intrinsics.void {
                 if let Some(target_this_type) = self.st.get_this_type_of_signature(target)? {
                     let bivariant = if !strict_variance {
-                        self.is_related_to(
+                        self.compare_signature_types(
                             source_this_type,
                             target_this_type,
-                            RecursionFlags::BOTH,
+                            compare_types,
                             /*report_errors*/ false,
                             intersection_state,
                         )?
@@ -3726,10 +3752,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     let related = if is_true(bivariant) {
                         bivariant
                     } else {
-                        self.is_related_to(
+                        self.compare_signature_types(
                             target_this_type,
                             source_this_type,
-                            RecursionFlags::BOTH,
+                            compare_types,
                             report_errors,
                             intersection_state,
                         )?
@@ -3836,10 +3862,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     )?
                 } else {
                     let bivariant = if check_mode & check_mode::CALLBACK == 0 && !strict_variance {
-                        self.is_related_to(
+                        self.compare_signature_types(
                             source_type,
                             target_type,
-                            RecursionFlags::BOTH,
+                            compare_types,
                             /*report_errors*/ false,
                             intersection_state,
                         )?
@@ -3849,10 +3875,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     if is_true(bivariant) {
                         bivariant
                     } else {
-                        self.is_related_to(
+                        self.compare_signature_types(
                             target_type,
                             source_type,
-                            RecursionFlags::BOTH,
+                            compare_types,
                             report_errors,
                             intersection_state,
                         )?
@@ -3862,10 +3888,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     && check_mode & check_mode::STRICT_ARITY != 0
                     && i >= self.st.get_min_argument_count(source)?
                     && i < self.st.get_min_argument_count(target)?
-                    && is_true(self.is_related_to(
+                    && is_true(self.compare_signature_types(
                         source_type,
                         target_type,
-                        RecursionFlags::BOTH,
+                        compare_types,
                         /*report_errors*/ false,
                         intersection_state,
                     )?)
@@ -3960,6 +3986,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         &target_type_predicate,
                         report_errors,
                         intersection_state,
+                        compare_types,
                     )?;
                     result = ternary_and(result, related);
                 } else if matches!(
@@ -3981,10 +4008,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 return Ok(result);
             }
             let bivariant = if check_mode & check_mode::BIVARIANT_CALLBACK != 0 {
-                self.is_related_to(
+                self.compare_signature_types(
                     target_return_type,
                     source_return_type,
-                    RecursionFlags::BOTH,
+                    compare_types,
                     /*report_errors*/ false,
                     intersection_state,
                 )?
@@ -3994,10 +4021,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let related = if is_true(bivariant) {
                 bivariant
             } else {
-                self.is_related_to(
+                self.compare_signature_types(
                     source_return_type,
                     target_return_type,
-                    RecursionFlags::BOTH,
+                    compare_types,
                     report_errors,
                     intersection_state,
                 )?
@@ -4059,6 +4086,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: &crate::narrow::TypePredicate,
         report_errors: bool,
         intersection_state: IntersectionState,
+        compare_types: CompareTypesFn,
     ) -> CheckResult<Ternary> {
         if source.kind != target.kind {
             if report_errors {
@@ -4102,10 +4130,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::TRUE);
         }
         if let (Some(source_type), Some(target_type)) = (source.ty, target.ty) {
-            let related = self.is_related_to(
+            let related = self.compare_signature_types(
                 source_type,
                 target_type,
-                RecursionFlags::BOTH,
+                compare_types,
                 report_errors,
                 intersection_state,
             )?;
@@ -4580,16 +4608,42 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b1bd165210931aa78c769674782d148e3fe51b01f793974e32e98f590b4f7def
     /// tsc-span: _tsc.js:59026-59043
     ///
-    /// tsc's resolvedApparentType slot and the `I{id},{id}` cachedTypes
-    /// entry are pure caches over the deterministic, interning
-    /// getTypeWithThisArgument — elided (recomputation returns the
-    /// identical type ids).
+    /// tsgo checker.go:22226-22244 caches the intersection's own
+    /// apparent type, or keys an instantiated apparent type by thisArgument.
     fn get_apparent_type_of_intersection_type(
         &mut self,
         ty: TypeId,
         this_argument: TypeId,
     ) -> CheckResult<TypeId> {
-        self.get_type_with_this_argument(ty, Some(this_argument), /*need_apparent_type*/ true)
+        if ty == this_argument {
+            if let Some(result) = self
+                .links
+                .type_cold()
+                .intersection_apparent_type
+                .get(ty)
+                .resolved()
+            {
+                return Ok(result);
+            }
+            let result = self.get_type_with_this_argument(
+                ty,
+                Some(this_argument),
+                /*need_apparent_type*/ true,
+            )?;
+            self.links.set_intersection_apparent_type(ty, result);
+            return Ok(result);
+        }
+        let key = format!("I{}", this_argument.index());
+        if let Some(&result) = self.cached_types.get(&key) {
+            return Ok(result);
+        }
+        let result = self.get_type_with_this_argument(
+            ty,
+            Some(this_argument),
+            /*need_apparent_type*/ true,
+        )?;
+        self.cached_types.insert(key, result);
+        Ok(result)
     }
 
     /// tsc-port: getReducedApparentType @6.0.3
@@ -4944,13 +4998,9 @@ impl<'a> CheckerState<'a> {
         }
         let relation = RelationKind::Assignable;
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
-        // One walker carries ALL of compareSignaturesRelated's
-        // internal compares — tsc's compareTypesAssignable enters a
-        // FRESH checkTypeRelatedTo per compare, so the complexity
-        // budget/overflow bookkeeping is shared here where tsc
-        // re-seeds it (verdict-visible only under pathological budget
-        // exhaustion; maybe stacks are empty between top-level
-        // compares either way).
+        // This frame carries the signature comparison. Its Assignable
+        // callback still enters the checker's query, matching tsgo's
+        // compareTypesAssignableWorker rather than using the ambient frame.
         let mut checker = crate::engine::RelationChecker {
             st: self,
             relation,
@@ -6621,6 +6671,7 @@ impl<'a> CheckerState<'a> {
             partial_match,
             ignore_this_types,
             ignore_return_types,
+            RelationChecker::compare_signature_identity_using_query,
         )?;
         Ok(is_true(related))
     }
@@ -8439,18 +8490,27 @@ impl<'a> CheckerState<'a> {
     ///
     /// Union/intersection index infos need member resolution for those
     /// kinds — M4 rows.
+    // Keep the full getter boundary distinct from contextual structured lookup.
+    #[inline(never)]
     pub fn get_index_infos_of_type(&mut self, ty: TypeId) -> CheckResult<Vec<IndexInfo>> {
         let reduced = self.get_reduced_apparent_type(ty)?;
-        // getIndexInfosOfStructuredType: unions and intersections
-        // resolve through their member synthesis (5.3d) like objects.
+        self.get_index_infos_of_structured_type(reduced)
+    }
+
+    /// tsgo checker.go:19394: contextual index lookup already has its
+    /// structured type, so it does not reduce or obtain an apparent type.
+    pub(crate) fn get_index_infos_of_structured_type(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult<Vec<IndexInfo>> {
         if !self
             .tables
-            .flags_of(reduced)
+            .flags_of(ty)
             .intersects(TypeFlags::STRUCTURED_TYPE)
         {
             return Ok(Vec::new());
         }
-        let members = self.resolve_structured_type_members(reduced)?;
+        let members = self.resolve_structured_type_members(ty)?;
         Ok(self.members_of(members).index_infos().to_vec())
     }
 
@@ -8470,6 +8530,15 @@ impl<'a> CheckerState<'a> {
         key_type: TypeId,
     ) -> CheckResult<Option<IndexInfo>> {
         let index_infos = self.get_index_infos_of_type(ty)?;
+        self.find_applicable_index_info(index_infos, key_type)
+    }
+
+    /// tsgo checker.go:19435, shared by full and contextual index lookup.
+    pub(crate) fn find_applicable_index_info(
+        &mut self,
+        index_infos: Vec<IndexInfo>,
+        key_type: TypeId,
+    ) -> CheckResult<Option<IndexInfo>> {
         let string = self.tables.intrinsics.string;
         let mut string_index_info: Option<IndexInfo> = None;
         let mut applicable: Vec<IndexInfo> = Vec::new();
