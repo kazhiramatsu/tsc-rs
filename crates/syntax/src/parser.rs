@@ -9890,10 +9890,16 @@ impl<'text> Parser<'text> {
         self.finish_node_list(mark, array_pos, array_end, false)
     }
 
+    /// The parser's finish of a node built from `data`. This path, down to
+    /// the record's encoding, is always inlined: at each call site the
+    /// payload's variant is known, so the child walk and the encoding fold
+    /// to that variant's arm (no jump on the variant, no call chain).
+    #[inline(always)]
     fn finish_node_data(&mut self, data: NodeData, pos: usize) -> NodeId {
         self.finish_node_with_flags(data, pos, NodeFlags::NONE)
     }
 
+    #[inline(always)]
     fn finish_node_with_flags(&mut self, data: NodeData, pos: usize, flags: NodeFlags) -> NodeId {
         let end = self.scanner.full_start_pos();
         self.alloc_and_finish(data, pos, end, flags)
@@ -9902,7 +9908,7 @@ impl<'text> Parser<'text> {
     /// tsgo finishNode for a node made from `data`: its children get it as
     /// their parent straight from the payload, before the payload is encoded
     /// into the record (no decode of the record, no second pass).
-    #[inline]
+    #[inline(always)]
     pub(crate) fn alloc_and_finish(
         &mut self,
         mut data: NodeData,

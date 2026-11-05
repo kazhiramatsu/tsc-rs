@@ -3219,6 +3219,9 @@ pub trait NodeDataChildVisitor {
     fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error;
 }
 
+/// `visitor` over the children of `data`, in forEachChild order. Always inlined:
+/// where the variant is known (the parser's finish), only its children are walked.
+#[inline(always)]
 pub fn try_visit_each_child<V>(data: &mut NodeData, visitor: &mut V) -> Result<(), V::Error>
 where
     V: NodeDataChildVisitor,
