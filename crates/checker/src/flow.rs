@@ -135,10 +135,7 @@ impl FlowQuery<'_> {
 
     #[inline]
     fn payload_node(&self, flow: FlowId) -> Option<NodeId> {
-        match self.arena.payload(flow) {
-            FlowData::Node(node) => Some(node),
-            _ => None,
-        }
+        self.flow(flow).payload_node()
     }
 
     #[inline]
@@ -274,10 +271,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn flow_payload_node(&self, file: usize, flow: FlowId) -> Option<NodeId> {
-        match self.binder.file(file).flow.payload(flow) {
-            FlowData::Node(node) => Some(node),
-            _ => None,
-        }
+        self.binder.file(file).flow.flow(flow).payload_node()
     }
 
     // ---- the entry ----
