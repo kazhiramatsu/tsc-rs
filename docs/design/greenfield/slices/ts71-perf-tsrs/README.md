@@ -1713,6 +1713,46 @@ low mode とそれより ≈ 0.9 G 高い mode に分かれる（親は low 6・
 - gate の記録：`gate-card11/VERDICTS.md`、CLI の pilot `gate-card11/cli/`
 - 計測は上の通り
 
+## parser の node の finish を全呼び出し箇所に inline し、子の walk と encode を組み立てた variant に畳む（branch `perf/ts71-inline-finish`、M8 の parse 表の 4 枚目、価格の gate を通った最初の card）
+
+parser は node の payload（`NodeData`：40 byte、約 300 variant）を、variant が分かっている呼び出し箇所で組み立てる。
+それを out-of-line の汎用関数の連鎖（`finish_node_data` → `finish_node_with_flags` → `alloc_and_finish` →
+`alloc_node` → `push_node` → `Node::encode` → `encode_payload`）で終えていたので、親の walk（`try_visit_each_child`）と
+record の encode（`encode_payload`）がそれぞれ variant でもう一度分岐していた。tsgo と tsrs は型付きの constructor で
+node を作り、どちらの分岐も払わない。
+
+**修正**：finish の経路を record の encode まで `#[inline(always)]` にした。呼び出し箇所ごとに walk と encode が組み立てた
+variant の腕だけに畳まれる。生成される関数（`Node::encode`、`encode_payload`、`try_visit_each_child`）は
+`scripts/generate_nodes.py` で属性を付けて再生成、手書きの 6 関数は直接。論理の変更はない。
+
+**gate（owner の 2026-11-05 15:25 の規則：code の前に値付け）**：
+- 実際の parser（vscode/src の parse batch、1 round 16,256,039 node、3 rep）で、`finish_node_data` 以外を inline した
+  pilot は node あたり −66.9 命令、`finish_node_data` も inline すると −92.7（差 −25.8、3 rep が ±0.1 で一致）。
+- 独立した subagent の判定（data と code を渡し、こちらの結論は渡さない）：A（件数 × 経路の値）1.07〜1.13 G、
+  B（静的な経路と両 binary の逆 assemble、tsgo・tsrs と比較）≈ 1.1 G（Identifier 88 → 29 命令、CallExpression
+  ≈ 209 → 59）、C（反証役）は「立つ」（≈ 1.0〜1.1 G、下限 ≈ 0.9 G）。
+- 予想（branch を作る前に台帳の gate 行に記入）：VS Code −1.58 G（帯 −1.2〜−1.75）。#895 の head での CLI の
+  pilot は −1.58 G。
+
+**計測**：1 thread、静かな machine（16:26〜16:29、M5 lane を止めて）、親 `d4d9d0364` 比。
+| project | 命令数 | CPU |
+|---|---:|---:|
+| VS Code | **−1.16%**（−1,550 M、9 回。今日の ≈ +0.9 G の雑音の 1 組を除く組は −1,321〜−1,598 M） | 8.45 → 8.37 s |
+| playwright | −1.23%（−156 M） | 0.74 → 0.73 s |
+| hono / ts / zod / effect | −1.06% / −0.99% / −0.87% / −0.84% | ほぼ同じ |
+| next / vue | −0.68% / −0.67% | ほぼ同じ |
+
+予想（−1.58 G）の帯の中央。footprint は ±3 MiB で不変。code は +97.7 KB。PGO の build ではこの連鎖が既に
+inline されて利得が小さい可能性があり、製品側の残る risk として記録（gate の指標は通常の build）。
+
+**記録。** PR [#896](https://github.com/kazhiramatsu/tsc-rs/pull/896) → merge `9cc53e56f`（2026-11-05。`d4d9d0364` の上、最終 head `e3ddc0073`）。hosted run
+[41987844512](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41987844512)：全 job pass。local（hosted がしないことだけ、`e3ddc0073`）：
+- `scripts/generate_nodes.py --check`、fmt、syntax の test 277（debug build の親の assert を inline した全箇所で）、clippy（`-D warnings`）、release build
+- 8 case で出力（exit code・stdout・stderr）が親と一致。Identifiers・Symbols・Types・Instantiations も 8 project とも一致
+- fingerprint oracle：main 自身の binary で `d4d9d0364` に書き直した baseline（`main-d4d9d0364.tsv`）に対して 143,190 行のうち差は 0
+- gate の記録：`gate-inline/VERDICTS.md`（pilot の値、3 つの判定、CLI の pilot）
+- 計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
