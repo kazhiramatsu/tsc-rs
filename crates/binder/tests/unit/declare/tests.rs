@@ -467,3 +467,42 @@ fn a_dropped_bind_lets_its_tree_be_bound_again() {
         .map(|(node, _)| node)
         .eq(second.node_symbol.iter().map(|(node, _)| node)));
 }
+
+#[test]
+fn node_flow_slots_keep_flows_past_two_bytes_in_the_overflow() {
+    use crate::flow::FlowId;
+    let source = parse("let a = 1;\na = 2;\na = 3;\na = 4;\n");
+    let nodes = statements(&source);
+    let mut map = NodeFlowMap::for_tree(&source.arena);
+    // Positions (index + 1) up to 0xFFFE fit a slot; 0xFFFF and above do not.
+    let small = FlowId::new(6);
+    let last_in_slot = FlowId::new(0xFFFD);
+    let first_past = FlowId::new(0xFFFE);
+    let large = FlowId::new(70_000);
+    assert_eq!(map.insert(nodes[0], small), None);
+    assert_eq!(map.insert(nodes[1], last_in_slot), None);
+    assert_eq!(map.insert(nodes[2], first_past), None);
+    assert_eq!(map.insert(nodes[3], large), None);
+    assert_eq!(map.overflow.len(), 2);
+    assert_eq!(
+        map.iter().collect::<Vec<_>>(),
+        [
+            (nodes[0], small),
+            (nodes[1], last_in_slot),
+            (nodes[2], first_past),
+            (nodes[3], large)
+        ]
+    );
+    // A replacement moves a flow between the slot and the overflow.
+    assert_eq!(map.insert(nodes[2], small), Some(first_past));
+    assert_eq!(map.insert(nodes[0], large), Some(small));
+    assert_eq!(map.get(&nodes[0]), Some(large));
+    assert_eq!(map.get(&nodes[2]), Some(small));
+    assert_eq!(map.overflow.len(), 2);
+    assert_eq!(map.remove(&nodes[0]), Some(large));
+    assert_eq!(map.remove(&nodes[3]), Some(large));
+    assert!(map.overflow.is_empty());
+    assert!(!map.contains_key(&nodes[0]));
+    assert_eq!(map.get(&nodes[1]), Some(last_in_slot));
+    assert_eq!(map.remove(&nodes[0]), None);
+}

@@ -233,7 +233,16 @@ impl<'a> CheckerState<'a> {
     /// tsc `reference.flowNode` (the canHaveFlowNode side table).
     /// tsrs-native: binder node_flow side-table read.
     pub(crate) fn flow_node_of(&self, node: NodeId) -> Option<FlowId> {
-        tsc_binder::published_node_flow(node)
+        tsc_binder::published_node_flow(node).unwrap_or_else(|_| self.overflow_flow_node_of(node))
+    }
+
+    /// The flow node of a node whose slot sends the read to its file's
+    /// overflow (a file with 65,535 flow nodes or more).
+    #[cold]
+    #[inline(never)]
+    fn overflow_flow_node_of(&self, node: NodeId) -> Option<FlowId> {
+        let file = self.binder.try_file_index_of_node(node)?;
+        self.binder.file(file).node_flow.get(&node)
     }
 
     /// tsrs-native: per-file FlowArena flags read.

@@ -409,7 +409,10 @@ fn assignment_creates_flow_mutation_and_stamps_references() {
     // The trailing reference's flowNode is the Assignment node.
     let identifiers = find_nodes(&source, SyntaxKind::Identifier);
     let last_x = *identifiers.last().unwrap();
-    let flow = binder.node_flow[&last_x];
+    let flow = binder
+        .node_flow
+        .get(&last_x)
+        .expect("x carries a flow node");
     assert!(flow_flags(&binder, flow).intersects(tsc_types::FlowFlags::ASSIGNMENT));
 }
 
