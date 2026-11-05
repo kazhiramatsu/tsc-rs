@@ -222,6 +222,7 @@ impl EscapedNameSet {
     pub fn insert(&mut self, name: EscapedName) -> bool {
         self.0.insert(name)
     }
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn contains(&self, name: impl NameKey) -> bool {
         self.0.contains(&name.name())
     }
@@ -279,26 +280,31 @@ impl SymbolTable {
         }
     }
 
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn get(&self, key: impl NameKey) -> Option<&SymbolId> {
         let map = self.0.as_deref()?;
         let position = map.position(key.name())?;
         Some(&map.entries[position].1)
     }
 
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn get_mut(&mut self, key: impl NameKey) -> Option<&mut SymbolId> {
         let map = self.0.as_deref_mut()?;
         let position = map.position(key.name())?;
         Some(&mut map.entries[position].1)
     }
 
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn contains_key(&self, key: impl NameKey) -> bool {
         self.get(key).is_some()
     }
 
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn shift_remove(&mut self, key: impl NameKey) -> Option<SymbolId> {
         self.0.as_deref_mut()?.shift_remove(key.name())
     }
 
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn get_full(&self, key: impl NameKey) -> Option<(usize, &EscapedName, &SymbolId)> {
         let map = self.0.as_deref()?;
         let position = map.position(key.name())?;
@@ -390,6 +396,7 @@ impl<'a> IntoIterator for &'a mut SymbolTable {
 
 impl<Q: NameKey> std::ops::Index<Q> for SymbolTable {
     type Output = SymbolId;
+    #[cfg_attr(feature = "perf-counters", track_caller)]
     fn index(&self, key: Q) -> &Self::Output {
         self.get(key).expect("symbol table key exists")
     }
