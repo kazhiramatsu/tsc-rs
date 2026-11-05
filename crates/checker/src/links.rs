@@ -543,7 +543,7 @@ pub struct SymbolLinksCold {
     pub extended_containers: SparseLinks<SymbolId, Option<Vec<Vec<SymbolId>>>>,
     /// tsc SymbolLinks.referenced (markAliasSymbolAsReferenced 71930)
     /// — alias accessibility/emit bookkeeping. This is deliberately
-    /// distinct from Symbol.isReferenced ([`SymbolLinks::is_referenced`]):
+    /// distinct from Symbol.isReferenced ([`LinksTables::symbol_is_referenced`]):
     /// unused locals consume the latter, while alias visibility consumers
     /// read this bit.
     pub alias_referenced: SparseLinks<SymbolId, bool>,
@@ -1077,8 +1077,12 @@ impl LinksTables {
             self.transient_symbols.len() * std::mem::size_of::<SymbolLinks>()
                 + self.transient_declared_types.capacity()
                     * (std::mem::size_of::<(u32, IdSlot<TypeId>)>() + 1)
+                    * 8
+                    / 7
                 + self.transient_is_referenced.capacity()
-                    * (std::mem::size_of::<(u32, tsc_types::SymbolFlags)>() + 1),
+                    * (std::mem::size_of::<(u32, tsc_types::SymbolFlags)>() + 1)
+                    * 8
+                    / 7,
         );
         let ty = self.ty.memory_usage();
         let node_cold = self.node_cold.memory_usage();
@@ -1507,6 +1511,9 @@ impl LinksTables {
     #[inline]
     fn symbol_declared_type_mut(&mut self, id: SymbolId) -> &mut IdSlot<TypeId> {
         if let Some(index) = transient_index(id) {
+            // The record exists for every written transient symbol, as before
+            // these fields left it (the trace counts records).
+            self.transient_symbol_mut(id);
             self.transient_declared_types
                 .entry(index as u32)
                 .or_default()
@@ -1535,6 +1542,7 @@ impl LinksTables {
     #[inline]
     fn symbol_is_referenced_mut(&mut self, id: SymbolId) -> &mut tsc_types::SymbolFlags {
         if let Some(index) = transient_index(id) {
+            self.transient_symbol_mut(id);
             self.transient_is_referenced
                 .entry(index as u32)
                 .or_default()
