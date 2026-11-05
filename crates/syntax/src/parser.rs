@@ -6186,8 +6186,7 @@ impl<'text> Parser<'text> {
         let mut expression = self.parse_token_node();
         if self.token() == SyntaxKind::LessThanToken {
             let start_pos = self.node_pos();
-            let type_arguments =
-                self.try_parse(|parser| parser.try_parse_type_arguments_in_expression());
+            let type_arguments = self.try_parse_type_arguments_in_expression();
             if let Some(type_arguments) = type_arguments {
                 let end = self.node_pos();
                 self.parse_error_at(start_pos, end, &gen::super_may_not_use_type_arguments, &[]);
@@ -6678,15 +6677,23 @@ impl<'text> Parser<'text> {
         arguments
     }
 
+    /// tsgo tryParseTypeArgumentsInExpression (parser.go:5332): the cheap
+    /// preconditions come before the parser state is saved. Type arguments
+    /// never parse in a JavaScript file, and unless the token is `<` (or
+    /// `<<`, which the rescan splits) there is nothing to try.
     fn try_parse_type_arguments_in_expression(&mut self) -> Option<crate::NodeArrayId> {
+        if self.javascript_file
+            || !matches!(
+                self.token(),
+                SyntaxKind::LessThanToken | SyntaxKind::LessThanLessThanToken
+            )
+        {
+            return None;
+        }
         self.try_parse(|parser| parser.parse_type_arguments_in_expression())
     }
 
     fn parse_type_arguments_in_expression(&mut self) -> Option<crate::NodeArrayId> {
-        // tsc: type arguments in expressions never parse in JavaScript files.
-        if self.javascript_file {
-            return None;
-        }
         if self.scanner.re_scan_less_than_token() != SyntaxKind::LessThanToken {
             return None;
         }

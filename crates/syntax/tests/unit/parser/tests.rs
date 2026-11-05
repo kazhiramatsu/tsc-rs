@@ -2081,6 +2081,53 @@ fn parse_relational_chain_not_type_arguments() {
     assert_eq!(less_operator, SyntaxKind::LessThanToken);
 }
 
+/// tsgo tryParseTypeArgumentsInExpression (parser.go:5332) tries type
+/// arguments in an expression only on `<`, or on `<<`, which its rescan
+/// splits, and never in a JavaScript file. The trees are tsgo's.
+#[test]
+fn type_arguments_in_an_expression_are_tried_on_less_than_outside_javascript() {
+    let type_argument_kinds = |file: &str, text: &str, script_kind: ScriptKind| {
+        let source = parse_source_file(
+            file.into(),
+            text.to_owned(),
+            ParseOptions {
+                script_kind,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert!(source.parse_diagnostics.is_empty(), "{text}");
+        let expression = expression_statements(&source)[0];
+        match source.arena.node(expression).data() {
+            NodeData::CallExpression(call) => Some(
+                source
+                    .arena
+                    .node_array(call.type_arguments.expect("type arguments"))
+                    .nodes
+                    .iter()
+                    .map(|&argument| source.arena.node(argument).kind)
+                    .collect::<Vec<_>>(),
+            ),
+            // Not a call: a relational chain.
+            _ => None,
+        }
+    };
+    // `<<` is split: a generic function type is the call's type argument.
+    assert_eq!(
+        type_argument_kinds("a.ts", "f<<T>(x: T) => T>(g);", ScriptKind::Ts),
+        Some(vec![SyntaxKind::FunctionType])
+    );
+    assert_eq!(
+        type_argument_kinds("a.ts", "f<string>(g);", ScriptKind::Ts),
+        Some(vec![SyntaxKind::StringKeyword])
+    );
+    // A JavaScript file has no type arguments: `(f < string) > (g)`.
+    assert_eq!(
+        type_argument_kinds("a.js", "f<string>(g);", ScriptKind::Js),
+        None
+    );
+}
+
 #[test]
 fn parse_as_satisfies_and_type_assertion() {
     let source = parse_source_file(
