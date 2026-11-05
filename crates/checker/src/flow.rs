@@ -240,6 +240,21 @@ impl<'a> CheckerState<'a> {
         self.binder.file(file).node_flow.get(&node).copied()
     }
 
+    /// tsc `node.flowNode` with the index of the file whose flow graph
+    /// holds it: a reader that walks the flow looks the file up once.
+    #[inline(never)]
+    pub(crate) fn flow_node_with_file(&self, node: NodeId) -> Option<(usize, FlowId)> {
+        let file = self.binder.try_file_index_of_node(node)?;
+        let flow = *self.binder.file(file).node_flow.get(&node)?;
+        Some((file, flow))
+    }
+
+    /// tsc `node.flowNode` in the flow graph of `file`, the file of `node`.
+    #[inline(never)]
+    pub(crate) fn flow_node_in_file(&self, file: usize, node: NodeId) -> Option<FlowId> {
+        self.binder.file(file).node_flow.get(&node).copied()
+    }
+
     /// tsrs-native: per-file FlowArena flags read.
     pub(crate) fn flow_flags_of(&self, file: usize, flow: FlowId) -> FlowFlags {
         self.binder.file(file).flow.flow(flow).flags
@@ -320,8 +335,8 @@ impl<'a> CheckerState<'a> {
         flow_container: Option<NodeId>,
         flow_location: NodeId,
     ) -> CheckResult<TypeId> {
-        let flow_node = self.flow_node_of(flow_location);
         let flow_file = self.binder.file_index_of_node(flow_location);
+        let flow_node = self.flow_node_in_file(flow_file, flow_location);
         self.get_flow_type_of_reference_full(
             reference,
             None,
@@ -2928,8 +2943,8 @@ impl<'a> CheckerState<'a> {
         let Some((base, props)) = self.synthetic_element_access_chain(node)? else {
             return Ok(declared_type);
         };
-        let flow_node = self.flow_node_of(base);
         let flow_file = self.binder.file_index_of_node(base);
+        let flow_node = self.flow_node_in_file(flow_file, base);
         self.get_flow_type_of_reference_full(
             base,
             Some(props),

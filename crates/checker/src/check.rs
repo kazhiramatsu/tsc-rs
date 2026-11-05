@@ -1897,8 +1897,7 @@ impl<'a> CheckerState<'a> {
                 _ => true,
             });
         }
-        if let Some(flow) = self.flow_node_of(node) {
-            let file = self.binder.file_index_of_node(node);
+        if let Some((file, flow)) = self.flow_node_with_file(node) {
             return Ok(!self.is_reachable_flow_node(file, flow)?);
         }
         Ok(false)

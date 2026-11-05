@@ -2402,8 +2402,7 @@ impl<'a> CheckerState<'a> {
             .is_some()
             && !self.class_declaration_extends_null(containing_class_declaration)?
         {
-            if let Some(flow) = self.flow_node_of(node) {
-                let file = self.binder.file_index_of_node(node);
+            if let Some((file, flow)) = self.flow_node_with_file(node) {
                 if !self.is_post_super_flow_node(file, flow, false) {
                     self.error_at(Some(node), diagnostic_message, &[]);
                 }
