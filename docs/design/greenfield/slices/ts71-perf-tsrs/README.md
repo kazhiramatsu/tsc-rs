@@ -1799,6 +1799,50 @@ report と比べて 15,339 の構成すべてが同じ。
 - gate の記録：`textkey/VERDICTS.md`
 - 計測は上の通り
 
+## binder の node ごとの helper を inline し、bindChildren は Unreachable を消さない（tsgo）（branch `perf/ts71-bind-inline`、gate を通った 4 枚目、bind 表の 1 枚目）
+
+binder は node ごとに小さな helper（`get_container_flags`、`is_potentially_executable_node`、`is_narrowable_reference`）を、
+宣言ごとに修飾子と名前の helper と `get_assignment_declaration_kind` を呼ぶ。どれも node の id を受け取り、record を引き直し
+（id から index、bounds check）、kind で分岐していた（呼び出しの向こうで）。これを `#[inline(always)]` にし、呼び出し元が
+読んだ kind で分岐するようにした。
+
+また bindChildren は tsc 6.0.3 と同じく、実行されうる node を bind する前に Unreachable を毎回消していた。tsgo の
+bindChildren（binder.go:1645-1660）は到達しない node にこの flag を立てるだけ。binder の flag の overlay は bind のたびに
+parse の flag から作り直され（`BinderNodeFlags::new`）、Unreachable を立てるのは binder だけなので、消すことは何もしない
+仕事だった。これと helper の呼び出しを除いた。test で、`function f() { a(); return; b(); }` の到達しない文だけが flag を持つ
+こと（同じ木の 1 回目と 2 回目の bind で）を固定した。
+
+**gate**：
+- bind batch（vscode/src の 1 つおきの file を binder に通す：4,741 file、8,493,068 node。基準は node あたり 645 命令/round、
+  CLI の 546 に近い）：9 つの helper の inline で node あたり −28.3〜−28.7（low mode の基準 run と pilot の全 run）。
+  さらに 8 つを inline した v2 は効果なし（`declare_symbol` に押し込むと別の helper が out of line に戻った）。clear を
+  除くと −12（−15.6 / −11.9 / −12.2、pilot の run の差は 25 M）。
+- inline への独立した判定：A 0.48 G（0.40〜0.55）、B 0.48 G（0.37〜0.53。tsgo の bindChildren との違いは B が見つけた）、
+  C（反証役）は「立つ」（0.41〜0.49 G、下限 0.36、CLI の決着の基準つき）。
+- 予想（branch の前に台帳へ）：VS Code −0.59〜−0.70 G（帯 −0.50〜−0.75）。CLI の pilot（main `1cdae0b1b` の上、9 回）：
+  low mode −706 M（−0.53%）、同じ mode の組 −542〜−725 M。C の基準をすべて満たした。
+
+**計測**：1 thread、静かな machine（19:38〜19:42）、親 `9037c4ba9` 比。VS Code は 9 回（親は low 9・high 0、この PR は
+low 8・high 1。`perf11/modes.py`）。
+| project | 命令数 |
+|---|---:|
+| VS Code | **−0.53%**（low mode の median −703 M。同じ mode の組 −671〜−730 M の 8 組） |
+| playwright / hono / zod | −0.72% / −0.69% / −0.52% |
+| effect / ts / vue / next | −0.44% / −0.44% / −0.37% / −0.36% |
+
+予想の帯の上端で、CLI の pilot（−706 M）と一致。CPU は同じ、footprint は ±4 MiB。checker も使う helper なので、4 checker
+の conformance も回した：前回の report と比べて 15,339 の構成すべてが同じ。
+
+**記録。** PR [#900](https://github.com/kazhiramatsu/tsc-rs/pull/900) → merge `a2bc727f0`（2026-11-05。`9037c4ba9` の上、最終 head `4dc1f8956`）。hosted run
+[42012925586](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42012925586)：全 job pass。local（hosted がしないことだけ、`4dc1f8956`）：
+- unit test（`a(); return; b();` で到達しない文だけが Unreachable を持つ：同じ木の 1 回目と 2 回目の bind）
+- binder の test 81、checker の test 1,873、fmt、clippy（`-D warnings`）、release build
+- 8 case で出力（exit code・stdout・stderr）が親と一致。Identifiers・Symbols・Types・Instantiations も 8 project とも一致
+- fingerprint oracle：`main-d4d9d0364.tsv` に対して 143,190 行のうち差は 0（bind の hash は node の binder flag を含む）
+- conformance（4 checker）：前回の report に対して 15,339 の構成すべてが同じ
+- gate の記録：`gate-bind/VERDICTS.md`
+- 計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
