@@ -1073,7 +1073,19 @@ impl NodeArena {
         }
     }
 
+    /// `child`'s parent is `parent`: one bounds check covers an id of
+    /// another arena (below the base it wraps out of range).
+    #[inline]
+    fn set_parent(&mut self, child: NodeId, parent: NodeId) {
+        let index = child.index().wrapping_sub(self.node_base) as usize;
+        self.nodes
+            .get_mut(index)
+            .expect("a child of this arena")
+            .parent = Some(parent);
+    }
+
     /// The id the next allocated node gets.
+    #[inline]
     pub(crate) fn next_node_id(&self) -> NodeId {
         let offset = u32::try_from(self.nodes.len()).expect("node arena length exceeds u32");
         NodeId::new(
@@ -1087,6 +1099,7 @@ impl NodeArena {
     /// `parent` from `data`: each child named by the payload (forEachChild's
     /// children, lists item by item) gets `parent`, read from the payload
     /// itself rather than from the stored record.
+    #[inline]
     pub(crate) fn attach_children_of_data(&mut self, parent: NodeId, data: &mut NodeData) {
         struct Attach<'a> {
             arena: &'a mut NodeArena,
@@ -1100,19 +1113,20 @@ impl NodeArena {
                 self.arena.node(id).kind
             }
 
+            #[inline]
             fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
-                let index = self.arena.node_index(id);
-                self.arena.nodes[index].parent = Some(self.parent);
+                self.arena.set_parent(id, self.parent);
                 Ok(Some(id))
             }
 
+            #[inline]
             fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
                 let items = self
                     .arena
                     .item_range(&self.arena.arrays[self.arena.array_index(id)]);
                 for item in items {
-                    let index = self.arena.node_index(self.arena.array_items[item]);
-                    self.arena.nodes[index].parent = Some(self.parent);
+                    self.arena
+                        .set_parent(self.arena.array_items[item], self.parent);
                 }
                 Ok(Some(id))
             }

@@ -10049,6 +10049,7 @@ impl<'text> Parser<'text> {
     /// tsgo finishNode for a node made from `data`: its children get it as
     /// their parent straight from the payload, before the payload is encoded
     /// into the record (no decode of the record, no second pass).
+    #[inline]
     pub(crate) fn alloc_and_finish(
         &mut self,
         mut data: NodeData,
@@ -10343,6 +10344,7 @@ impl<'text> Parser<'text> {
 
     /// finishNode's own part: the position, the context flags, the error
     /// mark and the JSDoc candidacy. Returns the node's kind.
+    #[inline]
     fn finish_node_fields(&mut self, id: NodeId, pos: usize, end: usize) -> SyntaxKind {
         let (is_jsdoc_candidate, kind) = {
             let node = self.arena.node_mut(id);
