@@ -272,7 +272,7 @@ impl BindData {
             next_container: binder.next_container.clone(),
             node_flags_mut: binder.node_flags_mut.clone(),
             pattern_ambient_modules: binder.pattern_ambient_modules.clone(),
-            flow: binder.flow.clone(),
+            flow: binder.flow.frozen(),
             unreachable_flow: binder.unreachable_flow,
             node_flow: binder.node_flow.clone(),
             node_end_flow: binder.node_end_flow.clone(),
@@ -348,7 +348,7 @@ impl<'a> BinderWorker<'a> {
                     .expect("a published tree is bound once at a time")
             }),
         };
-        let mut flow = crate::flow::FlowArena::default();
+        let mut flow = crate::flow::FlowArena::for_bind();
         // tsc createBinder: unreachableFlow is allocated once up front.
         let unreachable_flow = flow.create_flow_node(
             tsc_types::FlowFlags::UNREACHABLE,
@@ -1584,7 +1584,8 @@ impl BinderWorker<'_> {
             tree_claim,
         } = self;
         let mut flow = flow;
-        flow.shrink_to_fit();
+        flow.freeze();
+        flow.rehome();
         BindData {
             common_js_module_indicator,
             symbols,
