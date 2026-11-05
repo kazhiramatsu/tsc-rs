@@ -272,7 +272,7 @@ impl BindData {
             next_container: binder.next_container.clone(),
             node_flags_mut: binder.node_flags_mut.clone(),
             pattern_ambient_modules: binder.pattern_ambient_modules.clone(),
-            flow: binder.flow.clone(),
+            flow: binder.flow.frozen(),
             unreachable_flow: binder.unreachable_flow,
             node_flow: binder.node_flow.clone(),
             node_end_flow: binder.node_end_flow.clone(),
@@ -1584,7 +1584,7 @@ impl BinderWorker<'_> {
             tree_claim,
         } = self;
         let mut flow = flow;
-        flow.shrink_to_fit();
+        flow.freeze();
         BindData {
             common_js_module_indicator,
             symbols,
