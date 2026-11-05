@@ -164,6 +164,18 @@ fn reserve() {
 
 /// Observation (never merged): per region, the dropped ranges' count, the
 /// bytes zeroed in place and the bytes returned by page resets.
+/// Observation (never merged): private list mappings (`system::map`) alive
+/// now and at most, with their count.
+static MAPPED: [std::sync::atomic::AtomicI64; 4] = [const { std::sync::atomic::AtomicI64::new(0) }; 4];
+
+pub(crate) fn note_map(bytes: usize, sign: i64) {
+    use std::sync::atomic::Ordering::Relaxed;
+    let now = MAPPED[0].fetch_add(sign * bytes as i64, Relaxed) + sign * bytes as i64;
+    MAPPED[1].fetch_max(now, Relaxed);
+    let count = MAPPED[2].fetch_add(sign, Relaxed) + sign;
+    MAPPED[3].fetch_max(count, Relaxed);
+}
+
 static SCRUBS: [[std::sync::atomic::AtomicU64; 3]; REGIONS] =
     [const { [const { std::sync::atomic::AtomicU64::new(0) }; 3] }; REGIONS];
 
@@ -183,6 +195,13 @@ fn note_scrub(start: usize, in_place: usize, reset: usize) {
 pub fn store_report() -> String {
     use std::sync::atomic::Ordering::Relaxed;
     let mut report = String::new();
+    report.push_str(&format!(
+        "private mappings: live_mib {:.1} max_live_mib {:.1} live_count {} max_count {}\n",
+        MAPPED[0].load(Relaxed) as f64 / 1048576.0,
+        MAPPED[1].load(Relaxed) as f64 / 1048576.0,
+        MAPPED[2].load(Relaxed),
+        MAPPED[3].load(Relaxed),
+    ));
     if !reserved() {
         return report;
     }
@@ -272,6 +291,7 @@ mod system {
 
     /// A private mapping of `bytes`, anywhere.
     pub(super) fn map(bytes: usize) -> *mut u8 {
+        super::note_map(bytes, 1);
         // SAFETY: an anonymous private mapping with no placement request.
         let mapped = unsafe {
             libc::mmap(
@@ -293,6 +313,7 @@ mod system {
 
     /// Release a mapping made by [`map`].
     pub(super) fn unmap(start: *mut u8, bytes: usize) {
+        super::note_map(bytes, -1);
         // SAFETY: the mapping was made by `map` with these bounds and is not
         // used past this point.
         let failed = unsafe { libc::munmap(start.cast(), bytes) } != 0;
