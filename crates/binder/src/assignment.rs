@@ -36,6 +36,7 @@ pub enum AssignmentDeclarationKind {
 /// where `E` is an entity name expression (in JavaScript `this` and
 /// literal element accesses count). A JavaScript `Object.defineProperty`
 /// call with a bindable target. tsc 6.0's `void 0` exclusion is gone.
+#[inline(always)]
 pub fn get_assignment_declaration_kind(
     tree: &impl NodeLookup,
     expr: NodeId,

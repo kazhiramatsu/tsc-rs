@@ -67,6 +67,10 @@ impl ModuleInstanceState {
 /// tsc-hash: 762f60f62494f6fa1a80f5b3464b7c4bc552f5cda69ebddff47c8847eaed9a81
 /// tsc-span: _tsc.js:45143-45201
 ///
+/// Always inlined, as the other per-node helpers the binder calls (in
+/// `node_util`): the caller has read the node's kind, so the match runs on
+/// it with no second lookup and no call.
+#[inline(always)]
 pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags {
     match kind_of(source, node) {
         SyntaxKind::ClassExpression

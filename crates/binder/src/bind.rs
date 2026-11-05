@@ -2101,13 +2101,10 @@ impl<'a> BinderWorker<'a> {
     pub(crate) fn bind_children(&mut self, node: NodeId) {
         let save_in_assignment_pattern = self.in_assignment_pattern;
         self.in_assignment_pattern = false;
-        if is_potentially_executable_node(self.source, node) {
-            let flags = self.flags_of(node);
-            self.set_flags_of(
-                node,
-                NodeFlags::from_bits(flags.bits() & !NodeFlags::UNREACHABLE.bits()),
-            );
-        }
+        // tsgo bindChildren (binder.go:1645-1660) sets Unreachable on an
+        // unreachable potentially-executable node and never clears it: the
+        // flag overlay starts from the parse flags on every bind
+        // (`BinderNodeFlags::new`), so no node arrives with it set.
         let current_flow = self.current_flow.expect("bindChildren runs under a flow");
         if current_flow == self.unreachable_flow {
             if can_have_flow_node(self.source, node) {
