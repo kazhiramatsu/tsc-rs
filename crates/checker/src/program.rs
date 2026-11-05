@@ -801,6 +801,17 @@ impl NodeSymbolIndex {
             .iter()
             .map(|owner| u64::from(owner.end - owner.start))
             .sum();
+        if std::env::var_os("TSRS_NODE_SYMBOLS_DEBUG").is_some() {
+            eprintln!(
+                "[node_symbols] owners {} first id {} last end {} nodes {} words {} sparse {}",
+                owners.len(),
+                first.start,
+                last.end,
+                nodes,
+                word_count,
+                word_count as u64 > nodes / 32 + (1 << 16)
+            );
+        }
         if word_count as u64 > nodes / 32 + (1 << 16) {
             return Self::default();
         }
@@ -1491,6 +1502,17 @@ impl<'a> ProgramBinder<'a> {
     #[cold]
     #[inline(never)]
     fn node_symbol_of_file(&self, node: NodeId) -> Option<SymbolId> {
+        static COLD: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let cold = COLD.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if cold.is_power_of_two() && std::env::var_os("TSRS_NODE_SYMBOLS_DEBUG").is_some() {
+            eprintln!(
+                "[node_symbols] cold read {} node {} index words {} first word {}",
+                cold + 1,
+                node.index(),
+                self.node_symbols.words.len(),
+                self.node_symbols.first_word
+            );
+        }
         let file = self.try_file_index_of_node(node)?;
         self.file_entries[file]
             .data()
