@@ -1029,6 +1029,43 @@ code `ed001ed92`（`m5main`）、本 PR = `5088a7078`（`ls1`））：VS Code 14
 しないことだけ、`5088a7078`）：syntax の test 271、fmt・clippy・4 つの生成器の `--check`、fingerprint 143,190 行 差分 0、8 case で出力が main と
 一致（checker は変えていないので `--checkers 4` はなし）、計測は上の通り。
 
+## tsgo 7.1 の async arrow の先読みと Identifiers の数え方、先読みの巻き戻しと comment directive（branch `perf/ts71-async-lookahead`）
+
+`--extendedDiagnostics` の `Identifiers` を tsgo（`aa814927`）と file ごとに比べて見つけた、7.1 の parser の振る舞いの 2 つの取り残し。
+どちらも tree は変えない。
+
+1. **async arrow の先読み**：tsgo の `nextIsUnParenthesizedAsyncArrowFunction`（parser.go:4594）は token だけを見る（`async`・
+   識別子・`=>` が同じ行）。6.0.3 の先読みは `async` の後ろの二項式を丸ごと parse していたので、`async function …` 式の本体を毎回
+   2 度 parse していた（hono の `method-override/index.ts` は識別子を 441 個作って tree に残るのは 241、tsgo は 254）。同じ commit で
+   tsgo の `parseElementAccessExpressionRest`（parser.go:5527）が引数の前に作って捨てる missing identifier を数に入れる（node は
+   作らない）。8 project のうち 7 で `Identifiers` が tsgo と一致し、effect だけ 293 少ない（7.1 の top-level await の印
+   `statementHasAwaitIdentifier`・`possibleAwaitSpans` が未移植。M2 の監査に入れた）。
+2. **巻き戻した先読みの comment directive**：tsgo の `ScannerState` は comment directive を持つので、巻き戻した先読みが読んだ
+   `// @ts-ignore` / `// @ts-expect-error` は残らない。`ScannerState` に directive の数を持たせ、restore で切る。以前は失敗した
+   括弧付き arrow の試行などで 1 つの directive が 2 回並んでいた（fingerprint の 40 input・41 個。tree は同一）。
+
+**計測**：1 thread、通常 build、静かな machine（M0 の窓、06:58〜）。`serial.py` の warm-up 1 回 + 交互 3 回の中央値。main の code
+（`m5main`）対この branch（`al2`）。生の行は `asynclookahead/serial.jsonl`。
+
+| project | 命令数 | 備考 |
+|---|---:|---|
+| VS Code | **−0.10%**（141.99 → 141.84 G、−0.15 G） | 3 回とも減る（−0.06〜−0.15%）。peak footprint 3,587 → 3,560 MB（−27） |
+| hono | −0.16%（2.84 G） | 3 回とも −0.16% |
+| 他の 6 project | +0.00〜+0.13% | noise の幅（playwright の +0.13% は 1 回だけの +0.17% による） |
+
+VS Code 以外の peak footprint は ±4 MB 以内。exit code と出力の大きさは 8 case とも同じ。
+
+**予想との差**：予想は VS Code −0.2〜−0.5 G（−0.15〜−0.35%）で、0.5〜0.8 M の node が 2 度 parse されなくなるという見積もり
+だった。実測の −0.15 G は帯の下に外れた。予想と同じ node あたりの命令数（0.4〜0.6 K）なら 0.24〜0.37 M node 分にあたる。VS Code の
+Identifiers は 77,967 減った（5,945,718 → 5,867,751、tsgo と同じ）。2 度目の parse は見積もりより小さかった。hono が他より大きく
+減るという予想は当たった。この slice の価値は fidelity にある（Identifiers が 7 project で tsgo と一致し、directive の重複が消える）。
+計測では命令数の増加はなく、VS Code はわずかに減る。
+
+**記録。** PR [#883](https://github.com/kazhiramatsu/tsc-rs/pull/883) → merge `55f65b0b6`（2026-11-05。`80849312f`・`cecdb2fa8`、最終 head `5823e1f1c`）。
+hosted run [41932861516](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41932861516)：全 job pass。local（hosted がしないことだけ、`cecdb2fa8`）：
+syntax の test 270、fmt・clippy・4 つの生成器の `--check`、fingerprint は 40 input・80 行が差分で全部が directive の重複の削除（tree の
+dump は同一）、8 case で出力が main と一致、`Identifiers` は 7 project で tsgo と一致、計測は上の通り。
+
 ## checker の data 層の書き直し（利用者の決定 2026-11-04）
 
 計測台帳の結果（front end と memo では VS Code の差が縮まらず、差は checker の 1 操作の費用と record の形にある）を受けて、利用者が
