@@ -530,10 +530,9 @@ impl SymbolArena {
     }
 
     /// Attach a lease reserved before binding: it starts at the arena base
-    /// and may run past the allocated count (an over-approximation leased
-    /// from the file's node count). `Ok(false)` reports an arena that
-    /// outgrew its reservation and must relocate instead; nothing is
-    /// attached in that case.
+    /// and may run past the allocated count (leased from the parser's symbol
+    /// bound). `Ok(false)` reports an arena that outgrew its reservation and
+    /// must relocate instead; nothing is attached in that case.
     pub(crate) fn attach_reserved_identity_lease(
         &mut self,
         lease: IdentityLease,

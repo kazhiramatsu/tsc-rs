@@ -2773,6 +2773,7 @@ impl<'text> Parser<'text> {
             Some(&gen::or_expected),
         );
         self.set_await_context(saved_await_context);
+        self.count_export_twins(modifiers, 1);
         self.finish_node_data(
             NodeData::FunctionDeclaration(FunctionDeclarationData {
                 modifiers,
@@ -3046,6 +3047,9 @@ impl<'text> Parser<'text> {
         if self.modifiers_contain(modifiers, SyntaxKind::DeclareKeyword) {
             self.statement_has_await_identifier = saved_has_await_identifier;
         }
+        if is_declaration {
+            self.count_export_twins(modifiers, 1);
+        }
         let data = if is_declaration {
             NodeData::ClassDeclaration(ClassDeclarationData {
                 modifiers,
@@ -3150,6 +3154,7 @@ impl<'text> Parser<'text> {
         let type_parameters = self.parse_type_parameters();
         let heritage_clauses = self.parse_heritage_clauses();
         let members = self.parse_object_type_members();
+        self.count_export_twins(modifiers, 1);
         self.finish_node_data(
             NodeData::InterfaceDeclaration(InterfaceDeclarationData {
                 modifiers,
@@ -3183,6 +3188,7 @@ impl<'text> Parser<'text> {
             self.parse_type()
         };
         self.parse_semicolon();
+        self.count_export_twins(modifiers, 1);
         self.finish_node_data(
             NodeData::TypeAliasDeclaration(TypeAliasDeclarationData {
                 modifiers,
@@ -3235,6 +3241,7 @@ impl<'text> Parser<'text> {
             self.arena.missing_array(self.node_pos())
         };
         self.statement_has_await_identifier = saved_has_await_identifier;
+        self.count_export_twins(modifiers, 1);
         self.finish_node_data(
             NodeData::EnumDeclaration(EnumDeclarationData {
                 modifiers,
@@ -3288,6 +3295,13 @@ impl<'text> Parser<'text> {
             self.parse_module_block()
         };
         self.statement_has_await_identifier = saved_has_await_identifier;
+        // The inner names of `namespace a.b` are exported
+        // (getSyntacticModifierFlagsNoCache).
+        if flags.intersects(NodeFlags::NESTED_NAMESPACE) {
+            self.arena.add_symbol_bound(1);
+        } else {
+            self.count_export_twins(modifiers, 1);
+        }
         self.finish_node_with_flags(
             NodeData::ModuleDeclaration(ModuleDeclarationData {
                 modifiers,
@@ -3325,6 +3339,7 @@ impl<'text> Parser<'text> {
             None
         };
         self.statement_has_await_identifier = saved_has_await_identifier;
+        self.count_export_twins(modifiers, 1);
         self.finish_node_with_flags(
             NodeData::ModuleDeclaration(ModuleDeclarationData {
                 modifiers,
@@ -4376,6 +4391,25 @@ impl<'text> Parser<'text> {
     ) -> NodeId {
         let declaration_list = self.parse_variable_declaration_list(false);
         self.parse_semicolon();
+        if self.may_bind_export_twins(modifiers) {
+            let names = match self.arena.node(declaration_list).data() {
+                NodeData::VariableDeclarationList(data) => data.declarations.map_or(0, |list| {
+                    self.arena
+                        .node_array(list)
+                        .nodes
+                        .iter()
+                        .map(|&declaration| match self.arena.node(declaration).data() {
+                            NodeData::VariableDeclaration(data) => {
+                                data.name.map_or(0, |name| self.declared_names(name))
+                            }
+                            _ => 0,
+                        })
+                        .sum()
+                }),
+                _ => 0,
+            };
+            self.arena.add_symbol_bound(names);
+        }
         self.finish_node_data(
             NodeData::VariableStatement(VariableStatementData {
                 modifiers,
@@ -4666,6 +4700,14 @@ impl<'text> Parser<'text> {
         if is_left_hand_side_expression_kind(self.arena.node(expr).kind)
             && is_assignment_operator(self.scanner.re_scan_greater_token())
         {
+            // `f.a = …` may declare an expando member of `f` (a JavaScript
+            // file counts every assignment already).
+            if self.token() == SyntaxKind::EqualsToken
+                && !self.javascript_file
+                && self.is_entity_member_access(expr)
+            {
+                self.arena.add_symbol_bound(1);
+            }
             let operator_token = self.parse_token_node();
             let right =
                 self.parse_assignment_expression_or_higher(allow_return_type_in_arrow_function);
@@ -7262,6 +7304,90 @@ impl<'text> Parser<'text> {
         modifiers.is_some_and(|list| self.arena.node_array(list).modifier_flags.intersects(flag))
     }
 
+    /// Count the export twins of `names` declared names for the arena's
+    /// symbol bound. The binder gives a module member a local symbol and an
+    /// export symbol (declareModuleMember) when the declaration is exported
+    /// or its container is an export context, which only an ambient
+    /// declaration's container can be; one more than the declaration kind's
+    /// weight.
+    fn count_export_twins(&mut self, modifiers: Option<crate::NodeArrayId>, names: u32) {
+        if self.may_bind_export_twins(modifiers) {
+            self.arena.add_symbol_bound(names);
+        }
+    }
+
+    fn may_bind_export_twins(&self, modifiers: Option<crate::NodeArrayId>) -> bool {
+        self.context_flags.intersects(NodeFlags::AMBIENT)
+            || self.modifiers_contain(modifiers, SyntaxKind::ExportKeyword)
+    }
+
+    /// The names `name` declares: itself, or each name of a binding
+    /// pattern's elements (an exported destructuring declares each as a
+    /// module member).
+    fn declared_names(&self, name: NodeId) -> u32 {
+        let elements = match self.arena.node(name).data() {
+            NodeData::ObjectBindingPattern(data) => data.elements,
+            NodeData::ArrayBindingPattern(data) => data.elements,
+            _ => return 1,
+        };
+        elements.map_or(0, |elements| {
+            self.arena
+                .node_array(elements)
+                .nodes
+                .iter()
+                .map(|&element| match self.arena.node(element).data() {
+                    NodeData::BindingElement(data) => {
+                        data.name.map_or(0, |name| self.declared_names(name))
+                    }
+                    _ => 0,
+                })
+                .sum()
+        })
+    }
+
+    /// Whether `left` is a property or element access on an entity name
+    /// (`f.a`, `f.a.b`, `f[k]`): the binder takes an assignment to it as a
+    /// Property assignment declaration, which declares an expando member when
+    /// `f` names a function (the binder's `get_assignment_declaration_kind`).
+    fn is_entity_member_access(&self, left: NodeId) -> bool {
+        let expression = match self.arena.node(left).kind {
+            SyntaxKind::PropertyAccessExpression => match self.arena.node(left).data() {
+                NodeData::PropertyAccessExpression(data)
+                    if data.name.is_some_and(|name| {
+                        self.arena.node(name).kind == SyntaxKind::Identifier
+                    }) =>
+                {
+                    data.expression
+                }
+                _ => return false,
+            },
+            SyntaxKind::ElementAccessExpression => match self.arena.node(left).data() {
+                NodeData::ElementAccessExpression(data) => data.expression,
+                _ => return false,
+            },
+            _ => return false,
+        };
+        expression.is_some_and(|expression| self.is_entity_name_expression(expression))
+    }
+
+    /// An identifier or a dotted identifier chain.
+    fn is_entity_name_expression(&self, node: NodeId) -> bool {
+        match self.arena.node(node).kind {
+            SyntaxKind::Identifier => true,
+            SyntaxKind::PropertyAccessExpression => match self.arena.node(node).data() {
+                NodeData::PropertyAccessExpression(data) => {
+                    data.name
+                        .is_some_and(|name| self.arena.node(name).kind == SyntaxKind::Identifier)
+                        && data
+                            .expression
+                            .is_some_and(|expression| self.is_entity_name_expression(expression))
+                }
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
     fn is_parameter_name_start(&self) -> bool {
         self.is_binding_identifier()
             || matches!(
@@ -7295,6 +7421,15 @@ impl<'text> Parser<'text> {
                 parser.parse_modifiers(true, false, false)
             })
         };
+        // A parameter property also declares a member of its class.
+        if modifiers.is_some_and(|list| {
+            self.arena
+                .node_array(list)
+                .modifier_flags
+                .intersects(tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+        }) {
+            self.arena.add_symbol_bound(1);
+        }
 
         if self.token() == SyntaxKind::ThisKeyword {
             let name = self.parse_identifier();
@@ -9916,13 +10051,20 @@ impl<'text> Parser<'text> {
         end: usize,
         flags: NodeFlags,
     ) -> NodeId {
+        let kind = data.kind();
         // A token (identifiers and literals included) has no children.
-        if data
-            .kind()
-            .is_some_and(|kind| kind.value() > SyntaxKind::LastToken.value())
-        {
+        if kind.is_some_and(|kind| kind.value() > SyntaxKind::LastToken.value()) {
             let parent = self.arena.next_node_id();
             self.arena.attach_children_of_data(parent, &mut data);
+        }
+        // In a JavaScript file an assignment or a call may declare (`this.x =
+        // …`, `module.exports = …`, `Object.defineProperty(exports, …)`): one
+        // more symbol for the arena's symbol bound.
+        if matches!(
+            kind,
+            Some(SyntaxKind::BinaryExpression | SyntaxKind::CallExpression)
+        ) {
+            self.arena.add_symbol_bound(u32::from(self.javascript_file));
         }
         let id = self.arena.alloc_node(data, pos, end, flags);
         // The payload's children are the stored record's forEachChild children.

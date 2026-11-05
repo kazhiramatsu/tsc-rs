@@ -1296,3 +1296,39 @@ fn module_declaration_attributes_take_part_in_the_structural_comparison() {
         ]
     );
 }
+
+#[test]
+fn a_tree_with_copied_subtrees_reserves_its_node_count_for_symbols() {
+    // The parser's symbol bound does not count the subtrees an incremental
+    // parse copies from the old tree (NodeArena::symbol_bound), so such a
+    // tree reserves its node count; a fresh parse counts.
+    let before = "export function f() {}\nexport class K { constructor(private x: number) {} }\nlet a = 1;\n";
+    let start = before.find("1;").unwrap();
+    let after = before.replacen("1;", "2;", 1);
+    let options = ParseOptions::default();
+    let old = create_language_service_source_file(
+        "incremental.ts",
+        TextSnapshot::new(before, DocumentVersion::new("old")),
+        options.clone(),
+    );
+    let incremental = update_language_service_source_file(
+        old,
+        TextSnapshot::new(after.as_str(), DocumentVersion::new("new")),
+        ByteTextChangeRange {
+            span: ByteTextSpan::new(start as u32, 1),
+            new_length: 1,
+        },
+        options.clone(),
+        IncrementalParseOptions::default(),
+    )
+    .expect("valid exact incremental edit");
+    assert!(incremental.stats.reused_nodes > 0);
+    let arena = &incremental.source.arena;
+    assert_eq!(arena.symbol_bound() as usize, arena.nodes().len());
+    let fresh = create_language_service_source_file(
+        "incremental.ts",
+        TextSnapshot::new(after.as_str(), DocumentVersion::new("fresh")),
+        options,
+    );
+    assert!((fresh.arena.symbol_bound() as usize) < fresh.arena.nodes().len());
+}
