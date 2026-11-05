@@ -297,8 +297,8 @@ fn if_statement_join_has_two_antecedents_and_condition_nodes() {
     let end = binder.node_end_flow[&f];
     let end_flags = flow_flags(&binder, end);
     assert!(end_flags.intersects(tsc_types::FlowFlags::BRANCH_LABEL));
-    assert_eq!(binder.flow.flow(end).antecedents().len(), 2);
-    for &antecedent in binder.flow.flow(end).antecedents() {
+    assert_eq!(binder.flow.antecedents(end).len(), 2);
+    for &antecedent in binder.flow.antecedents(end) {
         assert!(flow_flags(&binder, antecedent).intersects(
             tsc_types::FlowFlags::TRUE_CONDITION | tsc_types::FlowFlags::FALSE_CONDITION
         ));
@@ -328,7 +328,7 @@ fn while_loop_label_gets_entry_and_back_edge() {
         .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::LOOP_LABEL))
         .collect();
     assert_eq!(loop_labels.len(), 1);
-    assert_eq!(binder.flow.flow(loop_labels[0]).antecedents().len(), 2);
+    assert_eq!(binder.flow.antecedents(loop_labels[0]).len(), 2);
 }
 
 #[test]
@@ -380,8 +380,8 @@ fn narrowing_switch_creates_switch_clause_nodes() {
     assert_eq!(clauses.len(), 3);
     let implicit_default = clauses.iter().any(|&id| {
         matches!(
-            binder.flow.flow(id).payload,
-            crate::flow::FlowPayload::SwitchClause {
+            binder.flow.payload(id),
+            crate::flow::FlowData::SwitchClause {
                 switch_statement: s,
                 clause_start: 0,
                 clause_end: 0,
@@ -515,7 +515,7 @@ fn nested_function_break_cannot_see_outer_label() {
         .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::BRANCH_LABEL))
         .collect();
     assert_eq!(branch_labels.len(), 1);
-    assert_eq!(binder.flow.flow(branch_labels[0]).antecedents().len(), 1);
+    assert_eq!(binder.flow.antecedents(branch_labels[0]).len(), 1);
 }
 
 #[test]

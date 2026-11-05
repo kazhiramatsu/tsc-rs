@@ -50,7 +50,7 @@ use std::io::{BufRead, Write};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 
-use tsc_binder::flow::{FlowId, FlowPayload};
+use tsc_binder::flow::{FlowData, FlowId};
 use tsc_binder::{bind_source_file, Binder, Symbol, SymbolId, SymbolTable};
 use tsc_diagnostics::{Diagnostic, MessageChain, RelatedInfo};
 use tsc_syntax::{
@@ -604,33 +604,36 @@ impl<'a> Tree<'a> {
             let flow = binder.flow.flow(*id);
             hash.u8(b'F');
             hash.i32(flow.flags.bits());
-            match &flow.payload {
-                FlowPayload::None => hash.u8(0),
-                FlowPayload::Node(node) => {
+            match binder.flow.payload(*id) {
+                FlowData::None => hash.u8(0),
+                FlowData::Node(node) => {
                     hash.u8(1);
-                    hash.u32(self.node_ref(*node));
+                    hash.u32(self.node_ref(node));
                 }
-                FlowPayload::SwitchClause {
+                FlowData::SwitchClause {
                     switch_statement,
                     clause_start,
                     clause_end,
                 } => {
                     hash.u8(2);
-                    hash.u32(self.node_ref(*switch_statement));
-                    hash.u32(*clause_start);
-                    hash.u32(*clause_end);
+                    hash.u32(self.node_ref(switch_statement));
+                    hash.u32(clause_start);
+                    hash.u32(clause_end);
                 }
-                FlowPayload::ReduceLabel(reduce) => {
+                FlowData::ReduceLabel {
+                    target,
+                    antecedents,
+                } => {
                     hash.u8(3);
-                    hash.u32(flows.get(reduce.target));
-                    hash.u32(reduce.antecedents.len() as u32);
-                    for antecedent in &reduce.antecedents {
+                    hash.u32(flows.get(target));
+                    hash.u32(antecedents.len() as u32);
+                    for antecedent in antecedents {
                         hash.u32(flows.get(*antecedent));
                     }
                 }
-                FlowPayload::Label { .. } => hash.u8(4),
+                FlowData::Label { .. } => hash.u8(4),
             }
-            let antecedents = flow.antecedents();
+            let antecedents = binder.flow.antecedents(*id);
             hash.u32(antecedents.len() as u32);
             for antecedent in antecedents {
                 hash.u32(flows.get(*antecedent));
@@ -706,11 +709,14 @@ fn number_flow_graph(binder: &Binder<'_>, start: FlowId, flows: &mut Numbering<F
         if !flows.number(id) {
             continue;
         }
-        let flow = binder.flow.flow(id);
-        let mut reached: Vec<FlowId> = flow.antecedents().to_vec();
-        if let FlowPayload::ReduceLabel(reduce) = &flow.payload {
-            reached.push(reduce.target);
-            reached.extend_from_slice(&reduce.antecedents);
+        let mut reached: Vec<FlowId> = binder.flow.antecedents(id).to_vec();
+        if let FlowData::ReduceLabel {
+            target,
+            antecedents,
+        } = binder.flow.payload(id)
+        {
+            reached.push(target);
+            reached.extend_from_slice(antecedents);
         }
         stack.extend(reached.into_iter().rev());
     }
