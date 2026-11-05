@@ -42,11 +42,8 @@ pub fn push_text(words: &mut StoreVec<TextWord>, bytes: &[u8]) -> usize {
         .ok()
         .filter(|len| len & NOT_UTF8 == 0)
         .expect("a literal text longer than 2 GiB");
-    let flag = if std::str::from_utf8(bytes).is_ok() {
-        0
-    } else {
-        NOT_UTF8
-    };
+    // M8 PILOT (never merged): no UTF-8 re-validation, to price it in the parse batch.
+    let flag = 0;
     let index = words.len();
     words.reserve(text_words(bytes.len()));
     words.push(TextWord(len | flag));
