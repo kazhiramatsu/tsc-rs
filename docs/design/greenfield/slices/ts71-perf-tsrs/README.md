@@ -1984,6 +1984,70 @@ binder の flow graph は、1 node 32 byte の payload enum で、label ごと�
 - gate の記録：`gate-flow/`（DOSSIER.md・README.md・窓の log）。
 - 計測は上の通り。
 
+## node の flowNode を 2 byte の slot にし、大きな file だけ overflow の map に置く（branch `perf/ts71-node-flow-slots`、memory の 3 枚目）
+
+binder は node ごとに、その node を bind した時点の flow node（tsc の `node.flowNode`）を記録する。published な木では
+store の region 5 に、node の位置で 1 node 4 byte の slot を持っていた（VS Code で 16,880,227 slot、64.4 MiB、51% が
+埋まる）。
+
+flow の id は file ごとの `FlowArena` の添字で、file の中だけの番号である。そこで slot を 2 byte にした
+（`NodeFlowSlot`）。
+- 0 は flow node なし、`0xFFFF` 未満は flow の位置（`FlowId::position`）、`0xFFFF` は「file の overflow の map を見よ」。
+- overflow（`FxHashMap`）を使うのは、flow node が 65,535 以上ある file の、それ以降の flow だけ。空の map は確保しない。
+- checker の読み（`flow_node_of`）は、store の 1 load と 1 比較のまま inline。overflow は `#[cold]` で out of line。
+- binder の書き込みは、置き換えた値を返さない（どの呼び出し箇所も使わない）。overflow は「slot がそう言う node だけ」
+  を保つ。
+
+**試したもの**（`main-681fc89fc` 比、VS Code 1 thread、9 回。記録は `gate-nodeflow/`）：
+- **file ごとの compact な形**（presence bit・rank・値を heap に置き、持ち主の file を引いて読む）：footprint −45.8 MiB、
+  命令数 +860 M。
+  - 診断 build（phase の mark ごとに retired instructions を出す。merge しない）で分けると：
+    - bind +150 M（heap の作業用 map）
+    - compaction +305 M（slot あたり 18 命令）
+    - 読み +320〜+450 M（out of line で ≈ 42 命令。元は store の 4 命令）
+  - 採らない。
+- **2 byte の slot**（この PR の前身 pilot 3）：−32.1 MiB、+124 M（同じ mode の組 8 つで +112〜+155 M）。
+  - 診断 build：bind +105 M、check +41 M。
+  - 書き込みが古い slot を読まないようにして bind は +59 M。
+- **予想**：region 5 が半分になる（64.4 → 32.2 MiB）ので ≈ −32 MiB。命令数は ≈ +0.01〜0.05 G と見たが、pilot は
+  +0.12 G だった（書き込みの比較と分岐）。
+
+**計測**：朝（05:57〜06:02）、他の lane は止めていない。load ≈ 3、base と交互、`681fc89fc` 比。
+
+| | 基準 | この PR |
+|---|---:|---:|
+| VS Code 1 thread の footprint（9 回の median） | 3,297.3 MiB | **3,262.8 MiB（−34.5）** |
+| 命令数（low mode の median） | 130.981 G | 131.105 G（**+124 M**） |
+| VS Code 4 thread の footprint | 3,693.8 MiB | **3,675.7 MiB（−18.1）** |
+| 4 thread の命令数 | 141.357 G | 141.474 G |
+
+- VS Code 1 thread の footprint は範囲が重ならない。
+- footprint は binary ごとに ≈ 3.5 MiB 離れた 2 つの水準を持つ（中央値は違う水準どうしを比べうる）。同じ水準どうしで
+  比べると low 同士 −33.0 MiB、high 同士 −31.9 MiB。**≈ −32 MiB で記帳する**（予想 −32.2 のとおり）。
+- 同じ mode の組は +94〜+172 M（ほかに 1 組 −54 M）。
+- 他 7 project：命令数 +0.05〜+0.16%、footprint −1〜−7 MiB。
+
+memory は予想どおり（同じ水準どうしで −32〜−33 MiB）。命令数は予想の上端（+0.05 G）の ≈ 2.5 倍。診断 build で、書き込み（8.67 M 回の比較と overflow
+の guard、+59 M）と読み（5.03 M 回、+40〜60 M）に分かれる。VS Code 1 thread は ≈ 3,263〜3,265 MiB、≈ 131.1 G になる。
+
+**副産物**（計測の方法）：VS Code の ≈ 0.9 G の mode は、診断 build のどの run でも「config: file names」（+0.18 G）と
+「load: parse tasks」（+0.7 G）に出る。どちらも file system の syscall が主なので、compiler の code ではなく、kernel
+側の file system の仕事が process の命令数に入ったものとみられる。check の区間の幅は 25〜41 M しかない。
+
+**記録。** PR [#903](https://github.com/kazhiramatsu/tsc-rs/pull/903) → merge `38a260d6e`（2026-11-06。`1a875e73d` の上、最終 head `98d19f147`）。hosted run
+[42109074264](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42109074264)：全 job pass。local（hosted がしないことだけ、`98d19f147`）：
+- unit test：slot の上限の flow とその次の flow、slot と overflow の間の置き換え（両向き）、削除、node の順（binder）。
+  66,000 回の代入の後の参照が最後の代入で絞られる（checker。overflow を読まない変異では落ちる）。
+- binder の test 85、checker 1,874、api 332、fmt、clippy（`-D warnings`）、release build。
+- 8 case で出力（exit code・stdout・stderr）が基準と一致。Identifiers・Symbols・Types・Instantiations も 8 project とも一致。
+- `full` 構成の出力の木：hono（748 file）と effect（1,984 file）で byte 単位で一致。
+- fingerprint oracle：`main-d4d9d0364.tsv` に対して 143,190 行のうち差は 0（bind の hash は node ごとの flow node を含む）。
+- conformance（4 checker）：12,829 case、harness error は 0。
+  - #902 の 4 checker の report に対して 15,339 の構成すべてが同じ。
+  - 1 checker の report に対しては、記録済みの 4 構成だけが違う。
+- 記録：`gate-nodeflow/`（README.md・窓の log・診断 build の log）。
+- 計測は上の通り。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
