@@ -1884,12 +1884,14 @@ impl NodeFlowMap {
         if index >= self.slots.len() {
             self.slots.resize(index + 1, NodeFlowSlot::default());
         }
-        let slot = &mut self.slots[index];
-        if slot.0 == NodeFlowSlot::OVERFLOW {
-            self.overflow.remove(&node);
-        }
-        *slot = match u16::try_from(flow.position()) {
-            Ok(position) if position < NodeFlowSlot::OVERFLOW => NodeFlowSlot(position),
+        self.slots[index] = match u16::try_from(flow.position()) {
+            Ok(position) if position < NodeFlowSlot::OVERFLOW => {
+                // The overflow holds exactly the nodes whose slot says so.
+                if !self.overflow.is_empty() {
+                    self.overflow.remove(&node);
+                }
+                NodeFlowSlot(position)
+            }
             _ => {
                 self.overflow.insert(node, flow);
                 NodeFlowSlot(NodeFlowSlot::OVERFLOW)
