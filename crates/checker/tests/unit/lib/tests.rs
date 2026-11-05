@@ -7810,3 +7810,65 @@ fn content_mapper_directives_drop_diagnostics_in_their_ranges_and_report_unused_
         "Unused '@ts-expect-error' directive."
     );
 }
+
+/// The command's one-checker no-emit check leaves its checker state and its
+/// program's documents to the process exit when the budget leaks states (a
+/// one-shot `tsc` exits right after reporting), as the sharded driver does,
+/// and drops them otherwise (watch, API and traced sessions). The program's
+/// document and the checker state's binder retain the source's text
+/// snapshot, so the snapshot's count tells.
+#[test]
+fn the_serial_command_check_leaks_its_program_only_on_a_leaking_budget() {
+    struct NeverProvider;
+
+    impl AuthoritativeModuleProvider for NeverProvider {
+        fn resolve_module(
+            &self,
+            _: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            unreachable!("the source imports nothing")
+        }
+    }
+
+    let run = |leak_at_end: bool| {
+        let text = TextSnapshot::new(
+            "export const value: number = 1;\n",
+            DocumentVersion::default(),
+        );
+        let files = [InputFile::from_snapshot("/a.ts", Arc::clone(&text))];
+        let metadata = [AuthoritativeSourceMetadata {
+            token: AuthoritativeSourceToken(1),
+            file_name: files[0].name.clone(),
+            may_be_emitted: true,
+            implied_node_format: None,
+            implied_node_format_for_emit: None,
+            project_reference: None,
+        }];
+        let result = check_program_with_authoritative_modules_at_with_workers_gated(
+            &[],
+            &files,
+            &[],
+            &metadata,
+            &CompilerOptions {
+                no_emit: Some(true),
+                ..CompilerOptions::default()
+            },
+            "/",
+            &NeverProvider,
+            tsc_program::WorkerBudget::serial(),
+            SyntacticDiagnosticsGate::CheckEverySource,
+            crate::IncrementalRequest::NONE,
+            leak_at_end,
+        )
+        .expect("serial command check");
+        assert!(result.semantic_diagnostics.is_empty());
+        drop(result);
+        drop(files);
+        Arc::strong_count(&text)
+    };
+    assert_eq!(run(false), 1, "dropped: only the caller's snapshot remains");
+    assert!(
+        run(true) > 1,
+        "leaked: the program's document and the checker state keep the text"
+    );
+}

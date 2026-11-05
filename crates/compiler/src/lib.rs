@@ -3861,6 +3861,7 @@ impl ProgramSession {
                     planner: incremental_facts_requested
                         .then_some(&mut planner as &mut IncrementalPlanner<'_>),
                 },
+                self.checker_budget.leaks_states(),
             )
         }
         .map_err(|failure| map_authoritative_failure(&self.prepared, failure))?;

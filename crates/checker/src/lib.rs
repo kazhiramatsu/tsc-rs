@@ -2368,7 +2368,9 @@ impl SyntacticDiagnosticsGate {
 }
 
 /// [`check_program_with_authoritative_modules_at_with_workers`] with the
-/// command's syntactic gate.
+/// command's syntactic gate. With `leak_at_end` (the session's checker budget
+/// leaks its states: a one-shot command) the checker state and the program's
+/// documents are left to the process exit, as the sharded driver leaves them.
 /// tsrs-native: the command's no-emit check (serial budget).
 #[allow(clippy::too_many_arguments)]
 pub fn check_program_with_authoritative_modules_at_with_workers_gated<'cwd>(
@@ -2382,6 +2384,7 @@ pub fn check_program_with_authoritative_modules_at_with_workers_gated<'cwd>(
     workers: WorkerBudget,
     gate: SyntacticDiagnosticsGate,
     incremental: IncrementalRequest<'_>,
+    leak_at_end: bool,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode(
@@ -2399,7 +2402,7 @@ pub fn check_program_with_authoritative_modules_at_with_workers_gated<'cwd>(
         gate.schedule(),
         workers,
         incremental,
-        false,
+        leak_at_end,
     )
 }
 
@@ -5273,7 +5276,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             work_counters.record_checker_shards(1, 1);
             perf::add(PerfCounter::CheckerShardsRun, 1);
             perf::add(PerfCounter::CheckerShardThreads, 1);
-            return check_snapshot_serially(
+            let execution = check_snapshot_serially(
                 &snapshot,
                 lib_count,
                 options,
@@ -5291,10 +5294,16 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 run.diagnostic_schedule.checks_sources() && !syntactic_closed,
                 work_counters,
                 None,
-                false,
+                leak_at_end,
                 run.incremental_facts,
                 planner,
             );
+            // As the sharded driver: the state was left above, and the
+            // snapshot (every document) is left to the process exit too.
+            if leak_at_end {
+                std::mem::forget(snapshot);
+            }
+            return execution;
         }
         let mut state = init_checker_state(
             &snapshot,
