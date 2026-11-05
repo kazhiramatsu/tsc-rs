@@ -348,7 +348,7 @@ impl<'a> BinderWorker<'a> {
                     .expect("a published tree is bound once at a time")
             }),
         };
-        let mut flow = crate::flow::FlowArena::default();
+        let mut flow = crate::flow::FlowArena::for_bind();
         // tsc createBinder: unreachableFlow is allocated once up front.
         let unreachable_flow = flow.create_flow_node(
             tsc_types::FlowFlags::UNREACHABLE,

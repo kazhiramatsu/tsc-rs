@@ -2914,9 +2914,9 @@ impl<'a> BinderWorker<'a> {
         self.current_exception_target = save_exception_target;
         if finally_block.is_some() {
             let finally_label = self.flow.create_branch_label();
-            let mut antecedents = self.flow.antecedents(normal_exit_label).to_vec();
-            antecedents.extend_from_slice(self.flow.antecedents(exception_label));
-            antecedents.extend_from_slice(self.flow.antecedents(return_label));
+            let mut antecedents = self.flow.label_items(normal_exit_label);
+            antecedents.extend(self.flow.label_items(exception_label));
+            antecedents.extend(self.flow.label_items(return_label));
             self.flow.set_label_antecedents(finally_label, antecedents);
             self.current_flow = Some(finally_label);
             self.bind(finally_block);
@@ -2930,7 +2930,7 @@ impl<'a> BinderWorker<'a> {
                 self.current_flow = Some(self.unreachable_flow);
             } else {
                 if let Some(return_target) = self.current_return_target {
-                    let return_antecedents = self.flow.antecedents(return_label).to_vec();
+                    let return_antecedents = self.flow.label_items(return_label);
                     if !return_antecedents.is_empty() {
                         let reduce = self.flow.create_reduce_label(
                             finally_label,
@@ -2941,7 +2941,7 @@ impl<'a> BinderWorker<'a> {
                     }
                 }
                 if let Some(exception_target) = self.current_exception_target {
-                    let exception_antecedents = self.flow.antecedents(exception_label).to_vec();
+                    let exception_antecedents = self.flow.label_items(exception_label);
                     if !exception_antecedents.is_empty() {
                         let reduce = self.flow.create_reduce_label(
                             finally_label,
@@ -2951,7 +2951,7 @@ impl<'a> BinderWorker<'a> {
                         self.flow.add_antecedent(exception_target, reduce);
                     }
                 }
-                let normal_antecedents = self.flow.antecedents(normal_exit_label).to_vec();
+                let normal_antecedents = self.flow.label_items(normal_exit_label);
                 self.current_flow = Some(if normal_antecedents.is_empty() {
                     self.unreachable_flow
                 } else {
@@ -3002,7 +3002,7 @@ impl<'a> BinderWorker<'a> {
             );
         self.possibly_exhaustive.insert(
             node,
-            !has_default && self.flow.antecedents(post_switch_label).is_empty(),
+            !has_default && self.flow.label_is_empty(post_switch_label),
         );
         if !has_default {
             let pre = self.pre_switch_case_flow.expect("switch flow");
