@@ -654,10 +654,7 @@ fn link_protocols_persist_on_commit_and_rollback() {
             state.links.node(committed_node).resolved_type.get(),
             LinkSlot::Resolved(_)
         ));
-        assert!(matches!(
-            state.links.symbol(committed_symbol).declared_type.get(),
-            LinkSlot::Resolved(_)
-        ));
+        assert!(state.links.symbol_declared_type(committed_symbol).is_some());
         assert!(state
             .links
             .symbol_cold()
@@ -686,10 +683,10 @@ fn link_protocols_persist_on_commit_and_rollback() {
             state.links.node(rolled_back_node).resolved_type.get(),
             LinkSlot::Resolved(_)
         ));
-        assert!(matches!(
-            state.links.symbol(rolled_back_symbol).declared_type.get(),
-            LinkSlot::Resolved(_)
-        ));
+        assert!(state
+            .links
+            .symbol_declared_type(rolled_back_symbol)
+            .is_some());
         assert!(state
             .links
             .symbol_cold()
