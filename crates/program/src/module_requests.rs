@@ -647,19 +647,21 @@ fn plan_module_requests_worker(
     // `forEachDynamicImportOrRequireCall` is a separate whole-file walk in
     // tsc. In particular, module-declaration boundaries affect the static
     // collector above but do not hide import types or dynamic import calls.
-    // tsc walks the whole file only when the parser saw a dynamic import
+    // tsgo walks the whole file only when the parser saw a dynamic import
     // or import type (PossiblyContainsDynamicImport) or the file is
-    // JavaScript (require calls, JSDoc `@import`). This walk reacts to
-    // exactly those nodes plus JSDoc import tags (a `/**` comment) and
-    // `require(...)` calls in any file (the static plan fails closed on
-    // them), so a file with none of those markers has nothing for it to
-    // find.
+    // JavaScript (require calls, JSDoc `@import`; parser/references.go:16).
+    // In a TypeScript file the walk below records nothing else: it does not
+    // descend into JSDoc there, and records a `require(...)` call only in
+    // JavaScript. The static-import slice fails closed on JSDoc imports and
+    // require calls in any file, so it alone also walks a file that merely
+    // contains a `/**` comment or the word `require`.
     let root_flags = NodeFlags::from_bits(parsed.arena.node(parsed.root).flags);
     let text = source.text();
     let dynamic_walk = root_flags.contains(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT)
         || javascript_file
-        || memchr::memmem::find(text.as_bytes(), b"/**").is_some()
-        || memchr::memmem::find(text.as_bytes(), b"require").is_some();
+        || (!expanded
+            && (memchr::memmem::find(text.as_bytes(), b"/**").is_some()
+                || memchr::memmem::find(text.as_bytes(), b"require").is_some()));
     let mut stack = if dynamic_walk {
         vec![parsed.root]
     } else {
