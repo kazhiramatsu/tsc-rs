@@ -1399,6 +1399,37 @@ tsgo が測らない `Box` の variance を測っていた（tsgo Types 83・Ins
 - `--checkers 4` は既知の 4 件のみ。直前の 4-checker 報告とは 15,339 構成すべて一致
 - B0 とこの PR の数え上げ build（`m2/card4-counting-hooks-B0-tree.diff`）。計測は上の通り
 
+## S1a step 2：symbol の declarations を pool の 8 byte の span に（Symbol 40 → 32 B、branch `perf/ts71-declaration-spans-2`）
+
+checker の data 層の書き直し（[checker-data-layer-plan.md](checker-data-layer-plan.md)、S1）の binder 側の 2 つ目の step。
+`Symbol.declarations`（`SmallList<NodeId>`、16 byte、2 つまで inline）を、symbol arena が持つ pool の `Copy` な span
+（`{start, len}`、8 byte）にした。
+
+- **store**（最初の commit、#881 に cherry-pick 済み）：`ClaimedRecords::push_slice`（1 つの部屋の連続した位置に置く。入らなければ
+  次の部屋、長い slice には専用の部屋）、`Tagged<T, R>`（`repr(transparent)`、同じ zero-valid な型を別の region に）と
+  `slice_tagged`（`&[T]` で読み返す。store の外に cast を書かない）、region 37（declaration）・38（flow node）・39（flow item）。
+- **pool**：`SymbolArena` ごとの `DeclarationPool`（`ClaimedRecords<Tagged<NodeId, 37>>`）。document の binder symbol には 128 item
+  の部屋（document どうしが page を共有する）、checker の transient arena には 4,096。list は pool の最後の list である間はその場で
+  伸び、そうでなければ写す。別の symbol の declarations を持つ symbol は span を写す（以前は list を clone し、3 個以上なら確保）。
+  書き手は arena に移った（`push_declaration`・`set_declarations_from`・`extend_declarations`・`declarations_from`。checker は
+  `ProgramBinder` 経由で transient だけ）。読み手は accessor の commit から変わらない。
+
+**計測**（1 thread、通常 build、静かな machine（21:21〜21:24、Spotlight の索引が CPU ≈ 56% で CPU・wall は雑音あり）、`serial.py` の
+warm-up 1 回 + 3 回を交互に測った中央値。base = この branch の親 `bde0ecd10`、本 PR = `2615cbb1e`）：VS Code 141.75 → 141.97 G（+0.16%）、
+peak footprint 3,524 → 3,469 MB（−55 MB）。他の 7 project は命令 −0.02〜+0.35%、footprint −2〜−13 MB。memory report は binder の
+`Symbol` 86.6 → 69.3 MiB、symbol 名と declarations 34.3 → 43.1 MiB（pool。`SmallList` が inline に持っていた 1 個の list も pool に
+入る）、binder 計 445.8 → 437.3 MiB、serial checker 計 1,442.2 → 1,395.5 MiB（checker の symbol 5,890,486 × 8 B）、計上 −55.2 MiB。
+**予想との差**：予想（計測前）は S1a-1 からさらに live −60〜−70 MiB、命令 0 ± 0.3%。memory は帯の少し下、命令は VS Code で帯の中、
+他は −0.02〜+0.35%。原因はどちらも同じで、`SmallList` が inline に持っていた 1 個の list が pool の slot と store 経由の load になった。
+span の word に `NodeId` を 1 つ inline に持つ（field 表の inline-1）が次の段で、この run がその値段を ≈ 9 MiB と 1 個の list ≈ 220 万の
+load と出した。
+
+**記録。** PR [#884](https://github.com/kazhiramatsu/tsc-rs/pull/884) → merge `c7e880283`（2026-11-05。store `9a84b9cb3`（#881 にも同じ変更）・accessor の
+取り込み `bde0ecd10`・span `2615cbb1e`、最終 head `3eb8235bd`）。hosted run [41953364593](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41953364593)：
+全 job pass。local（hosted がしないことだけ、`2615cbb1e`）：test（store 45・binder 80・api 332・program 684・emitter 352・ls 256・
+checker 1,854、0 failed）、fmt・clippy・4 つの生成器の `--check`、fingerprint 143,190 行 差分 0、8 case で出力と統計行が親と一致、
+`--checkers 4` は既知の 4 件（15,335 一致）で C8 の 4-checker 報告とは 15,339 すべて一致、計測は上の通り。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
