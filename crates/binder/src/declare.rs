@@ -498,6 +498,18 @@ impl<'a> BinderWorker<'a> {
             SymbolArena::at_reserved(symbols.start(), symbols.len()),
         );
         binder.bind_source_file();
+        {
+            use tsc_types::perf::{add, PerfCounter};
+            add(PerfCounter::BinderNodeSymbolFilled, binder.node_symbol.iter().count() as u64);
+            add(PerfCounter::BinderNodeFlowFilled, binder.node_flow.iter().count() as u64);
+            let bytes = binder.node_flags_mut.0.iter().map(|flags| flags.0);
+            let (nonzero, nonzero_without_locals) = bytes.fold((0u64, 0u64), |(any, other), byte| {
+                (any + u64::from(byte != 0), other + u64::from(byte & !HAS_LOCALS != 0))
+            });
+            add(PerfCounter::BinderNodeFlagsNonzero, nonzero);
+            add(PerfCounter::BinderNodeFlagsNonzeroNoLocals, nonzero_without_locals);
+            add(PerfCounter::BinderNodeMapSlots, source.arena.len() as u64);
+        }
         binder
     }
 
@@ -1679,12 +1691,18 @@ impl PackedNodeFlags {
 #[inline(always)]
 pub fn published_node_flags(node: NodeId) -> NodeFlags {
     let parsed = tsc_syntax::published_node(node).flags;
-    tsc_store::get::<PackedNodeFlags>(node.position()).over(parsed)
+    let packed = tsc_store::get::<PackedNodeFlags>(node.position());
+    tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderNodeFlagsPublishedReads);
+    if packed.0 != 0 {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderNodeFlagsPublishedNonzero);
+    }
+    packed.over(parsed)
 }
 
 /// Whether a published, bound node has locals (`container.locals`).
 #[inline(always)]
 pub fn published_has_locals(node: NodeId) -> bool {
+    tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderHasLocalsPublishedReads);
     tsc_store::get::<PackedNodeFlags>(node.position()).0 & HAS_LOCALS != 0
 }
 
@@ -1710,6 +1728,7 @@ impl BinderNodeFlags {
 
     /// The flags of the node at `index`, whose parse-time flags are `parsed`.
     fn get(&self, index: usize, parsed: i32) -> NodeFlags {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderNodeFlagsGets);
         self.0[index].over(parsed)
     }
 
@@ -1786,12 +1805,18 @@ impl StoreRecord for NodeSlot<crate::flow::FlowId> {
 /// tsc `node.symbol` of a published, bound node.
 #[inline(always)]
 pub fn published_node_symbol(node: NodeId) -> Option<SymbolId> {
-    tsc_store::get::<NodeSlot<SymbolId>>(node.position()).0
+    let symbol = tsc_store::get::<NodeSlot<SymbolId>>(node.position()).0;
+    tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderNodeSymbolPublishedReads);
+    if symbol.is_some() {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderNodeSymbolPublishedHits);
+    }
+    symbol
 }
 
 /// tsc `node.flowNode` of a published, bound node.
 #[inline(always)]
 pub fn published_node_flow(node: NodeId) -> Option<crate::flow::FlowId> {
+    tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderNodeFlowPublishedReads);
     tsc_store::get::<NodeSlot<crate::flow::FlowId>>(node.position()).0
 }
 
@@ -1804,7 +1829,7 @@ pub type NodeSymbolMap = DenseNodeMap<SymbolId>;
 /// the binder's per-file hash maps.
 pub type NodeFlowMap = DenseNodeMap<crate::flow::FlowId>;
 
-impl<V: Copy> DenseNodeMap<V>
+impl<V: Copy + 'static> DenseNodeMap<V>
 where
     NodeSlot<V>: StoreRecord,
 {
@@ -1835,6 +1860,11 @@ where
     }
 
     pub fn get(&self, node: &NodeId) -> Option<&V> {
+        if std::any::TypeId::of::<V>() == std::any::TypeId::of::<SymbolId>() {
+            tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderNodeSymbolGets);
+        } else {
+            tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderNodeFlowGets);
+        }
         self.slots.get(self.slot(node)?)?.0.as_ref()
     }
 

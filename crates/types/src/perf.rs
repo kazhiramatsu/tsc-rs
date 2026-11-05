@@ -158,6 +158,21 @@ pub enum PerfCounter {
     NamesTextReads,
     NamesTextKeyLookups,
     NamesEscapeCalls,
+    // ---- the binder's per-node maps (observation) ----
+    BinderNodeSymbolPublishedReads,
+    BinderNodeSymbolPublishedHits,
+    BinderNodeSymbolGets,
+    BinderNodeFlowPublishedReads,
+    BinderNodeFlowGets,
+    BinderNodeFlagsPublishedReads,
+    BinderNodeFlagsPublishedNonzero,
+    BinderHasLocalsPublishedReads,
+    BinderNodeFlagsGets,
+    BinderNodeSymbolFilled,
+    BinderNodeFlowFilled,
+    BinderNodeFlagsNonzero,
+    BinderNodeFlagsNonzeroNoLocals,
+    BinderNodeMapSlots,
     /// Sentinel: number of counters (not a counter).
     Count,
 }
@@ -280,6 +295,20 @@ pub const WIRED: [bool; COUNT] = [
     true,  // names.text.reads
     true,  // names.key.text_lookups
     true,  // names.escape.calls
+    true,  // binder.node_symbol.published_reads
+    true,  // binder.node_symbol.published_hits
+    true,  // binder.node_symbol.gets
+    true,  // binder.node_flow.published_reads
+    true,  // binder.node_flow.gets
+    true,  // binder.node_flags.published_reads
+    true,  // binder.node_flags.published_nonzero
+    true,  // binder.has_locals.published_reads
+    true,  // binder.node_flags.gets
+    true,  // binder.node_symbol.filled
+    true,  // binder.node_flow.filled
+    true,  // binder.node_flags.nonzero
+    true,  // binder.node_flags.nonzero_without_has_locals
+    true,  // binder.node_map.slots
 ];
 
 /// Report names in variant order.
@@ -396,6 +425,20 @@ pub const NAMES: [&str; COUNT] = [
     "names.text.reads",
     "names.key.text_lookups",
     "names.escape.calls",
+    "binder.node_symbol.published_reads",
+    "binder.node_symbol.published_hits",
+    "binder.node_symbol.gets",
+    "binder.node_flow.published_reads",
+    "binder.node_flow.gets",
+    "binder.node_flags.published_reads",
+    "binder.node_flags.published_nonzero",
+    "binder.has_locals.published_reads",
+    "binder.node_flags.gets",
+    "binder.node_symbol.filled",
+    "binder.node_flow.filled",
+    "binder.node_flags.nonzero",
+    "binder.node_flags.nonzero_without_has_locals",
+    "binder.node_map.slots",
 ];
 
 #[cfg(feature = "perf-counters")]
@@ -629,7 +672,7 @@ mod tests {
         assert_eq!(NAMES.len(), COUNT);
         assert_eq!(WIRED.len(), COUNT);
         assert_eq!(NAMES[0], "links.node.reads");
-        assert_eq!(NAMES[COUNT - 1], "names.escape.calls");
+        assert_eq!(NAMES[COUNT - 1], "binder.node_map.slots");
     }
 
     #[test]
