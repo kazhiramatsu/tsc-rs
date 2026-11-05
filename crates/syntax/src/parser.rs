@@ -9689,6 +9689,7 @@ impl<'text> Parser<'text> {
 
     /// tsc containsPossibleTopLevelAwait (statement-level).
     fn statement_contains_possible_top_level_await(&self, id: NodeId) -> bool {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseAwaitWalkStatements);
         !NodeFlags::from_bits(self.arena.node(id).flags).contains(NodeFlags::AWAIT_CONTEXT)
             && self.subtree_contains_possible_top_level_await(id)
     }
@@ -9716,6 +9717,7 @@ impl<'text> Parser<'text> {
         // Explicit stack: deep trees overflow a recursive walk.
         let mut stack = vec![root];
         while let Some(id) = stack.pop() {
+            tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseAwaitWalkNodes);
             let node = self.arena.node(id);
             if node.kind >= SyntaxKind::FirstTypeNode && node.kind <= SyntaxKind::LastTypeNode {
                 continue;
@@ -9992,6 +9994,7 @@ impl<'text> Parser<'text> {
         let mut pos: Option<usize> = Some(0);
         let mut start = self.find_statement_with_await(&old_statements, 0);
         while let Some(run_start) = start {
+            tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseAwaitReparseRuns);
             let keep_from = pos.expect("a run exists only while the cursor does");
             self.node_stack
                 .extend_from_slice(&old_statements[keep_from..run_start]);
@@ -10014,6 +10017,7 @@ impl<'text> Parser<'text> {
             while self.token() != SyntaxKind::EndOfFileToken {
                 let start_pos = self.scanner.full_start_pos();
                 let statement = self.parse_source_element();
+                tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseAwaitReparsedStatements);
                 self.node_stack.push(statement);
                 if start_pos == self.scanner.full_start_pos() {
                     self.record_token_skip(ParseTokenSkipSite::TopLevelAwaitReparse);

@@ -178,6 +178,10 @@ pub enum PerfCounter {
     ParseTypeArgTries,
     ParseTypeArgSkippable,
     ParseTypeArgOuterTries,
+    ParseAwaitWalkStatements,
+    ParseAwaitWalkNodes,
+    ParseAwaitReparseRuns,
+    ParseAwaitReparsedStatements,
     /// Sentinel: number of counters (not a counter).
     Count,
 }
@@ -319,6 +323,10 @@ pub const WIRED: [bool; COUNT] = [
     true,  // parse.type_args.tries
     true,  // parse.type_args.skippable
     true,  // parse.type_args.outer_tries
+    true,  // parse.await_walk.statements
+    true,  // parse.await_walk.nodes
+    true,  // parse.await_reparse.runs
+    true,  // parse.await_reparse.statements
 ];
 
 /// Report names in variant order.
@@ -454,6 +462,10 @@ pub const NAMES: [&str; COUNT] = [
     "parse.type_args.tries",
     "parse.type_args.skippable",
     "parse.type_args.outer_tries",
+    "parse.await_walk.statements",
+    "parse.await_walk.nodes",
+    "parse.await_reparse.runs",
+    "parse.await_reparse.statements",
 ];
 
 #[cfg(feature = "perf-counters")]
