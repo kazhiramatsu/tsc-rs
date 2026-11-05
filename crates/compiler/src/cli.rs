@@ -604,6 +604,13 @@ fn run<'a>(
         let mut store_path = path.clone();
         store_path.push(".store");
         let _ = std::fs::write(store_path, tsc_store::store_report());
+        let mut rooms_path = path.clone();
+        rooms_path.push(".rooms");
+        let rooms = tsc_binder::declare::ROOM_LOG
+            .lock()
+            .map(|log| log.iter().map(|(base, room, used)| format!("{base} {room} {used}\n")).collect::<String>())
+            .unwrap_or_default();
+        let _ = std::fs::write(rooms_path, rooms);
     }
     match result {
         Ok(output) => {

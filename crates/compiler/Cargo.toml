@@ -18,6 +18,7 @@ loader-counters = ["tsc-program/loader-counters"]
 perf-counters = ["tsc-checker/perf-counters", "tsc-types/perf-counters"]
 
 [dependencies]
+tsc-binder.workspace = true
 tsc-store.workspace = true
 # tsgo's localized message catalogs are embedded gzip-compressed, as tsgo
 # embeds them.

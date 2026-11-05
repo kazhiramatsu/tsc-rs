@@ -492,12 +492,17 @@ impl<'a> BinderWorker<'a> {
     /// `serial_base`. The reservations are published afterwards with
     /// [`Self::attach_reserved_leases`], so no identity is rewritten.
     pub fn bind_reserved(source: &'a SourceFile, symbols: IdentityRange, serial_base: u32) -> Self {
+        let room_base = symbols.start();
+        let room_len = symbols.len();
         let mut binder = Self::with_symbols(
             source,
             serial_base,
             SymbolArena::at_reserved(symbols.start(), symbols.len()),
         );
         binder.bind_source_file();
+        if let Ok(mut log) = ROOM_LOG.lock() {
+            log.push((room_base, room_len, binder.symbols.len() as u32));
+        }
         binder
     }
 
@@ -1893,3 +1898,7 @@ where
         self.base == other.base && self.iter().eq(other.iter())
     }
 }
+
+/// Observation (never merged): each bound source's reserved symbol room
+/// (base, length) and the symbols it bound, in binding order.
+pub static ROOM_LOG: std::sync::Mutex<Vec<(u32, u32, u32)>> = std::sync::Mutex::new(Vec::new());
