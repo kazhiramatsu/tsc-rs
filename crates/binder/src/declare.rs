@@ -1876,28 +1876,25 @@ impl NodeFlowMap {
             .unwrap_or_else(|FlowInOverflow| self.overflow.get(node).copied())
     }
 
-    pub fn insert(
-        &mut self,
-        node: NodeId,
-        flow: crate::flow::FlowId,
-    ) -> Option<crate::flow::FlowId> {
+    /// Set `node`'s flow node, replacing any it had.
+    pub fn insert(&mut self, node: NodeId, flow: crate::flow::FlowId) {
         let index = self
             .slot(&node)
             .expect("a bound node belongs to the bind's own arena");
         if index >= self.slots.len() {
             self.slots.resize(index + 1, NodeFlowSlot::default());
         }
-        let previous = self.slots[index]
-            .flow()
-            .unwrap_or_else(|FlowInOverflow| self.overflow.remove(&node));
-        self.slots[index] = match u16::try_from(flow.position()) {
+        let slot = &mut self.slots[index];
+        if slot.0 == NodeFlowSlot::OVERFLOW {
+            self.overflow.remove(&node);
+        }
+        *slot = match u16::try_from(flow.position()) {
             Ok(position) if position < NodeFlowSlot::OVERFLOW => NodeFlowSlot(position),
             _ => {
                 self.overflow.insert(node, flow);
                 NodeFlowSlot(NodeFlowSlot::OVERFLOW)
             }
         };
-        previous
     }
 
     pub fn remove(&mut self, node: &NodeId) -> Option<crate::flow::FlowId> {
