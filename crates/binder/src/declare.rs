@@ -482,6 +482,7 @@ impl<'a> BinderWorker<'a> {
     }
 
     pub fn bind_local(source: &'a SourceFile) -> Self {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Bind);
         let mut binder = Self::with_bases(source, 1, 0);
         binder.bind_source_file();
         binder
@@ -492,6 +493,7 @@ impl<'a> BinderWorker<'a> {
     /// `serial_base`. The reservations are published afterwards with
     /// [`Self::attach_reserved_leases`], so no identity is rewritten.
     pub fn bind_reserved(source: &'a SourceFile, symbols: IdentityRange, serial_base: u32) -> Self {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Bind);
         let mut binder = Self::with_symbols(
             source,
             serial_base,
@@ -558,6 +560,7 @@ impl<'a> BinderWorker<'a> {
         source: &'a SourceFile,
         domain: &IdentityDomain,
     ) -> Result<Self, IdentityError> {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Bind);
         if !source.identity_owned_by(domain) {
             return Err(IdentityError::InvalidLease {
                 space: IdentitySpace::Node,

@@ -434,6 +434,7 @@ impl SourceFile {
     /// it to the store (the second half of
     /// [`Self::relocate_into_identity_domain`]).
     pub fn relocate_with_leases(&mut self, leases: SyntaxLeases) -> Result<(), IdentityError> {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::PublicationAdopt);
         let relocation = self.arena.identity_relocation(&leases)?;
         relocation.node(&mut self.root)?;
         if let Some(indicator) = &mut self.external_module_indicator {

@@ -535,6 +535,7 @@ fn plan_module_requests_worker(
     nested_requests: bool,
     cache: Option<&dyn ParseCache>,
 ) -> Result<(SourceRequestPlan, PlanningParse), ResolutionError> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::ModuleRequests);
     let module_kind = options.emit_module_kind();
     if (!expanded && !(100..=199).contains(&module_kind))
         || (expanded && !matches!(module_kind, 0..=7 | 99 | 100..=200))
@@ -574,12 +575,15 @@ fn plan_module_requests_worker(
     let mut fresh = None;
     let parsed: &SourceFile = match &cached {
         Some(cached) => cached.source(),
-        None => fresh.insert(parse_source_file_from_snapshot(
-            file_name.to_owned(),
-            Arc::clone(source.snapshot()),
-            parse_options.clone(),
-            None,
-        )),
+        None => {
+            let _parse = tsc_types::trace::scope(tsc_types::trace::Phase::ScanParse);
+            fresh.insert(parse_source_file_from_snapshot(
+                file_name.to_owned(),
+                Arc::clone(source.snapshot()),
+                parse_options.clone(),
+                None,
+            ))
+        }
     };
     let path_references: Vec<PlannedPathReference> = parsed
         .referenced_files

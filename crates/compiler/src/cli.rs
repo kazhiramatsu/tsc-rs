@@ -350,17 +350,19 @@ impl CommandBudgets {
 
     /// tsgo `Program.SingleThreaded`: no worker threads.
     fn worker_budget(self, system: &dyn System) -> WorkerBudget {
-        if self.single_threaded {
+        let budget = if self.single_threaded {
             WorkerBudget::serial()
         } else {
             cli_worker_budget(system)
-        }
+        };
+        tsc_types::trace::execution_budget(budget.max_workers(), 0);
+        budget
     }
 
     /// tsgo `newCheckerPool`: one checker when single-threaded, else
     /// `--checkers`, else the process's budget.
     fn checker_budget(self, system: &dyn System) -> CheckerBudget {
-        if self.single_threaded {
+        let budget = if self.single_threaded {
             CheckerBudget::serial()
                 .with_leaked_states(true)
                 .with_order_replay(tsc_checker::order_replay_requested())
@@ -370,7 +372,9 @@ impl CommandBudgets {
                 .with_order_replay(tsc_checker::order_replay_requested())
         } else {
             cli_checker_budget(system)
-        }
+        };
+        tsc_types::trace::execution_budget(0, budget.checkers());
+        budget
     }
 }
 
@@ -495,6 +499,7 @@ impl Error for CliError {}
 /// Runs a command line in the process (its current directory, file system
 /// and environment) and returns what it wrote.
 pub fn run_cli(args: &[String]) -> CliOutput {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::OtherInParent);
     let system = match NativeSystem::from_process() {
         Ok(system) => system,
         Err(error) => {
@@ -549,6 +554,7 @@ pub fn execute_command_line<'a>(
     args: &[String],
     testing: Option<&'a dyn CommandLineTesting>,
 ) -> CommandLineResult<'a> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::OtherInParent);
     let mut watcher = None;
     let status = run(system, args, testing, &mut watcher).0;
     CommandLineResult { status, watcher }
@@ -576,6 +582,7 @@ fn run<'a>(
     #[cfg(feature = "loader-counters")]
     eprint!("{}", tsc_program::loader_counters::report());
     tsc_types::trace::mark("cli: execute", execute_started);
+    let _finalization = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
     // Measurement builds only (`perf-counters` feature): aggregate counters
     // are written to the sidecar file named by TSRS_PERF_COUNTERS (one
     // `name=value` or `name=unwired` line each); stdout/stderr stay exactly
@@ -644,6 +651,7 @@ fn execute_command<'a>(
     watcher: &mut Option<CommandWatcher<'a>>,
     profile: &mut Option<crate::pprof::ProfileSession>,
 ) -> Result<CliOutput, CliError> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::ConfigDriver);
     // tsgo CommandLine (execute/tsc.go): the build command when the first
     // argument is -b/--b/-build/--build.
     if let Some(first) = args.first() {
@@ -1011,6 +1019,7 @@ fn execute_build<'a>(
     watcher: &mut Option<CommandWatcher<'a>>,
     profile: &mut Option<crate::pprof::ProfileSession>,
 ) -> Result<CliOutput, CliError> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::ConfigDriver);
     let host = system.compiler_host();
     let host = &*host;
     let current_directory = PathBuf::from(system.current_directory());
@@ -1242,6 +1251,7 @@ fn execute_config(
     source_texts: DiagnosticSourceMap,
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
     run_config(
         host,
         current_directory,
@@ -1266,6 +1276,7 @@ fn run_config(
     mode: ProjectRunMode,
     old_source: OldBuildInfoSource<'_>,
 ) -> Result<BuildProjectRun, CliError> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::ConfigDriver);
     for source in plan.extended_sources() {
         source_texts.insert(source.file_name.clone(), Arc::clone(source.snapshot()));
     }
@@ -1282,8 +1293,11 @@ fn run_config(
         .then(|| start_tracing(route, plan.compiler_options(), &config_file_name))
         .flatten();
     let create_program = begin_create_program(tracing.as_ref(), &config_file_name);
+    tsc_types::trace::end(_ledger);
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
     let load_started = std::time::Instant::now();
     let load_clock = route.system.now();
+    let load_scope = tsc_types::trace::scope(tsc_types::trace::Phase::FsLoader);
     let prepared = if plan.compiler_options().list_files_only == Some(true) {
         load_config_program_with_no_emit_override(host, plan, catalog, limits)
     } else if plan.compiler_options().no_emit == Some(true) {
@@ -1291,6 +1305,7 @@ fn run_config(
     } else {
         load_emitting_config_program(host, plan, catalog, limits)
     };
+    tsc_types::trace::end(load_scope);
     tsc_types::trace::mark("load program", load_started);
     if let Ok(prepared) = &prepared {
         trace_loader_parses(tracing.as_ref(), prepared);
@@ -1538,6 +1553,7 @@ fn execute_explicit_files(
     program_options: ProgramOptions,
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
     run_explicit_files(
         host,
         current_directory,
@@ -1565,14 +1581,18 @@ fn run_explicit_files(
     mode: ProjectRunMode,
     old_source: OldBuildInfoSource<'_>,
 ) -> Result<BuildProjectRun, CliError> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::ConfigDriver);
     let limits = route.limits();
     let load_clock = route.system.now();
     let tracing = (!mode.watch)
         .then(|| start_tracing(route, &options, ""))
         .flatten();
     let create_program = begin_create_program(tracing.as_ref(), "");
+    tsc_types::trace::end(_ledger);
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
     // tsgo runs no emit under --listFilesOnly: the no-emit route (whose
     // loader requires an explicit noEmit).
+    let load_scope = tsc_types::trace::scope(tsc_types::trace::Phase::FsLoader);
     let prepared = if options.no_emit == Some(true) || options.list_files_only == Some(true) {
         let mut options = options;
         options.no_emit = Some(true);
@@ -1581,6 +1601,7 @@ fn run_explicit_files(
         load_emitting_program(host, roots, options, program_options, catalog, limits)
     }
     .map_err(|error| CliError::Load(error.to_string()))?;
+    tsc_types::trace::end(load_scope);
     trace_loader_parses(tracing.as_ref(), &prepared);
     drop(create_program);
     // tsgo prints the resolution trace while it creates the Program, before
@@ -1629,6 +1650,7 @@ fn execute_prepared(
     old_build_info: Option<OldState>,
     mode: ProjectRunMode,
 ) -> Result<BuildProjectRun, CliError> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
     if prepared.mode() == PreparedProgramMode::Emit {
         return execute_emitting_prepared(
             current_directory,
@@ -1901,6 +1923,7 @@ fn execute_emitting_prepared(
     old_build_info: Option<OldState>,
     mode: ProjectRunMode,
 ) -> Result<BuildProjectRun, CliError> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
     // The real filesystem is stateless: its artifacts are written on the
     // worker budget; an injected (observing) filesystem keeps ordered writes.
     let write_workers = route.worker_budget().max_workers();
@@ -2105,6 +2128,7 @@ pub(crate) fn render_diagnostics(
     diagnostics: &[Diagnostic],
     summary: bool,
 ) -> Result<String, CliError> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
     let output = rendered_diagnostics_with_exit_work_status_and_summary(
         format,
         source_texts,
@@ -2149,6 +2173,7 @@ fn rendered_diagnostics_with_exit_work_status_and_summary(
     status_writes: &[JsString],
     summary: bool,
 ) -> Result<CliOutput, CliError> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
     if diagnostics.is_empty() && status_writes.is_empty() {
         return Ok(CliOutput {
             stdout: String::new(),
@@ -2487,6 +2512,7 @@ struct ContentMapperSession {
 
 impl ContentMapperSession {
     fn close(self) {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
         let started = std::time::Instant::now();
         let _ = tsc_program::content_mapper::Project::close(&*self.project);
         self.host.close();

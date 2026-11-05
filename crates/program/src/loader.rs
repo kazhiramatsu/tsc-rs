@@ -819,6 +819,8 @@ fn load_program_worker(
     limits: ProgramLoadLimits,
     root_reasons: Option<&[RootFileReason]>,
 ) -> Result<PreparedProgram, ProgramLoadError> {
+    tsc_types::trace::execution_budget(limits.workers.max_workers(), 0);
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::FsLoader);
     validate_admitted_options(
         mode,
         &compiler_options,
@@ -885,6 +887,7 @@ fn load_program_worker(
         limits,
         resolver: &mut resolver,
     });
+    let parallel_load = tsc_types::trace::scope(tsc_types::trace::Phase::ParallelLoad);
     // Parse-ahead of the explicit roots. Normalization errors are left for
     // the sequential loop below, which reports them in root order.
     let mut prefetch_roots = Vec::with_capacity(root_names.len());
@@ -971,7 +974,11 @@ fn load_program_worker(
             );
         }
     }
-    let mut staged = graph.finish()?;
+    tsc_types::trace::end(parallel_load);
+    let mut staged = {
+        let _finish = tsc_types::trace::scope(tsc_types::trace::Phase::GraphFinish);
+        graph.finish()?
+    };
     tsc_types::trace::mark("load: root walk and graph finish", phase_started);
     let phase_started = std::time::Instant::now();
     // The package.json files the walk probed, taken before the dependency
@@ -1027,6 +1034,7 @@ fn load_program_worker(
     drop(resolver);
     tsc_types::trace::mark("load: dependency symlinks and packages", phase_started);
 
+    let _publication = tsc_types::trace::scope(tsc_types::trace::Phase::Publication);
     publish_program(
         mode,
         staged,

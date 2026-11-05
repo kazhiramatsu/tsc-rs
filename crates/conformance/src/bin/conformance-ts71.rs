@@ -19,7 +19,35 @@ use std::path::PathBuf;
 
 use tsc_conformance::ts71::{list, report_path, run, run_worker, summarize, RunOptions};
 
+// Reuse the CLI callback/installer without adding a dependency to this harness.
+#[cfg(feature = "phase-ledger")]
+#[path = "../../../cli/src/phase_ledger.rs"]
+mod phase_ledger;
+#[cfg(all(feature = "phase-ledger", target_os = "macos"))]
+#[path = "../phase_ledger_abi.rs"]
+mod phase_ledger_abi;
+
+#[cfg(feature = "phase-ledger")]
+struct LedgerFlush(Option<PathBuf>);
+
+#[cfg(feature = "phase-ledger")]
+impl Drop for LedgerFlush {
+    fn drop(&mut self) {
+        use std::io::Write;
+        let _ = std::io::stdout().flush();
+        let _ = std::io::stderr().flush();
+        phase_ledger::flush(self.0.as_deref());
+    }
+}
+
 fn main() {
+    #[cfg(feature = "phase-ledger")]
+    let entry = phase_ledger::entry();
+    #[cfg(feature = "phase-ledger")]
+    let _ledger_flush = LedgerFlush(phase_ledger::install(entry));
+    #[cfg(feature = "phase-ledger")]
+    phase_ledger::calibrate();
+    let _ledger_work = tsc_types::trace::scope(tsc_types::trace::Phase::OtherInParent);
     let mut options = RunOptions {
         profile: "7.1.0-dev-aa814927".to_owned(),
         filter: None,

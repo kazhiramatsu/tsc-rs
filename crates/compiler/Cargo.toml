@@ -13,6 +13,7 @@ path = "src/lib.rs"
 
 [features]
 loader-counters = ["tsc-program/loader-counters"]
+phase-ledger = ["tsc-types/phase-ledger"]
 # Measurement builds only: aggregate cache/phase counters printed at exit when
 # TSRS_PERF_COUNTERS is set (see crates/types/src/perf.rs).
 perf-counters = ["tsc-checker/perf-counters", "tsc-types/perf-counters"]

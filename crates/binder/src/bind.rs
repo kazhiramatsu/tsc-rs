@@ -40,6 +40,7 @@ impl<'a> BinderWorker<'a> {
     /// The closure-state reset tail is unnecessary (a Binder is
     /// per-file). file.symbolCount == symbols.len().
     pub fn bind_source_file(&mut self) {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Bind);
         self.bind(Some(self.source.root));
         // tsgo bindContainer's source-file tail (TypeScript 7.1): the JSDoc
         // type aliases first, then the CommonJS variables and the type

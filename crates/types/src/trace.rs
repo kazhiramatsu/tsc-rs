@@ -7,6 +7,67 @@
 use std::sync::OnceLock;
 use std::time::Instant;
 
+/// On-disk ids. Append new ids; never renumber an existing phase.
+#[repr(u16)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Phase {
+    ConfigDriver = 1,
+    FsLoader = 2,
+    ScanParse = 3,
+    ModuleRequests = 4,
+    Resolution = 5,
+    PublicationAdopt = 6,
+    Bind = 7,
+    CheckerInit = 8,
+    SemanticCheck = 9,
+    Diagnostics = 10,
+    Probe = 11,
+    OtherInParent = 12,
+    Publication = 13,
+    GraphFinish = 14,
+    ParallelLoad = 15,
+    ShardPartition = 16,
+    ShardSetup = 17,
+    ShardFiles = 18,
+    ShardBusy = 19,
+}
+
+#[cfg(feature = "phase-ledger")]
+pub mod ledger;
+#[cfg(feature = "phase-ledger")]
+pub use ledger::{begin, end, execution_budget, shard, warm_thread, ScopeToken, ShardToken};
+
+#[cfg(not(feature = "phase-ledger"))]
+pub struct ScopeToken;
+#[cfg(not(feature = "phase-ledger"))]
+pub struct ShardToken;
+#[cfg(not(feature = "phase-ledger"))]
+#[inline(always)]
+pub fn begin(_: Phase) -> ScopeToken {
+    ScopeToken
+}
+#[cfg(not(feature = "phase-ledger"))]
+#[inline(always)]
+pub fn end(_: ScopeToken) {}
+#[cfg(not(feature = "phase-ledger"))]
+#[inline(always)]
+pub fn execution_budget(_: usize, _: usize) {}
+#[cfg(not(feature = "phase-ledger"))]
+#[inline(always)]
+pub fn shard(_: usize) -> ShardToken {
+    ShardToken
+}
+#[cfg(not(feature = "phase-ledger"))]
+#[inline(always)]
+pub fn warm_thread() {}
+
+/// RAII closes intervals on every return, `?`, and unwind. Explicit `end`
+/// remains available for boundaries in the middle of a function.
+#[inline(always)]
+pub fn scope(phase: Phase) -> ScopeToken {
+    begin(phase)
+}
+
 static ENABLED: OnceLock<bool> = OnceLock::new();
 static EPOCH: OnceLock<Instant> = OnceLock::new();
 static MEMORY_PROBE: OnceLock<fn() -> MemorySample> = OnceLock::new();

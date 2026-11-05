@@ -12,6 +12,9 @@ dev-profile-opt-level = 3
 name = "tsc_conformance"
 path = "src/lib.rs"
 
+[features]
+phase-ledger = ["tsc-compiler/phase-ledger", "tsc-types/phase-ledger"]
+
 [dependencies]
 # The language server's transcripts are vendored gzip-compressed.
 miniz_oxide = "0.8"

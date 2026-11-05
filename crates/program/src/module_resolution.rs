@@ -1437,6 +1437,7 @@ impl<'a> ModuleResolver<'a> {
         containing_directory: impl Into<JsStr<'d>>,
         package_name: impl Into<JsStr<'n>>,
     ) -> Result<Option<(ProgramPath, Option<ProgramPath>)>, ResolutionError> {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Resolution);
         let containing_directory = containing_directory.into();
         let package_name = package_name.into();
         let types_name = mangle_scoped_package_name(package_name);
@@ -1466,6 +1467,7 @@ impl<'a> ModuleResolver<'a> {
         &mut self,
         file: impl Into<JsStr<'p>>,
     ) -> Result<Option<PackageMetadata>, ResolutionError> {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Resolution);
         let file = file.into();
         let current_directory = self.current_directory_text();
         let context = self.lexical_paths.file_context(file, current_directory)?;
@@ -1609,6 +1611,7 @@ impl<'a> ModuleResolver<'a> {
         specifier: impl Into<JsStr<'j1>>,
         mode: ResolutionMode,
     ) -> Result<HostModuleResolution, ResolutionError> {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Resolution);
         let containing_file = containing_file.into();
         let specifier = specifier.into();
         let context = self
@@ -1640,6 +1643,7 @@ impl<'a> ModuleResolver<'a> {
         specifier: impl Into<JsStr<'j1>>,
         mode: ResolutionMode,
     ) -> Result<HostModuleResolution, ResolutionError> {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Resolution);
         let directory = self.lexical_paths.normalize(
             containing_directory.into(),
             Some(self.current_directory_text()),
@@ -2453,6 +2457,7 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
         type_roots: Option<&[ProgramPath]>,
     ) -> Result<ResolutionOutcome<HostResolvedTypeReferenceDirective>, ResolutionError> {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Resolution);
         let containing_file = containing_file.into();
         let specifier = specifier.into();
         let _ = self.take_trace();

@@ -169,6 +169,7 @@ pub fn function_like_host(source: &SourceFile, host: NodeId) -> Option<NodeId> {
 }
 
 fn compute(source: &SourceFile) -> JsDocHosted {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::ScanParse);
     let mut hosted = JsDocHosted::default();
     if !node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE)
         || !source

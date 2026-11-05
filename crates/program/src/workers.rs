@@ -55,6 +55,7 @@ pub fn set_thread_start_hook(hook: fn()) {
 
 /// Run the installed thread-start hook, if any, on the calling thread.
 pub fn run_thread_start_hook() {
+    tsc_types::trace::warm_thread();
     if let Some(hook) = THREAD_START_HOOK.get() {
         hook();
     }

@@ -15,6 +15,7 @@ path = "src/lib.rs"
 [features]
 # Aggregate performance counters (measurement builds only; see src/perf.rs).
 perf-counters = []
+phase-ledger = []
 
 [dependencies]
 hashbrown = { version = "0.16", default-features = false, features = ["inline-more"] }
