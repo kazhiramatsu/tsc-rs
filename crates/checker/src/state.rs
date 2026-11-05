@@ -2363,7 +2363,7 @@ impl<'a> CheckerState<'a> {
                 let ResolutionTarget::Symbol(symbol) = target else {
                     unreachable!("DeclaredType resolution targets are symbols");
                 };
-                self.links.read_symbol(symbol, |links| links.declared_type.resolved()).is_some()
+                self.links.symbol_declared_type(symbol).is_some()
             }
             TypeSystemPropertyName::RESOLVED_RETURN_TYPE => {
                 let ResolutionTarget::Signature(signature) = target else {

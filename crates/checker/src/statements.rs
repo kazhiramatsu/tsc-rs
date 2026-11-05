@@ -1705,11 +1705,7 @@ impl<'a> CheckerState<'a> {
             .clone();
         for node in recorded {
             let Ok(symbol) = self.get_symbol_of_declaration(node);
-            if !self
-                .links
-                .read_symbol(symbol, |links| links.is_referenced)
-                .is_empty()
-            {
+            if !self.links.symbol_is_referenced(symbol).is_empty() {
                 continue;
             }
             let Some(wrapping) = node_util::walk_up_binding_elements_and_patterns(&Published, node)

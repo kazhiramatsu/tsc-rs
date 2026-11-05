@@ -24,10 +24,7 @@ impl<'a> CheckerState<'a> {
     /// `TypeParameter.constraint`); the inline field belongs to the
     /// tables-synthesized parameters (tuple targets).
     pub fn get_declared_type_of_type_parameter(&mut self, symbol: tsc_binder::SymbolId) -> TypeId {
-        if let Some(declared) = self
-            .links
-            .read_symbol(symbol, |links| links.declared_type.resolved())
-        {
+        if let Some(declared) = self.links.symbol_declared_type(symbol) {
             return declared;
         }
         let ty = self.tables.create_type(
