@@ -1924,6 +1924,66 @@ hono（748 file）と effect（1,984 file）で byte 単位で同じ。予想の
 - gate の記録：`gate-rooms/VERDICTS.md`。
 - 計測は上の通り。
 
+## flow の記録を 16 byte にし、label の list は bind 中は linked cell、凍結後は file ごとの正確な pool 1 つにする（branch `perf/ts71-flow16`、gate を通った 6 枚目、memory の 2 枚目）
+
+binder の flow graph は、1 node 32 byte の payload enum で、label ごとに `Vec`、reduce label ごとに `Box` を持っていた
+（VS Code で node 72.9 MiB、label の list 10.6 MiB）。
+
+いまは `FlowNode` を 4 つの u32 語にした：flags、`a`、antecedent、`c`（kind ごとの配置は doc comment の表）。
+- **bind 中**：label の list は per-thread scratch の cell の鎖（tsgo の `FlowList`）。label ごとの確保はない。
+- **bind の終わり**（`FlowArena::freeze`）：すべての list を file ごとの正確な pool 1 つへ一度だけ書き、cell は thread へ
+  返す。
+- **bind の結果**（`FlowArena::rehome`）：全 file の bind の後で、凍結した node と pool を正確な大きさの新しい確保へ移す。
+  長く生きる list が、bind の worker の一時領域と allocator の page を共有しないようにするため。
+- **読み手**：`FlowArena::antecedents`・`payload`（借用の `FlowData`）と `FlowNode::payload_node`・`antecedent`（kind で
+  特化）。
+- flow graph は変わらない（fingerprint oracle の flow の hash で差 0）。
+
+**gate**：
+- **store 版**（F10b：領域 38/39 に global id で置く）：命令数 −69 / −86 M だが footprint −12 MiB。
+  - `mincore` で store はちょうど 40.3 MiB。heap は 83.5 MiB のうち ≈ 56 しか戻らない。
+  - そこで heap に置く。
+- **pilot の variant**（`main-e84278c49` 比、VS Code 9 round）：
+  - per-label Vec：−34.8 MiB / +195〜+216 M
+  - cell：−30.6〜−30.7 / +29〜+75 M
+  - cell + 正確な pool：−31.7〜−32.2 / +98〜+107 M
+  - **re-home つき：−36.1 / +112〜+120 M**
+- **独立した判定**：
+  - A（件数 × 費用）GO WITH CONDITIONS。mimalloc は倍々の block を保ち、heap から抜いた byte は ≈ 0.7〜0.8 で戻る、とする
+    model が全 variant に合う。配置の仮説を出し、re-home がそれを確かめた。
+  - B（静的）SOUND。
+  - C（反証）STANDS WITH FIXES。修正（正確な pool、凍結後の成長は release assert、空の lookup の guard は外す）を入れた。
+- **予想**：−34〜−37 MiB、+0.05〜+0.15 G。
+
+**計測**：夜間、他の lane は止めていない。load ≈ 2.2〜2.7、base と交互、`e84278c49` 比。
+
+| | 基準 | この PR |
+|---|---:|---:|
+| VS Code 1 thread の footprint（9 回の median） | 3,333.5 MiB | **3,297.3 MiB（−36.2）** |
+| 命令数（low mode の median） | 130.384 G | 130.465 G（**+80 M**） |
+| VS Code 4 thread の footprint | 3,777.5 MiB | **3,686.4 MiB（−91.1）** |
+| 4 thread の命令数 | 141.361 G | 141.510 G |
+
+- VS Code 1 thread の footprint は範囲が重ならない。
+- 同じ mode の組は +64〜+114 M（ほかに mode の間の run を含む 1 組 +415 M）。
+- 他 7 project：命令数 −0.03〜+0.10%、footprint −5〜+1 MiB。
+
+予想の帯の中。VS Code 1 thread は ≈ 3,297 MiB で、**約束 ≤ 3,300 MiB の内側**。
+
+**記録。** PR [#902](https://github.com/kazhiramatsu/tsc-rs/pull/902) → merge `681fc89fc`（2026-11-06。`1d00eda8b` の上、最終 head `1c7070d28`）。hosted run
+[42081813862](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42081813862)：全 job pass。local（hosted がしないことだけ、`1c7070d28`）：
+- unit test：凍結後にすべての kind を作ったとおりに読む（0・1・多の label、置き換え、clause の組、list の有無の reduce label、pool の
+  最後の空 label、凍結した写しは元を bind 可能なまま残す）。cell での 0/1/多・到達しない/重複の除外・Referenced/Shared。
+- binder の test 84、checker 1,873、api 332、fmt、clippy（`-D warnings`）、release build。
+- 8 case で出力（exit code・stdout・stderr）が基準と一致。Identifiers・Symbols・Types・Instantiations も 8 project とも一致。
+- `full` 構成の出力の木：hono（748 file）と effect（1,984 file）で byte 単位で一致。
+- fingerprint oracle：`main-d4d9d0364.tsv` に対して 143,190 行のうち差は 0（bind の hash は flow graph を含む）。
+- conformance（4 checker）：12,829 case、harness error は 0。
+  - #901 の 4 checker の report に対して 15,339 の構成すべてが同じ。
+  - 1 checker の report に対しては、記録済みの 4 構成だけが違う。
+- gate の記録：`gate-flow/`（DOSSIER.md・README.md・窓の log）。
+- 計測は上の通り。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
