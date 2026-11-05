@@ -158,6 +158,12 @@ pub enum PerfCounter {
     NamesTextReads,
     NamesTextKeyLookups,
     NamesEscapeCalls,
+    // ---- the binder's dense per-node maps (observation) ----
+    BinderNodeSymbolReads,
+    BinderNodeFlowReads,
+    BinderNodeSymbolFilled,
+    BinderNodeFlowFilled,
+    BinderNodeMapSlots,
     /// Sentinel: number of counters (not a counter).
     Count,
 }
@@ -280,6 +286,11 @@ pub const WIRED: [bool; COUNT] = [
     true,  // names.text.reads
     true,  // names.key.text_lookups
     true,  // names.escape.calls
+    true,  // binder.node_symbol.reads
+    true,  // binder.node_flow.reads
+    true,  // binder.node_symbol.filled
+    true,  // binder.node_flow.filled
+    true,  // binder.node_map.slots
 ];
 
 /// Report names in variant order.
@@ -396,6 +407,11 @@ pub const NAMES: [&str; COUNT] = [
     "names.text.reads",
     "names.key.text_lookups",
     "names.escape.calls",
+    "binder.node_symbol.reads",
+    "binder.node_flow.reads",
+    "binder.node_symbol.filled",
+    "binder.node_flow.filled",
+    "binder.node_map.slots",
 ];
 
 #[cfg(feature = "perf-counters")]
@@ -629,7 +645,7 @@ mod tests {
         assert_eq!(NAMES.len(), COUNT);
         assert_eq!(WIRED.len(), COUNT);
         assert_eq!(NAMES[0], "links.node.reads");
-        assert_eq!(NAMES[COUNT - 1], "names.escape.calls");
+        assert_eq!(NAMES[COUNT - 1], "binder.node_map.slots");
     }
 
     #[test]

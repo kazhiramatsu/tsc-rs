@@ -498,6 +498,13 @@ impl<'a> BinderWorker<'a> {
             SymbolArena::at_reserved(symbols.start(), symbols.len()),
         );
         binder.bind_source_file();
+        #[cfg(feature = "perf-counters")]
+        {
+            use tsc_types::perf::{add, PerfCounter};
+            add(PerfCounter::BinderNodeSymbolFilled, binder.node_symbol.iter().count() as u64);
+            add(PerfCounter::BinderNodeFlowFilled, binder.node_flow.iter().count() as u64);
+            add(PerfCounter::BinderNodeMapSlots, source.arena.len() as u64);
+        }
         binder
     }
 
@@ -1786,12 +1793,14 @@ impl StoreRecord for NodeSlot<crate::flow::FlowId> {
 /// tsc `node.symbol` of a published, bound node.
 #[inline(always)]
 pub fn published_node_symbol(node: NodeId) -> Option<SymbolId> {
+    tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderNodeSymbolReads);
     tsc_store::get::<NodeSlot<SymbolId>>(node.position()).0
 }
 
 /// tsc `node.flowNode` of a published, bound node.
 #[inline(always)]
 pub fn published_node_flow(node: NodeId) -> Option<crate::flow::FlowId> {
+    tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderNodeFlowReads);
     tsc_store::get::<NodeSlot<crate::flow::FlowId>>(node.position()).0
 }
 
@@ -1804,7 +1813,7 @@ pub type NodeSymbolMap = DenseNodeMap<SymbolId>;
 /// the binder's per-file hash maps.
 pub type NodeFlowMap = DenseNodeMap<crate::flow::FlowId>;
 
-impl<V: Copy> DenseNodeMap<V>
+impl<V: Copy + 'static> DenseNodeMap<V>
 where
     NodeSlot<V>: StoreRecord,
 {
@@ -1835,6 +1844,11 @@ where
     }
 
     pub fn get(&self, node: &NodeId) -> Option<&V> {
+        if std::any::TypeId::of::<V>() == std::any::TypeId::of::<SymbolId>() {
+            tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderNodeSymbolReads);
+        } else {
+            tsc_types::perf::bump(tsc_types::perf::PerfCounter::BinderNodeFlowReads);
+        }
         self.slots.get(self.slot(node)?)?.0.as_ref()
     }
 
