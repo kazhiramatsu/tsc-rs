@@ -648,6 +648,7 @@ pub fn is_modifier_kind(kind: SyntaxKind) -> bool {
 /// tsc `node.modifiers` dynamic access: the modifiers array of any kind
 /// that can carry one (canHaveModifiers proxy — exactly the generated
 /// Data structs with a modifiers field).
+#[inline(always)]
 pub fn modifiers_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeArrayId> {
     tree.node(id).modifiers_field()
 }
@@ -732,6 +733,7 @@ pub fn get_syntactic_modifier_flags_no_cache(tree: &impl NodeLookup, id: NodeId)
 
 /// tsc getSyntacticModifierFlags: the modifierFlagsCache is a pure
 /// memoization — recompute instead.
+#[inline(always)]
 pub fn get_syntactic_modifier_flags(tree: &impl NodeLookup, id: NodeId) -> ModifierFlags {
     let kind = kind_of(tree, id);
     if kind as u16 >= SyntaxKind::FirstToken as u16 && kind as u16 <= SyntaxKind::LastToken as u16 {
@@ -852,6 +854,7 @@ pub fn get_combined_syntactic_modifier_flags(tree: &impl NodeLookup, id: NodeId)
 
 /// tsc `declaration.name` dynamic access: the name field of any kind
 /// that has one (the getNonAssignedNameOfDeclaration default arm).
+#[inline(always)]
 pub fn name_field_of(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
     let node = tree.node(id);
     match node.kind {
@@ -1090,6 +1093,7 @@ pub fn get_assigned_name(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
 /// tsc-port: getNameOfDeclaration @6.0.3
 /// tsc-hash: 5d3aafbdab871f0fe6f088a4904cd11e6b44e467e0cca8ad0c215b3f899b570b
 /// tsc-span: _tsc.js:11562-11565
+#[inline(always)]
 pub fn get_name_of_declaration(tree: &impl NodeLookup, id: NodeId) -> Option<NodeId> {
     get_non_assigned_name_of_declaration(tree, id).or_else(|| match kind_of(tree, id) {
         SyntaxKind::FunctionExpression
@@ -1243,6 +1247,7 @@ pub fn get_text_of_identifier_or_literal(tree: &impl NodeLookup, id: NodeId) -> 
 }
 
 /// tsc getEscapedTextOfIdentifierOrLiteral (_tsc.js 15902).
+#[inline(always)]
 pub fn get_escaped_text_of_identifier_or_literal(
     tree: &impl NodeLookup,
     id: NodeId,
@@ -2234,6 +2239,7 @@ pub fn is_part_of_type_query(tree: &impl NodeLookup, mut node: NodeId) -> bool {
 /// tsc isNarrowableReference (part of the 42977 predicate family; the
 /// rest lands in stage 3.5). Consulted by bindWorker's access-
 /// expression flowNode stamping.
+#[inline(always)]
 pub fn is_narrowable_reference(source: &SourceFile, expr: NodeId) -> bool {
     match &source.arena.node(expr).data() {
         NodeData::PropertyAccessExpression(data) => data
@@ -3114,6 +3120,7 @@ pub fn can_have_flow_node(tree: &impl NodeLookup, node: NodeId) -> bool {
 /// tsc-port: isPotentiallyExecutableNode @6.0.3
 /// tsc-hash: b81957d1ca763bf201e860e37f3a0179784246e97cc03654486f850282e3e745
 /// tsc-span: _tsc.js:20196-20209
+#[inline(always)]
 pub fn is_potentially_executable_node(tree: &impl NodeLookup, node: NodeId) -> bool {
     let kind = kind_of(tree, node);
     if kind as u16 >= SyntaxKind::FirstStatement as u16

@@ -1318,3 +1318,28 @@ fn expandos_bind_on_initializer_symbols_after_the_file() {
         .contains_key("b"));
     assert!(!locals.contains_key("missing"));
 }
+
+#[test]
+fn only_an_unreachable_executable_node_carries_unreachable_after_bind() {
+    // tsgo bindChildren (binder.go:1645-1660) stamps Unreachable on an
+    // unreachable potentially-executable node and clears nothing; the
+    // flag overlay starts from the parse flags on every bind.
+    let source = parse("function f() { a(); return; b(); }\n");
+    let statements = find_nodes(&source, SyntaxKind::ExpressionStatement);
+    assert_eq!(statements.len(), 2);
+    let flags = |binder: &Binder<'_>| {
+        statements
+            .iter()
+            .map(|&statement| {
+                binder
+                    .flags_of(statement)
+                    .intersects(tsc_types::NodeFlags::UNREACHABLE)
+            })
+            .collect::<Vec<_>>()
+    };
+    let first = bind(&source);
+    assert_eq!(flags(&first), [false, true]);
+    // A second bind of the same tree starts from the parse flags again.
+    let second = bind(&source);
+    assert_eq!(flags(&second), [false, true]);
+}
