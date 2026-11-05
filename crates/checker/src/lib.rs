@@ -4988,6 +4988,7 @@ fn check_snapshot_serially(
         &checked_program_file_ids,
         &mut global_checker_diagnostics_by_file,
     );
+    tsc_types::trace::observe("after_check");
     if tsc_types::trace::enabled() {
         tsc_types::trace::mark(
             &format!(
@@ -6435,10 +6436,12 @@ fn bind_sources_in_program_order(
     tracing: Option<&Arc<Tracing>>,
 ) -> Vec<BindData> {
     let sources = sources.iter().map(Arc::as_ref).collect::<Vec<_>>();
-    bind_reserved_in_program_order(&sources, identity_domain, workers, tracing)
+    let data = bind_reserved_in_program_order(&sources, identity_domain, workers, tracing)
         .into_iter()
         .map(tsc_binder::Binder::into_bind_data)
-        .collect()
+        .collect();
+    tsc_types::trace::observe("after_bind");
+    data
 }
 
 /// Consume completed bind workers into immutable document handles. The

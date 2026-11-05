@@ -10,6 +10,20 @@ use std::time::Instant;
 static ENABLED: OnceLock<bool> = OnceLock::new();
 static EPOCH: OnceLock<Instant> = OnceLock::new();
 static MEMORY_PROBE: OnceLock<fn() -> MemorySample> = OnceLock::new();
+static OBSERVER: OnceLock<fn(&str)> = OnceLock::new();
+
+/// Observation only (m8 heap walk, never merged): the binary's observer of
+/// named instants (`observe`), registered once.
+pub fn set_observer(observer: fn(&str)) {
+    let _ = OBSERVER.set(observer);
+}
+
+/// Observation only: tell the registered observer the run reached `instant`.
+pub fn observe(instant: &str) {
+    if let Some(observer) = OBSERVER.get() {
+        observer(instant);
+    }
+}
 
 /// The process memory at a phase mark, in bytes.
 #[derive(Clone, Copy, Debug, Default)]
