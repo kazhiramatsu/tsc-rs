@@ -323,8 +323,9 @@ fn while_loop_label_gets_entry_and_back_edge() {
     // the entry edge and the loop-body back edge.
     let source = parse("function f(x: any) { while (x) { x; } }\n");
     let binder = bind(&source);
-    let loop_labels: Vec<_> = (0..binder.flow.len() as u32)
-        .map(crate::flow::FlowId::new)
+    let loop_labels: Vec<_> = binder
+        .flow
+        .ids()
         .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::LOOP_LABEL))
         .collect();
     assert_eq!(loop_labels.len(), 1);
@@ -355,8 +356,9 @@ fn try_finally_produces_reduce_labels() {
     // ReduceLabel nodes.
     let source = parse("function f(x: any) { try { x(); } catch (e) { x; } finally { x; } x; }\n");
     let binder = bind(&source);
-    let reduce_count = (0..binder.flow.len() as u32)
-        .map(crate::flow::FlowId::new)
+    let reduce_count = binder
+        .flow
+        .ids()
         .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::REDUCE_LABEL))
         .count();
     assert!(reduce_count >= 1, "expected ReduceLabel nodes, got none");
@@ -372,8 +374,9 @@ fn narrowing_switch_creates_switch_clause_nodes() {
         );
     let binder = bind(&source);
     let switch_statement = find_nodes(&source, SyntaxKind::SwitchStatement)[0];
-    let clauses: Vec<_> = (0..binder.flow.len() as u32)
-        .map(crate::flow::FlowId::new)
+    let clauses: Vec<_> = binder
+        .flow
+        .ids()
         .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::SWITCH_CLAUSE))
         .collect();
     // 2 case clauses + the implicit default (clauseStart==clauseEnd==0).
@@ -401,8 +404,9 @@ fn assignment_creates_flow_mutation_and_stamps_references() {
     // stamp in bindWorker.
     let source = parse("function f(x: any) { x = 1; x; }\n");
     let binder = bind(&source);
-    let assignments = (0..binder.flow.len() as u32)
-        .map(crate::flow::FlowId::new)
+    let assignments = binder
+        .flow
+        .ids()
         .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::ASSIGNMENT))
         .count();
     assert_eq!(assignments, 1);
@@ -435,8 +439,9 @@ fn optional_chain_creates_outermost_conditions() {
     // True/FalseCondition nodes.
     let source = parse("function f(a: any) { if (a?.b) { a; } }\n");
     let binder = bind(&source);
-    let conditions = (0..binder.flow.len() as u32)
-        .map(crate::flow::FlowId::new)
+    let conditions = binder
+        .flow
+        .ids()
         .filter(|&id| {
             flow_flags(&binder, id).intersects(
                 tsc_types::FlowFlags::TRUE_CONDITION | tsc_types::FlowFlags::FALSE_CONDITION,
@@ -510,8 +515,9 @@ fn nested_function_break_cannot_see_outer_label() {
         .intersects(tsc_types::NodeFlags::UNREACHABLE));
     // The only BranchLabel is outer's post-statement label; the
     // nested break must not have added a second antecedent.
-    let branch_labels: Vec<_> = (0..binder.flow.len() as u32)
-        .map(crate::flow::FlowId::new)
+    let branch_labels: Vec<_> = binder
+        .flow
+        .ids()
         .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::BRANCH_LABEL))
         .collect();
     assert_eq!(branch_labels.len(), 1);

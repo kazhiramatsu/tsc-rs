@@ -527,8 +527,8 @@ impl<'a> Tree<'a> {
                 }
             }
         }
-        for index in 0..binder.flow.len() as u32 {
-            number_flow_graph(binder, FlowId::new(index), &mut flows);
+        for id in binder.flow.ids() {
+            number_flow_graph(binder, id, &mut flows);
         }
 
         let mut hash = Fnv::new();

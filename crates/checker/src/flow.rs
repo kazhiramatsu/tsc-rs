@@ -31,7 +31,9 @@
 //! outer containment boundary. Successful walks always return their
 //! computed answer and participate in the same loop cache as tsc.
 
-use tsc_binder::flow::{FlowArena, FlowData, FlowId, FlowNode};
+use tsc_binder::flow::{
+    published_antecedents, published_flow, published_payload, FlowArena, FlowData, FlowId, FlowNode,
+};
 use tsc_binder::{node_util, SymbolId};
 use tsc_diagnostics::gen as diagnostics;
 use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
@@ -125,7 +127,7 @@ pub(crate) struct FlowQuery<'a> {
 impl FlowQuery<'_> {
     #[inline]
     fn flow(&self, flow: FlowId) -> &FlowNode {
-        self.arena.flow(flow)
+        published_flow(flow)
     }
 
     #[inline]
@@ -140,7 +142,7 @@ impl FlowQuery<'_> {
 
     #[inline]
     fn payload(&self, flow: FlowId) -> FlowData<'_> {
-        self.arena.payload(flow)
+        published_payload(flow)
     }
 }
 
@@ -237,15 +239,15 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsrs-native: per-file FlowArena flags read.
-    pub(crate) fn flow_flags_of(&self, file: usize, flow: FlowId) -> FlowFlags {
-        self.binder.file(file).flow.flow(flow).flags
+    pub(crate) fn flow_flags_of(&self, _file: usize, flow: FlowId) -> FlowFlags {
+        published_flow(flow).flags
     }
 
     /// The single antecedent of a plain (non-label) flow node.
     /// tsrs-native: per-file FlowArena antecedent read; plain kinds
     /// store exactly one antecedent (binder flow.rs shape).
-    pub(crate) fn flow_antecedent(&self, file: usize, flow: FlowId) -> FlowId {
-        plain_flow_antecedent(self.binder.file(file).flow.flow(flow))
+    pub(crate) fn flow_antecedent(&self, _file: usize, flow: FlowId) -> FlowId {
+        plain_flow_antecedent(published_flow(flow))
     }
 
     /// A LABEL's antecedent list, override-aware: a ReduceLabel arm in
@@ -255,7 +257,12 @@ impl<'a> CheckerState<'a> {
     /// in `reduce_label_overrides` and every label read consults it.
     /// tsrs-native: override-map view over the binder arena.
     pub(crate) fn flow_label_antecedents(&self, file: usize, flow: FlowId) -> FlowAntecedents {
-        self.flow_label_antecedents_in(file, &self.binder.file(file).flow, flow)
+        if !self.reduce_label_overrides.is_empty() {
+            if let Some(overridden) = self.reduce_label_overrides.get(&(file, flow)) {
+                return FlowAntecedents::new(overridden);
+            }
+        }
+        FlowAntecedents::new(published_antecedents(flow))
     }
 
     fn flow_label_antecedents_in(
@@ -264,14 +271,17 @@ impl<'a> CheckerState<'a> {
         arena: &FlowArena,
         flow: FlowId,
     ) -> FlowAntecedents {
-        if let Some(overridden) = self.reduce_label_overrides.get(&(file, flow)) {
-            return FlowAntecedents::new(overridden);
+        if !self.reduce_label_overrides.is_empty() {
+            if let Some(overridden) = self.reduce_label_overrides.get(&(file, flow)) {
+                return FlowAntecedents::new(overridden);
+            }
         }
-        FlowAntecedents::new(arena.antecedents(flow))
+        let _ = arena;
+        FlowAntecedents::new(published_antecedents(flow))
     }
 
-    fn flow_payload_node(&self, file: usize, flow: FlowId) -> Option<NodeId> {
-        self.binder.file(file).flow.flow(flow).payload_node()
+    fn flow_payload_node(&self, _file: usize, flow: FlowId) -> Option<NodeId> {
+        published_flow(flow).payload_node()
     }
 
     // ---- the entry ----
@@ -1850,7 +1860,7 @@ impl<'a> CheckerState<'a> {
                     switch_statement,
                     clause_start,
                     clause_end,
-                } = self.binder.file(file).flow.payload(flow)
+                } = published_payload(flow)
                 else {
                     unreachable!("SWITCH_CLAUSE flag implies SwitchClause payload");
                 };
@@ -1865,7 +1875,7 @@ impl<'a> CheckerState<'a> {
                 let FlowData::ReduceLabel {
                     target,
                     antecedents,
-                } = self.binder.file(file).flow.payload(flow)
+                } = published_payload(flow)
                 else {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
@@ -1954,7 +1964,7 @@ impl<'a> CheckerState<'a> {
                 let FlowData::ReduceLabel {
                     target,
                     antecedents,
-                } = self.binder.file(file).flow.payload(flow)
+                } = published_payload(flow)
                 else {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };

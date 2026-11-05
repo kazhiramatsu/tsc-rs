@@ -107,22 +107,116 @@ impl FlowNode {
     }
 }
 
-/// One file's flow graph. While the file is bound, the label lists are
-/// staged one per list (`add_antecedent` appends, `set_label_antecedents`
-/// replaces); [`Self::freeze`] writes them once into one exact pool, in
-/// creation order, and drops the staging.
+impl tsc_store::StoreRecord for FlowNode {
+    const REGION: usize = tsc_store::claimed::FLOW_NODE_REGION;
+}
+
+impl tsc_store::StoreRecord for FlowId {
+    const REGION: usize = tsc_store::claimed::FLOW_ITEM_REGION;
+}
+
+/// A published file's flow graph in the store: its nodes in one exact room
+/// of region 38 and its lists in one of region 39, at global flow ids (see
+/// [`FlowArena::publish`]). Clones of the bind data share it, and the rooms
+/// go with the last one.
+pub struct FlowRooms {
+    nodes: tsc_store::claimed::ClaimedRecords<FlowNode>,
+    items: tsc_store::claimed::ClaimedRecords<FlowId>,
+}
+
+impl std::fmt::Debug for FlowRooms {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("FlowRooms")
+            .field("nodes", &self.nodes.stats().live_bytes)
+            .field("items", &self.items.stats().live_bytes)
+            .finish()
+    }
+}
+
+/// One file's flow graph. While the file is bound, its nodes have local ids
+/// and the label lists are staged one per list (`add_antecedent` appends,
+/// `set_label_antecedents` replaces); [`Self::freeze`] writes them once into
+/// one exact pool, in creation order. [`Self::publish`] then moves the graph
+/// into the store at global ids, where the checker reads it without the
+/// file ([`published_flow`]).
 #[derive(Clone, Debug, Default)]
 pub struct FlowArena {
     nodes: Vec<FlowNode>,
     staging: Vec<Vec<FlowId>>,
     pool: Box<[FlowId]>,
     frozen: bool,
+    rooms: Option<std::sync::Arc<FlowRooms>>,
+    published_len: u32,
+    published_base: u32,
+}
+
+/// The flow node `id` of a published file (global id).
+#[inline(always)]
+pub fn published_flow(id: FlowId) -> &'static FlowNode {
+    tsc_store::get::<FlowNode>(id.index())
+}
+
+#[inline(always)]
+fn published_list(start: u32, len: u32) -> &'static [FlowId] {
+    if len == 0 {
+        &[]
+    } else {
+        tsc_store::slice::<FlowId>(start, len)
+    }
+}
+
+/// The antecedents of the published flow node `id`, in tsc's order (see
+/// [`FlowArena::antecedents`]).
+#[inline(always)]
+pub fn published_antecedents(id: FlowId) -> &'static [FlowId] {
+    let node = published_flow(id);
+    if node.is_label() {
+        published_list(node.a, node.c)
+    } else {
+        node.antecedent.as_slice()
+    }
+}
+
+/// tsc FlowNode.node of the published flow node `id` (see
+/// [`FlowArena::payload`]).
+pub fn published_payload(id: FlowId) -> FlowData<'static> {
+    let node = published_flow(id);
+    if node.is_label() {
+        FlowData::Label {
+            antecedents: published_list(node.a, node.c),
+        }
+    } else if node.flags.intersects(FlowFlags::REDUCE_LABEL) {
+        let len = tsc_store::get::<FlowId>(node.c).index();
+        FlowData::ReduceLabel {
+            target: FlowId::new(node.a),
+            antecedents: published_list(node.c + 1, len),
+        }
+    } else if node.flags.intersects(FlowFlags::SWITCH_CLAUSE) {
+        let clauses = published_list(node.c, 2);
+        FlowData::SwitchClause {
+            switch_statement: NodeId::new(node.a - 1),
+            clause_start: clauses[0].index(),
+            clause_end: clauses[1].index(),
+        }
+    } else if node.a == 0 {
+        FlowData::None
+    } else {
+        FlowData::Node(NodeId::new(node.a - 1))
+    }
 }
 
 impl FlowArena {
     /// Flow node count and the bytes the arena and its antecedent lists
     /// own on the heap, for memory accounting.
     pub fn memory_usage(&self) -> (usize, usize, usize) {
+        if let Some(rooms) = &self.rooms {
+            return (
+                self.published_len as usize,
+                rooms.nodes.stats().live_bytes,
+                rooms.items.stats().live_bytes,
+            );
+        }
         let staged = self.staging.iter().map(Vec::capacity).sum::<usize>();
         (
             self.nodes.len(),
@@ -175,6 +269,9 @@ impl FlowArena {
 
     #[inline(always)]
     pub fn flow(&self, id: FlowId) -> &FlowNode {
+        if self.rooms.is_some() {
+            return published_flow(id);
+        }
         &self.nodes[id.index() as usize]
     }
 
@@ -204,6 +301,9 @@ impl FlowArena {
     /// single antecedent (none for the start and unreachable nodes).
     #[inline(always)]
     pub fn antecedents(&self, id: FlowId) -> &[FlowId] {
+        if self.rooms.is_some() {
+            return published_antecedents(id);
+        }
         let node = self.flow(id);
         if node.is_label() {
             self.list(node.a, Some(node.c))
@@ -214,6 +314,9 @@ impl FlowArena {
 
     /// tsc FlowNode.node, with a label's or a reduce label's list.
     pub fn payload(&self, id: FlowId) -> FlowData<'_> {
+        if self.rooms.is_some() {
+            return published_payload(id);
+        }
         let node = self.flow(id);
         if node.is_label() {
             FlowData::Label {
@@ -286,12 +389,81 @@ impl FlowArena {
         copy
     }
 
+    /// Move the frozen graph into the store at global ids: the nodes into one
+    /// exact room of region 38, the lists into one of region 39, every flow id
+    /// they hold shifted to its global id. Returns the global id of the file's
+    /// local node 0: the file's other holders of local flow ids add it
+    /// (`FlowId::new(base + local.index())`). The local nodes and pool go.
+    /// Rooms are issued in order, so the files' rooms share pages.
+    pub fn publish(&mut self) -> u32 {
+        assert!(self.rooms.is_none(), "a flow graph is published once");
+        self.freeze();
+        let len = self.nodes.len() as u32;
+        let mut pool = std::mem::take(&mut self.pool).into_vec();
+        let mut nodes =
+            tsc_store::claimed::ClaimedRecords::<FlowNode>::with_chunk_capacity(len.max(1));
+        let mut items = tsc_store::claimed::ClaimedRecords::<FlowId>::with_chunk_capacity(
+            (pool.len() as u32).max(1),
+        );
+        let base = nodes.claim_slice(len);
+        let items_base = items.claim_slice(pool.len() as u32);
+        let global = |local: FlowId| FlowId::new(base + local.index());
+        for node in &self.nodes {
+            if node.is_label() {
+                for item in &mut pool[node.a as usize..(node.a + node.c) as usize] {
+                    *item = global(*item);
+                }
+            } else if node.flags.intersects(FlowFlags::REDUCE_LABEL) {
+                let start = node.c as usize + 1;
+                let len = pool[node.c as usize].index() as usize;
+                for item in &mut pool[start..start + len] {
+                    *item = global(*item);
+                }
+            }
+        }
+        items
+            .slice_mut(items_base, pool.len() as u32)
+            .copy_from_slice(&pool);
+        for (slot, node) in nodes.slice_mut(base, len).iter_mut().zip(&self.nodes) {
+            let mut node = *node;
+            node.antecedent = node.antecedent.map(global);
+            if node.is_label() {
+                node.a += items_base;
+            } else if node.flags.intersects(FlowFlags::REDUCE_LABEL) {
+                node.a += base;
+                node.c += items_base;
+            } else if node.flags.intersects(FlowFlags::SWITCH_CLAUSE) {
+                node.c += items_base;
+            }
+            *slot = node;
+        }
+        self.published_len = len;
+        self.published_base = base;
+        self.nodes = Vec::new();
+        self.rooms = Some(std::sync::Arc::new(FlowRooms { nodes, items }));
+        base
+    }
+
+    /// The global id of the file's local node 0 once published (0 before).
+    pub fn published_base(&self) -> u32 {
+        self.published_base
+    }
+
+    /// The file's flow ids in creation order (global once published).
+    pub fn ids(&self) -> impl Iterator<Item = FlowId> + '_ {
+        let base = self.published_base;
+        (base..base + self.len() as u32).map(FlowId::new)
+    }
+
     pub fn len(&self) -> usize {
+        if self.rooms.is_some() {
+            return self.published_len as usize;
+        }
         self.nodes.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
+        self.len() == 0
     }
 
     fn create_label(&mut self, flags: FlowFlags) -> FlowId {

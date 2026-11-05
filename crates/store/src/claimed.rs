@@ -262,6 +262,54 @@ impl<T: StoreRecord + Copy> ClaimedRecords<T> {
         position
     }
 
+    /// Claim `len` zeroed records at consecutive global positions of one room
+    /// and return the first (0 for none): for records that name positions not
+    /// known before the claim, written afterwards through [`Self::slice_mut`].
+    /// The records are zero-valid (`StoreRecord`), so the claimed slots are
+    /// initialized records.
+    pub fn claim_slice(&mut self, len: u32) -> u32 {
+        if len == 0 {
+            return 0;
+        }
+        if self
+            .chunks
+            .last()
+            .is_none_or(|chunk| chunk.room.capacity() - chunk.len < len)
+        {
+            self.add_room(self.chunk_capacity.max(len));
+        }
+        let chunk = self.chunks.last_mut().unwrap();
+        let position = chunk.room.start() + chunk.len;
+        match &mut chunk.room {
+            RecordRoom::Allocated(room) => room.initialize_through(chunk.len + len),
+            RecordRoom::Leased(_) => panic!("claimed slices are for the new record regions"),
+        }
+        chunk.len += len;
+        self.len += len as usize;
+        position
+    }
+
+    /// The `len` records from `position`, which this owner issued as one
+    /// slice ([`Self::push_slice`] or [`Self::claim_slice`]).
+    pub fn slice_mut(&mut self, position: u32, len: u32) -> &mut [T] {
+        if len == 0 {
+            return &mut [];
+        }
+        assert!(
+            self.chunks
+                .iter()
+                .any(|chunk| position >= chunk.room.start()
+                    && position - chunk.room.start() + len <= chunk.len),
+            "a slice this owner did not issue"
+        );
+        // SAFETY: the check above proves `len` live, initialized slots of one
+        // room of this owner, and &mut self excludes every other borrow
+        // issued through it.
+        unsafe {
+            std::slice::from_raw_parts_mut(crate::address::<T>(position) as *mut T, len as usize)
+        }
+    }
+
     fn add_room(&mut self, capacity: u32) {
         let room = if let Some(source) = &mut self.source {
             RecordRoom::Leased(source(capacity))

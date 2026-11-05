@@ -48,6 +48,30 @@ impl<'a> BinderWorker<'a> {
         self.bind_common_js_file_tail();
         self.bind_deferred_expando_assignments();
         self.bind_jsdoc_imports();
+        self.publish_flow();
+    }
+
+    /// The flow graph into the store at global ids
+    /// ([`crate::flow::FlowArena::publish`]), once the walk is done: every
+    /// flow id the bind holds (the per-node table in place, the side maps,
+    /// the unreachable node) shifts from the file's local id to the global
+    /// one, so a bind result taken from this worker reads the same graph.
+    fn publish_flow(&mut self) {
+        let base = self.flow.publish();
+        let global = move |flow: &mut crate::flow::FlowId| {
+            *flow = crate::flow::FlowId::new(base + flow.index());
+        };
+        global(&mut self.unreachable_flow);
+        self.node_flow.values_mut().for_each(global);
+        for map in [
+            &mut self.node_end_flow,
+            &mut self.node_return_flow,
+            &mut self.node_flow_when_true,
+            &mut self.node_flow_when_false,
+            &mut self.node_fallthrough_flow,
+        ] {
+            map.values_mut().for_each(global);
+        }
     }
 
     /// tsc-port: bind @6.0.3

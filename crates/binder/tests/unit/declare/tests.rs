@@ -389,7 +389,17 @@ fn local_bind_with_in_order_relocation_matches_direct_binding_at_the_same_bases(
         assert_eq!(expected.classifiable_names, direct.classifiable_names);
         assert_eq!(expected.assigned_symbol_ids, direct.assigned_symbol_ids);
         assert_eq!(expected.bind_diagnostics, direct.bind_diagnostics);
-        assert_eq!(expected.node_flow, direct.node_flow);
+        // Each bind publishes its flow graph at global ids of its own: the
+        // tables agree relative to each graph's base.
+        let relative = |map: &crate::declare::NodeFlowMap, base: u32| {
+            map.iter()
+                .map(|(node, flow)| (node, flow.index() - base))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            relative(&expected.node_flow, expected.flow.published_base()),
+            relative(&direct.node_flow, direct.flow.published_base())
+        );
         assert_eq!(expected.node_flags_mut, direct.node_flags_mut);
     }
 }
