@@ -125,16 +125,19 @@ pub(crate) struct FlowQuery<'a> {
 impl FlowQuery<'_> {
     #[inline]
     fn flow(&self, flow: FlowId) -> &FlowNode {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowQueryNode); 
         self.arena.flow(flow)
     }
 
     #[inline]
     fn antecedent(&self, flow: FlowId) -> FlowId {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowQueryAntecedent); 
         plain_flow_antecedent(self.flow(flow))
     }
 
     #[inline]
     fn payload_node(&self, flow: FlowId) -> Option<NodeId> {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowQueryPayloadNode); 
         match self.flow(flow).payload {
             FlowPayload::Node(node) => Some(node),
             _ => None,
@@ -236,6 +239,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: per-file FlowArena flags read.
     pub(crate) fn flow_flags_of(&self, file: usize, flow: FlowId) -> FlowFlags {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowRoutedFlags); 
         self.binder.file(file).flow.flow(flow).flags
     }
 
@@ -243,6 +247,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: per-file FlowArena antecedent read; plain kinds
     /// store exactly one antecedent (binder flow.rs shape).
     pub(crate) fn flow_antecedent(&self, file: usize, flow: FlowId) -> FlowId {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowRoutedAntecedent); 
         plain_flow_antecedent(self.binder.file(file).flow.flow(flow))
     }
 
@@ -253,6 +258,7 @@ impl<'a> CheckerState<'a> {
     /// in `reduce_label_overrides` and every label read consults it.
     /// tsrs-native: override-map view over the binder arena.
     pub(crate) fn flow_label_antecedents(&self, file: usize, flow: FlowId) -> FlowAntecedents {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowRoutedLabelAntecedents); 
         self.flow_label_antecedents_in(file, &self.binder.file(file).flow, flow)
     }
 
@@ -262,6 +268,7 @@ impl<'a> CheckerState<'a> {
         arena: &FlowArena,
         flow: FlowId,
     ) -> FlowAntecedents {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowLabelAntecedentsIn); tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowReduceOverrideLookups); 
         if let Some(overridden) = self.reduce_label_overrides.get(&(file, flow)) {
             return FlowAntecedents::new(overridden);
         }
@@ -269,6 +276,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn flow_payload_node(&self, file: usize, flow: FlowId) -> Option<NodeId> {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowRoutedPayloadNode); 
         match self.binder.file(file).flow.flow(flow).payload {
             FlowPayload::Node(node) => Some(node),
             _ => None,
@@ -1247,6 +1255,7 @@ impl<'a> CheckerState<'a> {
         let Some(key) = self.get_or_set_cache_key(query)? else {
             return Ok(FlowType::Type(query.declared_type));
         };
+tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowLoopCacheLookups); 
         if let Some(cache) = self.flow_loop_caches.get(&(query.file, flow)) {
             if let Some(&cached) = cache.get(&key) {
                 return Ok(FlowType::Type(cached));
@@ -1304,7 +1313,8 @@ impl<'a> CheckerState<'a> {
                 let flow_type = walked?;
                 // The fixpoint may have been finalized during the
                 // recursive walk (a nested query completed it).
-                if let Some(cache) = self.flow_loop_caches.get(&(query.file, flow)) {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowLoopCacheLookups); 
+        if let Some(cache) = self.flow_loop_caches.get(&(query.file, flow)) {
                     if let Some(&cached) = cache.get(&key) {
                         return Ok(FlowType::Type(cached));
                     }
@@ -1773,6 +1783,7 @@ impl<'a> CheckerState<'a> {
         mut no_cache_check: bool,
     ) -> CheckResult<bool> {
         loop {
+tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowLastNodeOps); 
             if self.last_flow_node == Some((file, flow)) {
                 return Ok(self.last_flow_node_reachable);
             }
@@ -1782,10 +1793,12 @@ impl<'a> CheckerState<'a> {
                 // a shared node's reachability is cached only while no
                 // ReduceLabel narrows a label's antecedents.
                 if !no_cache_check && self.reduce_label_overrides.is_empty() {
+tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowReachableOps); 
                     if let Some(&reachable) = self.flow_node_reachable.get(&(file, flow)) {
                         return Ok(reachable);
                     }
                     let reachable = self.is_reachable_flow_node_worker(file, flow, true)?;
+tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowReachableOps); 
                     self.flow_node_reachable.insert((file, flow), reachable);
                     return Ok(reachable);
                 }
@@ -1904,10 +1917,12 @@ impl<'a> CheckerState<'a> {
             let flags = self.flow_flags_of(file, flow);
             if flags.intersects(FlowFlags::SHARED) {
                 if !no_cache_check {
+tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowPostSuperOps); 
                     if let Some(&post_super) = self.flow_node_post_super.get(&(file, flow)) {
                         return post_super;
                     }
                     let post_super = self.is_post_super_flow_node(file, flow, true);
+tsc_types::perf::bump(tsc_types::perf::PerfCounter::FlowPostSuperOps); 
                     self.flow_node_post_super.insert((file, flow), post_super);
                     return post_super;
                 }

@@ -158,6 +158,20 @@ pub enum PerfCounter {
     NamesTextReads,
     NamesTextKeyLookups,
     NamesEscapeCalls,
+    // ---- flow reads and flow-keyed caches (observation) ----
+    FlowRoutedFlags,
+    FlowRoutedAntecedent,
+    FlowRoutedLabelAntecedents,
+    FlowLabelAntecedentsIn,
+    FlowRoutedPayloadNode,
+    FlowQueryNode,
+    FlowQueryAntecedent,
+    FlowQueryPayloadNode,
+    FlowReduceOverrideLookups,
+    FlowLoopCacheLookups,
+    FlowReachableOps,
+    FlowPostSuperOps,
+    FlowLastNodeOps,
     /// Sentinel: number of counters (not a counter).
     Count,
 }
@@ -280,6 +294,19 @@ pub const WIRED: [bool; COUNT] = [
     true,  // names.text.reads
     true,  // names.key.text_lookups
     true,  // names.escape.calls
+    true,  // flow.routed.flags
+    true,  // flow.routed.antecedent
+    true,  // flow.routed.label_antecedents
+    true,  // flow.label_antecedents_in
+    true,  // flow.routed.payload_node
+    true,  // flow.query.node
+    true,  // flow.query.antecedent
+    true,  // flow.query.payload_node
+    true,  // flow.key.reduce_override_lookups
+    true,  // flow.key.loop_cache_lookups
+    true,  // flow.key.reachable_ops
+    true,  // flow.key.post_super_ops
+    true,  // flow.key.last_node_ops
 ];
 
 /// Report names in variant order.
@@ -396,6 +423,19 @@ pub const NAMES: [&str; COUNT] = [
     "names.text.reads",
     "names.key.text_lookups",
     "names.escape.calls",
+    "flow.routed.flags",
+    "flow.routed.antecedent",
+    "flow.routed.label_antecedents",
+    "flow.label_antecedents_in",
+    "flow.routed.payload_node",
+    "flow.query.node",
+    "flow.query.antecedent",
+    "flow.query.payload_node",
+    "flow.key.reduce_override_lookups",
+    "flow.key.loop_cache_lookups",
+    "flow.key.reachable_ops",
+    "flow.key.post_super_ops",
+    "flow.key.last_node_ops",
 ];
 
 #[cfg(feature = "perf-counters")]
@@ -629,7 +669,7 @@ mod tests {
         assert_eq!(NAMES.len(), COUNT);
         assert_eq!(WIRED.len(), COUNT);
         assert_eq!(NAMES[0], "links.node.reads");
-        assert_eq!(NAMES[COUNT - 1], "names.escape.calls");
+        assert_eq!(NAMES[COUNT - 1], "flow.key.last_node_ops");
     }
 
     #[test]
