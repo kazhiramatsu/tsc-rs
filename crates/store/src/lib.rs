@@ -143,6 +143,56 @@ pub fn slice<T: StoreRecord>(position: u32, len: u32) -> &'static [T] {
     unsafe { std::slice::from_raw_parts(address::<T>(position) as *const T, len as usize) }
 }
 
+/// Pilot (never merged): each thread keeps up to `MAX` released list
+/// mappings for its next lists, so a parse after a publication writes pages
+/// that are already backed instead of faulting fresh ones in.
+mod pool {
+    use std::cell::RefCell;
+
+    const MAX: usize = 8;
+
+    thread_local! {
+        static FREE: RefCell<Vec<(usize, usize)>> = const { RefCell::new(Vec::new()) };
+    }
+
+    /// The smallest kept mapping of at least `bytes`, and its size.
+    pub(super) fn take(bytes: usize) -> Option<(*mut u8, usize)> {
+        FREE.with(|free| {
+            let mut free = free.borrow_mut();
+            let best = free
+                .iter()
+                .enumerate()
+                .filter(|(_, &(_, size))| size >= bytes)
+                .min_by_key(|(_, &(_, size))| size)
+                .map(|(index, _)| index)?;
+            let (start, size) = free.swap_remove(best);
+            Some((start as *mut u8, size))
+        })
+    }
+
+    /// Keep a released mapping; past `MAX`, the smallest is unmapped.
+    pub(super) fn give(start: *mut u8, bytes: usize) {
+        let evicted = FREE.with(|free| {
+            let mut free = free.borrow_mut();
+            free.push((start as usize, bytes));
+            if free.len() > MAX {
+                let smallest = free
+                    .iter()
+                    .enumerate()
+                    .min_by_key(|(_, &(_, size))| size)
+                    .map(|(index, _)| index)
+                    .expect("the pool is not empty");
+                Some(free.swap_remove(smallest))
+            } else {
+                None
+            }
+        });
+        if let Some((start, bytes)) = evicted {
+            super::system::unmap(start as *mut u8, bytes);
+        }
+    }
+}
+
 static RESERVE: Once = Once::new();
 
 /// Whether the reservation exists.
@@ -549,8 +599,11 @@ impl<T: StoreRecord> StoreVec<T> {
             .expect("a store list exceeds usize");
         let (records, capacity, placement) = if bytes >= MAPPED_THRESHOLD {
             let bytes = bytes.next_multiple_of(RETURN_GRANULE);
+            // Pilot (never merged): a mapping this thread released, whose
+            // pages are already backed, before a new one.
+            let (mapping, bytes) = pool::take(bytes).unwrap_or_else(|| (system::map(bytes), bytes));
             (
-                system::map(bytes).cast::<T>(),
+                mapping.cast::<T>(),
                 bytes / std::mem::size_of::<T>(),
                 Placement::Mapped,
             )
@@ -581,7 +634,7 @@ impl<T: StoreRecord> StoreVec<T> {
                 drop(unsafe { Vec::from_raw_parts(self.records.as_ptr(), 0, self.capacity) });
             }
             Placement::Mapped => {
-                system::unmap(
+                pool::give(
                     self.records.as_ptr().cast(),
                     self.capacity * std::mem::size_of::<T>(),
                 );
