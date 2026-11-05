@@ -108,7 +108,9 @@ fn original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts() 
 fn await_reparse_respects_factory_child_and_name_boundaries() {
     let fixture: Value =
         serde_json::from_slice(include_bytes!("fixtures/await-flag-boundary.json")).unwrap();
-    assert_eq!(fixture["typescript"], "6.0.3");
+    // The expectations are tsgo's own parse of each case (tsgo's parser at
+    // aa8149273, dumped by a small Go program against the vendored source).
+    assert_eq!(fixture["typescript"], "7.1.0-dev-aa814927");
     assert_eq!(fixture["repetitions"], 2);
     let cases = fixture["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 285);

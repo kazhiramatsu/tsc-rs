@@ -1303,16 +1303,24 @@ fn context_recovery_covers_decorator_wrappers_and_trivia_but_not_overlapping_tai
             parsed.parse_recovery()
         );
     }
-    let clean = source("export {}; interface I extends await<string> {}");
-    assert!(clean.parse_diagnostics.is_empty());
-    assert!(clean.has_supported_emit_recovery());
+    // tsgo flags the heritage clause's `await` identifier and reparses the
+    // interface in the Await context, as it does a class's (an interface
+    // does not restore the flag): tsgo aa814927 reports TS1109 at 32 and 37
+    // and TS1005 at 44 (1-based columns).
+    let interface = source("export {}; interface I extends await<string> {}");
+    assert_eq!(
+        interface
+            .parse_diagnostics
+            .iter()
+            .map(|diagnostic| (diagnostic.start, diagnostic.code()))
+            .collect::<Vec<_>>(),
+        [(Some(31), 1109), (Some(36), 1109), (Some(43), 1005)]
+    );
     for text in [
         "export {}; class C extends await<A>, B {}",
         "export {}; class C implements A, await<B> {}",
         "export {}; 1, ;",
         "export {}; await (1,",
-        "export {}; let a = await /1; b; c; x/;",
-        "export {}; let a = await /1; b; c; x/; await (1,);",
     ] {
         let parsed = source(text);
         assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
@@ -1322,6 +1330,28 @@ fn context_recovery_covers_decorator_wrappers_and_trivia_but_not_overlapping_tai
             parsed.parse_recovery()
         );
     }
+    // tsgo reparses the flagged `let a = await /1;` in the Await context,
+    // where the regular expression swallows the next statements, and keeps
+    // only the reparse's diagnostics: none remain, and with a later flagged
+    // `await (1,);` only its TS1109 at 49, inside the one reparsed range, so
+    // the recovery is supported (tsgo aa814927; the emitted JavaScript of
+    // both files is tsgo's).
+    let swallowed = source("export {}; let a = await /1; b; c; x/;");
+    assert!(swallowed.parse_diagnostics.is_empty());
+    let later = source("export {}; let a = await /1; b; c; x/; await (1,);");
+    assert_eq!(
+        later
+            .parse_diagnostics
+            .iter()
+            .map(|diagnostic| (diagnostic.start, diagnostic.code()))
+            .collect::<Vec<_>>(),
+        [(Some(48), 1109)]
+    );
+    assert!(
+        later.has_supported_emit_recovery(),
+        "{:?}",
+        later.parse_recovery()
+    );
 }
 
 #[test]

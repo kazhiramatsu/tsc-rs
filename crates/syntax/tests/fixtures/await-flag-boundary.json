@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "typescript": "6.0.3",
+  "typescript": "7.1.0-dev-aa814927",
   "repetitions": 2,
-  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
-  "observer_sha256": "62d0d14186e99f1ae1314e5f06630b65ae31a0c01721a82872215ef34f0010a2",
+  "compiler_sha256": "3fa76900b2f0c51f5f19bb6645608adb61549c8751f8392d1e31d86c6d11b339",
+  "observer_sha256": "266cb8b36b85d4efa9012703e663181b82e134fd9b25b0514a165c442ed06084",
   "cases": [
     {
       "case_id": "original-1/script",
@@ -26,7 +26,26 @@
       "file": "main.ts",
       "text": "export {}; interface I extends await<string> {}",
       "expected": {
-        "diagnostics": [],
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 31,
+            "length": 5,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 36,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1005,
+            "start": 43,
+            "length": 1,
+            "message": "',' expected."
+          }
+        ],
         "statements": [
           {
             "kind": 280,
@@ -38,7 +57,7 @@
             "kind": 266,
             "pos": 10,
             "end": 47,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -54,6 +73,24 @@
             "start": 16,
             "length": 1,
             "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 38,
+            "length": 5,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 43,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1005,
+            "start": 50,
+            "length": 1,
+            "message": "',' expected."
           }
         ],
         "statements": [
@@ -73,7 +110,7 @@
             "kind": 266,
             "pos": 17,
             "end": 54,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -99,7 +136,14 @@
       "file": "main.ts",
       "text": "export {}; interface await {}",
       "expected": {
-        "diagnostics": [],
+        "diagnostics": [
+          {
+            "code": 2427,
+            "start": 21,
+            "length": 5,
+            "message": "Interface name cannot be 'await'."
+          }
+        ],
         "statements": [
           {
             "kind": 280,
@@ -108,10 +152,16 @@
             "await_context": false
           },
           {
-            "kind": 266,
+            "kind": 246,
             "pos": 10,
+            "end": 20,
+            "await_context": true
+          },
+          {
+            "kind": 246,
+            "pos": 20,
             "end": 29,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -127,6 +177,12 @@
             "start": 16,
             "length": 1,
             "message": "Expression expected."
+          },
+          {
+            "code": 2427,
+            "start": 28,
+            "length": 5,
+            "message": "Interface name cannot be 'await'."
           }
         ],
         "statements": [
@@ -143,10 +199,16 @@
             "await_context": true
           },
           {
-            "kind": 266,
+            "kind": 246,
             "pos": 17,
+            "end": 27,
+            "await_context": true
+          },
+          {
+            "kind": 246,
+            "pos": 27,
             "end": 36,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -257,7 +319,7 @@
             "kind": 267,
             "pos": 10,
             "end": 34,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -292,7 +354,7 @@
             "kind": 267,
             "pos": 17,
             "end": 41,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -318,7 +380,20 @@
       "file": "main.ts",
       "text": "export {}; type await = number;",
       "expected": {
-        "diagnostics": [],
+        "diagnostics": [
+          {
+            "code": 2457,
+            "start": 16,
+            "length": 5,
+            "message": "Type alias name cannot be 'await'."
+          },
+          {
+            "code": 1109,
+            "start": 22,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
         "statements": [
           {
             "kind": 280,
@@ -327,10 +402,22 @@
             "await_context": false
           },
           {
-            "kind": 267,
+            "kind": 246,
             "pos": 10,
+            "end": 15,
+            "await_context": true
+          },
+          {
+            "kind": 246,
+            "pos": 15,
+            "end": 21,
+            "await_context": true
+          },
+          {
+            "kind": 246,
+            "pos": 21,
             "end": 31,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -344,6 +431,18 @@
           {
             "code": 1109,
             "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 2457,
+            "start": 23,
+            "length": 5,
+            "message": "Type alias name cannot be 'await'."
+          },
+          {
+            "code": 1109,
+            "start": 29,
             "length": 1,
             "message": "Expression expected."
           }
@@ -362,10 +461,22 @@
             "await_context": true
           },
           {
-            "kind": 267,
+            "kind": 246,
             "pos": 17,
+            "end": 22,
+            "await_context": true
+          },
+          {
+            "kind": 246,
+            "pos": 22,
+            "end": 28,
+            "await_context": true
+          },
+          {
+            "kind": 246,
+            "pos": 28,
             "end": 38,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -403,7 +514,7 @@
             "kind": 245,
             "pos": 10,
             "end": 32,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -438,7 +549,7 @@
             "kind": 245,
             "pos": 17,
             "end": 39,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -464,7 +575,14 @@
       "file": "main.ts",
       "text": "export {}; function f<T extends await>() {}",
       "expected": {
-        "diagnostics": [],
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 37,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
         "statements": [
           {
             "kind": 280,
@@ -476,7 +594,7 @@
             "kind": 264,
             "pos": 10,
             "end": 43,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -490,6 +608,12 @@
           {
             "code": 1109,
             "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 44,
             "length": 1,
             "message": "Expression expected."
           }
@@ -511,7 +635,7 @@
             "kind": 264,
             "pos": 17,
             "end": 50,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -537,7 +661,14 @@
       "file": "main.ts",
       "text": "export {}; const f = <T extends await>() => 1;",
       "expected": {
-        "diagnostics": [],
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 37,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
         "statements": [
           {
             "kind": 280,
@@ -549,7 +680,7 @@
             "kind": 245,
             "pos": 10,
             "end": 46,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -563,6 +694,12 @@
           {
             "code": 1109,
             "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 44,
             "length": 1,
             "message": "Expression expected."
           }
@@ -584,7 +721,7 @@
             "kind": 245,
             "pos": 17,
             "end": 53,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -610,7 +747,14 @@
       "file": "main.ts",
       "text": "export {}; class C<T extends await> {}",
       "expected": {
-        "diagnostics": [],
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 34,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
         "statements": [
           {
             "kind": 280,
@@ -622,7 +766,7 @@
             "kind": 265,
             "pos": 10,
             "end": 38,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -636,6 +780,12 @@
           {
             "code": 1109,
             "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 41,
             "length": 1,
             "message": "Expression expected."
           }
@@ -657,7 +807,7 @@
             "kind": 265,
             "pos": 17,
             "end": 45,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -695,7 +845,7 @@
             "kind": 265,
             "pos": 10,
             "end": 40,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -730,7 +880,7 @@
             "kind": 265,
             "pos": 17,
             "end": 47,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -902,14 +1052,7 @@
       "file": "main.ts",
       "text": "export {}; const x = { [await]: 1 };",
       "expected": {
-        "diagnostics": [
-          {
-            "code": 1109,
-            "start": 29,
-            "length": 1,
-            "message": "Expression expected."
-          }
-        ],
+        "diagnostics": [],
         "statements": [
           {
             "kind": 280,
@@ -921,7 +1064,7 @@
             "kind": 245,
             "pos": 10,
             "end": 36,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -935,12 +1078,6 @@
           {
             "code": 1109,
             "start": 16,
-            "length": 1,
-            "message": "Expression expected."
-          },
-          {
-            "code": 1109,
-            "start": 36,
             "length": 1,
             "message": "Expression expected."
           }
@@ -962,7 +1099,7 @@
             "kind": 245,
             "pos": 17,
             "end": 43,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -1000,7 +1137,7 @@
             "kind": 245,
             "pos": 10,
             "end": 34,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -1035,7 +1172,7 @@
             "kind": 245,
             "pos": 17,
             "end": 41,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -1367,14 +1504,7 @@
       "file": "main.ts",
       "text": "export {}; class C { [await]() {} }",
       "expected": {
-        "diagnostics": [
-          {
-            "code": 1109,
-            "start": 27,
-            "length": 1,
-            "message": "Expression expected."
-          }
-        ],
+        "diagnostics": [],
         "statements": [
           {
             "kind": 280,
@@ -1386,7 +1516,7 @@
             "kind": 265,
             "pos": 10,
             "end": 35,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -1400,12 +1530,6 @@
           {
             "code": 1109,
             "start": 16,
-            "length": 1,
-            "message": "Expression expected."
-          },
-          {
-            "code": 1109,
-            "start": 34,
             "length": 1,
             "message": "Expression expected."
           }
@@ -1427,7 +1551,7 @@
             "kind": 265,
             "pos": 17,
             "end": 42,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -1778,14 +1902,7 @@
       "file": "main.ts",
       "text": "export {}; const { [await]: a } = o;",
       "expected": {
-        "diagnostics": [
-          {
-            "code": 1109,
-            "start": 25,
-            "length": 1,
-            "message": "Expression expected."
-          }
-        ],
+        "diagnostics": [],
         "statements": [
           {
             "kind": 280,
@@ -1797,7 +1914,7 @@
             "kind": 245,
             "pos": 10,
             "end": 36,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -1811,12 +1928,6 @@
           {
             "code": 1109,
             "start": 16,
-            "length": 1,
-            "message": "Expression expected."
-          },
-          {
-            "code": 1109,
-            "start": 32,
             "length": 1,
             "message": "Expression expected."
           }
@@ -1838,7 +1949,7 @@
             "kind": 245,
             "pos": 17,
             "end": 43,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -2060,7 +2171,7 @@
             "kind": 245,
             "pos": 10,
             "end": 38,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -2095,7 +2206,7 @@
             "kind": 245,
             "pos": 17,
             "end": 45,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -2133,7 +2244,7 @@
             "kind": 265,
             "pos": 10,
             "end": 48,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -2168,7 +2279,7 @@
             "kind": 265,
             "pos": 17,
             "end": 55,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -2352,7 +2463,7 @@
             "kind": 264,
             "pos": 10,
             "end": 35,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -2425,7 +2536,7 @@
             "kind": 245,
             "pos": 10,
             "end": 39,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -2460,7 +2571,7 @@
             "kind": 245,
             "pos": 17,
             "end": 46,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -2498,7 +2609,7 @@
             "kind": 264,
             "pos": 10,
             "end": 47,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -2533,7 +2644,7 @@
             "kind": 264,
             "pos": 17,
             "end": 54,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -2577,7 +2688,7 @@
             "kind": 264,
             "pos": 10,
             "end": 39,
-            "await_context": false
+            "await_context": true
           },
           {
             "kind": 264,
@@ -2618,7 +2729,7 @@
             "kind": 264,
             "pos": 17,
             "end": 46,
-            "await_context": false
+            "await_context": true
           },
           {
             "kind": 264,
@@ -2662,7 +2773,7 @@
             "kind": 264,
             "pos": 10,
             "end": 37,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -2697,7 +2808,7 @@
             "kind": 264,
             "pos": 17,
             "end": 44,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -2738,6 +2849,18 @@
       "expected": {
         "diagnostics": [
           {
+            "code": 1109,
+            "start": 12,
+            "length": 5,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1146,
+            "start": 17,
+            "length": 0,
+            "message": "Declaration expected."
+          },
+          {
             "code": 1146,
             "start": 17,
             "length": 0,
@@ -2755,7 +2878,7 @@
             "kind": 284,
             "pos": 10,
             "end": 17,
-            "await_context": false
+            "await_context": true
           },
           {
             "kind": 244,
@@ -2777,6 +2900,18 @@
             "start": 16,
             "length": 1,
             "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 19,
+            "length": 5,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1146,
+            "start": 24,
+            "length": 0,
+            "message": "Declaration expected."
           },
           {
             "code": 1146,
@@ -2802,7 +2937,7 @@
             "kind": 284,
             "pos": 17,
             "end": 24,
-            "await_context": false
+            "await_context": true
           },
           {
             "kind": 244,
@@ -2834,7 +2969,14 @@
       "file": "main.ts",
       "text": "export {}; class C { @await static {} }",
       "expected": {
-        "diagnostics": [],
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 22,
+            "length": 5,
+            "message": "Expression expected."
+          }
+        ],
         "statements": [
           {
             "kind": 280,
@@ -2846,7 +2988,7 @@
             "kind": 265,
             "pos": 10,
             "end": 39,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -2861,6 +3003,12 @@
             "code": 1109,
             "start": 16,
             "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 29,
+            "length": 5,
             "message": "Expression expected."
           }
         ],
@@ -2881,7 +3029,7 @@
             "kind": 265,
             "pos": 17,
             "end": 46,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -3138,7 +3286,7 @@
             "kind": 245,
             "pos": 10,
             "end": 44,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -3173,7 +3321,7 @@
             "kind": 245,
             "pos": 17,
             "end": 51,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -3564,14 +3712,7 @@
       "file": "main.ts",
       "text": "export {}; class C { get [await]() { return 1; } }",
       "expected": {
-        "diagnostics": [
-          {
-            "code": 1109,
-            "start": 31,
-            "length": 1,
-            "message": "Expression expected."
-          }
-        ],
+        "diagnostics": [],
         "statements": [
           {
             "kind": 280,
@@ -3583,7 +3724,7 @@
             "kind": 265,
             "pos": 10,
             "end": 50,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -3597,12 +3738,6 @@
           {
             "code": 1109,
             "start": 16,
-            "length": 1,
-            "message": "Expression expected."
-          },
-          {
-            "code": 1109,
-            "start": 38,
             "length": 1,
             "message": "Expression expected."
           }
@@ -3624,7 +3759,7 @@
             "kind": 265,
             "pos": 17,
             "end": 57,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -3650,14 +3785,7 @@
       "file": "main.ts",
       "text": "export {}; class C { set [await](a) {} }",
       "expected": {
-        "diagnostics": [
-          {
-            "code": 1109,
-            "start": 31,
-            "length": 1,
-            "message": "Expression expected."
-          }
-        ],
+        "diagnostics": [],
         "statements": [
           {
             "kind": 280,
@@ -3669,7 +3797,7 @@
             "kind": 265,
             "pos": 10,
             "end": 40,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -3683,12 +3811,6 @@
           {
             "code": 1109,
             "start": 16,
-            "length": 1,
-            "message": "Expression expected."
-          },
-          {
-            "code": 1109,
-            "start": 38,
             "length": 1,
             "message": "Expression expected."
           }
@@ -3710,7 +3832,7 @@
             "kind": 265,
             "pos": 17,
             "end": 47,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -4359,7 +4481,14 @@
       "file": "main.ts",
       "text": "export {}; interface I { [await]: any; m(a: await): await; }",
       "expected": {
-        "diagnostics": [],
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 31,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
         "statements": [
           {
             "kind": 280,
@@ -4371,7 +4500,7 @@
             "kind": 266,
             "pos": 10,
             "end": 60,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -4385,6 +4514,12 @@
           {
             "code": 1109,
             "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 38,
             "length": 1,
             "message": "Expression expected."
           }
@@ -4406,7 +4541,7 @@
             "kind": 266,
             "pos": 17,
             "end": 67,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -4749,7 +4884,7 @@
             "kind": 245,
             "pos": 10,
             "end": 30,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -4784,7 +4919,7 @@
             "kind": 245,
             "pos": 17,
             "end": 37,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -4822,7 +4957,7 @@
             "kind": 245,
             "pos": 10,
             "end": 32,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -4857,7 +4992,7 @@
             "kind": 245,
             "pos": 17,
             "end": 39,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -4895,7 +5030,7 @@
             "kind": 245,
             "pos": 10,
             "end": 39,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -4930,7 +5065,7 @@
             "kind": 245,
             "pos": 17,
             "end": 46,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -4956,7 +5091,20 @@
       "file": "main.ts",
       "text": "export {}; f<await>();",
       "expected": {
-        "diagnostics": [],
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 18,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 20,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
         "statements": [
           {
             "kind": 280,
@@ -4968,7 +5116,7 @@
             "kind": 246,
             "pos": 10,
             "end": 22,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -4982,6 +5130,18 @@
           {
             "code": 1109,
             "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 25,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 27,
             "length": 1,
             "message": "Expression expected."
           }
@@ -5003,7 +5163,7 @@
             "kind": 246,
             "pos": 17,
             "end": 29,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -5029,7 +5189,20 @@
       "file": "main.ts",
       "text": "export {}; new C<await>();",
       "expected": {
-        "diagnostics": [],
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 22,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 24,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
         "statements": [
           {
             "kind": 280,
@@ -5041,7 +5214,7 @@
             "kind": 246,
             "pos": 10,
             "end": 26,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -5055,6 +5228,18 @@
           {
             "code": 1109,
             "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 29,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 31,
             "length": 1,
             "message": "Expression expected."
           }
@@ -5076,7 +5261,7 @@
             "kind": 246,
             "pos": 17,
             "end": 33,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -5546,10 +5731,16 @@
       "expected": {
         "diagnostics": [
           {
-            "code": 1136,
-            "start": 23,
-            "length": 1,
-            "message": "Property assignment expected."
+            "code": 1109,
+            "start": 24,
+            "length": 5,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1146,
+            "start": 29,
+            "length": 0,
+            "message": "Declaration expected."
           },
           {
             "code": 1146,
@@ -5581,7 +5772,7 @@
             "kind": 284,
             "pos": 22,
             "end": 29,
-            "await_context": false
+            "await_context": true
           },
           {
             "kind": 258,
@@ -5611,10 +5802,16 @@
             "message": "Expression expected."
           },
           {
-            "code": 1136,
-            "start": 30,
-            "length": 1,
-            "message": "Property assignment expected."
+            "code": 1109,
+            "start": 31,
+            "length": 5,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1146,
+            "start": 36,
+            "length": 0,
+            "message": "Declaration expected."
           },
           {
             "code": 1146,
@@ -5652,7 +5849,7 @@
             "kind": 284,
             "pos": 29,
             "end": 36,
-            "await_context": false
+            "await_context": true
           },
           {
             "kind": 258,
@@ -5729,10 +5926,16 @@
       "expected": {
         "diagnostics": [
           {
-            "code": 1136,
-            "start": 23,
-            "length": 1,
-            "message": "Property assignment expected."
+            "code": 1109,
+            "start": 24,
+            "length": 5,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1146,
+            "start": 29,
+            "length": 0,
+            "message": "Declaration expected."
           },
           {
             "code": 1146,
@@ -5764,7 +5967,7 @@
             "kind": 284,
             "pos": 22,
             "end": 29,
-            "await_context": false
+            "await_context": true
           },
           {
             "kind": 246,
@@ -5794,10 +5997,16 @@
             "message": "Expression expected."
           },
           {
-            "code": 1136,
-            "start": 30,
-            "length": 1,
-            "message": "Property assignment expected."
+            "code": 1109,
+            "start": 31,
+            "length": 5,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1146,
+            "start": 36,
+            "length": 0,
+            "message": "Declaration expected."
           },
           {
             "code": 1146,
@@ -5835,7 +6044,7 @@
             "kind": 284,
             "pos": 29,
             "end": 36,
-            "await_context": false
+            "await_context": true
           },
           {
             "kind": 246,
@@ -6337,7 +6546,14 @@
       "file": "main.ts",
       "text": "export {}; declare let x = await;",
       "expected": {
-        "diagnostics": [],
+        "diagnostics": [
+          {
+            "code": 1109,
+            "start": 32,
+            "length": 1,
+            "message": "Expression expected."
+          }
+        ],
         "statements": [
           {
             "kind": 280,
@@ -6349,7 +6565,7 @@
             "kind": 245,
             "pos": 10,
             "end": 33,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -6363,6 +6579,12 @@
           {
             "code": 1109,
             "start": 16,
+            "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 39,
             "length": 1,
             "message": "Expression expected."
           }
@@ -6384,7 +6606,7 @@
             "kind": 245,
             "pos": 17,
             "end": 40,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -6495,7 +6717,7 @@
             "kind": 264,
             "pos": 10,
             "end": 43,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -6530,7 +6752,7 @@
             "kind": 264,
             "pos": 17,
             "end": 50,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -6565,6 +6787,12 @@
       "expected": {
         "diagnostics": [
           {
+            "code": 1109,
+            "start": 24,
+            "length": 5,
+            "message": "Expression expected."
+          },
+          {
             "code": 1433,
             "start": 23,
             "length": 6,
@@ -6582,7 +6810,7 @@
             "kind": 265,
             "pos": 10,
             "end": 40,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -6597,6 +6825,12 @@
             "code": 1109,
             "start": 16,
             "length": 1,
+            "message": "Expression expected."
+          },
+          {
+            "code": 1109,
+            "start": 31,
+            "length": 5,
             "message": "Expression expected."
           },
           {
@@ -6623,7 +6857,7 @@
             "kind": 265,
             "pos": 17,
             "end": 47,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -6900,7 +7134,7 @@
             "kind": 265,
             "pos": 10,
             "end": 43,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -6935,7 +7169,7 @@
             "kind": 265,
             "pos": 17,
             "end": 50,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -7059,14 +7293,7 @@
       "file": "main.ts",
       "text": "export {}; class C { declare [await]: number; }",
       "expected": {
-        "diagnostics": [
-          {
-            "code": 1109,
-            "start": 35,
-            "length": 1,
-            "message": "Expression expected."
-          }
-        ],
+        "diagnostics": [],
         "statements": [
           {
             "kind": 280,
@@ -7078,7 +7305,7 @@
             "kind": 265,
             "pos": 10,
             "end": 47,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -7092,12 +7319,6 @@
           {
             "code": 1109,
             "start": 16,
-            "length": 1,
-            "message": "Expression expected."
-          },
-          {
-            "code": 1109,
-            "start": 42,
             "length": 1,
             "message": "Expression expected."
           }
@@ -7119,7 +7340,7 @@
             "kind": 265,
             "pos": 17,
             "end": 54,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -7145,14 +7366,7 @@
       "file": "main.ts",
       "text": "export {}; class C { accessor [await] = 1; }",
       "expected": {
-        "diagnostics": [
-          {
-            "code": 1109,
-            "start": 36,
-            "length": 1,
-            "message": "Expression expected."
-          }
-        ],
+        "diagnostics": [],
         "statements": [
           {
             "kind": 280,
@@ -7164,7 +7378,7 @@
             "kind": 265,
             "pos": 10,
             "end": 44,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -7178,12 +7392,6 @@
           {
             "code": 1109,
             "start": 16,
-            "length": 1,
-            "message": "Expression expected."
-          },
-          {
-            "code": 1109,
-            "start": 43,
             "length": 1,
             "message": "Expression expected."
           }
@@ -7205,7 +7413,7 @@
             "kind": 265,
             "pos": 17,
             "end": 51,
-            "await_context": true
+            "await_context": false
           }
         ]
       }
@@ -7243,7 +7451,7 @@
             "kind": 245,
             "pos": 10,
             "end": 35,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -7278,7 +7486,7 @@
             "kind": 245,
             "pos": 17,
             "end": 42,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -7621,7 +7829,7 @@
             "kind": 245,
             "pos": 10,
             "end": 33,
-            "await_context": false
+            "await_context": true
           }
         ]
       }
@@ -7656,7 +7864,7 @@
             "kind": 245,
             "pos": 17,
             "end": 40,
-            "await_context": false
+            "await_context": true
           }
         ]
       }

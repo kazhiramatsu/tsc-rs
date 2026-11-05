@@ -216,6 +216,10 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let pos = self.token_start();
         let end = self.token_end();
         let text = self.token_value();
+        // tsgo parseJSDocIdentifierName: newIdentifier(text).
+        if &*text == "await" {
+            self.parser.statement_has_await_identifier = true;
+        }
         let id = self.finish(
             NodeData::Identifier(IdentifierData {
                 escaped_text: tsc_types::EscapedName::escape((&*text).into()),

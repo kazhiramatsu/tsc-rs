@@ -265,6 +265,13 @@ struct Parser<'text> {
     /// Full-start positions whose ordinary scanner token carried
     /// TokenFlags.PrecedingJSDocComment.
     jsdoc_positions: rustc_hash::FxHashSet<usize>,
+    /// tsgo statementHasAwaitIdentifier: the top-level statement being
+    /// parsed created an `await` identifier outside the constructs that
+    /// restore it (functions, classes, imports, property names, ...).
+    statement_has_await_identifier: bool,
+    /// tsgo possibleAwaitSpans: pairs of top-level statement indices
+    /// `[start, end)` that a module reparses in the Await context.
+    possible_await_spans: Vec<usize>,
     has_jsdoc_comments: bool,
     syntax_cursor: Option<SyntaxCursor>,
     subtree_copier: Option<SubtreeCopier>,
@@ -960,6 +967,8 @@ impl<'text> Parser<'text> {
             error_nodes: Vec::new(),
             child_scratch: Vec::new(),
             jsdoc_positions: rustc_hash::FxHashSet::default(),
+            statement_has_await_identifier: false,
+            possible_await_spans: Vec::new(),
             has_jsdoc_comments: memchr::memmem::find(text.as_bytes(), b"/**").is_some(),
             syntax_cursor: None,
             subtree_copier: None,
@@ -1455,9 +1464,11 @@ impl<'text> Parser<'text> {
         let parsing_context = self.parsing_context;
         let jsdoc_candidates_len = self.jsdoc_candidates.len();
         let error_nodes_len = self.error_nodes.len();
+        let statement_has_await_identifier = self.statement_has_await_identifier;
 
         let result = f(self);
         if !result.is_truthy() {
+            self.statement_has_await_identifier = statement_has_await_identifier;
             self.scanner.restore(scanner_state);
             self.parse_diagnostics.truncate(diagnostics_len);
             self.parse_recovery.restore(recovery_checkpoint);
@@ -1479,7 +1490,9 @@ impl<'text> Parser<'text> {
         let parsing_context = self.parsing_context;
         let jsdoc_candidates_len = self.jsdoc_candidates.len();
         let error_nodes_len = self.error_nodes.len();
+        let statement_has_await_identifier = self.statement_has_await_identifier;
         let result = f(self);
+        self.statement_has_await_identifier = statement_has_await_identifier;
         self.scanner.restore(scanner_state);
         self.parse_diagnostics.truncate(diagnostics_len);
         self.parse_recovery.restore(recovery_checkpoint);
@@ -1526,6 +1539,15 @@ impl<'text> Parser<'text> {
                 .iter()
                 .any(|action| action.intersects(start, end))
             || !Self::can_reuse_node(source, candidate.old_node, context)
+            // A reused node does not pass its `await` identifiers through
+            // tsgo's statement flag (parse_toplevel_statement): one whose
+            // text holds `await` is parsed again, so an incremental parse
+            // reparses the same top-level statements as a full parse.
+            || memchr::memmem::find(
+                &source.snapshot.text().as_bytes()[node.pos as usize..node.end as usize],
+                b"await",
+            )
+            .is_some()
         {
             return None;
         }
@@ -2992,6 +3014,7 @@ impl<'text> Parser<'text> {
         is_declaration: bool,
     ) -> NodeId {
         let saved_await_context = self.in_await_context();
+        let saved_has_await_identifier = self.statement_has_await_identifier;
         self.parse_expected(SyntaxKind::ClassKeyword, None);
         let name = self.parse_name_of_class_declaration_or_expression();
         let type_parameters = self.parse_type_parameters();
@@ -3017,6 +3040,9 @@ impl<'text> Parser<'text> {
             self.arena.missing_array(self.node_pos())
         };
         self.set_await_context(saved_await_context);
+        if self.modifiers_contain(modifiers, SyntaxKind::DeclareKeyword) {
+            self.statement_has_await_identifier = saved_has_await_identifier;
+        }
         let data = if is_declaration {
             NodeData::ClassDeclaration(ClassDeclarationData {
                 modifiers,
@@ -3039,7 +3065,10 @@ impl<'text> Parser<'text> {
 
     fn parse_name_of_class_declaration_or_expression(&mut self) -> Option<NodeId> {
         if self.is_binding_identifier() && !self.is_implements_clause() {
-            Some(self.parse_identifier())
+            let saved_has_await_identifier = self.statement_has_await_identifier;
+            let id = self.parse_identifier();
+            self.statement_has_await_identifier = saved_has_await_identifier;
+            Some(id)
         } else {
             None
         }
@@ -3180,6 +3209,7 @@ impl<'text> Parser<'text> {
         pos: usize,
         modifiers: Option<crate::NodeArrayId>,
     ) -> NodeId {
+        let saved_has_await_identifier = self.statement_has_await_identifier;
         self.parse_expected(SyntaxKind::EnumKeyword, None);
         let name = self.parse_identifier_or_missing();
         let members = if self.parse_expected(SyntaxKind::OpenBraceToken, None) {
@@ -3201,6 +3231,7 @@ impl<'text> Parser<'text> {
         } else {
             self.arena.missing_array(self.node_pos())
         };
+        self.statement_has_await_identifier = saved_has_await_identifier;
         self.finish_node_data(
             NodeData::EnumDeclaration(EnumDeclarationData {
                 modifiers,
@@ -3238,6 +3269,7 @@ impl<'text> Parser<'text> {
         modifiers: Option<crate::NodeArrayId>,
         flags: NodeFlags,
     ) -> NodeId {
+        let saved_has_await_identifier = self.statement_has_await_identifier;
         let namespace_flag = flags.bits() & NodeFlags::NAMESPACE.bits();
         let name = if flags.bits() & NodeFlags::NESTED_NAMESPACE.bits() != 0 {
             self.parse_identifier_name(None)
@@ -3252,6 +3284,7 @@ impl<'text> Parser<'text> {
         } else {
             self.parse_module_block()
         };
+        self.statement_has_await_identifier = saved_has_await_identifier;
         self.finish_node_with_flags(
             NodeData::ModuleDeclaration(ModuleDeclarationData {
                 modifiers,
@@ -3270,6 +3303,7 @@ impl<'text> Parser<'text> {
         modifiers: Option<crate::NodeArrayId>,
     ) -> NodeId {
         let mut flags = NodeFlags::NONE;
+        let saved_has_await_identifier = self.statement_has_await_identifier;
         let global = self.token() == SyntaxKind::GlobalKeyword;
         let name = if global {
             flags |= NodeFlags::GLOBAL_AUGMENTATION;
@@ -3287,6 +3321,7 @@ impl<'text> Parser<'text> {
             self.parse_semicolon();
             None
         };
+        self.statement_has_await_identifier = saved_has_await_identifier;
         self.finish_node_with_flags(
             NodeData::ModuleDeclaration(ModuleDeclarationData {
                 modifiers,
@@ -3335,7 +3370,9 @@ impl<'text> Parser<'text> {
     ) -> NodeId {
         self.parse_expected(SyntaxKind::AsKeyword, None);
         self.parse_expected(SyntaxKind::NamespaceKeyword, None);
+        let saved_has_await_identifier = self.statement_has_await_identifier;
         let name = self.parse_identifier_or_missing();
+        self.statement_has_await_identifier = saved_has_await_identifier;
         self.parse_semicolon();
         self.finish_node_data(
             NodeData::NamespaceExportDeclaration(NamespaceExportDeclarationData {
@@ -3361,6 +3398,9 @@ impl<'text> Parser<'text> {
     ) -> NodeId {
         self.parse_expected(SyntaxKind::ImportKeyword, None);
         let after_import_pos = self.scanner.full_start_pos();
+        // The import is always parsed in an Await context: nothing in it
+        // marks the statement for a reparse.
+        let saved_has_await_identifier = self.statement_has_await_identifier;
         let phase_modifier_candidate = self.current_import_phase_modifier();
         let mut identifier = if self.is_identifier() {
             Some(self.parse_identifier())
@@ -3400,16 +3440,19 @@ impl<'text> Parser<'text> {
                     Some(SyntaxKind::DeferKeyword | SyntaxKind::SourceKeyword)
                 )
             {
-                return self.parse_import_equals_declaration(
+                let import_equals = self.parse_import_equals_declaration(
                     pos,
                     modifiers,
                     identifier,
                     phase_modifier == Some(SyntaxKind::TypeKeyword),
                 );
+                self.statement_has_await_identifier = saved_has_await_identifier;
+                return import_equals;
             }
         }
         let import_clause =
             self.try_parse_import_clause(identifier, after_import_pos, phase_modifier, false);
+        self.statement_has_await_identifier = saved_has_await_identifier;
         let module_specifier = self.parse_module_specifier();
         let attributes = self.try_parse_import_attributes();
         self.parse_semicolon();
@@ -3521,6 +3564,7 @@ impl<'text> Parser<'text> {
         phase_modifier: Option<SyntaxKind>,
         skip_jsdoc_leading_asterisks: bool,
     ) -> NodeId {
+        let saved_has_await_identifier = self.statement_has_await_identifier;
         let named_bindings = if identifier.is_none() || self.parse_optional(SyntaxKind::CommaToken)
         {
             if skip_jsdoc_leading_asterisks {
@@ -3538,6 +3582,7 @@ impl<'text> Parser<'text> {
         } else {
             None
         };
+        self.statement_has_await_identifier = saved_has_await_identifier;
         self.finish_node_data(
             NodeData::ImportClause(ImportClauseData {
                 // tsc createImportClause: isTypeOnly is derived, true
@@ -3582,11 +3627,13 @@ impl<'text> Parser<'text> {
     }
 
     fn parse_external_module_reference(&mut self) -> NodeId {
+        let saved_has_await_identifier = self.statement_has_await_identifier;
         let pos = self.node_pos();
         self.parse_expected(SyntaxKind::RequireKeyword, None);
         self.parse_expected(SyntaxKind::OpenParenToken, None);
         let expression = self.parse_module_specifier();
         self.parse_expected(SyntaxKind::CloseParenToken, None);
+        self.statement_has_await_identifier = saved_has_await_identifier;
         self.finish_node_data(
             NodeData::ExternalModuleReference(ExternalModuleReferenceData {
                 expression: Some(expression),
@@ -3780,6 +3827,7 @@ impl<'text> Parser<'text> {
         modifiers: Option<crate::NodeArrayId>,
     ) -> NodeId {
         let saved_await_context = self.in_await_context();
+        let saved_has_await_identifier = self.statement_has_await_identifier;
         self.set_await_context(true);
         let mut export_clause = None;
         let mut module_specifier = None;
@@ -3813,6 +3861,7 @@ impl<'text> Parser<'text> {
         }
         self.parse_semicolon();
         self.set_await_context(saved_await_context);
+        self.statement_has_await_identifier = saved_has_await_identifier;
         self.finish_node_data(
             NodeData::ExportDeclaration(ExportDeclarationData {
                 is_type_only,
@@ -3832,6 +3881,7 @@ impl<'text> Parser<'text> {
         modifiers: Option<crate::NodeArrayId>,
     ) -> NodeId {
         let saved_await_context = self.in_await_context();
+        let saved_has_await_identifier = self.statement_has_await_identifier;
         self.set_await_context(true);
         let is_export_equals = if self.parse_optional(SyntaxKind::EqualsToken) {
             Some(true)
@@ -3842,6 +3892,7 @@ impl<'text> Parser<'text> {
         let expression = self.parse_assignment_expression_or_higher(true);
         self.parse_semicolon();
         self.set_await_context(saved_await_context);
+        self.statement_has_await_identifier = saved_has_await_identifier;
         self.finish_node_data(
             NodeData::ExportAssignment(ExportAssignmentData {
                 is_export_equals,
@@ -4513,11 +4564,14 @@ impl<'text> Parser<'text> {
         private_identifier_diagnostic_message: Option<&'static DiagnosticMessage>,
     ) -> NodeId {
         let is_binding_identifier = self.is_binding_identifier();
-        self.create_identifier_node(
+        let saved_has_await_identifier = self.statement_has_await_identifier;
+        let id = self.create_identifier_node(
             is_binding_identifier,
             None,
             private_identifier_diagnostic_message,
-        )
+        );
+        self.statement_has_await_identifier = saved_has_await_identifier;
+        id
     }
 
     fn parse_identifier(&mut self) -> NodeId {
@@ -4527,6 +4581,11 @@ impl<'text> Parser<'text> {
             self.node_pos()
         };
         let end = self.scanner.pos();
+        // tsgo newIdentifier: an `await` identifier marks the statement. The
+        // scanner gives `await` (escaped or not) the AwaitKeyword kind.
+        if self.token() == SyntaxKind::AwaitKeyword {
+            self.statement_has_await_identifier = true;
+        }
         let escaped_text = self.current_token_name();
         // tsc factory createIdentifier (21609): escapedText is the
         // ESCAPED form; `text` (idText) stays raw.
@@ -6781,7 +6840,10 @@ impl<'text> Parser<'text> {
                 self.parse_identifier_name_error_on_unicode_escape_sequence()
             };
         }
-        self.parse_identifier_or_missing()
+        let saved_has_await_identifier = self.statement_has_await_identifier;
+        let id = self.parse_identifier_or_missing();
+        self.statement_has_await_identifier = saved_has_await_identifier;
+        id
     }
 
     /// tsc parseIdentifier: an identifier, or a missing node with an error.
@@ -7117,14 +7179,17 @@ impl<'text> Parser<'text> {
     }
 
     fn parse_property_name(&mut self) -> NodeId {
-        match self.token() {
+        let saved_has_await_identifier = self.statement_has_await_identifier;
+        let name = match self.token() {
             SyntaxKind::OpenBracketToken => self.parse_computed_property_name(),
             SyntaxKind::StringLiteral => self.parse_string_literal(),
             SyntaxKind::NumericLiteral => self.parse_numeric_literal(),
             SyntaxKind::BigIntLiteral => self.parse_big_int_literal(),
             SyntaxKind::PrivateIdentifier => self.parse_private_identifier(),
             _ => self.parse_identifier_name(None),
-        }
+        };
+        self.statement_has_await_identifier = saved_has_await_identifier;
+        name
     }
 
     fn parse_computed_property_name(&mut self) -> NodeId {
@@ -7357,6 +7422,7 @@ impl<'text> Parser<'text> {
         diagnostic_message: Option<&'static DiagnosticMessage>,
     ) -> NodeId {
         let (set, clear) = context_flags_for_function_body(is_generator, is_async);
+        let saved_has_await_identifier = self.statement_has_await_identifier;
         let save_decorator_context = self.in_decorator_context();
         if save_decorator_context {
             self.set_decorator_context(false);
@@ -7367,6 +7433,7 @@ impl<'text> Parser<'text> {
         if save_decorator_context {
             self.set_decorator_context(true);
         }
+        self.statement_has_await_identifier = saved_has_await_identifier;
         block
     }
 
@@ -9642,253 +9709,24 @@ impl<'text> Parser<'text> {
         None
     }
 
-    /// The tsc sourceFile.transformFlags & ContainsPossibleTopLevelAwait
-    /// guard: a statement contributes unless its own kind strips the flag on
-    /// outward propagation (FunctionExcludes).
-    fn statements_possibly_contain_top_level_await(&self, statements: crate::NodeArrayId) -> bool {
-        self.arena
-            .node_array(statements)
-            .nodes
-            .iter()
-            .any(|statement| {
-                self.arena.node(*statement).kind != SyntaxKind::FunctionDeclaration
-                    && self.statement_contains_possible_top_level_await(*statement)
-            })
-    }
-
-    /// tsc containsPossibleTopLevelAwait (statement-level).
-    fn statement_contains_possible_top_level_await(&self, id: NodeId) -> bool {
-        !NodeFlags::from_bits(self.arena.node(id).flags).contains(NodeFlags::AWAIT_CONTEXT)
-            && self.subtree_contains_possible_top_level_await(id)
-    }
-
-    /// Project the factory's ContainsPossibleTopLevelAwait bit without
-    /// importing emitter transform flags into syntax. A statement's own bit
-    /// selects a reparse run; function/arrow/constructor children strip that
-    /// bit on outward propagation. Names and bodies have field-specific
-    /// propagation, while type and erased declarations contribute nothing.
-    ///
-    /// tsc-port: propagateNameFlags @6.0.3
-    /// tsc-hash: 6ea1ef78cec08f7f1ad6603869b26c33b346051837bf89660ec62e436aa257ae
-    /// tsc-span: _tsc.js:25101-25103
-    /// tsc-port: propagateIdentifierNameFlags @6.0.3
-    /// tsc-hash: 27391b1b26307bbb9bfa39beffd6561a928f0d3ca3ec9a6952a70f5e5fb5aeda
-    /// tsc-span: _tsc.js:25104-25106
-    /// tsc-port: propagateChildFlags @6.0.3
-    /// tsc-hash: 8ddb64c96b023e53f3d136865d331f4ff32cc68182cf51faa166e2023be5abb0
-    /// tsc-span: _tsc.js:25110-25114
-    /// tsc-port: getTransformFlagsSubtreeExclusions @6.0.3
-    /// tsc-hash: 2d364dcf4298f054e648486f6e466f4b82d973fc80597df00ed06d9c612aa913
-    /// tsc-span: _tsc.js:25125-25194
-    /// Reference detail: propagateChildFlags / propagateNameFlags @6.0.3
-    fn subtree_contains_possible_top_level_await(&self, root: NodeId) -> bool {
-        // Explicit stack: deep trees overflow a recursive walk.
-        let mut stack = vec![root];
-        while let Some(id) = stack.pop() {
-            let node = self.arena.node(id);
-            if node.kind >= SyntaxKind::FirstTypeNode && node.kind <= SyntaxKind::LastTypeNode {
-                continue;
+    /// tsgo parseToplevelStatement (parser.go:499): a top-level statement
+    /// that created an `await` identifier, outside the constructs that
+    /// restore the flag and outside an Await context, joins a span of
+    /// statements that a module reparses in the Await context. `index` is
+    /// the statement's place in the list.
+    fn parse_toplevel_statement(&mut self, index: usize) -> NodeId {
+        self.statement_has_await_identifier = false;
+        let statement = self.parse_source_element();
+        if self.statement_has_await_identifier
+            && !NodeFlags::from_bits(self.arena.node(statement).flags)
+                .contains(NodeFlags::AWAIT_CONTEXT)
+        {
+            match self.possible_await_spans.last_mut() {
+                Some(end) if *end == index => *end = index + 1,
+                _ => self.possible_await_spans.extend([index, index + 1]),
             }
-            if id != root
-                && matches!(
-                    node.kind,
-                    SyntaxKind::FunctionDeclaration
-                        | SyntaxKind::FunctionExpression
-                        | SyntaxKind::ArrowFunction
-                        | SyntaxKind::Constructor
-                )
-            {
-                continue;
-            }
-            let mut children = Vec::new();
-            macro_rules! nodes {
-                ($($child:expr),* $(,)?) => { children.extend([$($child),*].into_iter().flatten()); };
-            }
-            macro_rules! arrays {
-                ($($array:expr),* $(,)?) => { $(if let Some(array) = $array {
-                    children.extend(self.arena.node_array(array).nodes.iter().copied());
-                })* };
-            }
-            macro_rules! name {
-                ($name:expr) => {
-                    if let Some(name) = $name {
-                        if self.arena.node(name).kind != SyntaxKind::Identifier {
-                            children.push(name);
-                        }
-                    }
-                };
-            }
-            match &node.data() {
-                NodeData::Identifier(data) => {
-                    if data.escaped_text == "await" {
-                        return true;
-                    }
-                    continue;
-                }
-                // Assigned ContainsTypeScript, or explicitly cleared by the
-                // factory. MissingDeclaration's modifiers are assigned only
-                // after construction and never aggregate into its flags.
-                NodeData::TypeParameter(_)
-                | NodeData::PropertySignature(_)
-                | NodeData::MethodSignature(_)
-                | NodeData::CallSignature(_)
-                | NodeData::ConstructSignature(_)
-                | NodeData::IndexSignature(_)
-                | NodeData::InterfaceDeclaration(_)
-                | NodeData::TypeAliasDeclaration(_)
-                | NodeData::MissingDeclaration(_)
-                | NodeData::EnumDeclaration(_)
-                | NodeData::ModuleDeclaration(_)
-                | NodeData::ImportEqualsDeclaration(_)
-                | NodeData::ImportDeclaration(_)
-                | NodeData::ImportClause(_)
-                | NodeData::NamespaceImport(_)
-                | NodeData::NamespaceExport(_)
-                | NodeData::NamedImports(_)
-                | NodeData::ImportSpecifier(_)
-                | NodeData::ExportAssignment(_)
-                | NodeData::ExportDeclaration(_)
-                | NodeData::NamedExports(_)
-                | NodeData::ExportSpecifier(_)
-                | NodeData::ExternalModuleReference(_)
-                | NodeData::NamespaceExportDeclaration(_) => continue,
-                NodeData::FunctionDeclaration(data) => {
-                    if data.body.is_none()
-                        || self.modifiers_contain(data.modifiers, SyntaxKind::DeclareKeyword)
-                    {
-                        continue;
-                    }
-                    name!(data.name);
-                    arrays!(data.modifiers, data.type_parameters, data.parameters);
-                    nodes!(data.asterisk_token, data.r#type);
-                }
-                NodeData::FunctionExpression(data) => {
-                    name!(data.name);
-                    arrays!(data.modifiers, data.type_parameters, data.parameters);
-                    nodes!(data.asterisk_token, data.r#type);
-                }
-                NodeData::ArrowFunction(data) => {
-                    arrays!(data.modifiers, data.type_parameters, data.parameters);
-                    nodes!(data.equals_greater_than_token, data.r#type);
-                }
-                NodeData::MethodDeclaration(data) => {
-                    if data.body.is_none() {
-                        continue;
-                    }
-                    name!(data.name);
-                    arrays!(data.modifiers, data.type_parameters, data.parameters);
-                    nodes!(data.asterisk_token, data.question_token, data.r#type);
-                }
-                NodeData::Constructor(data) => {
-                    if data.body.is_none() {
-                        continue;
-                    }
-                    // typeParameters/type are parser post-assignments.
-                    arrays!(data.modifiers, data.parameters);
-                }
-                NodeData::GetAccessor(data) => {
-                    if data.body.is_none() {
-                        continue;
-                    }
-                    name!(data.name);
-                    arrays!(data.modifiers, data.parameters);
-                    nodes!(data.r#type);
-                }
-                NodeData::SetAccessor(data) => {
-                    if data.body.is_none() {
-                        continue;
-                    }
-                    name!(data.name);
-                    arrays!(data.modifiers, data.parameters);
-                }
-                NodeData::ClassDeclaration(data) => {
-                    if self.modifiers_contain(data.modifiers, SyntaxKind::DeclareKeyword) {
-                        continue;
-                    }
-                    name!(data.name);
-                    arrays!(
-                        data.modifiers,
-                        data.type_parameters,
-                        data.heritage_clauses,
-                        data.members
-                    );
-                }
-                NodeData::ClassExpression(data) => {
-                    name!(data.name);
-                    arrays!(
-                        data.modifiers,
-                        data.type_parameters,
-                        data.heritage_clauses,
-                        data.members
-                    );
-                }
-                NodeData::VariableStatement(data) => {
-                    if self.modifiers_contain(data.modifiers, SyntaxKind::DeclareKeyword) {
-                        continue;
-                    }
-                    arrays!(data.modifiers);
-                    nodes!(data.declaration_list);
-                }
-                NodeData::Parameter(data) => {
-                    if data.name.is_some_and(|name| {
-                        matches!(&self.arena.node(name).data(),
-                        NodeData::Identifier(identifier) if identifier.escaped_text == "this")
-                    }) {
-                        continue;
-                    }
-                    name!(data.name);
-                    arrays!(data.modifiers);
-                    nodes!(
-                        data.dot_dot_dot_token,
-                        data.question_token,
-                        data.initializer
-                    );
-                }
-                NodeData::VariableDeclaration(data) => {
-                    name!(data.name);
-                    nodes!(data.exclamation_token, data.initializer);
-                }
-                NodeData::PropertyDeclaration(data) => {
-                    name!(data.name);
-                    arrays!(data.modifiers);
-                    nodes!(
-                        data.question_token,
-                        data.exclamation_token,
-                        data.initializer
-                    );
-                }
-                NodeData::BindingElement(data) => {
-                    name!(data.property_name);
-                    name!(data.name);
-                    nodes!(data.dot_dot_dot_token, data.initializer);
-                }
-                NodeData::PropertyAssignment(data) => {
-                    name!(data.name);
-                    nodes!(data.initializer);
-                }
-                NodeData::ShorthandPropertyAssignment(data) => {
-                    nodes!(data.object_assignment_initializer);
-                }
-                NodeData::PropertyAccessExpression(data) => {
-                    nodes!(data.expression, data.question_dot_token);
-                }
-                NodeData::QualifiedName(data) => {
-                    nodes!(data.left);
-                }
-                NodeData::ClassStaticBlockDeclaration(data) => {
-                    // Its body propagates, but parser-assigned modifiers do not.
-                    nodes!(data.body);
-                }
-                _ => {
-                    for_each_child(&self.arena, node, |child| {
-                        children.push(child);
-                        false
-                    });
-                }
-            }
-            stack.extend(children.into_iter().rev());
         }
-        false
+        statement
     }
 
     fn parse_source_element(&mut self) -> NodeId {
@@ -9946,40 +9784,47 @@ impl<'text> Parser<'text> {
         );
     }
 
-    /// tsc reparseTopLevelAwait: maximal runs of possible-await statements
-    /// re-parse from their start in the Await context; parse diagnostics in
-    /// the re-parsed ranges are replaced by the re-parse output.
+    /// tsgo reparseTopLevelAwait (parser.go:516): each span of statements
+    /// that created an `await` identifier is parsed again from its first
+    /// statement in the Await context; the statements between the spans are
+    /// kept, with their parse diagnostics, and the reparse's diagnostics
+    /// replace those of the reparsed range. A reparsed statement that ends
+    /// beyond the span's last statement continues into the next span.
     fn reparse_top_level_await(&mut self, statements_id: crate::NodeArrayId) -> crate::NodeArrayId {
         let (old_statements, array_pos, array_end) = {
             let array = self.arena.node_array(statements_id);
             (array.nodes.to_vec(), array.pos as usize, array.end as usize)
         };
+        let spans = std::mem::take(&mut self.possible_await_spans);
+        debug_assert!(spans.len() % 2 == 0, "possible await spans come in pairs");
         let saved_diagnostics = std::mem::take(&mut self.parse_diagnostics);
         let saved_recovery = std::mem::take(&mut self.parse_recovery);
         let mark = self.start_node_list();
 
-        let mut pos: Option<usize> = Some(0);
-        let mut start = self.find_statement_with_await(&old_statements, 0);
-        while let Some(run_start) = start {
-            let keep_from = pos.expect("a run exists only while the cursor does");
+        let mut after_await_statement = 0;
+        let mut i = 0;
+        while i < spans.len() {
+            let next_await_statement = spans[i];
+            // Keep the statements before the span, with their diagnostics.
             self.node_stack
-                .extend_from_slice(&old_statements[keep_from..run_start]);
-            pos = self.find_statement_without_await(&old_statements, run_start);
-
-            // Keep the diagnostics of the untouched range.
-            let prev_pos = self.to_utf16(self.arena.node(old_statements[keep_from]).pos as usize);
-            let next_pos = self.to_utf16(self.arena.node(old_statements[run_start]).pos as usize);
+                .extend_from_slice(&old_statements[after_await_statement..next_await_statement]);
+            let prev_pos =
+                self.to_utf16(self.arena.node(old_statements[after_await_statement]).pos as usize);
+            let next_pos =
+                self.to_utf16(self.arena.node(old_statements[next_await_statement]).pos as usize);
             self.retain_reparse_recovery(&saved_diagnostics, &saved_recovery, prev_pos..next_pos);
 
-            // Re-parse in the Await context (tsc SpeculationKind.Reparse:
-            // diagnostics kept, scanner state restored afterwards).
+            // Re-parse in the Await context (diagnostics kept, scanner state
+            // restored afterwards).
             let scanner_state = self.scanner.save();
             let saved_context_flags = self.context_flags;
             self.context_flags =
                 NodeFlags::from_bits(self.context_flags.bits() | NodeFlags::AWAIT_CONTEXT.bits());
-            self.scanner
-                .reset_token_state(self.arena.node(old_statements[run_start]).pos as usize);
+            self.scanner.reset_token_state(
+                self.arena.node(old_statements[next_await_statement]).pos as usize,
+            );
             self.next_token();
+            after_await_statement = spans[i + 1];
             while self.token() != SyntaxKind::EndOfFileToken {
                 let start_pos = self.scanner.full_start_pos();
                 let statement = self.parse_source_element();
@@ -9988,14 +9833,25 @@ impl<'text> Parser<'text> {
                     self.record_token_skip(ParseTokenSkipSite::TopLevelAwaitReparse);
                     self.next_token();
                 }
-                if let Some(cursor) = pos {
-                    let non_await_pos = self.arena.node(old_statements[cursor]).pos;
+                if after_await_statement < old_statements.len() {
+                    let last_await_end = self
+                        .arena
+                        .node(old_statements[after_await_statement - 1])
+                        .end;
                     let statement_end = self.arena.node(statement).end;
-                    if statement_end == non_await_pos {
+                    if statement_end == last_await_end {
+                        // Done reparsing this span.
                         break;
                     }
-                    if statement_end > non_await_pos {
-                        pos = self.find_statement_without_await(&old_statements, cursor + 1);
+                    if statement_end > last_await_end {
+                        // The statement ate into the next one: continue
+                        // through the next span.
+                        i += 2;
+                        after_await_statement = if i < spans.len() {
+                            spans[i + 1]
+                        } else {
+                            old_statements.len()
+                        };
                     }
                 }
             }
@@ -10007,27 +9863,18 @@ impl<'text> Parser<'text> {
                 });
             self.context_flags = saved_context_flags;
             self.scanner.restore(scanner_state);
-
-            start = pos.and_then(|cursor| self.find_statement_with_await(&old_statements, cursor));
+            i += 2;
         }
-        if let Some(keep_from) = pos {
+        // Keep the statements after the last span, with their diagnostics.
+        if after_await_statement < old_statements.len() {
             self.node_stack
-                .extend_from_slice(&old_statements[keep_from..]);
-            let prev_pos = self.to_utf16(self.arena.node(old_statements[keep_from]).pos as usize);
+                .extend_from_slice(&old_statements[after_await_statement..]);
+            let prev_pos =
+                self.to_utf16(self.arena.node(old_statements[after_await_statement]).pos as usize);
             self.retain_reparse_recovery(&saved_diagnostics, &saved_recovery, prev_pos..u32::MAX);
         }
 
         self.finish_node_list(mark, array_pos, array_end, false)
-    }
-
-    fn find_statement_with_await(&self, statements: &[NodeId], from: usize) -> Option<usize> {
-        (from..statements.len())
-            .find(|index| self.statement_contains_possible_top_level_await(statements[*index]))
-    }
-
-    fn find_statement_without_await(&self, statements: &[NodeId], from: usize) -> Option<usize> {
-        (from..statements.len())
-            .find(|index| !self.statement_contains_possible_top_level_await(statements[*index]))
     }
 
     fn finish_node_data(&mut self, data: NodeData, pos: usize) -> NodeId {
@@ -10603,8 +10450,12 @@ fn parse_source_file_from_snapshot_worker(
     }
     parser.arena.reserve_for_text(text.len());
     parser.next_token();
+    // tsgo parseListIndex(PCSourceElements, parseToplevelStatement): each
+    // statement knows its place in the list.
+    let list_start = parser.node_stack.len();
     let mut statements = parser.parse_list(ParsingContext::SourceElements, |parser| {
-        Some(parser.parse_source_element())
+        let index = parser.node_stack.len() - list_start;
+        Some(parser.parse_toplevel_statement(index))
     });
     debug_assert_eq!(parser.token(), SyntaxKind::EndOfFileToken);
     let end_of_file_token = parser.parse_token_node();
@@ -10618,9 +10469,11 @@ fn parse_source_file_from_snapshot_worker(
             .is_file_probably_external_module(statements)
             .is_some()
         || (detects_jsx_module && parser.jsx_external_module_indicator(statements).is_some());
+    // tsgo parseSourceFileWorker (parser.go:451): a module reparses the
+    // spans of statements that created an `await` identifier.
     let reparse_top_level_await = !parser.is_declaration_file
         && is_external_module
-        && parser.statements_possibly_contain_top_level_await(statements);
+        && !parser.possible_await_spans.is_empty();
     if reparse_top_level_await {
         statements = parser.reparse_top_level_await(statements);
     }
