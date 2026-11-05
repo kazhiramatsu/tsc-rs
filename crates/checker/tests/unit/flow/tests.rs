@@ -249,3 +249,40 @@ fn antecedent_snapshot_survives_nested_reduce_label_overrides() {
         },
     );
 }
+
+#[test]
+fn a_flow_node_past_two_bytes_is_read_from_the_files_overflow() {
+    // 66,000 assignments give the file more flow nodes than a two-byte
+    // node slot holds, so the reference after them finds its flow node in
+    // the file's overflow. Narrowing by the last assignment shows it was
+    // found: without a flow node `x` would be `string | number`.
+    let mut text = String::from("let x: string | number = \"\";\n");
+    for _ in 0..66_000 {
+        text.push_str("x = 1;\n");
+    }
+    text.push_str("const s: string = x;\n");
+    with_program_state(
+        &[("a.ts", text.as_str())],
+        &CompilerOptions::default(),
+        |state| {
+            state.check_source_file(0);
+            let messages = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 2322)
+                .map(|diagnostic| {
+                    diagnostic
+                        .message
+                        .text
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned()
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                messages,
+                ["Type 'number' is not assignable to type 'string'."]
+            );
+        },
+    );
+}
