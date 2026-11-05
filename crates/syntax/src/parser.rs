@@ -10618,7 +10618,8 @@ fn parse_source_file_from_snapshot_worker(
             .is_file_probably_external_module(statements)
             .is_some()
         || (detects_jsx_module && parser.jsx_external_module_indicator(statements).is_some());
-    let reparse_top_level_await = !parser.is_declaration_file
+    // M8 PILOT (never merged): the post-parse top-level await walk is skipped, to price it on the path.
+    let reparse_top_level_await = false && !parser.is_declaration_file
         && is_external_module
         && parser.statements_possibly_contain_top_level_await(statements);
     if reparse_top_level_await {
