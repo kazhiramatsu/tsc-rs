@@ -107,27 +107,50 @@ impl FlowNode {
     }
 }
 
-/// One file's flow graph. While the file is bound, the label lists are
-/// staged one per list (`add_antecedent` appends, `set_label_antecedents`
-/// replaces); [`Self::freeze`] writes them once into one exact pool, in
-/// creation order, and drops the staging.
+/// A label's antecedents while its file is bound: a cell of a linked list in
+/// per-thread scratch (tsgo's FlowList), so that no label owns a list
+/// allocation. `next` is the next cell's index + 1 (0 ends the list).
+#[derive(Clone, Copy, Debug)]
+struct ListCell {
+    item: FlowId,
+    next: u32,
+}
+
+thread_local! {
+    /// The cells of the binds on this thread, reused by the next file.
+    static FLOW_CELLS: std::cell::Cell<Option<Vec<ListCell>>> = const { std::cell::Cell::new(None) };
+}
+
+/// One file's flow graph. While the file is bound, a label's list is a chain
+/// of cells in per-thread scratch (`add_antecedent` appends,
+/// `set_label_antecedents` replaces); [`Self::freeze`], at the end of the
+/// bind, writes the lists once into one exact pool, in node order, and
+/// gives the cells back. A frozen arena does not grow.
 #[derive(Clone, Debug, Default)]
 pub struct FlowArena {
     nodes: Vec<FlowNode>,
-    staging: Vec<Vec<FlowId>>,
+    cells: Vec<ListCell>,
     pool: Box<[FlowId]>,
     frozen: bool,
 }
 
 impl FlowArena {
+    /// An empty arena for a bind, its cells in this thread's scratch.
+    pub fn for_bind() -> Self {
+        Self {
+            cells: FLOW_CELLS.with(std::cell::Cell::take).unwrap_or_default(),
+            ..Self::default()
+        }
+    }
+
     /// Flow node count and the bytes the arena and its antecedent lists
     /// own on the heap, for memory accounting.
     pub fn memory_usage(&self) -> (usize, usize, usize) {
-        let staged = self.staging.iter().map(Vec::capacity).sum::<usize>();
         (
             self.nodes.len(),
             self.nodes.capacity() * std::mem::size_of::<FlowNode>(),
-            (staged + self.pool.len()) * std::mem::size_of::<FlowId>(),
+            self.pool.len() * std::mem::size_of::<FlowId>()
+                + self.cells.capacity() * std::mem::size_of::<ListCell>(),
         )
     }
 
@@ -149,7 +172,8 @@ impl FlowArena {
                 clause_end,
             } => (
                 switch_statement.index() + 1,
-                self.stage(vec![FlowId::new(clause_start), FlowId::new(clause_end)]),
+                self.chain(&[FlowId::new(clause_start), FlowId::new(clause_end)])
+                    .0,
             ),
         };
         self.push(FlowNode {
@@ -167,10 +191,35 @@ impl FlowArena {
         id
     }
 
-    fn stage(&mut self, list: Vec<FlowId>) -> u32 {
-        let index = self.staging.len() as u32;
-        self.staging.push(list);
-        index
+    /// A chain of cells holding `items`: (head, tail), each a cell index + 1
+    /// (0, 0 for none).
+    fn chain(&mut self, items: &[FlowId]) -> (u32, u32) {
+        let mut head = 0;
+        let mut tail = 0;
+        for &item in items {
+            let cell = self.cells.len() as u32 + 1;
+            self.cells.push(ListCell { item, next: 0 });
+            if tail == 0 {
+                head = cell;
+            } else {
+                self.cells[tail as usize - 1].next = cell;
+            }
+            tail = cell;
+        }
+        (head, tail)
+    }
+
+    /// The items of the chain starting at `head`.
+    fn walk(&self, head: u32) -> impl Iterator<Item = FlowId> + '_ {
+        let mut cell = head;
+        std::iter::from_fn(move || {
+            if cell == 0 {
+                return None;
+            }
+            let ListCell { item, next } = self.cells[cell as usize - 1];
+            cell = next;
+            Some(item)
+        })
     }
 
     #[inline(always)]
@@ -182,49 +231,80 @@ impl FlowArena {
         &mut self.nodes[id.index() as usize]
     }
 
-    /// A staged or frozen list.
+    /// A frozen list: `len` items from `at`, or (`None`) a reduce label's
+    /// list, which carries its length first.
     #[inline(always)]
     fn list(&self, at: u32, len: Option<u32>) -> &[FlowId] {
-        if self.frozen {
-            let start = at as usize;
-            match len {
-                Some(len) => &self.pool[start..start + len as usize],
-                // A reduce label's list carries its length first.
-                None => {
-                    let len = self.pool[start].index() as usize;
-                    &self.pool[start + 1..start + 1 + len]
-                }
+        let start = at as usize;
+        match len {
+            Some(len) => &self.pool[start..start + len as usize],
+            None => {
+                let len = self.pool[start].index() as usize;
+                &self.pool[start + 1..start + 1 + len]
             }
-        } else {
-            &self.staging[at as usize]
         }
     }
 
     /// The antecedents in tsc's order: a label's list, or the plain kinds'
-    /// single antecedent (none for the start and unreachable nodes).
+    /// single antecedent (none for the start and unreachable nodes). While
+    /// the file is bound a label's list is a chain: read it with
+    /// [`Self::label_items`].
     #[inline(always)]
     pub fn antecedents(&self, id: FlowId) -> &[FlowId] {
         let node = self.flow(id);
         if node.is_label() {
+            assert!(
+                self.frozen,
+                "a label's list is read with label_items while binding"
+            );
             self.list(node.a, Some(node.c))
         } else {
             node.antecedent.as_slice()
         }
     }
 
-    /// tsc FlowNode.node, with a label's or a reduce label's list.
+    /// A label's antecedents, as a list.
+    pub fn label_items(&self, label: FlowId) -> Vec<FlowId> {
+        if self.frozen {
+            return self.antecedents(label).to_vec();
+        }
+        self.walk(self.flow(label).a).collect()
+    }
+
+    /// Whether a label has no antecedents.
+    pub fn label_is_empty(&self, label: FlowId) -> bool {
+        if self.frozen {
+            return self.antecedents(label).is_empty();
+        }
+        self.flow(label).a == 0
+    }
+
+    /// tsc FlowNode.node, with a label's or a reduce label's list (of a
+    /// frozen arena).
     pub fn payload(&self, id: FlowId) -> FlowData<'_> {
         let node = self.flow(id);
         if node.is_label() {
+            assert!(
+                self.frozen,
+                "a label's list is read once the arena is frozen"
+            );
             FlowData::Label {
                 antecedents: self.list(node.a, Some(node.c)),
             }
         } else if node.flags.intersects(FlowFlags::REDUCE_LABEL) {
+            assert!(
+                self.frozen,
+                "a reduce label's list is read once the arena is frozen"
+            );
             FlowData::ReduceLabel {
                 target: FlowId::new(node.a),
                 antecedents: self.list(node.c, None),
             }
         } else if node.flags.intersects(FlowFlags::SWITCH_CLAUSE) {
+            assert!(
+                self.frozen,
+                "a switch clause's pair is read once the arena is frozen"
+            );
             let clauses = self.list(node.c, Some(2));
             FlowData::SwitchClause {
                 switch_statement: NodeId::new(node.a - 1),
@@ -238,44 +318,40 @@ impl FlowArena {
         }
     }
 
-    /// Write the staged lists once into one exact pool (labels: start and
-    /// length; switch clauses: the clause pair; reduce labels: the length,
-    /// then the list) and drop the staging. A bound file's arena does not
-    /// grow again.
+    /// Write the lists once into one exact pool, in node order (labels:
+    /// start and length; switch clauses: the clause pair; reduce labels: the
+    /// length, then the list), shrink the nodes to their count and give the
+    /// cells back to the thread. A bound file's arena does not grow again.
     pub fn freeze(&mut self) {
         if self.frozen {
             return;
         }
-        let staged = std::mem::take(&mut self.staging);
-        let reduce_labels = self
-            .nodes
-            .iter()
-            .filter(|node| node.flags.intersects(FlowFlags::REDUCE_LABEL))
-            .count();
-        let mut pool =
-            Vec::with_capacity(staged.iter().map(Vec::len).sum::<usize>() + reduce_labels);
-        for node in &mut self.nodes {
-            if node
-                .flags
-                .intersects(FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL)
-            {
-                let list = &staged[node.a as usize];
-                node.a = pool.len() as u32;
-                node.c = list.len() as u32;
-                pool.extend_from_slice(list);
+        let mut pool = Vec::new();
+        let mut nodes = std::mem::take(&mut self.nodes);
+        for node in &mut nodes {
+            if node.is_label() {
+                let start = pool.len() as u32;
+                pool.extend(self.walk(node.a));
+                node.a = start;
+                node.c = pool.len() as u32 - start;
             } else if node.flags.intersects(FlowFlags::REDUCE_LABEL) {
-                let list = &staged[node.c as usize];
-                node.c = pool.len() as u32;
-                pool.push(FlowId::new(list.len() as u32));
-                pool.extend_from_slice(list);
+                let start = pool.len();
+                pool.push(FlowId::new(0));
+                pool.extend(self.walk(node.c));
+                pool[start] = FlowId::new((pool.len() - start - 1) as u32);
+                node.c = start as u32;
             } else if node.flags.intersects(FlowFlags::SWITCH_CLAUSE) {
-                let list = &staged[node.c as usize];
-                node.c = pool.len() as u32;
-                pool.extend_from_slice(list);
+                let start = pool.len() as u32;
+                pool.extend(self.walk(node.c));
+                node.c = start;
             }
         }
-        self.nodes.shrink_to_fit();
+        nodes.shrink_to_fit();
+        self.nodes = nodes;
         self.pool = pool.into_boxed_slice();
+        let mut cells = std::mem::take(&mut self.cells);
+        cells.clear();
+        FLOW_CELLS.with(|slot| slot.set(Some(cells)));
         self.frozen = true;
     }
 
@@ -284,6 +360,11 @@ impl FlowArena {
         let mut copy = self.clone();
         copy.freeze();
         copy
+    }
+
+    /// The file's flow ids in creation order.
+    pub fn ids(&self) -> impl Iterator<Item = FlowId> + '_ {
+        (0..self.nodes.len() as u32).map(FlowId::new)
     }
 
     pub fn len(&self) -> usize {
@@ -295,10 +376,9 @@ impl FlowArena {
     }
 
     fn create_label(&mut self, flags: FlowFlags) -> FlowId {
-        let list = self.stage(Vec::new());
         self.push(FlowNode {
             flags,
-            a: list,
+            a: 0,
             antecedent: None,
             c: 0,
         })
@@ -321,28 +401,23 @@ impl FlowArena {
         antecedents: Vec<FlowId>,
         antecedent: FlowId,
     ) -> FlowId {
-        let list = self.stage(antecedents);
+        let (head, _) = self.chain(&antecedents);
         self.push(FlowNode {
             flags: FlowFlags::REDUCE_LABEL,
             a: target.index(),
             antecedent: Some(antecedent),
-            c: list,
+            c: head,
         })
-    }
-
-    fn label_antecedents_mut(&mut self, label: FlowId) -> &mut Vec<FlowId> {
-        let node = *self.flow(label);
-        assert!(
-            node.is_label() && !self.frozen,
-            "only branch and loop labels collect antecedents, while binding"
-        );
-        &mut self.staging[node.a as usize]
     }
 
     /// Replace a label's antecedent list (the finally label of a try
     /// statement takes the normal, exception and return exits at once).
     pub fn set_label_antecedents(&mut self, label: FlowId, antecedents: Vec<FlowId>) {
-        *self.label_antecedents_mut(label) = antecedents;
+        assert!(self.flow(label).is_label() && !self.frozen);
+        let (head, tail) = self.chain(&antecedents);
+        let node = self.flow_mut(label);
+        node.a = head;
+        node.c = tail;
     }
 
     /// tsc setFlowNodeReferenced (43098): the second reference marks
@@ -366,21 +441,38 @@ impl FlowArena {
         {
             return;
         }
-        if self.antecedents(label).contains(&antecedent) {
+        let node = *self.flow(label);
+        assert!(
+            node.is_label() && !self.frozen,
+            "only branch and loop labels collect antecedents, while binding"
+        );
+        if self.walk(node.a).any(|item| item == antecedent) {
             return;
         }
-        self.label_antecedents_mut(label).push(antecedent);
+        let cell = self.cells.len() as u32 + 1;
+        self.cells.push(ListCell {
+            item: antecedent,
+            next: 0,
+        });
+        if node.c == 0 {
+            self.flow_mut(label).a = cell;
+        } else {
+            self.cells[node.c as usize - 1].next = cell;
+        }
+        self.flow_mut(label).c = cell;
         self.set_flow_node_referenced(antecedent);
     }
 
     /// tsc finishFlowLabel (43141): no antecedents ⇒ unreachable, one
     /// ⇒ COLLAPSES to it, several ⇒ the label itself.
     pub fn finish_flow_label(&mut self, flow: FlowId, unreachable: FlowId) -> FlowId {
-        let antecedents = self.antecedents(flow);
-        match antecedents.len() {
-            0 => unreachable,
-            1 => antecedents[0],
-            _ => flow,
+        let node = *self.flow(flow);
+        if node.a == 0 {
+            unreachable
+        } else if node.a == node.c {
+            self.cells[node.a as usize - 1].item
+        } else {
+            flow
         }
     }
 }

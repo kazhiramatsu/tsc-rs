@@ -264,8 +264,10 @@ impl<'a> CheckerState<'a> {
         arena: &FlowArena,
         flow: FlowId,
     ) -> FlowAntecedents {
-        if let Some(overridden) = self.reduce_label_overrides.get(&(file, flow)) {
-            return FlowAntecedents::new(overridden);
+        if !self.reduce_label_overrides.is_empty() {
+            if let Some(overridden) = self.reduce_label_overrides.get(&(file, flow)) {
+                return FlowAntecedents::new(overridden);
+            }
         }
         FlowAntecedents::new(arena.antecedents(flow))
     }
