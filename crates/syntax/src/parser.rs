@@ -6206,6 +6206,7 @@ impl<'text> Parser<'text> {
         let mut expression = self.parse_token_node();
         if self.token() == SyntaxKind::LessThanToken {
             let start_pos = self.node_pos();
+            tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseTypeArgOuterTries);
             let type_arguments =
                 self.try_parse(|parser| parser.try_parse_type_arguments_in_expression());
             if let Some(type_arguments) = type_arguments {
@@ -6699,6 +6700,15 @@ impl<'text> Parser<'text> {
     }
 
     fn try_parse_type_arguments_in_expression(&mut self) -> Option<crate::NodeArrayId> {
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseTypeArgTries);
+        if self.javascript_file
+            || !matches!(
+                self.token(),
+                SyntaxKind::LessThanToken | SyntaxKind::LessThanLessThanToken
+            )
+        {
+            tsc_types::perf::bump(tsc_types::perf::PerfCounter::ParseTypeArgSkippable);
+        }
         self.try_parse(|parser| parser.parse_type_arguments_in_expression())
     }
 

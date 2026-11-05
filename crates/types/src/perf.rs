@@ -175,6 +175,9 @@ pub enum PerfCounter {
     ParseChildAttaches,
     ParseIdentifierNames,
     ParseJsDocComments,
+    ParseTypeArgTries,
+    ParseTypeArgSkippable,
+    ParseTypeArgOuterTries,
     /// Sentinel: number of counters (not a counter).
     Count,
 }
@@ -313,6 +316,9 @@ pub const WIRED: [bool; COUNT] = [
     true,  // parse.child_attaches
     true,  // parse.identifier_names
     true,  // parse.jsdoc.comments
+    true,  // parse.type_args.tries
+    true,  // parse.type_args.skippable
+    true,  // parse.type_args.outer_tries
 ];
 
 /// Report names in variant order.
@@ -445,6 +451,9 @@ pub const NAMES: [&str; COUNT] = [
     "parse.child_attaches",
     "parse.identifier_names",
     "parse.jsdoc.comments",
+    "parse.type_args.tries",
+    "parse.type_args.skippable",
+    "parse.type_args.outer_tries",
 ];
 
 #[cfg(feature = "perf-counters")]
