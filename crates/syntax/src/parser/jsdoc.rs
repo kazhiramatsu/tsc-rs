@@ -187,11 +187,8 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         end: usize,
         flags: NodeFlags,
     ) -> NodeId {
-        let id = self
-            .parser
-            .arena
-            .alloc_node(data, pos, end, self.parser.jsdoc_flags() | flags);
-        self.parser.finish_node_at(id, pos, end)
+        let flags = self.parser.jsdoc_flags() | flags;
+        self.parser.alloc_and_finish(data, pos, end, flags)
     }
 
     fn finish_current(&mut self, data: NodeData, pos: usize) -> NodeId {
