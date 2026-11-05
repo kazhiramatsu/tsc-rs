@@ -1023,9 +1023,7 @@ impl NodeArena {
         let nodes = self
             .nodes
             .publish_mapped(relocation.new_nodes.start() + 1, |mut node| {
-                if let Some(parent) = &mut node.parent {
-                    *parent = shift.node(*parent, &mut inside);
-                }
+
                 let Ok(()) = node.map_identity_words(tails, |space, word| {
                     Ok::<u32, std::convert::Infallible>(shift.word(space, word, &mut inside))
                 });
