@@ -5389,13 +5389,12 @@ impl<'a> CheckerState<'a> {
     /// recipe for properties with more than two constituents. Deferral is
     /// observable: normalization can report TS2590 at the eventual read
     /// site, so eagerly combining here is not semantically equivalent.
-    pub(crate) fn create_union_or_intersection_property<'n>(
+    pub(crate) fn create_union_or_intersection_property(
         &mut self,
         containing_type: TypeId,
-        name: impl Into<JsStr<'n>>,
+        name: EscapedName,
         skip: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = name.into();
         let is_union = self
             .tables
             .flags_of(containing_type)
@@ -5734,9 +5733,7 @@ impl<'a> CheckerState<'a> {
         }
         prop_types.extend(index_types);
         let flags = SymbolFlags::from_bits(prop_flags.bits() | optional_flag.bits());
-        let result = self
-            .binder
-            .create_symbol(flags, EscapedName::from_escaped_value(name.to_owned()));
+        let result = self.binder.create_symbol(flags, name);
         // 59224-59227: value declaration + its symbol's parent when
         // uniform.
         let parent = match (has_non_uniform_value_declaration, first_value_declaration) {
@@ -5975,10 +5972,11 @@ impl<'a> CheckerState<'a> {
         let descriptor = self.nodes_of(call.arguments)[2];
         let descriptor_type = self.check_expression_cached(descriptor, CheckMode::NORMAL)?;
         if self
-            .get_type_of_property_of_type(descriptor_type, "value")?
+            .get_type_of_property_of_type(descriptor_type, tsc_types::known_name!("value"))?
             .is_some()
         {
-            let writable = self.get_property_of_type_full(descriptor_type, "writable")?;
+            let writable = self
+                .get_property_of_type_full(descriptor_type, tsc_types::known_name!("writable"))?;
             let writable_type = writable
                 .map(|property| self.get_type_of_symbol(property))
                 .transpose()?;
@@ -6004,7 +6002,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         Ok(self
-            .get_property_of_type_full(descriptor_type, "set")?
+            .get_property_of_type_full(descriptor_type, tsc_types::known_name!("set"))?
             .is_none())
     }
 

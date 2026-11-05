@@ -1216,7 +1216,10 @@ impl<'a> CheckerState<'a> {
                     if self.get_function_flags(expression) & crate::functions::FUNCTION_FLAGS_ASYNC
                         == 0
                         && self
-                            .get_type_of_property_of_type(source_return, "then")?
+                            .get_type_of_property_of_type(
+                                source_return,
+                                tsc_types::known_name!("then"),
+                            )?
                             .is_none()
                     {
                         let promise = self.create_promise_type(source_return)?;

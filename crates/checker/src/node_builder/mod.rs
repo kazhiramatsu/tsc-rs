@@ -760,7 +760,7 @@ pub(crate) fn late_bound_index_signatures(
     let members = checker
         .get_members_of_symbol(symbol)
         .map_err(|abort| abort_at(checker, container, abort))?;
-    let instance_infos = match members.get(InternalSymbolName::INDEX) {
+    let instance_infos = match members.get(tsc_types::known_name!(InternalSymbolName::INDEX)) {
         Some(&index_symbol) => {
             let siblings: Vec<tsc_binder::SymbolId> =
                 members.iter().map(|(_, &member)| member).collect();

@@ -146,13 +146,18 @@ impl<'a> CheckerState<'a> {
         if self.tables.is_tuple_type(ty) {
             return Ok(true);
         }
-        if self.get_property_of_type_full(ty, "0")?.is_some() {
+        if self
+            .get_property_of_type_full(ty, tsc_types::known_name!("0"))?
+            .is_some()
+        {
             return Ok(true);
         }
         if !self.is_array_like_type(ty)? {
             return Ok(false);
         }
-        let Some(length_type) = self.get_type_of_property_of_type(ty, "length")? else {
+        let Some(length_type) =
+            self.get_type_of_property_of_type(ty, tsc_types::known_name!("length"))?
+        else {
             return Ok(false);
         };
         Ok(self.every_type(length_type, |state, t| {

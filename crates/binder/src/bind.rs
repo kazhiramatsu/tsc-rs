@@ -1584,7 +1584,9 @@ impl<'a> BinderWorker<'a> {
     /// an export of the `export=` symbol, which becomes a namespace module.
     pub(crate) fn bind_common_js_type_exports(&mut self, module_symbol: SymbolId) {
         let exports = std::sync::Arc::clone(self.symbols.symbol(module_symbol).exports());
-        let Some(&export_equals) = exports.get(InternalSymbolName::EXPORT_EQUALS) else {
+        let Some(&export_equals) =
+            exports.get(tsc_types::known_name!(InternalSymbolName::EXPORT_EQUALS))
+        else {
             return;
         };
         for (&name, &symbol) in exports.iter() {

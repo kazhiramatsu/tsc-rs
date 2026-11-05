@@ -2241,7 +2241,9 @@ impl<'a> CheckerState<'a> {
             .intersects(SymbolFlags::VALUE)
         {
             let symbol_type = self.get_type_of_symbol(symbol)?;
-            if let Some(prototype) = self.get_property_of_type_full(symbol_type, "prototype")? {
+            if let Some(prototype) =
+                self.get_property_of_type_full(symbol_type, tsc_types::known_name!("prototype"))?
+            {
                 ty = Some(self.get_type_of_symbol(prototype)?);
             }
         }

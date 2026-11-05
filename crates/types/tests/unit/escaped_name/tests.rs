@@ -85,3 +85,50 @@ fn scanner_values_and_template_units_share_literal_type_identity() {
     assert_eq!(tables.get_string_literal_type("😀"), ids[4]);
     assert_ne!(tables.get_string_literal_type("\\uD800"), ids[0]);
 }
+
+#[test]
+fn a_known_name_is_the_name_a_text_key_lookup_interns() {
+    // A symbol table looked up by a text interns it verbatim
+    // (`from_escaped_text`); `known_name!` interns the same constant once.
+    let cases: [(EscapedName, &'static str); 8] = [
+        (
+            crate::known_name!(InternalSymbolName::EXPORT_EQUALS),
+            InternalSymbolName::EXPORT_EQUALS,
+        ),
+        (
+            crate::known_name!(InternalSymbolName::EXPORT_STAR),
+            InternalSymbolName::EXPORT_STAR,
+        ),
+        (
+            crate::known_name!(InternalSymbolName::INDEX),
+            InternalSymbolName::INDEX,
+        ),
+        (
+            crate::known_name!(InternalSymbolName::CALL),
+            InternalSymbolName::CALL,
+        ),
+        (
+            crate::known_name!(InternalSymbolName::NEW),
+            InternalSymbolName::NEW,
+        ),
+        (
+            crate::known_name!(InternalSymbolName::CONSTRUCTOR),
+            InternalSymbolName::CONSTRUCTOR,
+        ),
+        (
+            crate::known_name!(InternalSymbolName::DEFAULT),
+            InternalSymbolName::DEFAULT,
+        ),
+        (crate::known_name!("then"), "then"),
+    ];
+    for (known, text) in cases {
+        assert_eq!(
+            known,
+            EscapedName::from_escaped_text(JsStr::from_str(text)),
+            "{text:?}"
+        );
+        assert_eq!(known, EscapedName::internal(text), "{text:?}");
+        // Interned once: the same id from the same site on every call.
+        assert_eq!(known.as_js(), JsStr::from_str(text), "{text:?}");
+    }
+}
