@@ -414,6 +414,9 @@ impl Node {
     /// record's tree's. `in_place` rewrites the tail the record has, which
     /// only a tree's exclusive owner may do (a payload change otherwise takes
     /// a new tail, so a copy of the record keeps reading its own payload).
+    /// Always inlined, with `encode_payload`: a caller that built `data`
+    /// with a known variant (the parser's finish) encodes only that arm.
+    #[inline(always)]
     pub(crate) fn encode(
         &mut self,
         data: &NodeData,
@@ -5046,8 +5049,9 @@ pub(crate) const fn slot_spaces(kind: SyntaxKind) -> &'static [u8] {
 }
 
 /// Write a payload into `node` (see `Node::encode`): a jump on the variant into
-/// `Node::store` with the kind's slot count.
-#[inline]
+/// `Node::store` with the kind's slot count. Always inlined: where the variant
+/// is known (the parser's finish), the jump folds to its arm.
+#[inline(always)]
 fn encode_payload(
     node: &mut Node,
     data: &NodeData,

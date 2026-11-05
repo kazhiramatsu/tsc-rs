@@ -691,6 +691,9 @@ impl Node {
     /// record's tree's. `in_place` rewrites the tail the record has, which
     /// only a tree's exclusive owner may do (a payload change otherwise takes
     /// a new tail, so a copy of the record keeps reading its own payload).
+    /// Always inlined, with `encode_payload`: a caller that built `data`
+    /// with a known variant (the parser's finish) encodes only that arm.
+    #[inline(always)]
     pub(crate) fn encode(
         &mut self,
         data: &NodeData,
@@ -1054,8 +1057,9 @@ def render_payload_codec(kinds):
         out.append(f"{arms} => &[{', '.join(row)}],")
     out += ["_ => &[],", "}", "}", ""]
     out.append("/// Write a payload into `node` (see `Node::encode`): a jump on the variant into")
-    out.append("/// `Node::store` with the kind's slot count.")
-    out.append("#[inline]")
+    out.append("/// `Node::store` with the kind's slot count. Always inlined: where the variant")
+    out.append("/// is known (the parser's finish), the jump folds to its arm.")
+    out.append("#[inline(always)]")
     out.append(
         "fn encode_payload(node: &mut Node, data: &NodeData, js_doc: u32, "
         "tails: &mut tsc_store::tails::Tails, in_place: bool) {"
@@ -1539,6 +1543,9 @@ def render_for_each_child_rs(kinds):
     out += ["_ => None,", "}", "}", ""]
 
     out.append(CHILD_VISITOR_TRAIT)
+    out.append("/// `visitor` over the children of `data`, in forEachChild order. Always inlined:")
+    out.append("/// where the variant is known (the parser's finish), only its children are walked.")
+    out.append("#[inline(always)]")
     out.append("pub fn try_visit_each_child<V>(data: &mut NodeData, visitor: &mut V) -> Result<(), V::Error>")
     out += ["where", "V: NodeDataChildVisitor,", "{", "match data {"]
     out.append("NodeData::Token => Ok(()),")

@@ -683,6 +683,8 @@ impl NodeArena {
         (self.node_base..self.node_end()).map(NodeId::new)
     }
 
+    /// Always inlined (see the parser's `finish_node_data`).
+    #[inline(always)]
     pub fn alloc_node(
         &mut self,
         data: NodeData,
@@ -1099,7 +1101,7 @@ impl NodeArena {
     /// `parent` from `data`: each child named by the payload (forEachChild's
     /// children, lists item by item) gets `parent`, read from the payload
     /// itself rather than from the stored record.
-    #[inline]
+    #[inline(always)]
     pub(crate) fn attach_children_of_data(&mut self, parent: NodeId, data: &mut NodeData) {
         struct Attach<'a> {
             arena: &'a mut NodeArena,
@@ -1258,6 +1260,7 @@ impl NodeArena {
         }
     }
 
+    #[inline(always)]
     fn push_node(
         &mut self,
         kind: SyntaxKind,
