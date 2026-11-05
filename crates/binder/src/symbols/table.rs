@@ -73,17 +73,23 @@ impl NameKey for &JsString {
 // bandwidth is a measured cost of the parallel checkers).
 pub struct SymbolTable(Option<Box<SymbolMap>>);
 
-/// An insertion-ordered name -> symbol map: the entries in one vector and a
-/// hash table of their positions, hashed by the name's id. An entry costs its
-/// 8 bytes plus about five bytes of index, where an `IndexMap` also keeps
-/// every entry's hash and indexes it by `usize` (about 60 bytes). A checker
-/// builds such a table for every class or interface instantiation, including
-/// the inherited members, so a large program holds millions of entries.
+/// An insertion-ordered name -> symbol map: the entries in one vector and,
+/// once the map has [`INDEXED_FROM`] entries, a boxed hash table of their
+/// positions, hashed by the name's id. An entry costs its 8 bytes plus about
+/// five bytes of index, where an `IndexMap` also keeps every entry's hash and
+/// indexes it by `usize` (about 60 bytes). A checker builds such a table for
+/// every class or interface instantiation, including the inherited members,
+/// so a large program holds millions of entries; most maps are small, and a
+/// small one is scanned instead of indexed.
 #[derive(Clone, Default)]
 struct SymbolMap {
     entries: Vec<(EscapedName, SymbolId)>,
-    positions: HashTable<u32>,
+    positions: Option<Box<HashTable<u32>>>,
 }
+
+/// The size from which a map indexes its entries; a smaller one is scanned
+/// (a name is a 4-byte id, so a scan is a few compares).
+const INDEXED_FROM: usize = 9;
 
 fn hash_name(name: EscapedName) -> u64 {
     let mut hasher = FxHasher::default();
@@ -102,26 +108,57 @@ impl SymbolMap {
 
     fn reserve(&mut self, additional: usize) {
         self.entries.reserve(additional);
+        if let Some(positions) = &mut self.positions {
+            let entries = &self.entries;
+            positions.reserve(additional, |&position| {
+                hash_name(entries[position as usize].0)
+            });
+        }
+    }
+
+    /// Index the entries (the map reached [`INDEXED_FROM`] entries).
+    fn index(&mut self) {
         let entries = &self.entries;
-        self.positions.reserve(additional, |&position| {
-            hash_name(entries[position as usize].0)
-        });
+        let mut positions = HashTable::with_capacity(entries.len());
+        for (position, (name, _)) in entries.iter().enumerate() {
+            positions.insert_unique(hash_name(*name), position as u32, |&position| {
+                hash_name(entries[position as usize].0)
+            });
+        }
+        self.positions = Some(Box::new(positions));
     }
 
     fn position(&self, name: EscapedName) -> Option<usize> {
         let entries = &self.entries;
-        self.positions
-            .find(hash_name(name), |&position| {
-                entries[position as usize].0 == name
-            })
-            .map(|&position| position as usize)
+        match &self.positions {
+            Some(positions) => positions
+                .find(hash_name(name), |&position| {
+                    entries[position as usize].0 == name
+                })
+                .map(|&position| position as usize),
+            None => entries.iter().position(|(candidate, _)| *candidate == name),
+        }
     }
 
     /// Insert or replace; a replaced entry keeps its position, as in a
     /// JavaScript `Map`.
     fn insert(&mut self, name: EscapedName, value: SymbolId) -> Option<SymbolId> {
+        let Some(positions) = &mut self.positions else {
+            if let Some(position) = self
+                .entries
+                .iter()
+                .position(|(candidate, _)| *candidate == name)
+            {
+                return Some(std::mem::replace(&mut self.entries[position].1, value));
+            }
+            self.entries.push((name, value));
+            if self.entries.len() >= INDEXED_FROM {
+                self.index();
+            }
+            return None;
+        };
         let entries = &self.entries;
-        let entry = self.positions.entry(
+        let entry = positions.entry(
             hash_name(name),
             |&position| entries[position as usize].0 == name,
             |&position| hash_name(entries[position as usize].0),
@@ -143,14 +180,16 @@ impl SymbolMap {
     /// Remove an entry and close the gap, keeping the others in order.
     fn shift_remove(&mut self, name: EscapedName) -> Option<SymbolId> {
         let position = self.position(name)?;
-        let removed = position as u32;
-        self.positions
-            .find_entry(hash_name(name), |&candidate| candidate == removed)
-            .ok()?
-            .remove();
-        for candidate in self.positions.iter_mut() {
-            if *candidate > removed {
-                *candidate -= 1;
+        if let Some(positions) = &mut self.positions {
+            let removed = position as u32;
+            positions
+                .find_entry(hash_name(name), |&candidate| candidate == removed)
+                .ok()?
+                .remove();
+            for candidate in positions.iter_mut() {
+                if *candidate > removed {
+                    *candidate -= 1;
+                }
             }
         }
         Some(self.entries.remove(position).1)
@@ -244,7 +283,10 @@ impl SymbolTable {
         self.0.as_ref().map_or(0, |map| {
             std::mem::size_of::<SymbolMap>()
                 + map.entries.capacity() * std::mem::size_of::<(EscapedName, SymbolId)>()
-                + map.positions.capacity() * (std::mem::size_of::<u32>() + 1)
+                + map.positions.as_ref().map_or(0, |positions| {
+                    std::mem::size_of::<HashTable<u32>>()
+                        + positions.capacity() * (std::mem::size_of::<u32>() + 1)
+                })
         })
     }
 
