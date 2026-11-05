@@ -466,6 +466,37 @@ pub struct SymbolLinks {
 
 const _: () = assert!(std::mem::size_of::<SymbolLinks>() == 20);
 
+/// A transient symbol's stored record: [`SymbolLinks`] without its name
+/// type. About one transient symbol in twenty has a name type (VS Code: 310 K
+/// of 5.9 M); it lives in the table's sparse map, and the record's check
+/// flags carry [`NAME_TYPE_IN_MAP`] when it does.
+#[derive(Clone, Copy, Debug, Default)]
+struct TransientSymbolRecord {
+    type_of_symbol: IdSlot<TypeId>,
+    /// The symbol's check flags, with [`NAME_TYPE_IN_MAP`] when it has a
+    /// name type (no tsc CheckFlags bit uses it).
+    check_flags: tsc_types::CheckFlags,
+    target: Option<SymbolId>,
+    mapper: Option<MapperId>,
+}
+
+const _: () = assert!(std::mem::size_of::<TransientSymbolRecord>() == 16);
+
+/// The record bit saying a transient symbol's name type is in the table's
+/// map; above every tsc CheckFlags bit (0–23).
+const NAME_TYPE_IN_MAP: i32 = 1 << 30;
+
+impl TransientSymbolRecord {
+    /// Replace the check flags, keeping the record's own bit.
+    #[inline]
+    fn set_check_flags(&mut self, check_flags: tsc_types::CheckFlags) {
+        debug_assert!(check_flags.bits() & NAME_TYPE_IN_MAP == 0);
+        self.check_flags = tsc_types::CheckFlags::from_bits(
+            check_flags.bits() | self.check_flags.bits() & NAME_TYPE_IN_MAP,
+        );
+    }
+}
+
 /// The SymbolLinks of a persistent (binder) symbol: the fields tsc writes on
 /// any symbol. Check flags, target, mapper and name type exist only on
 /// transient symbols (tsc's `TransientSymbol` links), so a persistent symbol
@@ -1074,11 +1105,12 @@ impl LinksTables {
         // tail is address space, so they count by length.
         let transient = (
             self.transient_symbols.len(),
-            self.transient_symbols.len() * std::mem::size_of::<SymbolLinks>()
+            self.transient_symbols.len() * std::mem::size_of::<TransientSymbolRecord>()
                 + self.transient_declared_types.capacity()
                     * (std::mem::size_of::<(u32, IdSlot<TypeId>)>() + 1)
                 + self.transient_is_referenced.capacity()
-                    * (std::mem::size_of::<(u32, tsc_types::SymbolFlags)>() + 1),
+                    * (std::mem::size_of::<(u32, tsc_types::SymbolFlags)>() + 1)
+                + self.transient_name_types.capacity() * (std::mem::size_of::<(u32, TypeId)>() + 1),
         );
         let ty = self.ty.memory_usage();
         let node_cold = self.node_cold.memory_usage();
@@ -1324,11 +1356,13 @@ pub struct LinksTables {
     /// position: one bounds check and one load, no index pages. Every
     /// transient symbol gets links, so the table is dense; it grows on the
     /// first write past its end (an unwritten record reads as unset).
-    transient_symbols: Vec<SymbolLinks>,
+    transient_symbols: Vec<TransientSymbolRecord>,
     /// The declared types and reference meanings of the few transient
     /// symbols that have one, by their dense position.
     transient_declared_types: FxHashMap<u32, IdSlot<TypeId>>,
     transient_is_referenced: FxHashMap<u32, tsc_types::SymbolFlags>,
+    /// The name types of the transient symbols whose record says so.
+    transient_name_types: FxHashMap<u32, TypeId>,
     /// A checker's type ids are dense from zero: a read is a bounds check
     /// and a load (see [`DenseLinks`]).
     ty: DenseLinks<TypeLinks>,
@@ -1439,11 +1473,22 @@ impl LinksTables {
     #[inline]
     pub fn symbol(&self, id: SymbolId) -> SymbolLinks {
         match transient_index(id) {
-            Some(index) => self
-                .transient_symbols
-                .get(index)
-                .copied()
-                .unwrap_or_default(),
+            Some(index) => match self.transient_symbols.get(index) {
+                Some(record) => SymbolLinks {
+                    type_of_symbol: record.type_of_symbol,
+                    check_flags: tsc_types::CheckFlags::from_bits(
+                        record.check_flags.bits() & !NAME_TYPE_IN_MAP,
+                    ),
+                    target: record.target,
+                    mapper: record.mapper,
+                    name_type: if record.check_flags.bits() & NAME_TYPE_IN_MAP != 0 {
+                        self.transient_name_types.get(&(index as u32)).copied()
+                    } else {
+                        None
+                    },
+                },
+                None => SymbolLinks::default(),
+            },
             None => match self.persistent_symbols.get(PersistentSymbol(id)) {
                 Some(links) => SymbolLinks {
                     type_of_symbol: links.type_of_symbol,
@@ -1490,7 +1535,7 @@ impl LinksTables {
     /// The record of a transient symbol, for its transient-only fields,
     /// grown on the first write past the table's end.
     #[inline]
-    fn transient_symbol_mut(&mut self, id: SymbolId) -> &mut SymbolLinks {
+    fn transient_symbol_mut(&mut self, id: SymbolId) -> &mut TransientSymbolRecord {
         let Some(index) = transient_index(id) else {
             panic!(
                 "check flags, target, mapper and name type belong to transient symbols, not {id:?}"
@@ -1498,9 +1543,29 @@ impl LinksTables {
         };
         if index >= self.transient_symbols.len() {
             self.transient_symbols
-                .resize(index + 1, SymbolLinks::default());
+                .resize(index + 1, TransientSymbolRecord::default());
         }
         &mut self.transient_symbols[index]
+    }
+
+    /// A transient symbol's `links.nameType`: in the sparse map, flagged in
+    /// its record.
+    fn set_transient_name_type(&mut self, id: SymbolId, name_type: Option<TypeId>) {
+        let record = self.transient_symbol_mut(id);
+        let flags = record.check_flags.bits();
+        record.check_flags = tsc_types::CheckFlags::from_bits(match name_type {
+            Some(_) => flags | NAME_TYPE_IN_MAP,
+            None => flags & !NAME_TYPE_IN_MAP,
+        });
+        let index = transient_index(id).expect("a transient symbol") as u32;
+        match name_type {
+            Some(name_type) => {
+                self.transient_name_types.insert(index, name_type);
+            }
+            None => {
+                self.transient_name_types.remove(&index);
+            }
+        }
     }
 
     /// `links.declaredType` of any symbol, for writing.
@@ -2357,7 +2422,7 @@ impl LinksTables {
     ) {
         let _ = speculation_depth;
         let links = self.transient_symbol_mut(id);
-        links.check_flags = check_flags;
+        links.set_check_flags(check_flags);
         Self::write_id_slot(
             &mut links.type_of_symbol,
             LinkSlot::Resolved(type_of_symbol),
@@ -2381,9 +2446,10 @@ impl LinksTables {
         constituents: Vec<TypeId>,
         write_constituents: Option<Vec<TypeId>>,
     ) {
-        self.transient_symbol_mut(id).check_flags = tsc_types::CheckFlags::from_bits(
-            check_flags.bits() | tsc_types::CheckFlags::DEFERRED_TYPE.bits(),
-        );
+        self.transient_symbol_mut(id)
+            .set_check_flags(tsc_types::CheckFlags::from_bits(
+                check_flags.bits() | tsc_types::CheckFlags::DEFERRED_TYPE.bits(),
+            ));
         let cold = &mut self.symbol_cold;
         cold.containing_type.set(id, Some(containing_type));
         cold.deferral_parent.set(id, Some(containing_type));
@@ -2471,7 +2537,7 @@ impl LinksTables {
         check_flags: tsc_types::CheckFlags,
     ) {
         let _ = speculation_depth;
-        self.transient_symbol_mut(id).check_flags = check_flags;
+        self.transient_symbol_mut(id).set_check_flags(check_flags);
     }
 
     /// `links.nameType = ...` on a fresh transient symbol (getSpreadSymbol
@@ -2485,7 +2551,7 @@ impl LinksTables {
         name_type: Option<TypeId>,
     ) {
         let _ = speculation_depth;
-        self.transient_symbol_mut(id).name_type = name_type;
+        self.set_transient_name_type(id, name_type);
     }
 
     /// tsc-port: getSpecifierForModuleSymbol @6.0.3 (links.specifierCache write)
@@ -2544,7 +2610,7 @@ impl LinksTables {
         key_type: TypeId,
     ) {
         let _ = speculation_depth;
-        self.transient_symbol_mut(id).name_type = Some(name_type);
+        self.set_transient_name_type(id, Some(name_type));
         let cold = &mut self.symbol_cold;
         let previous_mapped_type = cold.mapped_type.replace(id, Some(mapped_type));
         let previous_key_type = cold.key_type.replace(id, Some(key_type));
@@ -2566,7 +2632,7 @@ impl LinksTables {
         constraint_type: TypeId,
     ) {
         let _ = speculation_depth;
-        self.transient_symbol_mut(id).name_type = name_type;
+        self.set_transient_name_type(id, name_type);
         let cold = &mut self.symbol_cold;
         let previous_property_type = cold.property_type.replace(id, Some(property_type));
         let previous_mapped_type = cold.mapped_type.replace(id, Some(mapped_type));
@@ -2592,7 +2658,7 @@ impl LinksTables {
             self.symbol_cold.mapped_type.get(id).is_some(),
             "only mapped symbols merge name/key links"
         );
-        self.transient_symbol_mut(id).name_type = Some(name_type);
+        self.set_transient_name_type(id, Some(name_type));
         self.symbol_cold.key_type.set(id, Some(key_type));
     }
 
@@ -3222,7 +3288,11 @@ impl LinksTables {
         );
         links.target = Some(target);
         links.mapper = Some(mapper);
-        links.name_type = name_type;
+        // As the old record's assignment: replace any name type, without a
+        // map operation when there is none either side.
+        if name_type.is_some() || links.check_flags.bits() & NAME_TYPE_IN_MAP != 0 {
+            self.set_transient_name_type(id, name_type);
+        }
     }
 
     /// getTypeWithSyntheticDefaultImportType's synthType.syntheticType
