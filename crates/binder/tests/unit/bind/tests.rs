@@ -1343,3 +1343,60 @@ fn only_an_unreachable_executable_node_carries_unreachable_after_bind() {
     let second = bind(&source);
     assert_eq!(flags(&second), [false, true]);
 }
+
+#[test]
+fn the_parsers_symbol_bound_covers_every_symbol_a_bind_declares() {
+    use tsc_syntax::arena::FILE_SYMBOLS;
+    let bound_and_used = |source: &SourceFile| {
+        let binder = bind(source);
+        (
+            source.arena.symbol_bound(),
+            u32::try_from(binder.symbols.len()).expect("few symbols"),
+        )
+    };
+    // Declarations whose every counted node declares its count: the bound is
+    // the bind's symbols and the file-level allowance.
+    for text in [
+        // The file's symbol, `a`'s local and its export twin.
+        "export const a = 1;\n",
+        // Also K's prototype, `__constructor`, and `x` as a parameter and
+        // as a member of K.
+        "export class K { constructor(private x: number) {} }\n",
+        // A function type's signature and `__type`, and its parameter.
+        "export type F = (a: number) => void;\n",
+        // The inner names of a dotted namespace are exported (the import
+        // makes the file a module, which has a symbol of its own).
+        "import \"m\";\nnamespace A.B { export const c = 1; }\n",
+    ] {
+        let (bound, used) = bound_and_used(&parse(text));
+        assert_eq!(bound, used + FILE_SYMBOLS, "{text}");
+    }
+    // An upper bound for the rest: destructuring, an ambient namespace
+    // (an export context), a CommonJS file and a JSON file.
+    let sources = [
+        parse("export const { b, c: [d] } = e, f = 1;\nexport default function () {}\n"),
+        parse_named(
+            "types.d.ts",
+            "declare namespace NS { const a: number; function f(): void; class C {} \
+             namespace Inner { let v: string; } }\nexport {};\n",
+            false,
+        ),
+        parse_named(
+            "a.js",
+            "module.exports = { a: 1 };\nexports.b = 2;\nfunction F() { this.d = 4; }\n\
+             F.prototype.e = function () {};\n/** @typedef {number} N */\n",
+            true,
+        ),
+        tsc_syntax::parse_json_source_text_from_snapshot(
+            "a.json",
+            tsc_diagnostics::TextSnapshot::new(
+                "{ \"a\": { \"b\": [1, { \"c\": 2 }] } }".to_owned(),
+                tsc_diagnostics::DocumentVersion::default(),
+            ),
+        ),
+    ];
+    for source in &sources {
+        let (bound, used) = bound_and_used(source);
+        assert!(used <= bound, "{:?}: {used} > {bound}", source.file_name);
+    }
+}

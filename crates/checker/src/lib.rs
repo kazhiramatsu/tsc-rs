@@ -6321,9 +6321,9 @@ fn trace_parse(
 /// the budget's workers directly at its reserved bases, so no bind identity
 /// is rewritten afterwards. A source's ranges depend only on the sources
 /// before it, so the identities are the same for every budget. A source
-/// that outgrows a reservation (its node count bounds both spaces, so none
-/// is expected) relocates into an exact lease at the domain's tail, still in
-/// Program order.
+/// that outgrows a reservation (the parser's symbol bound and the node count
+/// bound the two spaces, so none is expected) relocates into an exact lease
+/// at the domain's tail, still in Program order.
 fn bind_reserved_in_program_order<'a>(
     sources: &[&'a tsc_syntax::SourceFile],
     identity_domain: &IdentityDomain,
@@ -6388,23 +6388,26 @@ fn bind_reserved_in_program_order<'a>(
 }
 
 /// One symbol range and one private-name-serial range for `source`, leased
-/// from the domain's bump tail in the caller's (Program) order. Every
-/// persistent symbol and every serial is minted for a node of the source, so
-/// its node count bounds both; a bind that still outgrows its range
+/// from the domain's bump tail in the caller's (Program) order. The parser
+/// counts the most symbols the source can declare (`symbol_bound`), so the
+/// symbols of consecutive sources share the store's pages instead of each
+/// starting a page of its own; every serial is minted for a node of the
+/// source, so its node count bounds them. A bind that still outgrows a range
 /// relocates into an exact lease instead.
 fn reserve_bind_identities(
     source: &tsc_syntax::SourceFile,
     identity_domain: &IdentityDomain,
 ) -> (IdentityLease, IdentityLease) {
-    let bound = u32::try_from(source.arena.nodes().len())
+    let symbols = source.arena.symbol_bound().max(1);
+    let serials = u32::try_from(source.arena.nodes().len())
         .expect("source node count exceeds u32")
         .max(1);
     let mut symbol = None;
     let mut serial = None;
     let leases = identity_domain
         .lease_batch(&[
-            (tsc_types::IdentitySpace::Symbol, bound),
-            (tsc_types::IdentitySpace::PrivateNameSerial, bound),
+            (tsc_types::IdentitySpace::Symbol, symbols),
+            (tsc_types::IdentitySpace::PrivateNameSerial, serials),
         ])
         .expect("bind identity reservation failed");
     for lease in leases {
