@@ -149,7 +149,7 @@ pub struct BinderWorker<'a> {
 pub struct BindData {
     pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
-    pub node_symbol: NodeSymbolMap,
+    pub node_symbol: NodeSymbols,
     pub node_local_symbol: FxHashMap<NodeId, SymbolId>,
     pub locals: FxHashMap<NodeId, SymbolTable>,
     pub bind_diagnostics: DiagnosticList,
@@ -260,7 +260,7 @@ impl BindData {
         Self {
             common_js_module_indicator: binder.common_js_module_indicator,
             symbols: binder.symbols.clone(),
-            node_symbol: binder.node_symbol.clone(),
+            node_symbol: NodeSymbols::from_map(&binder.node_symbol),
             node_local_symbol: binder.node_local_symbol.clone(),
             locals: binder.locals.clone(),
             bind_diagnostics: binder.bind_diagnostics.clone(),
@@ -365,7 +365,7 @@ impl<'a> BinderWorker<'a> {
                 .intersects(NodeFlags::JAVA_SCRIPT_FILE),
             common_js_module_indicator: None,
             symbols,
-            node_symbol: NodeSymbolMap::for_tree(&source.arena),
+            node_symbol: NodeSymbolMap::on_heap(&source.arena),
             node_local_symbol: FxHashMap::default(),
             locals: FxHashMap::with_capacity_and_hasher(node_count / 32, Default::default()),
             bind_diagnostics: Vec::new(),
@@ -1588,7 +1588,7 @@ impl BinderWorker<'_> {
         BindData {
             common_js_module_indicator,
             symbols,
-            node_symbol,
+            node_symbol: NodeSymbols::from_map(&node_symbol),
             node_local_symbol,
             locals,
             bind_diagnostics,
@@ -1775,18 +1775,14 @@ impl<V> Default for NodeSlot<V> {
     }
 }
 
+/// A bind's working map of `node.symbol` lives on the heap (see
+/// [`DenseNodeMap::on_heap`]); the region only types its list.
 impl StoreRecord for NodeSlot<SymbolId> {
     const REGION: usize = 4;
 }
 
 impl StoreRecord for NodeSlot<crate::flow::FlowId> {
     const REGION: usize = 5;
-}
-
-/// tsc `node.symbol` of a published, bound node.
-#[inline(always)]
-pub fn published_node_symbol(node: NodeId) -> Option<SymbolId> {
-    tsc_store::get::<NodeSlot<SymbolId>>(node.position()).0
 }
 
 /// tsc `node.flowNode` of a published, bound node.
@@ -1832,6 +1828,17 @@ where
         node.index()
             .checked_sub(self.base)
             .map(|offset| offset as usize)
+    }
+
+    /// The empty map of `arena`'s nodes, on the heap whether or not the tree
+    /// is published (a bind's working map, compacted when the bind is done).
+    pub fn on_heap(arena: &NodeArena) -> Self {
+        let mut slots = StoreVec::with_capacity(arena.len());
+        slots.resize(arena.len(), NodeSlot::default());
+        Self {
+            base: arena.node_base(),
+            slots,
+        }
     }
 
     pub fn get(&self, node: &NodeId) -> Option<&V> {
@@ -1891,5 +1898,111 @@ where
 {
     fn eq(&self, other: &Self) -> bool {
         self.base == other.base && self.iter().eq(other.iter())
+    }
+}
+
+/// tsc `node.symbol` of a completed bind, compact: a presence bit per node of
+/// the tree, the count of present nodes before each 64-node word, and the
+/// symbols in node order (about 1.4 bytes per node instead of 4; about one
+/// node in eight declares). A Program indexes its files' maps once
+/// (`NodeSymbolIndex` in the checker); this form answers the binder's and the
+/// API's lookups.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct NodeSymbols {
+    base: u32,
+    words: Box<[u64]>,
+    ranks: Box<[u32]>,
+    symbols: Box<[SymbolId]>,
+}
+
+impl NodeSymbols {
+    /// The compact form of a bind's working map.
+    pub fn from_map(map: &NodeSymbolMap) -> Self {
+        let words_len = map.slots.len().div_ceil(64);
+        let mut words = vec![0u64; words_len];
+        let mut symbols = Vec::new();
+        for (offset, slot) in map.slots.iter().enumerate() {
+            if let Some(symbol) = slot.0 {
+                words[offset / 64] |= 1 << (offset % 64);
+                symbols.push(symbol);
+            }
+        }
+        let mut ranks = Vec::with_capacity(words_len);
+        let mut count = 0u32;
+        for word in &words {
+            ranks.push(count);
+            count += word.count_ones();
+        }
+        Self {
+            base: map.base,
+            words: words.into_boxed_slice(),
+            ranks: ranks.into_boxed_slice(),
+            symbols: symbols.into_boxed_slice(),
+        }
+    }
+
+    /// The first node of the tree.
+    pub fn base(&self) -> u32 {
+        self.base
+    }
+
+    /// Nodes that declare a symbol.
+    pub fn len(&self) -> usize {
+        self.symbols.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.symbols.is_empty()
+    }
+
+    /// Bytes this map owns, for memory accounting.
+    pub fn heap_bytes(&self) -> usize {
+        self.words.len() * 8
+            + self.ranks.len() * 4
+            + self.symbols.len() * std::mem::size_of::<SymbolId>()
+    }
+
+    pub fn get(&self, node: &NodeId) -> Option<&SymbolId> {
+        let offset = node.index().checked_sub(self.base)? as usize;
+        let word = *self.words.get(offset / 64)?;
+        let bit = 1u64 << (offset % 64);
+        if word & bit == 0 {
+            return None;
+        }
+        let rank = self.ranks[offset / 64] + (word & (bit - 1)).count_ones();
+        self.symbols.get(rank as usize)
+    }
+
+    pub fn contains_key(&self, node: &NodeId) -> bool {
+        self.get(node).is_some()
+    }
+
+    /// The nodes that declare a symbol and their symbols, in node order.
+    pub fn iter(&self) -> impl Iterator<Item = (NodeId, SymbolId)> + '_ {
+        let mut symbols = self.symbols.iter().copied();
+        self.words
+            .iter()
+            .enumerate()
+            .flat_map(move |(index, &word)| {
+                let start = self.base + index as u32 * 64;
+                BitIter(word).map(move |bit| NodeId::new(start + bit))
+            })
+            .map(move |node| (node, symbols.next().expect("one symbol per present node")))
+    }
+}
+
+/// The set bits of a word, lowest first.
+struct BitIter(u64);
+
+impl Iterator for BitIter {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<u32> {
+        if self.0 == 0 {
+            return None;
+        }
+        let bit = self.0.trailing_zeros();
+        self.0 &= self.0 - 1;
+        Some(bit)
     }
 }

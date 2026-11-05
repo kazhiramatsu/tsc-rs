@@ -38,7 +38,10 @@ fn bind_relocation_matches_direct_nonzero_symbols_and_private_serials() {
     let mut direct = Binder::with_bases(&source, serial_base, symbol_base);
     direct.bind_source_file();
     assert_eq!(expected.symbols, direct.symbols);
-    assert_eq!(expected.node_symbol, direct.node_symbol);
+    assert_eq!(
+        expected.node_symbol,
+        NodeSymbols::from_map(&direct.node_symbol)
+    );
     assert_eq!(expected.node_local_symbol, direct.node_local_symbol);
     assert_eq!(expected.locals, direct.locals);
     assert_eq!(expected.classifiable_names, direct.classifiable_names);
@@ -383,7 +386,10 @@ fn local_bind_with_in_order_relocation_matches_direct_binding_at_the_same_bases(
         );
         assert_eq!(expected.next_symbol_id, direct.next_symbol_id);
         assert_eq!(expected.symbols, direct.symbols);
-        assert_eq!(expected.node_symbol, direct.node_symbol);
+        assert_eq!(
+            expected.node_symbol,
+            NodeSymbols::from_map(&direct.node_symbol)
+        );
         assert_eq!(expected.node_local_symbol, direct.node_local_symbol);
         assert_eq!(expected.locals, direct.locals);
         assert_eq!(expected.classifiable_names, direct.classifiable_names);

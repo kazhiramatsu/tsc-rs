@@ -767,8 +767,87 @@ pub struct ProgramBinder<'a> {
     /// instead of a hinted interval search (tsc carries object identity).
     node_files: DenseOwners,
     symbol_files: DenseOwners,
+    /// tsc `node.symbol` of every node of the Program, by node id.
+    node_symbols: NodeSymbolIndex,
     /// Checker-side symbols (tsc createSymbol 47652 adds Transient).
     transient: SymbolArena,
+}
+
+/// tsc `node.symbol` of a Program's nodes, by node id: a presence bit per
+/// node, the count of present nodes before each 64-node word, and the
+/// symbols in node order, built once from the files' compact maps (about 1.5
+/// bytes per node; about one node in eight declares). The words span the
+/// Program's node ids from the first file's to the last's; for a sparse
+/// identity domain the index stays empty and a lookup routes to the owning
+/// file's map instead.
+#[derive(Debug, Default)]
+struct NodeSymbolIndex {
+    first_word: u32,
+    words: Box<[u64]>,
+    ranks: Box<[u32]>,
+    symbols: Box<[SymbolId]>,
+}
+
+impl NodeSymbolIndex {
+    /// `owners` are the node intervals in ascending, disjoint order.
+    fn build(owners: &[ArenaOwner], entries: &[ProgramEntry<'_>]) -> Self {
+        let (Some(first), Some(last)) = (owners.first(), owners.last()) else {
+            return Self::default();
+        };
+        let first_word = first.start >> 6;
+        let last_word = last.end.saturating_sub(1) >> 6;
+        let word_count = (u64::from(last_word) - u64::from(first_word) + 1) as usize;
+        let nodes: u64 = owners
+            .iter()
+            .map(|owner| u64::from(owner.end - owner.start))
+            .sum();
+        if word_count as u64 > nodes / 32 + (1 << 16) {
+            return Self::default();
+        }
+        let mut words = vec![0u64; word_count];
+        let mut symbols = Vec::with_capacity(
+            owners
+                .iter()
+                .map(|owner| entries[owner.file].data().node_symbol.len())
+                .sum(),
+        );
+        for owner in owners {
+            for (node, symbol) in entries[owner.file].data().node_symbol.iter() {
+                let id = node.index();
+                words[((id >> 6) - first_word) as usize] |= 1 << (id & 63);
+                symbols.push(symbol);
+            }
+        }
+        let mut ranks = Vec::with_capacity(word_count);
+        let mut count = 0u32;
+        for word in &words {
+            ranks.push(count);
+            count += word.count_ones();
+        }
+        Self {
+            first_word,
+            words: words.into_boxed_slice(),
+            ranks: ranks.into_boxed_slice(),
+            symbols: symbols.into_boxed_slice(),
+        }
+    }
+
+    /// `Some(node.symbol)` when `node` is in the index's span (`None` inside
+    /// it means no symbol); `None` outside it.
+    #[inline(always)]
+    fn get(&self, node: NodeId) -> Option<Option<SymbolId>> {
+        let id = node.index();
+        let index = (id >> 6).wrapping_sub(self.first_word) as usize;
+        let word = *self.words.get(index)?;
+        let bit = 1u64 << (id & 63);
+        if word & bit == 0 {
+            return Some(None);
+        }
+        // `ranks` has one entry per word, and a set bit's rank is below the
+        // count of set bits, `symbols.len()` (`build`).
+        let rank = self.ranks[index] + (word & (bit - 1)).count_ones();
+        Some(Some(self.symbols[rank as usize]))
+    }
 }
 
 /// Page-table routing over sorted, disjoint owner intervals: `id >>
@@ -1052,6 +1131,7 @@ impl<'a> ProgramBinder<'a> {
         let sources = file_entries.iter().map(ProgramEntry::source).collect();
         let node_files = DenseOwners::build(&node_owners);
         let symbol_files = DenseOwners::build(&symbol_owners);
+        let node_symbols = NodeSymbolIndex::build(&node_owners, &file_entries);
         Ok(Self {
             file_entries,
             sources,
@@ -1061,6 +1141,7 @@ impl<'a> ProgramBinder<'a> {
             symbol_owner_hint: AtomicUsize::new(0),
             node_files,
             symbol_files,
+            node_symbols,
             transient: SymbolArena::with_base(TRANSIENT_SYMBOL_BIT),
         })
     }
@@ -1400,7 +1481,22 @@ impl<'a> ProgramBinder<'a> {
     /// `node.symbol` property access.
     #[inline(always)]
     pub fn node_symbol(&self, node: NodeId) -> Option<SymbolId> {
-        tsc_binder::published_node_symbol(node)
+        match self.node_symbols.get(node) {
+            Some(symbol) => symbol,
+            None => self.node_symbol_of_file(node),
+        }
+    }
+
+    /// A node outside the index's span: its file's own map.
+    #[cold]
+    #[inline(never)]
+    fn node_symbol_of_file(&self, node: NodeId) -> Option<SymbolId> {
+        let file = self.try_file_index_of_node(node)?;
+        self.file_entries[file]
+            .data()
+            .node_symbol
+            .get(&node)
+            .copied()
     }
 
     /// The binder's mutable node-flags view (ContainsThis etc.).
