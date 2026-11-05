@@ -1100,7 +1100,7 @@ impl Completions<'_, '_, '_> {
         }
         let symbol_data = self.request.state.binder.symbol(symbol);
         let value_declaration = symbol_data.value_declaration;
-        let first_declaration = symbol_data.declarations.first().copied();
+        let first_declaration = symbol_data.declarations().first().copied();
         let symbol_parent = symbol_data.parent;
         // Not a variable in its own initializer: `const a = /* no 'a' */`.
         if let Some(closest) = closest_symbol_declaration {

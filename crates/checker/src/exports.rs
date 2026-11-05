@@ -843,7 +843,7 @@ impl CheckerState<'_> {
                         .filter(|&export| {
                             let data = self.binder.symbol(export);
                             data.escaped_name != tsc_types::InternalSymbolName::DEFAULT
-                                && !data.declarations.iter().any(|&declaration| {
+                                && !data.declarations().iter().any(|&declaration| {
                                     matches!(
                                         self.kind_of(declaration),
                                         SyntaxKind::ExportSpecifier | SyntaxKind::NamespaceExport

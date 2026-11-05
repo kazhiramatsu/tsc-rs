@@ -116,7 +116,7 @@ impl<'s, 'a> OrderCtx<'s, 'a> {
     /// symbols first, by the Program file index and position of their first
     /// declaration (`compareNodes`); undeclared symbols after them.
     fn symbol_key(&self, symbol: SymbolId) -> SymbolKey {
-        match self.binder.symbol(symbol).declarations.first() {
+        match self.binder.symbol(symbol).declarations().first() {
             Some(&declaration) => {
                 let (file, pos) = self.node_position(declaration);
                 SymbolKey {
@@ -196,8 +196,8 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
         };
         let symbol1 = self.binder.symbol(s1);
         let symbol2 = self.binder.symbol(s2);
-        let declarations1: &[NodeId] = &symbol1.declarations;
-        let declarations2: &[NodeId] = &symbol2.declarations;
+        let declarations1: &[NodeId] = symbol1.declarations();
+        let declarations2: &[NodeId] = symbol2.declarations();
         if !declarations1.is_empty() && !declarations2.is_empty() {
             let c = self.compare_nodes(declarations1[0].index(), declarations2[0].index());
             if c != Ordering::Equal {
@@ -285,7 +285,7 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
         let symbol = symbol?;
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .first()
             .map(|declaration| declaration.index())
     }
@@ -436,7 +436,7 @@ impl<'a> CheckerState<'a> {
             ranges: mut container_ranges,
         } = self.named_member_order_buffers.take();
         if let Some(container) = class_or_interface {
-            let declarations: &[NodeId] = &self.binder.symbol(container).declarations;
+            let declarations: &[NodeId] = self.binder.symbol(container).declarations();
             container_ranges.extend(
                 declarations
                     .iter()

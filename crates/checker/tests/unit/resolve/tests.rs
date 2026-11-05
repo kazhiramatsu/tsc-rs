@@ -103,7 +103,7 @@ fn inner_scope_shadows_outer() {
                 .resolve_name(Some(annotation), "I", SymbolFlags::TYPE, None, false, false)
                 .expect("resolve_name")
                 .expect("inner interface resolves");
-            let declaration = state.binder.symbol(symbol).declarations[0];
+            let declaration = state.binder.symbol(symbol).declarations()[0];
             let outer = state
                 .resolve_name(
                     Some(state.binder.source(0).root),
@@ -186,7 +186,7 @@ fn class_type_parameter_resolves_in_members() {
                 .expect("resolve_name")
                 .expect("class type parameter resolves");
             assert_eq!(
-                state.kind_of(state.binder.symbol(symbol).declarations[0]),
+                state.kind_of(state.binder.symbol(symbol).declarations()[0]),
                 SyntaxKind::TypeParameter
             );
         },

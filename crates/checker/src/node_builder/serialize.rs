@@ -130,7 +130,7 @@ impl CheckerState<'_> {
             .or_else(|| {
                 self.binder
                     .symbol(symbol)
-                    .declarations
+                    .declarations()
                     .first()
                     .map(|&node| self.binder.file_index_of_node(node))
             })
@@ -139,7 +139,7 @@ impl CheckerState<'_> {
         let mut files = self
             .binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .map(|&node| self.binder.file_index_of_node(node))
             .collect::<std::collections::BTreeSet<_>>();
@@ -292,7 +292,7 @@ fn recover_suppressed_import_target(
     let import_specifier = checker
         .binder
         .symbol(alias)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .find(|&node| checker.kind_of(node) == SyntaxKind::ImportSpecifier)?;
@@ -637,7 +637,7 @@ pub(super) fn serialize_type_for_declaration_in_context(
             let data = checker.binder.symbol(symbol);
             // tsgo does not prefer an annotated declaration here yet.
             data.value_declaration
-                .or_else(|| data.declarations.first().copied())
+                .or_else(|| data.declarations().first().copied())
         })
     });
     // tsgo's getSymbolOfDeclaration is nil where tsc-rs answers the unknown
@@ -703,7 +703,7 @@ pub(super) fn serialize_type_for_declaration_in_context(
                 checker
                     .binder
                     .symbol(symbol)
-                    .declarations
+                    .declarations()
                     .iter()
                     .any(|&declaration| {
                         Some(checker.binder.source_of_node(declaration).root)
@@ -748,7 +748,7 @@ pub(super) fn serialize_type_for_declaration_in_context(
                         checker
                             .binder
                             .symbol(symbol)
-                            .declarations
+                            .declarations()
                             .iter()
                             .copied()
                             .find(|&other| has_type_annotation(checker, other))
@@ -1866,7 +1866,7 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
             }
             parent = self.checker.binder.symbol(candidate).parent;
         }
-        for declaration in self.checker.binder.symbol(symbol).declarations.clone() {
+        for declaration in self.checker.binder.symbol(symbol).declaration_list() {
             if let Some(candidate) = self
                 .checker
                 .get_external_module_container(declaration)
@@ -1904,11 +1904,15 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
                     self.checker
                         .symbol_flags(parent)
                         .intersects(SymbolFlags::VALUE_MODULE | SymbolFlags::NAMESPACE_MODULE)
-                        && self.checker.binder.symbol(parent).declarations.iter().any(
-                            |&declaration| {
+                        && self
+                            .checker
+                            .binder
+                            .symbol(parent)
+                            .declarations()
+                            .iter()
+                            .any(|&declaration| {
                                 self.checker.kind_of(declaration) == SyntaxKind::SourceFile
-                            },
-                        )
+                            })
                 })
                 .unwrap_or(symbol)
         } else {
@@ -2034,7 +2038,7 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
                 .checker
                 .binder
                 .symbol(symbol)
-                .declarations
+                .declarations()
                 .iter()
                 .any(|&declaration| self.checker.kind_of(declaration) == SyntaxKind::TypeParameter)
         {
@@ -2100,9 +2104,9 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
         let data = self.checker.binder.symbol(symbol);
         EmitTrackerSymbolDescription {
             escaped_name: data.escaped_name.as_js().to_owned(),
-            declaration_count: u32::try_from(data.declarations.len()).unwrap_or(u32::MAX),
+            declaration_count: u32::try_from(data.declarations().len()).unwrap_or(u32::MAX),
             declarations: data
-                .declarations
+                .declarations()
                 .iter()
                 .take(8)
                 .map(|&node| EmitTrackerNodeDescription {

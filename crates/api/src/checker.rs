@@ -1373,7 +1373,7 @@ impl Query<'_, '_> {
             }
         };
         let data = self.state.binder.symbol(symbol);
-        let declarations = data.declarations.to_vec();
+        let declarations = data.declarations().to_vec();
         let value_declaration = data.value_declaration;
         let parent = data.parent;
         let export_symbol = data.export_symbol();

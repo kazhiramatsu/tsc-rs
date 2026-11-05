@@ -340,7 +340,7 @@ fn referenced_files(
 ) -> Vec<u32> {
     let mut referenced = BTreeSet::new();
     let mut add_symbol = |state: &CheckerState<'_>, symbol| {
-        for &declaration in state.binder.symbol(symbol).declarations.iter() {
+        for &declaration in state.binder.symbol(symbol).declarations().iter() {
             let declaring_file = state.binder.file_index_of_node(declaration);
             if declaring_file != file {
                 referenced.insert(u32::try_from(declaring_file).expect("program file index"));
@@ -417,7 +417,7 @@ fn exports_const_enum(state: &mut CheckerState<'_>, file: usize) -> bool {
         let aliased_symbol = state.binder.symbol(aliased);
         if aliased_symbol.flags.contains(SymbolFlags::CONST_ENUM)
             && aliased_symbol
-                .declarations
+                .declarations()
                 .iter()
                 .any(|&declaration| state.binder.file_index_of_node(declaration) == file)
         {

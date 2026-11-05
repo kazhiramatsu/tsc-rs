@@ -576,8 +576,8 @@ impl<'a> Tree<'a> {
             hash.u8(1);
             hash.i32(symbol.flags.bits());
             hash.js(symbol.escaped_name.as_js());
-            hash.u32(symbol.declarations.len() as u32);
-            for declaration in symbol.declarations.iter() {
+            hash.u32(symbol.declarations().len() as u32);
+            for declaration in symbol.declarations().iter() {
                 hash.u32(self.node_ref(*declaration));
             }
             hash.u32(self.opt_node_ref(symbol.value_declaration));

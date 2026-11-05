@@ -1399,7 +1399,7 @@ impl<'a> CheckerState<'a> {
             let resolved = self
                 .links
                 .read_node(left, |links| links.resolved_symbol.resolved());
-            if resolved.is_some_and(|symbol| self.binder.symbol(symbol).declarations.len() > 1)
+            if resolved.is_some_and(|symbol| self.binder.symbol(symbol).declarations().len() > 1)
                 && self
                     .tables
                     .flags_of(value_type)
@@ -2735,8 +2735,10 @@ impl<'a> CheckerState<'a> {
                 // gives the symbol the declarations of the source type's
                 // symbol; the type order reads the first of them.
                 if let Some(source_symbol) = self.tables.type_of(ty).symbol {
-                    let declarations = self.binder.symbol(source_symbol).declarations.clone();
-                    self.binder.symbol_mut(symbol).declarations = declarations;
+                    let declarations = self.binder.symbol(source_symbol).declaration_list();
+                    self.binder
+                        .symbol_mut(symbol)
+                        .set_declarations(declarations);
                 }
                 let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
                 self.tables.type_mut(result).object_flags = tsc_types::ObjectFlags::ANONYMOUS

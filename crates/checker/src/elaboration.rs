@@ -454,12 +454,12 @@ impl<'a> CheckerState<'a> {
         }
 
         let target_node = target_property
-            .and_then(|property| self.binder.symbol(property).declarations.first().copied())
+            .and_then(|property| self.binder.symbol(property).declarations().first().copied())
             .or_else(|| {
                 self.tables
                     .type_of(target_type)
                     .symbol
-                    .and_then(|symbol| self.binder.symbol(symbol).declarations.first().copied())
+                    .and_then(|symbol| self.binder.symbol(symbol).declarations().first().copied())
             });
         let Some(target_node) =
             target_node.filter(|&node| !self.is_default_library_declaration(node))
@@ -505,7 +505,7 @@ impl<'a> CheckerState<'a> {
             .tables
             .type_of(target_type)
             .symbol
-            .and_then(|symbol| self.binder.symbol(symbol).declarations.first().copied());
+            .and_then(|symbol| self.binder.symbol(symbol).declarations().first().copied());
         let declaration = declaration?;
         Some(self.related_info_for_node(
             declaration,

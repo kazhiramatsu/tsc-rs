@@ -109,7 +109,7 @@ pub(crate) fn try_get_module_id_and_file_name_of_module_symbol(
     let declaration = checker
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .find(|&declaration| {
@@ -160,7 +160,7 @@ pub(crate) fn symbol_to_export(
             file,
         );
     }
-    let Some(&declaration) = checker.binder.symbol(symbol).declarations.first() else {
+    let Some(&declaration) = checker.binder.symbol(symbol).declarations().first() else {
         return Ok(None);
     };
     let file = checker.binder.file_index_of_node(declaration);
@@ -207,7 +207,7 @@ pub(crate) fn symbol_to_export(
 pub(super) fn source_file_of_module(checker: &CheckerState<'_>, symbol: SymbolId) -> Option<usize> {
     let record = checker.binder.symbol(symbol);
     let declaration = record.value_declaration.or_else(|| {
-        record.declarations.iter().copied().find(|&declaration| {
+        record.declarations().iter().copied().find(|&declaration| {
             let source = checker.binder.source_of_node(declaration);
             !is_external_module_augmentation(source, declaration)
                 && !node_util::is_global_scope_augmentation(source, declaration)
@@ -542,7 +542,7 @@ impl Extractor<'_, '_> {
                 }
             }
         } else if syntax == ExportSyntax::CommonJsModuleExports {
-            let declaration = self.checker.binder.symbol(symbol).declarations[0];
+            let declaration = self.checker.binder.symbol(symbol).declarations()[0];
             let source = self.checker.binder.source_of_node(declaration);
             let Some(binary) = source.arena.node(declaration).as_binary_expression() else {
                 return Ok(());
@@ -655,7 +655,7 @@ impl Extractor<'_, '_> {
                     .checker
                     .binder
                     .symbol(target)
-                    .declarations
+                    .declarations()
                     .first()
                     .copied();
                 if declaration.is_none()
@@ -672,7 +672,7 @@ impl Extractor<'_, '_> {
                             self.checker
                                 .binder
                                 .symbol(mapped)
-                                .declarations
+                                .declarations()
                                 .first()
                                 .copied()
                         });
@@ -683,7 +683,7 @@ impl Extractor<'_, '_> {
                         self.checker
                             .binder
                             .symbol(symbol)
-                            .declarations
+                            .declarations()
                             .first()
                             .copied()
                     })
@@ -702,8 +702,7 @@ impl Extractor<'_, '_> {
                         .checker
                         .binder
                         .symbol(symbol)
-                        .declarations
-                        .clone()
+                        .declaration_list()
                         .into_iter()
                         .any(|declaration| {
                             self.checker
@@ -736,7 +735,7 @@ impl Extractor<'_, '_> {
                 });
             }
         } else {
-            let declaration = self.checker.binder.symbol(symbol).declarations[0];
+            let declaration = self.checker.binder.symbol(symbol).declarations()[0];
             let with_checker = lease.has_checker();
             export.script_element_kind =
                 get_symbol_kind(self.checker, symbol, declaration, with_checker)?;
@@ -902,7 +901,7 @@ fn declaration_of_kind(
     checker
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .find(|&declaration| {
@@ -918,7 +917,7 @@ fn declaration_of_kind(
 
 /// tsgo `getSyntax`: how the symbol's first declaration exports it.
 fn get_syntax(checker: &CheckerState<'_>, symbol: SymbolId) -> ExportSyntax {
-    for &declaration in checker.binder.symbol(symbol).declarations.iter() {
+    for &declaration in checker.binder.symbol(symbol).declarations().iter() {
         let source = checker.binder.source_of_node(declaration);
         match source.arena.node(declaration).data() {
             NodeData::ExportSpecifier(_) => return ExportSyntax::Named,
@@ -969,7 +968,7 @@ pub(super) fn get_default_like_export_name_from_declaration(
     checker: &CheckerState<'_>,
     symbol: SymbolId,
 ) -> String {
-    for &declaration in checker.binder.symbol(symbol).declarations.iter() {
+    for &declaration in checker.binder.symbol(symbol).declarations().iter() {
         let source = checker.binder.source_of_node(declaration);
         match source.arena.node(declaration).data() {
             // "export default" in this case. See `ExportAssignment`for more details.
@@ -1024,7 +1023,7 @@ fn file_name_for_default_export_name(
     module_id: &ModuleId,
 ) -> String {
     if let Some(&declaration) =
-        target.and_then(|target| checker.binder.symbol(target).declarations.first())
+        target.and_then(|target| checker.binder.symbol(target).declarations().first())
     {
         let file_name = checker
             .binder

@@ -1089,7 +1089,7 @@ impl crate::language_service::LanguageService<'_> {
         let documentation = self.with_program_request(false, |request| {
             let mut parts: Vec<String> = Vec::new();
             let mut seen = std::collections::HashSet::new();
-            let declarations = request.state.binder.symbol(symbol).declarations.clone();
+            let declarations = request.state.binder.symbol(symbol).declaration_list();
             for declaration in declarations {
                 if !seen.insert(declaration) {
                     continue;
@@ -1122,7 +1122,7 @@ impl crate::language_service::LanguageService<'_> {
             let state = &*request.state;
             let mut infos = Vec::new();
             let mut seen = std::collections::HashSet::new();
-            for &declaration in &state.binder.symbol(symbol).declarations {
+            for &declaration in state.binder.symbol(symbol).declarations() {
                 if !seen.insert(declaration) {
                     continue;
                 }

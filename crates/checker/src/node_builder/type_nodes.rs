@@ -1374,7 +1374,7 @@ fn is_symbol_accessible_with_error_names(
             parent = checker.binder.symbol(candidate).parent;
         }
         if module_symbol.is_none() {
-            for declaration in checker.binder.symbol(symbol).declarations.clone() {
+            for declaration in checker.binder.symbol(symbol).declaration_list() {
                 if let Some(candidate) = checker
                     .get_external_module_container(declaration)
                     .map_err(|abort| checker_abort_error(checker, context, abort))?
@@ -2995,7 +2995,7 @@ fn create_anonymous_type_node(
                 if let Some(mut node) = checker
                     .binder
                     .symbol(symbol)
-                    .declarations
+                    .declarations()
                     .first()
                     .copied()
                     .and_then(|declaration| checker.parent_of(declaration))
@@ -3077,7 +3077,7 @@ fn should_write_type_of_function_symbol(
         (
             data.flags,
             data.parent,
-            data.declarations.clone(),
+            data.declaration_list(),
             data.value_declaration,
         )
     };
@@ -3577,7 +3577,7 @@ fn parent_symbol_of_type_parameter(
     let declaration = checker
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .find(|&declaration| checker.kind_of(declaration) == SyntaxKind::TypeParameter)?;
@@ -4568,7 +4568,7 @@ pub(super) fn add_property_to_element_list(
         .escaped_name
         .starts_with(tsc_types::InternalSymbolName::LATE_BOUND_PREFIX);
     if context.tracker.can_track_symbol && late_bound_name {
-        if let Some(&declaration) = property_data.declarations.first() {
+        if let Some(&declaration) = property_data.declarations().first() {
             if checker.has_late_bindable_ast_name(declaration) {
                 let source = checker.binder.source_of_node(declaration);
                 if let Some(name) = node_util::get_name_of_declaration(source, declaration) {
@@ -4599,7 +4599,7 @@ pub(super) fn add_property_to_element_list(
             checker
                 .binder
                 .symbol(property)
-                .declarations
+                .declarations()
                 .first()
                 .copied()
         })
@@ -5003,7 +5003,7 @@ fn preserve_comments_on(
     if let Some(tag) = checker
         .binder
         .symbol(property)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .find(|&declaration| checker.kind_of(declaration) == SyntaxKind::JSDocPropertyTag)

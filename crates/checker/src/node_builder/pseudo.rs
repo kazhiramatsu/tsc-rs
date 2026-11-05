@@ -1077,7 +1077,7 @@ pub(crate) fn pseudo_object_literal_equivalent_to_type_core(
     // A get/set pair is two elements but one property: count declarations.
     let target_declaration_count: usize = target_properties
         .iter()
-        .map(|&property| checker.binder.symbol(property).declarations.len())
+        .map(|&property| checker.binder.symbol(property).declarations().len())
         .sum();
     if elements.len() != target_declaration_count {
         return Ok(false);

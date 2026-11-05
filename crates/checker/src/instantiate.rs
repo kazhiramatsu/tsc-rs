@@ -737,7 +737,7 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.symbol(symbol);
         let source_flags = source.flags;
         let escaped_name = source.escaped_name;
-        let declarations = source.declarations.clone();
+        let declarations = source.declaration_list();
         let parent = source.parent;
         let value_declaration = source.value_declaration;
         let check_flags = CheckFlags::INSTANTIATED
@@ -757,7 +757,7 @@ impl<'a> CheckerState<'a> {
             .set_symbol_check_flags(self.speculation_depth, result, check_flags);
         {
             let transient = self.binder.symbol_mut(result);
-            transient.declarations = declarations;
+            transient.set_declarations(declarations);
             transient.parent = parent;
             transient.value_declaration = value_declaration;
         }
@@ -810,7 +810,7 @@ impl<'a> CheckerState<'a> {
             *self
                 .binder
                 .symbol(symbol)
-                .declarations
+                .declarations()
                 .first()
                 .expect("couldContainTypeVariables demands declarations")
         };
@@ -901,7 +901,7 @@ impl<'a> CheckerState<'a> {
                         .type_of(ty)
                         .symbol
                         .expect("anonymous type instantiation requires a symbol");
-                    self.binder.symbol(symbol).declarations.to_vec()
+                    self.binder.symbol(symbol).declarations().to_vec()
                 };
                 let filtered = if filter_applies {
                     let mut kept: Vec<TypeId> = Vec::new();
@@ -1090,7 +1090,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         let symbol = self.tables.type_of(tp).symbol;
         let declarations = symbol
-            .map(|symbol| self.binder.symbol(symbol).declarations.clone())
+            .map(|symbol| self.binder.symbol(symbol).declaration_list())
             .unwrap_or_default();
         if declarations.len() != 1 {
             return Ok(true);
@@ -1206,7 +1206,7 @@ impl<'a> CheckerState<'a> {
                     let first_identifier_symbol = self.get_resolved_symbol(first_identifier)?;
                     let tp_symbol = self.tables.type_of(tp).symbol;
                     let tp_declaration = tp_symbol.and_then(|symbol| {
-                        self.binder.symbol(symbol).declarations.first().copied()
+                        self.binder.symbol(symbol).declarations().first().copied()
                     });
                     let tp_is_this = matches!(
                         self.tables.type_of(tp).data,
@@ -1225,7 +1225,7 @@ impl<'a> CheckerState<'a> {
                         _ => None,
                     };
                     let symbol_declarations = first_identifier_symbol
-                        .map(|symbol| self.binder.symbol(symbol).declarations.clone());
+                        .map(|symbol| self.binder.symbol(symbol).declaration_list());
                     if let (Some(declarations), Some(scope)) = (symbol_declarations, tp_scope) {
                         if !declarations.is_empty() {
                             for declaration in declarations {
@@ -2305,7 +2305,7 @@ impl<'a> CheckerState<'a> {
                                 | SymbolFlags::CLASS
                                 | SymbolFlags::TYPE_LITERAL
                                 | SymbolFlags::OBJECT_LITERAL,
-                        ) && !self.binder.symbol(symbol).declarations.is_empty()
+                        ) && !self.binder.symbol(symbol).declarations().is_empty()
                     }))
                     || object_flags.intersects(
                         ObjectFlags::MAPPED
@@ -2356,7 +2356,7 @@ impl<'a> CheckerState<'a> {
         ) {
             // tsgo: a type alias declaration, else the reparsed
             // `@typedef` / `@callback` (its JSTypeAliasDeclaration).
-            let declarations = &self.binder.symbol(alias_symbol).declarations;
+            let declarations = self.binder.symbol(alias_symbol).declarations();
             let declaration = declarations
                 .iter()
                 .copied()
@@ -3047,7 +3047,7 @@ impl<'a> CheckerState<'a> {
         };
         self.binder
             .symbol(symbol)
-            .declarations
+            .declarations()
             .iter()
             .any(|&declaration| {
                 matches!(
@@ -3168,8 +3168,7 @@ impl<'a> CheckerState<'a> {
         let default_declaration = self.tables.type_of(tp).symbol.and_then(|symbol| {
             self.binder
                 .symbol(symbol)
-                .declarations
-                .clone()
+                .declaration_list()
                 .into_iter()
                 .find_map(|declaration| match self.data_of(declaration) {
                     NodeData::TypeParameter(data)

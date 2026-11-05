@@ -3869,7 +3869,7 @@ impl<'a> CheckerState<'a> {
             let setter = self
                 .binder
                 .symbol(symbol)
-                .declarations
+                .declarations()
                 .iter()
                 .copied()
                 .find(|&d| self.kind_of(d) == SyntaxKind::SetAccessor);

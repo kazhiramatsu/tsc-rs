@@ -336,7 +336,7 @@ pub(crate) fn get_specifier_for_module_symbol(
     let mut source_file_declaration =
         state.get_declaration_of_kind(module_symbol, SyntaxKind::SourceFile);
     if source_file_declaration.is_none() {
-        let declarations = state.binder.symbol(module_symbol).declarations.clone();
+        let declarations = state.binder.symbol(module_symbol).declaration_list();
         for declaration in declarations {
             let Some(equivalent_file_symbol) =
                 get_file_symbol_if_file_symbol_export_equals_container(
@@ -564,7 +564,7 @@ fn no_host_specifier_for_module_symbol(
     let symbol = state.binder.symbol(module_symbol);
     if let Some(name) = unquote_ambient_symbol_name(symbol.escaped_name) {
         let source_file_module = symbol
-            .declarations
+            .declarations()
             .iter()
             .any(|&declaration| state.kind_of(declaration) == SyntaxKind::SourceFile);
         if source_file_module {
@@ -600,7 +600,7 @@ fn non_augmentation_declaration(state: &CheckerState<'_>, symbol: SymbolId) -> O
     state
         .binder
         .symbol(symbol)
-        .declarations
+        .declarations()
         .iter()
         .copied()
         .find(|&declaration| {
@@ -2028,7 +2028,7 @@ pub(crate) fn try_get_module_name_from_ambient_module(
     state: &mut CheckerState<'_>,
     module_symbol: SymbolId,
 ) -> CheckResult<Option<(JsString, SymbolId)>> {
-    let declarations = state.binder.symbol(module_symbol).declarations.clone();
+    let declarations = state.binder.symbol(module_symbol).declaration_list();
     for declaration in &declarations {
         let source = state.binder.source_of_node(*declaration);
         if !node_util::is_ambient_module(&Published, *declaration)

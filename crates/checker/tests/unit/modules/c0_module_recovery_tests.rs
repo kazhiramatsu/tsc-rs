@@ -71,7 +71,7 @@ fn malformed_alias_declarations_have_no_target_and_keep_resolved_value_fallback(
                 SymbolFlags::ALIAS,
                 tsc_types::EscapedName::from_escaped_value(("Recovered".to_owned()).into()),
             );
-            state.binder.symbol_mut(recovered).declarations = vec![root].into();
+            state.binder.set_declarations_from(recovered, &[root]);
             state
                 .links
                 .set_fresh_symbol_alias_target(recovered, LinkSlot::Resolved(target));
