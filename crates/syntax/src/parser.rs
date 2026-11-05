@@ -9796,7 +9796,10 @@ impl<'text> Parser<'text> {
             (array.nodes.to_vec(), array.pos as usize, array.end as usize)
         };
         let spans = std::mem::take(&mut self.possible_await_spans);
-        debug_assert!(spans.len() % 2 == 0, "possible await spans come in pairs");
+        debug_assert!(
+            spans.len().is_multiple_of(2),
+            "possible await spans come in pairs"
+        );
         let saved_diagnostics = std::mem::take(&mut self.parse_diagnostics);
         let saved_recovery = std::mem::take(&mut self.parse_recovery);
         let mark = self.start_node_list();
