@@ -1026,9 +1026,7 @@ impl NodeArena {
                 if let Some(parent) = &mut node.parent {
                     *parent = shift.node(*parent, &mut inside);
                 }
-                let Ok(()) = node.map_identity_words(tails, |space, word| {
-                    Ok::<u32, std::convert::Infallible>(shift.word(space, word, &mut inside))
-                });
+                let _ = &tails;
                 node
             });
         for node in &mut self.array_items {
