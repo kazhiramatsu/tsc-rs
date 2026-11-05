@@ -1,4 +1,6 @@
-use crate::for_each_child::{for_each_child, NodeLookup};
+use crate::for_each_child::{
+    for_each_child, try_visit_each_child, NodeDataChildVisitor, NodeLookup,
+};
 use crate::nodes::{Node, NodeArray, NodeArrayId, NodeArrayRecord, NodeData, NodeId, TextId};
 use crate::relocate::{collect_node_data_ids, remap_node_data_ids};
 use crate::utilities::modifier_to_flag;
@@ -1069,6 +1071,78 @@ impl NodeArena {
             let index = self.node_index(child);
             self.nodes[index].parent = Some(owner);
         }
+    }
+
+    /// `child`'s parent is `parent`: one bounds check covers an id of
+    /// another arena (below the base it wraps out of range).
+    #[inline]
+    fn set_parent(&mut self, child: NodeId, parent: NodeId) {
+        let index = child.index().wrapping_sub(self.node_base) as usize;
+        self.nodes
+            .get_mut(index)
+            .expect("a child of this arena")
+            .parent = Some(parent);
+    }
+
+    /// The id the next allocated node gets.
+    #[inline]
+    pub(crate) fn next_node_id(&self) -> NodeId {
+        let offset = u32::try_from(self.nodes.len()).expect("node arena length exceeds u32");
+        NodeId::new(
+            self.node_base
+                .checked_add(offset)
+                .expect("node identity space exhausted"),
+        )
+    }
+
+    /// tsgo finishNode's parent links for a node about to be allocated at
+    /// `parent` from `data`: each child named by the payload (forEachChild's
+    /// children, lists item by item) gets `parent`, read from the payload
+    /// itself rather than from the stored record.
+    #[inline]
+    pub(crate) fn attach_children_of_data(&mut self, parent: NodeId, data: &mut NodeData) {
+        struct Attach<'a> {
+            arena: &'a mut NodeArena,
+            parent: NodeId,
+        }
+
+        impl NodeDataChildVisitor for Attach<'_> {
+            type Error = std::convert::Infallible;
+
+            fn node_kind(&self, id: NodeId) -> SyntaxKind {
+                self.arena.node(id).kind
+            }
+
+            #[inline]
+            fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+                self.arena.set_parent(id, self.parent);
+                Ok(Some(id))
+            }
+
+            #[inline]
+            fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+                let items = self
+                    .arena
+                    .item_range(&self.arena.arrays[self.arena.array_index(id)]);
+                for item in items {
+                    self.arena
+                        .set_parent(self.arena.array_items[item], self.parent);
+                }
+                Ok(Some(id))
+            }
+
+            fn required_child_removed(&mut self, _: SyntaxKind, _: &'static str) -> Self::Error {
+                unreachable!("attaching parents removes no child")
+            }
+        }
+
+        let Ok(()) = try_visit_each_child(
+            data,
+            &mut Attach {
+                arena: self,
+                parent,
+            },
+        );
     }
 
     /// The JSDoc roots attached to `host` get `host` as their parent (tsgo

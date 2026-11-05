@@ -10042,10 +10042,43 @@ impl<'text> Parser<'text> {
     }
 
     fn finish_node_with_flags(&mut self, data: NodeData, pos: usize, flags: NodeFlags) -> NodeId {
-        let id = self
-            .arena
-            .alloc_node(data, pos, self.scanner.full_start_pos(), flags);
-        self.finish_node(id, pos)
+        let end = self.scanner.full_start_pos();
+        self.alloc_and_finish(data, pos, end, flags)
+    }
+
+    /// tsgo finishNode for a node made from `data`: its children get it as
+    /// their parent straight from the payload, before the payload is encoded
+    /// into the record (no decode of the record, no second pass).
+    #[inline]
+    pub(crate) fn alloc_and_finish(
+        &mut self,
+        mut data: NodeData,
+        pos: usize,
+        end: usize,
+        flags: NodeFlags,
+    ) -> NodeId {
+        // A token (identifiers and literals included) has no children.
+        if data
+            .kind()
+            .is_some_and(|kind| kind.value() > SyntaxKind::LastToken.value())
+        {
+            let parent = self.arena.next_node_id();
+            self.arena.attach_children_of_data(parent, &mut data);
+        }
+        let id = self.arena.alloc_node(data, pos, end, flags);
+        // The payload's children are the stored record's forEachChild children.
+        #[cfg(debug_assertions)]
+        for_each_child(&self.arena, self.arena.node(id), |child| {
+            assert_eq!(
+                self.arena.node(child).parent,
+                Some(id),
+                "a child of {:?} is not attached from its payload",
+                self.arena.node(id).kind
+            );
+            false
+        });
+        self.finish_node_fields(id, pos, end);
+        id
     }
 
     fn reachable_node_mask_before_root(
@@ -10301,6 +10334,18 @@ impl<'text> Parser<'text> {
     }
 
     fn finish_node_at(&mut self, id: NodeId, pos: usize, end: usize) -> NodeId {
+        let kind = self.finish_node_fields(id, pos, end);
+        // A token (identifiers and literals included) has no children.
+        if kind.value() > SyntaxKind::LastToken.value() {
+            self.attach_children(id);
+        }
+        id
+    }
+
+    /// finishNode's own part: the position, the context flags, the error
+    /// mark and the JSDoc candidacy. Returns the node's kind.
+    #[inline]
+    fn finish_node_fields(&mut self, id: NodeId, pos: usize, end: usize) -> SyntaxKind {
         let (is_jsdoc_candidate, kind) = {
             let node = self.arena.node_mut(id);
             node.pos = pos as u32;
@@ -10324,11 +10369,7 @@ impl<'text> Parser<'text> {
         if is_jsdoc_candidate {
             self.jsdoc_candidates.push(id);
         }
-        // A token (identifiers and literals included) has no children.
-        if kind.value() > SyntaxKind::LastToken.value() {
-            self.attach_children(id);
-        }
-        id
+        kind
     }
 
     /// tsgo finishNode: the node's children get it as their parent.
