@@ -57,6 +57,9 @@ pub struct NodeArena {
     /// The most binder symbols this tree can declare, counted as it is built
     /// (see [`Self::symbol_bound`]).
     symbol_bound: u32,
+    /// Whether subtrees of another tree were copied in (an incremental
+    /// parse), uncounted for the symbol bound.
+    copied_subtrees: bool,
 }
 
 impl Clone for NodeArena {
@@ -82,6 +85,7 @@ impl Clone for NodeArena {
             leases: self.leases.clone(),
             identifier_count: self.identifier_count,
             symbol_bound: self.symbol_bound,
+            copied_subtrees: self.copied_subtrees,
         }
     }
 }
@@ -265,6 +269,8 @@ impl SubtreeCopier {
             self.pending_nodes.extend(array.nodes.iter().copied());
         }
 
+        // A copied subtree is not counted for the symbol bound.
+        destination.copied_subtrees = true;
         // The records first, so that the payloads can name the copies; each
         // payload is written once, remapped (a record's tail is its own).
         for old_id in &self.old_nodes {
@@ -490,9 +496,10 @@ pub const FILE_SYMBOLS: u32 = 3;
 /// The most binder symbols a node of `kind` declares by its kind alone (see
 /// [`NodeArena::symbol_bound`]): one for each declaration the binder names or
 /// declares anonymously, two for a class (its prototype), for a function or
-/// constructor type (its signature and `__type`) and for a JSDoc signature,
-/// typedef or callback (an export twin in a JavaScript module). An
-/// `infer` type declares through its type parameter.
+/// constructor type and a JSDoc function type or signature (the signature
+/// and its `__type`), and for a JSDoc typedef or callback (an export twin in
+/// a JavaScript module). An `infer` type declares through its type
+/// parameter.
 #[inline(always)]
 pub const fn symbol_weight(kind: SyntaxKind) -> u32 {
     use SyntaxKind as K;
@@ -602,20 +609,28 @@ impl NodeArena {
         self.identifier_count += 1;
     }
 
-    /// The most symbols a bind of this tree can declare: the Program reserves
-    /// that many symbol identities for it before binding (the checker's
-    /// `reserve_bind_identities`), so files bound in parallel keep their
-    /// symbols in place and next to each other.
+    /// The symbols the Program reserves for a bind of this tree before binding
+    /// (the checker's `reserve_bind_identities`), so files bound in parallel
+    /// keep their symbols in place and next to each other: an upper bound of
+    /// the symbols of the declarations it counts.
     ///
     /// Each node adds the most symbols its kind declares
     /// ([`symbol_weight`]), and the parser adds the symbols that depend on
-    /// more than the kind (see `Parser::count_export_twins`): an export twin
-    /// and a parameter property's member, and in a JavaScript file an
-    /// assignment's or a call's declaration. On top come [`FILE_SYMBOLS`]
-    /// that no node declares. A bind that still declares more is relocated
-    /// (correct, only slower). Nodes of discarded speculative parses stay in
-    /// the tree and in the count, which makes it larger, never smaller.
+    /// more than the kind (see `Parser::count_export_twins`): an export twin,
+    /// a parameter property's member, an expando member an assignment to an
+    /// entity's member may declare, and in a JavaScript file an assignment's
+    /// or a call's declaration. On top come [`FILE_SYMBOLS`] that no node
+    /// declares. Nodes of discarded speculative parses stay in the tree and
+    /// in the count, which makes it larger, never smaller.
+    ///
+    /// Not counted, so a bind may declare more and relocate (correct, only
+    /// slower): a JavaScript `@overload` signature (bound twice) and a dotted
+    /// JSDoc typedef name's namespaces. A tree with subtrees copied from
+    /// another (an incremental parse) reserves its node count instead.
     pub fn symbol_bound(&self) -> u32 {
+        if self.copied_subtrees {
+            return u32::try_from(self.nodes.len()).expect("node arena length exceeds u32");
+        }
         self.symbol_bound + FILE_SYMBOLS
     }
 

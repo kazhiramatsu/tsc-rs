@@ -4700,6 +4700,14 @@ impl<'text> Parser<'text> {
         if is_left_hand_side_expression_kind(self.arena.node(expr).kind)
             && is_assignment_operator(self.scanner.re_scan_greater_token())
         {
+            // `f.a = …` may declare an expando member of `f` (a JavaScript
+            // file counts every assignment already).
+            if self.token() == SyntaxKind::EqualsToken
+                && !self.javascript_file
+                && self.is_entity_member_access(expr)
+            {
+                self.arena.add_symbol_bound(1);
+            }
             let operator_token = self.parse_token_node();
             let right =
                 self.parse_assignment_expression_or_higher(allow_return_type_in_arrow_function);
@@ -7335,6 +7343,49 @@ impl<'text> Parser<'text> {
                 })
                 .sum()
         })
+    }
+
+    /// Whether `left` is a property or element access on an entity name
+    /// (`f.a`, `f.a.b`, `f[k]`): the binder takes an assignment to it as a
+    /// Property assignment declaration, which declares an expando member when
+    /// `f` names a function (the binder's `get_assignment_declaration_kind`).
+    fn is_entity_member_access(&self, left: NodeId) -> bool {
+        let expression = match self.arena.node(left).kind {
+            SyntaxKind::PropertyAccessExpression => match self.arena.node(left).data() {
+                NodeData::PropertyAccessExpression(data)
+                    if data.name.is_some_and(|name| {
+                        self.arena.node(name).kind == SyntaxKind::Identifier
+                    }) =>
+                {
+                    data.expression
+                }
+                _ => return false,
+            },
+            SyntaxKind::ElementAccessExpression => match self.arena.node(left).data() {
+                NodeData::ElementAccessExpression(data) => data.expression,
+                _ => return false,
+            },
+            _ => return false,
+        };
+        expression.is_some_and(|expression| self.is_entity_name_expression(expression))
+    }
+
+    /// An identifier or a dotted identifier chain.
+    fn is_entity_name_expression(&self, node: NodeId) -> bool {
+        match self.arena.node(node).kind {
+            SyntaxKind::Identifier => true,
+            SyntaxKind::PropertyAccessExpression => match self.arena.node(node).data() {
+                NodeData::PropertyAccessExpression(data) => {
+                    data.name
+                        .is_some_and(|name| self.arena.node(name).kind == SyntaxKind::Identifier)
+                        && data
+                            .expression
+                            .is_some_and(|expression| self.is_entity_name_expression(expression))
+                }
+                _ => false,
+            },
+            _ => false,
+        }
     }
 
     fn is_parameter_name_start(&self) -> bool {

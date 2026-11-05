@@ -1345,7 +1345,7 @@ fn only_an_unreachable_executable_node_carries_unreachable_after_bind() {
 }
 
 #[test]
-fn the_parsers_symbol_bound_covers_every_symbol_a_bind_declares() {
+fn the_parsers_symbol_bound_covers_the_symbols_of_the_declarations_it_counts() {
     use tsc_syntax::arena::FILE_SYMBOLS;
     let bound_and_used = |source: &SourceFile| {
         let binder = bind(source);
@@ -1367,14 +1367,20 @@ fn the_parsers_symbol_bound_covers_every_symbol_a_bind_declares() {
         // The inner names of a dotted namespace are exported (the import
         // makes the file a module, which has a symbol of its own).
         "import \"m\";\nnamespace A.B { export const c = 1; }\n",
+        // Expando members of a function and of a const's arrow function
+        // (whose `__function` symbol takes them).
+        "export function f() {}\nf.a = 0;\nf.b = 0;\nf[\"c\"] = 0;\n",
+        "export const g = () => {};\ng.x = 1;\n",
     ] {
         let (bound, used) = bound_and_used(&parse(text));
         assert_eq!(bound, used + FILE_SYMBOLS, "{text}");
     }
-    // An upper bound for the rest: destructuring, an ambient namespace
-    // (an export context), a CommonJS file and a JSON file.
+    // An upper bound for the rest: destructuring, an assignment to a member
+    // of an object (no expando) and of `this` (not an entity name), an
+    // ambient namespace (an export context), a CommonJS file and a JSON file.
     let sources = [
         parse("export const { b, c: [d] } = e, f = 1;\nexport default function () {}\n"),
+        parse("const o = { p: 1 };\no.p = 2;\nclass C { q = 0; m() { this.q = 1; } }\n"),
         parse_named(
             "types.d.ts",
             "declare namespace NS { const a: number; function f(): void; class C {} \

@@ -6321,9 +6321,9 @@ fn trace_parse(
 /// the budget's workers directly at its reserved bases, so no bind identity
 /// is rewritten afterwards. A source's ranges depend only on the sources
 /// before it, so the identities are the same for every budget. A source
-/// that outgrows a reservation (the parser's symbol bound and the node count
-/// bound the two spaces, so none is expected) relocates into an exact lease
-/// at the domain's tail, still in Program order.
+/// that outgrows a reservation (rare: the declarations the parser's symbol
+/// bound does not count, see `NodeArena::symbol_bound`) relocates into an
+/// exact lease at the domain's tail, still in Program order.
 fn bind_reserved_in_program_order<'a>(
     sources: &[&'a tsc_syntax::SourceFile],
     identity_domain: &IdentityDomain,
