@@ -19,6 +19,9 @@ pub struct MemorySample {
     /// Memory the allocator has committed from the OS.
     pub committed: usize,
     pub peak_committed: usize,
+    /// Diagnostic: the process's instructions and cycles retired so far.
+    pub instructions: u64,
+    pub cycles: u64,
 }
 
 /// Register how the binary measures its memory; the first registration wins.
@@ -47,11 +50,13 @@ pub fn mark(name: &str, started: Instant) {
             let sample = probe();
             let mib = |bytes: usize| bytes >> 20;
             format!(
-                "; rss {} MiB, peak {} MiB; committed {} MiB, peak {} MiB",
+                "; rss {} MiB, peak {} MiB; committed {} MiB, peak {} MiB; instr {} cycles {}",
                 mib(sample.resident),
                 mib(sample.peak_resident),
                 mib(sample.committed),
-                mib(sample.peak_committed)
+                mib(sample.peak_committed),
+                sample.instructions,
+                sample.cycles
             )
         });
         eprintln!(
