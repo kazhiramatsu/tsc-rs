@@ -1615,6 +1615,61 @@ fingerprint oracle は reach した各 node の親と、それが walk の親か
 - fingerprint oracle：`main-b8a54e83a.tsv` に対して 143,190 行のうち差は 0（parse の hash は各 node の親を含む）
 - 計測は上の通り
 
+## module の top-level await の文を、tsgo と同じく parse しながら見つける（branch `perf/ts71-top-level-await-spans`、M8 の parse 表の 2 枚目）
+
+tsgo は parse しながら `statementHasAwaitIdentifier` を記録する（`aa814927` の parser.go）：
+- `await` の identifier がこれを立てる（`newIdentifier`、`parseJSDocIdentifierName`）；
+- `mark`/`rewind` と 15 の構文（function の block、class とその名前、enum、module、import と import clause、
+  `require(...)`、export、property 名、binding identifier、identifier 名でない dot の右側）が保存して戻す；
+- `parseToplevelStatement` が立った top-level の文の番号を `possibleAwaitSpans` に集め、module はその span だけを
+  Await context で parse し直す（`reparseTopLevelAwait`、parser.go:516）。
+
+tsc-rs は parse の後で module の全部の文の subtree を歩いていた（tsc 6.0.3 の `containsPossibleTopLevelAwait` の
+射影。訪れた node 毎に children の `Vec`）。bench の 8 project ではこの walk は VS Code で 954,174 node を訪れ、
+parse し直す文は一つも選ばない。
+
+**修正**：tsgo と同じ所で同じ記録をし、`parse_toplevel_statement` で span を集め、tsgo の span による reparse
+（parse し直した文が span を越えたら次の span まで続ける）にする。残す範囲の診断と recovery の記録はそのまま。walk は
+削除。language service の incremental parse（本番の呼び出し元はなく、契約 test だけ）は text に `await` を含む node を
+再利用しない（再利用した node は自分の identifier を flag に通さないため。incremental と full の parse が同じ文を
+parse し直す）。
+
+**選び方が tsgo になる**：dot の後の名前が `await` の文も parse し直す（tsgo は `export const x = a.await;` の
+module で Identifiers 12、`a.b` なら 9）。bench では effect の Identifiers の差（tsc-rs 604,929、tsgo 605,222）が
+消え、8 project とも tsgo と一致。tsc 6.0.3 のままだった test の期待値を tsgo の出力に移した：
+- `export {}; interface I extends await<string> {}` は tsgo と同じ TS1109・TS1109・TS1005（walk は消える宣言を飛ばしていた）；
+- `export {}; let a = await /1; b; c; x/;` は tsgo と同じく診断なし（後に `await (1,);` が続けば TS1109 一つ、JS の
+  emit も tsgo と byte 単位で同じ）；
+- await-flag-boundary の fixture（285 例）は tsgo の parser（`aa814927`）の dump を新しい oracle にした。
+
+**計測**：1 thread、静かな machine（14:38〜14:41、M5 lane を止めて）、親 `fec97ea85` 比。
+| project | 命令数 |
+|---|---:|
+| VS Code | **−0.08%**（−103 M、7 回。今日の ≈ +0.9 G の雑音の 2 組を除く組は −76〜−130 M） |
+| playwright | −0.11%（−13.5 M） |
+| 他の 6 project | ≈ 0（−4.7〜+6.7 M） |
+
+予想（VS Code −0.17 G、帯 −0.10〜−0.34 G）の帯の下端。小さい project は帯より節約が小さい。pilot（walk を飛ばした
+main）は walk の費用を正しく測っていたが、tracking が足す分を少なく見積もっていた（identifier あたり 1〜2 命令と
+したが、小さい project からは 10〜15：binding identifier と property 名ごとの保存と、token の種類の比較。VS Code で
+≈ 0.08 G）。**教訓**：card が足す構文ごとの仕事も、消す経路と同じ注意で値付けする。この card は主に fidelity（tsgo と
+同じ Identifiers、同じ診断、fixture は tsgo 自身の parse）で、VS Code に小さな利得。
+
+**記録。** PR [#894](https://github.com/kazhiramatsu/tsc-rs/pull/894) → merge `096cbed53`（2026-11-05。`fec97ea85` の上、最終 head `2bbefe4e5`）。hosted run
+[41978497797](https://github.com/kazhiramatsu/tsc-rs/actions/runs/41978497797)：全 job pass。最初の hosted run（`42bb6e7db`）は rust job の clippy
+（`manual_is_multiple_of`、debug_assert! の中の `% 2 == 0`）で落ち、`2bbefe4e5` で直した。local（hosted がしないことだけ、`42bb6e7db`、
+release は `fe1266e1b`＝test 以外同じ。`2bbefe4e5` は debug_assert! の条件一つだけが違い、release build には入らない）：
+- unit test（`a.await` の module で Identifiers 12、`a.b` で 9：tsgo と同じ。main では両方 9 で失敗）
+- syntax の test 276、fmt、release build
+- clippy（`-p tsc-rs-syntax --all-targets -- -D warnings`、`2bbefe4e5`）：exit 0。`42bb6e7db` の parser.rs では hosted と同じく 101。
+  以後の battery には変えた crate の clippy を入れる
+- 8 case で出力（exit code・stdout・stderr）が親と一致。Identifiers は 8 project とも tsgo と一致（effect 604,929 → 605,222）
+- fingerprint oracle：104 行（52 input）が違い、すべて想定どおり（effect 49 input と tsgo 自身の regression 3 例。3 例は
+  この PR の conformance binary で tsgo の baseline と完全一致）
+- await-flag-boundary の fixture：tsgo の parser（`aa8149273`）の dump を oracle にし、285 例すべてでこの PR と一致
+  （6.0.3 との差は両方とも同じ 81 例）
+- 計測は上の通り
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
