@@ -10041,6 +10041,7 @@ impl<'text> Parser<'text> {
         self.finish_node_with_flags(data, pos, NodeFlags::NONE)
     }
 
+    #[inline(always)]
     fn finish_node_with_flags(&mut self, data: NodeData, pos: usize, flags: NodeFlags) -> NodeId {
         let end = self.scanner.full_start_pos();
         self.alloc_and_finish(data, pos, end, flags)
@@ -10049,7 +10050,7 @@ impl<'text> Parser<'text> {
     /// tsgo finishNode for a node made from `data`: its children get it as
     /// their parent straight from the payload, before the payload is encoded
     /// into the record (no decode of the record, no second pass).
-    #[inline]
+    #[inline(always)]
     pub(crate) fn alloc_and_finish(
         &mut self,
         mut data: NodeData,

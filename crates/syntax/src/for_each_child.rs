@@ -3219,6 +3219,7 @@ pub trait NodeDataChildVisitor {
     fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error;
 }
 
+#[inline(always)]
 pub fn try_visit_each_child<V>(data: &mut NodeData, visitor: &mut V) -> Result<(), V::Error>
 where
     V: NodeDataChildVisitor,
