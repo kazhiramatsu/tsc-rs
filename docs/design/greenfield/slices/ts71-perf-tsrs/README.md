@@ -723,8 +723,10 @@ clean（1.99.1）、`generate_nodes.py --check`、書き換えた crate の test
   3 word に収まる。record 787 → 525 MiB、tail 5.8 MiB）。store の test の隔離修正（`ROOM = 8_000_000`）を含む。
 - **fingerprint oracle**（#858、branch `perf/ts71-syntax-fingerprint`）：`crates/binder/examples/syntax_fingerprint.rs` と
   `scripts/syntax_fingerprint.py` が parser と binder の出力の構造 hash（id に依存しない。両 JSDoc mode）を conformance corpus と
-  8 project の source について出す。baseline は `target/claude-tools/handover/perf-tsrs/syntax-baseline/main-39058c48c.tsv`
-  （143,190 行、panic 0）。front end を変える slice は `--compare` で差分 0 を示す（新しい local check の作法、§3.3）。
+  8 project の source について出す。baseline は `target/claude-tools/handover/perf-tsrs/syntax-baseline/main-b8a54e83a.tsv`
+  （143,190 行、panic 0。#883 の後、2026-11-05 に `main-39058c48c.tsv` から更新した。差分は #883 の 40 input・80 行だけで、#883 の
+  run の差分と行単位で一致し、#887 からの差分はない）。front end を変える slice は `--compare` で差分 0 を示す（新しい local check
+  の作法、§3.3）。
 - **byte scanner**（#862、branch `perf/ts71-byte-scanner`、A-1b）：scanner を tsgo の `scanner.go` と同じく byte で動かす。先頭 byte の
   256 entry の表で分岐、コメント・文字列・template 本体は byte run（`memchr`）、keyword は長さ別の完全 hash（#857 の先頭文字分岐を
   置換）、`ScannerState` は `Copy`（cooked 値は snapshot pool）、稀な経路は `#[cold]`、ASCII 識別子表。public API と token・位置・値・
