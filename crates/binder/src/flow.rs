@@ -76,10 +76,31 @@ const _: () = assert!(std::mem::size_of::<FlowNode>() == 16);
 impl FlowNode {
     /// tsc FlowNode.antecedent of the plain kinds (none for a label, the
     /// start and the unreachable node).
+    #[inline(always)]
     pub fn antecedent(&self) -> Option<FlowId> {
         self.antecedent
     }
 
+    /// The AST node a plain flow node carries (tsc FlowNode.node of an
+    /// assignment, condition, call or array mutation; a start node's
+    /// function): none for the other kinds. The checker's flow walk reads
+    /// it at every step, so it is one flags test and a word.
+    #[inline(always)]
+    pub fn payload_node(&self) -> Option<NodeId> {
+        if self.flags.intersects(
+            FlowFlags::BRANCH_LABEL
+                | FlowFlags::LOOP_LABEL
+                | FlowFlags::REDUCE_LABEL
+                | FlowFlags::SWITCH_CLAUSE,
+        ) || self.a == 0
+        {
+            None
+        } else {
+            Some(NodeId::new(self.a - 1))
+        }
+    }
+
+    #[inline(always)]
     fn is_label(&self) -> bool {
         self.flags
             .intersects(FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL)
@@ -152,6 +173,7 @@ impl FlowArena {
         index
     }
 
+    #[inline(always)]
     pub fn flow(&self, id: FlowId) -> &FlowNode {
         &self.nodes[id.index() as usize]
     }
@@ -161,6 +183,7 @@ impl FlowArena {
     }
 
     /// A staged or frozen list.
+    #[inline(always)]
     fn list(&self, at: u32, len: Option<u32>) -> &[FlowId] {
         if self.frozen {
             let start = at as usize;
@@ -179,6 +202,7 @@ impl FlowArena {
 
     /// The antecedents in tsc's order: a label's list, or the plain kinds'
     /// single antecedent (none for the start and unreachable nodes).
+    #[inline(always)]
     pub fn antecedents(&self, id: FlowId) -> &[FlowId] {
         let node = self.flow(id);
         if node.is_label() {
