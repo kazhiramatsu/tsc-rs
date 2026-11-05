@@ -10037,6 +10037,7 @@ impl<'text> Parser<'text> {
             .find(|index| !self.statement_contains_possible_top_level_await(statements[*index]))
     }
 
+    #[inline(always)]
     fn finish_node_data(&mut self, data: NodeData, pos: usize) -> NodeId {
         self.finish_node_with_flags(data, pos, NodeFlags::NONE)
     }
