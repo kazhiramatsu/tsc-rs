@@ -389,7 +389,7 @@ fn local_bind_with_in_order_relocation_matches_direct_binding_at_the_same_bases(
         assert_eq!(expected.classifiable_names, direct.classifiable_names);
         assert_eq!(expected.assigned_symbol_ids, direct.assigned_symbol_ids);
         assert_eq!(expected.bind_diagnostics, direct.bind_diagnostics);
-        assert_eq!(expected.node_flow, direct.node_flow);
+        assert_eq!(expected.node_flow, NodeFlows::from_map(&direct.node_flow));
         assert_eq!(expected.node_flags_mut, direct.node_flags_mut);
     }
 }

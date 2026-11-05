@@ -16,7 +16,7 @@ pub use assignment::{
     AssignmentDeclarationKind,
 };
 pub use declare::{
-    published_has_locals, published_node_flags, published_node_flow, published_node_symbol,
+    published_has_locals, published_node_flags, published_node_symbol, CompactNodeMap, NodeFlows,
 };
 pub use declare::{BindData, Binder, BinderMemory, BinderWorker, TableRef};
 pub use hosted::jsdoc_hosted;

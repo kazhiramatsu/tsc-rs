@@ -163,7 +163,7 @@ pub struct BindData {
     pub pattern_ambient_modules: Vec<(JsString, JsString, SymbolId)>,
     pub flow: crate::flow::FlowArena,
     pub unreachable_flow: crate::flow::FlowId,
-    pub node_flow: NodeFlowMap,
+    pub node_flow: NodeFlows,
     pub node_end_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     pub node_return_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     pub node_flow_when_true: FxHashMap<NodeId, crate::flow::FlowId>,
@@ -274,7 +274,7 @@ impl BindData {
             pattern_ambient_modules: binder.pattern_ambient_modules.clone(),
             flow: binder.flow.frozen(),
             unreachable_flow: binder.unreachable_flow,
-            node_flow: binder.node_flow.clone(),
+            node_flow: NodeFlows::from_map(&binder.node_flow),
             node_end_flow: binder.node_end_flow.clone(),
             node_return_flow: binder.node_return_flow.clone(),
             node_flow_when_true: binder.node_flow_when_true.clone(),
@@ -392,7 +392,7 @@ impl<'a> BinderWorker<'a> {
             current_false_target: None,
             current_exception_target: None,
             pre_switch_case_flow: None,
-            node_flow: NodeFlowMap::for_tree(&source.arena),
+            node_flow: NodeFlowMap::on_heap(&source.arena),
             node_end_flow: FxHashMap::default(),
             node_return_flow: FxHashMap::default(),
             node_flow_when_true: FxHashMap::default(),
@@ -1603,7 +1603,7 @@ impl BinderWorker<'_> {
             pattern_ambient_modules,
             flow,
             unreachable_flow,
-            node_flow,
+            node_flow: NodeFlows::from_map(&node_flow),
             node_end_flow,
             node_return_flow,
             node_flow_when_true,
@@ -1790,12 +1790,6 @@ pub fn published_node_symbol(node: NodeId) -> Option<SymbolId> {
     tsc_store::get::<NodeSlot<SymbolId>>(node.position()).0
 }
 
-/// tsc `node.flowNode` of a published, bound node.
-#[inline(always)]
-pub fn published_node_flow(node: NodeId) -> Option<crate::flow::FlowId> {
-    tsc_store::get::<NodeSlot<crate::flow::FlowId>>(node.position()).0
-}
-
 /// tsc `node.symbol`: the declaring symbol of a node.
 pub type NodeSymbolMap = DenseNodeMap<SymbolId>;
 
@@ -1833,6 +1827,18 @@ where
         node.index()
             .checked_sub(self.base)
             .map(|offset| offset as usize)
+    }
+
+    /// The empty map of `arena`'s nodes, on the heap whether or not the tree
+    /// is published (a bind's working map, made compact when the bind's
+    /// result is taken).
+    pub fn on_heap(arena: &NodeArena) -> Self {
+        let mut slots = StoreVec::with_capacity(arena.len());
+        slots.resize(arena.len(), NodeSlot::default());
+        Self {
+            base: arena.node_base(),
+            slots,
+        }
     }
 
     pub fn get(&self, node: &NodeId) -> Option<&V> {
@@ -1892,5 +1898,103 @@ where
 {
     fn eq(&self, other: &Self) -> bool {
         self.base == other.base && self.iter().eq(other.iter())
+    }
+}
+
+/// tsc `node.flowNode` of a completed bind ([`CompactNodeMap`]).
+pub type NodeFlows = CompactNodeMap<crate::flow::FlowId>;
+
+/// A per-node map of a completed bind, compact: a presence bit per node of
+/// the tree, the count of present nodes before each 64-node word, and the
+/// values in node order (about 1.5 bytes per node and 4 per value, instead
+/// of 4 per node).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CompactNodeMap<V> {
+    base: u32,
+    words: Box<[u64]>,
+    ranks: Box<[u32]>,
+    values: Box<[V]>,
+}
+
+impl<V: Copy> CompactNodeMap<V> {
+    /// The compact form of a bind's working map.
+    pub fn from_map(map: &DenseNodeMap<V>) -> Self
+    where
+        NodeSlot<V>: StoreRecord,
+    {
+        let words_len = map.slots.len().div_ceil(64);
+        let mut words = vec![0u64; words_len];
+        let mut count = 0usize;
+        for (offset, slot) in map.slots.iter().enumerate() {
+            if slot.0.is_some() {
+                words[offset / 64] |= 1 << (offset % 64);
+                count += 1;
+            }
+        }
+        let mut values = Vec::with_capacity(count);
+        values.extend(map.slots.iter().filter_map(|slot| slot.0));
+        let mut ranks = Vec::with_capacity(words_len);
+        let mut rank = 0u32;
+        for word in &words {
+            ranks.push(rank);
+            rank += word.count_ones();
+        }
+        Self {
+            base: map.base,
+            words: words.into_boxed_slice(),
+            ranks: ranks.into_boxed_slice(),
+            values: values.into_boxed_slice(),
+        }
+    }
+
+    /// Nodes with a value.
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
+    /// Bytes this map owns, for memory accounting.
+    pub fn heap_bytes(&self) -> usize {
+        self.words.len() * 8 + self.ranks.len() * 4 + self.values.len() * std::mem::size_of::<V>()
+    }
+
+    #[inline]
+    pub fn get(&self, node: &NodeId) -> Option<&V> {
+        let offset = node.index().checked_sub(self.base)? as usize;
+        let word = *self.words.get(offset / 64)?;
+        let bit = 1u64 << (offset % 64);
+        if word & bit == 0 {
+            return None;
+        }
+        let rank = self.ranks[offset / 64] + (word & (bit - 1)).count_ones();
+        self.values.get(rank as usize)
+    }
+
+    pub fn contains_key(&self, node: &NodeId) -> bool {
+        self.get(node).is_some()
+    }
+
+    /// The nodes with a value and their values, in node order.
+    pub fn iter(&self) -> impl Iterator<Item = (NodeId, V)> + '_ {
+        let mut values = self.values.iter().copied();
+        self.words
+            .iter()
+            .enumerate()
+            .flat_map(move |(index, &word)| {
+                let start = self.base + index as u32 * 64;
+                let mut bits = word;
+                std::iter::from_fn(move || {
+                    if bits == 0 {
+                        return None;
+                    }
+                    let bit = bits.trailing_zeros();
+                    bits &= bits - 1;
+                    Some(NodeId::new(start + bit))
+                })
+            })
+            .map(move |node| (node, values.next().expect("one value per present node")))
     }
 }
