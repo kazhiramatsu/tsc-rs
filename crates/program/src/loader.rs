@@ -2595,6 +2595,29 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for (_, specifier, _) in self.directory_resolutions.keys() {
             directory_specifier.add(specifier.diag_heap_bytes());
         }
+        let (mut source_display, mut source_canonical) = (Tally::default(), Tally::default());
+        for source in &self.sources {
+            let [display, canonical] = source.prepared.path().diag_heap_bytes();
+            source_display.add(display);
+            source_canonical.add(canonical);
+        }
+        let (mut row_host_display, mut row_host_canonical) = (Tally::default(), Tally::default());
+        for resolution in &self.module_resolutions {
+            if let ResolutionOutcome::Resolved(target) = resolution.host.outcome() {
+                let [display, canonical] = target.resolved_file().diag_heap_bytes();
+                row_host_display.add(display);
+                row_host_canonical.add(canonical);
+            }
+        }
+        let (mut directory_host_display, mut directory_host_canonical) =
+            (Tally::default(), Tally::default());
+        for host in self.directory_resolutions.values() {
+            if let ResolutionOutcome::Resolved(target) = host.outcome() {
+                let [display, canonical] = target.resolved_file().diag_heap_bytes();
+                directory_host_display.add(display);
+                directory_host_canonical.add(canonical);
+            }
+        }
         eprintln!(
             "[stage account] {instant}: sources {}, module rows {}, map keys {}, tasks {}, directory keys {}",
             self.sources.len(),
@@ -2619,6 +2642,18 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             ("D2 source reason parent", &source_reason_parent),
             ("D2 source reason other strings", &source_reason_other),
             ("E  directory key specifier", &directory_specifier),
+            ("S  staged source path display", &source_display),
+            ("S  staged source path canonical", &source_canonical),
+            ("H  row host resolved display", &row_host_display),
+            ("H  row host resolved canonical", &row_host_canonical),
+            (
+                "Hd directory host resolved display",
+                &directory_host_display,
+            ),
+            (
+                "Hd directory host resolved canonical",
+                &directory_host_canonical,
+            ),
         ] {
             tally.print(instant, owner);
         }

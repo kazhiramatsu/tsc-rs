@@ -607,6 +607,16 @@ impl SharedJsString {
     pub fn to_js_string(&self) -> JsString {
         self.as_js().to_owned()
     }
+
+    /// Observation only (m8, never merged): the shared block's requested bytes (the `Arc` header and the bytes) when no
+    /// other handle holds it, else 0: a private copy, not a share.
+    pub fn diag_heap_bytes(&self) -> usize {
+        if std::sync::Arc::strong_count(&self.0) == 1 {
+            16 + self.0.len()
+        } else {
+            0
+        }
+    }
 }
 
 impl From<JsStr<'_>> for SharedJsString {
