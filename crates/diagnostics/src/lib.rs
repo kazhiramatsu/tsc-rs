@@ -11,7 +11,7 @@ pub mod text;
 
 use std::cmp::Ordering;
 
-pub use js_string::{CodeUnits, JsStr, JsString, JsStringByteLength};
+pub use js_string::{CodeUnits, JsStr, JsString, JsStringByteLength, SharedJsString};
 #[cfg(not(target_family = "wasm"))]
 pub use tsc_store::SharedText;
 #[cfg(target_family = "wasm")]

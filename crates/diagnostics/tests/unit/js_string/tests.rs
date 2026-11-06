@@ -423,3 +423,47 @@ fn canonical_bytes_are_told_from_other_bytes() {
     assert!(!super::is_canonical_wtf8(&[0xff]));
     assert!(!super::is_canonical_wtf8(&[0xed, 0xa0]));
 }
+
+#[test]
+fn a_shared_string_compares_hashes_and_prints_as_the_owned_string_and_its_clones_share_the_bytes() {
+    let path: Vec<u16> = "/users/dev/vscode/src/vs/base/common/lifecycle.ts"
+        .encode_utf16()
+        .collect();
+    let samples: Vec<Vec<u16>> = vec![
+        Vec::new(),
+        vec![0x61],
+        vec![0xD800, 0x61],
+        vec![0x61, 0xDC00],
+        // A surrogate pair (one four-byte scalar) and a trail before a lead (two three-byte lone surrogates).
+        vec![0xD83D, 0xDE00],
+        vec![0xDC00, 0xD800],
+        path,
+    ];
+    for units in &samples {
+        let owned = JsString::from_code_units(units);
+        let shared = SharedJsString::from(owned.as_js());
+        assert_eq!(shared.as_bytes(), owned.as_bytes());
+        assert_eq!(shared.as_js(), owned.as_js());
+        assert_eq!(shared.to_js_string(), owned);
+        assert_eq!(hash_input(&shared), hash_input(&owned));
+        assert_eq!(format!("{shared:?}"), format!("{owned:?}"));
+        let clone = shared.clone();
+        assert_eq!(clone.as_bytes().as_ptr(), shared.as_bytes().as_ptr());
+        assert_eq!(clone, shared);
+        // Equal bytes in another allocation are equal too.
+        assert_eq!(SharedJsString::from(owned.as_js()), shared);
+    }
+    let mut owned: Vec<JsString> = samples
+        .iter()
+        .map(|units| JsString::from_code_units(units))
+        .collect();
+    let mut shared: Vec<SharedJsString> = owned
+        .iter()
+        .map(|text| SharedJsString::from(text.as_js()))
+        .collect();
+    owned.sort();
+    shared.sort();
+    for (owned, shared) in owned.iter().zip(&shared) {
+        assert_eq!(owned.as_bytes(), shared.as_bytes());
+    }
+}
