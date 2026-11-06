@@ -30,11 +30,12 @@ fn source(a: &mut Account, source: &tsc_syntax::SourceFile) {
         None,
         None,
     );
+    // FE-T1: the text-heap block holds the count (one word), then the bytes.
     let text = source.text();
-    let bytes = text.len() + 2 * std::mem::size_of::<usize>();
+    let bytes = std::mem::size_of::<usize>() + text.len().max(1);
     a.backing(
         "program.source_texts",
-        (text.as_ptr() as usize) - 2 * std::mem::size_of::<usize>(),
+        (text.as_ptr() as usize) - std::mem::size_of::<usize>(),
         text.len(),
         1,
         bytes,
