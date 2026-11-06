@@ -2168,6 +2168,54 @@ conformance 24 分）。残る差：
 - 4 checker の既知の 4 構成（再帰の error の位置が、先に計算した checker で決まる）。
 - 過去に報告された static four の揺れは、138 回の対照で再現しなかった。
 
+## symbol 表は 9 entry 未満なら hash の索引を持たず entry を走査し、索引は作るときに box にする（branch `perf/ts71-small-symbol-maps`、memory の 5 枚目、命令数も減る）
+
+symbol 表（`SymbolTable`：binder の locals・members・exports と、checker が instance 化した型の members）は挿入順の map で、
+entry の vector と、その位置の hash 表を持っていた。
+
+census（観測用 build で各大きさに達した map を数えた、VS Code 1 thread）：1,276,677 個の map のうち **95% は 8 entry を
+超えない**（9 に達するのは 59,229、16 を超えるのは 18,281）。
+
+いまは 9 entry 未満の map は索引を持たない。
+- 引くときは entry を走査し、4 byte の名前の id を比べる。
+- 9 entry から位置の索引を作り、box に置く。索引のない map は vector と null の 1 語だけ。
+- 挿入順、置き換えはその場、順序を保つ削除、は変わらない。
+- unit test：20 個の名前を入れ、挿入のたびにすべての名前を引く（閾値の両側）。置き換えと削除を両側で確かめ、同じ entry を
+  持つ走査の map と索引の map が等しいことも確かめる。
+
+1〜8 entry に索引を持つと、hash 表の確保（32〜64 B 以上）と、map ごとに 32 byte の表の header がかかる。
+8 個までの 4 byte の id を走査する方が、名前を hash して group を探るより安い。
+
+**計測**：朝（09:54〜09:59）、他の lane は止めていない。load ≈ 3.5、base と交互、`main-904` 比。
+
+| | 基準 | この PR |
+|---|---:|---:|
+| VS Code 1 thread の footprint（9 回の median） | 3,215.8 MiB | **3,179.1 MiB（−36.7）** |
+| 命令数（low mode の median） | 131.205 G | 130.809 G（**−396 M、−0.30%**） |
+| VS Code 4 thread の footprint | 3,600.3 MiB | **3,577.7 MiB（−22.6）** |
+| 4 thread の命令数 | 142.033 G | 141.860 G |
+
+- VS Code 1 thread の footprint は範囲が重ならない。pilot の窓（同じ基準）は low 同士 −36.7。
+- 同じ mode の組は −352〜−446 M（ほかに 1 組 +73 M、mode の間の run を含む）。pilot は −526 M。
+- 他 7 project：命令数 −0.07〜−0.30%（すべて減る）、footprint −1〜−11 MiB。
+
+重い card の閾値（≥ 50 MiB、命令数 +0.3 G 以上、1 日以上）の下で、両方の軸で減るので、複数の判定の gate はない。
+VS Code 1 thread は ≈ 3,179 MiB、≈ 130.8 G になる。
+
+**記録。** PR [#906](https://github.com/kazhiramatsu/tsc-rs/pull/906) → merge `c18662e1a`（2026-11-06。`8b10dbb51` の上、最終 head `1ee8d5e67`）。hosted run
+[42140898175](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42140898175)：全 job pass。local（hosted がしないことだけ、`1ee8d5e67`）：
+- unit test：閾値の両側で、すべての読み・置き換え・削除が一致し、走査の map と索引の map が等しい。
+- binder の test 86、checker 1,875、api 332、fmt、clippy（`-D warnings`。最初の実行で新しい test の `.clone()` と index の
+  loop を直した）、release build（test だけの修正の後も tsc-rs の sha256 は同じ）。
+- 8 case で出力（exit code・stdout・stderr）が基準と一致。Identifiers・Symbols・Types・Instantiations も 8 project とも一致。
+- `full` 構成の出力の木：hono（748 file）と effect（1,984 file）で byte 単位で一致。
+- fingerprint oracle：`main-d4d9d0364.tsv` に対して 143,190 行のうち差は 0（bind の hash はすべての symbol 表を順に含む）。
+- conformance（4 checker）：12,829 case、harness error は 0。
+  - #904 の 4 checker の report に対して 15,339 の構成すべてが同じ。
+  - 1 checker の report に対しては、記録済みの 4 構成だけが違う。
+- 記録：`gate-smallmaps/`（battery・窓の log）、census は `gate-extras/after-det1.log`。
+- 計測は上の通り。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
