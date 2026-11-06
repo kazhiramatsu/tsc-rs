@@ -576,6 +576,67 @@ impl fmt::Debug for JsString {
     }
 }
 
+/// An immutable canonical WTF-8 string whose clones share one allocation,
+/// the way a Go string shares its bytes (tsgo's `tspath.Path`): copying a
+/// path into a key, a task or a cached resolution copies no bytes.
+/// Equality, ordering, hashing and `Debug` are `JsString`'s over the same
+/// bytes.
+#[derive(Clone)]
+pub struct SharedJsString(std::sync::Arc<[u8]>);
+
+impl SharedJsString {
+    pub fn as_js(&self) -> JsStr<'_> {
+        JsStr { bytes: &self.0 }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    /// An owned copy of the bytes.
+    pub fn to_js_string(&self) -> JsString {
+        self.as_js().to_owned()
+    }
+}
+
+impl From<JsStr<'_>> for SharedJsString {
+    fn from(text: JsStr<'_>) -> Self {
+        Self(std::sync::Arc::from(text.bytes))
+    }
+}
+
+impl PartialEq for SharedJsString {
+    fn eq(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.0, &other.0) || self.0 == other.0
+    }
+}
+
+impl Eq for SharedJsString {}
+
+impl PartialOrd for SharedJsString {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SharedJsString {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.as_bytes().cmp(other.as_bytes())
+    }
+}
+
+impl Hash for SharedJsString {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_bytes().hash(state);
+    }
+}
+
+impl fmt::Debug for SharedJsString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.as_js().fmt(f)
+    }
+}
+
 /// Allocation-free UTF-16 iteration over an invariant-checked owner/view.
 #[derive(Clone, Debug)]
 pub struct CodeUnits<'a> {
