@@ -12,8 +12,8 @@ use crate::module_resolution::{is_external_module_name_relative, validate_owned_
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::project_references::ResolvedProjectReferences;
 use crate::resolution::{
-    MissingResolutionError, ModuleResolution, ResolutionError, ResolutionKey, ResolutionMode,
-    ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolution, TypeReferenceResolutionKey,
+    ModuleResolution, ResolutionError, ResolutionKey, ResolutionMode, ResolutionOutcome,
+    ResolvedModuleTarget, TypeReferenceResolution, TypeReferenceResolutionKey,
     TypeReferenceResolutionOrigin,
 };
 
@@ -1836,57 +1836,13 @@ impl PreparationDiagnostics {
     }
 }
 
-/// Authoritative module and type-reference tables. Separate maps keep the
-/// vendored `(source, specifier, mode)` key exact for each resolver API.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct ResolutionTable {
-    modules: BTreeMap<ResolutionKey, ModuleResolution>,
+pub use crate::resolution::{ResolutionTable, ResolutionTableView};
+
+/// Add-time conflict detection and validation precede compact publication.
+#[derive(Clone, Debug, Default)]
+struct StagedResolutions {
+    modules: crate::resolution::StagedModules,
     type_references: BTreeMap<TypeReferenceResolutionKey, TypeReferenceResolution>,
-}
-
-impl ResolutionTable {
-    pub fn require_module(
-        &self,
-        key: &ResolutionKey,
-    ) -> Result<&ModuleResolution, MissingResolutionError> {
-        self.modules
-            .get(key)
-            .ok_or_else(|| MissingResolutionError::module(key))
-    }
-
-    pub fn require_type_reference(
-        &self,
-        key: &TypeReferenceResolutionKey,
-    ) -> Result<&TypeReferenceResolution, MissingResolutionError> {
-        self.type_references
-            .get(key)
-            .ok_or_else(|| MissingResolutionError::type_reference(key))
-    }
-
-    /// Iterate authoritative type-reference rows in exact key order.
-    ///
-    /// The underlying `BTreeMap` order is stable across insertion order and
-    /// supplies the program driver with a deterministic diagnostic stream.
-    pub fn type_references(
-        &self,
-    ) -> impl ExactSizeIterator<Item = (&TypeReferenceResolutionKey, &TypeReferenceResolution)>
-    {
-        self.type_references.iter()
-    }
-
-    /// Iterate authoritative module rows in exact key order (the same stable
-    /// `BTreeMap` order as [`Self::type_references`]).
-    pub fn modules(&self) -> impl ExactSizeIterator<Item = (&ResolutionKey, &ModuleResolution)> {
-        self.modules.iter()
-    }
-
-    pub fn module_len(&self) -> usize {
-        self.modules.len()
-    }
-
-    pub fn type_reference_len(&self) -> usize {
-        self.type_references.len()
-    }
 }
 
 /// Fully owned input to one validated no-emit or emitting session entry.
@@ -2034,6 +1990,11 @@ impl PreparedProgram {
     /// tsgo `ReuseProgram`: this Program with the source `id` replaced by
     /// `source` (the same file read again), sharing everything else.
     pub fn with_replaced_source(&self, id: SourceFileId, source: PreparedSourceFile) -> Self {
+        assert_eq!(
+            self.source_files[id.index()].path(),
+            source.path(),
+            "replacement source path must be unchanged"
+        );
         let mut program = self.clone();
         program.source_files[id.index()] = source;
         program
@@ -2123,8 +2084,30 @@ impl PreparedProgram {
         self.packages.get(package_json)
     }
 
-    pub fn resolutions(&self) -> &ResolutionTable {
-        &self.resolutions
+    pub fn resolutions(&self) -> ResolutionTableView<'_> {
+        self.resolutions
+            .view(&self.source_files, &self.source_by_canonical)
+    }
+
+    /// Borrowed specifier search within this source's contiguous range.
+    /// Both hits and misses allocate nothing.
+    pub fn module_resolution(
+        &self,
+        source: SourceFileId,
+        specifier: JsStr<'_>,
+        mode: ResolutionMode,
+    ) -> Option<crate::ModuleResolutionView<'_>> {
+        self.resolutions().module(source, specifier, mode)
+    }
+
+    /// An alias in `source_by_canonical` must not reach its owner's rows.
+    pub fn module_resolution_by_path(
+        &self,
+        path: &CanonicalPath,
+        specifier: JsStr<'_>,
+        mode: ResolutionMode,
+    ) -> Option<crate::ModuleResolutionView<'_>> {
+        self.resolutions().module_by_path(path, specifier, mode)
     }
 
     /// The runtime dependencies (`dependencies`, `peerDependencies`,
@@ -2168,7 +2151,7 @@ pub struct PreparedProgramBuilder {
     package_redirect_files: Vec<PackageRedirectFile>,
     import_extension_files: Vec<JsString>,
     text_by_canonical: rustc_hash::FxHashMap<CanonicalPath, Arc<str>>,
-    resolutions: ResolutionTable,
+    resolutions: StagedResolutions,
     dependency_symlinks: Vec<DependencySymlink>,
     diagnostics: PreparationDiagnostics,
     fatal_error: Option<PreparationError>,
@@ -2245,7 +2228,7 @@ impl PreparedProgramBuilder {
             package_redirect_files: Vec::new(),
             import_extension_files: Vec::new(),
             text_by_canonical: rustc_hash::FxHashMap::default(),
-            resolutions: ResolutionTable::default(),
+            resolutions: StagedResolutions::default(),
             dependency_symlinks: Vec::new(),
             diagnostics: PreparationDiagnostics::default(),
             fatal_error: None,
@@ -2640,14 +2623,10 @@ impl PreparedProgramBuilder {
                 return Err(error);
             }
         };
-        self.require_resolution_source(&key, PreparationOperation::AddModuleResolution)?;
+        let source =
+            self.require_resolution_source(&key, PreparationOperation::AddModuleResolution)?;
         self.validate_module_target(&key, &resolution)?;
-        insert_resolution(
-            &mut self.resolutions.modules,
-            key,
-            resolution,
-            PreparationOperation::AddModuleResolution,
-        )
+        self.resolutions.modules.insert(source, key, resolution)
     }
 
     pub fn add_type_reference_resolution(
@@ -2745,6 +2724,11 @@ impl PreparedProgramBuilder {
         self.validate_missing_root_diagnostics()?;
         self.validate_diagnostic_sources()?;
 
+        let resolutions = ResolutionTable::build(
+            self.resolutions.modules,
+            self.resolutions.type_references,
+            &self.source_files,
+        );
         Ok(PreparedProgram {
             mode: self.mode,
             path_context: self.path_context,
@@ -2761,7 +2745,7 @@ impl PreparedProgramBuilder {
             build_info_emit_blocked: self.build_info_emit_blocked,
             package_redirect_files: self.package_redirect_files,
             import_extension_files: self.import_extension_files,
-            resolutions: self.resolutions,
+            resolutions,
             dependency_symlinks: self.dependency_symlinks,
             diagnostics: self.diagnostics,
         })
@@ -3055,6 +3039,7 @@ impl PreparedProgramBuilder {
         self.source_by_canonical
             .get(key.source())
             .copied()
+            .filter(|id| self.source_files[id.index()].path().canonical() == key.source())
             .ok_or_else(|| {
                 PreparationError::new_js(
                     PreparationErrorKind::InvalidReference,
@@ -3410,3 +3395,7 @@ fn insert_resolution<K: Eq + Ord + TableKey, T: Eq>(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/prepared/compact_resolution_tests.rs"]
+mod compact_resolution_tests;

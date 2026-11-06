@@ -29,8 +29,8 @@ use tsc_incremental::{
     OldState, OldStatePaths, ProgramFileFacts, ProgramState, RepopulateInfo, Snapshot,
 };
 use tsc_program::{
-    PackageJsonType, PreparedProgram, ResolutionKey, ResolutionMode, ResolutionOutcome,
-    SourceFileId, TypeReferenceResolutionOrigin,
+    PackageJsonType, PreparedProgram, ResolutionMode, ResolutionOutcome, SourceFileId,
+    TypeReferenceResolutionOrigin,
 };
 
 use crate::{CheckedEmitHost, EmitRouteKind, PreparedEmitHost, ProgramDiagnostics, SourceApiFacts};
@@ -1610,15 +1610,11 @@ impl<'p> Assembly<'p> {
                     99 => ResolutionMode::EsNext,
                     _ => ResolutionMode::Unspecified,
                 };
-                let resolution = self
-                    .prepared
-                    .resolutions()
-                    .require_module(&ResolutionKey::new(
-                        source.path().canonical().clone(),
-                        module_reference.as_js(),
-                        mode,
-                    ))
-                    .ok();
+                let resolution = self.prepared.module_resolution(
+                    SourceFileId::from_raw(file as u32),
+                    module_reference.as_js(),
+                    mode,
+                );
                 let alternate_result = resolution
                     .and_then(|resolution| resolution.alternate_result())
                     .map(|path| path.display());
