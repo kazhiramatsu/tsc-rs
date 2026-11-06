@@ -22,6 +22,8 @@ unsafe extern "C" {
         arg: *mut c_void,
     ) -> bool;
     fn mi_theap_get_default() -> *mut mi_theap_t;
+    fn proc_pid_rusage(pid: i32, flavor: i32, buffer: *mut c_void) -> i32;
+    fn getpid() -> i32;
     fn mi_theap_visit_blocks(
         theap: *const mi_theap_t,
         visit_blocks: bool,
@@ -152,6 +154,17 @@ fn observe(instant: &str) {
         mib(walk.by_source[1].1),
         mib(walk.by_source[2].1)
     );
+    // The process's physical footprint now and its lifetime maximum (proc_pid_rusage, RUSAGE_INFO_V4: words 9 and 30).
+    let mut usage = [0u64; 64];
+    // SAFETY: a public libSystem call that fills the caller's buffer (rusage_info_v4 is 37 words).
+    let ok = unsafe { proc_pid_rusage(getpid(), 4, usage.as_mut_ptr().cast::<c_void>()) } == 0;
+    if ok {
+        eprintln!(
+            "[heap walk] {instant}: footprint {:.1} MiB, lifetime max {:.1} MiB",
+            mib(usage[9] as usize),
+            mib(usage[30] as usize)
+        );
+    }
     let mut classes = walk
         .classes
         .iter()
