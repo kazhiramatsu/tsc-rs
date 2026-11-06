@@ -54,9 +54,9 @@ The API has five parts:
   `server::run_server` is [`tsc-rs --api`](../README.md#api-server-experimental).
 
 Memory: whatever global allocator your process uses, a program's source
-texts (`tsc_diagnostics::SharedText`) are allocated in a dedicated mimalloc
-heap, apart from everything else, so that the pages the loader frees after
-parsing return whole. That heap lives for the process.
+texts larger than 8 KiB (`tsc_diagnostics::SharedText`) are allocated in a
+dedicated mimalloc heap, apart from everything else, so that the pages the
+loader frees after parsing return whole. That heap lives for the process.
 
 The compiler recurses on the native stack in proportion to the nesting
 depth of a source. The command runs its work, and every worker and checker

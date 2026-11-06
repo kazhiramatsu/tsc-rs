@@ -1,17 +1,34 @@
 use super::*;
 
 #[test]
-fn a_text_lands_in_the_text_heap_and_reads_back_as_written() {
-    for text in ["", "a", "const value = '😀';\n", &"x".repeat(70_000)] {
+fn texts_above_eight_kib_land_in_the_text_heap_and_read_back_as_written() {
+    // A block is the count and at least one byte: 8,184 bytes of text fill
+    // the 8 KiB bin's largest block, one more byte goes to the text heap.
+    let edge = SMALL_BLOCK_MAX - HEADER;
+    let (at_edge, past_edge, large) = ("x".repeat(edge), "y".repeat(edge + 1), "z".repeat(70_000));
+    for text in [
+        "",
+        "a",
+        "const value = '😀';\n",
+        &at_edge,
+        &past_edge,
+        &large,
+    ] {
         let shared = SharedText::new(text);
         assert_eq!(shared.as_str(), text);
         assert_eq!(&*shared, text);
         assert_eq!(format!("{shared:?}"), format!("{text:?}"));
-        assert!(shared.in_text_heap(), "{} bytes", text.len());
+        assert_eq!(
+            shared.in_text_heap(),
+            text.len() > edge,
+            "{} bytes",
+            text.len()
+        );
     }
     // Every producer copies in: an `Arc<str>` and a `String` alike.
-    assert!(SharedText::from(Arc::<str>::from("from an Arc")).in_text_heap());
-    assert!(SharedText::from(String::from("from a String")).in_text_heap());
+    assert!(SharedText::from(Arc::<str>::from(large.as_str())).in_text_heap());
+    assert!(SharedText::from(large.clone()).in_text_heap());
+    assert!(!SharedText::from(String::from("a small String")).in_text_heap());
 }
 
 #[test]
@@ -88,8 +105,12 @@ fn texts_are_allocated_and_freed_across_threads() {
     let workers: Vec<_> = (0..4)
         .map(|worker| {
             std::thread::spawn(move || {
+                // Small texts (default heap) and texts past 8 KiB (text heap).
                 (0..256)
-                    .map(|index| SharedText::new(&format!("{worker}:{index}")))
+                    .map(|index| {
+                        let pad = if index % 4 == 0 { 9_000 } else { 0 };
+                        SharedText::new(&format!("{worker}:{index}{}", " ".repeat(pad)))
+                    })
                     .collect::<Vec<_>>()
             })
         })
@@ -101,7 +122,9 @@ fn texts_are_allocated_and_freed_across_threads() {
     for (worker, texts) in made.iter().enumerate() {
         assert_eq!(texts.len(), 256);
         assert_eq!(texts[255].as_str(), format!("{worker}:255"));
-        assert!(texts.iter().all(SharedText::in_text_heap));
+        assert!(texts
+            .iter()
+            .all(|text| text.in_text_heap() == (text.len() > 9_000)));
     }
     drop(made);
 }

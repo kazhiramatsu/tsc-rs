@@ -11,12 +11,16 @@
 //! each other (but share the arena's and free'd pages)"), so the freed parse
 //! outputs leave whole pages that the bind and the check reuse.
 //!
-//! Every text of a [`SharedText`] lives in the text heap: a program's
-//! sources, an edited document's new text (a live server's edit and every
-//! rebuild construct their snapshots afresh), package.json and transient
-//! texts alike. One block holds a text: its reference count, then its bytes.
-//! A replaced text is freed when its last holder drops it, and its slot
-//! serves the next text of its size bin.
+//! Every text of a [`SharedText`] whose block exceeds 8 KiB lives in the text
+//! heap: a program's sources, an edited document's new text (a live server's
+//! edit and every rebuild construct their snapshots afresh), package.json and
+//! transient texts alike. Smaller texts stay in the calling thread's default
+//! heap: the classes the parse outputs strand begin above mimalloc's 8 KiB
+//! bin, and every thread that put small texts in the text heap would open a
+//! page there for each small bin (hono at the default ten workers: about two
+//! hundred 16 KiB first touches for 0.6 MiB of text). One block holds a text:
+//! its reference count, then its bytes. A replaced text is freed when its
+//! last holder drops it, and its slot serves the next text of its size bin.
 //!
 //! The heap is never deleted or destroyed (texts handed out as `&str` must
 //! stay valid for the process). [`collect_text_heap`] (`custom/runGC`)
@@ -36,6 +40,10 @@ use std::sync::Arc;
 
 /// The bytes before a text's first byte in its block: its reference count.
 const HEADER: usize = std::mem::size_of::<AtomicUsize>();
+
+/// Blocks up to this size stay in the calling thread's default heap
+/// (mimalloc's 8 KiB bin ends here; the 10 KiB bin begins at 8,200 bytes).
+const SMALL_BLOCK_MAX: usize = 8 * 1024;
 const ALIGN: usize = std::mem::align_of::<AtomicUsize>();
 
 /// A shared, immutable text in the text heap: a 16-byte handle whose data
@@ -115,12 +123,14 @@ mod heap {
     /// # Safety
     /// `size` is not zero.
     pub(super) unsafe fn allocate(size: usize) -> *mut u8 {
-        match text_heap() {
-            // SAFETY: the heap lives for the process.
-            Some(heap) => unsafe { libmimalloc_sys::mi_heap_malloc(heap.as_ptr(), size) }.cast(),
-            // SAFETY: an allocation in the calling thread's default heap.
-            None => unsafe { libmimalloc_sys::mi_malloc(size) }.cast(),
+        if size > super::SMALL_BLOCK_MAX {
+            if let Some(heap) = text_heap() {
+                // SAFETY: the heap lives for the process.
+                return unsafe { libmimalloc_sys::mi_heap_malloc(heap.as_ptr(), size) }.cast();
+            }
         }
+        // SAFETY: an allocation in the calling thread's default heap.
+        unsafe { libmimalloc_sys::mi_malloc(size) }.cast()
     }
 
     /// # Safety
@@ -131,7 +141,7 @@ mod heap {
     }
 
     /// Whether `block` is in the text heap.
-    pub(super) fn contains(block: *const u8) -> bool {
+    pub(super) fn contains(block: *const u8, _size: usize) -> bool {
         // SAFETY: a lookup in the heap's page map; it reads no block.
         text_heap().is_some_and(|heap| unsafe { mi_heap_contains(heap.as_ptr(), block.cast()) })
     }
@@ -196,8 +206,9 @@ mod heap {
         unsafe { std::alloc::dealloc(block.as_ptr(), super::block_layout(size)) }
     }
 
-    pub(super) fn contains(_block: *const u8) -> bool {
-        true
+    /// Where the text heap would hold it.
+    pub(super) fn contains(_block: *const u8, size: usize) -> bool {
+        size > super::SMALL_BLOCK_MAX
     }
 
     pub(super) fn collect() {}
@@ -263,11 +274,11 @@ impl SharedText {
         self.ptr == other.ptr
     }
 
-    /// Whether this text's block is in the text heap (tests; always true
-    /// where blocks come from `std::alloc`).
+    /// Whether this text's block is in the text heap (tests; where blocks
+    /// come from `std::alloc`, whether it would be).
     #[doc(hidden)]
     pub fn in_text_heap(&self) -> bool {
-        heap::contains(self.block().as_ptr())
+        heap::contains(self.block().as_ptr(), block_size(self.len))
     }
 
     fn block(&self) -> NonNull<u8> {
