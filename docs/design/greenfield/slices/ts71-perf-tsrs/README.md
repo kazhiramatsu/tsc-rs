@@ -2435,6 +2435,66 @@ build）。
 - 記録：`gate-rel/`（dossier、判定 A・B・C、profile、battery・窓・既定の再計測の log）。
 - 計測は上の通り。
 
+## path の bytes を共有する：`CanonicalPath` と `ProgramPath` を tsgo の Go string と同じく複製で bytes を写さない形にする（branch `perf/ts71-shared-paths`、gate を通った 11 枚目、tsrs の track の最後の card）
+
+tsgo の `tspath.Path` は Go の string で、複製は header だけを写す。tsc-rs では path の複製が毎回 bytes を確保して写していた。
+VS Code の load で同じ path が何度も複製される：
+- module の request・row・map の key（`source.path().canonical().clone()`、112,822 個ずつ）；
+- parse task の target（`resolved_file().clone()`、import の出現ごとに 1 つ、118,942 個 × 表示と canonical の 2 本）；
+- directory の cache から渡す host（`host.clone()`）。
+
+いまは `tsc_diagnostics::SharedJsString`（`Arc<[u8]>` の後ろの不変な canonical WTF-8）を `CanonicalPath` と `ProgramPath` の表示が持つ。
+- 複製は数を 1 つ増やすだけで、bytes を写さない。呼び出し側は変えていない。
+- 等価・順序・hash・`Debug` は `JsString` と同じ bytes 上のもの。`Hash` は `JsString` と同じく bytes を書くので、hash 値も map の反復順も
+  変わらない。等価はまず同じ bytes を共有しているかを見る。
+- 表示が canonical と同じ bytes なら、表示は canonical の bytes を共有する（macOS では canonical を小文字にするので起きない）。
+- `into_js_string()` と `into_parts()` は `JsString` へ写す（呼ぶのは test だけ）。15 B 以下の path も `Arc` を確保する。
+
+**関門**：命令数で重い card（VS Code ≈ −0.42 G、0.3 G 超）なので lean な関門を通した。gate row は PR の前に main に入れた（`2d7822024`）。
+- 判定：A GO WITH CONDITIONS、B EQUIVALENT WITH CONDITIONS、C STANDS WITH FIXES、決定は GO WITH CONDITIONS。
+- 帯（C の最も低く守れる値）：VS Code 1 thread −0.40〜−0.45 G、footprint −6〜−9 MiB；他 7 project は next −0.15%、playwright −0.19%、
+  hono −0.13%、effect −0.07%、zod・vue・ts は 0；check は 0〜+0.1 G の追加。
+- 件数（診断用 build、phase の mark ごとの命令数と allocation の呼び出し数、3 回ずつ、数は決定的）：allocation の呼び出し **−1,682,447
+  （−2.3%）**（parse task −1,273,341、graph の finish −127,652、依存の symlink −30,559、load program −248,695、check −2,143）。load は
+  ≈ −0.47 G で 1 回 ≈ 280 命令（確保・≈ 100 byte の複写・解放）。check の +0.04〜0.06 G は allocation の変化を伴わない（code の配置）。
+- memory の上限は 32.3 MiB だったが、footprint は −8.5 MiB。heap の page は peak で −50.0 MiB（80〜128 B の page 343/481/828/505 →
+  98/205/802/267）なのに、同じ時点の footprint は −13.2：
+  - purge を各段の境で強いると −37.1 になる。≈ 24 MiB は mimalloc の purge の遅れ（解放した arena の memory は 10 ms の遅延の後、
+    遅延して purge されるまで footprint に残る。推定で、追跡はしていない）；
+  - ≈ 13 MiB は歩いた page の外にあり、場所を特定していない。
+
+**計測**：夜（22:03〜22:20）、lane は止めた。`nice -n 20`、交互に実行。基準は `main-d640a5852`。
+
+| | 基準 | この PR |
+|---|---:|---:|
+| VS Code 1 thread の命令数（low mode の median） | 129.535 G | **129.119 G（−417 M）** |
+| VS Code 1 thread の footprint（9 回の median） | 2,898.6 MiB | **2,886.0 MiB（−12.6）** |
+| VS Code 4/4（10 組の対） | — | footprint **−37.5 MiB**（95% −49.1〜−21.3、10 組とも負）、−493 M、wall の対の median −0.07 s（−2.62%） |
+| VS Code 既定（10 組） | — | footprint **−47.7 MiB**（95% −57.2〜−35.9、10 組とも負）、−463 M、wall −0.04 s（−1.24%） |
+
+- 同じ mode の組は −396〜−465 M。thread が多いほど heap の節約が footprint に出る（peak での purge の遅れの比重が小さい）。
+- 他 7 project の 1 thread（5 組）：命令数は next −0.21%、zod −0.23%、playwright −0.25%、effect −0.09%、vue −0.09%、hono −0.19%、
+  ts +0.03%。footprint は −6〜0 MiB。
+- 4/4 と既定の footprint：next −3.9 / −9.5、zod −5.8 / −3.9、playwright −4.7 / −6.2、effect −0.7 / −1.6、vue −2.4 / −2.6、
+  ts +0.5 / +0.3、hono +0.5 / −0.4 MiB。規則（中央値 +2 MiB 超かつ 6 組中 5 組以上が正）に当たるものはない。
+- 出力：M1 の全実行の stdout の sha256 が 18 の構成と project で基準と同じ。4/4 で vscode/stable と zod は byte 単位で一致。
+- thread の下の loader（VS Code、phase trace、6 組、card − 基準）：(4,1) と既定で read-ahead（並列）−18.4 / −10.3 ms、parse task −15.1 / −14.2、
+  graph の finish −20.2 / −19.8、load program −50.2 / −42.9 ms。共有の数えで競合の費用は見えない。check は対ごとに ±100 ms の揺れ。
+
+**記録。** PR [#910](https://github.com/kazhiramatsu/tsc-rs/pull/910) → merge `c50adfcdf`（2026-11-06。`b1f9af8d1` の上、最終 head `4a79b2302`）。hosted run
+[42224481118](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42224481118)：全 job pass。local（hosted がしないことだけ、`4a79b2302`）：
+- crate の test：diagnostics 87（`SharedJsString` と `JsString` の bytes・hash の入力・`Debug`・順序、surrogate の sample、複製の共有）、
+  program 705（表示と canonical の共有、`into_parts`・`into_js_string`、hash と順序）、compiler 247、api 333、ls 256、project 235。
+- fmt、clippy（`-D warnings`）、release build。16 B の const assert。
+- 9 case（8 project と縮めた project）で出力（exit code・stdout・stderr）が基準と一致。Identifiers・Symbols・Types・
+  Instantiations も 9 case とも一致。M1 の全実行の stdout の sha256 も一致。
+- fingerprint oracle：143,190 行のうち差は 0。
+- conformance（4 checker）：12,829 case。
+  - #906 の 4 checker の report に対して、15,339 の構成すべてが同じ。
+  - 1 checker の report に対しては、記録済みの 4 構成だけが違う。
+- 記録：`gate-paths/`（dossier、判定 A・B・C、battery・窓・phase trace の log）と `gate-mem/`（上限、account、heap walk と footprint）。
+- 計測は上の通り。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
