@@ -61,6 +61,7 @@ fn memory_sample() -> tsc_types::trace::MemorySample {
             usage.as_mut_ptr().cast(),
         )
     };
+    eprintln!("[diag] {}", tsc_checker::diag_counters::report());
     if rc == 0 {
         // SAFETY: written above.
         let usage = unsafe { usage.assume_init() };

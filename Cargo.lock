@@ -834,6 +834,7 @@ dependencies = [
  "mimalloc",
  "serde_json",
  "tsc-rs-api",
+ "tsc-rs-checker",
  "tsc-rs-compiler",
  "tsc-rs-lsp",
  "tsc-rs-program",

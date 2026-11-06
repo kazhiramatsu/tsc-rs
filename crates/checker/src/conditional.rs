@@ -711,6 +711,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
+        crate::diag_counters::bump(&crate::diag_counters::COND_TRUE_CALLS);
         if let Some(cached) = self
             .links
             .type_cold()
@@ -718,6 +719,7 @@ impl<'a> CheckerState<'a> {
             .get(ty)
             .resolved()
         {
+            crate::diag_counters::bump(&crate::diag_counters::COND_TRUE_HITS);
             return Ok(cached);
         }
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
@@ -744,6 +746,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
+        crate::diag_counters::bump(&crate::diag_counters::COND_FALSE_CALLS);
         if let Some(cached) = self
             .links
             .type_cold()
@@ -751,6 +754,7 @@ impl<'a> CheckerState<'a> {
             .get(ty)
             .resolved()
         {
+            crate::diag_counters::bump(&crate::diag_counters::COND_FALSE_HITS);
             return Ok(cached);
         }
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {

@@ -467,6 +467,7 @@ impl<'a> CheckerState<'a> {
     /// Deferred (node-carrying) references normalize to their eager
     /// twin (createNormalizedTypeReference over the forced arguments).
     pub fn get_normalized_type(&mut self, mut ty: TypeId, writing: bool) -> CheckResult<TypeId> {
+        crate::diag_counters::bump(&crate::diag_counters::NORMALIZED_CALLS);
         loop {
             let flags = self.tables.flags_of(ty);
             let t = if self.tables.is_fresh_literal_type(ty) {
@@ -1364,6 +1365,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             mut target_stack,
             ..
         } = self;
+        crate::diag_counters::bump(&crate::diag_counters::SCRATCH_RETURNS);
+        crate::diag_counters::SCRATCH_SET_CAPACITY_CLEARED.fetch_add(maybe_keys_set.capacity() as u64, std::sync::atomic::Ordering::Relaxed);
+        crate::diag_counters::SCRATCH_SET_MAX_CAPACITY.fetch_max(maybe_keys_set.capacity() as u64, std::sync::atomic::Ordering::Relaxed);
         maybe_keys.clear();
         maybe_keys_set.clear();
         source_stack.clear();
@@ -1528,6 +1532,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// A copy of a union's or intersection's members for a loop that
     /// relates them (inline up to eight: no allocation).
     pub(crate) fn union_members(&self, ty: TypeId) -> TypeListCopy {
+        crate::diag_counters::bump(&crate::diag_counters::UNION_MEMBERS_CALLS);
         TypeListCopy::new(self.st.tables.members_of(ty))
     }
 

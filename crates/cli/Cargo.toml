@@ -18,6 +18,7 @@ libc.workspace = true
 libmimalloc-sys = { version = "0.1", features = ["extended"] }
 mimalloc = "0.1"
 tsc-api.workspace = true
+tsc-checker.workspace = true
 tsc-compiler.workspace = true
 tsc-lsp.workspace = true
 tsc-program.workspace = true

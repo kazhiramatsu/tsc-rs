@@ -92,6 +92,7 @@ pub mod class;
 pub mod conditional;
 pub mod constraints;
 pub mod contextual;
+pub mod diag_counters;
 mod declaration_emit;
 mod diagnostic_sink;
 mod display_clone;
