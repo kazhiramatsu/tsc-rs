@@ -3181,6 +3181,7 @@ fn parse_program_inputs(
         PendingProgramSource::into_program_source,
     );
     tsc_types::trace::mark("checker: adopt (parallel rewrite)", rewrite_started);
+    tsc_types::trace::observe("after_adopt");
 
     let host_current_directory = resolve_host_current_directory(current_directory);
     // A referenced project's source is loaded as its output (tsgo
