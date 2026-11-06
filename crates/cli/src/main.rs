@@ -51,6 +51,18 @@ fn memory_sample() -> tsc_types::trace::MemorySample {
             &mut faults,
         );
     }
+    #[cfg(target_os = "macos")]
+    {
+        unsafe extern "C" {
+            fn proc_pid_rusage(pid: i32, flavor: i32, buffer: *mut std::ffi::c_void) -> i32;
+        }
+        let mut usage = [0u64; 64];
+        // SAFETY: fills the caller's buffer with rusage_info_v4 (37 words); word 31 is ri_instructions.
+        if unsafe { proc_pid_rusage(std::process::id() as i32, 4, usage.as_mut_ptr().cast()) } == 0
+        {
+            sample.instructions = usage[31];
+        }
+    }
     sample
 }
 
