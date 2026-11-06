@@ -1,6 +1,8 @@
 /// The CLI binary uses mimalloc: the compiler allocates and frees many small
 /// arena/table records, and the system allocator's free path dominated the
-/// sampled self time. Library consumers keep their own global allocator.
+/// sampled self time. Library consumers keep their own global allocator; only
+/// source texts go to mimalloc's text heap in any process
+/// (`tsc_store::SharedText`).
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 

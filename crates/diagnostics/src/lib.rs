@@ -12,7 +12,12 @@ pub mod text;
 use std::cmp::Ordering;
 
 pub use js_string::{CodeUnits, JsStr, JsString, JsStringByteLength};
+#[cfg(not(target_family = "wasm"))]
 pub use tsc_store::SharedText;
+#[cfg(target_family = "wasm")]
+mod shared_text_wasm;
+#[cfg(target_family = "wasm")]
+pub use shared_text_wasm::SharedText;
 
 pub use line_map::{
     compute_line_map, compute_line_starts, get_line_and_character_of_position, LineMap,

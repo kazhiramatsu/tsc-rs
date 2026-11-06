@@ -1,40 +1,50 @@
 use super::*;
 
 #[test]
-fn a_heap_text_reads_back_as_written() {
+fn a_text_lands_in_the_text_heap_and_reads_back_as_written() {
     for text in ["", "a", "const value = '😀';\n", &"x".repeat(70_000)] {
-        let shared = SharedText::in_text_heap(text);
+        let shared = SharedText::new(text);
         assert_eq!(shared.as_str(), text);
         assert_eq!(&*shared, text);
-        assert_eq!(shared.len(), text.len());
         assert_eq!(format!("{shared:?}"), format!("{text:?}"));
+        assert!(shared.in_text_heap(), "{} bytes", text.len());
     }
+    // Every producer copies in: an `Arc<str>` and a `String` alike.
+    assert!(SharedText::from(Arc::<str>::from("from an Arc")).in_text_heap());
+    assert!(SharedText::from(String::from("from a String")).in_text_heap());
 }
 
 #[test]
-fn clones_share_the_text_and_equality_is_by_content() {
-    let heap = SharedText::in_text_heap("shared text");
-    let clone = heap.clone();
-    assert!(heap.ptr_eq(&clone));
-    assert_eq!(heap, clone);
-    // A text in the heap equals the same text shared as `Arc<str>`, though
-    // the two are different allocations.
-    let shared = SharedText::from(Arc::<str>::from("shared text"));
-    assert!(!heap.ptr_eq(&shared));
-    assert_eq!(heap, shared);
-    assert_ne!(heap, SharedText::in_text_heap("other text"));
-    // A wrapped `Arc<str>` keeps its allocation.
-    let arc: Arc<str> = Arc::from("kept");
-    let wrapped = SharedText::from(Arc::clone(&arc));
-    assert!(std::ptr::eq(wrapped.as_str(), &*arc));
+fn empty_texts_start_at_addresses_of_their_own() {
+    // The printer's token-start memo and the source map's fast path key on a
+    // text's address: no two live texts may start at the same one.
+    let texts: Vec<SharedText> = (0..8).map(|_| SharedText::new("")).collect();
+    let mut starts: Vec<usize> = texts.iter().map(|text| text.as_ptr() as usize).collect();
+    starts.sort_unstable();
+    starts.dedup();
+    assert_eq!(starts.len(), texts.len());
+    assert!(texts.iter().all(|text| text.is_empty()));
 }
 
 #[test]
-fn a_heap_text_is_freed_on_another_thread() {
-    // Texts are allocated by loader threads and dropped wherever the last
-    // holder goes; the text heap is a first-class heap.
+fn clones_share_the_block_and_equality_is_by_content() {
+    let text = SharedText::new("shared text");
+    let clone = text.clone();
+    assert!(text.ptr_eq(&clone));
+    assert_eq!(text.as_ptr(), clone.as_ptr());
+    assert_eq!(text, clone);
+    let copy = SharedText::from(Arc::<str>::from("shared text"));
+    assert!(!text.ptr_eq(&copy));
+    assert_eq!(text, copy);
+    assert_ne!(text, SharedText::new("other text"));
+}
+
+#[test]
+fn texts_are_allocated_and_freed_across_threads() {
+    // The loader's workers allocate texts; the last holder drops them on
+    // whatever thread it runs.
     let texts: Vec<SharedText> = (0..64)
-        .map(|index| SharedText::in_text_heap(&format!("text {index} {}", "y".repeat(index * 97))))
+        .map(|index| SharedText::new(&format!("text {index} {}", "y".repeat(index * 97))))
         .collect();
     let expected: Vec<String> = texts.iter().map(|text| text.as_str().to_owned()).collect();
     let reader = std::thread::spawn(move || {
@@ -43,20 +53,23 @@ fn a_heap_text_is_freed_on_another_thread() {
         read
     });
     assert_eq!(reader.join().expect("reader thread"), expected);
-    // And allocated on several threads at once.
     let workers: Vec<_> = (0..4)
         .map(|worker| {
             std::thread::spawn(move || {
                 (0..256)
-                    .map(|index| SharedText::in_text_heap(&format!("{worker}:{index}")))
-                    .map(|text| text.as_str().to_owned())
+                    .map(|index| SharedText::new(&format!("{worker}:{index}")))
                     .collect::<Vec<_>>()
             })
         })
         .collect();
-    for (worker, handle) in workers.into_iter().enumerate() {
-        let read = handle.join().expect("worker thread");
-        assert_eq!(read.len(), 256);
-        assert_eq!(read[255], format!("{worker}:255"));
+    let made: Vec<Vec<SharedText>> = workers
+        .into_iter()
+        .map(|handle| handle.join().expect("worker thread"))
+        .collect();
+    for (worker, texts) in made.iter().enumerate() {
+        assert_eq!(texts.len(), 256);
+        assert_eq!(texts[255].as_str(), format!("{worker}:255"));
+        assert!(texts.iter().all(SharedText::in_text_heap));
     }
+    drop(made);
 }

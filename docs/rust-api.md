@@ -53,6 +53,11 @@ The API has five parts:
   the MessagePack (`msgpack`) or JSON-RPC (`ipc::jsonrpc`) protocol, and
   `server::run_server` is [`tsc-rs --api`](../README.md#api-server-experimental).
 
+Memory: whatever global allocator your process uses, a program's source
+texts (`tsc_diagnostics::SharedText`) are allocated in a dedicated mimalloc
+heap, apart from everything else, so that the pages the loader frees after
+parsing return whole. That heap is never torn down while texts are alive.
+
 The compiler recurses on the native stack in proportion to the nesting
 depth of a source. The command runs its work, and every worker and checker
 thread, on a stack reservation of 1 GiB (`tsc_program::WORKER_STACK_BYTES`;
