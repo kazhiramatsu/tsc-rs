@@ -60,6 +60,10 @@ pub struct NodeArena {
     /// Whether subtrees of another tree were copied in (an incremental
     /// parse), uncounted for the symbol bound.
     copied_subtrees: bool,
+    /// tsgo SourceFile.NodeCount, before lazy TypeScript JSDoc parsing.
+    parse_node_count: Option<usize>,
+    /// Difference between tsgo factory allocations and physical records.
+    factory_node_adjustment: isize,
 }
 
 impl Clone for NodeArena {
@@ -86,6 +90,8 @@ impl Clone for NodeArena {
             identifier_count: self.identifier_count,
             symbol_bound: self.symbol_bound,
             copied_subtrees: self.copied_subtrees,
+            parse_node_count: self.parse_node_count,
+            factory_node_adjustment: self.factory_node_adjustment,
         }
     }
 }
@@ -607,6 +613,19 @@ impl NodeArena {
     /// replaces it.
     pub(crate) fn count_dropped_identifier(&mut self) {
         self.identifier_count += 1;
+        self.factory_node_adjustment += 1;
+    }
+
+    /// Factory allocations retained by tsgo's parser count but omitted from
+    /// this arena's tree representation.
+    pub(crate) fn count_dropped_nodes(&mut self, count: usize) {
+        self.factory_node_adjustment += count as isize;
+    }
+
+    /// Nodes this parser retains from a speculative parse that tsgo handles
+    /// with scanner lookahead alone. Keep physical identities unchanged.
+    pub(crate) fn count_non_tsgo_nodes(&mut self, count: usize) {
+        self.factory_node_adjustment -= count as isize;
     }
 
     /// The symbols the Program reserves for a bind of this tree before binding
@@ -791,6 +810,25 @@ impl NodeArena {
 
     pub fn contains_array(&self, id: NodeArrayId) -> bool {
         id.index() >= self.array_base && id.index() < self.array_end()
+    }
+
+    /// Parser allocation statistic used by checker association. Counts
+    /// discarded allocations and excludes lazy TypeScript JSDoc; physical
+    /// arena length remains the identity boundary. Hosted JavaScript JSDoc
+    /// reparse clones (Go parser/reparser.go) are not yet represented.
+    pub fn parse_node_count(&self) -> usize {
+        self.parse_node_count.unwrap_or(self.factory_node_count())
+    }
+
+    pub(crate) fn factory_node_count(&self) -> usize {
+        self.nodes
+            .len()
+            .checked_add_signed(self.factory_node_adjustment)
+            .expect("factory node count")
+    }
+
+    pub(crate) fn set_parse_node_count(&mut self, count: usize) {
+        self.parse_node_count = Some(count);
     }
 
     /// All NodeIds of this arena, in allocation order.

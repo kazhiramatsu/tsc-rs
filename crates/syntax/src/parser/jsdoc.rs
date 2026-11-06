@@ -543,7 +543,12 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             Self::truncate_piece(last, trimmed);
         }
         let trimmed_comments = comments.join("");
-        if self.parser.node_stack.len() != parts_mark && !trimmed_comments.is_empty() {
+        let has_text_node =
+            self.parser.node_stack.len() != parts_mark && !trimmed_comments.is_empty();
+        if !comments.is_empty() && !has_text_node {
+            self.parser.arena.count_dropped_nodes(1);
+        }
+        if has_text_node {
             let text = self.parser.arena.push_text(trimmed_comments.as_bytes());
             let part = self.finish(
                 NodeData::JSDocText(JSDocTextData { text }),
@@ -712,7 +717,14 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         Self::remove_leading_newlines(&mut comments);
         let joined_comments = comments.join("");
         let trimmed = Self::trim_end(&joined_comments).to_owned();
-        if self.parser.node_stack.len() != parts_mark && !trimmed.is_empty() {
+        let has_text_node = self.parser.node_stack.len() != parts_mark && !trimmed.is_empty();
+        let go_has_text_node = comments
+            .iter()
+            .any(|piece| !Self::trim_end(piece).is_empty());
+        if go_has_text_node && !has_text_node {
+            self.parser.arena.count_dropped_nodes(1);
+        }
+        if has_text_node {
             let text = self.parser.arena.push_text(trimmed.as_bytes());
             let part = self.finish(
                 NodeData::JSDocText(JSDocTextData { text }),
@@ -1047,7 +1059,8 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         if is_bracketed {
             self.skip_whitespace();
             if self.token() == SyntaxKind::EqualsToken {
-                // parseOptionalToken uses the ordinary scanner.
+                // tsgo parseOptionalToken allocates the discarded '=' token.
+                self.parser.arena.count_dropped_nodes(1);
                 self.parser.next_token();
                 self.parser.parse_expression();
             }

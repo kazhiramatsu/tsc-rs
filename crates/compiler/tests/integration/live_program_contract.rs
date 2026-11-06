@@ -515,15 +515,12 @@ fn printed_types(prepared: PreparedProgram, unit: &str) -> Vec<String> {
         .collect()
 }
 
-/// A file's semantic rows are those the checker holds when the file is
-/// asked (tsgo `Checker.GetDiagnostics`), so checking a later file can add
-/// rows to an earlier one. A global interface merged with a library
-/// declaration has its duplicate index signatures checked with the first
-/// declaration (`checkTypeForDuplicateIndexSignatures`): the script's row
-/// appears once the library is checked. The batch run collects after every
-/// file is checked (duplicateNumericIndexers.errors.txt).
+/// tsgo checks merged-interface index signatures once per checker, including
+/// when the first queried source is a later declaration. The source and
+/// library getters each return their own row, and a repeated source query
+/// retains that result (checker.go checkClassOrInterfaceForDuplicateIndexSignatures).
 #[test]
-fn a_file_asked_again_reports_the_rows_a_later_check_added() {
+fn merged_index_signatures_are_checked_on_the_first_source_query() {
     let prepared = prepared(
         &[(
             "/work/a.ts",
@@ -545,7 +542,7 @@ fn a_file_asked_again_reports_the_rows_a_later_check_added() {
         .file_index("/typescript/lib/lib.es5.d.ts")
         .expect("the library");
     let first = live.semantic_diagnostics(script).expect("check the script");
-    assert_eq!(codes(&first), [0_u32; 0]);
+    assert_eq!(codes(&first), [2374]);
     let library_rows = live
         .semantic_diagnostics(library)
         .expect("check the library");
@@ -557,9 +554,9 @@ fn a_file_asked_again_reports_the_rows_a_later_check_added() {
 #[test]
 fn a_query_runs_on_its_own_checker() {
     // tsgo's API asks types and symbols of the pool's persistent API checker
-    // and diagnostics of its diagnostics checker: a query that checks the
-    // library does not give the script the row a check of the library adds
-    // (see the test above).
+    // and diagnostics of its diagnostics checker. Check the API state stays
+    // untouched by a semantic getter even when both checkers report the same
+    // merged-interface index diagnostic (project/checkerpool.go:34,123).
     let mut live = LiveProgram::new(prepared(
         &[(
             "/work/a.ts",
@@ -576,7 +573,21 @@ fn a_query_runs_on_its_own_checker() {
     live.with_checker(|state| state.check_source_file(library))
         .expect("the API checker");
     let first = live.semantic_diagnostics(script).expect("check the script");
-    assert_eq!(codes(&first), [0_u32; 0]);
+    assert_eq!(codes(&first), [2374]);
+    let api_checked_script = live
+        .with_checker(|state| {
+            let root = state.binder.source(script).root;
+            state
+                .links
+                .node(root)
+                .check_flags
+                .intersects(tsc_types::NodeCheckFlags::TYPE_CHECKED)
+        })
+        .expect("the API checker persists");
+    assert!(
+        !api_checked_script,
+        "diagnostics must use their own checker"
+    );
     let library_rows = live
         .semantic_diagnostics(library)
         .expect("check the library");

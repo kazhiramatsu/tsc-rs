@@ -306,27 +306,28 @@ fn cli_worker_budget(system: &dyn System) -> WorkerBudget {
 }
 
 /// tsrs-native diagnostic control of the CLI's checker budget (see
-/// [`CheckerBudget`]): `TSRS_CHECKERS=<positive integer>` pins that many
+/// [`CheckerBudget`]): `TSRS_CHECKERS=<integer>` requests that many
 /// checker states for the whole-Program check and emit (clamped to the module
-/// cap and to the file count); `1` is the serial reference checker. Any other
-/// value or an unset variable selects [`CheckerBudget::automatic`]. Not a
-/// command-line option. One checker is the exact serial mode; a wider budget
-/// keeps the sharded result unless `TSRS_ORDER_REPLAY=1` requests the serial
-/// replay of an order-consuming run (see `CheckerBudget::with_order_replay`).
+/// cap and to the file count, with a minimum of one); `1` is the serial
+/// reference checker. An invalid value or an unset variable selects [`CheckerBudget::automatic`].
+/// `--singleThreaded` takes precedence, then `--checkers`, then this variable.
+/// One checker is the exact serial mode; a wider budget
+/// uses tsgo's deterministic file association. The default is four checkers.
 const CHECKERS_ENV: &str = "TSRS_CHECKERS";
 
 fn cli_checker_budget(system: &dyn System) -> CheckerBudget {
     match system
         .env_var(CHECKERS_ENV)
-        .and_then(|value| value.trim().parse::<std::num::NonZeroUsize>().ok())
+        .and_then(|value| value.trim().parse::<isize>().ok())
     {
-        Some(checkers) => CheckerBudget::new(checkers),
+        Some(checkers) => CheckerBudget::new(
+            std::num::NonZeroUsize::new(checkers.max(1) as usize).expect("clamped checker count"),
+        ),
         None => CheckerBudget::automatic(),
     }
     // The CLI process exits right after publishing: dropping the checker
     // states would only delay that.
     .with_leaked_states(true)
-    .with_order_replay(tsc_checker::order_replay_requested())
 }
 
 /// The command's own parallelism options (tsgo `singleThreaded` and
@@ -343,8 +344,8 @@ impl CommandBudgets {
         Self {
             single_threaded: single_threaded == Some(true),
             checkers: checkers
-                .filter(|count| count.is_finite() && *count >= 1.0)
-                .and_then(|count| std::num::NonZeroUsize::new(count as usize)),
+                .filter(|count| count.is_finite())
+                .and_then(|count| std::num::NonZeroUsize::new((count as usize).max(1))),
         }
     }
 
@@ -361,13 +362,9 @@ impl CommandBudgets {
     /// `--checkers`, else the process's budget.
     fn checker_budget(self, system: &dyn System) -> CheckerBudget {
         if self.single_threaded {
-            CheckerBudget::serial()
-                .with_leaked_states(true)
-                .with_order_replay(tsc_checker::order_replay_requested())
+            CheckerBudget::serial().with_leaked_states(true)
         } else if let Some(checkers) = self.checkers {
-            CheckerBudget::new(checkers)
-                .with_leaked_states(true)
-                .with_order_replay(tsc_checker::order_replay_requested())
+            CheckerBudget::new(checkers).with_leaked_states(true)
         } else {
             cli_checker_budget(system)
         }

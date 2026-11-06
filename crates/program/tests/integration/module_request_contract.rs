@@ -592,6 +592,9 @@ fn import_helpers_prepends_the_exact_synthetic_tslib_request() {
     };
 
     let plan = plan_source_requests(&source, &options).expect("plan synthetic tslib request");
+    // checkerpool weighs file.Imports(), excluding the synthesized tslib
+    // request which fileloader prepends only to moduleNames.
+    assert_eq!(plan.import_count(), 2);
     assert_eq!(
         plan.module_requests()
             .iter()
@@ -613,6 +616,22 @@ fn import_helpers_prepends_the_exact_synthetic_tslib_request() {
         .as_js()
         .scalar_test_path()
         == Path::new("/main.ts")));
+}
+
+#[test]
+fn checker_import_count_preserves_repeated_and_source_phase_imports() {
+    for (text, expected) in [
+        ("import './a'; import './a'; export * from './a';", 3),
+        (
+            "import source wasm from './a.wasm'; import.source('./b.wasm');",
+            2,
+        ),
+        ("export {}; declare module './a' {}", 0),
+    ] {
+        let input = source_at("/main.mts", text, Some(ResolutionMode::EsNext));
+        let plan = plan_source_requests(&input, &node_options()).unwrap();
+        assert_eq!(plan.import_count(), expected, "{text}");
+    }
 }
 
 #[test]
@@ -1746,4 +1765,16 @@ fn a_typescript_require_call_and_jsdoc_import_request_nothing_and_the_static_sli
         plan.module_requests()
     );
     assert!(plan_static_module_requests(&typescript, &node_options()).is_err());
+}
+
+#[test]
+fn checker_import_count_matches_tsgos_text_scan_inside_argument_trivia() {
+    let input = source_at(
+        "/main.mts",
+        "const p = import(/* require */ './a');",
+        Some(ResolutionMode::EsNext),
+    );
+    let plan = plan_source_requests(&input, &node_options()).unwrap();
+    assert_eq!(plan.import_count(), 2);
+    assert_eq!(plan.module_request_occurrences().len(), 1);
 }

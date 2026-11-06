@@ -1686,13 +1686,18 @@ impl<'a> CheckerState<'a> {
         }
         self.compute_enum_member_values(node)?;
         let enum_symbol = self.get_symbol_of_declaration(node)?;
-        let first_declaration = self.get_declaration_of_kind(enum_symbol, self.kind_of(node));
-        if first_declaration != Some(node) {
+        // tsgo declaredTypeLinks.enumChecked: every checker that owns an
+        // enum declaration must perform the merged-symbol checks once.
+        if *self.links.symbol_cold().enum_checked.get(enum_symbol) {
             return Ok(());
         }
+        self.links.set_symbol_enum_checked(enum_symbol);
         let declarations = self.binder.symbol(enum_symbol).declaration_list();
         if declarations.len() > 1 {
-            let enum_is_const = self.is_enum_const(node);
+            let first_declaration = self
+                .get_declaration_of_kind(enum_symbol, SyntaxKind::EnumDeclaration)
+                .expect("an enum symbol has an enum declaration");
+            let enum_is_const = self.is_enum_const(first_declaration);
             for &declaration in &declarations {
                 if self.kind_of(declaration) == SyntaxKind::EnumDeclaration
                     && self.is_enum_const(declaration) != enum_is_const

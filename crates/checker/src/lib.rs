@@ -173,7 +173,7 @@ use tsc_diagnostics::{
 };
 use tsc_program::WorkerBudget;
 
-pub use crate::shard::{order_replay_requested, CheckerBudget, MAX_CHECKERS};
+pub use crate::shard::{CheckerBudget, MAX_CHECKERS};
 
 /// Whether checkSourceFile runs the unused-identifier pass when neither
 /// `noUnusedLocals` nor `noUnusedParameters` turns its rows into errors.
@@ -562,6 +562,19 @@ pub enum AuthoritativeModuleLookupFailure {
 /// entry. Legacy checker entries install no provider and retain their
 /// existing in-memory heuristic resolver.
 pub trait AuthoritativeModuleProvider: Sync {
+    /// tsgo checkerpool: Imports() length and one target per resolved-module
+    /// cache entry. Duplicate targets from distinct specifier/mode keys remain.
+    /// Providers without a Program expose a disconnected graph.
+    fn checker_association_imports(
+        &self,
+    ) -> Vec<(
+        AuthoritativeSourceToken,
+        usize,
+        Vec<AuthoritativeSourceToken>,
+    )> {
+        Vec::new()
+    }
+
     fn resolve_module(
         &self,
         request: AuthoritativeModuleRequest<'_>,
@@ -3467,10 +3480,9 @@ fn syntactic_rows_of_sources<'s>(
 
 /// The diagnostic ledger of one checker state at one moment, plus the
 /// file-attributed rows and partially-checked ranges recorded up to then.
-/// Rows are cloned, not indexed by length: later passes may still edit
-/// earlier rows (category/related-information updates), so the serial
-/// driver's projection boundary needs the rows as they were.
-#[derive(Default)]
+/// Rows are cloned when the owner finishes a file, before later checks can
+/// add or update diagnostics in that file.
+#[derive(Clone, Default)]
 struct LedgerSnapshot {
     rows: Vec<Diagnostic>,
     globals_by_file: Vec<Vec<Diagnostic>>,
@@ -3478,11 +3490,23 @@ struct LedgerSnapshot {
 }
 
 impl LedgerSnapshot {
-    fn take(state: &state::CheckerState<'_>, globals_by_file: &[Vec<Diagnostic>]) -> Self {
-        Self {
-            rows: state.diagnostics.iter().cloned().collect(),
-            globals_by_file: globals_by_file.to_vec(),
-            partially_checked_ranges: state.partially_checked_ranges.clone(),
+    fn capture_file(
+        &mut self,
+        state: &state::CheckerState<'_>,
+        file: usize,
+        globals_by_file: &[Vec<Diagnostic>],
+    ) {
+        let name = &state.binder.source(file).file_name;
+        self.rows.extend(
+            state
+                .diagnostics
+                .iter()
+                .filter(|row| row.file_name.as_ref() == Some(name))
+                .cloned(),
+        );
+        self.globals_by_file[file] = globals_by_file[file].clone();
+        if let Some(ranges) = state.partially_checked_ranges.get(&file) {
+            self.partially_checked_ranges.insert(file, ranges.clone());
         }
     }
 }
@@ -3491,8 +3515,7 @@ impl LedgerSnapshot {
 /// Owned values only: diagnostics, attribution vectors and audit records.
 /// No `TypeId`, `SymbolId`, signature or mapper identity leaves the shard.
 struct ShardOutput {
-    /// The ledger after the shard's fixture pass (the serial driver's
-    /// per-file projection boundary), before any library-completion check.
+    /// Owner-local per-file snapshots after the requested check pass.
     fixture: LedgerSnapshot,
     /// The ledger after every pass.
     complete: LedgerSnapshot,
@@ -3819,14 +3842,30 @@ fn run_checker_shard<'a>(
     let shard_started = std::time::Instant::now();
     let init_globals = state.visible_global_diagnostics.clone();
     let mut globals_by_file = vec![Vec::new(); state.binder.file_count()];
-    // Fixtures first, then (for a complete library prefix) the library
-    // files, each pulled from the shared Program-order queue as this shard
-    // becomes free; both passes run in increasing Program order within the
-    // shard, as the serial completion pass checks them.
+    let mut captured = LedgerSnapshot {
+        globals_by_file: globals_by_file.clone(),
+        ..LedgerSnapshot::default()
+    };
+    // tsgo forEachCheckerGroupDo: files are checked in original Program
+    // order, including the default-library prefix for whole-Program runs.
     let mut files = Vec::new();
-    // `TSRS_FILE_TRACE=1` prints one line per checked file with the static
-    // sizes a partition cost model can use and the measured check time.
-    let file_trace = std::env::var_os("TSRS_FILE_TRACE").is_some();
+    if complete_library_prefix {
+        while let Some(file) = queue.next_library(shard_index) {
+            debug_assert!(std::ptr::eq(
+                state.binder.source(file),
+                snapshot.document(file).source()
+            ));
+            if selected.is_none_or(|selected| selected[file]) {
+                check_program_file(&mut state, program_file_id(file), &mut globals_by_file);
+                captured.capture_file(&state, file, &globals_by_file);
+            }
+            files.push(file);
+            if state.order_guard.reasons() != 0 && replay_on_order {
+                queue.abort();
+                break;
+            }
+        }
+    }
     while let Some(file) = queue.next_fixture(shard_index) {
         // Shared-AST invariant: the shard's binder borrows the snapshot's
         // documents (pointer-identical sources); it never copies a tree.
@@ -3834,20 +3873,9 @@ fn run_checker_shard<'a>(
             state.binder.source(file),
             snapshot.document(file).source()
         ));
-        let file_started = file_trace.then(std::time::Instant::now);
         if selected.is_none_or(|selected| selected[file]) {
             check_program_file(&mut state, program_file_id(file), &mut globals_by_file);
-        }
-        if let Some(started) = file_started {
-            let document = snapshot.document(file);
-            eprintln!(
-                "[file] shard={shard_index} file={file} nodes={} symbols={} flow={} ms={:.3} {}",
-                document.source().arena.len(),
-                document.data.symbols.len(),
-                document.data.flow.len(),
-                started.elapsed().as_secs_f64() * 1e3,
-                document.source().file_name.as_js().to_string_lossy()
-            );
+            captured.capture_file(&state, file, &globals_by_file);
         }
         files.push(file);
         if state.order_guard.reasons() != 0 && replay_on_order {
@@ -3859,23 +3887,7 @@ fn run_checker_shard<'a>(
             break;
         }
     }
-    let fixture = LedgerSnapshot::take(&state, &globals_by_file);
-    if complete_library_prefix {
-        while let Some(file) = queue.next_library(shard_index) {
-            debug_assert!(std::ptr::eq(
-                state.binder.source(file),
-                snapshot.document(file).source()
-            ));
-            if selected.is_none_or(|selected| selected[file]) {
-                check_program_file(&mut state, program_file_id(file), &mut globals_by_file);
-            }
-            files.push(file);
-            if state.order_guard.reasons() != 0 && replay_on_order {
-                queue.abort();
-                break;
-            }
-        }
-    }
+    let fixture = captured.clone();
     files.sort_unstable();
     // This shard has checked its files: the eager work of every shard reads
     // the count of shards still checking.
@@ -3892,7 +3904,7 @@ fn run_checker_shard<'a>(
         })
         .collect();
     let failure = state.take_authoritative_module_failure();
-    let complete = LedgerSnapshot::take(&state, &globals_by_file);
+    let complete = captured;
     // The module facts of the files this shard checked; the merge adds the
     // cached rows from every shard's ledger.
     let incremental = if incremental_facts {
@@ -3955,14 +3967,10 @@ fn run_checker_shard<'a>(
     (output, None)
 }
 
-/// Merge the shards' ledgers in Program order into the same observations the
-/// serial driver publishes: the per-file fixture projection (rows of every
-/// shard at its fixture boundary), the whole-Program list (rows of every
-/// shard after completion), init globals, partial-check records and the
-/// checker work counters. Rows for a file published by ANY shard — including
-/// library completion rows on merged declarations and partially-checked
-/// ranges recorded for another shard's file — are merged BEFORE directive
-/// filtering and unused-directive synthesis.
+/// Merge each file's rows from its associated checker, captured when that
+/// checker finished the file (tsgo checker.GetDiagnostics). Deferred rows
+/// published by another checker do not enter the file's result. Final sorting
+/// and deduplication follows Program order, independent of thread completion.
 #[allow(clippy::too_many_arguments)]
 fn merge_shard_outputs(
     snapshot: &ProgramSnapshot,
@@ -4009,10 +4017,8 @@ fn merge_shard_outputs(
         Vec::new()
     };
 
-    // Rows by owning file, in (shard, publication) order. A row an earlier
-    // shard already published (each shard's checker merges the same
-    // globals) is kept once, as one checker publishes it once; tsgo's
-    // compactAndMergeRelatedInfos would otherwise merge the copies.
+    // Owner-local rows grouped by file for the Program-order projection
+    // below. Preserve each checker's publication order within a file.
     fn rows_by_file<'o>(
         ledgers: impl Iterator<Item = &'o LedgerSnapshot>,
     ) -> rustc_hash::FxHashMap<&'o JsString, Vec<&'o Diagnostic>> {
@@ -4399,172 +4405,64 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         _ => None,
     };
 
-    // Every Program file (library prefix included) goes through the shard
-    // file queue. Shared Program-order pulling (tsgo's checker pool) lets a
-    // shard on a slower core take fewer files instead of finishing last; but
-    // the phases after the check — the declaration diagnostics gate and the
-    // emit — run each file on the checker that checked it, so an uneven
-    // split lengthens them, and with declaration emit they outweigh the
-    // check. With fewer than four fixtures per shard there is little to
-    // balance, and the node-count partition spreads the library pass from
-    // the start instead of after the last fixture.
-    // Declaration output prints types in shard-local type-id order, so a run
-    // that writes `.d.ts` files keeps a static file-to-shard assignment that
-    // nothing rebalances later (see `declaration_output_requested`).
-    let static_declaration_partition =
-        sharded_emit.is_some() && declaration_output_requested(options);
-    let weights = snapshot
+    // tsgo checkerpool.go: associate all Program files, including skipped
+    // declarations, JSON and default libraries. Checking/emit options do not
+    // modify the weights or pool size.
+    let checker_count = checkers
+        .checkers()
+        .clamp(1, snapshot.documents().len().clamp(1, shard::MAX_CHECKERS));
+    let node_counts = snapshot
         .documents()
         .iter()
-        .enumerate()
-        .map(|(index, document)| {
-            let source = document.source();
-            // A JSON source is admitted for its module shape and checked in
-            // constant time; its node count would otherwise claim a share.
-            // The static declaration partition also weighs a file whose
-            // check is skipped (`skipLibCheck` on a declaration file, the
-            // default libraries under `skipDefaultLibCheck`) as constant:
-            // the shard neither checks nor emits it, and zod's node-count
-            // split gave one shard 165 such files and no checking while
-            // another checked for 842 ms. A stealing run keeps the
-            // node-count weights of round 9, whose measured assignment the
-            // skipped files' weights are part of.
-            let skipped = static_declaration_partition
-                && should_skip_type_checking_file(
-                    source,
-                    snapshot.file_facts(ProgramFileId::from_raw(
-                        u32::try_from(index).expect("program file index"),
-                    )),
-                    options,
-                );
-            if skipped
-                || selected.as_ref().is_some_and(|selected| !selected[index])
-                || source.file_name.as_js().ends_with(".json")
-            {
-                1
-            } else {
-                source.arena.len()
-            }
-        })
+        .map(|document| document.source().arena.len())
         .collect::<Vec<_>>();
-    // A large --noEmit check pulls from the shared queue in chunks: the
-    // split between shards then follows the measured check times (mixed
-    // cores, cost the node count does not predict) while a chunk keeps a
-    // directory's files together. Otherwise the deterministic partition
-    // (least load by node count with a directory preference): a run's
-    // shard-local type order then repeats run to run, as tsgo's does, and
-    // the emit phases run each file on the checker that checked it.
-    // `TSRS_SHARD_QUEUE` overrides the choice.
-    let checker_count = if static_declaration_partition {
-        checkers.checkers_for_static_partition()
-    } else {
-        checkers.checkers()
-    };
-    // A program dominated by one heavy file (the TypeScript compiler's
-    // checker.ts) gains nothing from shards beyond `total / heaviest`: the
-    // check ends with that file's check either way, and every extra shard
-    // repeats the lazy library-type work and contends with the critical
-    // shard. An explicit `TSRS_CHECKERS` count is kept as requested.
-    let checker_count = if checkers.is_automatic() {
-        let checked_weight = |index: usize, document: &Arc<BoundDocument>| {
-            let source = document.source();
-            if index < lib_count
-                || should_skip_type_checking_file(
-                    source,
-                    snapshot.file_facts(ProgramFileId::from_raw(
-                        u32::try_from(index).expect("program file index"),
-                    )),
-                    options,
-                )
-            {
-                0
-            } else {
-                source.arena.len()
-            }
-        };
-        let (total, heaviest) = snapshot
-            .documents()
-            .iter()
-            .enumerate()
-            .map(|(index, document)| checked_weight(index, document))
-            .fold((0usize, 0usize), |(total, heaviest), weight| {
-                (total + weight, heaviest.max(weight))
-            });
-        checker_count
-            .min(shard::dominant_file_shard_cap(total, heaviest))
-            .max(1)
-    } else {
-        checker_count
-    };
-    // Each file's directory, interned, for the directory-preferring
-    // partition (files of one directory share their imports).
-    let mut directory_ids: rustc_hash::FxHashMap<&[u8], u32> = Default::default();
-    let directories = snapshot
+    let base_weights = snapshot
         .documents()
         .iter()
         .map(|document| {
-            let name = document.source().file_name.as_js();
-            let bytes = name.as_bytes();
-            let end = bytes.iter().rposition(|&byte| byte == b'/').unwrap_or(0);
-            let next = directory_ids.len() as u32;
-            *directory_ids.entry(&bytes[..end]).or_insert(next)
+            let source = document.source();
+            shard::base_weight(source.arena.parse_node_count(), source.text().len())
         })
-        .collect::<Vec<u32>>();
-    let symbols = snapshot
+        .collect::<Vec<_>>();
+    let declarations = snapshot
         .documents()
         .iter()
-        .map(|document| document.data.symbols.len())
-        .collect::<Vec<usize>>();
-    let fixtures = weights.len().saturating_sub(lib_count);
-    let shared_chunk = match shard::queue_mode_requested() {
-        Some(shard::QueueMode::Shared(chunk)) => Some(chunk),
-        Some(shard::QueueMode::Partition) => None,
-        None => (sharded_emit.is_none() && fixtures >= shard::SHARED_QUEUE_MIN_FIXTURES)
-            .then_some(shard::DEFAULT_SHARED_CHUNK),
-    };
-    let queue = if let Some(chunk) = shared_chunk {
-        shard::ShardFileQueue::shared_chunked(lib_count, &weights, checker_count, chunk)
-    } else {
-        // A large program balances its shares by stealing; a small one
-        // keeps the static shares, so its run-to-run type order (the
-        // relaxed sharded mode's determinism) does not depend on timing.
-        // Declaration output prints types in type-id order, so a run
-        // that writes `.d.ts` files keeps the static shares at any size:
-        // its output then repeats run to run, as tsgo's does.
-        let steal = shard::stealing_enabled()
-            && fixtures >= shard::STEAL_MIN_FIXTURES
-            && !static_declaration_partition;
-        // The declaration files a stealing lane checks first.
-        let checked_declarations = if steal {
-            snapshot
-                .documents()
-                .iter()
-                .enumerate()
-                .map(|(index, document)| {
-                    let source = document.source();
-                    source.is_declaration_file
-                        && !should_skip_type_checking_file(
-                            source,
-                            snapshot.file_facts(ProgramFileId::from_raw(
-                                u32::try_from(index).expect("program file index"),
-                            )),
-                            options,
-                        )
-                })
-                .collect::<Vec<bool>>()
-        } else {
-            Vec::new()
+        .map(|document| document.source().is_declaration_file)
+        .collect::<Vec<_>>();
+    let mut imports = vec![0; node_counts.len()];
+    let mut adjacent = vec![Vec::new(); node_counts.len()];
+    let indices = metadata
+        .iter()
+        .take(node_counts.len())
+        .enumerate()
+        .map(|(index, source)| (source.token, index))
+        .collect::<rustc_hash::FxHashMap<_, _>>();
+    let provider = factory.provider();
+    for (token, count, targets) in provider.checker_association_imports() {
+        let Some(&file) = indices.get(&token) else {
+            continue;
         };
-        shard::ShardFileQueue::partitioned_with_directories(
-            lib_count,
-            &weights,
-            &symbols,
-            &directories,
-            checker_count,
-            steal,
-            &checked_declarations,
-        )
-    };
+        imports[file] = count;
+        for target in targets {
+            let Some(&other) = indices.get(&target) else {
+                continue;
+            };
+            if file != other {
+                adjacent[file].push(other);
+                adjacent[other].push(file);
+            }
+        }
+    }
+    drop(provider);
+    let associations = shard::associate_files(
+        &base_weights,
+        &imports,
+        &declarations,
+        &adjacent,
+        checker_count,
+    );
+    let queue =
+        shard::ShardFileQueue::associated(lib_count, &node_counts, &associations, checker_count);
     let shard_count = queue.shard_count();
 
     // An owned copy for the serial replay (W2c), taken before any shard slot

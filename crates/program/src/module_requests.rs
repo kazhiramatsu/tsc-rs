@@ -19,6 +19,175 @@ use crate::resolution::{
 
 const FEATURE: &str = "static-module-request-plan";
 
+/// tsgo ast.GetNodeAtPosition: stop at the deepest non-token child, and
+/// leave a phase meta-property with its containing import call.
+fn import_node_at_position(source: &SourceFile, position: u32) -> NodeId {
+    let javascript = source.is_source_file_js();
+    let contains = |id| {
+        let node = source.arena.node(id);
+        node.kind.value() > SyntaxKind::LastToken.value()
+            && node.pos <= position
+            && position < node.end
+    };
+    let mut current = source.root;
+    loop {
+        let node = source.arena.node(current);
+        let mut child = None;
+        if javascript {
+            if let Some(docs) = node.js_doc() {
+                child = source
+                    .arena
+                    .node_array(docs)
+                    .nodes
+                    .iter()
+                    .copied()
+                    .find(|&id| contains(id));
+            }
+        }
+        if child.is_none() {
+            for_each_child(&source.arena, node, |id| {
+                if contains(id) {
+                    child = Some(id);
+                    true
+                } else {
+                    false
+                }
+            });
+        }
+        let Some(child) = child else {
+            return current;
+        };
+        if source.arena.node(child).kind == SyntaxKind::MetaProperty {
+            return current;
+        }
+        current = child;
+    }
+}
+
+/// tsgo ast.ForEachDynamicImportOrRequireCall scans raw text, then asks for
+/// the containing syntax node. Occurrences of "import" or "require" inside
+/// a dynamic call's leading argument trivia can count that same call again.
+fn dynamic_import_count(source: &SourceFile) -> usize {
+    let javascript = source.is_source_file_js();
+    if !javascript
+        && !NodeFlags::from_bits(source.arena.node(source.root).flags)
+            .contains(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT)
+    {
+        return 0;
+    }
+    let text = source.text().as_bytes();
+    let mut cursor = 0;
+    let mut count = 0;
+    while let Some(offset) = memchr::memchr2(b'i', b'r', &text[cursor..]) {
+        cursor += offset;
+        let word: &[u8] = if text[cursor] == b'i' {
+            b"import"
+        } else {
+            b"require"
+        };
+        if !text[cursor..].starts_with(word) {
+            cursor += 1;
+            continue;
+        }
+        let id = import_node_at_position(source, cursor as u32);
+        let node = source.arena.node(id);
+        match node.data() {
+            NodeData::CallExpression(call) => {
+                let arguments = call
+                    .arguments
+                    .map(|arguments| source.arena.node_array(arguments).nodes)
+                    .unwrap_or_default();
+                let require = javascript && call.expression.is_some_and(|callee| {
+                    matches!(source.arena.node(callee).data(), NodeData::Identifier(identifier) if identifier.escaped_text == "require")
+                }) && arguments.len() == 1;
+                if (require || is_import_call(&source.arena, id))
+                    && arguments
+                        .first()
+                        .is_some_and(|&first| string_literal_like_text(source, first).is_some())
+                {
+                    count += 1;
+                }
+            }
+            NodeData::ImportType(import)
+                if import
+                    .argument
+                    .and_then(|argument| source.arena.node(argument).as_literal_type())
+                    .and_then(|argument| argument.literal)
+                    .is_some_and(|literal| {
+                        source.arena.node(literal).kind == SyntaxKind::StringLiteral
+                    }) =>
+            {
+                count += 1;
+            }
+            _ => {}
+        }
+        cursor += word.len();
+    }
+    count
+}
+
+/// Source-phase imports are present in parser Imports(), although the loader
+/// deliberately creates no resolution request for them (tsgo references.go).
+fn source_phase_static_import_count(source: &SourceFile) -> usize {
+    fn static_count(source: &SourceFile, statements: &[NodeId], ambient: bool) -> usize {
+        let mut count = 0;
+        for &id in statements {
+            let node = source.arena.node(id);
+            match node.data() {
+                NodeData::ImportDeclaration(import)
+                    if is_source_phase_import(&source.arena, id) =>
+                {
+                    if let Some(literal) = import
+                        .module_specifier
+                        .and_then(|id| source.arena.node(id).as_string_literal())
+                    {
+                        let name = source.arena.text_js(literal.text);
+                        count += usize::from(
+                            !name.is_empty()
+                                && (!ambient || !is_external_module_name_relative(name)),
+                        );
+                    }
+                }
+                NodeData::ModuleDeclaration(module) => {
+                    let Some(name) = module.name else {
+                        continue;
+                    };
+                    let name = source.arena.node(name);
+                    let is_ambient = name.kind == SyntaxKind::StringLiteral
+                        || NodeFlags::from_bits(node.flags)
+                            .contains(NodeFlags::GLOBAL_AUGMENTATION);
+                    let declared = module.modifiers.is_some_and(|modifiers| {
+                        source
+                            .arena
+                            .node_array(modifiers)
+                            .modifier_flags
+                            .intersects(tsc_types::ModifierFlags::AMBIENT)
+                    });
+                    if is_ambient
+                        && (ambient || declared || source.is_declaration_file)
+                        && !ambient
+                        && source.external_module_indicator.is_none()
+                    {
+                        if let Some(statements) = module_body_statements(source, module.body) {
+                            count += static_count(source, statements, true);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        count
+    }
+    let statements = source
+        .arena
+        .node(source.root)
+        .as_source_file()
+        .and_then(|root| root.statements)
+        .map(|statements| source.arena.node_array(statements).nodes)
+        .unwrap_or_default();
+    static_count(source, statements, false)
+}
+
 /// A source-owned triple-slash type-reference request and its diagnostic span.
 ///
 /// The span is the UTF-16 range covering only the `types` attribute value,
@@ -131,6 +300,8 @@ impl PlannedLibReferenceDirective {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceRequestPlan {
     is_external_module: bool,
+    /// Parser Imports() length; synthesized resolver requests are separate.
+    import_count: usize,
     path_references: Vec<PlannedPathReference>,
     module_requests: Vec<ResolutionKey>,
     unpreprocessed_module_requests: BTreeSet<ResolutionKey>,
@@ -169,6 +340,10 @@ pub(crate) struct AdmissionPlanParts {
 }
 
 impl SourceRequestPlan {
+    pub const fn import_count(&self) -> usize {
+        self.import_count
+    }
+
     /// Admission becomes the sole owner of these persistent file records.
     /// The plan's module requests remain for the following consuming stage.
     pub(crate) fn take_admission_parts(&mut self) -> AdmissionPlanParts {
@@ -223,6 +398,7 @@ impl SourceRequestPlan {
     /// wherever they are in the text.
     pub fn has_same_requests(&self, other: &Self) -> bool {
         self.is_external_module == other.is_external_module
+            && self.import_count == other.import_count
             && self.module_requests == other.module_requests
             && self.unpreprocessed_module_requests == other.unpreprocessed_module_requests
             && self.module_request_loads == other.module_request_loads
@@ -631,6 +807,7 @@ fn plan_module_requests_worker(
     // without loading their target source.
     let mut static_occurrences = Vec::new();
     let mut dynamic_occurrences = Vec::new();
+    let mut hosted_import_count = 0;
     let mut augmentation_occurrences = Vec::new();
     let mut unpreprocessed_module_requests = BTreeSet::new();
     collect_static_module_references(StaticModuleReferenceContext {
@@ -754,6 +931,8 @@ fn plan_module_requests_worker(
                             .and_then(|attributes| resolution_mode_override(parsed, attributes))
                             .unwrap_or(static_mode);
                         if !parsed.arena.text(literal.text).is_empty() {
+                            hosted_import_count +=
+                                usize::from(javascript_file && import.import_clause.is_some());
                             dynamic_occurrences.push(ModuleRequestOccurrence {
                                 pos: module_specifier.pos,
                                 end: module_specifier.end,
@@ -934,6 +1113,12 @@ fn plan_module_requests_worker(
     static_occurrences.sort_by_key(|occurrence| occurrence.pos);
     dynamic_occurrences.sort_by_key(|occurrence| occurrence.pos);
     augmentation_occurrences.sort_by_key(|occurrence| occurrence.pos);
+    // checkerpool.go weighs parser imports, not the resolver's moduleNames.
+    // Alternate resolution-mode rows refer to the same syntactic occurrence.
+    let import_count = static_occurrences.len()
+        + hosted_import_count
+        + dynamic_import_count(parsed)
+        + source_phase_static_import_count(parsed);
     let mut module_requests = Vec::new();
     let mut module_request_loads = Vec::new();
     let mut module_request_spans: Vec<Vec<(u32, u32)>> = Vec::new();
@@ -1038,6 +1223,7 @@ fn plan_module_requests_worker(
 
     let plan = SourceRequestPlan {
         is_external_module: parsed.external_module_indicator.is_some(),
+        import_count,
         path_references,
         module_requests,
         unpreprocessed_module_requests,

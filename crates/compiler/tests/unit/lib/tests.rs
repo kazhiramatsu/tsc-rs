@@ -174,3 +174,61 @@ fn option_dependencies_prevent_false_positive_diagnostics() {
         assert!(option_diagnostics(options).is_empty());
     }
 }
+
+#[test]
+fn checker_association_keeps_syntactic_multiplicity_and_resolution_keys_separate() {
+    let path = |name: &str| ProgramPath::from_trusted_parts(name, name).unwrap();
+    let mut builder = PreparedProgram::builder(
+        PathContext::new(path("/src"), true),
+        CompilerOptions {
+            no_emit: Some(true),
+            module: Some(99),
+            module_resolution: Some(100),
+            ..CompilerOptions::default()
+        },
+    );
+    let a = builder
+        .add_source_file(
+            PreparedSourceFile::new(path("/src/a.ts"), "export const a = 1;").with_import_count(0),
+        )
+        .unwrap();
+    let b = builder
+        .add_source_file(
+            PreparedSourceFile::new(
+                path("/src/b.ts"),
+                "import './a'; import './a'; import './alias'; import './missing';",
+            )
+            .with_import_count(4),
+        )
+        .unwrap();
+    for specifier in ["./a", "./alias"] {
+        builder
+            .add_module_resolution(
+                ResolutionKey::new(
+                    path("/src/b.ts").canonical().clone(),
+                    specifier,
+                    ResolutionMode::Unspecified,
+                ),
+                Ok(tsc_program::ModuleResolution::resolved(
+                    tsc_program::ResolvedModule::new(
+                        ResolvedModuleTarget::Source {
+                            source: a,
+                            resolved_file: path("/src/a.ts"),
+                        },
+                        ModuleExtension::Ts,
+                    ),
+                )),
+            )
+            .unwrap();
+    }
+    let prepared = builder.build().unwrap();
+    let provider = PreparedModuleProvider {
+        prepared: &prepared,
+        request_plans: Default::default(),
+        tracing: None,
+    };
+    let imports = provider.checker_association_imports();
+    assert_eq!(imports[b.index()].1, 4);
+    assert_eq!(imports[b.index()].2, [AuthoritativeSourceToken(a.raw()); 2]);
+    assert!(imports[a.index()].2.is_empty());
+}

@@ -60,7 +60,7 @@ Every `tsconfig.json` option can also be given on the command line
 | `--showConfig`, `--init` | Print the configuration in effect, create a `tsconfig.json` |
 | `--diagnostics`, `--generateTrace <dir>` | Statistics, performance trace |
 | `--locale <tag>` | Translated messages (`ja`, `de`, `zh-CN`, …) |
-| `--checkers <n>` | Checker threads (default: one per core, up to 8; also `TSRS_CHECKERS`) |
+| `--checkers <n>` | Checker threads (default: 4; clamped to 1–256 and the file count; also `TSRS_CHECKERS`) |
 | `--runExternalCode` | Run the [content mappers](#content-mappers) of `tsconfig.json` |
 
 Exit status: `0` no errors, `1` errors and nothing written, `2` errors and

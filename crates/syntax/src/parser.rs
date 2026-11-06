@@ -486,11 +486,15 @@ pub fn comment_ranges(text: &str, pos: usize, trailing: bool) -> Vec<(usize, usi
 /// tsgo `scanner.go hasJSDocTag(commentText, "deprecated")` over each `@`
 /// of a comment: the tag name followed by whitespace, `}`, `*` or the end.
 fn comment_has_deprecated_tag(comment: &str) -> bool {
+    comment_has_jsdoc_tag(comment, "deprecated")
+}
+
+fn comment_has_jsdoc_tag(comment: &str, tag: &str) -> bool {
     let bytes = comment.as_bytes();
     let mut rest = bytes;
     while let Some(at) = rest.iter().position(|&byte| byte == b'@') {
         rest = &rest[at + 1..];
-        if let Some(after) = rest.strip_prefix(b"deprecated") {
+        if let Some(after) = rest.strip_prefix(tag.as_bytes()) {
             if after
                 .first()
                 .is_none_or(|&byte| matches!(byte, b' ' | b'\t' | b'\n' | b'\r' | b'}' | b'*'))
@@ -2797,6 +2801,9 @@ impl<'text> Parser<'text> {
         {
             return self.try_parse(|parser| {
                 let literal = parser.parse_string_literal();
+                // tsgo tryParseConstructorDeclaration reads TokenValue and
+                // advances the scanner without allocating this literal.
+                parser.arena.count_non_tsgo_nodes(1);
                 match parser.arena.node(literal).data() {
                     NodeData::StringLiteral(data) => parser.arena.text(data.text) == b"constructor",
                     _ => false,
@@ -3035,7 +3042,7 @@ impl<'text> Parser<'text> {
         {
             self.set_await_context(true);
         }
-        let heritage_clauses = self.parse_heritage_clauses();
+        let heritage_clauses = self.parse_heritage_clauses(false);
         let members = if self.parse_expected(SyntaxKind::OpenBraceToken, None) {
             let members = self.parse_class_members();
             self.parse_expected(SyntaxKind::CloseBraceToken, None);
@@ -3089,10 +3096,10 @@ impl<'text> Parser<'text> {
             })
     }
 
-    fn parse_heritage_clauses(&mut self) -> Option<crate::NodeArrayId> {
+    fn parse_heritage_clauses(&mut self, is_interface: bool) -> Option<crate::NodeArrayId> {
         if self.is_heritage_clause() {
             Some(self.parse_list(ParsingContext::HeritageClauses, |parser| {
-                Some(parser.parse_heritage_clause())
+                Some(parser.parse_heritage_clause(is_interface))
             }))
         } else {
             None
@@ -3100,7 +3107,7 @@ impl<'text> Parser<'text> {
     }
 
     /// tsc parseHeritageClause.
-    fn parse_heritage_clause(&mut self) -> NodeId {
+    fn parse_heritage_clause(&mut self, is_interface: bool) -> NodeId {
         let pos = self.node_pos();
         let token = self.token();
         debug_assert!(matches!(
@@ -3110,7 +3117,24 @@ impl<'text> Parser<'text> {
         self.next_token();
         let types = self.parse_delimited_list(
             ParsingContext::HeritageClauseElement,
-            |parser| Some(parser.parse_expression_with_type_arguments()),
+            |parser| {
+                let element = parser.parse_expression_with_type_arguments();
+                if (is_interface && token == SyntaxKind::ExtendsKeyword)
+                    || (!is_interface && token == SyntaxKind::ImplementsKeyword)
+                {
+                    if let NodeData::ExpressionWithTypeArguments(data) =
+                        parser.arena.node(element).data()
+                    {
+                        if let Some(count) = data
+                            .expression
+                            .and_then(|expression| parser.heritage_type_allocations(expression))
+                        {
+                            parser.arena.count_dropped_nodes(count + 1);
+                        }
+                    }
+                }
+                Some(element)
+            },
             false,
         );
         self.finish_node_data(
@@ -3120,6 +3144,28 @@ impl<'text> Parser<'text> {
             }),
             pos,
         )
+    }
+
+    // tsgo converts valid type heritage expressions into a TypeReference and
+    // one QualifiedName per property access. Keep our existing AST, but count
+    // those factory allocations for checker association.
+    fn heritage_type_allocations(&self, expression: NodeId) -> Option<usize> {
+        let node = self.arena.node(expression);
+        if node.kind == SyntaxKind::Identifier && self.node_is_present(expression) {
+            return Some(0);
+        }
+        if NodeFlags::from_bits(node.flags).contains(NodeFlags::OPTIONAL_CHAIN) {
+            return None;
+        }
+        if let NodeData::PropertyAccessExpression(data) = node.data() {
+            if data.name.is_some_and(|name| self.node_is_present(name)) {
+                return data
+                    .expression
+                    .and_then(|base| self.heritage_type_allocations(base))
+                    .map(|count| count + 1);
+            }
+        }
+        None
     }
 
     fn parse_expression_with_type_arguments(&mut self) -> NodeId {
@@ -3152,7 +3198,7 @@ impl<'text> Parser<'text> {
         self.parse_expected(SyntaxKind::InterfaceKeyword, None);
         let name = self.parse_identifier_or_missing();
         let type_parameters = self.parse_type_parameters();
-        let heritage_clauses = self.parse_heritage_clauses();
+        let heritage_clauses = self.parse_heritage_clauses(true);
         let members = self.parse_object_type_members();
         self.count_export_twins(modifiers, 1);
         self.finish_node_data(
@@ -3287,6 +3333,9 @@ impl<'text> Parser<'text> {
             self.parse_identifier_or_missing()
         };
         let body = if self.parse_optional(SyntaxKind::DotToken) {
+            // tsgo allocates an implicit export modifier for each nested
+            // namespace; this AST represents it with NESTED_NAMESPACE.
+            self.arena.count_dropped_nodes(1);
             let nested_pos = self.node_pos();
             let nested_flags =
                 NodeFlags::from_bits(NodeFlags::NESTED_NAMESPACE.bits() | namespace_flag);
@@ -10117,11 +10166,12 @@ impl<'text> Parser<'text> {
         statements: crate::NodeArrayId,
         end_of_file_token: NodeId,
         filter_reparsed_nodes: bool,
-    ) {
+    ) -> usize {
         if !self.has_jsdoc_comments {
             debug_assert!(self.jsdoc_candidates.is_empty());
-            return;
+            return 0;
         }
+        let mut lazy_nodes = 0;
         let mut hosts = std::mem::take(&mut self.jsdoc_candidates);
         if filter_reparsed_nodes {
             let reachable = self.reachable_node_mask_before_root(statements, end_of_file_token);
@@ -10163,9 +10213,21 @@ impl<'text> Parser<'text> {
             let mark = self.start_node_list();
             let mut deprecated = false;
             let javascript = self.javascript_file;
+            let eager = javascript
+                || ranges.iter().any(|&(start, end)| {
+                    ["see", "link", "linkcode", "linkplain"]
+                        .iter()
+                        .any(|tag| comment_has_jsdoc_tag(&self.source_text[start..end], tag))
+                });
             for (start, comment_end) in ranges {
                 if comment_end <= end {
+                    let before = self.arena.factory_node_count();
                     let parsed = jsdoc::parse_jsdoc_comment(self, start, comment_end, flags);
+                    // tsgo eagerly parses TS comments with @see/@link;
+                    // other TS JSDoc belongs to a separate lazy factory.
+                    if !eager {
+                        lazy_nodes += self.arena.factory_node_count() - before;
+                    }
                     self.node_stack.push(parsed.node);
                     // tsgo parses a TypeScript file's JSDoc lazily and marks
                     // a deprecated host from the scanner's text scan of the
@@ -10199,6 +10261,7 @@ impl<'text> Parser<'text> {
                 self.arena.node_mut(host).flags |= NodeFlags::DEPRECATED.bits();
             }
         }
+        lazy_nodes
     }
 
     fn jsdoc_flags(&self) -> NodeFlags {
@@ -10687,7 +10750,16 @@ fn parse_source_file_from_snapshot_worker(
                 .flatten()
         });
 
-    parser.materialize_jsdoc_attachments(statements, end_of_file_token, reparse_top_level_await);
+    // tsgo allocates the original SourceFile before reparsing top-level await
+    // and another afterwards. This parser allocates only the final root.
+    let roots = 1 + usize::from(reparse_top_level_await);
+    let lazy_nodes = parser.materialize_jsdoc_attachments(
+        statements,
+        end_of_file_token,
+        reparse_top_level_await,
+    );
+    let parse_nodes = parser.arena.factory_node_count() + roots - lazy_nodes;
+    parser.arena.set_parse_node_count(parse_nodes);
     let finished = parser.finish(statements, end_of_file_token, true);
     let external_module_indicator = detected_external_module_indicator
         .or_else(|| force_external_module.then_some(finished.root));

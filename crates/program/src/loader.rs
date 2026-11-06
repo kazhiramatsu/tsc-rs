@@ -5273,7 +5273,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .map_or(0, |plan| plan.observed_request_occurrence_count()),
         );
         prepared = prepared
-            .with_is_external_module(plan.as_ref().is_some_and(|plan| plan.is_external_module()));
+            .with_is_external_module(plan.as_ref().is_some_and(|plan| plan.is_external_module()))
+            .with_import_count(plan.as_ref().map_or(0, SourceRequestPlan::import_count));
         let crate::module_requests::AdmissionPlanParts {
             path_references,
             type_reference_directives,

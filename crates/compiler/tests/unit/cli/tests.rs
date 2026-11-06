@@ -151,3 +151,71 @@ fn embedded_library_overlay_owns_the_pinned_catalog_bytes() {
         116
     );
 }
+
+#[test]
+fn checker_command_counts_clamp_to_one_instead_of_selecting_the_default() {
+    assert_eq!(CommandBudgets::of(None, None).checkers, None);
+    for (requested, expected) in [(-2.0, 1), (0.0, 1), (1.0, 1), (2.0, 2), (8.0, 8)] {
+        assert_eq!(
+            CommandBudgets::of(None, Some(requested))
+                .checkers
+                .unwrap()
+                .get(),
+            expected
+        );
+    }
+    assert!(CommandBudgets::of(Some(true), Some(8.0)).single_threaded);
+}
+
+#[test]
+fn checker_defaults_environment_and_option_precedence_follow_tsgo() {
+    struct BudgetSystem(Option<&'static str>);
+    impl System for BudgetSystem {
+        fn fs(&self) -> &dyn tsc_host::vfs::FileSystem {
+            panic!("a checker budget does not read files")
+        }
+        fn current_directory(&self) -> &str {
+            "/"
+        }
+        fn default_library_path(&self) -> &str {
+            "/lib"
+        }
+        fn now(&self) -> std::time::SystemTime {
+            std::time::SystemTime::UNIX_EPOCH
+        }
+        fn since_start(&self) -> std::time::Duration {
+            std::time::Duration::ZERO
+        }
+        fn env_var(&self, name: &str) -> Option<String> {
+            assert_eq!(name, CHECKERS_ENV);
+            self.0.map(str::to_owned)
+        }
+        fn output_is_terminal(&self) -> bool {
+            false
+        }
+        fn terminal_width(&self) -> Option<usize> {
+            None
+        }
+        fn write_output(&self, _: &str) {}
+        fn write_error(&self, _: &str) {}
+    }
+    for (environment, explicit, single, expected) in [
+        (None, None, false, 4),
+        (Some("bad"), None, false, 4),
+        (Some("0"), None, false, 1),
+        (Some("-2"), None, false, 1),
+        (Some("2"), None, false, 2),
+        (Some("8"), Some(2.0), false, 2),
+        (Some("8"), Some(0.0), false, 1),
+        (Some("8"), Some(8.0), true, 1),
+        (Some("1000"), None, false, 256),
+    ] {
+        let budget =
+            CommandBudgets::of(Some(single), explicit).checker_budget(&BudgetSystem(environment));
+        assert_eq!(
+            budget.checkers(),
+            expected,
+            "environment={environment:?}, explicit={explicit:?}, single={single}"
+        );
+    }
+}

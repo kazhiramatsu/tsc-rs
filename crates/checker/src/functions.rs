@@ -2528,19 +2528,10 @@ impl<'a> CheckerState<'a> {
                 .get(&node)
                 .copied()
                 .unwrap_or(symbol);
-            let node_kind = self.kind_of(node);
-            let first_declaration = self
-                .binder
-                .symbol(local_symbol)
-                .declarations()
-                .iter()
-                .copied()
-                .find(|&declaration| {
-                    self.kind_of(declaration) == node_kind
-                        && !node_util::node_flags(&Published, declaration)
-                            .intersects(NodeFlags::JAVA_SCRIPT_FILE)
-                });
-            if first_declaration == Some(node) {
+            // tsgo checks the merged symbol once per checker, regardless of
+            // which TS declaration that checker visits first. JS declarations
+            // do not initiate the local duplicate-implementation check.
+            if !node_util::node_flags(&Published, node).intersects(NodeFlags::JAVA_SCRIPT_FILE) {
                 self.check_function_or_constructor_symbol(local_symbol)?;
             }
             if self.binder.symbol(symbol).parent.is_some() {
@@ -2804,10 +2795,7 @@ impl<'a> CheckerState<'a> {
         };
         self.check_source_element(body);
         let symbol = self.get_symbol_of_declaration(node)?;
-        let first_declaration = self.get_declaration_of_kind(symbol, SyntaxKind::Constructor);
-        if first_declaration == Some(node) {
-            self.check_function_or_constructor_symbol(symbol)?;
-        }
+        self.check_function_or_constructor_symbol(symbol)?;
         if node_util::node_is_missing(&Published, body) {
             return Ok(());
         }
@@ -3243,6 +3231,18 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<()> {
+        // tsgo checkFunctionOrConstructorSymbol: once per checker, set before
+        // the worker so recursive checks see the same latch.
+        if *self
+            .links
+            .symbol_cold()
+            .function_or_constructor_checked
+            .get(symbol)
+        {
+            return Ok(());
+        }
+        self.links
+            .set_symbol_function_or_constructor_checked(symbol);
         let flags_to_check = tsc_types::ModifierFlags::from_bits(
             tsc_types::ModifierFlags::EXPORT.bits()
                 | tsc_types::ModifierFlags::AMBIENT.bits()
