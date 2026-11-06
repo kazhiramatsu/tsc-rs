@@ -165,6 +165,17 @@ fn observe(instant: &str) {
             mib(usage[30] as usize)
         );
     }
+    // Then purge every freed page and arena slice now (mi_collect(force)) and read the footprint again: the difference
+    // is freed memory the allocator had not purged yet.
+    // SAFETY: a public mimalloc API; the walk's own allocations are dropped before it returns.
+    unsafe { libmimalloc_sys::mi_collect(true) };
+    // SAFETY: as above.
+    if unsafe { proc_pid_rusage(getpid(), 4, usage.as_mut_ptr().cast::<c_void>()) } == 0 {
+        eprintln!(
+            "[heap walk] {instant}: footprint after a forced purge {:.1} MiB",
+            mib(usage[9] as usize)
+        );
+    }
     let mut classes = walk
         .classes
         .iter()
