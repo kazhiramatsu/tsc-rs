@@ -871,6 +871,7 @@ impl Error for MissingResolutionError {}
 #[path = "resolution_table.rs"]
 mod table;
 pub(crate) use table::StagedModules;
+pub use table::MODULE_LOOKUPS;
 pub use table::{
     ModuleResolutionView, ModuleStorageStats, ResolutionKeyView, ResolutionTable,
     ResolutionTableView, ResolvedModuleView,

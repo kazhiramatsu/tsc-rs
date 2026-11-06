@@ -247,3 +247,4 @@ pub use tsc_types::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 pub use workers::{
     run_thread_start_hook, set_thread_start_hook, WorkerBudget, MAX_WORKERS, WORKER_STACK_BYTES,
 };
+pub use resolution::MODULE_LOOKUPS;

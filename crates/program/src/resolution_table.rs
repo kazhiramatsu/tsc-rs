@@ -344,6 +344,9 @@ impl ResolutionTable {
     }
 }
 
+/// Diagnostic: table lookups so far.
+pub static MODULE_LOOKUPS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 /// Borrowed access to the immutable table and the source paths it shares.
 #[derive(Clone, Copy, Debug)]
 pub struct ResolutionTableView<'a> {
@@ -376,6 +379,7 @@ impl<'a> ResolutionTableView<'a> {
         specifier: JsStr<'_>,
         mode: ResolutionMode,
     ) -> Option<ModuleResolutionView<'a>> {
+        MODULE_LOOKUPS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let range = self.table.source_ranges.get(source.index())?;
         let rows = &self.table.modules[range.start as usize..range.end as usize];
         let index =
