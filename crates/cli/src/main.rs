@@ -1,6 +1,8 @@
 /// The CLI binary uses mimalloc: the compiler allocates and frees many small
 /// arena/table records, and the system allocator's free path dominated the
-/// sampled self time. Library consumers keep their own global allocator.
+/// sampled self time. Library consumers keep their own global allocator; only
+/// source texts go to mimalloc's text heap in any process
+/// (`tsc_store::SharedText`).
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
@@ -25,10 +27,11 @@ fn prefer_interactive_scheduling() {
 }
 
 /// tsgo `RunGC` (the language server's `custom/runGC`): mimalloc returns the
-/// memory the process no longer uses.
+/// memory the process no longer uses, the source texts' heap included.
 fn collect_memory() {
     // SAFETY: mi_collect only releases free memory mimalloc holds.
     unsafe { libmimalloc_sys::mi_collect(true) };
+    tsc_store::shared_text::collect_text_heap();
 }
 
 /// The process memory `TSRS_PHASE_TRACE` prints, from mimalloc's accounting.
@@ -150,3 +153,7 @@ fn main() {
     // it, and no other thread holds work the process still needs.
     unsafe { libc::_exit(output.exit_code()) }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/main/tests.rs"]
+mod tests;

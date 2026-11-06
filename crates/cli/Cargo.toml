@@ -21,6 +21,7 @@ tsc-api.workspace = true
 tsc-compiler.workspace = true
 tsc-lsp.workspace = true
 tsc-program.workspace = true
+tsc-store.workspace = true
 tsc-types.workspace = true
 
 [dev-dependencies]
