@@ -92,3 +92,71 @@ fn persistent_and_transient_partitions_fail_with_typed_exhaustion() {
     assert!(error.transient);
     assert_eq!(error.limit, u32::MAX);
 }
+
+#[test]
+fn a_symbol_table_reads_the_same_below_and_above_its_index_threshold() {
+    // A small map scans its entries; from nine entries it is indexed. Every
+    // read, replacement and removal must agree on both sides.
+    let mut arena = SymbolArena::default();
+    let names: Vec<EscapedName> = (0..20)
+        .map(|index| escape_leading_underscores(&format!("n{index}")))
+        .collect();
+    let ids: Vec<SymbolId> = names
+        .iter()
+        .map(|name| arena.alloc(SymbolFlags::NONE, name.clone()))
+        .collect();
+    let mut table = SymbolTable::default();
+    for count in 0..names.len() {
+        assert_eq!(table.insert(names[count].clone(), ids[count]), None);
+        for (index, name) in names.iter().enumerate() {
+            let expected = (index <= count).then_some(&ids[index]);
+            assert_eq!(
+                table.get(name.clone()),
+                expected,
+                "{count} entries, {name:?}"
+            );
+        }
+        assert_eq!(table.len(), count + 1);
+    }
+    // A replacement keeps its position, scanned or indexed alike.
+    let mut small = SymbolTable::default();
+    for count in 0..3 {
+        small.insert(names[count].clone(), ids[count]);
+    }
+    assert_eq!(small.insert(names[1].clone(), ids[19]), Some(ids[1]));
+    assert_eq!(
+        small.get_full(names[1].clone()),
+        Some((1, &names[1], &ids[19]))
+    );
+    assert_eq!(table.insert(names[1].clone(), ids[19]), Some(ids[1]));
+    assert_eq!(
+        table.get_full(names[1].clone()),
+        Some((1, &names[1], &ids[19]))
+    );
+    // Removal keeps the others in order on both sides.
+    assert_eq!(small.shift_remove(names[0].clone()), Some(ids[0]));
+    assert_eq!(
+        small.keys().cloned().collect::<Vec<_>>(),
+        [names[1].clone(), names[2].clone()]
+    );
+    assert_eq!(table.shift_remove(names[0].clone()), Some(ids[0]));
+    assert_eq!(
+        table.get_full(names[2].clone()),
+        Some((1, &names[2], &ids[2]))
+    );
+    assert_eq!(table.get(names[0].clone()), None);
+    assert_eq!(table.len(), 19);
+    // An indexed and a scanned map with the same entries are equal.
+    let mut scanned = SymbolTable::default();
+    let mut indexed = SymbolTable::default();
+    for count in 0..5 {
+        scanned.insert(names[count].clone(), ids[count]);
+    }
+    for count in 0..12 {
+        indexed.insert(names[count].clone(), ids[count]);
+    }
+    for count in 5..12 {
+        indexed.shift_remove(names[count].clone());
+    }
+    assert_eq!(scanned, indexed);
+}
