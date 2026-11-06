@@ -4,7 +4,39 @@
 /// source texts go to mimalloc's text heap in any process
 /// (`tsc_store::SharedText`).
 #[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+static GLOBAL: CountingAllocator = CountingAllocator;
+
+/// Observation only (m8, never merged): mimalloc with a count of allocation calls (alloc, alloc_zeroed and realloc),
+/// printed with the phase trace's instructions.
+struct CountingAllocator;
+
+static ALLOCATION_CALLS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+// SAFETY: every call is forwarded unchanged to mimalloc's allocator.
+unsafe impl std::alloc::GlobalAlloc for CountingAllocator {
+    unsafe fn alloc(&self, layout: std::alloc::Layout) -> *mut u8 {
+        ALLOCATION_CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        // SAFETY: forwarded.
+        unsafe { mimalloc::MiMalloc.alloc(layout) }
+    }
+
+    unsafe fn alloc_zeroed(&self, layout: std::alloc::Layout) -> *mut u8 {
+        ALLOCATION_CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        // SAFETY: forwarded.
+        unsafe { mimalloc::MiMalloc.alloc_zeroed(layout) }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: std::alloc::Layout) {
+        // SAFETY: forwarded.
+        unsafe { mimalloc::MiMalloc.dealloc(ptr, layout) }
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: std::alloc::Layout, new_size: usize) -> *mut u8 {
+        ALLOCATION_CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        // SAFETY: forwarded.
+        unsafe { mimalloc::MiMalloc.realloc(ptr, layout, new_size) }
+    }
+}
 
 /// `mi_option_purge_delay` (mimalloc v2.3 `mi_option_e`, ordinal 15): memory
 /// purging is delayed by N ms, -1 disables it. The bundled binding names the
