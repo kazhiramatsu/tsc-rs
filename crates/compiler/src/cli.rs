@@ -1306,6 +1306,25 @@ fn run_config(
                 mib(heap[3]),
                 mib(heap[4])
             );
+            let (mut same, mut same_canonical, mut differ) = (0usize, 0usize, 0usize);
+            for (_, value) in prepared.resolutions().modules() {
+                if let Some((both, canonical)) =
+                    tsc_program::loaded_target_is_own_path(value, |id| {
+                        prepared.source_file(id).map(|source| source.path().clone())
+                    })
+                {
+                    if both {
+                        same += 1;
+                    } else if canonical {
+                        same_canonical += 1;
+                    } else {
+                        differ += 1;
+                    }
+                }
+            }
+            eprintln!(
+                "[resolution census] loaded targets: own path {same}, same canonical but other display {same_canonical}, other path {differ}"
+            );
         }
     }
     drop(create_program);

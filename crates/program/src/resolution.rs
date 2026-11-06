@@ -879,8 +879,12 @@ pub fn resolution_entry_heap_bytes(key: &ResolutionKey, value: &ModuleResolution
     out[1] = key.specifier.heap_bytes();
     if let ResolutionOutcome::Resolved(module) = &value.outcome {
         match &module.target {
-            ResolvedModuleTarget::Source { resolved_file, .. } => out[2] += resolved_file.heap_bytes(),
-            ResolvedModuleTarget::Unloaded { resolved_file, .. } => out[3] += resolved_file.heap_bytes(),
+            ResolvedModuleTarget::Source { resolved_file, .. } => {
+                out[2] += resolved_file.heap_bytes()
+            }
+            ResolvedModuleTarget::Unloaded { resolved_file, .. } => {
+                out[3] += resolved_file.heap_bytes()
+            }
         }
         if let Some(path) = &module.original_path {
             out[4] += path.heap_bytes();
@@ -889,7 +893,10 @@ pub fn resolution_entry_heap_bytes(key: &ResolutionKey, value: &ModuleResolution
             out[4] += package.name.heap_bytes()
                 + package.submodule_name.heap_bytes()
                 + package.version.heap_bytes()
-                + package.peer_dependencies.as_ref().map_or(0, |text| text.heap_bytes());
+                + package
+                    .peer_dependencies
+                    .as_ref()
+                    .map_or(0, |text| text.heap_bytes());
         }
     }
     if let Some(path) = &value.alternate_result {
@@ -897,4 +904,27 @@ pub fn resolution_entry_heap_bytes(key: &ResolutionKey, value: &ModuleResolution
     }
     out[4] += value.diagnostics.capacity() * std::mem::size_of::<tsc_diagnostics::Diagnostic>();
     out
+}
+
+/// Observation only (m8 resolution census): whether a loaded target's path is
+/// its source's own path, given the source's path by id; None for other rows.
+pub fn loaded_target_is_own_path(
+    value: &ModuleResolution,
+    source_path: impl Fn(crate::SourceFileId) -> Option<crate::ProgramPath>,
+) -> Option<(bool, bool)> {
+    let ResolutionOutcome::Resolved(module) = &value.outcome else {
+        return None;
+    };
+    let ResolvedModuleTarget::Source {
+        source,
+        resolved_file,
+    } = &module.target
+    else {
+        return None;
+    };
+    let own = source_path(*source)?;
+    Some((
+        own == *resolved_file,
+        own.canonical() == resolved_file.canonical(),
+    ))
 }

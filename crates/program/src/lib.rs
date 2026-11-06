@@ -226,10 +226,11 @@ pub use project_references::{
     ResolvedProjectReferences, ResolvedReferenceEntry,
 };
 pub use resolution::{
-    MissingResolutionError, ModuleExtension, ModuleResolution, PackageId, ResolutionError,
-    ResolutionErrorKind, ResolutionKey, ResolutionMode, ResolutionOutcome, ResolutionRequestKind,
-    ResolvedModule, ResolvedModuleTarget, ResolvedTypeReferenceDirective, TypeReferenceResolution,
-    TypeReferenceResolutionKey, TypeReferenceResolutionOrigin, UnloadedModuleReason,
+    loaded_target_is_own_path, MissingResolutionError, ModuleExtension, ModuleResolution,
+    PackageId, ResolutionError, ResolutionErrorKind, ResolutionKey, ResolutionMode,
+    ResolutionOutcome, ResolutionRequestKind, ResolvedModule, ResolvedModuleTarget,
+    ResolvedTypeReferenceDirective, TypeReferenceResolution, TypeReferenceResolutionKey,
+    TypeReferenceResolutionOrigin, UnloadedModuleReason,
 };
 pub use resolution_cache::{
     content_digest, CacheEntry, CacheError, CachedValue, CancellationToken, Candidate, ChangeBatch,
