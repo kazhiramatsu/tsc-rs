@@ -2108,6 +2108,66 @@ census（観測用 build で check の終わりに記録の field を数えた�
 - gate の記録：`gate-links20/`（DOSSIER.md・判定・窓の log）。
 - 計測は上の通り。
 
+## checker の割り当てを tsgo と同じにし、既定の出力を決定的で tsgo と同じにする（branch `fix/ts71-tsgo-checker-association`、DET-1）
+
+所有者の決定（2026-11-05 23:15）：既定の出力を tsgo と byte 単位で同じにし、実行ごとに変わらないようにする。それまでの既定
+（8 checker まで、shard stealing と共有 queue）は実行ごとに出力が変わった（zod で 6 回中 4 通り：TS5115 の位置が動き、TS2344 が
+一部の回だけ出る）。tsgo の既定は何回走らせても同じ。
+
+変更（Codex lane DET-1、patch `3cb747705bc65b6d`。記録は `target/claude-tools/handover/perf-tsrs/det1-lane-record/`）：
+- tsgo の `compiler/checkerpool.go` の割り当てを既存の driver に移植した：
+  - 既定は 4 checker。`--singleThreaded` が `--checkers` に、`--checkers` が `TSRS_CHECKERS` に勝つ。数は
+    `max(min(N, files, 256), 1)`。
+  - source 優位と宣言優位の方針、重み `NodeCount + bytes/100` と import による正規化。
+  - 解決済み import の graph の上の重み付き FENNEL（tsgo の定数と同点の扱い）。各 checker は自分の file を Program 順に見る。
+- 取り除いたもの：shard stealing、共有 queue、directory と cost による分割、CPU・宣言・支配的な file による checker 数の自動
+  調整とそれらの環境変数、checker の `TSRS_FILE_TRACE`。mode flag や別の経路は残さない。
+- node 数と構文上の import 数を tsgo の factory と text scan と同じに数える（別の統計。arena の物理的な id は変えない）。
+- merged interface・function と constructor・enum の precheck を checker ごとに行い（tsgo の checker-local flag）、file ごとの
+  診断を getter が返る時点で確定する（tsgo）。どちらも旧来の「最後に全 checker の ledger を merge する」形が隠していた。
+- Go の割り当て関数そのもの（upstream の部分文字列）で作った oracle が、bench 8 project の 19,064 file すべてで同じ checker を
+  返す。
+
+確認（local、main checkout、head `0f593a02a`、tsc-rs `66d6b4a66b73ebb9…`、tsgo `tsc-aa814927` `5fd89a44ad3d2656…`。
+`gate-det1/battery.log`）：
+- test：syntax 279、program 693、checker 1,863、compiler 245（native watch を含めすべて pass）、fmt、clippy（`-D warnings`）。
+- 既定 5 回 × 8 project：project ごとに 1 通りで、tsgo の既定と stdout・stderr・exit が一致。`--checkers 2`・`8`（zod・next・vue）、
+  `TSRS_WORKERS=1`・`8`（zod・vscode）、`--singleThreaded`（8 project）も tsgo と一致（`gate-det1/identity.py`）。
+- 1 thread の診断は main（#903 の binary）と 8/8 同じ。fingerprint は 143,190 行のうち差 0。conformance（4 checker）：#902 の
+  4 checker の report と 15,339 構成すべて同じ、1 checker との差は記録済みの 4 構成だけ。
+- 1 thread の統計は next・playwright・vue・vscode で動く（Symbols +52〜+267、Types −166〜+118。診断は同じ）。tsgo の checker
+  ごとの precheck（最初の宣言が library にあっても、checker が最初に見た宣言から調べる）による。Symbols は 3 project で tsgo の
+  値に近づく。
+
+計測（2026-11-06 08:42〜08:50、lane を止め writer は休止。`gate-det1/window.log`）：
+
+| VS Code | wall s | CPU s | peak MB | 命令数 G |
+|---|---:|---:|---:|---:|
+| main 既定（8 checker、stealing） | 2.32 | 15.60 | 3,975 | 148.24 |
+| **DET-1 既定（4 checker、tsgo の割り当て）** | **3.28** | 12.13 | **3,669** | 140.74 |
+| main 4 worker / 4 checker | 3.15 | 11.11 | 3,682 | 142.10 |
+| **DET-1 4 worker / 4 checker** | **3.45** | 10.95 | 3,606 | 140.47 |
+| tsgo 既定 | 4.72 | 24.54 | 6,201 | 264.67 |
+| tsrs 既定（4 checker、Go の割り当て） | 1.99 | 8.05 | 2,311 | 92.42 |
+
+- 1 thread（VS Code、warm-up 2 + 9）：命令数 −9 M、footprint +5.4 MiB（3,265.3 → 3,270.7）。他 7 project：命令数
+  −0.02〜+0.29%、footprint −1〜+5 MiB。
+- 既定の wall は 7 project でも伸びる（next 0.58 → 0.80 s、zod 0.42 → 0.50、effect 0.40 → 0.50）。既定の peak は 8 project の
+  うち 7 で下がる（ts は +2 MB）。
+- VS Code の段階時間（`--extendedDiagnostics`）：4 thread で Parse 0.627・Check 2.673・Total 3.442 s、tsrs は 0.350・1.670・
+  2.053 s。check の構造は tsrs の既定と同じなので、差は checker ごとの処理量（命令数 140 G 対 92 G）と、parse と pool の外の時間
+  （lane r0 の対象）にある。
+
+所有者の判断（2026-11-06、この計測を見て）：「このまま merge」。既定の wall は rayon 化（lane r0）と命令数の削減で取り返す。
+
+**記録。** PR [#905](https://github.com/kazhiramatsu/tsc-rs/pull/905) → merge `454b6bbe3`（2026-11-06。`4d0cee783` の上、最終 head
+`0f593a02a`）。hosted run [42133926294](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42133926294)：全 job pass（rust 57 分、
+conformance 24 分）。残る差：
+- JS の割り当ての入力：JSDoc の reparse で Go が作る clone を数え切れていない。JS の多い project では割り当ての一致を主張しない
+  （lane の 6 file の反例。bench の 19,064 file は TS・TSX・MTS・CTS・宣言・JSON だけ）。
+- 4 checker の既知の 4 構成（再帰の error の位置が、先に計算した checker で決まる）。
+- 過去に報告された static four の揺れは、138 回の対照で再現しなかった。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
@@ -2197,6 +2257,7 @@ memo の shadow 計測、checker の store の形）。
 | **関門** F10a‴（flow の記録 32 → 16 B、label の list は bind 中は per-thread scratch の linked cell（tsgo の FlowList）で、bind の終わりに file ごとの正確な大きさの pool 1 つへ凍結、`into_bind_data` で node と pool を正確な新しい確保へ移す（re-home））（Opus、夜間） | —（実装前） | 上限と仕組み：旧 flow 72.9 + label list 10.6 MiB。store 版（F10a+F10b、global id、領域 38/39）は命令数 −69/−86 M だが footprint −12 MiB：mincore で store はちょうど 40.3 MiB、heap は 83.5 のうち ≈ 56 しか戻らない（mimalloc は倍々の block を保ち、heap から抜いた byte は ≈ 0.7〜0.8 で戻る）→ heap 配置を選ぶ。pilot（`main-e84278c49` 比、VS Code 9 round、夜間で lane は止めていない、全 run が clean）：v2（per-label Vec）−34.8 MiB / +195〜+216 M、F10a′（cell）−30.6〜−30.7 / +29〜+75 M、F10a″（cell + 正確な pool）−31.7〜−32.2 / +98〜+107 M、**F10a‴（+ re-home）−36.1 MiB / +112〜+120 M** | 判定 A（件数 × 費用）GO WITH CONDITIONS（memory の model が全 variant に合う；v2 との差 ≈ 4 MiB は pool の倍々 1.3〜1.7 + 配置 2.5〜3 と予想 → re-home で確認）；B（静的）SOUND（全 kind で凍結後の読みが旧と同じ、cell は Vec の順序・重複除去・置換・0/1/多を再現、checker の読む前に必ず凍結；round-trip test・debug assert・doc を追加）；C（反証）STANDS WITH FIXES（4 MiB は実在、override の空 skip は ≈ 0 → 外した、凍結後の成長は release assert に）。fingerprint 0 行 / 143,190、diffout 8/8・統計一致 | **GO**（card は F10a‴）。予想：VS Code footprint −34〜−37 MiB（→ ≈ 3,297 MiB、**約束 ≤ 3,300 MiB の内側**）、命令数 +0.05〜+0.15 G。card の battery：binder/checker/syntax test、clippy、fingerprint、c4、diffout 8/8・統計、7 project、4 thread。F10b（global id）は store の配置が memory を返さないので保留（命令数の利得は別の形で） |
 | **関門** Y1/S2：transient symbol の links を 28 → 20 B に（`declared_type` と `is_referenced` を transient index の sparse map へ移し、読みは専用の accessor 17 箇所）（Opus、統合役の割り当て 06:20） | —（実装前） | 上限：census（観測用 build、VS Code 1 thread）で transient record 5,885,636 のうち `declared_type` は 450、`is_referenced` は 163（`name_type` 310 K、他の field は 33〜92%）→ 8 B × 5.89 M = −44.9 MiB。memo の案（target と mapper を Symbol の末尾 2 語へ）は binder と checker が `unsafe` を禁じるので extras の id 化が先に要る → 同じ 8 B をこの 2 field で取る（Symbol と binder は変えない；transient symbol は単調で index は再利用されない）。pilot（`main-681fc89fc` 比、VS Code 9 round、warm-up 2、1 つの静かな窓、`gate-links20/window-ab.log`）：**A（20 B）footprint −45.9 MiB**（main の footprint の low mode 比。中央値の比 −49.5 は main の 2 水準の混ざり）/ **命令数 +40 M**（同じ mode の組 8 つで +29〜+87 M）；B（16 B、`name_type` も bit 付きの map へ）−67.4 MiB / **+1,059 M** → 不採用（mapped type の member の読みが多い）。出力は 8 project で同じ、統計も一致 | 判定 A（件数 × 費用）GO WITH CONDITIONS（≈ −45 MiB・+40 M で記帳；7 project の停止条件：命令数 > +0.15%、VS Code の low mode > +0.1%、zod・next・effect の節約が予想の半分未満）；B（静的）SOUND（Resolving を読む reader なし、writer はすべて map へ、記録の丸ごとの複写なし；小修正 3 つ：doc link、memory 報告の bucket 係数、まれな書き込みで dense の記録も伸ばし trace の数を同じに）；C（反証）STANDS WITH FIXES（複数 checker・speculation・Resolving・他 crate・panic の攻撃はすべて失敗；footprint は mode を揃えて ≈ −46 MiB で記帳、doc link）。修正は入れた | **GO**（card は A + 修正）。予想：VS Code footprint −45〜−50 MiB（#903 の後で ≈ 3,218 MiB）、命令数 +0.02〜+0.06 G；zod −13.5〜−14.6、next −10.0〜−11.2、effect −7.4〜−8.3 MiB、命令数は各 project 0〜+0.06%。card の battery：checker/api test、clippy、c4 と比較、diffout 8/8・統計、7 project、4 thread、emit |
 | **関門（保留）** binder の `SymbolExtras` を 104 → 40 B（JS の assignment-declaration members の `IndexMap` を最初の entry で box に）（Opus） | —（pilot、保留） | 上限の見込み：VS Code の extras box 348,548（M7 の account）× 64 B（mimalloc の 112 → 48 B 級）≈ −21 MiB、命令数 ≈ 0。pilot（p53 `m8/pilot-extras-box` `8c38102b1`、`main-904` 比、VS Code 9 round・warm-up 2、小さな map の pilot と同じ窓、`gate-extras/after-det1.log`）：footprint **−2.6 MiB**（low 同士）、命令数 −87 M（low mode、組は −131〜+64 M）。出力 8/8 同じ・統計一致 | 予想の 1/8。live の extras box は M7 の数より少ないか、解放された 112 B 級の空きが他の確保に再利用されて footprint に出ない（未確認） | **保留**（card にしない；記録 `gate-extras/`） |
+| DET-1：checker の割り当てを tsgo と同じにし、既定の出力を決定的に（所有者の決定 2026-11-05） | [#905](https://github.com/kazhiramatsu/tsc-rs/pull/905) | 既定の checker 8 → 4 で既定の wall は伸び peak は下がる；1 thread ≈ 0 | VS Code 既定 wall 2.32 → 3.28 s（+41%）・peak 3,975 → 3,669 MB；4 worker / 4 checker 3.15 → 3.45 s；1 thread 命令数 −9 M・footprint +5.4 MiB；出力は既定 5 回 × 8 project で tsgo と一致 | merge（所有者の判断：このまま merge、wall は r0 と命令数の削減で取り返す） |
 
 **2026-11-18 の線の見直し（オーナーの決定、2026-11-05 15:35）。** Codex（effort max）と Opus への相談（`target/claude-tools/handover/perf-tsrs/consult-2026-11-05/`）を受けて、線を約束と努力目標に分ける：**約束 = VS Code 1 thread < 135 G・≤ 3,300 MiB**、**努力目標 = ≤ 132 G・≤ 3,100 MiB**。努力目標は、11/11 の点検で ≈ ≤ 133.5 G（7 round の low-mode 中央値）かつ裏付けのある残り ≥ 1.7 G、≈ ≤ 3,250 MiB かつ数え終えた残り ≥ 170 MiB を示せたときだけ続ける。同じ日のオーナーの指示（15:25）：予想 0.3 G・50 MiB・1 日以上の card は、上限の実測・足す側の実測・方法の違う 2 つ以上の subagent の判定と反証役 1 つを経て、その結果を台帳に書いてから実装する。memory の card は MiB と G の両方を予想する（重複・複製・確保を消す card は両方が減るが、record を詰める card はここでは命令数が増えてきた：Node 48 → 32 B は −269 MB・+3.40 G、Symbol 40 → 32 B は −55 MB・+0.16%）。
 
