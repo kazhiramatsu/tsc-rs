@@ -327,9 +327,12 @@ pub struct ProjectReferenceFile {
 
 impl PreparedSourceFile {
     pub fn new(path: ProgramPath, text: impl Into<String>) -> Self {
+        let text = text.into();
         Self::from_snapshot(
             path,
-            TextSnapshot::new(text.into(), DocumentVersion::default()),
+            tsc_types::alloc_hint::with_text(|| {
+                TextSnapshot::new(text, DocumentVersion::default())
+            }),
         )
     }
 

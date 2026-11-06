@@ -41,3 +41,26 @@ pub use type_order::{sort_func_like_go, TypeOrder, TypeOrderContext};
 pub use version::{
     compiler_version_satisfies, Version, TYPESCRIPT_VERSION, TYPESCRIPT_VERSION_MAJOR_MINOR,
 };
+
+/// Prototype only (m8 text heap, never merged): a thread-local hint that the
+/// allocations made inside [`alloc_hint::with_text`] are long-lived source
+/// texts, which the binary's allocator may place apart.
+pub mod alloc_hint {
+    use std::cell::Cell;
+
+    thread_local! {
+        static TEXT: Cell<bool> = const { Cell::new(false) };
+    }
+
+    pub fn with_text<R>(work: impl FnOnce() -> R) -> R {
+        TEXT.with(|text| text.set(true));
+        let result = work();
+        TEXT.with(|text| text.set(false));
+        result
+    }
+
+    #[inline(always)]
+    pub fn is_text() -> bool {
+        TEXT.with(|text| text.get())
+    }
+}

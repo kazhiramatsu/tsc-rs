@@ -2,7 +2,53 @@
 /// arena/table records, and the system allocator's free path dominated the
 /// sampled self time. Library consumers keep their own global allocator.
 #[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+static GLOBAL: Routed = Routed;
+
+/// Prototype only (m8 text heap, never merged): source texts (allocated under
+/// `tsc_types::alloc_hint::with_text`) go to their own mimalloc heap, whose
+/// pages no other allocation shares; everything else is mimalloc as before.
+struct Routed;
+
+static TEXT_HEAP: std::sync::atomic::AtomicPtr<libmimalloc_sys::mi_heap_t> =
+    std::sync::atomic::AtomicPtr::new(std::ptr::null_mut());
+
+// SAFETY: every method forwards to mimalloc, which is a valid global allocator;
+// a block from either heap is freed and reallocated by mimalloc's own calls.
+unsafe impl std::alloc::GlobalAlloc for Routed {
+    #[inline]
+    unsafe fn alloc(&self, layout: std::alloc::Layout) -> *mut u8 {
+        if tsc_types::alloc_hint::is_text() {
+            let heap = TEXT_HEAP.load(std::sync::atomic::Ordering::Relaxed);
+            if !heap.is_null() {
+                // SAFETY: the heap lives for the process.
+                return unsafe {
+                    libmimalloc_sys::mi_heap_malloc_aligned(heap, layout.size(), layout.align())
+                        .cast()
+                };
+            }
+        }
+        // SAFETY: as mimalloc::MiMalloc.
+        unsafe { libmimalloc_sys::mi_malloc_aligned(layout.size(), layout.align()).cast() }
+    }
+
+    #[inline]
+    unsafe fn alloc_zeroed(&self, layout: std::alloc::Layout) -> *mut u8 {
+        // SAFETY: as mimalloc::MiMalloc.
+        unsafe { libmimalloc_sys::mi_zalloc_aligned(layout.size(), layout.align()).cast() }
+    }
+
+    #[inline]
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: std::alloc::Layout) {
+        // SAFETY: as mimalloc::MiMalloc.
+        unsafe { libmimalloc_sys::mi_free(ptr.cast()) }
+    }
+
+    #[inline]
+    unsafe fn realloc(&self, ptr: *mut u8, layout: std::alloc::Layout, new_size: usize) -> *mut u8 {
+        // SAFETY: as mimalloc::MiMalloc.
+        unsafe { libmimalloc_sys::mi_realloc_aligned(ptr.cast(), new_size, layout.align()).cast() }
+    }
+}
 
 /// `mi_option_purge_delay` (mimalloc v2.3 `mi_option_e`, ordinal 15): memory
 /// purging is delayed by N ms, -1 disables it. The bundled binding names the
@@ -102,6 +148,13 @@ fn main() {
     // SAFETY: mi_option_set only writes a process-global option value and
     // has no other preconditions.
     unsafe { libmimalloc_sys::mi_option_set(MI_OPTION_PURGE_DELAY, 10) };
+    // SAFETY: creating a first-class heap on the main thread, before any worker.
+    if std::env::var_os("TSRS_NO_TEXT_HEAP").is_none() {
+        TEXT_HEAP.store(
+            unsafe { libmimalloc_sys::mi_heap_new() },
+            std::sync::atomic::Ordering::Relaxed,
+        );
+    }
     tsc_types::trace::set_memory_probe(memory_sample);
     tsc_compiler::pprof::set_gc(collect_memory);
     // Every worker thread and checker shard starts with the same request;
