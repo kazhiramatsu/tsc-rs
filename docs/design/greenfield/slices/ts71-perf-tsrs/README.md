@@ -2283,6 +2283,84 @@ page は text のためだけに確保されたまま残った。
 - 記録：`gate-frag/`（dossier、判定 A・B・C、battery・窓・M1・t8k の log）。census などの道具への注記は `INSTRUMENTS-text-heap.md`。
 - 計測は上の通り。
 
+## module の解決表を tsgo の形にする（source ごとの範囲を持つ 1 本の行の vector）（branch `perf/ts71-resolution-table`、gate を通った 9 枚目、memory の 7 枚目、FE-R1）
+
+`ResolutionTable` は `BTreeMap<ResolutionKey, ModuleResolution>` を持っていた。
+- 1 項目 368 B が B-tree の node（4 KiB の葉、5 KiB の内部 node）に入っていた。
+- 項目ごとに、import する file の canonical path と、解決先の 2 つの綴りの複製を持っていた。
+- VS Code では 112,780 項目：項目 41.5 MB と文字列 36.2 MB、それに node がかかる。
+- checker の解決は、引くたびに source の path を key に複製し、長い path を比べながら木を下りていた。
+
+いまは tsgo の `resolvedModules[path][specifier, mode]` の形：
+- 1 本の vector に 64 B の行を並べる。順は (import する source の canonical path、specifier、mode) で、旧 key と同じ。source ごとの
+  行の範囲は `SourceFileId` で引く。
+- 行が持つもの：source の id、specifier、mode、解決先（`SourceFileId`、読み込まない解決先は box にした path）、1 byte の拡張子、
+  flag、intern した `u32` の package id、まれな事実の box。box は中身があるときだけ作る。
+- 読み込んだ解決先の path は、source 自身の path と表示か canonical の綴りが違うときだけ持つ。
+- 引くとき（`PreparedProgram::module_resolution`）は、source の範囲を借用した specifier で二分探索し、確保しない。
+- path で引くとき（language service と API）は path の持ち主の source に限り、alias を拒む。API は tsgo の API と同じく、alias を
+  まず持ち主の source に直す。
+- builder は source id ごとに行を集め（加えるときに衝突を検出し、alias の key を拒む）、vector を直接作る。build の後に表は
+  変わらない。
+- 実装は Codex lane（fer1、phase 1）で、Opus が検証・統合した。
+
+**関門**：重い card（上限 ≥ 50 MiB）なので、関門を全部通した。ledger の gate row は PR の前に main に入れた（`d10f79206`）。
+- 判定：A GO WITH CONDITIONS、B FEASIBLE WITH CONDITIONS、C STANDS WITH FIXES、決定は GO。予想は VS Code footprint −40〜−65 MiB
+  （中心 −45）、命令数 −0.3〜−0.7 G。
+- 条件はすべて満たした（PR の表）：
+  - 行 ≤ 88 B（64 B を assert）、引くときに確保しない（確保の test）。
+  - package id の数を数えた（6 project で 10% 超なので `u32` に intern）。
+  - alias の key を拒む、表示と canonical の両方で比べる、box は中身があるときだけ。
+  - `with_replaced_source` で path が変わらないことを assert、順序は旧と同じ、表は変わらない。
+  - tsgo と比べる fixture（大文字小文字の違う import、package の重複除去の redirect、symlink（preserveSymlinks の有無）、alias
+    path での API の読み）は byte 単位で一致。
+- heap walk（前後、VS Code 1 thread、既定の heap）：
+  - live は 4 時点とも −93.1 MiB、committed は check の後で −73.3 MiB。
+  - B-tree の 4 KiB の葉は adopt の後 62.5 MiB → 4 MiB 未満、5 KiB の内部 node は 22.7 → 6.5 MiB。
+  - 80〜128 B の級は page が残り、解放した文字列は空き slot のまま残る（≈ +20 MiB、phase 2 の分）。
+
+**計測**：昼（15:02〜15:14）、lane は止めた。load 1.0〜3.4、`nice -n 20`、交互に実行。基準は `main-7ce379bc6`（#907 の merge から
+build、`text-heap-final` と同じ bytes）。
+
+| | 基準 | この PR |
+|---|---:|---:|
+| VS Code 1 thread の footprint（7 回の median） | 2,976.8 MiB | **2,900.3 MiB（−76.5）** |
+| 命令数（low mode の median） | 130.756 G | **129.459 G（−1,296 M、−0.99%）** |
+| VS Code 4/4（10 組の対の median） | — | **−67.6 MiB**、−1,446 M、wall **−1.01%**（95% −1.53〜−0.48%） |
+| VS Code 既定（10 組） | — | **−89.3 MiB**、−1,454 M、wall **−1.27%**（95% −1.96〜−0.63%） |
+
+- 同じ mode の組は −1,281〜−1,346 M。予想（−0.3〜−0.7 G）との差を数で示す（診断用 build、phase の mark ごとの命令数と表を引く回数、
+  VS Code 1 thread、3 回ずつ）：
+  - **check で −1.39 G**：check は表を **594,290 回**引く（load は 0 回）ので、1 回あたり ≈ **2,330 命令**減る。
+    - 旧：source の canonical path を key に複製し（確保・≈ 100 byte の copy・解放）、`BTreeMap` を ≈ 5 段下りる。各段は 11 key
+      までの線形走査で、共通の前置きの長い path（VS Code の path は 60〜120 byte）を ≈ 25〜30 回比べる。
+    - 新：source の範囲を読み、その ≈ 11 行を specifier で二分探索する（短い比較 ≈ 4 回、確保なし）。
+  - **load で +0.13 G**：表を作るときに 112,780 行を source の canonical path で並べ替える。解決の walk は誤差の内（low mode
+    で 19.75 対 19.73 G）。
+  - **page fault**：reclaim が −4,899（16 KiB で ≈ 76.5 MiB、footprint の減りと同じ）、kernel の仕事で ≈ −0.02〜−0.03 G。
+  - 予想は ≈ 0.45 M 回 × path の比較 ≈ 25 回と見積もっていた。実際は 594 k 回で、共通の前置きの長い path の比較と複製が
+    見積もりより高い。
+- 他 7 project の 1 thread：footprint は next −5、zod −6、playwright −4、effect +1、vue −2、ts −1、hono −1 MiB、命令数は
+  −0.42〜0.00%。
+- 4/4 と既定で増える project はない（中央値 +2 MiB 超かつ 6 組中 5 組以上が正、はない）。emit の構成は −0.20〜−0.04%。
+- FE-T1 との相互作用（判定 C の M4、VS Code 1 thread、`main-ba4240a55` の 3,188.4 MiB 比）：FE-T1 −212.2、FE-R1 だけ −62.1、
+  両方 −288.1 MiB。I = −13.8 MiB で、和より大きく減る（15 MiB の線の内）。
+- 予想（−40〜−65 MiB、−0.3〜−0.7 G）を両方の軸で上回る。VS Code 1 thread は ≈ 2,900 MiB・≈ 129.5 G になる。
+
+**記録。** PR [#908](https://github.com/kazhiramatsu/tsc-rs/pull/908) → merge `d640a5852`（2026-11-06。`7ce379bc6` の上、最終 head `73665ae47`）。hosted run
+[42173257254](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42173257254)：全 job pass。local（hosted がしないことだけ、`73665ae47`）：
+- crate の test：program 702（新しい表の test 8 を含む）、compiler 247（引くときの確保が 0 の test を含む）、checker 1,864、
+  api 333（alias での API の読み）、ls 256、project 235。
+- fmt、clippy（`-D warnings`）、release build。
+- 8 case で出力（exit code・stdout・stderr）が基準と一致。Identifiers・Symbols・Types・Instantiations も 8 project とも一致。
+- fingerprint oracle：143,190 行のうち差は 0。
+- conformance（4 checker）：12,829 case。
+  - #906 の 4 checker の report に対して、15,339 の構成すべてが同じ。
+  - 1 checker の report に対しては、記録済みの 4 構成だけが違う。
+- lane の tsgo の fixture（大文字小文字、package の重複除去、symlink 2 種、alias の API）：CLI の出力と API の JSON が byte 単位で一致。
+- 記録：`gate-resolutions/`（dossier、census、card の battery・heap walk・窓の log）。lane の記録は `fer1-lane-record/`。
+- 計測は上の通り。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
