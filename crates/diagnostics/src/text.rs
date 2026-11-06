@@ -968,6 +968,12 @@ impl TextSnapshot {
         self.text.as_str()
     }
 
+    /// Diagnostic (never merged): the text block's count word, unchanged.
+    #[doc(hidden)]
+    pub fn text_count_word(&self) -> usize {
+        self.text.holder_count_word()
+    }
+
     pub fn shared_text(&self) -> crate::SharedText {
         self.text.clone()
     }

@@ -281,6 +281,12 @@ impl SharedText {
         unsafe { self.block().cast::<AtomicUsize>().as_ref() }
     }
 
+    /// Diagnostic (never merged): the count word, read without writing.
+    #[doc(hidden)]
+    pub fn holder_count_word(&self) -> usize {
+        self.count().load(Ordering::Relaxed)
+    }
+
     /// The number of holders (tests).
     #[cfg(test)]
     fn holders(&self) -> usize {

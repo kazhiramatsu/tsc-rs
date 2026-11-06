@@ -3448,6 +3448,17 @@ impl PreparedProgram {
                 None,
                 None,
             );
+            // Diagnostic: a live text's count is a small positive number; a freed block's first
+            // word is mimalloc's free-list link (a pointer) or zero.
+            let count = snapshot.text_count_word();
+            if count == 0 || count > 1_000_000 {
+                eprintln!(
+                    "[diag] text count word {count:#x} at {:#x} ({} bytes): {:?}",
+                    snapshot.text().as_ptr() as usize - 8,
+                    snapshot.text().len(),
+                    source.path().canonical()
+                );
+            }
             // FE-T1: one text-heap block per text (mimalloc v3 first-class heap, outside
             // GlobalAlloc), the reference count first: 8 + max(len, 1) bytes.
             let text = snapshot.text();
