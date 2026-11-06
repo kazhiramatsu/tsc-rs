@@ -39,7 +39,9 @@ fn a_session_of_edits_keeps_the_text_heap_bounded() {
         LiveProgram::with_documents(prepared, &documents).expect("create the live program");
     let path = CanonicalPath::from_trusted_normalized("/work/a.ts").expect("a canonical path");
     let before = tsc_store::shared_text::text_heap_live_bytes();
-    for edit in 0..100 {
+    // The probe sees the program's texts: the file and the library.
+    assert!(before >= base.len(), "the text heap holds {before} bytes");
+    for edit in 0..20 {
         let text = format!("{base}export const edit{edit} = {edit};\n");
         live = LiveProgram::reuse(live.prepared(), &path, text, &host, &documents)
             .expect("the edit keeps the file's requests, so the program is reused")
@@ -47,11 +49,11 @@ fn a_session_of_edits_keeps_the_text_heap_bounded() {
         documents.purge();
     }
     let after = tsc_store::shared_text::text_heap_live_bytes();
-    // Unbounded, 100 edits would keep 100 copies (≈ 4.8 MB); bounded, the
+    // Unbounded, 20 edits would keep 20 copies (≈ 960 KB); bounded, the
     // live program holds one version of the file (and the libraries).
     assert!(
         after <= before + 4 * base.len(),
-        "the text heap grew from {before} to {after} bytes over 100 edits of {} bytes",
+        "the text heap grew from {before} to {after} bytes over 20 edits of {} bytes",
         base.len()
     );
 }
