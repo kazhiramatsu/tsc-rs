@@ -150,6 +150,58 @@ fn program_options() -> Value {
 }
 
 #[test]
+fn package_alias_api_lookups_use_the_owning_source_as_tsgo_does() {
+    // Pinned tsgo aa814927: both index.d.ts names select copy A's source;
+    // its ./leaf request resolves to A's leaf. Direct resolution-table
+    // lookup by B's alias remains absent (program's compact-table tests).
+    let (session, _) = session(&[
+        ("/a/main.ts", "import { x } from 'pkg'; export const a = x;"),
+        ("/b/main.ts", "import { x } from 'pkg'; export const b = x;"),
+        (
+            "/a/node_modules/pkg/package.json",
+            r#"{"name":"pkg","version":"1.0.0","types":"index.d.ts"}"#,
+        ),
+        (
+            "/b/node_modules/pkg/package.json",
+            r#"{"name":"pkg","version":"1.0.0","types":"index.d.ts"}"#,
+        ),
+        (
+            "/a/node_modules/pkg/index.d.ts",
+            "export { x } from './leaf';",
+        ),
+        (
+            "/b/node_modules/pkg/index.d.ts",
+            "export { x } from './leaf';",
+        ),
+        (
+            "/a/node_modules/pkg/leaf.d.ts",
+            "export declare const x: number;",
+        ),
+        (
+            "/b/node_modules/pkg/leaf.d.ts",
+            "export declare const x: number;",
+        ),
+    ]);
+    let created = call(&session, "createSnapshot", json!({ "createPrograms": [{
+        "rootFiles": ["/a/main.ts", "/b/main.ts"],
+        "compilerOptions": { "module": 99, "moduleResolution": 100, "noLib": true, "noEmit": true, "types": [] },
+    }] })).unwrap();
+    for file in [
+        "/a/node_modules/pkg/index.d.ts",
+        "/b/node_modules/pkg/index.d.ts",
+    ] {
+        let resolution = call(&session, "getResolvedModule", json!({
+            "snapshot": created["snapshot"], "project": created["operation"]["createdPrograms"][0],
+            "file": file, "moduleName": "./leaf", "mode": 99,
+        })).unwrap();
+        assert_eq!(
+            resolution["resolvedFileName"],
+            "/a/node_modules/pkg/leaf.d.ts"
+        );
+    }
+}
+
+#[test]
 fn a_program_resolves_through_static_resolutions() {
     // TestCreateProgramUsesStaticModuleResolutions.
     let (session, _) = session(&[

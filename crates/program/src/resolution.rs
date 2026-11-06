@@ -461,14 +461,14 @@ pub enum UnloadedModuleReason {
     ProjectReferenceOutputNotBuilt,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ResolvedModuleTarget {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ResolvedModuleTarget<P = ProgramPath> {
     Source {
         source: SourceFileId,
-        resolved_file: ProgramPath,
+        resolved_file: P,
     },
     Unloaded {
-        resolved_file: ProgramPath,
+        resolved_file: P,
         reason: UnloadedModuleReason,
     },
 }
@@ -480,7 +480,9 @@ impl ResolvedModuleTarget {
             reason,
         }
     }
+}
 
+impl<P: std::borrow::Borrow<ProgramPath>> ResolvedModuleTarget<P> {
     pub const fn source(&self) -> Option<SourceFileId> {
         match self {
             Self::Source { source, .. } => Some(*source),
@@ -491,7 +493,7 @@ impl ResolvedModuleTarget {
     pub fn resolved_file(&self) -> &ProgramPath {
         match self {
             Self::Source { resolved_file, .. } | Self::Unloaded { resolved_file, .. } => {
-                resolved_file
+                resolved_file.borrow()
             }
         }
     }
@@ -865,6 +867,14 @@ impl fmt::Display for MissingResolutionError {
 }
 
 impl Error for MissingResolutionError {}
+
+#[path = "resolution_table.rs"]
+mod table;
+pub(crate) use table::StagedModules;
+pub use table::{
+    ModuleResolutionView, ModuleStorageStats, ResolutionKeyView, ResolutionTable,
+    ResolutionTableView, ResolvedModuleView,
+};
 
 #[cfg(test)]
 #[path = "../tests/unit/resolution/extension_case_tests.rs"]

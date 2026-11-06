@@ -3,8 +3,7 @@
 use tsc_checker::state::CheckerState;
 use tsc_diagnostics::JsStr;
 use tsc_program::{
-    CanonicalPath, PreparedProgram, ResolutionKey, ResolutionMode, ResolutionOutcome,
-    TypeReferenceResolutionKey,
+    CanonicalPath, PreparedProgram, ResolutionMode, ResolutionOutcome, TypeReferenceResolutionKey,
 };
 use tsc_syntax::{FileReference, NodeData, NodeId, SourceFile, SyntaxKind};
 
@@ -359,18 +358,14 @@ pub(crate) fn module_resolution_of_specifier<'p>(
     source: &SourceFile,
     specifier: NodeId,
     text: &str,
-) -> Option<&'p tsc_program::ModuleResolution> {
+) -> Option<tsc_program::ModuleResolutionView<'p>> {
     let parent = source.arena.node(specifier).parent?;
     if tsc_syntax::utilities::is_source_phase_import(&source.arena, parent) {
         return None;
     }
     let mode = resolution_mode(state.api_mode_for_usage_location(specifier))?;
-    let key = ResolutionKey::new(
-        canonical_path(prepared, &source.file_name.to_string_lossy())?,
-        JsStr::from_str(text).to_owned(),
-        mode,
-    );
-    prepared.resolutions().require_module(&key).ok()
+    let path = canonical_path(prepared, &source.file_name.to_string_lossy())?;
+    prepared.module_resolution_by_path(&path, JsStr::from_str(text), mode)
 }
 
 /// tsgo's `core.ResolutionMode` number as the resolution tables key it.

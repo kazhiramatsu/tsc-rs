@@ -1791,7 +1791,7 @@ fn program_rebind_record(
             "cache_generation": cached.created_generation(),
         }));
         builder
-            .add_module_resolution(key.clone(), Ok(bound))
+            .add_module_resolution(key.to_owned(), Ok(bound))
             .expect("add bound module resolution");
     }
     let rebuilt = builder.build().expect("build rebound program");

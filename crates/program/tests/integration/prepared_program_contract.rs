@@ -692,6 +692,7 @@ fn resolution_keys_keep_mode_and_specifier_spelling_exact() {
             .resolutions()
             .require_module(&common_js)
             .unwrap()
+            .to_owned()
             .outcome(),
         &ResolutionOutcome::Resolved(ResolvedModule::new(
             ResolvedModuleTarget::Source {

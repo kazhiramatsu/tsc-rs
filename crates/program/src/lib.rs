@@ -218,7 +218,8 @@ pub use prepared::{
     PackageRedirectFile, PathContext, PathMapping, PreparationDiagnostics, PreparedAuxiliaryFile,
     PreparedProgram, PreparedProgramBuilder, PreparedProgramMode, PreparedRoot, PreparedSourceFile,
     PreparsedSourceFile, PreparsedSyntax, ProgramConfigFile, ProgramConfigSpan, ProgramOptions,
-    ProjectReferenceFile, ReferencedProjectOptions, ResolutionTable, SourceFileId,
+    ProjectReferenceFile, ReferencedProjectOptions, ResolutionTable, ResolutionTableView,
+    SourceFileId,
 };
 pub use project_references::{
     resolve_config_file_name_of_project_reference, resolve_project_references,
@@ -226,10 +227,12 @@ pub use project_references::{
     ResolvedProjectReferences, ResolvedReferenceEntry,
 };
 pub use resolution::{
-    MissingResolutionError, ModuleExtension, ModuleResolution, PackageId, ResolutionError,
-    ResolutionErrorKind, ResolutionKey, ResolutionMode, ResolutionOutcome, ResolutionRequestKind,
-    ResolvedModule, ResolvedModuleTarget, ResolvedTypeReferenceDirective, TypeReferenceResolution,
-    TypeReferenceResolutionKey, TypeReferenceResolutionOrigin, UnloadedModuleReason,
+    MissingResolutionError, ModuleExtension, ModuleResolution, ModuleResolutionView,
+    ModuleStorageStats, PackageId, ResolutionError, ResolutionErrorKind, ResolutionKey,
+    ResolutionKeyView, ResolutionMode, ResolutionOutcome, ResolutionRequestKind, ResolvedModule,
+    ResolvedModuleTarget, ResolvedModuleView, ResolvedTypeReferenceDirective,
+    TypeReferenceResolution, TypeReferenceResolutionKey, TypeReferenceResolutionOrigin,
+    UnloadedModuleReason,
 };
 pub use resolution_cache::{
     content_digest, CacheEntry, CacheError, CachedValue, CancellationToken, Candidate, ChangeBatch,

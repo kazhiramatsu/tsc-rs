@@ -1055,7 +1055,8 @@ impl<P: std::borrow::Borrow<PreparedProgram>> PreparedModuleProvider<P> {
         &self,
         source_file: SourceFileId,
         source: &PreparedSourceFile,
-        key: &ResolutionKey,
+        specifier: JsStr<'_>,
+        mode: ResolutionMode,
     ) -> Result<bool, AuthoritativeModuleLookupFailure> {
         if let Some(plan) = self
             .request_plans
@@ -1063,22 +1064,22 @@ impl<P: std::borrow::Borrow<PreparedProgram>> PreparedModuleProvider<P> {
             .expect("request plan cache")
             .get(&source_file)
         {
-            return plan.module_request_loads_source(key).ok_or(
-                AuthoritativeModuleLookupFailure::Unsupported(
+            return plan
+                .module_request_loads_source_by_specifier(specifier, mode)
+                .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
                     UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
-                ),
-            );
+                ));
         }
 
         // Only sources that actually reach an unloaded row pay for this
         // second plan. Cache the exact aggregate request loadability so a
         // reason cannot turn a normal import into a resolution-only lookup.
         let plan = self.source_request_plan(source_file, source)?;
-        let loads_source = plan.module_request_loads_source(key).ok_or(
-            AuthoritativeModuleLookupFailure::Unsupported(
+        let loads_source = plan
+            .module_request_loads_source_by_specifier(specifier, mode)
+            .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
                 UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
-            ),
-        )?;
+            ))?;
         Ok(loads_source)
     }
 }
@@ -1107,9 +1108,7 @@ impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
             })
             .collect::<Vec<_>>();
         for (key, resolution) in prepared.resolutions().modules() {
-            let Some(source) = prepared.source_id(key.source()) else {
-                continue;
-            };
+            let source = key.source_id();
             let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
                 continue;
             };
@@ -1170,29 +1169,29 @@ impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
         let Some(source) = self.prepared().source_file(source_file) else {
             return Err(AuthoritativeModuleLookupFailure::InvalidSourceToken);
         };
-        let key = ResolutionKey::new(
-            source.path().canonical().clone(),
-            request.specifier,
-            program_resolution_mode(request.mode),
-        );
-        let resolution = match self.prepared().resolutions().require_module(&key) {
-            Ok(resolution) => resolution,
-            Err(_) => {
-                let plan = self.source_request_plan(source_file, source)?;
-                if plan
-                    .unpreprocessed_module_requests()
-                    .any(|unpreprocessed| unpreprocessed == &key)
-                {
-                    return Ok(AuthoritativeModuleResolution::NotFound(
-                        AuthoritativeNotFoundModule {
-                            alternate_result: None,
-                            project_reference_output: None,
-                        },
-                    ));
+        let mode = program_resolution_mode(request.mode);
+        let resolution =
+            match self
+                .prepared()
+                .module_resolution(source_file, request.specifier, mode)
+            {
+                Some(resolution) => resolution,
+                None => {
+                    let plan = self.source_request_plan(source_file, source)?;
+                    if plan.unpreprocessed_module_requests().any(|unpreprocessed| {
+                        unpreprocessed.specifier() == request.specifier
+                            && unpreprocessed.mode() == mode
+                    }) {
+                        return Ok(AuthoritativeModuleResolution::NotFound(
+                            AuthoritativeNotFoundModule {
+                                alternate_result: None,
+                                project_reference_output: None,
+                            },
+                        ));
+                    }
+                    return Err(AuthoritativeModuleLookupFailure::Missing);
                 }
-                return Err(AuthoritativeModuleLookupFailure::Missing);
-            }
-        };
+            };
         // A fileless package-root diagnostic does not invalidate the resolved
         // module. Program getters report these owned facts independently.
         // Unqualified host diagnostic records retain their typed boundary.
@@ -1235,7 +1234,8 @@ impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
                 module.extension(),
                 ModuleExtension::Tsx | ModuleExtension::Jsx
             );
-            let loads_source = self.module_request_loads_source(source_file, source, &key)?;
+            let loads_source =
+                self.module_request_loads_source(source_file, source, request.specifier, mode)?;
             if !module.extension().is_javascript()
                 && !jsx_syntax_extension
                 && !arbitrary_declaration
@@ -1502,13 +1502,20 @@ fn map_authoritative_failure(
     } = &failure
     {
         if let Some(source) = prepared.source_file(SourceFileId::from_raw(source_token.0)) {
-            let key = ResolutionKey::new(
-                source.path().canonical().clone(),
-                specifier.clone(),
-                program_resolution_mode(*mode),
-            );
-            if let Err(missing) = prepared.resolutions().require_module(&key) {
-                return DriverError::MissingResolution(missing);
+            let mode = program_resolution_mode(*mode);
+            if prepared
+                .module_resolution(
+                    SourceFileId::from_raw(source_token.0),
+                    specifier.as_js(),
+                    mode,
+                )
+                .is_none()
+            {
+                let key =
+                    ResolutionKey::new(source.path().canonical().clone(), specifier.clone(), mode);
+                if let Err(missing) = prepared.resolutions().require_module(&key) {
+                    return DriverError::MissingResolution(missing);
+                }
             }
         }
     }
