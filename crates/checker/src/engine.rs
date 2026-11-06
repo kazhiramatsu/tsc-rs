@@ -469,7 +469,13 @@ impl<'a> CheckerState<'a> {
     pub fn get_normalized_type(&mut self, mut ty: TypeId, writing: bool) -> CheckResult<TypeId> {
         loop {
             let flags = self.tables.flags_of(ty);
-            let t = if self.tables.is_fresh_literal_type(ty) {
+            // An indexed access or conditional type (the simplifiable kinds)
+            // is no literal, object or union, so its arm below is the only
+            // one that can apply: test it first. Inference's matching probes
+            // normalize conditional types millions of times.
+            let t = if flags.intersects(TypeFlags::SIMPLIFIABLE) {
+                self.get_simplified_type(ty, writing)?
+            } else if self.tables.is_fresh_literal_type(ty) {
                 self.tables
                     .type_of(ty)
                     .regular_type()
@@ -501,8 +507,6 @@ impl<'a> CheckerState<'a> {
                 } else {
                     self.get_substitution_intersection(ty)?
                 }
-            } else if flags.intersects(TypeFlags::SIMPLIFIABLE) {
-                self.get_simplified_type(ty, writing)?
             } else {
                 ty
             };
@@ -755,6 +759,47 @@ impl<'a> CheckerState<'a> {
         relation: RelationKind,
     ) -> CheckResult<bool> {
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
+        // tsgo checkTypeRelatedTo reads its budget (relationCount) before isRelatedTo
+        // normalizes; a pair that falls through below keeps that order.
+        if relation == RelationKind::Identity
+            && source != target
+            && self
+                .tables
+                .flags_of(source)
+                .intersects(TypeFlags::CONDITIONAL)
+                != self
+                    .tables
+                    .flags_of(target)
+                    .intersects(TypeFlags::CONDITIONAL)
+            && !(self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
+                && self
+                    .tables
+                    .flags_of(target)
+                    .intersects(TypeFlags::PRIMITIVE))
+        {
+            // isRelatedTo's identity verdicts after normalization (tsgo
+            // relater.go isRelatedTo): equal types relate, different
+            // flags do not, equal singleton flags do. They write no
+            // cache and report nothing, so they are answered before
+            // checkTypeRelatedTo builds its frame. Inference's matching
+            // probes (isTypeOrBaseIdenticalTo over union members) pair a
+            // conditional type with another kind millions of times and
+            // end here; only such pairs take this path, because a pair
+            // that falls through normalizes again in the full check (to
+            // the same types).
+            let normalized_source = self.get_normalized_type(source, /*writing*/ false)?;
+            let normalized_target = self.get_normalized_type(target, /*writing*/ true)?;
+            if normalized_source == normalized_target {
+                return Ok(true);
+            }
+            let flags = self.tables.flags_of(normalized_source);
+            if flags != self.tables.flags_of(normalized_target) {
+                return Ok(false);
+            }
+            if flags.intersects(TypeFlags::SINGLETON) {
+                return Ok(true);
+            }
+        }
         let scratch = std::mem::take(&mut self.relation_scratch);
         let mut checker = RelationChecker {
             st: self,
@@ -5014,3 +5059,7 @@ pub(crate) enum RecursionIdentity {
 #[cfg(test)]
 #[path = "../tests/unit/engine/relation_error_state_tests.rs"]
 mod relation_error_state_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/engine/identity_probe_tests.rs"]
+mod identity_probe_tests;
