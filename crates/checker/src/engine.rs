@@ -208,6 +208,34 @@ impl<'a> CheckerState<'a> {
                 .flags_of(target)
                 .intersects(TypeFlags::STRUCTURED_OR_INSTANTIABLE)
         {
+            if relation == RelationKind::Identity
+                && !(self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
+                    && self
+                        .tables
+                        .flags_of(target)
+                        .intersects(TypeFlags::PRIMITIVE))
+            {
+                // isRelatedTo's identity verdicts after normalization (tsgo
+                // relater.go isRelatedTo): equal types relate, different
+                // flags do not, equal singleton flags do. They write no
+                // cache and report nothing, so they are answered before
+                // checkTypeRelatedTo builds its frame; inference's matching
+                // probes (isTypeOrBaseIdenticalTo over union members) end
+                // here almost always. Normalizing again in the full check
+                // returns the same types.
+                let normalized_source = self.get_normalized_type(source, /*writing*/ false)?;
+                let normalized_target = self.get_normalized_type(target, /*writing*/ true)?;
+                if normalized_source == normalized_target {
+                    return Ok(true);
+                }
+                let flags = self.tables.flags_of(normalized_source);
+                if flags != self.tables.flags_of(normalized_target) {
+                    return Ok(false);
+                }
+                if flags.intersects(TypeFlags::SINGLETON) {
+                    return Ok(true);
+                }
+            }
             return self.check_type_related_to(source, target, relation);
         }
         Ok(false)
