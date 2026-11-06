@@ -95,6 +95,7 @@ fn memory_sample() -> tsc_types::trace::MemorySample {
             sample.instructions = usage[31];
         }
     }
+    sample.allocations = ALLOCATION_CALLS.load(std::sync::atomic::Ordering::Relaxed);
     sample
 }
 
