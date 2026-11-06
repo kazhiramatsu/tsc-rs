@@ -2216,6 +2216,73 @@ VS Code 1 thread は ≈ 3,179 MiB、≈ 130.8 G になる。
 - 記録：`gate-smallmaps/`（battery・窓の log）、census は `gate-extras/after-det1.log`。
 - 計測は上の通り。
 
+## program の source text を専用の allocator heap に置き、adopt が解放する parse の出力と page を分ける（branch `perf/ts71-source-text-heap`、gate を通った 8 枚目、memory の 6 枚目、FE-T1）
+
+loader は file ごとに、parse しながら source text を確保していた。一般の heap では、text は同じ大きさの級の page を、その file
+の heap にある parse の出力（store の 64 KiB の mapping の閾値より小さい木）と共有した。adopt はそれを store へ移して解放し、
+page は text のためだけに確保されたまま残った。
+
+**場所の特定**（VS Code 1 thread）：
+- **heap walk**（4 つの時点）：空き slot は、load 後 173 MiB、**adopt 後 438 MiB**、bind 後 331 MiB、footprint の peak で **293 MiB**。
+- **確保元の census**（M4b lane の collector、標本）：それらの page に生き残る最大の確保元は source text だった
+  （`TextSnapshot::new` ← `PreparedSourceFile::new` ← `StagedGraph::admit_source`、136.5 MiB）。
+
+いまは `tsc_store::SharedText` が text を持つ。
+- text は process に 1 つの mimalloc v3 の heap（`mi_heap_new`、消さない）に置く。v3 の first-class heap は、自分の確保を
+  他と別の page に置き、どの thread からも確保・解放できる。
+- `SharedText` は 16 B の handle（data pointer と長さを inline）。block は参照数と text の bytes を 1 つに持つので、読みは
+  `Arc<str>` と同じ費用、確保は text ごとに 1 回（以前と同じ）。持ち主は file ごと（snapshot と位置の索引）で、node ごとではない。
+- 作り手はみな text heap へ写す（`TextSnapshot::new`、`from_shared_text`、`from_store`、LSP の編集、package.json、一時の text）。
+  置き換えた text は、最後の持ち主が手放すと解放される。
+- v3 でないときや heap を作れないときは、呼んだ thread の既定の heap に置く。libmimalloc-sys の `v2` では compile できない。
+  Miri では `std::alloc`、WASM では diagnostics が `Arc<str>` の代わりを使う（store は 64 bit 専用）。
+- `custom/runGC` は text heap も collect する（呼んだ thread の page と arena の purge）。
+- allocator の方針（判定 C の F3、統合役が受け入れ）：library の利用者は自分の global allocator のままで、source の text だけが
+  mimalloc の text heap に入る（`crates/cli/src/main.rs` と `docs/rust-api.md` に記した）。
+- adopt が解放する parse の出力は page ごと空き、bind と check がそれを再利用する。
+
+**関門**：重い card（上限 ≥ 50 MiB）なので、関門を全部通した。ledger の gate row は PR の前に main に入れた（`d81090bca`）。
+- 判定：A（件数 × 費用）GO WITH CONDITIONS、B（静的）FEASIBLE WITH CONDITIONS、C（反証）STANDS WITH FIXES。統合役の決定は GO WITH CONDITIONS。
+- 帯（A と C の共通部分）：VS Code 1 thread −205〜−215 MiB・命令数 0〜−0.10 G、4/4 −10〜−40、既定 −35〜−72、他の 7 project の
+  1 thread 合計 −70〜−120 MiB、WASM 0。
+- 条件はすべて満たした（PR の表）。表現は 1 つで text ごとに確保 1 回・16 B、v2 の guard と既定の heap への fallback、heap は
+  消さない、WASM の代わり、LSP の編集の test、runGC、census などの道具への注記。
+
+**計測**：昼（13:04〜13:14）、lane は止めた。load 1.6〜4.1、`nice -n 20`、基準と交互に実行、`main-ba4240a55` 比。
+
+| | 基準 | この PR |
+|---|---:|---:|
+| VS Code 1 thread の footprint（9 回の median） | 3,188.3 MiB | **2,976.9 MiB（−211.4）** |
+| 命令数（low mode の median） | 130.631 G | 130.649 G（+18 M） |
+| VS Code 4/4 の footprint（10 組の対の median） | — | **−33.7 MiB**（wall +0.22%、95% −0.09〜+0.53%） |
+| VS Code 既定の footprint（10 組） | — | **−60.6 MiB**（wall −0.02%、95% −0.97〜+0.92%） |
+
+- 1 thread の footprint は範囲が重ならない（基準 3,184.4〜3,194.1、card 2,971.2〜2,978.3）。閾値の pilot の窓でも、同じ
+  binary は −211.9。
+- 他 7 project の 1 thread：footprint は next −27、zod −26、playwright −16、effect −14、vue −8、ts −2、hono −2 MiB（合計 −95）。
+  命令数は −0.01〜+0.12%、emit の構成では −0.19〜+0.09%。
+- **hono は 4 worker 以上で増える**（4/4 と既定は 6 組の ABBA）：4/4 で +1.5 MiB、既定で +2.2 MiB（6 組とも正）。他の project は減る。
+  - 原因：worker ごとに、小さな size の bin ごとに text heap の page を開く。既定の 10 worker では、hono の小さな text 241 個
+    （0.6 MiB）が ≈ 206 の page を開き、最初の touch が ≈ 3 MiB になる。
+  - 8 KiB 以下を既定の heap に残す pilot（`3aed63493`）は hono を +0.1 にした。しかし VS Code 1 thread で 25 MiB を失い（−186.8）、
+    関門の 190 MiB の線を下回ったので採らない（統合役の判断）。残る差として記録する。
+- D1：(workers, checkers) = (1, 4) は −192.3 MiB、(4, 1) は −69.3 MiB。4 つの checker は空いた page を吸わない。並列の読み込み
+  （大きい順の read-ahead）が、基準でも text を parse の出力から既に分けている。そのため product metric（4/4 と既定）の得は
+  34 と 61 MiB にとどまる。
+- VS Code 1 thread は ≈ 2,977 MiB・≈ 130.6 G になり、努力目標の線（≤ 3,100 MiB・≤ 132 G）を越える。WASM は 0。
+
+**記録。** PR [#907](https://github.com/kazhiramatsu/tsc-rs/pull/907) → merge `7ce379bc6`（2026-11-06。`ba4240a55` の上、最終 head `e64b5c622`）。hosted run
+[42163943251](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42163943251)：全 job pass。local（hosted がしないことだけ、`e64b5c622`）：
+- crate の test：store 52（text heap への所属、thread をまたぐ持ち主の数、空の text の address、等しさ）、diagnostics 86、
+  program 693、syntax 279、checker 1,864、compiler 246（live program の 20 回の編集で text heap が有界）。
+- cli の test（binary が text heap を使う）、fmt、clippy（`-D warnings`）、release build。
+- WASM：`cargo check -p tsc-rs-diagnostics --target wasm32-unknown-unknown` は、main と同じ既存の error 1 つだけ。
+- 8 case で出力（exit code・stdout・stderr）が基準と一致。Identifiers・Symbols・Types・Instantiations も 8 project とも一致。
+- `full` 構成の出力の木：7 project の 16,164 file（source map と declaration map 8,081 を含む）が byte 単位で一致。
+- fingerprint oracle：`main-d4d9d0364.tsv` に対して 143,190 行のうち差は 0。
+- 記録：`gate-frag/`（dossier、判定 A・B・C、battery・窓・M1・t8k の log）。census などの道具への注記は `INSTRUMENTS-text-heap.md`。
+- 計測は上の通り。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
