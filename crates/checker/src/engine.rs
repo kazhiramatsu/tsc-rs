@@ -209,6 +209,14 @@ impl<'a> CheckerState<'a> {
                 .intersects(TypeFlags::STRUCTURED_OR_INSTANTIABLE)
         {
             if relation == RelationKind::Identity
+                && self
+                    .tables
+                    .flags_of(source)
+                    .intersects(TypeFlags::CONDITIONAL)
+                    != self
+                        .tables
+                        .flags_of(target)
+                        .intersects(TypeFlags::CONDITIONAL)
                 && !(self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
                     && self
                         .tables
@@ -219,10 +227,12 @@ impl<'a> CheckerState<'a> {
                 // relater.go isRelatedTo): equal types relate, different
                 // flags do not, equal singleton flags do. They write no
                 // cache and report nothing, so they are answered before
-                // checkTypeRelatedTo builds its frame; inference's matching
-                // probes (isTypeOrBaseIdenticalTo over union members) end
-                // here almost always. Normalizing again in the full check
-                // returns the same types.
+                // checkTypeRelatedTo builds its frame. Inference's matching
+                // probes (isTypeOrBaseIdenticalTo over union members) pair a
+                // conditional type with another kind millions of times and
+                // end here; only such pairs take this path, because a pair
+                // that falls through normalizes again in the full check (to
+                // the same types).
                 let normalized_source = self.get_normalized_type(source, /*writing*/ false)?;
                 let normalized_target = self.get_normalized_type(target, /*writing*/ true)?;
                 if normalized_source == normalized_target {
