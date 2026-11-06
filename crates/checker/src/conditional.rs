@@ -704,6 +704,40 @@ impl<'a> CheckerState<'a> {
         Ok(self.tables.flags_of(reduced).intersects(TypeFlags::NEVER))
     }
 
+    /// A conditional type's resolved branches from the direct-mapped cache in
+    /// front of their links (see [`ConditionalBranchSlot`]).
+    #[inline]
+    fn cached_conditional_branches(&self, ty: TypeId) -> ConditionalBranchSlot {
+        let slot = self.conditional_branches[ty.index() as usize & (CONDITIONAL_BRANCH_SLOTS - 1)];
+        if slot.ty == Some(ty) {
+            slot
+        } else {
+            ConditionalBranchSlot::default()
+        }
+    }
+
+    fn remember_conditional_branch(
+        &mut self,
+        ty: TypeId,
+        true_type: Option<TypeId>,
+        false_type: Option<TypeId>,
+    ) {
+        let slot =
+            &mut self.conditional_branches[ty.index() as usize & (CONDITIONAL_BRANCH_SLOTS - 1)];
+        if slot.ty != Some(ty) {
+            *slot = ConditionalBranchSlot {
+                ty: Some(ty),
+                ..ConditionalBranchSlot::default()
+            };
+        }
+        if true_type.is_some() {
+            slot.true_type = true_type;
+        }
+        if false_type.is_some() {
+            slot.false_type = false_type;
+        }
+    }
+
     /// tsc-port: getTrueTypeFromConditionalType @6.0.3
     /// tsc-hash: 3bc8c100391c728a2d646188cc6f497bfae8befb8364762df568410bdfbe630f
     /// tsc-span: _tsc.js:62746-62748
@@ -711,6 +745,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
+        if let Some(cached) = self.cached_conditional_branches(ty).true_type {
+            return Ok(cached);
+        }
         if let Some(cached) = self
             .links
             .type_cold()
@@ -718,6 +755,7 @@ impl<'a> CheckerState<'a> {
             .get(ty)
             .resolved()
         {
+            self.remember_conditional_branch(ty, Some(cached), None);
             return Ok(cached);
         }
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
@@ -734,6 +772,7 @@ impl<'a> CheckerState<'a> {
         let resolved = self.instantiate_type(written, data.mapper)?;
         self.links
             .set_conditional_true_type(self.speculation_depth, ty, resolved);
+        self.remember_conditional_branch(ty, Some(resolved), None);
         Ok(resolved)
     }
 
@@ -744,6 +783,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
+        if let Some(cached) = self.cached_conditional_branches(ty).false_type {
+            return Ok(cached);
+        }
         if let Some(cached) = self
             .links
             .type_cold()
@@ -751,6 +793,7 @@ impl<'a> CheckerState<'a> {
             .get(ty)
             .resolved()
         {
+            self.remember_conditional_branch(ty, None, Some(cached));
             return Ok(cached);
         }
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
@@ -767,6 +810,7 @@ impl<'a> CheckerState<'a> {
         let resolved = self.instantiate_type(written, data.mapper)?;
         self.links
             .set_conditional_false_type(self.speculation_depth, ty, resolved);
+        self.remember_conditional_branch(ty, None, Some(resolved));
         Ok(resolved)
     }
 
@@ -825,3 +869,21 @@ impl<'a> CheckerState<'a> {
 #[cfg(test)]
 #[path = "../tests/unit/conditional/tests.rs"]
 mod tests;
+
+/// Slots of the conditional-branch cache: a power of two (12 bytes each).
+pub(crate) const CONDITIONAL_BRANCH_SLOTS: usize = 4096;
+
+/// One slot of the direct-mapped cache in front of a checker's conditional
+/// branch links (`getTrueTypeFromConditionalType` /
+/// `getFalseTypeFromConditionalType`). A branch is written once and never
+/// rolled back (the setters ignore speculation), so a slot holding a type's
+/// resolved branch answers exactly as the links do; a slot taken by another
+/// type falls through to them. Inference's matching probes read the branches
+/// of the same few conditional types millions of times (VS Code: 14.5 M
+/// reads, 96% in one file); tsgo reads them from the type's own fields.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ConditionalBranchSlot {
+    pub(crate) ty: Option<TypeId>,
+    pub(crate) true_type: Option<TypeId>,
+    pub(crate) false_type: Option<TypeId>,
+}
