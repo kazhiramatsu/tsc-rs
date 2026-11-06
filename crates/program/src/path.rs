@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use tsc_diagnostics::{JsStr, JsString};
+use tsc_diagnostics::{JsStr, JsString, SharedJsString};
 
 use crate::error::{PreparationError, PreparationErrorKind, PreparationOperation};
 
@@ -12,7 +12,7 @@ use crate::error::{PreparationError, PreparationErrorKind, PreparationOperation}
 /// the host crate. The wrapper prevents display spellings from being used as
 /// lookup keys accidentally.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CanonicalPath(JsString);
+pub struct CanonicalPath(SharedJsString);
 
 impl CanonicalPath {
     /// Wrap an identity already normalized with the vendored `toPath`
@@ -28,7 +28,7 @@ impl CanonicalPath {
     /// encoding boundary. Ordering is canonical byte order, not JS ordering.
     pub fn from_js_normalized(path: JsStr<'_>) -> Result<Self, PreparationError> {
         validate_js_path(path, "canonical path")?;
-        Ok(Self(path.to_owned()))
+        Ok(Self(SharedJsString::from(path)))
     }
 
     pub fn as_js(&self) -> JsStr<'_> {
@@ -36,7 +36,7 @@ impl CanonicalPath {
     }
 
     pub fn into_js_string(self) -> JsString {
-        self.0
+        self.0.to_js_string()
     }
 }
 
@@ -47,7 +47,7 @@ impl CanonicalPath {
 /// canonicalization and physical identity are not interchangeable.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ProgramPath {
-    display: JsString,
+    display: SharedJsString,
     canonical: CanonicalPath,
 }
 
@@ -75,10 +75,15 @@ impl ProgramPath {
         canonical: JsStr<'_>,
     ) -> Result<Self, PreparationError> {
         validate_js_path(display, "display path")?;
-        Ok(Self {
-            display: display.to_owned(),
-            canonical: CanonicalPath::from_js_normalized(canonical)?,
-        })
+        let canonical = CanonicalPath::from_js_normalized(canonical)?;
+        // A spelling equal to its identity (a case-sensitive host, or one
+        // already in canonical case) shares its bytes.
+        let display = if display == canonical.as_js() {
+            canonical.0.clone()
+        } else {
+            SharedJsString::from(display)
+        };
+        Ok(Self { display, canonical })
     }
 
     pub fn display(&self) -> JsStr<'_> {
@@ -90,7 +95,7 @@ impl ProgramPath {
     }
 
     pub fn into_parts(self) -> (JsString, CanonicalPath) {
-        (self.display, self.canonical)
+        (self.display.to_js_string(), self.canonical)
     }
 }
 
@@ -124,3 +129,7 @@ fn validate_js_path(path: JsStr<'_>, label: &str) -> Result<(), PreparationError
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/path/tests.rs"]
+mod tests;
