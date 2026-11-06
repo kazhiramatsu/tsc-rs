@@ -110,6 +110,8 @@ pub mod functions;
 pub mod globals;
 pub mod incremental;
 mod location;
+#[cfg(feature = "mem-accounting")]
+mod mem_accounting;
 pub use incremental::{
     IncrementalCheckFacts, IncrementalFileFacts, IncrementalPlan, IncrementalPlanner,
     IncrementalRequest,
@@ -4864,6 +4866,8 @@ fn check_snapshot_serially(
             work_counters,
             incremental,
         );
+        #[cfg(feature = "mem-accounting")]
+        mem_accounting::completed(snapshot, &state);
         if leak_state {
             std::mem::forget(state);
         }
@@ -5000,6 +5004,8 @@ fn check_snapshot_serially(
         }
         _ => state,
     };
+    #[cfg(feature = "mem-accounting")]
+    mem_accounting::completed(snapshot, &state);
     if leak_state {
         std::mem::forget(state);
     }
@@ -5146,6 +5152,8 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         let snapshot = document_store
             .into_snapshot_with_file_facts(file_facts)
             .expect("program snapshot identity allocation failed");
+        #[cfg(feature = "mem-accounting")]
+        mem_accounting::bound(&snapshot);
         report_program_memory(&snapshot);
         file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
         let authoritative_metadata = authoritative_run.map(|run| {
@@ -5450,6 +5458,10 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 )
             });
         }
+        #[cfg(feature = "mem-accounting")]
+        if authoritative_failure.is_some() || emit_operation.is_none() {
+            mem_accounting::completed(&snapshot, &state);
+        }
         if authoritative_failure.is_none() {
             if let Some(operation) = emit_operation {
                 let checked = assemble_check_result_with_facts(
@@ -5465,6 +5477,8 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                     checked.program_semantic_diagnostics.clone(),
                 );
                 operation(&snapshot, &session, &checked);
+                #[cfg(feature = "mem-accounting")]
+                mem_accounting::completed(&snapshot, &session.state());
                 // As the eager path: the snapshot (every document) is left
                 // to the process exit with the state.
                 if leak_at_end {

@@ -50,6 +50,9 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::Once;
 
+#[cfg(feature = "mem-accounting")]
+pub mod accounting;
+
 pub mod claimed;
 pub mod frozen;
 pub mod recycle;

@@ -2824,3 +2824,169 @@ pub(crate) struct MapperCacheKey {
     pub(crate) alias_symbol: Option<SymbolId>,
     pub(crate) alias_arguments: Option<tsc_types::TypeListId>,
 }
+
+#[cfg(feature = "mem-accounting")]
+impl<T: Copy> SharedList<T> {
+    // Inventory iteration does not affect compiler results; the reducer sorts owners.
+    #[allow(clippy::iter_over_hash_type)]
+    pub(crate) fn account_memory(&self, a: &mut tsc_types::accounting::Account, owner: &str) {
+        if let Some(list) = &self.0 {
+            let prefix =
+                (2 * std::mem::size_of::<usize>()).next_multiple_of(std::mem::align_of::<T>());
+            let bytes = std::mem::size_of_val::<[T]>(list) + prefix;
+            a.backing(
+                owner,
+                list.as_ptr() as usize - prefix,
+                list.len(),
+                std::mem::size_of::<T>(),
+                bytes,
+                bytes,
+                0,
+                None,
+                None,
+            );
+        }
+    }
+}
+
+#[cfg(feature = "mem-accounting")]
+impl CheckerState<'_> {
+    // Inventory iteration does not affect compiler results; the reducer sorts owners.
+    #[allow(clippy::iter_over_hash_type)]
+    pub(crate) fn account_memory(&self, a: &mut tsc_types::accounting::Account) {
+        let bytes = std::mem::size_of::<Self>();
+        a.owned("checker.state_record", 1, bytes, bytes, bytes);
+        self.tables.account_memory(a);
+        self.links.account_memory(a);
+        self.binder.account_transient_memory(a);
+        a.vector("checker.signatures", &self.signatures);
+        for signature in &self.signatures {
+            a.vector("checker.signatures.parameters", &signature.parameters);
+            if let Some(parameters) = &signature.type_parameters {
+                a.vector("checker.signatures.type_parameters", parameters);
+            }
+            if let Some(composite) = &signature.composite_signatures {
+                let bytes = std::mem::size_of_val(&**composite);
+                a.backing(
+                    "checker.signatures.composite",
+                    composite.as_ptr() as usize,
+                    composite.len(),
+                    4,
+                    bytes,
+                    bytes,
+                    0,
+                    None,
+                    None,
+                );
+            }
+        }
+        a.vector("checker.members", &self.members);
+        let mut duplicates = 0;
+        let mut duplicate_bytes = 0;
+        for members in &self.members {
+            members.members.account_memory(a);
+            members
+                .properties
+                .account_memory(a, "checker.members.properties");
+            if !members.properties.is_empty() && members.members.symbols() == &*members.properties {
+                duplicates += 1;
+                duplicate_bytes += members.properties.len() * std::mem::size_of::<SymbolId>();
+                // References, deduplicated independently from the accounting sum.
+                a.write(format_args!(
+                    "{{\"kind\":\"duplicate_properties\",\"backing_id\":{},\"bytes\":{}}}\n",
+                    members.properties.as_ptr() as usize - 2 * std::mem::size_of::<usize>(),
+                    members.properties.len() * 4
+                ));
+            }
+            if let Some(extras) = &members.extras {
+                let bytes = std::mem::size_of::<MembersExtras>();
+                a.owned("checker.members.extras", 1, bytes, bytes, bytes);
+                extras
+                    .call_signatures
+                    .account_memory(a, "checker.members.call_signatures");
+                extras
+                    .construct_signatures
+                    .account_memory(a, "checker.members.construct_signatures");
+                a.vector("checker.members.index_infos", &extras.index_infos);
+                for info in &extras.index_infos {
+                    if let Some(v) = &info.components {
+                        a.vector("checker.members.index_components", v);
+                    }
+                }
+            }
+        }
+        a.metric("properties.duplicate_list_references", Some(duplicates));
+        a.metric(
+            "properties.duplicate_reference_payload_bytes",
+            Some(duplicate_bytes),
+        );
+        a.vector("checker.mappers", &self.mappers);
+        a.vector("checker.mapper_lists", &self.mapper_lists);
+        a.vector("checker.inference_contexts", &self.inference_context_arena);
+        a.vector("checker.inference_infos", &self.inference_info_arena);
+        for context in &self.inference_context_arena {
+            a.vector("checker.inference.inferences", &context.inferences);
+            a.vector("checker.inference.mapper_sources", &context.mapper_sources);
+            a.vector("checker.inference.mapper_infos", &context.mapper_infos);
+            if let Some(v) = &context.inferred_type_parameters {
+                a.vector("checker.inference.inferred_type_parameters", v);
+            }
+            if let Some(v) = &context.intra_expression_inference_sites {
+                a.vector("checker.inference.sites", v);
+            }
+        }
+        for info in &self.inference_info_arena {
+            if let Some(v) = &info.candidates {
+                a.vector("checker.inference.candidates", v);
+            }
+            if let Some(v) = &info.contra_candidates {
+                a.vector("checker.inference.contra_candidates", v);
+            }
+        }
+        self.diagnostics.account_memory(a);
+        for list in self.subtype_reduction_cache.values() {
+            a.vector("checker.subtype_reduction_lists", list);
+        }
+        self.array_variances
+            .account_memory(a, "checker.array_variances");
+        self.relations.account_memory(a);
+        a.map(
+            "checker.maps.signature_instantiations",
+            &self.signature_instantiations,
+        );
+        a.map(
+            "checker.maps.subtype_reduction_cache",
+            &self.subtype_reduction_cache,
+        );
+        a.map("checker.maps.cached_types", &self.cached_types);
+        a.map(
+            "checker.maps.regular_object_literal_types",
+            &self.regular_object_literal_types,
+        );
+        a.map("checker.maps.properties_types", &self.properties_types);
+        a.map("checker.maps.error_types", &self.error_types);
+        a.map("checker.maps.unresolved_symbols", &self.unresolved_symbols);
+        a.map("checker.maps.flow_loop_caches", &self.flow_loop_caches);
+        a.map(
+            "checker.maps.flow_node_reachable",
+            &self.flow_node_reachable,
+        );
+        a.map(
+            "checker.maps.flow_node_post_super",
+            &self.flow_node_post_super,
+        );
+        a.map("checker.maps.index_symbols", &self.index_symbols);
+        a.map(
+            "checker.maps.merged_symbol_sources",
+            &self.merged_symbol_sources,
+        );
+        for map in self.flow_loop_caches.values() {
+            a.map("checker.maps.flow_loop_inner", map);
+        }
+        for values in self.merged_symbol_sources.values() {
+            a.vector("checker.merged_symbol_sources", values);
+        }
+
+        a.unknown("checker.other_state_and_scratch");
+    }
+}

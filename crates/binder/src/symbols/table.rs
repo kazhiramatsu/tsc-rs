@@ -436,3 +436,47 @@ impl<Q: NameKey> std::ops::Index<Q> for SymbolTable {
         self.get(key).expect("symbol table key exists")
     }
 }
+
+#[cfg(feature = "mem-accounting")]
+impl SymbolTable {
+    pub fn account_memory(
+        &self,
+        a: &mut tsc_store::accounting::Account,
+        owner: &str,
+        shared: Option<usize>,
+    ) {
+        // Arc identity deduplicates the complete table, including its box,
+        // entries and hash index. A local table has a unique boxed map.
+        if let Some(map) = &self.0 {
+            let bytes = shared.map_or(0, |_| {
+                std::mem::size_of::<Self>() + 2 * std::mem::size_of::<usize>()
+            }) + std::mem::size_of::<SymbolMap>()
+                + map.entries.capacity() * std::mem::size_of::<(EscapedName, SymbolId)>()
+                // #906: below nine entries a map has no index; a built index is boxed.
+                + map.positions.as_ref().map_or(0, |index| {
+                    std::mem::size_of::<HashTable<u32>>() + index.allocation_size()
+                });
+            let initialized = bytes
+                - (map.entries.capacity() - map.entries.len())
+                    * std::mem::size_of::<(EscapedName, SymbolId)>()
+                - map.positions.as_ref().map_or(0, |index| {
+                    if index.allocation_size() != 0 {
+                        (index.num_buckets() - index.len()) * std::mem::size_of::<u32>()
+                    } else {
+                        0
+                    }
+                });
+            a.composite(
+                owner,
+                shared.unwrap_or(&**map as *const SymbolMap as usize),
+                map.entries.len(),
+                std::mem::size_of::<(EscapedName, SymbolId)>(),
+                initialized,
+                bytes,
+            );
+        } else if let Some(address) = shared {
+            let bytes = std::mem::size_of::<Self>() + 2 * std::mem::size_of::<usize>();
+            a.backing(owner, address, 0, 0, bytes, bytes, 0, None, None);
+        }
+    }
+}

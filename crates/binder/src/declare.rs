@@ -2020,3 +2020,102 @@ where
         self.base == other.base && self.iter().eq(other.iter())
     }
 }
+
+#[cfg(feature = "mem-accounting")]
+impl BindData {
+    // Inventory iteration does not affect compiler results; the reducer sorts owners.
+    #[allow(clippy::iter_over_hash_type)]
+    pub fn account_memory(&self, a: &mut tsc_store::accounting::Account) {
+        self.symbols.account_memory(a, false);
+        self.flow.account_memory(a);
+        self.node_symbol.account_memory(a, "binder.node_symbol");
+        self.node_flow.account_memory(a, "binder.node_flow");
+        let flags = &self.node_flags_mut.0;
+        a.backing(
+            "binder.node_flags",
+            flags.as_ptr() as usize,
+            flags.len(),
+            1,
+            flags.len(),
+            flags.capacity(),
+            if flags.is_published() {
+                flags.capacity()
+            } else {
+                0
+            },
+            Some(flags.iter().filter(|f| f.0 != 0).count()),
+            Some(flags.len()),
+        );
+        for table in self.locals.values() {
+            table.account_memory(a, "binder.locals.tables", None);
+        }
+        a.map("binder.maps.locals", &self.locals);
+        a.map("binder.maps.node_local_symbol", &self.node_local_symbol);
+        a.map("binder.maps.assigned_symbol_ids", &self.assigned_symbol_ids);
+        a.map("binder.maps.next_container", &self.next_container);
+        a.map("binder.maps.node_end_flow", &self.node_end_flow);
+        a.map("binder.maps.node_return_flow", &self.node_return_flow);
+        a.map("binder.maps.node_flow_when_true", &self.node_flow_when_true);
+        a.map(
+            "binder.maps.node_flow_when_false",
+            &self.node_flow_when_false,
+        );
+        a.map("binder.maps.possibly_exhaustive", &self.possibly_exhaustive);
+        a.map(
+            "binder.maps.node_fallthrough_flow",
+            &self.node_fallthrough_flow,
+        );
+    }
+}
+#[cfg(feature = "mem-accounting")]
+impl NodeFlowMap {
+    // Inventory iteration does not affect compiler results; the reducer sorts owners.
+    #[allow(clippy::iter_over_hash_type)]
+    fn account_memory(&self, a: &mut tsc_store::accounting::Account, owner: &str) {
+        // #903: two-byte slots, flows past two bytes in a per-file overflow map.
+        let width = std::mem::size_of::<NodeFlowSlot>();
+        a.backing(
+            owner,
+            self.slots.as_ptr() as usize,
+            self.slots.len(),
+            width,
+            self.slots.len() * width,
+            self.slots.capacity() * width,
+            if self.slots.is_published() {
+                self.slots.capacity() * width
+            } else {
+                0
+            },
+            Some(self.slots.iter().filter(|slot| slot.0 != 0).count()),
+            Some(self.slots.len()),
+        );
+        a.map("binder.node_flow_overflow", &self.overflow);
+    }
+}
+
+#[cfg(feature = "mem-accounting")]
+impl<V: Copy> DenseNodeMap<V>
+where
+    NodeSlot<V>: StoreRecord,
+{
+    // Inventory iteration does not affect compiler results; the reducer sorts owners.
+    #[allow(clippy::iter_over_hash_type)]
+    fn account_memory(&self, a: &mut tsc_store::accounting::Account, owner: &str) {
+        let width = std::mem::size_of::<NodeSlot<V>>();
+        a.backing(
+            owner,
+            self.slots.as_ptr() as usize,
+            self.slots.len(),
+            width,
+            self.slots.len() * width,
+            self.slots.capacity() * width,
+            if self.slots.is_published() {
+                self.slots.capacity() * width
+            } else {
+                0
+            },
+            Some(self.slots.iter().filter(|s| s.0.is_some()).count()),
+            Some(self.slots.len()),
+        );
+    }
+}

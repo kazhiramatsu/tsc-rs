@@ -121,3 +121,31 @@ pub fn usage() -> (usize, usize) {
     let text = CURSOR.load(Ordering::Relaxed);
     (names, text + names * std::mem::size_of::<NameRecord>())
 }
+
+#[cfg(feature = "mem-accounting")]
+pub fn account_memory(a: &mut crate::accounting::Account) {
+    let count = NEXT.load(Ordering::Relaxed) as usize;
+    let text = CURSOR.load(Ordering::Relaxed);
+    a.backing(
+        "names.records",
+        crate::address::<NameRecord>(0),
+        count,
+        std::mem::size_of::<NameRecord>(),
+        count * std::mem::size_of::<NameRecord>(),
+        count * std::mem::size_of::<NameRecord>(),
+        crate::REGION_BYTES,
+        None,
+        None,
+    );
+    a.backing(
+        "names.texts",
+        TEXT,
+        text,
+        1,
+        text,
+        text,
+        crate::REGION_BYTES,
+        None,
+        None,
+    );
+}

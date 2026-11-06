@@ -597,3 +597,42 @@ impl<'a> CheckerState<'a> {
 #[cfg(test)]
 #[path = "../tests/unit/relate/tests.rs"]
 mod tests;
+
+#[cfg(feature = "mem-accounting")]
+impl RelationCaches {
+    // Inventory iteration does not affect compiler results; the reducer sorts owners.
+    #[allow(clippy::iter_over_hash_type)]
+    pub(crate) fn account_memory(&self, a: &mut tsc_types::accounting::Account) {
+        for cache in &self.per_relation {
+            a.map("checker.relation_pairs", &cache.pairs);
+            a.map("checker.relation_generics", &cache.generics);
+            for key in cache.generics.keys() {
+                a.backing(
+                    "checker.relation_key_text",
+                    key.as_ptr() as usize,
+                    key.len(),
+                    1,
+                    key.len(),
+                    key.len(),
+                    0,
+                    None,
+                    None,
+                );
+            }
+        }
+        a.map("checker.enum_relations", &self.enum_relation);
+        for key in self.enum_relation.keys() {
+            a.backing(
+                "checker.relation_key_text",
+                key.as_ptr() as usize,
+                key.len(),
+                1,
+                key.len(),
+                key.capacity(),
+                0,
+                None,
+                None,
+            );
+        }
+    }
+}

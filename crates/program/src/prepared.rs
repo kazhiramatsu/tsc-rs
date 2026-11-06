@@ -3399,3 +3399,123 @@ fn insert_resolution<K: Eq + Ord + TableKey, T: Eq>(
 #[cfg(test)]
 #[path = "../tests/unit/prepared/compact_resolution_tests.rs"]
 mod compact_resolution_tests;
+
+#[cfg(feature = "mem-accounting")]
+impl PreparedProgram {
+    /// The CLI's completed load graph, before checker input projection/adoption
+    /// or any library/program bind. Retained planner parses are still in slots.
+    pub fn account_loaded_memory(&self) {
+        if let Some(mut account) = tsc_types::accounting::Account::open("after_load") {
+            self.account_memory(&mut account);
+            tsc_types::names::account_memory(&mut account);
+            account.metric(
+                "store.mapping_reserved_virtual_bytes",
+                Some(tsc_types::accounting::store_reservation_bytes()),
+            );
+            account.unknown("program.config_host_and_caller_state");
+            account.unknown("program.source_positions_and_nested_metadata");
+            account.unknown("store.retired_versions_and_allocator_metadata");
+        }
+    }
+
+    pub fn account_memory(&self, a: &mut tsc_types::accounting::Account) {
+        a.vector("program.prepared_sources", &self.source_files);
+        a.vector("program.roots", &self.roots);
+        a.vector("program.library_files", &self.library_files);
+        a.vector("program.package_json_probes", &self.package_json_probes);
+        a.vector("program.resolution_trace", &self.resolution_trace);
+        a.vector(
+            "program.package_redirect_files",
+            &self.package_redirect_files,
+        );
+        a.vector(
+            "program.import_extension_files",
+            &self.import_extension_files,
+        );
+        a.vector("program.dependency_symlinks", &self.dependency_symlinks);
+        a.map("program.source_by_canonical", &self.source_by_canonical);
+        for source in &self.source_files {
+            let snapshot = &source.snapshot;
+            let bytes = std::mem::size_of_val(&**snapshot) + 2 * std::mem::size_of::<usize>();
+            a.backing(
+                "program.text_snapshots",
+                (Arc::as_ptr(snapshot) as usize) - 2 * std::mem::size_of::<usize>(),
+                1,
+                std::mem::size_of_val(&**snapshot),
+                bytes,
+                bytes,
+                0,
+                None,
+                None,
+            );
+            // FE-T1: one text-heap block per text (mimalloc v3 first-class heap, outside
+            // GlobalAlloc), the reference count first: 8 + max(len, 1) bytes.
+            let text = snapshot.text();
+            let bytes = std::mem::size_of::<usize>() + text.len().max(1);
+            a.backing(
+                "program.source_texts",
+                (text.as_ptr() as usize) - std::mem::size_of::<usize>(),
+                text.len(),
+                1,
+                bytes,
+                bytes,
+                0,
+                None,
+                None,
+            );
+            let slot = &source.preparsed_syntax.slot;
+            let bytes = std::mem::size_of_val(&**slot) + 2 * std::mem::size_of::<usize>();
+            a.backing(
+                "program.preparsed_slots",
+                (Arc::as_ptr(slot) as usize) - 2 * std::mem::size_of::<usize>(),
+                1,
+                std::mem::size_of_val(&**slot),
+                bytes,
+                bytes,
+                0,
+                None,
+                None,
+            );
+            let held = slot
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some(parsed) = &*held {
+                parsed.source.arena.account_memory(a);
+            }
+            a.vector(
+                "program.source_inclusion_reasons",
+                &source.inclusion_reasons,
+            );
+            a.vector(
+                "program.alternate_display_paths",
+                &source.alternate_display_paths,
+            );
+            a.vector(
+                "program.package_redirect_paths",
+                &source.package_redirect_paths,
+            );
+            a.vector(
+                "program.project_reference_source_paths",
+                &source.project_reference_source_paths,
+            );
+        }
+        // FE-R1: the module table is one row vector with per-source ranges.
+        let view = self.resolutions();
+        let stats = view.module_storage();
+        a.metric("program.module_resolution_rows", Some(stats.row_bytes));
+        a.metric("program.module_resolution_ranges", Some(stats.range_bytes));
+        a.metric("program.module_resolution_rare_boxes", Some(stats.rare_bytes));
+        a.metric("program.module_resolution_unloaded_paths", Some(stats.unloaded_path_bytes));
+        a.metric(
+            "program.module_resolution_package_ids",
+            Some(stats.package_id_bytes + stats.package_string_bytes),
+        );
+        let refs = view.type_reference_len();
+        let width = std::mem::size_of::<TypeReferenceResolutionKey>()
+            + std::mem::size_of::<TypeReferenceResolution>();
+        a.entries("program.type_resolution_entry_payload", refs, width, None);
+        a.unknown("program.resolution_nested_backing");
+        a.unknown("program.packages_auxiliary_and_other_btrees");
+        a.unknown("program.prepared_nested_strings_options_diagnostics");
+    }
+}

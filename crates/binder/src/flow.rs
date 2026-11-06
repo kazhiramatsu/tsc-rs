@@ -626,3 +626,20 @@ impl<'a> BinderWorker<'a> {
 #[cfg(test)]
 #[path = "../tests/unit/flow/tests.rs"]
 mod tests;
+
+#[cfg(feature = "mem-accounting")]
+impl FlowArena {
+    pub fn account_memory(&self, a: &mut tsc_store::accounting::Account) {
+        // #902: 16-byte records, the bind's label cells, and the frozen antecedent pool.
+        a.vector("binder.flow_nodes", &self.nodes);
+        a.vector("binder.flow_cells", &self.cells);
+        let width = std::mem::size_of::<FlowId>();
+        a.owned(
+            "binder.flow_antecedent_pool",
+            self.pool.len(),
+            width,
+            self.pool.len() * width,
+            self.pool.len() * width,
+        );
+    }
+}

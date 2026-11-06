@@ -208,3 +208,24 @@ pub fn tail(position: u32, len: u32) -> &'static [u32] {
     // SAFETY: `TailWord` is a transparent `u32`.
     unsafe { &*(std::ptr::from_ref(words) as *const [u32]) }
 }
+
+#[cfg(feature = "mem-accounting")]
+impl Tails {
+    pub fn account_memory(&self, a: &mut crate::accounting::Account) {
+        a.vector("syntax.tail_directory", &self.chunks);
+        for &(position, class) in &self.chunks {
+            let words = chunk_words(usize::from(class)) as usize;
+            a.backing(
+                "syntax.tail_chunks",
+                crate::address::<TailWord>(position),
+                words,
+                4,
+                None,
+                words * 4,
+                words * 4,
+                None,
+                None,
+            );
+        }
+    }
+}

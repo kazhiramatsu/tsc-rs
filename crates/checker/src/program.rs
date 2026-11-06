@@ -1452,3 +1452,66 @@ impl<'a> ProgramBinder<'a> {
 #[cfg(test)]
 #[path = "../tests/unit/program/tests.rs"]
 mod tests;
+
+#[cfg(feature = "mem-accounting")]
+impl ProgramBinder<'_> {
+    pub(crate) fn account_transient_memory(&self, a: &mut tsc_types::accounting::Account) {
+        self.transient.account_memory(a, true);
+        a.vector("program.binder.file_entries", &self.file_entries);
+        a.vector("program.binder.sources", &self.sources);
+        a.vector("program.binder.file_facts", &self.file_facts);
+        a.vector("program.binder.node_owners", &self.node_owners);
+        a.vector("program.binder.symbol_owners", &self.symbol_owners);
+
+        for owners in [&self.node_files, &self.symbol_files] {
+            a.vector("program.binder.dense_owner_intervals", &owners.owners);
+            let bytes = std::mem::size_of_val(&*owners.pages);
+            a.backing(
+                "program.binder.dense_owner_pages",
+                owners.pages.as_ptr() as usize,
+                owners.pages.len(),
+                4,
+                bytes,
+                bytes,
+                0,
+                None,
+                None,
+            );
+        }
+    }
+}
+
+#[cfg(feature = "mem-accounting")]
+impl ProgramSnapshot {
+    pub(crate) fn account_memory(&self, a: &mut tsc_types::accounting::Account) {
+        a.vector("program.snapshot.documents", &self.documents);
+        a.vector("program.snapshot.file_facts", &self.file_facts);
+        for document in &self.documents {
+            let bytes = std::mem::size_of_val(&**document) + 2 * std::mem::size_of::<usize>();
+            a.backing(
+                "program.bound_documents",
+                (Arc::as_ptr(document) as usize) - 2 * std::mem::size_of::<usize>(),
+                1,
+                std::mem::size_of_val(&**document),
+                bytes,
+                bytes,
+                0,
+                None,
+                None,
+            );
+            let parsed = &document.parsed;
+            let bytes = std::mem::size_of_val(&**parsed) + 2 * std::mem::size_of::<usize>();
+            a.backing(
+                "program.parsed_documents",
+                (Arc::as_ptr(parsed) as usize) - 2 * std::mem::size_of::<usize>(),
+                1,
+                std::mem::size_of_val(&**parsed),
+                bytes,
+                bytes,
+                0,
+                None,
+                None,
+            );
+        }
+    }
+}

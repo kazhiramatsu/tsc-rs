@@ -3905,3 +3905,563 @@ impl LinksTables {
         Self::write_id_slot(&mut self.ty.slot(id).resolved_members, value);
     }
 }
+
+#[cfg(feature = "mem-accounting")]
+impl<K, T> PagedTable<K, T> {
+    // Inventory iteration does not affect compiler results; the reducer sorts owners.
+    #[allow(clippy::iter_over_hash_type)]
+    fn account_memory(
+        &self,
+        a: &mut tsc_types::accounting::Account,
+        owner: &str,
+        nondefault: impl Fn(&T) -> bool,
+    ) {
+        a.vector("checker.links.page_directories", &self.index);
+        a.vector("checker.links.chunk_directories", &self.chunks);
+        for page in self.index.iter().flatten().chain(self.far.values()) {
+            a.backing(
+                "checker.links.id_pages",
+                page.as_ptr() as usize,
+                PAGE_IDS,
+                4,
+                PAGE_IDS * 4,
+                PAGE_IDS * 4,
+                0,
+                Some(page.iter().filter(|&&id| id != 0).count()),
+                Some(PAGE_IDS),
+            );
+        }
+        for chunk in &self.chunks {
+            let width = std::mem::size_of::<T>();
+            a.backing(
+                owner,
+                chunk.as_ptr() as usize,
+                chunk.len(),
+                width,
+                chunk.len() * width,
+                chunk.capacity() * width,
+                0,
+                Some(chunk.iter().filter(|record| nondefault(record)).count()),
+                Some(chunk.len()),
+            );
+        }
+    }
+}
+#[cfg(feature = "mem-accounting")]
+impl LinksTables {
+    // Inventory iteration does not affect compiler results; the reducer sorts owners.
+    #[allow(clippy::iter_over_hash_type)]
+    pub(crate) fn account_memory(&self, a: &mut tsc_types::accounting::Account) {
+        self.node.account_memory(a, "checker.links.node", |v| {
+            v.resolved_type.raw != 0
+                || v.resolved_signature.raw != 0
+                || v.resolved_symbol.raw != 0
+                || v.check_flags.bits() != 0
+        });
+        self.persistent_symbols
+            .account_memory(a, "checker.links.persistent_symbol", |v| {
+                v.declared_type.raw != 0 || v.type_of_symbol.raw != 0 || v.is_referenced.bits() != 0
+            });
+        let records = &self.transient_symbols;
+        let width = std::mem::size_of::<SymbolLinks>();
+        let filled = records
+            .iter()
+            .filter(|v| {
+                // #904: declared_type and is_referenced of transient symbols live in sparse maps.
+                v.type_of_symbol.raw != 0
+                    || v.check_flags.bits() != 0
+                    || v.target.is_some()
+                    || v.mapper.is_some()
+                    || v.name_type.is_some()
+            })
+            .count();
+        a.map(
+            "checker.links.transient_declared_types",
+            &self.transient_declared_types,
+        );
+        a.map(
+            "checker.links.transient_is_referenced",
+            &self.transient_is_referenced,
+        );
+        a.backing(
+            "checker.links.transient",
+            records.as_ptr() as usize,
+            records.len(),
+            width,
+            records.len() * width,
+            records.capacity() * width,
+            0,
+            Some(filled),
+            Some(records.len()),
+        );
+        let records = &self.ty.records;
+        let width = std::mem::size_of::<TypeLinks>();
+        let filled = records
+            .iter()
+            .filter(|v| {
+                v.resolved_members.raw != 0
+                    || v.type_parameter_constraint.raw != 0
+                    || v.resolved_base_constraint.raw != 0
+                    || v.instantiated_target.is_some()
+                    || v.instantiated_mapper.is_some()
+                    || v.deferred_node.is_some()
+            })
+            .count();
+        a.backing(
+            "checker.links.type",
+            records.as_ptr() as usize,
+            records.len(),
+            width,
+            records.len() * width,
+            records.capacity() * width,
+            0,
+            Some(filled),
+            Some(records.len()),
+        );
+        a.map("checker.links.far_node_pages", &self.node.far);
+        a.map(
+            "checker.links.far_symbol_pages",
+            &self.persistent_symbols.far,
+        );
+        a.map(
+            "checker.links.node_cold.resolved_jsdoc_type",
+            &self.node_cold.resolved_jsdoc_type.values,
+        );
+        a.map(
+            "checker.links.node_cold.enum_values_computed",
+            &self.node_cold.enum_values_computed.values,
+        );
+        a.map(
+            "checker.links.node_cold.calculated_flags",
+            &self.node_cold.calculated_flags.values,
+        );
+        a.map(
+            "checker.links.node_cold.is_visible",
+            &self.node_cold.is_visible.values,
+        );
+        a.map(
+            "checker.links.node_cold.contains_arguments_reference",
+            &self.node_cold.contains_arguments_reference.values,
+        );
+        a.map(
+            "checker.links.node_cold.has_reported_statement_in_ambient_context",
+            &self
+                .node_cold
+                .has_reported_statement_in_ambient_context
+                .values,
+        );
+        a.map(
+            "checker.links.node_cold.context_free_type",
+            &self.node_cold.context_free_type.values,
+        );
+        a.map(
+            "checker.links.node_cold.parameter_initializer_contains_undefined",
+            &self
+                .node_cold
+                .parameter_initializer_contains_undefined
+                .values,
+        );
+        a.map(
+            "checker.links.node_cold.jsx_flags",
+            &self.node_cold.jsx_flags.values,
+        );
+        a.map(
+            "checker.links.node_cold.outer_type_parameters",
+            &self.node_cold.outer_type_parameters.values,
+        );
+        a.map(
+            "checker.links.node_cold.enum_member_value",
+            &self.node_cold.enum_member_value.values,
+        );
+        a.map(
+            "checker.links.node_cold.assertion_expression_type",
+            &self.node_cold.assertion_expression_type.values,
+        );
+        a.map(
+            "checker.links.node_cold.instantiation_expression_types",
+            &self.node_cold.instantiation_expression_types.values,
+        );
+        a.map(
+            "checker.links.node_cold.spread_indices",
+            &self.node_cold.spread_indices.values,
+        );
+        a.map(
+            "checker.links.node_cold.non_existent_prop_check_cache",
+            &self.node_cold.non_existent_prop_check_cache.values,
+        );
+        a.map(
+            "checker.links.node_cold.resolved_jsx_element_attributes_type",
+            &self.node_cold.resolved_jsx_element_attributes_type.values,
+        );
+        a.map(
+            "checker.links.node_cold.jsx_fragment_type",
+            &self.node_cold.jsx_fragment_type.values,
+        );
+        a.map(
+            "checker.links.node_cold.decorator_signature",
+            &self.node_cold.decorator_signature.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.containing_type",
+            &self.symbol_cold.containing_type.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.mapped_type",
+            &self.symbol_cold.mapped_type.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.key_type",
+            &self.symbol_cold.key_type.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.synthetic_origin",
+            &self.symbol_cold.synthetic_origin.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.inferred_class_symbols",
+            &self.symbol_cold.inferred_class_symbols.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.specifier_cache",
+            &self.symbol_cold.specifier_cache.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.extended_containers_by_file",
+            &self.symbol_cold.extended_containers_by_file.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.extended_containers",
+            &self.symbol_cold.extended_containers.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.alias_referenced",
+            &self.symbol_cold.alias_referenced.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.type_parameters",
+            &self.symbol_cold.type_parameters.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.resolved_members",
+            &self.symbol_cold.resolved_members.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.late_symbol",
+            &self.symbol_cold.late_symbol.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.write_type",
+            &self.symbol_cold.write_type.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.resolved_exports",
+            &self.symbol_cold.resolved_exports.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.last_assignment_pos",
+            &self.symbol_cold.last_assignment_pos.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.alias_target",
+            &self.symbol_cold.alias_target.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.type_only_declaration",
+            &self.symbol_cold.type_only_declaration.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.deferral_parent",
+            &self.symbol_cold.deferral_parent.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.deferral_constituents",
+            &self.symbol_cold.deferral_constituents.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.deferral_write_constituents",
+            &self.symbol_cold.deferral_write_constituents.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.is_discriminant_property",
+            &self.symbol_cold.is_discriminant_property.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.is_declaration_with_colliding_name",
+            &self.symbol_cold.is_declaration_with_colliding_name.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.is_constructor_declared_property",
+            &self.symbol_cold.is_constructor_declared_property.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.property_type",
+            &self.symbol_cold.property_type.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.constraint_type",
+            &self.symbol_cold.constraint_type.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.tuple_label_declaration",
+            &self.symbol_cold.tuple_label_declaration.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.unique_es_symbol_type",
+            &self.symbol_cold.unique_es_symbol_type.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.variances",
+            &self.symbol_cold.variances.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.originating_import",
+            &self.symbol_cold.originating_import.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.fabricated_declaration_parent",
+            &self.symbol_cold.fabricated_declaration_parent.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.left_spread",
+            &self.symbol_cold.left_spread.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.right_spread",
+            &self.symbol_cold.right_spread.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.type_parameters_checked",
+            &self.symbol_cold.type_parameters_checked.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.type_only_export_star_map",
+            &self.symbol_cold.type_only_export_star_map.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.exports_checked",
+            &self.symbol_cold.exports_checked.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.cjs_export_merged",
+            &self.symbol_cold.cjs_export_merged.values,
+        );
+        a.map(
+            "checker.links.symbol_cold.immediate_target",
+            &self.symbol_cold.immediate_target.values,
+        );
+        a.map(
+            "checker.links.type_cold.type_parameter_target",
+            &self.type_cold.type_parameter_target.values,
+        );
+        a.map(
+            "checker.links.type_cold.type_parameter_mapper",
+            &self.type_cold.type_parameter_mapper.values,
+        );
+        a.map(
+            "checker.links.type_cold.type_parameter_default",
+            &self.type_cold.type_parameter_default.values,
+        );
+        a.map(
+            "checker.links.type_cold.mapped_type_parameter",
+            &self.type_cold.mapped_type_parameter.values,
+        );
+        a.map(
+            "checker.links.type_cold.mapped_constraint_type",
+            &self.type_cold.mapped_constraint_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.mapped_name_type",
+            &self.type_cold.mapped_name_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.mapped_template_type",
+            &self.type_cold.mapped_template_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.mapped_modifiers_type",
+            &self.type_cold.mapped_modifiers_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.mapped_contains_error",
+            &self.type_cold.mapped_contains_error.values,
+        );
+        a.map(
+            "checker.links.type_cold.mapped_apparent_type",
+            &self.type_cold.mapped_apparent_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.intersection_apparent_type",
+            &self.type_cold.intersection_apparent_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.uniform_union_type",
+            &self.type_cold.uniform_union_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.conditional_true_type",
+            &self.type_cold.conditional_true_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.conditional_false_type",
+            &self.type_cold.conditional_false_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.conditional_inferred_true_type",
+            &self.type_cold.conditional_inferred_true_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.conditional_default_constraint",
+            &self.type_cold.conditional_default_constraint.values,
+        );
+        a.map(
+            "checker.links.type_cold.conditional_constraint_of_distributive",
+            &self.type_cold.conditional_constraint_of_distributive.values,
+        );
+        a.map(
+            "checker.links.type_cold.synthetic_type",
+            &self.type_cold.synthetic_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.default_only_type",
+            &self.type_cold.default_only_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.resolved_index_type",
+            &self.type_cold.resolved_index_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.resolved_string_index_type",
+            &self.type_cold.resolved_string_index_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.simplified_for_reading",
+            &self.type_cold.simplified_for_reading.values,
+        );
+        a.map(
+            "checker.links.type_cold.simplified_for_writing",
+            &self.type_cold.simplified_for_writing.values,
+        );
+        a.map(
+            "checker.links.type_cold.unique_literal_filled_instantiation",
+            &self.type_cold.unique_literal_filled_instantiation.values,
+        );
+        a.map(
+            "checker.links.type_cold.permissive_instantiation",
+            &self.type_cold.permissive_instantiation.values,
+        );
+        a.map(
+            "checker.links.type_cold.restrictive_instantiation",
+            &self.type_cold.restrictive_instantiation.values,
+        );
+        a.map(
+            "checker.links.type_cold.cached_equivalent_base_type",
+            &self.type_cold.cached_equivalent_base_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.pattern",
+            &self.type_cold.pattern.values,
+        );
+        a.map(
+            "checker.links.type_cold.literal_type",
+            &self.type_cold.literal_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.array_fallback_signatures",
+            &self.type_cold.array_fallback_signatures.values,
+        );
+        a.map(
+            "checker.links.type_cold.resolved_properties",
+            &self.type_cold.resolved_properties.values,
+        );
+        a.map(
+            "checker.links.type_cold.union_key_property",
+            &self.type_cold.union_key_property.values,
+        );
+        a.map(
+            "checker.links.type_cold.resolved_reduced_type",
+            &self.type_cold.resolved_reduced_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.deferred_mapper",
+            &self.type_cold.deferred_mapper.values,
+        );
+        a.map(
+            "checker.links.type_cold.declared_members",
+            &self.type_cold.declared_members.values,
+        );
+        a.map(
+            "checker.links.type_cold.resolved_base_types",
+            &self.type_cold.resolved_base_types.values,
+        );
+        a.map(
+            "checker.links.type_cold.base_types_resolved",
+            &self.type_cold.base_types_resolved.values,
+        );
+        a.map(
+            "checker.links.type_cold.resolved_base_constructor_type",
+            &self.type_cold.resolved_base_constructor_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.promised_type_of_promise",
+            &self.type_cold.promised_type_of_promise.values,
+        );
+        a.map(
+            "checker.links.type_cold.awaited_type_of_type",
+            &self.type_cold.awaited_type_of_type.values,
+        );
+        a.map(
+            "checker.links.type_cold.widened",
+            &self.type_cold.widened.values,
+        );
+        a.map(
+            "checker.links.type_cold.iteration_types",
+            &self.type_cold.iteration_types,
+        );
+        for values in [
+            &self.symbol_cold.resolved_members.values,
+            &self.symbol_cold.resolved_exports.values,
+        ] {
+            for value in values.values() {
+                if let LinkSlot::Resolved(table) = value {
+                    table.account_memory(
+                        a,
+                        "symbols.shared_tables",
+                        Some(Arc::as_ptr(table) as usize),
+                    );
+                }
+            }
+        }
+        for value in self.type_cold.resolved_properties.values.values() {
+            if let LinkSlot::Resolved(list) = value {
+                list.account_memory(a, "checker.links.resolved_properties");
+            }
+        }
+        for value in self.type_cold.array_fallback_signatures.values.values() {
+            if let LinkSlot::Resolved(list) = value {
+                list.account_memory(a, "checker.links.array_signatures");
+            }
+        }
+        for value in self.symbol_cold.variances.values.values() {
+            if let LinkSlot::Resolved(list) = value {
+                list.account_memory(a, "checker.links.variances");
+            }
+        }
+        a.map(
+            "checker.links.union_property_cache",
+            &self.union_property_cache,
+        );
+        a.map(
+            "checker.links.alias_instantiations",
+            &self.alias_instantiations,
+        );
+        a.map(
+            "checker.links.conditional_instantiations",
+            &self.conditional_instantiations,
+        );
+        a.vector(
+            "checker.links.speculative_signature_writes",
+            &self.speculative_resolved_signature_writes,
+        );
+        a.unknown("checker.links.other_nested_backing");
+    }
+}

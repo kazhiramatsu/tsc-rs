@@ -1626,6 +1626,8 @@ fn execute_prepared(
     old_build_info: Option<OldState>,
     mode: ProjectRunMode,
 ) -> Result<BuildProjectRun, CliError> {
+    #[cfg(feature = "mem-accounting")]
+    prepared.account_loaded_memory();
     if prepared.mode() == PreparedProgramMode::Emit {
         return execute_emitting_prepared(
             current_directory,

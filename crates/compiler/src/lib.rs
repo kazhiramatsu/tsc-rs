@@ -14,6 +14,21 @@ use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
 
+macro_rules! account_program {
+    ($prepared:expr, $work:expr) => {{
+        #[cfg(feature = "mem-accounting")]
+        {
+            tsc_types::accounting::with_extra(&|account| $prepared.account_memory(account), || {
+                $work
+            })
+        }
+        #[cfg(not(feature = "mem-accounting"))]
+        {
+            $work
+        }
+    }};
+}
+
 use tsc_checker::{IncrementalPlanner, IncrementalRequest};
 use tsc_incremental::OldState;
 use tsc_types::tracing::{Args as TraceArgs, Phase as TracePhase, Tracing};
@@ -3612,302 +3627,311 @@ impl ProgramSession {
             },
         );
         let mut planner = driver.planner();
-        let checked = if harness_lib_cache {
-            check_program_with_authoritative_modules_at_harness_cached(
-                &inputs.libs,
-                &inputs.files,
-                &inputs.lib_metadata,
-                &inputs.file_metadata,
-                self.prepared.compiler_options(),
-                &inputs.current_directory,
-                &provider,
-                library_prefix,
-                syntactic_diagnostics_gate,
-            )
-        } else if let Some(sink) = emit_first {
-            // tsgo's test harness, `compileFilesWithHost`
-            // (testutil/harnessutil/harnessutil.go:673-688): the second
-            // Program emits and then asks for the diagnostics, over one
-            // checker. The operation's first call is that emit, over the
-            // unchecked session; its second is the declaration getter.
-            let emit_host = PreparedEmitHost::new_for_route(
-                &self.prepared,
-                self.emit_route,
-                &self.source_api_facts,
-            )?;
-            let mut preflight = match validate_emit_request(&emit_host) {
-                Ok(()) => Some(
-                    preflight_emit(&emit_host, EmitSelection::WholeProgram)
-                        .map_err(DriverError::Emit)?,
-                ),
-                Err(failure) => {
-                    first_emit = Some(Err(failure));
-                    None
-                }
-            };
-            let mut unchecked = true;
-            let mut operation = |snapshot: &ProgramSnapshot,
-                                 session: &CheckerSession<'_>,
-                                 checked: &CheckResult| {
-                if std::mem::take(&mut unchecked) {
-                    if let Some(preflight) = preflight.take() {
-                        let gate = emit_session_diagnostics(&self.prepared, checked).gate();
-                        let host = CheckedEmitHost {
-                            prepared: &emit_host,
-                            snapshot,
-                            prepared_sources: None,
-                        };
-                        first_emit = Some(session.with_emit_resolver(|resolver| {
-                            emit_files(
-                                resolver,
-                                &host,
-                                preflight,
-                                EmitSelection::WholeProgram,
-                                &gate,
-                                &mut *sink,
-                            )
-                        }));
-                    }
-                    return;
-                }
-                if declaration_getter {
-                    let every_file = (0..snapshot.documents().len()).collect::<Vec<_>>();
-                    declaration_diagnostics = Some(no_emit_declaration_diagnostics(
-                        &self.prepared,
-                        self.emit_route,
-                        &self.source_api_facts,
-                        snapshot,
-                        std::slice::from_ref(session),
-                        std::slice::from_ref(&every_file),
-                        self.worker_budget,
-                        0,
-                        false,
-                        driver.declaration_file_filter().as_deref(),
-                    ));
-                }
-                if let Some(walk) = walk.as_deref_mut() {
-                    walk(snapshot, session);
-                }
-            };
-            check_program_with_authoritative_modules_at_emit_first_with_workers(
-                &inputs.libs,
-                &inputs.files,
-                &inputs.lib_metadata,
-                &inputs.file_metadata,
-                self.prepared.compiler_options(),
-                &inputs.current_directory,
-                &provider,
-                self.worker_budget,
-                &mut operation,
-            )
-        } else if (declaration_getter || walk.is_some()) && !self.checker_budget.is_sharded() {
-            // One checker: the getter runs in the checked-session callback
-            // over that session, as the shard gate does per shard below;
-            // the harness walk runs there too.
-            let mut operation = |snapshot: &ProgramSnapshot,
-                                 session: &CheckerSession<'_>,
-                                 checked: &CheckResult| {
-                if declaration_getter
-                    && (native_harness
-                        || (no_emit_report_is_clean(&self.prepared, checked)
-                            && driver.cached_semantic_diagnostics().is_empty()))
-                {
-                    let started = std::time::Instant::now();
-                    let every_file = (0..snapshot.documents().len()).collect::<Vec<_>>();
-                    declaration_diagnostics = Some(no_emit_declaration_diagnostics(
-                        &self.prepared,
-                        self.emit_route,
-                        &self.source_api_facts,
-                        snapshot,
-                        std::slice::from_ref(session),
-                        std::slice::from_ref(&every_file),
-                        self.worker_budget,
-                        0,
-                        false,
-                        driver.declaration_file_filter().as_deref(),
-                    ));
-                    tsc_types::trace::mark(
-                        "checker: declaration diagnostics (one checker)",
-                        started,
-                    );
-                }
-                // tsgo's harness walks the types and symbols after every
-                // diagnostic getter has run.
-                if let Some(walk) = walk.as_deref_mut() {
-                    walk(snapshot, session);
-                }
-            };
-            check_program_with_authoritative_modules_at_for_emit_with_workers(
-                &inputs.libs,
-                &inputs.files,
-                &inputs.lib_metadata,
-                &inputs.file_metadata,
-                self.prepared.compiler_options(),
-                &inputs.current_directory,
-                &provider,
-                self.worker_budget,
-                IncrementalRequest {
-                    facts: incremental_facts_requested,
-                    planner: incremental_facts_requested
-                        .then_some(&mut planner as &mut IncrementalPlanner<'_>),
-                },
-                self.checker_budget.leaks_states(),
-                &mut operation,
-            )
-        } else if declaration_getter {
-            // The getter runs through the shard gate, while every shard's
-            // checker session is alive; the gate admits nothing to emit.
-            // Each shard's share is computed on the shard's own thread as
-            // soon as it has checked; the gate joins those shares when it
-            // admits, and computes the getter itself if any share is
-            // missing (the getter over one shard is the same job).
-            let eager_shares: std::sync::Mutex<Vec<Option<Result<DiagnosticList, DriverError>>>> =
-                std::sync::Mutex::new(Vec::new());
-            let eager = |shard: usize,
-                         snapshot: &ProgramSnapshot,
-                         session: &CheckerSession<'_>,
-                         files: &[usize],
-                         _checking: &std::sync::atomic::AtomicUsize| {
-                let share = no_emit_declaration_diagnostics(
+        let checked = account_program!(
+            &self.prepared,
+            (if harness_lib_cache {
+                check_program_with_authoritative_modules_at_harness_cached(
+                    &inputs.libs,
+                    &inputs.files,
+                    &inputs.lib_metadata,
+                    &inputs.file_metadata,
+                    self.prepared.compiler_options(),
+                    &inputs.current_directory,
+                    &provider,
+                    library_prefix,
+                    syntactic_diagnostics_gate,
+                )
+            } else if let Some(sink) = emit_first {
+                // tsgo's test harness, `compileFilesWithHost`
+                // (testutil/harnessutil/harnessutil.go:673-688): the second
+                // Program emits and then asks for the diagnostics, over one
+                // checker. The operation's first call is that emit, over the
+                // unchecked session; its second is the declaration getter.
+                let emit_host = PreparedEmitHost::new_for_route(
                     &self.prepared,
                     self.emit_route,
                     &self.source_api_facts,
-                    snapshot,
-                    std::slice::from_ref(session),
-                    std::slice::from_ref(&files.to_vec()),
-                    self.worker_budget,
-                    shard,
-                    true,
-                    driver.declaration_file_filter().as_deref(),
-                );
-                let mut shares = eager_shares
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                if shares.len() <= shard {
-                    shares.resize_with(shard + 1, || None);
-                }
-                shares[shard] = Some(share);
-            };
-            let mut gate = |snapshot: &ProgramSnapshot,
-                            checked: &CheckResult,
-                            sessions: &[CheckerSession<'_>],
-                            files_by_shard: &[Vec<usize>]|
-             -> bool {
-                if native_harness
-                    || (no_emit_report_is_clean(&self.prepared, checked)
-                        && driver.cached_semantic_diagnostics().is_empty())
-                {
-                    let started = std::time::Instant::now();
-                    let mut shares = eager_shares
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    let mut joined = Some(Ok(Vec::new()));
-                    for shard in 0..sessions.len() {
-                        match (shares.get_mut(shard).and_then(Option::take), &mut joined) {
-                            (Some(Ok(share)), Some(Ok(diagnostics))) => diagnostics.extend(share),
-                            (Some(Err(error)), _) => joined = Some(Err(error)),
-                            (None, _) => {
-                                joined = None;
-                                break;
-                            }
-                            (Some(Ok(_)), _) => {}
-                        }
+                )?;
+                let mut preflight = match validate_emit_request(&emit_host) {
+                    Ok(()) => Some(
+                        preflight_emit(&emit_host, EmitSelection::WholeProgram)
+                            .map_err(DriverError::Emit)?,
+                    ),
+                    Err(failure) => {
+                        first_emit = Some(Err(failure));
+                        None
                     }
-                    declaration_diagnostics = Some(match joined {
-                        Some(Ok(mut diagnostics)) => {
-                            sort_and_dedupe_diagnostics(&mut diagnostics);
-                            Ok(diagnostics)
+                };
+                let mut unchecked = true;
+                let mut operation = |snapshot: &ProgramSnapshot,
+                                     session: &CheckerSession<'_>,
+                                     checked: &CheckResult| {
+                    if std::mem::take(&mut unchecked) {
+                        if let Some(preflight) = preflight.take() {
+                            let gate = emit_session_diagnostics(&self.prepared, checked).gate();
+                            let host = CheckedEmitHost {
+                                prepared: &emit_host,
+                                snapshot,
+                                prepared_sources: None,
+                            };
+                            first_emit = Some(session.with_emit_resolver(|resolver| {
+                                emit_files(
+                                    resolver,
+                                    &host,
+                                    preflight,
+                                    EmitSelection::WholeProgram,
+                                    &gate,
+                                    &mut *sink,
+                                )
+                            }));
                         }
-                        Some(Err(error)) => Err(error),
-                        None => no_emit_declaration_diagnostics(
+                        return;
+                    }
+                    if declaration_getter {
+                        let every_file = (0..snapshot.documents().len()).collect::<Vec<_>>();
+                        declaration_diagnostics = Some(no_emit_declaration_diagnostics(
                             &self.prepared,
                             self.emit_route,
                             &self.source_api_facts,
                             snapshot,
-                            sessions,
-                            files_by_shard,
+                            std::slice::from_ref(session),
+                            std::slice::from_ref(&every_file),
                             self.worker_budget,
                             0,
                             false,
                             driver.declaration_file_filter().as_deref(),
-                        ),
-                    });
-                    tsc_types::trace::mark("checker: declaration diagnostics (join)", started);
-                }
-                false
-            };
-            let emit = |_: &ProgramSnapshot,
-                        _: &[CheckerSession<'_>],
-                        _: &[Vec<usize>]|
-             -> Result<Vec<ShardEmission>, UnitEmitError> { Ok(Vec::new()) };
-            let mut sharded_emit = ShardedEmit {
-                gate: &mut gate,
-                emit: &emit,
-                emissions: None,
-                eager: Some(&eager),
-                prelude: None,
-            };
-            check_program_with_authoritative_modules_at_for_emit_with_checkers(
-                &inputs.libs,
-                &inputs.files,
-                &inputs.lib_metadata,
-                &inputs.file_metadata,
-                self.prepared.compiler_options(),
-                &inputs.current_directory,
-                &PreparedProviderFactory {
-                    prepared: &self.prepared,
-                    tracing: self.tracing.clone(),
-                },
-                self.worker_budget,
-                self.checker_budget,
-                &mut sharded_emit,
-                IncrementalRequest {
-                    facts: incremental_facts_requested,
-                    planner: incremental_facts_requested
-                        .then_some(&mut planner as &mut IncrementalPlanner<'_>),
-                },
-            )
-        } else if self.checker_budget.is_sharded() {
-            check_program_with_authoritative_modules_at_with_checkers_gated(
-                &inputs.libs,
-                &inputs.files,
-                &inputs.lib_metadata,
-                &inputs.file_metadata,
-                self.prepared.compiler_options(),
-                &inputs.current_directory,
-                &PreparedProviderFactory {
-                    prepared: &self.prepared,
-                    tracing: self.tracing.clone(),
-                },
-                self.worker_budget,
-                self.checker_budget,
-                syntactic_diagnostics_gate,
-                IncrementalRequest {
-                    facts: incremental_facts_requested,
-                    planner: incremental_facts_requested
-                        .then_some(&mut planner as &mut IncrementalPlanner<'_>),
-                },
-            )
-        } else {
-            check_program_with_authoritative_modules_at_with_workers_gated(
-                &inputs.libs,
-                &inputs.files,
-                &inputs.lib_metadata,
-                &inputs.file_metadata,
-                self.prepared.compiler_options(),
-                &inputs.current_directory,
-                &provider,
-                self.worker_budget,
-                syntactic_diagnostics_gate,
-                IncrementalRequest {
-                    facts: incremental_facts_requested,
-                    planner: incremental_facts_requested
-                        .then_some(&mut planner as &mut IncrementalPlanner<'_>),
-                },
-                self.checker_budget.leaks_states(),
-            )
-        }
-        .map_err(|failure| map_authoritative_failure(&self.prepared, failure))?;
+                        ));
+                    }
+                    if let Some(walk) = walk.as_deref_mut() {
+                        walk(snapshot, session);
+                    }
+                };
+                check_program_with_authoritative_modules_at_emit_first_with_workers(
+                    &inputs.libs,
+                    &inputs.files,
+                    &inputs.lib_metadata,
+                    &inputs.file_metadata,
+                    self.prepared.compiler_options(),
+                    &inputs.current_directory,
+                    &provider,
+                    self.worker_budget,
+                    &mut operation,
+                )
+            } else if (declaration_getter || walk.is_some()) && !self.checker_budget.is_sharded() {
+                // One checker: the getter runs in the checked-session callback
+                // over that session, as the shard gate does per shard below;
+                // the harness walk runs there too.
+                let mut operation = |snapshot: &ProgramSnapshot,
+                                     session: &CheckerSession<'_>,
+                                     checked: &CheckResult| {
+                    if declaration_getter
+                        && (native_harness
+                            || (no_emit_report_is_clean(&self.prepared, checked)
+                                && driver.cached_semantic_diagnostics().is_empty()))
+                    {
+                        let started = std::time::Instant::now();
+                        let every_file = (0..snapshot.documents().len()).collect::<Vec<_>>();
+                        declaration_diagnostics = Some(no_emit_declaration_diagnostics(
+                            &self.prepared,
+                            self.emit_route,
+                            &self.source_api_facts,
+                            snapshot,
+                            std::slice::from_ref(session),
+                            std::slice::from_ref(&every_file),
+                            self.worker_budget,
+                            0,
+                            false,
+                            driver.declaration_file_filter().as_deref(),
+                        ));
+                        tsc_types::trace::mark(
+                            "checker: declaration diagnostics (one checker)",
+                            started,
+                        );
+                    }
+                    // tsgo's harness walks the types and symbols after every
+                    // diagnostic getter has run.
+                    if let Some(walk) = walk.as_deref_mut() {
+                        walk(snapshot, session);
+                    }
+                };
+                check_program_with_authoritative_modules_at_for_emit_with_workers(
+                    &inputs.libs,
+                    &inputs.files,
+                    &inputs.lib_metadata,
+                    &inputs.file_metadata,
+                    self.prepared.compiler_options(),
+                    &inputs.current_directory,
+                    &provider,
+                    self.worker_budget,
+                    IncrementalRequest {
+                        facts: incremental_facts_requested,
+                        planner: incremental_facts_requested
+                            .then_some(&mut planner as &mut IncrementalPlanner<'_>),
+                    },
+                    self.checker_budget.leaks_states(),
+                    &mut operation,
+                )
+            } else if declaration_getter {
+                // The getter runs through the shard gate, while every shard's
+                // checker session is alive; the gate admits nothing to emit.
+                // Each shard's share is computed on the shard's own thread as
+                // soon as it has checked; the gate joins those shares when it
+                // admits, and computes the getter itself if any share is
+                // missing (the getter over one shard is the same job).
+                let eager_shares: std::sync::Mutex<
+                    Vec<Option<Result<DiagnosticList, DriverError>>>,
+                > = std::sync::Mutex::new(Vec::new());
+                let eager =
+                    |shard: usize,
+                     snapshot: &ProgramSnapshot,
+                     session: &CheckerSession<'_>,
+                     files: &[usize],
+                     _checking: &std::sync::atomic::AtomicUsize| {
+                        let share = no_emit_declaration_diagnostics(
+                            &self.prepared,
+                            self.emit_route,
+                            &self.source_api_facts,
+                            snapshot,
+                            std::slice::from_ref(session),
+                            std::slice::from_ref(&files.to_vec()),
+                            self.worker_budget,
+                            shard,
+                            true,
+                            driver.declaration_file_filter().as_deref(),
+                        );
+                        let mut shares = eager_shares
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner);
+                        if shares.len() <= shard {
+                            shares.resize_with(shard + 1, || None);
+                        }
+                        shares[shard] = Some(share);
+                    };
+                let mut gate = |snapshot: &ProgramSnapshot,
+                                checked: &CheckResult,
+                                sessions: &[CheckerSession<'_>],
+                                files_by_shard: &[Vec<usize>]|
+                 -> bool {
+                    if native_harness
+                        || (no_emit_report_is_clean(&self.prepared, checked)
+                            && driver.cached_semantic_diagnostics().is_empty())
+                    {
+                        let started = std::time::Instant::now();
+                        let mut shares = eager_shares
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner);
+                        let mut joined = Some(Ok(Vec::new()));
+                        for shard in 0..sessions.len() {
+                            match (shares.get_mut(shard).and_then(Option::take), &mut joined) {
+                                (Some(Ok(share)), Some(Ok(diagnostics))) => {
+                                    diagnostics.extend(share)
+                                }
+                                (Some(Err(error)), _) => joined = Some(Err(error)),
+                                (None, _) => {
+                                    joined = None;
+                                    break;
+                                }
+                                (Some(Ok(_)), _) => {}
+                            }
+                        }
+                        declaration_diagnostics = Some(match joined {
+                            Some(Ok(mut diagnostics)) => {
+                                sort_and_dedupe_diagnostics(&mut diagnostics);
+                                Ok(diagnostics)
+                            }
+                            Some(Err(error)) => Err(error),
+                            None => no_emit_declaration_diagnostics(
+                                &self.prepared,
+                                self.emit_route,
+                                &self.source_api_facts,
+                                snapshot,
+                                sessions,
+                                files_by_shard,
+                                self.worker_budget,
+                                0,
+                                false,
+                                driver.declaration_file_filter().as_deref(),
+                            ),
+                        });
+                        tsc_types::trace::mark("checker: declaration diagnostics (join)", started);
+                    }
+                    false
+                };
+                let emit = |_: &ProgramSnapshot,
+                            _: &[CheckerSession<'_>],
+                            _: &[Vec<usize>]|
+                 -> Result<Vec<ShardEmission>, UnitEmitError> {
+                    Ok(Vec::new())
+                };
+                let mut sharded_emit = ShardedEmit {
+                    gate: &mut gate,
+                    emit: &emit,
+                    emissions: None,
+                    eager: Some(&eager),
+                    prelude: None,
+                };
+                check_program_with_authoritative_modules_at_for_emit_with_checkers(
+                    &inputs.libs,
+                    &inputs.files,
+                    &inputs.lib_metadata,
+                    &inputs.file_metadata,
+                    self.prepared.compiler_options(),
+                    &inputs.current_directory,
+                    &PreparedProviderFactory {
+                        prepared: &self.prepared,
+                        tracing: self.tracing.clone(),
+                    },
+                    self.worker_budget,
+                    self.checker_budget,
+                    &mut sharded_emit,
+                    IncrementalRequest {
+                        facts: incremental_facts_requested,
+                        planner: incremental_facts_requested
+                            .then_some(&mut planner as &mut IncrementalPlanner<'_>),
+                    },
+                )
+            } else if self.checker_budget.is_sharded() {
+                check_program_with_authoritative_modules_at_with_checkers_gated(
+                    &inputs.libs,
+                    &inputs.files,
+                    &inputs.lib_metadata,
+                    &inputs.file_metadata,
+                    self.prepared.compiler_options(),
+                    &inputs.current_directory,
+                    &PreparedProviderFactory {
+                        prepared: &self.prepared,
+                        tracing: self.tracing.clone(),
+                    },
+                    self.worker_budget,
+                    self.checker_budget,
+                    syntactic_diagnostics_gate,
+                    IncrementalRequest {
+                        facts: incremental_facts_requested,
+                        planner: incremental_facts_requested
+                            .then_some(&mut planner as &mut IncrementalPlanner<'_>),
+                    },
+                )
+            } else {
+                check_program_with_authoritative_modules_at_with_workers_gated(
+                    &inputs.libs,
+                    &inputs.files,
+                    &inputs.lib_metadata,
+                    &inputs.file_metadata,
+                    self.prepared.compiler_options(),
+                    &inputs.current_directory,
+                    &provider,
+                    self.worker_budget,
+                    syntactic_diagnostics_gate,
+                    IncrementalRequest {
+                        facts: incremental_facts_requested,
+                        planner: incremental_facts_requested
+                            .then_some(&mut planner as &mut IncrementalPlanner<'_>),
+                    },
+                    self.checker_budget.leaks_states(),
+                )
+            })
+            .map_err(|failure| map_authoritative_failure(&self.prepared, failure))
+        )?;
         let mut checked = checked;
         let incremental_facts = checked.incremental.take();
         let declaration_requested = declaration_diagnostics.is_some();

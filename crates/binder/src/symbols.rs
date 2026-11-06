@@ -663,3 +663,54 @@ pub fn empty_symbol_table() -> Arc<SymbolTable> {
     }
     EMPTY.with(Arc::clone)
 }
+
+#[cfg(feature = "mem-accounting")]
+impl SymbolArena {
+    pub fn account_memory(&self, a: &mut tsc_store::accounting::Account, transient: bool) {
+        a.store(
+            if transient {
+                "checker.transient_symbols"
+            } else {
+                "binder.symbols"
+            },
+            &self.symbols,
+        );
+        self.declarations.account_memory(
+            a,
+            if transient {
+                "checker.transient_declaration_pool"
+            } else {
+                "binder.declaration_pool"
+            },
+        );
+        for symbol in &self.symbols {
+            for table in symbol.tables() {
+                table.account_memory(
+                    a,
+                    "symbols.shared_tables",
+                    Some(std::sync::Arc::as_ptr(table) as usize),
+                );
+            }
+            if let Some(extras) = &symbol.extras {
+                let bytes = std::mem::size_of::<SymbolExtras>();
+                a.owned(
+                    if transient {
+                        "checker.transient_symbol_extras"
+                    } else {
+                        "binder.symbol_extras"
+                    },
+                    1,
+                    bytes,
+                    bytes,
+                    bytes,
+                );
+                a.entries(
+                    "symbols.assignment_declaration_members",
+                    extras.assignment_declaration_members.len(),
+                    std::mem::size_of::<(NodeId, NodeId)>(),
+                    extras.assignment_declaration_members.capacity(),
+                );
+            }
+        }
+    }
+}

@@ -181,3 +181,17 @@ impl MemberTable {
             + self.positions.capacity() * (std::mem::size_of::<u32>() + 1)
     }
 }
+
+#[cfg(feature = "mem-accounting")]
+impl MemberTable {
+    pub(crate) fn account_memory(&self, a: &mut tsc_types::accounting::Account) {
+        a.vector("checker.members.order", &self.symbols);
+        a.hash_table(
+            "checker.members.index",
+            self.positions.len(),
+            4,
+            self.positions.num_buckets(),
+            self.positions.allocation_size(),
+        );
+    }
+}

@@ -1633,3 +1633,16 @@ impl NodeLookup for NodeArena {
 #[cfg(test)]
 #[path = "../tests/unit/arena/tests.rs"]
 mod tests;
+
+#[cfg(feature = "mem-accounting")]
+impl NodeArena {
+    pub fn account_memory(&self, a: &mut tsc_store::accounting::Account) {
+        a.store("syntax.nodes", &self.nodes);
+        a.store("syntax.arrays", &self.arrays);
+        a.store("syntax.array_items", &self.array_items);
+        a.store("syntax.literal_text_words", &self.texts);
+        a.vector("syntax.transform_flags", &self.transform_flags);
+        a.vector("syntax.array_transform_flags", &self.array_transform_flags);
+        self.tails.account_memory(a);
+    }
+}

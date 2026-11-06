@@ -3828,3 +3828,135 @@ fn utf8_length(text: &TemplateText) -> usize {
     }
     length
 }
+
+#[cfg(feature = "mem-accounting")]
+impl TypeTables {
+    // Inventory iteration does not affect compiler results; the reducer sorts owners.
+    #[allow(clippy::iter_over_hash_type)]
+    pub fn account_memory(&self, a: &mut tsc_store::accounting::Account) {
+        a.store("checker.types", &self.types);
+        a.vector("checker.types.list_items", &self.list_items);
+        a.vector("checker.types.scratch_list", &self.scratch_list);
+        a.vector("checker.types.literal_scratch", &self.literal_scratch);
+        a.vector("checker.types.bigints", &self.bigints);
+        a.vector("checker.types.intrinsic_names", &self.intrinsic_names);
+        a.vector("checker.types.tuple_targets", &self.tuple_targets);
+        a.vector("checker.types.template_literals", &self.template_literals);
+        a.vector("checker.types.aliases", &self.aliases);
+        a.vector("checker.types.conditional_roots", &self.conditional_roots);
+
+        a.vector("checker.literal_texts.bytes", &self.literal_texts.bytes);
+        a.vector("checker.literal_texts.spans", &self.literal_texts.spans);
+        a.hash_table(
+            "checker.type_list_index",
+            self.list_ids.len(),
+            4,
+            self.list_ids.num_buckets(),
+            self.list_ids.allocation_size(),
+        );
+        a.hash_table(
+            "checker.string_literal_index",
+            self.string_literal_types.len(),
+            8,
+            self.string_literal_types.num_buckets(),
+            self.string_literal_types.allocation_size(),
+        );
+        for value in &self.bigints {
+            a.backing(
+                "checker.bigint_text",
+                value.base10_value.as_ptr() as usize,
+                value.base10_value.len(),
+                1,
+                value.base10_value.len(),
+                value.base10_value.capacity(),
+                0,
+                None,
+                None,
+            );
+        }
+        // HashMap here is std's map: its bucket allocation is not exposed.
+        // Estimates are deliberately excluded from the exact live sum.
+        a.map(
+            "checker.types.maps.number_literal_types",
+            &self.number_literal_types,
+        );
+        a.map(
+            "checker.types.maps.bigint_literal_types",
+            &self.bigint_literal_types,
+        );
+        a.map(
+            "checker.types.maps.enum_literal_types",
+            &self.enum_literal_types,
+        );
+        a.map("checker.types.maps.union_types", &self.union_types);
+        a.map(
+            "checker.types.maps.union_of_union_types",
+            &self.union_of_union_types,
+        );
+        a.map(
+            "checker.types.maps.intersection_types",
+            &self.intersection_types,
+        );
+        a.map("checker.types.maps.tuple_types", &self.tuple_types);
+        a.map(
+            "checker.types.maps.template_literal_types",
+            &self.template_literal_types,
+        );
+        a.map(
+            "checker.types.maps.string_mapping_types",
+            &self.string_mapping_types,
+        );
+        a.map(
+            "checker.types.maps.indexed_access_types",
+            &self.indexed_access_types,
+        );
+        a.map(
+            "checker.types.maps.substitution_types",
+            &self.substitution_types,
+        );
+        a.map("checker.types.maps.instantiations", &self.instantiations);
+        for map in [
+            &self.bigint_literal_types,
+            &self.tuple_types,
+            &self.template_literal_types,
+        ] {
+            for key in map.keys() {
+                a.backing(
+                    "checker.types.map_keys",
+                    key.as_ptr() as usize,
+                    key.len(),
+                    1,
+                    key.len(),
+                    key.capacity(),
+                    0,
+                    None,
+                    None,
+                );
+            }
+        }
+        for data in &self.tuple_targets {
+            a.slice("checker.tuple_flags", &data.element_flags);
+            if let Some(v) = &data.labeled_element_declarations {
+                a.slice("checker.tuple_labels", v);
+            }
+        }
+        for data in &self.template_literals {
+            a.slice("checker.template_text_records", &data.texts);
+            for text in &data.texts {
+                a.slice("checker.template_text_units", text.units());
+            }
+        }
+        for root in &self.conditional_roots {
+            a.slice(
+                "checker.conditional_infer_parameters",
+                &root.infer_type_parameters,
+            );
+            if let Some(v) = &root.outer_type_parameters {
+                a.slice("checker.conditional_outer_parameters", v);
+            }
+            if let Some(v) = &root.alias_type_arguments {
+                a.slice("checker.conditional_alias_arguments", v);
+            }
+        }
+    }
+}

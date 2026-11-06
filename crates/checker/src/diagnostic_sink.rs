@@ -141,3 +141,18 @@ impl<'a> IntoIterator for &'a DiagnosticSink {
 #[cfg(test)]
 #[path = "../tests/unit/state/diagnostic_sink_tests.rs"]
 mod tests;
+
+#[cfg(feature = "mem-accounting")]
+impl DiagnosticSink {
+    // Inventory iteration does not affect compiler results; the reducer sorts owners.
+    #[allow(clippy::iter_over_hash_type)]
+    pub(crate) fn account_memory(&self, a: &mut tsc_types::accounting::Account) {
+        crate::mem_accounting::diagnostics(a, "checker.diagnostics", &self.diagnostics);
+        if let Some(index) = &self.index {
+            a.map("checker.diagnostics.index", index);
+            for v in index.values() {
+                a.vector("checker.diagnostics.index_positions", v);
+            }
+        }
+    }
+}

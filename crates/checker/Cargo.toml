@@ -13,6 +13,7 @@ name = "tsc_checker"
 path = "src/lib.rs"
 
 [features]
+mem-accounting = ["tsc-binder/mem-accounting", "tsc-types/mem-accounting", "tsc-syntax/mem-accounting", "tsc-program/mem-accounting"]
 perf-counters = ["tsc-binder/perf-counters", "tsc-types/perf-counters"]
 
 [dependencies]

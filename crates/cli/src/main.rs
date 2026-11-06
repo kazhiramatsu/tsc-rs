@@ -1,3 +1,6 @@
+#[cfg(feature = "mem-accounting")]
+mod mem_accounting;
+
 /// The CLI binary uses mimalloc: the compiler allocates and frees many small
 /// arena/table records, and the system allocator's free path dominated the
 /// sampled self time. Library consumers keep their own global allocator; only
@@ -105,6 +108,8 @@ fn main() {
     // SAFETY: mi_option_set only writes a process-global option value and
     // has no other preconditions.
     unsafe { libmimalloc_sys::mi_option_set(MI_OPTION_PURGE_DELAY, 10) };
+    #[cfg(feature = "mem-accounting")]
+    tsc_types::accounting::set_allocator_probe(mem_accounting::sample);
     tsc_types::trace::set_memory_probe(memory_sample);
     tsc_compiler::pprof::set_gc(collect_memory);
     // Every worker thread and checker shard starts with the same request;

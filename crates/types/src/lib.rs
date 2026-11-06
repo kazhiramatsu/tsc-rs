@@ -41,3 +41,6 @@ pub use type_order::{sort_func_like_go, TypeOrder, TypeOrderContext};
 pub use version::{
     compiler_version_satisfies, Version, TYPESCRIPT_VERSION, TYPESCRIPT_VERSION_MAJOR_MINOR,
 };
+
+#[cfg(feature = "mem-accounting")]
+pub use tsc_store::accounting;

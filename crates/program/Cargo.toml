@@ -12,6 +12,7 @@ name = "tsc_program"
 path = "src/lib.rs"
 
 [features]
+mem-accounting = ["tsc-types/mem-accounting", "tsc-syntax/mem-accounting"]
 # Measurement builds only; off in shipped binaries.
 loader-counters = []
 

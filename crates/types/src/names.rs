@@ -340,3 +340,23 @@ impl Drop for HeldNameCache {
 #[cfg(test)]
 #[path = "../tests/unit/names/tests.rs"]
 mod tests;
+
+#[cfg(feature = "mem-accounting")]
+pub fn account_memory(a: &mut tsc_store::accounting::Account) {
+    tsc_store::names::account_memory(a);
+    for shard in &SHARDS_BY_HASH {
+        if let Some(shard) = shard.get() {
+            let table = shard
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            a.hash_table(
+                "names.intern_indexes",
+                table.len(),
+                4,
+                table.num_buckets(),
+                table.allocation_size(),
+            );
+        }
+    }
+    a.unknown("names.thread_local_recent_caches");
+}

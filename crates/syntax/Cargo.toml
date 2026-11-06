@@ -22,3 +22,6 @@ tsc-types.workspace = true
 [dev-dependencies]
 serde_json = "1.0"
 stats_alloc = "0.1.10"
+
+[features]
+mem-accounting = ["tsc-store/mem-accounting", "tsc-types/mem-accounting"]

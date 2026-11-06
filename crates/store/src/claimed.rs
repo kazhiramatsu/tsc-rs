@@ -393,6 +393,26 @@ impl<'a, T: StoreRecord + Copy> RecordRef<'a, T> {
     }
 }
 
+#[cfg(feature = "mem-accounting")]
+impl<T: StoreRecord + Copy> ClaimedRecords<T> {
+    pub fn account_memory(&self, a: &mut crate::accounting::Account, owner: &str) {
+        a.vector("store.claimed_directories", &self.chunks);
+        for chunk in &self.chunks {
+            a.backing(
+                owner,
+                crate::address::<T>(chunk.room.start()),
+                chunk.len as usize,
+                size_of::<T>(),
+                chunk.len as usize * size_of::<T>(),
+                chunk.room.capacity() as usize * size_of::<T>(),
+                chunk.room.capacity() as usize * size_of::<T>(),
+                None,
+                None,
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

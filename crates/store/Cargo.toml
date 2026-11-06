@@ -17,3 +17,6 @@ libc.workspace = true
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 libmimalloc-sys = { version = "0.1", features = ["extended"] }
+
+[features]
+mem-accounting = []

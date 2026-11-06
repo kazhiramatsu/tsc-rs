@@ -163,3 +163,10 @@ impl std::fmt::Debug for DeclarationPool {
             .finish()
     }
 }
+
+#[cfg(feature = "mem-accounting")]
+impl DeclarationPool {
+    pub fn account_memory(&self, a: &mut tsc_store::accounting::Account, owner: &str) {
+        self.items.account_memory(a, owner);
+    }
+}

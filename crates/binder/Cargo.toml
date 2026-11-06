@@ -13,6 +13,7 @@ name = "tsc_binder"
 path = "src/lib.rs"
 
 [features]
+mem-accounting = ["tsc-store/mem-accounting", "tsc-types/mem-accounting", "tsc-syntax/mem-accounting"]
 # Measurement builds only: name-table call-site attribution (see tsc_types::perf).
 perf-counters = ["tsc-types/perf-counters"]
 
