@@ -497,7 +497,13 @@ impl<'a> CheckerState<'a> {
     pub fn get_normalized_type(&mut self, mut ty: TypeId, writing: bool) -> CheckResult<TypeId> {
         loop {
             let flags = self.tables.flags_of(ty);
-            let t = if self.tables.is_fresh_literal_type(ty) {
+            // An indexed access or conditional type (the simplifiable kinds)
+            // is no literal, object or union, so its arm below is the only
+            // one that can apply: test it first. Inference's matching probes
+            // normalize conditional types millions of times.
+            let t = if flags.intersects(TypeFlags::SIMPLIFIABLE) {
+                self.get_simplified_type(ty, writing)?
+            } else if self.tables.is_fresh_literal_type(ty) {
                 self.tables
                     .type_of(ty)
                     .regular_type()
@@ -529,8 +535,6 @@ impl<'a> CheckerState<'a> {
                 } else {
                     self.get_substitution_intersection(ty)?
                 }
-            } else if flags.intersects(TypeFlags::SIMPLIFIABLE) {
-                self.get_simplified_type(ty, writing)?
             } else {
                 ty
             };
