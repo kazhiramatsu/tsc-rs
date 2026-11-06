@@ -1289,6 +1289,7 @@ fn run_config(
         load_emitting_config_program(host, plan, catalog, limits)
     };
     tsc_types::trace::mark("load program", load_started);
+    tsc_types::trace::observe("after_load");
     if let Ok(prepared) = &prepared {
         trace_loader_parses(tracing.as_ref(), prepared);
     }
