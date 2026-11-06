@@ -2361,6 +2361,80 @@ build、`text-heap-final` と同じ bytes）。
 - 記録：`gate-resolutions/`（dossier、census、card の battery・heap walk・窓の log）。lane の記録は `fer1-lane-record/`。
 - 計測は上の通り。
 
+## 推論の identity probe：conditional 型の分岐を小さな cache から読み、identity の判定を relation の枠の前で返す（branch `perf/ts71-identity-probes`、gate を通った 10 枚目）
+
+tsgo の `inferFromMatchingTypes` は、union の要素を `isTypeOrBaseIdenticalTo` で組にして調べる。VS Code ではこの probe の大半が
+1 つの file（`src/vs/platform/agentHost/test/node/mapSessionEvents.test.ts`）から来る。この file は project の関係判定の 35% を持ち、
+4 checker で最も遅い shard に入る。
+- その file を縮めた project（`tsconfig.bench-mse.json`）では、identity の probe 3.43 M が conditional 型と他の種類を組にし、その
+  96% は正規化の直後の identity の flag の判定で終わる。
+- conditional 型の正規化は両方の分岐を読み、分岐は hash map の links にあるので 13.9 M 回引く。1 probe あたり ≈ 2,300 命令で、
+  tsrs は ≈ 1,330。
+
+いまは次の 3 つ（どれも tsgo の意味のまま）：
+1. `getTrue/FalseTypeFromConditionalType` の links の前に、checker ごとの direct-mapped cache（4,096 slot × 12 B）を置く。分岐は
+   一度書かれたら変わらず巻き戻されない（setter は speculation を無視し、呼び手は getter の miss の道だけ）ので、hit は links の答えと同じ。
+2. identity で片側だけが conditional 型の組は、`checkTypeRelatedTo` が予算（`relation_count`）を読んだ直後、枠を作る前に、正規化の後の
+   判定を返す：同じ型なら真、flag が違えば偽、同じ singleton の flag なら真。これらの判定は cache を書かず報告もしない。
+   - 落ちた組は完全な検査で同じ型に正規化し直す。他の組（conditional 同士、object）は正規化 1 回のまま。最初の広い版は zod +0.75%
+     だったので狭めた。
+   - 飛ばすのは line profiler の counter（`profile_ops[OP_RELATIONS]`）だけで、出力には出ない。
+3. `getNormalizedType` は簡約できる種類（index・indexed access・conditional）を先に見る。先の腕はこれらに当てはまらない。
+
+**関門**：重い card（VS Code ≈ −1.4 G、0.3 G 超）なので lean な関門を通した。gate row は PR の前に main に入れた（`b1f9af8d1`）。
+- 判定：A GO WITH CONDITIONS、B EQUIVALENT WITH CONDITIONS、C STANDS WITH FIXES、決定は GO WITH CONDITIONS。
+- 帯：VS Code 1 thread −1.3〜−1.5 G（計上 −1.4）、縮めた project −11.5%、4/4 と既定の wall ≈ −1.5%（下限 −1.0 / −0.7%）、footprint 0。
+- 持続性：VS Code の節約の ≈ 93%（1.42 G のうち 1.33）は test file 1 つなので、「VS Code、test file 1 つ」として固定の corpus
+  vscode `29b68000` 上で計上する。
+- B が見つけた既存の差（conditional.rs:664-665 と 679-680 は `any` を調べる前に restrictive instantiation を作るが、tsgo は作らない）
+  は別の忠実性の card に回す。
+
+**計測**：夕方（19:23〜19:33）、lane は止めた。load 1.5〜4.1、`nice -n 20`、交互に実行。基準は `main-d640a5852`（#908 の merge から
+build）。
+
+| | 基準 | この PR |
+|---|---:|---:|
+| VS Code 1 thread の命令数（low mode の median） | 129.488 G | **128.136 G（−1,352 M、−1.04%）** |
+| VS Code 1 thread の footprint（9 回の median） | 2,898.3 MiB | 2,899.7 MiB（+1.4、水準の内） |
+| VS Code 4/4（10 組の対） | — | wall **−1.59%**（平均、95% −2.16〜−1.01%）、−1,376 M、footprint −0.2 MiB（計上 0） |
+| VS Code 既定（10 組） | — | wall **−1.47%**（平均、95% −2.06〜−0.88%）、−1,337 M、footprint は下 |
+
+- 同じ mode の組は −1,280〜−1,390 M。
+- 縮めた project（1 thread）：11.54 → **10.32 G（−10.6%）**、wall 0.54 → 0.47 s。計上した −11.5% より 0.9 point 小さい。
+  - abc′ の試作（fast path は `isTypeRelatedTo` の中）は −11.55% だった。
+  - abc′ との差は test を除けば条件 1 の移動（予算を読んだ後、`checkTypeRelatedTo` の頭）だけなので、tsgo と同じ順の代価は
+    ここで ≈ 1 point（≈ 0.12 G）。VS Code 1 thread は abc′ の −1,423 M に対して −1,352 M で、帯の内。
+- 4/4 の出力：vscode/stable（66,899 byte）と zod（5,533 byte）が基準と byte 単位で一致。
+- **VS Code 既定の footprint**：最初の 10 組で中央値 +3.5 MiB（10 組中 9 組が正）と規則 C(b) に当たった。統合役の規則で 10 組を
+  足し、20 組で見た。
+  - 組（MiB）：+16.8 +7.0 +1.7 +4.4 +2.5 +1.7 +0.2 +20.7 −0.1 +31.4 −15.0 +10.2 +15.2 +47.9 +1.1 −22.9 +31.0 −18.0
+    +17.9 +22.6。
+  - 中央値 **+5.7 MiB**、20 組中 16 組が正（平均 +8.8）。繰り返したので、範囲の決まった差として記録する（3,424 MiB の 0.17%）。
+  - 仕組み（時間の差）：card が持つのは checker ごとに 48 KiB（既定で ≈ 0.2 MiB）。−1.4 G の大半は最も遅い shard を縮めるので、
+    4 つの shard の終わりが近づき、peak の重なりが増える。
+  - 反証：4/4 は −0.2 MiB（10 組中 4 組が正）、(4,1) は −5.8、(1,4) は −1.6、1 thread は +1.4（水準の内）。
+- M2：(worker, checker) = (1, 4) で footprint −1.6 MiB、(4, 1) で −5.8 MiB。命令数はどちらも ≈ −1.3 G。
+- 他 7 project の 1 thread：命令数 −0.08〜0.00%（effect −0.08、next −0.07、vue −0.05、ts −0.03、hono −0.03、playwright
+  −0.02、zod 0.00）、footprint −1〜+2 MiB（next +2、zod −1、他は 0）。
+- 4/4 と既定で、他 7 project に規則に当たるもの（中央値 +2 MiB 超かつ 6 組中 5 組以上が正）はない。最大は既定の zod +3.0、
+  4/4 の next +2.6、既定の playwright +2.6 MiB で、どれも 6 組中 4 組が正。
+- 縮めた project はまだ tsrs より重い（10.32 対 7.18 G）。probe の道の残り（union の要素の複製、残る組の relation の枠）と
+  推論自身の構造が次で、lane rel1 と sl1 の数で値を付ける。
+
+**記録。** PR [#909](https://github.com/kazhiramatsu/tsc-rs/pull/909) → merge `49b73e4ba`（2026-11-06。`d640a5852` の上、最終 head `e98b98dab`）。hosted run
+[42204006355](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42204006355)：全 job pass。local（hosted がしないことだけ、`e98b98dab`）：
+- crate の test：checker 1,869（新しい test 5 を含む：identity の判定 4 種を両方向で完全な枠と比べるもの 4 つ、slot を共有する
+  2 つの conditional 型 1 つ）、compiler 247。
+- fmt、clippy（`-D warnings`）、release build。
+- 9 case（8 project と縮めた project）で出力（exit code・stdout・stderr）が基準と一致。Identifiers・Symbols・Types・
+  Instantiations も 9 case とも一致。4 worker / 4 checker でも vscode/stable と zod の出力が byte 単位で一致。
+- fingerprint oracle：143,190 行のうち差は 0。
+- conformance（4 checker）：12,829 case。
+  - #906 の 4 checker の report に対して、15,339 の構成すべてが同じ。
+  - 1 checker の report に対しては、記録済みの 4 構成だけが違う。
+- 記録：`gate-rel/`（dossier、判定 A・B・C、profile、battery・窓・既定の再計測の log）。
+- 計測は上の通り。
+
 ## 計測台帳：予想と実測
 
 利用者の指示（2026-11-04）：「常に計測をして予想からずれている場合は戦略の変更、中止をしてさらに改善案を考えてくださいね」。
