@@ -104,7 +104,7 @@ fn main() {
     // purging after this delay costs no measurable time.
     // SAFETY: mi_option_set only writes a process-global option value and
     // has no other preconditions.
-    unsafe { libmimalloc_sys::mi_option_set(MI_OPTION_PURGE_DELAY, 10) };
+    unsafe { libmimalloc_sys::mi_option_set(MI_OPTION_PURGE_DELAY, 100) };
     tsc_types::trace::set_memory_probe(memory_sample);
     tsc_compiler::pprof::set_gc(collect_memory);
     // Every worker thread and checker shard starts with the same request;
