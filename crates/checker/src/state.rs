@@ -1297,6 +1297,9 @@ pub struct CheckerState<'a> {
     /// The relation checker's work lists, kept between calls instead of
     /// allocated per `checkTypeRelatedTo` (tsrs recycles them likewise).
     pub(crate) relation_scratch: crate::engine::RelationScratch,
+    /// Resolved conditional branches in front of their links (see
+    /// `conditional::ConditionalBranchSlot`).
+    pub(crate) conditional_branches: Box<[crate::conditional::ConditionalBranchSlot]>,
     /// The reverse index (target → sources) for the stage-3.4c
     /// expando-record consults: the record lives on per-file binder
     /// symbols, and amalgamated-duplicate merging clones them into
@@ -1912,6 +1915,11 @@ impl<'a> CheckerState<'a> {
             merged_symbols: rustc_hash::FxHashMap::default(),
             merged_symbol_bits: Vec::new(),
             relation_scratch: Default::default(),
+            conditional_branches: vec![
+                crate::conditional::ConditionalBranchSlot::default();
+                crate::conditional::CONDITIONAL_BRANCH_SLOTS
+            ]
+            .into_boxed_slice(),
             merged_symbol_sources: rustc_hash::FxHashMap::default(),
         };
         // undefinedSymbol.declarations = [] (46490); globalThisSymbol
