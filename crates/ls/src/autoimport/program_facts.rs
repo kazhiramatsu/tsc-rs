@@ -194,7 +194,7 @@ fn is_source_file_from_external_library(prepared: &PreparedProgram, file_name: &
 /// whether it has an `exports` field.
 fn package_scope(
     prepared: &PreparedProgram,
-    target: &ResolvedModuleTarget,
+    target: &ResolvedModuleTarget<&tsc_program::ProgramPath>,
 ) -> Option<(Option<String>, bool)> {
     let package_json = match target {
         ResolvedModuleTarget::Source { source, .. } => prepared

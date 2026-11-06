@@ -39,8 +39,8 @@ use tsc_program::{
     ConfigProjectReference, ConfigRootPlan, ConfigRootPlanRequest, JsonValue,
 };
 use tsc_program::{
-    CanonicalPath, ModuleResolution, PackageId, PackageJsonType, ResolutionKey, ResolutionMode,
-    ResolutionOutcome, TypeReferenceResolution, TypeReferenceResolutionKey,
+    CanonicalPath, PackageId, PackageJsonType, ResolutionMode, ResolutionOutcome,
+    TypeReferenceResolution, TypeReferenceResolutionKey,
 };
 use tsc_project::{
     ApiSnapshotRequest, CommandLine, CreateProgramRequest, FileChangeSummary, Project, ProjectId,
@@ -1205,6 +1205,19 @@ impl Session {
 
     /// tsgo `Program.GetSourceFileByPath`.
     fn source_file_by_path(&self, program: &ProjectProgram, path: &str) -> Option<ProgramFile> {
+        // tsgo's filesByPath also maps package/project redirects to their
+        // owning SourceFile. The API then asks for that file's own rows;
+        // passing the alias directly to the resolution table is different.
+        let canonical = CanonicalPath::from_js_normalized(JsStr::from_str(path)).ok()?;
+        let owner = program.prepared().source_id(&canonical)?;
+        let own_path = program
+            .prepared()
+            .source_file(owner)?
+            .path()
+            .canonical()
+            .as_js()
+            .to_string_lossy();
+        let path = own_path.as_ref();
         program.with_live(|live| {
             (0..live.file_count()).find_map(|index| {
                 let file_name = live.file_name(index)?.to_string_lossy().into_owned();
@@ -2615,13 +2628,12 @@ fn resolved_module(
     module_name: &str,
     mode: u32,
 ) -> Option<ResolvedModuleResponse> {
-    let key = ResolutionKey::new(
-        CanonicalPath::from_js_normalized(JsStr::from_str(&file.path)).ok()?,
-        JsStr::from_str(module_name).to_owned(),
+    let path = CanonicalPath::from_js_normalized(JsStr::from_str(&file.path)).ok()?;
+    let resolution = program.prepared().module_resolution_by_path(
+        &path,
+        JsStr::from_str(module_name),
         resolution_mode(mode)?,
-    );
-    let resolution: &ModuleResolution =
-        program.prepared().resolutions().require_module(&key).ok()?;
+    )?;
     let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
         return None;
     };

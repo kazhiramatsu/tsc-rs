@@ -30,7 +30,7 @@ fn program_options() -> ProgramOptions {
         .with_types(Vec::new())
 }
 
-fn package_resolution(program: &PreparedProgram) -> &tsc_program::ResolvedModule {
+fn package_resolution(program: &PreparedProgram) -> tsc_program::ResolvedModuleView<'_> {
     let root = program
         .source_files()
         .iter()

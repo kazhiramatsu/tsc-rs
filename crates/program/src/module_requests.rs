@@ -505,6 +505,18 @@ impl SourceRequestPlan {
             .map(|index| self.module_request_loads[index])
     }
 
+    /// Borrowed lookup when the caller already selected this source's plan.
+    pub fn module_request_loads_source_by_specifier(
+        &self,
+        specifier: JsStr<'_>,
+        mode: ResolutionMode,
+    ) -> Option<bool> {
+        self.module_requests
+            .iter()
+            .position(|request| request.specifier() == specifier && request.mode() == mode)
+            .map(|index| self.module_request_loads[index])
+    }
+
     /// The source spans of the occurrences of a module request that load
     /// their target, in source order, each including its string literal
     /// delimiters. Program construction records one inclusion reason per
