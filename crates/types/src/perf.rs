@@ -13,6 +13,9 @@
 //! per-checker or per-epoch attribution: a repeated publication counted here
 //! is a candidate for review, not proof of duplicate work.
 
+/// Allocation census hooks shared with store; inert without alloc-census.
+pub use tsc_store::census;
+
 /// One named counter. The order of variants is the report order.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(usize)]

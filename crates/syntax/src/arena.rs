@@ -892,6 +892,13 @@ impl NodeArena {
         has_trailing_comma: bool,
         modifier_flags: ModifierFlags,
     ) -> NodeArrayId {
+        let _census = tsc_types::perf::census::scope(tsc_types::perf::census::Site::NodeList);
+        tsc_types::perf::census::note(
+            tsc_types::perf::census::Site::NodeList,
+            1,
+            nodes.len(),
+            std::mem::size_of_val(nodes),
+        );
         debug_assert!(ModifierFlags::SYNTACTIC_MODIFIERS.contains(modifier_flags));
         let offset = u32::try_from(self.arrays.len()).expect("node-array arena length exceeds u32");
         let id = NodeArrayId::new(

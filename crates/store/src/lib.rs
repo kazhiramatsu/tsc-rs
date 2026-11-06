@@ -50,6 +50,7 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::Once;
 
+pub mod census;
 pub mod claimed;
 pub mod frozen;
 pub mod recycle;
@@ -161,6 +162,7 @@ fn reserve() {
             "could not reserve {bytes} bytes of address space at {FIRST_REGION:#x}: {}",
             std::io::Error::last_os_error()
         );
+        census::note(census::Site::StoreReservation, 1, bytes, 0);
     });
 }
 
@@ -414,6 +416,12 @@ impl<T: StoreRecord> StoreVec<T> {
     /// claimed once per lease.
     pub fn claim(position: u32, len: u32) -> Self {
         let mut list = Self::claim_room(position, len);
+        census::note(
+            census::Site::StoreRange,
+            0,
+            0,
+            len as usize * std::mem::size_of::<T>(),
+        );
         list.len = len as usize;
         list.placement = Placement::Published;
         list
@@ -437,6 +445,7 @@ impl<T: StoreRecord> StoreVec<T> {
             "a store range claimed twice"
         );
         system::commit(address::<T>(position), bytes);
+        census::note(census::Site::StoreRange, 1, bytes, 0);
         Self {
             // SAFETY: an address in the reservation is not null.
             records: unsafe { NonNull::new_unchecked(address::<T>(position) as *mut T) },
@@ -481,6 +490,7 @@ impl<T: StoreRecord> StoreVec<T> {
         }
         // SAFETY: the slot at `len` is inside the buffer's capacity.
         unsafe { self.records.as_ptr().add(self.len).write(record) };
+        self.census_used(std::mem::size_of::<T>());
         self.len += 1;
     }
 
@@ -502,7 +512,18 @@ impl<T: StoreRecord> StoreVec<T> {
                 records.len(),
             );
         }
+        self.census_used(std::mem::size_of_val(records));
         self.len += records.len();
+    }
+
+    #[inline(always)]
+    fn census_used(&self, bytes: usize) {
+        let site = match self.placement {
+            Placement::Claimed | Placement::Published => census::Site::StoreRange,
+            Placement::Mapped => census::Site::StoreMapping,
+            Placement::Heap => return,
+        };
+        census::note(site, 0, 0, bytes);
     }
 
     /// Make room for `additional` more records.
@@ -551,6 +572,12 @@ impl<T: StoreRecord> StoreVec<T> {
             .expect("a store list exceeds usize");
         let (records, capacity, placement) = if bytes >= MAPPED_THRESHOLD {
             let bytes = bytes.next_multiple_of(RETURN_GRANULE);
+            census::note(
+                census::Site::StoreMapping,
+                1,
+                bytes,
+                self.len * std::mem::size_of::<T>(),
+            );
             (
                 system::map(bytes).cast::<T>(),
                 bytes / std::mem::size_of::<T>(),
@@ -625,6 +652,12 @@ impl<T: StoreRecord> StoreVec<T> {
             "a store range past the end of its region"
         );
         system::commit(slots as usize, self.len * std::mem::size_of::<T>());
+        census::note(
+            census::Site::StoreRange,
+            1,
+            self.len * std::mem::size_of::<T>(),
+            self.len * std::mem::size_of::<T>(),
+        );
         // SAFETY: the lease gives this list the exclusive use of the slots
         // (see the crate documentation), which are mapped; the source is a
         // valid buffer that cannot overlap them (a buffer of the list's own,

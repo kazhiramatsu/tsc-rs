@@ -586,6 +586,7 @@ impl Host {
             let _ = std::thread::Builder::new()
                 .name("tsc-rs-content-mapper".to_owned())
                 .spawn(move || {
+                    tsc_types::perf::census::warm_thread();
                     let _ = connection.conn.run(&mut MessageReader::new(stdout));
                     connection.control.close();
                 });

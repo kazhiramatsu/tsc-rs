@@ -51,6 +51,12 @@ fn take_chunk(class: usize) -> u32 {
         .unwrap_or_else(std::sync::PoisonError::into_inner)[class]
         .pop();
     if let Some(position) = reused {
+        crate::census::note(
+            crate::census::Site::StoreRange,
+            1,
+            chunk_words(class) as usize * 4,
+            0,
+        );
         return position;
     }
     reserve();
@@ -64,6 +70,7 @@ fn take_chunk(class: usize) -> u32 {
         address::<TailWord>(position),
         words as usize * std::mem::size_of::<TailWord>(),
     );
+    crate::census::note(crate::census::Site::StoreRange, 1, words as usize * 4, 0);
     position
 }
 
@@ -105,6 +112,12 @@ impl Tails {
 
     /// Store `words` as one tail and return its position (never 0).
     pub fn push(&mut self, words: &[u32]) -> u32 {
+        crate::census::note(
+            crate::census::Site::StoreRange,
+            0,
+            0,
+            std::mem::size_of_val(words),
+        );
         let len = u32::try_from(words.len()).expect("a tail longer than u32");
         if self.end - self.next < len {
             self.grow(len);

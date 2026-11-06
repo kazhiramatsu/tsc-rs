@@ -3,8 +3,20 @@
 /// sampled self time. Library consumers keep their own global allocator; only
 /// source texts go to mimalloc's text heap in any process
 /// (`tsc_store::SharedText`).
+#[cfg(not(feature = "alloc-census"))]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+#[cfg(feature = "alloc-census")]
+mod alloc_census;
+#[cfg(feature = "alloc-census")]
+#[global_allocator]
+static GLOBAL: alloc_census::CountingAllocator = alloc_census::CountingAllocator;
+
+#[cfg(feature = "phase-ledger")]
+mod phase_ledger;
+#[cfg(all(feature = "phase-ledger", target_os = "macos"))]
+use libc as phase_ledger_abi;
 
 /// `mi_option_purge_delay` (mimalloc v2.3 `mi_option_e`, ordinal 15): memory
 /// purging is delayed by N ms, -1 disables it. The bundled binding names the
@@ -18,6 +30,8 @@ const MI_OPTION_PURGE_DELAY: libmimalloc_sys::mi_option_t = 15;
 /// where the same parse, bind or check takes about twice as long); on other
 /// platforms this is a no-op.
 fn prefer_interactive_scheduling() {
+    #[cfg(feature = "alloc-census")]
+    alloc_census::warm_thread();
     #[cfg(target_os = "macos")]
     // SAFETY: the call only changes the calling thread's QoS class and has
     // no other effect; a refused request leaves the class unchanged.
@@ -96,6 +110,21 @@ const PROCESS_ALIVE: Option<fn(i32) -> bool> = Some(is_process_alive);
 const PROCESS_ALIVE: Option<fn(i32) -> bool> = None;
 
 fn main() {
+    #[cfg(feature = "phase-ledger")]
+    let ledger_entry = phase_ledger::entry();
+    #[cfg(feature = "alloc-census")]
+    let census_path = alloc_census::install();
+    #[cfg(feature = "phase-ledger")]
+    let ledger_path = {
+        #[cfg(feature = "alloc-census")]
+        {
+            alloc_census::observe(|| phase_ledger::install(ledger_entry))
+        }
+        #[cfg(not(feature = "alloc-census"))]
+        {
+            phase_ledger::install(ledger_entry)
+        }
+    };
     // Return freed pages to the OS 10 ms after they empty (mimalloc v2's
     // default, pinned here). A large program's arenas and tables outgrow
     // their buffers and leave the old ones free; keeping every freed page
@@ -111,6 +140,8 @@ fn main() {
     // the main thread reads, coordinates and runs the first shard itself.
     tsc_program::set_thread_start_hook(prefer_interactive_scheduling);
     prefer_interactive_scheduling();
+    #[cfg(feature = "phase-ledger")]
+    phase_ledger::calibrate();
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
     // tsgo `runMain`: a first `--lsp` serves the language server
     // (cmd/tsc/lsp.go), a first `--api` the API (cmd/tsc/api.go).
@@ -118,11 +149,29 @@ fn main() {
         Some("--lsp") => {
             let code =
                 run_on_worker_stack(|| tsc_lsp::cli::run_lsp(&arguments[1..], PROCESS_ALIVE));
+            #[cfg(feature = "phase-ledger")]
+            {
+                #[cfg(feature = "alloc-census")]
+                alloc_census::observe(|| phase_ledger::flush(ledger_path.as_deref()));
+                #[cfg(not(feature = "alloc-census"))]
+                phase_ledger::flush(ledger_path.as_deref());
+            }
+            #[cfg(feature = "alloc-census")]
+            alloc_census::flush(census_path.as_deref());
             // SAFETY: as below; the server flushed every message it wrote.
             unsafe { libc::_exit(code) }
         }
         Some("--api") => {
             let code = run_on_worker_stack(|| tsc_api::server::run_api(&arguments[1..]));
+            #[cfg(feature = "phase-ledger")]
+            {
+                #[cfg(feature = "alloc-census")]
+                alloc_census::observe(|| phase_ledger::flush(ledger_path.as_deref()));
+                #[cfg(not(feature = "alloc-census"))]
+                phase_ledger::flush(ledger_path.as_deref());
+            }
+            #[cfg(feature = "alloc-census")]
+            alloc_census::flush(census_path.as_deref());
             // SAFETY: as below; the server flushed every response it wrote.
             unsafe { libc::_exit(code) }
         }
@@ -130,6 +179,7 @@ fn main() {
     }
     let output = run_on_worker_stack(|| tsc_compiler::run_cli(&arguments));
     {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
         use std::io::Write;
         let mut stdout = std::io::stdout().lock();
         let _ = stdout.write_all(output.stdout().as_bytes());
@@ -138,6 +188,15 @@ fn main() {
         let _ = stderr.write_all(output.stderr().as_bytes());
         let _ = stderr.flush();
     }
+    #[cfg(feature = "phase-ledger")]
+    {
+        #[cfg(feature = "alloc-census")]
+        alloc_census::observe(|| phase_ledger::flush(ledger_path.as_deref()));
+        #[cfg(not(feature = "alloc-census"))]
+        phase_ledger::flush(ledger_path.as_deref());
+    }
+    #[cfg(feature = "alloc-census")]
+    alloc_census::flush(census_path.as_deref());
     // An instrumented build (`scripts/pgo_build.py`) writes its profile from
     // the C runtime's exit chain, which `LLVM_PROFILE_FILE` asks for.
     if std::env::var_os("LLVM_PROFILE_FILE").is_some() {

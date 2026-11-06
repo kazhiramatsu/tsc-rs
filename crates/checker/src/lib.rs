@@ -2829,6 +2829,7 @@ impl PendingProgramSource {
     }
 
     fn relocate(self) -> tsc_syntax::SourceFile {
+        let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::PublicationAdopt);
         match self {
             Self::Ready(source) => source,
             Self::Leased(mut source, leases) => {
@@ -2867,6 +2868,7 @@ fn parse_program_inputs(
     workers: WorkerBudget,
     documents: Option<&DocumentRegistry>,
 ) -> ParsedProgramInputs {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::PublicationAdopt);
     // Every host package.json, parsed once (a later input with the same
     // path replaces an earlier one).
     let package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue> = files
@@ -3299,6 +3301,7 @@ fn init_checker_state<'a>(
     host: HostFacts,
     checker_index: Option<usize>,
 ) -> state::CheckerState<'a> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::CheckerInit);
     let mut state = state::CheckerState::from_snapshot_deferring_globals(snapshot, options);
     // tsgo `NewTracer` per checker of the pool: the checker's events carry
     // its index and its types file is written when the state ends.
@@ -3358,6 +3361,7 @@ fn check_files_in_order(
     files: &[ProgramFileId],
     globals_by_file: &mut [Vec<Diagnostic>],
 ) {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::SemanticCheck);
     for &file in files {
         check_program_file(state, file, globals_by_file);
     }
@@ -3814,6 +3818,9 @@ fn run_checker_shard<'a>(
     incremental_facts: bool,
     selected: Option<&[bool]>,
 ) -> (ShardOutput, Option<state::CheckerState<'a>>) {
+    let _shard = tsc_types::trace::shard(shard_index);
+    let _busy = tsc_types::trace::scope(tsc_types::trace::Phase::ShardBusy);
+    let setup = tsc_types::trace::scope(tsc_types::trace::Phase::ShardSetup);
     let shard_started = std::time::Instant::now();
     let mut state = init_checker_state(
         snapshot,
@@ -3840,6 +3847,8 @@ fn run_checker_shard<'a>(
         );
     }
     let shard_started = std::time::Instant::now();
+    tsc_types::trace::end(setup);
+    let files_scope = tsc_types::trace::scope(tsc_types::trace::Phase::ShardFiles);
     let init_globals = state.visible_global_diagnostics.clone();
     let mut globals_by_file = vec![Vec::new(); state.binder.file_count()];
     let mut captured = LedgerSnapshot {
@@ -3888,6 +3897,8 @@ fn run_checker_shard<'a>(
         }
     }
     let fixture = captured.clone();
+    tsc_types::trace::end(files_scope);
+    let _diagnostics = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
     files.sort_unstable();
     // This shard has checked its files: the eager work of every shard reads
     // the count of shards still checking.
@@ -3985,6 +3996,7 @@ fn merge_shard_outputs(
     incremental_facts: bool,
     selected: Option<&[bool]>,
 ) -> Result<CheckExecution, u32> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
     let authoritative_failure = outputs.iter_mut().find_map(|output| output.failure.take());
     let shard_incremental_facts = outputs
         .iter_mut()
@@ -4325,11 +4337,14 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         run.tracing.as_ref(),
     );
     run.end_bind_phase();
-    for (source_file, data) in program_sources.iter().zip(bind_data) {
-        work_counters.record_bind();
-        document_store
-            .publish(Arc::clone(source_file), data)
-            .expect("completed bind must belong to the ephemeral document domain");
+    {
+        let _publication = tsc_types::trace::scope(tsc_types::trace::Phase::PublicationAdopt);
+        for (source_file, data) in program_sources.iter().zip(bind_data) {
+            work_counters.record_bind();
+            document_store
+                .publish(Arc::clone(source_file), data)
+                .expect("completed bind must belong to the ephemeral document domain");
+        }
     }
     tsc_types::trace::mark("checker: bind program sources", phase_started);
     observe_phase(CheckPhase::Check);
@@ -4356,6 +4371,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         };
     }
     let phase_started = std::time::Instant::now();
+    let partition = tsc_types::trace::scope(tsc_types::trace::Phase::ShardPartition);
 
     let file_facts = program_file_facts(
         lib_facts,
@@ -4520,6 +4536,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         Merged(CheckExecution),
         Replay(u32),
     }
+    tsc_types::trace::end(partition);
     let mut check_span = run.check_phase();
     let sharded = std::thread::scope(|scope| {
         let mut handles = Vec::with_capacity(shard_count);
@@ -4787,6 +4804,8 @@ fn check_snapshot_serially(
     incremental_facts: bool,
     planner: Option<&mut IncrementalPlanner<'_>>,
 ) -> CheckExecution {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
+    let initialization = tsc_types::trace::scope(tsc_types::trace::Phase::CheckerInit);
     let init_started = std::time::Instant::now();
     let mut state = init_checker_state(snapshot, options, authoritative, host, Some(0));
     reserve_type_tables(&mut state, snapshot_node_count(snapshot));
@@ -4864,6 +4883,7 @@ fn check_snapshot_serially(
             work_counters,
             incremental,
         );
+        tsc_types::perf::census::after_check();
         if leak_state {
             std::mem::forget(state);
         }
@@ -4874,6 +4894,7 @@ fn check_snapshot_serially(
     }
     let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
     let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
+    tsc_types::trace::end(initialization);
     let check_started = std::time::Instant::now();
     let check_span = state.trace_check_phase();
     let checked_program_file_ids = program_file_ids
@@ -5000,6 +5021,7 @@ fn check_snapshot_serially(
         }
         _ => state,
     };
+    tsc_types::perf::census::after_check();
     if leak_state {
         std::mem::forget(state);
     }
@@ -5110,11 +5132,14 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     if let Some(run) = authoritative_run {
         run.end_bind_phase();
     }
-    for (source_file, data) in program_sources.iter().zip(bind_data) {
-        work_counters.record_bind();
-        document_store
-            .publish(Arc::clone(source_file), data)
-            .expect("completed bind must belong to the ephemeral document domain");
+    {
+        let _publication = tsc_types::trace::scope(tsc_types::trace::Phase::PublicationAdopt);
+        for (source_file, data) in program_sources.iter().zip(bind_data) {
+            work_counters.record_bind();
+            document_store
+                .publish(Arc::clone(source_file), data)
+                .expect("completed bind must belong to the ephemeral document domain");
+        }
     }
 
     // Checker-state construction (M4 5.0) + the check driver (M4 5.4):
@@ -5450,6 +5475,9 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 )
             });
         }
+        if authoritative_failure.is_some() || emit_operation.is_none() {
+            tsc_types::perf::census::after_check();
+        }
         if authoritative_failure.is_none() {
             if let Some(operation) = emit_operation {
                 let checked = assemble_check_result_with_facts(
@@ -5465,6 +5493,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                     checked.program_semantic_diagnostics.clone(),
                 );
                 operation(&snapshot, &session, &checked);
+                tsc_types::perf::census::after_check();
                 // As the eager path: the snapshot (every document) is left
                 // to the process exit with the state.
                 if leak_at_end {
@@ -5908,6 +5937,7 @@ fn assemble_check_result_with_facts(
     work_counters: CheckWorkCounters,
     incremental: Option<IncrementalCheckFacts>,
 ) -> CheckResult {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Diagnostics);
     let syntactic_diagnostics = file_diagnostics
         .iter()
         .flat_map(|file| file.syntactic.iter().cloned())
@@ -6228,6 +6258,7 @@ fn bind_reserved_in_program_order<'a>(
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
 ) -> Vec<tsc_binder::Binder<'a>> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::Bind);
     let phase_started = std::time::Instant::now();
     let reservations = sources
         .iter()

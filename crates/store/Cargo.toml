@@ -12,6 +12,9 @@ dev-profile-opt-level = 3
 name = "tsc_store"
 path = "src/lib.rs"
 
+[features]
+alloc-census = []
+
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true
 

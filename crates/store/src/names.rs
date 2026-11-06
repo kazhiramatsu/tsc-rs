@@ -69,6 +69,12 @@ pub fn push(text: &[u8]) -> u32 {
     let record = crate::address::<NameRecord>(id);
     crate::system::commit(TEXT + start, text.len());
     crate::system::commit(record, std::mem::size_of::<NameRecord>());
+    crate::census::note(
+        crate::census::Site::StoreRange,
+        1,
+        text.len() + std::mem::size_of::<NameRecord>(),
+        text.len() + std::mem::size_of::<NameRecord>(),
+    );
     // SAFETY: this call alone claimed the text range (the cursor's
     // `fetch_add`) and the record (the id's `fetch_add`); both lie in the
     // reservation, which `reserve` mapped, and no reader has the id yet.

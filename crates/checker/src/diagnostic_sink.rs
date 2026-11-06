@@ -31,10 +31,17 @@ fn bucket(diagnostic: &Diagnostic) -> u64 {
 impl DiagnosticSink {
     /// Append without deduplication, matching Vec::push even for duplicates.
     pub fn push(&mut self, diagnostic: Diagnostic) {
+        let _census = tsc_types::perf::census::scope(tsc_types::perf::census::Site::Diagnostic);
         let position = self.diagnostics.len();
         if let Some(index) = &mut self.index {
             index.entry(bucket(&diagnostic)).or_default().push(position);
         }
+        tsc_types::perf::census::note(
+            tsc_types::perf::census::Site::Diagnostic,
+            1,
+            1,
+            std::mem::size_of::<Diagnostic>(),
+        );
         self.diagnostics.push(diagnostic);
     }
 

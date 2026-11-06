@@ -2162,7 +2162,14 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: arena allocation for ResolvedMembers; tsc creates
     /// and retains ordinary JavaScript objects.
     pub fn alloc_members(&mut self, members: ResolvedMembers) -> MembersId {
+        let _census = tsc_types::perf::census::scope(tsc_types::perf::census::Site::Members);
         let id = MembersId::new(self.members.len() as u32);
+        tsc_types::perf::census::note(
+            tsc_types::perf::census::Site::Members,
+            1,
+            members.members.len(),
+            std::mem::size_of::<ResolvedMembers>(),
+        );
         self.members.push(members);
         id
     }
@@ -2192,7 +2199,14 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: arena allocation for Signature objects; tsc uses
     /// ordinary JavaScript object allocation.
     pub fn alloc_signature(&mut self, signature: Signature) -> SignatureId {
+        let _census = tsc_types::perf::census::scope(tsc_types::perf::census::Site::Signature);
         let id = SignatureId::new(self.signatures.len() as u32);
+        tsc_types::perf::census::note(
+            tsc_types::perf::census::Site::Signature,
+            1,
+            signature.parameters.len(),
+            std::mem::size_of::<Signature>(),
+        );
         self.signatures.push(signature);
         id
     }

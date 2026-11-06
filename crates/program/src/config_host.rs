@@ -178,60 +178,63 @@ impl<'a> CompilerConfigHost<'a> {
         let ready = std::sync::Condvar::new();
         let listings = std::sync::Mutex::new(Listings::default());
         let case_sensitive = self.host.use_case_sensitive_file_names();
-        let run = || loop {
-            let (directory, states, depth) = {
+        let run = || {
+            tsc_types::perf::census::warm_thread();
+            loop {
+                let (directory, states, depth) = {
+                    let mut queue = queue
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    loop {
+                        if let Some(item) = queue.pending.pop_front() {
+                            queue.in_flight += 1;
+                            break item;
+                        }
+                        if queue.closed || queue.in_flight == 0 {
+                            queue.closed = true;
+                            ready.notify_all();
+                            return;
+                        }
+                        queue = ready
+                            .wait(queue)
+                            .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    }
+                };
+                let listed = host.read_directory_listing_js(directory.as_js()).ok();
+                let mut children = Vec::new();
+                if let Some(entries) = &listed {
+                    if depth > 1 {
+                        for entry in entries {
+                            if entry.kind != DirectoryListingKind::Directory || entry.symlink {
+                                continue;
+                            }
+                            let text = entry.path.as_js();
+                            let name = InputComponent::new(entry_name(text), case_sensitive);
+                            if let Some(child_states) =
+                                states.enter_child_directory(patterns, text, &name)
+                            {
+                                children.push((entry.path.clone(), child_states, depth - 1));
+                            }
+                        }
+                    }
+                }
+                if let Some(entries) = listed {
+                    listings
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .insert(directory, entries);
+                }
                 let mut queue = queue
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                loop {
-                    if let Some(item) = queue.pending.pop_front() {
-                        queue.in_flight += 1;
-                        break item;
-                    }
-                    if queue.closed || queue.in_flight == 0 {
-                        queue.closed = true;
-                        ready.notify_all();
-                        return;
-                    }
-                    queue = ready
-                        .wait(queue)
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                queue.in_flight -= 1;
+                queue.pending.extend(children);
+                if queue.pending.is_empty() && queue.in_flight == 0 {
+                    queue.closed = true;
+                    ready.notify_all();
+                } else {
+                    ready.notify_all();
                 }
-            };
-            let listed = host.read_directory_listing_js(directory.as_js()).ok();
-            let mut children = Vec::new();
-            if let Some(entries) = &listed {
-                if depth > 1 {
-                    for entry in entries {
-                        if entry.kind != DirectoryListingKind::Directory || entry.symlink {
-                            continue;
-                        }
-                        let text = entry.path.as_js();
-                        let name = InputComponent::new(entry_name(text), case_sensitive);
-                        if let Some(child_states) =
-                            states.enter_child_directory(patterns, text, &name)
-                        {
-                            children.push((entry.path.clone(), child_states, depth - 1));
-                        }
-                    }
-                }
-            }
-            if let Some(entries) = listed {
-                listings
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .insert(directory, entries);
-            }
-            let mut queue = queue
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            queue.in_flight -= 1;
-            queue.pending.extend(children);
-            if queue.pending.is_empty() && queue.in_flight == 0 {
-                queue.closed = true;
-                ready.notify_all();
-            } else {
-                ready.notify_all();
             }
         };
         std::thread::scope(|scope| {

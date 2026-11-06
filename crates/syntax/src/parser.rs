@@ -10568,6 +10568,7 @@ pub fn is_entity_name_text(text: &str) -> bool {
 /// Only identifier values leave this function; arbitrary units in comments
 /// never become part of a returned name.
 pub fn parse_entity_name_components(text: tsc_diagnostics::JsStr<'_>) -> Option<Vec<String>> {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::ScanParse);
     let text = entity_name_scalar_input(text)?;
     let mut parser = Parser::new_with_positions(
         JsString::new(),
@@ -10696,6 +10697,7 @@ fn parse_source_file_from_snapshot_worker(
     cursor: Option<&SyntaxCursor>,
     incremental_options: IncrementalParseOptions,
 ) -> (SourceFile, IncrementalParseStats) {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::ScanParse);
     let text = snapshot.text();
     let mut parser = Parser::new_with_positions(
         file_name,
@@ -10844,6 +10846,7 @@ fn parse_json_text_with_options(
     node_array_id_base: u32,
     validate_value: bool,
 ) -> SourceFile {
+    let _ledger = tsc_types::trace::scope(tsc_types::trace::Phase::ScanParse);
     let text = snapshot.text();
     // initializeState(JSON): getLanguageVariant gives a JSON file the JSX
     // variant, as it does JavaScript and TSX.

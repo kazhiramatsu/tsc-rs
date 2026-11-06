@@ -13,6 +13,11 @@ role = "cli"
 name = "tsc-rs"
 path = "src/main.rs"
 
+[features]
+alloc-census = ["phase-ledger", "tsc-types/alloc-census"]
+phase-ledger = ["tsc-compiler/phase-ledger", "tsc-types/phase-ledger"]
+perf-counters = ["tsc-compiler/perf-counters"]
+
 [dependencies]
 libc.workspace = true
 libmimalloc-sys = { version = "0.1", features = ["extended"] }

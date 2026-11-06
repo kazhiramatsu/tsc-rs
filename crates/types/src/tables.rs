@@ -711,6 +711,13 @@ impl TypeTables {
     /// tsc-span: _tsc.js:50095-50102
     pub fn create_type(&mut self, flags: TypeFlags, data: TypeData) -> TypeId {
         let id = TypeId::new(self.types.len() as u32);
+        let _census = crate::perf::census::scope(crate::perf::census::Site::Type);
+        crate::perf::census::note(
+            crate::perf::census::Site::Type,
+            1,
+            1,
+            std::mem::size_of::<Type>(),
+        );
         self.types.push(Type::new(flags, data));
         id
     }
@@ -1537,6 +1544,13 @@ impl TypeTables {
         if let Some(&id) = self.list_ids.find(hash, |&id| list_at(items, id) == types) {
             return id;
         }
+        let _census = crate::perf::census::scope(crate::perf::census::Site::TypeList);
+        crate::perf::census::note(
+            crate::perf::census::Site::TypeList,
+            1,
+            types.len(),
+            std::mem::size_of_val(types),
+        );
         let at = u32::try_from(self.list_items.len()).expect("type list items fit u32");
         let len = u32::try_from(types.len()).expect("a type list's length fits u32");
         let id = TypeListId::new(at);

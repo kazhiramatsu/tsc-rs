@@ -69,6 +69,12 @@ impl<T: StoreRecord> Room<T> {
             allocator.next = end;
             start as u32
         };
+        crate::census::note(
+            Self::census_site(),
+            1,
+            capacity as usize * std::mem::size_of::<T>(),
+            0,
+        );
         Self {
             start,
             capacity,
@@ -77,6 +83,15 @@ impl<T: StoreRecord> Room<T> {
         }
     }
 
+    fn census_site() -> crate::census::Site {
+        if T::REGION == crate::frozen::ELEMENT_REGION {
+            crate::census::Site::FrozenRoom
+        } else if T::REGION == crate::recycle::SCRATCH_WORD_REGION {
+            crate::census::Site::RecycleRoom
+        } else {
+            crate::census::Site::ClaimedRoom
+        }
+    }
     pub fn pointer(&self, offset: u32) -> *mut T {
         assert!(offset <= self.capacity);
         address::<T>(self.start + offset) as *mut T
@@ -88,6 +103,12 @@ impl<T: StoreRecord> Room<T> {
         if end > self.dirty {
             system::commit(
                 address::<T>(self.start + self.dirty),
+                (end - self.dirty) as usize * std::mem::size_of::<T>(),
+            );
+            crate::census::note(
+                Self::census_site(),
+                0,
+                0,
                 (end - self.dirty) as usize * std::mem::size_of::<T>(),
             );
             self.dirty = end;

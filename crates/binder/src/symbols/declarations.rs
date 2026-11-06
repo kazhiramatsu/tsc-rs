@@ -98,6 +98,14 @@ impl DeclarationPool {
 
     /// A list of `nodes` (empty without claiming anything).
     pub fn alloc(&mut self, nodes: &[NodeId]) -> Declarations {
+        let _census =
+            tsc_types::perf::census::scope(tsc_types::perf::census::Site::SymbolDeclarations);
+        tsc_types::perf::census::note(
+            tsc_types::perf::census::Site::SymbolDeclarations,
+            1,
+            nodes.len(),
+            std::mem::size_of_val(nodes),
+        );
         let len = u32::try_from(nodes.len()).expect("declaration list length exceeds u32");
         if len == 0 {
             return Declarations::new();

@@ -93,6 +93,9 @@ impl Default for SymbolExtras {
 
 impl Symbol {
     pub fn new(flags: SymbolFlags, escaped_name: EscapedName) -> Self {
+        let _census =
+            tsc_types::perf::census::scope(tsc_types::perf::census::Site::SymbolDeclarations);
+        tsc_types::perf::census::note(tsc_types::perf::census::Site::SymbolDeclarations, 1, 0, 0);
         Self {
             flags,
             escaped_name,
