@@ -680,7 +680,7 @@ enum PositionIndexData {
     /// rarely consulted before diagnostics are rendered or output is
     /// printed, and a large source pays for it only then.
     LazyDense {
-        text: Arc<str>,
+        text: tsc_store::SharedText,
         dense: OnceLock<DensePositionIndex>,
     },
     PersistentLines(PersistentLineTree),
@@ -705,7 +705,7 @@ impl PositionIndex {
     }
 
     /// A static index over `text` whose tables are built on first use.
-    pub fn new_lazy(text: Arc<str>) -> Self {
+    pub fn new_lazy(text: tsc_store::SharedText) -> Self {
         Self {
             byte_len: u32::try_from(text.len()).expect("source text must fit in u32"),
             data: PositionIndexData::LazyDense {
@@ -905,17 +905,24 @@ pub struct LineAndCharacter {
 pub struct TextSnapshot {
     document_version: DocumentVersion,
     lineage: SnapshotLineage,
-    text: Arc<str>,
+    text: tsc_store::SharedText,
     positions: Arc<PositionIndex>,
 }
 
 impl TextSnapshot {
+    /// A snapshot of a text that lives as long as its program: the text is
+    /// copied into the text heap (see [`tsc_store::SharedText`]).
     pub fn new(text: impl Into<String>, document_version: DocumentVersion) -> Arc<Self> {
-        Self::from_shared_text(Arc::from(text.into()), document_version)
+        let text = text.into();
+        Self::from_text(tsc_store::SharedText::in_text_heap(&text), document_version)
     }
 
     pub fn from_shared_text(text: Arc<str>, document_version: DocumentVersion) -> Arc<Self> {
-        let positions = Arc::new(PositionIndex::new_lazy(Arc::clone(&text)));
+        Self::from_text(tsc_store::SharedText::from(text), document_version)
+    }
+
+    fn from_text(text: tsc_store::SharedText, document_version: DocumentVersion) -> Arc<Self> {
+        let positions = Arc::new(PositionIndex::new_lazy(text.clone()));
         Arc::new(Self {
             document_version,
             lineage: SnapshotLineage {
@@ -935,7 +942,7 @@ impl TextSnapshot {
                 store: Arc::new(SnapshotStoreIdentity),
                 revision: 0,
             },
-            text: Arc::from(""),
+            text: tsc_store::SharedText::from(Arc::<str>::from("")),
             positions: Arc::new(PositionIndex::detached()),
         })
     }
@@ -951,17 +958,17 @@ impl TextSnapshot {
         Arc::new(Self {
             document_version,
             lineage: SnapshotLineage { store, revision },
-            text,
+            text: tsc_store::SharedText::from(text),
             positions: Arc::new(positions),
         })
     }
 
     pub fn text(&self) -> &str {
-        &self.text
+        self.text.as_str()
     }
 
-    pub fn shared_text(&self) -> Arc<str> {
-        Arc::clone(&self.text)
+    pub fn shared_text(&self) -> tsc_store::SharedText {
+        self.text.clone()
     }
 
     pub fn document_version(&self) -> &DocumentVersion {

@@ -14,3 +14,4 @@ path = "src/lib.rs"
 
 [dependencies]
 memchr = "2"
+tsc-store.workspace = true

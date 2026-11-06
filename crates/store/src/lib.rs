@@ -58,8 +58,10 @@ mod rooms;
 pub use rooms::{allocator_stats, AllocatorStats, RegionStats, StorageStats};
 
 pub mod names;
+pub mod shared_text;
 pub mod tails;
 pub mod texts;
+pub use shared_text::SharedText;
 
 /// Where the reservation starts: clear of every placement seen on macOS and
 /// Linux (binaries, shared caches and heaps sit well below, stacks and PIE

@@ -2167,7 +2167,7 @@ pub struct PreparedProgramBuilder {
     build_info_emit_blocked: bool,
     package_redirect_files: Vec<PackageRedirectFile>,
     import_extension_files: Vec<JsString>,
-    text_by_canonical: rustc_hash::FxHashMap<CanonicalPath, Arc<str>>,
+    text_by_canonical: rustc_hash::FxHashMap<CanonicalPath, tsc_diagnostics::SharedText>,
     resolutions: ResolutionTable,
     dependency_symlinks: Vec<DependencySymlink>,
     diagnostics: PreparationDiagnostics,
@@ -2796,12 +2796,12 @@ impl PreparedProgramBuilder {
     fn register_text_owner(
         &mut self,
         canonical: &CanonicalPath,
-        text: Arc<str>,
+        text: tsc_diagnostics::SharedText,
         display: JsStr<'_>,
         operation: PreparationOperation,
     ) -> Result<(), PreparationError> {
         if let Some(existing) = self.text_by_canonical.get(canonical) {
-            if Arc::ptr_eq(existing, &text) || **existing == *text {
+            if existing.ptr_eq(&text) || existing.as_str() == text.as_str() {
                 return Ok(());
             }
             return Err(PreparationError::new_js(
