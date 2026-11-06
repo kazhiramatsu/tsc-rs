@@ -36,6 +36,16 @@ pub struct ResolutionKey {
 }
 
 impl ResolutionKey {
+    /// Observation only (m8, never merged): the source path's and the specifier's heap blocks.
+    pub fn diag_heap_bytes(&self) -> [usize; 2] {
+        [
+            self.source.diag_heap_bytes(),
+            self.specifier.diag_heap_bytes(),
+        ]
+    }
+}
+
+impl ResolutionKey {
     pub fn new(
         source: CanonicalPath,
         specifier: impl Into<JsString>,

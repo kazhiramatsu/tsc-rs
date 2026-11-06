@@ -4888,6 +4888,9 @@ fn check_snapshot_serially(
         &mut global_checker_diagnostics_by_file,
     );
     tsc_types::trace::observe("after_check");
+    if std::env::var_os("TSRS_HEAP_WALK").is_some() {
+        crate::conditional::any_check_probe::print();
+    }
     if tsc_types::trace::enabled() {
         tsc_types::trace::mark(
             &format!(

@@ -17,6 +17,16 @@ use std::iter::FusedIterator;
 #[derive(Clone, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct JsString(Storage);
 
+impl JsString {
+    /// Observation only (m8, never merged): the heap block this string owns, in requested bytes (0 when inline).
+    pub fn diag_heap_bytes(&self) -> usize {
+        match &self.0 {
+            Storage::Heap(bytes) => bytes.capacity(),
+            Storage::Inline { .. } => 0,
+        }
+    }
+}
+
 /// The length of the common byte prefix of two slices, compared eight
 /// bytes at a time.
 #[inline]

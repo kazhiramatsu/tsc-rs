@@ -138,10 +138,9 @@ fn observe(instant: &str) {
         heaps && calling && parked
     };
     let mib = |bytes: usize| bytes as f64 / (1 << 20) as f64;
-    let (committed, live) = walk
-        .classes
-        .iter()
-        .fold((0, 0), |(c, l), class| (c + class.committed, l + class.live));
+    let (committed, live) = walk.classes.iter().fold((0, 0), |(c, l), class| {
+        (c + class.committed, l + class.live)
+    });
     eprintln!(
         "[heap walk] {instant}: complete {complete}, areas {} (+{} seen twice), committed {:.1} MiB, live {:.1} MiB, free slots {:.1} MiB; by first view (heap / calling / parked): free {:.1} / {:.1} / {:.1} MiB",
         walk.areas,
@@ -160,7 +159,13 @@ fn observe(instant: &str) {
         .copied()
         .collect::<Vec<_>>();
     classes.sort_by_key(|class| std::cmp::Reverse(class.committed - class.live));
-    for class in classes.iter().take(16) {
+    // The 80-128 B classes always, then the rest of the top 16 by free slots.
+    let small = |class: &&Class| (80..=128).contains(&class.block_size);
+    let listed = classes
+        .iter()
+        .filter(small)
+        .chain(classes.iter().filter(|class| !small(class)).take(12));
+    for class in listed {
         eprintln!(
             "[heap walk] {instant}:   block {:>9} B: pages {:>5}, committed {:>7.1} MiB, live {:>7.1} MiB, free {:>6.1} MiB",
             class.block_size,
