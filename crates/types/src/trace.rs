@@ -21,6 +21,8 @@ pub struct MemorySample {
     pub peak_committed: usize,
     /// Observation only (m8, never merged): instructions retired by the process so far.
     pub instructions: u64,
+    /// Observation only: allocation calls so far.
+    pub allocations: u64,
 }
 
 /// Register how the binary measures its memory; the first registration wins.
@@ -49,12 +51,13 @@ pub fn mark(name: &str, started: Instant) {
             let sample = probe();
             let mib = |bytes: usize| bytes >> 20;
             format!(
-                "; rss {} MiB, peak {} MiB; committed {} MiB, peak {} MiB; instr {}",
+                "; rss {} MiB, peak {} MiB; committed {} MiB, peak {} MiB; instr {}; allocs {}",
                 mib(sample.resident),
                 mib(sample.peak_resident),
                 mib(sample.committed),
                 mib(sample.peak_committed),
-                sample.instructions
+                sample.instructions,
+                sample.allocations
             )
         });
         eprintln!(
