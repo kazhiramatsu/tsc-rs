@@ -148,3 +148,7 @@ impl PartialEq for SharedText {
 }
 
 impl Eq for SharedText {}
+
+#[cfg(test)]
+#[path = "../tests/unit/shared_text/tests.rs"]
+mod tests;
