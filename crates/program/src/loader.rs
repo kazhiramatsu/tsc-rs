@@ -972,6 +972,7 @@ fn load_program_worker(
         }
     }
     let mut staged = graph.finish()?;
+    tsc_types::trace::observe("after_finish");
     tsc_types::trace::mark("load: root walk and graph finish", phase_started);
     let phase_started = std::time::Instant::now();
     // The package.json files the walk probed, taken before the dependency
@@ -2536,6 +2537,93 @@ struct StagedGraphConfig<'host, 'options, 'resolver> {
 }
 
 impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
+    /// Observation only (m8, never merged): with `TSRS_HEAP_WALK`, the exact heap bytes of the walk's staged
+    /// strings, by owner and mimalloc size class (requested bytes rounded to the class).
+    fn account_staging(&self, instant: &str) {
+        use stage_account::Tally;
+        if std::env::var_os("TSRS_HEAP_WALK").is_none() {
+            return;
+        }
+        let (mut request_source, mut request_specifier) = (Tally::default(), Tally::default());
+        let (mut order_source, mut order_specifier) = (Tally::default(), Tally::default());
+        let mut source_reason_parent = Tally::default();
+        let mut source_reason_other = Tally::default();
+        for source in &self.sources {
+            for request in &source.module_requests {
+                let [path, specifier] = request.request.key.diag_heap_bytes();
+                request_source.add(path);
+                request_specifier.add(specifier);
+            }
+            for key in &source.module_request_order {
+                let [path, specifier] = key.diag_heap_bytes();
+                order_source.add(path);
+                order_specifier.add(specifier);
+            }
+            for reason in &source.inclusion_reasons {
+                stage_account::reason(reason, &mut source_reason_parent, &mut source_reason_other);
+            }
+            for (spelling, reason) in &source.alternate_inclusion_reasons {
+                source_reason_other.add(spelling.diag_heap_bytes());
+                stage_account::reason(reason, &mut source_reason_parent, &mut source_reason_other);
+            }
+        }
+        let (mut row_source, mut row_specifier) = (Tally::default(), Tally::default());
+        for resolution in &self.module_resolutions {
+            let [path, specifier] = resolution.key.diag_heap_bytes();
+            row_source.add(path);
+            row_specifier.add(specifier);
+        }
+        let (mut map_source, mut map_specifier) = (Tally::default(), Tally::default());
+        for key in self.module_resolution_by_key.keys() {
+            let [path, specifier] = key.diag_heap_bytes();
+            map_source.add(path);
+            map_specifier.add(specifier);
+        }
+        let (mut task_display, mut task_canonical) = (Tally::default(), Tally::default());
+        let (mut task_reason_parent, mut task_reason_other) = (Tally::default(), Tally::default());
+        for task in &self.tasks {
+            let [display, canonical] = task.path.diag_heap_bytes();
+            task_display.add(display);
+            task_canonical.add(canonical);
+            stage_account::reason(
+                &task.reason.inclusion,
+                &mut task_reason_parent,
+                &mut task_reason_other,
+            );
+        }
+        let mut directory_specifier = Tally::default();
+        for (_, specifier, _) in self.directory_resolutions.keys() {
+            directory_specifier.add(specifier.diag_heap_bytes());
+        }
+        eprintln!(
+            "[stage account] {instant}: sources {}, module rows {}, map keys {}, tasks {}, directory keys {}",
+            self.sources.len(),
+            self.module_resolutions.len(),
+            self.module_resolution_by_key.len(),
+            self.tasks.len(),
+            self.directory_resolutions.len()
+        );
+        for (owner, tally) in [
+            ("A1 request key source path", &request_source),
+            ("A1 request key specifier", &request_specifier),
+            ("A2 request order key source path", &order_source),
+            ("A2 request order key specifier", &order_specifier),
+            ("B  module row key source path", &row_source),
+            ("B  module row key specifier", &row_specifier),
+            ("C  key map source path", &map_source),
+            ("C  key map specifier", &map_specifier),
+            ("D1 task reason parent", &task_reason_parent),
+            ("D1 task reason other strings", &task_reason_other),
+            ("D1 task path display", &task_display),
+            ("D1 task path canonical", &task_canonical),
+            ("D2 source reason parent", &source_reason_parent),
+            ("D2 source reason other strings", &source_reason_other),
+            ("E  directory key specifier", &directory_specifier),
+        ] {
+            tally.print(instant, owner);
+        }
+    }
+
     fn new(config: StagedGraphConfig<'host, 'options, 'resolver>) -> Self {
         Self {
             host: config.host,
@@ -4067,9 +4155,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     }
 
     fn finish(mut self) -> Result<CompleteGraph, ProgramLoadError> {
+        self.account_staging("before_finish");
+        tsc_types::trace::observe("before_finish");
         self.resolve_root_sources();
         self.record_unloaded_targets()?;
         let collected = self.collect_files()?;
+        self.account_staging("after_collect");
+        tsc_types::trace::observe("after_collect");
         self.program_order = collected.order.clone();
         // tsgo prints a reason's file by its program name: the references
         // recorded under a spelling the collection replaced follow it.
@@ -8702,3 +8794,116 @@ pub fn load_emitting_program_js(
 #[cfg(test)]
 #[path = "../tests/unit/loader/typed_error_source_tests.rs"]
 mod typed_error_source_tests;
+
+/// Observation only (m8, never merged): exact heap bytes of staged strings by mimalloc size class.
+mod stage_account {
+    use super::SourceInclusionReason;
+
+    /// mimalloc's small bin for `size` requested bytes: whole words up to 64 bytes, then four bins per power of two.
+    fn class(size: usize) -> usize {
+        let words = size.div_ceil(8);
+        if words <= 8 {
+            return words * 8;
+        }
+        let top = usize::BITS - 1 - (words - 1).leading_zeros();
+        let step = 1usize << (top - 2);
+        words.div_ceil(step) * step * 8
+    }
+
+    #[derive(Default)]
+    pub(super) struct Tally {
+        strings: usize,
+        /// Class bytes: up to 64, 80, 96, 112, 128, above 128.
+        buckets: [usize; 6],
+    }
+
+    impl Tally {
+        pub(super) fn add(&mut self, size: usize) {
+            if size == 0 {
+                return;
+            }
+            let class = class(size);
+            self.strings += 1;
+            let bucket = match class {
+                0..=64 => 0,
+                80 => 1,
+                96 => 2,
+                112 => 3,
+                128 => 4,
+                _ => 5,
+            };
+            self.buckets[bucket] += class;
+        }
+
+        pub(super) fn print(&self, instant: &str, owner: &str) {
+            let mib = |bytes: usize| bytes as f64 / 1_048_576.0;
+            let middle: usize = self.buckets[1..5].iter().sum();
+            eprintln!(
+                "[stage account] {instant} {owner:<34} strings {:>8} | <=64 {:>6.2} | 80 {:>6.2} 96 {:>6.2} 112 {:>6.2} 128 {:>6.2} = {:>6.2} | >128 {:>6.2} MiB",
+                self.strings,
+                mib(self.buckets[0]),
+                mib(self.buckets[1]),
+                mib(self.buckets[2]),
+                mib(self.buckets[3]),
+                mib(self.buckets[4]),
+                mib(middle),
+                mib(self.buckets[5]),
+            );
+        }
+    }
+
+    /// A reason's parent path apart from its other strings.
+    pub(super) fn reason(
+        reason: &SourceInclusionReason,
+        parent_tally: &mut Tally,
+        other: &mut Tally,
+    ) {
+        match reason {
+            SourceInclusionReason::Import {
+                parent,
+                reference_text,
+                package_id,
+                ..
+            } => {
+                parent_tally.add(parent.diag_heap_bytes());
+                other.add(reference_text.capacity());
+                other.add(package_id.as_ref().map_or(0, |id| id.diag_heap_bytes()));
+            }
+            SourceInclusionReason::PathReference {
+                parent, specifier, ..
+            }
+            | SourceInclusionReason::LibraryReference { parent, specifier } => {
+                parent_tally.add(parent.diag_heap_bytes());
+                other.add(specifier.diag_heap_bytes());
+            }
+            SourceInclusionReason::TypeReference {
+                parent,
+                specifier,
+                package_id,
+                ..
+            }
+            | SourceInclusionReason::SyntheticImport {
+                parent,
+                specifier,
+                package_id,
+                ..
+            } => {
+                parent_tally.add(parent.diag_heap_bytes());
+                other.add(specifier.diag_heap_bytes());
+                other.add(package_id.as_ref().map_or(0, |id| id.diag_heap_bytes()));
+            }
+            SourceInclusionReason::AutomaticType {
+                name, package_id, ..
+            } => {
+                other.add(name.diag_heap_bytes());
+                other.add(package_id.as_ref().map_or(0, |id| id.diag_heap_bytes()));
+            }
+            SourceInclusionReason::ContentMapperSupplemental { canonical } => {
+                other.add(canonical.diag_heap_bytes());
+            }
+            SourceInclusionReason::Root(_)
+            | SourceInclusionReason::LibraryRoot(_)
+            | SourceInclusionReason::Synthetic => {}
+        }
+    }
+}

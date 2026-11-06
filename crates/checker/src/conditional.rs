@@ -661,8 +661,14 @@ impl<'a> CheckerState<'a> {
                 == self.get_actual_type_variable(data.check_type)?
         {
             let check_flags = self.tables.flags_of(data.check_type);
+            let types_before = self.tables.len();
             let restrictive_check = self.get_restrictive_instantiation(data.check_type)?;
             let restrictive_extends = self.get_restrictive_instantiation(data.extends_type)?;
+            any_check_probe::note(
+                0,
+                check_flags.intersects(TypeFlags::ANY),
+                self.tables.len() - types_before,
+            );
             if check_flags.intersects(TypeFlags::ANY)
                 || self.is_type_assignable_to(restrictive_check, restrictive_extends)?
             {
@@ -676,8 +682,14 @@ impl<'a> CheckerState<'a> {
                 == self.get_actual_type_variable(data.check_type)?
         {
             let check_flags = self.tables.flags_of(data.check_type);
+            let types_before = self.tables.len();
             let restrictive_check = self.get_restrictive_instantiation(data.check_type)?;
             let restrictive_extends = self.get_restrictive_instantiation(data.extends_type)?;
+            any_check_probe::note(
+                1,
+                check_flags.intersects(TypeFlags::ANY),
+                self.tables.len() - types_before,
+            );
             if !check_flags.intersects(TypeFlags::ANY)
                 && self.is_type_assignable_to(restrictive_check, restrictive_extends)?
             {
@@ -825,3 +837,51 @@ impl<'a> CheckerState<'a> {
 #[cfg(test)]
 #[path = "../tests/unit/conditional/tests.rs"]
 mod tests;
+
+/// Observation only (m8, never merged): getSimplifiedConditionalType's restrictive instantiations, which tsgo skips
+/// for an `any` check type (checker.go:28552, :28558).
+pub(crate) mod any_check_probe {
+    use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
+
+    /// Per branch: reached, reached with an `any` check type, types created then, calls that created any.
+    static COUNTS: [[AtomicUsize; 4]; 2] = [
+        [
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+        ],
+        [
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+        ],
+    ];
+
+    pub(crate) fn note(branch: usize, any: bool, created: usize) {
+        let counts = &COUNTS[branch];
+        counts[0].fetch_add(1, Relaxed);
+        if any {
+            counts[1].fetch_add(1, Relaxed);
+            counts[2].fetch_add(created, Relaxed);
+            if created > 0 {
+                counts[3].fetch_add(1, Relaxed);
+            }
+        }
+    }
+
+    pub(crate) fn print() {
+        for (branch, counts) in COUNTS.iter().enumerate() {
+            eprintln!(
+                "[any-check probe] branch {} (`T extends U ? {}`): reached {}, with an any check type {}, types created then {} in {} calls",
+                branch + 1,
+                if branch == 0 { "T : never`" } else { "never : T`" },
+                counts[0].load(Relaxed),
+                counts[1].load(Relaxed),
+                counts[2].load(Relaxed),
+                counts[3].load(Relaxed),
+            );
+        }
+    }
+}

@@ -38,6 +38,11 @@ impl CanonicalPath {
     pub fn into_js_string(self) -> JsString {
         self.0.to_js_string()
     }
+
+    /// Observation only (m8, never merged).
+    pub fn diag_heap_bytes(&self) -> usize {
+        self.0.diag_heap_bytes()
+    }
 }
 
 /// One path's user-facing spelling and independent canonical lookup key.
@@ -49,6 +54,16 @@ impl CanonicalPath {
 pub struct ProgramPath {
     display: SharedJsString,
     canonical: CanonicalPath,
+}
+
+impl ProgramPath {
+    /// Observation only (m8, never merged): the display and canonical spellings' heap blocks.
+    pub fn diag_heap_bytes(&self) -> [usize; 2] {
+        [
+            self.display.diag_heap_bytes(),
+            self.canonical.diag_heap_bytes(),
+        ]
+    }
 }
 
 impl ProgramPath {
