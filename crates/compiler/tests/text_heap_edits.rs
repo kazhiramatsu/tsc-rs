@@ -35,7 +35,8 @@ fn a_session_of_edits_keeps_the_text_heap_bounded() {
     )
     .expect("load the prepared program");
     let documents = DocumentRegistry::new();
-    let mut live = LiveProgram::with_documents(prepared, &documents).expect("create the live program");
+    let mut live =
+        LiveProgram::with_documents(prepared, &documents).expect("create the live program");
     let path = CanonicalPath::from_trusted_normalized("/work/a.ts").expect("a canonical path");
     let before = tsc_store::shared_text::text_heap_live_bytes();
     for edit in 0..100 {
