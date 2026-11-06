@@ -13,6 +13,56 @@ data model の現状と費用の証拠、slice 12〜17 の設計、tsrs との�
 `3e9236361` を移植。tsc-rs の参照 `aa8149273` の 53 commit 後）。この repo の環境変数の接頭辞 `TSRS_` とは無関係。既定の mode が
 tsgo と同じ答え（checker 4 つ、eager な member）で、`--fast` は答えが変わりうる。
 
+## 終了（2026-11-06、所有者の決定）
+
+所有者の判断（2026-11-06）：「FE4を実行しても3%程度ならやる価値はないですね。何か大きな構造変更をするのも限界でしょうか。であれば
+そろそろ打ち切ろうかと思います。小手先の対応をしても意味がないので」→ 最後の card（#910）を入れて終了。PGO の試行と最後の計測も
+取りやめた。
+
+**到達点（VS Code 1 thread）**
+
+| 時点 | 命令数 | peak footprint |
+| --- | ---: | ---: |
+| B0（2026-11-05 07:00、`c3485397a`） | 138.27 G | 3,520 MiB |
+| main `d640a5852`（anchor #4、静音の 1 窓、9 round の low-mode 中央値） | 129.43 G（−6.4%） | 2,898 MiB（−17.7%） |
+| ＋ #909・#910（各 card の実測の和。anchor ではない） | ≈ 127.7 G（≈ −7.7%） | ≈ 2,886 MiB（≈ −18%） |
+| tsrs（PGO なしの build） | 85.5 G | 2,008 MiB |
+
+- **tsrs との差**：命令数 ≈ 1.49 倍、peak ≈ 1.44 倍。
+- **product の wall**（anchor #4、#909・#910 の前）：既定 2.97 s 対 1.85 s、4 thread 3.13 s 対 1.97 s、1 thread 8.29 s 対 5.70 s。
+  - #909 は 4 thread と既定の wall を ≈ −1.5% 下げた。
+  - #910 は 4 thread で −2.6%、既定で −1.2% 下げた。
+- **約束と努力目標**（2026-11-18 の線：< 135 G・≤ 3,300 MiB と ≤ 132 G・≤ 3,100 MiB）：どちらも満たした。
+- **tsgo との比較**（既定、VS Code）：tsc-rs 2.97 s・3,431 MB 対 tsgo 4.72 s・6,201 MB（tsgo は DET-1 の窓の値）。出力は byte
+  単位で同一（DET-1、#905）。
+
+**打ち切った理由**
+- **差は散らばっている**：VS Code の profile では、差の内訳は checker 49%、binder 12%、allocator 7%、読み込み 5%、adopt 5%、parse 4%、
+  その他 18%。1 つの関数で差の 2〜3% を超えるものはなく、名前の対応する仕事（名前解決、symbol の型、instantiation）は同等だった。
+- **残る手は小さい**：
+  - 値段の付いた data 層の計画（S2〜S11）は命令数 −5〜9% で、tsrs 比 ≈ 1.4 倍まで。
+  - FE4（identity の書き換えをやめる）は ≈ 3%。
+- **scheduler に得はない**：rayon への置き換え（r0）は速くならなかった。既存の pool はすでに偏りが小さい。
+- **build の設定は同じ**：LTO は tsrs と同じ（fat、codegen-units 1）。tsrs は配布 binary に PGO（自身の記録で命令数 −13〜14%）を
+  かけているが、試していない。
+
+**やらずに残した候補**（値段は付いている）
+- (b) include 理由の文字列（上限 23.7 MiB）
+- 副表を record の field に（≈ 0.6〜0.75 G）
+- phase の境目での purge（1 thread で ≈ 20〜25 MiB。ただし card なしの main では +4.9 MiB だった）
+- `reduce_label_overrides` の空のときの省略（≈ 0.1 G）
+- data 層 S2〜S11
+- FE4
+- PGO
+- 忠実性の小さな修正：`conditional.rs:664-665/679-680` が、`any` の判定の前に restrictive な instantiation を作る（tsgo は省く。
+  effect で型 3 つ）
+
+**記録**
+- 試作の一覧：[PROTOTYPES.md](PROTOTYPES.md)。merge しなかった branch は GitHub の `archive/2026-11/` の下にある。
+- gate・lane・計測窓の記録：`target/claude-tools/handover/perf-tsrs/`（local）と、その backup
+  `~/dev/tsc-rs-archive/2026-11-06/`（local）。
+- 下の計測台帳に、card ごとの予想と実測がある。
+
 ## 比べ方
 
 - **負荷**：local は 1 process が CPU 100% まで（`cargo -j 1`、conformance `--workers 1`、test は `--test-threads=1`、重い job は

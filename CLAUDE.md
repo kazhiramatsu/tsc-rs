@@ -5,9 +5,12 @@ A Rust port of the TypeScript compiler. The reference is TypeScript 7.1
 `scripts/typescript7.py` builds it when you need its exact behavior. The tsc
 6.0.3 line is frozen at tag `v0.1.0`, and `main` keeps no 6.0.3 behavior.
 
-Current work and its records: the
+Recent work and its records: the
 [tsrs comparison packet](docs/design/greenfield/slices/ts71-perf-tsrs/README.md)
-(2026-11-01: faster than oxc-project/tsrs with less peak memory); before it,
+(2026-11-01 to 11-06, ended by the owner's decision; the outcome is its first
+section, the prototypes are listed in
+[PROTOTYPES.md](docs/design/greenfield/slices/ts71-perf-tsrs/PROTOTYPES.md));
+before it,
 the [real-project differences packet](docs/design/greenfield/slices/ts71-real-projects/README.md)
 (the 2026-10-16 handover; LSP performance in
 [ts71-perf-lsp](docs/design/greenfield/slices/ts71-perf-lsp/README.md)).
