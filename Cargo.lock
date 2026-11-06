@@ -890,6 +890,7 @@ name = "tsc-rs-diagnostics"
 version = "0.1.0"
 dependencies = [
  "memchr",
+ "tsc-rs-store",
 ]
 
 [[package]]
@@ -1023,6 +1024,7 @@ name = "tsc-rs-store"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "libmimalloc-sys",
 ]
 
 [[package]]
