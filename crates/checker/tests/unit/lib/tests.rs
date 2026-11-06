@@ -11,10 +11,10 @@ fn checker_input_and_source_file_share_the_exact_snapshot_arc() {
     );
 
     assert!(Arc::ptr_eq(input.snapshot(), source.snapshot()));
-    assert!(Arc::ptr_eq(
-        &input.snapshot().shared_text(),
-        &source.snapshot().shared_text(),
-    ));
+    assert!(input
+        .snapshot()
+        .shared_text()
+        .ptr_eq(&source.snapshot().shared_text()));
     assert!(Arc::ptr_eq(
         &input.snapshot().shared_positions(),
         &source.snapshot().shared_positions(),

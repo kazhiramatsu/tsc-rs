@@ -126,10 +126,9 @@ fn snapshot_entry_preserves_text_and_position_owner_identity() {
     );
 
     assert!(Arc::ptr_eq(&snapshot, source.snapshot()));
-    assert!(Arc::ptr_eq(
-        &snapshot.shared_text(),
-        &source.snapshot().shared_text()
-    ));
+    assert!(snapshot
+        .shared_text()
+        .ptr_eq(&source.snapshot().shared_text()));
     assert!(Arc::ptr_eq(
         &snapshot.shared_positions(),
         &source.snapshot().shared_positions()

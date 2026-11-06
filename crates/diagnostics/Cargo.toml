@@ -14,3 +14,8 @@ path = "src/lib.rs"
 
 [dependencies]
 memchr = "2"
+
+# The store (and its text heap) is 64-bit and native only; on WASM a text is
+# a plain `Arc<str>` (src/shared_text_wasm.rs).
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+tsc-store.workspace = true
