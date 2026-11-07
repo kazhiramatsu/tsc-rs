@@ -117,7 +117,7 @@ jobs:
           cp dist/*-normal/BUILD.json binaries/normal/BUILD.json
           rm -rf target/pgo/normal
       - name: Instrumented CLI and in-process conformance runner
-        timeout-minutes: 80
+        timeout-minutes: 150
         run: python3 .github/ci/pgo.py build --kind instrumented
       - name: Serial training with no downloads or package installation
         timeout-minutes: 20
